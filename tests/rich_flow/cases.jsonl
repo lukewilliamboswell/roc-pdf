@@ -4,3 +4,9 @@
 {"name":"rich flow paragraph callout x100","schema_version":1,"case":{"Paragraphs":{"count":100}}}
 {"name":"rich flow nested callouts x3","schema_version":1,"case":{"Callouts":{"count":3}}}
 {"name":"rich flow nested callouts x30","schema_version":1,"case":{"Callouts":{"count":30}}}
+{"name":"rich flow atomic negatives","schema_version":1,"case":{"Negatives":{"context":0}}}
+{"name":"rich flow rebuilt callouts x10","schema_version":1,"case":{"Ownership":{"count":10,"shared":false}}}
+{"name":"rich flow rebuilt callouts x100","schema_version":1,"case":{"Ownership":{"count":100,"shared":false}}}
+{"name":"rich flow shared callouts x10","schema_version":1,"case":{"Ownership":{"count":10,"shared":true}}}
+{"name":"rich flow shared callouts x100","schema_version":1,"case":{"Ownership":{"count":100,"shared":true}}}
+{"name":"rich flow zero padding table","schema_version":1,"case":{"ZeroPadding":{"context":0}}}

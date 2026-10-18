@@ -206,6 +206,10 @@
     {
       "source": "tests/reference_layout/main.roc",
       "cases_jsonl": "tests/reference_layout/cases.jsonl"
+    },
+    {
+      "source": "tests/rich_flow/main.roc",
+      "cases_jsonl": "tests/rich_flow/cases.jsonl"
     }
   ],
   "cases": [
@@ -30894,6 +30898,1059 @@
       "validators": [
         "pdfa4",
         "structure_semantics"
+      ]
+    },
+    {
+      "name": "rich flow list items x10",
+      "scenario_revision": "rich-flow-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/list_items_x10.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 12,
+        "structure_elements": 512,
+        "rich_kind": 0,
+        "rich_count": 10
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 130134,
+          "allocated_bytes": 73369891,
+          "work": {
+            "authored_scale": 10,
+            "shaped_runs": 430,
+            "lines": 430,
+            "pages": 12,
+            "final_runs": 454,
+            "fragments": 450,
+            "scene_commands": 940,
+            "objects": 570,
+            "metric_reads": 9741,
+            "line_candidates": 4308,
+            "page_candidates": 479,
+            "outcomes_or_panels": 36,
+            "callout_contexts": 0,
+            "callout_ancestors": 0,
+            "callout_updates": 0,
+            "callout_fragments": 0,
+            "output_bytes": 33662
+          }
+        },
+        "x64musl": {
+          "allocations": 130134,
+          "allocated_bytes": 73369891,
+          "work": {
+            "authored_scale": 10,
+            "shaped_runs": 430,
+            "lines": 430,
+            "pages": 12,
+            "final_runs": 454,
+            "fragments": 450,
+            "scene_commands": 940,
+            "objects": 570,
+            "metric_reads": 9741,
+            "line_candidates": 4308,
+            "page_candidates": 479,
+            "outcomes_or_panels": 36,
+            "callout_contexts": 0,
+            "callout_ancestors": 0,
+            "callout_updates": 0,
+            "callout_fragments": 0,
+            "output_bytes": 33662
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "rich_flow"
+      ]
+    },
+    {
+      "name": "rich flow list items x100",
+      "scenario_revision": "rich-flow-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/list_items_x100.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 112,
+        "structure_elements": 5102,
+        "rich_kind": 0,
+        "rich_count": 100
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1252926,
+          "allocated_bytes": 743807483,
+          "work": {
+            "authored_scale": 100,
+            "shaped_runs": 4300,
+            "lines": 4300,
+            "pages": 112,
+            "final_runs": 4544,
+            "fragments": 4500,
+            "scene_commands": 9410,
+            "objects": 5490,
+            "metric_reads": 97492,
+            "line_candidates": 40669,
+            "page_candidates": 4799,
+            "outcomes_or_panels": 366,
+            "callout_contexts": 0,
+            "callout_ancestors": 0,
+            "callout_updates": 0,
+            "callout_fragments": 0,
+            "output_bytes": 213745
+          }
+        },
+        "x64musl": {
+          "allocations": 1252926,
+          "allocated_bytes": 743807483,
+          "work": {
+            "authored_scale": 100,
+            "shaped_runs": 4300,
+            "lines": 4300,
+            "pages": 112,
+            "final_runs": 4544,
+            "fragments": 4500,
+            "scene_commands": 9410,
+            "objects": 5490,
+            "metric_reads": 97492,
+            "line_candidates": 40669,
+            "page_candidates": 4799,
+            "outcomes_or_panels": 366,
+            "callout_contexts": 0,
+            "callout_ancestors": 0,
+            "callout_updates": 0,
+            "callout_fragments": 0,
+            "output_bytes": 213745
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "rich_flow"
+      ]
+    },
+    {
+      "name": "rich flow paragraph callout x10",
+      "scenario_revision": "rich-flow-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/paragraph_callout_x10.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "structure_elements": 24,
+        "rich_kind": 1,
+        "rich_count": 10
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 35068,
+          "allocated_bytes": 15160221,
+          "work": {
+            "authored_scale": 10,
+            "shaped_runs": 22,
+            "lines": 52,
+            "pages": 2,
+            "final_runs": 62,
+            "fragments": 62,
+            "scene_commands": 132,
+            "objects": 47,
+            "metric_reads": 3418,
+            "line_candidates": 3637,
+            "page_candidates": 51,
+            "outcomes_or_panels": 2,
+            "callout_contexts": 12,
+            "callout_ancestors": 1,
+            "callout_updates": 11,
+            "callout_fragments": 2,
+            "output_bytes": 14614
+          }
+        },
+        "x64musl": {
+          "allocations": 35068,
+          "allocated_bytes": 15160221,
+          "work": {
+            "authored_scale": 10,
+            "shaped_runs": 22,
+            "lines": 52,
+            "pages": 2,
+            "final_runs": 62,
+            "fragments": 62,
+            "scene_commands": 132,
+            "objects": 47,
+            "metric_reads": 3418,
+            "line_candidates": 3637,
+            "page_candidates": 51,
+            "outcomes_or_panels": 2,
+            "callout_contexts": 12,
+            "callout_ancestors": 1,
+            "callout_updates": 11,
+            "callout_fragments": 2,
+            "output_bytes": 14614
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "rich_flow"
+      ]
+    },
+    {
+      "name": "rich flow paragraph callout x100",
+      "scenario_revision": "rich-flow-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/paragraph_callout_x100.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 12,
+        "structure_elements": 204,
+        "rich_kind": 1,
+        "rich_count": 100
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 314682,
+          "allocated_bytes": 103939473,
+          "work": {
+            "authored_scale": 100,
+            "shaped_runs": 202,
+            "lines": 502,
+            "pages": 12,
+            "final_runs": 602,
+            "fragments": 602,
+            "scene_commands": 1252,
+            "objects": 257,
+            "metric_reads": 33929,
+            "line_candidates": 36037,
+            "page_candidates": 510,
+            "outcomes_or_panels": 12,
+            "callout_contexts": 102,
+            "callout_ancestors": 1,
+            "callout_updates": 106,
+            "callout_fragments": 12,
+            "output_bytes": 30981
+          }
+        },
+        "x64musl": {
+          "allocations": 314682,
+          "allocated_bytes": 103939473,
+          "work": {
+            "authored_scale": 100,
+            "shaped_runs": 202,
+            "lines": 502,
+            "pages": 12,
+            "final_runs": 602,
+            "fragments": 602,
+            "scene_commands": 1252,
+            "objects": 257,
+            "metric_reads": 33929,
+            "line_candidates": 36037,
+            "page_candidates": 510,
+            "outcomes_or_panels": 12,
+            "callout_contexts": 102,
+            "callout_ancestors": 1,
+            "callout_updates": 106,
+            "callout_fragments": 12,
+            "output_bytes": 30981
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "rich_flow"
+      ]
+    },
+    {
+      "name": "rich flow nested callouts x3",
+      "scenario_revision": "rich-flow-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/nested_callouts_x3.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 9,
+        "structure_elements": 322,
+        "rich_kind": 2,
+        "rich_count": 3
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 107123,
+          "allocated_bytes": 56007561,
+          "work": {
+            "authored_scale": 3,
+            "shaped_runs": 273,
+            "lines": 342,
+            "pages": 9,
+            "final_runs": 356,
+            "fragments": 348,
+            "scene_commands": 809,
+            "objects": 374,
+            "metric_reads": 7935,
+            "line_candidates": 1969,
+            "page_candidates": 336,
+            "outcomes_or_panels": 21,
+            "callout_contexts": 111,
+            "callout_ancestors": 18,
+            "callout_updates": 294,
+            "callout_fragments": 21,
+            "output_bytes": 27236
+          }
+        },
+        "x64musl": {
+          "allocations": 107123,
+          "allocated_bytes": 56007561,
+          "work": {
+            "authored_scale": 3,
+            "shaped_runs": 273,
+            "lines": 342,
+            "pages": 9,
+            "final_runs": 356,
+            "fragments": 348,
+            "scene_commands": 809,
+            "objects": 374,
+            "metric_reads": 7935,
+            "line_candidates": 1969,
+            "page_candidates": 336,
+            "outcomes_or_panels": 21,
+            "callout_contexts": 111,
+            "callout_ancestors": 18,
+            "callout_updates": 294,
+            "callout_fragments": 21,
+            "output_bytes": 27236
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "rich_flow"
+      ]
+    },
+    {
+      "name": "rich flow nested callouts x30",
+      "scenario_revision": "rich-flow-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/nested_callouts_x30.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 81,
+        "structure_elements": 3211,
+        "rich_kind": 2,
+        "rich_count": 30
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1013043,
+          "allocated_bytes": 521559571,
+          "work": {
+            "authored_scale": 30,
+            "shaped_runs": 2730,
+            "lines": 3420,
+            "pages": 81,
+            "final_runs": 3554,
+            "fragments": 3480,
+            "scene_commands": 8079,
+            "objects": 3531,
+            "metric_reads": 79350,
+            "line_candidates": 14119,
+            "page_candidates": 3373,
+            "outcomes_or_panels": 211,
+            "callout_contexts": 1110,
+            "callout_ancestors": 180,
+            "callout_updates": 2940,
+            "callout_fragments": 211,
+            "output_bytes": 149551
+          }
+        },
+        "x64musl": {
+          "allocations": 1013043,
+          "allocated_bytes": 521559571,
+          "work": {
+            "authored_scale": 30,
+            "shaped_runs": 2730,
+            "lines": 3420,
+            "pages": 81,
+            "final_runs": 3554,
+            "fragments": 3480,
+            "scene_commands": 8079,
+            "objects": 3531,
+            "metric_reads": 79350,
+            "line_candidates": 14119,
+            "page_candidates": 3373,
+            "outcomes_or_panels": 211,
+            "callout_contexts": 1110,
+            "callout_ancestors": 180,
+            "callout_updates": 2940,
+            "callout_fragments": 211,
+            "output_bytes": 149551
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "rich_flow"
+      ]
+    },
+    {
+      "name": "rich flow atomic negatives",
+      "scenario_revision": "rich-flow-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/atomic_negatives.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "structure_elements": 2
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 6487,
+          "allocated_bytes": 19182015,
+          "work": {
+            "authored_scale": 18,
+            "shaped_runs": 0,
+            "lines": 0,
+            "pages": 1,
+            "final_runs": 0,
+            "fragments": 0,
+            "scene_commands": 0,
+            "objects": 0,
+            "metric_reads": 0,
+            "line_candidates": 0,
+            "page_candidates": 0,
+            "outcomes_or_panels": 0,
+            "callout_contexts": 0,
+            "callout_ancestors": 0,
+            "callout_updates": 0,
+            "callout_fragments": 0,
+            "output_bytes": 10914
+          }
+        },
+        "x64musl": {
+          "allocations": 6487,
+          "allocated_bytes": 19182015,
+          "work": {
+            "authored_scale": 18,
+            "shaped_runs": 0,
+            "lines": 0,
+            "pages": 1,
+            "final_runs": 0,
+            "fragments": 0,
+            "scene_commands": 0,
+            "objects": 0,
+            "metric_reads": 0,
+            "line_candidates": 0,
+            "page_candidates": 0,
+            "outcomes_or_panels": 0,
+            "callout_contexts": 0,
+            "callout_ancestors": 0,
+            "callout_updates": 0,
+            "callout_fragments": 0,
+            "output_bytes": 10914
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "rich flow rebuilt callouts x10",
+      "scenario_revision": "rich-flow-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/rebuilt_callouts_x10.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "structure_elements": 31,
+        "rich_kind": 3,
+        "rich_count": 10
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 11041,
+          "allocated_bytes": 6903879,
+          "work": {
+            "authored_scale": 10,
+            "shaped_runs": 20,
+            "lines": 10,
+            "pages": 1,
+            "final_runs": 20,
+            "fragments": 20,
+            "scene_commands": 80,
+            "objects": 51,
+            "metric_reads": 74,
+            "line_candidates": 74,
+            "page_candidates": 9,
+            "outcomes_or_panels": 10,
+            "callout_contexts": 10,
+            "callout_ancestors": 10,
+            "callout_updates": 10,
+            "callout_fragments": 10,
+            "output_bytes": 11757
+          }
+        },
+        "x64musl": {
+          "allocations": 11041,
+          "allocated_bytes": 6903879,
+          "work": {
+            "authored_scale": 10,
+            "shaped_runs": 20,
+            "lines": 10,
+            "pages": 1,
+            "final_runs": 20,
+            "fragments": 20,
+            "scene_commands": 80,
+            "objects": 51,
+            "metric_reads": 74,
+            "line_candidates": 74,
+            "page_candidates": 9,
+            "outcomes_or_panels": 10,
+            "callout_contexts": 10,
+            "callout_ancestors": 10,
+            "callout_updates": 10,
+            "callout_fragments": 10,
+            "output_bytes": 11757
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "rich_flow"
+      ]
+    },
+    {
+      "name": "rich flow rebuilt callouts x100",
+      "scenario_revision": "rich-flow-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/rebuilt_callouts_x100.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 6,
+        "structure_elements": 301,
+        "rich_kind": 3,
+        "rich_count": 100
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 80229,
+          "allocated_bytes": 33204079,
+          "work": {
+            "authored_scale": 100,
+            "shaped_runs": 200,
+            "lines": 100,
+            "pages": 6,
+            "final_runs": 200,
+            "fragments": 200,
+            "scene_commands": 800,
+            "objects": 336,
+            "metric_reads": 74,
+            "line_candidates": 74,
+            "page_candidates": 99,
+            "outcomes_or_panels": 100,
+            "callout_contexts": 100,
+            "callout_ancestors": 100,
+            "callout_updates": 100,
+            "callout_fragments": 100,
+            "output_bytes": 19677
+          }
+        },
+        "x64musl": {
+          "allocations": 80229,
+          "allocated_bytes": 33204079,
+          "work": {
+            "authored_scale": 100,
+            "shaped_runs": 200,
+            "lines": 100,
+            "pages": 6,
+            "final_runs": 200,
+            "fragments": 200,
+            "scene_commands": 800,
+            "objects": 336,
+            "metric_reads": 74,
+            "line_candidates": 74,
+            "page_candidates": 99,
+            "outcomes_or_panels": 100,
+            "callout_contexts": 100,
+            "callout_ancestors": 100,
+            "callout_updates": 100,
+            "callout_fragments": 100,
+            "output_bytes": 19677
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "rich_flow"
+      ]
+    },
+    {
+      "name": "rich flow shared callouts x10",
+      "scenario_revision": "rich-flow-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/rebuilt_callouts_x10.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "structure_elements": 31,
+        "rich_kind": 3,
+        "rich_count": 10
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 11041,
+          "allocated_bytes": 6903879,
+          "work": {
+            "authored_scale": 10,
+            "shaped_runs": 20,
+            "lines": 10,
+            "pages": 1,
+            "final_runs": 20,
+            "fragments": 20,
+            "scene_commands": 80,
+            "objects": 51,
+            "metric_reads": 74,
+            "line_candidates": 74,
+            "page_candidates": 9,
+            "outcomes_or_panels": 10,
+            "callout_contexts": 10,
+            "callout_ancestors": 10,
+            "callout_updates": 10,
+            "callout_fragments": 10,
+            "output_bytes": 11757
+          }
+        },
+        "x64musl": {
+          "allocations": 11041,
+          "allocated_bytes": 6903879,
+          "work": {
+            "authored_scale": 10,
+            "shaped_runs": 20,
+            "lines": 10,
+            "pages": 1,
+            "final_runs": 20,
+            "fragments": 20,
+            "scene_commands": 80,
+            "objects": 51,
+            "metric_reads": 74,
+            "line_candidates": 74,
+            "page_candidates": 9,
+            "outcomes_or_panels": 10,
+            "callout_contexts": 10,
+            "callout_ancestors": 10,
+            "callout_updates": 10,
+            "callout_fragments": 10,
+            "output_bytes": 11757
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "rich_flow"
+      ]
+    },
+    {
+      "name": "rich flow shared callouts x100",
+      "scenario_revision": "rich-flow-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/rebuilt_callouts_x100.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 6,
+        "structure_elements": 301,
+        "rich_kind": 3,
+        "rich_count": 100
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 80229,
+          "allocated_bytes": 33204079,
+          "work": {
+            "authored_scale": 100,
+            "shaped_runs": 200,
+            "lines": 100,
+            "pages": 6,
+            "final_runs": 200,
+            "fragments": 200,
+            "scene_commands": 800,
+            "objects": 336,
+            "metric_reads": 74,
+            "line_candidates": 74,
+            "page_candidates": 99,
+            "outcomes_or_panels": 100,
+            "callout_contexts": 100,
+            "callout_ancestors": 100,
+            "callout_updates": 100,
+            "callout_fragments": 100,
+            "output_bytes": 19677
+          }
+        },
+        "x64musl": {
+          "allocations": 80229,
+          "allocated_bytes": 33204079,
+          "work": {
+            "authored_scale": 100,
+            "shaped_runs": 200,
+            "lines": 100,
+            "pages": 6,
+            "final_runs": 200,
+            "fragments": 200,
+            "scene_commands": 800,
+            "objects": 336,
+            "metric_reads": 74,
+            "line_candidates": 74,
+            "page_candidates": 99,
+            "outcomes_or_panels": 100,
+            "callout_contexts": 100,
+            "callout_ancestors": 100,
+            "callout_updates": 100,
+            "callout_fragments": 100,
+            "output_bytes": 19677
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "rich_flow"
+      ]
+    },
+    {
+      "name": "rich flow zero padding table",
+      "scenario_revision": "rich-flow-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/zero_padding_table.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 3,
+        "structure_elements": 250,
+        "rich_kind": 4,
+        "rich_count": 80
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 79855,
+          "allocated_bytes": 35056637,
+          "work": {
+            "authored_scale": 80,
+            "shaped_runs": 163,
+            "lines": 163,
+            "pages": 3,
+            "final_runs": 167,
+            "fragments": 163,
+            "scene_commands": 478,
+            "objects": 280,
+            "metric_reads": 584,
+            "line_candidates": 584,
+            "page_candidates": 81,
+            "outcomes_or_panels": 3,
+            "callout_contexts": 82,
+            "callout_ancestors": 3,
+            "callout_updates": 164,
+            "callout_fragments": 3,
+            "output_bytes": 20088
+          }
+        },
+        "x64musl": {
+          "allocations": 79855,
+          "allocated_bytes": 35056637,
+          "work": {
+            "authored_scale": 80,
+            "shaped_runs": 163,
+            "lines": 163,
+            "pages": 3,
+            "final_runs": 167,
+            "fragments": 163,
+            "scene_commands": 478,
+            "objects": 280,
+            "metric_reads": 584,
+            "line_candidates": 584,
+            "page_candidates": 81,
+            "outcomes_or_panels": 3,
+            "callout_contexts": 82,
+            "callout_ancestors": 3,
+            "callout_updates": 164,
+            "callout_fragments": 3,
+            "output_bytes": 20088
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "rich_flow"
       ]
     }
   ]
