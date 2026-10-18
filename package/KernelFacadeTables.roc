@@ -26,7 +26,11 @@ KernelFacadeTables :: [].{
 		## cell text's `source` segment) is wider than the width its columns
 		## receive.
 		UnbreakableToken({ available : U64, block : U64, token : Semantics.Range, width : U64 }),
+		UnbreakableItems({ available : U64, block : U64, items : Semantics.Range, width : U64 }),
 	]
+
+	WidthToken : [Scalars(Semantics.Range), Items(Semantics.Range)]
+	MeasuredWidth : { max_content : U64, min_content : U64, token : WidthToken }
 
 	## One cell's resolved geometry: its text box starts `x` from the flow
 	## edge and is `width` wide (its spanned columns less the cell padding
@@ -52,6 +56,16 @@ KernelFacadeTables :: [].{
 		build_framed : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), U64, List({ offset : U64, width : U64 }), Theme, KernelLineLayout.Limits -> Try(Plan, Error)
 		build_framed = |authoring, shape, sources, available, frames, theme, limits| build_plan(authoring, shape, sources, available, frames, theme, limits)
 
+		## Resolve the same column algorithm from source-free intrinsic
+		## widths. Item-token diagnostics retain their explicit domain.
+		build_measured : Document.NormalizedAuthoring, List(KernelFacadeSources.Source), List(MeasuredWidth), U64, List({ offset : U64, width : U64 }), Theme -> Try(Plan, Error)
+		build_measured = |authoring, sources, measures, available, frames, theme| {
+			if measures.len() != authoring.cells.len() {
+				return Err(InvalidCell({ block: 0 }))
+			}
+			resolve_geometry(authoring, sources, measures, available, frames, theme, measures.len(), 0)
+		}
+
 		cells : Plan -> List(CellGeometry)
 		cells = |plan| plan.cells
 
@@ -71,7 +85,7 @@ KernelFacadeTables :: [].{
 ## A cell's width facts: its widest line and widest unbreakable piece
 ## (with that piece's source-relative scalar range), over every explicit
 ## line-break segment of its text.
-CellMeasure : { max_content : U64, min_content : U64, token : Semantics.Range }
+CellMeasure : KernelFacadeTables.MeasuredWidth
 
 ## Measurements are cached per interned source: a source's physical split
 ## and size are fixed for the document, so identical cell texts measure once.
@@ -84,14 +98,10 @@ build_plan = |authoring, shape, sources, available, frames, theme, limits| {
 	requests = KernelFacadeShape.Plan.requests(shape)
 	store = KernelFacadeShape.Plan.shape(shape).store
 	simple_sources = sources.map(|source| { analysis: source.analysis, unicode: source.unicode })
-	padding = nonnegative(theme.table.cell_padding.raw())?
 	var $cache = List.repeat(Unmeasured, sources.len())
 	var $measures = List.with_capacity(authoring.cells.len())
-	var $cells = List.with_capacity(authoring.cells.len())
-	var $tables = List.with_capacity(authoring.tables.len())
 	var $cache_hits = 0
 	var $measurements = 0
-	var $row_visits = 0
 	var $ordinal = 0
 	while $ordinal < authoring.cells.len() {
 		record = list_at(authoring.cells, $ordinal)
@@ -103,7 +113,7 @@ build_plan = |authoring, shape, sources, available, frames, theme, limits| {
 			EmptySourceLine(_) => return Err(InvalidCell({ block: record.block }))
 			ContentlessCell => Semantics.Range.from_start_and_length(0, 0)
 		}
-		var $cell = { max_content: 0, min_content: 0, token: Semantics.Range.from_start_and_length(0, 0) }
+		var $cell = { max_content: 0, min_content: 0, token: Scalars(Semantics.Range.from_start_and_length(0, 0)) }
 		code = KernelFacadeShape.Plan.code_holds(shape, authoring, record.block, sources)
 		var $segment = physical.start()
 		end = physical.start() + physical.length()
@@ -146,6 +156,15 @@ build_plan = |authoring, shape, sources, available, frames, theme, limits| {
 		$ordinal = $ordinal + 1
 	}
 
+	resolve_geometry(authoring, sources, $measures, available, frames, theme, $measurements, $cache_hits)
+}
+
+resolve_geometry : Document.NormalizedAuthoring, List(KernelFacadeSources.Source), List(CellMeasure), U64, List({ offset : U64, width : U64 }), Theme, U64, U64 -> Try(KernelFacadeTables.Plan, KernelFacadeTables.Error)
+resolve_geometry = |authoring, sources, measures, available, frames, theme, measurements, cache_hits| {
+	padding = nonnegative(theme.table.cell_padding.raw())?
+	var $cells = List.with_capacity(authoring.cells.len())
+	var $tables = List.with_capacity(authoring.tables.len())
+	var $row_visits = 0
 	# Resolve each table's columns once, then every cell's text box.
 	var $cell_cursor = 0
 	var $group_index = 0
@@ -157,7 +176,7 @@ build_plan = |authoring, shape, sources, available, frames, theme, limits| {
 				frame = if frames.is_empty() { offset: 0, width: available } else list_at(frames, table_index.to_u64())
 				first_cell = $cell_cursor
 				cell_end = first_cell + count_cells(authoring, group)
-				columns = resolve_columns(authoring, table, group, $group_index, $measures, first_cell, cell_end, padding, frame.width)?
+				columns = resolve_columns(authoring, table, group, $group_index, measures, first_cell, cell_end, padding, frame.width)?
 				var $row = $group_index + 1
 				var $ordinal_cursor = first_cell
 				while $row < group.group_end {
@@ -169,18 +188,17 @@ build_plan = |authoring, shape, sources, available, frames, theme, limits| {
 						record = list_at(authoring.cells, $ordinal_cursor)
 						span = record.column_span.to_u64()
 						cell_width = sum_range(columns, $column, span)
-						contentless = match list_at(block_runs, $block) {
-							EmptySourceLine(_) => return Err(InvalidCell({ block: $block }))
-							ContentlessCell => True
-							TextBlock(_) => False
+						contentless = match list_at(authoring.blocks, $block).kind {
+							EmptyCell => True
+							_ => False
 						}
 						if cell_width <= 2 * padding and !contentless {
-							return Err(UnbreakableToken({ available: 0, block: $block, token: list_at($measures, $ordinal_cursor).token, width: list_at($measures, $ordinal_cursor).min_content }))
+							return Err(token_error(0, $block, list_at(measures, $ordinal_cursor)))
 						}
 						text_width = if cell_width <= 2 * padding 0 else cell_width - 2 * padding
-						measure = list_at($measures, $ordinal_cursor)
+						measure = list_at(measures, $ordinal_cursor)
 						if measure.min_content > text_width {
-							return Err(UnbreakableToken({ available: text_width, block: $block, token: measure.token, width: measure.min_content }))
+							return Err(token_error(text_width, $block, measure))
 						}
 						align = match record.align {
 							Aligned(value) => value
@@ -208,9 +226,9 @@ build_plan = |authoring, shape, sources, available, frames, theme, limits| {
 			sources,
 			tables: $tables,
 			work: {
-				cell_measurements: $measurements,
+				cell_measurements: measurements,
 				column_width_passes: $tables.len(),
-				measurement_cache_hits: $cache_hits,
+				measurement_cache_hits: cache_hits,
 				row_visits: $row_visits,
 			},
 		},
@@ -246,7 +264,7 @@ measure_segment = |sources, store, start, length, source, holds, limits| {
 	Ok({
 		max_content: nonnegative(measured.measure.max_content)?,
 		min_content: nonnegative(measured.measure.min_content)?,
-		token: Semantics.Range.from_start_and_length(token_start, token_end - token_start),
+		token: Scalars(Semantics.Range.from_start_and_length(token_start, token_end - token_start)),
 	})
 }
 
@@ -309,7 +327,7 @@ resolve_columns = |authoring, table, group, group_index, measures, first_cell, c
 		if minimum > limit {
 			widest = list_at($widest, $column)
 			measure = list_at(measures, widest)
-			return Err(UnbreakableToken({ available: if limit > 2 * padding limit - 2 * padding else 0, block: list_at(authoring.cells, widest).block, token: measure.token, width: measure.min_content }))
+			return Err(token_error(if limit > 2 * padding limit - 2 * padding else 0, list_at(authoring.cells, widest).block, measure))
 		}
 		match list_at(table.columns, $column).width {
 			Fixed(_) => {
@@ -501,4 +519,12 @@ list_set = |items, index, value| match items.set(index, value) {
 		crash "validated table geometry write escaped"
 	}
 	Ok(updated) => updated
+}
+
+## The token domain is carried from measurement, never guessed by a
+## diagnostic consumer from coincidentally similar numeric ranges.
+token_error : U64, U64, CellMeasure -> KernelFacadeTables.Error
+token_error = |available, block, measure| match measure.token {
+	Scalars(token) => UnbreakableToken({ available, block, token, width: measure.min_content })
+	Items(items) => UnbreakableItems({ available, block, items, width: measure.min_content })
 }

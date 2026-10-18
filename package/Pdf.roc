@@ -23,6 +23,7 @@ import KernelFacadeLines
 import KernelFacadeOutput
 import KernelFacadePages
 import KernelFacadeReport
+import KernelFacadeReferences
 import KernelFacadeScenes
 import KernelFacadeSemantics
 import KernelFacadeShape
@@ -331,6 +332,7 @@ Pdf :: [].{
 	## repaints its header rows, each page on which a split table row
 	## continues, and the page and measured height of each custom block.
 	ReportOutcome : [
+		PageReferenceResolved({ path : Str, destination : Str, page : U64, value : Str }),
 		PageScopeApplied({ page : U64, path : Str, part : [Opening, Continuation], running_label : Str }),
 		CalloutFragmentPlaced({ page : U64, part : [First, Last, Middle, Whole], path : Str, name : Str, rect : Layout.Rect }),
 		CustomBlockPlaced({ height : Layout.Unit, name : Str, page : U64, path : Str }),
@@ -1290,6 +1292,7 @@ ordered_pipeline_error = |error, policy, doc| match error {
 ## path still hands its single normalized value to the pipeline uniquely.
 pipeline_error : KernelFacadePipeline.Error, Document -> Pdf.Error
 pipeline_error = |error, doc| match error {
+	References(problem) => reference_error(doc, problem)
 	Fragments(Navigation(navigation)) => InvalidNavigation(navigation)
 	Output(Structure(Navigation(navigation))) => InvalidNavigation(navigation)
 	Semantics(ContainerDepthExceeded({ attempted, group, limit })) => InvalidDocument(
@@ -1335,6 +1338,7 @@ pipeline_error = |error, doc| match error {
 	Semantics(BlockLimitExceeded({ attempted, block, dimension, limit })) => located_error(doc, BudgetExceeded, "document.content_limit", "The document needs ${attempted.to_str()} ${dimension_name(dimension)} but the facade accepts at most ${limit.to_str()}.", if block < Document.normalize(doc).blocks.len() [member_path(doc, Document.normalize(doc), block)] else [])
 	Lines(Tables(TableWidth({ available, group, required }))) => group_error(doc, group, LayoutConstraintViolated, "layout.table_width", "A table's fixed column widths and column minimums need ${points_text(required)} but the table has ${points_text(available)}; content is never shrunk or clipped.")
 	Lines(Tables(UnbreakableToken({ available, block, token, width }))) => located_error(doc, LayoutConstraintViolated, "layout.unbreakable_token", "A table cell holds text with no break opportunity (scalars ${token.start().to_str()} to ${(token.start() + token.length()).to_str()}) that is ${points_text(width)} wide, but its column gives it at most ${points_text(available)}; there is no emergency breaking.", [leaf_path(doc, block)])
+	Lines(Tables(UnbreakableItems({ available, block, items, width }))) => located_error(doc, LayoutConstraintViolated, "layout.unbreakable_reference_items", "A table cell has an unbreakable measured item span ${items.start().to_str()} to ${(items.start() + items.length()).to_str()} of width ${points_text(width)}, but its columns provide ${points_text(available)}.", [leaf_path(doc, block)])
 	Pages(TableLayout({ error: LeadOverflow({ available, required }), groups: _, units: _ })) => lead_overflow_error(available, required)
 	Pages(TableLayout({ error: layout_error, groups: sources, units })) => table_layout_error(doc, layout_error, sources, units)
 	Pages(TableRuleWidth({ gap, rule, width })) => {
@@ -1400,7 +1404,7 @@ pipeline_error = |error, doc| match error {
 	Pages(PageLayout(LimitExceeded({ attempted, dimension: Pages, limit }))) => located_error(doc, BudgetExceeded, "document.content_limit", "The document needs ${attempted.to_str()} pages but the facade accepts at most ${limit.to_str()}.", [])
 	Pages(PageLayout(LeadOverflow({ available, required }))) => lead_overflow_error(available, required)
 	Semantics(PageReference({ block, inline, reason })) => inline_error(doc, block, AtInline(inline), InvalidRelationship, "document.page_reference", reason)
-	Semantics(FurnitureInline({ block, inline })) => inline_error(doc, block, AtInline(inline), FeatureUnavailable, "document.generated_reference", "Page fields and reserved widths are page furniture only: they may appear in a template region's furniture text, never in body content. Generated references in the body are scheduled for Gate 8.")
+	Semantics(FurnitureInline({ block, inline })) => inline_error(doc, block, AtInline(inline), FeatureUnavailable, "document.generated_reference", "Page-number, page-label, total-page and running-label fields belong in page furniture. Use page_reference for a fixed-width destination reference in body content.")
 	Furniture(ScopeInvalid({ group, reason })) => group_error(doc, group, InvalidRelationship, "layout.page_scope", reason)
 	Furniture(furniture) => furniture_error(furniture)
 	ReferenceCycle({ first_seen_pass, repeated_at_pass }) => located_error(doc, LayoutCycle, "layout.reference_cycle", "Reference stabilization repeated the state of pass ${first_seen_pass.to_str()} at pass ${repeated_at_pass.to_str()}; no attempted state is accepted.", [])
@@ -1630,6 +1634,35 @@ scalar_hex = |scalar| {
 		$place = $place // 16
 	}
 	Str.from_utf8($bytes) ?? ""
+}
+
+## Reference failures retain the authored inline identity. Generic layout,
+## shape and navigation failures already unwrap to their established mapper.
+reference_error : Document, KernelFacadeReferences.Error -> Pdf.Error
+reference_error = |doc, error| match error {
+	UnknownDestination({ reference }) => reference_diagnostic(doc, reference, InvalidRelationship, "navigation.reference_destination", "The page reference names no declared destination.")
+	MissingAnchor({ reference }) => reference_diagnostic(doc, reference, LayoutConstraintViolated, "layout.reference_anchor", "The page reference's destination has no committed physical placement.")
+	Format({ error: problem, reference }) => {
+		code = match problem {
+			LimitExceeded(_) | ArithmeticOverflow => BudgetExceeded
+			_ => LayoutConstraintViolated
+		}
+		reference_diagnostic(doc, reference, code, "layout.reference_label", "The destination page label cannot become visible reference text: ${Str.inspect(problem)}.")
+	}
+	FieldOverflow({ reference, required, width }) => reference_diagnostic(doc, reference, LayoutConstraintViolated, "layout.reference_field_overflow", "The exact destination page text needs ${points_text(required.raw().to_u64_wrap())} but its fixed field reserves ${points_text(width.raw().to_u64_wrap())}; values are never shortened or shrunk.")
+	Lines(Items({ block, error: problem })) => located_error(doc, LayoutConstraintViolated, "layout.reference_items", "The paragraph's measured literal/reference items cannot fit its parent frame: ${Str.inspect(problem)}.", [leaf_path(doc, block)])
+	Lines(SourceOverflow({ source, line, width, available })) => source_error(doc, source, LayoutConstraintViolated, "source.line_width", "Source line ${(line + 1).to_str()} needs ${points_text(width.raw().to_u64_wrap())} but its parent frame gives it ${points_text(available.raw().to_u64_wrap())}.")
+	ArithmeticOverflow | Lines(LimitExceeded) | Shape(LimitExceeded(_)) => located_error(doc, BudgetExceeded, "layout.reference_budget", "Reference preparation exceeded its explicit measurement or arithmetic budget.", [])
+	other => located_error(doc, LayoutConstraintViolated, "layout.reference_mapping", "Reference preparation could not produce a complete validated plan: ${Str.inspect(other)}.", [])
+}
+
+reference_diagnostic : Document, U64, Conformance.DiagnosticCode, Str, Str -> Pdf.Error
+reference_diagnostic = |doc, reference, code, feature, message| {
+	authoring = Document.normalize(doc)
+	match authoring.page_references.get(reference) {
+		Ok(record) => inline_error(doc, record.block, AtInline(record.inline), code, feature, message)
+		Err(_) => located_error(doc, code, feature, message, [])
+	}
 }
 
 lead_overflow_error : U64, U64 -> Pdf.Error
@@ -3535,13 +3568,13 @@ build_report : Document.NormalizedAuthoring, [Facts(KernelFacadeReport.Facts), N
 build_report = |normalized, collected, budget| {
 	facts = match collected {
 		Facts(value) => value
-		NoFacts => { blocks: [], coverage: [], layout: { scope_pages: [], callouts: [], panels: [], relaxations: [], repeats: [], scales: [], source_fragments: [], splits: [] }, pages: [1] }
+		NoFacts => { blocks: [], coverage: [], layout: { references: [], scope_pages: [], callouts: [], panels: [], relaxations: [], repeats: [], scales: [], source_fragments: [], splits: [] }, pages: [1] }
 	}
 	inline_counts = count_inline_entries(normalized)
 	link_blocks = count_link_blocks(normalized)
 	obligation_count = 2 + normalized.figures.len() + normalized.tables.len() + normalized.customs.len() + normalized.callouts.len() + link_blocks + inline_counts.links + inline_counts.languages + inline_counts.expansions
 	alternative_count = normalized.figures.len() + inline_counts.languages + inline_counts.expansions
-	outcome_count = facts.layout.scope_pages.len() + facts.layout.callouts.len() + facts.layout.relaxations.len() + normalized.figures.len() + facts.layout.repeats.len() + facts.layout.splits.len() + facts.layout.panels.len() + facts.layout.source_fragments.len()
+	outcome_count = facts.layout.references.len() + facts.layout.scope_pages.len() + facts.layout.callouts.len() + facts.layout.relaxations.len() + normalized.figures.len() + facts.layout.repeats.len() + facts.layout.splits.len() + facts.layout.panels.len() + facts.layout.source_fragments.len()
 	entries = facts.pages.len() + normalized.blocks.len() + alternative_count + outcome_count + facts.coverage.len() + obligation_count
 	if entries > budget.max_entries {
 		return Err(report_budget_error("entries", entries, budget.max_entries))
@@ -3664,6 +3697,10 @@ build_report = |normalized, collected, budget| {
 		}
 		$group = $group + 1
 	}
+	for resolved in facts.layout.references {
+		reference = normalized.page_references.get(resolved.reference) ?? crash "reference report identity escaped"
+		$outcomes = $outcomes.append(PageReferenceResolved({ path: inline_path(normalized, reference.block, AtInline(reference.inline)), destination: reference.spec.destination, page: resolved.physical_page, value: resolved.value }))
+	}
 	for context in facts.layout.scope_pages {
 		scope = normalized.page_scopes.get(context.scope) ?? crash "scope report identity escaped"
 		$outcomes = $outcomes.append(PageScopeApplied({ page: context.page + 1, path: group_path(normalized.groups, scope.group), part: if context.opening Opening else Continuation, running_label: scope.running_label }))
@@ -3739,6 +3776,7 @@ report_text_bytes = |report| {
 	}
 	for outcome in facts.outcomes {
 		$bytes = $bytes + match outcome {
+			PageReferenceResolved({ path, destination, page: _, value }) => path.count_utf8_bytes() + destination.count_utf8_bytes() + value.count_utf8_bytes()
 			PageScopeApplied({ page: _, path, part: _, running_label }) => path.count_utf8_bytes() + running_label.count_utf8_bytes()
 			CalloutFragmentPlaced({ page: _, part: _, path, name, rect: _ }) => path.count_utf8_bytes() + name.count_utf8_bytes()
 			CustomBlockPlaced({ height: _, name, page: _, path }) => path.count_utf8_bytes() + name.count_utf8_bytes()
@@ -4084,4 +4122,30 @@ expect match Pdf.to_bytes(page_label_test_document(LettersUpper, "", U64.highest
 expect match Pdf.to_bytes(Pdf.document({ contents: [Pdf.rich_paragraph([Pdf.page_label])], language: "en-AU", title: "Furniture-only page label" })) {
 	Err(InvalidDocument({ diagnostics: [{ feature: Feature("document.generated_reference"), .. }], .. })) => True
 	_ => False
+}
+
+# Fixed-width body references resolve from the same committed destination
+# pages used by navigation, and expose located preparation facts.
+expect {
+	doc = Pdf.document({ title: "Public destination references", language: "en", page_labels: [{ prefix: "P-", start_number: 1, start_page: 0, style: DecimalArabic }], contents: [Pdf.rich_paragraph([Pdf.text("Target page "), Pdf.page_reference({ destination: "target", width: 36, numbering: PageLabel })]), Pdf.page_break, Pdf.destination_heading("target", 1, "Target")] })
+	match Pdf.prepare_with_report(doc, Pdf.Options.default) {
+		Ok(value) => value.report.facts.outcomes.any(
+			|outcome| match outcome {
+				PageReferenceResolved({ page: 2, value: "P-2", destination: "target", path: "contents[0].inlines[1]" }) => True
+				_ => False
+			},
+		)
+		Err(_) => False
+	}
+}
+
+# Unknown targets and final glyphs wider than the declared field reject
+# atomically at the authored reference inline.
+expect {
+	make = |name, width| Pdf.document({ title: "Rejected references", language: "en", contents: [Pdf.rich_paragraph([Pdf.text("See "), Pdf.page_reference({ destination: name, width })]), Pdf.destination_heading("target", 1, "Target")] })
+	check = |doc, code| match Pdf.to_bytes(doc) {
+		Err(InvalidDocument(batch)) => batch.diagnostics.any(|diagnostic| diagnostic.feature == Feature(code) and diagnostic.details == ["contents[0].inlines[1]"])
+		_ => False
+	}
+	check(make("missing", 36), "navigation.reference_destination") and check(make("target", 1), "layout.reference_field_overflow")
 }
