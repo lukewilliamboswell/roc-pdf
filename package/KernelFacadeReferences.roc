@@ -72,6 +72,8 @@ KernelFacadeReferences :: [].{
 		mapping_glyph_visits : U64,
 		reference_fit_run_visits : U64,
 		positioned_pieces : U64,
+		separator_run_visits : U64,
+		separator_override_writes : U64,
 	}
 	View : {
 		semantics : KernelFacadeSemantics.Plan,
@@ -116,7 +118,9 @@ build_plan = |authoring, selection, theme, page_size, flow, limits| {
 	shape = KernelFacadeReferenceShape.Plan.final_shape(final_shape, authoring, spine.block_ownership, occurrences) ? Shape
 	mapping = map_literal_clusters(literal, final)?
 	positioned = position_items(authoring, spine.pending, measured_lines, literal, final, mapping.entries, paint.rows, committed.anchors)?
-	text = KernelFacadeText.Plan.build_positioned({ shape: final.store, styles: final.styles, lines: positioned.lines, origins: Origins(final.origins), pages, pieces: positioned.pieces }, paint.rules, paint.flow, limits.text) ? Text
+	positioned_text = KernelFacadeText.Plan.build_positioned({ shape: final.store, styles: final.styles, lines: positioned.lines, origins: Origins(final.origins), pages, pieces: positioned.pieces }, paint.rules, paint.flow, limits.text) ? Text
+	separated = KernelFacadeText.Plan.with_occurrence_separators(positioned_text, finalized.separators, occurrences, limits.text) ? Text
+	text = separated.plan
 	Ok(
 		KernelFacadeReferences.Plan.{
 			semantics,
@@ -148,6 +152,8 @@ build_plan = |authoring, selection, theme, page_size, flow, limits| {
 				mapping_glyph_visits: mapping.glyphs,
 				reference_fit_run_visits: positioned.fit_visits,
 				positioned_pieces: positioned.pieces.len(),
+				separator_run_visits: separated.work.run_visits,
+				separator_override_writes: separated.work.override_writes,
 			},
 		},
 	)
@@ -591,4 +597,23 @@ expect {
 	list_at(placements, 0).origin.x.raw() == left
 		and list_at(placements, 1).origin.x.raw() == left + 24000 + (24000 - advance) // 2
 			and list_at(placements, 2).origin.x.raw() == left + 48000 + 24000 - advance
+}
+
+# An authored break after a reference reaches the emitted-run handoff as
+# explicit owned replacement evidence, without changing exact label source.
+expect {
+	font = test_font({})?
+	authoring = test_document([Document.page_reference({ destination: "end", width: 24 }), Document.line_break, Document.page_reference({ destination: "end", width: 24 })], [])
+	plan = KernelFacadeReferences.Plan.build(authoring, Single(font), Theme.default, { width: 595, height: 842 }, NoFlowTemplate, test_limits)?
+	view = KernelFacadeReferences.Plan.view(plan)
+	runs = KernelFacadeText.Plan.text(view.text).runs
+	override = match list_at(runs, 0).actual_text {
+		SemanticOverrideSlice(boxed) => {
+			fact = Text.ActualTextSlice.value(boxed)
+			fact.property.index() == 0 and fact.utf8_bytes.start() == 0 and fact.utf8_bytes.length() == 2
+		}
+		_ => False
+	}
+	override and list_at(runs, 0).source.utf8_bytes.length() == 1 and list_at(runs, 1).actual_text == FromOccurrence
+		and view.work.separator_run_visits == runs.len() and view.work.separator_override_writes == 1
 }
