@@ -177,3 +177,8 @@ expect {
 	plan = KernelNavigation.LabelPlan.build([{ prefix: "front-", start_number: 1, start_page: 0, style: RomanLower }, { prefix: "", start_number: 1, start_page: 4, style: DecimalArabic }], 6, KernelNavigation.standard_limits)?
 	KernelPageLabels.format(plan, 5, 32) == Ok("2")
 }
+
+expect {
+	labels = KernelNavigation.LabelPlan.build([{ prefix: "", start_number: 1, start_page: 0, style: NoNumber }], 2, KernelNavigation.standard_limits)?
+	KernelPageLabels.format_allow_empty(labels, 1, 128) == Ok("") and KernelPageLabels.format(labels, 1, 128) == Err(EmptyLabel)
+}
