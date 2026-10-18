@@ -135,3 +135,12 @@ text/order, body geometry and visible ink; both readers retain the purple
 source foreground. MuPDF uses explicit glyph/ToUnicode extraction via
 `ignore-actualtext`, consistent with the established source-block reader
 lane; this is not a new claim about parent-ActualText reader behaviour.
+
+At integrated checkpoint `c3eb5a8`, all twelve cases were rebuilt and strictly
+replayed through `scripts/test.py`: recorded allocation counts, deterministic
+work and PDF snapshots remained exact. The paragraph/ownership cases retained
+their exact requested bytes too. Table/source paths requested at most 0.012%
+more bytes after integration, within their existing byte guards; no allocation
+or byte baseline was changed. The independent rich-flow self-test still
+rejected all seven mutation twins. Combined scope/reference/vector evidence
+is recorded in [technical manual](technical-manual.md).

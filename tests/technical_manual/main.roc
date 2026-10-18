@@ -1,5 +1,5 @@
 app [main!] {
-	diagram: "../../examples/vector-diagrams/package.roc",
+	diagram: "../../examples/vector-diagrams/all.roc",
 	pdf: "../../package/all.roc",
 	pf: platform "../platform/main.roc",
 }

@@ -57,7 +57,8 @@
     "source_foregrounds",
     "chapter_templates",
     "vector_diagrams",
-    "rich_flow"
+    "rich_flow",
+    "technical_manual"
   ],
   "post_update_checks": [
     "contracts",
@@ -74,7 +75,8 @@
     "source_foregrounds",
     "chapter_templates",
     "vector_diagrams",
-    "rich_flow"
+    "rich_flow",
+    "technical_manual"
   ],
   "validation": {
     "sources": [
@@ -208,6 +210,14 @@
     {
       "source": "tests/reference_layout/main.roc",
       "cases_jsonl": "tests/reference_layout/cases.jsonl"
+    },
+    {
+      "source": "tests/technical_manual/main.roc",
+      "cases_jsonl": "tests/technical_manual/cases.jsonl"
+    },
+    {
+      "source": "tests/rich_flow/main.roc",
+      "cases_jsonl": "tests/rich_flow/cases.jsonl"
     }
   ],
   "cases": [
@@ -31949,6 +31959,214 @@
         "structure_semantics",
         "rich_inline",
         "rich_flow"
+      ]
+    },
+    {
+      "name": "technical manual chapters x2",
+      "scenario_revision": "technical-manual-v1",
+      "source": "tests/technical_manual/main.roc",
+      "snapshot": "tests/technical_manual/manual_2.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 9,
+        "chapters": 2,
+        "structure_elements": 302
+      },
+      "work_counters": [
+        "authored_chapters",
+        "authored_table_rows",
+        "prepared_vector_commands",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "fragments",
+        "final_runs",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "scope_visits",
+        "template_region_visits",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 125904,
+          "allocated_bytes": 70509588,
+          "work": {
+            "authored_chapters": 2,
+            "authored_table_rows": 80,
+            "prepared_vector_commands": 36,
+            "shaped_runs": 245,
+            "lines": 305,
+            "pages": 9,
+            "fragments": 331,
+            "final_runs": 386,
+            "scene_commands": 1018,
+            "objects": 359,
+            "metric_reads": 17114,
+            "line_candidates": 9199,
+            "page_candidates": 256,
+            "callout_contexts": 109,
+            "callout_ancestors": 12,
+            "callout_updates": 274,
+            "callout_fragments": 14,
+            "scope_visits": 12,
+            "template_region_visits": 30,
+            "reference_passes": 1,
+            "field_resolutions": 33,
+            "furniture_items": 15,
+            "output_bytes": 31510
+          }
+        },
+        "x64musl": {
+          "allocations": 125904,
+          "allocated_bytes": 70509588,
+          "work": {
+            "authored_chapters": 2,
+            "authored_table_rows": 80,
+            "prepared_vector_commands": 36,
+            "shaped_runs": 245,
+            "lines": 305,
+            "pages": 9,
+            "fragments": 331,
+            "final_runs": 386,
+            "scene_commands": 1018,
+            "objects": 359,
+            "metric_reads": 17114,
+            "line_candidates": 9199,
+            "page_candidates": 256,
+            "callout_contexts": 109,
+            "callout_ancestors": 12,
+            "callout_updates": 274,
+            "callout_fragments": 14,
+            "scope_visits": 12,
+            "template_region_visits": 30,
+            "reference_passes": 1,
+            "field_resolutions": 33,
+            "furniture_items": 15,
+            "output_bytes": 31510
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "technical_manual"
+      ]
+    },
+    {
+      "name": "technical manual chapters x20",
+      "scenario_revision": "technical-manual-v1",
+      "source": "tests/technical_manual/main.roc",
+      "snapshot": "tests/technical_manual/manual_20.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 81,
+        "chapters": 20,
+        "structure_elements": 3002
+      },
+      "work_counters": [
+        "authored_chapters",
+        "authored_table_rows",
+        "prepared_vector_commands",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "fragments",
+        "final_runs",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "scope_visits",
+        "template_region_visits",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1181705,
+          "allocated_bytes": 670034999,
+          "work": {
+            "authored_chapters": 20,
+            "authored_table_rows": 800,
+            "prepared_vector_commands": 360,
+            "shaped_runs": 2441,
+            "lines": 3041,
+            "pages": 81,
+            "fragments": 3301,
+            "final_runs": 3824,
+            "scene_commands": 10108,
+            "objects": 3337,
+            "metric_reads": 171250,
+            "line_candidates": 92007,
+            "page_candidates": 2560,
+            "callout_contexts": 1081,
+            "callout_ancestors": 120,
+            "callout_updates": 2740,
+            "callout_fragments": 140,
+            "scope_visits": 120,
+            "template_region_visits": 282,
+            "reference_passes": 1,
+            "field_resolutions": 303,
+            "furniture_items": 141,
+            "output_bytes": 183074
+          }
+        },
+        "x64musl": {
+          "allocations": 1181705,
+          "allocated_bytes": 670034999,
+          "work": {
+            "authored_chapters": 20,
+            "authored_table_rows": 800,
+            "prepared_vector_commands": 360,
+            "shaped_runs": 2441,
+            "lines": 3041,
+            "pages": 81,
+            "fragments": 3301,
+            "final_runs": 3824,
+            "scene_commands": 10108,
+            "objects": 3337,
+            "metric_reads": 171250,
+            "line_candidates": 92007,
+            "page_candidates": 2560,
+            "callout_contexts": 1081,
+            "callout_ancestors": 120,
+            "callout_updates": 2740,
+            "callout_fragments": 140,
+            "scope_visits": 120,
+            "template_region_visits": 282,
+            "reference_passes": 1,
+            "field_resolutions": 303,
+            "furniture_items": 141,
+            "output_bytes": 183074
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "technical_manual"
       ]
     }
   ]

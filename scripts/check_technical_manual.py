@@ -90,7 +90,7 @@ def read_manual(pdf: bytes):
             require(identity is not None, 'manual marked content lacks its explicit MCID')
             key = (page, int(identity[1]))
             require(key not in marks and key[1] in shown, 'manual marked content identity is missing or repeated')
-            if sequence.role == b'Figure':
+            if MATRIX.search(block) and RECT.search(block):
                 rectangle = RECT.search(block)
                 matrix = MATRIX.search(block)
                 require(rectangle is not None and matrix is not None, 'manual vector lost its declared backdrop/placement')
@@ -177,6 +177,29 @@ def destinations(document: Document, pages: list[int], root: Node, nodes: dict[i
         require(page == pages[node.marks[0].page] and F(x.decode()) == 72 and F(y.decode()) == max(mark.bounds[3] for mark in node.marks), 'printed manual reference target differs from its actual heading placement')
         target = re.search(rb'/SD \[([0-9]+) 0 R', raw[name])
         require(target is not None and int(target[1]) == node.number, 'manual structured destination targets the wrong semantic owner')
+    # GoTo actions and named destinations must share both physical and
+    # structured targets, even when an annotation occurs before the name tree.
+    targets = {(pages[node.marks[0].page], F(72), max(mark.bounds[3] for mark in node.marks)): node.number for node in headings.values()}
+    direct = re.compile(rb'/D \[([0-9]+) 0 R /XYZ (' + NUMBER + rb') (' + NUMBER + rb') null\](?: /S /GoTo)? /SD \[([0-9]+) 0 R /XYZ (' + NUMBER + rb') (' + NUMBER + rb') null\]')
+    count = 0
+    for body in document.bodies.values():
+        for target in direct.finditer(body):
+            page, x, y, owner, sx, sy = target.groups()
+            key = (int(page), F(x.decode()), F(y.decode()))
+            require(key in targets and targets[key] == int(owner) and x == sx and y == sy, 'manual GoTo physical and structured destination disagree')
+            count += 1
+    require(count == 2 * len(nodes) + 1, 'manual link/name-tree destination occurrence set changed')
+    outline_root = int(catalog['Outlines'])
+    outline = document.get(outline_root)
+    require(outline['Count'] == len(nodes) + 1, 'manual outline count changed')
+    cursor = int(outline['First']); observed = []; seen = set()
+    while cursor:
+        require(cursor not in seen, 'manual outline cycle')
+        seen.add(cursor); entry = document.get(cursor)
+        require(int(entry['Parent']) == outline_root and 'First' not in entry, 'manual outline hierarchy changed')
+        observed.append((text_string(entry['Title']), text_string(entry['Dest'])))
+        cursor = int(entry.get('Next', 0))
+    require(observed == [('Contents', 'contents')] + [(f'Procedure {n}', f'chapter-{n}') for n in nodes], 'manual outline titles/targets changed')
     labels = document.get(int(catalog['PageLabels']))['Nums']
     require(len(labels) == 2 and labels[0] == 0 and labels[1].get('S') == 'D' and labels[1].get('St', 1) == 1 and text_string(labels[1]['P']) == 'M-', 'manual configured page labels changed')
 
