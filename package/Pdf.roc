@@ -818,6 +818,12 @@ Pdf :: [].{
 	page_number : NumberStyle -> Inline
 	page_number = |style| Document.page_number(style)
 
+	## The configured PDF page label (prefix and restarted numbering), or
+	## the physical decimal number when no page-label ranges were authored.
+	## This is page furniture only.
+	page_label : Inline
+	page_label = Document.page_label
+
 	## The physical page count in a number style (furniture only).
 	total_pages : NumberStyle -> Inline
 	total_pages = |style| Document.total_pages(style)
@@ -1598,6 +1604,8 @@ furniture_error = |error| {
 			located(LayoutConstraintViolated, "layout.template_body_space", "The template's regions (header ${points_text(header)}${lead_text}, footer ${points_text(footer)}, gap ${points_text(gap)}) leave ${remaining_text} of body flow, less than one body line of ${points_text(line)}.", [template])
 		}
 		BodyEmpty => located(LayoutConstraintViolated, "layout.template_body_empty", "A document with page templates needs at least one body block; a lead region alone does not start the body.", [])
+		PageLabels(problem) => InvalidNavigation(problem)
+		PageLabelText({ error: problem, page, path }) => located(LayoutConstraintViolated, "layout.page_label_text", "The configured label on page ${page.to_str()} cannot become a visible page field: ${Str.inspect(problem)}.", [path, "page_labels"])
 		RegionEmpty({ path }) => located(LayoutConstraintViolated, "layout.template_region_empty", "A template region must reserve a positive height and hold at least one furniture item; use no_region (or no_lead) for a page without that region.", [path])
 		RegionOverflow({ available, path, required }) => located(LayoutConstraintViolated, "layout.template_region_overflow", "Furniture needs ${points_text(required)} but its region or reserved width holds ${points_text(available)}; furniture is never wrapped, shrunk, or clipped.", [path])
 		SlotOverlap({ page, path, slots }) => located(LayoutConstraintViolated, "layout.template_region_overflow", "The ${slots} slots of a template region overlap on page ${page.to_str()}.", [path])
@@ -3959,4 +3967,43 @@ source_at : List(Document.NormalizedSource), U64 -> Document.NormalizedSource
 source_at = |items, index| match items.get(index) {
 	Ok(value) => value
 	Err(OutOfBounds) => crash "validated source identity escaped"
+}
+
+page_label_test_document : Document.PageLabelStyle, Str, U64, Layout.Unit -> Document
+page_label_test_document = |style, prefix, start_number, width| {
+	footer = Pdf.region({ height: 16, end: [Pdf.furniture_text([Pdf.reserved_width(width, End, [Pdf.page_label])])] })
+	Pdf.document({
+		contents: [Pdf.paragraph("Body")],
+		language: "en-AU",
+		title: "Visible page label rejection",
+		page_labels: [{ prefix, start_number, start_page: 0, style }],
+		page_templates: Templates({
+			first: Pdf.first_page_template({ footer: footer }),
+			continuation: Pdf.page_template({ footer: footer }),
+		}),
+	})
+}
+
+# An intentionally unnumbered empty PDF label produces no artifact text
+# source or glyph; its reserved furniture width is still checked.
+expect match Pdf.to_bytes(page_label_test_document(NoNumber, "", 1, 40)) {
+	Ok(bytes) => !bytes.is_empty()
+	Err(_) => False
+}
+
+expect match Pdf.to_bytes(page_label_test_document(LettersUpper, "A-", 27, 1)) {
+	Err(InvalidDocument({ diagnostics: [{ feature: Feature("layout.field_overflow"), .. }], .. })) => True
+	_ => False
+}
+
+# /St can be large even though its visible alphabetic expansion is huge.
+# The formatter rejects its byte budget before allocating that expansion.
+expect match Pdf.to_bytes(page_label_test_document(LettersUpper, "", U64.highest, 40)) {
+	Err(InvalidDocument({ diagnostics: [{ feature: Feature("layout.page_label_text"), .. }], .. })) => True
+	_ => False
+}
+
+expect match Pdf.to_bytes(Pdf.document({ contents: [Pdf.rich_paragraph([Pdf.page_label])], language: "en-AU", title: "Furniture-only page label" })) {
+	Err(InvalidDocument({ diagnostics: [{ feature: Feature("document.generated_reference"), .. }], .. })) => True
+	_ => False
 }

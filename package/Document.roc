@@ -211,6 +211,7 @@ DocumentInline :: [
 	## in a number style. Page fields are resolved after pagination and are
 	## page furniture only.
 	PageNumber(PageFieldStyle),
+	PageLabel,
 	Quote(List(DocumentInline)),
 
 	## Furniture inline content laid out in an exact reserved width, aligned
@@ -297,7 +298,7 @@ DocumentTemplates : [NoTemplates, Templates({ continuation : DocumentPageTemplat
 NormalizedFurnitureInline : [
 	BoxEnd,
 	BoxStart({ align : ReservedAlign, position : U64, width : Layout.Unit }),
-	Field({ field : [PageNumberField, TotalPagesField], inner : [Inner(U64), Outer], position : U64, style : PageFieldStyle }),
+	Field({ field : [PageLabelField, PageNumberField, TotalPagesField], inner : [Inner(U64), Outer], position : U64, style : PageFieldStyle }),
 	Text({ inner : [Inner(U64), Outer], position : U64, text : Str }),
 	Unsupported({ inner : [Inner(U64), Outer], position : U64 }),
 ]
@@ -618,6 +619,7 @@ PageLabelRange : { prefix : Str, start_number : U64, start_page : U64, style : P
 ## and non-link annotation types have no representation and therefore no
 ## runtime rejection here.
 NavigationError : [
+	NavigationPlanContextMismatch,
 	AnnotationCountMismatch({ navigation : U64, semantics : U64 }),
 	AnnotationLimitExceeded({ attempted : U64, limit : U64 }),
 	AnnotationPageOutOfRange({ annotation : U64, attempted : U64, pages : U64 }),
@@ -1128,6 +1130,11 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	page_number : NumberStyle -> DocumentInline
 	page_number = |style| DocumentInline.PageNumber(page_field_style(style))
 
+	## The configured PDF page label, including its prefix and restarted
+	## numbering; defaults to physical decimal numbering without ranges.
+	page_label : DocumentInline
+	page_label = DocumentInline.PageLabel
+
 	total_pages : NumberStyle -> DocumentInline
 	total_pages = |style| DocumentInline.TotalPages(page_field_style(style))
 
@@ -1418,6 +1425,7 @@ furniture_leaf : DocumentInline, U64, [Inner(U64), Outer] -> NormalizedFurniture
 furniture_leaf = |inline, position, inner| match inline {
 	Text(text) => Text({ inner, position, text })
 	PageNumber(style) => Field({ field: PageNumberField, inner, position, style })
+	PageLabel => Field({ field: PageLabelField, inner, position, style: DecimalField })
 	TotalPages(style) => Field({ field: TotalPagesField, inner, position, style })
 	_ => Unsupported({ inner, position })
 }
@@ -2440,7 +2448,7 @@ append_rich = |state, contents, parent, position| {
 
 				## Furniture-only inlines hold no text here; semantic
 				## planning rejects them with their inline path.
-				PageNumber(_) | ReservedWidth(_) | TotalPages(_) => {
+				PageLabel | PageNumber(_) | ReservedWidth(_) | TotalPages(_) => {
 					$inlines = $inlines.append(inline_element(top, slot, FurnitureOnly, 0, $elements, $leaves))
 					$elements = $elements + 1
 				}
