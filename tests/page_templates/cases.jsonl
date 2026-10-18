@@ -13,3 +13,7 @@
 {"name":"page templates slot inset","schema_version":1,"case":{"SlotInset":{"context":0}}}
 {"name":"page templates typography x3","schema_version":1,"case":{"Typography":{"pages":3}}}
 {"name":"page templates typography x30","schema_version":1,"case":{"Typography":{"pages":30}}}
+{"name":"chapter templates x2","schema_version":1,"case":{"Chapters":{"chapters":2,"mode":0}}}
+{"name":"chapter templates x20","schema_version":1,"case":{"Chapters":{"chapters":20,"mode":0}}}
+{"name":"chapter templates without document templates","schema_version":1,"case":{"Chapters":{"chapters":1,"mode":1}}}
+{"name":"chapter templates reset label","schema_version":1,"case":{"Chapters":{"chapters":1,"mode":2}}}

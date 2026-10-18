@@ -25,6 +25,9 @@ KernelFacadeReport :: [].{
 	## tables repaint header rows and split rows continue, and the page of
 	## each custom block.
 	LayoutFacts : {
+		scope_pages : List(KernelPageLayout.ScopePage),
+		callouts : List(KernelPageLayout.ContainerFragment),
+
 		## Accepted source-fragment geometry and visual-line spans, including
 		## contentless source blocks. These scalar records retain no source,
 		## font, scene, or discarded layout plan.
@@ -73,6 +76,8 @@ KernelFacadeReport :: [].{
 			$relaxations = $relaxations.append({ page: relaxation.page, rank: relaxation.rank, unit })
 		}
 		{
+			scope_pages: KernelPageLayout.Plan.scope_pages(KernelFacadePages.Plan.page(pages)),
+			callouts: KernelFacadePages.Plan.callout_fragments(pages),
 			panels: flow.panels.map(|panel| { custom: panel.custom, page: panel.page }),
 			source_fragments: KernelFacadePages.Plan.source_fragments(pages),
 			relaxations: $relaxations,

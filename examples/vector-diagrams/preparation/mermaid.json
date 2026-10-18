@@ -1,0 +1,24 @@
+{
+  "theme": "base",
+  "look": "classic",
+  "htmlLabels": false,
+  "deterministicIds": true,
+  "deterministicIDSeed": "roc-pdf-vector-example-v1",
+  "fontFamily": "VectorInter",
+  "fontSize": 16,
+  "flowchart": {
+    "htmlLabels": false,
+    "curve": "basis",
+    "padding": 16,
+    "diagramPadding": 16
+  },
+  "themeVariables": {
+    "fontFamily": "VectorInter",
+    "fontSize": "16px",
+    "primaryColor": "#E7EFF8",
+    "primaryTextColor": "#183454",
+    "primaryBorderColor": "#365C83",
+    "lineColor": "#365C83"
+  },
+  "themeCSS": ".edgeLabel rect { opacity: 1; } * { stroke-linecap: butt; stroke-linejoin: miter; stroke-miterlimit: 10; } .marker { overflow: visible; } .label { font-kerning: none; font-variant-ligatures: none; }"
+}

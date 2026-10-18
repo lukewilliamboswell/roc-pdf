@@ -168,6 +168,19 @@ Pdf :: [].{
 		size : Layout.Size,
 	}
 
+	## A measured flow callout: its paragraphs, lists, source, figures,
+	## tables and nested callouts keep their semantics in one Div across
+	## pages. Every accepted fragment repeats the rectangular panel and
+	## padding. Unsplittable moves the complete callout as a required unit.
+	Callout := {
+		contents : List(Document.Block),
+		name : Str,
+		padding : Layout.Unit ?? 8,
+		fragmentation : [Lines, Unsplittable] ?? Lines,
+		panel : Document.CalloutPanel ?? { fill: NoFill, border: Border({ color: Theme.black, width: 1 }) },
+	}
+	CalloutPanel : Document.CalloutPanel
+
 	## A paginated document: its semantic `contents`, its `language`, and
 	## its metadata `title` (all required), and its navigation and page
 	## furniture, each empty unless given: the `outline` over authored
@@ -315,6 +328,8 @@ Pdf :: [].{
 	## repaints its header rows, each page on which a split table row
 	## continues, and the page and measured height of each custom block.
 	ReportOutcome : [
+		PageScopeApplied({ page : U64, path : Str, part : [Opening, Continuation], running_label : Str }),
+		CalloutFragmentPlaced({ page : U64, part : [First, Last, Middle, Whole], path : Str, name : Str, rect : Layout.Rect }),
 		CustomBlockPlaced({ height : Layout.Unit, name : Str, page : U64, path : Str }),
 		FigureScale({ fit : [Exact, ScaleToFit], path : Str, scale : U64 }),
 		PreferenceRelaxed({ page : U64, path : Str, preference : [AuthorKeep, FooterCarry, HeadingKeep, Orphan, Widow] }),
@@ -465,7 +480,8 @@ Pdf :: [].{
 
 	## An unordered list (`L` with `ListNumbering /Disc`). Each item is an
 	## `LI` holding a generated bullet `Lbl` and an `LBody` of its blocks.
-	## Items hold paragraphs, rich paragraphs, and nested lists, and begin
+	## Items hold paragraphs, rich paragraphs, source blocks, figures, tables,
+	## and nested lists, and begin
 	## with a paragraph; lists nest at most four deep. Nested levels are
 	## indented by `Theme.bullet_indent` each.
 	bullet_list : List(ListItem) -> Document.Block
@@ -575,6 +591,9 @@ Pdf :: [].{
 		}
 		Document.custom_block({ contents, inset, name, panel, size })
 	}
+
+	callout : Callout -> Document.Block
+	callout = |Callout.{ contents, name, padding, fragmentation, panel }| Document.callout({ contents, name, padding, fragmentation, panel })
 
 	## Measure the height custom-block content needs at a content width,
 	## exactly as preparation lays it out: the same theme, faces, line
@@ -811,6 +830,14 @@ Pdf :: [].{
 	## bottom-left, y upward), whose extent is the item's size.
 	furniture_image : Scene.Drawing -> Furniture
 	furniture_image = |drawing| Document.furniture_image(drawing)
+
+	## Explicit page-aligned chapter/front-matter scope; labels are artifacts.
+	PageScopeProps : Document.PageScopeProps
+	page_scope : PageScopeProps, List(Document.Block) -> Document.Block
+	page_scope = |props, contents| Document.page_scope(props, contents)
+
+	running_label : Inline
+	running_label = Document.running_label
 
 	## The physical page number (1-based) in a number style. Page fields are
 	## page furniture only; in body content they report
@@ -1337,14 +1364,22 @@ pipeline_error = |error, doc| match error {
 		InvalidTabWidth => source_error(doc, source, InvalidRelationship, "source.tab_width", "A source tab stop must be greater than zero.")
 		LimitExceeded(_) => source_error(doc, source, BudgetExceeded, "source.budget", "Source preparation exceeded its explicit input, output, logical-line, or foreground-range budget.")
 	}
+	Semantics(CalloutStyle({ group })) => group_error(doc, group, LayoutConstraintViolated, "layout.callout_style", "A callout needs a name, nonnegative padding, and a positive border no wider than its padding, outside the lead region.")
+	Semantics(CalloutContent({ group })) => group_error(doc, group, InvalidRelationship, "semantics.callout_content", "A callout holds paragraphs, lists, source blocks, figures, tables, and nested callouts.")
+	Semantics(CalloutBlock({ block })) => located_error(doc, InvalidRelationship, "semantics.callout_content", "This block kind cannot appear in a callout.", [leaf_path(doc, block)])
+	Semantics(CalloutFlow({ group, position })) => {
+		normalized = Document.normalize(doc)
+		located_error(doc, InvalidRelationship, "semantics.callout_content", "Explicit breaks, spacers and free decorations cannot appear in a callout.", ["${group_path(normalized.groups, group)}.contents[${position.to_str()}]"])
+	}
+	Lines(CalloutWidth({ group })) => group_error(doc, group, LayoutConstraintViolated, "layout.callout_width", "The callout padding leaves no content width inside its enclosing flow frame.")
 	Semantics(EmptyKeep({ group })) => group_error(doc, group, LayoutConstraintViolated, "layout.keep_empty", "A keep contains no laid-out block.")
 	Semantics(EmptyScope({ group })) => group_error(doc, group, InvalidRelationship, "semantics.scope_empty", "A scoped group contains no block; its colors would apply to nothing.")
 	Semantics(EmptyList({ group })) => group_error(doc, group, InvalidRelationship, "semantics.list_empty", "A list has no items.")
 	Semantics(EmptyListItem({ group })) => group_error(doc, group, InvalidRelationship, "semantics.list_item_empty", "A list item has no blocks.")
 	Semantics(ListDepthExceeded({ attempted, group, limit })) => group_error(doc, group, BudgetExceeded, "semantics.list_depth", "A list is nested ${attempted.to_str()} levels deep; the facade accepts at most ${limit.to_str()} nested lists.")
 	Semantics(ListItemStart({ group })) => group_error(doc, group, InvalidRelationship, "semantics.list_item_content", "A list item must begin with a paragraph or rich paragraph, which its label paints beside.")
-	Semantics(ListItemGroup({ group })) => group_error(doc, group, InvalidRelationship, "semantics.list_item_content", "A list item holds only paragraphs, rich paragraphs, and nested lists.")
-	Semantics(ListItemBlock({ block })) => located_error(doc, InvalidRelationship, "semantics.list_item_content", "A list item holds only paragraphs, rich paragraphs, and nested lists.", [leaf_path(doc, block)])
+	Semantics(ListItemGroup({ group })) => group_error(doc, group, InvalidRelationship, "semantics.list_item_content", "A list item holds paragraphs, rich paragraphs, nested lists, source blocks, figures, tables, and callouts.")
+	Semantics(ListItemBlock({ block })) => located_error(doc, InvalidRelationship, "semantics.list_item_content", "A list item holds paragraphs, rich paragraphs, nested lists, source blocks, figures, tables, and callouts.", [leaf_path(doc, block)])
 	Semantics(ListItemBreak({ page_break })) => flow_item_error(doc, PageBreakItem(page_break), InvalidRelationship, "semantics.list_item_content", "A page break cannot appear inside a list item.")
 	Semantics(ListItemSpacer({ spacer })) => flow_item_error(doc, SpacerItem(spacer), InvalidRelationship, "semantics.list_item_content", "A spacer cannot appear inside a list item.")
 	Semantics(NegativeSpacer({ spacer })) => flow_item_error(doc, SpacerItem(spacer), LayoutConstraintViolated, "layout.spacer_negative", "A spacer has a negative height; spacing never overlaps content.")
@@ -1357,6 +1392,7 @@ pipeline_error = |error, doc| match error {
 	Pages(PageLayout(LimitExceeded({ attempted, dimension: Pages, limit }))) => located_error(doc, BudgetExceeded, "document.content_limit", "The document needs ${attempted.to_str()} pages but the facade accepts at most ${limit.to_str()}.", [])
 	Pages(PageLayout(LeadOverflow({ available, required }))) => lead_overflow_error(available, required)
 	Semantics(FurnitureInline({ block, inline })) => inline_error(doc, block, AtInline(inline), FeatureUnavailable, "document.generated_reference", "Page fields and reserved widths are page furniture only: they may appear in a template region's furniture text, never in body content. Generated references in the body are scheduled for Gate 8.")
+	Furniture(ScopeInvalid({ group, reason })) => group_error(doc, group, InvalidRelationship, "layout.page_scope", reason)
 	Furniture(furniture) => furniture_error(furniture)
 	ReferenceCycle({ first_seen_pass, repeated_at_pass }) => located_error(doc, LayoutCycle, "layout.reference_cycle", "Reference stabilization repeated the state of pass ${first_seen_pass.to_str()} at pass ${repeated_at_pass.to_str()}; no attempted state is accepted.", [])
 	ReferenceBudget({ passes }) => located_error(doc, BudgetExceeded, "layout.budget_exhausted", "Reference stabilization did not repeat a state within its budget of ${passes.to_str()} passes; no attempted state is accepted.", [])
@@ -1603,6 +1639,7 @@ furniture_error = |error| {
 			lead_text = if lead == 0 "" else ", lead region ${points_text(lead)}"
 			located(LayoutConstraintViolated, "layout.template_body_space", "The template's regions (header ${points_text(header)}${lead_text}, footer ${points_text(footer)}, gap ${points_text(gap)}) leave ${remaining_text} of body flow, less than one body line of ${points_text(line)}.", [template])
 		}
+		ScopeInvalid({ group, reason }) => located(InvalidRelationship, "layout.page_scope", reason, ["page_scopes[${group.to_str()}]"])
 		BodyEmpty => located(LayoutConstraintViolated, "layout.template_body_empty", "A document with page templates needs at least one body block; a lead region alone does not start the body.", [])
 		PageLabels(problem) => InvalidNavigation(problem)
 		PageLabelText({ error: problem, page, path }) => located(LayoutConstraintViolated, "layout.page_label_text", "The configured label on page ${page.to_str()} cannot become a visible page field: ${Str.inspect(problem)}.", [path, "page_labels"])
@@ -1615,6 +1652,7 @@ furniture_error = |error| {
 		DrawingInvalid({ path, reason }) => located(InvalidRelationship, "layout.furniture_drawing", "A furniture drawing is not a supported decorative drawing: ${reason}.", [path])
 		GapNegative({ path }) => located(LayoutConstraintViolated, "layout.spacer_negative", "A template gap is negative; spacing never overlaps content.", [path])
 		InsetNegative({ path }) => located(LayoutConstraintViolated, "layout.spacer_negative", "A template region's slot inset is negative; slot furniture never leaves its region.", [path])
+		FurnitureCluster({ path }) => located(FontCoverageMissing, "text.unsupported_cluster", "Furniture text contains a cluster the selected shaping subset cannot represent.", [path])
 		FurnitureText({ path, reason: Coverage }) => located(FontCoverageMissing, "text.coverage_missing", "No face of the ordered font policy covers every cluster of this furniture text; no face is substituted.", [path])
 		FurnitureText({ path, reason: Script(script) }) => located(FontCoverageMissing, "text.unsupported_script", "Furniture text uses the script ${if script.is_empty() "Unknown" else script}, which the convenience text path does not shape.", [path])
 		other => stage_error(Furniture(other))
@@ -1683,7 +1721,7 @@ table_layout_error = |doc, error, sources, units| {
 			GroupTooTall({ available, group, required }) => match sources.get(group) {
 				Ok(FooterRows({ first, last })) => located_error(doc, LayoutConstraintViolated, feature, "A table's footer rows stay together and need ${points_text(required)}, with the repeated header rows, but a page body holds ${points_text(available)}.", [group_path(normalized.groups, first), group_path(normalized.groups, last)])
 				Ok(AuthoredKeep(k)) => {
-					index = together_group(normalized.groups, k)
+					index = together_group(normalized, k)
 					record = group_record(normalized.groups, index + 1)
 					located_error(doc, LayoutConstraintViolated, feature, "A keep-together group needs ${points_text(required)} but a page body holds ${points_text(available)}.", [group_path(normalized.groups, index), member_path(doc, normalized, record.first_block), member_path(doc, normalized, record.block_end - 1)])
 				}
@@ -1691,7 +1729,7 @@ table_layout_error = |doc, error, sources, units| {
 			}
 			BreakInsideGroup({ block, group }) => {
 				group_paths = match sources.get(group) {
-					Ok(AuthoredKeep(k)) => [group_path(normalized.groups, together_group(normalized.groups, k))]
+					Ok(AuthoredKeep(k)) => [group_path(normalized.groups, together_group(normalized, k))]
 					Ok(FooterRows({ first, last: _ })) => [group_path(normalized.groups, first)]
 					Err(OutOfBounds) => []
 				}
@@ -1810,14 +1848,14 @@ keep_conflict_error = |doc, conflict| {
 	feature = "layout.keep_conflict"
 	match conflict {
 		GroupTooTall({ available, group, required }) => {
-			index = together_group(normalized.groups, group)
+			index = together_group(normalized, group)
 			record = match normalized.groups.get(index) {
 				Ok(value) => value
 				Err(OutOfBounds) => crash "normalized keep path escaped"
 			}
 			located_error(doc, LayoutConstraintViolated, feature, "A keep-together group needs ${points_text(required)} but a page body holds ${points_text(available)}.", [group_path(normalized.groups, index), leaf_path(doc, record.first_block), leaf_path(doc, record.block_end - 1)])
 		}
-		BreakInsideGroup({ block, group }) => located_error(doc, LayoutConstraintViolated, feature, "A page break falls inside a keep-together group.", [break_path(normalized, block), group_path(normalized.groups, together_group(normalized.groups, group))])
+		BreakInsideGroup({ block, group }) => located_error(doc, LayoutConstraintViolated, feature, "A page break falls inside a keep-together group.", [break_path(normalized, block), group_path(normalized.groups, together_group(normalized, group))])
 		BreakAfterRequiredKeep({ block, next }) => located_error(doc, LayoutConstraintViolated, feature, "A required keep-with-next is followed by a page break.", [required_keep_path(doc, normalized, block), break_path(normalized, next)])
 		ChainTooTall({ available, block, next, required }) => located_error(doc, LayoutConstraintViolated, feature, "A required keep-with-next and the block it keeps with need ${points_text(required)} but a page body holds ${points_text(available)}.", [required_keep_path(doc, normalized, block), leaf_path(doc, next)])
 		RequiredKeepAtEnd({ block }) => located_error(doc, LayoutConstraintViolated, feature, "A required keep-with-next has no following block.", [required_keep_path(doc, normalized, block)])
@@ -1847,18 +1885,28 @@ oversize_error = |doc, block, required, available| {
 }
 
 ## The `k`-th keep-together group in preorder, as a normalized group index.
-together_group : List(Document.NormalizedGroup), U64 -> U64
-together_group = |groups, k| {
+together_group : Document.NormalizedAuthoring, U64 -> U64
+together_group = |authoring, k| {
+	groups = authoring.groups
 	var $seen = 0
 	var $found = groups.len()
 	var $index = 0
 	for group in groups {
 		match group.kind {
-			KeepTogether | Custom(_) => {
-				if $seen == k and $found == groups.len() {
-					$found = $index
+			KeepTogether | Custom(_) | Callout(_) => {
+				splittable = match group.kind {
+					Callout(index) => match authoring.callouts.get(index.to_u64()) {
+						Ok(value) => value.fragmentation == Lines
+						Err(_) => False
+					}
+					_ => False
 				}
-				$seen = $seen + 1
+				if !splittable {
+					if $seen == k and $found == groups.len() {
+						$found = $index
+					}
+					$seen = $seen + 1
+				}
 			}
 			_ => {}
 		}
@@ -1874,6 +1922,14 @@ break_path = |normalized, block| {
 	for record in normalized.page_breaks {
 		if record.block == block and $path.is_empty() {
 			$path = child_path(normalized.groups, record.parent, record.position)
+		}
+	}
+	if $path.is_empty() {
+		for scope in normalized.page_scopes {
+			group = normalized.groups.get(scope.group) ?? crash "scope boundary identity escaped"
+			if group.first_block == block or group.block_end == block {
+				return group_path(normalized.groups, scope.group)
+			}
 		}
 	}
 	$path
@@ -3470,13 +3526,13 @@ build_report : Document.NormalizedAuthoring, [Facts(KernelFacadeReport.Facts), N
 build_report = |normalized, collected, budget| {
 	facts = match collected {
 		Facts(value) => value
-		NoFacts => { blocks: [], coverage: [], layout: { panels: [], relaxations: [], repeats: [], scales: [], source_fragments: [], splits: [] }, pages: [1] }
+		NoFacts => { blocks: [], coverage: [], layout: { scope_pages: [], callouts: [], panels: [], relaxations: [], repeats: [], scales: [], source_fragments: [], splits: [] }, pages: [1] }
 	}
 	inline_counts = count_inline_entries(normalized)
 	link_blocks = count_link_blocks(normalized)
 	obligation_count = 2 + normalized.figures.len() + normalized.tables.len() + normalized.customs.len() + link_blocks + inline_counts.links + inline_counts.languages + inline_counts.expansions
 	alternative_count = normalized.figures.len() + inline_counts.languages + inline_counts.expansions
-	outcome_count = facts.layout.relaxations.len() + normalized.figures.len() + facts.layout.repeats.len() + facts.layout.splits.len() + facts.layout.panels.len() + facts.layout.source_fragments.len()
+	outcome_count = facts.layout.scope_pages.len() + facts.layout.callouts.len() + facts.layout.relaxations.len() + normalized.figures.len() + facts.layout.repeats.len() + facts.layout.splits.len() + facts.layout.panels.len() + facts.layout.source_fragments.len()
 	entries = facts.pages.len() + normalized.blocks.len() + alternative_count + outcome_count + facts.coverage.len() + obligation_count
 	if entries > budget.max_entries {
 		return Err(report_budget_error("entries", entries, budget.max_entries))
@@ -3592,12 +3648,23 @@ build_report = |normalized, collected, budget| {
 			Table(_) => {
 				$obligations = $obligations.append({ obligation: TableHeadersMeaningful, path: group_path(normalized.groups, $group) })
 			}
-			Custom(_) => {
+			Custom(_) | Callout(_) => {
 				$obligations = $obligations.append({ obligation: ReadingOrderMeaningful, path: group_path(normalized.groups, $group) })
 			}
 			_ => {}
 		}
 		$group = $group + 1
+	}
+	for context in facts.layout.scope_pages {
+		scope = normalized.page_scopes.get(context.scope) ?? crash "scope report identity escaped"
+		$outcomes = $outcomes.append(PageScopeApplied({ page: context.page + 1, path: group_path(normalized.groups, scope.group), part: if context.opening Opening else Continuation, running_label: scope.running_label }))
+	}
+	for fragment in facts.layout.callouts {
+		callout_value = match normalized.callouts.get(fragment.container) {
+			Ok(value) => value
+			Err(_) => crash "validated callout report index"
+		}
+		$outcomes = $outcomes.append(CalloutFragmentPlaced({ page: fragment.page + 1, part: fragment.part, path: group_path(normalized.groups, callout_value.group), name: callout_value.name, rect: fragment.rect }))
 	}
 	for fragment in facts.layout.source_fragments {
 		$outcomes = $outcomes.append(SourceFragmentPlaced({ page: fragment.page + 1, part: fragment.part, path: group_path(normalized.groups, source_at(normalized.sources, fragment.source).group), rect: fragment.rect, visual_lines: { count: fragment.lines.length(), first: fragment.lines.start() + 1 } }))
@@ -3663,6 +3730,8 @@ report_text_bytes = |report| {
 	}
 	for outcome in facts.outcomes {
 		$bytes = $bytes + match outcome {
+			PageScopeApplied({ page: _, path, part: _, running_label }) => path.count_utf8_bytes() + running_label.count_utf8_bytes()
+			CalloutFragmentPlaced({ page: _, part: _, path, name, rect: _ }) => path.count_utf8_bytes() + name.count_utf8_bytes()
 			CustomBlockPlaced({ height: _, name, page: _, path }) => path.count_utf8_bytes() + name.count_utf8_bytes()
 			FigureScale({ fit: _, path, scale: _ }) => path.count_utf8_bytes()
 			PreferenceRelaxed({ page: _, path, preference: _ }) => path.count_utf8_bytes()

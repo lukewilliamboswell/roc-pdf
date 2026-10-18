@@ -1003,6 +1003,67 @@
       "id": "example-tax-invoice-source-sans3-regular-font", "path": "examples/tax-invoice/fonts/SourceSans3-Regular.ttf", "kind": "font", "bytes": 431196, "sha256": "4644c81b86ec9caaa76b634889968ed3c4f4f52f054855933acc7c2b21e53b0f", "license": "OFL-1.1", "attribution": "examples/tax-invoice/fonts/SourceSans3-OFL.md", "modification_permitted": true, "redistribution_permitted": true, "origin": { "kind": "external", "source_url": "https://github.com/adobe-fonts/source-sans/releases/download/3.052R/TTF-source-sans-3.052R.zip", "upstream_revision": "3.052R" }
     },
     {
+      "id": "example-vector-diagrams-inter-regular-font",
+      "path": "examples/vector-diagrams/fonts/Inter-Regular.ttf",
+      "kind": "font",
+      "license": "OFL-1.1",
+      "attribution": "examples/vector-diagrams/fonts/Inter-OFL.txt",
+      "origin": {
+        "kind": "external",
+        "source_url": "https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip",
+        "upstream_revision": "v4.1"
+      },
+      "bytes": 411640,
+      "sha256": "40d692fce188e4471e2b3cba937be967878f631ad3ebbbdcd587687c7ebe0c82",
+      "modification_permitted": true,
+      "redistribution_permitted": true
+    },
+    {
+      "id": "example-vector-diagrams-pdf",
+      "path": "examples/vector-diagrams/vector-diagrams.pdf",
+      "kind": "expected_pdf",
+      "license": "UPL-1.0 and OFL-1.1 font-derived content",
+      "attribution": "examples/vector-diagrams/README.md",
+      "origin": {
+        "kind": "generated",
+        "generator": "examples/vector-diagrams/main.roc"
+      },
+      "bytes": 12068,
+      "sha256": "dbd15cba879ce8f96cd5d890fe09e1edf0876dafad06c54704bf86fea5624b1f",
+      "modification_permitted": true,
+      "redistribution_permitted": true
+    },
+    {
+      "id": "example-vector-diagrams-preview",
+      "path": "examples/vector-diagrams/preview.png",
+      "kind": "image",
+      "license": "UPL-1.0 and OFL-1.1 font-derived content",
+      "attribution": "examples/vector-diagrams/README.md",
+      "origin": {
+        "kind": "generated",
+        "generator": "examples/vector-diagrams/main.roc"
+      },
+      "bytes": 17828,
+      "sha256": "f0e2124abf0b7dce4c31932809bc7fa3103d807c09e5503814ab8505c98769fa",
+      "modification_permitted": true,
+      "redistribution_permitted": true
+    },
+    {
+      "id": "example-vector-diagrams-source-reference",
+      "path": "examples/vector-diagrams/preparation/reference.png",
+      "kind": "image",
+      "license": "UPL-1.0 and OFL-1.1 font-derived content",
+      "attribution": "examples/vector-diagrams/README.md",
+      "origin": {
+        "kind": "generated",
+        "generator": "examples/vector-diagrams/preparation/prepare.mjs"
+      },
+      "bytes": 11151,
+      "sha256": "5abb847664993f869acc18e333d785ecfbbfe8c7f6f0fd4300e341720e1fabf0",
+      "modification_permitted": true,
+      "redistribution_permitted": true
+    },
+    {
       "id": "example-warranty-letter-literata-bold-font", "path": "examples/warranty-letter/fonts/Literata-Bold.ttf", "kind": "font", "bytes": 331304, "sha256": "b6af95b3b443cdbce964aa06741596987f2f5c3ede46a2bc846e5addd99d061f", "license": "OFL-1.1", "attribution": "examples/warranty-letter/fonts/Literata-OFL.txt", "modification_permitted": true, "redistribution_permitted": true, "origin": { "kind": "external", "source_url": "https://github.com/googlefonts/literata/releases/download/3.103/3.103.zip", "upstream_revision": "3.103" }
     },
     {
@@ -5176,6 +5237,51 @@
         "kind": "generated",
         "generator": "tests/unicode_vectors/main.roc"
       }
+    },
+    {
+      "id": "vector-diagrams-1-pdf-snapshot",
+      "path": "tests/vector_diagrams/diagrams_1.pdf",
+      "kind": "expected_pdf",
+      "license": "UPL-1.0 and OFL-1.1 embedded font",
+      "attribution": "examples/vector-diagrams/README.md",
+      "origin": {
+        "kind": "generated",
+        "generator": "tests/vector_diagrams/main.roc"
+      },
+      "bytes": 12068,
+      "sha256": "dbd15cba879ce8f96cd5d890fe09e1edf0876dafad06c54704bf86fea5624b1f",
+      "modification_permitted": true,
+      "redistribution_permitted": true
+    },
+    {
+      "id": "vector-diagrams-10-pdf-snapshot",
+      "path": "tests/vector_diagrams/diagrams_10.pdf",
+      "kind": "expected_pdf",
+      "license": "UPL-1.0 and OFL-1.1 embedded font",
+      "attribution": "examples/vector-diagrams/README.md",
+      "origin": {
+        "kind": "generated",
+        "generator": "tests/vector_diagrams/main.roc"
+      },
+      "bytes": 15140,
+      "sha256": "264a01d60a5e560936464a51e46317d8f2560d3f0b312a96625dd48520eef05c",
+      "modification_permitted": true,
+      "redistribution_permitted": true
+    },
+    {
+      "id": "vector-diagrams-50-pdf-snapshot",
+      "path": "tests/vector_diagrams/diagrams_50.pdf",
+      "kind": "expected_pdf",
+      "license": "UPL-1.0 and OFL-1.1 embedded font",
+      "attribution": "examples/vector-diagrams/README.md",
+      "origin": {
+        "kind": "generated",
+        "generator": "tests/vector_diagrams/main.roc"
+      },
+      "bytes": 29586,
+      "sha256": "ee792ab91aeab9e60d65a60de75c9992d79edc485bfbbf65fdfa68e0979d51fd",
+      "modification_permitted": true,
+      "redistribution_permitted": true
     },
     {
       "id": "verapdf-corpus-pdfa4-subset",

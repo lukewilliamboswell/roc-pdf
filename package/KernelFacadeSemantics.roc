@@ -11,6 +11,10 @@ import Semantics
 KernelFacadeSemantics :: [].{
 	Dimension : [ContentSpine, Nodes, Occurrences, Properties, SourceInputs]
 	Error : [
+		CalloutStyle({ group : U64 }),
+		CalloutContent({ group : U64 }),
+		CalloutBlock({ block : U64 }),
+		CalloutFlow({ group : U64, position : U64 }),
 		ArithmeticOverflow,
 		SourceWhitespace({ error : KernelSourceText.Error, source : U64 }),
 		SourceStyle({ source : U64 }),
@@ -328,9 +332,6 @@ plan_blocks = |authoring, limits| {
 			in_item = in_list_item(groups, group.parent)
 			match group.kind {
 				Source(source_index) => {
-					if in_item {
-						return Err(ListItemGroup({ group: $next_group }))
-					}
 					source = list_at(authoring.sources, source_index)
 					check_source(authoring, source_index)?
 					var $painted = 0
@@ -363,9 +364,12 @@ plan_blocks = |authoring, limits| {
 					$block_index = group.block_end
 					$next_group = group.group_end - 1
 				}
-				Container(_) | Custom(_) | LeadRegion | FigureGroup(_) => {
+				Container(_) | Custom(_) | Callout(_) | LeadRegion | FigureGroup(_) => {
 					if in_item {
-						return Err(ListItemGroup({ group: $next_group }))
+						match group.kind {
+							FigureGroup(_) | Callout(_) => {}
+							_ => return Err(ListItemGroup({ group: $next_group }))
+						}
 					}
 					if group.depth > limits.max_container_depth {
 						return Err(ContainerDepthExceeded({ attempted: group.depth, group: $next_group, limit: limits.max_container_depth }))
@@ -378,6 +382,9 @@ plan_blocks = |authoring, limits| {
 					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, group.parent) })
 					$next_node = attempted_nodes
 					$content_count = attempted_content
+				}
+				PageScope(_) => {
+					$group_nodes = $group_nodes.append(parent_node(group.parent, $group_nodes).index())
 				}
 				Scope(_) => {
 					if in_item {
@@ -423,10 +430,6 @@ plan_blocks = |authoring, limits| {
 					$list_count = checked_add($list_count, 1)?
 				}
 				Table(table_index) => {
-					if in_item {
-						return Err(ListItemGroup({ group: $next_group }))
-					}
-
 					## A table plans its whole subtree at once: its rows and
 					## cells are fixed-depth descendants, so the walk resumes
 					## after the table's last group and leaf.
@@ -529,7 +532,7 @@ plan_blocks = |authoring, limits| {
 			block = list_at(blocks, $block_index)
 			if in_list_item(groups, block.parent) {
 				match block.kind {
-					Paragraph | RichParagraph(_) => {}
+					Paragraph | RichParagraph(_) | Figure(_) => {}
 					_ => return Err(ListItemBlock({ block: $block_index }))
 				}
 			}
@@ -765,6 +768,7 @@ plan_blocks = |authoring, limits| {
 	}
 	check_layout_items(authoring)?
 	check_customs(authoring)?
+	check_callouts(authoring)?
 	check_decorations(authoring)?
 	Ok({ attribute_count: $attribute_count, cell_headers: $cell_headers, content_count: $content_count, destinations: $destinations, empty_cells: $empty_cells, group_nodes: $group_nodes, header_ranges: $header_ranges, inline_elements: $inline_elements, inline_leaves: $inline_leaves, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, relationship_count: $relationship_count, source_inputs: $sources, table_count: $table_count, top_nodes: $top_nodes })
 }
@@ -1024,7 +1028,7 @@ semantic_code = |groups, code| {
 	while $searching and $code != 0 {
 		group = list_at(groups, $code - 1)
 		match group.kind {
-			KeepTogether | KeepWithNext(_) | Scope(_) => {
+			KeepTogether | KeepWithNext(_) | PageScope(_) | Scope(_) => {
 				$code = group.parent
 			}
 			_ => {
@@ -1101,6 +1105,83 @@ check_figure = |figure, block| {
 		ExactFit => Ok({})
 		ScaleFit(floor) => if floor > 100 Err(FigureFitInvalid({ block: block })) else Ok({})
 	}
+}
+
+## A transparent layout wrapper does not change a callout's child grammar.
+callout_parent : List(Document.NormalizedGroup), U64 -> [InCallout(U64), OutsideCallout]
+callout_parent = |groups, code| {
+	var $code = code
+	while $code != 0 {
+		group = list_at(groups, $code - 1)
+		match group.kind {
+			Callout(_) => return InCallout($code - 1)
+			KeepTogether | KeepWithNext(_) | Scope(_) => {
+				$code = group.parent
+			}
+			_ => return OutsideCallout
+		}
+	}
+	OutsideCallout
+}
+
+check_callouts : Document.NormalizedAuthoring -> Try({}, KernelFacadeSemantics.Error)
+check_callouts = |authoring| {
+	if authoring.callouts.is_empty() {
+		return Ok({})
+	}
+	for callout_value in authoring.callouts {
+		padding = callout_value.padding.raw()
+		if padding < 0 or callout_value.name.is_empty() or in_lead_region(authoring.groups, list_at(authoring.groups, callout_value.group).parent) {
+			return Err(CalloutStyle({ group: callout_value.group }))
+		}
+		match callout_value.panel.border {
+			NoBorder => {}
+			Border(border) => if border.width <= 0 or border.width.raw() > padding {
+				return Err(CalloutStyle({ group: callout_value.group }))
+			}
+		}
+	}
+	var $group = 0
+	for group in authoring.groups {
+		match callout_parent(authoring.groups, group.parent) {
+			OutsideCallout => {}
+			InCallout(_) => match group.kind {
+				Callout(_) | ItemList(_) | Source(_) | Table(_) | FigureGroup(_) | KeepTogether | KeepWithNext(_) | Scope(_) => {}
+				_ => return Err(CalloutContent({ group: $group }))
+			}
+		}
+		$group = $group + 1
+	}
+	var $block = 0
+	for block in authoring.blocks {
+		match callout_parent(authoring.groups, block.parent) {
+			OutsideCallout => {}
+			InCallout(_) => match block.kind {
+				Paragraph | RichParagraph(_) | Figure(_) => {}
+				_ => return Err(CalloutBlock({ block: $block }))
+			}
+		}
+		$block = $block + 1
+	}
+	for item in authoring.spacers {
+		match callout_parent(authoring.groups, item.parent) {
+			InCallout(group) => return Err(CalloutFlow({ group, position: item.position }))
+			OutsideCallout => {}
+		}
+	}
+	for item in authoring.decorations {
+		match callout_parent(authoring.groups, item.parent) {
+			InCallout(group) => return Err(CalloutFlow({ group, position: item.position }))
+			OutsideCallout => {}
+		}
+	}
+	for item in authoring.page_breaks {
+		match callout_parent(authoring.groups, item.parent) {
+			InCallout(group) => return Err(CalloutFlow({ group, position: item.position }))
+			OutsideCallout => {}
+		}
+	}
+	Ok({})
 }
 
 ## A custom block (v1 of the seam) holds only paragraphs and rich
@@ -1549,7 +1630,7 @@ build_store = |authoring, planning, source_plan| {
 				}
 
 				## A custom block is a `Div` of its paragraphs.
-				Custom(_) => {
+				Custom(_) | Callout(_) => {
 					if children == 0 {
 						return Err(EmptyContainer({ group: $group }))
 					}
@@ -1573,7 +1654,7 @@ build_store = |authoring, planning, source_plan| {
 				FigureGroup(_) => {
 					$nodes = list_set($nodes, node_index, make_node(node_index, ParentNode(parent_node(group.parent, planning.group_nodes)), container_role(Section), span, Inherited))
 				}
-				KeepTogether | KeepWithNext(_) | Scope(_) => {}
+				KeepTogether | KeepWithNext(_) | PageScope(_) | Scope(_) => {}
 				ItemList(list_index) => {
 					attribute = $attributes.len()
 					$attributes = $attributes.append(list_numbering(list_at(authoring.lists, list_index.to_u64()).marker))
@@ -1644,10 +1725,10 @@ build_store = |authoring, planning, source_plan| {
 					$index = group.block_end
 					$next_group = group.group_end - 1
 				}
-				Container(_) | Custom(_) | ItemList(_) | LeadRegion | FigureGroup(_) => {
+				Container(_) | Custom(_) | Callout(_) | ItemList(_) | LeadRegion | FigureGroup(_) => {
 					$next_node = checked_add($next_node, 1)?
 				}
-				KeepTogether | KeepWithNext(_) | Scope(_) => {}
+				KeepTogether | KeepWithNext(_) | PageScope(_) | Scope(_) => {}
 				Table(table_index) => {
 					## The result is destructured in one pattern, so each
 					## accumulator moves out of it: projecting the fields of a
@@ -1892,7 +1973,7 @@ build_store = |authoring, planning, source_plan| {
 	}
 	while $next_group < groups.len() {
 		$next_node = match list_at(groups, $next_group).kind {
-			KeepTogether | KeepWithNext(_) | Scope(_) | Table(_) | TableRow(_) => $next_node
+			KeepTogether | KeepWithNext(_) | PageScope(_) | Scope(_) | Table(_) | TableRow(_) => $next_node
 			ListItem(_) => checked_add($next_node, 3)?
 			_ => checked_add($next_node, 1)?
 		}
@@ -2517,6 +2598,7 @@ test_authoring = {
 	],
 	cells: [],
 	customs: [],
+	callouts: [],
 	decorations: [],
 	figures: [],
 	groups: [],
@@ -2527,6 +2609,7 @@ test_authoring = {
 	metadata_title: "Report",
 	outline: [],
 	page_breaks: [],
+	page_scopes: [],
 	page_labels: [],
 	rich_paragraphs: [],
 	sources: [],

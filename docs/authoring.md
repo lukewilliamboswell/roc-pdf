@@ -137,7 +137,8 @@ Build lists from items that hold blocks. `Pdf.bullet_list` and
 `Pdf.numbered_list` become an `L` whose `ListNumbering` states its labels
 (`/Disc`, or the number style); each `Pdf.list_item` becomes an `LI` with a
 generated `Lbl` and an `LBody` of its blocks. Items hold paragraphs, rich
-paragraphs, and nested lists, and begin with a paragraph, whose first line the
+paragraphs, nested lists, source blocks, figures, tables, and callouts. They
+begin with a paragraph, whose first line the
 label paints beside. Every nesting level is indented by the theme's list
 indent (the theme's `bullet_indent`):
 
@@ -169,7 +170,11 @@ anything else, or not beginning with a paragraph), `semantics.list_depth`,
 numerals past 3999), and `layout.list_label_width` (a list label column,
 widened for a label wider than the list indent, that leaves its body no
 width). A wide label such as `100.` widens its whole list's label column
-instead of being rejected.
+instead of being rejected. Every child uses the actual list-body width,
+including widened label columns and all enclosing callout padding. An item
+may continue over pages with one logical `LI`/`LBody` and one painted label;
+source and table continuations preserve their existing policies and figures
+remain intact with their captions.
 
 Control the flow explicitly:
 
@@ -404,6 +409,39 @@ bytes = Pdf.to_bytes_with(document, { profile: Standard })?
 until PDF/UA-2 closes. The package does not read, repair, sign, encrypt,
 outline, or rasterize PDFs.
 
+## Chapter-aware page scopes
+
+`Pdf.page_scope(props, contents)` declares an explicit full-body-page scope.
+The `running_label` property is `Label("Short chapter title")` or `Reset`
+(the default). Header/footer furniture reads it through `Pdf.running_label`;
+use `Pdf.reserved_width` to reserve and check a slot. A reset resolves to no
+painted text, including when it is the only field, without inheriting the
+preceding chapter's label.
+
+`page_templates` defaults to `Inherit`. Select
+`Templates({ opening: Pdf.page_template(...), continuation: Pdf.page_template(...) })`
+for a quiet opener and a different continuation header. These templates may
+reserve different heights: every frame is fixed before pagination and its
+furniture must fit without wrapping, shrinking or clipping.
+
+The wrapper starts a fresh body page when body content precedes it, and the
+following body content starts fresh too. Adjacent boundaries coalesce without
+blank pages. Its first page is the first committed page of its contents; an
+opening frame too small for the first required placement is an error, never an
+empty opener. A scope at the start of the body may share physical page zero
+with the document's existing first-page lead; its opening header/footer/gap
+compose with that semantic lead before flow. Leaving the scope restores the
+document continuation template and resets the running label.
+
+Scopes do not add semantic headings or duplicate them in the structure tree.
+Author ordinary headings, destinations, sections and outlines explicitly.
+Scopes cannot nest or occur inside lists, callouts, table cells, figures or a
+lead region. Required keeps crossing a scope boundary fail. Every repeated
+label is a pagination artifact. Page and total-page fields still describe the
+whole document. `prepare_with_report` adds a `PageScopeApplied` outcome for
+each accepted scoped page, with its authored path, label, and
+`Opening | Continuation` placement.
+
 ## Preformatted source blocks
 
 `Pdf.source_block` owns preformatted source layout with a required registered
@@ -598,6 +636,47 @@ validated at their authored path (`document.figure_drawing`,
 `layout.decoration_drawing`). Fixed pages remain forward API: they report
 `layout.custom` and emit no bytes or chunks.
 
+`Pdf.callout` lays out a bounded flow container automatically:
+
+```roc
+note = Pdf.callout({
+    name: "Deployment warning",
+    contents: [
+        Pdf.rich_paragraph([Pdf.strong([Pdf.text("Warning. ")]), Pdf.text("Review the following steps.")]),
+        Pdf.numbered_list({}, [Pdf.list_item([Pdf.paragraph("Check the service before deployment.")])]),
+    ],
+    padding: 8,
+    panel: { fill: Fill("#f5f7fa"), border: Border({ color: "#596779", width: 1 }) },
+})
+```
+
+Its width is its enclosing flow frame and its height comes from actual
+paragraph/child layout. `fragmentation: Lines` (the default) permits
+continuation at the existing child boundaries; `Unsplittable` requires the
+whole callout on one page. Every fragment repeats the full rectangular
+panel and padding, including at continuation edges. The default panel has
+no fill and a 1 pt black border; default padding is 8 pt. A border must be
+positive and no wider than the padding. To omit it, use
+`panel: { fill: NoFill, border: NoBorder }`.
+
+Callouts hold paragraphs, rich paragraphs, lists, source blocks, figures,
+ordinary tables, and nested callouts, including callouts in list items.
+The existing four-list-level limit applies across callouts. Callouts share
+the 16-level semantic-container limit with ordinary sections/divisions.
+Table cells keep their existing inline-only contract. Free decorations,
+spacers, explicit page breaks, headings, arbitrary semantic containers and
+measured custom blocks are outside this callout child subset. Existing keep
+and style-scope wrappers may group supported children inside a callout.
+
+One semantic `Div` owns the authored children once across all fragments;
+panels and repeated table headers are artifacts. Child source padding and
+table decoration footprints participate in candidate fit, and repeated
+headers appear below all reopened ancestor padding. Impossible padding,
+width, children or required keeps return located diagnostics without
+clipping, shrinking, empty continuation panels or partial output.
+`CalloutFragmentPlaced` report outcomes expose the accepted rectangle,
+page, authored path/name, and `Whole`, `First`, `Middle` or `Last` part.
+
 An extension can contribute a block through `Pdf.custom_block` without any
 PDF object or operator: it supplies ordinary paragraphs, its own
 measurement of the block (`size` and a content `inset`), and a panel of
@@ -630,7 +709,7 @@ extension that measures itself from the theme's public metrics.
 bounded, read-only `Pdf.Report`: pages, leaf blocks in reading order with
 their pages, alternatives and nested languages, layout outcomes (relaxed
 preferences, figure scales, repeated table headers, continued rows, placed
-custom blocks), text coverage, and, separately, the human-review
+custom blocks and callout fragments), text coverage, and, separately, the human-review
 obligations. Every entry names the authored path diagnostics use. The
 prepared bytes are identical to `Pdf.prepare`'s, and a report over its
 budget is `report.budget_exceeded` rather than a shorter report.
@@ -643,6 +722,7 @@ budget is `report.budget_exceeded` rather than a shorter report.
 | figures of typed JPEG/packed raster images and solid vector paths, grouped and multi-command, with captions and `ScaleToFit` | executable |
 | in-flow decorations (`Pdf.decoration`) | executable |
 | extension blocks (`Pdf.custom_block`, unsplittable) | executable |
+| measured flow callouts (`Pdf.callout`, bounded rich nested continuation) | executable |
 | preparation report (`Pdf.prepare_with_report`) | executable |
 | clip, opacity, and soft-mask groups and non-solid paint in flow drawings | not yet offered |
 | parts, sections, and divisions (`Pdf.part`, `Pdf.section`, `Pdf.division`) | executable |

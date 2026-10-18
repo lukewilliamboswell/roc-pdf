@@ -80,6 +80,12 @@ KernelFacadePipeline :: [].{
 	## work facts; feature evidence need not replay those stages to inspect
 	## their actual traversal cost.
 	Work : {
+		scope_visits : U64,
+		template_region_visits : U64,
+		callout_contexts : U64,
+		callout_ancestors : U64,
+		callout_updates : U64,
+		callout_fragments : U64,
 		blocks : U64,
 		field_resolutions : U64,
 		final_runs : U64,
@@ -334,12 +340,18 @@ build_ordered_pipeline = |authoring, multi, theme, page_size, descriptor, facts,
 				objects: KernelFacadeOutput.Plan.work(output).objects,
 				occurrences: KernelFacadeSemantics.Plan.work(semantics).occurrence_writes,
 				pages: page_store.len(),
+				scope_visits: laid_work.scope_visits,
+				template_region_visits: laid_work.template_region_visits,
 				reference_passes: laid_work.reference_passes,
 				scene_commands: KernelFacadeScenes.Plan.work(scenes).command_writes,
 				shaped_runs: shape_store.runs.len(),
 				shape_metric_reads: KernelFacadeShape.Plan.shape(shape).work.metric_reads,
 				line_candidate_visits: KernelLineLayout.BatchPlan.work(KernelFacadeLines.Plan.line(lines)).candidate_visits,
 				page_candidate_visits: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).candidate_visits,
+				callout_contexts: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_contexts,
+				callout_ancestors: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_ancestors,
+				callout_updates: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_updates,
+				callout_fragments: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_fragments,
 				source_foreground_ranges: authoring.source_foregrounds.len(),
 				source_paint_clusters: KernelFacadeText.Plan.paint_work(text).clusters,
 				source_paint_ranges: KernelFacadeText.Plan.paint_work(text).ranges,
@@ -391,12 +403,18 @@ probe_early = |authoring, font, theme, page_size, limits, stage| {
 		objects: 0,
 		occurrences: KernelFacadeSemantics.Plan.work(semantics).occurrence_writes,
 		pages: 0,
+		scope_visits: 0,
+		template_region_visits: 0,
 		reference_passes: 0,
 		scene_commands: 0,
 		shaped_runs: 0,
 		shape_metric_reads: 0,
 		line_candidate_visits: 0,
 		page_candidate_visits: 0,
+		callout_contexts: 0,
+		callout_ancestors: 0,
+		callout_updates: 0,
+		callout_fragments: 0,
 		source_foreground_ranges: authoring.source_foregrounds.len(),
 		source_paint_clusters: 0,
 		source_paint_ranges: 0,
@@ -424,14 +442,17 @@ probe_early = |authoring, font, theme, page_size, limits, stage| {
 	if stage == LinesReady {
 		return Ok(line_work)
 	}
-	pages = match authoring.templates {
-		NoTemplates => KernelFacadePages.Plan.build(authoring, shape, lines, page_size, theme, limits.pages) ? Pages
-		Templates(_) => {
-			static = KernelFacadeFurniture.Static.build(authoring, theme, page_size) ? Furniture
-			KernelFacadePages.Plan.build_with_template(authoring, shape, lines, page_size, theme, KernelFacadeFurniture.Static.flow(static), limits.pages) ? Pages
-		}
+	plain = match authoring.templates {
+		NoTemplates => authoring.page_scopes.is_empty()
+		Templates(_) => False
 	}
-	Ok({ ..line_work, pages: KernelPageLayout.Plan.pages(KernelFacadePages.Plan.page(pages)).len(), page_candidate_visits: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).candidate_visits })
+	pages = if plain {
+		KernelFacadePages.Plan.build(authoring, shape, lines, page_size, theme, limits.pages) ? Pages
+	} else {
+		static = KernelFacadeFurniture.Static.build(authoring, theme, page_size) ? Furniture
+		KernelFacadePages.Plan.build_with_scopes(authoring, shape, lines, page_size, theme, KernelFacadeFurniture.Static.flow(static), KernelFacadeFurniture.Static.scope_flows(static), limits.pages) ? Pages
+	}
+	Ok({ ..line_work, pages: KernelPageLayout.Plan.pages(KernelFacadePages.Plan.page(pages)).len(), page_candidate_visits: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).candidate_visits, callout_contexts: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_contexts, callout_ancestors: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_ancestors, callout_updates: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_updates, callout_fragments: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_fragments })
 }
 
 probe_ordered_plan : Document.NormalizedAuthoring, { policy : Font.PolicyId, registry : Font.Registry }, Theme, Layout.Size, KernelFacadePipeline.Limits -> Try(KernelFacadePipeline.Work, KernelFacadePipeline.Error)
@@ -468,12 +489,18 @@ probe_ordered_plan = |authoring, ordered, theme, page_size, limits| {
 		objects: 0,
 		occurrences: KernelFacadeSemantics.Plan.work(semantics).occurrence_writes,
 		pages: page_count_value,
+		scope_visits: laid_work.scope_visits,
+		template_region_visits: laid_work.template_region_visits,
 		reference_passes: laid_work.reference_passes,
 		scene_commands: 0,
 		shaped_runs,
 		shape_metric_reads: KernelFacadeShape.Plan.shape(shape).work.metric_reads,
 		line_candidate_visits: KernelLineLayout.BatchPlan.work(KernelFacadeLines.Plan.line(lines)).candidate_visits,
 		page_candidate_visits: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).candidate_visits,
+		callout_contexts: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_contexts,
+		callout_ancestors: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_ancestors,
+		callout_updates: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_updates,
+		callout_fragments: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_fragments,
 		source_foreground_ranges: authoring.source_foregrounds.len(),
 		source_paint_clusters: KernelFacadeText.Plan.paint_work(text).clusters,
 		source_paint_ranges: KernelFacadeText.Plan.paint_work(text).ranges,
@@ -529,12 +556,18 @@ build_upstream = |authoring, font, theme, page_size, descriptor, request, limits
 			objects: 0,
 			occurrences: KernelFacadeSemantics.Plan.work(semantics).occurrence_writes,
 			pages: page_store.len(),
+			scope_visits: laid_work.scope_visits,
+			template_region_visits: laid_work.template_region_visits,
 			reference_passes: laid_work.reference_passes,
 			scene_commands: 0,
 			shaped_runs: shape_store.runs.len(),
 			shape_metric_reads: KernelFacadeShape.Plan.shape(shape).work.metric_reads,
 			line_candidate_visits: KernelLineLayout.BatchPlan.work(KernelFacadeLines.Plan.line(lines)).candidate_visits,
 			page_candidate_visits: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).candidate_visits,
+			callout_contexts: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_contexts,
+			callout_ancestors: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_ancestors,
+			callout_updates: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_updates,
+			callout_fragments: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_fragments,
 			source_foreground_ranges: authoring.source_foregrounds.len(),
 			source_paint_clusters: KernelFacadeText.Plan.paint_work(text).clusters,
 			source_paint_ranges: KernelFacadeText.Plan.paint_work(text).ranges,
@@ -542,7 +575,7 @@ build_upstream = |authoring, font, theme, page_size, descriptor, request, limits
 	})
 }
 
-LaidOut : { pages : KernelFacadePages.Plan, text : KernelFacadeText.Plan, work : { field_resolutions : U64, furniture_items : U64, reference_passes : U64 } }
+LaidOut : { pages : KernelFacadePages.Plan, text : KernelFacadeText.Plan, work : { scope_visits : U64, template_region_visits : U64, field_resolutions : U64, furniture_items : U64, reference_passes : U64 } }
 
 ## Pagination and text materialization. A document without page templates
 ## has no layout-dependent reference and paginates once. A document with
@@ -554,13 +587,17 @@ LaidOut : { pages : KernelFacadePages.Plan, text : KernelFacadeText.Plan, work :
 ## repeats pass 1's state and stabilization ends after exactly two passes;
 ## the fixed budget of four passes and the cycle check still govern it.
 lay_out : Document.NormalizedAuthoring, KernelFacadeShape.Plan, KernelFacadeLines.Plan, Layout.Size, Theme, [PolicyFaces(KernelFacadeFurniture.PolicyFonts), SingleFace(KernelFont.Inspection), StyledFace({ font : KernelFont.Inspection, instance : U64, extra : Bool })], U64, KernelFacadePipeline.Limits -> Try(LaidOut, KernelFacadePipeline.Error)
-lay_out = |authoring, shape, lines, page_size, theme, selection, source_base, limits| match authoring.templates {
-	NoTemplates => {
+lay_out = |authoring, shape, lines, page_size, theme, selection, source_base, limits| {
+	without_templates = match authoring.templates {
+		NoTemplates => True
+		Templates(_) => False
+	}
+	if without_templates and authoring.page_scopes.is_empty() {
 		pages = KernelFacadePages.Plan.build(authoring, shape, lines, page_size, theme, limits.pages) ? Pages
 		text = KernelFacadeText.Plan.build(shape, lines, pages, limits.text) ? Text
-		Ok({ pages, text, work: { field_resolutions: 0, furniture_items: 0, reference_passes: 0 } })
+		return Ok({ pages, text, work: { scope_visits: 0, template_region_visits: 0, field_resolutions: 0, furniture_items: 0, reference_passes: 0 } })
 	}
-	Templates(_) => {
+	{
 		static = KernelFacadeFurniture.Static.build(authoring, theme, page_size) ? Furniture
 		language = Language(authoring.language)
 		furniture_limits = KernelFacadeFurniture.Limits.make({ max_inputs: 1000000, max_items: 4096, max_pieces: 1000000, shape: furniture_shape_limits, sources: furniture_source_limits })
@@ -569,11 +606,11 @@ lay_out = |authoring, shape, lines, page_size, theme, selection, source_base, li
 			reference_pass_budget,
 			|state, candidate, _pass| match candidate {
 				NoCandidate => {
-					pages = KernelFacadePages.Plan.build_with_template(authoring, shape, lines, page_size, theme, KernelFacadeFurniture.Static.flow(static), limits.pages) ? Pages
+					pages = KernelFacadePages.Plan.build_with_scopes(authoring, shape, lines, page_size, theme, KernelFacadeFurniture.Static.flow(static), KernelFacadeFurniture.Static.scope_flows(static), limits.pages) ? Pages
 					Ok({ candidate: Paginated(pages), state: { pages: page_count(pages), values: [] } })
 				}
 				Candidate(Paginated(pages)) | Candidate(Resolved({ furniture: _, pages })) => {
-					furniture = KernelFacadeFurniture.Plan.resolve(static, state.pages, selection, language, source_base, furniture_limits) ? Furniture
+					furniture = KernelFacadeFurniture.Plan.resolve_scoped(static, state.pages, KernelPageLayout.Plan.scope_pages(KernelFacadePages.Plan.page(pages)), selection, language, source_base, furniture_limits) ? Furniture
 					Ok({ candidate: Resolved({ furniture, pages }), state: { pages: page_count(pages), values: [] } })
 				}
 			},
@@ -589,7 +626,7 @@ lay_out = |authoring, shape, lines, page_size, theme, selection, source_base, li
 		body = KernelFacadeText.Plan.build(shape, lines, resolved.pages, limits.text) ? Text
 		text = KernelFacadeText.Plan.with_furniture(body, resolved.furniture, limits.text) ? Text
 		furniture_work = KernelFacadeFurniture.Plan.work(resolved.furniture)
-		Ok({ pages: resolved.pages, text, work: { field_resolutions: furniture_work.field_resolutions, furniture_items: furniture_work.items_shaped, reference_passes: resolved.passes } })
+		Ok({ pages: resolved.pages, text, work: { scope_visits: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(resolved.pages)).scope_visits, template_region_visits: furniture_work.template_region_visits, field_resolutions: furniture_work.field_resolutions, furniture_items: furniture_work.items_shaped, reference_passes: resolved.passes } })
 	}
 }
 
