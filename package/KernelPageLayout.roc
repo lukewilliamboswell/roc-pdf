@@ -140,6 +140,10 @@ KernelPageLayout :: [].{
 	## per page, so it grows linearly with the document.
 	Work : {
 		scope_visits : U64,
+		container_contexts : U64,
+		container_ancestors : U64,
+		container_updates : U64,
+		container_fragments : U64,
 		block_visits : U64,
 		candidate_visits : U64,
 		fragment_writes : U64,
@@ -148,9 +152,11 @@ KernelPageLayout :: [].{
 		page_writes : U64,
 		placement_writes : U64,
 	}
+	Container : { paint : [Paint(U64), NoPaint], blocks : Semantics.Range, padding : Layout.Unit, offset : Layout.Unit, width : Layout.Unit }
+	ContainerFragment : { container : U64, page : U64, rect : Layout.Rect, part : [Whole, First, Middle, Last] }
 	ScopePage : { scope : U64, page : U64, opening : Bool }
 
-	Plan :: { page_frames : List(Frame), scope_pages : List(ScopePage), bands : List(Band), fragments : List(Fragment), pages : List(Page), placements : List(PlacedLine), relaxations : List(Relaxation), work : Work }.{
+	Plan :: { container_fragments : List(ContainerFragment), lead_bands : List(Band), page_frames : List(Frame), scope_pages : List(ScopePage), bands : List(Band), fragments : List(Fragment), pages : List(Page), placements : List(PlacedLine), relaxations : List(Relaxation), work : Work }.{
 		page_frames : Plan -> List(Frame)
 		page_frames = |plan| plan.page_frames
 
@@ -158,21 +164,33 @@ KernelPageLayout :: [].{
 		scope_pages = |plan| plan.scope_pages
 
 		build : List(Block), List(KernelLineLayout.Line), Constraints, Limits -> Try(Plan, Error)
-		build = |blocks, lines, constraints, limits| build_plan(blocks, [], lines, constraints, NoTemplate, [], limits)
+		build = |blocks, lines, constraints, limits| build_plan(blocks, [], lines, constraints, NoTemplate, [], [], limits)
 
 		## Pagination with required keep-together groups.
 		build_with_groups : List(Block), List(KeepGroup), List(KernelLineLayout.Line), Constraints, Limits -> Try(Plan, Error)
-		build_with_groups = |blocks, groups, lines, constraints, limits| build_plan(blocks, groups, lines, constraints, NoTemplate, [], limits)
+		build_with_groups = |blocks, groups, lines, constraints, limits| build_plan(blocks, groups, lines, constraints, NoTemplate, [], [], limits)
 
 		## Pagination under page templates: the first page flows in the
 		## first frame and every later page in the continuation frame, after
 		## the lead region (when present) receives its blocks on the first
 		## page. Every fit check uses its page's own flow height.
 		build_with_template : List(Block), List(KeepGroup), List(KernelLineLayout.Line), Constraints, Template, Limits -> Try(Plan, Error)
-		build_with_template = |blocks, groups, lines, constraints, template, limits| build_plan(blocks, groups, lines, constraints, WithTemplate(template), [], limits)
+		build_with_template = |blocks, groups, lines, constraints, template, limits| build_plan(blocks, groups, lines, constraints, WithTemplate(template), [], [], limits)
 
 		build_with_scopes : List(Block), List(KeepGroup), List(KernelLineLayout.Line), Constraints, Template, List(ScopedFrame), Limits -> Try(Plan, Error)
-		build_with_scopes = |blocks, groups, lines, constraints, template, scopes, limits| build_plan(blocks, groups, lines, constraints, WithTemplate(template), scopes, limits)
+		build_with_scopes = |blocks, groups, lines, constraints, template, scopes, limits| build_plan(blocks, groups, lines, constraints, WithTemplate(template), scopes, [], limits)
+
+		## Container spans remain declarative facts; text, source and row
+		## cursors resume in the existing flat unit store.
+		build_with_containers : List(Block), List(KeepGroup), List(KernelLineLayout.Line), Constraints, [NoTemplate, WithTemplate(Template)], List(Container), Limits -> Try(Plan, Error)
+		build_with_containers = |blocks, groups, lines, constraints, template, containers, limits| build_plan(blocks, groups, lines, constraints, template, [], containers, limits)
+
+		build_with_contexts : List(Block), List(KeepGroup), List(KernelLineLayout.Line), Constraints, [NoTemplate, WithTemplate(Template)], List(ScopedFrame), List(Container), Limits -> Try(Plan, Error)
+		build_with_contexts = |blocks, groups, lines, constraints, template, scopes, containers, limits| build_plan(blocks, groups, lines, constraints, template, scopes, containers, limits)
+		container_fragments : Plan -> List(ContainerFragment)
+		container_fragments = |plan| plan.container_fragments
+		lead_bands : Plan -> List(Band)
+		lead_bands = |plan| plan.lead_bands
 
 		fragments : Plan -> List(Fragment)
 		fragments = |plan| plan.fragments
@@ -213,6 +231,204 @@ Validation := { atomic_ends : List(U64), heights : List(U64), line_visits : U64 
 ## `line` lines into `block` (line zero is the boundary before the block).
 Scan := { candidates : U64, end : [AllFits, Break({ block : U64, line : U64 })] }
 
+## Per-unit ancestry and boundary charges are computed once in preorder.
+## At most sixteen callout ancestors exist; continuation retains scalar IDs.
+ContainerContext : { active : U64, padding : U64, prefix : U64, transition : U64 }
+
+ContainerFacts : { ancestors : List(U64), ancestor_ranges : List(Semantics.Range), contexts : List(ContainerContext), parents : List(U64), sums : List(U64) }
+
+plan_containers : List(KernelPageLayout.Container), U64 -> Try(ContainerFacts, KernelPageLayout.Error)
+plan_containers = |containers, count| {
+	if containers.is_empty() {
+		return Ok({ ancestors: [], ancestor_ranges: [], contexts: [], parents: [], sums: [] })
+	}
+	var $parents = List.with_capacity(containers.len())
+	var $sums = List.with_capacity(containers.len())
+	var $ancestors = []
+	var $ranges = List.with_capacity(containers.len())
+	var $active = U64.highest
+	var $next_paint = 0
+	var $previous_start = 0
+	var $index = 0
+	while $index < containers.len() {
+		container = list_at(containers, $index)
+		end = range_end(container.blocks)?
+		if container.blocks.start() < $previous_start {
+			return Err(InvalidGroup({ group: $index }))
+		}
+		$previous_start = container.blocks.start()
+		match container.paint {
+			NoPaint => {}
+			Paint(identity) => {
+				if identity != $next_paint {
+					return Err(InvalidGroup({ group: $index }))
+				}
+				$next_paint = $next_paint + 1
+			}
+		}
+		if container.blocks.length() == 0 or end > count {
+			return Err(InvalidGroup({ group: $index }))
+		}
+		while $active != U64.highest and range_end(list_at(containers, $active).blocks)? <= container.blocks.start() {
+			$active = list_at($parents, $active)
+		}
+		if $active != U64.highest and end > range_end(list_at(containers, $active).blocks)? {
+			return Err(InvalidGroup({ group: $index }))
+		}
+		depth = if $active == U64.highest 1 else list_at($ranges, $active).length() + 1
+		if depth > 17 {
+			return Err(InvalidGroup({ group: $index }))
+		}
+		padding = nonnegative_raw(container.padding)?
+		previous_sum = if $active == U64.highest 0 else list_at($sums, $active)
+		$parents = $parents.append($active)
+		$sums = $sums.append(checked_add(previous_sum, padding)?)
+		start = $ancestors.len()
+		if $active != U64.highest {
+			range = list_at($ranges, $active)
+			var $ancestor = range.start()
+			while $ancestor < range.start() + range.length() {
+				$ancestors = $ancestors.append(list_at($ancestors, $ancestor))
+				$ancestor = $ancestor + 1
+			}
+		}
+		$ancestors = $ancestors.append($index)
+		$ranges = $ranges.append(Semantics.Range.from_start_and_length(start, depth))
+		$active = $index
+		$index = $index + 1
+	}
+	var $contexts = List.with_capacity(count)
+	$active = U64.highest
+	var $next = 0
+	var $previous = U64.highest
+	var $prefix = 0
+	var $block = 0
+	while $block < count {
+		while $active != U64.highest and range_end(list_at(containers, $active).blocks)? <= $block {
+			$active = list_at($parents, $active)
+		}
+		while $next < containers.len() and list_at(containers, $next).blocks.start() <= $block {
+			$active = $next
+			$next = $next + 1
+		}
+		padding = if $active == U64.highest 0 else list_at($sums, $active)
+		var $common = $previous
+		var $current = $active
+		while $common != $current {
+			if $common == U64.highest {
+				$current = list_at($parents, $current)
+			}
+				else if $current == U64.highest {
+					$common = list_at($parents, $common)
+				}
+					else if $common > $current {
+						$common = list_at($parents, $common)
+					}
+						else {
+							$current = list_at($parents, $current)
+						}
+		}
+		common_sum = if $common == U64.highest 0 else list_at($sums, $common)
+		old_sum = if $previous == U64.highest 0 else list_at($sums, $previous)
+		transition = checked_add(old_sum - common_sum, padding - common_sum)?
+		$prefix = checked_add($prefix, transition)?
+		$contexts = $contexts.append({ active: $active, padding, prefix: $prefix, transition })
+		$previous = $active
+		$block = $block + 1
+	}
+	Ok({ ancestors: $ancestors, ancestor_ranges: $ranges, contexts: $contexts, parents: $parents, sums: $sums })
+}
+
+container_padding : ContainerFacts, U64 -> U64
+container_padding = |facts, block| if facts.contexts.is_empty() 0 else list_at(facts.contexts, block).padding
+
+container_transition : ContainerFacts, U64 -> U64
+container_transition = |facts, block| if facts.contexts.is_empty() 0 else list_at(facts.contexts, block).transition
+
+container_internal_height : ContainerFacts, U64, U64 -> U64
+container_internal_height = |facts, start, end| if facts.contexts.is_empty() 0 else list_at(facts.contexts, end - 1).prefix - list_at(facts.contexts, start).prefix
+
+## Accepted unit fragments plus explicit ancestry/padding determine panel
+## rectangles. No semantic identity or order is recovered from geometry.
+materialize_containers : List(KernelPageLayout.Container), ContainerFacts, List(KernelPageLayout.Block), List(KernelPageLayout.Fragment), List(KernelPageLayout.Band), U64 -> Try({ fragments : List(KernelPageLayout.ContainerFragment), updates : U64 }, KernelPageLayout.Error)
+materialize_containers = |containers, facts, blocks, fragments, leads, limit| {
+	if containers.is_empty() {
+		return Ok({ fragments: [], updates: 0 })
+	}
+	var $updates = 0
+	var $out = []
+	var $last = List.repeat(U64.highest, containers.len())
+	var $unit = 0
+	var $lead = 0
+	for fragment in fragments {
+		while $unit < blocks.len() and range_end(list_at(blocks, $unit).lines)? <= fragment.lines.start() {
+			$unit = $unit + 1
+		}
+		if $unit >= blocks.len() {
+			return Err(InvalidBlock({ block: $unit }))
+		}
+		context = list_at(facts.contexts, $unit)
+		if context.active != U64.highest {
+			page = fragment.page.index()
+			while $lead < leads.len() and list_at(leads, $lead).page < page {
+				$lead = $lead + 1
+			}
+			header = if $lead < leads.len() and list_at(leads, $lead).page == page and list_at(leads, $lead).block == $unit nonnegative_raw(list_at(blocks, $unit).lead)? else 0
+			source_padding = fragment_padding(list_at(blocks, $unit))?
+			range = list_at(facts.ancestor_ranges, context.active)
+			var $ancestor = range.start()
+			while $ancestor < range.start() + range.length() {
+				$updates = $updates + 1
+				id = list_at(facts.ancestors, $ancestor)
+				container = list_at(containers, id)
+				match container.paint {
+					NoPaint => {}
+					Paint(identity) => {
+						parent = list_at(facts.parents, id)
+						outer_sum = if parent == U64.highest 0 else list_at(facts.sums, parent)
+						padding = checked_add(source_padding, context.padding - outer_sum)?
+						top = checked_add(nonnegative_raw(fragment.geometry.origin.y)?, checked_add(nonnegative_raw(fragment.geometry.size.height)?, checked_add(padding, header)?)?)?
+						bottom = nonnegative_raw(fragment.geometry.origin.y)?
+						if padding > bottom {
+							return Err(InvalidBlock({ block: $unit }))
+						}
+						low = bottom - padding
+						prior = list_at($last, id)
+						if prior == U64.highest or list_at($out, prior).page != page {
+							check_limit(checked_add($out.len(), 1)?, limit, Fragments)?
+							$last = list_set($last, id, $out.len())
+							part = Whole
+							$out = $out.append({ container: identity, page, part, rect: { origin: { x: Layout.Unit.from_raw(checked_add(nonnegative_raw(fragment.geometry.origin.x)?, nonnegative_raw(container.offset)?)?.to_i64_wrap()), y: Layout.Unit.from_raw(low.to_i64_wrap()) }, size: { width: container.width, height: Layout.Unit.from_raw((top - low).to_i64_wrap()) } } })
+						} else {
+							old = list_at($out, prior)
+							old_top = checked_add(nonnegative_raw(old.rect.origin.y)?, nonnegative_raw(old.rect.size.height)?)?
+							$out = list_set($out, prior, { ..old, rect: { ..old.rect, origin: { ..old.rect.origin, y: Layout.Unit.from_raw(low.to_i64_wrap()) }, size: { ..old.rect.size, height: Layout.Unit.from_raw((old_top - low).to_i64_wrap()) } } })
+						}
+					}
+				}
+				$ancestor = $ancestor + 1
+			}
+		}
+	}
+	# Fragment parts follow accepted occurrence, including breaks within
+	# the first/last unit. Each callout's previous fragment is scalar state.
+	var $previous = List.repeat(U64.highest, containers.len())
+	var $index = 0
+	while $index < $out.len() {
+		fragment = list_at($out, $index)
+		prior = list_at($previous, fragment.container)
+		if prior != U64.highest {
+			old = list_at($out, prior)
+			part = if old.part == Whole First else Middle
+			$out = list_set($out, prior, { ..old, part })
+			$out = list_set($out, $index, { ..fragment, part: Last })
+		}
+		$previous = list_set($previous, fragment.container, $index)
+		$index = $index + 1
+	}
+	Ok({ fragments: $out, updates: $updates })
+}
+
 ## Preference bits of a break's score vector, R1 highest.
 heading_bit : U64
 heading_bit = 16
@@ -243,8 +459,8 @@ Frames := {
 	largest : U64,
 }
 
-build_plan : List(KernelPageLayout.Block), List(KernelPageLayout.KeepGroup), List(KernelLineLayout.Line), KernelPageLayout.Constraints, [NoTemplate, WithTemplate(KernelPageLayout.Template)], List(KernelPageLayout.ScopedFrame), KernelPageLayout.Limits -> Try(KernelPageLayout.Plan, KernelPageLayout.Error)
-build_plan = |blocks, groups, lines, constraints, template, scopes, limits| {
+build_plan : List(KernelPageLayout.Block), List(KernelPageLayout.KeepGroup), List(KernelLineLayout.Line), KernelPageLayout.Constraints, [NoTemplate, WithTemplate(KernelPageLayout.Template)], List(KernelPageLayout.ScopedFrame), List(KernelPageLayout.Container), KernelPageLayout.Limits -> Try(KernelPageLayout.Plan, KernelPageLayout.Error)
+build_plan = |blocks, groups, lines, constraints, template, scopes, containers, limits| {
 	if blocks.len() == 0 or lines.len() == 0 {
 		return Err(InvalidConstraints)
 	}
@@ -255,11 +471,19 @@ build_plan = |blocks, groups, lines, constraints, template, scopes, limits| {
 	frames = validate_frames(template, geometry, blocks.len())?
 	scope_largest = validate_scope_frames(scopes, geometry.content_height, blocks)?
 	validation = validate_input(blocks, groups, lines, U64.max(frames.largest, scope_largest))?
+	check_limit(containers.len(), limits.max_blocks, Groups)?
+	for container in containers {
+		if checked_add(nonnegative_raw(container.offset)?, positive_raw(container.width)?)? > geometry.content_width {
+			return Err(InvalidConstraints)
+		}
+	}
+	container_facts = plan_containers(containers, blocks.len())?
 	var $pages = []
 	var $fragments = []
 	var $placements = []
 	var $relaxations = []
 	var $bands = []
+	var $lead_bands = []
 	var $candidate_visits = 0
 	var $block = 0
 	var $line = 0
@@ -344,7 +568,7 @@ build_plan = |blocks, groups, lines, constraints, template, scopes, limits| {
 		flow_height = selected.height
 		flow_top = selected.top
 		page_geometry = { ..geometry, content_height: flow_height, margin_top: checked_add(geometry.margin_top, flow_top)? }
-		scan = scan_page(blocks, validation, flow_height, $block, $line)?
+		scan = scan_page(blocks, validation, container_facts, flow_height, $block, $line)?
 		$candidate_visits = checked_add($candidate_visits, scan.candidates)?
 		end = match scan.end {
 			AllFits => { block: blocks.len(), line: 0 }
@@ -355,11 +579,18 @@ build_plan = |blocks, groups, lines, constraints, template, scopes, limits| {
 
 		# Materialize the accepted page once, from the page start to the
 		# chosen break, exactly as the scan measured it.
-		var $used = nonnegative_raw(list_at(blocks, $block).lead)?
+		page_lead = nonnegative_raw(list_at(blocks, $block).lead)?
+		if page_lead > 0 {
+			$lead_bands = $lead_bands.append({ block: $block, page: page_index, top: page_geometry.page_height - page_geometry.margin_top - container_padding(container_facts, $block) })
+		}
+		var $used = checked_add(page_lead, container_padding(container_facts, $block))?
 		var $cursor_block = $block
 		var $cursor_line = $line
 		while $cursor_block < end.block or ($cursor_block == end.block and $cursor_line < end.line) {
 			block = list_at(blocks, $cursor_block)
+			if $cursor_block > $block {
+				$used = checked_add($used, container_transition(container_facts, $cursor_block))?
+			}
 			line_count = block.lines.length()
 			stop = if $cursor_block == end.block end.line else line_count
 			take = stop - $cursor_line
@@ -412,10 +643,13 @@ build_plan = |blocks, groups, lines, constraints, template, scopes, limits| {
 		$block = end.block
 		$line = end.line
 	}
+	materialized = materialize_containers(containers, container_facts, blocks, $fragments, $lead_bands, limits.max_fragments)?
 	Ok(
 		KernelPageLayout.Plan.{
 			page_frames: $page_frames,
 			scope_pages: $scope_pages,
+			container_fragments: materialized.fragments,
+			lead_bands: $lead_bands,
 			bands: $bands,
 			fragments: $fragments,
 			pages: $pages,
@@ -423,6 +657,10 @@ build_plan = |blocks, groups, lines, constraints, template, scopes, limits| {
 			relaxations: $relaxations,
 			work: {
 				scope_visits: $scope_visits,
+				container_contexts: container_facts.contexts.len(),
+				container_ancestors: container_facts.ancestors.len(),
+				container_updates: materialized.updates,
+				container_fragments: materialized.fragments.len(),
 				block_visits: blocks.len(),
 				candidate_visits: $candidate_visits,
 				fragment_writes: $fragments.len(),
@@ -441,9 +679,9 @@ build_plan = |blocks, groups, lines, constraints, template, scopes, limits| {
 ## latest on ties. Required keeps make a position illegal; keep-together
 ## groups and unsplittable blocks are atomic units. A reachable explicit
 ## break ends the page there. The scan keeps scalar state only.
-scan_page : List(KernelPageLayout.Block), Validation, U64, U64, U64 -> Try(Scan, KernelPageLayout.Error)
-scan_page = |blocks, validation, height, start_block, start_line| {
-	var $used = nonnegative_raw(list_at(blocks, start_block).lead)?
+scan_page : List(KernelPageLayout.Block), Validation, ContainerFacts, U64, U64, U64 -> Try(Scan, KernelPageLayout.Error)
+scan_page = |blocks, validation, containers, height, start_block, start_line| {
+	var $used = checked_add(nonnegative_raw(list_at(blocks, start_block).lead)?, container_padding(containers, start_block))?
 	var $best_block = 0
 	var $best_line = 0
 	var $best_score = no_candidate
@@ -472,11 +710,14 @@ scan_page = |blocks, validation, height, start_block, start_line| {
 				}
 			}
 		}
+		if $index > start_block {
+			$used = checked_add($used, container_transition(containers, $index))?
+		}
 		atomic_end = if validation.atomic_ends.is_empty() or $first_line != 0 0 else list_at(validation.atomic_ends, $index)
 		if atomic_end != 0 {
-			unit = group_height(blocks, validation.heights, $index, atomic_end)?
-			if checked_add($used, unit)? > height {
-				return finish_scan($best_score, $best_block, $best_line, $visits, { blocked: $blocked, height, start: start_block, stop: $index, unit, used: $used }, blocks)
+			unit = checked_add(group_height(blocks, validation.heights, $index, atomic_end)?, container_internal_height(containers, $index, atomic_end))?
+			if checked_add(checked_add($used, unit)?, container_padding(containers, atomic_end - 1))? > height {
+				return finish_scan($best_score, $best_block, $best_line, $visits, { blocked: $blocked, height, start: start_block, stop: $index, unit, used: checked_add($used, container_padding(containers, atomic_end - 1))? }, blocks)
 			}
 			spaced = checked_add(checked_add($used, unit)?, nonnegative_raw(list_at(blocks, atomic_end - 1).space_after)?)?
 			$used = if spaced > height height else spaced
@@ -484,8 +725,8 @@ scan_page = |blocks, validation, height, start_block, start_line| {
 			$first_line = 0
 		} else if block.policy.keep_together and $first_line == 0 {
 			unit = list_at(validation.heights, $index)
-			if checked_add($used, unit)? > height {
-				return finish_scan($best_score, $best_block, $best_line, $visits, { blocked: $blocked, height, start: start_block, stop: $index, unit, used: $used }, blocks)
+			if checked_add(checked_add($used, unit)?, container_padding(containers, $index))? > height {
+				return finish_scan($best_score, $best_block, $best_line, $visits, { blocked: $blocked, height, start: start_block, stop: $index, unit, used: checked_add($used, container_padding(containers, $index))? }, blocks)
 			}
 			spaced = checked_add(checked_add($used, unit)?, nonnegative_raw(block.space_after)?)?
 			$used = if spaced > height height else spaced
@@ -499,7 +740,8 @@ scan_page = |blocks, validation, height, start_block, start_line| {
 			decoration = if $first_line == 0 nonnegative_raw(block.decoration)? else 0
 			padding = checked_mul(fragment_padding(block)?, 2)?
 			$used = checked_add(checked_add($used, decoration)?, padding)?
-			fit = if $used >= height 0 else (height - $used) / leading
+			reserved = checked_add($used, container_padding(containers, $index))?
+			fit = if reserved >= height 0 else (height - reserved) / leading
 			take_max = if fit < remaining fit else remaining
 			starts_here = $first_line == 0
 			previous_keep = if starts_here and $index > start_block list_at(blocks, $index - 1).policy.keep_with_next else NoKeep
@@ -531,7 +773,7 @@ scan_page = |blocks, validation, height, start_block, start_line| {
 				$taken = $taken + 1
 			}
 			if remaining > fit {
-				return finish_scan($best_score, $best_block, $best_line, $visits, { blocked: $blocked, height, start: start_block, stop: $index, unit: leading, used: $used }, blocks)
+				return finish_scan($best_score, $best_block, $best_line, $visits, { blocked: $blocked, height, start: start_block, stop: $index, unit: leading, used: reserved }, blocks)
 			}
 			spaced = checked_add(checked_add($used, checked_mul(remaining, leading)?)?, nonnegative_raw(block.space_after)?)?
 			$used = if spaced > height height else spaced
@@ -1353,4 +1595,34 @@ expect {
 		Err(KeepConflict(BreakAfterRequiredKeep(_))) => True
 		_ => False
 	}
+}
+
+# One semantic container's padding is reserved once on every accepted page,
+# including a break inside its sole paragraph. No empty panel is emitted.
+expect {
+	block = { ..test_block, lines: Semantics.Range.from_start_and_length(0, 8), space_after: Layout.Unit.from_raw(0) }
+	container = { paint: Paint(0), blocks: Semantics.Range.from_start_and_length(0, 1), padding: Layout.Unit.from_raw(500), offset: Layout.Unit.from_raw(0), width: Layout.Unit.from_raw(8000) }
+	plan = KernelPageLayout.Plan.build_with_containers([block], [], test_lines, test_constraints, NoTemplate, [container], test_limits)?
+	panels = KernelPageLayout.Plan.container_fragments(plan)
+	KernelPageLayout.Plan.pages(plan).len() == 4 and panels.len() == 4 and panels.map(|panel| panel.part) == [First, Middle, Middle, Last] and panels.all(|panel| panel.rect.origin.y.raw() == 1000 and panel.rect.size.height.raw() == 3000) and KernelPageLayout.Plan.placements(plan).len() == 8
+}
+
+# Nested padding reduces a continued source's exact row capacity. The outer
+# panel starts at the page body edge and the inner panel stays within it.
+expect {
+	block = { ..test_block, owner: SourceBlock({ source: 0, padding: Layout.Unit.from_raw(250) }), lines: Semantics.Range.from_start_and_length(0, 3), space_after: Layout.Unit.from_raw(0), policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
+	outer = { paint: Paint(0), blocks: Semantics.Range.from_start_and_length(0, 1), padding: Layout.Unit.from_raw(250), offset: Layout.Unit.from_raw(0), width: Layout.Unit.from_raw(8000) }
+	inner = { ..outer, paint: Paint(1), offset: Layout.Unit.from_raw(250), width: Layout.Unit.from_raw(7500), padding: Layout.Unit.from_raw(250) }
+	plan = KernelPageLayout.Plan.build_with_containers([block], [], test_lines.take_first(3), test_constraints, NoTemplate, [outer, inner], test_limits)?
+	panels = KernelPageLayout.Plan.container_fragments(plan)
+	KernelPageLayout.Plan.pages(plan).len() == 3 and panels.len() == 6 and list_at(panels, 0).rect.origin.x.raw() == 1000 and list_at(panels, 1).rect.origin.x.raw() == 1250 and list_at(panels, 0).rect.size.height.raw() == 2500 and list_at(panels, 1).rect.size.height.raw() == 2000
+}
+
+# A continued table header is placed below the reopened callout's top
+# padding. The accepted band is passed forward rather than recomputed.
+expect {
+	block = { ..test_block, lead: Layout.Unit.from_raw(500), lines: Semantics.Range.from_start_and_length(0, 2), space_after: Layout.Unit.from_raw(0), policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
+	container = { paint: Paint(0), blocks: Semantics.Range.from_start_and_length(0, 1), padding: Layout.Unit.from_raw(500), offset: Layout.Unit.from_raw(0), width: Layout.Unit.from_raw(8000) }
+	plan = KernelPageLayout.Plan.build_with_containers([block], [], test_lines.take_first(2), test_constraints, NoTemplate, [container], test_limits)?
+	KernelPageLayout.Plan.lead_bands(plan).map(|band| band.top) == [3500, 3500] and KernelPageLayout.Plan.container_fragments(plan).all(|panel| panel.rect.size.height.raw() == 2500 and panel.rect.origin.y.raw() == 1500)
 }

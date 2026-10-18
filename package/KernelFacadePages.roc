@@ -135,6 +135,7 @@ KernelFacadePages :: [].{
 	SourceFragment : { source : U64, page : U64, lines : Semantics.Range, rect : Layout.Rect, part : [Whole, First, Middle, Last] }
 
 	Plan :: {
+		callout_fragments : List(KernelPageLayout.ContainerFragment),
 		source_fragments : List(SourceFragment),
 		artifact_rows : List(U64),
 		flow : FlowPaints,
@@ -147,6 +148,9 @@ KernelFacadePages :: [].{
 		units : List(Unit),
 		work : Work,
 	}.{
+		callout_fragments : Plan -> List(KernelPageLayout.ContainerFragment)
+		callout_fragments = |plan| plan.callout_fragments
+
 		source_fragments : Plan -> List(SourceFragment)
 		source_fragments = |plan| plan.source_fragments
 
@@ -225,6 +229,130 @@ KernelFacadePages :: [].{
 ## mandatory `break_before`; spacers add to the preceding leaf's spacing;
 ## `keep_together` groups become required atomic groups. Documents without
 ## these constructs allocate nothing for them.
+
+is_splittable_callout : Document.NormalizedAuthoring, Document.NormalizedGroupKind -> Bool
+is_splittable_callout = |authoring, kind| match kind {
+	Callout(index) => list_at(authoring.callouts, index.to_u64()).fragmentation == Lines
+	_ => False
+}
+
+callout_containers : Document.NormalizedAuthoring, KernelFacadeLines.Plan, List(U64), Theme -> Try(List(KernelPageLayout.Container), KernelFacadePages.Error)
+callout_containers = |authoring, lines, units, theme| {
+	if authoring.callouts.is_empty() {
+		return Ok([])
+	}
+	var $containers = []
+	var $group = 0
+	for group in authoring.groups {
+		policy = match group.kind {
+			Callout(index) => {
+				callout_value = list_at(authoring.callouts, index.to_u64())
+				padding = nonnegative_raw(callout_value.padding)?
+				frame = KernelFacadeLines.Plan.group_frame(lines, $group)
+				ContainerFacts({ padding, offset: frame.offset - padding, width: checked_add(frame.width, checked_mul(padding, 2)?)?, paint: Paint(index.to_u64()) })
+			}
+			Table(_) => if has_callout_ancestor(authoring, group.parent) {
+				frame = KernelFacadeLines.Plan.group_frame(lines, $group)
+				# Fills and frame rules occupy the outer halves of a row
+				# gap. Reserve them once per continued table fragment.
+				ContainerFacts({ padding: (nonnegative_raw(theme.table.row_gap)? + 1) // 2, offset: frame.offset, width: frame.width, paint: NoPaint })
+			} else NoContainerFacts
+			_ => NoContainerFacts
+		}
+		match policy {
+			NoContainerFacts => {}
+			ContainerFacts(facts) => {
+				first = if units.is_empty() group.first_block else list_at(units, group.first_block)
+				last = if units.is_empty() group.block_end else list_at(units, group.block_end - 1) + 1
+				$containers = $containers.append({ paint: facts.paint, blocks: Semantics.Range.from_start_and_length(first, last - first), padding: Layout.Unit.from_raw(facts.padding.to_i64_wrap()), offset: Layout.Unit.from_raw(facts.offset.to_i64_wrap()), width: Layout.Unit.from_raw(facts.width.to_i64_wrap()) })
+			}
+		}
+		$group = $group + 1
+	}
+	Ok($containers)
+}
+
+has_callout_ancestor : Document.NormalizedAuthoring, U64 -> Bool
+has_callout_ancestor = |authoring, parent| {
+	var $code = parent
+	while $code != 0 {
+		group = list_at(authoring.groups, $code - 1)
+		match group.kind {
+			Callout(_) => return True
+			_ => {}
+		}
+		$code = group.parent
+	}
+	False
+}
+
+enclosing_callout_padding : Document.NormalizedAuthoring, U64 -> U64
+enclosing_callout_padding = |authoring, parent| {
+	var $padding = 0
+	var $code = parent
+	while $code != 0 {
+		group = list_at(authoring.groups, $code - 1)
+		match group.kind {
+			Callout(index) => {
+				$padding = $padding + list_at(authoring.callouts, index.to_u64()).padding.raw().to_u64_wrap()
+			}
+			_ => {}
+		}
+		$code = group.parent
+	}
+	$padding
+}
+
+## Merge independently ordered, page-keyed paint buffers without sorting.
+merge_callout_rules : List(KernelFacadePages.Rule), List(KernelFacadePages.Rule) -> List(KernelFacadePages.Rule)
+merge_callout_rules = |callouts, rules| {
+	if callouts.is_empty() {
+		return rules
+	}
+	var $out = List.with_capacity(callouts.len() + rules.len())
+	var $callout = 0
+	var $rule = 0
+	while $callout < callouts.len() or $rule < rules.len() {
+		if $callout < callouts.len() and ($rule >= rules.len() or list_at(callouts, $callout).page <= list_at(rules, $rule).page) {
+			$out = $out.append(list_at(callouts, $callout))
+			$callout = $callout + 1
+		} else {
+			$out = $out.append(list_at(rules, $rule))
+			$rule = $rule + 1
+		}
+	}
+	$out
+}
+
+callout_rules : Document.NormalizedAuthoring, List(KernelPageLayout.ContainerFragment) -> List(KernelFacadePages.Rule)
+callout_rules = |authoring, fragments| {
+	var $rules = []
+	for fragment in fragments {
+		panel = list_at(authoring.callouts, fragment.container).panel
+		match panel.fill {
+			NoFill => {}
+			Fill(color) => {
+				$rules = $rules.append({ color, page: fragment.page, layer: Behind, rect: fragment.rect })
+			}
+		}
+		match panel.border {
+			NoBorder => {}
+			Border({ color, width }) => {
+				x = fragment.rect.origin.x.raw()
+				y = fragment.rect.origin.y.raw()
+				w = fragment.rect.size.width.raw()
+				h = fragment.rect.size.height.raw()
+				t = width.raw()
+				rect = |left, bottom, wide, high| { origin: { x: Layout.Unit.from_raw(left), y: Layout.Unit.from_raw(bottom) }, size: { width: Layout.Unit.from_raw(wide), height: Layout.Unit.from_raw(high) } }
+				for side in [rect(x, y, w, t), rect(x, y + h - t, w, t), rect(x, y, t, h), rect(x + w - t, y, t, h)] {
+					$rules = $rules.append({ color, page: fragment.page, layer: Behind, rect: side })
+				}
+			}
+		}
+	}
+	$rules
+}
+
 FlowSelection : [NoFlowTemplate, WithFlowTemplate(KernelFacadePages.FlowTemplate), WithScopedFlow({ template : KernelFacadePages.FlowTemplate, scopes : List(KernelFacadePages.FlowScope) })]
 
 build_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, KernelFacadeLines.Plan, Layout.Size, Theme, FlowSelection, KernelFacadePages.Limits -> Try(KernelFacadePages.Plan, KernelFacadePages.Error)
@@ -374,9 +502,16 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 		return Err(InvalidBlock({ block: block_lines.len() }))
 	}
 	$page_blocks = apply_customs(authoring, $page_blocks, [])?
-	keep_groups = together_groups(authoring.groups)
+	keep_groups = together_groups(authoring)
 	constraints = { margins: theme.page_margin, page: page_size }
-	page = match flow {
+	containers = callout_containers(authoring, line_plan, [], theme)?
+	page = if !containers.is_empty() {
+		selection = match flow {
+			NoFlowTemplate => NoTemplate
+			WithFlowTemplate(template) | WithScopedFlow({ template, scopes: _ }) => WithTemplate(layout_template(template, lead_leaves(flow)))
+		}
+		KernelPageLayout.Plan.build_with_contexts(scope_policies(lead_policies($page_blocks, lead_leaves(flow)), flow, []), flow_groups(keep_groups, lead_leaves(flow)), $visual_lines, constraints, selection, layout_scopes(flow, []), containers, limits.page) ? PageLayout
+	} else match flow {
 		NoFlowTemplate => (
 			if keep_groups.is_empty() {
 				KernelPageLayout.Plan.build($page_blocks, $visual_lines, constraints, limits.page)
@@ -393,6 +528,7 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 	panels = panel_paints(authoring, KernelPageLayout.Plan.fragments(page), block_runs, shape_batch.store.runs)?
 	Ok(
 		KernelFacadePages.Plan.{
+			callout_fragments: KernelPageLayout.Plan.container_fragments(page),
 			source_fragments: [],
 			artifact_rows: [],
 			flow: { decorations, figure_scales: flow_facts.scales, panels },
@@ -400,7 +536,7 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 			placed: FromLayout,
 			repeats: [],
 			rows: $rows,
-			rules: [],
+			rules: callout_rules(authoring, KernelPageLayout.Plan.container_fragments(page)),
 			splits: [],
 			units: [],
 			work: {
@@ -830,9 +966,20 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 	## Authored keep-together groups over leaf ranges become unit ranges;
 	## footer groups join them in preorder.
 	$page_blocks = apply_customs(authoring, $page_blocks, $unit_of_block)?
-	merged = merge_groups(unit_groups(authoring.groups, $unit_of_block), $footer_groups, $footer_sources)
+	merged = merge_groups(unit_groups(authoring, $unit_of_block), $footer_groups, $footer_sources)
 	constraints = { margins: theme.page_margin, page: page_size }
-	page = match flow {
+	containers = callout_containers(authoring, line_plan, $unit_of_block, theme)?
+	page = if !containers.is_empty() {
+		selection = match flow {
+			NoFlowTemplate => NoTemplate
+			WithFlowTemplate(template) | WithScopedFlow({ template, scopes: _ }) => {
+				leaves = lead_leaves(flow)
+				units = if leaves == 0 0 else list_at($unit_of_block, leaves - 1) + 1
+				WithTemplate(layout_template(template, units))
+			}
+		}
+		KernelPageLayout.Plan.build_with_contexts(scope_policies(lead_policies($page_blocks, lead_units(flow, $unit_of_block)), flow, $unit_of_block), flow_groups(merged.groups, lead_units(flow, $unit_of_block)), $visual_lines, constraints, selection, layout_scopes(flow, $unit_of_block), containers, limits.page) ? |error| TableLayout({ error, groups: merged.sources, units: $units })
+	} else match flow {
 		NoFlowTemplate => (
 			if merged.groups.is_empty() {
 				KernelPageLayout.Plan.build($page_blocks, $visual_lines, constraints, limits.page)
@@ -876,6 +1023,8 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 	var $unit = 0
 	var $placement_cursor = 0
 	var $segment = NoSegment
+	lead_bands = KernelPageLayout.Plan.lead_bands(page)
+	var $lead_cursor = 0
 	for layout_page in layout_pages {
 		page_index = layout_page.id.index()
 		page_frames = KernelPageLayout.Plan.page_frames(page)
@@ -889,6 +1038,10 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 		}
 		lead_unit = list_at($page_blocks, $unit)
 		if nonnegative_raw(lead_unit.lead)? > 0 {
+			while $lead_cursor < lead_bands.len() and list_at(lead_bands, $lead_cursor).page < page_index {
+				$lead_cursor = $lead_cursor + 1
+			}
+			page_top = if $lead_cursor < lead_bands.len() and list_at(lead_bands, $lead_cursor).page == page_index list_at(lead_bands, $lead_cursor).top else default_page_top
 			info = list_at($table_info, list_at($row_info, $unit).table)
 			var $used = 0
 			var $header = info.header_units.start()
@@ -1029,6 +1182,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 	panels = panel_paints(authoring, KernelPageLayout.Plan.fragments(page), block_runs, shape_batch.store.runs)?
 	Ok(
 		KernelFacadePages.Plan.{
+			callout_fragments: KernelPageLayout.Plan.container_fragments(page),
 			source_fragments: $source_fragments,
 			artifact_rows: $artifact_rows,
 			flow: { decorations, figure_scales: flow_facts.scales, panels },
@@ -1036,7 +1190,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 			placed: Rebuilt({ pages: $pages, placements: $placements }),
 			repeats: $repeats,
 			rows: $rows,
-			rules: behind_first($fills, $rules),
+			rules: merge_callout_rules(callout_rules(authoring, KernelPageLayout.Plan.container_fragments(page)), behind_first($fills, $rules)),
 			splits: $splits,
 			units: $units,
 			work: {
@@ -1388,15 +1542,18 @@ behind_first = |fills, rules| {
 }
 
 ## Authored keep-together groups, from leaf ranges to unit ranges.
-unit_groups : List(Document.NormalizedGroup), List(U64) -> List(KernelPageLayout.KeepGroup)
-unit_groups = |groups, unit_of_block| {
+unit_groups : Document.NormalizedAuthoring, List(U64) -> List(KernelPageLayout.KeepGroup)
+unit_groups = |authoring, unit_of_block| {
+	groups = authoring.groups
 	var $together = []
 	for group in groups {
 		match group.kind {
-			KeepTogether | Custom(_) => {
-				first = list_at(unit_of_block, group.first_block)
-				last = list_at(unit_of_block, group.block_end - 1)
-				$together = $together.append({ blocks: Semantics.Range.from_start_and_length(first, last + 1 - first) })
+			KeepTogether | Custom(_) | Callout(_) => {
+				if !is_splittable_callout(authoring, group.kind) {
+					first = list_at(unit_of_block, group.first_block)
+					last = list_at(unit_of_block, group.block_end - 1)
+					$together = $together.append({ blocks: Semantics.Range.from_start_and_length(first, last + 1 - first) })
+				}
 			}
 			_ => {}
 		}
@@ -1498,13 +1655,16 @@ authored_keeps = |groups, block_count| {
 
 ## Required keep-together groups in preorder, for page layout. A custom
 ## block is one: it is unsplittable.
-together_groups : List(Document.NormalizedGroup) -> List(KernelPageLayout.KeepGroup)
-together_groups = |groups| {
+together_groups : Document.NormalizedAuthoring -> List(KernelPageLayout.KeepGroup)
+together_groups = |authoring| {
+	groups = authoring.groups
 	var $together = []
 	for group in groups {
 		match group.kind {
-			KeepTogether | Custom(_) => {
-				$together = $together.append({ blocks: Semantics.Range.from_start_and_length(group.first_block, group.block_end - group.first_block) })
+			KeepTogether | Custom(_) | Callout(_) => {
+				if !is_splittable_callout(authoring, group.kind) {
+					$together = $together.append({ blocks: Semantics.Range.from_start_and_length(group.first_block, group.block_end - group.first_block) })
+				}
 			}
 			_ => {}
 		}
@@ -1680,14 +1840,17 @@ FlowFacts : { decorations : List(U64), heights : List(U64), scales : List(U64) }
 ##   than the largest page frame (`DecorationOversize`).
 ##
 ## Nothing else is scaled, and nothing is clipped.
-figure_widths : Document.NormalizedAuthoring, KernelFacadeLines.Plan -> List(U64)
+figure_widths : Document.NormalizedAuthoring, KernelFacadeLines.Plan -> List({ width : U64, padding : U64 })
 figure_widths = |authoring, line_plan| {
+	if authoring.figures.is_empty() {
+		return []
+	}
 	var $widths = List.with_capacity(authoring.figures.len())
 	var $block = 0
 	while $block < authoring.blocks.len() {
 		match list_at(authoring.blocks, $block).kind {
 			Figure(_) => {
-				$widths = $widths.append(KernelFacadeLines.Plan.frame(line_plan, $block).width)
+				$widths = $widths.append({ width: KernelFacadeLines.Plan.frame(line_plan, $block).width, padding: enclosing_callout_padding(authoring, list_at(authoring.blocks, $block).parent) * 2 })
 			}
 			_ => {}
 		}
@@ -1696,7 +1859,7 @@ figure_widths = |authoring, line_plan| {
 	$widths
 }
 
-plan_flow : Document.NormalizedAuthoring, List(KernelFacadeLines.BlockLines), List(U64), Layout.Size, Theme, FlowSelection -> Try(FlowFacts, KernelFacadePages.Error)
+plan_flow : Document.NormalizedAuthoring, List(KernelFacadeLines.BlockLines), List({ width : U64, padding : U64 }), Layout.Size, Theme, FlowSelection -> Try(FlowFacts, KernelFacadePages.Error)
 plan_flow = |authoring, block_lines, widths, page_size, theme, flow| {
 	if authoring.figures.is_empty() and authoring.decorations.is_empty() and authoring.customs.is_empty() {
 		return Ok({ decorations: [], heights: [], scales: [] })
@@ -1752,7 +1915,10 @@ plan_flow = |authoring, block_lines, widths, page_size, theme, flow| {
 				}
 				figure = list_at(authoring.figures, figure_index)
 				drawing = valid_drawing(figure.drawing, $block)?
-				width = if widths.is_empty() flow_width else list_at(widths, figure_index)
+				width = if widths.is_empty() flow_width else list_at(widths, figure_index).width
+				padding = if widths.is_empty() 0 else list_at(widths, figure_index).padding
+				largest = if frames.largest > padding frames.largest - padding else 0
+				smallest = if frames.smallest > padding frames.smallest - padding else 0
 				above = if $decorations.is_empty() 0 else list_at($decorations, $block)
 				caption = if figure.captioned {
 					if $block + 1 >= block_lines.len() {
@@ -1769,18 +1935,18 @@ plan_flow = |authoring, block_lines, widths, page_size, theme, flow| {
 				rest = checked_add(above, caption)?
 				fitted = match figure.fit {
 					ExactFit => {
-						if drawing.width > width or checked_add(rest, drawing.height)? > frames.largest {
-							return Err(FigureOversize({ block: $block, frame_height: frames.largest, frame_width: width, height: drawing.height, width: drawing.width }))
+						if drawing.width > width or checked_add(rest, drawing.height)? > largest {
+							return Err(FigureOversize({ block: $block, frame_height: largest, frame_width: width, height: drawing.height, width: drawing.width }))
 						}
 						{ height: drawing.height, scale: 1000 }
 					}
 					ScaleFit(floor) => {
-						oversize = FigureOversize({ block: $block, frame_height: frames.smallest, frame_width: width, height: drawing.height, width: drawing.width })
-						if rest >= frames.smallest {
+						oversize = FigureOversize({ block: $block, frame_height: smallest, frame_width: width, height: drawing.height, width: drawing.width })
+						if rest >= smallest {
 							return Err(oversize)
 						}
 						by_width = checked_mul(width, 1000)? // drawing.width
-						by_height = checked_mul(frames.smallest - rest, 1000)? // drawing.height
+						by_height = checked_mul(smallest - rest, 1000)? // drawing.height
 						scale = U64.min(1000, U64.min(by_width, by_height))
 						if scale == 0 {
 							return Err(oversize)
@@ -2189,4 +2355,10 @@ panel_paints = |authoring, fragments, block_runs, runs| {
 		$custom = $custom + 1
 	}
 	Ok($paints)
+}
+
+lead_units : FlowSelection, List(U64) -> U64
+lead_units = |flow, units| {
+	leaves = lead_leaves(flow)
+	if leaves == 0 0 else list_at(units, leaves - 1) + 1
 }

@@ -6,7 +6,7 @@ app [main!] {
 import Fixture
 import pf.Metrics
 
-Case : [Lists({ count : U64 })]
+Case : [Lists({ count : U64 }), Callouts({ count : U64 }), Paragraphs({ count : U64 })]
 
 CaseSpec : { case : Case, schema_version : U64 }
 
@@ -35,6 +35,8 @@ main! = |args| {
 	Metrics.reset_allocations!()
 	result = match spec.case {
 		Lists({ count }) => Fixture.lists(count)
+		Callouts({ count }) => Fixture.callouts(count)
+		Paragraphs({ count }) => Fixture.paragraphs(count)
 	}
 	match result {
 		Ok(value) => value

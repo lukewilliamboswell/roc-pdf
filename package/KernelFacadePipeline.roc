@@ -82,6 +82,10 @@ KernelFacadePipeline :: [].{
 	Work : {
 		scope_visits : U64,
 		template_region_visits : U64,
+		callout_contexts : U64,
+		callout_ancestors : U64,
+		callout_updates : U64,
+		callout_fragments : U64,
 		blocks : U64,
 		field_resolutions : U64,
 		final_runs : U64,
@@ -344,6 +348,10 @@ build_ordered_pipeline = |authoring, multi, theme, page_size, descriptor, facts,
 				shape_metric_reads: KernelFacadeShape.Plan.shape(shape).work.metric_reads,
 				line_candidate_visits: KernelLineLayout.BatchPlan.work(KernelFacadeLines.Plan.line(lines)).candidate_visits,
 				page_candidate_visits: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).candidate_visits,
+				callout_contexts: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_contexts,
+				callout_ancestors: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_ancestors,
+				callout_updates: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_updates,
+				callout_fragments: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_fragments,
 				source_foreground_ranges: authoring.source_foregrounds.len(),
 				source_paint_clusters: KernelFacadeText.Plan.paint_work(text).clusters,
 				source_paint_ranges: KernelFacadeText.Plan.paint_work(text).ranges,
@@ -403,6 +411,10 @@ probe_early = |authoring, font, theme, page_size, limits, stage| {
 		shape_metric_reads: 0,
 		line_candidate_visits: 0,
 		page_candidate_visits: 0,
+		callout_contexts: 0,
+		callout_ancestors: 0,
+		callout_updates: 0,
+		callout_fragments: 0,
 		source_foreground_ranges: authoring.source_foregrounds.len(),
 		source_paint_clusters: 0,
 		source_paint_ranges: 0,
@@ -440,7 +452,7 @@ probe_early = |authoring, font, theme, page_size, limits, stage| {
 		static = KernelFacadeFurniture.Static.build(authoring, theme, page_size) ? Furniture
 		KernelFacadePages.Plan.build_with_scopes(authoring, shape, lines, page_size, theme, KernelFacadeFurniture.Static.flow(static), KernelFacadeFurniture.Static.scope_flows(static), limits.pages) ? Pages
 	}
-	Ok({ ..line_work, pages: KernelPageLayout.Plan.pages(KernelFacadePages.Plan.page(pages)).len(), page_candidate_visits: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).candidate_visits })
+	Ok({ ..line_work, pages: KernelPageLayout.Plan.pages(KernelFacadePages.Plan.page(pages)).len(), page_candidate_visits: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).candidate_visits, callout_contexts: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_contexts, callout_ancestors: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_ancestors, callout_updates: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_updates, callout_fragments: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_fragments })
 }
 
 probe_ordered_plan : Document.NormalizedAuthoring, { policy : Font.PolicyId, registry : Font.Registry }, Theme, Layout.Size, KernelFacadePipeline.Limits -> Try(KernelFacadePipeline.Work, KernelFacadePipeline.Error)
@@ -485,6 +497,10 @@ probe_ordered_plan = |authoring, ordered, theme, page_size, limits| {
 		shape_metric_reads: KernelFacadeShape.Plan.shape(shape).work.metric_reads,
 		line_candidate_visits: KernelLineLayout.BatchPlan.work(KernelFacadeLines.Plan.line(lines)).candidate_visits,
 		page_candidate_visits: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).candidate_visits,
+		callout_contexts: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_contexts,
+		callout_ancestors: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_ancestors,
+		callout_updates: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_updates,
+		callout_fragments: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_fragments,
 		source_foreground_ranges: authoring.source_foregrounds.len(),
 		source_paint_clusters: KernelFacadeText.Plan.paint_work(text).clusters,
 		source_paint_ranges: KernelFacadeText.Plan.paint_work(text).ranges,
@@ -548,6 +564,10 @@ build_upstream = |authoring, font, theme, page_size, descriptor, request, limits
 			shape_metric_reads: KernelFacadeShape.Plan.shape(shape).work.metric_reads,
 			line_candidate_visits: KernelLineLayout.BatchPlan.work(KernelFacadeLines.Plan.line(lines)).candidate_visits,
 			page_candidate_visits: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).candidate_visits,
+			callout_contexts: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_contexts,
+			callout_ancestors: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_ancestors,
+			callout_updates: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_updates,
+			callout_fragments: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_fragments,
 			source_foreground_ranges: authoring.source_foregrounds.len(),
 			source_paint_clusters: KernelFacadeText.Plan.paint_work(text).clusters,
 			source_paint_ranges: KernelFacadeText.Plan.paint_work(text).ranges,
