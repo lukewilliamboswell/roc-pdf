@@ -155,6 +155,22 @@ run_negatives = |context| {
 			_ => return Err(ExpectedRejection($passed))
 		}
 	}
+	body = Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, Font.ValidationLimits.default) ? |_| FontFailure
+	cjk = body.registry.register(cjk_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] }, Font.ValidationLimits.default) ? |_| FontFailure
+	configured = cjk.registry.with_policy([body.face, cjk.face]) ? |_| FontFailure
+	ordered_options : Pdf.Options
+	ordered_options = { theme: { ..theme, font_selection: Policy(configured.policy) }, fonts: Registered(configured.registry) }
+	for check in [
+		{ document: make(label, [{ start_page: 0, style: NoNumber, prefix: "中-", start_number: 1 }]), feature: "text.coverage_missing" },
+		{ document: make(label, [{ start_page: 0, style: DecimalArabic, prefix: "ا", start_number: 1 }]), feature: "text.unsupported_script" },
+	] {
+		match Pdf.to_bytes_with(check.document, ordered_options) {
+			Err(InvalidDocument({ diagnostics: [{ feature: Feature(found), details, .. }], truncation: Complete, .. })) if found == check.feature and details.any(|detail| detail == "contents[1].inlines[0]") => {
+				$passed = $passed + 1
+			}
+			_ => return Err(ExpectedRejection($passed))
+		}
+	}
 	bytes = Pdf.to_bytes(Pdf.document({ title: "Destination reference rejections ${$passed.to_str()}", language: "en", contents: [Pdf.paragraph("Invalid destination-reference inputs fail before emission.")] })) ? PdfFailure
 	Ok({ bytes, work: [$passed] })
 }

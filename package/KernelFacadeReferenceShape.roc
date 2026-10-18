@@ -170,7 +170,7 @@ prepare_selection = |authoring, literals, sources, selection, theme| match selec
 		var $source = 0
 		var $selection_work = zero_selection_work
 		while $source < sources.len() {
-			result = KernelFacadeShape.select_source_reporting(ordered.registry, ordered.policy, list_at(sources, $source), $source, Language(authoring.language)) ? Style
+			result = KernelFacadeShape.select_source_reporting(ordered.registry, ordered.policy, list_at(sources, $source), $source, Language(authoring.language)) ? |error| locate_policy_failure(literals, list_at(sources, $source), $source, error)
 			segments = result.segments
 			$selection_work = { coverage_span_visits: $selection_work.coverage_span_visits + result.work.coverage_span_visits, face_visits: $selection_work.face_visits + result.work.face_visits, grapheme_visits: $selection_work.grapheme_visits + result.work.grapheme_visits, planned_sources: $selection_work.planned_sources + result.work.planned_sources, selection_ranges: $selection_work.selection_ranges + result.work.selection_ranges }
 			for segment in segments {
@@ -505,4 +505,74 @@ locate_failure = |contexts, spans, sources, fonts, requests, error| {
 		$request = $request + 1
 	}
 	Shape(error)
+}
+
+## Preserve a rejected policy's explicit source/cluster identity in the
+## authored location. Only an error visits contexts or decodes this exact
+## grapheme slice; successful policy selection retains its existing work.
+locate_policy_failure : List(KernelFacadeReferenceShape.LiteralContext), KernelFacadeSources.Source, U64, KernelFacadeShape.Error -> KernelFacadeReferenceShape.Error
+locate_policy_failure = |contexts, source, source_id, error| {
+	failure = match error {
+		FontSelectionRejected(errors) => match errors.get(0) {
+			Ok(MissingCoverage({ cluster, source: range })) if cluster < source.analysis.graphemes.len() => {
+				grapheme = list_at(source.analysis.graphemes, cluster)
+				if range.scalars.start() != grapheme.scalar_start or range.scalars.length() != grapheme.scalar_end - grapheme.scalar_start {
+					return Style(error)
+				}
+				CoverageCluster(cluster)
+			}
+			_ => return Style(error)
+		}
+		UndeclaredScript({ script, source: rejected }) if rejected == source_id => {
+			var $first = U64.highest
+			for run in source.analysis.script_runs {
+				if run.script == script {
+					$first = run.range.scalar_start
+					break
+				}
+			}
+			var $cluster = 0
+			while $cluster < source.analysis.graphemes.len() and list_at(source.analysis.graphemes, $cluster).scalar_end <= $first {
+				$cluster = $cluster + 1
+			}
+			if $cluster >= source.analysis.graphemes.len() {
+				return Style(error)
+			}
+			ScriptCluster({ cluster: $cluster, script })
+		}
+		_ => return Style(error)
+	}
+	cluster = match failure {
+		CoverageCluster(index) => index
+		ScriptCluster({ cluster: index, .. }) => index
+	}
+	grapheme = list_at(source.analysis.graphemes, cluster)
+	for context in contexts {
+		match context.occurrence.source {
+			Text(id, UnicodeRange(range)) if id.index() == source_id and range.scalars.start() <= grapheme.scalar_start and range.scalars.start() + range.scalars.length() >= grapheme.scalar_end => {
+				reason = match failure {
+					ScriptCluster({ script, .. }) => Script(script)
+					CoverageCluster(_) if grapheme.scalar_end - grapheme.scalar_start != 1 => Cluster
+					CoverageCluster(_) => {
+						chunk = match Str.from_utf8(source.unicode.to_utf8().sublist({ start: grapheme.byte_start, len: grapheme.byte_end - grapheme.byte_start })) {
+							Ok(value) => value
+							Err(_) => return Style(error)
+						}
+						var $scalar = NoScalar
+						for located in Scalar.iter(chunk) {
+							$scalar = HasScalar(Scalar.to_u32(located.scalar))
+							break
+						}
+						match $scalar {
+							HasScalar(value) => Coverage(value)
+							NoScalar => return Style(error)
+						}
+					}
+				}
+				return Style(UnsupportedText({ block: context.block, inline: context.inline, reason, scalars: Semantics.Range.from_start_and_length(grapheme.scalar_start - range.scalars.start(), grapheme.scalar_end - grapheme.scalar_start) }))
+			}
+			_ => {}
+		}
+	}
+	Style(error)
 }

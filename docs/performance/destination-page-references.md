@@ -180,11 +180,11 @@ preparation call.
 
 | Case | Exact allocations | Allocated bytes | Atoms | Measured items | Rows | PDF bytes |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 2 sections | 8,483 | 8,977,574 | 15 | 258 | 18 | 15,743 |
-| 20 sections | 30,533 | 34,408,672 | 87 | 1,180 | 72 | 29,082 |
+| 2 sections | 8,480 | 8,977,547 | 15 | 258 | 18 | 15,743 |
+| 20 sections | 30,512 | 34,408,471 | 87 | 1,180 | 72 | 29,082 |
 | Inherited role, language and 75% scale | 4,408 | 7,246,354 | 1 | 55 | 3 | 14,450 |
 | Ordered Latin/CJK policy | 5,047 | 7,390,032 | 2 | 58 | 4 | 12,639 |
-| 11 atomic rejections | 3,104 | 4,678,112 | — | — | — | 10,642 |
+| 13 atomic rejections | 4,531 | 4,988,340 | — | — | — | 10,642 |
 
 The section pair contains 4N + 7 references, 10N + 13 normalization chunks,
 3N + 12 rows and 11N + 19 positioned pieces. Both wrap and placement visit
@@ -218,3 +218,16 @@ restored the previous exact allocations for every numeric style, typography
 and chapter sample; the new visible-label pair improves by 12 / 120
 allocations (two numeric fields per page, public output plus work probe).
 The field strings, geometry, deterministic work and PDF snapshots are unchanged.
+
+The ordered-policy error audit consumes the policy rejection's explicit
+source/cluster identity. It visits only the failing source and exact authored
+contexts, decodes at most the rejected grapheme, and returns the existing
+located coverage/script diagnostic with source-local scalar bounds. It does
+not select a replacement face. The dedicated rejection fixture now has 13
+checks, including a Common punctuation cluster for which the declared policy
+has no covering face and an undeclared Arabic script in a resolved label.
+Their additional font registration and two rejected preparations explain the
+negative-only allocation increase from 3,104 to 4,531; successful ordered and
+inherited-role reference counts remain unchanged. Numeric footer work removes
+exactly one short-string allocation per public PDF page from the body pair
+(3 / 21), with identical PDF bytes, fields and geometry.
