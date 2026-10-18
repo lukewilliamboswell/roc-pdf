@@ -1475,14 +1475,6 @@ pending_runs = |source_runs, input_sources, input| match input {
 	Input(index) => runs_of(source_runs, list_at(input_sources, index).index())
 }
 
-## The runs shaping one furniture source: `source_runs` is empty through
-## the single face, where source `k` is run `k`.
-pending_runs : List(Semantics.Range), List(Semantics.TextSourceId), [Input(U64), NoText] -> Semantics.Range
-pending_runs = |source_runs, input_sources, input| match input {
-	NoText => Semantics.Range.from_start_and_length(0, 0)
-	Input(index) => runs_of(source_runs, list_at(input_sources, index).index())
-}
-
 runs_of : List(Semantics.Range), U64 -> Semantics.Range
 runs_of = |source_runs, source| if source_runs.is_empty() Semantics.Range.from_start_and_length(source, 1) else list_at(source_runs, source)
 

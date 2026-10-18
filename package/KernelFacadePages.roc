@@ -88,6 +88,38 @@ KernelFacadePages :: [].{
 
 	FlowScope : { leaves : Semantics.Range, opening : KernelPageLayout.Frame, continuation : KernelPageLayout.Frame }
 
+	FlowSelection : [NoFlowTemplate, WithFlowTemplate(FlowTemplate), WithScopedFlow({ template : FlowTemplate, scopes : List(FlowScope) })]
+	MeasuredBlock : [
+		ContentlessCell,
+		EmptySourceLine({ source : U64, line : U64 }),
+		MeasuredText({ rows : Semantics.Range, size : Layout.Unit, leading : Layout.Unit, owner : Semantics.OccurrenceId, level : U64, body_offset : Layout.Unit, label : [NoLabel, Label({ rows : Semantics.Range, offset : Layout.Unit })] }),
+	]
+	MeasuredInput : {
+		blocks : List(MeasuredBlock),
+		group_frames : List({ offset : U64, width : U64 }),
+		source_frames : List(KernelFacadeLines.SourceFrame),
+		figure_frames : List({ width : U64, padding : U64 }),
+		tables : List(KernelFacadeTables.TableGeometry),
+		cells : List(KernelFacadeTables.CellGeometry),
+	}
+	MeasuredGridRow : [NoTextRow({ source : U64, line : U64 }), BodyRow({ block : U64, row : U64, offset : Layout.Unit, label : [NoLabel, Label({ row : U64, offset : Layout.Unit })] }), TableGrid]
+	MeasuredView : {
+		choice : KernelPageLayout.Choice,
+		blocks : List(KernelPageLayout.Block),
+		units : List(Unit),
+		unit_of_block : List(U64),
+		grid_rows : List(MeasuredGridRow),
+		row_info : List(RowInfo),
+		table_info : List(TableInfo),
+		flow : FlowFacts,
+	}
+	Measured :: MeasuredView.{
+		build : Document.NormalizedAuthoring, MeasuredInput, Layout.Size, Theme, FlowSelection, Limits -> Try(Measured, Error)
+		build = |authoring, input, page, theme, flow, limits| build_measured(authoring, input, page, theme, flow, limits)
+		view : Measured -> MeasuredView
+		view = |Measured.(plan)| plan
+	}
+
 	## A filled rectangle owned by a layout decoration artifact: a table
 	## rule or link underline painted after its page's text (`Front`), or
 	## a table row or cell fill painted before it (`Behind`). On each page
@@ -236,8 +268,8 @@ is_splittable_callout = |authoring, kind| match kind {
 	_ => False
 }
 
-callout_containers : Document.NormalizedAuthoring, KernelFacadeLines.Plan, List(U64), Theme -> Try(List(KernelPageLayout.Container), KernelFacadePages.Error)
-callout_containers = |authoring, lines, units, theme| {
+callout_containers : Document.NormalizedAuthoring, (U64 -> { offset : U64, width : U64 }), List(U64), Theme -> Try(List(KernelPageLayout.Container), KernelFacadePages.Error)
+callout_containers = |authoring, group_frame, units, theme| {
 	if authoring.callouts.is_empty() {
 		return Ok([])
 	}
@@ -248,11 +280,11 @@ callout_containers = |authoring, lines, units, theme| {
 			Callout(index) => {
 				callout_value = list_at(authoring.callouts, index.to_u64())
 				padding = nonnegative_raw(callout_value.padding)?
-				frame = KernelFacadeLines.Plan.group_frame(lines, $group)
+				frame = group_frame($group)
 				ContainerFacts({ padding, offset: frame.offset - padding, width: checked_add(frame.width, checked_mul(padding, 2)?)?, paint: Paint(index.to_u64()) })
 			}
 			Table(_) => if has_callout_ancestor(authoring, group.parent) {
-				frame = KernelFacadeLines.Plan.group_frame(lines, $group)
+				frame = group_frame($group)
 				# Fills and frame rules occupy the outer halves of a row
 				# gap. Reserve them once per continued table fragment.
 				ContainerFacts({ padding: (nonnegative_raw(theme.table.row_gap)? + 1) // 2, offset: frame.offset, width: frame.width, paint: NoPaint })
@@ -353,8 +385,6 @@ callout_rules = |authoring, fragments| {
 	$rules
 }
 
-FlowSelection : [NoFlowTemplate, WithFlowTemplate(KernelFacadePages.FlowTemplate), WithScopedFlow({ template : KernelFacadePages.FlowTemplate, scopes : List(KernelFacadePages.FlowScope) })]
-
 build_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, KernelFacadeLines.Plan, Layout.Size, Theme, FlowSelection, KernelFacadePages.Limits -> Try(KernelFacadePages.Plan, KernelFacadePages.Error)
 build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 	match KernelFacadeLines.Plan.geometry(line_plan) {
@@ -373,7 +403,7 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 	check_limit(authoring.blocks.len(), limits.max_blocks, Blocks)?
 	check_page_breaks(authoring.page_breaks, authoring.blocks.len(), lead_leaves(flow))?
 	author_keeps = authored_keeps(authoring.groups, authoring.blocks.len())
-	flow_facts = plan_flow(authoring, block_lines, figure_widths(authoring, line_plan), page_size, theme, flow)?
+	flow_facts = plan_flow(authoring, block_lines, concrete_row_count, figure_widths(authoring, line_plan), page_size, theme, flow)?
 	var $row_count = 0
 	var $block_index = 0
 	while $block_index < block_lines.len() {
@@ -504,7 +534,7 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 	$page_blocks = apply_customs(authoring, $page_blocks, [])?
 	keep_groups = together_groups(authoring)
 	constraints = { margins: theme.page_margin, page: page_size }
-	containers = callout_containers(authoring, line_plan, [], theme)?
+	containers = callout_containers(authoring, |group| KernelFacadeLines.Plan.group_frame(line_plan, group), [], theme)?
 	page = if !containers.is_empty() {
 		selection = match flow {
 			NoFlowTemplate => NoTemplate
@@ -643,7 +673,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 		}
 	}
 	paragraph_spacing = nonnegative_raw(theme.paragraph_spacing)?
-	flow_facts = plan_flow(authoring, block_lines, figure_widths(authoring, line_plan), page_size, theme, flow)?
+	flow_facts = plan_flow(authoring, block_lines, concrete_row_count, figure_widths(authoring, line_plan), page_size, theme, flow)?
 	cell_geometry = KernelFacadeTables.Plan.cells(tables)
 	table_geometry = KernelFacadeTables.Plan.tables(tables)
 	table_sources = KernelFacadeTables.Plan.sources(tables)
@@ -968,7 +998,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 	$page_blocks = apply_customs(authoring, $page_blocks, $unit_of_block)?
 	merged = merge_groups(unit_groups(authoring, $unit_of_block), $footer_groups, $footer_sources)
 	constraints = { margins: theme.page_margin, page: page_size }
-	containers = callout_containers(authoring, line_plan, $unit_of_block, theme)?
+	containers = callout_containers(authoring, |group| KernelFacadeLines.Plan.group_frame(line_plan, group), $unit_of_block, theme)?
 	page = if !containers.is_empty() {
 		selection = match flow {
 			NoFlowTemplate => NoTemplate
@@ -1859,8 +1889,8 @@ figure_widths = |authoring, line_plan| {
 	$widths
 }
 
-plan_flow : Document.NormalizedAuthoring, List(KernelFacadeLines.BlockLines), List({ width : U64, padding : U64 }), Layout.Size, Theme, FlowSelection -> Try(FlowFacts, KernelFacadePages.Error)
-plan_flow = |authoring, block_lines, widths, page_size, theme, flow| {
+plan_flow : Document.NormalizedAuthoring, List(a), (a -> [Rows(U64), NoRows]), List({ width : U64, padding : U64 }), Layout.Size, Theme, FlowSelection -> Try(FlowFacts, KernelFacadePages.Error)
+plan_flow = |authoring, block_lines, count_rows, widths, page_size, theme, flow| {
 	if authoring.figures.is_empty() and authoring.decorations.is_empty() and authoring.customs.is_empty() {
 		return Ok({ decorations: [], heights: [], scales: [] })
 	}
@@ -1924,9 +1954,9 @@ plan_flow = |authoring, block_lines, widths, page_size, theme, flow| {
 					if $block + 1 >= block_lines.len() {
 						return Err(InvalidBlock({ block: $block }))
 					}
-					caption_lines = match list_at(block_lines, $block + 1) {
-						TextBlock({ body, body_offset: _, label: _ }) => body.lines.length()
-						ContentlessCell | EmptySourceLine(_) => return Err(InvalidBlock({ block: $block + 1 }))
+					caption_lines = match count_rows(list_at(block_lines, $block + 1)) {
+						Rows(count) => count
+						NoRows => return Err(InvalidBlock({ block: $block + 1 }))
 					}
 					checked_add(spacing, checked_mul(caption_lines, leading)?)?
 				} else {
@@ -2242,15 +2272,15 @@ expect {
 	page = { height: Layout.Unit.points(842), width: Layout.Unit.points(595) }
 	theme = Theme.{ page_margin: { bottom: Layout.Unit.points(48), left: Layout.Unit.points(56), right: Layout.Unit.points(56), top: Layout.Unit.points(48) } }
 	authoring = |fit| Document.normalize(Document.from_blocks({ contents: [Document.fitted_figure(drawing, "A plan", NoCaption, fit)], language: "en-AU", title: "Fit" }))
-	scaled = match plan_flow(authoring(ScaleToFit({ minimum_percent: 50 })), [], [], page, theme, NoFlowTemplate) {
+	scaled = match plan_flow(authoring(ScaleToFit({ minimum_percent: 50 })), [], concrete_row_count, [], page, theme, NoFlowTemplate) {
 		Ok({ decorations: [], heights: [height], scales: [scale] }) => scale == 805 and height == 724500
 		_ => False
 	}
-	floored = match plan_flow(authoring(ScaleToFit({ minimum_percent: 90 })), [], [], page, theme, NoFlowTemplate) {
+	floored = match plan_flow(authoring(ScaleToFit({ minimum_percent: 90 })), [], concrete_row_count, [], page, theme, NoFlowTemplate) {
 		Err(FigureScaleFloor({ block: 0, floor: 90, scale: 805 })) => True
 		_ => False
 	}
-	exact = match plan_flow(authoring(Exact), [], [], page, theme, NoFlowTemplate) {
+	exact = match plan_flow(authoring(Exact), [], concrete_row_count, [], page, theme, NoFlowTemplate) {
 		Err(FigureOversize({ block: 0, frame_height: 746000, frame_width: 483000, height: 900000, width: 600000 })) => True
 		_ => False
 	}
@@ -2361,4 +2391,304 @@ mapped_lead_count : FlowSelection, List(U64) -> U64
 mapped_lead_count = |flow, units| {
 	leaves = lead_leaves(flow)
 	if leaves == 0 0 else list_at(units, leaves - 1) + 1
+}
+
+concrete_row_count : KernelFacadeLines.BlockLines -> [Rows(U64), NoRows]
+concrete_row_count = |block| match block {
+	TextBlock({ body, .. }) => Rows(body.lines.length())
+	ContentlessCell | EmptySourceLine(_) => NoRows
+}
+
+## Geometry planning over measured rows. These rows have item identities and
+## widths, but no provisional Unicode range or text-semantic fragment.
+build_measured : Document.NormalizedAuthoring, KernelFacadePages.MeasuredInput, Layout.Size, Theme, FlowSelection, KernelFacadePages.Limits -> Try(KernelFacadePages.Measured, KernelFacadePages.Error)
+build_measured = |authoring, input, page_size, theme, flow, limits| {
+	if input.blocks.len() != authoring.blocks.len() or input.blocks.is_empty() {
+		return Err(InvalidBlock({ block: input.blocks.len() }))
+	}
+	check_limit(input.blocks.len(), limits.max_blocks, Blocks)?
+	check_page_breaks(authoring.page_breaks, input.blocks.len(), lead_leaves(flow))?
+	flow_facts = plan_flow(authoring, input.blocks, measured_row_count, input.figure_frames, page_size, theme, flow)?
+	author_keeps = authored_keeps(authoring.groups, input.blocks.len())
+	gap = nonnegative_raw(theme.table.row_gap)?
+	spacing = nonnegative_raw(theme.paragraph_spacing)?
+	no_row = { body_rule: False, cells: Semantics.Range.from_start_and_length(0, 0), fill: NoFill, grid: 0, rule_above: False, rule_below: False, table: 0 }
+	var $blocks = []
+	var $units = []
+	var $grid_rows = []
+	var $row_info = []
+	var $table_info = []
+	var $unit_of_block = List.repeat(0, input.blocks.len())
+	var $footer_groups = []
+	var $footer_sources = []
+	var $source = 0
+	var $table = 0
+	var $cell = 0
+	var $break = 0
+	var $spacer = 0
+	var $index = 0
+	while $index < input.blocks.len() {
+		source_start = $source < authoring.sources.len() and list_at(authoring.groups, list_at(authoring.sources, $source).group).first_block == $index
+		table_start = $table < input.tables.len() and list_at(authoring.groups, list_at(input.tables, $table).group).first_block == $index
+		if source_start {
+			source = list_at(authoring.sources, $source)
+			group = list_at(authoring.groups, source.group)
+			start = $grid_rows.len()
+			var $leaf = group.first_block
+			while $leaf < group.block_end {
+				$unit_of_block = list_set($unit_of_block, $leaf, $units.len())
+				match list_at(input.blocks, $leaf) {
+					EmptySourceLine({ source: id, line }) => {
+						if id != $source {
+							return Err(InvalidBlock({ block: $leaf }))
+						}
+						check_limit(checked_add($grid_rows.len(), 1)?, limits.max_rows, Rows)?
+						$grid_rows = $grid_rows.append(NoTextRow({ source: id, line }))
+					}
+					MeasuredText(text) => {
+						var $row = 0
+						while $row < text.rows.length() {
+							check_limit(checked_add($grid_rows.len(), 1)?, limits.max_rows, Rows)?
+							$grid_rows = $grid_rows.append(BodyRow({ block: $leaf, row: text.rows.start() + $row, offset: text.body_offset, label: NoLabel }))
+							$row = $row + 1
+						}
+					}
+					_ => return Err(InvalidBlock({ block: $leaf }))
+				}
+				$leaf = $leaf + 1
+			}
+			spaced = spacer_total(authoring.spacers, $spacer, group.block_end)
+			$spacer = spaced.cursor
+			break_before = $break < authoring.page_breaks.len() and list_at(authoring.page_breaks, $break).block == $index
+			if break_before {
+				$break = $break + 1
+			}
+			keep = if author_keeps.is_empty() NoKeep else list_at(author_keeps, group.block_end - 1)
+			$blocks = $blocks.append({ baseline_offset: source.size, leading: source.leading, decoration: leaf_decoration(flow_facts, $index), lead: Layout.Unit.from_raw(0), trailing: Layout.Unit.from_raw(0), lines: Semantics.Range.from_start_and_length(start, $grid_rows.len() - start), owner: SourceBlock({ source: $source, padding: source.padding }), policy: { break_before, keep_together: source.fragmentation == Unsplittable, keep_with_next: keep, minimum_first_lines: 1, minimum_last_lines: 1 }, space_after: Layout.Unit.from_raw(checked_add(spacing, spaced.amount)?.to_i64_wrap()) })
+			$units = $units.append(SourceUnit($source))
+			$row_info = $row_info.append(no_row)
+			$source = $source + 1
+			$index = group.block_end
+		} else if table_start {
+			table_geometry = list_at(input.tables, $table)
+			group = list_at(authoring.groups, table_geometry.group)
+			table = list_at(authoring.tables, $table)
+			break_before = $break < authoring.page_breaks.len() and list_at(authoring.page_breaks, $break).block == $index
+			if break_before {
+				$break = $break + 1
+			}
+			var $pending_break = break_before
+			if table.caption {
+				text = measured_text(list_at(input.blocks, $index), $index)?
+				start = $grid_rows.len()
+				var $row = 0
+				while $row < text.rows.length() {
+					check_limit(checked_add($grid_rows.len(), 1)?, limits.max_rows, Rows)?
+					$grid_rows = $grid_rows.append(BodyRow({ block: $index, row: text.rows.start() + $row, offset: text.body_offset, label: NoLabel }))
+					$row = $row + 1
+				}
+				$unit_of_block = list_set($unit_of_block, $index, $units.len())
+				$blocks = $blocks.append({ ..measured_leaf(text, start), decoration: leaf_decoration(flow_facts, $index), policy: { break_before: $pending_break, keep_together: True, keep_with_next: Required, minimum_first_lines: U64.min(2, text.rows.length()), minimum_last_lines: U64.min(2, text.rows.length()) }, space_after: Layout.Unit.from_raw(gap.to_i64_wrap()) })
+				$units = $units.append(LeafUnit($index))
+				$row_info = $row_info.append(no_row)
+				$pending_break = False
+			}
+			header_first = $units.len()
+			var $header_height = 0
+			var $ordinal = 0
+			var $row_group = table_geometry.group + 1
+			while $row_group < group.group_end {
+				row = list_at(authoring.groups, $row_group)
+				section = match row.kind {
+					TableRow(value) => value
+					_ => return Err(InvalidBlock({ block: row.first_block }))
+				}
+				first_cell = $cell
+				var $grid = 0
+				var $leading = 0
+				var $size = 0
+				var $owner = Semantics.OccurrenceId.from_index(0)
+				var $seen = False
+				var $leaf = row.first_block
+				while $leaf < row.block_end {
+					match list_at(input.blocks, $leaf) {
+						ContentlessCell => {}
+						MeasuredText(text) => {
+							if !$seen {
+								$leading = positive_raw(text.leading)?
+								$owner = text.owner
+								$seen = True
+							}
+								else if positive_raw(text.leading)? != $leading {
+									return Err(InvalidBlock({ block: $leaf }))
+								}
+							$size = U64.max($size, positive_raw(text.size)?)
+							$grid = U64.max($grid, text.rows.length())
+						}
+						_ => return Err(InvalidBlock({ block: $leaf }))
+					}
+					$unit_of_block = list_set($unit_of_block, $leaf, $units.len())
+					$cell = $cell + 1
+					$leaf = $leaf + 1
+				}
+				if !$seen {
+					$grid = 1
+					$leading = positive_raw(Theme.body_style(theme).leading)?
+					$size = positive_raw(Theme.body_style(theme).size)?
+				}
+				if $grid == 0 {
+					return Err(InvalidBlock({ block: row.first_block }))
+				}
+				start = $grid_rows.len()
+				var $local = 0
+				while $local < $grid {
+					check_limit(checked_add($grid_rows.len(), 1)?, limits.max_rows, Rows)?
+					$grid_rows = $grid_rows.append(TableGrid)
+					$local = $local + 1
+				}
+				last_row = $row_group + 1 == group.group_end
+				last_body = section == Body and (
+					last_row or (
+						match list_at(authoring.groups, $row_group + 1).kind {
+							TableRow(Footer) => True
+							_ => False
+						}
+					)
+				)
+				first_footer = section == Footer and (
+					match list_at(authoring.groups, $row_group - 1).kind {
+						TableRow(Footer) => False
+						_ => True
+					}
+				)
+				last_header = section == Header and (
+					match list_at(authoring.groups, $row_group + 1).kind {
+						TableRow(Header) => False
+						_ => True
+					}
+				)
+				authored = if author_keeps.is_empty() NoKeep else list_at(author_keeps, row.block_end - 1)
+				keep = if section == Header Required else if last_body and table.footer_rows > 0 Preferred(FooterCarry) else if last_row authored else NoKeep
+				spaced = spacer_total(authoring.spacers, $spacer, row.block_end)
+				if last_row {
+					$spacer = spaced.cursor
+				}
+				space = if last_row checked_add(spacing, spaced.amount)? else gap
+				fill = match section {
+					Header => theme.table.header_fill
+					Footer => theme.table.footer_fill
+					Body => if $ordinal % 2 == 0 theme.table.body_fills.odd else theme.table.body_fills.even
+				}
+				$row_info = $row_info.append({ body_rule: section == Body and $ordinal > 0, cells: Semantics.Range.from_start_and_length(first_cell, $cell - first_cell), fill, grid: $grid, rule_above: first_footer, rule_below: last_header, table: $table })
+				if section == Body {
+					$ordinal = $ordinal + 1
+				}
+				minimum = U64.min(2, $grid)
+				$blocks = $blocks.append({ baseline_offset: Layout.Unit.from_raw($size.to_i64_wrap()), leading: Layout.Unit.from_raw($leading.to_i64_wrap()), lines: Semantics.Range.from_start_and_length(start, $grid), owner: Content($owner), decoration: leaf_decoration(flow_facts, row.first_block), trailing: Layout.Unit.from_raw(0), lead: Layout.Unit.from_raw((if section == Header 0 else $header_height).to_i64_wrap()), policy: { break_before: $pending_break, keep_together: section != Body or table.row_split == KeepRows, keep_with_next: keep, minimum_first_lines: minimum, minimum_last_lines: minimum }, space_after: Layout.Unit.from_raw(space.to_i64_wrap()) })
+				$units = $units.append(RowUnit($row_group))
+				$pending_break = False
+				if section == Header {
+					$header_height = checked_add($header_height, checked_add(checked_mul($grid, $leading)?, gap)?)?
+				}
+				$row_group = $row_group + 1
+			}
+			if table.footer_rows > 1 {
+				$footer_groups = $footer_groups.append({ blocks: Semantics.Range.from_start_and_length($units.len() - table.footer_rows, table.footer_rows) })
+				$footer_sources = $footer_sources.append(FooterRows({ first: group.group_end - table.footer_rows, last: group.group_end - 1 }))
+			}
+			$table_info = $table_info.append({ offset: table_geometry.offset, width: table_geometry.width, header_height: $header_height, header_units: Semantics.Range.from_start_and_length(header_first, table.header_rows) })
+			$table = $table + 1
+			$index = group.block_end
+		} else {
+			text = measured_text(list_at(input.blocks, $index), $index)?
+			start = $grid_rows.len()
+			var $row = 0
+			while $row < text.rows.length() {
+				label = if $row == 0 {
+					match text.label {
+						NoLabel => NoLabel
+						Label(value) => Label({ row: value.rows.start(), offset: value.offset })
+					}
+				} else NoLabel
+				check_limit(checked_add($grid_rows.len(), 1)?, limits.max_rows, Rows)?
+				$grid_rows = $grid_rows.append(BodyRow({ block: $index, row: text.rows.start() + $row, offset: text.body_offset, label }))
+				$row = $row + 1
+			}
+			authored = if author_keeps.is_empty() NoKeep else list_at(author_keeps, $index)
+			theme_keep = keeps_with_next(list_at(authoring.blocks, $index).kind) and $index + 1 < input.blocks.len()
+			keep = match authored {
+				Required => Required
+				_ => if theme_keep Preferred(HeadingKeep) else authored
+			}
+			spaced = spacer_total(authoring.spacers, $spacer, $index + 1)
+			$spacer = spaced.cursor
+			break_before = $break < authoring.page_breaks.len() and list_at(authoring.page_breaks, $break).block == $index
+			if break_before {
+				$break = $break + 1
+			}
+			list_spacing = if measured_continues_list(authoring, input.blocks, $index, text.level) 0 else spacing
+			$blocks = $blocks.append(flow_block(authoring, flow_facts, $index, { ..measured_leaf(text, start), policy: { break_before, keep_together: keeps_together(list_at(authoring.blocks, $index).kind), keep_with_next: keep, minimum_first_lines: U64.min(2, text.rows.length()), minimum_last_lines: U64.min(2, text.rows.length()) }, space_after: Layout.Unit.from_raw(checked_add(list_spacing, spaced.amount)?.to_i64_wrap()) }))
+			$unit_of_block = list_set($unit_of_block, $index, $units.len())
+			$units = $units.append(LeafUnit($index))
+			$row_info = $row_info.append(no_row)
+			$index = $index + 1
+		}
+		check_limit($grid_rows.len(), limits.max_rows, Rows)?
+	}
+	$blocks = apply_customs(authoring, $blocks, $unit_of_block)?
+	merged = merge_groups(unit_groups(authoring, $unit_of_block), $footer_groups, $footer_sources)
+	lead = mapped_lead_count(flow, $unit_of_block)
+	containers = callout_containers(authoring, |group| list_at(input.group_frames, group), $unit_of_block, theme)?
+	selection = match flow {
+		NoFlowTemplate => NoTemplate
+		WithFlowTemplate(template) | WithScopedFlow({ template, scopes: _ }) => WithTemplate(layout_template(template, lead))
+	}
+	$blocks = scope_policies(lead_policies($blocks, lead), flow, $unit_of_block)
+	choice = KernelPageLayout.Choice.build($blocks, flow_groups(merged.groups, lead), $grid_rows.len(), { margins: theme.page_margin, page: page_size }, selection, layout_scopes(flow, $unit_of_block), containers, limits.page) ? |error| TableLayout({ error, groups: merged.sources, units: $units })
+	Ok(KernelFacadePages.Measured.({ choice, blocks: $blocks, units: $units, unit_of_block: $unit_of_block, grid_rows: $grid_rows, row_info: $row_info, table_info: $table_info, flow: flow_facts }))
+}
+
+MeasuredTextInfo : { rows : Semantics.Range, size : Layout.Unit, leading : Layout.Unit, owner : Semantics.OccurrenceId, level : U64, body_offset : Layout.Unit, label : [NoLabel, Label({ rows : Semantics.Range, offset : Layout.Unit })] }
+
+measured_text : KernelFacadePages.MeasuredBlock, U64 -> Try(MeasuredTextInfo, KernelFacadePages.Error)
+measured_text = |block, index| match block {
+	MeasuredText(text) => if text.rows.length() == 0 Err(InvalidBlock({ block: index })) else Ok(text)
+	_ => Err(InvalidBlock({ block: index }))
+}
+
+measured_row_count : KernelFacadePages.MeasuredBlock -> [Rows(U64), NoRows]
+measured_row_count = |block| match block {
+	MeasuredText(text) => Rows(text.rows.length())
+	_ => NoRows
+}
+
+measured_leaf : MeasuredTextInfo, U64 -> KernelPageLayout.Block
+measured_leaf = |text, start| { baseline_offset: text.size, leading: text.leading, lines: Semantics.Range.from_start_and_length(start, text.rows.length()), owner: Content(text.owner), decoration: Layout.Unit.from_raw(0), lead: Layout.Unit.from_raw(0), trailing: Layout.Unit.from_raw(0), policy: { break_before: False, keep_together: False, keep_with_next: NoKeep, minimum_first_lines: U64.min(2, text.rows.length()), minimum_last_lines: U64.min(2, text.rows.length()) }, space_after: Layout.Unit.from_raw(0) }
+
+measured_continues_list : Document.NormalizedAuthoring, List(KernelFacadePages.MeasuredBlock), U64, U64 -> Bool
+measured_continues_list = |authoring, blocks, index, level| {
+	if index + 1 >= blocks.len() {
+		return False
+	}
+	match (list_at(authoring.blocks, index).kind, list_at(authoring.blocks, index + 1).kind) {
+		(Bullet({ list: left, .. }), Bullet({ list: right, .. })) => left == right
+		_ => {
+			next_level = match list_at(blocks, index + 1) {
+				MeasuredText(text) => text.level
+				_ => 0
+			}
+			list = outermost_list(authoring.groups, list_at(authoring.blocks, index).parent)
+			level > 0 and next_level > 0 and list != 0 and list == outermost_list(authoring.groups, list_at(authoring.blocks, index + 1).parent)
+		}
+	}
+}
+
+expect {
+	authoring = Document.normalize(Document.from_blocks({ contents: [Document.paragraph("Measured paragraph")], language: "en-AU", title: "Geometry" }))
+	input = { blocks: [MeasuredText({ rows: Semantics.Range.from_start_and_length(0, 100), size: Layout.Unit.points(11), leading: Layout.Unit.points(14), owner: Semantics.OccurrenceId.from_index(0), level: 0, body_offset: Layout.Unit.points(0), label: NoLabel })], cells: [], tables: [], group_frames: [], source_frames: [], figure_frames: [] }
+	limits = KernelFacadePages.Limits.make({ max_blocks: 10, max_rows: 100, page: KernelPageLayout.Limits.make({ max_blocks: 10, max_fragments: 10, max_lines: 100, max_pages: 10, max_placements: 100 }) })
+	page = { height: Layout.Unit.points(842), width: Layout.Unit.points(595) }
+	plan = KernelFacadePages.Measured.build(authoring, input, page, Theme.{ page_margin: { bottom: 48, top: 48, left: 56, right: 56 } }, NoFlowTemplate, limits)?
+	view = KernelFacadePages.Measured.view(plan)
+	KernelPageLayout.Choice.pages(view.choice).len() == 2 and view.grid_rows.len() == 100 and KernelPageLayout.Choice.spans(view.choice).map(|span| span.rows.length()) == [53, 47]
 }
