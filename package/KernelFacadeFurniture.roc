@@ -7,6 +7,8 @@ import KernelFacadeSemantics
 import KernelFacadeShape
 import KernelFacadeSources
 import KernelFont
+import KernelNavigation
+import KernelPageLabels
 import KernelPageLayout
 import KernelShape
 import Layout
@@ -35,6 +37,8 @@ KernelFacadeFurniture :: [].{
 	## `templates.continuation.footer.end[0].inlines[0]`.
 	Error : [
 		ArithmeticOverflow,
+		PageLabels(Document.NavigationError),
+		PageLabelText({ error : KernelPageLabels.Error, page : U64, path : Str }),
 		ScopeInvalid({ group : U64, reason : Str }),
 
 		## A document with page templates has no body block.
@@ -122,7 +126,7 @@ KernelFacadeFurniture :: [].{
 
 	## The pre-flow template facts. `flow` is the page-layout geometry;
 	## nothing else here may influence pagination.
-	Static :: { scope_flows : List(KernelFacadePages.FlowScope), scope_templates : List({ opening : U64, continuation : U64, label : Str }), template_regions : List(Semantics.Range), drawings : List(Drawing), flow : KernelFacadePages.FlowTemplate, frame : FrameFacts, images : List(Image.Source), items : List(Item), regions : List(Region), style : Theme.TextStyle, texts : List(TextTemplate) }.{
+	Static :: { scope_flows : List(KernelFacadePages.FlowScope), scope_templates : List({ opening : U64, continuation : U64, label : Str }), template_regions : List(Semantics.Range), drawings : List(Drawing), flow : KernelFacadePages.FlowTemplate, frame : FrameFacts, images : List(Image.Source), items : List(Item), labels : List(Document.PageLabelRange), regions : List(Region), style : Theme.TextStyle, texts : List(TextTemplate) }.{
 		build : Document.NormalizedAuthoring, Theme, Layout.Size -> Try(Static, Error)
 		build = |authoring, theme, page_size| build_static(authoring, theme, page_size)
 
@@ -154,10 +158,24 @@ KernelFacadeFurniture :: [].{
 		## face exactly as body text does. A selected face the body did not
 		## use becomes an extra output font after the body's fonts.
 		resolve : Static, U64, [PolicyFaces(PolicyFonts), SingleFace(KernelFont.Inspection), StyledFace({ font : KernelFont.Inspection, instance : U64, extra : Bool })], Semantics.Language, U64, Limits -> Try(Plan, Error)
-		resolve = |static, pages, font, language, source_base, limits| resolve_plan(static, pages, [], font, language, source_base, limits)
+		resolve = |static, pages, font, language, source_base, limits| {
+			labels = KernelNavigation.LabelPlan.build(static.labels, pages, KernelNavigation.standard_limits) ? PageLabels
+			resolve_plan(static, labels, [], font, language, source_base, limits)
+		}
+
+		## Production pipelines pass the label proof shared with navigation
+		## and destination references, avoiding a second range validation.
+		resolve_with_labels : Static, KernelNavigation.LabelPlan, [PolicyFaces(PolicyFonts), SingleFace(KernelFont.Inspection), StyledFace({ font : KernelFont.Inspection, instance : U64, extra : Bool })], Semantics.Language, U64, Limits -> Try(Plan, Error)
+		resolve_with_labels = |static, labels, font, language, source_base, limits| resolve_plan(static, labels, [], font, language, source_base, limits)
 
 		resolve_scoped : Static, U64, List(KernelPageLayout.ScopePage), [PolicyFaces(PolicyFonts), SingleFace(KernelFont.Inspection), StyledFace({ font : KernelFont.Inspection, instance : U64, extra : Bool })], Semantics.Language, U64, Limits -> Try(Plan, Error)
-		resolve_scoped = |static, pages, scopes, font, language, source_base, limits| resolve_plan(static, pages, scopes, font, language, source_base, limits)
+		resolve_scoped = |static, pages, scopes, font, language, source_base, limits| {
+			labels = KernelNavigation.LabelPlan.build(static.labels, pages, KernelNavigation.standard_limits) ? PageLabels
+			resolve_plan(static, labels, scopes, font, language, source_base, limits)
+		}
+
+		resolve_scoped_with_labels : Static, KernelNavigation.LabelPlan, List(KernelPageLayout.ScopePage), [PolicyFaces(PolicyFonts), SingleFace(KernelFont.Inspection), StyledFace({ font : KernelFont.Inspection, instance : U64, extra : Bool })], Semantics.Language, U64, Limits -> Try(Plan, Error)
+		resolve_scoped_with_labels = |static, labels, scopes, font, language, source_base, limits| resolve_plan(static, labels, scopes, font, language, source_base, limits)
 
 		drawing_paints : Plan -> List(DrawingPaint)
 		drawing_paints = |plan| plan.drawing_paints
@@ -214,7 +232,7 @@ Region : { band : KernelFacadeFurniture.Band, height : U64, items : Semantics.Ra
 ## its top edge below the body frame top.
 Item : { content : [DrawingContent(U64), TextContent(U64)], height : U64, path : Str, slot : Slot, top : U64 }
 
-Field : [PageField, TotalField]
+Field : [LabelField, PageField, TotalField]
 
 ## One validated furniture line as parts. Literal scalar counts are counted
 ## once here.
@@ -325,7 +343,7 @@ build_static = |authoring, theme, page_size| {
 		}
 		$plan_id = $plan_id + 1
 	}
-	Ok(KernelFacadeFurniture.Static.{ scope_flows: $flows, scope_templates: $choices, template_regions: $spans, flow: $first_flow, frame: base.frame, style: base.style, drawings: $drawings, images: $images, items: $items, regions: $regions, texts: $texts })
+	Ok(KernelFacadeFurniture.Static.{ scope_flows: $flows, scope_templates: $choices, template_regions: $spans, labels: base.labels, flow: $first_flow, frame: base.frame, style: base.style, drawings: $drawings, images: $images, items: $items, regions: $regions, texts: $texts })
 }
 
 check_scopes : Document.NormalizedAuthoring -> Try({}, KernelFacadeFurniture.Error)
@@ -451,6 +469,7 @@ build_static_basic = |authoring, theme, page_size, paths| {
 			frame: { left: left_margin, top: checked_sub(page_height, top_margin)?, width: frame_width },
 			images: $state.images,
 			items: $state.items,
+			labels: authoring.page_labels,
 			regions: $state.regions,
 			style,
 			texts: $state.texts,
@@ -629,6 +648,7 @@ text_template = |inlines, path| {
 				$open = used_box($open)
 				$fields = True
 				kind = match field {
+					PageLabelField => LabelField
 					PageNumberField => PageField
 					TotalPagesField => TotalField
 				}
@@ -925,8 +945,10 @@ path_bounds = |segments| {
 }
 
 ## Pass 2: resolve, shape, prove, and place.
-resolve_plan : KernelFacadeFurniture.Static, U64, List(KernelPageLayout.ScopePage), [PolicyFaces(KernelFacadeFurniture.PolicyFonts), SingleFace(KernelFont.Inspection), StyledFace({ font : KernelFont.Inspection, instance : U64, extra : Bool })], Semantics.Language, U64, KernelFacadeFurniture.Limits -> Try(KernelFacadeFurniture.Plan, KernelFacadeFurniture.Error)
-resolve_plan = |static, page_count, scope_pages, selection, language, source_base, limits| {
+resolve_plan : KernelFacadeFurniture.Static, KernelNavigation.LabelPlan, List(KernelPageLayout.ScopePage), [PolicyFaces(KernelFacadeFurniture.PolicyFonts), SingleFace(KernelFont.Inspection), StyledFace({ font : KernelFont.Inspection, instance : U64, extra : Bool })], Semantics.Language, U64, KernelFacadeFurniture.Limits -> Try(KernelFacadeFurniture.Plan, KernelFacadeFurniture.Error)
+resolve_plan = |static, label_plan, scope_pages, selection, language, source_base, limits| {
+	page_count = KernelNavigation.LabelPlan.pages(label_plan)
+
 	## The single face is the resolved furniture face, which is the furniture
 	## style's face whatever its registry index. Styled selection supplies
 	## its explicit dense output instance and whether it adds a furniture-only face.
@@ -959,7 +981,7 @@ resolve_plan = |static, page_count, scope_pages, selection, language, source_bas
 						DrawingContent(_) => {}
 						TextContent(text_index) => {
 							text = list_at(static.texts, text_index)
-							resolved = resolve_line(text.parts, $page + 1, page_count, context.label)
+							resolved = resolve_line(text.parts, $page + 1, page_count, label_plan, context.label)?
 							$field_resolutions = checked_add($field_resolutions, resolved.fields)?
 							check_limit(checked_add($pending.len(), 1)?, limits.max_inputs, Inputs)?
 							$pending = $pending.append({ input: if resolved.text.is_empty() NoText else Input($inputs.len()), item: $item, page: $page, region: $region, segments: resolved.segments })
@@ -1127,8 +1149,8 @@ locate_single_text_error = |static, font, sources, options, input_sources, pendi
 }
 
 ## One resolved line: its text, its segments, and how many fields resolved.
-resolve_line : List(Part), U64, U64, Str -> { fields : U64, segments : List(Segment), text : Str }
-resolve_line = |parts, page, pages, label| {
+resolve_line : List(Part), U64, U64, KernelNavigation.LabelPlan, Str -> Try({ fields : U64, segments : List(Segment), text : Str }, KernelFacadeFurniture.Error)
+resolve_line = |parts, page, pages, labels, label| {
 	var $pieces = List.with_capacity(parts.len())
 	var $segments = []
 	var $bytes = 0
@@ -1156,11 +1178,15 @@ resolve_line = |parts, page, pages, label| {
 				}
 			}
 			FieldPart({ field, path, style }) => {
-				value = KernelFacadeSemantics.number_text(Document.page_field_number_style(style), if field == PageField page else pages)
+				value = match field {
+					LabelField => KernelPageLabels.format_allow_empty(labels, page - 1, 4096) ? |error| PageLabelText({ error, page, path })
+					PageField => KernelFacadeSemantics.number_text(Document.page_field_number_style(style), page)
+					TotalField => KernelFacadeSemantics.number_text(Document.page_field_number_style(style), pages)
+				}
 				$pieces = $pieces.append(value)
 				length = value.count_utf8_bytes()
 				$bytes = $bytes + length
-				$scalars = $scalars + length
+				$scalars = $scalars + scalar_count(value)
 				$fields = $fields + 1
 				$field = match $field {
 					NoField => Field({ path, value })
@@ -1192,7 +1218,7 @@ resolve_line = |parts, page, pages, label| {
 	for piece in $pieces {
 		$text = $text.concat(piece)
 	}
-	{ fields: $fields, segments: $segments, text: $text }
+	Ok({ fields: $fields, segments: $segments, text: $text })
 }
 
 ## The measured width of every item of one region on one page, and its
@@ -1451,6 +1477,12 @@ pending_runs = |source_runs, input_sources, input| match input {
 
 ## The runs shaping one furniture source: `source_runs` is empty through
 ## the single face, where source `k` is run `k`.
+pending_runs : List(Semantics.Range), List(Semantics.TextSourceId), [Input(U64), NoText] -> Semantics.Range
+pending_runs = |source_runs, input_sources, input| match input {
+	NoText => Semantics.Range.from_start_and_length(0, 0)
+	Input(index) => runs_of(source_runs, list_at(input_sources, index).index())
+}
+
 runs_of : List(Semantics.Range), U64 -> Semantics.Range
 runs_of = |source_runs, source| if source_runs.is_empty() Semantics.Range.from_start_and_length(source, 1) else list_at(source_runs, source)
 
