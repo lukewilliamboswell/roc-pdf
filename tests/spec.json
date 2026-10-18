@@ -58,7 +58,8 @@
     "chapter_templates",
     "vector_diagrams",
     "rich_flow",
-    "technical_manual"
+    "technical_manual",
+    "destination_references"
   ],
   "post_update_checks": [
     "contracts",
@@ -76,7 +77,8 @@
     "chapter_templates",
     "vector_diagrams",
     "rich_flow",
-    "technical_manual"
+    "technical_manual",
+    "destination_references"
   ],
   "validation": {
     "sources": [
@@ -218,6 +220,10 @@
     {
       "source": "tests/rich_flow/main.roc",
       "cases_jsonl": "tests/rich_flow/cases.jsonl"
+    },
+    {
+      "source": "tests/destination_references/main.roc",
+      "cases_jsonl": "tests/destination_references/cases.jsonl"
     }
   ],
   "cases": [
@@ -30621,31 +30627,31 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 0,
-          "allocated_bytes": 0,
+          "allocations": 4530,
+          "allocated_bytes": 6458127,
           "work": {
-            "lines": 0,
-            "pages": 0,
-            "reference_passes": 0,
-            "field_resolutions": 0,
-            "furniture_items": 0,
-            "fragments": 0,
-            "artifact_runs": 0,
-            "output_bytes": 0
+            "lines": 3,
+            "pages": 3,
+            "reference_passes": 2,
+            "field_resolutions": 9,
+            "furniture_items": 3,
+            "fragments": 3,
+            "artifact_runs": 9,
+            "output_bytes": 12101
           }
         },
         "x64musl": {
-          "allocations": 0,
-          "allocated_bytes": 0,
+          "allocations": 4530,
+          "allocated_bytes": 6458127,
           "work": {
-            "lines": 0,
-            "pages": 0,
-            "reference_passes": 0,
-            "field_resolutions": 0,
-            "furniture_items": 0,
-            "fragments": 0,
-            "artifact_runs": 0,
-            "output_bytes": 0
+            "lines": 3,
+            "pages": 3,
+            "reference_passes": 2,
+            "field_resolutions": 9,
+            "furniture_items": 3,
+            "fragments": 3,
+            "artifact_runs": 9,
+            "output_bytes": 12101
           }
         }
       },
@@ -30682,31 +30688,31 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 0,
-          "allocated_bytes": 0,
+          "allocations": 19225,
+          "allocated_bytes": 27979405,
           "work": {
-            "lines": 0,
-            "pages": 0,
-            "reference_passes": 0,
-            "field_resolutions": 0,
-            "furniture_items": 0,
-            "fragments": 0,
-            "artifact_runs": 0,
-            "output_bytes": 0
+            "lines": 30,
+            "pages": 30,
+            "reference_passes": 2,
+            "field_resolutions": 90,
+            "furniture_items": 30,
+            "fragments": 30,
+            "artifact_runs": 90,
+            "output_bytes": 24991
           }
         },
         "x64musl": {
-          "allocations": 0,
-          "allocated_bytes": 0,
+          "allocations": 19225,
+          "allocated_bytes": 27979405,
           "work": {
-            "lines": 0,
-            "pages": 0,
-            "reference_passes": 0,
-            "field_resolutions": 0,
-            "furniture_items": 0,
-            "fragments": 0,
-            "artifact_runs": 0,
-            "output_bytes": 0
+            "lines": 30,
+            "pages": 30,
+            "reference_passes": 2,
+            "field_resolutions": 90,
+            "furniture_items": 30,
+            "fragments": 30,
+            "artifact_runs": 90,
+            "output_bytes": 24991
           }
         }
       },
@@ -30744,37 +30750,37 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 0,
-          "allocated_bytes": 0,
+          "allocations": 632,
+          "allocated_bytes": 2010648,
           "work": {
-            "atom_writes": 0,
+            "atom_writes": 100,
             "cluster_visits": 0,
             "glyph_index_visits": 0,
-            "measure_item_visits": 0,
-            "measure_validation_visits": 0,
-            "wrap_item_visits": 0,
-            "wrap_boundary_visits": 0,
-            "line_writes": 0,
-            "range_checks": 0,
-            "range_sum": 0,
-            "advance_sum": 0
+            "measure_item_visits": 100,
+            "measure_validation_visits": 100,
+            "wrap_item_visits": 165,
+            "wrap_boundary_visits": 165,
+            "line_writes": 66,
+            "range_checks": 66,
+            "range_sum": 5016,
+            "advance_sum": 199000
           }
         },
         "x64musl": {
-          "allocations": 0,
-          "allocated_bytes": 0,
+          "allocations": 632,
+          "allocated_bytes": 2010648,
           "work": {
-            "atom_writes": 0,
+            "atom_writes": 100,
             "cluster_visits": 0,
             "glyph_index_visits": 0,
-            "measure_item_visits": 0,
-            "measure_validation_visits": 0,
-            "wrap_item_visits": 0,
-            "wrap_boundary_visits": 0,
-            "line_writes": 0,
-            "range_checks": 0,
-            "range_sum": 0,
-            "advance_sum": 0
+            "measure_item_visits": 100,
+            "measure_validation_visits": 100,
+            "wrap_item_visits": 165,
+            "wrap_boundary_visits": 165,
+            "line_writes": 66,
+            "range_checks": 66,
+            "range_sum": 5016,
+            "advance_sum": 199000
           }
         }
       },
@@ -30809,37 +30815,37 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 0,
-          "allocated_bytes": 0,
+          "allocations": 640,
+          "allocated_bytes": 2219985,
           "work": {
-            "atom_writes": 0,
+            "atom_writes": 1000,
             "cluster_visits": 0,
             "glyph_index_visits": 0,
-            "measure_item_visits": 0,
-            "measure_validation_visits": 0,
-            "wrap_item_visits": 0,
-            "wrap_boundary_visits": 0,
-            "line_writes": 0,
-            "range_checks": 0,
-            "range_sum": 0,
-            "advance_sum": 0
+            "measure_item_visits": 1000,
+            "measure_validation_visits": 1000,
+            "wrap_item_visits": 1665,
+            "wrap_boundary_visits": 1665,
+            "line_writes": 666,
+            "range_checks": 666,
+            "range_sum": 500166,
+            "advance_sum": 1999000
           }
         },
         "x64musl": {
-          "allocations": 0,
-          "allocated_bytes": 0,
+          "allocations": 640,
+          "allocated_bytes": 2219985,
           "work": {
-            "atom_writes": 0,
+            "atom_writes": 1000,
             "cluster_visits": 0,
             "glyph_index_visits": 0,
-            "measure_item_visits": 0,
-            "measure_validation_visits": 0,
-            "wrap_item_visits": 0,
-            "wrap_boundary_visits": 0,
-            "line_writes": 0,
-            "range_checks": 0,
-            "range_sum": 0,
-            "advance_sum": 0
+            "measure_item_visits": 1000,
+            "measure_validation_visits": 1000,
+            "wrap_item_visits": 1665,
+            "wrap_boundary_visits": 1665,
+            "line_writes": 666,
+            "range_checks": 666,
+            "range_sum": 500166,
+            "advance_sum": 1999000
           }
         }
       },
@@ -32167,6 +32173,459 @@
         "pdfa4",
         "structure_semantics",
         "technical_manual"
+      ]
+    },
+    {
+      "name": "destination references x2",
+      "scenario_revision": "destination-page-references-v1",
+      "source": "tests/destination_references/main.roc",
+      "snapshot": "tests/destination_references/references_2.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "sections": 2,
+        "styled": 0,
+        "pages": 3
+      },
+      "work_counters": [
+        "reference_atoms",
+        "normalization_chunks",
+        "literal_shape_requests",
+        "measured_items",
+        "measured_rows",
+        "committed_row_visits",
+        "anchor_item_visits",
+        "registry_lookup_steps",
+        "resolved_labels",
+        "resolved_label_bytes",
+        "mapping_cluster_visits",
+        "mapping_glyph_visits",
+        "reference_fit_run_visits",
+        "positioned_pieces",
+        "shape_metric_reads",
+        "hold_scalars",
+        "intrinsic_item_visits",
+        "wrapped_item_visits",
+        "boundary_visits",
+        "positioned_items",
+        "separator_run_visits",
+        "separator_override_writes",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 8483,
+          "allocated_bytes": 8977574,
+          "work": {
+            "reference_atoms": 15,
+            "normalization_chunks": 33,
+            "literal_shape_requests": 26,
+            "measured_items": 258,
+            "measured_rows": 18,
+            "committed_row_visits": 18,
+            "anchor_item_visits": 258,
+            "registry_lookup_steps": 24,
+            "resolved_labels": 15,
+            "resolved_label_bytes": 43,
+            "mapping_cluster_visits": 243,
+            "mapping_glyph_visits": 243,
+            "reference_fit_run_visits": 15,
+            "positioned_pieces": 41,
+            "shape_metric_reads": 527,
+            "hold_scalars": 0,
+            "intrinsic_item_visits": 58,
+            "wrapped_item_visits": 258,
+            "boundary_visits": 258,
+            "positioned_items": 258,
+            "separator_run_visits": 41,
+            "separator_override_writes": 1,
+            "output_bytes": 15743
+          }
+        },
+        "x64musl": {
+          "allocations": 8483,
+          "allocated_bytes": 8977574,
+          "work": {
+            "reference_atoms": 15,
+            "normalization_chunks": 33,
+            "literal_shape_requests": 26,
+            "measured_items": 258,
+            "measured_rows": 18,
+            "committed_row_visits": 18,
+            "anchor_item_visits": 258,
+            "registry_lookup_steps": 24,
+            "resolved_labels": 15,
+            "resolved_label_bytes": 43,
+            "mapping_cluster_visits": 243,
+            "mapping_glyph_visits": 243,
+            "reference_fit_run_visits": 15,
+            "positioned_pieces": 41,
+            "shape_metric_reads": 527,
+            "hold_scalars": 0,
+            "intrinsic_item_visits": 58,
+            "wrapped_item_visits": 258,
+            "boundary_visits": 258,
+            "positioned_items": 258,
+            "separator_run_visits": 41,
+            "separator_override_writes": 1,
+            "output_bytes": 15743
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "destination_references"
+      ]
+    },
+    {
+      "name": "destination references x20",
+      "scenario_revision": "destination-page-references-v1",
+      "source": "tests/destination_references/main.roc",
+      "snapshot": "tests/destination_references/references_20.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "sections": 20,
+        "styled": 0,
+        "pages": 21
+      },
+      "work_counters": [
+        "reference_atoms",
+        "normalization_chunks",
+        "literal_shape_requests",
+        "measured_items",
+        "measured_rows",
+        "committed_row_visits",
+        "anchor_item_visits",
+        "registry_lookup_steps",
+        "resolved_labels",
+        "resolved_label_bytes",
+        "mapping_cluster_visits",
+        "mapping_glyph_visits",
+        "reference_fit_run_visits",
+        "positioned_pieces",
+        "shape_metric_reads",
+        "hold_scalars",
+        "intrinsic_item_visits",
+        "wrapped_item_visits",
+        "boundary_visits",
+        "positioned_items",
+        "separator_run_visits",
+        "separator_override_writes",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 30533,
+          "allocated_bytes": 34408672,
+          "work": {
+            "reference_atoms": 87,
+            "normalization_chunks": 213,
+            "literal_shape_requests": 152,
+            "measured_items": 1180,
+            "measured_rows": 72,
+            "committed_row_visits": 72,
+            "anchor_item_visits": 1180,
+            "registry_lookup_steps": 342,
+            "resolved_labels": 87,
+            "resolved_label_bytes": 292,
+            "mapping_cluster_visits": 1093,
+            "mapping_glyph_visits": 1093,
+            "reference_fit_run_visits": 87,
+            "positioned_pieces": 239,
+            "shape_metric_reads": 2458,
+            "hold_scalars": 0,
+            "intrinsic_item_visits": 58,
+            "wrapped_item_visits": 1180,
+            "boundary_visits": 1180,
+            "positioned_items": 1180,
+            "separator_run_visits": 239,
+            "separator_override_writes": 1,
+            "output_bytes": 29082
+          }
+        },
+        "x64musl": {
+          "allocations": 30533,
+          "allocated_bytes": 34408672,
+          "work": {
+            "reference_atoms": 87,
+            "normalization_chunks": 213,
+            "literal_shape_requests": 152,
+            "measured_items": 1180,
+            "measured_rows": 72,
+            "committed_row_visits": 72,
+            "anchor_item_visits": 1180,
+            "registry_lookup_steps": 342,
+            "resolved_labels": 87,
+            "resolved_label_bytes": 292,
+            "mapping_cluster_visits": 1093,
+            "mapping_glyph_visits": 1093,
+            "reference_fit_run_visits": 87,
+            "positioned_pieces": 239,
+            "shape_metric_reads": 2458,
+            "hold_scalars": 0,
+            "intrinsic_item_visits": 58,
+            "wrapped_item_visits": 1180,
+            "boundary_visits": 1180,
+            "positioned_items": 1180,
+            "separator_run_visits": 239,
+            "separator_override_writes": 1,
+            "output_bytes": 29082
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "destination_references"
+      ]
+    },
+    {
+      "name": "destination references inherited face",
+      "scenario_revision": "destination-page-references-v1",
+      "source": "tests/destination_references/main.roc",
+      "snapshot": "tests/destination_references/styled.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "sections": 2,
+        "styled": 1,
+        "pages": 2
+      },
+      "work_counters": [
+        "reference_atoms",
+        "normalization_chunks",
+        "literal_shape_requests",
+        "measured_items",
+        "measured_rows",
+        "committed_row_visits",
+        "anchor_item_visits",
+        "registry_lookup_steps",
+        "resolved_labels",
+        "resolved_label_bytes",
+        "mapping_cluster_visits",
+        "mapping_glyph_visits",
+        "reference_fit_run_visits",
+        "positioned_pieces",
+        "shape_metric_reads",
+        "hold_scalars",
+        "intrinsic_item_visits",
+        "wrapped_item_visits",
+        "boundary_visits",
+        "positioned_items",
+        "separator_run_visits",
+        "separator_override_writes",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 4408,
+          "allocated_bytes": 7246354,
+          "work": {
+            "reference_atoms": 1,
+            "normalization_chunks": 3,
+            "literal_shape_requests": 4,
+            "measured_items": 55,
+            "measured_rows": 3,
+            "committed_row_visits": 3,
+            "anchor_item_visits": 55,
+            "registry_lookup_steps": 2,
+            "resolved_labels": 1,
+            "resolved_label_bytes": 3,
+            "mapping_cluster_visits": 54,
+            "mapping_glyph_visits": 54,
+            "reference_fit_run_visits": 1,
+            "positioned_pieces": 5,
+            "shape_metric_reads": 111,
+            "hold_scalars": 0,
+            "intrinsic_item_visits": 0,
+            "wrapped_item_visits": 55,
+            "boundary_visits": 55,
+            "positioned_items": 55,
+            "separator_run_visits": 0,
+            "separator_override_writes": 0,
+            "output_bytes": 14450
+          }
+        },
+        "x64musl": {
+          "allocations": 4408,
+          "allocated_bytes": 7246354,
+          "work": {
+            "reference_atoms": 1,
+            "normalization_chunks": 3,
+            "literal_shape_requests": 4,
+            "measured_items": 55,
+            "measured_rows": 3,
+            "committed_row_visits": 3,
+            "anchor_item_visits": 55,
+            "registry_lookup_steps": 2,
+            "resolved_labels": 1,
+            "resolved_label_bytes": 3,
+            "mapping_cluster_visits": 54,
+            "mapping_glyph_visits": 54,
+            "reference_fit_run_visits": 1,
+            "positioned_pieces": 5,
+            "shape_metric_reads": 111,
+            "hold_scalars": 0,
+            "intrinsic_item_visits": 0,
+            "wrapped_item_visits": 55,
+            "boundary_visits": 55,
+            "positioned_items": 55,
+            "separator_run_visits": 0,
+            "separator_override_writes": 0,
+            "output_bytes": 14450
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "destination_references"
+      ]
+    },
+    {
+      "name": "destination references atomic negatives",
+      "scenario_revision": "destination-page-references-v1",
+      "source": "tests/destination_references/main.roc",
+      "snapshot": "tests/destination_references/atomic_negatives.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "sections": 2,
+        "styled": 0,
+        "pages": 1
+      },
+      "work_counters": [
+        "rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 3104,
+          "allocated_bytes": 4678112,
+          "work": {
+            "rejections": 11
+          }
+        },
+        "x64musl": {
+          "allocations": 3104,
+          "allocated_bytes": 4678112,
+          "work": {
+            "rejections": 11
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics"
+      ]
+    },
+    {
+      "name": "destination references ordered mixed fonts",
+      "scenario_revision": "destination-page-references-v1",
+      "source": "tests/destination_references/main.roc",
+      "snapshot": "tests/destination_references/ordered.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "sections": 0,
+        "pages": 2,
+        "ordered": 1
+      },
+      "work_counters": [
+        "reference_atoms",
+        "normalization_chunks",
+        "literal_shape_requests",
+        "measured_items",
+        "measured_rows",
+        "committed_row_visits",
+        "anchor_item_visits",
+        "registry_lookup_steps",
+        "resolved_labels",
+        "resolved_label_bytes",
+        "mapping_cluster_visits",
+        "mapping_glyph_visits",
+        "reference_fit_run_visits",
+        "positioned_pieces",
+        "shape_metric_reads",
+        "hold_scalars",
+        "intrinsic_item_visits",
+        "wrapped_item_visits",
+        "boundary_visits",
+        "positioned_items",
+        "separator_run_visits",
+        "separator_override_writes",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 5047,
+          "allocated_bytes": 7390032,
+          "work": {
+            "reference_atoms": 2,
+            "normalization_chunks": 5,
+            "literal_shape_requests": 5,
+            "measured_items": 58,
+            "measured_rows": 4,
+            "committed_row_visits": 4,
+            "anchor_item_visits": 58,
+            "registry_lookup_steps": 4,
+            "resolved_labels": 2,
+            "resolved_label_bytes": 5,
+            "mapping_cluster_visits": 56,
+            "mapping_glyph_visits": 56,
+            "reference_fit_run_visits": 3,
+            "positioned_pieces": 8,
+            "shape_metric_reads": 115,
+            "hold_scalars": 0,
+            "intrinsic_item_visits": 0,
+            "wrapped_item_visits": 58,
+            "boundary_visits": 58,
+            "positioned_items": 58,
+            "separator_run_visits": 8,
+            "separator_override_writes": 2,
+            "output_bytes": 12639
+          }
+        },
+        "x64musl": {
+          "allocations": 5047,
+          "allocated_bytes": 7390032,
+          "work": {
+            "reference_atoms": 2,
+            "normalization_chunks": 5,
+            "literal_shape_requests": 5,
+            "measured_items": 58,
+            "measured_rows": 4,
+            "committed_row_visits": 4,
+            "anchor_item_visits": 58,
+            "registry_lookup_steps": 4,
+            "resolved_labels": 2,
+            "resolved_label_bytes": 5,
+            "mapping_cluster_visits": 56,
+            "mapping_glyph_visits": 56,
+            "reference_fit_run_visits": 3,
+            "positioned_pieces": 8,
+            "shape_metric_reads": 115,
+            "hold_scalars": 0,
+            "intrinsic_item_visits": 0,
+            "wrapped_item_visits": 58,
+            "boundary_visits": 58,
+            "positioned_items": 58,
+            "separator_run_visits": 8,
+            "separator_override_writes": 2,
+            "output_bytes": 12639
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "destination_references"
       ]
     }
   ]

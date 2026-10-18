@@ -52,6 +52,16 @@ coalesce into one positioned piece. Reference items expand to their exact final
 font runs. `KernelFacadeText.Plan.build_positioned` materializes those real
 clusters without wrapping, outlining or rasterization.
 
+An authored break after an atom retains its semantic space through explicit
+occurrence-owned ActualText. When separators exist, materialization builds a
+dense optional separator index and walks positioned physical runs once. Each
+participating run receives a boxed UTF-8 byte interval of its owned override;
+only the final font run includes the separator. Lowering validates and decodes
+that interval, so a mixed-face label neither duplicates its whole logical value
+nor changes its shaped Unicode. `separator_run_visits` and
+`separator_override_writes` count this work. Without separators, the original
+text plan returns unchanged and ordinary run storage keeps its previous size.
+
 ## Ownership, storage and complexity
 
 Normalization captures every original state projection before growing inline or
@@ -98,3 +108,104 @@ list labels. Orchestration tests exercise physical and configured Roman labels,
 exact width overflow, unknown targets, empty labels and format-byte bounds.
 The registered small/large PDF cases and independent PDF checks provide the
 allocation, allocated-byte, work and final-output evidence for gate closure.
+
+## Focused item-arena evidence
+
+The `reference_layout` pair exercises only the symbolic item builder, intrinsic
+measurement, wrapping and exact row coverage. Its blank PDF is a common output
+carrier for the harness, explicitly documented by the fixture; it does not
+paint symbolic atoms or claim that they are resolved references. Metadata and
+emission add fixed overhead to both measurements.
+
+Pinned native `arm64mac`, dev optimization, 2026-10-18:
+
+| Atoms | Exact allocations | Allocated bytes | Intrinsic item visits | Wrap visits | Rows |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 100 | 632 | 2,010,648 | 100 | 165 | 66 |
+| 1,000 | 640 | 2,219,985 | 1,000 | 1,665 | 666 |
+
+Validation also visits exactly each input item once per operation, and wrapping
+visits fewer than twice the input items. Row coverage is contiguous, nonempty,
+within the reserved width, and complete. Only eight additional allocations at
+ten times the input are consistent with the geometrically growing item and row
+arenas; the roughly 209 KB byte increase pays for their additional capacity.
+There is no per-append retained builder or source suffix.
+
+The ordinary rich-inline x10/x100 regression pair remains byte-identical and
+matches its previous exact allocations and work: 27,369 / 241,905 allocations,
+15,039,698 / 136,208,228 allocated bytes, and 18,003 / 52,739 PDF bytes. Both
+independent semantic/paint validators pass. The new symbolic branch therefore
+does not introduce a second shaping path into ordinary rich authoring.
+
+## Shared table token domain
+
+Table intrinsic-width errors now distinguish `Scalars(Range)` from
+`Items(Range)`. The latter identifies source-free measured atoms without
+claiming a Unicode interval. The discriminant widens `CellMeasure` and its
+interning `CacheSlot` by 8 bytes. In fixtures that generate a public PDF and
+perform a separate work probe, the resulting byte difference is exactly
+`16 * (cells + interned sources)`. The unchanged rich-flow list cases have
+18N cells and 2N + 20 interned sources, giving 3,520 / 32,320 additional bytes
+at N=10/100; the nested small case has 52N cells and 41 sources, giving
+3,152 additional bytes at N=3. Allocations, work and PDF bytes remain exact,
+and these small representation costs stay inside the existing 10% byte guard.
+No existing baseline was changed for them.
+
+## Visible configured-label evidence
+
+The furniture pair is the ordinary template pipeline with the new page-label
+field. Its glyph strings are checked independently against emitted
+`/PageLabels`, including Unicode prefixes, Roman front matter, repeated PDF
+alphabetic labels and a decimal restart. Labels remain page artifacts and do
+not enter body reading order. The pair uses 4,530 / 19,225 allocations and
+6,458,127 / 27,979,405 allocated bytes at 3/30 pages. Field resolutions are
+exactly 9/90 and artifact runs 9/90; output is 12,101 / 24,991 bytes.
+
+## Target boundary
+
+These measurements are observed pinned `arm64mac` dev results. The
+`x64musl` expectation fields currently mirror them provisionally to preserve
+the suite's required target schema; they are explicitly unobserved until an
+actual Linux run establishes allocation/work equality and byte-identical
+output. Local Docker was unavailable during this evidence run. Cross-target
+equality and the complete integration suite remain separate closure evidence.
+
+## End-to-end body reference evidence
+
+The `destination_references` native family generates each PDF through the
+public facade, then performs a separate `KernelFacadeReferences` phase probe
+for work counters. Both operations are inside `before_fixture_main`; these
+allocation totals describe that complete fixture boundary, not one isolated
+preparation call.
+
+| Case | Exact allocations | Allocated bytes | Atoms | Measured items | Rows | PDF bytes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 2 sections | 8,483 | 8,977,574 | 15 | 258 | 18 | 15,743 |
+| 20 sections | 30,533 | 34,408,672 | 87 | 1,180 | 72 | 29,082 |
+| Inherited role, language and 75% scale | 4,408 | 7,246,354 | 1 | 55 | 3 | 14,450 |
+| Ordered Latin/CJK policy | 5,047 | 7,390,032 | 2 | 58 | 4 | 12,639 |
+| 11 atomic rejections | 3,104 | 4,678,112 | — | — | — | 10,642 |
+
+The section pair contains 4N + 7 references, 10N + 13 normalization chunks,
+3N + 12 rows and 11N + 19 positioned pieces. Both wrap and placement visit
+each measured item exactly once (258 / 1,180); literal cluster and glyph maps
+visit 243 / 1,093 each. Field fit visits exactly one run per reference in the
+pair (15 / 87), while name lookup uses the bounded registry search (24 / 342
+steps). The one authored separator writes one override after walking the
+41 / 239 positioned pieces. The ordered case proves the same separator is
+partitioned into two actual font runs, with two override writes and no
+replicated logical label. The inherited-role case has no separator and does
+zero separator work.
+
+Independent PDF inspection derives reference values from actual named target
+pages and emitted `/PageLabels`; it checks reference-only paragraphs, cells
+and links, list/callout semantic ownership, adjacent fixed advances, explicit
+break positions, annotation rectangles/quads, inherited selected font, scale
+and language, and artifact-only visible page labels. Three rewritten PDF twins
+(label rule, field position, logical separator) must fail that oracle. All nine
+new native cases (body family, visible-label pair and item-arena pair) passed
+strict exact allocation/work and immutable snapshot replay through
+`scripts/test.py` helpers. All five body-family PDFs pass pinned veraPDF
+1.30.2 PDF/A-4 with zero failed checks, warnings or parser logs. PDFBox 3.0.8
+and MuPDF 1.28.2 also extract and render the four successful reference PDFs as
+whole original files: 56 page renders with exact glyph/ToUnicode text order.
