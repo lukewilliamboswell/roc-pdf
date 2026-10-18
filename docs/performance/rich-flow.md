@@ -244,3 +244,32 @@ canonical kernel tests passed, restored the unchanged legacy baselines:
 Every work counter and PDF snapshot remains exact. The small byte differences
 retain the previously reviewed typed-token/frame representation costs and stay
 within the existing guards; no baseline was changed.
+
+## Default table rejection ordering
+
+Resolving parent frames before table measurement is necessary for tables
+inside lists, sources, custom blocks and callouts. Applying that order to
+ordinary tables also built three temporary arenas (group columns, group
+offsets and block geometry) before rejecting an unbreakable cell or impossible
+column widths. The existing fifteen-negative matrix therefore gained six
+allocations across its two early table-layout rejections, despite emitting the
+same valid carrier and retaining the same diagnostics.
+
+The line stage now defers that geometry only when earlier normalized stores
+prove there are no lists or inset containers and the actual shaped block
+mapping has no list labels. Those facts establish the table kernel's existing
+empty-frame contract: full content width and zero offset. Tables resolve their
+intrinsic widths once; only success proceeds to the single existing geometry
+pass through `Calculate`. Every other document retains geometry-first
+measurement through `Calculated`, including zero-padding containers. No
+measurement or validation is duplicated, and positive indent validation stays
+before the branch. A unit check covers default, actual-label and zero-padding
+container cases.
+
+All 648 canonical kernel tests passed. The pinned native fifteen-negative
+case now strictly retains its original 56,677 allocations, work `15,11521`
+and exact 11,521-byte carrier PDF; its observed 61,508,120 allocated bytes
+remain within the unchanged guard. The same fresh `scripts/test.py` executable
+also strictly replays all six ordinary table controls in the preceding table,
+with their exact counts, work, bytes and PDF snapshots unchanged from the
+lead-band correction. No rejection or success baseline was changed.

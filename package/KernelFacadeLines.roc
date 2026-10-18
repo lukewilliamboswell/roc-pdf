@@ -256,16 +256,41 @@ build_plan = |authoring, shape, sources, page, theme, limits| {
 build_table_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, KernelFacadeLines.Limits -> Try(KernelFacadeLines.Plan, KernelFacadeLines.Error)
 build_table_plan = |authoring, shape, sources, page, theme, limits| {
 	content_width = calculate_content_width(page, theme.page_margin)?
-	geometry_plan = list_geometries(authoring, KernelFacadeShape.Plan.block_runs(shape), KernelFacadeShape.Plan.shape(shape).store, positive_raw(theme.bullet_indent)?, content_width)?
-	geometries = geometry_plan.blocks
-	frames = table_frames(authoring, geometries, content_width)
+	indent = positive_raw(theme.bullet_indent)?
+	block_runs = KernelFacadeShape.Plan.block_runs(shape)
+	prepared = if defer_table_geometry(authoring, block_runs) {
+		Calculate
+	} else {
+		Calculated(list_geometries(authoring, block_runs, KernelFacadeShape.Plan.shape(shape).store, indent, content_width)?)
+	}
+	frames = match prepared {
+		Calculate => []
+		Calculated(geometry) => table_frames(authoring, geometry.blocks, content_width)
+	}
 	tables = KernelFacadeTables.Plan.build_framed(authoring, shape, sources, content_width, frames, theme, KernelLineLayout.BatchLimits.line(limits.line)) ? Tables
 	var $widths = List.repeat(0, authoring.blocks.len())
 	for cell in KernelFacadeTables.Plan.cells(tables) {
 		$widths = list_set($widths, cell.block, cell.width)
 	}
-	plan = build_ordered_plan(authoring, shape, sources, page, theme, limits, $widths, Calculated(geometry_plan))?
+	plan = build_ordered_plan(authoring, shape, sources, page, theme, limits, $widths, prepared)?
 	Ok({ ..plan, geometry: WithTables(tables) })
+}
+
+## These earlier facts prove every table uses the kernel's full-width,
+## zero-offset contract. Intrinsic rejection needs no temporary block/group
+## geometry; a successful table still resolves it exactly once afterwards.
+## Lists, inset containers and actual labels keep geometry and diagnostics first.
+defer_table_geometry : Document.NormalizedAuthoring, List(KernelFacadeShape.BlockRuns) -> Bool
+defer_table_geometry = |authoring, block_runs| {
+	if !authoring.lists.is_empty() or !authoring.sources.is_empty() or !authoring.customs.is_empty() or !authoring.callouts.is_empty() {
+		return False
+	}
+	!block_runs.any(
+		|block| match block {
+			TextBlock({ label: Label(_), .. }) => True
+			_ => False
+		},
+	)
 }
 
 ## The table kernel's empty arena explicitly means offset zero and the
@@ -898,4 +923,16 @@ expect {
 	narrowed = list_set(geometries, $second, { ..default, body_offset: 20, body_width: 80 })
 	table_frames(authoring, geometries, 100).is_empty() and
 		table_frames(authoring, narrowed, 100) == [{ offset: 0, width: 100 }, { offset: 20, width: 80 }, { offset: 0, width: 100 }]
+}
+
+expect {
+	table = Document.table({ body_rows: [Document.row([Document.cell([Document.plain_text("Cell")])])], caption: NoCaption, columns: [{ align: Start, width: Share(1) }], footer_rows: [], header_rows: [], row_split: KeepRows })
+	authoring = Document.normalize(Document.from_blocks({ contents: [table], language: "en", title: "Deferred table frames" }))
+	range = Semantics.Range.from_start_and_length(0, 1)
+	logical = { physical: range }
+	plain = [TextBlock({ body: logical, label: NoLabel, level: 0 })]
+	labelled = [TextBlock({ body: logical, label: Label(logical), level: 1 })]
+	container = Document.callout({ contents: [table], fragmentation: Lines, padding: Layout.Unit.from_raw(0), name: "Panel", panel: { fill: NoFill, border: NoBorder } })
+	nested = Document.normalize(Document.from_blocks({ contents: [container], language: "en", title: "Retained table frames" }))
+	defer_table_geometry(authoring, plain) and !defer_table_geometry(authoring, labelled) and !defer_table_geometry(nested, plain)
 }
