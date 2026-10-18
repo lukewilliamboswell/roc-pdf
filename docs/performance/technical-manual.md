@@ -29,8 +29,8 @@ continue to use the ordinary public entry.
 
 | Chapters | Pages | Exact Roc allocations | Allocated bytes | PDF bytes |
 | ---: | ---: | ---: | ---: | ---: |
-| 2 | 9 | 125,904 | 70,509,588 | 31,510 |
-| 20 | 81 | 1,181,705 | 670,034,999 | 183,074 |
+| 2 | 9 | 125,868 | 70,509,264 | 31,510 |
+| 20 | 81 | 1,181,381 | 670,031,777 | 183,074 |
 
 | Actual stage work | 2 chapters | 20 chapters |
 | --- | ---: | ---: |
@@ -70,3 +70,12 @@ and Zig. The corresponding `x64musl` fields are provisional native mirrors
 required by the current harness schema; Docker.app's daemon did not answer
 bounded discovery. They are not cross-target evidence. No PDF/UA-2 or human
 reader review is claimed by this feature slice.
+
+The final numeric-field review removed a needless Unicode scalar-count
+allocation for each ASCII page-number/total field. These formatters already
+produce an exact ASCII length; configured labels still count their Unicode
+scalars. Under this fixture's two-pipeline boundary, the reviewed fix removes
+exactly four allocations per accepted page: 36 / 324 at 9 / 81 pages. The
+observed baselines above include that improvement; work and PDF snapshots
+remain exact. Requested bytes fall by 324 / 3,222, matching the removed
+UTF-8 list header and numeric payload storage.

@@ -32006,8 +32006,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 125904,
-          "allocated_bytes": 70509588,
+          "allocations": 125868,
+          "allocated_bytes": 70509264,
           "work": {
             "authored_chapters": 2,
             "authored_table_rows": 80,
@@ -32035,8 +32035,8 @@
           }
         },
         "x64musl": {
-          "allocations": 125904,
-          "allocated_bytes": 70509588,
+          "allocations": 125868,
+          "allocated_bytes": 70509264,
           "work": {
             "authored_chapters": 2,
             "authored_table_rows": 80,
@@ -32110,8 +32110,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1181705,
-          "allocated_bytes": 670034999,
+          "allocations": 1181381,
+          "allocated_bytes": 670031777,
           "work": {
             "authored_chapters": 20,
             "authored_table_rows": 800,
@@ -32139,8 +32139,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1181705,
-          "allocated_bytes": 670034999,
+          "allocations": 1181381,
+          "allocated_bytes": 670031777,
           "work": {
             "authored_chapters": 20,
             "authored_table_rows": 800,
