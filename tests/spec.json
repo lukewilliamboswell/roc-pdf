@@ -226,6 +226,10 @@
     {
       "source": "tests/destination_references/main.roc",
       "cases_jsonl": "tests/destination_references/cases.jsonl"
+    },
+    {
+      "source": "tests/vector_diagrams/main.roc",
+      "cases_jsonl": "tests/vector_diagrams/cases.jsonl"
     }
   ],
   "cases": [
