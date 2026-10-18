@@ -64,10 +64,6 @@ field `Pdf.page_label` instead. An explicitly unnumbered page with an empty
 prefix paints no label in furniture and cannot be the value of a `PageLabel`
 body reference.
 
-The dedicated [fixture family](../tests/destination_references/Fixture.roc)
-checks printed TOC numbers, named destinations, reference-only cells and
-links, nested list/callout ownership, inherited fonts, and atomic rejection.
-Its [PDF oracle](../scripts/check_destination_references.py) derives expected
-values from the emitted destinations and `/PageLabels`.
-[Performance evidence](performance/destination-page-references.md) records
-stage contracts, exact allocation counts and deterministic work.
+See [Composing a technical manual](manual-composition.md) for chapter headers,
+numbered instructions and continued callouts. The [authoring guide](authoring.md)
+explains font selection, furniture and document options.

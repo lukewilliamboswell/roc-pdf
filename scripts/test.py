@@ -897,7 +897,7 @@ def build_case_sources(
         # fixtures were built before it. Built without the cache, every
         # fixture compiles exactly as a standalone `roc build --no-cache`
         # does, whatever the order or cache state
-        # (docs/performance/lowering-uniqueness.md).
+        # (development/performance/lowering-uniqueness.md).
         # --no-cache works around roc-lang/roc#11826; remove it once that is fixed.
         roc(
             "build",
@@ -1136,7 +1136,7 @@ def default_jobs() -> int:
         # Each check, test, or build root type-checks the whole package and
         # peaks at 4 to 5.2 GB resident with the pinned compiler; on a 32 GB
         # machine 8 and 10 workers were killed for memory, 6 were not
-        # (docs/performance/test-suite-speed.md).
+        # (development/performance/test-suite-speed.md).
         reserve = 2 * 1024**3
         per_job = 5 * 1024**3
         memory_jobs = max(1, (max(0, memory - reserve)) // per_job)

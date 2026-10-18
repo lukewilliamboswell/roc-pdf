@@ -1,6 +1,6 @@
 # Prepared vector diagrams
 
-Run the public example from this directory with `roc main.roc`. It reads
+Run the public example from this directory with `roc run main.roc`. It reads
 checked-in Roc commands and the exact Inter font bytes, then writes
 `vector-diagrams.pdf`. PDF generation uses only public pure Roc APIs. Node,
 Mermaid, a browser, SVG parsing and resource acquisition are absent from that
@@ -32,7 +32,7 @@ through that pinned Mermaid distribution with HTML labels disabled, resolves
 computed styles and transforms in the browser, and writes the SVG, resolved
 fixed-point facts, generated Roc module, source reference PNG and digest
 provenance. Repeat preparation must reproduce those facts. Review any changed
-source, pin, geometry, label, image or PDF before accepting new evidence.
+source, pin, geometry, label, image or PDF before using the regenerated diagram.
 
 An existing SVG can also be checked and exported:
 
@@ -43,8 +43,7 @@ node prepare.mjs --svg input.svg ../PreparedDiagram.roc
 The SVG must use the profile below and the exact `VectorInter` regular face.
 The exporter blocks browser resource requests; it does not fetch referenced
 fonts, images or styles. `VECTOR_CHROME` may select a provisioned executable
-only if it reports the exact pinned browser version. Ordinary repository CI
-uses the checked-in artifacts and never installs or falls back to these tools.
+only if it reports the exact pinned browser version.
 
 ## Accepted profile
 
@@ -68,34 +67,24 @@ result fits the following public drawing vocabulary:
   Whitespace is single interior U+0020 spaces; source and browser character
   counts must agree. Multiline text is explicit tspan rows. Same-style word spans inside a row
   remain one searchable label. Each line retains its start/center/end anchor.
-  Other text coverage needs a separately evidenced profile.
+  Other text coverage is not currently accepted by this exporter.
 - Labels must remain above all overlapping geometry. Figure drawings paint
   labels after paths; incompatible source paint order rejects.
 
 Visible HTML labels (`foreignObject`), referenced filters/gradients/clips/masks,
 external inputs, animation, unsupported text/geometry/transforms and invalid
 bounds produce located `vector.*` errors before the Roc module is written.
-Unused filter and gradient definitions are permitted. The original consumer's
-HTML-label SVG is a retained negative witness, never silently converted.
+Unused filter and gradient definitions are permitted.
 Input is bounded to 1 MB, 10,000 elements, depth 48 and one million paint-order
 comparisons. Roc independently validates the emitted drawing, exact font
 coverage and final shaped label bounds; preparation cannot bypass those checks.
 
-## Evidence and provenance
-
-`tests/vector_diagrams` exercises one, ten and fifty public figures with exact
-allocation, allocated-byte and deterministic command/page/fragment evidence.
-The offline checker decodes exact label text through `ToUnicode`, proves
-artifact versus Figure/caption ownership and compares the source Chrome raster
-with independent PDFBox output. The preparation test exercises rejected HTML,
-effects, external resources, bad paths/transforms, text presentation and Unicode,
-plus deterministic conversion and unused definitions.
+## Font and source attribution
 
 Inter Regular is the unmodified Inter 4.1 release asset (OFL-1.1), identical to
 this repository's product-brief font; see `fonts/Inter-OFL.txt` and the central
 asset manifest. The HTML-label negative comes from Luke Boswell's roc-automation
 manual, copyright 2026 Luke Boswell, under UPL-1.0:
 <https://lukewilliamboswell.github.io/roc-automation/diag-mermaid-md5-332f3e2cc13154f0257848fa9f290595.svg>.
-It was retained from the consumer worktree at the issue's reviewed revision;
-its digest and source revision are recorded beside the fixture. Neither
-preparation nor these rendering tests establishes a PDF/UA claim.
+Its digest and source revision are recorded beside the fixture.
+PDF/UA conformance is not claimed by this example.

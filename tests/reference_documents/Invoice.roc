@@ -8,7 +8,7 @@ import pdf.Theme
 import "../../examples/tax-invoice/fonts/SourceSans3-Regular.ttf" as regular_bytes : List(U8)
 import "../../examples/tax-invoice/fonts/SourceSans3-Bold.ttf" as bold_bytes : List(U8)
 
-## The reference multi-page tax invoice (docs/reference-documents.md),
+## The reference multi-page tax invoice (development/reference-documents.md),
 ## authored through the public `Pdf` constructors exactly as
 ## `examples/tax-invoice/main.roc` authors it, with the knobs its adverse
 ## variants change. `ordinary` produces the gallery invoice byte for byte.

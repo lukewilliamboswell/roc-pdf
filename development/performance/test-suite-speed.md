@@ -49,7 +49,7 @@ The fixture builds keep `--no-cache` (roc-lang/roc#11826). The 55 fixture
 programs were not merged: each case's allocation and allocated-bytes baseline
 belongs to one program, and the lowering of shared package procedures depends
 on the program they are compiled into
-(`docs/performance/lowering-uniqueness.md`), so merging programs could change
+(`development/performance/lowering-uniqueness.md`), so merging programs could change
 what every case measures.
 
 Validation now runs 40 `roc test` roots, 16 `roc check` roots (package

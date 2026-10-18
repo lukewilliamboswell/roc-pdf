@@ -48,7 +48,7 @@ build`). A failing `expect` names its own file and line, and the driver adds
 the test root and every module that root covers. A new expect-bearing module
 needs no registration, but it is only run if some root imports it: a module
 that no root reaches is not tested (`tests/shaping/GsubFixture.roc` is
-currently such a module). See `docs/performance/test-suite-speed.md` for the
+currently such a module). See `development/performance/test-suite-speed.md` for the
 measurements.
 
 Integration cases use the dev backend and require exact PDF snapshots,
@@ -96,7 +96,7 @@ pinned compiler reused package procedures compiled for an earlier fixture
 program in later ones, and a later program could then copy lists that it
 updates in place when built alone: a case's allocation count and allocated
 bytes depended on which fixtures were built before it and on the local cache
-(`docs/performance/lowering-uniqueness.md`). Without the cache each fixture
+(`development/performance/lowering-uniqueness.md`). Without the cache each fixture
 compiles exactly as a standalone `roc build --no-cache --opt=dev` does, so a
 case can be reproduced outside the harness. The flag works around
 roc-lang/roc#11826 and should be removed once that is fixed. Validation (`roc

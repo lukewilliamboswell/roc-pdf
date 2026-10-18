@@ -606,7 +606,7 @@ add_page_tree_node = |builder, shape, facts, level, node| {
 ## value ids, which a caller that needs them derives from the value count
 ## before the call. Returning the builder beside the value list made the
 ## pinned dev backend copy the object store
-## (docs/performance/lowering-uniqueness.md).
+## (development/performance/lowering-uniqueness.md).
 add_object_references : KernelObject.Builder, U64, U64, U64 -> Try(KernelObject.Builder, KernelStructure.Error)
 add_object_references = |builder, first_number, count, stride| {
 	var $builder = builder

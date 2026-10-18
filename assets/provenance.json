@@ -2873,7 +2873,7 @@
       "bytes": 19167,
       "sha256": "5404a998ffe4c534bee89956364574a15b189e70d206a18174dea671e2917d24",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/performance/asset-provenance.md",
+      "attribution": "development/performance/asset-provenance.md",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -2888,7 +2888,7 @@
       "bytes": 66863,
       "sha256": "f726c7e7b33147efc993aacbea8af5954e18ac3ccb1ed361e438dca71514946f",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/performance/asset-provenance.md",
+      "attribution": "development/performance/asset-provenance.md",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -2903,7 +2903,7 @@
       "bytes": 10202,
       "sha256": "1425e6b842dfd2d8a94264228c793494abedd71cdee11d911fd9a86745e28c1d",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/performance/asset-provenance.md",
+      "attribution": "development/performance/asset-provenance.md",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -2918,7 +2918,7 @@
       "bytes": 15690,
       "sha256": "2cab0deafb39eb8761194668af206a4cb241890bbb1bfc85960e2a41305c750c",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/performance/asset-provenance.md",
+      "attribution": "development/performance/asset-provenance.md",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -2933,7 +2933,7 @@
       "bytes": 16304,
       "sha256": "4f3b6394dc3bb066acca7584099039e7adb0b5946dfdbef0ac72bc3c888544e0",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/performance/asset-provenance.md",
+      "attribution": "development/performance/asset-provenance.md",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -3068,7 +3068,7 @@
       "bytes": 12101,
       "sha256": "8c4ed3428707203a9aa4494ccc9a5f243fb824dd9f3999263718f9d1762a0835",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/performance/asset-provenance.md",
+      "attribution": "development/performance/asset-provenance.md",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -3083,7 +3083,7 @@
       "bytes": 24991,
       "sha256": "84d874bb2fa336c5ad6f1d242e6bdbb4d7997eee3f02495545b3580a41765793",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/performance/asset-provenance.md",
+      "attribution": "development/performance/asset-provenance.md",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -3700,7 +3700,7 @@
       "bytes": 4219,
       "sha256": "5458f93a42cbe15d92ed2d59ccdd4188d7eecca6de1f0bd5dcb358bc433ed057",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/performance/asset-provenance.md",
+      "attribution": "development/performance/asset-provenance.md",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -3715,7 +3715,7 @@
       "bytes": 4220,
       "sha256": "1bedab1d2e5540c8849ff2abc31da2c91f1b33eb71c27d273d65d70818b04346",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/performance/asset-provenance.md",
+      "attribution": "development/performance/asset-provenance.md",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -3775,7 +3775,7 @@
       "bytes": 10914,
       "sha256": "41140bb1ba3c980c32c016c26828033ec86f71073d25e2055961b6e2a9f1cb50",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/performance/asset-provenance.md",
+      "attribution": "development/performance/asset-provenance.md",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -3790,7 +3790,7 @@
       "bytes": 33662,
       "sha256": "2392cf09f2a92b647fee9bd08e0142e55c9004dd0e477f717c7eb7dc2e00fd70",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/performance/asset-provenance.md",
+      "attribution": "development/performance/asset-provenance.md",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -3805,7 +3805,7 @@
       "bytes": 213745,
       "sha256": "7a9669d12bb735005ac41bd4d5ec2201d32e3c9aaddb693783dc248dba63249d",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/performance/asset-provenance.md",
+      "attribution": "development/performance/asset-provenance.md",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -3820,7 +3820,7 @@
       "bytes": 27236,
       "sha256": "26ca2dca6e293d914bbf203f0704ec5b2568147460faf72d0d23320c06e20181",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/performance/asset-provenance.md",
+      "attribution": "development/performance/asset-provenance.md",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -3835,7 +3835,7 @@
       "bytes": 149551,
       "sha256": "c00700c67c7b78f761487fcd7d9f3cae152903bed7a9994b1403ab6702609f6c",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/performance/asset-provenance.md",
+      "attribution": "development/performance/asset-provenance.md",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -3850,7 +3850,7 @@
       "bytes": 14614,
       "sha256": "70c3a9a3a8387ce49008a6bf076d6714b33fc3736b31ccfa13464c1c0650ac99",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/performance/asset-provenance.md",
+      "attribution": "development/performance/asset-provenance.md",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -3865,7 +3865,7 @@
       "bytes": 30981,
       "sha256": "9008a28f883aedc62606a5b74d1b25918b0aa730ee287127855e90f3e49b7e9f",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/performance/asset-provenance.md",
+      "attribution": "development/performance/asset-provenance.md",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -3880,7 +3880,7 @@
       "bytes": 11757,
       "sha256": "c2f49056331475fd8d8332e16b49888c1100a47e17fb64ab9208ce014370745a",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/performance/asset-provenance.md",
+      "attribution": "development/performance/asset-provenance.md",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -3895,7 +3895,7 @@
       "bytes": 19677,
       "sha256": "54dd485b0838fbe8a5c06091357276d555bb011063f9d535d5be1927a57efb07",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/performance/asset-provenance.md",
+      "attribution": "development/performance/asset-provenance.md",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -4015,7 +4015,7 @@
       "bytes": 20088,
       "sha256": "d1da2a7efa8e0a507d646ec37dd439481e0d14aa8b254cb5f19d196ac6f7f660",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/performance/asset-provenance.md",
+      "attribution": "development/performance/asset-provenance.md",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -5485,7 +5485,7 @@
       "bytes": 31510,
       "sha256": "d14cef4b2d51d5803ee15ee6a80483225b51eb3d4d732e008bf8e0c30e6b844b",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/performance/asset-provenance.md",
+      "attribution": "development/performance/asset-provenance.md",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -5500,7 +5500,7 @@
       "bytes": 183074,
       "sha256": "b114f97fdd08e02ab948e8298fac96d30e8cad50ad6e950c3981c24f98c1f538",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/performance/asset-provenance.md",
+      "attribution": "development/performance/asset-provenance.md",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {

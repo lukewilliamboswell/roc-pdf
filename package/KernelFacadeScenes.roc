@@ -335,7 +335,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 		## table rules. Two consecutive inner loops over the same accumulators
 		## copied `$commands`, `$groups`, and `$page_groups` once per page: the
 		## first loop's exit state reached the second loop's entry through an
-		## aggregate that still held them (docs/performance/emission-linearity.md).
+		## aggregate that still held them (development/performance/emission-linearity.md).
 		while ($panel_cursor < panel_count and list_at(prepared.flow.panels, $panel_cursor).page == $page_index) or $placement_cursor < page_end or ($rule_cursor < rule_count and list_at(prepared.rules, $rule_cursor).page == $page_index) or ($decoration_cursor < decoration_count and list_at(prepared.flow.decorations, $decoration_cursor).page == $page_index) or ($paint_cursor < paint_count and list_at(furniture.paints, $paint_cursor).page == $page_index) {
 			## A template region's backdrops paint first on their page,
 			## through the furniture branch below, behind everything else.

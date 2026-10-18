@@ -423,7 +423,7 @@ clean -d`) expand any file for reading.
   object is placed. Stream objects are written top-level as before. The
   cross-reference stream follows the object streams.
 - `KernelOutputBound` bounds the new layout with the same partition, and blank
-  plans now store that bound too (`docs/performance/output-bounds.md`).
+  plans now store that bound too (`development/performance/output-bounds.md`).
 - `Encode.canonical` records the policy: `LibdeflateLevel(10)`, object
   streams of 400 members, and `FlateUpPredictor` cross-reference compression.
 - `KernelEmit.object_text` renders every non-stream object flat for package
@@ -671,7 +671,7 @@ nor a compressed cross-reference table.
 | Product brief | 123,053 | 47,025 | 80,133 | -41.3% |
 | Warranty letter | 79,515 | 24,538 | 35,302 | -30.5% |
 
-The three Typst sources are in [`output-size/`](output-size/) and build with
+The three Typst sources are in [`output-size/`](output-size) and build with
 Typst 0.15.1 (`typst compile --ignore-system-fonts --font-path <fonts>
 --pdf-standard a-4`). The warranty-letter source was written for this record in the audit's
 style (same text, table, list, letterhead drawing, and page templates, the

@@ -654,7 +654,7 @@ emit_run_body = |bytes, text, run, origin, font, limit| {
 ## so one adjustment step is 10^-digits thousandths of text space. One digit
 ## keeps every glyph within 0.00005 em of its layout position (0.0006 pt at
 ## 12 pt); whole thousandths would allow 0.0005 em for about 1% less output
-## (docs/performance/output-size.md, step 3).
+## (development/performance/output-size.md, step 3).
 adjustment_digits : U8
 adjustment_digits = 1
 
@@ -894,7 +894,7 @@ append_bytes = |bytes, added, limit| {
 ## the length and reserves nothing: an explicit `List.reserve` sizes the
 ## allocation exactly, and a list returned through `?` and then appended to
 ## was copied per token by the pinned dev backend
-## (docs/performance/lowering-uniqueness.md).
+## (development/performance/lowering-uniqueness.md).
 check_room : U64, U64, U64 -> Try({}, KernelPdfText.Error)
 check_room = |length, additional, limit| {
 	if length > limit or additional > limit - length {

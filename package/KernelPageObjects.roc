@@ -440,7 +440,7 @@ add_tree_reference_array = |builder, objects, span| {
 ## One reference value per object, then the array of them. It returns only
 ## the builder and the array's id: returning the builder beside the value
 ## list made the pinned dev backend copy the store once per call
-## (docs/performance/lowering-uniqueness.md).
+## (development/performance/lowering-uniqueness.md).
 add_reference_array : KernelObject.Builder, List(KernelObject.ObjectId) -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelPageObjects.Error)
 add_reference_array = |builder, objects| {
 	var $builder = builder

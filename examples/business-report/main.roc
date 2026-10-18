@@ -18,7 +18,7 @@ import "fonts/SourceSans3-It.ttf" as italic_bytes : List(U8)
 import "fonts/SourceCodePro-Regular.ttf" as code_bytes : List(U8)
 import "drying-yard.jpg" as drying_photo : List(U8)
 
-## The reference business report (docs/reference-documents.md): a navy
+## The reference business report (development/reference-documents.md): a navy
 ## cover band with the reversed mark, numbered sections that are outline
 ## and link destinations, rich inline content with expansions, a French
 ## quotation, and code, nested lists, a separately authored "Key figures"

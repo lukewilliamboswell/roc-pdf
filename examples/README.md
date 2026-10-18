@@ -67,12 +67,9 @@ every PDF and checks that it equals the committed bytes, and with
 | [Product brief](product-brief/main.roc) | Inter, Source Code Pro | a US Letter launch brief: a vector hero illustration with labelled columns, a measured key-figures callout and a customer quote in white on forest green, a labelled line chart with its data table, a plan comparison table kept whole on one page with shaded group rows, empty cells for capabilities a plan lacks, and a price footer, a support table, rich inline content with code, lists, links, `Page N of M` furniture over ruled backdrops, and an outline |
 
 The applications vary information architecture, lifecycle, navigation, page
-format, and visual theme. The business report, business letter, and tax
-invoice are the reference documents of
-[docs/reference-documents.md](../docs/reference-documents.md); the
-`tests/reference_documents` family prepares the same documents, with the
-same fonts from these directories, and checks that their bytes equal the
-committed PDFs here. Every example registers its fonts through the public font
+format, and visual theme. Use the business report, business letter and tax
+invoice as complete starting points for those document types.
+Every example registers its fonts through the public font
 registry (`Font.Registry.register`) and selects a Bold, Italic, or monospace
 face per inline role through the theme's `inline` record, a Bold face for
 the title and headings through `title` and `headings` (level-1 and level-2

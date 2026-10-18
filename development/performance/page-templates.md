@@ -479,7 +479,7 @@ furniture drawings under the pinned compiler, and were replaced:
 - closing ended groups with an inner `while` inside the validation loop
   added 28 allocations to `flow figures report` and 600 to `flow figures
   sections x100`: the inner loop's join carried the loop's accumulators
-  (`docs/performance/emission-linearity.md`). The stack is now trimmed by
+  (`development/performance/emission-linearity.md`). The stack is now trimmed by
   `open_groups` and the offsets summed by `stack_offset`, called only when
   a group is open;
 - a pre-pass over the commands (either `List.any` or an indexed scan) to

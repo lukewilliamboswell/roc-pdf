@@ -51,7 +51,7 @@ assistive-technology behavior evidence is recorded where reviewed but is
 optional.
 
 This document owns enduring contracts. Versioned representation and repository
-harness details live in [implementation contracts](docs/implementation-contracts.md),
+harness details live in [implementation contracts](development/implementation-contracts.md),
 and executable evidence lives in the roadmap's linked records. Those contracts
 remain binding until explicitly revised; moving them out of this document does
 not permit unreviewed byte, allocation, or capability changes.
@@ -375,7 +375,7 @@ segments have bounded owned buffers; unchanged final-form resources may use
 exact shared ranges under the selected retention policy. Buffered output uses
 the same transition directly into its final accumulator.
 
-The binding [emission representation contract](docs/implementation-contracts.md#emission-representation)
+The binding [emission representation contract](development/implementation-contracts.md#emission-representation)
 specifies the current compressor seam, stream-length and xref representation,
 output-bound proofs, chunk ownership, and accumulator growth. Changing those
 choices requires reviewed determinism, allocation, and retention evidence.
@@ -736,7 +736,7 @@ Preparation provides a bounded, read-only report alongside the opaque prepared
 result through a supported inspection surface: `Pdf.prepare_with_report`
 returns the unchanged `Pdf.Prepared` beside a `Pdf.Report` whose mechanical
 facts and human-review obligations are separate fields
-([reference-documents.md](docs/reference-documents.md#preparation-report)).
+([reference-documents.md](development/reference-documents.md#preparation-report)).
 The report contains
 authoring locations, page and fragment summaries, logical reading order,
 authored alternatives and assertions, layout-policy outcomes, selected text
@@ -1468,7 +1468,7 @@ hold its own offset, and it is FlateDecode with the PNG Up predictor. Object
 streams and the cross-reference stream carry direct lengths.
 
 This is an enduring decision, and the evidence behind it is recorded in
-[`docs/performance/output-size.md`](docs/performance/output-size.md). In a
+[`development/performance/output-size.md`](development/performance/output-size.md). In a
 tagged business document most bytes are small dictionaries: structure
 elements, the ParentTree, annotations, and the page tree. Written as top-level
 uncompressed objects they were about half the file, and object streams remove
@@ -1616,7 +1616,7 @@ consumer-visible surface.
 
 Evidence applications exercise private stage contracts through the repository
 integration root and public behavior through the release root. The binding
-[fixture protocol](docs/implementation-contracts.md#repository-fixture-protocol)
+[fixture protocol](development/implementation-contracts.md#repository-fixture-protocol)
 defines app families, versioned scenarios, manifest dispatch, and checker
 selection. Neither test integration nor fixture conventions expand the public
 package boundary.

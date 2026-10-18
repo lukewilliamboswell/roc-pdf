@@ -11,7 +11,7 @@ evidence criteria in
 [`feature-roadmap.md`](../../feature-roadmap.md),
 the enduring staged-text contract in
 [`architecture.md`](../../architecture.md#text-and-font-boundary), and every
-current `docs/performance/*-capability.md` record. “Satisfied” means satisfied for
+current `development/performance/*-capability.md` record. “Satisfied” means satisfied for
 the stated local/dev evidence only; it does not make a static PDF/A-4 capability--7 conformance or
 cross-platform claim. The closure decision it reaches is recorded separately in
 [`text-layout-closure.md`](text-layout-closure.md).

@@ -19,7 +19,7 @@ Version: **`reference-documents-v12`**.
   `tests/reference_documents` prepares each of them and every adverse
   variant (see [the closure record](performance/business-authoring-closure.md)).
   Capability status remains governed by the [roadmap](../feature-roadmap.md)
-  and the [authoring guide](authoring.md). It claims no reader behavior.
+  and the [authoring guide](../docs/authoring.md). It claims no reader behavior.
 - Every later Gate 6 slice cites the version it implements. A slice that must
   change an outline, a policy, a diagnostic code, or a planned API name updates
   this record in the same change, increments the version (`-v2`, ...), and adds

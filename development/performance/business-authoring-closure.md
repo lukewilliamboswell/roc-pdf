@@ -28,7 +28,7 @@ cannot provision it (see [Open issues](#open-issues)).
 ## What S10 adds
 
 - **Reference programs.** The three references of
-  [docs/reference-documents.md](../reference-documents.md) are gallery
+  [development/reference-documents.md](../reference-documents.md) are gallery
   programs through the public API only: `examples/tax-invoice/main.roc`
   (the multi-page tax invoice, still prepared once and then emitted;
   `tax-invoice.pdf` replaces `invoice-1048.pdf`), `examples/warranty-letter/main.roc` (the

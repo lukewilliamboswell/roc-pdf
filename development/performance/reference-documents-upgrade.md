@@ -1,7 +1,7 @@
 # Reference documents upgrade
 
 This slice implements `reference-documents-v12` of
-[docs/reference-documents.md](../reference-documents.md): the tax invoice,
+[development/reference-documents.md](../reference-documents.md): the tax invoice,
 business report, and business letter move from the built-in RocPdfSans face
 to vendored OFL faces with real Bold and Italic and are restyled to match
 the rest of the gallery. It also closes the deferred items of the idiomatic

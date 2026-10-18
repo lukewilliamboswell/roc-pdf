@@ -2404,7 +2404,7 @@ place_rich = |buffers, authoring, rich, at, source_plan| {
 
 	# A table cell's attributes and identifier are written with its node
 	# here, so the caller never updates a node list it received through
-	# `?` (docs/performance/lowering-uniqueness.md).
+	# `?` (development/performance/lowering-uniqueness.md).
 	var $nodes = list_set(buffers.nodes, at.node, { ..make_node(at.node, ParentNode(at.parent), at.role, Semantics.Range.from_start_and_length(base, rich.children), Inherited), attributes: at.attributes, element_identifier: at.element_identifier })
 	var $occurrences = buffers.occurrences
 	var $properties = buffers.properties
@@ -2933,7 +2933,7 @@ checked_add = |left, right| match U64.plus_try(left, right) {
 ## Appends every element of `source`. `List.concat` sizes its result
 ## exactly, so an accumulator grown by `concat` in a loop was reallocated,
 ## and copied, on every call; `append` grows geometrically
-## (docs/performance/emission-linearity.md).
+## (development/performance/emission-linearity.md).
 append_all : List(a), List(a) -> List(a)
 append_all = |target, source| {
 	var $out = target

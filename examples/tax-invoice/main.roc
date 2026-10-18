@@ -14,7 +14,7 @@ import pdf.Theme
 import "fonts/SourceSans3-Regular.ttf" as regular_bytes : List(U8)
 import "fonts/SourceSans3-Bold.ttf" as bold_bytes : List(U8)
 
-## The reference multi-page tax invoice (docs/reference-documents.md):
+## The reference multi-page tax invoice (development/reference-documents.md):
 ## first-page and continuation templates with a vector logo over a
 ## masthead rule, running headers inset above a hairline, and exact
 ## `Page N of M` fields; a striped key/value details table; and a 32-row

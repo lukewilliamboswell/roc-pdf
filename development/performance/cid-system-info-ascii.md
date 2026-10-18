@@ -171,7 +171,7 @@ written by the test platform, not package output, and it must fail exactly
 
 The new `arlington` job in `.github/workflows/ci.yml` runs this lane on Linux
 after the test job, with the pinned image as a service container on port
-18080. `docs/performance/arlington.md` and the
+18080. `development/performance/arlington.md` and the
 `ROC-PDF-PDF20-EMISSION-XREF` ledger entry now describe this lane. Before it,
 no CI job had run Arlington since CI was trimmed.
 

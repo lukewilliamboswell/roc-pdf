@@ -252,7 +252,7 @@ KernelObject :: [].{
 	## parameter, so each append consumes a uniquely owned list. Reading
 	## `builder.store.x.len()` and later appending to `builder.store.x` made
 	## the pinned dev backend copy the whole list on every append under some
-	## compiler-cache states (docs/performance/lowering-uniqueness.md).
+	## compiler-cache states (development/performance/lowering-uniqueness.md).
 	add_name : Builder, List(U8) -> Try({ builder : Builder, id : NameId }, Error)
 	add_name = |builder, bytes| {
 		{ limits, store, total_byte_string_bytes, total_name_bytes, total_payload_bytes, total_text_string_bytes, work } = builder

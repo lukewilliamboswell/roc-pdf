@@ -188,7 +188,7 @@ append_u64 = |output, value| {
 ## one branch reassigned while the other passed it on as its value stayed live
 ## across that call, and the call copied the whole output: once per integral
 ## decimal, which is every whole coordinate in a content stream
-## (docs/performance/emission-linearity.md).
+## (development/performance/emission-linearity.md).
 append_decimal : List(U8), I64, U8 -> List(U8)
 append_decimal = |output, coefficient, scale| {
 	if coefficient == 0 {

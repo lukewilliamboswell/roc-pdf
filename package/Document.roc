@@ -235,16 +235,15 @@ DocumentInline :: [
 	TotalPages(PageFieldStyle),
 ].{}
 
-## A page field's number style and a reserved width's alignment, held in
-## their own nominal types rather than as `NumberStyle` and `ColumnAlign`:
-## with a structural enumeration shared by an inline alternative, the pinned
-## compiler's code for unrelated rich paragraphs allocates once more
-## (docs/performance/page-templates.md). The constructors convert.
+# Nominal types avoid widening unrelated inline alternatives; see
+# development/performance/page-templates.md for the allocation review.
+## The numbering style of a page field. Use the public furniture constructors
+## to select a style and reserve its width.
 PageFieldStyle := [DecimalField, LowerAlphaField, LowerRomanField, UpperAlphaField, UpperRomanField]
 
+# A nominal vocabulary keeps this leaf from widening unrelated inline alternatives.
 ## A body reference reserves its width before pagination and resolves only
-## after destination pages are fixed. Numbering has a nominal vocabulary so
-## adding this body leaf does not widen unrelated inline alternatives.
+## after destination pages are fixed.
 PageReferenceNumbering := [Physical, PageLabel].{
 	is_eq : _
 }
@@ -362,9 +361,10 @@ Caption := [Caption(Str), NoCaption]
 ## `minimum_percent`.
 FigureFit : [Exact, ScaleToFit({ minimum_percent : U8 })]
 
-## A figure's fit policy, held nominally and converted by the constructors
-## (a structural enumeration inside the block union costs the pinned
-## compiler extra allocations; docs/performance/page-templates.md).
+# Nominal representation avoids the structural-union allocation cost recorded
+# in development/performance/page-templates.md.
+## A figure's fit policy. Figure constructors convert the selected fit and
+## minimum scale into this value.
 FigurePolicy := [ExactFit, ScaleFit(U64)]
 
 ## One validated flow drawing command in drawing-local geometry (origin at
@@ -525,13 +525,12 @@ NormalizedList : { items : U64, marker : ListMarker }
 ## leaf precedes its rows, and its row counts per section.
 NormalizedTable : { body_rows : U64, caption : Bool, columns : List(TableColumn), footer_rows : U64, header_rows : U64, row_split : RowSplit }
 
+# Spans retain U16 to keep the record at 24 bytes; see the allocation review
+# in development/performance/tables.md before changing its representation.
 ## One table cell, in leaf-block order: its rich-paragraph leaf `block`, its
 ## kind, its authored column and row spans, and its line alignment.
 ##
 ## `fill` is zero, or the cell's own background packed by `pack_color`.
-## Spans keep their authored `U16` so the record stays 24 bytes: a wider
-## cell record made every document allocate more under the pinned
-## compiler (docs/performance/tables.md).
 NormalizedCell : { align : CellAlign, block : U64, column_span : U16, fill : U64, kind : CellKind, row_span : U16 }
 
 ## The section a normalized table row belongs to.
@@ -2903,10 +2902,9 @@ destination_heading_tag = 7
 destination_paragraph_tag : U8
 destination_paragraph_tag = 8
 
-## Appends every element of `source`. `List.concat` sizes its result
-## exactly, so an accumulator grown by `concat` in a loop was reallocated,
-## and copied, on every call; `append` grows geometrically
-## (docs/performance/emission-linearity.md).
+# Appends every element of `source`. List.concat sizes its result exactly,
+# so growing an accumulator with it copies on every call. Append grows
+# geometrically; see development/performance/emission-linearity.md.
 append_all : List(a), List(a) -> List(a)
 append_all = |target, source| {
 	var $out = target
