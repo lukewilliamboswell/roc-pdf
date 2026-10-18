@@ -144,3 +144,15 @@ more bytes after integration, within their existing byte guards; no allocation
 or byte baseline was changed. The independent rich-flow self-test still
 rejected all seven mutation twins. Combined scope/reference/vector evidence
 is recorded in [technical manual](technical-manual.md).
+
+The small integrated table-path byte delta has an exact representation cause:
+`KernelFacadeTables.WidthToken` distinguishes scalar ranges from measured
+reference-item ranges. Its tag widens both `CellMeasure` and `CacheSlot` by
+8 bytes. This fixture builds public preparation and a private work probe, so
+the combined cost is `16 * (cell measures + interned-source cache slots)`.
+The list pair has `18N` cells and `2N + 20` cache slots: `320N + 320` gives
+exactly 3,520 / 32,320 extra bytes at N=10/100. The nested pair has `52N`
+cells and 41 cache slots: `16 * (52N + 41)` gives exactly 3,152 / 25,616
+bytes at N=3/30. These are explicit token-domain facts needed by reference
+measurement, with unchanged allocation/traversal counts and no copied growing
+buffer. Existing baselines remain unchanged.
