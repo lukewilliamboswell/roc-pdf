@@ -6,7 +6,7 @@ app [main!] {
 import Fixture
 import pf.Metrics
 
-Case : [Lists({ count : U64 }), Callouts({ count : U64 }), Paragraphs({ count : U64 })]
+Case : [Lists({ count : U64 }), Callouts({ count : U64 }), Paragraphs({ count : U64 }), Negatives({ context : U64 }), Ownership({ count : U64, shared : Bool }), ZeroPadding({ context : U64 })]
 
 CaseSpec : { case : Case, schema_version : U64 }
 
@@ -37,6 +37,9 @@ main! = |args| {
 		Lists({ count }) => Fixture.lists(count)
 		Callouts({ count }) => Fixture.callouts(count)
 		Paragraphs({ count }) => Fixture.paragraphs(count)
+		Negatives({ context }) => Fixture.negatives(context)
+		Ownership({ count, shared }) => Fixture.ownership(count, shared)
+		ZeroPadding({ context }) => Fixture.zero_padding(context)
 	}
 	match result {
 		Ok(value) => value

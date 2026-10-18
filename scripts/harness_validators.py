@@ -31,6 +31,7 @@ from check_multiface_text import validate_multiface_text_pdf
 from check_navigation import validate_navigation_pdf
 from check_pdf_structure import canonical_text, dictionary_ref, is_structure_element, object_slices, require, structure_kids, validate_pdf
 from check_rich_inline import validate_rich_inline_pdf
+from check_rich_flow import validate_rich_flow_pdf
 from check_source_foregrounds import validate_source_foregrounds_pdf
 from check_source_blocks import validate_source_blocks_pdf, validate_multiple_sources_pdf
 from check_rtl import validate_rtl_pdf
@@ -173,6 +174,7 @@ VALIDATORS: dict[str, Validator] = {
     "source_blocks": _dimensioned(validate_source_blocks_pdf, "canonical source ActualText, exact measured text/blank rows, line continuation, local typography, padded artifact panels, and body spacing"),
     "furniture_typography": _simple(validate_furniture_typography_pdf, "independent furniture face, size, color, page fields, and artifact ownership"),
     "rich_inline": _dimensioned(validate_rich_inline_pdf, "ToUnicode-decoded logical text in structure order equal to paint order, text-bearing inline roles, /E on Span only, and one OBJR-owning link annotation per page painted"),
+    "rich_flow": _dimensioned(validate_rich_flow_pdf, "exact rich LI/callout source/figure/table ownership, reading order, original source and foregrounds, parent frames, panel padding, and artifact table headers"),
     "tagged_visual": _simple(validate_tagged_visual_pdf, "exact normalized tagged structure and resources"),
     "visible_text": _simple(validate_text_pdf, "exact font, CID, Unicode mapping, and visible text facts"),
     "caller_text": _simple(validate_caller_text_pdf, "exact caller font identity, CID, Unicode mapping, and visible text facts"),
@@ -222,6 +224,7 @@ PREFLIGHT_CHECKS["fonts"] = PreflightCheck("check_fonts.py", True)
 PREFLIGHT_CHECKS["structure_semantics"] = PreflightCheck("check_structure_semantics.py", True)
 # The rich-inline self-test pins the rich-inline snapshots' logical text.
 PREFLIGHT_CHECKS["rich_inline"] = PreflightCheck("check_rich_inline.py", True)
+PREFLIGHT_CHECKS["rich_flow"] = PreflightCheck("check_rich_flow.py", True)
 PREFLIGHT_CHECKS["source_blocks"] = PreflightCheck("check_source_blocks.py", True)
 PREFLIGHT_CHECKS["source_foregrounds"] = PreflightCheck("check_source_foregrounds.py", True)
 # Both reference-document self-tests read the reference and gallery
