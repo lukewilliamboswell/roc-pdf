@@ -58,6 +58,11 @@ KernelLineLayout :: [].{
 		make : { line : Limits, max_key_probes : U64, max_lines : U64, max_runs : U64, max_table_slots : U64, max_templates : U64 } -> BatchLimits
 		make = |limits| BatchLimits.(limits)
 
+		max_lines : BatchLimits -> U64
+		max_lines = |limits| limits.max_lines
+		max_items : BatchLimits -> U64
+		max_items = |limits| limits.line.max_clusters
+
 		line : BatchLimits -> Limits
 		line = |BatchLimits.(limits)| limits.line
 	}

@@ -53,6 +53,11 @@ KernelFacadeShape :: [].{
 	Limits :: { max_requests : U64, shape : KernelShape.Limits }.{
 		make : { max_requests : U64, shape : KernelShape.Limits } -> Limits
 		make = |limits| Limits.(limits)
+		max_requests : Limits -> U64
+		max_requests = |limits| limits.max_requests
+		shape : Limits -> KernelShape.Limits
+		shape = |limits| limits.shape
+
 	}
 
 	## A logical authoring occurrence may become more than one physical shaped
@@ -132,12 +137,55 @@ KernelFacadeShape :: [].{
 		SingleFace,
 	]
 
+	## Shared style facts for the symbolic-reference measurement path. It
+	## shapes real literal leaves only; pending atoms receive these same
+	## inherited facts after their Unicode resolves.
+	leaf_style : Document.NormalizedAuthoring, U64, [AtInline(U64), NoInline], [Body, GeneratedLabel], Theme -> Theme.TextStyle
+	leaf_style = |authoring, block, inline, role, theme| {
+		if role == GeneratedLabel {
+			style = Theme.body_style(theme)
+			return { ..style, color: scoped_text_color(authoring, block, theme, style.color) }
+		}
+		match inline {
+			NoInline => block_style(authoring, block, theme)
+			AtInline(index) => {
+				style = Theme.body_style(theme)
+				parent = list_at(authoring.inlines, index).parent
+				color = header_cell_color(authoring, block, theme, scoped_text_color(authoring, block, theme, style.color))
+				{ ..style, color: inline_color(authoring, block, parent, theme, color), size: inline_size(authoring.inlines, parent, theme, style.size) }
+			}
+		}
+	}
+
+	leaf_candidate : Document.NormalizedAuthoring, U64, [AtInline(U64), NoInline], [Body, GeneratedLabel], StyledFaces, Theme -> U64
+	leaf_candidate = |authoring, block, inline, role, styled, theme| {
+		if role == GeneratedLabel {
+			return 0
+		}
+		match inline {
+			AtInline(index) => role_candidate(authoring.inlines, list_at(authoring.inlines, index).parent, styled)
+			NoInline => candidate_of(styled, block_style(authoring, block, theme).font)
+		}
+	}
+
+	leaf_is_code : Document.NormalizedAuthoring, [AtInline(U64), NoInline] -> Bool
+	leaf_is_code = |authoring, inline| match inline {
+		AtInline(index) => inside_code(authoring.inlines, list_at(authoring.inlines, index).parent)
+		NoInline => False
+	}
+
+	drawing_candidates : Document.NormalizedAuthoring, StyledFaces -> List(U64)
+	drawing_candidates = |authoring, styled| label_candidates(authoring, styled)
+
 	## One ordered-policy selection of a whole source outside the body text
 	## (a page-furniture line): its cluster segments in order, each with its
 	## selected face and itemized script, under the same declared-script,
 	## coverage, and shaping-provision rules as body text.
 	select_source : Font.Registry, Font.PolicyId, KernelFacadeSources.Source, U64, Semantics.Language -> Try(List({ clusters : Semantics.Range, face : Font.FaceId, script : Font.Script }), Error)
 	select_source = |registry, policy, source, index, language| select_source_segments(registry, policy, source, index, language)
+
+	select_source_reporting : Font.Registry, Font.PolicyId, KernelFacadeSources.Source, U64, Semantics.Language -> Try({ segments : List({ clusters : Semantics.Range, face : Font.FaceId, script : Font.Script }), work : SelectionWork }, Error)
+	select_source_reporting = |registry, policy, source, index, language| select_source_report(registry, policy, source, index, language)
 
 	## `ranges` is empty unless the document has a rich paragraph; then it
 	## holds one entry per request, in request order.
@@ -157,6 +205,8 @@ KernelFacadeShape :: [].{
 		styles : Preparation -> List(RunStyle)
 		styles = |preparation| preparation.styles
 	}
+	ContextShape : { block_runs : List(BlockRuns), origins : Origins, requests : List(KernelShape.SimpleRequest), selection : Selection, shape : KernelShape.Batch, styles : List(RunStyle), work : Work }
+
 	Plan :: {
 		block_runs : List(BlockRuns),
 		origins : Origins,
@@ -166,6 +216,30 @@ KernelFacadeShape :: [].{
 		styles : List(RunStyle),
 		work : Work,
 	}.{
+
+		## Freeze fully resolved context shaping after exact semantic source
+		## finalization. Every semantic occurrence must be covered in dense
+		## order; this is never an entry for pending reference measurements.
+		from_contexts : ContextShape, U64 -> Try(Plan, Error)
+		from_contexts = |facts, occurrences| {
+			if facts.requests.len() != facts.shape.store.runs.len() or facts.styles.len() != facts.requests.len() {
+				return Err(OccurrenceCoverage({ actual: facts.requests.len(), expected: occurrences }))
+			}
+			var $next = 0
+			for request in facts.requests {
+				index = request.occurrence.index()
+				if index == $next {
+					$next = $next + 1
+				} else if $next == 0 or index != $next - 1 {
+					return Err(OccurrenceCoverage({ actual: index, expected: $next }))
+				}
+			}
+			if $next != occurrences {
+				return Err(OccurrenceCoverage({ actual: $next, expected: occurrences }))
+			}
+			Ok(Plan.{ block_runs: facts.block_runs, origins: facts.origins, requests: facts.requests, selection: facts.selection, shape: facts.shape, styles: facts.styles, work: facts.work })
+		}
+
 		build : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), KernelFont.Inspection, Theme, Limits -> Try(Plan, Error)
 		build = |authoring, owners, store, sources, font, theme, limits| build_plan(authoring, owners, store, sources, font, theme, limits)
 
@@ -1528,6 +1602,12 @@ block_style = |authoring, block, theme| {
 
 select_source_segments : Font.Registry, Font.PolicyId, KernelFacadeSources.Source, U64, Semantics.Language -> Try(List({ clusters : Semantics.Range, face : Font.FaceId, script : Font.Script }), KernelFacadeShape.Error)
 select_source_segments = |registry, policy, source, index, language| {
+	result = select_source_report(registry, policy, source, index, language)?
+	Ok(result.segments)
+}
+
+select_source_report : Font.Registry, Font.PolicyId, KernelFacadeSources.Source, U64, Semantics.Language -> Try({ segments : List({ clusters : Semantics.Range, face : Font.FaceId, script : Font.Script }), work : KernelFacadeShape.SelectionWork }, KernelFacadeShape.Error)
+select_source_report = |registry, policy, source, index, language| {
 	faces = registry.policy_faces(policy) ? PolicyInvalid
 	clusters = ordered_source_clusters(source, index)?
 	selection = match registry.plan({ clusters, language, policy, source: Semantics.TextSourceId.from_index(index) }) {
@@ -1544,7 +1624,7 @@ select_source_segments = |registry, policy, source, index, language| {
 		}
 		$selected = $selected.append({ clusters: segment.clusters, face, script: segment.script })
 	}
-	Ok($selected)
+	Ok({ segments: $selected, work: { coverage_span_visits: selection.work.coverage_span_visits, face_visits: selection.work.face_visits, grapheme_visits: selection.work.grapheme_visits, planned_sources: 1, selection_ranges: selection.face_ranges.len() } })
 }
 
 ## One selected physical segment of a source: a contiguous grapheme-cluster

@@ -32,6 +32,9 @@ KernelFacadeLines :: [].{
 	Limits :: { line : KernelLineLayout.BatchLimits, max_blocks : U64, max_runs : U64 }.{
 		make : { line : KernelLineLayout.BatchLimits, max_blocks : U64, max_runs : U64 } -> Limits
 		make = |limits| Limits.(limits)
+		values : Limits -> { line : KernelLineLayout.BatchLimits, max_blocks : U64, max_runs : U64 }
+		values = |Limits.(value)| value
+
 	}
 
 	## Preserve the logical-to-physical shaped-run relation alongside the line
@@ -60,6 +63,34 @@ KernelFacadeLines :: [].{
 	## `geometry` holds the resolved table geometry when the document has
 	## tables; each cell's lines are laid out at its column text width.
 	SourceFrame : { offset : Layout.Unit, width : Layout.Unit }
+
+	LabelMeasure : [NoLabel, Label({ size : U64, width : U64 })]
+	MeasuredGeometry : { blocks : List({ body_offset : U64, body_width : U64, column : U64, label_offset : U64 }), offsets : List(U64), ends : List(U64) }
+
+	## Shared horizontal geometry from exact label measurements; pending
+	## reference bodies need no provisional shaped run to participate.
+	geometry_measured : Document.NormalizedAuthoring, List(LabelMeasure), Layout.Size, Theme -> Try(MeasuredGeometry, Error)
+	geometry_measured = |authoring, labels, page, theme| {
+		if labels.len() != authoring.blocks.len() {
+			return Err(InvalidGeometry)
+		}
+		width = calculate_content_width(page, theme.page_margin)?
+		indent = positive_raw(theme.bullet_indent)?
+		if indent >= width {
+			return Err(InvalidGeometry)
+		}
+		resolve_geometry(
+			authoring,
+			labels.len(),
+			|index| Ok(list_at(labels, index)),
+			|index| match list_at(labels, index) {
+				Label(_) => True
+				NoLabel => False
+			},
+			indent,
+			width,
+		)
+	}
 
 	Plan :: { group_offsets : List(U64), group_ends : List(U64), frames : List(BlockGeometry), source_frames : List(SourceFrame), blocks : List(BlockLines), geometry : [NoTables, WithTables(KernelFacadeTables.Plan)], line : KernelLineLayout.BatchPlan, work : Work }.{
 		build : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, Limits -> Try(Plan, Error)
@@ -535,15 +566,32 @@ has_multi_run = |block_runs| {
 ## `LabelTooWide`: a label is never shrunk or allowed to overlap its body.
 list_geometries : Document.NormalizedAuthoring, List(KernelFacadeShape.BlockRuns), Text.Store, U64, U64 -> Try(Geometry, KernelFacadeLines.Error)
 list_geometries = |authoring, block_runs, store, indent, content_width| {
+	resolve_geometry(
+		authoring,
+		block_runs.len(),
+		|index| match list_at(block_runs, index) {
+			TextBlock({ label: Label(value), .. }) => Ok(Label(label_width(store, value)?))
+			_ => Ok(NoLabel)
+		},
+		|index| match list_at(block_runs, index) {
+			TextBlock({ label: Label(_), .. }) => True
+			_ => False
+		},
+		indent,
+		content_width,
+	)
+}
+
+resolve_geometry : Document.NormalizedAuthoring, U64, (U64 -> Try(KernelFacadeLines.LabelMeasure, KernelFacadeLines.Error)), (U64 -> Bool), U64, U64 -> Try(Geometry, KernelFacadeLines.Error)
+resolve_geometry = |authoring, block_count, label_at, labelled, indent, content_width| {
 	groups = authoring.groups
 	blocks = authoring.blocks
 	var $group_columns = List.repeat(indent, groups.len())
 	var $legacy_columns = []
 	var $block = 0
-	while $block < block_runs.len() {
-		match list_at(block_runs, $block) {
-			TextBlock({ body: _, label: Label(label_run), level: _ }) => {
-				measured = label_width(store, label_run)?
+	while $block < block_count {
+		match label_at($block)? {
+			Label(measured) => {
 				column = if measured.width <= indent indent else checked_add(measured.width, measured.size // 2)?
 				match list_key(blocks, groups, $block) {
 					LegacyList(list) => {
@@ -558,7 +606,7 @@ list_geometries = |authoring, block_runs, store, indent, content_width| {
 					NoList => return Err(InvalidGeometry)
 				}
 			}
-			TextBlock(_) | ContentlessCell | EmptySourceLine(_) => {}
+			NoLabel => {}
 		}
 		$block = $block + 1
 	}
@@ -614,34 +662,31 @@ list_geometries = |authoring, block_runs, store, indent, content_width| {
 		}
 		$offsets = $offsets.append(checked_add(outer, own)?)
 	}
-	var $geometries = List.with_capacity(block_runs.len())
+	var $geometries = List.with_capacity(block_count)
 	$block = 0
-	while $block < block_runs.len() {
+	while $block < block_count {
 		record = list_at(blocks, $block)
 		outer = if record.parent == 0 0 else list_at($offsets, record.parent - 1)
 		end = if $ends.is_empty() or record.parent == 0 content_width else list_at($ends, record.parent - 1)
-		geometry = match list_at(block_runs, $block) {
-			TextBlock({ body: _, label: Label(_), level: _ }) => {
-				placed = match list_key(blocks, groups, $block) {
-					LegacyList(list) => {
-						column = list_at($legacy_columns, list)
-						{ body_offset: checked_add(outer, column)?, column }
-					}
-					ListGroup(group) => { body_offset: outer, column: list_at($group_columns, group) }
-					NoList => return Err(InvalidGeometry)
+		geometry = if labelled($block) {
+			placed = match list_key(blocks, groups, $block) {
+				LegacyList(list) => {
+					column = list_at($legacy_columns, list)
+					{ body_offset: checked_add(outer, column)?, column }
 				}
-				label_offset = placed.body_offset - placed.column
-				if placed.body_offset >= end {
-					return Err(LabelTooWide({ available: if end > label_offset end - label_offset else 0, block: $block, width: placed.column }))
-				}
-				{ body_offset: placed.body_offset, body_width: end - placed.body_offset, column: placed.column, label_offset }
+				ListGroup(group) => { body_offset: outer, column: list_at($group_columns, group) }
+				NoList => return Err(InvalidGeometry)
 			}
-			TextBlock(_) | ContentlessCell | EmptySourceLine(_) => {
-				if outer >= end {
-					return Err(InvalidGeometry)
-				}
-				{ body_offset: outer, body_width: end - outer, column: indent, label_offset: 0 }
+			label_offset = placed.body_offset - placed.column
+			if placed.body_offset >= end {
+				return Err(LabelTooWide({ available: if end > label_offset end - label_offset else 0, block: $block, width: placed.column }))
 			}
+			{ body_offset: placed.body_offset, body_width: end - placed.body_offset, column: placed.column, label_offset }
+		} else {
+			if outer >= end {
+				return Err(InvalidGeometry)
+			}
+			{ body_offset: outer, body_width: end - outer, column: indent, label_offset: 0 }
 		}
 		$geometries = $geometries.append(geometry)
 		$block = $block + 1

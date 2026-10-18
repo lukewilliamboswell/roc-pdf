@@ -2564,7 +2564,37 @@ InlineFrame : { breaks : U64, depth : U64, items : List(DocumentInline), languag
 ## semantic-planning concern with stable diagnostics.
 append_rich : SimpleState, List(DocumentInline), U64, U64 -> SimpleState
 append_rich = |state, contents, parent, position| {
-	paragraph = state.rich_paragraphs.len()
+	## Capture every input field before any inline/reference arena grows.
+	## The original state record must not keep its old accumulator live.
+	unchanged = {
+		blocks: [],
+		inlines: [],
+		line_breaks: [],
+		page_references: [],
+		rich_paragraphs: [],
+		source_bytes: state.source_bytes,
+		source_exhaustion: state.source_exhaustion,
+		cells: state.cells,
+		customs: state.customs,
+		callouts: state.callouts,
+		decorations: state.decorations,
+		figures: state.figures,
+		groups: state.groups,
+		list_index: state.list_index,
+		lists: state.lists,
+		page_breaks: state.page_breaks,
+		page_scopes: state.page_scopes,
+		scopes: state.scopes,
+		sources: state.sources,
+		source_foregrounds: state.source_foregrounds,
+		source_lines: state.source_lines,
+		spacers: state.spacers,
+		tables: state.tables,
+	}
+	blocks = state.blocks
+	rich_paragraphs = state.rich_paragraphs
+	block_index = blocks.len()
+	paragraph = rich_paragraphs.len()
 	base = state.inlines.len()
 	first_break = state.line_breaks.len()
 	var $inlines = state.inlines
@@ -2669,7 +2699,7 @@ append_rich = |state, contents, parent, position| {
 
 				PageReference(boxed) => {
 					reference = $references.len()
-					$references = $references.append({ block: state.blocks.len(), inline: index, leaf: $leaves, paragraph, separator_after: False, spec: Box.unbox(boxed) })
+					$references = $references.append({ block: block_index, inline: index, leaf: $leaves, paragraph, separator_after: False, spec: Box.unbox(boxed) })
 					$inlines = $inlines.append({ children: 0, depth: top.depth, element: 0, first_leaf: $leaves, kind: PageReference(reference), language: top.language, leaf_end: $leaves + 1, parent: top.owner, position: slot, spine: 0 })
 					$last_reference = reference + 1
 					$last_text = 0
@@ -2707,11 +2737,11 @@ append_rich = |state, contents, parent, position| {
 	if $references.len() != first_reference {
 		## No concatenated paragraph source can cross a symbolic atom. The
 		## explicit chunk pass below supplies its literal sources instead.
-		return { ..state, blocks: state.blocks.append({ kind: RichParagraph(paragraph), parent, text: "" }), inlines: $inlines, line_breaks: $line_breaks, page_references: $references, rich_paragraphs: state.rich_paragraphs.append(rich) }
+		return { ..unchanged, blocks: blocks.append({ kind: RichParagraph(paragraph), parent, text: "" }), inlines: $inlines, line_breaks: $line_breaks, page_references: $references, rich_paragraphs: rich_paragraphs.append(rich) }
 	}
 	if $line_breaks.len() == first_break {
 		text = if $leaves == 1 single_leaf_text($inlines, base) else concatenated_text($inlines, base, $bytes)
-		return { ..state, blocks: state.blocks.append({ kind: RichParagraph(paragraph), parent, text }), inlines: $inlines, line_breaks: $line_breaks, page_references: $references, rich_paragraphs: state.rich_paragraphs.append(rich) }
+		return { ..unchanged, blocks: blocks.append({ kind: RichParagraph(paragraph), parent, text }), inlines: $inlines, line_breaks: $line_breaks, page_references: $references, rich_paragraphs: rich_paragraphs.append(rich) }
 	}
 	segments = segment_texts($inlines, base, $line_breaks, first_break)
 	var $index_break = first_break
@@ -2720,7 +2750,7 @@ append_rich = |state, contents, parent, position| {
 		$line_breaks = list_set($line_breaks, $index_break, { ..record, text: list_at(segments, $index_break - first_break + 1) })
 		$index_break = $index_break + 1
 	}
-	{ ..state, blocks: state.blocks.append({ kind: RichParagraph(paragraph), parent, text: list_at(segments, 0) }), inlines: $inlines, line_breaks: $line_breaks, page_references: $references, rich_paragraphs: state.rich_paragraphs.append(rich) }
+	{ ..unchanged, blocks: blocks.append({ kind: RichParagraph(paragraph), parent, text: list_at(segments, 0) }), inlines: $inlines, line_breaks: $line_breaks, page_references: $references, rich_paragraphs: rich_paragraphs.append(rich) }
 }
 
 ## The text leaf `last_text - 1` before a line break, ending in U+0020: the
