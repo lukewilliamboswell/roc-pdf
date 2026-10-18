@@ -57,6 +57,12 @@ KernelReferenceLayout :: [].{
 		segment_end : Builder -> Builder
 		segment_end = |builder| end_segment(builder)
 
+		position : Builder -> Try(U64, Error)
+		position = |builder| match builder {
+			Failed(error) => Err(error)
+			Open(state) => Ok(state.items.len())
+		}
+
 		finish : Builder -> Try(Measured, Error)
 		finish = |builder| match end_segment(builder) {
 			Failed(error) => Err(error)
