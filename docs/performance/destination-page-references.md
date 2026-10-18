@@ -157,8 +157,8 @@ The furniture pair is the ordinary template pipeline with the new page-label
 field. Its glyph strings are checked independently against emitted
 `/PageLabels`, including Unicode prefixes, Roman front matter, repeated PDF
 alphabetic labels and a decimal restart. Labels remain page artifacts and do
-not enter body reading order. The pair uses 4,530 / 19,225 allocations and
-6,458,127 / 27,979,405 allocated bytes at 3/30 pages. Field resolutions are
+not enter body reading order. The pair uses 4,518 / 19,105 allocations and
+6,458,019 / 27,978,223 allocated bytes at 3/30 pages. Field resolutions are
 exactly 9/90 and artifact runs 9/90; output is 12,101 / 24,991 bytes.
 
 ## Target boundary
@@ -209,3 +209,12 @@ strict exact allocation/work and immutable snapshot replay through
 1.30.2 PDF/A-4 with zero failed checks, warnings or parser logs. PDFBox 3.0.8
 and MuPDF 1.28.2 also extract and render the four successful reference PDFs as
 whole original files: 56 page renders with exact glyph/ToUnicode text order.
+
+Numeric furniture fields retain the formatter's explicit ASCII scalar-count
+fact: their byte length already equals their scalar length. Only configured
+page labels and running labels count Unicode prefix scalars. This avoids
+allocating UTF-8 lists for short numeric strings. A focused native replay
+restored the previous exact allocations for every numeric style, typography
+and chapter sample; the new visible-label pair improves by 12 / 120
+allocations (two numeric fields per page, public output plus work probe).
+The field strings, geometry, deterministic work and PDF snapshots are unchanged.

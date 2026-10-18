@@ -1186,7 +1186,11 @@ resolve_line = |parts, page, pages, labels, label| {
 				$pieces = $pieces.append(value)
 				length = value.count_utf8_bytes()
 				$bytes = $bytes + length
-				$scalars = $scalars + scalar_count(value)
+
+				## Existing numeric fields are generated ASCII. Their exact byte
+				## length is already the scalar count; only configured labels
+				## may contain multibyte prefix scalars.
+				$scalars = $scalars + (if field == LabelField scalar_count(value) else length)
 				$fields = $fields + 1
 				$field = match $field {
 					NoField => Field({ path, value })
