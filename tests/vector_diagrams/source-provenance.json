@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "path": "tests/vector_diagrams/html-labels.svg",
+  "sha256": "bd8d7dc92b231582ea73fd91b8bb6f96ff28afe20a3cb1ce3f25764825f45686",
+  "source_url": "https://lukewilliamboswell.github.io/roc-automation/diag-mermaid-md5-332f3e2cc13154f0257848fa9f290595.svg",
+  "upstream_repository": "https://github.com/lukewilliamboswell/roc-automation",
+  "upstream_revision": "d9e99b9daff74b0e7bfe4de22e103b8a072b8bdc",
+  "license": "UPL-1.0",
+  "attribution": "Copyright 2026 Luke Boswell. https://opensource.org/license/upl",
+  "modification_permitted": true,
+  "redistribution_permitted": true
+}

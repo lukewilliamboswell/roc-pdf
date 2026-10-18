@@ -34,6 +34,7 @@ EXAMPLES = (
     "release-notes",
     "source-blocks",
     "tax-invoice",
+    "vector-diagrams",
     "warranty-letter",
 )
 LOCAL_IMPORT = re.compile(r'^import "([^"]+)"', re.MULTILINE)
@@ -83,7 +84,7 @@ def bundled_example(example: Path, destination: Path, bundle_url: str) -> Path:
         resolved = (example / imported).resolve()
         if not resolved.is_relative_to(example.resolve()) or not resolved.is_file():
             raise SystemExit(f"{example.name}: import {imported!r} is not a file inside the example directory")
-    shutil.copytree(example, destination, ignore=shutil.ignore_patterns("*.pdf", "preview.png"))
+    shutil.copytree(example, destination, ignore=shutil.ignore_patterns("*.pdf", "preview.png", "node_modules"))
     (destination / "main.roc").write_text(
         text.replace(PACKAGE_DEPENDENCY, f'pdf: "{bundle_url}",'),
         encoding="utf-8",

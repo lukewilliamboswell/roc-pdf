@@ -1,0 +1,12 @@
+{
+  "name": "roc-pdf-vector-diagram-preparation",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "23.9.0"
+  },
+  "dependencies": {
+    "@mermaid-js/mermaid-cli": "11.16.0"
+  }
+}

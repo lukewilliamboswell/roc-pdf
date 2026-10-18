@@ -4,6 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from check_chapter_templates import validate_chapter_templates_pdf
+from check_vector_diagrams import validate_vector_diagrams_pdf
 from check_actual_text import EXPECTED_CONTENT as ACTUAL_TEXT_CONTENT
 from check_actual_text import validate_actual_text_pdf
 from check_caller_facade import validate_caller_facade_pdf, validate_unhinted_caller_pdf
@@ -136,6 +137,7 @@ def _facade_image(data: bytes, dimensions: dict[str, int], report: Reporter) -> 
 
 
 VALIDATORS: dict[str, Validator] = {
+    "vector_diagrams": _dimensioned(validate_vector_diagrams_pdf, "exact prepared-vector Unicode labels, caption/Alt ownership and cubic/arrowhead paths"),
     "pdf_structure": _pdf_structure_with(None),
     "pdf_structure_text": _pdf_structure_with(TEXT_CONTENT),
     "pdf_structure_actual_text": _pdf_structure_with(ACTUAL_TEXT_CONTENT),
@@ -225,6 +227,7 @@ PREFLIGHT_CHECKS["structure_semantics"] = PreflightCheck("check_structure_semant
 # The rich-inline self-test pins the rich-inline snapshots' logical text.
 PREFLIGHT_CHECKS["rich_inline"] = PreflightCheck("check_rich_inline.py", True)
 PREFLIGHT_CHECKS["source_blocks"] = PreflightCheck("check_source_blocks.py", True)
+PREFLIGHT_CHECKS["vector_diagrams"] = PreflightCheck("check_vector_diagrams.py", True)
 PREFLIGHT_CHECKS["source_foregrounds"] = PreflightCheck("check_source_foregrounds.py", True)
 # Both reference-document self-tests read the reference and gallery
 # snapshots, which are in flux during --update-snapshots.
