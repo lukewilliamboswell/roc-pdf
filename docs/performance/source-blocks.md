@@ -218,11 +218,12 @@ The final 409-case native comparison observes 8,264 allocations instead of
 8,267 for the twelve-negative carrier, with unchanged work and the exact
 16,027-byte PDF. The excessive-padding rejection now validates its parent
 geometry before constructing source analysis, table-cache and width arenas.
-It avoids 520, 200 and 72 requested bytes respectively: three allocations and
-792 bytes. The richer width token widens existing cache slots by eight bytes;
-four other preparations each retain four slots, adding 128 bytes. The net
-reduction is exactly 664 bytes, from 9,411,637 to 9,410,973. Only the allocation
-expectation changes; the requested-byte guard and snapshot remain unchanged.
+It therefore avoids three unused allocations. The richer width token also
+widens existing cache slots by eight bytes on other preparations. The complete
+fixture observes a net reduction of 664 requested bytes, from 9,411,637 to
+9,410,973; allocator-header details are not attributed separately. Only the
+allocation expectation changes; the requested-byte guard and snapshot remain
+unchanged.
 
 The native result is observed with the pinned build and replayed strictly from
 the same cold-built executable. The mirrored Linux allocation expectation
