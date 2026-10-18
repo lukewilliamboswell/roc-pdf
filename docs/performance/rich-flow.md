@@ -205,3 +205,42 @@ two removed 24-byte arenas; work and the 20,088-byte PDF remain identical.
 Its observed 35,060,525 allocated bytes include the existing token-domain
 widening, less those 48 bytes. This result is recorded separately from the
 unchanged legacy letter baselines rather than concealing the new-case change.
+
+## Repeated-header placement storage
+
+The first container-aware pager retained an explicit lead band for every
+continued table header, even when no container consumed that placement fact.
+Each 24-byte band stored the accepted page, block and top. Appending the bands
+grew a geometric arena: the legacy invoice x50/x500 cases gained 4/10
+allocations across their two pipelines, split rows gained 6 and footer carry
+gained 2. The counts match the continued-header arena capacities, rather than
+the number of text rows. Single-page tables and a whole table moved intact to
+its next page had no continued header and retained their exact counts.
+
+Both concrete pagination and source-free row choice now retain these bands
+only when the earlier container context is active. Ordinary headers already
+consume their selected page frame top and need no separate placement arena.
+Accepted rows, page usage, scope facts and deterministic traversal counters
+remain unchanged. The check uses indexed container ownership, with no new
+traversal or retained per-fragment storage on the common path.
+
+Active containers keep their explicit bands even when their padding is zero:
+their painted panel must still include the repeated header. Unit checks cover
+this case in both pagination paths and compare their exact panel geometry;
+the existing positive-padding check remains in place.
+
+An isolated pinned native replay through `scripts/test.py`, after all 645
+canonical kernel tests passed, restored the unchanged legacy baselines:
+
+| Case | Exact allocations | Observed allocated bytes | Exact PDF bytes |
+| --- | ---: | ---: | ---: |
+| Invoice x50 | 54,207 | 43,584,640 | 28,819 |
+| Invoice x500 | 395,154 | 336,059,822 | 122,641 |
+| Column spans and two headers | 9,598 | 7,869,116 | 16,113 |
+| Split rows | 58,703 | 42,456,530 | 20,863 |
+| Footer carry | 24,514 | 20,555,932 | 18,943 |
+| Whole-table keep | 27,774 | 12,412,692 | 13,800 |
+
+Every work counter and PDF snapshot remains exact. The small byte differences
+retain the previously reviewed typed-token/frame representation costs and stay
+within the existing guards; no baseline was changed.

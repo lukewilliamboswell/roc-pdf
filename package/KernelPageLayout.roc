@@ -376,6 +376,12 @@ plan_containers = |containers, count| {
 container_padding : ContainerFacts, U64 -> U64
 container_padding = |facts, block| if facts.contexts.is_empty() 0 else list_at(facts.contexts, block).padding
 
+## Ordinary repeated headers use their already-selected page frame top.
+## Only an active container consumes the explicit lead band, including a
+## zero-padding painted container whose panel must enclose the header.
+has_active_container : ContainerFacts, U64 -> Bool
+has_active_container = |facts, block| !facts.contexts.is_empty() and list_at(facts.contexts, block).active != U64.highest
+
 container_transition : ContainerFacts, U64 -> U64
 container_transition = |facts, block| if facts.contexts.is_empty() 0 else list_at(facts.contexts, block).transition
 
@@ -618,7 +624,7 @@ build_plan = |blocks, groups, lines, constraints, template, scopes, containers, 
 		# Materialize the accepted page once, from the page start to the
 		# chosen break, exactly as the scan measured it.
 		page_lead = nonnegative_raw(list_at(blocks, $block).lead)?
-		if page_lead > 0 {
+		if page_lead > 0 and has_active_container(container_facts, $block) {
 			$lead_bands = $lead_bands.append({ block: $block, page: page_index, top: page_geometry.page_height - page_geometry.margin_top - container_padding(container_facts, $block) })
 		}
 		var $used = checked_add(page_lead, container_padding(container_facts, $block))?
@@ -819,7 +825,7 @@ choose_rows = |blocks, groups, row_count, constraints, template, scopes, contain
 		# Materialize the accepted page once, from the page start to the
 		# chosen break, exactly as the scan measured it.
 		page_lead = nonnegative_raw(list_at(blocks, $block).lead)?
-		if page_lead > 0 {
+		if page_lead > 0 and has_active_container(container_facts, $block) {
 			$lead_bands = $lead_bands.append({ block: $block, page: page_index, top: page_geometry.page_height - page_geometry.margin_top - container_padding(container_facts, $block) })
 		}
 		var $used = checked_add(page_lead, container_padding(container_facts, $block))?
@@ -1899,4 +1905,26 @@ expect {
 		Err(InvalidBlock(_)) => True
 		_ => False
 	}
+}
+
+# Repeated header space alone creates no container-placement facts. Both
+# geometry paths keep their exact accepted spans without a per-page arena.
+expect {
+	block = { ..test_block, lead: Layout.Unit.from_raw(500), lines: Semantics.Range.from_start_and_length(0, 4), policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
+	concrete = KernelPageLayout.Plan.build([block], test_lines.take_first(4), test_constraints, test_limits)?
+	choice = KernelPageLayout.Choice.build([block], [], 4, test_constraints, NoTemplate, [], [], test_limits)?
+	KernelPageLayout.Plan.pages(concrete).len() == 2 and KernelPageLayout.Plan.lead_bands(concrete).is_empty() and KernelPageLayout.Choice.lead_bands(choice).is_empty() and
+		KernelPageLayout.Choice.spans(choice).map(|span| span.geometry) == KernelPageLayout.Plan.fragments(concrete).map(|fragment| fragment.geometry)
+}
+
+# Even zero-padding painted containers must enclose their repeated header;
+# active ownership, rather than nonzero padding, decides the needed band.
+expect {
+	block = { ..test_block, lead: Layout.Unit.from_raw(500), lines: Semantics.Range.from_start_and_length(0, 4), policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
+	container = { paint: Paint(0), blocks: Semantics.Range.from_start_and_length(0, 1), padding: Layout.Unit.from_raw(0), offset: Layout.Unit.from_raw(0), width: Layout.Unit.from_raw(8000) }
+	concrete = KernelPageLayout.Plan.build_with_containers([block], [], test_lines.take_first(4), test_constraints, NoTemplate, [container], test_limits)?
+	choice = KernelPageLayout.Choice.build([block], [], 4, test_constraints, NoTemplate, [], [container], test_limits)?
+	panels = KernelPageLayout.Plan.container_fragments(concrete)
+	KernelPageLayout.Plan.lead_bands(concrete).map(|band| band.top) == [4000, 4000] and KernelPageLayout.Choice.lead_bands(choice) == KernelPageLayout.Plan.lead_bands(concrete) and
+		panels.len() == 2 and panels.all(|panel| panel.rect.origin.y.raw() == 1500 and panel.rect.size.height.raw() == 2500) and KernelPageLayout.Choice.container_fragments(choice) == panels
 }
