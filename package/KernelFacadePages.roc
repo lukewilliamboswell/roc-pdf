@@ -1944,22 +1944,62 @@ FlowFacts : { decorations : List(U64), heights : List(U64), scales : List(U64) }
 ##
 ## Nothing else is scaled, and nothing is clipped.
 figure_widths : Document.NormalizedAuthoring, KernelFacadeLines.Plan -> List({ width : U64, padding : U64 })
-figure_widths = |authoring, line_plan| {
+figure_widths = |authoring, line_plan| select_figure_widths(authoring, KernelFacadeLines.Plan.work(line_plan).content_width, |block| KernelFacadeLines.Plan.frame(line_plan, block).width)
+
+## Empty means the already-selected full content width with no enclosing
+## padding. Keep the dense figure-indexed arena only when an earlier frame
+## differs; one narrowed figure retains the default entries around it too.
+select_figure_widths : Document.NormalizedAuthoring, U64, (U64 -> U64) -> List({ width : U64, padding : U64 })
+select_figure_widths = |authoring, content_width, width_at| {
 	if authoring.figures.is_empty() {
 		return []
 	}
-	var $widths = List.with_capacity(authoring.figures.len())
+	var $required = False
 	var $block = 0
+	while $block < authoring.blocks.len() {
+		record = list_at(authoring.blocks, $block)
+		match record.kind {
+			Figure(_) => {
+				if width_at($block) != content_width or enclosing_callout_padding(authoring, record.parent) != 0 {
+					$required = True
+					break
+				}
+			}
+			_ => {}
+		}
+		$block = $block + 1
+	}
+	if !$required {
+		return []
+	}
+	var $widths = List.with_capacity(authoring.figures.len())
+	$block = 0
 	while $block < authoring.blocks.len() {
 		match list_at(authoring.blocks, $block).kind {
 			Figure(_) => {
-				$widths = $widths.append({ width: KernelFacadeLines.Plan.frame(line_plan, $block).width, padding: enclosing_callout_padding(authoring, list_at(authoring.blocks, $block).parent) * 2 })
+				$widths = $widths.append({ width: width_at($block), padding: enclosing_callout_padding(authoring, list_at(authoring.blocks, $block).parent) * 2 })
 			}
 			_ => {}
 		}
 		$block = $block + 1
 	}
 	$widths
+}
+
+expect {
+	drawing = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 10, 10), Color.srgb8({ blue: 0, green: 0, red: 0 }))
+	figure = Document.fitted_figure(drawing, "A plan", NoCaption, Exact)
+	authoring = Document.normalize(Document.from_blocks({ contents: [figure, figure, figure], language: "en", title: "Figure frame facts" }))
+	select_figure_widths(authoring, 100, |_| 100).is_empty() and
+		select_figure_widths(authoring, 100, |block| if block == 1 80 else 100) == [{ width: 100, padding: 0 }, { width: 80, padding: 0 }, { width: 100, padding: 0 }]
+}
+
+expect {
+	drawing = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 10, 10), Color.srgb8({ blue: 0, green: 0, red: 0 }))
+	figure = Document.fitted_figure(drawing, "A plan", NoCaption, Exact)
+	container = Document.callout({ contents: [figure], fragmentation: Lines, padding: Layout.Unit.from_raw(5), name: "Panel", panel: { fill: NoFill, border: NoBorder } })
+	authoring = Document.normalize(Document.from_blocks({ contents: [figure, container, figure], language: "en", title: "Padded figure facts" }))
+	select_figure_widths(authoring, 100, |_| 100) == [{ width: 100, padding: 0 }, { width: 100, padding: 10 }, { width: 100, padding: 0 }]
 }
 
 plan_flow : Document.NormalizedAuthoring, List(a), (a -> [Rows(U64), NoRows]), List({ width : U64, padding : U64 }), Layout.Size, Theme, FlowSelection -> Try(FlowFacts, KernelFacadePages.Error)

@@ -51,3 +51,27 @@ planes, empty alternatives, and vector-only drawings. Existing color-image
 fixtures retain the scaled row, hashing, compression, alpha, and JPEG evidence;
 the public fixture proves that the facade reaches those already-reviewed
 stages without a parallel serializer or fallback.
+
+## Default flow-frame storage review
+
+Rich-flow composition added an explicit figure-indexed `{ width, padding }`
+arena so a figure fits its earlier resolved list/callout frame. The ordinary
+full-width image fixture also allocated that arena, adding one allocation
+despite having no enclosing padding or narrowed width. The flow planner's
+existing empty-arena contract already means full content width and zero
+padding.
+
+The selection now checks the earlier line-stage frame widths and authored
+container padding before allocating. All-default figures retain the empty
+arena; any nondefault figure retains the complete dense figure-indexed arena,
+including default entries before and after it. Two bounded block traversals
+replace no measurement or validation, and the uniquely owned arena is built
+only once when required. Unit checks cover a narrowed middle figure and
+nonzero enclosing padding even when the supplied widths are equal.
+
+All 647 canonical kernel tests passed. A pinned native no-cache replay through
+`scripts/test.py` restores the unchanged image case's exact 2,476 allocations,
+5,348,682 allocated bytes, `96,11567` work vector and 11,567-byte PDF snapshot.
+The removed allocation accounts for exactly 24 requested bytes. Its independent
+image-payload, placement, semantic ownership and archival-structure validators
+also pass; no baseline was changed.
