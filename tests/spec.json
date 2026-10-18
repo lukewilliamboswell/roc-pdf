@@ -204,6 +204,10 @@
     {
       "source": "tests/source_blocks/main.roc",
       "cases_jsonl": "tests/source_blocks/cases.jsonl"
+    },
+    {
+      "source": "tests/reference_layout/main.roc",
+      "cases_jsonl": "tests/reference_layout/cases.jsonl"
     }
   ],
   "cases": [
@@ -30580,6 +30584,258 @@
         "pdfa4",
         "structure_semantics",
         "vector_diagrams"
+      ]
+    },
+    {
+      "name": "page labels visible x3",
+      "scenario_revision": "destination-page-references-v1",
+      "source": "tests/page_templates/main.roc",
+      "snapshot": "tests/page_templates/page_labels_3.pdf",
+      "args": [
+        "page-labels",
+        "3"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 3
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "fragments",
+        "artifact_runs",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 0,
+          "allocated_bytes": 0,
+          "work": {
+            "lines": 0,
+            "pages": 0,
+            "reference_passes": 0,
+            "field_resolutions": 0,
+            "furniture_items": 0,
+            "fragments": 0,
+            "artifact_runs": 0,
+            "output_bytes": 0
+          }
+        },
+        "x64musl": {
+          "allocations": 0,
+          "allocated_bytes": 0,
+          "work": {
+            "lines": 0,
+            "pages": 0,
+            "reference_passes": 0,
+            "field_resolutions": 0,
+            "furniture_items": 0,
+            "fragments": 0,
+            "artifact_runs": 0,
+            "output_bytes": 0
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "page_labels"
+      ]
+    },
+    {
+      "name": "page labels visible x30",
+      "scenario_revision": "destination-page-references-v1",
+      "source": "tests/page_templates/main.roc",
+      "snapshot": "tests/page_templates/page_labels_30.pdf",
+      "args": [
+        "page-labels",
+        "30"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 30
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "fragments",
+        "artifact_runs",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 0,
+          "allocated_bytes": 0,
+          "work": {
+            "lines": 0,
+            "pages": 0,
+            "reference_passes": 0,
+            "field_resolutions": 0,
+            "furniture_items": 0,
+            "fragments": 0,
+            "artifact_runs": 0,
+            "output_bytes": 0
+          }
+        },
+        "x64musl": {
+          "allocations": 0,
+          "allocated_bytes": 0,
+          "work": {
+            "lines": 0,
+            "pages": 0,
+            "reference_passes": 0,
+            "field_resolutions": 0,
+            "furniture_items": 0,
+            "fragments": 0,
+            "artifact_runs": 0,
+            "output_bytes": 0
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "page_labels"
+      ]
+    },
+    {
+      "name": "reference item layout x100",
+      "scenario_revision": "destination-page-references-v1",
+      "source": "tests/reference_layout/main.roc",
+      "snapshot": "tests/reference_layout/measurement.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "atoms": 100,
+        "pages": 1
+      },
+      "work_counters": [
+        "atom_writes",
+        "cluster_visits",
+        "glyph_index_visits",
+        "measure_item_visits",
+        "measure_validation_visits",
+        "wrap_item_visits",
+        "wrap_boundary_visits",
+        "line_writes",
+        "range_checks",
+        "range_sum",
+        "advance_sum"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 0,
+          "allocated_bytes": 0,
+          "work": {
+            "atom_writes": 0,
+            "cluster_visits": 0,
+            "glyph_index_visits": 0,
+            "measure_item_visits": 0,
+            "measure_validation_visits": 0,
+            "wrap_item_visits": 0,
+            "wrap_boundary_visits": 0,
+            "line_writes": 0,
+            "range_checks": 0,
+            "range_sum": 0,
+            "advance_sum": 0
+          }
+        },
+        "x64musl": {
+          "allocations": 0,
+          "allocated_bytes": 0,
+          "work": {
+            "atom_writes": 0,
+            "cluster_visits": 0,
+            "glyph_index_visits": 0,
+            "measure_item_visits": 0,
+            "measure_validation_visits": 0,
+            "wrap_item_visits": 0,
+            "wrap_boundary_visits": 0,
+            "line_writes": 0,
+            "range_checks": 0,
+            "range_sum": 0,
+            "advance_sum": 0
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4"
+      ]
+    },
+    {
+      "name": "reference item layout x1000",
+      "scenario_revision": "destination-page-references-v1",
+      "source": "tests/reference_layout/main.roc",
+      "snapshot": "tests/reference_layout/measurement.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "atoms": 1000,
+        "pages": 1
+      },
+      "work_counters": [
+        "atom_writes",
+        "cluster_visits",
+        "glyph_index_visits",
+        "measure_item_visits",
+        "measure_validation_visits",
+        "wrap_item_visits",
+        "wrap_boundary_visits",
+        "line_writes",
+        "range_checks",
+        "range_sum",
+        "advance_sum"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 0,
+          "allocated_bytes": 0,
+          "work": {
+            "atom_writes": 0,
+            "cluster_visits": 0,
+            "glyph_index_visits": 0,
+            "measure_item_visits": 0,
+            "measure_validation_visits": 0,
+            "wrap_item_visits": 0,
+            "wrap_boundary_visits": 0,
+            "line_writes": 0,
+            "range_checks": 0,
+            "range_sum": 0,
+            "advance_sum": 0
+          }
+        },
+        "x64musl": {
+          "allocations": 0,
+          "allocated_bytes": 0,
+          "work": {
+            "atom_writes": 0,
+            "cluster_visits": 0,
+            "glyph_index_visits": 0,
+            "measure_item_visits": 0,
+            "measure_validation_visits": 0,
+            "wrap_item_visits": 0,
+            "wrap_boundary_visits": 0,
+            "line_writes": 0,
+            "range_checks": 0,
+            "range_sum": 0,
+            "advance_sum": 0
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4"
       ]
     },
     {

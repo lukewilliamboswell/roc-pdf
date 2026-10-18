@@ -1469,6 +1469,8 @@ page_context = |static, pages, cursor, page| {
 	{ template: if page == 0 0 else 1, label: "" }
 }
 
+## The runs shaping one furniture source: `source_runs` is empty through
+## the single face, where source `k` is run `k`.
 pending_runs : List(Semantics.Range), List(Semantics.TextSourceId), [Input(U64), NoText] -> Semantics.Range
 pending_runs = |source_runs, input_sources, input| match input {
 	NoText => Semantics.Range.from_start_and_length(0, 0)

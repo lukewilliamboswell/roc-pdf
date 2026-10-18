@@ -31,6 +31,7 @@ from check_pdfa4_structure import validate_pdfa4_pdf, validate_standard_twin_pdf
 from check_multiface_facade import validate_multiface_facade_pdf
 from check_multiface_text import validate_multiface_text_pdf
 from check_navigation import validate_navigation_pdf
+from check_page_labels import validate_page_labels_pdf
 from check_pdf_structure import canonical_text, dictionary_ref, is_structure_element, object_slices, require, structure_kids, validate_pdf
 from check_rich_inline import validate_rich_inline_pdf
 from check_rich_flow import validate_rich_flow_pdf
@@ -139,6 +140,7 @@ def _facade_image(data: bytes, dimensions: dict[str, int], report: Reporter) -> 
 
 VALIDATORS: dict[str, Validator] = {
     "vector_diagrams": _dimensioned(validate_vector_diagrams_pdf, "exact prepared-vector Unicode labels, caption/Alt ownership and cubic/arrowhead paths"),
+    "page_labels": _dimensioned(validate_page_labels_pdf, "visible labels match emitted PDF label ranges; repeated labels remain artifacts"),
     "pdf_structure": _pdf_structure_with(None),
     "pdf_structure_text": _pdf_structure_with(TEXT_CONTENT),
     "pdf_structure_actual_text": _pdf_structure_with(ACTUAL_TEXT_CONTENT),
