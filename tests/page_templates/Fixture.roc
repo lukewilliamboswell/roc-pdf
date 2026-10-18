@@ -106,6 +106,13 @@ Fixture :: [].{
 
 	chapters : U64, U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	chapters = |count, mode| chapter_evidence(count, mode)
+	page_labels : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	page_labels = |pages| {
+		if pages != 3 and pages != 30 {
+			return Err(InvalidScale)
+		}
+		evidence(page_labels_document(pages, 72, False), report_theme)
+	}
 
 	letter : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	letter = |paragraphs| {
@@ -359,6 +366,25 @@ numbering_document = |context| {
 
 numbering_pages : U64
 numbering_pages = 5
+
+page_labels_document : U64, Layout.Unit, Bool -> Document
+page_labels_document = |pages, width, empty| {
+	footer = Pdf.region({ height: 16, end: [Pdf.furniture_text([Pdf.text("Label "), Pdf.reserved_width(width, End, [Pdf.page_label]), Pdf.text(" · Physical "), Pdf.page_number(Decimal), Pdf.text("/"), Pdf.total_pages(Decimal)])] })
+	var $contents = []
+	var $page = 0
+	while $page < pages {
+		if $page > 0 {
+			$contents = $contents.append(Pdf.page_break)
+		}
+		$contents = $contents.append(Pdf.paragraph("Page body ${($page + 1).to_str()}."))
+		$page = $page + 1
+	}
+	var $labels = [{ prefix: if empty "" else "pré-", start_number: 1, start_page: 0, style: if empty NoNumber else RomanLower }, { prefix: "A-", start_number: 27, start_page: 2, style: LettersUpper }]
+	if pages > 15 {
+		$labels = $labels.append({ prefix: "R-", start_number: 4, start_page: 15, style: DecimalArabic })
+	}
+	Pdf.document({ contents: $contents, language: "en-AU", title: "Configured visible page labels", page_labels: $labels, page_templates: Templates({ first: Pdf.first_page_template({ footer, gap: 12 }), continuation: Pdf.page_template({ footer, gap: 12 }) }) })
+}
 
 image_pages : U64
 image_pages = 3

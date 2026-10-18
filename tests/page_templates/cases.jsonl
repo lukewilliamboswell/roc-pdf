@@ -17,3 +17,5 @@
 {"name":"chapter templates x20","schema_version":1,"case":{"Chapters":{"chapters":20,"mode":0}}}
 {"name":"chapter templates without document templates","schema_version":1,"case":{"Chapters":{"chapters":1,"mode":1}}}
 {"name":"chapter templates reset label","schema_version":1,"case":{"Chapters":{"chapters":1,"mode":2}}}
+{"name":"page labels visible x3","schema_version":1,"case":{"PageLabels":{"pages":3}}}
+{"name":"page labels visible x30","schema_version":1,"case":{"PageLabels":{"pages":30}}}

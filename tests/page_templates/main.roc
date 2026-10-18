@@ -20,6 +20,7 @@ Case : [
 	SlotInset({ context : U64 }),
 	Typography({ pages : U64 }),
 	FurnitureGroups({ context : U64 }),
+	PageLabels({ pages : U64 }),
 ]
 
 CaseSpec : { case : Case, schema_version : U64 }
@@ -61,6 +62,7 @@ main! = |args| {
 		SlotInset({ context }) => Fixture.slot_inset(context)
 		Typography({ pages }) => Fixture.typography(pages)
 		FurnitureGroups({ context }) => Fixture.furniture_groups(context)
+		PageLabels({ pages }) => Fixture.page_labels(pages)
 	}
 	match result {
 		Ok(value) => value

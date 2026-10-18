@@ -84,6 +84,9 @@ Pdf :: [].{
 	SourceTabs : Document.SourceTabs
 	SourceBlockProps : Document.SourceBlockProps
 
+	PageReferenceProps : Document.PageReferenceProps
+	PageReferenceNumbering : Document.PageReferenceNumbering
+
 	Inline : Document.Inline
 
 	## One list item: its body blocks, with a generated label.
@@ -851,6 +854,11 @@ Pdf :: [].{
 	page_label : Inline
 	page_label = Document.page_label
 
+	## A body reference to an authored destination, in an exact reserved
+	## width. Its page number or configured page label resolves after layout.
+	page_reference : PageReferenceProps -> Inline
+	page_reference = |props| Document.page_reference(props)
+
 	## The physical page count in a number style (furniture only).
 	total_pages : NumberStyle -> Inline
 	total_pages = |style| Document.total_pages(style)
@@ -1391,6 +1399,7 @@ pipeline_error = |error, doc| match error {
 	Pages(PageLayout(Oversize({ available, block, required }))) => oversize_error(doc, block, required, available)
 	Pages(PageLayout(LimitExceeded({ attempted, dimension: Pages, limit }))) => located_error(doc, BudgetExceeded, "document.content_limit", "The document needs ${attempted.to_str()} pages but the facade accepts at most ${limit.to_str()}.", [])
 	Pages(PageLayout(LeadOverflow({ available, required }))) => lead_overflow_error(available, required)
+	Semantics(PageReference({ block, inline, reason })) => inline_error(doc, block, AtInline(inline), InvalidRelationship, "document.page_reference", reason)
 	Semantics(FurnitureInline({ block, inline })) => inline_error(doc, block, AtInline(inline), FeatureUnavailable, "document.generated_reference", "Page fields and reserved widths are page furniture only: they may appear in a template region's furniture text, never in body content. Generated references in the body are scheduled for Gate 8.")
 	Furniture(ScopeInvalid({ group, reason })) => group_error(doc, group, InvalidRelationship, "layout.page_scope", reason)
 	Furniture(furniture) => furniture_error(furniture)
