@@ -7,6 +7,7 @@ import KernelTextSemantics
 import KernelUnicode
 import KernelSourceText
 import Semantics
+import Text
 
 KernelFacadeSemantics :: [].{
 	Dimension : [ContentSpine, Nodes, Occurrences, Properties, SourceInputs]
@@ -220,19 +221,27 @@ KernelFacadeSemantics :: [].{
 		finalize : Symbolic, List(Str) -> Try(Plan, Error)
 		finalize = |plan, labels| finalize_symbolic(plan, labels)
 
-		finalize_with_contexts : Symbolic, List(Str) -> Try({ plan : Plan, contexts : List(LiteralContext) }, Error)
+		finalize_with_contexts : Symbolic, List(Str) -> Try({ plan : Plan, contexts : List(LiteralContext), separators : List(Text.OccurrenceSeparator) }, Error)
 		finalize_with_contexts = |symbolic, labels| {
 			literals = symbolic.literals
 			pending = symbolic.pending
 			plan = finalize_symbolic(symbolic, labels)?
 			store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(plan.preliminary))
 			var $contexts = List.with_capacity(store.occurrences.len())
+			var $separators = []
 			var $literal = 0
 			var $pending = 0
 			for occurrence in store.occurrences {
 				if $pending < pending.len() and list_at(pending, $pending).occurrence == occurrence.id {
 					field = list_at(pending, $pending)
 					$contexts = $contexts.append({ block: field.block, inline: AtInline(field.inline), occurrence, role: Body, segment: field.segment })
+					if field.separator_after {
+						source_bytes = match occurrence.source {
+							Text(_, UnicodeRange(range)) => range.utf8_bytes.length()
+							_ => crash "reference separator source escaped"
+						}
+						$separators = $separators.append({ occurrence: occurrence.id, property: Semantics.TextPropertyId.from_index(occurrence.text_properties.start()), source_utf8_bytes: source_bytes })
+					}
 					$pending = $pending + 1
 				} else {
 					context = list_at(literals, $literal)
@@ -243,7 +252,7 @@ KernelFacadeSemantics :: [].{
 					$literal = $literal + 1
 				}
 			}
-			Ok({ plan, contexts: $contexts })
+			Ok({ plan, contexts: $contexts, separators: $separators })
 		}
 
 	}

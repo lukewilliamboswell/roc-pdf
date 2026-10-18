@@ -1155,7 +1155,12 @@ ownership. A glyph run covers an exact range of that occurrence and supplies
 only the shaping and presentation evidence for that range. An `OwnedGroup`
 supplies placement ownership; the run does not duplicate it. Emitted
 `ActualText` comes from the occurrence range or its explicit semantic override,
-never a second run-local string.
+never a second run-local string. A physical run may name an explicit UTF-8 byte
+interval of that owned override. Materialization partitions an authored
+reference-break replacement across its real font runs; only its last interval
+includes the authored separator. This retains exact label source/shaping ranges
+and emits the logical separator once even when a label uses multiple faces.
+The interval evidence is boxed so ordinary run storage does not widen.
 
 Page furniture has an explicit resolved text style, inherited from body text
 by default or independently selected by the theme. Its size and face govern
@@ -1188,7 +1193,9 @@ source-to-presentation transformations, reordered or contextual clusters, and
 clusters that reference more than one painted glyph. Occurrence-derived text
 copies the run's exact scalar range from the bounded source cache. A semantic
 override is accepted only when its dense ID lies within that occurrence's
-owned text-property range and identifies an `ActualText` value. Both paths are
+owned text-property range and identifies an `ActualText` value. An override
+interval additionally proves nonempty bounds and valid UTF-8 boundaries; lowering
+decodes only that interval rather than scanning a source prefix per run. All paths are
 bounded by a cumulative scalar limit before content emission. The value is
 serialized canonically as a BOM-prefixed UTF-16BE hex string around the run's
 marked-content sequence.

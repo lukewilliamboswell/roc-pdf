@@ -122,6 +122,12 @@ KernelFacadeText :: [].{
 		build_positioned : Positioned, List(KernelFacadePages.Rule), KernelFacadePages.FlowPaints, Limits -> Try(Plan, Error)
 		build_positioned = |positioned, rules, flow, limits| build_positioned_plan(positioned, rules, flow, limits)
 
+		## Apply earlier semantic authored-break facts after physical run
+		## splitting. Each byte interval is explicit, and the final interval
+		## alone owns the separator; artifacts retain no semantic override.
+		with_occurrence_separators : Plan, List(Text.OccurrenceSeparator), U64, Limits -> Try({ plan : Plan, work : { run_visits : U64, override_writes : U64 } }, Error)
+		with_occurrence_separators = |plan, separators, occurrences, limits| apply_occurrence_separators(plan, separators, occurrences, limits)
+
 		## Interleave resolved page furniture into a built plan: on every
 		## page, header furniture runs precede the page's body runs and footer
 		## furniture runs follow them. Body runs keep their clusters and
@@ -1300,6 +1306,59 @@ build_positioned_plan = |at, rules, flow, limits| {
 	materialize_requests({ shape: at.shape, styles: at.styles, lines: at.lines, origins: at.origins, pages: at.pages, placements: at.pieces.len() }, at.pieces, rules, flow, limits)
 }
 
+SeparatorSlot : [NoSeparator, WithSeparator({ property : Semantics.TextPropertyId, bytes : U64 })]
+
+apply_occurrence_separators : KernelFacadeText.Plan, List(Text.OccurrenceSeparator), U64, KernelFacadeText.Limits -> Try({ plan : KernelFacadeText.Plan, work : { run_visits : U64, override_writes : U64 } }, KernelFacadeText.Error)
+apply_occurrence_separators = |plan, separators, occurrences, limits| {
+	if separators.is_empty() {
+		return Ok({ plan, work: { run_visits: 0, override_writes: 0 } })
+	}
+	check_limit(occurrences, limits.max_runs, Runs)?
+	var $slots = List.repeat(NoSeparator, occurrences)
+	for separator in separators {
+		index = separator.occurrence.index()
+		if index >= occurrences or separator.source_utf8_bytes == 0 {
+			return Err(InvalidRun({ run: index }))
+		}
+		match list_at($slots, index) {
+			WithSeparator(_) => return Err(InvalidRun({ run: index }))
+			NoSeparator => {}
+		}
+		$slots = list_set($slots, index, WithSeparator({ property: separator.property, bytes: separator.source_utf8_bytes }))
+	}
+	var $runs = List.with_capacity(plan.text.runs.len())
+	var $artifact = 0
+	var $overrides = 0
+	for run in plan.text.runs {
+		is_artifact = $artifact < plan.artifact_runs.len() and list_at(plan.artifact_runs, $artifact) == run.id.index()
+		if is_artifact {
+			$artifact = $artifact + 1
+			$runs = $runs.append(run)
+		} else {
+			index = match run.unicode {
+				OccurrenceText(id) if id.index() < occurrences => id.index()
+				_ => return Err(InvalidRun({ run: run.id.index() }))
+			}
+			match list_at($slots, index) {
+				NoSeparator => {
+					$runs = $runs.append(run)
+				}
+				WithSeparator(separator) => {
+					end = checked_add(run.source.utf8_bytes.start(), run.source.utf8_bytes.length())?
+					if end > separator.bytes {
+						return Err(InvalidRun({ run: run.id.index() }))
+					}
+					length = checked_add(run.source.utf8_bytes.length(), if end == separator.bytes 1 else 0)?
+					fact = { property: separator.property, utf8_bytes: Semantics.Range.from_start_and_length(run.source.utf8_bytes.start(), length) }
+					$runs = $runs.append({ ..run, actual_text: SemanticOverrideSlice(Text.ActualTextSlice.make(fact.property, fact.utf8_bytes)) })
+					$overrides = $overrides + 1
+				}
+			}
+		}
+	}
+	Ok({ plan: { ..plan, text: { ..plan.text, runs: $runs } }, work: { run_visits: $runs.len(), override_writes: $overrides } })
+}
+
 # Committed geometry paints exact final Unicode through the same materializer
 # as ordinary flow, with no second line break or synthetic source range.
 expect {
@@ -1311,4 +1370,30 @@ expect {
 	]
 	positioned = KernelFacadeText.Plan.build_positioned({ shape: prepared.shape, styles: prepared.styles, origins: prepared.origins, lines: prepared.lines, pages: 1, pieces }, [], { decorations: [], figure_scales: [], panels: [] }, test_limits)?
 	KernelFacadeText.Plan.text(positioned) == KernelFacadeText.Plan.text(base) and KernelFacadeText.Plan.placements(positioned) == KernelFacadeText.Plan.placements(base)
+}
+
+# Semantic replacements are partitioned by final occurrence-relative byte
+# ranges. Only the final physical run includes the authored separator.
+expect {
+	base = KernelFacadeText.Plan.build_prepared(test_prepared(test_text), test_limits)?
+	fact = { occurrence: Semantics.OccurrenceId.from_index(0), property: Semantics.TextPropertyId.from_index(0), source_utf8_bytes: 2 }
+	applied = KernelFacadeText.Plan.with_occurrence_separators(base, [fact], 1, test_limits)?
+	slices = applied.plan.text.runs.map(
+		|run| match run.actual_text {
+			SemanticOverrideSlice(boxed) => {
+				slice = Text.ActualTextSlice.value(boxed)
+				(slice.utf8_bytes.start(), slice.utf8_bytes.length())
+			}
+			_ => (99, 99)
+		},
+	)
+	duplicate = match KernelFacadeText.Plan.with_occurrence_separators(base, [fact, fact], 1, test_limits) {
+		Err(InvalidRun(_)) => True
+		_ => False
+	}
+	bad_range = match KernelFacadeText.Plan.with_occurrence_separators(base, [{ ..fact, source_utf8_bytes: 1 }], 1, test_limits) {
+		Err(InvalidRun(_)) => True
+		_ => False
+	}
+	slices == [(0, 1), (1, 2)] and applied.work == { run_visits: 2, override_writes: 2 } and duplicate and bad_range
 }
