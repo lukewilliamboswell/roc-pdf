@@ -53,9 +53,8 @@ identical authoring/font/page facts. Existing CustomBlock cases remain
 regressions for their measurement and unsplittable diagnostics.
 
 Pinned native metrics, independent checks, negative cases and reviewed
-baseline causes are added after the final harness run. Until those records
-are populated, this file describes implementation design rather than gate
-closure.
+baseline causes are recorded below. Cross-target observations and the full
+integrated regression suite remain separate completion evidence.
 
 ### Pinned native observation, 2026-10-18
 
@@ -68,7 +67,8 @@ successfully with exact work vectors recorded in `tests/spec.json`:
 | rich list items 10 / 100 | 130134 / 1252926 | 73369891 / 743807483 | 12 / 112 |
 | paragraph callout 10 / 100 | 35068 / 314682 | 15160221 / 103939473 | 2 / 12 |
 | nested callouts 3 / 30 | 107123 / 1013043 | 56007561 / 521559571 | 9 / 81 |
-| reconstructed/shared callouts 10 / 100 | 11041 / 80229 | 6903879 / 33204079 | 1 / 6 |
+| fresh callout records 10 / 100 | 11051 / 80329 | 6905079 / 33216079 | 1 / 6 |
+| deliberately shared callouts 10 / 100 | 11041 / 80229 | 6903879 / 33204079 | 1 / 6 |
 | zero-padding filled table | 79855 | 35056637 | 3 |
 | eighteen atomic negative checks | 6487 | 19182015 | 1 |
 
@@ -110,10 +110,28 @@ uses no Roc report, continuation record or pagination counter as an oracle.
 suite's two-target schema. They are **provisional, not observed evidence**:
 the local Docker daemon does not answer even an escalated bounded discovery
 request. No cross-target, fully integrated-suite or new PDF/UA-2 conformance
-claim follows from this native record. Strict replay, mutation twins and
-whole-file reader evidence are recorded below as they complete.
+claim follows from this native record. All twelve final cases passed strict
+`scripts/test.py` harness replay: exact allocation counts, deterministic
+work, recorded-byte guard, unchanged snapshots, and all registered byte
+validators. Mutation and whole-file reader evidence follows below.
 
-The independent self-test passed all eleven positive cases and rejected six
+The independent self-test passed all eleven positive cases and rejected seven
 validly reserialized mutation twins: lost LBody ownership, a replaced callout
 Div, an expanded panel edge, a monochrome foreground, changed canonical
-source LF and a repeated header changed from Pagination to Layout artifact.
+source LF, a repeated header changed from Pagination to Layout artifact,
+and a table fill expanded outside its zero-padding panel.
+
+The ownership pair retains one immutable callout for the shared path. The
+fresh path uses runtime-distinct report-only names, guaranteeing distinct
+authoring records while preserving identical visible content, output bytes
+and compiler work. The native fresh path costs exactly one extra allocation
+and 120 bytes per callout; the corresponding shared path does not clone the
+retained record. The initial constant reconstruction helper could be hoisted,
+so it was strengthened before treating this pair as ownership evidence.
+
+Whole-file PDFBox 3.0.8 and MuPDF 1.28.2 reader checks passed 54 page renders
+across five representative cases. Every page retains its exact decoded
+text/order, body geometry and visible ink; both readers retain the purple
+source foreground. MuPDF uses explicit glyph/ToUnicode extraction via
+`ignore-actualtext`, consistent with the established source-block reader
+lane; this is not a new claim about parent-ActualText reader behaviour.
