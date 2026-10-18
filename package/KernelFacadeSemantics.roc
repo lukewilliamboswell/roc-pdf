@@ -219,6 +219,33 @@ KernelFacadeSemantics :: [].{
 		## and validates the first complete Unicode semantic store.
 		finalize : Symbolic, List(Str) -> Try(Plan, Error)
 		finalize = |plan, labels| finalize_symbolic(plan, labels)
+
+		finalize_with_contexts : Symbolic, List(Str) -> Try({ plan : Plan, contexts : List(LiteralContext) }, Error)
+		finalize_with_contexts = |symbolic, labels| {
+			literals = symbolic.literals
+			pending = symbolic.pending
+			plan = finalize_symbolic(symbolic, labels)?
+			store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(plan.preliminary))
+			var $contexts = List.with_capacity(store.occurrences.len())
+			var $literal = 0
+			var $pending = 0
+			for occurrence in store.occurrences {
+				if $pending < pending.len() and list_at(pending, $pending).occurrence == occurrence.id {
+					field = list_at(pending, $pending)
+					$contexts = $contexts.append({ block: field.block, inline: AtInline(field.inline), occurrence, role: Body, segment: field.segment })
+					$pending = $pending + 1
+				} else {
+					context = list_at(literals, $literal)
+					if context.occurrence.id != occurrence.id {
+						crash "final literal context identity escaped"
+					}
+					$contexts = $contexts.append({ ..context, occurrence })
+					$literal = $literal + 1
+				}
+			}
+			Ok({ plan, contexts: $contexts })
+		}
+
 	}
 
 	Plan :: {
@@ -3423,4 +3450,53 @@ expect {
 	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(plan)))
 	store.text_sources == [{ unicode: "1" }] and store.occurrences.len() == 3
 		and KernelFacadeSources.Plan.work(KernelFacadeSemantics.Plan.sources(plan)).unique_source_scalars == 1
+}
+
+# Content cells and generated list labels retain the same semantic spine
+# around symbolic leaves; source cursors count literal chunks rather than
+# mandatory segments when a cell contains multiple references.
+expect {
+	authoring = Document.normalize(
+		Document.from_blocks({
+			contents: [
+				Document.table({
+					body_rows: [Document.row([Document.cell([Document.plain_text("A"), Document.page_reference({ destination: "x", width: 24 }), Document.plain_text("B"), Document.page_reference({ destination: "y", width: 24 })])])],
+					caption: NoCaption,
+					columns: [{ align: Start, width: Content }],
+					footer_rows: [],
+					header_rows: [Document.row([Document.header_cell(Column, [Document.plain_text("H")])])],
+					row_split: KeepRows,
+				}),
+			],
+			language: "en",
+			title: "References",
+		}),
+	)
+	symbolic = KernelFacadeSemantics.Symbolic.build(authoring, test_limits)?
+	view = KernelFacadeSemantics.Symbolic.view(symbolic)
+	plan = KernelFacadeSemantics.Symbolic.finalize(symbolic, ["4", "9"])?
+	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(plan)))
+	view.literals.map(|context| context.occurrence.id.index()) == [0, 1, 3]
+		and view.pending.map(|context| context.occurrence.index()) == [2, 4]
+			and store.text_sources.map(|source| source.unicode) == ["H", "A", "B", "4", "9"]
+				and store.occurrences.len() == 5
+}
+
+expect {
+	authoring = Document.normalize(
+		Document.from_blocks({
+			contents: [Document.bullet_list([Document.list_item([Document.rich_paragraph([Document.page_reference({ destination: "x", width: 24 }), Document.plain_text("A")])])])],
+			language: "en",
+			title: "References",
+		}),
+	)
+	symbolic = KernelFacadeSemantics.Symbolic.build(authoring, test_limits)?
+	view = KernelFacadeSemantics.Symbolic.view(symbolic)
+	plan = KernelFacadeSemantics.Symbolic.finalize(symbolic, ["4"])?
+	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(plan)))
+	view.literals.map(|context| context.occurrence.id.index()) == [0, 2]
+		and view.literals.map(|context| context.role) == [GeneratedLabel, Body]
+			and view.literals.map(|context| context.segment) == [0, 1]
+				and view.pending.map(|context| context.segment) == [1]
+					and store.occurrences.len() == 3
 }
