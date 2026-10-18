@@ -36,6 +36,7 @@ from check_page_labels import validate_page_labels_pdf
 from check_pdf_structure import canonical_text, dictionary_ref, is_structure_element, object_slices, require, structure_kids, validate_pdf
 from check_rich_inline import validate_rich_inline_pdf
 from check_rich_flow import validate_rich_flow_pdf
+from check_table_paint_frames import validate_table_paint_frames_pdf
 from check_technical_manual import validate_technical_manual_pdf
 from check_source_foregrounds import validate_source_foregrounds_pdf
 from check_source_blocks import validate_source_blocks_pdf, validate_multiple_sources_pdf
@@ -184,6 +185,7 @@ VALIDATORS: dict[str, Validator] = {
     "furniture_typography": _simple(validate_furniture_typography_pdf, "independent furniture face, size, color, page fields, and artifact ownership"),
     "rich_inline": _dimensioned(validate_rich_inline_pdf, "ToUnicode-decoded logical text in structure order equal to paint order, text-bearing inline roles, /E on Span only, and one OBJR-owning link annotation per page painted"),
     "technical_manual": _dimensioned(validate_technical_manual_pdf, "combined printed destinations, scoped chapter furniture, rich source/vector/table ownership, nested padding and repeated-reference artifacts"),
+    "table_paint_frames": _dimensioned(validate_table_paint_frames_pdf, "scoped table outer paint, exact row boundaries, semantic text and repeated-reference artifacts"),
     "rich_flow": _dimensioned(validate_rich_flow_pdf, "exact rich LI/callout source/figure/table ownership, reading order, original source and foregrounds, parent frames, panel padding, and artifact table headers"),
     "tagged_visual": _simple(validate_tagged_visual_pdf, "exact normalized tagged structure and resources"),
     "visible_text": _simple(validate_text_pdf, "exact font, CID, Unicode mapping, and visible text facts"),
@@ -234,6 +236,7 @@ PREFLIGHT_CHECKS["fonts"] = PreflightCheck("check_fonts.py", True)
 PREFLIGHT_CHECKS["structure_semantics"] = PreflightCheck("check_structure_semantics.py", True)
 # The rich-inline self-test pins the rich-inline snapshots' logical text.
 PREFLIGHT_CHECKS["rich_inline"] = PreflightCheck("check_rich_inline.py", True)
+PREFLIGHT_CHECKS["table_paint_frames"] = PreflightCheck("check_table_paint_frames.py", True)
 PREFLIGHT_CHECKS["rich_flow"] = PreflightCheck("check_rich_flow.py", True)
 PREFLIGHT_CHECKS["technical_manual"] = PreflightCheck("check_technical_manual.py", True)
 PREFLIGHT_CHECKS["destination_references"] = PreflightCheck("check_destination_references.py", True)
