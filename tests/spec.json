@@ -30710,7 +30710,7 @@
       "name": "reference item layout x100",
       "scenario_revision": "destination-page-references-v1",
       "source": "tests/reference_layout/main.roc",
-      "snapshot": "tests/reference_layout/measurement.pdf",
+      "snapshot": "tests/reference_layout/measurement_100.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
@@ -30775,7 +30775,7 @@
       "name": "reference item layout x1000",
       "scenario_revision": "destination-page-references-v1",
       "source": "tests/reference_layout/main.roc",
-      "snapshot": "tests/reference_layout/measurement.pdf",
+      "snapshot": "tests/reference_layout/measurement_1000.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
