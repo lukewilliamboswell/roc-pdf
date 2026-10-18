@@ -30579,6 +30579,66 @@
         "structure_semantics",
         "vector_diagrams"
       ]
+    },
+    {
+      "name": "chapter templates atomic negatives",
+      "scenario_revision": "chapter-templates-v1",
+      "source": "tests/page_templates/main.roc",
+      "snapshot": "tests/page_templates/chapters_negative.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "rejections": 6
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "fragments",
+        "artifact_runs",
+        "output_bytes",
+        "rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 3569,
+          "allocated_bytes": 4842968,
+          "work": {
+            "lines": 1,
+            "pages": 1,
+            "reference_passes": 0,
+            "field_resolutions": 0,
+            "furniture_items": 0,
+            "fragments": 1,
+            "artifact_runs": 0,
+            "output_bytes": 10202,
+            "rejections": 6
+          }
+        },
+        "x64musl": {
+          "allocations": 3569,
+          "allocated_bytes": 4842968,
+          "work": {
+            "lines": 1,
+            "pages": 1,
+            "reference_passes": 0,
+            "field_resolutions": 0,
+            "furniture_items": 0,
+            "fragments": 1,
+            "artifact_runs": 0,
+            "output_bytes": 10202,
+            "rejections": 6
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics"
+      ]
     }
   ]
 }

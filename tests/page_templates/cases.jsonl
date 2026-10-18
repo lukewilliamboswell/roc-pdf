@@ -17,3 +17,4 @@
 {"name":"chapter templates x20","schema_version":1,"case":{"Chapters":{"chapters":20,"mode":0}}}
 {"name":"chapter templates without document templates","schema_version":1,"case":{"Chapters":{"chapters":1,"mode":1}}}
 {"name":"chapter templates reset label","schema_version":1,"case":{"Chapters":{"chapters":1,"mode":2}}}
+{"name":"chapter templates atomic negatives","schema_version":1,"case":{"ChapterNegatives":{"context":0}}}
