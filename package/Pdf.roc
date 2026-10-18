@@ -331,6 +331,7 @@ Pdf :: [].{
 	## repaints its header rows, each page on which a split table row
 	## continues, and the page and measured height of each custom block.
 	ReportOutcome : [
+		PageReferenceResolved({ path : Str, destination : Str, page : U64, value : Str }),
 		PageScopeApplied({ page : U64, path : Str, part : [Opening, Continuation], running_label : Str }),
 		CalloutFragmentPlaced({ page : U64, part : [First, Last, Middle, Whole], path : Str, name : Str, rect : Layout.Rect }),
 		CustomBlockPlaced({ height : Layout.Unit, name : Str, page : U64, path : Str }),
@@ -3535,13 +3536,13 @@ build_report : Document.NormalizedAuthoring, [Facts(KernelFacadeReport.Facts), N
 build_report = |normalized, collected, budget| {
 	facts = match collected {
 		Facts(value) => value
-		NoFacts => { blocks: [], coverage: [], layout: { scope_pages: [], callouts: [], panels: [], relaxations: [], repeats: [], scales: [], source_fragments: [], splits: [] }, pages: [1] }
+		NoFacts => { blocks: [], coverage: [], layout: { references: [], scope_pages: [], callouts: [], panels: [], relaxations: [], repeats: [], scales: [], source_fragments: [], splits: [] }, pages: [1] }
 	}
 	inline_counts = count_inline_entries(normalized)
 	link_blocks = count_link_blocks(normalized)
 	obligation_count = 2 + normalized.figures.len() + normalized.tables.len() + normalized.customs.len() + normalized.callouts.len() + link_blocks + inline_counts.links + inline_counts.languages + inline_counts.expansions
 	alternative_count = normalized.figures.len() + inline_counts.languages + inline_counts.expansions
-	outcome_count = facts.layout.scope_pages.len() + facts.layout.callouts.len() + facts.layout.relaxations.len() + normalized.figures.len() + facts.layout.repeats.len() + facts.layout.splits.len() + facts.layout.panels.len() + facts.layout.source_fragments.len()
+	outcome_count = facts.layout.references.len() + facts.layout.scope_pages.len() + facts.layout.callouts.len() + facts.layout.relaxations.len() + normalized.figures.len() + facts.layout.repeats.len() + facts.layout.splits.len() + facts.layout.panels.len() + facts.layout.source_fragments.len()
 	entries = facts.pages.len() + normalized.blocks.len() + alternative_count + outcome_count + facts.coverage.len() + obligation_count
 	if entries > budget.max_entries {
 		return Err(report_budget_error("entries", entries, budget.max_entries))
@@ -3664,6 +3665,10 @@ build_report = |normalized, collected, budget| {
 		}
 		$group = $group + 1
 	}
+	for resolved in facts.layout.references {
+		reference = normalized.page_references.get(resolved.reference) ?? crash "reference report identity escaped"
+		$outcomes = $outcomes.append(PageReferenceResolved({ path: inline_path(normalized, reference.block, AtInline(reference.inline)), destination: reference.spec.destination, page: resolved.physical_page, value: resolved.value }))
+	}
 	for context in facts.layout.scope_pages {
 		scope = normalized.page_scopes.get(context.scope) ?? crash "scope report identity escaped"
 		$outcomes = $outcomes.append(PageScopeApplied({ page: context.page + 1, path: group_path(normalized.groups, scope.group), part: if context.opening Opening else Continuation, running_label: scope.running_label }))
@@ -3739,6 +3744,7 @@ report_text_bytes = |report| {
 	}
 	for outcome in facts.outcomes {
 		$bytes = $bytes + match outcome {
+			PageReferenceResolved({ path, destination, page: _, value }) => path.count_utf8_bytes() + destination.count_utf8_bytes() + value.count_utf8_bytes()
 			PageScopeApplied({ page: _, path, part: _, running_label }) => path.count_utf8_bytes() + running_label.count_utf8_bytes()
 			CalloutFragmentPlaced({ page: _, part: _, path, name, rect: _ }) => path.count_utf8_bytes() + name.count_utf8_bytes()
 			CustomBlockPlaced({ height: _, name, page: _, path }) => path.count_utf8_bytes() + name.count_utf8_bytes()
