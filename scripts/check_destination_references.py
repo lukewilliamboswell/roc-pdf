@@ -73,8 +73,104 @@ def close(actual, expected, message: str) -> None:
     require(abs(actual - expected) <= TOL, f'{message}: {actual} != {expected}')
 
 
+def validate_geometry(document, pages, root, artifacts, dimensions) -> None:
+    require(len(pages) == dimensions['pages'] == 3, 'scaled geometry introduced a blank or extra page')
+    named = check_name_tree(document.bodies, document.root, pages)
+    require(set(named) == {b'target'}, 'scaled geometry target changed')
+    heading = next(node for node in root.children if node.role == 'H1')
+    require(heading.text == 'Geometry target' and {mark.page for mark in heading.marks} == {2},
+            'scaled geometry target heading moved')
+    require(named[b'target'][0] == pages[2], 'scaled reference destination and heading disagree')
+    require(not any(node.role == 'Link' for node in root.descendants()), 'reference created an automatic link')
+    require(all(not document.get(page).get('Annots') for page in pages), 'unlinked reference created an annotation')
+
+    # The fixture registers a 600-unit monospace face. Read its emitted resource
+    # identity and widths before using that independently known cell geometry.
+    def scaled(marks, baseline=None):
+        require(marks and all(mark.glyphs for mark in marks), 'scaled text lost its paint')
+        for mark in marks:
+            resource = FONT.search(mark.block)[1].decode()
+            font = int(document.get(pages[mark.page])['Resources']['Font'][resource])
+            require('NotoMonoCodeFixture' in str(document.get(font)['BaseFont']), 'scaled text changed its registered face')
+            _, font_widths = document._rich_fonts[font]
+            require(set(font_widths.values()) == {600}, 'geometry fixture monospace widths changed')
+            require(all(glyph[3] == F(15, 2) for glyph in mark.glyphs), 'scaled-only body reverted to theme size')
+            if baseline is not None:
+                close(mark.glyphs[0][2], baseline, 'scaled-only baseline')
+
+    def visible(marks):
+        glyphs = [glyph for mark in marks for glyph in mark.glyphs if glyph[0] != ' ']
+        require(glyphs, 'aligned cell lost its visible glyphs')
+        return min(g[1] for g in glyphs), max(g[1] + g[3] * F(3, 5) for g in glyphs)
+
+    paragraphs = [node for node in root.children if node.role == 'P']
+    require([node.text for node in paragraphs] == ['Scaled literal.', '3'], 'scaled-only paragraphs changed')
+    require(any(node.role == 'Code' for node in paragraphs[0].descendants()), 'literal code ownership changed')
+    scaled(paragraphs[0].marks, F(1589, 2))  # 842 - top margin 40 - body size 7.5.
+    scaled(paragraphs[1].marks, F(1557, 2))
+    close(visible(paragraphs[1].marks)[1], F(74), 'reference-only paragraph reserved advance')
+    label = next(node for node in root.descendants() if node.role == 'Lbl')
+    body = next(node for node in root.descendants() if node.role == 'LBody')
+    require(body.text == 'Scaled list.' and all(g[3] == 10 for m in label.marks for g in m.glyphs),
+            'list label and body size distinction changed')
+    scaled(body.marks, F(1525, 2))
+    close(label.marks[0].glyphs[0][2], F(1525, 2), 'generated label affected body baseline')
+
+    table = next(node for node in root.children if node.role == 'Table')
+    headers = [node for node in table.descendants() if node.role == 'TH']
+    cells = [node for node in table.descendants() if node.role == 'TD']
+    require([node.text for node in headers] == ['Head ', 'Header 3 ', '3Tail'] and len(cells) == 120,
+            'scaled table ownership or contents changed')
+
+    def header_geometry(marks, baseline):
+        require(''.join(mark.text for mark in marks) == 'Head Header 3 3Tail', 'repeated header text changed')
+        require(len(marks) == 6, 'header piece boundaries changed')
+        for mark in marks[:5]:
+            scaled([mark], baseline)
+        scaled(marks[5:], baseline - 13)
+        close(visible(marks[:1])[1], F(146), 'end-aligned literal trailing space')
+        prefix, value = marks[1:3]
+        left, _ = visible([prefix])
+        right = visible([value])[1]
+        close((left + right) / 2, F(200), 'center-aligned mixed reference row')
+        close(right - prefix.glyphs[0][1] - F(63, 2), F(24), 'aligned reference lost reserved advance')
+        close(visible(marks[4:5])[1], F(278), 'header reference-only reserved advance')
+
+    header_geometry([mark for header in headers for mark in header.marks], F(1493, 2))
+    require(overrides(headers[2].marks) == '3 ', 'header authored break lost its logical separator')
+    seen_rows = {0: 0, 1: 0}
+    for index in range(40):
+        end, center, reference = cells[index * 3:index * 3 + 3]
+        require(end.text == 'word word word word word word ' and center.text == 'B ' and reference.text == '3',
+                'scaled table body row text changed')
+        require(len(end.marks) == 2 and len(center.marks) == len(reference.marks) == 1, 'scaled cell wrap changed')
+        page = end.marks[0].page
+        require(page in seen_rows and all(mark.page == page for cell in (end, center, reference) for mark in cell.marks),
+                'scaled table row split across pages')
+        row = seen_rows[page]
+        baseline = (F(1433, 2) if page == 0 else F(1529, 2)) - row * 30
+        scaled(end.marks[:1], baseline)
+        scaled(end.marks[1:], baseline - 13)
+        scaled(center.marks + reference.marks, baseline)
+        for mark in end.marks:
+            close(visible([mark])[1], F(146), 'wrapped end-aligned row included trailing literal space')
+        left, right = visible(center.marks)
+        close((left + right) / 2, F(200), 'center-aligned literal trailing space')
+        close(visible(reference.marks)[1], F(278), 'reference-only cell baseline or reserved advance')
+        seen_rows[page] += 1
+    require(seen_rows == {0: 22, 1: 18}, 'scaled table continuation capacity changed')
+    repeated = [paint(document, pages[page], page, -1, block)
+                for page, _, block, _ in artifacts if FONT.search(block)]
+    require(repeated and {mark.page for mark in repeated} == {1}, 'repeated header artifact page changed')
+    require(all(b'/ActualText' not in mark.block for mark in repeated), 'artifact header acquired body semantic overrides')
+    header_geometry(repeated, F(1589, 2))
+
+
 def validate_destination_references_pdf(pdf: bytes, dimensions: dict[str, int]) -> None:
     document, pages, root, artifacts = read(pdf)
+    if dimensions.get('geometry', 0):
+        validate_geometry(document, pages, root, artifacts, dimensions)
+        return
     sections = dimensions['sections']
     styled = dimensions.get('styled', 0)
     ordered = dimensions.get('ordered', 0)
@@ -230,6 +326,28 @@ def mutation_checks(pdf: bytes, dimensions: dict[str, int]) -> None:
         raise ValidationError(f'reference oracle accepted mutated {name}')
 
 
+def geometry_mutations(pdf: bytes, dimensions: dict[str, int]) -> None:
+    _, _, root, artifacts = read(pdf)
+    first = next(node for node in root.children if node.role == 'P').marks[0]
+    cells = [node for node in root.descendants() if node.role == 'TD']
+    headers = [node for node in root.descendants() if node.role == 'TH']
+    repeated = next(block for _, _, block, _ in artifacts if FONT.search(block))
+    cases = [('scaled baseline', first.block, 0, 1),
+             ('wrapped end alignment', cells[0].marks[0].block, -1, 0),
+             ('center reference advance', headers[1].marks[1].block, 2, 0),
+             ('repeated header alignment', repeated, -1, 0)]
+    for name, old, dx, dy in cases:
+        new = ORIGIN.sub(lambda match: b'1 0 0 1 ' + str(float(F(match[1].decode()) + dx)).encode()
+                         + b' ' + str(float(F(match[2].decode()) + dy)).encode() + b' cm', old)
+        require(new != old, f'geometry mutation has no origin for {name}')
+        mutant = twin(pdf, old, new, exactly_once=True)
+        try:
+            validate_destination_references_pdf(mutant, dimensions)
+        except ValidationError:
+            continue
+        raise ValidationError(f'reference oracle accepted mutated {name}')
+
+
 def registered_cases():
     return [case for case in json.loads((ROOT / 'tests/spec.json').read_text())['cases']
             if 'destination_references' in case['validators']]
@@ -239,9 +357,11 @@ def self_test() -> None:
     for case in registered_cases():
         pdf = (ROOT / case['snapshot']).read_bytes()
         validate_destination_references_pdf(pdf, case['dimensions'])
-        if case['dimensions']['sections'] == 2 and not case['dimensions'].get('styled', 0):
+        if case['dimensions'].get('geometry', 0):
+            geometry_mutations(pdf, case['dimensions'])
+        elif case['dimensions']['sections'] == 2 and not case['dimensions'].get('styled', 0):
             mutation_checks(pdf, case['dimensions'])
-    print('PASS destination reference values, targets, fields, ownership and three mutation twins')
+    print('PASS destination reference values, targets, geometry, ownership and seven mutation twins')
 
 
 def reader_check(mutool: Path | None) -> None:

@@ -6,7 +6,7 @@ app [main!] {
 import Fixture
 import pf.Metrics
 
-Case : [References({ sections : U64 }), Styled({ context : U64 }), Ordered({ context : U64 }), Negatives({ context : U64 })]
+Case : [References({ sections : U64 }), Styled({ context : U64 }), Ordered({ context : U64 }), Geometry({ context : U64 }), Negatives({ context : U64 })]
 
 CaseSpec : { case : Case, schema_version : U64 }
 
@@ -33,6 +33,7 @@ main! = |args| {
 		References({ sections }) => Fixture.references(sections)
 		Styled({ context }) => Fixture.styled(context)
 		Ordered({ context }) => Fixture.ordered(context)
+		Geometry({ context }) => Fixture.geometry(context)
 		Negatives({ context }) => Fixture.negatives(context)
 	}
 	match result {

@@ -60,6 +60,29 @@ Fixture :: [].{
 		document = Pdf.document({ title: "Ordered mixed-face references", language: "en", contents: [Pdf.destination_heading("start", 1, "Ordered references"), Pdf.rich_paragraph([Pdf.text("Ordered label "), Pdf.in_language("zh-Hans", [Pdf.inline_internal_link([reference("end", PageLabel, 60)], "end")]), Pdf.line_break, Pdf.text("Physical "), reference("end", Physical, 24), Pdf.text(".")]), Pdf.page_break, Pdf.destination_heading("end", 1, "Ordered target")], page_labels: [{ start_page: 0, style: NoNumber, prefix: "p中", start_number: 1 }] })
 		evidence(document, selected_theme, { theme: selected_theme, fonts: Registered(configured.registry) }, Ordered({ policy: configured.policy, registry: configured.registry }))
 	}
+	geometry : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
+	geometry = |context| {
+		if context != 0 {
+			return Err(InvalidCase)
+		}
+		body = Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, Font.ValidationLimits.default) ? |_| FontFailure
+		mono = body.registry.register(mono_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, Font.ValidationLimits.default) ? |_| FontFailure
+		body_font = mono.registry.prepared_face(body.face) ? |_| FontFailure
+		mono_font = mono.registry.prepared_face(mono.face) ? |_| FontFailure
+		selected_theme : Theme
+		selected_theme = { ..theme, inline: { code: { font: Face(mono.face), scale: Percent(75) }, emphasis: { font: Face(mono.face), scale: Percent(75) } } }
+		small = |inlines| [Pdf.emphasis(inlines)]
+		var $rows = []
+		var $row = 0
+		while $row < 40 {
+			$rows = $rows.append(Pdf.row([Pdf.cell(small([Pdf.text("word word word word word word ")])), Pdf.cell(small([Pdf.text("B ")])), Pdf.cell(small([reference("target", Physical, 24)]))]))
+			$row = $row + 1
+		}
+		table = Pdf.table({ caption: Pdf.no_caption, columns: [{ width: Fixed(100), align: End }, { width: Fixed(100), align: Center }, { width: Share(1), align: Start }], header_rows: [Pdf.row([Pdf.header_cell(Column, small([Pdf.text("Head ")])), Pdf.header_cell(Column, small([Pdf.text("Header "), reference("target", Physical, 24), Pdf.text(" ")])), Pdf.header_cell(Column, small([reference("target", Physical, 24), Pdf.line_break, Pdf.text("Tail")]))])], body_rows: $rows })
+		document = Pdf.document({ title: "Reference geometry parity", language: "en", contents: [Pdf.rich_paragraph([Pdf.code("Scaled literal.")]), Pdf.rich_paragraph(small([reference("target", Physical, 24)])), Pdf.numbered_list({}, [Pdf.list_item([Pdf.rich_paragraph([Pdf.code("Scaled list.")])])]), table, Pdf.page_break, Pdf.destination_heading("target", 1, "Geometry target")] })
+		selection = Styled({ faces: [body.face, mono.face], fonts: [body_font, mono_font], roles: { code: Candidate(1), emphasis: Candidate(1), quote: Inherited, strong: Inherited } })
+		evidence(document, selected_theme, { theme: selected_theme, fonts: Registered(mono.registry) }, selection)
+	}
 	negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
 	negatives = |context| run_negatives(context)
 }
@@ -120,7 +143,7 @@ evidence = |document, selected_theme, options, selection| {
 	plan = KernelFacadeReferences.Plan.build(authoring, selection, selected_theme, page_size, flow, reference_limits) ? ReferenceFailure
 	view = KernelFacadeReferences.Plan.view(plan)
 	work = view.work
-	Ok({ bytes, work: [work.reference_atoms, work.normalization_chunks, work.literal_shape_requests, work.measured_items, work.measured_rows, work.committed_row_visits, work.anchor_item_visits, work.registry_lookup_steps, work.resolved_labels, work.resolved_label_bytes, work.mapping_cluster_visits, work.mapping_glyph_visits, work.reference_fit_run_visits, work.positioned_pieces, work.shape_metric_reads, work.measurement.hold_scalars, work.measurement.measured_items, work.measurement.wrapped_items, work.measurement.boundaries, work.measurement.row_items, work.separator_run_visits, work.separator_override_writes, bytes.len()] })
+	Ok({ bytes, work: [work.reference_atoms, work.normalization_chunks, work.literal_shape_requests, work.measured_items, work.measured_rows, work.committed_row_visits, work.anchor_item_visits, work.registry_lookup_steps, work.resolved_labels, work.resolved_label_bytes, work.mapping_cluster_visits, work.mapping_glyph_visits, work.reference_fit_run_visits, work.positioned_pieces, work.shape_metric_reads, work.measurement.hold_scalars, work.measurement.measured_items, work.measurement.wrapped_items, work.measurement.boundaries, work.measurement.row_items, work.measurement.alignment_items, work.separator_run_visits, work.separator_override_writes, bytes.len()] })
 }
 
 run_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Error)

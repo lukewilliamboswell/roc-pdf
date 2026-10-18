@@ -180,11 +180,12 @@ preparation call.
 
 | Case | Exact allocations | Allocated bytes | Atoms | Measured items | Rows | PDF bytes |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 2 sections | 8,480 | 8,977,547 | 15 | 258 | 18 | 15,743 |
-| 20 sections | 30,512 | 34,408,471 | 87 | 1,180 | 72 | 29,082 |
-| Inherited role, language and 75% scale | 4,408 | 7,246,354 | 1 | 55 | 3 | 14,450 |
-| Ordered Latin/CJK policy | 5,047 | 7,390,032 | 2 | 58 | 4 | 12,639 |
-| 13 atomic rejections | 4,531 | 4,988,340 | — | — | — | 10,642 |
+| 2 sections | 8,480 | 8,977,811 | 15 | 258 | 18 | 15,743 |
+| 20 sections | 30,512 | 34,409,599 | 87 | 1,180 | 72 | 29,082 |
+| Inherited role, language and 75% scale | 4,408 | 7,246,410 | 1 | 55 | 3 | 14,450 |
+| Ordered Latin/CJK policy | 5,047 | 7,390,088 | 2 | 58 | 4 | 12,639 |
+| 13 atomic rejections | 4,531 | 4,988,492 | — | — | — | 10,642 |
+| Scaled body and table alignment | 20,212 | 25,107,207 | 43 | 1,384 | 169 | 20,365 |
 
 The section pair contains 4N + 7 references, 10N + 13 normalization chunks,
 3N + 12 rows and 11N + 19 positioned pieces. Both wrap and placement visit
@@ -201,14 +202,16 @@ Independent PDF inspection derives reference values from actual named target
 pages and emitted `/PageLabels`; it checks reference-only paragraphs, cells
 and links, list/callout semantic ownership, adjacent fixed advances, explicit
 break positions, annotation rectangles/quads, inherited selected font, scale
-and language, and artifact-only visible page labels. Three rewritten PDF twins
-(label rule, field position, logical separator) must fail that oracle. All nine
+and language, and artifact-only visible page labels. Seven rewritten PDF twins
+(label rule, field position, logical separator, scaled baseline, wrapped End
+alignment, Center reference advance and repeated header alignment) must fail
+that oracle. All ten
 new native cases (body family, visible-label pair and item-arena pair) passed
 strict exact allocation/work and immutable snapshot replay through
-`scripts/test.py` helpers. All five body-family PDFs pass pinned veraPDF
+`scripts/test.py` helpers. All six body-family PDFs pass pinned veraPDF
 1.30.2 PDF/A-4 with zero failed checks, warnings or parser logs. PDFBox 3.0.8
-and MuPDF 1.28.2 also extract and render the four successful reference PDFs as
-whole original files: 56 page renders with exact glyph/ToUnicode text order.
+and MuPDF 1.28.2 also extract and render the five successful reference PDFs as
+whole original files: 62 page renders with exact glyph/ToUnicode text order.
 
 Numeric furniture fields retain the formatter's explicit ASCII scalar-count
 fact: their byte length already equals their scalar length. Only configured
@@ -231,3 +234,47 @@ negative-only allocation increase from 3,104 to 4,531; successful ordered and
 inherited-role reference counts remain unchanged. Numeric footer work removes
 exactly one short-string allocation per public PDF page from the body pair
 (3 / 21), with identical PDF bytes, fields and geometry.
+
+## Measured typography and alignment parity
+
+Measured blocks retain the maximum actual body-leaf font size before
+pagination, including the authored style of pending reference leaves and
+excluding generated list labels. That maximum is collected during the existing
+literal/pending merge and stored beside each block's item span; it needs no
+second leaf traversal or guessed reference value. Paragraph leading remains
+its existing inherited value.
+
+Table alignment consumes a separate visible advance that trims only terminal
+literal U+0020 clusters. The fixed advance of every reference atom remains
+part of the row. Exact source IDs and shaped cluster byte intervals identify
+literal spaces; no resolved label is inspected or reshaped. A row whose last
+item is an atom or a non-space returns immediately. When trimming is needed,
+source byte views live only for that row and cover the whole source, never a
+retained suffix. The backward walk stops at the first atom or non-space, so
+alignment item visits are bounded by row count plus measured items, including
+repeated-header reuse of the same visible-width fact.
+
+The independent three-page geometry PDF uses a 10-point body theme, 75% code
+and emphasis styles, and a registered 600-unit monospace font. Its emitted
+glyph baselines prove that literal-only and reference-only paragraphs and
+table cells use the actual 7.5-point maximum body size. A 10-point generated
+list label shares its 7.5-point body's baseline without affecting that maximum.
+Fixed 100-point End and Center columns contain wrapped literal spaces,
+reference-only rows, and mixed rows. The oracle checks visible edges and
+centers against those declared columns, preserves each 24-point reserved atom,
+and repeats the checks on the continued header. An authored break after a
+header reference retains its logical separator only on semantic body paint;
+the repeated artifact carries no ActualText override.
+
+This fixture has 1,384 measured items, 169 measured rows and 173 committed
+row visits including repeated header reuse. Its backward alignment walks
+visit 286 items. The existing section pair visits only four alignment items
+at both scales; the inherited and ordered paragraphs do none. The per-block
+size fact widens the dense `BlockItems` record by eight bytes, and the fixture
+work list adds one eight-byte counter. The section pair's observed byte
+increases are therefore `16 * blocks + 8` across its public preparation and
+separate work probe: 264 / 1,128 bytes for 16 / 70 blocks. Inherited and ordered
+cases add 56 bytes each. Allocation counts and all previous PDF snapshots are
+unchanged. Existing allocated-byte baselines remain unchanged because these
+reviewed representation costs are well within their 10% guard; only the new
+counter and new geometry case receive new exact expectations.

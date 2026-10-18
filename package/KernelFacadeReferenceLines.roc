@@ -25,7 +25,7 @@ KernelFacadeReferenceLines :: [].{
 		Tables(KernelFacadeTables.Error),
 		SourceOverflow({ source : U64, line : U64, width : Layout.Unit, available : Layout.Unit }),
 	]
-	Work : { atoms : U64, literal_clusters : U64, glyph_indices : U64, hold_scalars : U64, holds : U64, measured_items : U64, wrapped_items : U64, boundaries : U64, rows : U64, row_items : U64 }
+	Work : { atoms : U64, literal_clusters : U64, glyph_indices : U64, hold_scalars : U64, holds : U64, measured_items : U64, wrapped_items : U64, boundaries : U64, rows : U64, row_items : U64, alignment_items : U64 }
 	View : {
 		items : List(KernelReferenceLayout.Item),
 		rows : List(KernelReferenceLayout.Line),
@@ -42,7 +42,7 @@ KernelFacadeReferenceLines :: [].{
 	}
 }
 
-BlockItems : { body : Semantics.Range, label : [NoLabel, Label(Semantics.Range)] }
+BlockItems : { body : Semantics.Range, label : [NoLabel, Label(Semantics.Range)], size : Layout.Unit }
 
 Holds : { ranges : List(Semantics.Range), contexts : List(Semantics.Range), scalars : U64 }
 
@@ -78,6 +78,7 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 		}
 		start = KernelReferenceLayout.Builder.position($builder) ? |error| Items({ block: $block, error })
 		var $segment = NoSegment
+		var $size = 0.I64
 		while ($literal < shaped.literals.len() and list_at(shaped.literals, $literal).block == $block) or ($pending < symbolic.pending.len() and list_at(symbolic.pending, $pending).block == $block) {
 			literal_first = $literal < shaped.literals.len() and list_at(shaped.literals, $literal).block == $block and ($pending >= symbolic.pending.len() or list_at(symbolic.pending, $pending).block != $block or list_at(shaped.literals, $literal).occurrence.id.index() < list_at(symbolic.pending, $pending).occurrence.index())
 			next_segment = if literal_first list_at(shaped.literals, $literal).segment else list_at(symbolic.pending, $pending).segment
@@ -92,6 +93,12 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 				if list_at(shaped.literals, $literal).role != Body {
 					return Err(InvalidContext({ block: $block }))
 				}
+				physical = list_at(shaped.literal_runs, $literal).runs
+				if physical.length() == 0 {
+					return Err(InvalidContext({ block: $block }))
+				}
+				# Every physical segment of this authored leaf shares its size.
+				$size = I64.max($size, list_at(shaped.store.runs, physical.start()).size.raw())
 				$builder = append_literal($builder, shaped, $literal, holds, sources)
 				$literal = $literal + 1
 			} else {
@@ -99,6 +106,8 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 				if context.reference >= authoring.page_references.len() {
 					return Err(InvalidContext({ block: $block }))
 				}
+				style = KernelFacadeShape.leaf_style(authoring, $block, AtInline(context.inline), Body, theme)
+				$size = I64.max($size, style.size.raw())
 				$builder = KernelReferenceLayout.Builder.reference($builder, context.reference, list_at(authoring.page_references, context.reference).spec.width)
 				$pending = $pending + 1
 			}
@@ -107,7 +116,7 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 		if end > start {
 			$builder = KernelReferenceLayout.Builder.segment_end($builder)
 		}
-		$blocks = $blocks.append({ body: Semantics.Range.from_start_and_length(start, end - start), label: $label })
+		$blocks = $blocks.append({ body: Semantics.Range.from_start_and_length(start, end - start), label: $label, size: Layout.Unit.from_raw($size) })
 		$block = $block + 1
 	}
 	if $literal != shaped.literals.len() or $pending != symbolic.pending.len() {
@@ -199,6 +208,7 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 	var $page_blocks = List.with_capacity(owners.len())
 	var $wrapped_items = 0
 	var $boundaries = 0
+	var $alignment_items = 0
 	$block = 0
 	while $block < owners.len() {
 		block_items = list_at(block_ranges, $block)
@@ -237,8 +247,11 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 				if $rows.len() >= item_limits.max_lines {
 					return Err(LimitExceeded)
 				}
-				$rows = $rows.append({ advance: line.advance, items: Semantics.Range.from_start_and_length(block_items.body.start() + line.items.start(), line.items.length()) })
-				$visible = $visible.append(positive(line.advance))
+				row = { advance: line.advance, items: Semantics.Range.from_start_and_length(block_items.body.start() + line.items.start(), line.items.length()) }
+				visible = if list_at($cell_widths, $block) > 0 literal_visible_advance(items, row, shaped, sources) else { advance: positive(line.advance), visits: 0 }
+				$alignment_items = $alignment_items + visible.visits
+				$rows = $rows.append(row)
+				$visible = $visible.append(visible.advance)
 			}
 			$wrapped_items = $wrapped_items + wrapped.work.item_visits
 			$boundaries = $boundaries + wrapped.work.boundary_visits
@@ -255,7 +268,7 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 			}
 			RichTextBlock({ occurrences, level, .. }) => {
 				style = Theme.body_style(theme)
-				MeasuredText({ rows: Semantics.Range.from_start_and_length(body_start, $rows.len() - body_start), size: style.size, leading: style.leading, owner: Semantics.OccurrenceId.from_index(occurrences.start()), level, body_offset: Layout.Unit.from_raw(frame.body_offset.to_i64_wrap()), label: $label })
+				MeasuredText({ rows: Semantics.Range.from_start_and_length(body_start, $rows.len() - body_start), size: block_items.size, leading: style.leading, owner: Semantics.OccurrenceId.from_index(occurrences.start()), level, body_offset: Layout.Unit.from_raw(frame.body_offset.to_i64_wrap()), label: $label })
 			}
 		}
 		$page_blocks = $page_blocks.append(page_block)
@@ -279,7 +292,7 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 	if $row_items != items.len() {
 		return Err(InvalidContext({ block: 0 }))
 	}
-	Ok(KernelFacadeReferenceLines.Plan.{ items, rows: $rows, item_offsets: $offsets, visible_advances: $visible, input: { blocks: $page_blocks, group_frames: $group_frames, source_frames: $source_frames, figure_frames: $figure_frames, tables: KernelFacadeTables.Plan.tables(tables), cells: KernelFacadeTables.Plan.cells(tables) }, work: { atoms: built.work.atom_writes, literal_clusters: built.work.cluster_visits, glyph_indices: built.work.glyph_index_visits, hold_scalars: holds.scalars, holds: holds.ranges.len(), measured_items: $measured_items, wrapped_items: $wrapped_items, boundaries: $boundaries, rows: $rows.len(), row_items: $row_items } })
+	Ok(KernelFacadeReferenceLines.Plan.{ items, rows: $rows, item_offsets: $offsets, visible_advances: $visible, input: { blocks: $page_blocks, group_frames: $group_frames, source_frames: $source_frames, figure_frames: $figure_frames, tables: KernelFacadeTables.Plan.tables(tables), cells: KernelFacadeTables.Plan.cells(tables) }, work: { atoms: built.work.atom_writes, literal_clusters: built.work.cluster_visits, glyph_indices: built.work.glyph_index_visits, hold_scalars: holds.scalars, holds: holds.ranges.len(), measured_items: $measured_items, wrapped_items: $wrapped_items, boundaries: $boundaries, rows: $rows.len(), row_items: $row_items, alignment_items: $alignment_items } })
 }
 
 append_literal : KernelReferenceLayout.Builder, KernelFacadeReferenceShape.View, U64, Holds, List(KernelFacadeSources.Source) -> KernelReferenceLayout.Builder
@@ -387,4 +400,43 @@ expect {
 	context = { block: 0, inline: AtInline(1), segment: 0, role: Body, occurrence: { id: Semantics.OccurrenceId.from_index(0), fragments: empty, language: Language("en"), text_properties: empty, source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange({ scalars: Semantics.Range.from_start_and_length(0, 7), utf8_bytes: Semantics.Range.from_start_and_length(0, 8) })) } }
 	plan = build_holds(authoring, [context], 10)?
 	plan.scalars == 7 and plan.ranges == [Semantics.Range.from_start_and_length(0, 5), Semantics.Range.from_start_and_length(6, 1)] and plan.contexts == [Semantics.Range.from_start_and_length(0, 2)]
+}
+
+literal_visible_advance : List(KernelReferenceLayout.Item), KernelReferenceLayout.Line, KernelFacadeReferenceShape.View, List(KernelFacadeSources.Source) -> { advance : U64, visits : U64 }
+literal_visible_advance = |items, line, shaped, sources| {
+	var $advance = positive(line.advance)
+	var $item = range_end(line.items)
+	var $visits = 0
+	var $source = U64.highest
+	var $bytes = []
+	while $item > line.items.start() {
+		item = list_at(items, $item - 1)
+		$visits = $visits + 1
+		match item.source {
+			ReferenceAtom(_) => break
+			LiteralCluster(literal) => {
+				range = list_at(shaped.store.clusters, literal.cluster).source.utf8_bytes
+				if range.length() != 1 {
+					break
+				}
+				id = list_at(shaped.requests, literal.run).source.index()
+				unicode = list_at(sources, id).unicode
+				# A final non-space answers without constructing a byte view.
+				if range.start() + 1 == unicode.count_utf8_bytes() and !unicode.ends_with(" ") {
+					break
+				}
+				if id != $source {
+					$bytes = unicode.to_utf8()
+					$source = id
+				}
+				if $bytes.get(range.start()) != Ok(32) {
+					break
+				}
+				width = positive(item.advance)
+				$advance = if width > $advance 0 else $advance - width
+				$item = $item - 1
+			}
+		}
+	}
+	{ advance: $advance, visits: $visits }
 }

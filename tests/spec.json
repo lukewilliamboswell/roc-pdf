@@ -32208,6 +32208,7 @@
         "wrapped_item_visits",
         "boundary_visits",
         "positioned_items",
+        "alignment_items",
         "separator_run_visits",
         "separator_override_writes",
         "output_bytes"
@@ -32237,6 +32238,7 @@
             "wrapped_item_visits": 258,
             "boundary_visits": 258,
             "positioned_items": 258,
+            "alignment_items": 4,
             "separator_run_visits": 41,
             "separator_override_writes": 1,
             "output_bytes": 15743
@@ -32266,6 +32268,7 @@
             "wrapped_item_visits": 258,
             "boundary_visits": 258,
             "positioned_items": 258,
+            "alignment_items": 4,
             "separator_run_visits": 41,
             "separator_override_writes": 1,
             "output_bytes": 15743
@@ -32312,6 +32315,7 @@
         "wrapped_item_visits",
         "boundary_visits",
         "positioned_items",
+        "alignment_items",
         "separator_run_visits",
         "separator_override_writes",
         "output_bytes"
@@ -32341,6 +32345,7 @@
             "wrapped_item_visits": 1180,
             "boundary_visits": 1180,
             "positioned_items": 1180,
+            "alignment_items": 4,
             "separator_run_visits": 239,
             "separator_override_writes": 1,
             "output_bytes": 29082
@@ -32370,6 +32375,7 @@
             "wrapped_item_visits": 1180,
             "boundary_visits": 1180,
             "positioned_items": 1180,
+            "alignment_items": 4,
             "separator_run_visits": 239,
             "separator_override_writes": 1,
             "output_bytes": 29082
@@ -32416,6 +32422,7 @@
         "wrapped_item_visits",
         "boundary_visits",
         "positioned_items",
+        "alignment_items",
         "separator_run_visits",
         "separator_override_writes",
         "output_bytes"
@@ -32445,6 +32452,7 @@
             "wrapped_item_visits": 55,
             "boundary_visits": 55,
             "positioned_items": 55,
+            "alignment_items": 0,
             "separator_run_visits": 0,
             "separator_override_writes": 0,
             "output_bytes": 14450
@@ -32474,6 +32482,7 @@
             "wrapped_item_visits": 55,
             "boundary_visits": 55,
             "positioned_items": 55,
+            "alignment_items": 0,
             "separator_run_visits": 0,
             "separator_override_writes": 0,
             "output_bytes": 14450
@@ -32557,6 +32566,7 @@
         "wrapped_item_visits",
         "boundary_visits",
         "positioned_items",
+        "alignment_items",
         "separator_run_visits",
         "separator_override_writes",
         "output_bytes"
@@ -32586,6 +32596,7 @@
             "wrapped_item_visits": 58,
             "boundary_visits": 58,
             "positioned_items": 58,
+            "alignment_items": 0,
             "separator_run_visits": 8,
             "separator_override_writes": 2,
             "output_bytes": 12639
@@ -32615,9 +32626,117 @@
             "wrapped_item_visits": 58,
             "boundary_visits": 58,
             "positioned_items": 58,
+            "alignment_items": 0,
             "separator_run_visits": 8,
             "separator_override_writes": 2,
             "output_bytes": 12639
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "destination_references"
+      ]
+    },
+    {
+      "name": "destination references measured geometry",
+      "scenario_revision": "destination-page-references-v1",
+      "source": "tests/destination_references/main.roc",
+      "snapshot": "tests/destination_references/geometry.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "sections": 0,
+        "geometry": 1,
+        "pages": 3
+      },
+      "work_counters": [
+        "reference_atoms",
+        "normalization_chunks",
+        "literal_shape_requests",
+        "measured_items",
+        "measured_rows",
+        "committed_row_visits",
+        "anchor_item_visits",
+        "registry_lookup_steps",
+        "resolved_labels",
+        "resolved_label_bytes",
+        "mapping_cluster_visits",
+        "mapping_glyph_visits",
+        "reference_fit_run_visits",
+        "positioned_pieces",
+        "shape_metric_reads",
+        "hold_scalars",
+        "intrinsic_item_visits",
+        "wrapped_item_visits",
+        "boundary_visits",
+        "positioned_items",
+        "alignment_items",
+        "separator_run_visits",
+        "separator_override_writes",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 20212,
+          "allocated_bytes": 25107207,
+          "work": {
+            "reference_atoms": 43,
+            "normalization_chunks": 46,
+            "literal_shape_requests": 88,
+            "measured_items": 1384,
+            "measured_rows": 169,
+            "committed_row_visits": 173,
+            "anchor_item_visits": 1384,
+            "registry_lookup_steps": 43,
+            "resolved_labels": 43,
+            "resolved_label_bytes": 43,
+            "mapping_cluster_visits": 1341,
+            "mapping_glyph_visits": 1341,
+            "reference_fit_run_visits": 43,
+            "positioned_pieces": 177,
+            "shape_metric_reads": 2725,
+            "hold_scalars": 27,
+            "intrinsic_item_visits": 1341,
+            "wrapped_item_visits": 1424,
+            "boundary_visits": 1424,
+            "positioned_items": 1384,
+            "alignment_items": 286,
+            "separator_run_visits": 177,
+            "separator_override_writes": 1,
+            "output_bytes": 20365
+          }
+        },
+        "x64musl": {
+          "allocations": 20212,
+          "allocated_bytes": 25107207,
+          "work": {
+            "reference_atoms": 43,
+            "normalization_chunks": 46,
+            "literal_shape_requests": 88,
+            "measured_items": 1384,
+            "measured_rows": 169,
+            "committed_row_visits": 173,
+            "anchor_item_visits": 1384,
+            "registry_lookup_steps": 43,
+            "resolved_labels": 43,
+            "resolved_label_bytes": 43,
+            "mapping_cluster_visits": 1341,
+            "mapping_glyph_visits": 1341,
+            "reference_fit_run_visits": 43,
+            "positioned_pieces": 177,
+            "shape_metric_reads": 2725,
+            "hold_scalars": 27,
+            "intrinsic_item_visits": 1341,
+            "wrapped_item_visits": 1424,
+            "boundary_visits": 1424,
+            "positioned_items": 1384,
+            "alignment_items": 286,
+            "separator_run_visits": 177,
+            "separator_override_writes": 1,
+            "output_bytes": 20365
           }
         }
       },
