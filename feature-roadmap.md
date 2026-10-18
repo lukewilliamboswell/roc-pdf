@@ -139,7 +139,10 @@ Implementation order is explicit parent frames and continuation contracts,
 rich list bodies, rich callout fragmentation, destination references, scoped
 templates, then combined-manual closure. Independent work may proceed against
 frozen contracts; closure requires integration evidence. The implementation
-and ownership record is [manual composition](docs/performance/manual-composition.md).
+and ownership record is [manual composition](docs/performance/manual-composition.md). The integrated
+implementation and native combined-manual evidence are recorded there;
+final closure remains pending the complete integrated harness and observed
+cross-target equality. Provisional x64musl schema entries are not evidence.
 
 ### Performance intent
 

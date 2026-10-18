@@ -1,8 +1,8 @@
 # Bounded manual composition: design and integration record
 
 Issues #49–#53 are independent Gate 6 extension slices, brought forward from
-Gate 8 for a technical-manual consumer. This record initially specifies design
-and evidence obligations; it is not a closure claim. Gate 7 and `PdfUa2` remain
+Gate 8 for a technical-manual consumer. This record tracks the implementation and
+integration evidence; it is not a closure claim. Gate 7 and `PdfUa2` remain
 pending. The integration branch is `integration/manual-composition-49-53`.
 
 ## Representation and ownership
@@ -62,4 +62,25 @@ acceptance. Human reader/AT review is optional and recorded if performed.
 
 ## Evidence status
 
-Implementation and executable evidence pending.
+The integrated implementation contains the public fixed-width reference
+resolver, explicit chapter scopes, shared rich-list/callout frames, bounded
+fragmentation and prepared-vector adapter. Native slice evidence is recorded
+in [destination references](destination-page-references.md),
+[chapter templates](chapter-templates.md), [rich flow](rich-flow.md), and
+[the vector adapter](vector-diagram-adapter.md).
+
+The [combined technical manual](technical-manual.md) 2/20-chapter pair passes
+strict native allocation/work/snapshot replay, the independent semantic and
+geometry oracle plus four mutation twins, veraPDF PDF/A-4, and whole-file
+PDFBox/MuPDF extraction/rendering (180 page renders). All twelve integrated
+rich-flow cases retain exact recorded allocations, work and PDF snapshots;
+small requested-byte differences remain inside existing guards without
+changing baselines. The existing rich-inline 10/100 pair also retains exact
+recorded allocations, requested bytes, work and snapshots.
+
+The final dedicated reference evidence and complete integrated harness run
+are still being completed. Cross-target equality remains unobserved because
+the local Docker daemon does not answer bounded discovery. New x64musl
+expectations are explicitly provisional native mirrors required by the
+harness schema. Final extension closure remains pending those checks; no
+new Gate 7, PDF/UA-2 or cross-target claim is made.

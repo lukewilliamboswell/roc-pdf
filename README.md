@@ -36,6 +36,13 @@ Ordered font policies keep selecting each cluster from their declared faces.
 Page fields and reserved widths use the furniture style, and text that exceeds
 a field or region returns a diagnostic without shrinking, wrapping, or clipping.
 
+The integrated manual-composition work adds fixed-width destination page
+references, chapter opening/continuation templates, rich list-item bodies,
+and splittable nested callouts, alongside a constrained prepared-vector
+adapter. Its [implementation and evidence record](docs/performance/manual-composition.md)
+tracks the native slice and combined-manual results and the remaining full
+integration and cross-target checks.
+
 Default output claims static PDF/A-4 (`Pdf20 + StaticPdfA4`): the package
 validates a closed whitelist before emitting any byte, and every Archive
 fixture passes the pinned veraPDF PDF/A-4 profile with zero failed checks. A
