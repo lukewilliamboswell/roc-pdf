@@ -185,7 +185,7 @@ preparation call.
 | Inherited role, language and 75% scale | 4,408 | 7,246,410 | 1 | 55 | 3 | 14,450 |
 | Ordered Latin/CJK policy | 5,047 | 7,390,088 | 2 | 58 | 4 | 12,639 |
 | 13 atomic rejections | 4,531 | 4,988,492 | — | — | — | 10,642 |
-| Scaled body and table alignment | 20,212 | 25,107,207 | 43 | 1,384 | 169 | 20,365 |
+| Scaled body and table alignment | 20,210 | 25,107,095 | 43 | 1,384 | 169 | 20,365 |
 
 The section pair contains 4N + 7 references, 10N + 13 normalization chunks,
 3N + 12 rows and 11N + 19 positioned pieces. Both wrap and placement visit
@@ -278,3 +278,38 @@ cases add 56 bytes each. Allocation counts and all previous PDF snapshots are
 unchanged. Existing allocated-byte baselines remain unchanged because these
 reviewed representation costs are well within their 10% guard; only the new
 counter and new geometry case receive new exact expectations.
+
+## Repeated headers without container bands
+
+An ordinary unpainted table needs no per-page container lead-band arena. The
+measured reference path now retains the validated global continuation-frame
+offset as one scalar on its existing plan. Header placement uses that default
+when the scoped page-frame arena is empty, the committed scoped frame when it
+is present, and the accepted padding-aware band when a container is active.
+No header position is recovered from paint or changed after page selection.
+
+The three focused kernel regressions cover no template, a global continuation
+frame with a nonzero top, and a scope whose continuation top differs from the
+global default. Each has an unpainted continued table and no lead-band arena;
+its repeated header must use the exact selected frame. The public Geometry
+PDF additionally checks every repeated glyph baseline and cell alignment.
+This keeps the no-container arena elision and the original ordinary-table
+allocation counts while carrying the geometry fact its measured consumer
+needs.
+
+All 651 canonical kernel tests pass. A fresh pinned native Geometry run
+retains its exact 20,365-byte PDF and complete work vector, including 173
+committed row visits and 286 alignment item visits. Its observed allocation
+count falls from 20,212 to 20,210 and requested bytes from 25,107,207 to
+25,107,095: the two preparation/probe pipelines each omit one 56-byte
+geometrically allocated lead-band arena. The new scalar adds no arena.
+Only this reviewed allocation improvement updates the exact expectation;
+the existing allocated-byte ceiling remains unchanged.
+
+All ten reference, visible-label and item-arena cases and all seven scoped
+table-paint controls then passed strict `scripts/test.py` replay using the
+same retained cold-built executables: exact allocations and work, unchanged
+snapshots, the existing byte guards and every registered independent byte
+validator. The other sixteen cases retain their previous exact counts and
+work vectors. No PDF snapshot changes in this correction, so the recorded
+original-file conformance, mutation and reader evidence still applies.
