@@ -58,15 +58,15 @@ ownership_evidence = |count, shared| {
 		return Err(InvalidCase)
 	}
 	registered = Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, Font.ValidationLimits.default) ? |_| FontFailure
-	make = || Pdf.callout({ name: "Reusable note", contents: [Pdf.rich_paragraph([Pdf.strong([Pdf.text("Reusable. ")]), Pdf.text("Shared authoring must preserve independent semantic occurrences.")])] })
-	retained = make()
+	make = |number| Pdf.callout({ name: "Reusable note ${number.to_str()}", contents: [Pdf.rich_paragraph([Pdf.strong([Pdf.text("Reusable. ")]), Pdf.text("Shared authoring must preserve independent semantic occurrences.")])] })
+	retained = make(0)
 	var $contents = List.with_capacity(count)
 	var $index = 0
 	while $index < count {
 		block = if shared {
 			retained
 		} else {
-			make()
+			make($index + 1)
 		}
 		$contents = $contents.append(block)
 		$index = $index + 1
