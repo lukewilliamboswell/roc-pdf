@@ -39,8 +39,9 @@ These are initial arm64mac baselines under `.roc-version`'s pinned dev build;
 no existing allocation, work or PDF baseline changes. For 5× the diagrams,
 allocations grow 3.88× and allocated bytes 3.45×, consistent with linear retained
 scene/text/structure work plus fixed font/package costs. Each case retains the
-10% allocated-byte ceiling. Cross-target expected counts are registered by the
-ordinary harness and must be verified when that target runs.
+10% allocated-byte ceiling. The final strict Linux run verifies the registered
+target expectations and the same immutable PDF bytes; complete closure evidence
+is recorded in [manual composition](manual-composition.md#final-integration-closure).
 
 A final integration replay through `scripts/test.py --compare-baselines`, using
 the registered canonical JSON cases, retains all three original allocation

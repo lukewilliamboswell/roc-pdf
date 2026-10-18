@@ -58,6 +58,9 @@ The [combined technical manual](technical-manual.md) extends the evidence to
 nested panels, source, prepared vector figures and continued tables inside
 scopes, with destination-page references and a reference in repeated table
 header artifacts. Its independent geometry oracle, PDF/A-4 validation and
-whole-file PDFBox/MuPDF lanes pass on native output. The complete integrated
-harness and cross-target equality remain pending; provisional x64musl schema
-fields are not observed evidence, and no new PDF/UA-2 claim is made.
+whole-file PDFBox/MuPDF lanes pass on native output. The focused and combined
+snapshots are included in the complete native comparison and strict affected
+replay, strict Linux integration and pinned conformance validation recorded in
+[manual composition](manual-composition.md#final-integration-closure). Target
+allocation/work expectations and byte-identical output are observed; the
+declared #50 subset is closed. No PDF/UA-2 claim is made.

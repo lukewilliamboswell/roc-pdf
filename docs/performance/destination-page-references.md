@@ -163,12 +163,15 @@ exactly 9/90 and artifact runs 9/90; output is 12,101 / 24,991 bytes.
 
 ## Target boundary
 
-These measurements are observed pinned `arm64mac` dev results. The
-`x64musl` expectation fields currently mirror them provisionally to preserve
-the suite's required target schema; they are explicitly unobserved until an
-actual Linux run establishes allocation/work equality and byte-identical
-output. Local Docker was unavailable during this evidence run. Cross-target
-equality and the complete integration suite remain separate closure evidence.
+These tables record pinned `arm64mac` dev observations. Both native and
+`x64musl` target expectations are verified by the complete native comparison
+and strict affected replay followed by strict Linux integration. Each target
+passes its exact allocation/work expectations and retained allocated-byte
+guards, and the generated PDFs match the same immutable snapshots. The
+integration, pinned Arlington and external PDF/A-4 evidence in
+[manual composition](manual-composition.md#final-integration-closure) closes
+the declared #49 subset without a new PDF/UA-2 claim. Requested-byte values
+remain native observations rather than an assertion of cross-target equality.
 
 ## End-to-end body reference evidence
 

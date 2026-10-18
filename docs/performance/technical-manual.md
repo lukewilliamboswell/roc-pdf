@@ -65,11 +65,13 @@ reference facts. Four reserialized mutation twins reject a changed printed
 label, a wrong structured destination owner, misclassified running header,
 and expanded callout border.
 
-Native `arm64mac` expectations are observed with the repository-pinned Roc
-and Zig. The corresponding `x64musl` fields are provisional native mirrors
-required by the current harness schema; Docker.app's daemon did not answer
-bounded discovery. They are not cross-target evidence. No PDF/UA-2 or human
-reader review is claimed by this feature slice.
+Pinned native `arm64mac` and strict Linux `x64musl` runs verify the target
+expectations and generate byte-identical manual PDFs. The native comparison,
+strict affected replay, strict 409-case Linux integration, pinned Arlington and
+external PDF/A-4 evidence are collected in
+[manual composition](manual-composition.md#final-integration-closure). This
+closes the combined bounded manual subset; no PDF/UA-2 or human reader/AT review
+is claimed.
 
 The final numeric-field review removed a needless Unicode scalar-count
 allocation for each ASCII page-number/total field. These formatters already

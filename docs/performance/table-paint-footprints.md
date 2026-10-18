@@ -58,9 +58,10 @@ furniture ownership. It consumes no paginator/report geometry facts.
 | All cells span both columns | 28,889 | 17,778,116 | 4 | 81 | 0 / 0 / 0 |
 | Source-free reference header | 55,144 | 30,556,365 | 4 | 81 | 82 / 1 / 81 |
 
-These are pinned arm64mac native observations. The x64musl schema entries are
-provisional mirrors until the independent Linux run observes them. All cases
-retain exact allocation/work expectations and the allocated-byte guard.
+These are pinned arm64mac native observations. The final strict Linux run
+verifies the x64musl expectations and the same immutable PDFs. All cases retain
+exact allocation/work expectations and the allocated-byte guard; complete
+closure evidence is in [manual composition](manual-composition.md#final-integration-closure).
 
 The pre-fix native control was built from the prior accepted `Pages` module
 with the exact same public fixture. It emitted a first header fill at
@@ -157,8 +158,9 @@ prepares an uncaptioned control, so it removes two. Each two-figure report saves
 40 requested bytes; that one-figure control saves another 24. A final native
 `scripts/test.py --compare-baselines` observation of all 21 reference cases
 confirms these exact allocation changes, unchanged PDF bytes and work, and all
-existing allocated-byte ceilings. Only allocation targets change; matching
-x64 target deltas remain provisional until that target's independent run.
+existing allocated-byte ceilings. Only allocation targets change; the strict
+Linux run independently verifies those target expectations and byte-identical
+snapshots.
 
 All seven new originals also pass whole-file PDFBox 3.0.8 and MuPDF 1.28.2
 Unicode extraction and rendering: 176 page renders across 88 pages, with

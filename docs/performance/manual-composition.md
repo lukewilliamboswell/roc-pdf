@@ -1,9 +1,10 @@
-# Bounded manual composition: design and integration record
+# Bounded manual composition: design and closure record
 
-Issues #49–#53 are independent Gate 6 extension slices, brought forward from
-Gate 8 for a technical-manual consumer. This record tracks the implementation and
-integration evidence; it is not a closure claim. Gate 7 and `PdfUa2` remain
-pending. The integration branch is `integration/manual-composition-49-53`.
+Issues #49–#53 are closed for the declared bounded Gate 6 extension subsets
+brought forward from Gate 8 for a technical-manual consumer. This record
+collects their implementation and final integration evidence. Gate 7 and
+`PdfUa2` remain pending; `Archive` remains the default profile. The integration
+branch is `integration/manual-composition-49-53`.
 
 ## Representation and ownership
 
@@ -45,7 +46,7 @@ The coordinator owns integration, architecture/roadmap changes, shared
 contracts and final baseline/snapshot review. Isolated topic worktrees own
 navigation/reference work, rich-flow work and adapter/evidence work. Shared
 signature edits are communicated before integration and merged sequentially.
-Feature evidence is provisional until the complete integrated suite passes.
+The final integrated and cross-target results below complete the slice evidence.
 
 ## Acceptance obligations
 
@@ -94,12 +95,12 @@ preparation now reserves their outer paint footprint before pagination.
 Affected decorated-table snapshots are reviewed against that correction.
 Repeated-header lead bands now allocate only for active containers, retaining
 zero-padding panels while restoring the original exact legacy table counts.
-The complete integrated harness run remains pending. Cross-target equality
-remains unobserved because
-the local Docker daemon does not answer bounded discovery. New x64musl
-expectations are explicitly provisional native mirrors required by the
-harness schema. Final extension closure remains pending those checks; no
-new Gate 7, PDF/UA-2 or cross-target claim is made.
+The complete native comparison and strict affected replay, followed by the
+independent strict Linux run, establish integrated allocation/work/snapshot
+evidence and cross-target PDF byte equality. The previously provisional
+`x64musl` expectations are now observed. The [final integration closure](#final-integration-closure)
+below records source identity and the pinned conformance checks. This closes
+the declared extensions only; no Gate 7 or PDF/UA-2 claim is made.
 
 ## Gallery paint-footprint review
 
@@ -130,13 +131,14 @@ checks and the independent structure checker. PDFBox 3.0.8 and MuPDF 1.28.2
 extract and render every page: 35 pages per reader, 70 renders in total.
 
 
-## Final native integration observation
+## Final integration closure
 
 The 2026-10-18 pinned native run at production source `8c5af2e` completes all
 61 validation tasks, 62 cold fixture builds and 409 cases. Every PDF snapshot,
 deterministic work vector and registered independent validator passes. Its
 final comparison reports one allocation expectation reduction: the source-block
-negative carrier avoids three arenas before excessive-padding rejection. The
+negative carrier drops from 8,267 to 8,264 by avoiding three arenas before
+excessive-padding rejection. The
 [exact cause](source-blocks.md#manual-composition-integration-review) is reviewed
 and the changed expectation passes strict harness replay from the same retained
 cold-built executable. The complete comparison and affected strict replay
@@ -144,9 +146,36 @@ together establish the native allocation/work/snapshot evidence; the initial
 comparison itself exits nonzero for that reviewed expectation.
 
 The comparison also records 123 byte-only differences; all remain within their
-existing guards, with a maximum increase below 0.9%. No requested-byte ceiling
+existing guards, with a maximum increase of 0.876%. No requested-byte ceiling
 changes. Pinned veraPDF 1.30.2 with explicit PDF/A-4 flavour validates all 193
 Archive snapshots with zero failed checks; a retained manifest records their
 accepted SHA-256 hashes. The thirteen gallery originals independently retain
-the zero-failure profile and whole-file reader evidence above. Linux and
-Arlington integration evidence remain pending.
+the zero-failure profile and whole-file reader evidence above.
+
+The [strict Linux CI run](https://github.com/lukewilliamboswell/roc-pdf/actions/runs/39103555113)
+at `75e09c8` passes all 409 cases with exact per-target allocation/work
+expectations, immutable PDF snapshots, retained allocated-byte guards and all
+registered independent validators. The native measurements were collected at
+`8c5af2e`; all 224 Roc source SHA-256 values in the retained native manifest
+remain identical at `75e09c8`. The intervening commits change only the reviewed
+allocation expectation, conformance-ledger traceability and documentation.
+Thus both runs exercise identical production and fixture source; Linux matches
+the same accepted snapshots and establishes cross-target PDF byte equality.
+This does not assert equal requested-byte observations across targets.
+
+The same CI run's Arlington job uses the digest-pinned veraPDF Arlington
+1.30.2 service over 345 distinct snapshot and gallery files.
+344 files have zero failed rules and checks, covering all package and gallery
+output; the platform-written
+`tests/placeholder/snapshot.pdf` retains only its already recorded
+`FileTrailer-ID#11` exception. The CI checker-contract, nine bounded fuzz targets at 2,000 runs each,
+release-bundle consumer and all thirteen gallery lanes also pass.
+
+Together with the per-slice semantic/geometry and mutation oracles, atomic
+negative cases, original-file readers, ownership review and scale pairs, this
+closes the declared bounded #49–#53 extensions. General generated TOCs,
+flow-changing references, midpage chapter changes, general custom pagination
+and browser SVG/HTML rendering remain outside these subsets. Gate 7,
+`PdfUa2` and `AccessibleArchive` remain pending; `Archive` stays the default.
+Human reader and assistive-technology review were not performed and remain
+optional.

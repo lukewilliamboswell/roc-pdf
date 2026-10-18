@@ -53,8 +53,10 @@ identical authoring/font/page facts. Existing CustomBlock cases remain
 regressions for their measurement and unsplittable diagnostics.
 
 Pinned native metrics, independent checks, negative cases and reviewed
-baseline causes are recorded below. Cross-target observations and the full
-integrated regression suite remain separate completion evidence.
+baseline causes are recorded below. The complete native comparison and strict
+affected replay, followed by strict Linux integration, close the declared #52
+and #53 subsets and establish byte-identical output across targets; see
+[manual composition](manual-composition.md#final-integration-closure).
 
 ### Initial pinned native observation, 2026-10-18
 
@@ -110,14 +112,14 @@ checks. The byte oracle reads structure, CID text, original Code ActualText,
 font widths, profile-aware colours and artifact rectangles directly; it
 uses no Roc report, continuation record or pagination counter as an oracle.
 
-`x64musl` entries currently mirror native observations only to satisfy the
-suite's two-target schema. They are **provisional, not observed evidence**:
-the local Docker daemon does not answer even an escalated bounded discovery
-request. No cross-target, fully integrated-suite or new PDF/UA-2 conformance
-claim follows from this native record. All twelve final cases passed strict
-`scripts/test.py` harness replay: exact allocation counts, deterministic
-work, recorded-byte guard, unchanged snapshots, and all registered byte
-validators. Mutation and whole-file reader evidence follows below.
+At this initial native observation, `x64musl` fields were provisional mirrors
+because local Docker was unavailable. The subsequent strict Linux run verifies
+the target expectations; complete integrated closure is recorded in
+[manual composition](manual-composition.md#final-integration-closure). No new
+PDF/UA-2 claim follows. All twelve final cases pass strict `scripts/test.py`
+replay: exact allocation counts, deterministic work, recorded-byte guard,
+unchanged snapshots and all registered byte validators. Mutation and whole-file
+reader evidence follows below.
 
 The independent self-test passed all eleven positive cases and rejected seven
 validly reserialized mutation twins: lost LBody ownership, a replaced callout

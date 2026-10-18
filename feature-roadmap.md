@@ -138,11 +138,13 @@ accepted extension.
 Implementation order is explicit parent frames and continuation contracts,
 rich list bodies, rich callout fragmentation, destination references, scoped
 templates, then combined-manual closure. Independent work may proceed against
-frozen contracts; closure requires integration evidence. The implementation
-and ownership record is [manual composition](docs/performance/manual-composition.md). The integrated
-implementation and native combined-manual evidence are recorded there;
-final closure remains pending the complete integrated harness and observed
-cross-target equality. Provisional x64musl schema entries are not evidence.
+frozen contracts; closure requires integration evidence. The declared bounded
+extensions #49–#53 are closed. Their [implementation, ownership and closure
+record](docs/performance/manual-composition.md) includes the complete 409-case
+native comparison and strict affected replay, strict 409-case Linux integration,
+cross-target PDF byte equality, independent feature checks and pinned
+profile/object-model validation. This does not close Gate 7, enable `PdfUa2`,
+or change the `Archive` default.
 
 ### Performance intent
 

@@ -226,6 +226,8 @@ allocation expectation changes; the requested-byte guard and snapshot remain
 unchanged.
 
 The native result is observed with the pinned build and replayed strictly from
-the same cold-built executable. The mirrored Linux allocation expectation
-remains provisional until the independent integrated run. The full extension
-evidence is tracked in [manual composition](manual-composition.md).
+the same cold-built executable. The [strict Linux run](https://github.com/lukewilliamboswell/roc-pdf/actions/runs/39103555113)
+independently verifies the revised 8,264-allocation expectation with unchanged
+work and the same carrier PDF. The original requested-byte guard remains.
+Complete integration evidence is recorded in
+[manual composition](manual-composition.md#final-integration-closure).
