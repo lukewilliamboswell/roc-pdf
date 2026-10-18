@@ -16,6 +16,9 @@ KernelFacadeSemantics :: [].{
 		CalloutBlock({ block : U64 }),
 		CalloutFlow({ group : U64, position : U64 }),
 		ArithmeticOverflow,
+		ReferenceStageRequired,
+		PageReference({ block : U64, inline : U64, reason : Str }),
+		ReferenceResolution({ reference : U64, reason : Str }),
 		SourceWhitespace({ error : KernelSourceText.Error, source : U64 }),
 		SourceStyle({ source : U64 }),
 		SourcePosition({ source : U64 }),
@@ -175,6 +178,76 @@ KernelFacadeSemantics :: [].{
 	number_text : Document.NumberStyle, U64 -> Str
 	number_text = |style, value| number_digits(style, value)
 
+	LiteralContext : { block : U64, inline : [AtInline(U64), NoInline], occurrence : Semantics.ContentOccurrence, role : [Body, GeneratedLabel], segment : U64 }
+	PendingContext : { block : U64, inline : U64, language : Str, occurrence : Semantics.OccurrenceId, reference : U64, segment : U64, separator_after : Bool }
+	SymbolicView : {
+		authoring : Document.NormalizedAuthoring,
+		block_ownership : List(BlockOwnership),
+		content_spine : List(Semantics.ContentSpineItem),
+		destinations : List(DestinationRecord),
+		links : List(LinkRecord),
+		literals : List(LiteralContext),
+		nodes : List(Semantics.Node),
+		pending : List(PendingContext),
+		sources : KernelFacadeSources.Plan,
+		work : Work,
+	}
+
+	## A semantic spine with symbolic body leaves. It exposes exact literal
+	## Unicode and ownership for measurement, but no Semantics.Store or
+	## validated text plan exists until every reference has exact text.
+	Symbolic :: {
+		authoring : Document.NormalizedAuthoring,
+		block_ownership : List(BlockOwnership),
+		components : SemanticComponents,
+		destinations : List(DestinationRecord),
+		limits : Limits,
+		links : List(LinkRecord),
+		literals : List(LiteralContext),
+		pending : List(PendingContext),
+		sources : KernelFacadeSources.Plan,
+		work : Work,
+	}.{
+		build : Document.NormalizedAuthoring, Limits -> Try(Symbolic, Error)
+		build = |authoring, limits| build_symbolic(authoring, limits)
+
+		view : Symbolic -> SymbolicView
+		view = |plan| { authoring: plan.authoring, block_ownership: plan.block_ownership, content_spine: plan.components.content_spine, destinations: plan.destinations, links: plan.links, literals: plan.literals, nodes: plan.components.nodes, pending: plan.pending, sources: plan.sources, work: plan.work }
+
+		## Label strings are in dense normalized reference-id order. This
+		## consumes the symbolic plan, preserves every node/occurrence id,
+		## and validates the first complete Unicode semantic store.
+		finalize : Symbolic, List(Str) -> Try(Plan, Error)
+		finalize = |plan, labels| finalize_symbolic(plan, labels)
+
+		finalize_with_contexts : Symbolic, List(Str) -> Try({ plan : Plan, contexts : List(LiteralContext) }, Error)
+		finalize_with_contexts = |symbolic, labels| {
+			literals = symbolic.literals
+			pending = symbolic.pending
+			plan = finalize_symbolic(symbolic, labels)?
+			store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(plan.preliminary))
+			var $contexts = List.with_capacity(store.occurrences.len())
+			var $literal = 0
+			var $pending = 0
+			for occurrence in store.occurrences {
+				if $pending < pending.len() and list_at(pending, $pending).occurrence == occurrence.id {
+					field = list_at(pending, $pending)
+					$contexts = $contexts.append({ block: field.block, inline: AtInline(field.inline), occurrence, role: Body, segment: field.segment })
+					$pending = $pending + 1
+				} else {
+					context = list_at(literals, $literal)
+					if context.occurrence.id != occurrence.id {
+						crash "final literal context identity escaped"
+					}
+					$contexts = $contexts.append({ ..context, occurrence })
+					$literal = $literal + 1
+				}
+			}
+			Ok({ plan, contexts: $contexts })
+		}
+
+	}
+
 	Plan :: {
 		authoring : Document.NormalizedAuthoring,
 		block_ownership : List(BlockOwnership),
@@ -240,6 +313,9 @@ Planning : {
 
 build_plan : Document.NormalizedAuthoring, KernelFacadeSemantics.Limits -> Try(KernelFacadeSemantics.Plan, KernelFacadeSemantics.Error)
 build_plan = |authoring, limits| {
+	if !authoring.page_references.is_empty() {
+		return Err(ReferenceStageRequired)
+	}
 	if authoring.language.is_empty() {
 		return Err(EmptyLanguage)
 	}
@@ -248,15 +324,16 @@ build_plan = |authoring, limits| {
 	}
 	planning = plan_blocks(authoring, limits)?
 	sources = KernelFacadeSources.Plan.build(planning.source_inputs, limits.sources) ? Source
-	built = build_store(authoring, planning, sources)?
-	check_limit(built.store.content_spine.len(), limits.max_content_spine, ContentSpine)?
-	check_limit(built.store.text_properties.len(), limits.max_properties, Properties)?
+	built = build_components(authoring, planning, sources)?
+	store = complete_store(built.components, built.components.literals, sources)
+	check_limit(store.content_spine.len(), limits.max_content_spine, ContentSpine)?
+	check_limit(store.text_properties.len(), limits.max_properties, Properties)?
 	navigated = !planning.links.is_empty() or !planning.destinations.is_empty()
 	preliminary = (
 		if navigated {
-			KernelTextSemantics.Plan.build_navigation(built.store, 0, 0, limits.semantics, limits.text_semantics)
+			KernelTextSemantics.Plan.build_navigation(store, 0, 0, limits.semantics, limits.text_semantics)
 		} else {
-			KernelTextSemantics.Plan.build(built.store, 0, 0, limits.semantics, limits.text_semantics)
+			KernelTextSemantics.Plan.build(store, 0, 0, limits.semantics, limits.text_semantics)
 		}
 	) ? TextSemantics
 	Ok(
@@ -269,20 +346,278 @@ build_plan = |authoring, limits| {
 			sources,
 			work: {
 				container_nodes: planning.group_nodes.len(),
-				content_writes: built.store.content_spine.len(),
+				content_writes: store.content_spine.len(),
 				empty_cells: planning.empty_cells,
 				header_association_edges: planning.relationship_count - captioned_figures(authoring.figures),
 				inline_elements: planning.inline_elements,
 				inline_leaves: planning.inline_leaves,
 				list_items: planning.list_item_count,
 				lists: planning.list_count,
-				node_writes: built.store.nodes.len(),
-				occurrence_writes: built.store.occurrences.len(),
-				property_writes: built.store.text_properties.len(),
+				node_writes: store.nodes.len(),
+				occurrence_writes: store.occurrences.len(),
+				property_writes: store.text_properties.len(),
 				source_inputs: planning.source_inputs.len(),
 				table_cells: planning.header_ranges.len(),
 				tables: planning.table_count,
 			},
+		},
+	)
+}
+
+check_page_references : Document.NormalizedAuthoring -> Try({}, KernelFacadeSemantics.Error)
+check_page_references = |authoring| {
+	for reference in authoring.page_references {
+		if reference.spec.destination.is_empty() {
+			return Err(PageReference({ block: reference.block, inline: reference.inline, reason: "A page reference needs a nonempty destination name." }))
+		}
+		if reference.spec.width <= 0 {
+			return Err(PageReference({ block: reference.block, inline: reference.inline, reason: "A page reference needs a positive reserved width." }))
+		}
+	}
+	Ok({})
+}
+
+rich_source_count : Document.NormalizedAuthoring, U64, U64 -> U64
+rich_source_count = |authoring, paragraph, breaks| match Document.reference_paragraph(authoring, paragraph) {
+	HasReferences(record) => record.sources
+	NoReferences => breaks + 1
+}
+
+append_rich_sources : List(Str), Document.NormalizedAuthoring, U64, Str, U64, U64 -> List(Str)
+append_rich_sources = |sources, authoring, paragraph, text, first_break, breaks| match Document.reference_paragraph(authoring, paragraph) {
+	NoReferences => if breaks == 0 sources.append(text) else append_segment_sources(sources.append(text), authoring.line_breaks, first_break, breaks)
+	HasReferences(record) => {
+		var $sources = sources
+		var $chunk = record.chunks.start()
+		while $chunk < record.chunks.start() + record.chunks.length() {
+			match list_at(authoring.reference_chunks, $chunk).source {
+				Literal(literal) => {
+					$sources = $sources.append(literal.text)
+				}
+				Reference(_) => {}
+			}
+			$chunk = $chunk + 1
+		}
+		$sources
+	}
+}
+
+semantic_work : Document.NormalizedAuthoring, Planning, SemanticComponents -> KernelFacadeSemantics.Work
+semantic_work = |authoring, planning, components| {
+	container_nodes: planning.group_nodes.len(),
+	content_writes: components.content_spine.len(),
+	empty_cells: planning.empty_cells,
+	header_association_edges: planning.relationship_count - captioned_figures(authoring.figures),
+	inline_elements: planning.inline_elements,
+	inline_leaves: planning.inline_leaves,
+	list_items: planning.list_item_count,
+	lists: planning.list_count,
+	node_writes: components.nodes.len(),
+	occurrence_writes: components.literals.len(),
+	property_writes: components.text_properties.len(),
+	source_inputs: planning.source_inputs.len(),
+	table_cells: planning.header_ranges.len(),
+	tables: planning.table_count,
+}
+
+build_symbolic : Document.NormalizedAuthoring, KernelFacadeSemantics.Limits -> Try(KernelFacadeSemantics.Symbolic, KernelFacadeSemantics.Error)
+build_symbolic = |authoring, limits| {
+	if authoring.language.is_empty() {
+		return Err(EmptyLanguage)
+	}
+	if authoring.metadata_title.is_empty() {
+		return Err(EmptyMetadataTitle)
+	}
+	planning = plan_blocks(authoring, limits)?
+	# Final label sources are bounded now even though their Unicode is not
+	# known. Every reference contributes at most one additional input.
+	check_limit(checked_add(planning.source_inputs.len(), authoring.page_references.len())?, limits.max_source_inputs, SourceInputs)?
+	sources = KernelFacadeSources.Plan.build(planning.source_inputs, limits.sources) ? Source
+	built = build_components(authoring, planning, sources)?
+	check_limit(built.components.content_spine.len(), limits.max_content_spine, ContentSpine)?
+	contexts = symbolic_contexts(authoring, built.block_ownership, built.components.literals)
+	var $separators = 0
+	for pending in contexts.pending {
+		if pending.separator_after {
+			$separators = $separators + 1
+		}
+	}
+	check_limit(checked_add(built.components.text_properties.len(), $separators)?, limits.max_properties, Properties)?
+	Ok(
+		KernelFacadeSemantics.Symbolic.{
+			authoring,
+			block_ownership: built.block_ownership,
+			components: built.components,
+			destinations: planning.destinations,
+			limits,
+			links: planning.links,
+			literals: contexts.literals,
+			pending: contexts.pending,
+			sources,
+			work: semantic_work(authoring, planning, built.components),
+		},
+	)
+}
+
+Contexts : { literals : List(KernelFacadeSemantics.LiteralContext), pending : List(KernelFacadeSemantics.PendingContext) }
+
+## Traverse normalized ownership once. Literal ids retain gaps for symbolic
+## leaves; a segment id is its first real authored occurrence, including a
+## reference-only segment. Generated list labels have their own segment.
+symbolic_contexts : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), List(Semantics.ContentOccurrence) -> Contexts
+symbolic_contexts = |authoring, owners, occurrences| {
+	var $literals = List.with_capacity(occurrences.len())
+	var $pending = List.with_capacity(authoring.page_references.len())
+	var $literal = 0
+	var $break = 0
+	var $block = 0
+	while $block < owners.len() {
+		owner = list_at(owners, $block)
+		label = match owner {
+			RichTextBlock(value) => value.label
+			TextBlock(value) => value.label
+			EmptySourceLine | ContentlessCell => NoLabel
+		}
+		match label {
+			NoLabel => {}
+			Label(id) => {
+				occurrence = list_at(occurrences, $literal)
+				if occurrence.id != id {
+					crash "symbolic generated label identity escaped"
+				}
+				$literals = $literals.append({ block: $block, inline: NoInline, occurrence, role: GeneratedLabel, segment: id.index() })
+				$literal = $literal + 1
+			}
+		}
+		match owner {
+			EmptySourceLine | ContentlessCell => {}
+			TextBlock(value) => {
+				occurrence = list_at(occurrences, $literal)
+				if occurrence.id != value.body {
+					crash "symbolic body identity escaped"
+				}
+				$literals = $literals.append({ block: $block, inline: NoInline, occurrence, role: Body, segment: value.body.index() })
+				$literal = $literal + 1
+			}
+			RichTextBlock(value) => {
+				paragraph = match list_at(authoring.blocks, $block).kind {
+					RichParagraph(index) => index
+					_ => crash "symbolic rich block identity escaped"
+				}
+				rich = list_at(authoring.rich_paragraphs, paragraph)
+				while $break < authoring.line_breaks.len() and list_at(authoring.line_breaks, $break).paragraph < paragraph {
+					$break = $break + 1
+				}
+				var $segment = value.occurrences.start()
+				var $inline = rich.inlines
+				while $inline < rich.inlines + rich.length {
+					record = list_at(authoring.inlines, $inline)
+					match record.kind {
+						Text(_) | PageReference(_) => {
+							if $break < authoring.line_breaks.len() and list_at(authoring.line_breaks, $break).paragraph == paragraph and list_at(authoring.line_breaks, $break).leaf <= record.first_leaf {
+								$segment = value.occurrences.start() + record.first_leaf
+								$break = $break + 1
+							}
+							id = Semantics.OccurrenceId.from_index(value.occurrences.start() + record.first_leaf)
+							match record.kind {
+								Text(_) => {
+									occurrence = list_at(occurrences, $literal)
+									if occurrence.id != id {
+										crash "symbolic rich literal identity escaped"
+									}
+									$literals = $literals.append({ block: $block, inline: AtInline($inline), occurrence, role: Body, segment: $segment })
+									$literal = $literal + 1
+								}
+								PageReference(reference) => {
+									spec = list_at(authoring.page_references, reference)
+									$pending = $pending.append({ block: $block, inline: $inline, language: leaf_language(authoring.inlines, record.language, authoring.language), occurrence: id, reference, segment: $segment, separator_after: spec.separator_after })
+								}
+								_ => crash "symbolic context leaf escaped"
+							}
+						}
+						_ => {}
+					}
+					$inline = $inline + 1
+				}
+			}
+		}
+		$block = $block + 1
+	}
+	if $literal != occurrences.len() or $pending.len() != authoring.page_references.len() {
+		crash "symbolic context coverage escaped"
+	}
+	{ literals: $literals, pending: $pending }
+}
+
+finalize_symbolic : KernelFacadeSemantics.Symbolic, List(Str) -> Try(KernelFacadeSemantics.Plan, KernelFacadeSemantics.Error)
+finalize_symbolic = |KernelFacadeSemantics.Symbolic.{ authoring, block_ownership, components, destinations, limits, links, literals: _, pending, sources: literal_sources, work }, labels| {
+	{ attributes, content_spine, element_identifiers, namespaces, nodes, literals, relationships, text_properties } = components
+	if labels.len() != pending.len() {
+		return Err(ReferenceResolution({ reference: labels.len(), reason: "Resolved labels must cover every reference exactly once in reference-id order." }))
+	}
+	var $reference = 0
+	while $reference < labels.len() {
+		if list_at(pending, $reference).reference != $reference {
+			crash "symbolic reference order escaped"
+		}
+		if list_at(labels, $reference).is_empty() {
+			return Err(ReferenceResolution({ reference: $reference, reason: "A resolved page reference must not be empty." }))
+		}
+		$reference = $reference + 1
+	}
+	first_reference_input = KernelFacadeSources.Plan.input_sources(literal_sources).len()
+	sources = KernelFacadeSources.Plan.extend(literal_sources, labels, limits.sources) ? Source
+	input_sources = KernelFacadeSources.Plan.input_sources(sources)
+	unique_sources = KernelFacadeSources.Plan.sources(sources)
+	count = checked_add(literals.len(), pending.len())?
+	var $occurrences = List.with_capacity(count)
+	var $properties = text_properties
+	var $literal = 0
+	var $pending = 0
+	var $id = 0
+	while $id < count {
+		if $pending < pending.len() and list_at(pending, $pending).occurrence.index() == $id {
+			field = list_at(pending, $pending)
+			source_id = list_at(input_sources, first_reference_input + field.reference)
+			source = list_at(unique_sources, source_id.index())
+			properties = if field.separator_after Semantics.Range.from_start_and_length($properties.len(), 1) else Semantics.Range.from_start_and_length(0, 0)
+			if field.separator_after {
+				# This explicit authored transformation belongs to the semantic
+				# occurrence; it never changes glyphs, fit, or atom alignment.
+				$properties = $properties.append(ActualText(list_at(labels, field.reference).concat(" ")))
+			}
+			$occurrences = $occurrences.append({
+				fragments: Semantics.Range.from_start_and_length(0, 0),
+				id: field.occurrence,
+				language: Language(field.language),
+				source: Text(source_id, UnicodeRange({ scalars: Semantics.Range.from_start_and_length(0, source.analysis.work.scalar_visits), utf8_bytes: Semantics.Range.from_start_and_length(0, source.unicode.count_utf8_bytes()) })),
+				text_properties: properties,
+			})
+			$pending = $pending + 1
+		} else {
+			occurrence = list_at(literals, $literal)
+			if occurrence.id.index() != $id {
+				crash "final semantic occurrence identity escaped"
+			}
+			$occurrences = $occurrences.append(occurrence)
+			$literal = $literal + 1
+		}
+		$id = $id + 1
+	}
+	check_limit($properties.len(), limits.max_properties, Properties)?
+	final_components = { attributes, content_spine, element_identifiers, namespaces, nodes, literals, relationships, text_properties: $properties }
+	store = complete_store(final_components, $occurrences, sources)
+	navigated = !links.is_empty() or !destinations.is_empty()
+	preliminary = (if navigated KernelTextSemantics.Plan.build_navigation(store, 0, 0, limits.semantics, limits.text_semantics) else KernelTextSemantics.Plan.build(store, 0, 0, limits.semantics, limits.text_semantics)) ? TextSemantics
+	Ok(
+		KernelFacadeSemantics.Plan.{
+			authoring: authoring,
+			block_ownership: block_ownership,
+			destinations: destinations,
+			links: links,
+			preliminary,
+			sources,
+			work: { ..work, occurrence_writes: count, property_writes: final_components.text_properties.len(), source_inputs: first_reference_input + labels.len() },
 		},
 	)
 }
@@ -292,6 +627,7 @@ build_plan = |authoring, limits| {
 ## keep their exact node, content, and structure-element numbering.
 plan_blocks : Document.NormalizedAuthoring, KernelFacadeSemantics.Limits -> Try(Planning, KernelFacadeSemantics.Error)
 plan_blocks = |authoring, limits| {
+	check_page_references(authoring)?
 	blocks = authoring.blocks
 	groups = authoring.groups
 	check_heading_progression(blocks)?
@@ -382,6 +718,9 @@ plan_blocks = |authoring, limits| {
 					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, group.parent) })
 					$next_node = attempted_nodes
 					$content_count = attempted_content
+				}
+				PageScope(_) => {
+					$group_nodes = $group_nodes.append(parent_node(group.parent, $group_nodes).index())
 				}
 				Scope(_) => {
 					if in_item {
@@ -739,7 +1078,7 @@ plan_blocks = |authoring, limits| {
 					attempted_occurrences = checked_add($next_occurrence, rich.leaves)?
 					attempted_content = checked_add($content_count, checked_add(rich.length, 1)?)?
 					attempted_properties = checked_add($property_count, checked.expansions)?
-					attempted_sources = checked_add($sources.len(), checked_add(breaks, 1)?)?
+					attempted_sources = checked_add($sources.len(), rich_source_count(authoring, paragraph, breaks))?
 					check_at(attempted_nodes, limits.max_nodes, Nodes, $block_index)?
 					check_at(attempted_occurrences, limits.max_occurrences, Occurrences, $block_index)?
 					check_at(attempted_content, limits.max_content_spine, ContentSpine, $block_index)?
@@ -749,7 +1088,7 @@ plan_blocks = |authoring, limits| {
 						$links = append_rich_links($links, authoring.inlines, rich, $next_node, $next_occurrence)
 					}
 					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
-					$sources = if breaks == 0 $sources.append(block.text) else append_segment_sources($sources.append(block.text), authoring.line_breaks, $break_cursor, breaks)
+					$sources = append_rich_sources($sources, authoring, paragraph, block.text, $break_cursor, breaks)
 					$break_cursor = $break_cursor + breaks
 					$next_node = attempted_nodes
 					$next_occurrence = attempted_occurrences
@@ -871,7 +1210,7 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 					if checked.links != 0 {
 						$links = append_rich_links($links, authoring.inlines, rich, $next_node, at.occurrence + $occurrences)
 					}
-					$sources = if cell_breaks == 0 $sources.append(list_at(authoring.blocks, $block).text) else append_segment_sources($sources.append(list_at(authoring.blocks, $block).text), authoring.line_breaks, cursor, cell_breaks)
+					$sources = append_rich_sources($sources, authoring, paragraph, list_at(authoring.blocks, $block).text, cursor, cell_breaks)
 					$breaks = $breaks + cell_breaks
 					$next_node = $next_node + 1 + rich.elements
 					$content = $content + rich.length
@@ -1025,7 +1364,7 @@ semantic_code = |groups, code| {
 	while $searching and $code != 0 {
 		group = list_at(groups, $code - 1)
 		match group.kind {
-			KeepTogether | KeepWithNext(_) | Scope(_) => {
+			KeepTogether | KeepWithNext(_) | PageScope(_) | Scope(_) => {
 				$code = group.parent
 			}
 			_ => {
@@ -1462,6 +1801,7 @@ check_rich = |inlines, rich, block, max_depth| {
 			Text({ byte_length, byte_start: _, text: _ }) => if byte_length == 0 {
 				return Err(EmptyInline({ block, inline: $index }))
 			}
+			PageReference(_) => {}
 			kind => {
 				if record.depth > max_depth {
 					return Err(InlineDepthExceeded({ attempted: record.depth, block, inline: $index, limit: max_depth }))
@@ -1591,8 +1931,8 @@ heading_role = |level, block| match level {
 ## builds those contiguous spans in O(children + groups). Leaf content
 ## follows in block order exactly as before, so a document without
 ## containers keeps its exact spine.
-build_store : Document.NormalizedAuthoring, Planning, KernelFacadeSources.Plan -> Try({ block_ownership : List(KernelFacadeSemantics.BlockOwnership), store : Semantics.Store }, KernelFacadeSemantics.Error)
-build_store = |authoring, planning, source_plan| {
+build_components : Document.NormalizedAuthoring, Planning, KernelFacadeSources.Plan -> Try({ block_ownership : List(KernelFacadeSemantics.BlockOwnership), components : SemanticComponents }, KernelFacadeSemantics.Error)
+build_components = |authoring, planning, source_plan| {
 	language = authoring.language
 	blocks = authoring.blocks
 	groups = authoring.groups
@@ -1654,7 +1994,7 @@ build_store = |authoring, planning, source_plan| {
 				FigureGroup(_) => {
 					$nodes = list_set($nodes, node_index, make_node(node_index, ParentNode(parent_node(group.parent, planning.group_nodes)), container_role(Section), span, Inherited))
 				}
-				KeepTogether | KeepWithNext(_) | Scope(_) => {}
+				KeepTogether | KeepWithNext(_) | PageScope(_) | Scope(_) => {}
 				ItemList(list_index) => {
 					attribute = $attributes.len()
 					$attributes = $attributes.append(list_numbering(list_at(authoring.lists, list_index.to_u64()).marker))
@@ -1728,7 +2068,7 @@ build_store = |authoring, planning, source_plan| {
 				Container(_) | Custom(_) | Callout(_) | ItemList(_) | LeadRegion | FigureGroup(_) => {
 					$next_node = checked_add($next_node, 1)?
 				}
-				KeepTogether | KeepWithNext(_) | Scope(_) => {}
+				KeepTogether | KeepWithNext(_) | PageScope(_) | Scope(_) => {}
 				Table(table_index) => {
 					## The result is destructured in one pattern, so each
 					## accumulator moves out of it: projecting the fields of a
@@ -1900,7 +2240,7 @@ build_store = |authoring, planning, source_plan| {
 						{ content: $content, nodes: $nodes, occurrences: $occurrences, properties: $properties },
 						authoring,
 						rich,
-						{ attributes: Semantics.Range.from_start_and_length(0, 0), breaks: $break_cursor, element_identifier: NoElementIdentifier, language, node: $next_node, occurrence: $next_occurrence, parent: parent_node(block.parent, planning.group_nodes), role: "P", segments: breaks + 1, source_input: $source_input },
+						{ attributes: Semantics.Range.from_start_and_length(0, 0), breaks: $break_cursor, element_identifier: NoElementIdentifier, language, node: $next_node, occurrence: $next_occurrence, parent: parent_node(block.parent, planning.group_nodes), paragraph, role: "P", segments: breaks + 1, source_input: $source_input },
 						source_plan,
 					)?
 					$content = placed.content
@@ -1911,7 +2251,7 @@ build_store = |authoring, planning, source_plan| {
 					$pending_label = NoLabel
 					$next_node = checked_add($next_node, rich.elements + 1)?
 					$next_occurrence = checked_add($next_occurrence, rich.leaves)?
-					$source_input = checked_add($source_input, breaks + 1)?
+					$source_input = checked_add($source_input, rich_source_count(authoring, paragraph, breaks))?
 					$break_cursor = $break_cursor + breaks
 					$index = $index + 1
 				}
@@ -1973,38 +2313,63 @@ build_store = |authoring, planning, source_plan| {
 	}
 	while $next_group < groups.len() {
 		$next_node = match list_at(groups, $next_group).kind {
-			KeepTogether | KeepWithNext(_) | Scope(_) | Table(_) | TableRow(_) => $next_node
+			KeepTogether | KeepWithNext(_) | PageScope(_) | Scope(_) | Table(_) | TableRow(_) => $next_node
 			ListItem(_) => checked_add($next_node, 3)?
 			_ => checked_add($next_node, 1)?
 		}
 		$next_group = $next_group + 1
 	}
-	unique_sources = KernelFacadeSources.Plan.sources(source_plan).map(|source| { unicode: source.unicode })
 	if $identifiers.len() != planning.header_ranges.len() or $relationships.len() != planning.relationship_count or $attributes.len() != planning.attribute_count or $next_node != planning.node_count or $next_occurrence != planning.occurrence_count or $source_input != planning.source_inputs.len() or $content.len() != planning.content_count or $properties.len() != planning.property_count {
 		crash "facade semantic planning count escaped"
 	}
-	store = {
-		annotations: [],
-		assertions: [],
-		attribute_roles: [],
+	components = {
 		attributes: $attributes,
 		content_spine: $content,
-		contextual_artifacts: [],
-		document_root: Semantics.NodeId.from_index(0),
 		element_identifiers: $identifiers,
-		fragments: [],
-		mathml_subtrees: [],
 		namespaces: if $nodes.any(|node| node.role.namespace.index() == 1) standard_namespaces_with_pdf17 else standard_namespaces,
 		nodes: $nodes,
-		non_text_sources: [],
-		occurrence_fragments: [],
-		occurrences: $occurrences,
+		literals: $occurrences,
 		relationships: $relationships,
-		role_mappings: [],
 		text_properties: $properties,
-		text_sources: unique_sources,
 	}
-	Ok({ block_ownership: $ownership, store })
+	Ok({ block_ownership: $ownership, components })
+}
+
+## Pending values cannot be represented as a Semantics.Store: this private
+## record deliberately omits its occurrence/source fields and empty runtime
+## arenas. Frozen semantic arrays are reused by finalization.
+SemanticComponents : {
+	attributes : List(Semantics.StructureAttribute),
+	content_spine : List(Semantics.ContentSpineItem),
+	element_identifiers : List(Semantics.ElementIdentifier),
+	namespaces : List(Semantics.Namespace),
+	nodes : List(Semantics.Node),
+	literals : List(Semantics.ContentOccurrence),
+	relationships : List(Semantics.Relationship),
+	text_properties : List(Semantics.TextProperty),
+}
+
+complete_store : SemanticComponents, List(Semantics.ContentOccurrence), KernelFacadeSources.Plan -> Semantics.Store
+complete_store = |components, occurrences, sources| {
+	annotations: [],
+	assertions: [],
+	attribute_roles: [],
+	attributes: components.attributes,
+	content_spine: components.content_spine,
+	contextual_artifacts: [],
+	document_root: Semantics.NodeId.from_index(0),
+	element_identifiers: components.element_identifiers,
+	fragments: [],
+	mathml_subtrees: [],
+	namespaces: components.namespaces,
+	nodes: components.nodes,
+	non_text_sources: [],
+	occurrence_fragments: [],
+	occurrences,
+	relationships: components.relationships,
+	role_mappings: [],
+	text_properties: components.text_properties,
+	text_sources: KernelFacadeSources.Plan.sources(sources).map(|source| { unicode: source.unicode }),
 }
 
 StoreBuffers : { content : List(Semantics.ContentSpineItem), nodes : List(Semantics.Node), occurrences : List(Semantics.ContentOccurrence), properties : List(Semantics.TextProperty) }
@@ -2017,7 +2382,7 @@ StoreBuffers : { content : List(Semantics.ContentSpineItem), nodes : List(Semant
 ## `in_language` span, which is also the effective language of the node
 ## that owns it: a node-level `/Lang` on that `Span` therefore describes all
 ## of its marked content, and no content item differs from its owner.
-place_rich : StoreBuffers, Document.NormalizedAuthoring, Document.NormalizedRich, { attributes : Semantics.Range, breaks : U64, element_identifier : [HasElementIdentifier(Semantics.ElementId), NoElementIdentifier], language : Str, node : U64, occurrence : U64, parent : Semantics.NodeId, role : Str, segments : U64, source_input : U64 }, KernelFacadeSources.Plan -> Try(StoreBuffers, KernelFacadeSemantics.Error)
+place_rich : StoreBuffers, Document.NormalizedAuthoring, Document.NormalizedRich, { attributes : Semantics.Range, breaks : U64, element_identifier : [HasElementIdentifier(Semantics.ElementId), NoElementIdentifier], language : Str, node : U64, occurrence : U64, parent : Semantics.NodeId, paragraph : U64, role : Str, segments : U64, source_input : U64 }, KernelFacadeSources.Plan -> Try(StoreBuffers, KernelFacadeSemantics.Error)
 place_rich = |buffers, authoring, rich, at, source_plan| {
 	inlines = authoring.inlines
 	base = buffers.content.len()
@@ -2037,8 +2402,14 @@ place_rich = |buffers, authoring, rich, at, source_plan| {
 	input_sources = KernelFacadeSources.Plan.input_sources(source_plan)
 	sources = KernelFacadeSources.Plan.sources(source_plan)
 	var $segment = 0
-	var $source_id = list_at(input_sources, at.source_input)
-	var $boundaries = list_at(sources, $source_id.index()).analysis.line_boundaries
+	var $source_id = Semantics.TextSourceId.from_index(0)
+	var $boundaries = []
+	ref_paragraph = Document.reference_paragraph(authoring, at.paragraph)
+	var $chunk = match ref_paragraph {
+		HasReferences(record) => record.chunks.start()
+		NoReferences => 0
+	}
+	var $active_input = U64.highest
 	var $boundary = 0
 	var $index = rich.inlines
 	end = rich.inlines + rich.length
@@ -2049,14 +2420,28 @@ place_rich = |buffers, authoring, rich, at, source_plan| {
 		position = owner_spine + record.position
 		match record.kind {
 			Text({ byte_length, byte_start, text: _ }) => {
-				# A leaf after a line break starts the next segment's source.
-				# Validated breaks separate text, so one leaf crosses at most
-				# one break.
-				if $segment + 1 < at.segments and list_at(authoring.line_breaks, at.breaks + $segment).leaf <= record.first_leaf {
-					$segment = $segment + 1
-					$source_id = list_at(input_sources, at.source_input + $segment)
+				input = match ref_paragraph {
+					HasReferences(chunks) => {
+						while $chunk < chunks.chunks.start() + chunks.chunks.length() and list_at(authoring.reference_chunks, $chunk).leaf_end <= record.first_leaf {
+							$chunk = $chunk + 1
+						}
+						match list_at(authoring.reference_chunks, $chunk).source {
+							Literal(literal) => at.source_input + literal.ordinal
+							Reference(_) => crash "literal inline matched symbolic chunk"
+						}
+					}
+					NoReferences => {
+						if $segment + 1 < at.segments and list_at(authoring.line_breaks, at.breaks + $segment).leaf <= record.first_leaf {
+							$segment = $segment + 1
+						}
+						at.source_input + $segment
+					}
+				}
+				if input != $active_input {
+					$source_id = list_at(input_sources, input)
 					$boundaries = list_at(sources, $source_id.index()).analysis.line_boundaries
 					$boundary = 0
+					$active_input = input
 				}
 				start = scalar_at($boundaries, $boundary, byte_start)?
 				finish = scalar_at($boundaries, start.index, byte_start + byte_length)?
@@ -2076,6 +2461,9 @@ place_rich = |buffers, authoring, rich, at, source_plan| {
 					),
 					text_properties: Semantics.Range.from_start_and_length(0, 0),
 				})
+			}
+			PageReference(_) => {
+				$content = list_set($content, position, ContentOccurrence(Semantics.OccurrenceId.from_index(at.occurrence + record.first_leaf)))
 			}
 			kind => {
 				node_index = at.node + 1 + record.element
@@ -2249,6 +2637,7 @@ place_table = |attributes, { content, nodes, occurrences, properties }, identifi
 								node: $cell_node,
 								occurrence: $occurrence,
 								parent: Semantics.NodeId.from_index(row_node),
+								paragraph,
 								role,
 								segments: breaks + 1,
 								source_input: $source_input,
@@ -2261,7 +2650,7 @@ place_table = |attributes, { content, nodes, occurrences, properties }, identifi
 						$properties = placed.properties
 						$ownership = list_set($ownership, $block, RichTextBlock({ label: NoLabel, level: 0, occurrences: Semantics.Range.from_start_and_length($occurrence, rich.leaves) }))
 						$occurrence = $occurrence + rich.leaves
-						$source_input = $source_input + breaks + 1
+						$source_input = $source_input + rich_source_count(authoring, paragraph, breaks)
 						$break_cursor = $break_cursor + breaks
 						$cell_node = $cell_node + 1 + rich.elements
 					}
@@ -2378,7 +2767,7 @@ inline_role = |kind| match kind {
 	InternalLink(_) | Link(_) => "Link"
 	Quote => "Quote"
 	Strong => "Strong"
-	Text(_) => "Span"
+	Text(_) | PageReference(_) => "Span"
 	FurnitureOnly => crash "furniture-only inline escaped semantic validation"
 }
 
@@ -2609,6 +2998,7 @@ test_authoring = {
 	metadata_title: "Report",
 	outline: [],
 	page_breaks: [],
+	page_scopes: [],
 	page_labels: [],
 	rich_paragraphs: [],
 	sources: [],
@@ -2978,4 +3368,135 @@ expect {
 		},
 	)
 	first.group != second.group and first.face != second.face and first.lines.start() == 0 and first.lines.length() == 2 and second.lines.start() == 2 and second.lines.length() == 2 and authoring.source_lines.len() == 4 and store.text_sources == [{ unicode: "a\nb" }] and store.nodes.len() == 5 and store.occurrences.len() == 4 and ranges == [(0, 0, 1), (0, 2, 1), (0, 0, 1), (0, 2, 1)]
+}
+
+# Symbolic leaves preserve authored semantic identities and exact literal
+# chunks. No Unicode source joins across a reference, including combining
+# marks authored on either side of the atom.
+expect {
+	authoring = rich_authoring([
+		Document.plain_text("é"),
+		Document.strong([Document.page_reference({ destination: "end", width: 24 })]),
+		Document.plain_text("x"),
+	])
+	symbolic = KernelFacadeSemantics.Symbolic.build(authoring, test_limits)?
+	view = KernelFacadeSemantics.Symbolic.view(symbolic)
+	plan = KernelFacadeSemantics.Symbolic.finalize(symbolic, ["12"])?
+	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(plan)))
+	view.literals.map(|context| context.occurrence.id.index()) == [0, 2]
+		and view.pending.map(|context| context.occurrence.index()) == [1]
+			and view.literals.map(|context| context.segment) == [0, 0]
+				and view.pending.map(|context| context.segment) == [0]
+					and KernelFacadeSources.Plan.sources(view.sources).map(|source| source.unicode) == ["é", "x"]
+						and store.occurrences.map(|occurrence| occurrence.id.index()) == [0, 1, 2]
+							and store.text_sources.map(|source| source.unicode) == ["é", "x", "12"]
+								and store.nodes.map(|node| node.role.local_name) == ["Document", "P", "Strong"]
+}
+
+# A reference-only paragraph has a real semantic leaf but no literal source
+# or shaping request. An authored break following it is an explicit
+# ActualText separator; exact reference Unicode remains the number alone.
+expect {
+	authoring = rich_authoring([
+		Document.page_reference({ destination: "end", width: 24, numbering: PageLabel }),
+		Document.line_break,
+		Document.page_reference({ destination: "start", width: 24 }),
+	])
+	symbolic = KernelFacadeSemantics.Symbolic.build(authoring, test_limits)?
+	view = KernelFacadeSemantics.Symbolic.view(symbolic)
+	plan = KernelFacadeSemantics.Symbolic.finalize(symbolic, ["iv", "1"])?
+	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(plan)))
+	view.literals.is_empty() and KernelFacadeSources.Plan.sources(view.sources).is_empty()
+		and view.pending.map(|context| context.segment) == [0, 1]
+			and store.text_sources.map(|source| source.unicode) == ["iv", "1"]
+				and store.text_properties == [ActualText("iv ")]
+					and store.occurrences.map(|occurrence| occurrence.text_properties.length()) == [1, 0]
+}
+
+# Ordinary preliminary plans cannot contain unresolved reference leaves.
+# Invalid width/name and missing or empty final labels reject atomically.
+expect {
+	authoring = rich_authoring([Document.page_reference({ destination: "end", width: 24 })])
+	symbolic = KernelFacadeSemantics.Symbolic.build(authoring, test_limits)?
+	ordinary = match KernelFacadeSemantics.Plan.build(authoring, test_limits) {
+		Err(ReferenceStageRequired) => True
+		_ => False
+	}
+	missing = match KernelFacadeSemantics.Symbolic.finalize(symbolic, []) {
+		Err(ReferenceResolution(_)) => True
+		_ => False
+	}
+	empty = match KernelFacadeSemantics.Symbolic.finalize(symbolic, [""]) {
+		Err(ReferenceResolution(_)) => True
+		_ => False
+	}
+	bad_width = match KernelFacadeSemantics.Symbolic.build(rich_authoring([Document.page_reference({ destination: "end", width: 0 })]), test_limits) {
+		Err(PageReference({ block: 0, inline: 0, reason: _ })) => True
+		_ => False
+	}
+	bad_name = match KernelFacadeSemantics.Symbolic.build(rich_authoring([Document.page_reference({ destination: "", width: 24 })]), test_limits) {
+		Err(PageReference({ block: 0, inline: 0, reason: _ })) => True
+		_ => False
+	}
+	ordinary and missing and empty and bad_width and bad_name
+}
+
+# Adjacent symbolic leaves remain independent, while final equal strings
+# intern to the same source as an existing literal without reanalysis.
+expect {
+	authoring = rich_authoring([Document.plain_text("1"), Document.page_reference({ destination: "a", width: 24 }), Document.page_reference({ destination: "b", width: 24 })])
+	symbolic = KernelFacadeSemantics.Symbolic.build(authoring, test_limits)?
+	plan = KernelFacadeSemantics.Symbolic.finalize(symbolic, ["1", "1"])?
+	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(plan)))
+	store.text_sources == [{ unicode: "1" }] and store.occurrences.len() == 3
+		and KernelFacadeSources.Plan.work(KernelFacadeSemantics.Plan.sources(plan)).unique_source_scalars == 1
+}
+
+# Content cells and generated list labels retain the same semantic spine
+# around symbolic leaves; source cursors count literal chunks rather than
+# mandatory segments when a cell contains multiple references.
+expect {
+	authoring = Document.normalize(
+		Document.from_blocks({
+			contents: [
+				Document.table({
+					body_rows: [Document.row([Document.cell([Document.plain_text("A"), Document.page_reference({ destination: "x", width: 24 }), Document.plain_text("B"), Document.page_reference({ destination: "y", width: 24 })])])],
+					caption: NoCaption,
+					columns: [{ align: Start, width: Content }],
+					footer_rows: [],
+					header_rows: [Document.row([Document.header_cell(Column, [Document.plain_text("H")])])],
+					row_split: KeepRows,
+				}),
+			],
+			language: "en",
+			title: "References",
+		}),
+	)
+	symbolic = KernelFacadeSemantics.Symbolic.build(authoring, test_limits)?
+	view = KernelFacadeSemantics.Symbolic.view(symbolic)
+	plan = KernelFacadeSemantics.Symbolic.finalize(symbolic, ["4", "9"])?
+	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(plan)))
+	view.literals.map(|context| context.occurrence.id.index()) == [0, 1, 3]
+		and view.pending.map(|context| context.occurrence.index()) == [2, 4]
+			and store.text_sources.map(|source| source.unicode) == ["H", "A", "B", "4", "9"]
+				and store.occurrences.len() == 5
+}
+
+expect {
+	authoring = Document.normalize(
+		Document.from_blocks({
+			contents: [Document.bullet_list([Document.list_item([Document.rich_paragraph([Document.page_reference({ destination: "x", width: 24 }), Document.plain_text("A")])])])],
+			language: "en",
+			title: "References",
+		}),
+	)
+	symbolic = KernelFacadeSemantics.Symbolic.build(authoring, test_limits)?
+	view = KernelFacadeSemantics.Symbolic.view(symbolic)
+	plan = KernelFacadeSemantics.Symbolic.finalize(symbolic, ["4"])?
+	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(plan)))
+	view.literals.map(|context| context.occurrence.id.index()) == [0, 2]
+		and view.literals.map(|context| context.role) == [GeneratedLabel, Body]
+			and view.literals.map(|context| context.segment) == [0, 1]
+				and view.pending.map(|context| context.segment) == [1]
+					and store.occurrences.len() == 3
 }

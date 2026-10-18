@@ -409,6 +409,39 @@ bytes = Pdf.to_bytes_with(document, { profile: Standard })?
 until PDF/UA-2 closes. The package does not read, repair, sign, encrypt,
 outline, or rasterize PDFs.
 
+## Chapter-aware page scopes
+
+`Pdf.page_scope(props, contents)` declares an explicit full-body-page scope.
+The `running_label` property is `Label("Short chapter title")` or `Reset`
+(the default). Header/footer furniture reads it through `Pdf.running_label`;
+use `Pdf.reserved_width` to reserve and check a slot. A reset resolves to no
+painted text, including when it is the only field, without inheriting the
+preceding chapter's label.
+
+`page_templates` defaults to `Inherit`. Select
+`Templates({ opening: Pdf.page_template(...), continuation: Pdf.page_template(...) })`
+for a quiet opener and a different continuation header. These templates may
+reserve different heights: every frame is fixed before pagination and its
+furniture must fit without wrapping, shrinking or clipping.
+
+The wrapper starts a fresh body page when body content precedes it, and the
+following body content starts fresh too. Adjacent boundaries coalesce without
+blank pages. Its first page is the first committed page of its contents; an
+opening frame too small for the first required placement is an error, never an
+empty opener. A scope at the start of the body may share physical page zero
+with the document's existing first-page lead; its opening header/footer/gap
+compose with that semantic lead before flow. Leaving the scope restores the
+document continuation template and resets the running label.
+
+Scopes do not add semantic headings or duplicate them in the structure tree.
+Author ordinary headings, destinations, sections and outlines explicitly.
+Scopes cannot nest or occur inside lists, callouts, table cells, figures or a
+lead region. Required keeps crossing a scope boundary fail. Every repeated
+label is a pagination artifact. Page and total-page fields still describe the
+whole document. `prepare_with_report` adds a `PageScopeApplied` outcome for
+each accepted scoped page, with its authored path, label, and
+`Opening | Continuation` placement.
+
 ## Preformatted source blocks
 
 `Pdf.source_block` owns preformatted source layout with a required registered

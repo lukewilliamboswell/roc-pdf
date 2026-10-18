@@ -7,6 +7,8 @@ import Fixture
 import pf.Metrics
 
 Case : [
+	Chapters({ chapters : U64, mode : U64 }),
+	ChapterNegatives({ context : U64 }),
 	Letter({ paragraphs : U64 }),
 	Report({ sections : U64 }),
 	Ordered({ sections : U64 }),
@@ -18,6 +20,7 @@ Case : [
 	SlotInset({ context : U64 }),
 	Typography({ pages : U64 }),
 	FurnitureGroups({ context : U64 }),
+	PageLabels({ pages : U64 }),
 ]
 
 CaseSpec : { case : Case, schema_version : U64 }
@@ -46,6 +49,8 @@ main! = |args| {
 	}
 	Metrics.reset_allocations!()
 	result = match spec.case {
+		Chapters({ chapters, mode }) => Fixture.chapters(chapters, mode)
+		ChapterNegatives({ context }) => Fixture.chapter_negatives(context)
 		Letter({ paragraphs }) => Fixture.letter(paragraphs)
 		Report({ sections }) => Fixture.report(sections)
 		Ordered({ sections }) => Fixture.ordered(sections)
@@ -57,6 +62,7 @@ main! = |args| {
 		SlotInset({ context }) => Fixture.slot_inset(context)
 		Typography({ pages }) => Fixture.typography(pages)
 		FurnitureGroups({ context }) => Fixture.furniture_groups(context)
+		PageLabels({ pages }) => Fixture.page_labels(pages)
 	}
 	match result {
 		Ok(value) => value

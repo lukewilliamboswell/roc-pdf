@@ -31,6 +31,7 @@ DocumentBlock :: [
 	Link({ text : Str, uri : Str }),
 	ListBlock({ items : List(DocumentListItem), marker : ListMarker }),
 	PageBreak,
+	PageScope(Box(PageScopeSpec)),
 	Paragraph(Str),
 	RichParagraph(List(DocumentInline)),
 
@@ -219,6 +220,9 @@ DocumentInline :: [
 	## in a number style. Page fields are resolved after pagination and are
 	## page furniture only.
 	PageNumber(PageFieldStyle),
+	PageLabel,
+	PageReference(Box(PageReferenceProps)),
+	RunningLabel,
 	Quote(List(DocumentInline)),
 
 	## Furniture inline content laid out in an exact reserved width, aligned
@@ -237,6 +241,20 @@ DocumentInline :: [
 ## compiler's code for unrelated rich paragraphs allocates once more
 ## (docs/performance/page-templates.md). The constructors convert.
 PageFieldStyle := [DecimalField, LowerAlphaField, LowerRomanField, UpperAlphaField, UpperRomanField]
+
+## A body reference reserves its width before pagination and resolves only
+## after destination pages are fixed. Numbering has a nominal vocabulary so
+## adding this body leaf does not widen unrelated inline alternatives.
+PageReferenceNumbering := [Physical, PageLabel].{
+	is_eq : _
+}
+
+PageReferenceProps := {
+	align : ColumnAlign ?? End,
+	destination : Str,
+	numbering : PageReferenceNumbering ?? Physical,
+	width : Layout.Unit,
+}.{}
 
 ReservedAlign := [CenterReserved, EndReserved, StartReserved]
 
@@ -278,6 +296,17 @@ DocumentFurniture :: [FurnitureDrawing(Scene.Drawing), FurnitureText(List(Docume
 ## down from its top edge. `NoRegion` reserves nothing.
 DocumentRegion :: [NoRegion, Region({ backdrop : Backdrop, center : List(DocumentFurniture), end : List(DocumentFurniture), height : Layout.Unit, inset : Layout.Unit, start : List(DocumentFurniture) })].{}
 
+## An explicit full-body-page scope. Templates are data fixed before flow;
+## the running label may be a short title, or explicitly reset.
+PageScopeProps := {
+	running_label : [Label(Str), Reset] ?? Reset,
+	page_templates : [Inherit, Templates({ opening : DocumentPageTemplate, continuation : DocumentPageTemplate })] ?? Inherit,
+}
+
+PageScopeSpec : { contents : List(DocumentBlock), props : PageScopeProps }
+
+NormalizedPageScope : { group : U64, running_label : Str, templates : [Inherit, Templates({ opening : NormalizedPageTemplate, continuation : NormalizedPageTemplate })] }
+
 ## A region's backdrop: a decorative drawing painted behind its slots, or
 ## none.
 Backdrop : [Backdrop(Scene.Drawing), NoBackdrop]
@@ -303,9 +332,10 @@ DocumentTemplates : [NoTemplates, Templates({ continuation : DocumentPageTemplat
 ## `inlines[k].inlines[j]`. `Unsupported` is any other inline (including a
 ## reserved width inside a reserved width), rejected by the template stage.
 NormalizedFurnitureInline : [
+	RunningLabel({ inner : [Inner(U64), Outer], position : U64 }),
 	BoxEnd,
 	BoxStart({ align : ReservedAlign, position : U64, width : Layout.Unit }),
-	Field({ field : [PageNumberField, TotalPagesField], inner : [Inner(U64), Outer], position : U64, style : PageFieldStyle }),
+	Field({ field : [PageLabelField, PageNumberField, TotalPagesField], inner : [Inner(U64), Outer], position : U64, style : PageFieldStyle }),
 	Text({ inner : [Inner(U64), Outer], position : U64, text : Str }),
 	Unsupported({ inner : [Inner(U64), Outer], position : U64 }),
 ]
@@ -525,7 +555,7 @@ TableSection : [Body, Footer, Header]
 ##
 ## `Custom` is a custom block (payload: its `customs` index): a `Div` of its
 ## paragraphs for semantics and one unsplittable unit for layout.
-NormalizedGroupKind := [Source(U64), Container(ContainerKind), Custom(U32), Callout(U32), FigureGroup(U32), ItemList(U32), KeepTogether, KeepWithNext(Keep), LeadRegion, ListItem(U32), Scope(U32), Table(U32), TableRow(TableSection)]
+NormalizedGroupKind := [Source(U64), Container(ContainerKind), Custom(U32), Callout(U32), FigureGroup(U32), ItemList(U32), KeepTogether, KeepWithNext(Keep), LeadRegion, ListItem(U32), PageScope(U32), Scope(U32), Table(U32), TableRow(TableSection)]
 
 ## The semantic role of one normalized inline. Text leaves hold their exact
 ## authored string and its byte range in the paragraph's concatenated text.
@@ -541,6 +571,7 @@ NormalizedInlineKind := [
 	InLanguage(Str),
 	InternalLink(Str),
 	Link(Str),
+	PageReference(U64),
 	Quote,
 	Strong,
 	Text({ byte_length : U64, byte_start : U64, text : Str }),
@@ -578,6 +609,20 @@ NormalizedGroup : { block_end : U64, depth : U64, first_block : U64, group_end :
 ## and the fit policy.
 NormalizedFigure := { alternative : Str, captioned : Bool, drawing : ValidatedDrawing, fit : FigurePolicy }
 
+## A reference is a semantic content leaf with no provisional Unicode.
+## `separator_after` is the explicit authored line-break normalization fact:
+## final ActualText includes its separator; shaping uses the label alone.
+NormalizedPageReference : { block : U64, inline : U64, leaf : U64, paragraph : U64, separator_after : Bool, spec : PageReferenceProps }
+
+## Literal chunks stop at every reference and mandatory authored break.
+## Byte offsets on Text leaves are relative to their chunk. `ordinal` is
+## the chunk's literal-source ordinal within this paragraph.
+ReferenceChunkSource := [Literal({ ordinal : U64, text : Str }), Reference(U64)]
+
+NormalizedReferenceChunk : { first_leaf : U64, leaf_end : U64, paragraph : U64, segment : U64, source : ReferenceChunkSource }
+
+NormalizedReferenceParagraph : { chunks : Semantics.Range, paragraph : U64, sources : U64 }
+
 NormalizedAuthoring := {
 	blocks : List(NormalizedBlock),
 	cells : List(NormalizedCell),
@@ -593,7 +638,11 @@ NormalizedAuthoring := {
 	metadata_title : Str,
 	outline : List(OutlineEntry),
 	page_breaks : List(NormalizedPageBreak),
+	page_scopes : List(NormalizedPageScope),
 	page_labels : List(PageLabelRange),
+	page_references : List(NormalizedPageReference) ?? [],
+	reference_chunks : List(NormalizedReferenceChunk) ?? [],
+	reference_paragraphs : List(NormalizedReferenceParagraph) ?? [],
 	rich_paragraphs : List(NormalizedRich),
 	scopes : List(Theme.Scope),
 	sources : List(NormalizedSource),
@@ -627,6 +676,7 @@ PageLabelRange : { prefix : Str, start_number : U64, start_page : U64, style : P
 ## and non-link annotation types have no representation and therefore no
 ## runtime rejection here.
 NavigationError : [
+	NavigationPlanContextMismatch,
 	AnnotationCountMismatch({ navigation : U64, semantics : U64 }),
 	AnnotationLimitExceeded({ attempted : U64, limit : U64 }),
 	AnnotationPageOutOfRange({ annotation : U64, attempted : U64, pages : U64 }),
@@ -885,7 +935,31 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	NormalizedPageTemplate : NormalizedPageTemplate
 	NormalizedFurniture : NormalizedFurniture
 	NormalizedFurnitureInline : NormalizedFurnitureInline
+	NormalizedPageScope : NormalizedPageScope
+	PageScopeProps : PageScopeProps
 	NormalizedRegion : NormalizedRegion
+	PageReferenceProps : PageReferenceProps
+	PageReferenceNumbering : PageReferenceNumbering
+	NormalizedPageReference : NormalizedPageReference
+	NormalizedReferenceChunk : NormalizedReferenceChunk
+	NormalizedReferenceParagraph : NormalizedReferenceParagraph
+	ReferenceChunkSource : ReferenceChunkSource
+	reference_paragraph : NormalizedAuthoring, U64 -> [HasReferences(NormalizedReferenceParagraph), NoReferences]
+	reference_paragraph = |authoring, paragraph| {
+		var $low = 0
+		var $high = authoring.reference_paragraphs.len()
+		while $low < $high {
+			middle = $low + ($high - $low) // 2
+			record = list_at(authoring.reference_paragraphs, middle)
+			if record.paragraph < paragraph {
+				$low = middle + 1
+			} else {
+				$high = middle
+			}
+		}
+		if $low < authoring.reference_paragraphs.len() and list_at(authoring.reference_paragraphs, $low).paragraph == paragraph HasReferences(list_at(authoring.reference_paragraphs, $low)) else NoReferences
+	}
+
 	PageFieldStyle : PageFieldStyle
 	ReservedAlign : ReservedAlign
 
@@ -1137,8 +1211,22 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	furniture_image : Scene.Drawing -> DocumentFurniture
 	furniture_image = |drawing_value| DocumentFurniture.FurnitureDrawing(drawing_value)
 
+	page_scope : PageScopeProps, List(DocumentBlock) -> DocumentBlock
+	page_scope = |props, contents| DocumentBlock.PageScope(Box.box({ contents, props }))
+
+	running_label : DocumentInline
+	running_label = DocumentInline.RunningLabel
+
 	page_number : NumberStyle -> DocumentInline
 	page_number = |style| DocumentInline.PageNumber(page_field_style(style))
+
+	## The configured PDF page label, including its prefix and restarted
+	## numbering; defaults to physical decimal numbering without ranges.
+	page_label : DocumentInline
+	page_label = DocumentInline.PageLabel
+
+	page_reference : PageReferenceProps -> DocumentInline
+	page_reference = |spec| DocumentInline.PageReference(Box.box(spec))
 
 	total_pages : NumberStyle -> DocumentInline
 	total_pages = |style| DocumentInline.TotalPages(page_field_style(style))
@@ -1372,7 +1460,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	normalize = |document| match document.templates {
 		NoTemplates => {
 			normalized = normalize_authoring(document.authoring, empty_state)
-			{ ..normalized, outline: document.outline, page_labels: document.page_labels }
+			finish_reference_chunks({ ..normalized, outline: document.outline, page_labels: document.page_labels })
 		}
 		Templates({ continuation, first }) => {
 			lead = match first.lead {
@@ -1385,9 +1473,79 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 				first: { footer: normalize_region(first.footer), gap: first.gap, header: normalize_region(first.header) },
 				lead: lead.height,
 			})
-			{ ..normalized, outline: document.outline, page_labels: document.page_labels, templates }
+			finish_reference_chunks({ ..normalized, outline: document.outline, page_labels: document.page_labels, templates })
 		}
 	}
+}
+
+finish_reference_chunks : NormalizedAuthoring -> NormalizedAuthoring
+finish_reference_chunks = |authoring| {
+	if authoring.page_references.is_empty() {
+		return authoring
+	}
+	var $chunks = []
+	var $paragraphs = []
+	var $reference = 0
+	var $break = 0
+	while $reference < authoring.page_references.len() {
+		paragraph = list_at(authoring.page_references, $reference).paragraph
+		rich = list_at(authoring.rich_paragraphs, paragraph)
+		while $break < authoring.line_breaks.len() and list_at(authoring.line_breaks, $break).paragraph < paragraph {
+			$break = $break + 1
+		}
+		first_chunk = $chunks.len()
+		var $segment = 0
+		var $ordinal = 0
+		var $texts = []
+		var $first_leaf = 0
+		var $leaf_end = 0
+		var $index = rich.inlines
+		while $index < rich.inlines + rich.length {
+			record = list_at(authoring.inlines, $index)
+			match record.kind {
+				Text(_) | PageReference(_) => {
+					if $break < authoring.line_breaks.len() and list_at(authoring.line_breaks, $break).paragraph == paragraph and list_at(authoring.line_breaks, $break).leaf <= record.first_leaf {
+						if !$texts.is_empty() {
+							$chunks = $chunks.append({ first_leaf: $first_leaf, leaf_end: $leaf_end, paragraph, segment: $segment, source: Literal({ ordinal: $ordinal, text: Str.join_with($texts, "") }) })
+							$texts = []
+							$ordinal = $ordinal + 1
+						}
+						$segment = $segment + 1
+						$break = $break + 1
+					}
+					match record.kind {
+						Text({ text, byte_length: _, byte_start: _ }) => {
+							if $texts.is_empty() {
+								$first_leaf = record.first_leaf
+							}
+							$texts = $texts.append(text)
+							$leaf_end = record.leaf_end
+						}
+						PageReference(reference) => {
+							if !$texts.is_empty() {
+								$chunks = $chunks.append({ first_leaf: $first_leaf, leaf_end: $leaf_end, paragraph, segment: $segment, source: Literal({ ordinal: $ordinal, text: Str.join_with($texts, "") }) })
+								$texts = []
+								$ordinal = $ordinal + 1
+							}
+							$chunks = $chunks.append({ first_leaf: record.first_leaf, leaf_end: record.leaf_end, paragraph, segment: $segment, source: Reference(reference) })
+						}
+						_ => crash "reference chunk leaf escaped"
+					}
+				}
+				_ => {}
+			}
+			$index = $index + 1
+		}
+		if !$texts.is_empty() {
+			$chunks = $chunks.append({ first_leaf: $first_leaf, leaf_end: $leaf_end, paragraph, segment: $segment, source: Literal({ ordinal: $ordinal, text: Str.join_with($texts, "") }) })
+			$ordinal = $ordinal + 1
+		}
+		$paragraphs = $paragraphs.append({ chunks: Semantics.Range.from_start_and_length(first_chunk, $chunks.len() - first_chunk), paragraph, sources: $ordinal })
+		while $reference < authoring.page_references.len() and list_at(authoring.page_references, $reference).paragraph == paragraph {
+			$reference = $reference + 1
+		}
+	}
+	{ ..authoring, reference_chunks: $chunks, reference_paragraphs: $paragraphs }
 }
 
 normalize_region : DocumentRegion -> NormalizedRegion
@@ -1433,17 +1591,19 @@ furniture_leaf : DocumentInline, U64, [Inner(U64), Outer] -> NormalizedFurniture
 furniture_leaf = |inline, position, inner| match inline {
 	Text(text) => Text({ inner, position, text })
 	PageNumber(style) => Field({ field: PageNumberField, inner, position, style })
+	PageLabel => Field({ field: PageLabelField, inner, position, style: DecimalField })
+	RunningLabel => RunningLabel({ inner, position })
 	TotalPages(style) => Field({ field: TotalPagesField, inner, position, style })
 	_ => Unsupported({ inner, position })
 }
 
 empty_state : SimpleState
-empty_state = { source_bytes: 0, source_exhaustion: NoSourceExhaustion, blocks: [], cells: [], customs: [], callouts: [], decorations: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], rich_paragraphs: [], scopes: [], source_foregrounds: [], source_lines: [], sources: [], spacers: [], tables: [] }
+empty_state = { page_references: [], source_bytes: 0, source_exhaustion: NoSourceExhaustion, blocks: [], cells: [], customs: [], callouts: [], decorations: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], page_scopes: [], rich_paragraphs: [], scopes: [], source_foregrounds: [], source_lines: [], sources: [], spacers: [], tables: [] }
 
 normalize_authoring : DocumentAuthoring, SimpleState -> NormalizedAuthoring
 normalize_authoring = |authoring, initial| match authoring {
 	Compact(compact) => normalize_compact(compact, initial)
-	Fixed(fixed) => { blocks: [], cells: [], customs: [], callouts: [], decorations: [], figures: [], groups: [], inlines: [], language: fixed.language, line_breaks: [], lists: [], metadata_title: fixed.metadata_title, outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], scopes: [], source_foregrounds: [], source_lines: [], sources: [], spacers: [], tables: [], templates: NoTemplates }
+	Fixed(fixed) => { blocks: [], cells: [], customs: [], callouts: [], decorations: [], figures: [], groups: [], inlines: [], language: fixed.language, line_breaks: [], lists: [], metadata_title: fixed.metadata_title, outline: [], page_breaks: [], page_scopes: [], page_labels: [], rich_paragraphs: [], scopes: [], source_foregrounds: [], source_lines: [], sources: [], spacers: [], tables: [], templates: NoTemplates }
 	Simple(simple) => normalize_simple(simple, initial)
 }
 
@@ -1453,6 +1613,10 @@ first_unavailable_block = |blocks| {
 	while $index < blocks.len() {
 		match list_at(blocks, $index) {
 			Container({ contents, kind: _ }) => match first_unavailable_nested(contents) {
+				Available => {}
+				UnavailableFeature(found) => return UnavailableFeature(found)
+			}
+			PageScope(spec) => match first_unavailable_nested(Box.unbox(spec).contents) {
 				Available => {}
 				UnavailableFeature(found) => return UnavailableFeature(found)
 			}
@@ -1505,6 +1669,9 @@ first_unavailable_nested = |contents| {
 			match list_at(top.blocks, top.next) {
 				Container({ contents: nested, kind: _ }) => {
 					$frames = $frames.append({ blocks: nested, next: 0 })
+				}
+				PageScope(spec) => {
+					$frames = $frames.append({ blocks: Box.unbox(spec).contents, next: 0 })
 				}
 				Custom(spec) => {
 					$frames = $frames.append({ blocks: Box.unbox(spec).contents, next: 0 })
@@ -1602,12 +1769,14 @@ normalize_compact = |compact, initial| {
 		figures: initial.figures,
 		groups: initial.groups,
 		inlines: initial.inlines,
+		page_references: initial.page_references,
 		language: compact.language,
 		line_breaks: initial.line_breaks,
 		lists: initial.lists,
 		metadata_title: compact.metadata_title,
 		outline: [],
 		page_breaks: initial.page_breaks,
+		page_scopes: initial.page_scopes,
 		page_labels: [],
 		rich_paragraphs: initial.rich_paragraphs,
 		scopes: initial.scopes,
@@ -1633,10 +1802,12 @@ SimpleState : {
 	figures : List(NormalizedFigure),
 	groups : List(NormalizedGroup),
 	inlines : List(NormalizedInline),
+	page_references : List(NormalizedPageReference),
 	line_breaks : List(NormalizedLineBreak),
 	list_index : U64,
 	lists : List(NormalizedList),
 	page_breaks : List(NormalizedPageBreak),
+	page_scopes : List(NormalizedPageScope),
 	rich_paragraphs : List(NormalizedRich),
 	scopes : List(Theme.Scope),
 	sources : List(NormalizedSource),
@@ -1664,12 +1835,14 @@ normalize_simple = |simple, initial| {
 		figures: $state.figures,
 		groups: $state.groups,
 		inlines: $state.inlines,
+		page_references: $state.page_references,
 		language: simple.language,
 		line_breaks: $state.line_breaks,
 		lists: $state.lists,
 		metadata_title: simple.metadata_title,
 		outline: [],
 		page_breaks: $state.page_breaks,
+		page_scopes: $state.page_scopes,
 		page_labels: [],
 		rich_paragraphs: $state.rich_paragraphs,
 		scopes: $state.scopes,
@@ -1684,7 +1857,7 @@ normalize_simple = |simple, initial| {
 
 is_grouping : DocumentBlock -> Bool
 is_grouping = |block| match block {
-	Container(_) | Custom(_) | Callout(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) | Scoped(_) => True
+	Container(_) | Custom(_) | Callout(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) | PageScope(_) | Scoped(_) => True
 	_ => False
 }
 
@@ -1773,6 +1946,20 @@ open_block_group = |state, block, parent, depth, list_depth, position| match blo
 		opened = open_group(state, KeepWithNext(keep), parent, depth, position)
 		{ frame: { blocks: contents, depth, group: opened.groups.len(), items: [], list_depth, listing: False, next: 0 }, state: opened }
 	}
+	PageScope(boxed) => {
+		spec = Box.unbox(boxed)
+		index = state.page_scopes.len()
+		label = match spec.props.running_label {
+			Label(text) => text
+			Reset => ""
+		}
+		templates = match spec.props.page_templates {
+			Inherit => Inherit
+			Templates({ opening, continuation }) => Templates({ opening: { header: normalize_region(opening.header), footer: normalize_region(opening.footer), gap: opening.gap }, continuation: { header: normalize_region(continuation.header), footer: normalize_region(continuation.footer), gap: continuation.gap } })
+		}
+		opened = open_group({ ..state, page_scopes: state.page_scopes.append({ group: state.groups.len(), running_label: label, templates }) }, PageScope(index.to_u32_wrap()), parent, depth, position)
+		{ frame: { blocks: spec.contents, depth, group: opened.groups.len(), items: [], list_depth, listing: False, next: 0 }, state: opened }
+	}
 	Scoped(boxed) => {
 		scoped = Box.unbox(boxed)
 		index = state.scopes.len()
@@ -1813,7 +2000,7 @@ append_leaf = |state, block, parent, position| match block {
 		}
 		{ ..state, blocks: $blocks, list_index: state.list_index + 1 }
 	}
-	Container(_) | Custom(_) | Callout(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) | Scoped(_) => {
+	Container(_) | Custom(_) | Callout(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) | PageScope(_) | Scoped(_) => {
 		crash "normalized group escaped the frame walk"
 	}
 	DestinationHeading({ level, name, text }) => { ..state, blocks: state.blocks.append({ kind: DestinationHeading({ level, name }), parent, text }) }
@@ -2382,6 +2569,9 @@ append_rich = |state, contents, parent, position| {
 	first_break = state.line_breaks.len()
 	var $inlines = state.inlines
 	var $line_breaks = state.line_breaks
+	var $references = state.page_references
+	first_reference = $references.len()
+	var $last_reference = 0
 	var $elements = 0
 	var $leaves = 0
 	var $bytes = 0
@@ -2410,6 +2600,10 @@ append_rich = |state, contents, parent, position| {
 					## segment's byte cursor restarts below, so no offset
 					## moves.
 					$inlines = separate_leaf($inlines, $last_text, base)
+					if $last_reference != 0 {
+						reference = list_at($references, $last_reference - 1)
+						$references = list_set($references, $last_reference - 1, { ..reference, separator_after: True })
+					}
 					$line_breaks = $line_breaks.append({ leaf: $leaves, paragraph, parent: top.owner, position: top.next, text: "" })
 					$frames = list_set($frames, $frames.len() - 1, { ..top, breaks: top.breaks + 1, next: top.next + 1 })
 					$bytes = 0
@@ -2418,6 +2612,7 @@ append_rich = |state, contents, parent, position| {
 					length = value.count_utf8_bytes()
 					$inlines = $inlines.append({ children: 0, depth: top.depth, element: 0, first_leaf: $leaves, kind: Text({ byte_length: length, byte_start: $bytes, text: value }), language: top.language, leaf_end: $leaves + 1, parent: top.owner, position: slot, spine: 0 })
 					$last_text = $inlines.len()
+					$last_reference = 0
 					$leaves = $leaves + 1
 					$bytes = $bytes + length
 				}
@@ -2426,6 +2621,7 @@ append_rich = |state, contents, parent, position| {
 					$inlines = $inlines.append({ ..inline_element(top, slot, Code, 1, $elements, $leaves), leaf_end: $leaves + 1 })
 					$inlines = $inlines.append({ children: 0, depth: top.depth + 1, element: 0, first_leaf: $leaves, kind: Text({ byte_length: length, byte_start: $bytes, text: value }), language: top.language, leaf_end: $leaves + 1, parent: index + 1, position: 0, spine: 0 })
 					$last_text = $inlines.len()
+					$last_reference = 0
 					$elements = $elements + 1
 					$leaves = $leaves + 1
 					$bytes = $bytes + length
@@ -2435,6 +2631,7 @@ append_rich = |state, contents, parent, position| {
 					$inlines = $inlines.append({ ..inline_element(top, slot, Expansion(expanded), 1, $elements, $leaves), leaf_end: $leaves + 1 })
 					$inlines = $inlines.append({ children: 0, depth: top.depth + 1, element: 0, first_leaf: $leaves, kind: Text({ byte_length: length, byte_start: $bytes, text: value }), language: top.language, leaf_end: $leaves + 1, parent: index + 1, position: 0, spine: 0 })
 					$last_text = $inlines.len()
+					$last_reference = 0
 					$elements = $elements + 1
 					$leaves = $leaves + 1
 					$bytes = $bytes + length
@@ -2470,9 +2667,19 @@ append_rich = |state, contents, parent, position| {
 					$elements = $elements + 1
 				}
 
+				PageReference(boxed) => {
+					reference = $references.len()
+					$references = $references.append({ block: state.blocks.len(), inline: index, leaf: $leaves, paragraph, separator_after: False, spec: Box.unbox(boxed) })
+					$inlines = $inlines.append({ children: 0, depth: top.depth, element: 0, first_leaf: $leaves, kind: PageReference(reference), language: top.language, leaf_end: $leaves + 1, parent: top.owner, position: slot, spine: 0 })
+					$last_reference = reference + 1
+					$last_text = 0
+					$leaves = $leaves + 1
+					$bytes = 0
+				}
+
 				## Furniture-only inlines hold no text here; semantic
 				## planning rejects them with their inline path.
-				PageNumber(_) | ReservedWidth(_) | TotalPages(_) => {
+				PageLabel | PageNumber(_) | RunningLabel | ReservedWidth(_) | TotalPages(_) => {
 					$inlines = $inlines.append(inline_element(top, slot, FurnitureOnly, 0, $elements, $leaves))
 					$elements = $elements + 1
 				}
@@ -2488,7 +2695,7 @@ append_rich = |state, contents, parent, position| {
 	while $index < $inlines.len() {
 		record = list_at($inlines, $index)
 		match record.kind {
-			Text(_) => {}
+			Text(_) | PageReference(_) => {}
 			_ => {
 				$inlines = list_set($inlines, $index, { ..record, spine: $spine })
 				$spine = $spine + record.children
@@ -2497,9 +2704,14 @@ append_rich = |state, contents, parent, position| {
 		$index = $index + 1
 	}
 	rich = { children, elements: $elements, inlines: base, leaves: $leaves, length: $inlines.len() - base, position }
+	if $references.len() != first_reference {
+		## No concatenated paragraph source can cross a symbolic atom. The
+		## explicit chunk pass below supplies its literal sources instead.
+		return { ..state, blocks: state.blocks.append({ kind: RichParagraph(paragraph), parent, text: "" }), inlines: $inlines, line_breaks: $line_breaks, page_references: $references, rich_paragraphs: state.rich_paragraphs.append(rich) }
+	}
 	if $line_breaks.len() == first_break {
 		text = if $leaves == 1 single_leaf_text($inlines, base) else concatenated_text($inlines, base, $bytes)
-		return { ..state, blocks: state.blocks.append({ kind: RichParagraph(paragraph), parent, text }), inlines: $inlines, line_breaks: $line_breaks, rich_paragraphs: state.rich_paragraphs.append(rich) }
+		return { ..state, blocks: state.blocks.append({ kind: RichParagraph(paragraph), parent, text }), inlines: $inlines, line_breaks: $line_breaks, page_references: $references, rich_paragraphs: state.rich_paragraphs.append(rich) }
 	}
 	segments = segment_texts($inlines, base, $line_breaks, first_break)
 	var $index_break = first_break
@@ -2508,7 +2720,7 @@ append_rich = |state, contents, parent, position| {
 		$line_breaks = list_set($line_breaks, $index_break, { ..record, text: list_at(segments, $index_break - first_break + 1) })
 		$index_break = $index_break + 1
 	}
-	{ ..state, blocks: state.blocks.append({ kind: RichParagraph(paragraph), parent, text: list_at(segments, 0) }), inlines: $inlines, line_breaks: $line_breaks, rich_paragraphs: state.rich_paragraphs.append(rich) }
+	{ ..state, blocks: state.blocks.append({ kind: RichParagraph(paragraph), parent, text: list_at(segments, 0) }), inlines: $inlines, line_breaks: $line_breaks, page_references: $references, rich_paragraphs: state.rich_paragraphs.append(rich) }
 }
 
 ## The text leaf `last_text - 1` before a line break, ending in U+0020: the
