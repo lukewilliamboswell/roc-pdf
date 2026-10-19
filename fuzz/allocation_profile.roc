@@ -65,6 +65,7 @@ run! = |workload| {
 							total = fonts.allocations + document.allocations + prepared.allocations + emitted.allocations
 							report!(name, "total", total)
 							report!(name, "pdf_bytes", output.len())
+							report!(name, "pdf_fnv", fnv(output))
 							0
 						}
 					}
@@ -81,6 +82,18 @@ run_kernel! = |kernel| {
 	report!(kernel.name, "total", measured.allocations)
 	report!(kernel.name, "output", measured.value)
 	0
+}
+
+## FNV-1a over the PDF, so a change that alters output bytes shows up in the
+## profile even when the length is unchanged. Independent of the package's
+## own hashing on purpose.
+fnv : List(U8) -> U64
+fnv = |bytes| {
+	var $hash = 14695981039346656037
+	for byte in bytes {
+		$hash = U64.times_wrap($hash.bitwise_xor(byte.to_u64()), 1099511628211)
+	}
+	$hash
 }
 
 report! : Str, Str, U64 => {}

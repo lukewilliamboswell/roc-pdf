@@ -74,6 +74,11 @@ def measure(binary: Path) -> dict[str, dict[str, int]]:
 
 def table(current: dict[str, dict[str, int]], previous: dict[str, dict[str, int]] | None) -> str:
     stages = ("fonts", "prepare", "emit", "total", "pdf_bytes")
+    changed = [
+        name
+        for name, values in current.items()
+        if "pdf_fnv" in values and (previous or {}).get(name, {}).get("pdf_fnv") not in (None, values["pdf_fnv"])
+    ]
     lines = [f"{'workload':<24}" + "".join(f"{stage:>22}" for stage in stages)]
     for name, values in current.items():
         cells = []
@@ -86,6 +91,8 @@ def table(current: dict[str, dict[str, int]], previous: dict[str, dict[str, int]
                 change = (value - before) * 100 / before if before else 0.0
                 cells.append(f"{f'{value} ({change:+.1f}%)':>22}")
         lines.append(f"{name:<24}" + "".join(cells))
+    if changed:
+        lines.append(f"PDF BYTES CHANGED: {', '.join(changed)}")
     return "\n".join(lines)
 
 
