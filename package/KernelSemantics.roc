@@ -1,3 +1,4 @@
+import KernelLex
 import Semantics
 
 KernelSemantics :: [].{
@@ -696,8 +697,8 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 		ensure_all_owned($artifact_owners, ContextualArtifactIndex)?
 		ensure_all_owned($attribute_owners, AttributeIndex)?
 		ensure_all_owned($identifier_owners, ElementIdentifierIndex)?
-		keys = validate_identifiers(store.element_identifiers)?
-		attribute_checks = validate_attributes(store, keys)?
+		validate_identifiers(store.element_identifiers)?
+		attribute_checks = validate_attributes(store)?
 		relationship_visits = validate_relationships(store)?
 		association_checks = validate_header_associations(store)?
 		Ok({
@@ -791,35 +792,29 @@ valid_language_tag = |tag| {
 ## Element identifiers are dense, non-empty, and stored in strictly
 ## ascending byte order of their values. Order is a normalized-store
 ## invariant: uniqueness is one adjacent comparison per identifier and the
-## IDTree lowers the same order without sorting. The returned keys serve
-## `/Headers` target lookups by binary search.
-validate_identifiers : List(Semantics.ElementIdentifier) -> Try(List(List(U8)), KernelSemantics.Error)
+## IDTree lowers the same order without sorting, and `/Headers` targets are
+## found by binary search over the identifiers themselves.
+validate_identifiers : List(Semantics.ElementIdentifier) -> Try({}, KernelSemantics.Error)
 validate_identifiers = |identifiers| {
-	if identifiers.is_empty() {
-		return Ok([])
-	}
-	var $keys = List.with_capacity(identifiers.len())
 	var $index = 0
 	while $index < identifiers.len() {
 		identifier = list_at(identifiers, $index)
 		if identifier.id.index() != $index {
 			return Err(NonDenseIdentity({ actual: identifier.id.index(), expected: $index, kind: ElementIdentifierIndex }))
 		}
-		key = Str.to_utf8(identifier.value)
-		if key.is_empty() {
+		if identifier.value.is_empty() {
 			return Err(EmptyElementIdentifier({ element: $index }))
 		}
 		if $index > 0 {
-			match compare_bytes(list_at($keys, $index - 1), key) {
+			match KernelLex.compare_utf8(list_at(identifiers, $index - 1).value, identifier.value) {
 				Less => {}
 				Equal => return Err(DuplicateElementIdentifier({ first: $index - 1, second: $index }))
 				Greater => return Err(ElementIdentifierOrder({ element: $index }))
 			}
 		}
-		$keys = $keys.append(key)
 		$index = $index + 1
 	}
-	Ok($keys)
+	Ok({})
 }
 
 AttributeCheck := [AttributeBit(U64), HeadersBit(List(Str)), InvalidAttributeCheck]
@@ -828,8 +823,8 @@ AttributeCheck := [AttributeBit(U64), HeadersBit(List(Str)), InvalidAttributeChe
 ## they sit on (ISO 32000-2 14.8.5.4 List and 14.8.5.7 Table attributes).
 ## Each name occurs at most once per node, and every `/Headers` value names
 ## an existing element identifier.
-validate_attributes : Semantics.Store, List(List(U8)) -> Try(U64, KernelSemantics.Error)
-validate_attributes = |store, keys| {
+validate_attributes : Semantics.Store -> Try(U64, KernelSemantics.Error)
+validate_attributes = |store| {
 	if store.attributes.is_empty() {
 		return Ok(0)
 	}
@@ -850,7 +845,7 @@ validate_attributes = |store, keys| {
 					HeadersBit(header_ids) => {
 						var $target = 0
 						while $target < header_ids.len() {
-							if !contains_key(keys, Str.to_utf8(list_at(header_ids, $target))) {
+							if !contains_identifier(store.element_identifiers, list_at(header_ids, $target)) {
 								return Err(UnknownAttributeTarget({ attribute: $attribute, node: $node_index }))
 							}
 							$checks = $checks + 1
@@ -935,14 +930,14 @@ valid_list_numbering : Str -> Bool
 valid_list_numbering = |value|
 	value == "None" or value == "Unordered" or value == "Description" or value == "Disc" or value == "Circle" or value == "Square" or value == "Ordered" or value == "Decimal" or value == "UpperRoman" or value == "LowerRoman" or value == "UpperAlpha" or value == "LowerAlpha"
 
-contains_key : List(List(U8)), List(U8) -> Bool
-contains_key = |keys, key| {
+contains_identifier : List(Semantics.ElementIdentifier), Str -> Bool
+contains_identifier = |identifiers, key| {
 	var $low = 0
-	var $high = keys.len()
+	var $high = identifiers.len()
 	var $found = False
 	while !$found and $low < $high {
 		middle = $low + ($high - $low) // 2
-		match compare_bytes(list_at(keys, middle), key) {
+		match KernelLex.compare_utf8(list_at(identifiers, middle).value, key) {
 			Equal => {
 				$found = True
 			}
@@ -955,32 +950,6 @@ contains_key = |keys, key| {
 		}
 	}
 	$found
-}
-
-compare_bytes : List(U8), List(U8) -> [Equal, Greater, Less]
-compare_bytes = |left, right| {
-	shared = U64.min(left.len(), right.len())
-	var $index = 0
-	var $ordering = Equal
-	while $ordering == Equal and $index < shared {
-		a = list_at(left, $index)
-		b = list_at(right, $index)
-		if a < b {
-			$ordering = Less
-		} else if a > b {
-			$ordering = Greater
-		}
-		$index = $index + 1
-	}
-	if $ordering != Equal {
-		$ordering
-	} else if left.len() < right.len() {
-		Less
-	} else if left.len() > right.len() {
-		Greater
-	} else {
-		Equal
-	}
 }
 
 ## Typed non-parental relations. `HeaderFor` links a TH or TD cell to a TH

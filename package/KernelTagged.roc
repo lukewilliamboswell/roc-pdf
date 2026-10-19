@@ -1,6 +1,7 @@
+import Image
+import KernelLex
 import KernelScene
 import KernelSemantics
-import Image
 import Layout
 import Scene
 import Semantics
@@ -616,12 +617,6 @@ expect {
 lowered_identifier_flags : Semantics.Store -> List(Bool)
 lowered_identifier_flags = |store| {
 	count = store.element_identifiers.len()
-	var $keys = List.with_capacity(count)
-	var $key = 0
-	while $key < count {
-		$keys = $keys.append(Str.to_utf8(list_at(store.element_identifiers, $key).value))
-		$key = $key + 1
-	}
 	var $referenced = List.repeat(False, count)
 	var $attribute = 0
 	while $attribute < store.attributes.len() {
@@ -629,7 +624,7 @@ lowered_identifier_flags = |store| {
 			{ name: Standard("Headers"), value: Names(values), .. } => {
 				var $value = 0
 				while $value < values.len() {
-					match identifier_position($keys, Str.to_utf8(list_at(values, $value))) {
+					match identifier_position(store.element_identifiers, list_at(values, $value)) {
 						Found(position) => {
 							$referenced = list_set($referenced, position, True)
 						}
@@ -662,13 +657,13 @@ lowered_identifier_flags = |store| {
 
 ## Element identifiers are validated unique and in ascending byte order, so a
 ## `/Headers` name is found by binary search over their bytes.
-identifier_position : List(List(U8)), List(U8) -> [Found(U64), Missing]
-identifier_position = |keys, target| {
+identifier_position : List(Semantics.ElementIdentifier), Str -> [Found(U64), Missing]
+identifier_position = |identifiers, target| {
 	var $low = 0
-	var $high = keys.len()
+	var $high = identifiers.len()
 	while $low < $high {
 		middle = $low + U64.div_by($high - $low, 2)
-		order = compare_bytes(list_at(keys, middle), target)
+		order = KernelLex.compare_utf8(list_at(identifiers, middle).value, target)
 		if order == Equal {
 			return Found(middle)
 		} else if order == Less {
@@ -678,23 +673,6 @@ identifier_position = |keys, target| {
 		}
 	}
 	Missing
-}
-
-compare_bytes : List(U8), List(U8) -> [Equal, Greater, Less]
-compare_bytes = |left, right| {
-	shared = U64.min(left.len(), right.len())
-	var $index = 0
-	while $index < shared {
-		l = left.get($index) ?? 0
-		r = right.get($index) ?? 0
-		if l < r {
-			return Less
-		} else if l > r {
-			return Greater
-		}
-		$index = $index + 1
-	}
-	if (left.len() < right.len()) Less else if (left.len() > right.len()) Greater else Equal
 }
 
 count_true : List(Bool) -> U64
