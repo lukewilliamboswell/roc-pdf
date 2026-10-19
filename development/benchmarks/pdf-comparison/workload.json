@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "title": "Monthly operations report",
+  "paragraphs": [
+    "Harbour Services completed the May reporting period with steady demand across its three service teams. This report summarises completed work, response times and the actions planned for the next month.",
+    "The team completed 128 requests and met its response target on 121 of them. Seven requests needed specialist review. All outstanding reviews now have an assigned owner and a planned completion date.",
+    "Next month the team will update the intake checklist, review the remaining exceptions and reserve two training sessions for new staff. The service manager will review progress at the next monthly meeting."
+  ],
+  "headers": ["Service team", "Completed", "Within target"],
+  "rows": [
+    ["Customer support", "64", "62"],
+    ["Field services", "41", "38"],
+    ["Specialist review", "23", "21"],
+    ["Total", "128", "121"]
+  ],
+  "footer": "Harbour Services | Internal operations | May 2026",
+  "revision": "Trial revision A.",
+  "edited_revision": "Trial revision B: updated."
+}
