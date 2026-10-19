@@ -470,6 +470,14 @@ Pdf :: [].{
         OwnChunks,
     ]
 
+    ## File size against generation time. Every choice writes the same
+    ## content, structure, and conformance; only compressed bytes differ.
+    Compression := [
+        Balanced,
+        Fastest,
+        Smallest,
+    ]
+
     ## A transparent record whose fields all default; `{}` is the
     ## production default and a caller names only what it changes.
     Options := {
@@ -477,6 +485,7 @@ Pdf :: [].{
         page_size : PageSize ?? A4,
         theme : Theme ?? {},
         fonts : FontSource ?? BuiltIn,
+        compression : Compression ?? Balanced,
         chunk_retention : ChunkRetention ?? ShareUnchangedResources,
     }.{
         default : Options
@@ -698,6 +707,9 @@ unfinished claim is never selected implicitly. The enduring defaults are:
 - The pinned sRGB output intent and color-managed static profile.
 - Deterministic object planning, metadata, identifiers, compression, and byte
   output.
+- `Balanced` stream compression. `Smallest` (smaller files, slower
+  generation) and `Fastest` (larger files, faster generation) are explicit
+  choices that change only compressed bytes.
 - Chunked output shares unchanged final-form resources by default; callers that
   retain or queue chunks can request bounded owned chunks without changing
   bytes.
@@ -1451,6 +1463,25 @@ are explicit and checked before an outline plan can escape.
 Every generated stream payload (page and form content, font programs,
 ToUnicode CMaps, ICC profiles, image samples, and masks) is FlateDecode through
 the package compressor seam. Validated JPEG data keeps DCTDecode unchanged.
+
+The DEFLATE level is a sealed plan fact, not an emission constant. The author
+chooses one of three package-versioned presets through `Pdf.Options.compression`:
+`Fastest`, `Balanced` (the default), or `Smallest`. Preparation maps the
+choice to the compressor seam's level and seals it into the plan beside the
+objects, and emission compresses every stream, object stream, and the
+cross-reference stream at that level. `Pdf.Prepared` therefore carries it, and
+buffered, chunked, prepared, and one-shot output agree byte for byte for each
+choice. The level changes no other planning fact. The output bound is the
+level-independent stored-block bound, and the plan identity, and so the file
+identifier, digests normalized plan facts rather than compressed bytes, so
+the presets of one document share an identifier and differ only in their
+compressed streams. The presets are a closed set rather than a numeric level:
+each one is a reviewed byte contract with its own size, time, and allocation
+evidence, recorded in
+[`development/performance/output-size.md`](development/performance/output-size.md).
+`Balanced` is the default because it generates about ten times faster than
+`Smallest` for a modest size increase; `Smallest` keeps the package's previous
+bytes exactly.
 The XMP metadata stream stays unfiltered because PDF/A-4 requires it. A
 CIDFontType2 whose CIDs are its subset glyph IDs, which font planning
 guarantees, declares `/CIDToGIDMap /Identity` rather than carrying an identity
@@ -1503,7 +1534,8 @@ Determinism is part of the public contract:
 - IDs and names are assigned during planning, not public document construction.
 - Names, strings, XML, and content tokens use canonical escaping.
 - Dictionary and XMP property ordering is defined.
-- Newlines and compression parameters are fixed.
+- Newlines are fixed. Compression parameters are fixed for each
+  `Pdf.Compression` choice, and preparation seals the choice into the plan.
 - A prepared glyph run is written as baseline segments: one `Td` to the
   exact position of the segment's first glyph and one `TJ` array whose
   adjustments round to a tenth of a thousandth of text space with the error
@@ -1555,7 +1587,8 @@ data, and views into large internal stores are never shared this way.
 `Pdf.Options.default` selects `ShareUnchangedResources`, optimized for a sink
 that consumes and releases each chunk before requesting the next one. The
 choice affects allocation, copying, and retention only; it cannot affect PDF
-bytes. `Pdf.to_bytes` necessarily copies resource ranges into its single final
+bytes, which is why retention may be chosen at emission while compression,
+which does change bytes, is fixed at preparation. `Pdf.to_bytes` necessarily copies resource ranges into its single final
 contiguous `List(U8)`. Planning assigns every object and indirect stream-length
 ID before emission, and emission tracks a compact `U64` offset list. Lexical
 and resource encoders produce stream bytes incrementally. A generated stream

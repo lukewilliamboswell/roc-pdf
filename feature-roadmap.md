@@ -466,6 +466,11 @@ within an early correctness gate.
   pinned pure-Roc `roc-deflate` dependency (a libdeflate port); the
   independent Python checker uses zlib to reconstruct the exact emitted
   payload.
+- Three sealed compression presets selected by `Pdf.Options.compression`:
+  `Balanced` (the default), `Smallest`, and `Fastest`. Each preset is
+  deterministic and byte-identical across buffered, chunked, and prepared
+  output; `Smallest` reproduces the earlier level-10 bytes. Evidence:
+  [development/performance/output-size.md](development/performance/output-size.md).
 - Stable object allocation, resource naming, stream length handling, and file
   identifiers.
 - Deterministic fixed-fanout balanced builders for page, name, number, ID, and
