@@ -1,4 +1,5 @@
 import KernelIndex
+import KernelLex
 import KernelObjectPlan
 import KernelPipelineFixture
 import KernelMetadata
@@ -575,7 +576,7 @@ add_structure_element = |builder, names, tagged, navigation, objects, catalog_la
 			{ builder: reference.builder, page_entry: WithEntry({ key: names.pg, value: reference.id }) }
 		}
 	}
-	{ builder: with_role, id: role_id } = KernelObject.add_name(with_page, Str.to_utf8(node.role.local_name)) ? Object
+	{ builder: with_role, id: role_id } = KernelObject.add_name(with_page, KernelLex.name_bytes(node.role.local_name)) ? Object
 	{ builder: with_type, id: s_id } = KernelObject.add_name_value(with_role, role_id) ? Object
 
 	# `/Type /StructElem` is optional (ISO 32000-2 Table 355) and omitted.
@@ -739,7 +740,7 @@ add_text_entry : KernelObject.Builder, Str, OptionalProperty -> Try({ builder : 
 add_text_entry = |builder, key, property| match property {
 	NoProperty => Ok({ builder, entry: NoEntry })
 	Property(value) => {
-		name = KernelObject.add_name(builder, Str.to_utf8(key)) ? Object
+		name = KernelObject.add_name(builder, KernelLex.name_bytes(key)) ? Object
 		text = KernelObject.add_text_string(name.builder, value) ? Object
 		text_value = KernelObject.add_text_string_value(text.builder, text.id) ? Object
 		Ok({ builder: text_value.builder, entry: WithEntry({ key: name.id, value: text_value.id }) })
@@ -812,8 +813,8 @@ add_owner_dictionary = |builder, semantics, node, kind| {
 	while $key_index < keys.len() {
 		key = list_at(keys, $key_index)
 		if key == "O" {
-			o_name = KernelObject.add_name($builder, Str.to_utf8("O")) ? Object
-			owner_name = KernelObject.add_name(o_name.builder, Str.to_utf8(if (kind == ListOwner) "List" else "Table")) ? Object
+			o_name = KernelObject.add_name($builder, KernelLex.name_bytes("O")) ? Object
+			owner_name = KernelObject.add_name(o_name.builder, KernelLex.name_bytes(if (kind == ListOwner) "List" else "Table")) ? Object
 			owner_value = KernelObject.add_name_value(owner_name.builder, owner_name.id) ? Object
 			$builder = owner_value.builder
 			$entries = $entries.append({ key: o_name.id, value: owner_value.id })
@@ -826,7 +827,7 @@ add_owner_dictionary = |builder, semantics, node, kind| {
 					Namespaced(_) => False
 				}
 				if named and owner_matches(attribute.owner, kind) {
-					key_name = KernelObject.add_name($builder, Str.to_utf8(key)) ? Object
+					key_name = KernelObject.add_name($builder, KernelLex.name_bytes(key)) ? Object
 					value = add_attribute_scalar(key_name.builder, attribute.value)?
 					$builder = value.builder
 					$entries = $entries.append({ key: key_name.id, value: value.id })
@@ -845,7 +846,7 @@ add_owner_dictionary = |builder, semantics, node, kind| {
 add_attribute_scalar : KernelObject.Builder, Semantics.AttributeValue -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelTaggedObjects.Error)
 add_attribute_scalar = |builder, value| match value {
 	Name(name) => {
-		interned = KernelObject.add_name(builder, Str.to_utf8(name)) ? Object
+		interned = KernelObject.add_name(builder, KernelLex.name_bytes(name)) ? Object
 		added = KernelObject.add_name_value(interned.builder, interned.id) ? Object
 		Ok(added)
 	}

@@ -122,7 +122,344 @@ KernelLex :: [].{
 
 	append_text : List(U8), Text -> List(U8)
 	append_text = |output, value| write_text_utf8(output, Text.bytes(value))
+
+	## The bytes of a PDF name given as a `Str`. The standard structure types
+	## and the attribute keys and values the package lowers come from static
+	## constants; `Str.to_utf8` would allocate a fresh list for every
+	## structure element and attribute. Any other name is converted.
+	name_bytes : Str -> List(U8)
+	name_bytes = |name| match name {
+		"Document" => document_name
+		"DocumentFragment" => document_fragment_name
+		"Part" => part_name
+		"Sect" => sect_name
+		"Div" => div_name
+		"Aside" => aside_name
+		"NonStruct" => non_struct_name
+		"P" => p_name
+		"H" => h_name
+		"H1" => h1_name
+		"H2" => h2_name
+		"H3" => h3_name
+		"H4" => h4_name
+		"H5" => h5_name
+		"H6" => h6_name
+		"Title" => title_name
+		"FENote" => fe_note_name
+		"Sub" => sub_name
+		"Lbl" => lbl_name
+		"Span" => span_name
+		"Em" => em_name
+		"Strong" => strong_name
+		"Link" => link_name
+		"Annot" => annot_name
+		"Form" => form_name
+		"Ruby" => ruby_name
+		"RB" => rb_name
+		"RT" => rt_name
+		"RP" => rp_name
+		"Warichu" => warichu_name
+		"WT" => wt_name
+		"WP" => wp_name
+		"L" => l_name
+		"LI" => li_name
+		"LBody" => l_body_name
+		"Table" => table_name
+		"TR" => tr_name
+		"TH" => th_name
+		"TD" => td_name
+		"THead" => t_head_name
+		"TBody" => t_body_name
+		"TFoot" => t_foot_name
+		"Caption" => caption_name
+		"Figure" => figure_name
+		"Formula" => formula_name
+		"Artifact" => artifact_name
+		"Code" => code_name
+		"Quote" => quote_name
+		"BibEntry" => bib_entry_name
+		"Reference" => reference_name
+		"Note" => note_name
+		"Chapter" => chapter_name
+		"O" => o_name
+		"List" => list_name
+		"ListNumbering" => list_numbering_name
+		"Scope" => scope_name
+		"ColSpan" => col_span_name
+		"RowSpan" => row_span_name
+		"Headers" => headers_name
+		"Summary" => summary_name
+		"Row" => row_name
+		"Column" => column_name
+		"Both" => both_name
+		"None" => none_name
+		"Disc" => disc_name
+		"Circle" => circle_name
+		"Square" => square_name
+		"Decimal" => decimal_name
+		"UpperRoman" => upper_roman_name
+		"LowerRoman" => lower_roman_name
+		"UpperAlpha" => upper_alpha_name
+		"LowerAlpha" => lower_alpha_name
+		"Ordered" => ordered_name
+		"Unordered" => unordered_name
+		"Description" => description_name
+		"Bullets" => bullets_name
+		"Diagonal" => diagonal_name
+		"ActualText" => actual_text_name
+		"Alt" => alt_name
+		"E" => e_name
+		"Lang" => lang_name
+		"ID" => id_name
+		_ => Str.to_utf8(name)
+	}
 }
+
+document_name : List(U8)
+document_name = Str.to_utf8("Document")
+
+document_fragment_name : List(U8)
+document_fragment_name = Str.to_utf8("DocumentFragment")
+
+part_name : List(U8)
+part_name = Str.to_utf8("Part")
+
+sect_name : List(U8)
+sect_name = Str.to_utf8("Sect")
+
+div_name : List(U8)
+div_name = Str.to_utf8("Div")
+
+aside_name : List(U8)
+aside_name = Str.to_utf8("Aside")
+
+non_struct_name : List(U8)
+non_struct_name = Str.to_utf8("NonStruct")
+
+p_name : List(U8)
+p_name = Str.to_utf8("P")
+
+h_name : List(U8)
+h_name = Str.to_utf8("H")
+
+h1_name : List(U8)
+h1_name = Str.to_utf8("H1")
+
+h2_name : List(U8)
+h2_name = Str.to_utf8("H2")
+
+h3_name : List(U8)
+h3_name = Str.to_utf8("H3")
+
+h4_name : List(U8)
+h4_name = Str.to_utf8("H4")
+
+h5_name : List(U8)
+h5_name = Str.to_utf8("H5")
+
+h6_name : List(U8)
+h6_name = Str.to_utf8("H6")
+
+title_name : List(U8)
+title_name = Str.to_utf8("Title")
+
+fe_note_name : List(U8)
+fe_note_name = Str.to_utf8("FENote")
+
+sub_name : List(U8)
+sub_name = Str.to_utf8("Sub")
+
+lbl_name : List(U8)
+lbl_name = Str.to_utf8("Lbl")
+
+span_name : List(U8)
+span_name = Str.to_utf8("Span")
+
+em_name : List(U8)
+em_name = Str.to_utf8("Em")
+
+strong_name : List(U8)
+strong_name = Str.to_utf8("Strong")
+
+link_name : List(U8)
+link_name = Str.to_utf8("Link")
+
+annot_name : List(U8)
+annot_name = Str.to_utf8("Annot")
+
+form_name : List(U8)
+form_name = Str.to_utf8("Form")
+
+ruby_name : List(U8)
+ruby_name = Str.to_utf8("Ruby")
+
+rb_name : List(U8)
+rb_name = Str.to_utf8("RB")
+
+rt_name : List(U8)
+rt_name = Str.to_utf8("RT")
+
+rp_name : List(U8)
+rp_name = Str.to_utf8("RP")
+
+warichu_name : List(U8)
+warichu_name = Str.to_utf8("Warichu")
+
+wt_name : List(U8)
+wt_name = Str.to_utf8("WT")
+
+wp_name : List(U8)
+wp_name = Str.to_utf8("WP")
+
+l_name : List(U8)
+l_name = Str.to_utf8("L")
+
+li_name : List(U8)
+li_name = Str.to_utf8("LI")
+
+l_body_name : List(U8)
+l_body_name = Str.to_utf8("LBody")
+
+table_name : List(U8)
+table_name = Str.to_utf8("Table")
+
+tr_name : List(U8)
+tr_name = Str.to_utf8("TR")
+
+th_name : List(U8)
+th_name = Str.to_utf8("TH")
+
+td_name : List(U8)
+td_name = Str.to_utf8("TD")
+
+t_head_name : List(U8)
+t_head_name = Str.to_utf8("THead")
+
+t_body_name : List(U8)
+t_body_name = Str.to_utf8("TBody")
+
+t_foot_name : List(U8)
+t_foot_name = Str.to_utf8("TFoot")
+
+caption_name : List(U8)
+caption_name = Str.to_utf8("Caption")
+
+figure_name : List(U8)
+figure_name = Str.to_utf8("Figure")
+
+formula_name : List(U8)
+formula_name = Str.to_utf8("Formula")
+
+artifact_name : List(U8)
+artifact_name = Str.to_utf8("Artifact")
+
+code_name : List(U8)
+code_name = Str.to_utf8("Code")
+
+quote_name : List(U8)
+quote_name = Str.to_utf8("Quote")
+
+bib_entry_name : List(U8)
+bib_entry_name = Str.to_utf8("BibEntry")
+
+reference_name : List(U8)
+reference_name = Str.to_utf8("Reference")
+
+note_name : List(U8)
+note_name = Str.to_utf8("Note")
+
+chapter_name : List(U8)
+chapter_name = Str.to_utf8("Chapter")
+
+o_name : List(U8)
+o_name = Str.to_utf8("O")
+
+list_name : List(U8)
+list_name = Str.to_utf8("List")
+
+list_numbering_name : List(U8)
+list_numbering_name = Str.to_utf8("ListNumbering")
+
+scope_name : List(U8)
+scope_name = Str.to_utf8("Scope")
+
+col_span_name : List(U8)
+col_span_name = Str.to_utf8("ColSpan")
+
+row_span_name : List(U8)
+row_span_name = Str.to_utf8("RowSpan")
+
+headers_name : List(U8)
+headers_name = Str.to_utf8("Headers")
+
+summary_name : List(U8)
+summary_name = Str.to_utf8("Summary")
+
+row_name : List(U8)
+row_name = Str.to_utf8("Row")
+
+column_name : List(U8)
+column_name = Str.to_utf8("Column")
+
+both_name : List(U8)
+both_name = Str.to_utf8("Both")
+
+none_name : List(U8)
+none_name = Str.to_utf8("None")
+
+disc_name : List(U8)
+disc_name = Str.to_utf8("Disc")
+
+circle_name : List(U8)
+circle_name = Str.to_utf8("Circle")
+
+square_name : List(U8)
+square_name = Str.to_utf8("Square")
+
+decimal_name : List(U8)
+decimal_name = Str.to_utf8("Decimal")
+
+upper_roman_name : List(U8)
+upper_roman_name = Str.to_utf8("UpperRoman")
+
+lower_roman_name : List(U8)
+lower_roman_name = Str.to_utf8("LowerRoman")
+
+upper_alpha_name : List(U8)
+upper_alpha_name = Str.to_utf8("UpperAlpha")
+
+lower_alpha_name : List(U8)
+lower_alpha_name = Str.to_utf8("LowerAlpha")
+
+ordered_name : List(U8)
+ordered_name = Str.to_utf8("Ordered")
+
+unordered_name : List(U8)
+unordered_name = Str.to_utf8("Unordered")
+
+description_name : List(U8)
+description_name = Str.to_utf8("Description")
+
+bullets_name : List(U8)
+bullets_name = Str.to_utf8("Bullets")
+
+diagonal_name : List(U8)
+diagonal_name = Str.to_utf8("Diagonal")
+
+actual_text_name : List(U8)
+actual_text_name = Str.to_utf8("ActualText")
+
+alt_name : List(U8)
+alt_name = Str.to_utf8("Alt")
+
+e_name : List(U8)
+e_name = Str.to_utf8("E")
+
+lang_name : List(U8)
+lang_name = Str.to_utf8("Lang")
+
+id_name : List(U8)
+id_name = Str.to_utf8("ID")
 
 append_keyword_boolean : List(U8), Bool -> List(U8)
 append_keyword_boolean = |output, value| {
