@@ -33,9 +33,9 @@ SERVER_REQUEST_TIMEOUT_SECONDS = 0.5
 SERVER_POLL_INTERVAL_SECONDS = 0.05
 PACKAGE_DIR = ROOT / "package"
 PROVENANCE = ROOT / "assets" / "provenance.json"
-# Package-private data the modules byte-import. `roc bundle` does not follow
-# byte imports (roc-lang/roc#11907), so scripts/bundle.sh names them; the
-# consumer must see every one, byte-identical to its provenance record.
+# Package-private data the modules byte-import. `roc bundle` includes byte
+# imports (once omitted them, roc-lang/roc#11907); the consumer must see
+# every one, byte-identical to its provenance record.
 PACKAGE_DATA_FILES = ("RocPdfSans-Regular.ttf", "sRGB2014.icc")
 
 
