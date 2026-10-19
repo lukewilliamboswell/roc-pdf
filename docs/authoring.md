@@ -395,6 +395,28 @@ landscape page is wider; margins that leave no body frame are
 `layout.page_margin`. Every page in a flowing document must use the same
 size and orientation.
 
+The options' `compression` trades file size against generation time. Every
+choice writes the same pages, text, structure, and conformance; only the
+size of the compressed data and the time spent producing it differ.
+
+- `Balanced` (the default) generates quickly and writes compact files.
+- `Smallest` writes the smallest files the package can produce. Use it for
+  documents that are archived, stored, or downloaded many times. It takes
+  noticeably longer to generate, roughly ten times as long for the
+  compression step of a large report.
+- `Fastest` generates fastest and writes larger files, for short-lived
+  documents or output that is compressed again on its way to the reader.
+
+```roc
+bytes = Pdf.to_bytes_with(document, { compression: Smallest })?
+```
+
+The choice is fixed when a document is prepared, so `Pdf.to_bytes_prepared`
+and `Pdf.to_chunks_prepared` write the same bytes. Output stays deterministic
+for each choice. Before this option existed, the package always wrote what is
+now `Smallest`. To keep those exact bytes, for example to match stored
+checksums, pass `compression: Smallest`.
+
 The default options (`{}`, also `Pdf.Options.default`) select the `Archive` profile, which claims PDF 2.0 plus
 static PDF/A-4. The canonical XMP declares `pdfaid:part` 4 and `pdfaid:rev`
 2020, the packaged sRGB output intent characterizes every color, and every
@@ -734,6 +756,7 @@ budget is `report.budget_exceeded` rather than a shorter report.
 | fixed-width destination page references (`Pdf.page_reference`) and page-label furniture (`Pdf.page_label`) | supported; [page reference guide](destination-page-references.md) |
 | sRGB role styling, font selection, page size, spacing and margins | supported |
 | prepared and chunked emission | supported |
+| compression choice (`Balanced`, `Smallest`, `Fastest`) | supported |
 | figures of typed JPEG/packed raster images and solid vector paths, grouped and multi-command, with captions and `ScaleToFit` | supported |
 | in-flow decorations (`Pdf.decoration`) | supported |
 | extension blocks (`Pdf.custom_block`, unsplittable) | supported |

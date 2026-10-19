@@ -27,16 +27,22 @@ the source payload at its last use, and records the compressed length for the
 following length object.
 
 DEFLATE goes through one private seam, `KernelDeflate`, whose single call into
-the pinned pure-Roc `roc-deflate` package (a libdeflate port) compresses at a
-fixed package-versioned level. The seam owns the zlib framing (header and
-Adler-32 trailer), accepts preflighted input and checked limits, proves a
+the pinned pure-Roc `roc-deflate` package (a libdeflate port) compresses at
+the level the plan carries. `KernelDeflate.Level` admits exactly three
+package-versioned levels: 1 (`Pdf.Compression.Fastest`), 6 (`Balanced`, the
+default), and 10 (`Smallest`). Preparation seals the author's choice into
+`KernelStructure.Plan`; internal builders seal the default, and emission reads
+the level only from the plan. The seam owns the zlib framing (a header
+carrying the level's FLEVEL, `78 01`, `78 9C`, or `78 DA`, and the Adler-32
+trailer), accepts preflighted input and checked limits, proves a
 conservative output bound before a plan escapes (the dependency's stored-block
 bound plus six framing bytes), checks the emitted length against it, and
 reports deterministic work (streams, input bytes, and emitted bytes). The
 independent Python checker uses zlib only as a test-time decompression oracle
-over the emitted PDF bytes. Changing the dependency version or the level is a
-byte-contract change reviewed like any other; it cannot weaken these
-contracts or change emitted bytes silently.
+over the emitted PDF bytes. Changing the dependency version, a preset's level, or the default preset is
+a byte-contract change reviewed like any other; it cannot weaken these
+contracts or change emitted bytes silently. The output bound and the plan
+identity do not depend on the level.
 
 Stream objects are written top-level in plan order. Every other object is
 serialized into the open object stream's buffer: its value followed by a

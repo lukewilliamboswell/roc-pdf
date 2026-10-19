@@ -2,9 +2,9 @@
 
 > **Superseded.** This records the package-owned compressor that shipped
 > until the output-size work. `KernelDeflate` is now the zlib-framing seam
-> over the pinned `roc-deflate` dependency (libdeflate level 10); see
-> [output-size.md](output-size.md), step 4. The structural-kernel DEFLATE
-> case names below are unchanged, but their work counters now record
+> over the pinned `roc-deflate` dependency at the plan's compression preset
+> (libdeflate level 1, 6, or 10); see [output-size.md](output-size.md),
+> step 2. The structural-kernel DEFLATE case names below are unchanged, but their work counters now record
 > streams, input bytes, and emitted bytes instead of blocks, candidate
 > visits, hash inserts, tokens, and matches.
 
