@@ -757,19 +757,21 @@ add_attribute_value = |builder, semantics, node| {
 	}
 	list_dictionary = add_owner_dictionary(builder, semantics, node, ListOwner)?
 	table_dictionary = add_owner_dictionary(list_dictionary.builder, semantics, node, TableOwner)?
-	present = [list_dictionary.value, table_dictionary.value].keep_if(|value| value != NoValue)
 	a_name = KernelObject.add_name(table_dictionary.builder, Str.to_utf8("A")) ? Object
-	match present {
-		[WithValue(single)] => Ok({ builder: a_name.builder, dictionaries: 1, entry: WithEntry({ key: a_name.id, value: single }) })
-		_ => {
-			values = present.keep_oks(
-				|value| match value {
-					WithValue(id) => Ok(id)
-					NoValue => Err(NoValue)
-				},
-			)
-			array = KernelObject.add_array(a_name.builder, values) ? Object
-			Ok({ builder: array.builder, dictionaries: values.len(), entry: WithEntry({ key: a_name.id, value: array.id }) })
+
+	## Matching the two owners directly avoids building and filtering a list
+	## of them for every attributed element.
+	single = |value| Ok({ builder: a_name.builder, dictionaries: 1, entry: WithEntry({ key: a_name.id, value }) })
+	match (list_dictionary.value, table_dictionary.value) {
+		(WithValue(value), NoValue) => single(value)
+		(NoValue, WithValue(value)) => single(value)
+		(WithValue(list_value), WithValue(table_value)) => {
+			array = KernelObject.add_array(a_name.builder, [list_value, table_value]) ? Object
+			Ok({ builder: array.builder, dictionaries: 2, entry: WithEntry({ key: a_name.id, value: array.id }) })
+		}
+		(NoValue, NoValue) => {
+			array = KernelObject.add_array(a_name.builder, []) ? Object
+			Ok({ builder: array.builder, dictionaries: 0, entry: WithEntry({ key: a_name.id, value: array.id }) })
 		}
 	}
 }
