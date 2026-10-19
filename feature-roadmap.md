@@ -1066,11 +1066,12 @@ headings keep with their next block, `semantics.heading_skip` is returned,
 and table semantics no longer copy the document's node lists once per table.
 Closing Gate 6 makes no PDF/UA-2 or combined-profile claim.
 
-The compiler pin is the published `nightly-2026-10-14-38a3029`, replacing
-the former unpublished local build. Its reviewed allocation baselines and the
-basic-cli `0.26.0-rc2` example upgrade are recorded in the
-[October 14 compiler review](development/performance/roc-nightly-2026-10-14-38a3029.md).
-This retires the compiler-provisioning blocker without changing Gate 6's
+The compiler pin is the published `nightly-2026-10-18-1df370f`. Its
+upgrade and allocation sweep cut recorded Roc allocation events by 84.7%
+with byte-identical snapshots and unchanged work vectors, recorded in the
+[October 18 compiler review](development/performance/roc-nightly-2026-10-18-1df370f.md);
+the preceding [October 14 compiler review](development/performance/roc-nightly-2026-10-14-38a3029.md)
+retired the compiler-provisioning blocker. Neither changes Gate 6's
 capability or conformance claims.
 
 The following public authoring is executable under the default `Archive`
