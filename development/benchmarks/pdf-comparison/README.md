@@ -41,9 +41,13 @@ PDF conformance. No PDF/UA claim is made.
 
 ## Run
 
-Prerequisites: the compiler in `.roc-version`, Go 1.21 or later, Python 3.11 or
-later (required by the pinned Pillow), and Poppler's
-`pdfinfo`, `pdftotext` and `pdffonts`. This POSIX harness supports macOS and Linux.
+The repository-root [`BENCHMARK.md`](../../../BENCHMARK.md) is the step-by-step
+setup guide, including a Python environment workaround for systems without
+`python3-venv`. This section summarizes the same commands.
+
+Prerequisites: the compiler in `.roc-version` (other versions are rejected),
+Go 1.21 or later, Python 3.11 or later (required by the pinned Pillow), and
+Poppler's `pdfinfo`, `pdftotext` and `pdffonts`. This POSIX harness supports macOS and Linux.
 It requires no Python measurement dependencies. The target virtual environment
 uses the versions pinned in `requirements.txt`; Go uses `go.mod` and `go.sum`.
 The exact compiler/interpreter versions and executable paths are recorded.
@@ -57,14 +61,15 @@ The pinned compiler can provision those packages without compiling or running
 the example:
 
 ```sh
-/path/to/pinned/roc deps examples/furniture-typography/main.roc
+"$ROC" deps examples/furniture-typography/main.roc
 ```
 
-From the repository root:
+From the repository root, with `ROC` set to the absolute path of the pinned
+compiler (`--roc` defaults to `$ROC`):
 
 ```sh
 python3 development/benchmarks/pdf-comparison/trial.py prepare \
-  .roc-pdf-tmp/pdf-comparison-01 --roc /path/to/pinned/roc
+  .roc-pdf-tmp/pdf-comparison-01 --roc "$ROC"
 
 python3 development/benchmarks/pdf-comparison/trial.py run \
   .roc-pdf-tmp/pdf-comparison-01
@@ -87,11 +92,12 @@ font hashes are retained in the manifest; changing production package sources
 after preparation is an error.
 
 For a smoke run with one build/source invocation and one binary execution per
-language:
+language (in its own workspace, since a workspace keeps its first
+`--runtime-samples` value):
 
 ```sh
 python3 development/benchmarks/pdf-comparison/trial.py run \
-  .roc-pdf-tmp/pdf-comparison-01 --states first --runtime-samples 1
+  .roc-pdf-tmp/pdf-comparison-smoke --states first --runtime-samples 1
 ```
 
 `--tracks script` / `--tracks compiled` and `--languages python roc go` select
@@ -100,6 +106,15 @@ remaining states; completed samples are skipped. A second concurrent run in one
 workspace is rejected. Default per-command timeout is 30 minutes; timeout or
 failure retains diagnostics and the sample is excluded from summaries. Prepare
 a fresh workspace after a failed first build if its compiler cache was populated.
+
+Each `roc build` takes roughly 95 seconds and peaks around 15 GB RSS on the
+recorded Linux machine, and a full run takes several minutes. Run nothing else
+heavy alongside it.
+
+## Recorded results
+
+- [Linux desktop, 2026-10-20](results/linux-desktop-2026-10-20.md): Roc nightly
+  10-18 with the current package, compared with an earlier run on nightly 10-14.
 
 ## Cache and source-edit scenarios
 
