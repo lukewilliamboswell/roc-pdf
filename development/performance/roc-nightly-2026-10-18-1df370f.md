@@ -48,8 +48,8 @@ fingerprints each PDF so that any byte change shows up, and
 `scripts/profile.py` diffs one run against the previous one.
 `scripts/alloc_trace.py` attributes every `roc_alloc` and `roc_realloc` to its
 Roc caller under gdb, using a `--debug` speed build. On the profiled report
-document, a run takes 1,534 allocations instead of 8,577, and a ten-copy
-report takes 3,397 instead of 44,333.
+document, a run takes 1,521 allocations instead of 8,577, and a ten-copy
+report takes 3,272 instead of 44,333.
 
 ## Allocation causes removed
 
