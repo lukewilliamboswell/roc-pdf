@@ -1,0 +1,67 @@
+app [main!] {
+	pdf: @PDF_PACKAGE@,
+	pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.26.0-rc2/Gj3zVDr3qrQa6aTh7Z1zgUfe9NeBE6R76T5ho3xrc8af.tar.zst",
+}
+
+import pdf.Pdf
+import pdf.Font
+import pf.Path
+import pf.Stdout
+import pf.Monotonic
+import Workload
+
+main! = |_args| {
+	start = Monotonic.now!()
+	font_path : Path
+	font_path = "font.ttf"
+	font_bytes = font_path.read_bytes!().map_err(|err| ReadFailed(err))?
+	registered = Font.Registry.empty.register(font_bytes, { provision: BuiltIn, scripts: ["Latn"] }, Font.ValidationLimits.default).map_err(|err| FontFailed(err))?
+	font_ready = Monotonic.now!()
+	var $blocks = [Pdf.title(Workload.title)]
+	for paragraph in Workload.paragraphs {
+		$blocks = $blocks.append(Pdf.paragraph(paragraph))
+	}
+	$blocks = $blocks.append(
+		Pdf.table({
+			caption: Pdf.caption("Completed requests by team"),
+			columns: [{ width: Fixed(240), align: Start }, { width: Fixed(120), align: End }, { width: Fixed(135), align: End }],
+			header_rows: [Pdf.row(Workload.headers.map(|text| Pdf.header_cell(Column, [Pdf.text(text)])))],
+			body_rows: Workload.rows.map(|cells| Pdf.row(cells.map(|text| Pdf.cell([Pdf.text(text)])))),
+			footer_rows: [],
+		}),
+	)
+	$blocks = $blocks.append(Pdf.paragraph(Workload.revision))
+	footer = Pdf.region({ height: 12, start: [Pdf.furniture_text([Pdf.text(Workload.footer)])] })
+	document = Pdf.document({
+		title: Workload.title,
+		language: "en-AU",
+		contents: $blocks,
+		page_templates: Templates({ first: Pdf.first_page_template({ footer, gap: 12 }), continuation: Pdf.page_template({ footer, gap: 12 }) }),
+	})
+	options : Pdf.Options
+	options = {
+		page_size: Custom({ width: 595, height: 842 }),
+		fonts: Registered(registered.registry),
+		theme: {
+			face: registered.face,
+			title: { size: 18, leading: 22 },
+			body: { size: 11, leading: 15 },
+			page_margin: { top: 50, right: 50, bottom: 50, left: 50 },
+			paragraph_spacing: 10,
+			furniture: Own({ size: 9, leading: 12 }),
+			table: { cell_padding: 5, row_gap: 0, rule: NoRule },
+		},
+	}
+	authored = Monotonic.now!()
+	prepared = Pdf.prepare(document, options).map_err(|err| PrepareFailed(err))?
+	prepared_at = Monotonic.now!()
+	bytes = Pdf.to_bytes_prepared(prepared).map_err(|err| EmitFailed(err))?
+	emitted = Monotonic.now!()
+	byte_count = bytes.len()
+	output : Path
+	output = "report.pdf"
+	output.write_bytes!(bytes).map_err(|err| WriteFailed(err))?
+	written = Monotonic.now!()
+	Stdout.line!("PDF_BENCH {\"schema\":1,\"font_setup_ns\":${font_ready.since(start).to_nanos().to_str()},\"authoring_ns\":${authored.since(font_ready).to_nanos().to_str()},\"prepare_ns\":${prepared_at.since(authored).to_nanos().to_str()},\"emit_ns\":${emitted.since(prepared_at).to_nanos().to_str()},\"write_ns\":${written.since(emitted).to_nanos().to_str()},\"application_ns\":${written.since(start).to_nanos().to_str()},\"pdf_bytes\":${byte_count.to_str()}}").map_err(|err| OutputFailed(err))?
+	Ok({})
+}
