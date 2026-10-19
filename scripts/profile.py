@@ -33,7 +33,18 @@ ROOT = Path(__file__).resolve().parents[1]
 ROC = os.environ.get("ROC", "roc")
 WORK = ROOT / ".roc-pdf-tmp" / "profile"
 SOURCE = ROOT / "fuzz" / "allocation_profile.roc"
-WORKLOADS = ("report", "report_x10", "builtin_paragraphs", "builtin_paragraphs_x10")
+# Selector order: the documents of fuzz/ProfileWorkloads.roc, then the
+# kernels of fuzz/ProfileKernels.roc.
+WORKLOADS = (
+    "report",
+    "report_x10",
+    "builtin_paragraphs",
+    "builtin_paragraphs_x10",
+    "deflate_icc",
+    "deflate_content",
+    "sha256_content",
+    "register_inter",
+)
 LINE = re.compile(r'PROFILE (\S+) (\S+) (\d+)')
 
 

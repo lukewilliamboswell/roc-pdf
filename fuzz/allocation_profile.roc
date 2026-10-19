@@ -5,21 +5,36 @@ app [target] {
 
 import fuzz.Fuzz
 import pdf.Pdf
+import ProfileKernels
 import ProfileWorkloads
 
 ## Allocation profiling, not a property campaign. The first input byte selects
-## one workload and every stage of it is measured with `Fuzz.measure_allocs!`;
-## an empty input runs every workload. `./scripts/profile.py` replays one input
+## one workload: a document (`ProfileWorkloads`), each of whose stages is
+## measured with `Fuzz.measure_allocs!`, or, past the documents, a single
+## kernel (`ProfileKernels`). An empty input runs every workload. `./scripts/profile.py` replays one input
 ## per workload and tabulates the printed `PROFILE` lines, so a change to one
 ## stage can be checked in isolation without the end-to-end suite.
 target = Fuzz.from_bytes!({
 	name: "roc-pdf-allocation-profile",
 	test!: |bytes| {
 		match bytes.first() {
-			Ok(selector) => run!(ProfileWorkloads.select(selector.to_u64()))
+			Ok(selector) => {
+				documents = ProfileWorkloads.all.len()
+				if selector.to_u64() < documents {
+					run!(ProfileWorkloads.select(selector.to_u64()))
+				} else {
+					match ProfileKernels.all.get(selector.to_u64() - documents) {
+						Ok(kernel) => run_kernel!(kernel)
+						Err(OutOfBounds) => 0
+					}
+				}
+			}
 			Err(ListWasEmpty) => {
 				for workload in ProfileWorkloads.all {
 					_ = run!(workload)
+				}
+				for kernel in ProfileKernels.all {
+					_ = run_kernel!(kernel)
 				}
 				0
 			}
@@ -57,6 +72,15 @@ run! = |workload| {
 			}
 		}
 	}
+}
+
+run_kernel! : ProfileKernels.Kernel => U8
+run_kernel! = |kernel| {
+	input = (kernel.input)(1)
+	measured = Fuzz.measure_allocs!(|{}| (kernel.run)(input))
+	report!(kernel.name, "total", measured.allocations)
+	report!(kernel.name, "output", measured.value)
+	0
 }
 
 report! : Str, Str, U64 => {}
