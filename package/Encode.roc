@@ -1,3 +1,5 @@
+import KernelDeflate
+
 Encode :: [].{
 	Rounding : [HalfEven]
 	NegativeZero : [NormalizeToZero]
@@ -31,6 +33,15 @@ Encode :: [].{
 	## pinned pure-Roc `roc-deflate` port.
 	DeflatePolicy : [LibdeflateLevel(U8)]
 
+	## The level behind each `Pdf.Compression` choice. A document's
+	## `Pdf.Options.compression` selects exactly one of them for every
+	## FlateDecode stream, object stream, and the cross-reference stream.
+	DeflatePresets : {
+		balanced : DeflatePolicy,
+		fastest : DeflatePolicy,
+		smallest : DeflatePolicy,
+	}
+
 	## Every non-stream object is stored in FlateDecode object streams of at
 	## most `max_objects` members, in plan order.
 	ObjectStreamPolicy : { max_objects : U64 }
@@ -39,7 +50,7 @@ Encode :: [].{
 	XrefCompression : [FlateUpPredictor]
 	CompressionPolicy : {
 		object_streams : ObjectStreamPolicy,
-		streams : DeflatePolicy,
+		streams : DeflatePresets,
 		xref : XrefCompression,
 	}
 
@@ -54,12 +65,17 @@ Encode :: [].{
 		ordering : OrderingPolicy,
 	}
 
-	## This policy is a package-versioned byte contract, not an author option.
+	## This policy is a package-versioned byte contract. The only author
+	## choice in it is which stream preset `Pdf.Options.compression` selects.
 	canonical : Policy
 	canonical = {
 		compression: {
 			object_streams: { max_objects: 400 },
-			streams: LibdeflateLevel(10),
+			streams: {
+				balanced: LibdeflateLevel(6),
+				fastest: LibdeflateLevel(1),
+				smallest: LibdeflateLevel(10),
+			},
 			xref: FlateUpPredictor,
 		},
 		escaping: CanonicalPdf20,
@@ -87,8 +103,13 @@ Encode :: [].{
 # Canonical numbers normalize negative zero and never use host formatting.
 expect Encode.canonical.numbers.negative_zero == NormalizeToZero
 
-# Canonical streams use libdeflate level 10.
-expect Encode.canonical.compression.streams == LibdeflateLevel(10)
+# The stream presets name the levels the compressor seam actually uses.
+expect {
+	presets = Encode.canonical.compression.streams
+	presets.balanced == LibdeflateLevel(KernelDeflate.Level.libdeflate(KernelDeflate.Level.balanced).to_u8_wrap()) and
+		presets.fastest == LibdeflateLevel(KernelDeflate.Level.libdeflate(KernelDeflate.Level.fastest).to_u8_wrap()) and
+			presets.smallest == LibdeflateLevel(KernelDeflate.Level.libdeflate(KernelDeflate.Level.smallest).to_u8_wrap())
+}
 
 # Non-stream objects go into object streams; the xref stream is compressed.
 expect Encode.canonical.compression.object_streams.max_objects == 400 and Encode.canonical.compression.xref == FlateUpPredictor

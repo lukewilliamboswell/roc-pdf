@@ -4,6 +4,7 @@ import Document
 import Font
 import Image
 import KernelLex
+import KernelDeflate
 import KernelEmit
 import KernelBuiltInFont
 import KernelFacadePipeline
@@ -73,6 +74,23 @@ Pdf :: [].{
 	}
 
 	ChunkRetention := [OwnChunks, ShareUnchangedResources].{
+		is_eq : _
+	}
+
+	## How hard to compress the document's streams: a trade between file
+	## size and generation time. Every choice writes a complete, valid file
+	## with the same content, pages, structure, and conformance; only the
+	## size of the compressed data and the time spent producing it differ.
+	##
+	## - `Balanced` (the default) generates quickly and writes compact files.
+	## - `Smallest` writes the smallest files the package can produce, for
+	##   documents that are stored, archived, or downloaded many times, and
+	##   takes noticeably longer to generate.
+	## - `Fastest` generates fastest and writes larger files, for documents
+	##   that are short-lived or immediately recompressed.
+	##
+	## Identical documents and options always produce identical bytes.
+	Compression := [Balanced, Fastest, Smallest].{
 		is_eq : _
 	}
 
@@ -404,7 +422,7 @@ Pdf :: [].{
 	}
 
 	## How a document is prepared: its conformance profile, page size,
-	## theme, fonts, and chunk retention. A transparent record whose
+	## theme, fonts, compression, and chunk retention. A transparent record whose
 	## fields all default, so `{}` (or `Pdf.Options.default`) is the
 	## production default and a caller names only what it changes:
 	## `Pdf.to_bytes_with(document, { page_size: Letter, theme, fonts:
@@ -417,10 +435,13 @@ Pdf :: [].{
 	## `fonts` is the complete public caller-resource boundary: a
 	## `Registered` registry carries the original immutable font bytes and
 	## the once-produced inspection facts, and the theme selects only the
-	## registry's opaque faces. Changing a default is a reviewed
+	## registry's opaque faces. `compression` trades file size against
+	## generation time (see `Compression`); pass `compression: Smallest` for
+	## the smallest files. Changing a default is a reviewed
 	## package-version change.
 	Options := {
 		chunk_retention : ChunkRetention ?? ShareUnchangedResources,
+		compression : Compression ?? Balanced,
 		fonts : FontSource ?? BuiltIn,
 		page_size : PageSize ?? A4,
 		profile : Profile ?? Archive,
@@ -435,7 +456,9 @@ Pdf :: [].{
 	## An opaque, fully validated document plan. Preparation performs all
 	## authoring, layout, resource, navigation, conformance, and object-planning
 	## work once; emission cannot reinterpret author intent or fail with a
-	## document diagnostic after this boundary.
+	## document diagnostic after this boundary. The compression choice is
+	## fixed here too, so `to_bytes_prepared` and `to_chunks_prepared` write
+	## identical bytes.
 	Prepared :: KernelStructure.Plan.{}
 
 	Encode :: KernelEmit.Encoder.{}
@@ -993,7 +1016,7 @@ build_plan = |doc, options| {
 			},
 		) ? |_| InternalGenerationFailure
 		validate_lowered_plan(claim, xmp, plan)?
-		return Ok(plan)
+		return Ok(KernelStructure.Plan.with_compression(plan, deflate_level(options.compression)))
 	}
 	facts = WithDocumentFacts({
 		condition_identifier: KernelMetadata.srgb_condition_identifier,
@@ -1037,7 +1060,19 @@ build_plan = |doc, options| {
 	_text_work = KernelPdfA4.validate_text(claim, KernelFacadeOutput.Plan.text_facts(output)) ? |violation| InvalidDocument(profile_batch(violation, ProfileValidation))
 	plan = KernelFacadeOutput.Plan.structure(output)
 	validate_lowered_plan(claim, xmp, plan)?
-	Ok(plan)
+	Ok(KernelStructure.Plan.with_compression(plan, deflate_level(options.compression)))
+}
+
+## The author's compression choice becomes the sealed plan's DEFLATE level,
+## which emission consumes for every stream. The level changes no planning
+## fact: the output bound holds at every level, and the file identifier
+## digests normalized plan facts, so `Smallest` reproduces the bytes the
+## package wrote before the choice existed.
+deflate_level : Pdf.Compression -> KernelDeflate.Level
+deflate_level = |compression| match compression {
+	Fastest => KernelDeflate.Level.fastest
+	Balanced => KernelDeflate.Level.balanced
+	Smallest => KernelDeflate.Level.smallest
 }
 
 ## Custom-block content height through the facade pipeline. The probe is a
@@ -1126,7 +1161,7 @@ build_reporting_plan = |doc, options| {
 			},
 		) ? |_| InternalGenerationFailure
 		validate_lowered_plan(claim, xmp, plan)?
-		return Ok({ facts: NoFacts, normalized: Document.normalize(doc), plan })
+		return Ok({ facts: NoFacts, normalized: Document.normalize(doc), plan: KernelStructure.Plan.with_compression(plan, deflate_level(options.compression)) })
 	}
 	facts = WithDocumentFacts({
 		condition_identifier: KernelMetadata.srgb_condition_identifier,
@@ -1170,7 +1205,7 @@ build_reporting_plan = |doc, options| {
 	_text_work = KernelPdfA4.validate_text(claim, KernelFacadeOutput.Plan.text_facts(output)) ? |violation| InvalidDocument(profile_batch(violation, ProfileValidation))
 	plan = KernelFacadeOutput.Plan.structure(output)
 	validate_lowered_plan(claim, xmp, plan)?
-	Ok({ facts: KernelFacadePipeline.Plan.facts(pipeline), normalized, plan })
+	Ok({ facts: KernelFacadePipeline.Plan.facts(pipeline), normalized, plan: KernelStructure.Plan.with_compression(plan, deflate_level(options.compression)) })
 }
 
 ## Lowered-plan validation runs on every prepared plan before it is wrapped:
@@ -2862,6 +2897,32 @@ expect {
 	buffered == chunked.bytes
 }
 
+# Every compression choice is sealed into the prepared plan: buffered,
+# chunked, prepared, and one-shot output agree for each choice, `Balanced` is
+# the default, the choices write distinct files ordered by size as their
+# names promise, and the plan identity (and so the file identifier) does not
+# depend on the choice.
+expect {
+	document = Pdf.document({ contents: [Pdf.title("Compression"), Pdf.paragraph("Smaller files or faster generation, with identical content.")], language: "en-AU", title: "Compression" })
+	fastest = compressed_output(document, Fastest)
+	balanced = compressed_output(document, Balanced)
+	smallest = compressed_output(document, Smallest)
+	default = Pdf.to_bytes(document)?
+	fastest_plan = build_plan(document, Pdf.Options.{ compression: Fastest })?
+	smallest_plan = build_plan(document, Pdf.Options.{ compression: Smallest })?
+	default_plan = build_plan(document, Pdf.Options.default)?
+	smallest != [] and
+		balanced == default and
+			fastest != balanced and
+				balanced != smallest and
+					smallest.len() <= balanced.len() and
+						balanced.len() <= fastest.len() and
+							KernelStructure.Plan.compression(fastest_plan) == KernelDeflate.Level.fastest and
+								KernelStructure.Plan.compression(smallest_plan) == KernelDeflate.Level.smallest and
+									KernelStructure.Plan.compression(default_plan) == KernelDeflate.Level.balanced and
+										KernelStructure.Plan.identity(fastest_plan) == KernelStructure.Plan.identity(smallest_plan)
+}
+
 # Every sRGB theme color is resolved through the packaged profile rather
 # than being silently reduced to black.
 expect {
@@ -3040,6 +3101,33 @@ expect {
 	collected = collect_chunks(Pdf.to_chunks_with(document, options)?)
 
 	collected.bytes == expected
+}
+
+## The document's bytes under one compression choice, or `[]` when any of
+## the buffered, chunked, prepared, and one-shot paths disagree.
+compressed_output : Document, Pdf.Compression -> List(U8)
+compressed_output = |document, compression| {
+	options = Pdf.Options.{ compression: compression }
+	match Pdf.prepare(document, options) {
+		Err(_) => []
+		Ok(prepared) => {
+			buffered = Pdf.to_bytes_prepared(prepared) ?? []
+			shared = match Pdf.to_chunks_prepared(prepared, ShareUnchangedResources) {
+				Err(_) => []
+				Ok(encoder) => collect_chunks(encoder).bytes
+			}
+			owned = match Pdf.to_chunks_with(document, Pdf.Options.{ compression: compression, chunk_retention: OwnChunks }) {
+				Err(_) => []
+				Ok(encoder) => collect_chunks(encoder).bytes
+			}
+			one_shot = Pdf.to_bytes_with(document, options) ?? []
+			if buffered == shared and buffered == owned and buffered == one_shot {
+				buffered
+			} else {
+				[]
+			}
+		}
+	}
 }
 
 collect_chunks : Pdf.Encode -> { bytes : List(U8), chunks : U64 }

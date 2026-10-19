@@ -42,7 +42,15 @@ KernelStructure :: [].{
 		Shape(KernelBalanced.Error),
 	]
 
+	## `compression` is the DEFLATE level every FlateDecode stream, object
+	## stream, and the cross-reference stream is emitted at. Builders seal
+	## `KernelDeflate.Level.balanced`, the package default; the facade sets
+	## the author's choice with `with_compression` before the plan escapes.
+	## The level changes emitted bytes only: the output bound holds at every
+	## level, and the plan identity (and so the file identifier) digests
+	## normalized plan facts, never compressed bytes.
 	Plan :: {
+		compression : KernelDeflate.Level,
 		identity : [Blank, GeneratedContentDigest(List(U8)), NormalizedPlanDigest(List(U8)), UnchangedContentDigest(List(U8))],
 		output_bound : U64,
 		page_count : U64,
@@ -52,6 +60,22 @@ KernelStructure :: [].{
 		tree_nodes : U64,
 		xref_object : KernelObject.ObjectId,
 	}.{
+		compression : Plan -> KernelDeflate.Level
+		compression = |plan| plan.compression
+
+		with_compression : Plan, KernelDeflate.Level -> Plan
+		with_compression = |plan, level| Plan.{
+			compression: level,
+			identity: plan.identity,
+			output_bound: plan.output_bound,
+			page_count: plan.page_count,
+			page_geometry: plan.page_geometry,
+			root: plan.root,
+			sealed: plan.sealed,
+			tree_nodes: plan.tree_nodes,
+			xref_object: plan.xref_object,
+		}
+
 		identity : Plan -> [Blank, GeneratedContentDigest(List(U8)), NormalizedPlanDigest(List(U8)), UnchangedContentDigest(List(U8))]
 		identity = |plan| plan.identity
 
@@ -69,6 +93,7 @@ KernelStructure :: [].{
 
 		release_payload_bytes : Plan, KernelObject.PayloadId -> Plan
 		release_payload_bytes = |plan, payload| Plan.{
+			compression: plan.compression,
 			identity: plan.identity,
 			output_bound: plan.output_bound,
 			page_count: plan.page_count,
@@ -101,6 +126,7 @@ KernelStructure :: [].{
 			xref_object : KernelObject.ObjectId,
 		} -> Plan
 		from_sealed = |facts| Plan.{
+			compression: KernelDeflate.Level.balanced,
 			identity: facts.identity,
 			output_bound: facts.output_bound,
 			page_count: facts.page_count,
@@ -148,6 +174,7 @@ KernelStructure :: [].{
 		bound = KernelDeflate.output_bound(bytes.len()) ? Deflate
 		_ = KernelDeflate.Plan.prepare(
 			bytes,
+			KernelDeflate.Level.balanced,
 			KernelDeflate.Limits.make({ max_input_bytes, max_output_bytes: bound }),
 		) ? Deflate
 		build_nonempty(1, A4, Deflated(bytes), NoBlankFacts)
@@ -346,6 +373,7 @@ build_nonempty = |page_count, page_size, content_plan, facts| {
 
 	Ok(
 		KernelStructure.Plan.{
+			compression: KernelDeflate.Level.balanced,
 			identity,
 			output_bound: KernelOutputBound.Bound.bytes(layout_bound),
 			page_count,

@@ -66,8 +66,9 @@ single-space store would send every three-component image down the reject path.
 `facade_output_equivalence` drives the public facade over generated typed
 documents and checks the enduring output contracts: identical inputs produce
 identical bytes, the buffered and chunked encoders agree byte for byte, the
-chunk retention policy changes allocation only, and a rejected document is
-rejected the same way every time.
+chunk retention policy changes allocation only, the prepared buffered and
+chunked paths agree with the one-shot output under a generated compression
+choice, and a rejected document is rejected the same way every time.
 
 `facade_structure` checks that emitted bytes are a structurally valid PDF, which
 the equivalence target cannot: comparing output to itself passes even if the

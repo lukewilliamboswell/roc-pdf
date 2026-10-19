@@ -7,9 +7,45 @@ import deflate.Deflate
 ## package relies on is checked here rather than trusted: limits and a
 ## checked output bound are proven before a plan escapes, the compressed
 ## length is compared against that bound, and the zlib header and Adler-32
-## trailer are package code. The level is a fixed package-versioned
-## constant, so identical input always produces identical bytes.
+## trailer are package code. The level is an explicit `Level` carried by
+## each plan, one of three package-versioned values, so identical input at
+## an identical level always produces identical bytes.
 KernelDeflate :: [].{
+
+	## A package-versioned libdeflate level. Only the three constructors
+	## below exist: `fastest` (1), `balanced` (6), and `smallest` (10, the
+	## first near-optimal parsing level).
+	## development/performance/output-size.md records the measurements
+	## behind each.
+	Level :: U64.{
+		is_eq : _
+
+		fastest : Level
+		fastest = Level.(1)
+
+		balanced : Level
+		balanced = Level.(6)
+
+		smallest : Level
+		smallest = Level.(10)
+
+		## The libdeflate level number.
+		libdeflate : Level -> U64
+		libdeflate = |Level.(level)| level
+
+		## The zlib FLG byte (RFC 1950): the FLEVEL libdeflate writes for the
+		## level (0 at level 1, 2 at level 6, 3 at level 10) with the FCHECK
+		## bits that make the header a multiple of 31.
+		zlib_flag : Level -> U8
+		zlib_flag = |Level.(level)| if level < 2 {
+			1
+		} else if level == 6 {
+			156
+		} else {
+			218
+		}
+	}
+
 	Error : [
 		ArithmeticOverflow,
 		CompressorFailed,
@@ -60,31 +96,30 @@ KernelDeflate :: [].{
 
 	Plan :: {
 		input : List(U8),
+		level : Level,
 		output_bound : U64,
 	}.{
-		prepare : List(U8), Limits -> Try(Plan, Error)
-		prepare = |input, limits| prepare_plan(input, limits)
+		prepare : List(U8), Level, Limits -> Try(Plan, Error)
+		prepare = |input, level, limits| prepare_plan(input, level, limits)
 
 		input_bytes : Plan -> U64
 		input_bytes = |plan| plan.input.len()
+
+		level : Plan -> Level
+		level = |plan| plan.level
 
 		output_bound : Plan -> U64
 		output_bound = |plan| plan.output_bound
 	}
 
-	## The checked upper bound of one zlib stream over `input_bytes` bytes.
+	## The checked upper bound of one zlib stream over `input_bytes` bytes at
+	## every level: the stored-block bound does not depend on the level.
 	output_bound : U64 -> Try(U64, Error)
 	output_bound = |input_bytes| compressed_output_bound(input_bytes)
 
 	## Compresses a prepared plan into one complete zlib stream.
 	to_bytes : Plan -> Try({ bytes : List(U8), work : Work }, Error)
 	to_bytes = |plan| compress_plan(plan)
-
-	## The libdeflate level: 10, the first of its near-optimal parsing
-	## levels. development/performance/output-size.md records the measurements
-	## behind the choice.
-	level : U64
-	level = 10
 }
 
 ## Inputs above 2^56 bytes are refused before any arithmetic, so every sum
@@ -100,8 +135,8 @@ adler_modulus = 65521
 empty_stream : List(U8)
 empty_stream = [120, 156, 3, 0, 0, 0, 0, 1]
 
-prepare_plan : List(U8), KernelDeflate.Limits -> Try(KernelDeflate.Plan, KernelDeflate.Error)
-prepare_plan = |input, limits| {
+prepare_plan : List(U8), KernelDeflate.Level, KernelDeflate.Limits -> Try(KernelDeflate.Plan, KernelDeflate.Error)
+prepare_plan = |input, level, limits| {
 	input_bytes = input.len()
 	if input_bytes > limits.max_input_bytes {
 		Err(InputLimitExceeded({ attempted: input_bytes, limit: limits.max_input_bytes }))
@@ -110,7 +145,7 @@ prepare_plan = |input, limits| {
 		if bound > limits.max_output_bytes {
 			Err(OutputLimitExceeded({ attempted: bound, limit: limits.max_output_bytes }))
 		} else {
-			Ok(KernelDeflate.Plan.{ input, output_bound: bound })
+			Ok(KernelDeflate.Plan.{ input, level, output_bound: bound })
 		}
 	}
 }
@@ -134,14 +169,12 @@ compress_plan = |plan| {
 	if input.is_empty() {
 		Ok({ bytes: empty_stream, work: stream_work(0, empty_stream.len()) })
 	} else {
-		raw = compress_raw(input)?
+		raw = compress_raw(input, plan.level)?
 		checksum = adler32(input)
 		var $bytes = List.with_capacity(raw.len() + 6)
 
-		## CMF 0x78 (DEFLATE, 32 KiB window) and FLG 0xDA: FLEVEL 3
-		## ("maximum compression") with the FCHECK bits that make the
-		## header a multiple of 31.
-		$bytes = $bytes.append(120).append(218)
+		## CMF 0x78 (DEFLATE, 32 KiB window) and the level's FLG byte.
+		$bytes = $bytes.append(120).append(KernelDeflate.Level.zlib_flag(plan.level))
 		$bytes = append_all($bytes, raw)
 		$bytes = $bytes
 			.append(checksum.shr_wrap(24).to_u8_wrap())
@@ -158,8 +191,8 @@ compress_plan = |plan| {
 }
 
 ## The single call into the DEFLATE dependency.
-compress_raw : List(U8) -> Try(List(U8), KernelDeflate.Error)
-compress_raw = |input| match Deflate.compress(input, KernelDeflate.level) {
+compress_raw : List(U8), KernelDeflate.Level -> Try(List(U8), KernelDeflate.Error)
+compress_raw = |input, level| match Deflate.compress(input, KernelDeflate.Level.libdeflate(level)) {
 	Ok(raw) => Ok(raw)
 	Err(CompressBug) => Err(CompressorFailed)
 }
@@ -237,7 +270,7 @@ inflate = |zlib| {
 
 # The canonical empty stream keeps the compact fixed-block representation.
 expect {
-	plan = KernelDeflate.Plan.prepare([], KernelDeflate.Limits.make({ max_input_bytes: 0, max_output_bytes: 8 }))?
+	plan = KernelDeflate.Plan.prepare([], KernelDeflate.Level.balanced, KernelDeflate.Limits.make({ max_input_bytes: 0, max_output_bytes: 8 }))?
 	result = KernelDeflate.to_bytes(plan)?
 	result.bytes == [120, 156, 3, 0, 0, 0, 0, 1] and KernelDeflate.Work.streams(result.work) == 1
 }
@@ -245,8 +278,8 @@ expect {
 # Limits reject input and output bounds before compression begins.
 expect {
 	input = [1, 2, 3]
-	too_much_input = KernelDeflate.Plan.prepare(input, KernelDeflate.Limits.make({ max_input_bytes: 2, max_output_bytes: 100 }))
-	too_much_output = KernelDeflate.Plan.prepare(input, KernelDeflate.Limits.make({ max_input_bytes: 3, max_output_bytes: 1 }))
+	too_much_input = KernelDeflate.Plan.prepare(input, KernelDeflate.Level.balanced, KernelDeflate.Limits.make({ max_input_bytes: 2, max_output_bytes: 100 }))
+	too_much_output = KernelDeflate.Plan.prepare(input, KernelDeflate.Level.balanced, KernelDeflate.Limits.make({ max_input_bytes: 3, max_output_bytes: 1 }))
 	match too_much_input {
 		Err(InputLimitExceeded({ attempted, limit })) => attempted == 3 and limit == 2
 		_ => False
@@ -256,30 +289,29 @@ expect {
 	}
 }
 
-# A nonempty stream is framed, checksummed, round-trips, and stays under its bound.
+# A nonempty stream is framed, checksummed, round-trips, and stays under its
+# bound at every level, with the level's FLEVEL in a valid zlib header.
 expect {
 	input = Str.to_utf8("the cat, the cat, the cat, the cat, the cat, the cat, the cat")
-	bound = KernelDeflate.output_bound(input.len())?
-	plan = KernelDeflate.Plan.prepare(input, KernelDeflate.Limits.make({ max_input_bytes: input.len(), max_output_bytes: bound }))?
-	result = KernelDeflate.to_bytes(plan)?
-	header = result.bytes.sublist({ start: 0, len: 2 })
-	trailer = result.bytes.sublist({ start: result.bytes.len() - 4, len: 4 })
-	checksum = adler32(input)
-	header == [120, 218] and
-		(120 * 256 + 218) % 31 == 0 and
-			trailer == [checksum.shr_wrap(24).to_u8_wrap(), checksum.shr_wrap(16).to_u8_wrap(), checksum.shr_wrap(8).to_u8_wrap(), checksum.to_u8_wrap()] and
-				inflate(result.bytes) == input and
-					result.bytes.len() < input.len() and
-						result.bytes.len() <= bound and
-							KernelDeflate.Work.input_bytes(result.work) == input.len() and
-								KernelDeflate.Work.emitted_bytes(result.work) == result.bytes.len()
+	framed(input, KernelDeflate.Level.fastest, 1) and
+		framed(input, KernelDeflate.Level.balanced, 156) and
+			framed(input, KernelDeflate.Level.smallest, 218)
+}
+
+# Higher levels never produce a longer stream on repetitive content.
+expect {
+	input = Str.to_utf8("BT /F1 12 Tf [<0001> -3 <0002>] TJ ET\nBT /F1 12 Tf [<0003> -3 <0004>] TJ ET\nBT /F1 12 Tf [<0001> -3 <0002>] TJ ET\n0 0 1 rg 10 10 m 20 20 l S\n")
+	fastest = compressed_length(input, KernelDeflate.Level.fastest)
+	balanced = compressed_length(input, KernelDeflate.Level.balanced)
+	smallest = compressed_length(input, KernelDeflate.Level.smallest)
+	smallest > 0 and smallest <= balanced and balanced <= fastest
 }
 
 # Incompressible input stays inside the stored-block bound.
 expect {
 	input = List.repeat(0, 12000).map_with_index(|_, index| ((index * 2654435761).shr_wrap(13)).to_u8_wrap())
 	bound = KernelDeflate.output_bound(input.len())?
-	plan = KernelDeflate.Plan.prepare(input, KernelDeflate.Limits.make({ max_input_bytes: input.len(), max_output_bytes: bound }))?
+	plan = KernelDeflate.Plan.prepare(input, KernelDeflate.Level.balanced, KernelDeflate.Limits.make({ max_input_bytes: input.len(), max_output_bytes: bound }))?
 	result = KernelDeflate.to_bytes(plan)?
 	result.bytes.len() <= bound and inflate(result.bytes) == input
 }
@@ -289,10 +321,49 @@ expect {
 	input = Str.to_utf8("BT /F1 12 Tf [<0001> -3 <0002>] TJ ET\nBT /F1 12 Tf [<0001> -3 <0002>] TJ ET\n")
 	bound = KernelDeflate.output_bound(input.len())?
 	limits = KernelDeflate.Limits.make({ max_input_bytes: input.len(), max_output_bytes: bound })
-	first = KernelDeflate.to_bytes(KernelDeflate.Plan.prepare(input, limits)?)?
-	second = KernelDeflate.to_bytes(KernelDeflate.Plan.prepare(List.concat([], input), limits)?)?
+	first = KernelDeflate.to_bytes(KernelDeflate.Plan.prepare(input, KernelDeflate.Level.balanced, limits)?)?
+	second = KernelDeflate.to_bytes(KernelDeflate.Plan.prepare(List.concat([], input), KernelDeflate.Level.balanced, limits)?)?
 	first.bytes == second.bytes
 }
 
 # Adler-32 of "Wikipedia" is the RFC 1950 worked value 0x11E60398.
 expect adler32(Str.to_utf8("Wikipedia")) == 0x11E60398
+
+framed : List(U8), KernelDeflate.Level, U8 -> Bool
+framed = |input, level, flag| {
+	bound = match KernelDeflate.output_bound(input.len()) {
+		Ok(value) => value
+		Err(_) => 0
+	}
+	match KernelDeflate.Plan.prepare(input, level, KernelDeflate.Limits.make({ max_input_bytes: input.len(), max_output_bytes: bound })) {
+		Err(_) => False
+		Ok(plan) => match KernelDeflate.to_bytes(plan) {
+			Err(_) => False
+			Ok(result) => {
+				header = result.bytes.sublist({ start: 0, len: 2 })
+				trailer = result.bytes.sublist({ start: result.bytes.len() - 4, len: 4 })
+				checksum = adler32(input)
+				header == [120, flag] and
+					(120 * 256 + flag.to_u64()) % 31 == 0 and
+						trailer == [checksum.shr_wrap(24).to_u8_wrap(), checksum.shr_wrap(16).to_u8_wrap(), checksum.shr_wrap(8).to_u8_wrap(), checksum.to_u8_wrap()] and
+							inflate(result.bytes) == input and
+								result.bytes.len() < input.len() and
+									result.bytes.len() <= bound and
+										KernelDeflate.Work.input_bytes(result.work) == input.len() and
+											KernelDeflate.Work.emitted_bytes(result.work) == result.bytes.len()
+			}
+		}
+	}
+}
+
+compressed_length : List(U8), KernelDeflate.Level -> U64
+compressed_length = |input, level| {
+	limits = KernelDeflate.Limits.make({ max_input_bytes: input.len(), max_output_bytes: input.len() + 64 })
+	match KernelDeflate.Plan.prepare(input, level, limits) {
+		Err(_) => 0
+		Ok(plan) => match KernelDeflate.to_bytes(plan) {
+			Err(_) => 0
+			Ok(result) => result.bytes.len()
+		}
+	}
+}

@@ -4188,11 +4188,12 @@
     },
     {
       "name": "text-layout chunked facade output shared resources",
-      "scenario_revision": "chunked-facade-v1-by-construction",
+      "scenario_revision": "chunked-facade-v2-compression-choice",
       "source": "tests/pdf_facade/pdf_facade_chunks.roc",
       "snapshot": "tests/pdf_facade/pdf_facade_chunks.pdf",
       "args": [
-        "share"
+        "share",
+        "balanced"
       ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
@@ -4200,7 +4201,118 @@
         "authored_blocks": 1,
         "chunked_facade": 1,
         "facade_output": 1,
-        "normalized_plan_identity": 1
+        "normalized_plan_identity": 1,
+        "compression_choice": 1
+      },
+      "work_counters": [
+        "chunks",
+        "max_chunk_bytes",
+        "chunk_offset_weight",
+        "byte_identical",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 590,
+          "allocated_bytes": 4228335,
+          "work": {
+            "chunks": 22,
+            "max_chunk_bytes": 5245,
+            "chunk_offset_weight": 105982,
+            "byte_identical": 1,
+            "output_bytes": 10763
+          }
+        },
+        "x64musl": {
+          "allocations": 590,
+          "allocated_bytes": 4228335,
+          "work": {
+            "chunks": 22,
+            "max_chunk_bytes": 5245,
+            "chunk_offset_weight": 105982,
+            "byte_identical": 1,
+            "output_bytes": 10763
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "facade_output",
+        "pdfa4"
+      ]
+    },
+    {
+      "name": "text-layout chunked facade output shared resources smallest compression",
+      "scenario_revision": "chunked-facade-v2-compression-choice",
+      "source": "tests/pdf_facade/pdf_facade_chunks.roc",
+      "snapshot": "tests/pdf_facade/pdf_facade_chunks_smallest.pdf",
+      "args": [
+        "share",
+        "smallest"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "authored_blocks": 1,
+        "chunked_facade": 1,
+        "facade_output": 1,
+        "normalized_plan_identity": 1,
+        "compression_choice": 1
+      },
+      "work_counters": [
+        "chunks",
+        "max_chunk_bytes",
+        "chunk_offset_weight",
+        "byte_identical",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 590,
+          "allocated_bytes": 4228335,
+          "work": {
+            "chunks": 22,
+            "max_chunk_bytes": 5245,
+            "chunk_offset_weight": 105982,
+            "byte_identical": 1,
+            "output_bytes": 10763
+          }
+        },
+        "x64musl": {
+          "allocations": 590,
+          "allocated_bytes": 4228335,
+          "work": {
+            "chunks": 22,
+            "max_chunk_bytes": 5245,
+            "chunk_offset_weight": 105982,
+            "byte_identical": 1,
+            "output_bytes": 10763
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "facade_output",
+        "pdfa4"
+      ]
+    },
+    {
+      "name": "text-layout chunked facade output shared resources fastest compression",
+      "scenario_revision": "chunked-facade-v2-compression-choice",
+      "source": "tests/pdf_facade/pdf_facade_chunks.roc",
+      "snapshot": "tests/pdf_facade/pdf_facade_chunks_fastest.pdf",
+      "args": [
+        "share",
+        "fastest"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "authored_blocks": 1,
+        "chunked_facade": 1,
+        "facade_output": 1,
+        "normalized_plan_identity": 1,
+        "compression_choice": 1
       },
       "work_counters": [
         "chunks",
@@ -4241,11 +4353,12 @@
     },
     {
       "name": "text-layout chunked facade output owned chunks",
-      "scenario_revision": "chunked-facade-v1-by-construction",
+      "scenario_revision": "chunked-facade-v2-compression-choice",
       "source": "tests/pdf_facade/pdf_facade_chunks.roc",
       "snapshot": "tests/pdf_facade/pdf_facade_chunks.pdf",
       "args": [
-        "own"
+        "own",
+        "balanced"
       ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
@@ -4253,7 +4366,118 @@
         "authored_blocks": 1,
         "chunked_facade": 1,
         "facade_output": 1,
-        "normalized_plan_identity": 1
+        "normalized_plan_identity": 1,
+        "compression_choice": 1
+      },
+      "work_counters": [
+        "chunks",
+        "max_chunk_bytes",
+        "chunk_offset_weight",
+        "byte_identical",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 590,
+          "allocated_bytes": 4228335,
+          "work": {
+            "chunks": 22,
+            "max_chunk_bytes": 5245,
+            "chunk_offset_weight": 105982,
+            "byte_identical": 1,
+            "output_bytes": 10763
+          }
+        },
+        "x64musl": {
+          "allocations": 590,
+          "allocated_bytes": 4228335,
+          "work": {
+            "chunks": 22,
+            "max_chunk_bytes": 5245,
+            "chunk_offset_weight": 105982,
+            "byte_identical": 1,
+            "output_bytes": 10763
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "facade_output",
+        "pdfa4"
+      ]
+    },
+    {
+      "name": "text-layout chunked facade output owned chunks smallest compression",
+      "scenario_revision": "chunked-facade-v2-compression-choice",
+      "source": "tests/pdf_facade/pdf_facade_chunks.roc",
+      "snapshot": "tests/pdf_facade/pdf_facade_chunks_smallest.pdf",
+      "args": [
+        "own",
+        "smallest"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "authored_blocks": 1,
+        "chunked_facade": 1,
+        "facade_output": 1,
+        "normalized_plan_identity": 1,
+        "compression_choice": 1
+      },
+      "work_counters": [
+        "chunks",
+        "max_chunk_bytes",
+        "chunk_offset_weight",
+        "byte_identical",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 590,
+          "allocated_bytes": 4228335,
+          "work": {
+            "chunks": 22,
+            "max_chunk_bytes": 5245,
+            "chunk_offset_weight": 105982,
+            "byte_identical": 1,
+            "output_bytes": 10763
+          }
+        },
+        "x64musl": {
+          "allocations": 590,
+          "allocated_bytes": 4228335,
+          "work": {
+            "chunks": 22,
+            "max_chunk_bytes": 5245,
+            "chunk_offset_weight": 105982,
+            "byte_identical": 1,
+            "output_bytes": 10763
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "facade_output",
+        "pdfa4"
+      ]
+    },
+    {
+      "name": "text-layout chunked facade output owned chunks fastest compression",
+      "scenario_revision": "chunked-facade-v2-compression-choice",
+      "source": "tests/pdf_facade/pdf_facade_chunks.roc",
+      "snapshot": "tests/pdf_facade/pdf_facade_chunks_fastest.pdf",
+      "args": [
+        "own",
+        "fastest"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "authored_blocks": 1,
+        "chunked_facade": 1,
+        "facade_output": 1,
+        "normalized_plan_identity": 1,
+        "compression_choice": 1
       },
       "work_counters": [
         "chunks",
