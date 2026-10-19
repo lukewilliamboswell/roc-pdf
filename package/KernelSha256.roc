@@ -9,7 +9,28 @@ ShaState : {
 	h : U32,
 }
 
-CompressResult : { schedule : List(U32), state : ShaState }
+## The message schedule as a sliding window of its next 16 words. Each round
+## consumes `w0` and shifts in the word 16 ahead, so hashing needs no
+## schedule list: a fresh 64-word list per digest was one allocation for
+## every name, string and payload digested.
+Window : {
+	w0 : U32,
+	w1 : U32,
+	w2 : U32,
+	w3 : U32,
+	w4 : U32,
+	w5 : U32,
+	w6 : U32,
+	w7 : U32,
+	w8 : U32,
+	w9 : U32,
+	w10 : U32,
+	w11 : U32,
+	w12 : U32,
+	w13 : U32,
+	w14 : U32,
+	w15 : U32,
+}
 
 ## One logical message assembled from a prefix and an exact range of a second
 ## already-owned list. Hashing reads both through index arithmetic, so a large
@@ -54,12 +75,9 @@ digest_state = |parts| {
 		blocks = ceil_div_64(with_marker_and_length)
 		constants = round_constants
 		var $state = initial_state
-		var $schedule = List.repeat(0, 64)
 		var $block = 0
 		while $block < blocks {
-			compressed = compress_block($state, parts, $block, blocks, bit_length, constants, $schedule)
-			$state = compressed.state
-			$schedule = compressed.schedule
+			$state = compress_block($state, parts, $block, blocks, bit_length, constants)
 			$block = $block + 1
 		}
 		Ok($state)
@@ -146,28 +164,33 @@ round_constants = [
 	0xc67178f2,
 ]
 
-compress_block : ShaState, Parts, U64, U64, U64, List(U32), List(U32) -> CompressResult
-compress_block = |state, input, block, blocks, bit_length, constants, schedule| {
+compress_block : ShaState, Parts, U64, U64, U64, List(U32) -> ShaState
+compress_block = |state, input, block, blocks, bit_length, constants| {
 	block_start = block * 64
-	var $schedule = schedule
-	var $word = 0
-	while $word < 16 {
-		byte_start = block_start + $word * 4
-		value = padded_byte(input, byte_start, blocks, bit_length).to_u32().shl_wrap(24)
+	word = |index| {
+		byte_start = block_start + index * 4
+		padded_byte(input, byte_start, blocks, bit_length).to_u32().shl_wrap(24)
 			.bitwise_or(padded_byte(input, byte_start + 1, blocks, bit_length).to_u32().shl_wrap(16))
 			.bitwise_or(padded_byte(input, byte_start + 2, blocks, bit_length).to_u32().shl_wrap(8))
 			.bitwise_or(padded_byte(input, byte_start + 3, blocks, bit_length).to_u32())
-		$schedule = word_set($schedule, $word, value)
-		$word = $word + 1
 	}
-	while $word < 64 {
-		before_15 = word_at($schedule, $word - 15)
-		before_2 = word_at($schedule, $word - 2)
-		small_0 = rotate_right(before_15, 7).bitwise_xor(rotate_right(before_15, 18)).bitwise_xor(before_15.shr_wrap(3))
-		small_1 = rotate_right(before_2, 17).bitwise_xor(rotate_right(before_2, 19)).bitwise_xor(before_2.shr_wrap(10))
-		value = add4(word_at($schedule, $word - 16), small_0, word_at($schedule, $word - 7), small_1)
-		$schedule = word_set($schedule, $word, value)
-		$word = $word + 1
+	var $window = {
+		w0: word(0),
+		w1: word(1),
+		w2: word(2),
+		w3: word(3),
+		w4: word(4),
+		w5: word(5),
+		w6: word(6),
+		w7: word(7),
+		w8: word(8),
+		w9: word(9),
+		w10: word(10),
+		w11: word(11),
+		w12: word(12),
+		w13: word(13),
+		w14: word(14),
+		w15: word(15),
 	}
 
 	var $working = state
@@ -175,7 +198,7 @@ compress_block = |state, input, block, blocks, bit_length, constants, schedule| 
 	while $round < 64 {
 		big_1 = rotate_right($working.e, 6).bitwise_xor(rotate_right($working.e, 11)).bitwise_xor(rotate_right($working.e, 25))
 		choice = $working.e.bitwise_and($working.f).bitwise_xor($working.e.bitwise_xor(0xffffffff).bitwise_and($working.g))
-		temporary_1 = add5($working.h, big_1, choice, word_at(constants, $round), word_at($schedule, $round))
+		temporary_1 = add5($working.h, big_1, choice, word_at(constants, $round), $window.w0)
 		big_0 = rotate_right($working.a, 2).bitwise_xor(rotate_right($working.a, 13)).bitwise_xor(rotate_right($working.a, 22))
 		majority = $working.a.bitwise_and($working.b).bitwise_xor($working.a.bitwise_and($working.c)).bitwise_xor($working.b.bitwise_and($working.c))
 		temporary_2 = U32.plus_wrap(big_0, majority)
@@ -189,21 +212,44 @@ compress_block = |state, input, block, blocks, bit_length, constants, schedule| 
 			g: $working.f,
 			h: $working.g,
 		}
+		$window = next_window($window)
 		$round = $round + 1
 	}
 
 	{
-		schedule: $schedule,
-		state: {
-			a: U32.plus_wrap(state.a, $working.a),
-			b: U32.plus_wrap(state.b, $working.b),
-			c: U32.plus_wrap(state.c, $working.c),
-			d: U32.plus_wrap(state.d, $working.d),
-			e: U32.plus_wrap(state.e, $working.e),
-			f: U32.plus_wrap(state.f, $working.f),
-			g: U32.plus_wrap(state.g, $working.g),
-			h: U32.plus_wrap(state.h, $working.h),
-		},
+		a: U32.plus_wrap(state.a, $working.a),
+		b: U32.plus_wrap(state.b, $working.b),
+		c: U32.plus_wrap(state.c, $working.c),
+		d: U32.plus_wrap(state.d, $working.d),
+		e: U32.plus_wrap(state.e, $working.e),
+		f: U32.plus_wrap(state.f, $working.f),
+		g: U32.plus_wrap(state.g, $working.g),
+		h: U32.plus_wrap(state.h, $working.h),
+	}
+}
+
+## Shifts in W[t + 16] = σ1(W[t + 14]) + W[t + 9] + σ0(W[t + 1]) + W[t].
+next_window : Window -> Window
+next_window = |window| {
+	small_0 = rotate_right(window.w1, 7).bitwise_xor(rotate_right(window.w1, 18)).bitwise_xor(window.w1.shr_wrap(3))
+	small_1 = rotate_right(window.w14, 17).bitwise_xor(rotate_right(window.w14, 19)).bitwise_xor(window.w14.shr_wrap(10))
+	{
+		w0: window.w1,
+		w1: window.w2,
+		w2: window.w3,
+		w3: window.w4,
+		w4: window.w5,
+		w5: window.w6,
+		w6: window.w7,
+		w7: window.w8,
+		w8: window.w9,
+		w9: window.w10,
+		w10: window.w11,
+		w11: window.w12,
+		w12: window.w13,
+		w13: window.w14,
+		w14: window.w15,
+		w15: add4(window.w0, small_0, window.w9, small_1),
 	}
 }
 
@@ -269,15 +315,7 @@ word_at : List(U32), U64 -> U32
 word_at = |words, index| match words.get(index) {
 	Ok(word) => word
 	Err(OutOfBounds) => {
-		crash "SHA-256 schedule invariant failed"
-	}
-}
-
-word_set : List(U32), U64, U32 -> List(U32)
-word_set = |words, index, value| match words.set(index, value) {
-	Ok(updated) => updated
-	Err(OutOfBounds) => {
-		crash "SHA-256 schedule update invariant failed"
+		crash "SHA-256 round constant invariant failed"
 	}
 }
 
