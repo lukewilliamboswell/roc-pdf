@@ -1190,7 +1190,7 @@ profile_batch = |violation, stage| {
 	requirement = violation.requirement
 	message = "The Archive profile requires that ${KernelPdfA4.summary(requirement)} (${KernelPdfA4.clause(requirement)}). No PDF bytes were emitted; this is not a downgrade to Standard."
 	{
-		detail_bytes: Str.to_utf8(message).len(),
+		detail_bytes: message.count_utf8_bytes(),
 		diagnostics: [
 			{
 				clause_references: [KernelPdfA4.clause(requirement)],
@@ -2553,7 +2553,7 @@ unavailable_batch : Document.Feature, Str -> Conformance.DiagnosticBatch
 unavailable_batch = |feature, summary| {
 	message = unavailable_message(feature, summary)
 	{
-		detail_bytes: Str.to_utf8(message).len(),
+		detail_bytes: message.count_utf8_bytes(),
 		diagnostics: [
 			{
 				clause_references: [],

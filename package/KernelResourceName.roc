@@ -2,7 +2,16 @@ import KernelLex
 
 KernelResourceName :: [].{
 	bytes : Str, U64 -> List(U8)
-	bytes = |prefix, index| append(Str.to_utf8(prefix), index)
+
+	## Sized for the prefix and suffix at once: the exact-size list from
+	## `Str.to_utf8` reallocated as soon as the suffix was appended.
+	bytes = |prefix, index| {
+		var $output = List.with_capacity(prefix.count_utf8_bytes() + suffix_length(index))
+		for byte in Str.iter_utf8(prefix) {
+			$output = $output.append(byte)
+		}
+		append($output, index)
+	}
 
 	append : List(U8), U64 -> List(U8)
 	append = |output, index| append_index(output, index)

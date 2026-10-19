@@ -700,7 +700,7 @@ validate_annotations = |inputs, destinations, name_order, context, limits| {
 		match input.description {
 			NoDescription => {}
 			WithDescription(text) => {
-				bytes = Str.to_utf8(text).len()
+				bytes = text.count_utf8_bytes()
 				if bytes == 0 {
 					return Err(DescriptionEmpty({ annotation: $index }))
 				}

@@ -555,7 +555,15 @@ xref_row = |width, entry_type, field, generation| {
 }
 
 append_ascii : List(U8), Str -> List(U8)
-append_ascii = |output, text| append_all(output, Str.to_utf8(text))
+
+## Iterates the text's bytes in place; `Str.to_utf8` allocated a list per call.
+append_ascii = |output, text| {
+	var $out = output
+	for byte in Str.iter_utf8(text) {
+		$out = $out.append(byte)
+	}
+	$out
+}
 
 emit_generated : KernelEmit.Encoder, List(U8), Phase -> Try(KernelEmit.Step, KernelEmit.Error)
 emit_generated = |encoder, bytes, phase| {
