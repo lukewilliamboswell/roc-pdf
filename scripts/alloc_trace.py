@@ -65,10 +65,20 @@ def symbol_names(binary: Path) -> dict[str, str]:
     return names
 
 
+BUILTINS: set[str] = set()
+
+
+def is_builtin(label: str) -> bool:
+    return label.startswith("Builtin.") or label in BUILTINS
+
+
 def frame_label(frame: str, names: dict[str, str], lines: bool) -> str:
     symbol, _, where = frame.partition("@")
     label = names.get(symbol, symbol)
-    return f"{label} ({where})" if lines and where else label
+    label = f"{label} ({where})" if lines and where else label
+    if "<roc-generated>" in where:
+        BUILTINS.add(label)
+    return label
 
 
 def main() -> None:
@@ -114,10 +124,11 @@ def main() -> None:
         total += count
         if roc:
             # Attribute to the first package frame, naming the builtin it
-            # allocated through: `caller [Builtin.List.append]`.
-            builtin = next((name for name in roc if name.startswith("Builtin.")), None)
-            owner = next((name for name in roc if not name.startswith("Builtin.")), roc[0])
-            inner = roc[0] if roc[0].startswith("Builtin.") else builtin if roc.index(builtin or owner) < roc.index(owner) else None
+            # allocated through: `caller [Builtin.List.append]`. Builtins
+            # are compiler-generated frames (no package source file).
+            generated = [name for name in roc if is_builtin(name)]
+            owner = next((name for name in roc if not is_builtin(name)), roc[0])
+            inner = generated[0] if generated and roc.index(generated[0]) < roc.index(owner) else None
             self_counts[f"{owner} [{inner}]" if inner else owner] += count
         for name in set(roc):
             inclusive[name] += count
