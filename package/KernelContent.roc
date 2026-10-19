@@ -1120,7 +1120,17 @@ append_resource_index = |bytes, value, limit| {
 }
 
 append_literal : List(U8), Str, U64 -> Try(List(U8), KernelContent.Error)
-append_literal = |bytes, value, limit| append_bytes(bytes, Str.to_utf8(value), limit)
+
+## Iterates the literal's bytes in place: `Str.to_utf8` allocated a fresh
+## list for every literal on every call.
+append_literal = |bytes, value, limit| {
+	check_room(bytes.len(), Str.count_utf8_bytes(value), limit)?
+	var $out = bytes
+	for byte in Str.iter_utf8(value) {
+		$out = $out.append(byte)
+	}
+	Ok($out)
+}
 
 append_bytes : List(U8), List(U8), U64 -> Try(List(U8), KernelContent.Error)
 append_bytes = |bytes, addition, limit| {
