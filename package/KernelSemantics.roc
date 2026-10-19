@@ -771,12 +771,10 @@ repeats_language = |store, owner, tag| if owner >= store.nodes.len() {
 ## 8.4.4 checks for every structure-element `/Lang` (RFC 3066 syntax).
 valid_language_tag : Str -> Bool
 valid_language_tag = |tag| {
-	bytes = Str.to_utf8(tag)
-	zero = bytes.len() - bytes.len()
-	var $subtag = zero
-	var $length = zero
-	var $valid = !bytes.is_empty()
-	for byte in bytes {
+	var $subtag = 0
+	var $length = 0
+	var $valid = !tag.is_empty()
+	for byte in Str.iter_utf8(tag) {
 		if byte == 45 {
 			$valid = $valid and $length >= 1 and $length <= 8
 			$subtag = $subtag + 1
