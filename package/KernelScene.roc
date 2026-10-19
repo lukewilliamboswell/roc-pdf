@@ -821,6 +821,7 @@ validate_groups = |scenes, resources, max_depth| {
 	var $soft_mask_commands = 0
 	var $text_placements = 0
 	var $maximum_depth = 0
+
 	## One work list serves every group: cleared, it keeps its capacity, where
 	## a fresh list per group allocated and then regrew for each group.
 	var $frames = List.with_capacity(8)
