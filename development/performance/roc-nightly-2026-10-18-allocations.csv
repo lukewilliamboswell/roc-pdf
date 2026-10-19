@@ -1,280 +1,280 @@
 case,allocations_before,allocations_after,allocated_bytes_before,allocated_bytes_after
-chapter templates atomic negatives,3569,1335,4842968,4397497
-chapter templates reset label,49748,4977,28576016,24456428
-chapter templates without document templates,48286,4446,27495591,23601241
-chapter templates x2,93012,7820,50101969,42601701
-chapter templates x20,866711,56153,469042045,388504439
-custom block atomic negatives,31233,6029,9331712,8214006
-custom block callouts x10,25339,5336,18939904,15497560
-custom block callouts x100,194300,28337,124152192,85683690
-custom block defaults,5782,1477,9572146,8729112
-custom block report,78149,17430,66671769,38816259
-custom block rich callouts x10,38817,6886,26173367,21799621
-custom block rich callouts x50,175329,27252,117982867,80450251
-destination references atomic negatives,4531,2194,4988340,4509835
-destination references inherited face,4408,1321,7246354,6535123
-destination references measured geometry,20210,5405,25107207,15315231
-destination references ordered mixed fonts,5047,1842,7390032,6443216
-destination references x2,8480,2914,8977547,7487172
-destination references x20,30512,9691,34408471,25795251
-flow figures atomic negatives,2890,1588,4562768,4166285
-flow figures drawing bound diagnostics,2198,971,4408234,3958460
-flow figures label faces x10,28177,5200,21623638,17400894
-flow figures label faces x50,115832,17866,77236438,55959474
-flow figures labels x10,30806,6066,20434798,16020812
-flow figures labels x50,122205,18262,81039729,56600789
-flow figures report,16120,2311,14197137,11599180
-flow figures sections x10,21700,3397,15392114,11909276
-flow figures sections x100,186507,23474,119302608,77798182
-flow figures spaced decorations x10,16541,2083,11462270,9139887
-flow figures spaced decorations x100,134567,10701,68142804,48410284
-layout policies adversarial heading chain x50,9874,3029,7865648,6620554
-layout policies adversarial heading chain x500,75135,23295,52949920,33494259
-layout policies atomic negatives,6520,3424,13225662,11046630
-layout policies explicit breaks and spacers,8703,1952,8204936,6877985
-layout policies keep groups and lists x50,36919,7588,29596726,17206169
-layout policies keep groups and lists x500,351455,68102,268731138,142064859
-layout policies keeps across page boundaries,7014,1504,8998591,7705900
-layout policies nested lists,10851,2706,10157510,8006695
-layout policies reported relaxations,4308,924,7197584,6373086
-page labels visible x3,4518,1268,6458019,5838780
-page labels visible x30,19105,4639,27978223,24691866
-page templates atomic negatives,3817,2274,4807632,4418237
-page templates backdrops x3,13089,1983,13406052,11644322
-page templates backdrops x30,97616,7027,84176981,78027629
-page templates furniture drawings,4696,1358,7684875,6910448
-page templates furniture groups,9124,1651,9168263,8143786
-page templates landscape and custom page sizes,97203,26850,80755521,43855674
-page templates letter x20,68405,6361,54464975,40972379
-page templates letter x200,534892,23826,426191440,308537736
-page templates letter x6,31722,4904,24526730,18648632
-page templates number styles,8514,2596,9317802,8095225
-page templates ordered policy,136417,42459,84028765,66397873
-page templates report,96567,4594,66896578,52278002
-page templates slot inset,12069,2179,9853943,9250258
-page templates typography x3,6565,2170,8418952,7618354
-page templates typography x30,25157,5666,30534497,26996826
-production-visual artifact form repeated x100,2020,482,2907547,2502968
-production-visual artifact form repeated x1000,9252,504,4602160,4454072
-production-visual color-image atomic negatives,1238,640,2000382,1771293
-production-visual color-image retained-input ownership,3583,1647,6980610,6253940
-production-visual color-image showcase with adversarial authoring,3599,1663,6983970,6257300
-production-visual color-image unique-input ownership,1800,832,3492145,3128810
-production-visual deep nested form chain x64,16881,5082,44538217,38691651
+chapter templates atomic negatives,3569,1333,4842968,4397321
+chapter templates reset label,49748,4925,28576016,24451852
+chapter templates without document templates,48286,4400,27495591,23597193
+chapter templates x2,93012,7726,50101969,42593429
+chapter templates x20,866711,55303,469042045,388429639
+custom block atomic negatives,31233,5782,9331712,8192270
+custom block callouts x10,25339,5232,18939904,15488408
+custom block callouts x100,194300,27333,124152192,85595338
+custom block defaults,5782,1459,9572146,8727528
+custom block report,78149,16414,66671769,38679779
+custom block rich callouts x10,38817,6742,26173367,21786949
+custom block rich callouts x50,175329,26548,117982867,80388299
+destination references atomic negatives,4531,2192,4988340,4509659
+destination references inherited face,4408,1315,7246354,6534499
+destination references measured geometry,20210,4979,25107207,15263919
+destination references ordered mixed fonts,5047,1836,7390032,6442592
+destination references x2,8480,2874,8977547,7483156
+destination references x20,30512,9561,34408471,25783315
+flow figures atomic negatives,2890,1585,4562768,4165925
+flow figures drawing bound diagnostics,2198,969,4408234,3958188
+flow figures label faces x10,28177,5148,21623638,17395358
+flow figures label faces x50,115832,17614,77236438,55932498
+flow figures labels x10,30806,5998,20434798,16013772
+flow figures labels x50,122205,17954,81039729,56568789
+flow figures report,16120,2282,14197137,11596244
+flow figures sections x10,21700,3335,15392114,11902860
+flow figures sections x100,186507,22872,119302608,77735606
+flow figures spaced decorations x10,16541,2061,11462270,9137951
+flow figures spaced decorations x100,134567,10499,68142804,48392508
+layout policies adversarial heading chain x50,9874,2977,7865648,6615978
+layout policies adversarial heading chain x500,75135,22793,52949920,33450083
+layout policies atomic negatives,6520,3390,13225662,11043398
+layout policies explicit breaks and spacers,8703,1933,8204936,6876313
+layout policies keep groups and lists x50,36919,7186,29596726,17168393
+layout policies keep groups and lists x500,351455,64100,268731138,141688683
+layout policies keeps across page boundaries,7014,1488,8998591,7704492
+layout policies nested lists,10851,2610,10157510,7997911
+layout policies reported relaxations,4308,921,7197584,6372822
+page labels visible x3,4518,1264,6458019,5838428
+page labels visible x30,19105,4608,27978223,24689138
+page templates atomic negatives,3817,2271,4807632,4417973
+page templates backdrops x3,13089,1977,13406052,11643698
+page templates backdrops x30,97616,6994,84176981,78024629
+page templates furniture drawings,4696,1354,7684875,6910096
+page templates furniture groups,9124,1647,9168263,8143434
+page templates landscape and custom page sizes,97203,25573,80755521,43676994
+page templates letter x20,68405,6236,54464975,40958211
+page templates letter x200,534892,23521,426191440,308507728
+page templates letter x6,31722,4793,24526730,18635696
+page templates number styles,8514,2590,9317802,8094697
+page templates ordered policy,136417,42396,84028765,66392233
+page templates report,96567,4531,66896578,52272362
+page templates slot inset,12069,2175,9853943,9249906
+page templates typography x3,6565,2162,8418952,7617650
+page templates typography x30,25157,5604,30534497,26991370
+production-visual artifact form repeated x100,2020,480,2907547,2502792
+production-visual artifact form repeated x1000,9252,502,4602160,4453896
+production-visual color-image atomic negatives,1238,638,2000382,1771117
+production-visual color-image retained-input ownership,3583,1639,6980610,6253236
+production-visual color-image showcase with adversarial authoring,3599,1655,6983970,6256596
+production-visual color-image unique-input ownership,1800,828,3492145,3128458
+production-visual deep nested form chain x64,16881,5080,44538217,38691475
 production-visual dense resource dependency graph x100,1715,1256,2055379,1872587
 production-visual dense resource dependency graph x1000,12539,10280,11053291,10395299
-production-visual distinct font subsets x64,75775,19341,243695732,200063912
-production-visual distinct font subsets x8,13301,3283,31107760,27810968
-production-visual distinct image emission x64,3639,2120,3559552,2850954
-production-visual distinct image emission x8,1329,634,2100752,1846400
-production-visual distinct mask forms x64,18871,6873,47313245,40980736
-production-visual distinct mask forms x8,3632,1382,8642706,7676567
-production-visual distinct opacity states x100,5807,2769,6300756,4410246
-production-visual distinct opacity states x1000,47298,22809,63195626,24344831
-production-visual distinct patterns x64,14551,4840,43243969,38882635
-production-visual distinct patterns x8,2724,987,7050976,6336250
-production-visual distinct shadings x64,6635,4047,7285764,4524642
-production-visual distinct shadings x8,1976,970,3031363,2672461
-production-visual duplicate image collapse x64,2296,1505,2514026,2161559
-production-visual duplicate image collapse x8,1206,558,2051839,1794355
-production-visual equivalent authored fonts collapse x64,8554,4244,10605921,9433311
-production-visual equivalent authored fonts collapse x8,3244,1017,4516558,4036705
-production-visual facade metadata atomic negatives,1657,554,4325526,3943110
-production-visual font-leaf atomic negatives,5913,1104,4894724,4252651
-production-visual font-leaf distinctness matrix,4823,1204,10432781,9391862
-production-visual font-leaf forced digest collisions x64,6101,3095,8622976,8087538
-production-visual font-leaf forced digest collisions x8,3837,943,4712701,4206831
-production-visual font-leaf retained-input ownership,8691,2331,17229312,15397670
-production-visual font-leaf showcase with adversarial authoring,8689,2329,17228616,15396974
-production-visual font-leaf unique-input ownership,4345,1165,8614420,7698599
+production-visual distinct font subsets x64,75775,19211,243695732,200052472
+production-visual distinct font subsets x8,13301,3265,31107760,27809384
+production-visual distinct image emission x64,3639,2118,3559552,2850778
+production-visual distinct image emission x8,1329,632,2100752,1846224
+production-visual distinct mask forms x64,18871,6871,47313245,40980560
+production-visual distinct mask forms x8,3632,1380,8642706,7676391
+production-visual distinct opacity states x100,5807,2767,6300756,4410070
+production-visual distinct opacity states x1000,47298,22807,63195626,24344655
+production-visual distinct patterns x64,14551,4838,43243969,38882459
+production-visual distinct patterns x8,2724,985,7050976,6336074
+production-visual distinct shadings x64,6635,4045,7285764,4524466
+production-visual distinct shadings x8,1976,968,3031363,2672285
+production-visual duplicate image collapse x64,2296,1503,2514026,2161383
+production-visual duplicate image collapse x8,1206,556,2051839,1794179
+production-visual equivalent authored fonts collapse x64,8554,4179,10605921,9427591
+production-visual equivalent authored fonts collapse x8,3244,1008,4516558,4035913
+production-visual facade metadata atomic negatives,1657,552,4325526,3942934
+production-visual font-leaf atomic negatives,5913,1102,4894724,4252475
+production-visual font-leaf distinctness matrix,4823,1198,10432781,9391334
+production-visual font-leaf forced digest collisions x64,6101,3093,8622976,8087362
+production-visual font-leaf forced digest collisions x8,3837,941,4712701,4206655
+production-visual font-leaf retained-input ownership,8691,2319,17229312,15396614
+production-visual font-leaf showcase with adversarial authoring,8689,2317,17228616,15395918
+production-visual font-leaf unique-input ownership,4345,1159,8614420,7698071
 production-visual forced digest-collision bucket x100,1032,673,1441637,1285245
 production-visual forced digest-collision bucket x1000,6449,5190,3487391,3093399
-production-visual form atomic negatives,2222,1413,2666242,2372322
-production-visual form retained-input ownership,5004,1950,10647962,9336520
-production-visual form showcase with adversarial authoring,5025,1971,10656218,9344776
-production-visual form unique-input ownership,2513,986,5328285,4672564
-production-visual mask chain x2,1818,735,4570342,4145882
-production-visual mask chain x4,2356,946,5901788,5323636
-production-visual metadata atomic negatives,1349,549,2816114,2526131
-production-visual metadata omitted-timestamp packet,1326,526,2812552,2522569
-production-visual metadata retained-input ownership,2667,1067,5625694,5045728
-production-visual metadata showcase with adversarial authoring,2667,1067,5625694,5045728
-production-visual metadata title scaling x256,1338,538,2828743,2538768
-production-visual metadata title scaling x64,1336,536,2814953,2524978
-production-visual metadata unique-input ownership,1334,534,2812923,2522940
-production-visual navigation annotations x64,4810,1652,9434888,4606339
-production-visual navigation annotations x8,1551,584,2546890,2073266
-production-visual navigation atomic negatives,3310,1831,3834180,3234134
-production-visual navigation authored facade output,21598,1375,11895625,10117315
-production-visual navigation destination names x40,2506,884,3429604,2628901
-production-visual navigation destination names x8,1388,504,2265234,1901602
-production-visual navigation facade atomic negatives,3197,1681,4685580,4293819
-production-visual navigation facade determinism,43195,2749,23791242,20234622
-production-visual navigation fragmented link x32 quads,1644,544,2387480,2047151
-production-visual navigation outline depth x16,1347,489,2309182,1897229
-production-visual navigation outline width x64,2064,794,3176504,2241538
-production-visual navigation page labels x8,2815,824,6776394,5884453
-production-visual navigation retained-input ownership,3772,1362,7409022,6225458
-production-visual navigation shared appearance x16 links,2345,916,3923408,3020850
-production-visual navigation shared destination x32 links,2947,1163,5114859,3361210
-production-visual navigation showcase with adversarial authoring,3771,1361,7408526,6224962
-production-visual navigation unique-input ownership,1886,681,3704331,3112549
-production-visual nested form DAG x32,10960,3320,26233786,22972693
-production-visual nested form DAG x8,4135,1394,9836349,8698129
-production-visual nested opacity chain x16,1851,871,3583009,3161877
-production-visual nested opacity chain x64,3668,1969,4824302,3745911
-production-visual pattern cell commands x16,1338,451,2663670,2349807
-production-visual pattern cell commands x64,1727,455,2851363,2453027
-production-visual per-form opacity x32,9241,3064,24474106,21496675
-production-visual per-form opacity x8,3319,1199,8534554,7593727
-production-visual public facade metadata determinism,41119,3541,23648112,20390366
-production-visual public facade metadata output,20560,1771,11824060,10195187
+production-visual form atomic negatives,2222,1411,2666242,2372146
+production-visual form retained-input ownership,5004,1940,10647962,9335640
+production-visual form showcase with adversarial authoring,5025,1961,10656218,9343896
+production-visual form unique-input ownership,2513,981,5328285,4672124
+production-visual mask chain x2,1818,733,4570342,4145706
+production-visual mask chain x4,2356,944,5901788,5323460
+production-visual metadata atomic negatives,1349,546,2816114,2525867
+production-visual metadata omitted-timestamp packet,1326,523,2812552,2522305
+production-visual metadata retained-input ownership,2667,1061,5625694,5045200
+production-visual metadata showcase with adversarial authoring,2667,1061,5625694,5045200
+production-visual metadata title scaling x256,1338,535,2828743,2538504
+production-visual metadata title scaling x64,1336,533,2814953,2524714
+production-visual metadata unique-input ownership,1334,531,2812923,2522676
+production-visual navigation annotations x64,4810,1523,9434888,4594987
+production-visual navigation annotations x8,1551,567,2546890,2071770
+production-visual navigation atomic negatives,3310,1822,3834180,3233342
+production-visual navigation authored facade output,21598,1306,11895625,10111243
+production-visual navigation destination names x40,2506,843,3429604,2625293
+production-visual navigation destination names x8,1388,495,2265234,1900810
+production-visual navigation facade atomic negatives,3197,1676,4685580,4293379
+production-visual navigation facade determinism,43195,2611,23791242,20222478
+production-visual navigation fragmented link x32 quads,1644,541,2387480,2046887
+production-visual navigation outline depth x16,1347,487,2309182,1897053
+production-visual navigation outline width x64,2064,792,3176504,2241362
+production-visual navigation page labels x8,2815,815,6776394,5883661
+production-visual navigation retained-input ownership,3772,1344,7409022,6223874
+production-visual navigation shared appearance x16 links,2345,883,3923408,3017946
+production-visual navigation shared destination x32 links,2947,1097,5114859,3355402
+production-visual navigation showcase with adversarial authoring,3771,1343,7408526,6223378
+production-visual navigation unique-input ownership,1886,672,3704331,3111757
+production-visual nested form DAG x32,10960,3318,26233786,22972517
+production-visual nested form DAG x8,4135,1392,9836349,8697953
+production-visual nested opacity chain x16,1851,869,3583009,3161701
+production-visual nested opacity chain x64,3668,1967,4824302,3745735
+production-visual pattern cell commands x16,1338,449,2663670,2349631
+production-visual pattern cell commands x64,1727,453,2851363,2452851
+production-visual per-form opacity x32,9241,3062,24474106,21496499
+production-visual per-form opacity x8,3319,1197,8534554,7593551
+production-visual public facade metadata determinism,41119,3457,23648112,20382974
+production-visual public facade metadata output,20560,1729,11824060,10191491
 production-visual resource dependency chain x100,1699,1240,1683603,1500811
 production-visual resource dependency chain x1000,12523,10264,6396507,5738515
 production-visual resource dependency fan x100,1699,1240,1683603,1500811
 production-visual resource dependency fan x1000,12523,10264,6396507,5738515
 production-visual resource-graph atomic negatives,765,480,1287694,1150838
 production-visual retained resource-input ownership x100,1693,1234,1668219,1485427
-production-visual shading stops x16,1839,940,3163948,2702024
-production-visual shading stops x64,3409,2139,4760556,3540008
-production-visual shading-pattern atomic negatives,1954,1160,3319820,3045909
-production-visual shading-pattern retained-input ownership,5932,2756,11457004,10005130
-production-visual shading-pattern showcase with adversarial authoring,5959,2783,11466420,10014546
-production-visual shading-pattern unique-input ownership,2980,1392,5733432,5007495
-production-visual shared font subset x100,6742,1372,6715141,5029162
-production-visual shared font subset x1000,44762,7915,53256975,22672671
-production-visual shared intent profile x16,2310,1075,3509087,2980796
-production-visual shared intent profile x64,5413,2819,5896291,4662237
-production-visual shared mask reuse x100,2656,660,4215465,3908359
-production-visual shared mask reuse x1000,12600,690,7646006,7602896
-production-visual shared pattern x100,1902,458,2803405,2525756
-production-visual shared pattern x1000,8202,472,5152337,5095792
-production-visual shared shading x100,2214,559,2986184,2725935
-production-visual shared shading x1000,10328,589,5714834,5618561
-production-visual shared-constant opacity x100,2336,510,3550564,3320466
-production-visual shared-constant opacity x1000,12280,540,6981102,7015000
-production-visual soft-mask atomic negatives,2319,1376,6069910,5733149
-production-visual soft-mask retained-input ownership,4496,1804,10554890,9526770
-production-visual soft-mask showcase with adversarial authoring,4512,1820,10562858,9534738
-production-visual soft-mask unique-input ownership,2255,909,5280725,4766665
-production-visual text inside a meaningful form,1973,823,4292167,3879838
-production-visual transparency atomic negatives,2045,1244,7516916,7238287
-production-visual transparency retained-input ownership,4691,1897,10649156,9600410
-production-visual transparency showcase with adversarial authoring,4709,1915,10655628,9606882
-production-visual transparency unique-input ownership,2355,958,5327942,4803569
+production-visual shading stops x16,1839,938,3163948,2701848
+production-visual shading stops x64,3409,2137,4760556,3539832
+production-visual shading-pattern atomic negatives,1954,1158,3319820,3045733
+production-visual shading-pattern retained-input ownership,5932,2742,11457004,10003898
+production-visual shading-pattern showcase with adversarial authoring,5959,2769,11466420,10013314
+production-visual shading-pattern unique-input ownership,2980,1385,5733432,5006879
+production-visual shared font subset x100,6742,1271,6715141,5020274
+production-visual shared font subset x1000,44762,6914,53256975,22584583
+production-visual shared intent profile x16,2310,1058,3509087,2979300
+production-visual shared intent profile x64,5413,2754,5896291,4656517
+production-visual shared mask reuse x100,2656,658,4215465,3908183
+production-visual shared mask reuse x1000,12600,688,7646006,7602720
+production-visual shared pattern x100,1902,456,2803405,2525580
+production-visual shared pattern x1000,8202,470,5152337,5095616
+production-visual shared shading x100,2214,557,2986184,2725759
+production-visual shared shading x1000,10328,587,5714834,5618385
+production-visual shared-constant opacity x100,2336,508,3550564,3320290
+production-visual shared-constant opacity x1000,12280,538,6981102,7014824
+production-visual soft-mask atomic negatives,2319,1374,6069910,5732973
+production-visual soft-mask retained-input ownership,4496,1794,10554890,9525890
+production-visual soft-mask showcase with adversarial authoring,4512,1810,10562858,9533858
+production-visual soft-mask unique-input ownership,2255,904,5280725,4766225
+production-visual text inside a meaningful form,1973,821,4292167,3879662
+production-visual transparency atomic negatives,2045,1242,7516916,7238111
+production-visual transparency retained-input ownership,4691,1887,10649156,9599530
+production-visual transparency showcase with adversarial authoring,4709,1905,10655628,9606002
+production-visual transparency unique-input ownership,2355,953,5327942,4803129
 production-visual unique resource-input ownership x100,1036,677,1453991,1297599
-reference invoice,35714,8165,29067690,18718732
-reference invoice long text (INV-A1),37966,8110,32513408,20573520
-reference invoice rows x50,47177,9211,43033288,24379514
-reference invoice rows x500 (INV-A3),343240,48388,327030764,165684067
-reference invoice split row (INV-A4b),60332,8534,53150004,34854445
-reference invoice totals carry (INV-A5),70095,15751,43555345,28856965
-reference invoice wide code (INV-A2a),36927,8144,30257602,19172240
+reference invoice,35714,7738,29067690,18660724
+reference invoice long text (INV-A1),37966,7683,32513408,20515512
+reference invoice rows x50,47177,8584,43033288,24293634
+reference invoice rows x500 (INV-A3),343240,42754,327030764,164900099
+reference invoice split row (INV-A4b),60332,8107,53150004,34796437
+reference invoice totals carry (INV-A5),70095,14824,43555345,28730525
+reference invoice wide code (INV-A2a),36927,7717,30257602,19114232
 reference item layout x100,632,219,2010648,1852101
 reference item layout x1000,640,229,2219985,2061702
-reference letter,22808,3536,21753676,17244165
-reference letter long recipient (LET-A1),23422,3502,22170990,17551393
-reference letter x20,38142,3943,31803331,24847153
-reference letter x200,236431,8750,171460346,124814569
-reference letter x60 (LET-A2),82472,5037,61649981,46945651
-reference report,47915,10235,50053442,29232356
-reference report figure and caption (REP-A2),51960,11691,51674793,30592889
-reference report heading keep (REP-A1),50551,11156,50874894,30369442
-reference report ordered faces (REP-A5),47191,13688,44645156,25248986
-reference report scaled figure (REP-A6b),46874,9814,49200411,29438135
-reference report sections x10,38281,6553,39726200,23083822
-reference report sections x100,312172,47687,351475903,170789484
-reference report table break (REP-A3),50322,11964,50847536,30237849
-reference variant rejections,162055,84346,114874783,95400040
-rich flow atomic negatives,6487,3197,19182015,13871837
-rich flow list items x10,130132,15432,73369891,46092830
-rich flow list items x100,1252916,130819,743807483,431724978
-rich flow nested callouts x3,107123,13043,56007561,36249058
-rich flow nested callouts x30,1013043,101845,521559571,327116871
-rich flow paragraph callout x10,35068,2378,15160221,12579832
-rich flow paragraph callout x100,314682,11707,103939473,80984149
-rich flow rebuilt callouts x10,11051,1563,6905079,6015141
-rich flow rebuilt callouts x100,80329,5294,33216079,23462093
-rich flow shared callouts x10,11041,1553,6903879,6013941
-rich flow shared callouts x100,80229,5194,33204079,23450093
-rich flow zero padding table,79853,9939,35056637,25156839
-rich inline atomic negatives,5186,2475,9206185,8451055
-rich inline code face,13643,2699,10539165,8760511
-rich inline code holds x14,28447,4700,14895095,11523463
-rich inline code holds x140,168483,14657,62009943,47337815
-rich inline heading faces x10,16696,2853,10329521,9129481
-rich inline heading faces x50,66776,7945,27360320,22023358
-rich inline link style x10,11770,1926,9398470,7724797
-rich inline link style x50,52358,6591,42789605,27045667
-"rich inline mixed styles, links, languages, and expansions",13145,2429,9071613,7356358
-rich inline ordered multi-face spans,3321,1246,6003587,5364198
-rich inline paragraphs x10,27369,3807,15039698,11838603
-rich inline paragraphs x100,241905,25454,136208228,84038166
-rich inline repeated ordered segments x10,45938,9610,31695581,20637138
-rich inline repeated ordered segments x50,203417,35265,144991939,85981827
-rich inline repeated segments x10,37204,7844,23459539,16778049
-rich inline repeated segments x50,166204,29761,111894578,69758997
-rich inline scaled code x10,32439,6193,29094493,25064943
-rich inline scaled code x50,116454,14049,74728948,54530061
-rich inline scoped colors x10,11658,2639,9498245,7457633
-rich inline scoped colors x50,46094,8175,34297355,20547388
-rich inline scoped text x10,9165,2641,8400972,6757987
-rich inline scoped text x50,31871,7188,28665996,17476294
-rich inline shared source faces x10,20723,4552,15424123,11721625
-rich inline shared source faces x50,68110,12505,50704308,30239904
-scoped table paint cell fill x1,52612,11143,28853813,18390399
-scoped table paint column rule x1,51674,11147,28750812,18268390
-scoped table paint decorated x2,106032,20461,57961159,34526041
-scoped table paint decorated x20,1025525,187065,568307410,321357247
-scoped table paint internal rules x1,51598,11129,28740564,18251772
-scoped table paint reference header x1,55144,10979,30556365,20742400
-scoped table paint spanning control x1,28889,8248,17778116,12647762
-semantic foundation container atomic negatives,4204,1574,9264750,8393855
-"semantic foundation kernel attribute, identifier, and language lowering",2524,505,3932871,3527252
-semantic foundation nested public containers,4785,1261,5970043,5027001
-semantic foundation sections x10,9554,1690,8075266,6690695
-semantic foundation sections x100,79826,10279,48142300,30282138
-source blocks Han,5121,1481,6600998,5869353
-source blocks Han shared face,3470,1021,4558655,3984691
-source blocks Han source only,3472,1023,4559488,3985524
-source blocks atomic negatives,8264,3599,9411637,7965282
-source blocks blank lines,3185,703,3334228,2926429
-source blocks defaults,6255,1714,7502885,6623643
-source blocks empty,3113,649,3322185,2916290
-source blocks empty without background,2873,576,2674288,2350341
-source blocks long x60,14109,2989,11764928,10155951
-source blocks long x600,90209,15641,58407794,47957406
-source blocks near bottom,17105,3638,14317266,12146155
-source blocks source identities,5836,1589,7381034,6549605
-source blocks source only,4196,1068,5102069,4515626
-source blocks unicode,5953,1589,7329749,6674902
-source blocks whitespace,5893,1580,7241409,6580430
-source blocks wrapping,6862,1693,7987140,7210565
-source foregrounds atomic negatives,6462,2149,7338793,6677814
-source foregrounds kind0 x0 color,6226,1640,7510343,6641601
-source foregrounds kind0 x0 plain,5919,1580,7273988,6585632
-source foregrounds kind1 x0 color,18057,3638,14154503,12116932
-source foregrounds kind1 x0 plain,17903,3604,14021267,12002018
-source foregrounds kind2 x60 color,29577,4269,15075933,13533609
-source foregrounds kind2 x60 plain,12622,2873,10552080,9187260
-source foregrounds kind2 x600 color,248042,32729,119394203,96448992
-source foregrounds kind2 x600 plain,74121,14972,49007192,38807878
-source foregrounds kind3 x0 color,6529,1724,7512773,6714514
-source foregrounds kind3 x0 plain,6226,1660,7371633,6652949
-source foregrounds kind4 x0 color,5891,1438,5706666,5051554
-source foregrounds kind4 x0 plain,5530,1376,5623026,4989617
+reference letter,22808,3423,21753676,17230957
+reference letter long recipient (LET-A1),23422,3389,22170990,17538185
+reference letter x20,38142,3814,31803331,24832345
+reference letter x200,236431,8411,171460346,124778401
+reference letter x60 (LET-A2),82472,4861,61649981,46926035
+reference report,47915,9620,50053442,29151724
+reference report figure and caption (REP-A2),51960,11071,51674793,30511721
+reference report heading keep (REP-A1),50551,10536,50874894,30288370
+reference report ordered faces (REP-A5),47191,13072,44645156,25168170
+reference report scaled figure (REP-A6b),46874,9199,49200411,29357503
+reference report sections x10,38281,6091,39726200,23026366
+reference report sections x100,312172,43085,351475903,170216508
+reference report table break (REP-A3),50322,11348,50847536,30157129
+reference variant rejections,162055,84343,114874783,95399776
+rich flow atomic negatives,6487,3189,19182015,13871133
+rich flow list items x10,130132,14026,73369891,45921966
+rich flow list items x100,1252916,116813,743807483,430021954
+rich flow nested callouts x3,107123,12081,56007561,36128018
+rich flow nested callouts x30,1013043,92243,521559571,325908055
+rich flow paragraph callout x10,35068,2330,15160221,12575608
+rich flow paragraph callout x100,314682,11299,103939473,80948245
+rich flow rebuilt callouts x10,11051,1501,6905079,6009685
+rich flow rebuilt callouts x100,80329,4692,33216079,23409117
+rich flow shared callouts x10,11041,1491,6903879,6008485
+rich flow shared callouts x100,80229,4592,33204079,23397117
+rich flow zero padding table,79853,9115,35056637,25048039
+rich inline atomic negatives,5186,2460,9206185,8449735
+rich inline code face,13643,2629,10539165,8753295
+rich inline code holds x14,28447,4596,14895095,11512967
+rich inline code holds x140,168483,14049,62009943,47282967
+rich inline heading faces x10,16696,2789,10329521,9123849
+rich inline heading faces x50,66776,7641,27360320,21996606
+rich inline link style x10,11770,1874,9398470,7720221
+rich inline link style x50,52358,6339,42789605,27023491
+"rich inline mixed styles, links, languages, and expansions",13145,2359,9071613,7349142
+rich inline ordered multi-face spans,3321,1236,6003587,5362934
+rich inline paragraphs x10,27369,3623,15039698,11818571
+rich inline paragraphs x100,241905,23650,136208228,83841014
+rich inline repeated ordered segments x10,45938,9048,31695581,20577442
+rich inline repeated ordered segments x50,203417,32463,144991939,85684051
+rich inline repeated segments x10,37204,7362,23459539,16731153
+rich inline repeated segments x50,166204,27359,111894578,69525221
+rich inline scaled code x10,32439,5961,29094493,25042735
+rich inline scaled code x50,116454,13177,74728948,54451533
+rich inline scoped colors x10,11658,2578,9498245,7452265
+rich inline scoped colors x50,46094,7914,34297355,20524420
+rich inline scoped text x10,9165,2566,8400972,6750891
+rich inline scoped text x50,31871,6913,28665996,17451598
+rich inline shared source faces x10,20723,4190,15424123,11677449
+rich inline shared source faces x50,68110,10863,50704308,30038288
+scoped table paint cell fill x1,52612,10323,28853813,18281951
+scoped table paint column rule x1,51674,10327,28750812,18159942
+scoped table paint decorated x2,106032,18825,57961159,34309497
+scoped table paint decorated x20,1025525,170741,568307410,319194975
+scoped table paint internal rules x1,51598,10309,28740564,18143324
+scoped table paint reference header x1,55144,10159,30556365,20633952
+scoped table paint spanning control x1,28889,7752,17778116,12585970
+semantic foundation container atomic negatives,4204,1550,9264750,8391743
+"semantic foundation kernel attribute, identifier, and language lowering",2524,496,3932871,3526028
+semantic foundation nested public containers,4785,1232,5970043,5024401
+semantic foundation sections x10,9554,1648,8075266,6686999
+semantic foundation sections x100,79826,9877,48142300,30246762
+source blocks Han,5121,1469,6600998,5868105
+source blocks Han shared face,3470,1015,4558655,3983971
+source blocks Han source only,3472,1017,4559488,3984804
+source blocks atomic negatives,8264,3587,9411637,7964034
+source blocks blank lines,3185,697,3334228,2925709
+source blocks defaults,6255,1702,7502885,6622395
+source blocks empty,3113,643,3322185,2915762
+source blocks empty without background,2873,570,2674288,2349813
+source blocks long x60,14109,2977,11764928,10154703
+source blocks long x600,90209,15629,58407794,47956158
+source blocks near bottom,17105,3626,14317266,12144907
+source blocks source identities,5836,1573,7381034,6547621
+source blocks source only,4196,1062,5102069,4514906
+source blocks unicode,5953,1577,7329749,6673654
+source blocks whitespace,5893,1568,7241409,6579182
+source blocks wrapping,6862,1681,7987140,7209317
+source foregrounds atomic negatives,6462,2137,7338793,6676566
+source foregrounds kind0 x0 color,6226,1628,7510343,6640353
+source foregrounds kind0 x0 plain,5919,1568,7273988,6584384
+source foregrounds kind1 x0 color,18057,3626,14154503,12115684
+source foregrounds kind1 x0 plain,17903,3592,14021267,12000770
+source foregrounds kind2 x60 color,29577,4257,15075933,13532361
+source foregrounds kind2 x60 plain,12622,2861,10552080,9186012
+source foregrounds kind2 x600 color,248042,32717,119394203,96447744
+source foregrounds kind2 x600 plain,74121,14960,49007192,38806630
+source foregrounds kind3 x0 color,6529,1708,7512773,6712722
+source foregrounds kind3 x0 plain,6226,1644,7371633,6651157
+source foregrounds kind4 x0 color,5891,1426,5706666,5050306
+source foregrounds kind4 x0 plain,5530,1364,5623026,4988369
 source-text whitespace 16,399,140,1254595,1124603
 source-text whitespace 160,407,148,1317443,1187451
-static PDF/A-4 Archive and Standard profile twins,67970,4324,33432760,28646974
-static PDF/A-4 Standard twin of the archived navigation,3911,1201,5945438,4986399
-static PDF/A-4 archived caller font,1760,593,4338582,3983114
-static PDF/A-4 archived navigation x64 links,12041,3551,14747153,9432361
-static PDF/A-4 archived navigation x8 links,3920,1202,5951216,4986689
-static PDF/A-4 archived report scaling x400,317198,13888,131295751,100393649
-static PDF/A-4 archived report with timestamps,34007,2184,16723455,14330562
-static PDF/A-4 facade atomic negatives,1719,571,4404454,4041126
-static PDF/A-4 owned chunked output,67969,4323,33430181,28644395
-static PDF/A-4 shared chunked output,67969,4323,33430181,28644395
+static PDF/A-4 Archive and Standard profile twins,67970,4214,33432760,28637198
+static PDF/A-4 Standard twin of the archived navigation,3911,1178,5945438,4984375
+static PDF/A-4 archived caller font,1760,590,4338582,3982850
+static PDF/A-4 archived navigation x64 links,12041,3416,14747153,9420481
+static PDF/A-4 archived navigation x8 links,3920,1179,5951216,4984665
+static PDF/A-4 archived report scaling x400,317198,13473,131295751,100357081
+static PDF/A-4 archived report with timestamps,34007,2129,16723455,14325674
+static PDF/A-4 facade atomic negatives,1719,569,4404454,4040950
+static PDF/A-4 owned chunked output,67969,4213,33430181,28634619
+static PDF/A-4 shared chunked output,67969,4213,33430181,28634619
 structural-kernel balanced 4096-page PDF,56645,10026,230557616,50983283
 structural-kernel balanced index plans,60764,14145,230804056,51229723
 structural-kernel linked outline plan,56649,10030,231245952,51671619
@@ -282,28 +282,28 @@ structural-kernel one-block dynamic DEFLATE,517,168,4604218,4949559
 structural-kernel stable resource names,56649,10030,230708165,51133832
 structural-kernel stateful dynamic DEFLATE,541,186,14440856,16354961
 structural-kernel unchanged-resource retention,1101,327,3752625,3363293
-tables atomic negatives,56677,53794,61504504,58309931
-tables column spans and two header rows,9598,3015,7867628,6451967
-tables empty cells x40,20817,3802,18262348,11425359
-tables empty cells x400,160578,20453,159190161,76328688
-tables footer carry,24514,5753,20549660,12354578
-tables invoice x50,54207,11414,43574096,25275578
-tables invoice x500,395154,48485,335977278,181484403
-tables ordered numeric cells,5522,1870,7067070,6044939
-tables ruled grid x40,30831,6966,21514800,15881375
-tables ruled grid x400,229134,29159,189981488,118527112
-tables split rows,58703,3122,42455922,35476675
-tables styled x40,27447,5773,20100494,14572655
-tables styled x400,207997,25351,178356714,106995649
-tables whole-table keep,27774,3072,12411252,10426708
+tables atomic negatives,56677,53775,61504504,58307587
+tables column spans and two header rows,9598,2939,7867628,6442031
+tables empty cells x40,20817,3416,18262348,11372575
+tables empty cells x400,160578,16827,159190161,75829504
+tables footer carry,24514,5366,20549660,12301370
+tables invoice x50,54207,10789,43574096,25189874
+tables invoice x500,395154,42853,335977278,180700611
+tables ordered numeric cells,5522,1842,7067070,6041275
+tables ruled grid x40,30831,6665,21514800,15840887
+tables ruled grid x400,229134,26338,189981488,118143904
+tables split rows,58703,3087,42455922,35472251
+tables styled x40,27447,5472,20100494,14532167
+tables styled x400,207997,22530,178356714,106612441
+tables whole-table keep,27774,2878,12411252,10403812
 tagged-visual million-command image reuse,435,173,210022033,209892163
-tagged-visual minimal tagged visual PDF,857,271,1976266,1745064
-technical manual chapters x2,125868,16035,70509264,49588577
-technical manual chapters x20,1181381,126567,670031777,450231799
-text-layout CJK searchable text,1438,413,3394524,2954381
+tagged-visual minimal tagged visual PDF,857,269,1976266,1744888
+technical manual chapters x2,125868,15099,70509264,49468513
+technical manual chapters x20,1181381,117243,670031777,449034327
+text-layout CJK searchable text,1438,411,3394524,2954205
 text-layout CJK text atomic negative,402,142,1252191,1121935
 text-layout GSUB fi ligature atomic negative,402,142,1252080,1121824
-text-layout GSUB fi ligature searchable text,1410,418,3414973,3009508
+text-layout GSUB fi ligature searchable text,1410,416,3414973,3009332
 text-layout Type 0 PDF font objects,1434,223,1568864,1370295
 text-layout UAX 9 conformance vectors,1071,761,1380436,1244764
 text-layout UAX boundary atomic limits,384,125,1249546,1119522
@@ -312,23 +312,23 @@ text-layout Unicode analysis x1000,443,139,3363187,2056595
 text-layout Unicode analysis x10000,458,143,20452531,11105739
 text-layout adversarial ordered font selection x1000,454,186,1425292,1294244
 text-layout adversarial ordered font selection x10000,459,191,2839340,2708292
-text-layout authored facade output,2513,532,3941990,3594101
+text-layout authored facade output,2513,530,3941990,3593925
 text-layout authored facade output atomic negative,1415,193,1527656,1324944
 text-layout built-in TrueType inspection,1357,153,1512795,1314571
-text-layout built-in face through a registry,7095,1962,15238361,13855701
-text-layout caller-font facade output,1845,601,4385863,4002378
+text-layout built-in face through a registry,7095,1951,15238361,13854733
+text-layout caller-font facade output,1845,597,4385863,4002026
 text-layout caller-font facade restricted-rights atomic negative,17,15,2836,2692
 text-layout caller-font registration,411,149,1254072,1123672
-text-layout caller-font shared registry retention,3657,1172,8767025,8000463
-text-layout caller-font unhinted facade output,1824,595,4181659,3767957
-text-layout caller-font unique registry retention control,3689,1201,8771646,8004676
-text-layout caller-font visible searchable text,1392,448,3542537,3234640
+text-layout caller-font shared registry retention,3657,1164,8767025,7999759
+text-layout caller-font unhinted facade output,1824,591,4181659,3767605
+text-layout caller-font unique registry retention control,3689,1193,8771646,8003972
+text-layout caller-font visible searchable text,1392,446,3542537,3234464
 text-layout case transformation atomic negative,1372,168,1514057,1315833
-text-layout case transformation text,2325,445,3804628,3403638
-text-layout chunked facade output owned chunks,1810,592,4572468,4228511
-text-layout chunked facade output shared resources,1810,592,4572468,4228511
-text-layout combining-mark searchable text,2332,436,3814486,3395068
-text-layout combining-mark text atomic negative,1800,361,1653797,1422953
+text-layout case transformation text,2325,443,3804628,3403462
+text-layout chunked facade output owned chunks,1810,590,4572468,4228335
+text-layout chunked facade output shared resources,1810,590,4572468,4228335
+text-layout combining-mark searchable text,2332,434,3814486,3394892
+text-layout combining-mark text atomic negative,1800,359,1653797,1422777
 text-layout compact-builder authoring normalization x1000,433,174,1641727,1511735
 text-layout compact-builder authoring normalization x10000,460,201,5939031,5809039
 text-layout deterministic font plan,1367,162,1542257,1343769
@@ -357,28 +357,28 @@ text-layout facade text materialization x10000,405,146,28343843,28213851
 text-layout facade text prepared-input control x1000,392,133,2580027,2450035
 text-layout facade text prepared-input control x10000,397,138,14576227,14446235
 text-layout generated list-label atomic negative,442,174,1254789,1124069
-text-layout generated list-label text,1912,636,4499084,4108630
+text-layout generated list-label text,1912,627,4499084,4107790
 text-layout malformed external discretionary-hyphen opportunity atomic negative,387,127,1249731,1119627
 text-layout malformed soft-hyphen opportunity atomic negative,387,128,1249632,1119560
 text-layout multi-face facade missing coverage atomic negative,130,120,15396,14244
-text-layout multi-face facade shared registry retention,4684,1467,11546555,10312709
+text-layout multi-face facade shared registry retention,4684,1463,11546555,10312357
 text-layout multi-face facade undeclared script atomic negative,128,118,15298,14194
-text-layout multi-face facade unique registries retention control,4745,1519,11555204,10320302
+text-layout multi-face facade unique registries retention control,4745,1515,11555204,10319950
 text-layout multi-face facade unknown policy atomic negative,72,63,10823,9767
-text-layout ordered multi-face advanced output,2000,585,4972880,4419818
+text-layout ordered multi-face advanced output,2000,583,4972880,4419642
 text-layout ordered multi-face cluster selection,446,178,1258436,1127388
 text-layout ordered multi-face facade scale x1000,614,342,5364142,5233022
 text-layout ordered multi-face facade scale x10000,641,369,45051830,44920710
 text-layout ordered multi-face script mismatch atomic negative,441,173,1258068,1127020
-text-layout public built-in Pdf facade output,1785,560,4466077,4113292
-text-layout public image-figure facade output,2476,727,5348682,4854802
-text-layout public ordered multi-face facade output,2374,761,5777678,5160227
-text-layout reordered ActualText,1408,435,3543265,3185388
-text-layout resolved right-to-left text,1436,530,3462332,3155195
+text-layout public built-in Pdf facade output,1785,558,4466077,4113116
+text-layout public image-figure facade output,2476,720,5348682,4854090
+text-layout public ordered multi-face facade output,2374,759,5777678,5160051
+text-layout reordered ActualText,1408,433,3543265,3185212
+text-layout resolved right-to-left text,1436,528,3462332,3155019
 text-layout right-to-left mismatched bidi fact atomic negative,511,243,1275441,1144105
 text-layout sanitized TrueType subset,1386,181,1559996,1361508
-text-layout selected external discretionary-hyphen extraction,2309,452,3796010,3415725
-text-layout selected soft-hyphen extraction,2363,464,3837639,3464988
+text-layout selected external discretionary-hyphen extraction,2309,450,3796010,3415549
+text-layout selected soft-hyphen extraction,2363,462,3837639,3464812
 text-layout shaped-cluster line selection x1000,418,159,3055779,2925787
 text-layout shaped-cluster line selection x10000,426,167,19279147,19149155
 text-layout shared facade source cache x1000,394,132,1298719,1168423
@@ -388,13 +388,13 @@ text-layout simple-list authoring normalization x1000,404,145,1815491,1685499
 text-layout simple-list authoring normalization x10000,413,154,7152707,7022715
 text-layout single-column pagination x1000,426,167,3113635,2983643
 text-layout single-column pagination x10000,438,179,17792003,17662011
-text-layout supplementary-plane searchable text,3294,446,4255421,3759976
+text-layout supplementary-plane searchable text,3294,444,4255421,3759800
 text-layout supplementary-plane text atomic negative,2317,172,1884260,1618028
 text-layout unique facade source cache x1000,16296,10137,3323175,2416463
 text-layout unique facade source cache x10000,178300,100141,30065719,15479007
 text-layout unselected external discretionary-hyphen opportunity atomic negative,387,127,1249731,1119627
 text-layout unselected soft-hyphen atomic negative,396,129,1251708,1120268
-text-layout visible searchable text,2332,452,3829070,3457003
-vector diagrams x1,4733,995,5449647,4980904
-vector diagrams x10,13516,2749,9591741,8828819
-vector diagrams x50,52470,10326,33080663,26412759
+text-layout visible searchable text,2332,450,3829070,3456827
+vector diagrams x1,4733,990,5449647,4980368
+vector diagrams x10,13516,2708,9591741,8824251
+vector diagrams x50,52470,10125,33080663,26390271
