@@ -50,7 +50,6 @@ KernelEmit :: [].{
 		DeflateRequiresGeneratedPayload(KernelObject.StreamId),
 		IdentifierInputTooLarge,
 		IndexInvariant,
-		NestedStreamValue,
 		OutputBoundExceeded({ bound : U64, position : U64 }),
 		ReservedStreamKey(KernelObject.NameId),
 		StreamLengthUnavailable(KernelObject.StreamId),
@@ -163,7 +162,7 @@ KernelEmit :: [].{
 					Stream(_) => {}
 					_ => {
 						$out = append_object_header($out, object.id)
-						$out = emit_value($out, store, value_id)?
+						$out = emit_value($out, store, value_id)
 						$out = append_end_object($out)
 					}
 				}
@@ -289,11 +288,11 @@ emit_object = |encoder, index| {
 		body = match object.content {
 			LengthOf(stream_id) => match $encoder.stream_lengths.get(KernelObject.StreamId.index(stream_id)) {
 				Err(OutOfBounds) => return Err(StreamLengthUnavailable(stream_id))
-				Ok(length) => Member(KernelLex.append_unsigned([], length))
+				Ok(length) => Member(Length(length))
 			}
 			Stored(value_id) => match list_at(store.values, KernelObject.ValueId.index(value_id)) {
 				Stream(stream_id) => TopLevel(stream_id)
-				_ => Member(emit_value(List.with_capacity(member_capacity), store, value_id)?)
+				_ => Member(Value(value_id))
 			}
 		}
 		match body {
@@ -301,8 +300,8 @@ emit_object = |encoder, index| {
 				with_offset = encoder_with_offset($encoder, $encoder.position)
 				return emit_stream_prefix(with_offset, object_id, stream_id, $index + 1)
 			}
-			Member(bytes) => {
-				$encoder = encoder_with_member($encoder, KernelObject.ObjectId.number(object_id), bytes)
+			Member(member) => {
+				$encoder = encoder_with_member($encoder, KernelObject.ObjectId.number(object_id), store, member)
 				$index = $index + 1
 				if flush_due($encoder.object_streams) {
 					return emit_object_stream($encoder, $index)
@@ -312,22 +311,15 @@ emit_object = |encoder, index| {
 	}
 }
 
-## Most serialized objects (structure elements, references, small
-## dictionaries) fit in this many bytes, so building one does not regrow its
-## list from empty. Writing objects straight onto the batch instead threads
-## the batch through emit_value's Try, which copied it on every object.
-member_capacity : U64
-member_capacity = 128
-
 ## A full object stream, or the last compressible object, closes the batch.
 flush_due : ObjectStreams -> Bool
 flush_due = |streams| streams.members.len() >= KernelFileLayout.max_objects_per_stream * 2 or streams.seen == streams.total
 
-## Adds one serialized object to the open object stream and records its
-## cross-reference entry. The encoder and the stream state are taken apart
-## before any list grows, so every list stays unique.
-encoder_with_member : KernelEmit.Encoder, U64, List(U8) -> KernelEmit.Encoder
-encoder_with_member = |encoder, number, body| {
+## Serializes one object straight onto the open object stream and records
+## its cross-reference entry. The encoder and the stream state are taken
+## apart before any list grows, so every list stays unique.
+encoder_with_member : KernelEmit.Encoder, U64, KernelObject.Store, [Length(U64), Value(KernelObject.ValueId)] -> KernelEmit.Encoder
+encoder_with_member = |encoder, number, store, body| {
 	{ copied_resource_bytes, deflate_work, file_id, object_streams, offsets, output_bound, phase, plan, position, retention, stream_lengths } = encoder
 	{ batch, members, offsets: stream_offsets, seen, total } = object_streams
 	member = U64.div_by(members.len(), 2)
@@ -338,7 +330,10 @@ encoder_with_member = |encoder, number, body| {
 		deflate_work,
 		file_id,
 		object_streams: {
-			batch: append_all(batch, body).append(10),
+			batch: match body {
+				Length(length) => KernelLex.append_unsigned(batch, length)
+				Value(value_id) => emit_value(batch, store, value_id)
+			}.append(10),
 			members: members.append(number).append(offset),
 			offsets: stream_offsets,
 			seen: seen + 1,
@@ -717,22 +712,29 @@ next_object_phase = |plan, index| {
 	if (index < store.objects.len()) Object(index) else XrefPrefix
 }
 
-emit_value : List(U8), KernelObject.Store, KernelObject.ValueId -> Try(List(U8), KernelEmit.Error)
+## Values are emitted infallibly: every plan's output bound is calculated
+## before the plan exists (`KernelStructure`), and that calculation rejects a
+## stream value nested in an array or dictionary. Being infallible lets an
+## object be written straight onto its object stream; threading the stream
+## through a `Try` copied it once per object.
+emit_value : List(U8), KernelObject.Store, KernelObject.ValueId -> List(U8)
 emit_value = |output, store, value_id| match list_at(store.values, KernelObject.ValueId.index(value_id)) {
 	Array(span) => emit_array(output, store, span)
-	Boolean(value) => Ok(KernelLex.append_boolean(output, value))
-	ByteString(string) => Ok(KernelLex.append_byte_string(output, list_at(store.byte_strings, KernelObject.ByteStringId.index(string))))
+	Boolean(value) => KernelLex.append_boolean(output, value)
+	ByteString(string) => KernelLex.append_byte_string(output, list_at(store.byte_strings, KernelObject.ByteStringId.index(string)))
 	Dictionary(span) => emit_dictionary(output, store, span)
-	Integer(value) => Ok(KernelLex.append_integer(output, value))
-	Name(name) => Ok(KernelLex.append_name(output, list_at(store.names, KernelObject.NameId.index(name))))
-	Null => Ok(KernelLex.append_null(output))
-	Real(value) => Ok(KernelLex.append_real(output, value))
-	Reference(object) => Ok(append_reference(output, object))
-	Stream(_) => Err(NestedStreamValue)
-	TextString(string) => Ok(KernelLex.append_text(output, list_at(store.text_strings, KernelObject.TextStringId.index(string))))
+	Integer(value) => KernelLex.append_integer(output, value)
+	Name(name) => KernelLex.append_name(output, list_at(store.names, KernelObject.NameId.index(name)))
+	Null => KernelLex.append_null(output)
+	Real(value) => KernelLex.append_real(output, value)
+	Reference(object) => append_reference(output, object)
+	Stream(_) => {
+		crash "a bounded plan carried a nested stream value"
+	}
+	TextString(string) => KernelLex.append_text(output, list_at(store.text_strings, KernelObject.TextStringId.index(string)))
 }
 
-emit_array : List(U8), KernelObject.Store, KernelObject.Span -> Try(List(U8), KernelEmit.Error)
+emit_array : List(U8), KernelObject.Store, KernelObject.Span -> List(U8)
 emit_array = |output, store, span| {
 	var $out = output.append(91)
 	var $index = 0
@@ -741,13 +743,13 @@ emit_array = |output, store, span| {
 			$out = $out.append(32)
 		}
 		value = list_at(store.array_items, span.start + $index)
-		$out = emit_value($out, store, value)?
+		$out = emit_value($out, store, value)
 		$index = $index + 1
 	}
-	Ok($out.append(93))
+	$out.append(93)
 }
 
-emit_dictionary : List(U8), KernelObject.Store, KernelObject.Span -> Try(List(U8), KernelEmit.Error)
+emit_dictionary : List(U8), KernelObject.Store, KernelObject.Span -> List(U8)
 emit_dictionary = |output, store, span| {
 	var $out = append_dictionary_open(output)
 	var $index = 0
@@ -756,10 +758,10 @@ emit_dictionary = |output, store, span| {
 		$out = $out.append(32)
 		$out = KernelLex.append_name($out, list_at(store.names, KernelObject.NameId.index(entry.key)))
 		$out = $out.append(32)
-		$out = emit_value($out, store, entry.value)?
+		$out = emit_value($out, store, entry.value)
 		$index = $index + 1
 	}
-	Ok(append_dictionary_close($out))
+	append_dictionary_close($out)
 }
 
 append_pdf_header : List(U8) -> List(U8)
@@ -842,7 +844,7 @@ append_stream_dictionary = |output, store, stream| {
 		$out = $out.append(32)
 		$out = KernelLex.append_name($out, name)
 		$out = $out.append(32)
-		$out = emit_value($out, store, entry.value)?
+		$out = emit_value($out, store, entry.value)
 		$index = $index + 1
 	}
 	if $filter_pending {
@@ -1241,25 +1243,25 @@ expect {
 	sealed = KernelSeal.seal(object.builder)?
 	store = KernelSeal.Plan.store(sealed)
 
-	var $actual = emit_value([], store, null.id)?
+	var $actual = emit_value([], store, null.id)
 	$actual = $actual.append(124)
-	$actual = emit_value($actual, store, boolean.id)?
+	$actual = emit_value($actual, store, boolean.id)
 	$actual = $actual.append(124)
-	$actual = emit_value($actual, store, integer.id)?
+	$actual = emit_value($actual, store, integer.id)
 	$actual = $actual.append(124)
-	$actual = emit_value($actual, store, real.id)?
+	$actual = emit_value($actual, store, real.id)
 	$actual = $actual.append(124)
-	$actual = emit_value($actual, store, name.id)?
+	$actual = emit_value($actual, store, name.id)
 	$actual = $actual.append(124)
-	$actual = emit_value($actual, store, bytes.id)?
+	$actual = emit_value($actual, store, bytes.id)
 	$actual = $actual.append(124)
-	$actual = emit_value($actual, store, text.id)?
+	$actual = emit_value($actual, store, text.id)
 	$actual = $actual.append(124)
-	$actual = emit_value($actual, store, reference.id)?
+	$actual = emit_value($actual, store, reference.id)
 	$actual = $actual.append(124)
-	$actual = emit_value($actual, store, array.id)?
+	$actual = emit_value($actual, store, array.id)
 	$actual = $actual.append(124)
-	$actual = emit_value($actual, store, dictionary.id)?
+	$actual = emit_value($actual, store, dictionary.id)
 
 	$actual == Str.to_utf8("null|true|-9223372036854775808|1.2|/N#20#2F#23|<00FF>|<FEFF0041D83DDE00>|1 0 R|[null true -9223372036854775808 1.2 /N#20#2F#23 <00FF> <FEFF0041D83DDE00> 1 0 R]|<< /A [null true -9223372036854775808 1.2 /N#20#2F#23 <00FF> <FEFF0041D83DDE00> 1 0 R] /B <FEFF0041D83DDE00> >>")
 }
