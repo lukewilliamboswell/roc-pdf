@@ -22,9 +22,7 @@ main! = |args| {
 		title: "text-layout public facade output",
 	})
 	buffered = Pdf.to_bytes(document) ?? []
-	# TODO(roc-lang/roc#11946): write Pdf.Options.{ chunk_retention: retention }
-	# once building it at runtime no longer crashes the compiler.
-	options = { ..Pdf.Options.default, chunk_retention: retention }
+	options = Pdf.Options.{ chunk_retention: retention }
 	var $encoder = match Pdf.to_chunks_with(document, options) {
 		Err(_) => crash "text-layout chunked facade encoder failed"
 		Ok(value) => value
