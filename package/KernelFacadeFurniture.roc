@@ -1022,12 +1022,20 @@ resolve_plan = |static, label_plan, scope_pages, selection, language, source_bas
 		}
 		PolicyFaces(policy) => shape_under_policy(policy, unique, static, input_sources, $pending, language, limits)?
 	}
-	source_runs = shaped.source_runs
+	{ batch: shaped_batch, extra_fonts, run_sources, source_runs } = shaped
 
 	## The batch identifies a request by an occurrence ordinal; a furniture
-	## run's Unicode is its artifact source.
-	run_sources = shaped.run_sources
-	store = { ..shaped.batch.store, runs: shaped.batch.store.runs.map(|run| { ..run, unicode: ArtifactText(Semantics.TextSourceId.from_index(source_base + (if (run_sources.is_empty()) run.id.index() else list_at(run_sources, run.id.index())))) }) }
+	## run's Unicode is its artifact source. The runs are rewritten in place
+	## rather than with `map`: dev builds never reuse `List.map`'s list.
+	shaped_store = shaped_batch.store
+	var $runs = shaped_store.runs
+	var $run_index = 0
+	while $run_index < $runs.len() {
+		run = list_at($runs, $run_index)
+		$runs = list_set($runs, $run_index, { ..run, unicode: ArtifactText(Semantics.TextSourceId.from_index(source_base + (if (run_sources.is_empty()) run.id.index() else list_at(run_sources, run.id.index())))) })
+		$run_index = $run_index + 1
+	}
+	store = { ..shaped_store, runs: $runs }
 
 	# Prove fits and place every piece and drawing, page by page.
 	var $pieces = []
@@ -1062,7 +1070,7 @@ resolve_plan = |static, label_plan, scope_pages, selection, language, source_bas
 		KernelFacadeFurniture.Plan.{
 			drawing_paints: backdrops_first($drawing_paints),
 			drawings: static.drawings,
-			extra_fonts: shaped.extra_fonts,
+			extra_fonts,
 			images: static.images,
 			pieces: $pieces,
 			source_base,
@@ -1689,6 +1697,14 @@ checked_add = |left, right| match U64.plus_try(left, right) {
 
 checked_sub : U64, U64 -> Try(U64, KernelFacadeFurniture.Error)
 checked_sub = |left, right| if (right > left) Err(ArithmeticOverflow) else Ok(left - right)
+
+list_set : List(a), U64, a -> List(a)
+list_set = |items, index, value| match items.set(index, value) {
+	Err(OutOfBounds) => {
+		crash "validated furniture run index escaped"
+	}
+	Ok(updated) => updated
+}
 
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {
