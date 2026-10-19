@@ -1,29 +1,29 @@
 case,allocations_before,allocations_after,allocated_bytes_before,allocated_bytes_after
 chapter templates atomic negatives,3569,1333,4842968,4397321
-chapter templates reset label,49748,4925,28576016,24451852
-chapter templates without document templates,48286,4400,27495591,23597193
-chapter templates x2,93012,7726,50101969,42593429
-chapter templates x20,866711,55303,469042045,388429639
+chapter templates reset label,49748,4921,28576016,24448332
+chapter templates without document templates,48286,4396,27495591,23594537
+chapter templates x2,93012,7722,50101969,42586453
+chapter templates x20,866711,55299,469042045,388376007
 custom block atomic negatives,31233,5782,9331712,8192270
 custom block callouts x10,25339,5232,18939904,15488408
 custom block callouts x100,194300,27333,124152192,85595338
 custom block defaults,5782,1459,9572146,8727528
-custom block report,78149,16414,66671769,38679779
+custom block report,78149,16411,66671769,38676491
 custom block rich callouts x10,38817,6742,26173367,21786949
 custom block rich callouts x50,175329,26548,117982867,80388299
 destination references atomic negatives,4531,2192,4988340,4509659
 destination references inherited face,4408,1315,7246354,6534499
 destination references measured geometry,20210,4979,25107207,15263919
 destination references ordered mixed fonts,5047,1836,7390032,6442592
-destination references x2,8480,2874,8977547,7483156
-destination references x20,30512,9561,34408471,25783315
+destination references x2,8480,2873,8977547,7482492
+destination references x20,30512,9560,34408471,25778763
 flow figures atomic negatives,2890,1585,4562768,4165925
 flow figures drawing bound diagnostics,2198,969,4408234,3958188
-flow figures label faces x10,28177,5148,21623638,17395358
-flow figures label faces x50,115832,17614,77236438,55932498
-flow figures labels x10,30806,5998,20434798,16013772
-flow figures labels x50,122205,17954,81039729,56568789
-flow figures report,16120,2282,14197137,11596244
+flow figures label faces x10,28177,5146,21623638,17356446
+flow figures label faces x50,115832,17612,77236438,55738066
+flow figures labels x10,30806,5995,20434798,15973332
+flow figures labels x50,122205,17951,81039729,56390109
+flow figures report,16120,2280,14197137,11594052
 flow figures sections x10,21700,3335,15392114,11902860
 flow figures sections x100,186507,22872,119302608,77735606
 flow figures spaced decorations x10,16541,2061,11462270,9137951
@@ -37,23 +37,23 @@ layout policies keep groups and lists x500,351455,64100,268731138,141688683
 layout policies keeps across page boundaries,7014,1488,8998591,7704492
 layout policies nested lists,10851,2610,10157510,7997911
 layout policies reported relaxations,4308,921,7197584,6372822
-page labels visible x3,4518,1264,6458019,5838428
-page labels visible x30,19105,4608,27978223,24689138
-page templates atomic negatives,3817,2271,4807632,4417973
-page templates backdrops x3,13089,1977,13406052,11643698
-page templates backdrops x30,97616,6994,84176981,78024629
-page templates furniture drawings,4696,1354,7684875,6910096
-page templates furniture groups,9124,1647,9168263,8143434
-page templates landscape and custom page sizes,97203,25573,80755521,43676994
-page templates letter x20,68405,6236,54464975,40958211
-page templates letter x200,534892,23521,426191440,308507728
-page templates letter x6,31722,4793,24526730,18635696
-page templates number styles,8514,2590,9317802,8094697
-page templates ordered policy,136417,42396,84028765,66392233
-page templates report,96567,4531,66896578,52272362
-page templates slot inset,12069,2175,9853943,9249906
-page templates typography x3,6565,2162,8418952,7617650
-page templates typography x30,25157,5604,30534497,26991370
+page labels visible x3,4518,1262,6458019,5837100
+page labels visible x30,19105,4606,27978223,24676146
+page templates atomic negatives,3817,2268,4807632,4414901
+page templates backdrops x3,13089,1974,13406052,11641706
+page templates backdrops x30,97616,6991,84176981,78010973
+page templates furniture drawings,4696,1352,7684875,6909200
+page templates furniture groups,9124,1645,9168263,8142538
+page templates landscape and custom page sizes,97203,25570,80755521,43675002
+page templates letter x20,68405,6234,54464975,40955155
+page templates letter x200,534892,23519,426191440,308491712
+page templates letter x6,31722,4791,24526730,18633936
+page templates number styles,8514,2588,9317802,8083865
+page templates ordered policy,136417,42394,84028765,66388313
+page templates report,96567,4529,66896578,52268874
+page templates slot inset,12069,2171,9853943,9246386
+page templates typography x3,6565,2159,8418952,7615010
+page templates typography x30,25157,5601,30534497,26971234
 production-visual artifact form repeated x100,2020,480,2907547,2502792
 production-visual artifact form repeated x1000,9252,502,4602160,4453896
 production-visual color-image atomic negatives,1238,638,2000382,1771117
@@ -163,29 +163,29 @@ production-visual transparency retained-input ownership,4691,1887,10649156,95995
 production-visual transparency showcase with adversarial authoring,4709,1905,10655628,9606002
 production-visual transparency unique-input ownership,2355,953,5327942,4803129
 production-visual unique resource-input ownership x100,1036,677,1453991,1297599
-reference invoice,35714,7738,29067690,18660724
-reference invoice long text (INV-A1),37966,7683,32513408,20515512
-reference invoice rows x50,47177,8584,43033288,24293634
-reference invoice rows x500 (INV-A3),343240,42754,327030764,164900099
-reference invoice split row (INV-A4b),60332,8107,53150004,34796437
-reference invoice totals carry (INV-A5),70095,14824,43555345,28730525
-reference invoice wide code (INV-A2a),36927,7717,30257602,19114232
+reference invoice,35714,7737,29067690,18659844
+reference invoice long text (INV-A1),37966,7682,32513408,20514416
+reference invoice rows x50,47177,8583,43033288,24292538
+reference invoice rows x500 (INV-A3),343240,42753,327030764,164895115
+reference invoice split row (INV-A4b),60332,8106,53150004,34794477
+reference invoice totals carry (INV-A5),70095,14822,43555345,28728333
+reference invoice wide code (INV-A2a),36927,7716,30257602,19113136
 reference item layout x100,632,219,2010648,1852101
 reference item layout x1000,640,229,2219985,2061702
-reference letter,22808,3423,21753676,17230957
-reference letter long recipient (LET-A1),23422,3389,22170990,17538185
-reference letter x20,38142,3814,31803331,24832345
-reference letter x200,236431,8411,171460346,124778401
-reference letter x60 (LET-A2),82472,4861,61649981,46926035
-reference report,47915,9620,50053442,29151724
-reference report figure and caption (REP-A2),51960,11071,51674793,30511721
-reference report heading keep (REP-A1),50551,10536,50874894,30288370
-reference report ordered faces (REP-A5),47191,13072,44645156,25168170
-reference report scaled figure (REP-A6b),46874,9199,49200411,29357503
-reference report sections x10,38281,6091,39726200,23026366
-reference report sections x100,312172,43085,351475903,170216508
-reference report table break (REP-A3),50322,11348,50847536,30157129
-reference variant rejections,162055,84343,114874783,95399776
+reference letter,22808,3422,21753676,17230077
+reference letter long recipient (LET-A1),23422,3388,22170990,17537305
+reference letter x20,38142,3813,31803331,24831033
+reference letter x200,236431,8410,171460346,124771473
+reference letter x60 (LET-A2),82472,4860,61649981,46923427
+reference report,47915,9618,50053442,29145860
+reference report figure and caption (REP-A2),51960,11067,51674793,30500209
+reference report heading keep (REP-A1),50551,10533,50874894,30281194
+reference report ordered faces (REP-A5),47191,13071,44645156,25166642
+reference report scaled figure (REP-A6b),46874,9198,49200411,29355759
+reference report sections x10,38281,6090,39726200,23024838
+reference report sections x100,312172,43084,351475903,170207636
+reference report table break (REP-A3),50322,11346,50847536,30151049
+reference variant rejections,162055,84338,114874783,95365784
 rich flow atomic negatives,6487,3189,19182015,13871133
 rich flow list items x10,130132,14026,73369891,45921966
 rich flow list items x100,1252916,116813,743807483,430021954
@@ -222,13 +222,13 @@ rich inline scoped text x10,9165,2566,8400972,6750891
 rich inline scoped text x50,31871,6913,28665996,17451598
 rich inline shared source faces x10,20723,4190,15424123,11677449
 rich inline shared source faces x50,68110,10863,50704308,30038288
-scoped table paint cell fill x1,52612,10323,28853813,18281951
-scoped table paint column rule x1,51674,10327,28750812,18159942
-scoped table paint decorated x2,106032,18825,57961159,34309497
-scoped table paint decorated x20,1025525,170741,568307410,319194975
-scoped table paint internal rules x1,51598,10309,28740564,18143324
-scoped table paint reference header x1,55144,10159,30556365,20633952
-scoped table paint spanning control x1,28889,7752,17778116,12585970
+scoped table paint cell fill x1,52612,10321,28853813,18280623
+scoped table paint column rule x1,51674,10325,28750812,18158614
+scoped table paint decorated x2,106032,18823,57961159,34306873
+scoped table paint decorated x20,1025525,170739,568307410,319169023
+scoped table paint internal rules x1,51598,10307,28740564,18141996
+scoped table paint reference header x1,55144,10157,30556365,20632624
+scoped table paint spanning control x1,28889,7750,17778116,12584642
 semantic foundation container atomic negatives,4204,1550,9264750,8391743
 "semantic foundation kernel attribute, identifier, and language lowering",2524,496,3932871,3526028
 semantic foundation nested public containers,4785,1232,5970043,5024401
@@ -239,7 +239,7 @@ source blocks Han shared face,3470,1015,4558655,3983971
 source blocks Han source only,3472,1017,4559488,3984804
 source blocks atomic negatives,8264,3587,9411637,7964034
 source blocks blank lines,3185,697,3334228,2925709
-source blocks defaults,6255,1702,7502885,6622395
+source blocks defaults,6255,1700,7502885,6621931
 source blocks empty,3113,643,3322185,2915762
 source blocks empty without background,2873,570,2674288,2349813
 source blocks long x60,14109,2977,11764928,10154703
@@ -298,8 +298,8 @@ tables styled x400,207997,22530,178356714,106612441
 tables whole-table keep,27774,2878,12411252,10403812
 tagged-visual million-command image reuse,435,173,210022033,209892163
 tagged-visual minimal tagged visual PDF,857,269,1976266,1744888
-technical manual chapters x2,125868,15099,70509264,49468513
-technical manual chapters x20,1181381,117243,670031777,449034327
+technical manual chapters x2,125868,15095,70509264,49459377
+technical manual chapters x20,1181381,117239,670031777,448947431
 text-layout CJK searchable text,1438,411,3394524,2954205
 text-layout CJK text atomic negative,402,142,1252191,1121935
 text-layout GSUB fi ligature atomic negative,402,142,1252080,1121824
@@ -395,6 +395,6 @@ text-layout unique facade source cache x10000,178300,100141,30065719,15479007
 text-layout unselected external discretionary-hyphen opportunity atomic negative,387,127,1249731,1119627
 text-layout unselected soft-hyphen atomic negative,396,129,1251708,1120268
 text-layout visible searchable text,2332,450,3829070,3456827
-vector diagrams x1,4733,990,5449647,4980368
-vector diagrams x10,13516,2708,9591741,8824251
-vector diagrams x50,52470,10125,33080663,26390271
+vector diagrams x1,4733,989,5449647,4979272
+vector diagrams x10,13516,2707,9591741,8813435
+vector diagrams x50,52470,10124,33080663,26336255

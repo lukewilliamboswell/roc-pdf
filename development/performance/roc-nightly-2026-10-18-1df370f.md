@@ -6,8 +6,8 @@ Every PDF snapshot is byte-identical and every work vector is unchanged.
 
 | Metric (x64musl, all 399 changed cases) | October 14 | After sweep | Change |
 | --- | ---: | ---: | ---: |
-| Roc allocation events | 17,096,086 | 2,494,350 | -85.4% |
-| Requested allocated bytes | 13,438,767,464 | 8,962,507,379 | -33.3% |
+| Roc allocation events | 17,096,086 | 2,494,215 | -85.4% |
+| Requested allocated bytes | 13,438,767,464 | 8,961,573,395 | -33.3% |
 | Changed work vectors | 0 | 0 | 0 |
 
 Ten cases are unchanged. No case allocates more often. The
@@ -79,6 +79,24 @@ report takes 3,272 instead of 44,333.
   Writing them onto the batch through `emit_value`'s former `Try` was measured
   first, and the batch was copied once per object (emission +20%). The rule in
   [emission linearity](emission-linearity.md) still holds on this compiler.
+
+## `List.map` sweep
+
+Dev builds never reuse the input list of `List.map`, so every map allocates a
+new list. Two maps over runs lists are now rewritten in place with loops:
+`KernelFacadeFurniture.resolve_plan` and `KernelFacadeLabels.build_labels`.
+This saves one to four allocations in 63 cases, for example `flow figures
+labels x10` (5,998 to 5,995) and `chapter templates reset label` (4,925 to
+4,921). Most other `map` calls change the element type or read a shared list,
+so in-place rewriting cannot reuse their storage and they stay.
+
+## Bug hunt on nightly-2026-10-18
+
+Each of the 9 fuzz targets ran 100,000 runs. The only finding was a stale
+check in `registry_property`: Common and Inherited clusters select by coverage
+alone. The check was fixed in `fuzz/RegistryTargets.roc`, with its minimized
+input pinned as a regression `expect`. All 13 examples reproduce their
+committed PDFs at dev and speed. No compiler bugs were found.
 
 ## Compiler workarounds re-tested on nightly-2026-10-18
 
