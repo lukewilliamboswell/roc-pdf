@@ -508,27 +508,27 @@ emit_xref_prefix = |encoder| {
 	columns = width + 3
 	planned = encoder.offsets.len()
 	var $rows = List.with_capacity(checked_times_small(size, columns + 1)?)
-	var $previous = List.repeat(0, columns)
+	var $previous = { entry_type: 0, field: 0, generation: 0 }
 	var $number = 0
 	while $number < size {
 		row = if $number == 0 {
-			xref_row(width, 0, 0, 65535)
+			{ entry_type: 0, field: 0, generation: 65535 }
 		} else if $number <= planned {
 			entry = list_at(encoder.offsets, $number - 1)
 			if KernelFileLayout.is_compressed_entry(entry) {
-				xref_row(width, 2, base + KernelFileLayout.compressed_stream(entry), KernelFileLayout.compressed_member(entry))
+				{ entry_type: 2, field: base + KernelFileLayout.compressed_stream(entry), generation: KernelFileLayout.compressed_member(entry) }
 			} else {
-				xref_row(width, 1, entry, 0)
+				{ entry_type: 1, field: entry, generation: 0 }
 			}
 		} else if $number < xref_number {
-			xref_row(width, 1, list_at(stream_offsets, $number - planned - 1), 0)
+			{ entry_type: 1, field: list_at(stream_offsets, $number - planned - 1), generation: 0 }
 		} else {
-			xref_row(width, 1, xref_offset, 0)
+			{ entry_type: 1, field: xref_offset, generation: 0 }
 		}
 		$rows = $rows.append(2)
 		var $column = 0
 		while $column < columns {
-			$rows = $rows.append(U8.minus_wrap(list_at(row, $column), list_at($previous, $column)))
+			$rows = $rows.append(U8.minus_wrap(xref_byte(width, row, $column), xref_byte(width, $previous, $column)))
 			$column = $column + 1
 		}
 		$previous = row
@@ -550,20 +550,26 @@ emit_xref_prefix = |encoder| {
 	emit_bytes(next, $prefix, Generated)
 }
 
-xref_row : U64, U8, U64, U64 -> List(U8)
-xref_row = |width, entry_type, field, generation| {
-	var $row = List.with_capacity(width + 3).append(entry_type)
-	var $shift = width * 8
-	while $shift > 0 {
-		$shift = $shift - 8
-		$row = $row.append(field.shr_wrap($shift.to_u8_wrap()).to_u8_wrap())
+XrefRow : { entry_type : U8, field : U64, generation : U64 }
+
+## Byte `column` of a cross-reference row: the type, the field in `width`
+## big-endian bytes, then the two-byte generation. Rows are read column by
+## column for the Up predictor, so no row is materialized as its own list.
+xref_byte : U64, XrefRow, U64 -> U8
+xref_byte = |width, row, column| {
+	if column == 0 {
+		row.entry_type
+	} else if column <= width {
+		row.field.shr_wrap(((width - column) * 8).to_u8_wrap()).to_u8_wrap()
+	} else if column == width + 1 {
+		row.generation.shr_wrap(8).to_u8_wrap()
+	} else {
+		row.generation.to_u8_wrap()
 	}
-	$row.append(generation.shr_wrap(8).to_u8_wrap()).append(generation.to_u8_wrap())
 }
 
-append_ascii : List(U8), Str -> List(U8)
-
 ## Iterates the text's bytes in place; `Str.to_utf8` allocated a list per call.
+append_ascii : List(U8), Str -> List(U8)
 append_ascii = |output, text| {
 	var $out = output
 	for byte in Str.iter_utf8(text) {

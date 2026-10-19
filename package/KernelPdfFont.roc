@@ -653,9 +653,8 @@ scale_unsigned = |value, units_per_em| {
 	Ok(U64.div_by(rounded, units_per_em.to_u64()))
 }
 
-append_ascii : List(U8), Str -> List(U8)
-
 ## Iterates the text's bytes in place; `Str.to_utf8` allocated a list per call.
+append_ascii : List(U8), Str -> List(U8)
 append_ascii = |bytes, text| {
 	var $out = bytes
 	for byte in Str.iter_utf8(text) {
