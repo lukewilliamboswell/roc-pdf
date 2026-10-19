@@ -97,9 +97,12 @@ KernelUnicode :: [].{
 		})
 	}
 
+	## Lists are sized to their bound up front (a grapheme spans at least one
+	## byte, and UAX #14 reports at most one boundary per scalar plus the
+	## end), so growing them from empty never reallocates.
 	collect_grapheme_ranges : Str, U64 -> Try(List(ByteRange), UnicodeError)
 	collect_grapheme_ranges = |source, limit| {
-		var $ranges = []
+		var $ranges = List.with_capacity(U64.min(source.count_utf8_bytes(), limit))
 		for range in Grapheme.iter_ranges(source) {
 			required = $ranges.len() + 1
 			if required > limit {
@@ -112,7 +115,7 @@ KernelUnicode :: [].{
 
 	attach_scalar_ranges : Str, List(ByteRange), U64 -> Try({ graphemes : List(UnicodeRange), scalars : U64 }, UnicodeError)
 	attach_scalar_ranges = |source, ranges, scalar_limit| {
-		var $graphemes = []
+		var $graphemes = List.with_capacity(ranges.len())
 		var $range_index = 0
 		var $scalar_start = 0
 		var $scalar_count = 0
@@ -170,7 +173,7 @@ KernelUnicode :: [].{
 
 	collect_line_boundaries : Str, U64 -> Try(List(LineBoundary), UnicodeError)
 	collect_line_boundaries = |source, limit| {
-		var $boundaries = []
+		var $boundaries = List.with_capacity(U64.min(source.count_utf8_bytes() + 1, limit))
 		for boundary in LineBreak.iter_boundaries(source) {
 			required = $boundaries.len() + 1
 			if required > limit {
