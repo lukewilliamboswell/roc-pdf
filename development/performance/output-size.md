@@ -138,7 +138,7 @@ preview is byte-identical after re-rendering.
 `KernelDeflate` no longer implements LZ77 and Huffman coding. It is the
 package's single DEFLATE seam: zlib framing, limits, a checked output bound,
 and one call (`compress_raw`) into the pinned pure-Roc `roc-deflate`
-(0.4.0-rc1 when this step landed, now 0.4.0-rc3; see below), a port of
+(0.4.0-rc1 when this step landed, now 0.4.0-rc4; see below), a port of
 libdeflate that is byte-identical to libdeflate at every level (`vendor/README.md` records its provenance and upgrade policy). The
 emitter compresses each generated payload whole at its stream's transition and
 emits the compressed bytes as one owned segment; the payload was already held
