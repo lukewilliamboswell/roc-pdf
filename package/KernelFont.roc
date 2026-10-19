@@ -405,8 +405,8 @@ inspect_glyphs = |bytes, glyf, loca_offsets, glyph_count, declared_depth| {
 			if contours >= 0 {
 				validate_simple_glyph(bytes, start, end, contours.to_u64_wrap(), $glyph.to_u32_wrap(), relative_start)?
 			} else {
-				edges = inspect_composite_glyph(bytes, start, end, $glyph.to_u32_wrap(), glyph_count, relative_start)?
-				$components = append_all($components, edges)
+				validate_composite_glyph(bytes, start, end, $glyph.to_u32_wrap(), glyph_count, relative_start)?
+				$components = append_composite_edges($components, bytes, start, $glyph.to_u32_wrap(), relative_start)
 			}
 		}
 		$glyph = $glyph + 1
@@ -487,10 +487,13 @@ validate_simple_glyph = |bytes, start, end, contour_count, glyph, relative_offse
 	}
 }
 
-inspect_composite_glyph : List(U8), U64, U64, U32, U64, U64 -> Try(List(KernelFont.ComponentEdge), KernelFont.Error)
-inspect_composite_glyph = |bytes, start, end, glyph, glyph_count, relative_offset| {
+## Validates a composite glyph's component records. Its edges are appended
+## by `append_composite_edges` once validation succeeds, straight into the
+## caller's accumulator: returning a fresh edge list per composite glyph
+## allocated once for every composite glyph in the font.
+validate_composite_glyph : List(U8), U64, U64, U32, U64, U64 -> Try({}, KernelFont.Error)
+validate_composite_glyph = |bytes, start, end, glyph, glyph_count, relative_offset| {
 	var $cursor = start + 10
-	var $edges = []
 	var $more = True
 	var $first = True
 	var $has_instructions = False
@@ -512,8 +515,6 @@ inspect_composite_glyph = |bytes, start, end, glyph, glyph_count, relative_offse
 			return Err(InvalidGlyph({ glyph, offset: relative_offset }))
 		}
 		$cursor = $cursor + additional
-		component_offset = relative_offset + ($cursor - start) - additional - 2
-		$edges = $edges.append({ child, component_offset, parent: glyph })
 		$has_instructions = $has_instructions or flags.bitwise_and(0x0100) != 0
 		$more = flags.bitwise_and(0x0020) != 0
 		$first = False
@@ -528,7 +529,26 @@ inspect_composite_glyph = |bytes, start, end, glyph, glyph_count, relative_offse
 			return Err(InvalidGlyph({ glyph, offset: relative_offset }))
 		}
 	}
-	Ok($edges)
+	Ok({})
+}
+
+## Appends the component edges of a composite glyph that
+## `validate_composite_glyph` accepted, so every record is in bounds.
+append_composite_edges : List(KernelFont.ComponentEdge), List(U8), U64, U32, U64 -> List(KernelFont.ComponentEdge)
+append_composite_edges = |edges, bytes, start, glyph, relative_offset| {
+	var $edges = edges
+	var $cursor = start + 10
+	var $more = True
+	while $more {
+		flags = read_u16(bytes, $cursor)
+		child = read_u16(bytes, $cursor + 2).to_u32()
+		argument_bytes = if (flags.bitwise_and(0x0001) != 0) 4 else 2
+		transform_bytes = if (flags.bitwise_and(0x0008) != 0) 2 else if (flags.bitwise_and(0x0040) != 0) 4 else if (flags.bitwise_and(0x0080) != 0) 8 else 0
+		$edges = $edges.append({ child, component_offset: relative_offset + ($cursor - start) + 2, parent: glyph })
+		$cursor = $cursor + 4 + argument_bytes + transform_bytes
+		$more = flags.bitwise_and(0x0020) != 0
+	}
+	$edges
 }
 
 validate_component_graph : List(KernelFont.ComponentEdge), U64, U64 -> Try({ edge_visits : U64 }, KernelFont.Error)
