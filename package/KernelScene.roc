@@ -821,6 +821,9 @@ validate_groups = |scenes, resources, max_depth| {
 	var $soft_mask_commands = 0
 	var $text_placements = 0
 	var $maximum_depth = 0
+	## One work list serves every group: cleared, it keeps its capacity, where
+	## a fresh list per group allocated and then regrew for each group.
+	var $frames = List.with_capacity(8)
 	while $group_index < scenes.groups.len() {
 		group = list_at(scenes.groups, $group_index)
 		if group.id.index() != $group_index {
@@ -828,7 +831,7 @@ validate_groups = |scenes, resources, max_depth| {
 		} else if group.commands.length() == 0 {
 			return Err(EmptyCommandRange({ group: $group_index }))
 		} else {
-			var $frames = [Frame.{ depth: 1, range: group.commands }]
+			$frames = List.clear($frames).append(Frame.{ depth: 1, range: group.commands })
 			var $frame_index = 0
 			while $frame_index < $frames.len() {
 				frame = list_at($frames, $frame_index)
