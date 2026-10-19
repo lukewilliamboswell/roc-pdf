@@ -27,10 +27,24 @@ KernelSha256 :: [].{
 	## place rather than concatenated.
 	digest_range : List(U8), List(U8), U64, U64 -> Try(List(U8), Error)
 	digest_range = |prefix, input, start, length| digest_message({ input, length, prefix, start })
+
+	## Appends the digest of `input` to `output`, so a caller accumulating
+	## digests writes each one in place instead of copying a 32-byte list.
+	append_digest : List(U8), List(U8) -> Try(List(U8), Error)
+	append_digest = |output, input| {
+		state = digest_state({ input, length: input.len(), prefix: [], start: 0 })?
+		Ok(append_state(output, state))
+	}
 }
 
 digest_message : Parts -> Try(List(U8), KernelSha256.Error)
 digest_message = |parts| {
+	state = digest_state(parts)?
+	Ok(append_state(List.with_capacity(32), state))
+}
+
+digest_state : Parts -> Try(ShaState, KernelSha256.Error)
+digest_state = |parts| {
 	byte_length = parts.prefix.len() + parts.length
 	if byte_length > 2305843009213693951 {
 		Err(InputTooLarge)
@@ -48,7 +62,7 @@ digest_message = |parts| {
 			$schedule = compressed.schedule
 			$block = $block + 1
 		}
-		Ok(state_bytes($state))
+		Ok($state)
 	}
 }
 
@@ -231,9 +245,9 @@ add5 = |a, b, c, d, e| U32.plus_wrap(add4(a, b, c, d), e)
 ceil_div_64 : U64 -> U64
 ceil_div_64 = |value| U64.div_by(value, 64) + (if (U64.mod_by(value, 64) == 0) 0 else 1)
 
-state_bytes : ShaState -> List(U8)
-state_bytes = |state| {
-	var $bytes = List.with_capacity(32)
+append_state : List(U8), ShaState -> List(U8)
+append_state = |output, state| {
+	var $bytes = output
 	$bytes = append_word($bytes, state.a)
 	$bytes = append_word($bytes, state.b)
 	$bytes = append_word($bytes, state.c)
