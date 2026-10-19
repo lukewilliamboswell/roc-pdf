@@ -131,9 +131,11 @@ collect_owners = |scenes, text, artifact_text| {
 	var $owners = List.repeat(Unowned, text.runs.len())
 	var $group_index = 0
 	var $command_visits = 0
+	## One work list serves every group; cleared, it keeps its capacity.
+	var $frames = List.with_capacity(8)
 	while $group_index < scenes.groups.len() {
 		group = list_at(scenes.groups, $group_index)
-		var $frames = [Frame.{ range: group.commands }]
+		$frames = List.clear($frames).append(Frame.{ range: group.commands })
 		var $frame_index = 0
 		while $frame_index < $frames.len() {
 			frame = list_at($frames, $frame_index)
