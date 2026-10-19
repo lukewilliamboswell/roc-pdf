@@ -1067,7 +1067,7 @@ and table semantics no longer copy the document's node lists once per table.
 Closing Gate 6 makes no PDF/UA-2 or combined-profile claim.
 
 The compiler pin is the published `nightly-2026-10-18-1df370f`. Its
-upgrade and allocation sweep cut recorded Roc allocation events by 84.7%
+upgrade and allocation sweep cut recorded Roc allocation events by 85.4%
 with byte-identical snapshots and unchanged work vectors, recorded in the
 [October 18 compiler review](development/performance/roc-nightly-2026-10-18-1df370f.md);
 the preceding [October 14 compiler review](development/performance/roc-nightly-2026-10-14-38a3029.md)

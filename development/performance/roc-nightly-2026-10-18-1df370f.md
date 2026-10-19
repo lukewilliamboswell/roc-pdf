@@ -6,8 +6,8 @@ Every PDF snapshot is byte-identical and every work vector is unchanged.
 
 | Metric (x64musl, all 399 changed cases) | October 14 | After sweep | Change |
 | --- | ---: | ---: | ---: |
-| Roc allocation events | 17,096,086 | 2,622,570 | -84.7% |
-| Requested allocated bytes | 13,438,767,464 | 8,978,188,979 | -33.2% |
+| Roc allocation events | 17,096,086 | 2,494,350 | -85.4% |
+| Requested allocated bytes | 13,438,767,464 | 8,962,507,379 | -33.3% |
 | Changed work vectors | 0 | 0 | 0 |
 
 Ten cases are unchanged. No case allocates more often. The
@@ -48,8 +48,8 @@ fingerprints each PDF so that any byte change shows up, and
 `scripts/profile.py` diffs one run against the previous one.
 `scripts/alloc_trace.py` attributes every `roc_alloc` and `roc_realloc` to its
 Roc caller under gdb, using a `--debug` speed build. On the profiled report
-document, a run takes 1,567 allocations instead of 8,577, and a ten-copy
-report takes 3,705 instead of 44,333.
+document, a run takes 1,534 allocations instead of 8,577, and a ten-copy
+report takes 3,397 instead of 44,333.
 
 ## Allocation causes removed
 
@@ -79,3 +79,27 @@ report takes 3,705 instead of 44,333.
   Writing them onto the batch through `emit_value`'s former `Try` was measured
   first, and the batch was copied once per object (emission +20%). The rule in
   [emission linearity](emission-linearity.md) still holds on this compiler.
+
+## Compiler workarounds re-tested on nightly-2026-10-18
+
+- **Removed.** The theme defaults (roc-lang/roc#11922), the chunk retention
+  options (#11946) and the bundle's named byte imports (#11907) no longer
+  need their workarounds and are written directly.
+- **Kept: `--no-cache` for fixture builds (#11826).** The issue is closed,
+  but a shared build cache still changes results. Built into a cold cache,
+  26 cases differ from `--no-cache`: `static PDF/A-4 archived report scaling
+  x400` allocates 13,877 times instead of 13,473. A warm cache matches every
+  allocation count, but six cases request 32 bytes fewer. `scripts/test.py`
+  keeps `--no-cache`.
+- **roc-deflate.** The fork's workarounds for #11933 and #11934 were removed
+  in lukewilliamboswell/roc-deflate#4, with no allocation change and
+  byte-identical output. roc-pdf stays on 0.4.0-rc4.
+- **`List.map` reuse.** The compiler disables in-place `List.map` reuse at
+  `--opt=dev` by design, so the dev baselines charge one allocation per map.
+- **Unused-branch warning.** The new warning duplicates roc-lang/roc#12395,
+  which roc-pdf does not hit.
+- **Accumulator beside another list.** Returning `emit_commands`' frame stack
+  beside its stream bytes, so that one cleared stack serves every stream,
+  still copies the stack: `rich flow shared callouts x100` allocated 5,350
+  times instead of 4,592. The change was not kept. See
+  [emission linearity](emission-linearity.md).
