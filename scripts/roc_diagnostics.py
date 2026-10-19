@@ -3,17 +3,18 @@
 
 `roc check`, `roc test`, and `roc build` exit with status 2 when they report
 warnings but no errors. The harness treats every warning in this repository's
-own sources as a failure. Exactly one warning is tolerated: the
-`roc version mismatch` warning emitted for a *downloaded package's* header
-(`packages { roc: "<nightly>" }`) when the pinned compiler is newer than the
-nightly that package was released against. That header lives in the Roc
-package cache, outside this repository, so it cannot be updated here; the
-compiler still checks and builds normally.
+own sources as a failure. Warnings located in a *downloaded package* are
+tolerated: they live in the Roc package cache (a path containing
+`/roc/packages/`), outside this repository, so they cannot be fixed here. The
+common cases are the `roc version mismatch` warning for a package header that
+pins an older nightly, and lints such as `unreachable code` that a newer
+compiler reports in a package released against an older one. The compiler
+still checks and builds normally.
 
 `tolerated_warnings_only(output)` returns True only when the output reports
-zero errors, at least one warning, and every warning is a version mismatch
-located in a Roc package cache (a path containing `/roc/packages/`). Any other
-warning, any error, or any unparseable summary keeps the command failing.
+zero errors, at least one warning, and every warning is located in a Roc
+package cache. Any warning in this repository's sources, any error, or any
+unparseable summary keeps the command failing.
 """
 from __future__ import annotations
 
@@ -27,7 +28,6 @@ SUMMARY = re.compile(r"(?P<errors>\d+) errors? and (?P<warnings>\d+) warnings?")
 # `roc test` reports no diagnostic summary; its success line stands in for one.
 TESTS_PASSED = re.compile(r"^All \(\d+\) tests passed\b", re.M)
 TESTS_FAILED = re.compile(r"\b\d+ failed\b|^Ran \d+ tests", re.M)
-TOLERATED_TITLE = "roc version mismatch"
 PACKAGE_CACHE_SEGMENT = "/roc/packages/"
 
 
@@ -45,10 +45,7 @@ def tolerated_warnings_only(output: str) -> bool:
         return False
     if not headers:
         return False
-    return all(
-        header.group("title") == TOLERATED_TITLE and PACKAGE_CACHE_SEGMENT in header.group("location")
-        for header in headers
-    )
+    return all(PACKAGE_CACHE_SEGMENT in header.group("location") for header in headers)
 
 
 MISMATCH = """── ● roc version mismatch ─ /tmp/cache/roc/packages/FfSwk/main.roc:9:13
@@ -60,10 +57,12 @@ nightly-2026-09-28-9927ba8.
 
 def self_test() -> None:
     test_output = MISMATCH.split("── 0 errors")[0] + "All (465) tests passed in 4335.3 ms. (cached)\n"
-    accepted = [MISMATCH, test_output]
+    accepted = [MISMATCH, test_output, MISMATCH.replace("roc version mismatch", "unreachable code")]
     rejected = [
         MISMATCH.replace("/tmp/cache/roc/packages/FfSwk/main.roc", "package/Pdf.roc"),
-        MISMATCH.replace("roc version mismatch", "unused variable"),
+        MISMATCH.replace("roc version mismatch", "unused variable").replace(
+            "/tmp/cache/roc/packages/FfSwk/main.roc", "package/KernelEmit.roc"
+        ),
         MISMATCH.replace("0 errors and 1 warning", "1 error and 1 warning"),
         MISMATCH.replace("0 errors and 1 warning", "0 errors and 2 warnings"),
         MISMATCH + "── ✗ type mismatch ── package/Pdf.roc:1:1\n",

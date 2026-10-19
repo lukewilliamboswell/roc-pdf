@@ -195,7 +195,6 @@ KernelEmit :: [].{
 				}
 			}
 		}
-		Ok($output)
 	}
 }
 
@@ -311,7 +310,6 @@ emit_object = |encoder, index| {
 			}
 		}
 	}
-	next_segment(encoder_with_phase($encoder, XrefPrefix))
 }
 
 ## A full object stream, or the last compressible object, closes the batch.
