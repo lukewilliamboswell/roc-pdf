@@ -3,7 +3,7 @@ import pdf.Pdf
 
 FacadeTargets :: [].{
 	Block : { items : List(Str), kind : U8, level : U8, text : Str }
-	Input : { blocks : List(Block), language : U8, title : Str }
+	Input : { blocks : List(Block), compression : U8, language : U8, title : Str }
 
 	## Drive the public facade over generated typed documents and check the
 	## enduring output contracts rather than a private stage:
@@ -13,6 +13,9 @@ FacadeTargets :: [].{
 	##   one emission transition,
 	## - the chunk retention policy changes allocation and copying only, never
 	##   bytes,
+	## - every compression choice is sealed by preparation, so the prepared
+	##   buffered and chunked paths agree with the one-shot paths under the
+	##   generated choice,
 	## - and a rejected document is rejected the same way every time, with no
 	##   partial file emitted.
 	facade_output : Input -> Bool
@@ -22,8 +25,9 @@ FacadeTargets :: [].{
 			language: language_for(input.language),
 			title: input.title,
 		})
-		shared = shared_options
-		owned = owned_options
+		compression = compression_for(input.compression)
+		shared = Pdf.Options.{ chunk_retention: ShareUnchangedResources, compression }
+		owned = Pdf.Options.{ chunk_retention: OwnChunks, compression }
 
 		match (Pdf.to_bytes_with(document, shared), Pdf.to_bytes_with(document, shared)) {
 
@@ -39,6 +43,9 @@ FacadeTargets :: [].{
 				if drained(document, shared) != Some(first) {
 					return False
 				}
+				if prepared_output(document, owned) != Some(first) {
+					return False
+				}
 				drained(document, owned) == Some(first)
 			}
 			_ => False
@@ -46,11 +53,23 @@ FacadeTargets :: [].{
 	}
 }
 
-shared_options : Pdf.Options
-shared_options = Pdf.Options.{ chunk_retention: ShareUnchangedResources }
+compression_for : U8 -> Pdf.Compression
+compression_for = |choice| match choice % 3 {
+	0 => Balanced
+	1 => Fastest
+	_ => Smallest
+}
 
-owned_options : Pdf.Options
-owned_options = Pdf.Options.{ chunk_retention: OwnChunks }
+## One preparation drives both prepared emission paths; they must agree with
+## each other and, through the caller, with the one-shot output.
+prepared_output : Document, Pdf.Options -> [None, Some(List(U8))]
+prepared_output = |document, options| match Pdf.prepare(document, options) {
+	Err(_) => None
+	Ok(prepared) => match (Pdf.to_bytes_prepared(prepared), Pdf.to_chunks_prepared(prepared, options.chunk_retention)) {
+		(Ok(buffered), Ok(encoder)) => if (drain(encoder) == buffered) Some(buffered) else None
+		_ => None
+	}
+}
 
 ## Sealing already succeeded for the buffered path, so a chunked failure here is
 ## a disagreement between two entrypoints over one sealed plan.

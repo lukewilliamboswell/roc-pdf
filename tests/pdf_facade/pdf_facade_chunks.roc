@@ -9,6 +9,10 @@ import pdf.Pdf
 ## facade, so the concatenated chunks are byte-identical by construction.
 ## The counters pin the deterministic plan-derived chunk sequence: count,
 ## largest chunk, an order-sensitive offset weight, and the identity bit.
+## The second argument selects the compression choice, which preparation
+## seals: the identity bit also requires the prepared buffered output to
+## equal the one-shot output. The `smallest` snapshot is byte-identical to the
+## file this fixture wrote before the choice existed.
 main! : List(Str) => { bytes : List(U8), work : List(U64) }
 main! = |args| {
 	retention = match list_at(args, 1) {
@@ -16,14 +20,25 @@ main! = |args| {
 		"own" => Pdf.ChunkRetention.OwnChunks
 		_ => crash "text-layout chunked facade retention mode is invalid"
 	}
+	compression = match list_at(args, 2) {
+		"balanced" => Pdf.Compression.Balanced
+		"fastest" => Pdf.Compression.Fastest
+		"smallest" => Pdf.Compression.Smallest
+		_ => crash "text-layout chunked facade compression choice is invalid"
+	}
 	document = Pdf.document({
 		contents: [Pdf.paragraph("Café PDF generation in pure Roc.")],
 		language: "en-AU",
 		title: "text-layout public facade output",
 	})
-	buffered = Pdf.to_bytes(document) ?? []
-	options = Pdf.Options.{ chunk_retention: retention }
-	var $encoder = match Pdf.to_chunks_with(document, options) {
+	options = Pdf.Options.{ chunk_retention: retention, compression }
+	buffered = Pdf.to_bytes_with(document, options) ?? []
+	prepared = match Pdf.prepare(document, options) {
+		Err(_) => crash "text-layout chunked facade preparation failed"
+		Ok(value) => value
+	}
+	prepared_buffered = Pdf.to_bytes_prepared(prepared) ?? []
+	var $encoder = match Pdf.to_chunks_prepared(prepared, retention) {
 		Err(_) => crash "text-layout chunked facade encoder failed"
 		Ok(value) => value
 	}
@@ -48,7 +63,7 @@ main! = |args| {
 			}
 		}
 	}
-	byte_identical = if ($bytes == buffered) 1 else 0
+	byte_identical = if ($bytes == buffered and prepared_buffered == buffered) 1 else 0
 	{ bytes: $bytes, work: [$chunks, $max_chunk_bytes, $chunk_offset_weight, byte_identical, $bytes.len()] }
 }
 

@@ -561,14 +561,19 @@ def self_test() -> None:
     deflate_pdf = DEFLATE_SNAPSHOT.read_bytes()
     generated_content = b"q Q\n" * 65536
     validate_pdf(deflate_pdf, 1, generated_content)
-    # The zlib header is CMF 0x78 with FLG 0xDA; 0xDB breaks the header check.
-    # Corrupt the content stream's header, located through the parsed layout.
+    # The zlib header is CMF 0x78 with the compression preset's FLG (0x01,
+    # 0x9C, or 0xDA); FLG + 1 breaks the FCHECK multiple of 31. Corrupt the
+    # content stream's header, located through the parsed layout.
     deflate_layout = parse_layout(deflate_pdf)
     content_number = next(number for number, body in deflate_layout.bodies.items() if b"/Contents" in body)
     content_stream = dictionary_ref(deflate_layout.bodies[content_number], b"Contents")
     content_start = deflate_layout.offsets[content_stream] + deflate_pdf[deflate_layout.offsets[content_stream] :].find(b"stream\n") + len(b"stream\n")
-    require(deflate_pdf[content_start : content_start + 2] == b"x\xda", "self-test DEFLATE snapshot has no zlib header")
-    corrupt_deflate = deflate_pdf[: content_start + 1] + b"\xdb" + deflate_pdf[content_start + 2 :]
+    flag = deflate_pdf[content_start + 1]
+    require(
+        deflate_pdf[content_start] == 0x78 and flag in (0x01, 0x9C, 0xDA),
+        "self-test DEFLATE snapshot has no zlib header",
+    )
+    corrupt_deflate = deflate_pdf[: content_start + 1] + bytes([flag + 1]) + deflate_pdf[content_start + 2 :]
     for label, candidate, content in [
         ("corrupt DEFLATE", corrupt_deflate, generated_content),
         ("wrong generated content", deflate_pdf, generated_content[:-1]),

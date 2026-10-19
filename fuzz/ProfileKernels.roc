@@ -14,10 +14,12 @@ ProfileKernels :: [].{
 
 	all : List(Kernel)
 	all = [
-		{ name: "deflate_icc", input: icc, run: deflate },
-		{ name: "deflate_content", input: content, run: deflate },
+		{ name: "deflate_icc", input: icc, run: |input| deflate(input, KernelDeflate.Level.balanced) },
+		{ name: "deflate_content", input: content, run: |input| deflate(input, KernelDeflate.Level.balanced) },
 		{ name: "sha256_content", input: content, run: sha256 },
 		{ name: "register_inter", input: |seed| inter.take_first(inter.len() + 1 - seed), run: register },
+		{ name: "deflate_content_fastest", input: content, run: |input| deflate(input, KernelDeflate.Level.fastest) },
+		{ name: "deflate_content_smallest", input: content, run: |input| deflate(input, KernelDeflate.Level.smallest) },
 	]
 }
 
@@ -38,10 +40,12 @@ content = |seed| {
 	$bytes
 }
 
-deflate : List(U8) -> U64
-deflate = |input| {
+## `deflate_icc` and `deflate_content` compress at the package default level;
+## the `_fastest` and `_smallest` kernels measure the other two levels.
+deflate : List(U8), KernelDeflate.Level -> U64
+deflate = |input, level| {
 	limits = KernelDeflate.Limits.make({ max_input_bytes: 16777216, max_output_bytes: 16777216 })
-	match KernelDeflate.Plan.prepare(input, limits) {
+	match KernelDeflate.Plan.prepare(input, level, limits) {
 		Err(_) => crash "deflate prepare failed"
 		Ok(plan) => match KernelDeflate.to_bytes(plan) {
 			Err(_) => crash "deflate failed"

@@ -215,7 +215,7 @@ validate_emittable = |plan| {
 			if payload.kind != Generated {
 				return Err(DeflateRequiresGeneratedPayload(stream.id))
 			} else if payload.bytes.is_empty() == False {
-				match prepare_deflate(payload.bytes) {
+				match prepare_deflate(payload.bytes, KernelStructure.Plan.compression(plan)) {
 					Err(deflate_error) => {
 						return Err(Deflate(deflate_error))
 					}
@@ -229,10 +229,12 @@ validate_emittable = |plan| {
 	Ok({})
 }
 
-prepare_deflate : List(U8) -> Try(KernelDeflate.Plan, KernelDeflate.Error)
-prepare_deflate = |bytes| {
+## Every stream is compressed at the sealed plan's level; emission never
+## chooses a level of its own.
+prepare_deflate : List(U8), KernelDeflate.Level -> Try(KernelDeflate.Plan, KernelDeflate.Error)
+prepare_deflate = |bytes, level| {
 	bound = KernelDeflate.output_bound(bytes.len())?
-	KernelDeflate.Plan.prepare(bytes, KernelDeflate.Limits.make({ max_input_bytes: bytes.len(), max_output_bytes: bound }))
+	KernelDeflate.Plan.prepare(bytes, level, KernelDeflate.Limits.make({ max_input_bytes: bytes.len(), max_output_bytes: bound }))
 }
 
 next_segment : KernelEmit.Encoder -> Try(KernelEmit.Step, KernelEmit.Error)
@@ -368,7 +370,7 @@ emit_object_stream = |encoder, next_object| {
 	first = $header.len()
 	count = U64.div_by(members.len(), 2)
 	content = append_all($header, batch)
-	deflate_plan = prepare_deflate(content) ? Deflate
+	deflate_plan = prepare_deflate(content, KernelStructure.Plan.compression(plan)) ? Deflate
 	compressed = KernelDeflate.to_bytes(deflate_plan) ? Deflate
 	total_work = KernelDeflate.Work.add(deflate_work, compressed.work) ? Deflate
 	number = checked_add(KernelObject.ObjectId.number(KernelStructure.Plan.xref_object(plan)), stream_offsets.len())?
@@ -464,7 +466,7 @@ emit_deflate_stream_prefix = |encoder, object_id, stream, payload, next_object| 
 			## The payload is compressed whole into one owned buffer: the
 			## compressor seam takes the complete input, and the compressed
 			## length it returns becomes the stream's length.
-			plan = prepare_deflate(payload.bytes) ? Deflate
+			plan = prepare_deflate(payload.bytes, KernelStructure.Plan.compression(encoder.plan)) ? Deflate
 			compressed = KernelDeflate.to_bytes(plan) ? Deflate
 			deflate_work = KernelDeflate.Work.add(encoder.deflate_work, compressed.work) ? Deflate
 			release = payload_release(encoder.plan, stream)
@@ -532,7 +534,7 @@ emit_xref_prefix = |encoder| {
 	if planned + 1 != base {
 		return Err(IndexInvariant)
 	}
-	deflate_plan = prepare_deflate($rows) ? Deflate
+	deflate_plan = prepare_deflate($rows, KernelStructure.Plan.compression(encoder.plan)) ? Deflate
 	compressed = KernelDeflate.to_bytes(deflate_plan) ? Deflate
 	deflate_work = KernelDeflate.Work.add(encoder.deflate_work, compressed.work) ? Deflate
 	root = KernelStructure.Plan.root(encoder.plan)
@@ -1338,7 +1340,7 @@ expect {
 	input = Str.to_utf8("q 0 0 100 100 re f Q\nq 0 0 100 100 re f Q\n")
 	plan = KernelStructure.build_deflate_stream_probe(input, input.len())?
 	deflate_bound = KernelDeflate.output_bound(input.len())?
-	deflate_plan = KernelDeflate.Plan.prepare(input, KernelDeflate.Limits.make({ max_input_bytes: input.len(), max_output_bytes: deflate_bound }))?
+	deflate_plan = KernelDeflate.Plan.prepare(input, KernelStructure.Plan.compression(plan), KernelDeflate.Limits.make({ max_input_bytes: input.len(), max_output_bytes: deflate_bound }))?
 	expected = KernelDeflate.to_bytes(deflate_plan)?
 	var $encoder = KernelEmit.start(plan, ShareResourceChunks)?
 	var $bytes = []
@@ -1370,6 +1372,23 @@ expect {
 			KernelDeflate.Work.streams(work) == 3 and
 				KernelDeflate.Work.input_bytes(work) > input.len() and
 					KernelDeflate.Work.emitted_bytes(work) > expected.bytes.len()
+}
+
+# The sealed plan's level, not a package constant, compresses every stream:
+# each level's compressed content appears in its output, the identifier is
+# unchanged, and buffered and chunked output agree at every level.
+expect {
+	input = Str.to_utf8("q 0 0 100 100 re f Q\nq 0 0 100 100 re f Q\nBT /F1 12 Tf (abc) Tj ET\nq 0 0 100 100 re f Q\n")
+	base = KernelStructure.build_deflate_stream_probe(input, input.len())?
+	fastest = emitted_at_level(base, input, KernelDeflate.Level.fastest)
+	balanced = emitted_at_level(base, input, KernelDeflate.Level.balanced)
+	smallest = emitted_at_level(base, input, KernelDeflate.Level.smallest)
+	KernelStructure.Plan.compression(base) == KernelDeflate.Level.balanced and
+		fastest != [] and
+			balanced != [] and
+				smallest != [] and
+					fastest != smallest and
+						balanced == KernelEmit.to_bytes(base)?
 }
 
 # The counting sink preserves fixed-width offsets beyond four GiB.
@@ -1484,4 +1503,54 @@ expect {
 	}
 
 	$actual == expected
+}
+
+## The buffered output of `plan` at `level`, or `[]` when it does not contain
+## the stream compressed at that level or chunked output disagrees.
+emitted_at_level : KernelStructure.Plan, List(U8), KernelDeflate.Level -> List(U8)
+emitted_at_level = |base, input, level| {
+	plan = KernelStructure.Plan.with_compression(base, level)
+	expected = match KernelDeflate.output_bound(input.len()) {
+		Err(_) => []
+		Ok(bound) => match KernelDeflate.Plan.prepare(input, level, KernelDeflate.Limits.make({ max_input_bytes: input.len(), max_output_bytes: bound })) {
+			Err(_) => []
+			Ok(deflate_plan) => match KernelDeflate.to_bytes(deflate_plan) {
+				Err(_) => []
+				Ok(result) => result.bytes
+			}
+		}
+	}
+	buffered = match KernelEmit.to_bytes(plan) {
+		Err(_) => []
+		Ok(bytes) => bytes
+	}
+	chunked = match KernelEmit.start(plan, ShareResourceChunks) {
+		Err(_) => []
+		Ok(encoder) => drain_encoder(encoder)
+	}
+	if expected != [] and buffered == chunked and contains_bytes(buffered, expected) {
+		buffered
+	} else {
+		[]
+	}
+}
+
+drain_encoder : KernelEmit.Encoder -> List(U8)
+drain_encoder = |encoder| {
+	var $encoder = encoder
+	var $bytes = []
+	while True {
+		match KernelEmit.Encoder.next($encoder) {
+			Err(_) => {
+				return []
+			}
+			Ok(Done) => {
+				return $bytes
+			}
+			Ok(Emit(segment, next)) => {
+				$bytes = append_all($bytes, segment.bytes)
+				$encoder = next
+			}
+		}
+	}
 }

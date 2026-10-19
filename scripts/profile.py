@@ -44,6 +44,8 @@ WORKLOADS = (
     "deflate_content",
     "sha256_content",
     "register_inter",
+    "deflate_content_fastest",
+    "deflate_content_smallest",
 )
 LINE = re.compile(r'PROFILE (\S+) (\S+) (\d+)')
 
