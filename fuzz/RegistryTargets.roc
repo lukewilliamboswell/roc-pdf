@@ -145,7 +145,7 @@ register_all = |specs| {
 				## single face it was created for.
 				match result.registry.policy_faces(result.policy) {
 					Err(_) => return Err(Violation)
-					Ok(returned) => if !same_faces(returned, [result.face]) return Err(Violation)
+					Ok(returned) => if (!same_faces(returned, [result.face])) return Err(Violation)
 				}
 				$registry = result.registry
 				$faces = $faces.append(result.face)
@@ -594,7 +594,7 @@ add_policies = |configured, requests| {
 				## list re-derived from registration order.
 				match result.registry.policy_faces(result.policy) {
 					Err(_) => return Err(Violation)
-					Ok(returned) => if !same_faces(returned, requested) return Err(Violation)
+					Ok(returned) => if (!same_faces(returned, requested)) return Err(Violation)
 				}
 
 				# The pre-call registry keeps working and does not learn about a
@@ -688,7 +688,7 @@ boundary_probes = |configured, probe| {
 	while $policy < configured.policies {
 		match configured.registry.policy_faces(Font.PolicyId.from_index($policy)) {
 			Err(_) => return False
-			Ok(returned) => if returned.is_empty() return False
+			Ok(returned) => if (returned.is_empty()) return False
 		}
 		$policy = $policy + 1
 	}

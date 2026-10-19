@@ -274,7 +274,7 @@ build_static = |authoring, theme, page_size| {
 		match scope.templates {
 			Inherit => {
 				$choices = $choices.append({ opening: 0, continuation: 1, label: scope.running_label })
-				$flows = $flows.append({ leaves, opening: if first_body base.flow.first else base.flow.continuation, continuation: base.flow.continuation })
+				$flows = $flows.append({ leaves, opening: if (first_body) base.flow.first else base.flow.continuation, continuation: base.flow.continuation })
 			}
 			Templates({ opening, continuation }) => {
 				lead = if first_body {
@@ -385,7 +385,7 @@ scope_location = |groups, index| {
 	while $next > 0 {
 		$next = $next - 1
 		segment = "contents[${list_at($positions, $next).to_str()}]"
-		$path = if $path.is_empty() segment else "${$path}.${segment}"
+		$path = if ($path.is_empty()) segment else "${$path}.${segment}"
 	}
 	$path
 }
@@ -423,7 +423,7 @@ build_static_basic = |authoring, theme, page_size, paths| {
 	lead_height = match templates.lead {
 		NoLead => 0
 		Lead(height) => {
-			value = if height <= 0 0 else height.raw().to_u64_wrap()
+			value = if (height <= 0) 0 else height.raw().to_u64_wrap()
 			if value == 0 {
 				return Err(RegionEmpty({ path: "${first_path}.lead" }))
 			}
@@ -431,9 +431,9 @@ build_static_basic = |authoring, theme, page_size, paths| {
 		}
 	}
 	first_footer = region_height(templates.first.footer, "${first_path}.footer")?
-	lead_top = if first_header == 0 0 else checked_add(first_header, first_gap)?
-	first_top = if lead_height == 0 lead_top else checked_add(lead_top, checked_add(lead_height, first_gap)?)?
-	first_bottom = if first_footer == 0 0 else checked_add(first_footer, first_gap)?
+	lead_top = if (first_header == 0) 0 else checked_add(first_header, first_gap)?
+	first_top = if (lead_height == 0) lead_top else checked_add(lead_top, checked_add(lead_height, first_gap)?)?
+	first_bottom = if (first_footer == 0) 0 else checked_add(first_footer, first_gap)?
 	first_remaining = frame_height.to_i64_wrap() - first_top.to_i64_wrap() - first_bottom.to_i64_wrap()
 	if first_remaining < line.to_i64_wrap() {
 		return Err(BodySpace({ footer: first_footer, gap: first_gap, header: first_header, lead: lead_height, line, remaining: first_remaining, template: first_path }))
@@ -444,8 +444,8 @@ build_static_basic = |authoring, theme, page_size, paths| {
 	next_gap = gap_of(templates.continuation.gap, next_path)?
 	next_header = region_height(templates.continuation.header, "${next_path}.header")?
 	next_footer = region_height(templates.continuation.footer, "${next_path}.footer")?
-	next_top = if next_header == 0 0 else checked_add(next_header, next_gap)?
-	next_bottom = if next_footer == 0 0 else checked_add(next_footer, next_gap)?
+	next_top = if (next_header == 0) 0 else checked_add(next_header, next_gap)?
+	next_bottom = if (next_footer == 0) 0 else checked_add(next_footer, next_gap)?
 	next_remaining = frame_height.to_i64_wrap() - next_top.to_i64_wrap() - next_bottom.to_i64_wrap()
 	if next_remaining < line.to_i64_wrap() {
 		return Err(BodySpace({ footer: next_footer, gap: next_gap, header: next_header, lead: 0, line, remaining: next_remaining, template: next_path }))
@@ -458,7 +458,7 @@ build_static_basic = |authoring, theme, page_size, paths| {
 	$state = add_region($state, templates.continuation.footer, { band: Below, kind: Footer, path: "${next_path}.footer", template: 1, top: frame_height - next_footer }, style)?
 	first_frame = { height: unit(first_remaining.to_u64_wrap()), top: unit(first_top) }
 	next_frame = { height: unit(next_remaining.to_u64_wrap()), top: unit(next_top) }
-	lead = if lead_height == 0 NoLead else Lead({ frame: { height: unit(lead_height), top: unit(lead_top) }, leaves: lead_leaves })
+	lead = if (lead_height == 0) NoLead else Lead({ frame: { height: unit(lead_height), top: unit(lead_top) }, leaves: lead_leaves })
 	Ok(
 		KernelFacadeFurniture.Static.{
 			scope_flows: [],
@@ -490,7 +490,7 @@ lead_block_end = |authoring| match authoring.groups.first() {
 }
 
 gap_of : Layout.Unit, Str -> Try(U64, KernelFacadeFurniture.Error)
-gap_of = |gap, path| if gap < 0 Err(GapNegative({ path: "${path}.gap" })) else Ok(gap.raw().to_u64_wrap())
+gap_of = |gap, path| if (gap < 0) Err(GapNegative({ path: "${path}.gap" })) else Ok(gap.raw().to_u64_wrap())
 
 ## A present region reserves positive height and holds at least one item;
 ## `no_region` reserves nothing.
@@ -503,7 +503,7 @@ region_height = |region, path| match region {
 			NoBackdrop => slotless
 			Backdrop(_) => False
 		}
-		if height <= 0 or bare Err(RegionEmpty({ path: path })) else Ok(height.raw().to_u64_wrap())
+		if (height <= 0 or bare) Err(RegionEmpty({ path: path })) else Ok(height.raw().to_u64_wrap())
 	}
 }
 
@@ -622,7 +622,7 @@ text_template = |inlines, path| {
 			BoxStart({ align, position, width }) => {
 				box_path = "${path}.inlines[${position.to_str()}]"
 				$open = OpenBox({ path: box_path, used: False })
-				$parts = $parts.append(BoxOpen({ align, path: box_path, width: if width <= 0 0 else width.raw().to_u64_wrap() }))
+				$parts = $parts.append(BoxOpen({ align, path: box_path, width: if (width <= 0) 0 else width.raw().to_u64_wrap() }))
 			}
 			BoxEnd => {
 				match $open {
@@ -800,7 +800,7 @@ stack_offset : List({ end : U64, x : I64, y : I64 }), [X, Y] -> I64
 stack_offset = |groups, axis| {
 	var $total = 0
 	for group in groups {
-		$total = $total + (if axis == X group.x else group.y)
+		$total = $total + (if (axis == X) group.x else group.y)
 	}
 	$total
 }
@@ -892,8 +892,8 @@ origin_violation = |segments, half, command| {
 ## A signed millipoint length as points, such as `-3 pt` or `0.375 pt`.
 signed_points : I64 -> Str
 signed_points = |raw| {
-	magnitude = if raw < 0 (0 - raw).to_u64_wrap() else raw.to_u64_wrap()
-	sign = if raw < 0 "-" else ""
+	magnitude = if (raw < 0) (0 - raw).to_u64_wrap() else raw.to_u64_wrap()
+	sign = if (raw < 0) "-" else ""
 	fraction = magnitude % 1000
 	if fraction == 0 {
 		"${sign}${(magnitude // 1000).to_str()} pt"
@@ -984,7 +984,7 @@ resolve_plan = |static, label_plan, scope_pages, selection, language, source_bas
 							resolved = resolve_line(text.parts, $page + 1, page_count, label_plan, context.label)?
 							$field_resolutions = checked_add($field_resolutions, resolved.fields)?
 							check_limit(checked_add($pending.len(), 1)?, limits.max_inputs, Inputs)?
-							$pending = $pending.append({ input: if resolved.text.is_empty() NoText else Input($inputs.len()), item: $item, page: $page, region: $region, segments: resolved.segments })
+							$pending = $pending.append({ input: if (resolved.text.is_empty()) NoText else Input($inputs.len()), item: $item, page: $page, region: $region, segments: resolved.segments })
 							if !resolved.text.is_empty() {
 								$inputs = $inputs.append(resolved.text)
 							}
@@ -1017,8 +1017,8 @@ resolve_plan = |static, label_plan, scope_pages, selection, language, source_bas
 				$requests = $requests.append({ occurrence: Semantics.OccurrenceId.from_index(index), size: static.style.size, source: Semantics.TextSourceId.from_index(index) })
 			}
 			options = { direction: LeftToRight, instance: Font.InstanceId.from_index(instance), language, script: Font.Script.from_iso15924("Latn"), writing_mode: Horizontal }
-			batch = if unique.is_empty() { advances: [], store: empty_store, work: empty_shape_work } else KernelShape.shape_simple_batch(font, unique, options, $requests, limits.shape) ? |error| locate_single_text_error(static, font, unique, options, input_sources, $pending, error, limits.shape)
-			{ batch, extra_fonts: if extra and !unique.is_empty() [font] else [], run_sources: [], source_runs: [] }
+			batch = if (unique.is_empty()) { advances: [], store: empty_store, work: empty_shape_work } else KernelShape.shape_simple_batch(font, unique, options, $requests, limits.shape) ? |error| locate_single_text_error(static, font, unique, options, input_sources, $pending, error, limits.shape)
+			{ batch, extra_fonts: if (extra and !unique.is_empty()) [font] else [], run_sources: [], source_runs: [] }
 		}
 		PolicyFaces(policy) => shape_under_policy(policy, unique, static, input_sources, $pending, language, limits)?
 	}
@@ -1027,7 +1027,7 @@ resolve_plan = |static, label_plan, scope_pages, selection, language, source_bas
 	## The batch identifies a request by an occurrence ordinal; a furniture
 	## run's Unicode is its artifact source.
 	run_sources = shaped.run_sources
-	store = { ..shaped.batch.store, runs: shaped.batch.store.runs.map(|run| { ..run, unicode: ArtifactText(Semantics.TextSourceId.from_index(source_base + (if run_sources.is_empty() run.id.index() else list_at(run_sources, run.id.index())))) }) }
+	store = { ..shaped.batch.store, runs: shaped.batch.store.runs.map(|run| { ..run, unicode: ArtifactText(Semantics.TextSourceId.from_index(source_base + (if (run_sources.is_empty()) run.id.index() else list_at(run_sources, run.id.index())))) }) }
 
 	# Prove fits and place every piece and drawing, page by page.
 	var $pieces = []
@@ -1190,7 +1190,7 @@ resolve_line = |parts, page, pages, labels, label| {
 				## Existing numeric fields are generated ASCII. Their exact byte
 				## length is already the scalar count; only configured labels
 				## may contain multibyte prefix scalars.
-				$scalars = $scalars + (if field == LabelField scalar_count(value) else length)
+				$scalars = $scalars + (if (field == LabelField) scalar_count(value) else length)
 				$fields = $fields + 1
 				$field = match $field {
 					NoField => Field({ path, value })
@@ -1397,7 +1397,7 @@ place_region = |static, store, source_runs, input_sources, pending, cursor, regi
 			TextContent(text_index) => {
 				entry = list_at(pending, $cursor)
 				$cursor = $cursor + 1
-				kind = if list_at(static.texts, text_index).fields PageNumber else region.kind
+				kind = if (list_at(static.texts, text_index).fields) PageNumber else region.kind
 				runs = pending_runs(source_runs, input_sources, entry.input)
 				baseline = checked_sub(top_y, size)?
 				var $pen = x
@@ -1457,7 +1457,7 @@ regions_for = |static, template| {
 	while $split < static.regions.len() and list_at(static.regions, $split).template == 0 {
 		$split = $split + 1
 	}
-	if template == 0 span(0, $split) else span($split, static.regions.len())
+	if (template == 0) span(0, $split) else span($split, static.regions.len())
 }
 
 page_context : KernelFacadeFurniture.Static, List(KernelPageLayout.ScopePage), U64, U64 -> { template : U64, label : Str }
@@ -1466,11 +1466,11 @@ page_context = |static, pages, cursor, page| {
 		context = list_at(pages, cursor)
 		if context.page == page {
 			scope = list_at(static.scope_templates, context.scope)
-			id = if context.opening scope.opening else scope.continuation
-			return { template: if id == 0 and page > 0 1 else id, label: scope.label }
+			id = if (context.opening) scope.opening else scope.continuation
+			return { template: if (id == 0 and page > 0) 1 else id, label: scope.label }
 		}
 	}
-	{ template: if page == 0 0 else 1, label: "" }
+	{ template: if (page == 0) 0 else 1, label: "" }
 }
 
 ## The runs shaping one furniture source: `source_runs` is empty through
@@ -1482,7 +1482,7 @@ pending_runs = |source_runs, input_sources, input| match input {
 }
 
 runs_of : List(Semantics.Range), U64 -> Semantics.Range
-runs_of = |source_runs, source| if source_runs.is_empty() Semantics.Range.from_start_and_length(source, 1) else list_at(source_runs, source)
+runs_of = |source_runs, source| if (source_runs.is_empty()) Semantics.Range.from_start_and_length(source, 1) else list_at(source_runs, source)
 
 ## The advance width of a scalar range across the runs of one source.
 runs_width : Text.Store, Semantics.Range, Semantics.Range -> U64
@@ -1560,7 +1560,7 @@ shape_under_policy = |policy, unique, static, input_sources, pending, language, 
 		$source_runs = $source_runs.append(span(start, $selected.len()))
 		$index = $index + 1
 	}
-	batch = if unique.is_empty() { advances: [], store: empty_store, work: empty_shape_work } else KernelShape.shape_selected_batch($fonts, unique, { direction: LeftToRight, language, writing_mode: Horizontal }, $selected, limits.shape) ? Shape
+	batch = if (unique.is_empty()) { advances: [], store: empty_store, work: empty_shape_work } else KernelShape.shape_selected_batch($fonts, unique, { direction: LeftToRight, language, writing_mode: Horizontal }, $selected, limits.shape) ? Shape
 	Ok({ batch, extra_fonts: $fonts.drop_first(policy.fonts.len()), run_sources: $run_sources, source_runs: $source_runs })
 }
 
@@ -1581,14 +1581,13 @@ face_position = |faces, face| {
 source_path : KernelFacadeFurniture.Static, List(Semantics.TextSourceId), List(Pending), U64 -> Str
 source_path = |static, input_sources, pending, source| {
 	for entry in pending {
-		if (
+		if
 			match entry.input {
 				NoText => False
 				Input(input) => list_at(input_sources, input).index() == source
+			} {
+				return list_at(static.items, entry.item).path
 			}
-		) {
-			return list_at(static.items, entry.item).path
-		}
 	}
 	"templates"
 }
@@ -1677,10 +1676,10 @@ unit : U64 -> Layout.Unit
 unit = |value| Layout.Unit.from_raw(value.to_i64_wrap())
 
 nonnegative : Layout.Unit -> Try(U64, KernelFacadeFurniture.Error)
-nonnegative = |value| if value < 0 Err(ArithmeticOverflow) else Ok(value.raw().to_u64_wrap())
+nonnegative = |value| if (value < 0) Err(ArithmeticOverflow) else Ok(value.raw().to_u64_wrap())
 
 check_limit : U64, U64, KernelFacadeFurniture.Dimension -> Try({}, KernelFacadeFurniture.Error)
-check_limit = |attempted, limit, dimension| if attempted > limit Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
+check_limit = |attempted, limit, dimension| if (attempted > limit) Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
 
 checked_add : U64, U64 -> Try(U64, KernelFacadeFurniture.Error)
 checked_add = |left, right| match U64.plus_try(left, right) {
@@ -1689,7 +1688,7 @@ checked_add = |left, right| match U64.plus_try(left, right) {
 }
 
 checked_sub : U64, U64 -> Try(U64, KernelFacadeFurniture.Error)
-checked_sub = |left, right| if right > left Err(ArithmeticOverflow) else Ok(left - right)
+checked_sub = |left, right| if (right > left) Err(ArithmeticOverflow) else Ok(left - right)
 
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {

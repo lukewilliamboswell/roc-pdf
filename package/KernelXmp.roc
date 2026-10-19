@@ -82,7 +82,7 @@ build_packet = |facts, identification, max_bytes| {
 	modified = timestamp_segments(facts.modified, "ModifyDate")
 	timestamp_len = segment_length(created) + segment_length(modified)
 	has_timestamps = timestamp_len > 0
-	namespace_len = if has_timestamps xmp_namespace.len() else 0
+	namespace_len = if (has_timestamps) xmp_namespace.len() else 0
 
 	## The identification segments are materialized only for an identified
 	## packet, so the unidentified packet's bytes and allocations are unchanged.
@@ -308,7 +308,7 @@ expect {
 
 	Str.contains(text, " xmlns:xmp=\"http://ns.adobe.com/xap/1.0/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\">")
 		and Str.contains(text, "\t\t\t<xmp:CreateDate>2026-01-02T03:04:05Z</xmp:CreateDate>\n\t\t\t<xmp:ModifyDate>2026-01-02T03:04:06Z</xmp:ModifyDate>\n\t\t\t<dc:language>")
-			and KernelXmp.Packet.work(packet).properties == 4
+		and KernelXmp.Packet.work(packet).properties == 4
 }
 
 # One explicit timestamp emits exactly its own property and no empty twin.
@@ -387,9 +387,9 @@ expect {
 
 	KernelXmp.Packet.bytes(identified) == expected
 		and KernelXmp.Packet.work(identified) == { packet_bytes: expected.len(), properties: 4, title_escapes: 0 }
-			and KernelXmp.Packet.bytes(identified).len() == KernelXmp.Packet.bytes(plain).len() + 112
-				and KernelXmp.Packet.identification(identified) == PdfA4Identification
-					and KernelXmp.Packet.identification(plain) == NoIdentification
+		and KernelXmp.Packet.bytes(identified).len() == KernelXmp.Packet.bytes(plain).len() + 112
+		and KernelXmp.Packet.identification(identified) == PdfA4Identification
+		and KernelXmp.Packet.identification(plain) == NoIdentification
 }
 
 # Explicit timestamps keep the XMP namespace first and the identification last.
@@ -405,8 +405,8 @@ expect {
 
 	Str.contains(text, " xmlns:xmp=\"http://ns.adobe.com/xap/1.0/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:pdfaid=\"http://www.aiim.org/pdfa/ns/id/\">")
 		and Str.contains(text, "</dc:title>\n\t\t\t<pdfaid:part>4</pdfaid:part>\n\t\t\t<pdfaid:rev>2020</pdfaid:rev>\n\t\t</rdf:Description>")
-			and !Str.contains(text, "pdfaid:conformance")
-				and KernelXmp.Packet.work(packet).properties == 5
+		and !Str.contains(text, "pdfaid:conformance")
+		and KernelXmp.Packet.work(packet).properties == 5
 }
 
 # The identified packet budget includes the identification bytes.

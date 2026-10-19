@@ -201,9 +201,9 @@ line_chart = {
 	y_of = |tenths| base + tenths * 11 // 10
 	var $chart = Scene.Drawing.empty
 	for day in [0, 2, 4, 6, 8, 10] {
-		color = if day == 0 charcoal else stone
-		$chart = $chart.rectangle({ origin: Layout.point(left, y_of(day * 10)), size: { height: Layout.Unit.millipoints(if day == 0 1000 else 500), width: 474 } }, color)
-		$chart = $chart.text({ align: End, color: charcoal, origin: Layout.point(left - 6, y_of(day * 10) - 3), size: 8, text: if day == 10 "10 d" else day.to_str() })
+		color = if (day == 0) charcoal else stone
+		$chart = $chart.rectangle({ origin: Layout.point(left, y_of(day * 10)), size: { height: Layout.Unit.millipoints(if (day == 0) 1000 else 500), width: 474 } }, color)
+		$chart = $chart.text({ align: End, color: charcoal, origin: Layout.point(left - 6, y_of(day * 10) - 3), size: 8, text: if (day == 10) "10 d" else day.to_str() })
 	}
 	var $area = Scene.PathBuilder.start.move_to(Layout.point(left + 12, base))
 	var $line = Scene.PathBuilder.start
@@ -214,7 +214,7 @@ line_chart = {
 	var $week = week_one
 	for tenths in cycle_time {
 		$area = $area.line_to(Layout.point($x, y_of(tenths)))
-		$line = if $first $line.move_to(Layout.point($x, y_of(tenths))) else $line.line_to(Layout.point($x, y_of(tenths)))
+		$line = if ($first) $line.move_to(Layout.point($x, y_of(tenths))) else $line.line_to(Layout.point($x, y_of(tenths)))
 		$chart = $chart.text({ align: Center, color: charcoal, origin: Layout.point($x, 4), size: 8, text: "Week ${$week.to_str()}" })
 		$first = False
 		$x = $x + step
@@ -369,7 +369,7 @@ plan_row : Str, Str, Str, Str -> Pdf.Row
 plan_row = |feature, starter, team, business| Pdf.row([Pdf.header_cell(Row, [Pdf.text(feature)]), plan_cell(starter), plan_cell(team), plan_cell(business)])
 
 plan_cell : Str -> Pdf.Cell
-plan_cell = |value| if value.is_empty() Pdf.cell([]) else Pdf.cell([Pdf.text(value)])
+plan_cell = |value| if (value.is_empty()) Pdf.cell([]) else Pdf.cell([Pdf.text(value)])
 
 ## The comparison is kept whole on one page.
 plans_table : Document.Block

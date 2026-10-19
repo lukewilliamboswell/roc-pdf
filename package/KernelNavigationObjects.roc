@@ -214,7 +214,7 @@ plan_objects = |base_count, store| {
 		$outline_items = $outline_items.append(object_id(checked_add(outline_start, $entry + 2)?)?)
 		$entry = $entry + 1
 	}
-	outline_objects = if outline_entry_count == 0 0 else outline_entry_count + 1
+	outline_objects = if (outline_entry_count == 0) 0 else outline_entry_count + 1
 
 	labels_start = checked_add(outline_start, outline_objects)?
 	label_node_count = if store.label_ranges.is_empty() {
@@ -371,7 +371,7 @@ add_annotation_objects = |builder, names, store, resolved, objects, context| {
 				{ builder: value.builder, value: WithValue(value.id) }
 			}
 		}
-		flags = KernelObject.add_integer(description.builder, if annotation.print 4 else 0) ? Object
+		flags = KernelObject.add_integer(description.builder, if (annotation.print) 4 else 0) ? Object
 		quads = add_quad_points(flags.builder, store, annotation.quads)?
 		$quad_numbers = $quad_numbers + annotation.quads.length() * 8
 		rect = add_rect_value(quads.builder, annotation.rect)?
@@ -987,7 +987,7 @@ object_id = |number| match KernelObject.ObjectId.from_number(number) {
 }
 
 ensure_object : KernelObject.ObjectId, KernelObject.ObjectId -> Try({}, KernelNavigationObjects.Error)
-ensure_object = |actual, expected| if actual == expected Ok({}) else Err(ObjectOrder({ actual, expected }))
+ensure_object = |actual, expected| if (actual == expected) Ok({}) else Err(ObjectOrder({ actual, expected }))
 
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {

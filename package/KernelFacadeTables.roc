@@ -148,7 +148,7 @@ build_plan = |authoring, shape, sources, available, frames, theme, limits| {
 			$cell = {
 				max_content: U64.max($cell.max_content, measured.max_content),
 				min_content: U64.max($cell.min_content, measured.min_content),
-				token: if measured.min_content > $cell.min_content measured.token else $cell.token,
+				token: if (measured.min_content > $cell.min_content) measured.token else $cell.token,
 			}
 			$segment = $segment + length
 		}
@@ -173,7 +173,7 @@ resolve_geometry = |authoring, sources, measures, available, frames, theme, meas
 		match group.kind {
 			Table(table_index) => {
 				table = list_at(authoring.tables, table_index.to_u64())
-				frame = if frames.is_empty() { offset: 0, width: available } else list_at(frames, table_index.to_u64())
+				frame = if (frames.is_empty()) { offset: 0, width: available } else list_at(frames, table_index.to_u64())
 				first_cell = $cell_cursor
 				cell_end = first_cell + count_cells(authoring, group)
 				columns = resolve_columns(authoring, table, group, $group_index, measures, first_cell, cell_end, padding, frame.width)?
@@ -195,7 +195,7 @@ resolve_geometry = |authoring, sources, measures, available, frames, theme, meas
 						if cell_width <= 2 * padding and !contentless {
 							return Err(token_error(0, $block, list_at(measures, $ordinal_cursor)))
 						}
-						text_width = if cell_width <= 2 * padding 0 else cell_width - 2 * padding
+						text_width = if (cell_width <= 2 * padding) 0 else cell_width - 2 * padding
 						measure = list_at(measures, $ordinal_cursor)
 						if measure.min_content > text_width {
 							return Err(token_error(text_width, $block, measure))
@@ -256,7 +256,7 @@ segment_holds = |code, start, end| {
 measure_segment : List(KernelShape.SimpleSource), Text.Store, U64, U64, Semantics.TextSourceId, List(KernelLineLayout.Hold), KernelLineLayout.Limits -> Try(CellMeasure, KernelFacadeTables.Error)
 measure_segment = |sources, store, start, length, source, holds, limits| {
 	request = { runs: Semantics.Range.from_start_and_length(start, length), source, width: Layout.Unit.from_raw(1) }
-	measured = (if holds.is_empty() KernelLineLayout.measure_logical(sources, store, request, limits) else KernelLineLayout.measure_logical_held(sources, store, request, holds, limits)) ? Measure
+	measured = (if (holds.is_empty()) KernelLineLayout.measure_logical(sources, store, request, limits) else KernelLineLayout.measure_logical_held(sources, store, request, holds, limits)) ? Measure
 	first = list_at(store.clusters, measured.measure.token.start())
 	last = list_at(store.clusters, measured.measure.token.start() + U64.max(measured.measure.token.length(), 1) - 1)
 	token_start = first.source.scalars.start()
@@ -327,7 +327,7 @@ resolve_columns = |authoring, table, group, group_index, measures, first_cell, c
 		if minimum > limit {
 			widest = list_at($widest, $column)
 			measure = list_at(measures, widest)
-			return Err(token_error(if limit > 2 * padding limit - 2 * padding else 0, list_at(authoring.cells, widest).block, measure))
+			return Err(token_error(if (limit > 2 * padding) limit - 2 * padding else 0, list_at(authoring.cells, widest).block, measure))
 		}
 		match list_at(table.columns, $column).width {
 			Fixed(_) => {
@@ -364,14 +364,14 @@ resolve_columns = |authoring, table, group, group_index, measures, first_cell, c
 		}
 		$column = $column + 1
 	}
-	deficit = if $fixed + $content_total + $share_minima > available $fixed + $content_total + $share_minima - available else 0
+	deficit = if ($fixed + $content_total + $share_minima > available) $fixed + $content_total + $share_minima - available else 0
 	var $reduced = 0
 	$column = 0
 	while $column < count {
 		match list_at(table.columns, $column).width {
 			Content => {
 				slack = list_at($maxima, $column) - list_at($minima, $column)
-				reduction = if $slack_total == 0 0 else deficit * slack // $slack_total
+				reduction = if ($slack_total == 0) 0 else deficit * slack // $slack_total
 				$widths = list_set($widths, $column, list_at($maxima, $column) - reduction)
 				$reduced = $reduced + reduction
 			}
@@ -401,7 +401,7 @@ resolve_columns = |authoring, table, group, group_index, measures, first_cell, c
 	var $settled = List.repeat(False, count)
 	var $settling = True
 	while $settling {
-		remaining = if available > $used available - $used else 0
+		remaining = if (available > $used) available - $used else 0
 		var $weights = 0
 		$column = 0
 		while $column < count {
@@ -503,7 +503,7 @@ segment_length = |requests, start, end| {
 }
 
 nonnegative : I64 -> Try(U64, KernelFacadeTables.Error)
-nonnegative = |value| if value < 0 Err(ArithmeticOverflow) else Ok(value.to_u64_wrap())
+nonnegative = |value| if (value < 0) Err(ArithmeticOverflow) else Ok(value.to_u64_wrap())
 
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {

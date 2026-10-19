@@ -283,7 +283,7 @@ text_property_bytes = |property| match property {
 }
 
 check_limit : U64, U64, KernelTextSemantics.Dimension -> Try({}, KernelTextSemantics.Error)
-check_limit = |attempted, limit, dimension| if attempted > limit Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
+check_limit = |attempted, limit, dimension| if (attempted > limit) Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
 
 checked_add : U64, U64 -> Try(U64, KernelTextSemantics.Error)
 checked_add = |left, right| match U64.plus_try(left, right) {

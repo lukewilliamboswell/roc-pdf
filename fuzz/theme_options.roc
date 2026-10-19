@@ -69,7 +69,7 @@ Input := {
 
 test : Input -> Fuzz.Outcome
 test = |Input.(input)| {
-	if ThemeTargets.theme_output(input) Fuzz.keep else crash "theme output contracts disagreed"
+	if (ThemeTargets.theme_output(input)) Fuzz.keep else crash "theme output contracts disagreed"
 }
 
 target = Fuzz.target({

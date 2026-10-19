@@ -849,7 +849,7 @@ single_profile_limits = KernelColor.Limits.make({
 expect_color_rejection : U64, Color.Store, KernelColor.Limits, (KernelColor.Error -> Bool) -> Try({}, Fixture.EvidenceError)
 expect_color_rejection = |ordinal, store, limits, matches| {
 	match KernelColor.Plan.build(store, limits) {
-		Err(error) => if matches(error) Ok({}) else Err(MissingRejection(ordinal))
+		Err(error) => if (matches(error)) Ok({}) else Err(MissingRejection(ordinal))
 		Ok(_) => Err(MissingRejection(ordinal))
 	}
 }
@@ -858,7 +858,7 @@ expect_image_rejection : U64, Image.SourceStore, KernelImage.Limits, (KernelImag
 expect_image_rejection = |ordinal, sources, limits, matches| {
 	colors = KernelColor.Plan.build(valid_single_profile_store, single_profile_limits) ? |_| MissingRejection(ordinal)
 	match KernelImage.Plan.build(sources, colors, limits) {
-		Err(error) => if matches(error) Ok({}) else Err(MissingRejection(ordinal))
+		Err(error) => if (matches(error)) Ok({}) else Err(MissingRejection(ordinal))
 		Ok(_) => Err(MissingRejection(ordinal))
 	}
 }

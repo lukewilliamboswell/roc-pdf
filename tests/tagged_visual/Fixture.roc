@@ -43,7 +43,7 @@ Fixture :: [].{
 	}
 
 	minimal_pdf : U64 -> Try(List(U8), [EvidenceFailure, InvalidRuntimeGuard])
-	minimal_pdf = |runtime_guard| if runtime_guard == 0 build_minimal_pdf({}) else Err(InvalidRuntimeGuard)
+	minimal_pdf = |runtime_guard| if (runtime_guard == 0) build_minimal_pdf({}) else Err(InvalidRuntimeGuard)
 }
 
 build_minimal_pdf : {} -> Try(List(U8), [EvidenceFailure, InvalidRuntimeGuard])

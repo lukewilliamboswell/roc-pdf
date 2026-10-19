@@ -317,9 +317,9 @@ callout_containers = |authoring, group_frame, units, theme| {
 		match policy {
 			NoContainerFacts => {}
 			ContainerFacts(facts) => {
-				first_block = group.first_block + if facts.skip_caption 1 else 0
-				first = if units.is_empty() first_block else list_at(units, first_block)
-				last = if units.is_empty() group.block_end else list_at(units, group.block_end - 1) + 1
+				first_block = group.first_block + if (facts.skip_caption) 1 else 0
+				first = if (units.is_empty()) first_block else list_at(units, first_block)
+				last = if (units.is_empty()) group.block_end else list_at(units, group.block_end - 1) + 1
 				$containers = $containers.append({ paint: facts.paint, blocks: Semantics.Range.from_start_and_length(first, last - first), padding: Layout.Unit.from_raw(facts.padding.to_i64_wrap()), offset: Layout.Unit.from_raw(facts.offset.to_i64_wrap()), width: Layout.Unit.from_raw(facts.width.to_i64_wrap()) })
 			}
 		}
@@ -362,7 +362,7 @@ table_outer_paint = |authoring, group_index, table, theme| {
 ## A cell fill belongs only to its own table. The cursor must not carry it
 ## forward to the next unpainted table or lose it after a preceding table.
 expect {
-	make = |filled| Document.table({ caption: NoCaption, columns: [{ width: Share(1), align: Start }], header_rows: [], footer_rows: [], body_rows: [Document.row([if filled Document.cell([Document.plain_text("Cell")]).shaded(Theme.black) else Document.cell([Document.plain_text("Cell")])])], row_split: KeepRows })
+	make = |filled| Document.table({ caption: NoCaption, columns: [{ width: Share(1), align: Start }], header_rows: [], footer_rows: [], body_rows: [Document.row([if (filled) Document.cell([Document.plain_text("Cell")]).shaded(Theme.black) else Document.cell([Document.plain_text("Cell")])])], row_split: KeepRows })
 	authoring = Document.normalize(Document.from_blocks({ title: "Paint", language: "en", contents: [make(False), make(True), make(False)] }))
 	match callout_containers(authoring, |_| { offset: 0, width: 100000 }, [], Theme.{}) {
 		Ok(spans) => spans.len() == 1 and list_at(spans, 0).blocks.start() == 1 and list_at(spans, 0).blocks.length() == 1 and list_at(spans, 0).paint == NoPaint and list_at(spans, 0).padding == 2
@@ -525,7 +525,7 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 				segmented = list_at(styles, body_index).segment != list_at(styles, body_index + body_run.physical.length() - 1).segment
 				visual_start = $visual_lines.len()
 				var $segment_start = body_index
-				var $segment_length = if segmented segment_length(styles, body_index, body_index + body_run.physical.length()) else body_run.physical.length()
+				var $segment_length = if (segmented) segment_length(styles, body_index, body_index + body_run.physical.length()) else body_run.physical.length()
 				var $local = 0
 				while $local < body_lines.lines.length() {
 					body_line_index = body_lines.lines.start() + $local
@@ -556,19 +556,19 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 							$segment_length = segment_length(styles, $segment_start, body_index + body_run.physical.length())
 						}
 					}
-					runs = if segmented { physical: Semantics.Range.from_start_and_length($segment_start, $segment_length) } else body_run
+					runs = if (segmented) { physical: Semantics.Range.from_start_and_length($segment_start, $segment_length) } else body_run
 					$visual_lines = $visual_lines.append(line)
 					$rows = $rows.append({ kind: ContentRow, body_line: body_line_index, body_offset, body_runs: runs, label })
 					$local = $local + 1
 				}
 				minimum = U64.min(2, body_lines.lines.length())
 				theme_keep = keeps_with_next(author_block.kind) and $block_index + 1 < block_lines.len()
-				authored = if author_keeps.is_empty() NoKeep else list_at(author_keeps, $block_index)
+				authored = if (author_keeps.is_empty()) NoKeep else list_at(author_keeps, $block_index)
 				keep_with_next = match authored {
 					Required => Required
-					_ => if theme_keep Preferred(HeadingKeep) else authored
+					_ => if (theme_keep) Preferred(HeadingKeep) else authored
 				}
-				spacing = if continues_list(authoring, block_runs, $block_index, level) 0 else nonnegative_raw(theme.paragraph_spacing)?
+				spacing = if (continues_list(authoring, block_runs, $block_index, level)) 0 else nonnegative_raw(theme.paragraph_spacing)?
 				spaced = spacer_total(authoring.spacers, $spacer_cursor, $block_index + 1)
 				$spacer_cursor = spaced.cursor
 				break_before = $break_cursor < authoring.page_breaks.len() and list_at(authoring.page_breaks, $break_cursor).block == $block_index
@@ -713,7 +713,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 			if thickness > gap {
 				return Err(TableRuleWidth({ gap, rule: HeaderFooterRule, width: thickness }))
 			}
-			if thickness == 0 NoTableRule else TableRule({ color, width: thickness })
+			if (thickness == 0) NoTableRule else TableRule({ color, width: thickness })
 		}
 	}
 	body_rule = match table_style.body_rule {
@@ -723,7 +723,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 			if thickness > gap {
 				return Err(TableRuleWidth({ gap, rule: BodyRule, width: thickness }))
 			}
-			if thickness == 0 NoTableRule else TableRule({ color, width: thickness })
+			if (thickness == 0) NoTableRule else TableRule({ color, width: thickness })
 		}
 	}
 	padding = nonnegative_raw(table_style.cell_padding)?
@@ -734,7 +734,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 			if thickness > 2 * padding {
 				return Err(TableRuleWidth({ gap: 2 * padding, rule: ColumnRule, width: thickness }))
 			}
-			if thickness == 0 NoTableRule else TableRule({ color, width: thickness })
+			if (thickness == 0) NoTableRule else TableRule({ color, width: thickness })
 		}
 	}
 	frame = match table_style.frame {
@@ -745,7 +745,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 			if thickness > room {
 				return Err(TableRuleWidth({ gap: room, rule: FrameRule, width: thickness }))
 			}
-			if thickness == 0 NoTableRule else TableRule({ color, width: thickness })
+			if (thickness == 0) NoTableRule else TableRule({ color, width: thickness })
 		}
 	}
 	paragraph_spacing = nonnegative_raw(theme.paragraph_spacing)?
@@ -775,8 +775,8 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 	var $cell_cursor = 0
 	var $block_index = 0
 	while $block_index < blocks.len() {
-		table_start = if $table_cursor < table_geometry.len() list_at(authoring.groups, list_at(table_geometry, $table_cursor).group).first_block == $block_index else False
-		source_start = if $source_cursor < authoring.sources.len() list_at(authoring.groups, list_at(authoring.sources, $source_cursor).group).first_block == $block_index else False
+		table_start = if ($table_cursor < table_geometry.len()) list_at(authoring.groups, list_at(table_geometry, $table_cursor).group).first_block == $block_index else False
+		source_start = if ($source_cursor < authoring.sources.len()) list_at(authoring.groups, list_at(authoring.sources, $source_cursor).group).first_block == $block_index else False
 		if source_start {
 			source = list_at(authoring.sources, $source_cursor)
 			group = list_at(authoring.groups, source.group)
@@ -815,7 +815,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 			if break_before {
 				$break_cursor = $break_cursor + 1
 			}
-			authored = if author_keeps.is_empty() NoKeep else list_at(author_keeps, group.block_end - 1)
+			authored = if (author_keeps.is_empty()) NoKeep else list_at(author_keeps, group.block_end - 1)
 			$page_blocks = $page_blocks.append({
 				baseline_offset: source.size,
 				decoration: leaf_decoration(flow_facts, group.first_block),
@@ -957,7 +957,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 						_ => True
 					}
 				)
-				authored = if author_keeps.is_empty() NoKeep else list_at(author_keeps, row.block_end - 1)
+				authored = if (author_keeps.is_empty()) NoKeep else list_at(author_keeps, row.block_end - 1)
 				keep_with_next = if section == Header {
 					Required
 				} else if last_body and table.footer_rows > 0 {
@@ -974,13 +974,13 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 				} else {
 					gap
 				}
-				lead = if section != Header and table.header_rows > 0 $header_height else 0
+				lead = if (section != Header and table.header_rows > 0) $header_height else 0
 				minimum = U64.min(2, $grid)
 				$units = $units.append(RowUnit($row_group))
 				fill = match section {
 					Header => table_style.header_fill
 					Footer => table_style.footer_fill
-					Body => if $body_ordinal % 2 == 0 table_style.body_fills.odd else table_style.body_fills.even
+					Body => if ($body_ordinal % 2 == 0) table_style.body_fills.odd else table_style.body_fills.even
 				}
 				$row_info = $row_info.append({ body_rule: section == Body and $body_ordinal > 0, cells: Semantics.Range.from_start_and_length(first_cell, $cell_cursor - first_cell), fill, grid: $grid, rule_above: first_footer, rule_below: last_header, table: $table_cursor })
 				if section == Body {
@@ -1027,16 +1027,16 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 			$line_rows = placed.rows
 			$label_rows = $label_rows + placed.labels
 			theme_keep = keeps_with_next(author_block.kind) and $block_index + 1 < blocks.len()
-			authored = if author_keeps.is_empty() NoKeep else list_at(author_keeps, $block_index)
+			authored = if (author_keeps.is_empty()) NoKeep else list_at(author_keeps, $block_index)
 			keep_with_next = match authored {
 				Required => Required
-				_ => if theme_keep Preferred(HeadingKeep) else authored
+				_ => if (theme_keep) Preferred(HeadingKeep) else authored
 			}
 			level = match list_at(block_runs, $block_index) {
 				TextBlock({ body: _, label: _, level: value }) => value
 				ContentlessCell | EmptySourceLine(_) => return Err(InvalidBlock({ block: $block_index }))
 			}
-			spacing = if continues_list(authoring, block_runs, $block_index, level) 0 else paragraph_spacing
+			spacing = if (continues_list(authoring, block_runs, $block_index, level)) 0 else paragraph_spacing
 			spaced = spacer_total(authoring.spacers, $spacer_cursor, $block_index + 1)
 			$spacer_cursor = spaced.cursor
 			break_before = $break_cursor < authoring.page_breaks.len() and list_at(authoring.page_breaks, $break_cursor).block == $block_index
@@ -1080,7 +1080,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 			NoFlowTemplate => NoTemplate
 			WithFlowTemplate(template) | WithScopedFlow({ template, scopes: _ }) => {
 				leaves = lead_leaves(flow)
-				units = if leaves == 0 0 else list_at($unit_of_block, leaves - 1) + 1
+				units = if (leaves == 0) 0 else list_at($unit_of_block, leaves - 1) + 1
 				WithTemplate(layout_template(template, units))
 			}
 		}
@@ -1095,7 +1095,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 		) ? |error| TableLayout({ error, groups: merged.sources, units: $units })
 		WithFlowTemplate(template) | WithScopedFlow({ template, scopes: _ }) => {
 			leaves = lead_leaves(flow)
-			units = if leaves == 0 0 else list_at($unit_of_block, leaves - 1) + 1
+			units = if (leaves == 0) 0 else list_at($unit_of_block, leaves - 1) + 1
 			KernelPageLayout.Plan.build_with_scopes(scope_policies(lead_policies($page_blocks, units), flow, $unit_of_block), flow_groups(merged.groups, units), $visual_lines, constraints, layout_template(template, units), layout_scopes(flow, $unit_of_block), limits.page) ? |error| TableLayout({ error, groups: merged.sources, units: $units })
 		}
 	}
@@ -1134,7 +1134,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 	for layout_page in layout_pages {
 		page_index = layout_page.id.index()
 		page_frames = KernelPageLayout.Plan.page_frames(page)
-		selected_page_top = if page_frames.is_empty() default_page_top else checked_sub(frame_top, nonnegative_raw(list_at(page_frames, page_index).top)?)?
+		selected_page_top = if (page_frames.is_empty()) default_page_top else checked_sub(frame_top, nonnegative_raw(list_at(page_frames, page_index).top)?)?
 		placement_start = $placements.len()
 		first_fragment = layout_page.fragments.start()
 		fragment_end = first_fragment + layout_page.fragments.length()
@@ -1147,7 +1147,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 			while $lead_cursor < lead_bands.len() and list_at(lead_bands, $lead_cursor).page < page_index {
 				$lead_cursor = $lead_cursor + 1
 			}
-			page_top = if $lead_cursor < lead_bands.len() and list_at(lead_bands, $lead_cursor).page == page_index list_at(lead_bands, $lead_cursor).top else selected_page_top
+			page_top = if ($lead_cursor < lead_bands.len() and list_at(lead_bands, $lead_cursor).page == page_index) list_at(lead_bands, $lead_cursor).top else selected_page_top
 			info = list_at($table_info, list_at($row_info, $unit).table)
 			var $used = 0
 			var $header = info.header_units.start()
@@ -1214,7 +1214,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 					rect = { origin: { x: Layout.Unit.from_raw(x.to_i64_wrap()), y: Layout.Unit.from_raw(y.to_i64_wrap()) }, size: { width: Layout.Unit.from_raw(checked_add(nonnegative_raw(source_frame.width)?, checked_mul(source_padding, 2)?)?.to_i64_wrap()), height: Layout.Unit.from_raw(checked_add(nonnegative_raw(fragment.geometry.size.height)?, checked_mul(source_padding, 2)?)?.to_i64_wrap()) } }
 					is_first = fragment.lines.start() == unit_block.lines.start()
 					is_last = range_end(fragment.lines)? == range_end(unit_block.lines)?
-					part = if is_first and is_last Whole else if is_first First else if is_last Last else Middle
+					part = if (is_first and is_last) Whole else if (is_first) First else if (is_last) Last else Middle
 					$source_fragments = $source_fragments.append({ source: source_id, page: page_index, lines: Semantics.Range.from_start_and_length(fragment.lines.start() - unit_block.lines.start(), taken), rect, part })
 					match source.background {
 						NoBackground => {}
@@ -1335,7 +1335,7 @@ table_leaf_unit = |at, block_index, buffers| {
 			var $rows = buffers.rows
 			var $labels = 0
 			var $segment_start = body_index
-			var $segment_length = if segmented segment_length(at.styles, body_index, body_index + body_run.physical.length()) else body_run.physical.length()
+			var $segment_length = if (segmented) segment_length(at.styles, body_index, body_index + body_run.physical.length()) else body_run.physical.length()
 			var $local = 0
 			while $local < body_lines.lines.length() {
 				body_line_index = body_lines.lines.start() + $local
@@ -1358,7 +1358,7 @@ table_leaf_unit = |at, block_index, buffers| {
 						$segment_length = segment_length(at.styles, $segment_start, body_index + body_run.physical.length())
 					}
 				}
-				runs = if segmented { physical: Semantics.Range.from_start_and_length($segment_start, $segment_length) } else body_run
+				runs = if (segmented) { physical: Semantics.Range.from_start_and_length($segment_start, $segment_length) } else body_run
 				$visual_lines = $visual_lines.append(line)
 				$rows = $rows.append({ kind: ContentRow, body_line: body_line_index, body_offset, body_runs: runs, label })
 				$local = $local + 1
@@ -1400,7 +1400,7 @@ append_cell_rows = |rows, at, block| {
 	segmented = list_at(at.styles, body_index).segment != list_at(at.styles, body_end - 1).segment
 	var $rows = rows
 	var $segment_start = body_index
-	var $segment_length = if segmented segment_length(at.styles, body_index, body_end) else body_run.physical.length()
+	var $segment_length = if (segmented) segment_length(at.styles, body_index, body_end) else body_run.physical.length()
 	var $local = 0
 	while $local < at.body_lines.length() {
 		line_index = at.body_lines.start() + $local
@@ -1414,14 +1414,14 @@ append_cell_rows = |rows, at, block| {
 				$segment_length = segment_length(at.styles, $segment_start, body_end)
 			}
 		}
-		runs = if segmented { physical: Semantics.Range.from_start_and_length($segment_start, $segment_length) } else body_run
+		runs = if (segmented) { physical: Semantics.Range.from_start_and_length($segment_start, $segment_length) } else body_run
 		offset = match at.geometry.align {
 			Start => at.geometry.x
 			alignment => {
 				source = list_at(at.sources, list_at(at.requests, $segment_start).source.index()).unicode
 				advance = visible_advance(at.store, line, source)?
-				slack = if advance < at.geometry.width at.geometry.width - advance else 0
-				if alignment == End at.geometry.x + slack else at.geometry.x + slack // 2
+				slack = if (advance < at.geometry.width) at.geometry.width - advance else 0
+				if (alignment == End) at.geometry.x + slack else at.geometry.x + slack // 2
 			}
 		}
 		$rows = $rows.append({ kind: ContentRow, body_line: line_index, body_offset: Layout.Unit.from_raw((at.geometry.offset + offset).to_i64_wrap()), body_runs: runs, label: NoLabel })
@@ -1461,7 +1461,7 @@ visible_advance = |store, line, source| {
 			while $reference < cluster.glyphs.start() + cluster.glyphs.length() {
 				glyph = list_at(store.glyphs, list_at(store.glyph_indices, $reference))
 				width = nonnegative_raw(glyph.advance_x)?
-				$advance = if width > $advance 0 else $advance - width
+				$advance = if (width > $advance) 0 else $advance - width
 				$reference = $reference + 1
 			}
 			$cluster = $cluster - 1
@@ -1477,7 +1477,7 @@ visible_advance = |store, line, source| {
 cell_line_count : List(U64), U64, U64 -> U64
 cell_line_count = |starts, total, cell| {
 	start = list_at(starts, cell)
-	end = if cell + 1 < starts.len() list_at(starts, cell + 1) else total
+	end = if (cell + 1 < starts.len()) list_at(starts, cell + 1) else total
 	end - start
 }
 
@@ -1486,7 +1486,7 @@ append_rule : List(KernelFacadePages.Rule), TableRuleStyle, U64, U64, U64, U64 -
 append_rule = |rules, rule, page, x, width, center| match rule {
 	NoTableRule => rules
 	TableRule({ color, width: thickness }) => {
-		bottom = if center > thickness / 2 center - thickness / 2 else 0
+		bottom = if (center > thickness / 2) center - thickness / 2 else 0
 		rules.append({
 			color,
 			layer: Front,
@@ -1507,13 +1507,13 @@ append_column_rules = |rules, rule, geometry, range, box| match rule {
 	NoTableRule => rules
 	TableRule({ color, width: thickness }) => {
 		below = box.gap / 2
-		bottom = if box.bottom > below box.bottom - below else 0
+		bottom = if (box.bottom > below) box.bottom - below else 0
 		height = box.top + (box.gap - below) - bottom
 		var $rules = rules
 		var $cell = range.start() + 1
 		while $cell < range.start() + range.length() {
 			edge = box.x + list_at(geometry, $cell).x - box.padding
-			left = if edge > thickness / 2 edge - thickness / 2 else 0
+			left = if (edge > thickness / 2) edge - thickness / 2 else 0
 			$rules = $rules.append({
 				color,
 				layer: Front,
@@ -1537,7 +1537,7 @@ Segment : [NoSegment, Segment({ bottom : U64, table : U64, top : U64 })]
 ## Close the open segment unless it belongs to `table`.
 close_other_segment : List(KernelFacadePages.Rule), TableRuleStyle, Segment, U64, { page : U64, tables : List(TableInfo), x : U64 } -> List(KernelFacadePages.Rule)
 close_other_segment = |rules, frame, segment, table, at| match segment {
-	Segment(open) => if open.table == table rules else close_segment(rules, frame, segment, at.page, at.x, at.tables)
+	Segment(open) => if (open.table == table) rules else close_segment(rules, frame, segment, at.page, at.x, at.tables)
 	NoSegment => rules
 }
 
@@ -1546,9 +1546,9 @@ close_other_segment = |rules, frame, segment, table, at| match segment {
 extend_segment : Segment, U64, U64, U64, U64 -> Segment
 extend_segment = |segment, table, top, bottom, gap| {
 	below = gap / 2
-	outer_bottom = if bottom > below bottom - below else 0
+	outer_bottom = if (bottom > below) bottom - below else 0
 	match segment {
-		Segment(open) => if open.table == table Segment({ ..open, bottom: outer_bottom }) else Segment({ bottom: outer_bottom, table, top: top + (gap - below) })
+		Segment(open) => if (open.table == table) Segment({ ..open, bottom: outer_bottom }) else Segment({ bottom: outer_bottom, table, top: top + (gap - below) })
 		NoSegment => Segment({ bottom: outer_bottom, table, top: top + (gap - below) })
 	}
 }
@@ -1560,7 +1560,7 @@ close_segment = |rules, frame, segment, page, margin_x, tables| match (frame, se
 	(TableRule({ color, width: thickness }), Segment({ bottom, table, top })) => {
 		width = list_at(tables, table).width
 		x = margin_x + list_at(tables, table).offset
-		height = if top > bottom top - bottom else 0
+		height = if (top > bottom) top - bottom else 0
 		rect = |left, low, w, h| {
 			color,
 			layer: Front,
@@ -1599,7 +1599,7 @@ append_cell_fills = |fills, authoring, geometry, range, box| {
 			NoCellFill => {}
 			CellFill(color) => {
 				cell = list_at(geometry, $cell)
-				left = if cell.x > box.padding cell.x - box.padding else 0
+				left = if (cell.x > box.padding) cell.x - box.padding else 0
 				$fills = $fills.append(fill_rect(color, box.page, { bottom: box.bottom, gap: box.gap, top: box.top, width: cell.width + 2 * box.padding, x: box.x + left }))
 			}
 		}
@@ -1611,7 +1611,7 @@ append_cell_fills = |fills, authoring, geometry, range, box| {
 fill_rect : Color.SourceValue, U64, { bottom : U64, gap : U64, top : U64, width : U64, x : U64 } -> KernelFacadePages.Rule
 fill_rect = |color, page, box| {
 	below = box.gap / 2
-	bottom = if box.bottom > below box.bottom - below else 0
+	bottom = if (box.bottom > below) box.bottom - below else 0
 	height = box.top + (box.gap - below) - bottom
 	{
 		color,
@@ -1701,11 +1701,11 @@ merge_groups = |authored, footers, footer_sources| {
 positive_raw : Layout.Unit -> Try(U64, KernelFacadePages.Error)
 positive_raw = |value| {
 	raw = value.raw()
-	if raw <= 0 Err(InvalidBlock({ block: 0 })) else Ok(raw.to_u64_wrap())
+	if (raw <= 0) Err(InvalidBlock({ block: 0 })) else Ok(raw.to_u64_wrap())
 }
 
 checked_sub : U64, U64 -> Try(U64, KernelFacadePages.Error)
-checked_sub = |left, right| if right > left Err(ArithmeticOverflow) else Ok(left - right)
+checked_sub = |left, right| if (right > left) Err(ArithmeticOverflow) else Ok(left - right)
 
 checked_mul : U64, U64 -> Try(U64, KernelFacadePages.Error)
 checked_mul = |left, right| match U64.times_try(left, right) {
@@ -1815,7 +1815,7 @@ segment_cluster_end = |runs, start, length| range_end(list_at(runs, start + leng
 nonnegative_raw : Layout.Unit -> Try(U64, KernelFacadePages.Error)
 nonnegative_raw = |value| {
 	raw = value.raw()
-	if raw < 0 Err(InvalidBlock({ block: 0 })) else Ok(raw.to_u64_wrap())
+	if (raw < 0) Err(InvalidBlock({ block: 0 })) else Ok(raw.to_u64_wrap())
 }
 
 ## A logical run's physical range must be non-empty and inside the shaped
@@ -1994,7 +1994,7 @@ expect {
 	figure = Document.fitted_figure(drawing, "A plan", NoCaption, Exact)
 	authoring = Document.normalize(Document.from_blocks({ contents: [figure, figure, figure], language: "en", title: "Figure frame facts" }))
 	select_figure_widths(authoring, 100, |_| 100).is_empty() and
-		select_figure_widths(authoring, 100, |block| if block == 1 80 else 100) == [{ width: 100, padding: 0 }, { width: 80, padding: 0 }, { width: 100, padding: 0 }]
+		select_figure_widths(authoring, 100, |block| if (block == 1) 80 else 100) == [{ width: 100, padding: 0 }, { width: 80, padding: 0 }, { width: 100, padding: 0 }]
 }
 
 expect {
@@ -2014,7 +2014,7 @@ plan_flow = |authoring, block_lines, count_rows, widths, page_size, theme, flow|
 	flow_width = checked_sub(nonnegative_raw(page_size.width)?, checked_add(nonnegative_raw(margins.left)?, nonnegative_raw(margins.right)?)?)?
 	body_height = checked_sub(nonnegative_raw(page_size.height)?, checked_add(nonnegative_raw(margins.top)?, nonnegative_raw(margins.bottom)?)?)?
 
-	var $decorations = if authoring.decorations.is_empty() [] else List.repeat(0, authoring.blocks.len())
+	var $decorations = if (authoring.decorations.is_empty()) [] else List.repeat(0, authoring.blocks.len())
 	var $index = 0
 	while $index < authoring.decorations.len() {
 		decoration = list_at(authoring.decorations, $index)
@@ -2037,7 +2037,7 @@ plan_flow = |authoring, block_lines, count_rows, widths, page_size, theme, flow|
 		custom = list_at(authoring.customs, $custom)
 		first = list_at(authoring.groups, custom.group).first_block
 		frames = scope_frame_bounds(flow, body_height, first)?
-		above = if $decorations.is_empty() 0 else list_at($decorations, first)
+		above = if ($decorations.is_empty()) 0 else list_at($decorations, first)
 		height = checked_add(nonnegative_raw(custom.height)?, above)?
 		if height > frames.largest {
 			return Err(CustomOversize({ custom: $custom, frame_height: frames.largest, height }))
@@ -2061,11 +2061,11 @@ plan_flow = |authoring, block_lines, count_rows, widths, page_size, theme, flow|
 				}
 				figure = list_at(authoring.figures, figure_index)
 				drawing = valid_drawing(figure.drawing, $block)?
-				width = if widths.is_empty() flow_width else list_at(widths, figure_index).width
-				padding = if widths.is_empty() 0 else list_at(widths, figure_index).padding
-				largest = if frames.largest > padding frames.largest - padding else 0
-				smallest = if frames.smallest > padding frames.smallest - padding else 0
-				above = if $decorations.is_empty() 0 else list_at($decorations, $block)
+				width = if (widths.is_empty()) flow_width else list_at(widths, figure_index).width
+				padding = if (widths.is_empty()) 0 else list_at(widths, figure_index).padding
+				largest = if (frames.largest > padding) frames.largest - padding else 0
+				smallest = if (frames.smallest > padding) frames.smallest - padding else 0
+				above = if ($decorations.is_empty()) 0 else list_at($decorations, $block)
 				caption = if figure.captioned {
 					if $block + 1 >= block_lines.len() {
 						return Err(InvalidBlock({ block: $block }))
@@ -2159,7 +2159,7 @@ valid_drawing = |drawing, block| match drawing {
 
 ## The decoration band above leaf `block`.
 leaf_decoration : FlowFacts, U64 -> Layout.Unit
-leaf_decoration = |facts, block| Layout.Unit.from_raw((if facts.decorations.is_empty() 0 else list_at(facts.decorations, block)).to_i64_wrap())
+leaf_decoration = |facts, block| Layout.Unit.from_raw((if (facts.decorations.is_empty()) 0 else list_at(facts.decorations, block)).to_i64_wrap())
 
 ## A leaf's page block with its decoration band and, for a figure, its
 ## anchor line: one line whose leading is the (scaled) drawing height,
@@ -2173,7 +2173,7 @@ flow_block = |authoring, facts, block, page_block| {
 			height = Layout.Unit.from_raw(list_at(facts.heights, figure_index).to_i64_wrap())
 			captioned = list_at(authoring.figures, figure_index).captioned
 			policy = decorated.policy
-			{ ..decorated, baseline_offset: height, leading: height, policy: { ..policy, keep_with_next: if captioned Required else policy.keep_with_next } }
+			{ ..decorated, baseline_offset: height, leading: height, policy: { ..policy, keep_with_next: if (captioned) Required else policy.keep_with_next } }
 		}
 		_ => decorated
 	}
@@ -2195,7 +2195,7 @@ decoration_paints = |authoring, bands, units, margin_left| {
 	while $index < authoring.decorations.len() {
 		decoration = list_at(authoring.decorations, $index)
 		drawing = valid_drawing(decoration.drawing, decoration.block)?
-		unit = if units.is_empty() decoration.block else list_at(units, decoration.block)
+		unit = if (units.is_empty()) decoration.block else list_at(units, decoration.block)
 		if unit != $previous {
 			$offset = 0
 			$previous = unit
@@ -2253,7 +2253,7 @@ behind_decorations_first = |paints| {
 }
 
 check_limit : U64, U64, KernelFacadePages.Dimension -> Try({}, KernelFacadePages.Error)
-check_limit = |attempted, limit, dimension| if attempted > limit Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
+check_limit = |attempted, limit, dimension| if (attempted > limit) Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
 
 checked_add : U64, U64 -> Try(U64, KernelFacadePages.Error)
 checked_add = |left, right| match U64.plus_try(left, right) {
@@ -2332,7 +2332,7 @@ lead_policies = |blocks, count| {
 ## Keep groups inside the lead region are subsumed by the region's single
 ## unit; only body-flow groups reach page layout.
 flow_groups : List(KernelPageLayout.KeepGroup), U64 -> List(KernelPageLayout.KeepGroup)
-flow_groups = |groups, lead_units| if lead_units == 0 groups else groups.keep_if(|group| group.blocks.start() >= lead_units)
+flow_groups = |groups, lead_units| if (lead_units == 0) groups else groups.keep_if(|group| group.blocks.start() >= lead_units)
 
 ## Scope boundaries name original leaves and are translated once into
 ## paginator units. No unit may straddle one of these full-child boundaries.
@@ -2343,8 +2343,8 @@ layout_scopes = |flow, unit_of_block| match flow {
 		for scope in scopes {
 			first = scope.leaves.start()
 			last = first + scope.leaves.length()
-			start = if unit_of_block.is_empty() first else list_at(unit_of_block, first)
-			end = if unit_of_block.is_empty() last else list_at(unit_of_block, last - 1) + 1
+			start = if (unit_of_block.is_empty()) first else list_at(unit_of_block, first)
+			end = if (unit_of_block.is_empty()) last else list_at(unit_of_block, last - 1) + 1
 			$scopes = $scopes.append({ blocks: Semantics.Range.from_start_and_length(start, end - start), opening: scope.opening, continuation: scope.continuation })
 		}
 		$scopes
@@ -2423,8 +2423,8 @@ apply_customs = |authoring, page_blocks, units| {
 	while $custom < authoring.customs.len() {
 		custom = list_at(authoring.customs, $custom)
 		group = list_at(authoring.groups, custom.group)
-		first = if units.is_empty() group.first_block else list_at(units, group.first_block)
-		last = if units.is_empty() group.block_end - 1 else list_at(units, group.block_end - 1)
+		first = if (units.is_empty()) group.first_block else list_at(units, group.first_block)
+		last = if (units.is_empty()) group.block_end - 1 else list_at(units, group.block_end - 1)
 		inset = nonnegative_raw(custom.inset)?
 		height = nonnegative_raw(custom.height)?
 		var $content = 0
@@ -2506,7 +2506,7 @@ panel_paints = |authoring, fragments, block_runs, runs| {
 mapped_lead_count : FlowSelection, List(U64) -> U64
 mapped_lead_count = |flow, units| {
 	leaves = lead_leaves(flow)
-	if leaves == 0 0 else list_at(units, leaves - 1) + 1
+	if (leaves == 0) 0 else list_at(units, leaves - 1) + 1
 }
 
 concrete_row_count : KernelFacadeLines.BlockLines -> [Rows(U64), NoRows]
@@ -2579,7 +2579,7 @@ build_measured = |authoring, input, page_size, theme, flow, limits| {
 			if break_before {
 				$break = $break + 1
 			}
-			keep = if author_keeps.is_empty() NoKeep else list_at(author_keeps, group.block_end - 1)
+			keep = if (author_keeps.is_empty()) NoKeep else list_at(author_keeps, group.block_end - 1)
 			$blocks = $blocks.append({ baseline_offset: source.size, leading: source.leading, decoration: leaf_decoration(flow_facts, $index), lead: Layout.Unit.from_raw(0), trailing: Layout.Unit.from_raw(0), lines: Semantics.Range.from_start_and_length(start, $grid_rows.len() - start), owner: SourceBlock({ source: $source, padding: source.padding }), policy: { break_before, keep_together: source.fragmentation == Unsplittable, keep_with_next: keep, minimum_first_lines: 1, minimum_last_lines: 1 }, space_after: Layout.Unit.from_raw(checked_add(spacing, spaced.amount)?.to_i64_wrap()) })
 			$units = $units.append(SourceUnit($source))
 			$row_info = $row_info.append(no_row)
@@ -2635,9 +2635,9 @@ build_measured = |authoring, input, page_size, theme, flow, limits| {
 								$owner = text.owner
 								$seen = True
 							}
-								else if positive_raw(text.leading)? != $leading {
-									return Err(InvalidBlock({ block: $leaf }))
-								}
+							else if positive_raw(text.leading)? != $leading {
+								return Err(InvalidBlock({ block: $leaf }))
+							}
 							$size = U64.max($size, positive_raw(text.size)?)
 							$grid = U64.max($grid, text.rows.length())
 						}
@@ -2683,24 +2683,24 @@ build_measured = |authoring, input, page_size, theme, flow, limits| {
 						_ => True
 					}
 				)
-				authored = if author_keeps.is_empty() NoKeep else list_at(author_keeps, row.block_end - 1)
-				keep = if section == Header Required else if last_body and table.footer_rows > 0 Preferred(FooterCarry) else if last_row authored else NoKeep
+				authored = if (author_keeps.is_empty()) NoKeep else list_at(author_keeps, row.block_end - 1)
+				keep = if (section == Header) Required else if (last_body and table.footer_rows > 0) Preferred(FooterCarry) else if (last_row) authored else NoKeep
 				spaced = spacer_total(authoring.spacers, $spacer, row.block_end)
 				if last_row {
 					$spacer = spaced.cursor
 				}
-				space = if last_row checked_add(spacing, spaced.amount)? else gap
+				space = if (last_row) checked_add(spacing, spaced.amount)? else gap
 				fill = match section {
 					Header => theme.table.header_fill
 					Footer => theme.table.footer_fill
-					Body => if $ordinal % 2 == 0 theme.table.body_fills.odd else theme.table.body_fills.even
+					Body => if ($ordinal % 2 == 0) theme.table.body_fills.odd else theme.table.body_fills.even
 				}
 				$row_info = $row_info.append({ body_rule: section == Body and $ordinal > 0, cells: Semantics.Range.from_start_and_length(first_cell, $cell - first_cell), fill, grid: $grid, rule_above: first_footer, rule_below: last_header, table: $table })
 				if section == Body {
 					$ordinal = $ordinal + 1
 				}
 				minimum = U64.min(2, $grid)
-				$blocks = $blocks.append({ baseline_offset: Layout.Unit.from_raw($size.to_i64_wrap()), leading: Layout.Unit.from_raw($leading.to_i64_wrap()), lines: Semantics.Range.from_start_and_length(start, $grid), owner: Content($owner), decoration: leaf_decoration(flow_facts, row.first_block), trailing: Layout.Unit.from_raw(0), lead: Layout.Unit.from_raw((if section == Header 0 else $header_height).to_i64_wrap()), policy: { break_before: $pending_break, keep_together: section != Body or table.row_split == KeepRows, keep_with_next: keep, minimum_first_lines: minimum, minimum_last_lines: minimum }, space_after: Layout.Unit.from_raw(space.to_i64_wrap()) })
+				$blocks = $blocks.append({ baseline_offset: Layout.Unit.from_raw($size.to_i64_wrap()), leading: Layout.Unit.from_raw($leading.to_i64_wrap()), lines: Semantics.Range.from_start_and_length(start, $grid), owner: Content($owner), decoration: leaf_decoration(flow_facts, row.first_block), trailing: Layout.Unit.from_raw(0), lead: Layout.Unit.from_raw((if (section == Header) 0 else $header_height).to_i64_wrap()), policy: { break_before: $pending_break, keep_together: section != Body or table.row_split == KeepRows, keep_with_next: keep, minimum_first_lines: minimum, minimum_last_lines: minimum }, space_after: Layout.Unit.from_raw(space.to_i64_wrap()) })
 				$units = $units.append(RowUnit($row_group))
 				$pending_break = False
 				if section == Header {
@@ -2730,11 +2730,11 @@ build_measured = |authoring, input, page_size, theme, flow, limits| {
 				$grid_rows = $grid_rows.append(BodyRow({ block: $index, row: text.rows.start() + $row, offset: text.body_offset, label }))
 				$row = $row + 1
 			}
-			authored = if author_keeps.is_empty() NoKeep else list_at(author_keeps, $index)
+			authored = if (author_keeps.is_empty()) NoKeep else list_at(author_keeps, $index)
 			theme_keep = keeps_with_next(list_at(authoring.blocks, $index).kind) and $index + 1 < input.blocks.len()
 			keep = match authored {
 				Required => Required
-				_ => if theme_keep Preferred(HeadingKeep) else authored
+				_ => if (theme_keep) Preferred(HeadingKeep) else authored
 			}
 			spaced = spacer_total(authoring.spacers, $spacer, $index + 1)
 			$spacer = spaced.cursor
@@ -2742,7 +2742,7 @@ build_measured = |authoring, input, page_size, theme, flow, limits| {
 			if break_before {
 				$break = $break + 1
 			}
-			list_spacing = if measured_continues_list(authoring, input.blocks, $index, text.level) 0 else spacing
+			list_spacing = if (measured_continues_list(authoring, input.blocks, $index, text.level)) 0 else spacing
 			$blocks = $blocks.append(flow_block(authoring, flow_facts, $index, { ..measured_leaf(text, start), policy: { break_before, keep_together: keeps_together(list_at(authoring.blocks, $index).kind), keep_with_next: keep, minimum_first_lines: U64.min(2, text.rows.length()), minimum_last_lines: U64.min(2, text.rows.length()) }, space_after: Layout.Unit.from_raw(checked_add(list_spacing, spaced.amount)?.to_i64_wrap()) }))
 			$unit_of_block = list_set($unit_of_block, $index, $units.len())
 			$units = $units.append(LeafUnit($index))
@@ -2772,7 +2772,7 @@ MeasuredTextInfo : { rows : Semantics.Range, size : Layout.Unit, leading : Layou
 
 measured_text : KernelFacadePages.MeasuredBlock, U64 -> Try(MeasuredTextInfo, KernelFacadePages.Error)
 measured_text = |block, index| match block {
-	MeasuredText(text) => if text.rows.length() == 0 Err(InvalidBlock({ block: index })) else Ok(text)
+	MeasuredText(text) => if (text.rows.length() == 0) Err(InvalidBlock({ block: index })) else Ok(text)
 	_ => Err(InvalidBlock({ block: index }))
 }
 
@@ -2819,12 +2819,12 @@ expect {
 measured_header_frame_test : [Plain, Template, Scoped] -> Try(Bool, KernelFacadePages.Error)
 measured_header_frame_test = |kind| {
 	table = Document.table({ caption: NoCaption, columns: [{ width: Share(1), align: Start }], header_rows: [Document.row([Document.header_cell(Column, [Document.plain_text("Head")])])], body_rows: [0, 1, 2, 3].map(|_| Document.row([Document.cell([Document.plain_text("Body")])])), footer_rows: [], row_split: KeepRows })
-	contents = if kind == Scoped [Document.page_scope({}, [table])] else [table]
+	contents = if (kind == Scoped) [Document.page_scope({}, [table])] else [table]
 	authoring = Document.normalize(Document.from_blocks({ contents, language: "en", title: "Measured header frames" }))
 	input = {
 		blocks: [0, 1, 2, 3, 4].map(|index| MeasuredText({ rows: Semantics.Range.from_start_and_length(index, 1), size: Layout.Unit.points(11), leading: Layout.Unit.points(14), owner: Semantics.OccurrenceId.from_index(index), level: 0, body_offset: Layout.Unit.points(0), label: NoLabel })),
 		cells: authoring.cells.map(|cell| { offset: 0, align: Start, block: cell.block, width: 72000, x: 4000 }),
-		tables: [{ offset: 0, columns: [80000], group: if kind == Scoped 1 else 0, width: 80000 }],
+		tables: [{ offset: 0, columns: [80000], group: if (kind == Scoped) 1 else 0, width: 80000 }],
 		group_frames: List.repeat({ offset: 0, width: 80000 }, authoring.groups.len()),
 		source_frames: [],
 		figure_frames: [],
@@ -2844,7 +2844,7 @@ measured_header_frame_test = |kind| {
 	view = KernelFacadePages.Measured.view(plan)
 	paint = KernelFacadePages.Measured.paint(plan, authoring, input, List.repeat(1000, 5), page, theme, limits)?
 	repeated = paint.rows.keep_if(|row| row.artifact)
-	Ok(KernelPageLayout.Choice.pages(view.choice).len() == 2 and KernelPageLayout.Choice.lead_bands(view.choice).is_empty() and repeated.len() == 1 and list_at(repeated, 0).page == 1 and list_at(repeated, 0).origin.y == Layout.Unit.points(if kind == Plain 79 else 59))
+	Ok(KernelPageLayout.Choice.pages(view.choice).len() == 2 and KernelPageLayout.Choice.lead_bands(view.choice).is_empty() and repeated.len() == 1 and list_at(repeated, 0).page == 1 and list_at(repeated, 0).origin.y == Layout.Unit.points(if (kind == Plain) 79 else 59))
 }
 
 expect measured_header_frame_test(Plain) == Ok(True)
@@ -2864,7 +2864,7 @@ measured_rule_style = |theme| {
 			if thickness > gap {
 				return Err(TableRuleWidth({ gap, rule: HeaderFooterRule, width: thickness }))
 			}
-			if thickness == 0 NoTableRule else TableRule({ color, width: thickness })
+			if (thickness == 0) NoTableRule else TableRule({ color, width: thickness })
 		}
 	}
 	body_rule = match table_style.body_rule {
@@ -2874,7 +2874,7 @@ measured_rule_style = |theme| {
 			if thickness > gap {
 				return Err(TableRuleWidth({ gap, rule: BodyRule, width: thickness }))
 			}
-			if thickness == 0 NoTableRule else TableRule({ color, width: thickness })
+			if (thickness == 0) NoTableRule else TableRule({ color, width: thickness })
 		}
 	}
 	padding = nonnegative_raw(table_style.cell_padding)?
@@ -2885,7 +2885,7 @@ measured_rule_style = |theme| {
 			if thickness > 2 * padding {
 				return Err(TableRuleWidth({ gap: 2 * padding, rule: ColumnRule, width: thickness }))
 			}
-			if thickness == 0 NoTableRule else TableRule({ color, width: thickness })
+			if (thickness == 0) NoTableRule else TableRule({ color, width: thickness })
 		}
 	}
 	frame = match table_style.frame {
@@ -2896,7 +2896,7 @@ measured_rule_style = |theme| {
 			if thickness > room {
 				return Err(TableRuleWidth({ gap: room, rule: FrameRule, width: thickness }))
 			}
-			if thickness == 0 NoTableRule else TableRule({ color, width: thickness })
+			if (thickness == 0) NoTableRule else TableRule({ color, width: thickness })
 		}
 	}
 	Ok({ gap, padding, rule, body_rule, column_rule, frame })
@@ -2935,8 +2935,8 @@ paint_measured = |plan, authoring, input, advances, page_size, theme, limits| {
 
 			## Uncontained headers need only the declared/committed page frame;
 			## active containers retain their padding-aware accepted lead band.
-			selected_page_top = if page_frames.is_empty() default_page_top else checked_sub(frame_top, nonnegative_raw(list_at(page_frames, page_index).top)?)?
-			page_top = if $lead < leads.len() and list_at(leads, $lead).page == page_index list_at(leads, $lead).top else selected_page_top
+			selected_page_top = if (page_frames.is_empty()) default_page_top else checked_sub(frame_top, nonnegative_raw(list_at(page_frames, page_index).top)?)?
+			page_top = if ($lead < leads.len() and list_at(leads, $lead).page == page_index) list_at(leads, $lead).top else selected_page_top
 			info = list_at(plan.table_info, list_at(plan.row_info, first_unit).table)
 			var $used = 0
 			var $header = info.header_units.start()
@@ -2999,7 +2999,7 @@ paint_measured = |plan, authoring, input, advances, page_size, theme, limits| {
 							rect = { origin: { x: Layout.Unit.from_raw(x.to_i64_wrap()), y: Layout.Unit.from_raw(y.to_i64_wrap()) }, size: { width: Layout.Unit.from_raw(checked_add(nonnegative_raw(frame.width)?, checked_mul(source_padding, 2)?)?.to_i64_wrap()), height: Layout.Unit.from_raw(checked_add(nonnegative_raw(span.geometry.size.height)?, checked_mul(source_padding, 2)?)?.to_i64_wrap()) } }
 							is_first = first_grid == 0
 							is_last = first_grid + taken == unit_block.lines.length()
-							part = if is_first and is_last Whole else if is_first First else if is_last Last else Middle
+							part = if (is_first and is_last) Whole else if (is_first) First else if (is_last) Last else Middle
 							$sources = $sources.append({ source: source_id, page: page_index, lines: Semantics.Range.from_start_and_length(first_grid, taken), rect, part })
 							match source.background {
 								NoBackground => {}

@@ -209,7 +209,7 @@ build_validated = |semantics, prepared, intent, limits, paint_phases| {
 	text = prepared.text
 	semantic_store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(semantics))
 	arena_prepared = prepare_arena(prepared)
-	figure_by_occurrence = if prepared.authoring.figures.is_empty() [] else index_figures(semantic_store, prepared.authoring.figures.len())?
+	figure_by_occurrence = if (prepared.authoring.figures.is_empty()) [] else index_figures(semantic_store, prepared.authoring.figures.len())?
 	arena = build_arena_with_intent({ ..arena_prepared, figure_by_occurrence }, intent, limits)?
 	colors = KernelColor.Plan.build(arena.colors, limits.color) ? Color
 	scene = KernelScene.Plan.build(
@@ -217,7 +217,7 @@ build_validated = |semantics, prepared, intent, limits, paint_phases| {
 		KernelScene.Resources.with_text({ color_spaces: arena.colors.spaces.len(), images: arena.images.resources.len(), text_runs: text.runs.len() }),
 		limits.scene,
 	) ? Scene
-	ownership = (if prepared.artifact_runs.is_empty() KernelTextOwnership.Plan.build(semantics, scene, text) else KernelTextOwnership.Plan.build_with_artifact_text(semantics, scene, text)) ? Ownership
+	ownership = (if (prepared.artifact_runs.is_empty()) KernelTextOwnership.Plan.build(semantics, scene, text) else KernelTextOwnership.Plan.build_with_artifact_text(semantics, scene, text)) ? Ownership
 	Ok(KernelFacadeScenes.Plan.{ paint_phases, colors, images: arena.images, ownership, scene, work: arena.work })
 }
 
@@ -311,8 +311,8 @@ build_arena_with_intent = |prepared, intent, limits| {
 	var $groups = List.with_capacity(group_count)
 	var $page_groups = List.with_capacity(group_count)
 	path_count = checked_add(checked_add(rule_count, furniture_counts.paths)?, flow.paths)?
-	var $paths = if path_count == 0 [] else List.with_capacity(path_count)
-	var $path_segments = if path_count == 0 [] else List.with_capacity(checked_add(checked_add(rule_count, furniture_counts.segments)?, flow.segments)?)
+	var $paths = if (path_count == 0) [] else List.with_capacity(path_count)
+	var $path_segments = if (path_count == 0) [] else List.with_capacity(checked_add(checked_add(rule_count, furniture_counts.segments)?, flow.segments)?)
 	var $paint_cursor = 0
 	var $decoration_cursor = 0
 	var $panel_cursor = 0
@@ -320,7 +320,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 	var $fragment = 0
 	var $rule_cursor = 0
 	var $pages = List.with_capacity(prepared.pages.len())
-	var $painted_figures = if prepared.authoring.figures.is_empty() [] else List.repeat(False, prepared.authoring.figures.len())
+	var $painted_figures = if (prepared.authoring.figures.is_empty()) [] else List.repeat(False, prepared.authoring.figures.len())
 	var $placement_cursor = 0
 	var $page_index = 0
 	while $page_index < prepared.pages.len() {
@@ -425,13 +425,13 @@ build_arena_with_intent = |prepared, intent, limits| {
 					_ => return Err(UnsupportedColor({ run: $placement_cursor }))
 				}
 				figure = match list_at(prepared.run_unicode, $placement_cursor) {
-					OccurrenceText(occurrence) => if occurrence.index() < prepared.figure_by_occurrence.len() list_at(prepared.figure_by_occurrence, occurrence.index()) else NoFigure
+					OccurrenceText(occurrence) => if (occurrence.index() < prepared.figure_by_occurrence.len()) list_at(prepared.figure_by_occurrence, occurrence.index()) else NoFigure
 					ArtifactText(_) => NoFigure
 				}
 				command_start = $commands.len()
 				first_figure = match figure {
 					NoFigure => NoFigure
-					Figure(figure_index) => if list_at($painted_figures, figure_index) NoFigure else Figure(figure_index)
+					Figure(figure_index) => if (list_at($painted_figures, figure_index)) NoFigure else Figure(figure_index)
 				}
 
 				## A figure's anchor line group has two roots: the drawing,
@@ -445,7 +445,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 					NoDrawing => 0
 					FigureDrawing(value) => value.drawing.commands.len()
 				}
-				roots = if drawn == 0 1 else 2
+				roots = if (drawn == 0) 1 else 2
 				group_length = roots
 				text_command = command_start + roots + drawn
 				match drawing {
@@ -649,7 +649,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 		return Err(InvalidPlacement({ placement: $placement_cursor }))
 	}
 	gray_space = {
-		id: Color.SpaceId.from_index(if use_srgb 1 else 0),
+		id: Color.SpaceId.from_index(if (use_srgb) 1 else 0),
 		space: CalibratedGray({
 			black_point: { x: 0, y: 0, z: 0 },
 			white_point: { x: 950000, y: 1000000, z: 1089000 },
@@ -659,7 +659,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 	## A semantic source containing only blank rows may have no painting.
 	## Its output intent still owns the ICC profile, but no page resource
 	## claims a color space unless a scene command can use it.
-	painting_spaces = if $commands.is_empty() [] else [
+	painting_spaces = if ($commands.is_empty()) [] else [
 		{
 			id: Color.SpaceId.from_index(0),
 			space: CalibratedGray({
@@ -676,9 +676,9 @@ build_arena_with_intent = |prepared, intent, limits| {
 		}
 		PackagedSrgbIntent => {
 			profiles: [KernelSrgbProfile.profile(0, 0)],
-			spaces: if $commands.is_empty() [] else if use_srgb {
+			spaces: if ($commands.is_empty()) [] else if use_srgb {
 				rgb_space = { id: Color.SpaceId.from_index(0), space: Srgb(Color.ProfileId.from_index(0)) }
-				if has_gray_images [rgb_space, gray_space] else [rgb_space]
+				if (has_gray_images) [rgb_space, gray_space] else [rgb_space]
 			} else painting_spaces,
 			tags: KernelSrgbProfile.tags,
 		}
@@ -811,7 +811,7 @@ flow_facts = |authoring, paints| {
 		}
 		$panels = $panels.append({ commands: drawing.commands, image_base: 0 })
 		counted = count_flow(drawing.commands)?
-		$commands = checked_add($commands, if drawing.commands.is_empty() 0 else checked_add(counted.commands, 1)?)?
+		$commands = checked_add($commands, if (drawing.commands.is_empty()) 0 else checked_add(counted.commands, 1)?)?
 		$paths = checked_add($paths, counted.paths)?
 		$segments = checked_add($segments, counted.segments)?
 		$nonblack = $nonblack or counted.nonblack
@@ -1000,8 +1000,8 @@ nonblack = |color| match color {
 paint_color : Color.SourceValue, KernelFacadeScenes.IntentProfile, Bool -> Try(Color.Value, [Unsupported])
 paint_color = |color, intent, use_srgb| match color {
 	Srgb(Rgb(channels)) => match intent {
-		NoIntentProfile => if channels.red == 0 and channels.green == 0 and channels.blue == 0 Ok({ channels: Gray(0), space: Color.SpaceId.from_index(0) }) else Err(Unsupported)
-		PackagedSrgbIntent => if use_srgb Ok({ channels: Rgb(channels), space: Color.SpaceId.from_index(0) }) else if channels.red == 0 and channels.green == 0 and channels.blue == 0 Ok({ channels: Gray(0), space: Color.SpaceId.from_index(0) }) else Err(Unsupported)
+		NoIntentProfile => if (channels.red == 0 and channels.green == 0 and channels.blue == 0) Ok({ channels: Gray(0), space: Color.SpaceId.from_index(0) }) else Err(Unsupported)
+		PackagedSrgbIntent => if (use_srgb) Ok({ channels: Rgb(channels), space: Color.SpaceId.from_index(0) }) else if (channels.red == 0 and channels.green == 0 and channels.blue == 0) Ok({ channels: Gray(0), space: Color.SpaceId.from_index(0) }) else Err(Unsupported)
 	}
 	_ => Err(Unsupported)
 }
@@ -1024,7 +1024,7 @@ range_fits : Semantics.Range, U64 -> Bool
 range_fits = |range, available| range.start() <= available and range.length() <= available - range.start()
 
 check_limit : U64, U64, KernelFacadeScenes.Dimension -> Try({}, KernelFacadeScenes.Error)
-check_limit = |attempted, limit, dimension| if attempted > limit Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
+check_limit = |attempted, limit, dimension| if (attempted > limit) Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
 
 checked_add : U64, U64 -> Try(U64, KernelFacadeScenes.Error)
 checked_add = |left, right| match U64.plus_try(left, right) {

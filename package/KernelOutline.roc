@@ -147,7 +147,7 @@ KernelOutline :: [].{
 build_plan : List(KernelOutline.Entry), KernelOutline.Limits -> Try(KernelOutline.Plan, KernelOutline.Error)
 build_plan = |entries, limits| {
 	entry_count = entries.len()
-	count_limit = if limits.max_entries < I64.highest.to_u64_wrap() limits.max_entries else I64.highest.to_u64_wrap()
+	count_limit = if (limits.max_entries < I64.highest.to_u64_wrap()) limits.max_entries else I64.highest.to_u64_wrap()
 	if entry_count == 0 {
 		Err(EntryCountZero)
 	} else if entry_count > count_limit {
@@ -229,7 +229,7 @@ build_nonempty_plan = |entries, limits| {
 				}
 			}
 
-			initial_count = if entry.open OpenCount(0) else ClosedCount(0)
+			initial_count = if (entry.open) OpenCount(0) else ClosedCount(0)
 			$items = $items.append(
 				KernelOutline.Item.{
 					count: initial_count,
@@ -286,7 +286,7 @@ finalize_counts = |items, root_first, root_last, initial_work| {
 		$index = $index - 1
 		item = list_at($items, $index)
 		magnitude = count_magnitude(item.count)
-		contribution = checked_add(1, if count_is_open(item.count) magnitude else 0)?
+		contribution = checked_add(1, if (count_is_open(item.count)) magnitude else 0)?
 		match item.parent {
 			OutlineRoot => {
 				$root_count = checked_add($root_count, contribution)?

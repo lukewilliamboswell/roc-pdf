@@ -22,7 +22,7 @@ Input := { font : U8, glyphs : List(U64), retained_limit : U64 }.{
 
 test : Input -> Fuzz.Outcome
 test = |input| {
-	if FontTargets.subset_roundtrip(input) Fuzz.keep else crash "font subset round trip violated its plan"
+	if (FontTargets.subset_roundtrip(input)) Fuzz.keep else crash "font subset round trip violated its plan"
 }
 
 target = Fuzz.target({

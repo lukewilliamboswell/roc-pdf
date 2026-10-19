@@ -638,7 +638,7 @@ add_structure_element = |builder, names, tagged, navigation, objects, catalog_la
 	Ok({
 		attribute_dictionaries: attributes.dictionaries,
 		builder: object.builder,
-		language_entries: if lowered_language == NoProperty 0 else 1,
+		language_entries: if (lowered_language == NoProperty) 0 else 1,
 	})
 }
 
@@ -689,11 +689,11 @@ lowered_node_language = |semantics, catalog, node| match node.language {
 	Inherited => NoProperty
 	Language(tag) => match node.parent {
 		DocumentRoot => match catalog {
-			CatalogLanguage(document) => if document == tag NoProperty else Property(tag)
+			CatalogLanguage(document) => if (document == tag) NoProperty else Property(tag)
 			NoCatalogLanguage => NoProperty
 		}
 		ParentNode(parent) => match inherited_language(semantics, catalog, parent.index()) {
-			Property(inherited) => if inherited == tag NoProperty else Property(tag)
+			Property(inherited) => if (inherited == tag) NoProperty else Property(tag)
 			NoProperty => Property(tag)
 		}
 	}
@@ -813,7 +813,7 @@ add_owner_dictionary = |builder, semantics, node, kind| {
 		key = list_at(keys, $key_index)
 		if key == "O" {
 			o_name = KernelObject.add_name($builder, Str.to_utf8("O")) ? Object
-			owner_name = KernelObject.add_name(o_name.builder, Str.to_utf8(if kind == ListOwner "List" else "Table")) ? Object
+			owner_name = KernelObject.add_name(o_name.builder, Str.to_utf8(if (kind == ListOwner) "List" else "Table")) ? Object
 			owner_value = KernelObject.add_name_value(owner_name.builder, owner_name.id) ? Object
 			$builder = owner_value.builder
 			$entries = $entries.append({ key: o_name.id, value: owner_value.id })
@@ -1122,7 +1122,7 @@ index_nodes_by_structure = |nodes| {
 }
 
 ensure_object : KernelObject.ObjectId, KernelObject.ObjectId -> Try({}, KernelTaggedObjects.Error)
-ensure_object = |actual, expected| if actual == expected Ok({}) else Err(ObjectOrder({ actual, expected }))
+ensure_object = |actual, expected| if (actual == expected) Ok({}) else Err(ObjectOrder({ actual, expected }))
 
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {

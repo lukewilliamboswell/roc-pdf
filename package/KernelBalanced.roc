@@ -143,7 +143,7 @@ bounded_count = |start, available, limit|
 		0
 	} else {
 		remaining = available - start
-		if remaining < limit remaining else limit
+		if (remaining < limit) remaining else limit
 	}
 
 ceil_div : U64, U64 -> Try(U64, KernelBalanced.Error)

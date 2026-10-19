@@ -76,14 +76,14 @@ scoped_table_evidence = |count, mode| {
 				[Pdf.header_cell(Row, [Pdf.text(label)]).spanning(2)]
 			} else {
 				first = Pdf.header_cell(Row, [Pdf.text(label)])
-				[if mode == 1 first.shaded("#e1e8ef") else first, Pdf.cell([Pdf.text("Boundary data")])]
+				[if (mode == 1) first.shaded("#e1e8ef") else first, Pdf.cell([Pdf.text("Boundary data")])]
 			}
 			$rows = $rows.append(Pdf.row(cells))
 		}
 		header = if mode == 4 {
 			[Pdf.header_cell(Both, [Pdf.text("Step")]).spanning(2)]
 		} else {
-			[Pdf.header_cell(Column, [Pdf.text("Step")]), Pdf.header_cell(Column, if mode == 5 [Pdf.text("End "), Pdf.page_reference({ destination: "end", width: 24, numbering: Physical, align: End })] else [Pdf.text("Detail")])]
+			[Pdf.header_cell(Column, [Pdf.text("Step")]), Pdf.header_cell(Column, if (mode == 5) [Pdf.text("End "), Pdf.page_reference({ destination: "end", width: 24, numbering: Physical, align: End })] else [Pdf.text("Detail")])]
 		}
 		opening = Pdf.page_template({ header: region(24, "OPEN ${number}"), footer: region(34, "LOW ${number}"), gap: 0 })
 		continuation = Pdf.page_template({ header: region(44, "CONT ${number}"), footer: region(54, "LOW ${number}"), gap: 0 })
@@ -92,7 +92,7 @@ scoped_table_evidence = |count, mode| {
 	}
 	$contents = $contents.append(Pdf.destination_heading("end", 1, "End target"))
 	theme : Theme
-	theme = { face: registered.face, body: { size: 10, leading: 14 }, table: { header_color: Themed(Theme.black), row_header_color: Themed(Theme.black), row_gap: 6, header_fill: if mode == 0 or mode == 5 Fill("#cbd9e4") else NoFill, body_fills: { odd: if mode == 0 or mode == 5 Fill("#eef2f5") else NoFill, even: if mode == 0 or mode == 5 Fill("#e1e8ef") else NoFill }, column_rule: if mode == 0 or mode == 2 or mode == 4 or mode == 5 Rule({ color: Theme.black, width: 0.5 }) else NoRule, frame: if mode == 0 or mode == 5 Rule({ color: Theme.black, width: 0.5 }) else NoRule, rule: if mode == 3 Rule({ color: Theme.black, width: 0.5 }) else NoRule, body_rule: if mode == 3 Rule({ color: Theme.black, width: 0.5 }) else NoRule } }
+	theme = { face: registered.face, body: { size: 10, leading: 14 }, table: { header_color: Themed(Theme.black), row_header_color: Themed(Theme.black), row_gap: 6, header_fill: if (mode == 0 or mode == 5) Fill("#cbd9e4") else NoFill, body_fills: { odd: if (mode == 0 or mode == 5) Fill("#eef2f5") else NoFill, even: if (mode == 0 or mode == 5) Fill("#e1e8ef") else NoFill }, column_rule: if (mode == 0 or mode == 2 or mode == 4 or mode == 5) Rule({ color: Theme.black, width: 0.5 }) else NoRule, frame: if (mode == 0 or mode == 5) Rule({ color: Theme.black, width: 0.5 }) else NoRule, rule: if (mode == 3) Rule({ color: Theme.black, width: 0.5 }) else NoRule, body_rule: if (mode == 3) Rule({ color: Theme.black, width: 0.5 }) else NoRule } }
 	prepared_evidence_styled(Pdf.document({ title: "Scoped table paint footprints", language: "en", contents: $contents }), { face: registered.face, registry: registered.registry }, count, theme)
 }
 

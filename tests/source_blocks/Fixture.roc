@@ -114,7 +114,7 @@ long_text = |lines| {
 faces : Bool -> Try({ body : Font.FaceId, mono : Font.FaceId, registry : Font.Registry }, Fixture.Error)
 faces = |han| {
 	body = Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, Font.ValidationLimits.default) ? |_| FontFailure
-	mono = body.registry.register(if han cjk_bytes else mono_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924(if han "Hani" else "Latn")] }, Font.ValidationLimits.default) ? |_| FontFailure
+	mono = body.registry.register(if (han) cjk_bytes else mono_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924(if (han) "Hani" else "Latn")] }, Font.ValidationLimits.default) ? |_| FontFailure
 	Ok({ body: body.face, mono: mono.face, registry: mono.registry })
 }
 
@@ -127,29 +127,29 @@ evidence = |EvidenceProps.{ text, spacer, scale, negative, defaults, han, source
 	}
 	registered = faces(han)?
 	props : Pdf.SourceBlockProps
-	props = if defaults { text, face: if source_body registered.body else registered.mono, foregrounds } else { text, face: if source_body registered.body else registered.mono, foregrounds, size: 9, leading: 12, color: Color.srgb8({ red: 20, green: 40, blue: 80 }), padding: 8, background: Background(Color.srgb8({ red: 240, green: 242, blue: 245 })) }
+	props = if (defaults) { text, face: if (source_body) registered.body else registered.mono, foregrounds } else { text, face: if (source_body) registered.body else registered.mono, foregrounds, size: 9, leading: 12, color: Color.srgb8({ red: 20, green: 40, blue: 80 }), padding: 8, background: Background(Color.srgb8({ red: 240, green: 242, blue: 245 })) }
 	header = Pdf.region({ height: 10, start: [Pdf.furniture_text([Pdf.text("Quiet running header")])] })
 	templates = Templates({ first: Pdf.first_page_template({ header: header }), continuation: Pdf.page_template({ header: header }) })
 	make = |block| Pdf.document({
 		title: "Preformatted source blocks",
 		language: "en",
-		page_templates: if defaults and !source_only templates else NoTemplates,
-		contents: if source_only [block] else if repeat_source [Pdf.paragraph("Body before source."), Pdf.spacer(Layout.Unit.points(spacer)), block, Pdf.source_block({ ..props, foregrounds: [], color: Theme.black, background: NoBackground }), Pdf.paragraph("Body after source."), Pdf.paragraph("Body spacing stays unchanged.")] else [Pdf.paragraph("Body before source."), Pdf.spacer(Layout.Unit.points(spacer)), block, Pdf.paragraph("Body after source."), Pdf.paragraph("Body spacing stays unchanged.")],
+		page_templates: if (defaults and !source_only) templates else NoTemplates,
+		contents: if (source_only) [block] else if (repeat_source) [Pdf.paragraph("Body before source."), Pdf.spacer(Layout.Unit.points(spacer)), block, Pdf.source_block({ ..props, foregrounds: [], color: Theme.black, background: NoBackground }), Pdf.paragraph("Body after source."), Pdf.paragraph("Body spacing stays unchanged.")] else [Pdf.paragraph("Body before source."), Pdf.spacer(Layout.Unit.points(spacer)), block, Pdf.paragraph("Body after source."), Pdf.paragraph("Body spacing stays unchanged.")],
 	})
 	document = make(Pdf.source_block(props))
 	theme : Theme
-	theme = { face: if same_body registered.mono else registered.body, body: { size: 11, leading: 15 }, furniture: Own({ size: 8, leading: 10 }), paragraph_spacing: 8 }
+	theme = { face: if (same_body) registered.mono else registered.body, body: { size: 11, leading: 15 }, furniture: Own({ size: 8, leading: 10 }), paragraph_spacing: 8 }
 	options : Pdf.Options
 	options = { theme, fonts: Registered(registered.registry) }
 	{ prepared, report } = Pdf.prepare_with_report(document, options) ? PdfFailure
 	bytes = Pdf.to_bytes_prepared(prepared) ? PdfFailure
-	reported = if highlighted source_report_counts(report) else report_evidence(report, text, source_only)?
+	reported = if (highlighted) source_report_counts(report) else report_evidence(report, text, source_only)?
 	body_font = registered.registry.prepared_face(registered.body) ? |_| FontFailure
 	mono_font = registered.registry.prepared_face(registered.mono) ? |_| FontFailure
 	styled = { faces: [registered.body, registered.mono], fonts: [body_font, mono_font], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
 	# Color requires a profile at emission. The work probe uses black text
 	# and a black background; geometry and the panel paint work agree.
-	probe_background = if defaults NoBackground else Background(Theme.black)
+	probe_background = if (defaults) NoBackground else Background(Theme.black)
 	probe_document = make(Pdf.source_block({ ..props, color: Theme.black, background: probe_background, foregrounds: foregrounds.map(|range| { ..range, color: Theme.black }) }))
 	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(probe_document), styled, theme, page_size, descriptor, NoDocumentFacts, pipeline_limits) ? |_| PipelineFailure
 	flow = KernelFacadePipeline.Plan.work(pipeline)
@@ -203,7 +203,7 @@ evidence = |EvidenceProps.{ text, spacer, scale, negative, defaults, han, source
 		checks.len()
 	} else 0
 	work = [text.count_utf8_bytes(), flow.shaped_runs, flow.lines, flow.pages, flow.final_runs, flow.fragments, flow.scene_commands, flow.objects, flow.shape_metric_reads, flow.line_candidate_visits, flow.page_candidate_visits, reported.fragments, reported.lines, rejections, bytes.len()]
-	Ok({ bytes, work: if highlighted work.concat([flow.source_foreground_ranges, flow.source_paint_clusters, flow.source_paint_ranges]) else work })
+	Ok({ bytes, work: if (highlighted) work.concat([flow.source_foreground_ranges, flow.source_paint_clusters, flow.source_paint_ranges]) else work })
 }
 
 report_evidence : Pdf.Report, Str, Bool -> Try({ fragments : U64, lines : U64 }, Fixture.Error)
@@ -218,7 +218,7 @@ report_evidence = |report, text, source_only| {
 	for outcome in report.facts.outcomes {
 		match outcome {
 			SourceFragmentPlaced(fragment) => {
-				expected_path = if source_only "contents[0]" else "contents[2]"
+				expected_path = if (source_only) "contents[0]" else "contents[2]"
 				if fragment.path != expected_path or fragment.page <= $page or fragment.page > report.facts.pages.len() or fragment.visual_lines.first != $cursor or fragment.visual_lines.count == 0 or fragment.rect.origin.x != 72 or fragment.rect.size.width != 451 or fragment.rect.size.height.raw() != fragment.visual_lines.count.to_i64_wrap() * 12000 + 16000 {
 					return Err(ReportFailure)
 				}
@@ -252,7 +252,7 @@ report_evidence = |report, text, source_only| {
 	if text == wrap_text {
 		$expected = 6
 	}
-	parts_valid = if $fragments == 1 $whole == 1 and $first == 0 and $middle == 0 and $last == 0 else $whole == 0 and $first == 1 and $last == 1 and $middle + 2 == $fragments
+	parts_valid = if ($fragments == 1) $whole == 1 and $first == 0 and $middle == 0 and $last == 0 else $whole == 0 and $first == 1 and $last == 1 and $middle + 2 == $fragments
 	if !parts_valid or $cursor != $expected + 1 {
 		return Err(ReportFailure)
 	}
@@ -424,13 +424,13 @@ foreground_evidence = |kind, lines, colored| {
 	if kind == 0 or kind == 3 {
 		text = "\tlet café = \"blue\"\r\n\r\n  # comment  \n\n"
 		# Original UTF-8 offsets, including tab and both CRLF bytes.
-		return evidence({ text, highlighted: True, repeat_source: kind == 3, foregrounds: if colored [{ start: 0, end: 4, color: keyword }, { start: 5, end: 10, color: string }, { start: 13, end: 19, color: string }, { start: 25, end: 36, color: comment }] else [] })
+		return evidence({ text, highlighted: True, repeat_source: kind == 3, foregrounds: if (colored) [{ start: 0, end: 4, color: keyword }, { start: 5, end: 10, color: string }, { start: 13, end: 19, color: string }, { start: 25, end: 36, color: comment }] else [] })
 	} else if kind == 1 {
 		text = "${wrap_text}\n${long_text(80)}"
-		return evidence({ text, highlighted: True, foregrounds: if colored [{ start: 0, end: 122, color: string }, { start: 123, end: text.count_utf8_bytes(), color: comment }] else [] })
+		return evidence({ text, highlighted: True, foregrounds: if (colored) [{ start: 0, end: 122, color: string }, { start: 123, end: text.count_utf8_bytes(), color: comment }] else [] })
 	} else if kind == 4 {
 		text = "iii Www Mmm eek !99 = blue\nsecond line with words\n"
-		return evidence({ text, highlighted: True, source_body: True, foregrounds: if colored [{ start: 0, end: 3, color: keyword }, { start: 4, end: 7, color: string }, { start: 8, end: 12, color: comment }] else [] })
+		return evidence({ text, highlighted: True, source_body: True, foregrounds: if (colored) [{ start: 0, end: 3, color: keyword }, { start: 4, end: 7, color: string }, { start: 8, end: 12, color: comment }] else [] })
 	} else if kind == 2 {
 		var $line = 0
 		while $line < lines {

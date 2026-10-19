@@ -234,7 +234,7 @@ build_labels = |authoring, text, store, fonts, language, source_base, limits| {
 
 	## Pieces join their pages in page order; within a page they keep
 	## entry order (the run index is the entry index).
-	pieces = $pieces.sort_with(|left, right| if left.page < right.page Before else if left.page > right.page After else if left.run < right.run Before else if left.run > right.run After else Same)
+	pieces = $pieces.sort_with(|left, right| if (left.page < right.page) Before else if (left.page > right.page) After else if (left.run < right.run) Before else if (left.run > right.run) After else Same)
 	Ok(Labels({ labels: entries.len(), pieces, sources: unique.map(|source| source.unicode), store: shaped }))
 }
 

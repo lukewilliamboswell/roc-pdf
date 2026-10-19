@@ -229,7 +229,7 @@ add5 : U32, U32, U32, U32, U32 -> U32
 add5 = |a, b, c, d, e| U32.plus_wrap(add4(a, b, c, d), e)
 
 ceil_div_64 : U64 -> U64
-ceil_div_64 = |value| U64.div_by(value, 64) + (if U64.mod_by(value, 64) == 0 0 else 1)
+ceil_div_64 = |value| U64.div_by(value, 64) + (if (U64.mod_by(value, 64) == 0) 0 else 1)
 
 state_bytes : ShaState -> List(U8)
 state_bytes = |state| {

@@ -376,8 +376,8 @@ build_logical_batch = |sources, store, requests, holds, modes, limits| {
 		return Err(InvalidAnalysis)
 	}
 	check_limit(requests.len(), limits.max_runs, Runs)?
-	cacheable = if modes.is_empty() requests.len() else modes.count_if(|mode| mode == WholeSource)
-	capacity = if cacheable == 0 0 else table_capacity(cacheable, limits.max_table_slots)?
+	cacheable = if (modes.is_empty()) requests.len() else modes.count_if(|mode| mode == WholeSource)
+	capacity = if (cacheable == 0) 0 else table_capacity(cacheable, limits.max_table_slots)?
 	var $assignments = List.repeat(empty_slot, requests.len())
 	var $slots = List.repeat(empty_slot, capacity)
 	var $keys = []
@@ -404,7 +404,7 @@ build_logical_batch = |sources, store, requests, holds, modes, limits| {
 		while $hold_cursor < holds.len() and list_at(holds, $hold_cursor).request == $request_index {
 			$hold_cursor = $hold_cursor + 1
 		}
-		mode = if modes.is_empty() WholeSource else list_at(modes, $request_index)
+		mode = if (modes.is_empty()) WholeSource else list_at(modes, $request_index)
 		held = $hold_cursor > hold_start or mode != WholeSource
 		if source_index >= sources.len() or request.width <= 0 {
 			return Err(InvalidRun({ run: $request_index }))
@@ -489,7 +489,7 @@ build_logical_batch = |sources, store, requests, holds, modes, limits| {
 			Err(OutOfBounds) => return Err(InvalidRun({ run: $request_index }))
 			Ok(updated) => updated
 		}
-		$previous_template = if held empty_slot else $template_index
+		$previous_template = if (held) empty_slot else $template_index
 		$request_index = $request_index + 1
 	}
 	if $hold_cursor != holds.len() {
@@ -767,8 +767,8 @@ build_range = |analysis, store, bounds, width, holds, limits| {
 		return Err(InvalidWidth(max_width))
 	}
 	scalars = analysis.work.scalar_visits
-	cluster_count = if cluster_end >= cluster_start cluster_end - cluster_start else 0
-	glyph_count = if glyph_end >= glyph_start glyph_end - glyph_start else 0
+	cluster_count = if (cluster_end >= cluster_start) cluster_end - cluster_start else 0
+	glyph_count = if (glyph_end >= glyph_start) glyph_end - glyph_start else 0
 	if scalars == 0 or analysis.line_boundaries.len() != scalars + 1 or cluster_count == 0 or glyph_count == 0 or cluster_end > store.clusters.len() or glyph_end > store.glyphs.len() {
 		return Err(InvalidAnalysis)
 	}
@@ -848,7 +848,7 @@ build_source_range = |analysis, store, bounds, width, policy, limits| {
 	if max_width <= 0 {
 		return Err(InvalidWidth(max_width))
 	}
-	cluster_count = if cluster_end >= cluster_start cluster_end - cluster_start else 0
+	cluster_count = if (cluster_end >= cluster_start) cluster_end - cluster_start else 0
 	if cluster_count == 0 or cluster_end > store.clusters.len() or glyph_end > store.glyphs.len() {
 		return Err(InvalidAnalysis)
 	}
@@ -893,7 +893,7 @@ build_source_range = |analysis, store, bounds, width, policy, limits| {
 		cluster = list_at(store.clusters, $candidate - 1)
 		boundary_index = range_end(cluster.source.scalars)?
 		boundary = list_at(analysis.line_boundaries, boundary_index)
-		decision = if $candidate == cluster_end Mandatory else boundary.decision
+		decision = if ($candidate == cluster_end) Mandatory else boundary.decision
 		line_width = list_at(measure.prefix, $candidate - cluster_start) - list_at(measure.prefix, $line_start - cluster_start)
 		if line_width > max_width {
 			selected = if $last_break > $line_start {
@@ -967,7 +967,7 @@ held_decision = |boundary, index, held| match (boundary.decision, boundary.autho
 			Allowed
 		} else {
 			hold = list_at(held.holds, $low - 1).scalars
-			if index < hold.start() + hold.length() Prohibited else Allowed
+			if (index < hold.start() + hold.length()) Prohibited else Allowed
 		}
 	}
 	(decision, _) => decision
@@ -1155,7 +1155,7 @@ range_end : Semantics.Range -> Try(U64, KernelLineLayout.Error)
 range_end = |range| checked_add(range.start(), range.length())
 
 check_limit : U64, U64, KernelLineLayout.Dimension -> Try({}, KernelLineLayout.Error)
-check_limit = |attempted, limit, dimension| if attempted > limit Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
+check_limit = |attempted, limit, dimension| if (attempted > limit) Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
 
 checked_add : U64, U64 -> Try(U64, KernelLineLayout.Error)
 checked_add = |left, right| match U64.plus_try(left, right) {
@@ -1256,7 +1256,7 @@ expect {
 }
 
 expect {
-	boundaries = List.map(test_analysis.line_boundaries, |boundary| if boundary.scalar_offset == 6 { ..boundary, decision: Mandatory } else { ..boundary, decision: Prohibited })
+	boundaries = List.map(test_analysis.line_boundaries, |boundary| if (boundary.scalar_offset == 6) { ..boundary, decision: Mandatory } else { ..boundary, decision: Prohibited })
 	analysis = { ..test_analysis, line_boundaries: boundaries }
 	match build_plan(analysis, test_store, Layout.Unit.from_raw(3000), test_limits) {
 		Err(Unbreakable({ cluster_end: 4, cluster_start: 0 })) => True
@@ -1321,7 +1321,7 @@ u32_max = 4294967295
 # Ranged source layout consumes exactly a canonical middle span; it never
 # requires or emits a source prefix/suffix or a delimiter glyph.
 expect {
-	boundaries = test_analysis.line_boundaries.map(|boundary| if boundary.scalar_offset == 6 { ..boundary, decision: Mandatory } else { ..boundary, decision: Prohibited })
+	boundaries = test_analysis.line_boundaries.map(|boundary| if (boundary.scalar_offset == 6) { ..boundary, decision: Mandatory } else { ..boundary, decision: Prohibited })
 	analysis = { ..test_analysis, line_boundaries: boundaries }
 	plan = build_source_range(analysis, test_store, { cluster_start: 2, cluster_end: 5, glyph_start: 2, glyph_end: 5 }, Layout.Unit.from_raw(2000), Wrap, test_limits)?
 	lines = KernelLineLayout.Plan.lines(plan)
@@ -1331,7 +1331,7 @@ expect {
 
 # The same measured token rejects under the no-grapheme-fallback policy.
 expect {
-	boundaries = test_analysis.line_boundaries.map(|boundary| if boundary.scalar_offset == 6 { ..boundary, decision: Mandatory } else { ..boundary, decision: Prohibited })
+	boundaries = test_analysis.line_boundaries.map(|boundary| if (boundary.scalar_offset == 6) { ..boundary, decision: Mandatory } else { ..boundary, decision: Prohibited })
 	analysis = { ..test_analysis, line_boundaries: boundaries }
 	match build_source_range(analysis, test_store, { cluster_start: 2, cluster_end: 5, glyph_start: 2, glyph_end: 5 }, Layout.Unit.from_raw(2000), RejectOverflow, test_limits) {
 		Err(Unbreakable({ cluster_start: 2, cluster_end: 5 })) => True

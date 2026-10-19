@@ -262,7 +262,7 @@ Built := {
 PreparedFont := { font : KernelFont.Inspection, plan : KernelFontPlan.Plan, policy : KernelPdfFont.Descriptor, subset : KernelFontSubset.Subset }
 
 utf8_length : U32 -> U64
-utf8_length = |scalar| if scalar < 0x80 1 else if scalar < 0x800 2 else if scalar < 0x10000 3 else 4
+utf8_length = |scalar| if (scalar < 0x80) 1 else if (scalar < 0x800) 2 else if (scalar < 0x10000) 3 else 4
 
 append_utf8 : List(U8), U32 -> List(U8)
 append_utf8 = |bytes, scalar| {
@@ -956,7 +956,7 @@ run_collision = |scale| {
 	$index = 0
 	while $index < scale {
 		font = list_at(prepared, $index)
-		mapping_scalar = if $index < twins 0x41 else distinct_scalar($index - twins + 1)
+		mapping_scalar = if ($index < twins) 0x41 else distinct_scalar($index - twins + 1)
 		content_cid = content_cid_of(font.plan)
 		leaf = KernelFontLeaf.Leaf.build({
 			descriptor: font.policy,
@@ -1137,7 +1137,7 @@ build_negative_context = |guard| {
 expect_leaf_rejection : U64, KernelFontLeaf.Bundle, (KernelFontLeaf.Error -> Bool) -> Try({}, Fixture.EvidenceError)
 expect_leaf_rejection = |ordinal, bundle, matches| {
 	match KernelFontLeaf.Leaf.build(bundle) {
-		Err(error) => if matches(error) Ok({}) else Err(MissingRejection(ordinal))
+		Err(error) => if (matches(error)) Ok({}) else Err(MissingRejection(ordinal))
 		Ok(_) => Err(MissingRejection(ordinal))
 	}
 }

@@ -111,7 +111,7 @@ digest_plan = |sealed| {
 append_value : List(U8), KernelObject.Value -> List(U8)
 append_value = |facts, value| match value {
 	Array(span) => append_span(facts.append(0), span)
-	Boolean(boolean) => facts.append(1).append(if boolean 1 else 0)
+	Boolean(boolean) => facts.append(1).append(if (boolean) 1 else 0)
 	ByteString(string) => append_u64(facts.append(2), KernelObject.ByteStringId.index(string))
 	Dictionary(span) => append_span(facts.append(3), span)
 	Integer(integer) => append_i64(facts.append(4), integer)

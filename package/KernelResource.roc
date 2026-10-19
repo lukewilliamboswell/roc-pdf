@@ -117,7 +117,7 @@ build_plan = |entries, limits| {
 				work: KernelResource.Work.{
 					entries_checked: entry_count,
 					identity_checks: entry_count,
-					kind_comparisons: if entry_count == 0 0 else entry_count - 1,
+					kind_comparisons: if (entry_count == 0) 0 else entry_count - 1,
 					name_bytes_emitted: validated.name_bytes,
 				},
 			},
@@ -141,7 +141,7 @@ validate_entries = |entries, max_name_bytes| {
 		if $has_previous and rank < $previous_rank {
 			return Err(NonMonotonicKind({ current: entry.kind, index: $index, previous: $previous_kind }))
 		} else {
-			expected = if $has_previous and rank == $previous_rank $next_identity else 0
+			expected = if ($has_previous and rank == $previous_rank) $next_identity else 0
 			if entry.identity != expected {
 				return Err(NonDenseIdentity({ actual: entry.identity, expected, index: $index, kind: entry.kind }))
 			} else if entry.identity == U64.highest {

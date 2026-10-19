@@ -69,7 +69,7 @@ main! = |args| {
 				crash "production-visual navigation facade regeneration failed"
 			}
 		}
-		identical = if first == second 1 else 0
+		identical = if (first == second) 1 else 0
 		{ bytes: first, work: [identical, first.len()] }
 	} else {
 		{ bytes: first, work: [first.len()] }

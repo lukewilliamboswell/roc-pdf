@@ -50,7 +50,7 @@ main! = |args| {
 			}
 		}
 	}
-	byte_identical = if $bytes == buffered 1 else 0
+	byte_identical = if ($bytes == buffered) 1 else 0
 	{ bytes: $bytes, work: [$chunks, $max_chunk_bytes, $chunk_offset_weight, byte_identical, $bytes.len()] }
 }
 

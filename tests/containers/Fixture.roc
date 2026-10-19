@@ -142,14 +142,14 @@ nest = |block, depth| {
 
 rejects : Document, Conformance.DiagnosticCode, Str, Str -> U64
 rejects = |document, expected_code, expected_feature, expected_path| match Pdf.to_bytes(document) {
-	Err(InvalidDocument({ diagnostics: [{ code, details, feature: Feature(feature), location: Document, stage: AuthoringValidation, .. }], truncation: Complete, .. })) => if code == expected_code and feature == expected_feature and details == (if expected_path.is_empty() [] else [expected_path]) 1 else 0
+	Err(InvalidDocument({ diagnostics: [{ code, details, feature: Feature(feature), location: Document, stage: AuthoringValidation, .. }], truncation: Complete, .. })) => if (code == expected_code and feature == expected_feature and details == (if (expected_path.is_empty()) [] else [expected_path])) 1 else 0
 	_ => 0
 }
 
 ## Each document differs from a valid authoring in one container fact.
 run_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 run_negatives = |context| {
-	title = if context == 0 "Container negatives" else "guarded"
+	title = if (context == 0) "Container negatives" else "guarded"
 	document = |contents| Pdf.document({ contents, language: "en-AU", title })
 
 	## Every rejection depends on the runtime depth offset so none is

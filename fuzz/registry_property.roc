@@ -51,7 +51,7 @@ Input := {
 
 test : Input -> Fuzz.Outcome
 test = |Input.(input)| {
-	if RegistryTargets.registry_boundary(input) Fuzz.keep else crash "font registry boundary violated its public contract"
+	if (RegistryTargets.registry_boundary(input)) Fuzz.keep else crash "font registry boundary violated its public contract"
 }
 
 target = Fuzz.target({

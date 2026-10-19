@@ -106,7 +106,7 @@ unknown_policy = |runtime_argument_count| {
 	theme = Theme.{ font_selection: Policy(Font.PolicyId.from_index(99)) }
 	options = Pdf.Options.{ theme: theme, fonts: Registered(registered.registry) }
 	matched = match Pdf.to_bytes_with(mixed_document({}), options) {
-		Err(InvalidFontSelection([InvalidPolicy(policy)])) => if policy.index() == 99 1 else 0
+		Err(InvalidFontSelection([InvalidPolicy(policy)])) => if (policy.index() == 99) 1 else 0
 		_ => 0
 	}
 	if matched != 1 {
@@ -129,7 +129,7 @@ builtin_policy = |runtime_argument_count| {
 	theme = Theme.{ font_selection: Policy(Font.PolicyId.from_index(runtime_argument_count - 2)) }
 	options = Pdf.Options.{ theme: theme }
 	matched = match Pdf.to_bytes_with(mixed_document({}), options) {
-		Err(InvalidFontSelection([InvalidPolicy(policy)])) => if policy.index() == 0 1 else 0
+		Err(InvalidFontSelection([InvalidPolicy(policy)])) => if (policy.index() == 0) 1 else 0
 		_ => 0
 	}
 	if matched != 1 {

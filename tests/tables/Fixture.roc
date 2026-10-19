@@ -111,7 +111,7 @@ Fixture :: [].{
 		document = styled_document(rows)
 		thick = { ..styled_theme, table: { ..styled_theme.table, body_rule: Rule({ color: rule_gray, width: 5 }) } }
 		rejected = match Pdf.to_bytes_with(document, Pdf.Options.{ theme: thick }) {
-			Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: [], feature: Feature("layout.table_rule"), message, .. }], truncation: Complete, .. })) => if message.contains("table body rule") 1 else 0
+			Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: [], feature: Feature("layout.table_rule"), message, .. }], truncation: Complete, .. })) => if (message.contains("table body rule")) 1 else 0
 			_ => 0
 		}
 		if rejected != 1 {
@@ -138,7 +138,7 @@ Fixture :: [].{
 		wide_frame = { ..ruled_theme, table: { ..ruled_theme.table, frame: Rule({ color: rule_gray, width: 3 }) } }
 		rejected = [(wide_column, "table column rule"), (wide_frame, "table frame")].map(
 			|(theme, name)| match Pdf.to_bytes_with(document, Pdf.Options.{ theme: theme }) {
-				Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: [], feature: Feature("layout.table_rule"), message, .. }], truncation: Complete, .. })) => if message.contains(name) 1 else 0
+				Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: [], feature: Feature("layout.table_rule"), message, .. }], truncation: Complete, .. })) => if (message.contains(name)) 1 else 0
 				_ => 0
 			},
 		).sum()
@@ -282,7 +282,7 @@ region_row = |region, before, after, change| Pdf.row([Pdf.header_cell(Row, [Pdf.
 
 spans_document : U64 -> Document
 spans_document = |context| {
-	suffix = if context == 0 "" else " (${context.to_str()})"
+	suffix = if (context == 0) "" else " (${context.to_str()})"
 	Pdf.document({
 		contents: [
 			Pdf.heading(1, "2 Sales performance${suffix}"),
@@ -360,7 +360,7 @@ styled_document = |count| {
 		$rows = $rows.append(
 			Pdf.row([
 				Pdf.header_cell(Row, [Pdf.text(product.code)]),
-				Pdf.cell([Pdf.text(if product.description.is_empty() "Cafetière, 1 L" else product.description)]),
+				Pdf.cell([Pdf.text(if (product.description.is_empty()) "Cafetière, 1 L" else product.description)]),
 				Pdf.cell([Pdf.text(product.amount)]),
 			]),
 		)
@@ -435,7 +435,7 @@ ruled_theme = {
 
 kept_document : U64 -> Document
 kept_document = |context| {
-	suffix = if context == 0 "" else " (${context.to_str()})"
+	suffix = if (context == 0) "" else " (${context.to_str()})"
 	row = |code, name| Pdf.row([Pdf.header_cell(Row, [Pdf.text(code)]), Pdf.cell([Pdf.text(name)])])
 	filler = List.repeat(Pdf.paragraph("Each crew signs off its section of the plan before the site opens."), 26)
 	Pdf.document({
@@ -495,7 +495,7 @@ carry_document = |context| {
 
 ordered_document : U64 -> Document
 ordered_document = |context| {
-	suffix = if context == 0 "" else " ${context.to_str()}"
+	suffix = if (context == 0) "" else " ${context.to_str()}"
 	Pdf.document({
 		contents: [
 			Pdf.rich_paragraph([Pdf.text("Café "), Pdf.in_language("zh-Hans", [Pdf.text("中")]), Pdf.text(" PDF${suffix}")]),
@@ -517,7 +517,7 @@ ordered_document = |context| {
 ## The packaged Latin face registered as a caller face, then a Han face.
 register_faces : U64 -> Try({ policy : Font.PolicyId, registry : Font.Registry }, Fixture.EvidenceError)
 register_faces = |context| {
-	limits = if context == 0 Font.ValidationLimits.default else Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })
+	limits = if (context == 0) Font.ValidationLimits.default else Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })
 	latin = match Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits) {
 		Err(_) => return Err(EvidenceFailure)
 		Ok(value) => value
@@ -648,7 +648,7 @@ page_size = { height: Layout.Unit.from_raw(842000), width: Layout.Unit.from_raw(
 
 rejects : Document, Conformance.DiagnosticCode, Str, List(Str) -> U64
 rejects = |document, expected_code, expected_feature, expected_paths| match Pdf.to_bytes(document) {
-	Err(InvalidDocument({ diagnostics: [{ code, details, feature: Feature(feature), location: Document, stage: AuthoringValidation, .. }], truncation: Complete, .. })) => if code == expected_code and feature == expected_feature and details == expected_paths 1 else 0
+	Err(InvalidDocument({ diagnostics: [{ code, details, feature: Feature(feature), location: Document, stage: AuthoringValidation, .. }], truncation: Complete, .. })) => if (code == expected_code and feature == expected_feature and details == expected_paths) 1 else 0
 	_ => 0
 }
 
@@ -657,7 +657,7 @@ rejects = |document, expected_code, expected_feature, expected_paths| match Pdf.
 ## participating source, and no bytes.
 run_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 run_negatives = |context| {
-	title = if context == 0 "Table negatives" else "guarded"
+	title = if (context == 0) "Table negatives" else "guarded"
 	document = |contents| Pdf.document({ contents, language: "en-AU", title })
 	offset = U64.mod_by(context, 1)
 	lead = Pdf.paragraph("Lead")

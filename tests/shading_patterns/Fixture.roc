@@ -534,7 +534,7 @@ showcase_colors = |direction| {
 			Forward => $dense
 			Reversed => showcase_space_count - 1 - $dense
 		}
-		space = if logical == 0 cal_gray else Srgb(Color.ProfileId.from_index(0))
+		space = if (logical == 0) cal_gray else Srgb(Color.ProfileId.from_index(0))
 		$spaces = $spaces.append({ id: Color.SpaceId.from_index($dense), space })
 		$dense = $dense + 1
 	}
@@ -619,7 +619,7 @@ showcase_scenario = |direction| {
 		}
 		start = $cell_arena.len()
 		$cell_arena = $cell_arena.concat(showcase_cell_commands(start, space(1), shading_of(6), 8))
-		matrix = if logical == 1 scale_matrix(2000) else identity
+		matrix = if (logical == 1) scale_matrix(2000) else identity
 		$cells = $cells.append({
 			bbox: rect(0, 0, 10000, 10000),
 			commands: span(start, 2),
@@ -786,8 +786,8 @@ scaled_scene = |commands, top_level| {
 scaled_scenario : Scene.Store, Scene.ShadingStore, Scene.PatternStore -> Scenario
 scaled_scenario = |scene, shadings, patterns| {
 	{
-		color_limits: if patterns.cells.len() > 0 pattern_color_limits else showcase_color_limits,
-		colors: if patterns.cells.len() > 0 pattern_colors else scaled_colors,
+		color_limits: if (patterns.cells.len() > 0) pattern_color_limits else showcase_color_limits,
+		colors: if (patterns.cells.len() > 0) pattern_colors else scaled_colors,
 		form_store: Scene.no_forms,
 		image_limits: no_image_limits,
 		images: { resources: [] },
@@ -845,8 +845,8 @@ stop_ramp = |stop_count| {
 	var $stops = List.with_capacity(stop_count)
 	var $stop = 0
 	while $stop < stop_count {
-		offset = if $stop == stop_count - 1 65535 else (U64.div_by($stop * 65535, stop_count - 1)).to_u16_wrap()
-		level = if U64.mod_by($stop, 2) == 0 (($stop * 977).to_u16_wrap()) else (65535 - ($stop * 449).to_u16_wrap())
+		offset = if ($stop == stop_count - 1) 65535 else (U64.div_by($stop * 65535, stop_count - 1)).to_u16_wrap()
+		level = if (U64.mod_by($stop, 2) == 0) (($stop * 977).to_u16_wrap()) else (65535 - ($stop * 449).to_u16_wrap())
 		$stops = $stops.append(rgb_stop(offset, level, 32768, 65535 - level))
 		$stop = $stop + 1
 	}
@@ -1059,7 +1059,7 @@ run_negatives = |context| {
 expect_paint_rejection : U64, Scenario, (KernelScene.Error -> Bool) -> Try({}, Fixture.EvidenceError)
 expect_paint_rejection = |ordinal, input, matches| {
 	match KernelScene.PaintPlan.build(input.scene, input.form_store, input.shadings, input.patterns, paint_resources(input), scene_limits, form_scene_limits, paint_limits) {
-		Err(error) => if matches(error) Ok({}) else Err(MissingRejection(ordinal))
+		Err(error) => if (matches(error)) Ok({}) else Err(MissingRejection(ordinal))
 		Ok(_) => Err(MissingRejection(ordinal))
 	}
 }
@@ -1070,7 +1070,7 @@ expect_facts_rejection = |ordinal, input, limits, matches| {
 	colors = KernelColor.Plan.build(input.colors, input.color_limits) ? |_| MissingRejection(ordinal)
 	images = KernelImage.Plan.build(input.images, colors, input.image_limits) ? |_| MissingRejection(ordinal)
 	match KernelForm.Facts.build_with_paints(paint_scene, { colors, font_count: 0, images }, NoTextStore, limits) {
-		Err(error) => if matches(error) Ok({}) else Err(MissingRejection(ordinal))
+		Err(error) => if (matches(error)) Ok({}) else Err(MissingRejection(ordinal))
 		Ok(_) => Err(MissingRejection(ordinal))
 	}
 }

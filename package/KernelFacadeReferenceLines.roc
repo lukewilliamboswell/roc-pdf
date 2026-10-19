@@ -81,7 +81,7 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 		var $size = 0.I64
 		while ($literal < shaped.literals.len() and list_at(shaped.literals, $literal).block == $block) or ($pending < symbolic.pending.len() and list_at(symbolic.pending, $pending).block == $block) {
 			literal_first = $literal < shaped.literals.len() and list_at(shaped.literals, $literal).block == $block and ($pending >= symbolic.pending.len() or list_at(symbolic.pending, $pending).block != $block or list_at(shaped.literals, $literal).occurrence.id.index() < list_at(symbolic.pending, $pending).occurrence.index())
-			next_segment = if literal_first list_at(shaped.literals, $literal).segment else list_at(symbolic.pending, $pending).segment
+			next_segment = if (literal_first) list_at(shaped.literals, $literal).segment else list_at(symbolic.pending, $pending).segment
 			match $segment {
 				Segment(previous) if previous != next_segment => {
 					$builder = KernelReferenceLayout.Builder.segment_end($builder)
@@ -147,7 +147,7 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 	var $group = 0
 	while $group < authoring.groups.len() {
 		offset = list_at(geometry.offsets, $group)
-		end = if geometry.ends.is_empty() content_width else list_at(geometry.ends, $group)
+		end = if (geometry.ends.is_empty()) content_width else list_at(geometry.ends, $group)
 		$group_frames = $group_frames.append({ offset, width: end - offset })
 		record = list_at(authoring.groups, $group)
 		match record.kind {
@@ -191,7 +191,7 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 	var $cell_measures = List.with_capacity(authoring.cells.len())
 	for cell in authoring.cells {
 		range = list_at(block_ranges, cell.block).body
-		measure = if range.length() == 0 { max_content: 0, min_content: 0, token: Items(range) } else {
+		measure = if (range.length() == 0) { max_content: 0, min_content: 0, token: Items(range) } else {
 			measured = KernelReferenceLayout.measure(items.sublist({ start: range.start(), len: range.length() }), item_limits) ? |error| Items({ block: cell.block, error })
 			$measured_items = $measured_items + measured.work.item_visits
 			{ max_content: positive(measured.max_content), min_content: positive(measured.min_content), token: Items(Semantics.Range.from_start_and_length(range.start() + measured.widest.start(), measured.widest.length())) }
@@ -229,7 +229,7 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 			}
 		}
 		body_start = $rows.len()
-		width = if list_at($cell_widths, $block) > 0 list_at($cell_widths, $block) else frame.body_width
+		width = if (list_at($cell_widths, $block) > 0) list_at($cell_widths, $block) else frame.body_width
 		if block_items.body.length() > 0 {
 			body = items.sublist({ start: block_items.body.start(), len: block_items.body.length() })
 			match list_at(authoring.blocks, $block).kind {
@@ -248,7 +248,7 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 					return Err(LimitExceeded)
 				}
 				row = { advance: line.advance, items: Semantics.Range.from_start_and_length(block_items.body.start() + line.items.start(), line.items.length()) }
-				visible = if list_at($cell_widths, $block) > 0 literal_visible_advance(items, row, shaped, sources) else { advance: positive(line.advance), visits: 0 }
+				visible = if (list_at($cell_widths, $block) > 0) literal_visible_advance(items, row, shaped, sources) else { advance: positive(line.advance), visits: 0 }
 				$alignment_items = $alignment_items + visible.visits
 				$rows = $rows.append(row)
 				$visible = $visible.append(visible.advance)
@@ -377,7 +377,7 @@ build_holds = |authoring, literals, limit| {
 }
 
 positive : Layout.Unit -> U64
-positive = |value| if value.raw() > 0 value.raw().to_u64_wrap() else 0
+positive = |value| if (value.raw() > 0) value.raw().to_u64_wrap() else 0
 
 range_end : Semantics.Range -> U64
 range_end = |range| range.start() + range.length()
@@ -433,7 +433,7 @@ literal_visible_advance = |items, line, shaped, sources| {
 					break
 				}
 				width = positive(item.advance)
-				$advance = if width > $advance 0 else $advance - width
+				$advance = if (width > $advance) 0 else $advance - width
 				$item = $item - 1
 			}
 		}

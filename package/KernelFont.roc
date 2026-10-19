@@ -361,7 +361,7 @@ validate_hmtx = |table, glyph_count, metric_count| {
 
 inspect_loca : List(U8), KernelFont.Table, KernelFont.Table, U64, U8 -> Try(List(U64), KernelFont.Error)
 inspect_loca = |bytes, loca, glyf, glyph_count, format| {
-	entry_size = if format == 0 2 else 4
+	entry_size = if (format == 0) 2 else 4
 	entry_count = glyph_count + 1
 	if loca.length != entry_count * entry_size {
 		return Err(InvalidLoca)
@@ -435,7 +435,7 @@ validate_simple_glyph = |bytes, start, end, contour_count, glyph, relative_offse
 		point_end = read_u16(bytes, $cursor + $contour * 2).to_u64()
 		match $previous_end {
 			NoPrevious => {}
-			Previous(value) => if point_end <= value return Err(InvalidGlyph({ glyph, offset: relative_offset }))
+			Previous(value) => if (point_end <= value) return Err(InvalidGlyph({ glyph, offset: relative_offset }))
 		}
 		$previous_end = Previous(point_end)
 		$point_count = point_end + 1
@@ -466,7 +466,7 @@ validate_simple_glyph = |bytes, start, end, contour_count, glyph, relative_offse
 		repeat = if flag.bitwise_and(0x08) == 0 {
 			1
 		} else {
-			if $cursor >= end return Err(InvalidGlyph({ glyph, offset: relative_offset }))
+			if ($cursor >= end) return Err(InvalidGlyph({ glyph, offset: relative_offset }))
 			count = list_at(bytes, $cursor).to_u64() + 1
 			$cursor = $cursor + 1
 			count
@@ -474,8 +474,8 @@ validate_simple_glyph = |bytes, start, end, contour_count, glyph, relative_offse
 		if repeat > $point_count - $logical_points {
 			return Err(InvalidGlyph({ glyph, offset: relative_offset }))
 		}
-		x_size = if flag.bitwise_and(0x02) != 0 1 else if flag.bitwise_and(0x10) != 0 0 else 2
-		y_size = if flag.bitwise_and(0x04) != 0 1 else if flag.bitwise_and(0x20) != 0 0 else 2
+		x_size = if (flag.bitwise_and(0x02) != 0) 1 else if (flag.bitwise_and(0x10) != 0) 0 else 2
+		y_size = if (flag.bitwise_and(0x04) != 0) 1 else if (flag.bitwise_and(0x20) != 0) 0 else 2
 		$x_bytes = $x_bytes + repeat * x_size
 		$y_bytes = $y_bytes + repeat * y_size
 		$logical_points = $logical_points + repeat
@@ -501,12 +501,12 @@ inspect_composite_glyph = |bytes, start, end, glyph, glyph_count, relative_offse
 		flags = read_u16(bytes, $cursor)
 		child = read_u16(bytes, $cursor + 2).to_u32()
 		$cursor = $cursor + 4
-		transform_count = (if flags.bitwise_and(0x0008) != 0 1 else 0) + (if flags.bitwise_and(0x0040) != 0 1 else 0) + (if flags.bitwise_and(0x0080) != 0 1 else 0)
+		transform_count = (if (flags.bitwise_and(0x0008) != 0) 1 else 0) + (if (flags.bitwise_and(0x0040) != 0) 1 else 0) + (if (flags.bitwise_and(0x0080) != 0) 1 else 0)
 		if flags.bitwise_and(0xe010) != 0 or transform_count > 1 or (flags.bitwise_and(0x1800) == 0x1800) or ($first and flags.bitwise_and(0x0002) == 0) or child.to_u64() >= glyph_count {
 			return Err(InvalidGlyph({ glyph, offset: relative_offset }))
 		}
-		argument_bytes = if flags.bitwise_and(0x0001) != 0 4 else 2
-		transform_bytes = if flags.bitwise_and(0x0008) != 0 2 else if flags.bitwise_and(0x0040) != 0 4 else if flags.bitwise_and(0x0080) != 0 8 else 0
+		argument_bytes = if (flags.bitwise_and(0x0001) != 0) 4 else 2
+		transform_bytes = if (flags.bitwise_and(0x0008) != 0) 2 else if (flags.bitwise_and(0x0040) != 0) 4 else if (flags.bitwise_and(0x0080) != 0) 8 else 0
 		additional = argument_bytes + transform_bytes
 		if additional > end - $cursor {
 			return Err(InvalidGlyph({ glyph, offset: relative_offset }))
@@ -685,7 +685,7 @@ inspect_names = |bytes, table| {
 		range : KernelFont.NameRange
 		range = { length, offset: table.offset + string_offset + offset }
 		priority = if platform_id == 3 and language == 0x0409 {
-			if encoding == 10 2 else if encoding == 1 1 else 0
+			if (encoding == 10) 2 else if (encoding == 1) 1 else 0
 		} else {
 			0
 		}
@@ -855,7 +855,7 @@ inspect_cmap12 = |bytes, offset, available, glyph_count, mapping_limit| {
 		}
 		match $previous_end {
 			NoPrevious => {}
-			Previous(value) => if start <= value return Err(InvalidCmap)
+			Previous(value) => if (start <= value) return Err(InvalidCmap)
 		}
 		count = end.to_u64() - start.to_u64() + 1
 		if start_glyph.to_u64() + count > glyph_count {
@@ -866,7 +866,7 @@ inspect_cmap12 = |bytes, offset, available, glyph_count, mapping_limit| {
 			return Err(CmapLimitExceeded({ attempted: $mapping_visits, limit: mapping_limit }))
 		}
 		$groups = $groups.append({ start, end, start_glyph })
-		first_covered = if start_glyph == 0 start + 1 else start
+		first_covered = if (start_glyph == 0) start + 1 else start
 		if first_covered <= end {
 			appended = coverage_append($coverage, $current_span, first_covered, end)
 			$coverage = appended.complete
@@ -915,7 +915,7 @@ inspect_cmap4 = |bytes, offset, available, glyph_count, mapping_limit| {
 		}
 		match $previous_end {
 			NoPrevious => {}
-			Previous(value) => if start <= value return Err(InvalidCmap)
+			Previous(value) => if (start <= value) return Err(InvalidCmap)
 		}
 		segment : KernelFont.CmapSegment
 		segment = { start, end, delta, range_offset, range_offset_location }
@@ -983,7 +983,7 @@ glyph_for_cmap = |bytes, cmap, glyph_count, scalar| match cmap {
 			}
 			if scalar <= group.end {
 				glyph = group.start_glyph + (scalar - group.start)
-				return if glyph == 0 or glyph.to_u64() >= glyph_count None else Some(glyph)
+				return if (glyph == 0 or glyph.to_u64() >= glyph_count) None else Some(glyph)
 			}
 			$index = $index + 1
 		}
@@ -998,7 +998,7 @@ glyph_for_cmap = |bytes, cmap, glyph_count, scalar| match cmap {
 			}
 			if scalar <= segment.end {
 				return match glyph_for_segment(bytes, segment, offset + length, scalar) {
-					Mapped(glyph) => if glyph.to_u64() < glyph_count Some(glyph) else None
+					Mapped(glyph) => if (glyph.to_u64() < glyph_count) Some(glyph) else None
 					_ => None
 				}
 			}
@@ -1012,7 +1012,7 @@ glyph_for_segment : List(U8), KernelFont.CmapSegment, U64, U32 -> [InvalidGlyph,
 glyph_for_segment = |bytes, segment, subtable_end, scalar| {
 	if segment.range_offset == 0 {
 		glyph = (scalar.to_i64() + segment.delta).to_u16_wrap().to_u32()
-		if glyph == 0 NoGlyph else Mapped(glyph)
+		if (glyph == 0) NoGlyph else Mapped(glyph)
 	} else {
 		location = segment.range_offset_location + segment.range_offset.to_u64() + (scalar - segment.start).to_u64() * 2
 		if location + 2 > subtable_end {
@@ -1071,7 +1071,7 @@ checksum_range = |bytes, offset, length, zero_adjustment| {
 }
 
 padded_length : U64 -> U64
-padded_length = |length| if length % 4 == 0 length else length + (4 - length % 4)
+padded_length = |length| if (length % 4 == 0) length else length + (4 - length % 4)
 
 read_u16 : List(U8), U64 -> U16
 read_u16 = |bytes, index| list_at(bytes, index).to_u16().shl_wrap(8).bitwise_or(list_at(bytes, index + 1).to_u16())
@@ -1085,7 +1085,7 @@ read_u32 = |bytes, index| {
 }
 
 signed_i16 : U16 -> I64
-signed_i16 = |value| if value >= 0x8000 value.to_i64() - 0x10000 else value.to_i64()
+signed_i16 = |value| if (value >= 0x8000) value.to_i64() - 0x10000 else value.to_i64()
 
 is_surrogate : U32 -> Bool
 is_surrogate = |value| value >= 0xd800 and value <= 0xdfff

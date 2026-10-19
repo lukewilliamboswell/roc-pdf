@@ -75,7 +75,7 @@ Letter :: [].{
 			Pdf.paragraph("Dear Ms Raman,"),
 			Pdf.rich_paragraph([Pdf.text("Subject: "), Pdf.strong([Pdf.text("Extended warranty for your Level 2–5 fit-out")])]),
 		]
-		field = if config.body_field [Pdf.rich_paragraph([Pdf.text("This is page "), Pdf.page_number(Decimal), Pdf.text(" of the letter.")])] else []
+		field = if (config.body_field) [Pdf.rich_paragraph([Pdf.text("This is page "), Pdf.page_number(Decimal), Pdf.text(" of the letter.")])] else []
 		closing = [
 			Pdf.numbered_list({}, terms.map(|term| Pdf.list_item([Pdf.paragraph(term)]))),
 			Pdf.paragraph("The enclosed schedule lists every covered item by product code. Please keep this letter and the schedule with your asset register, so that your team can quote them when lodging a claim by telephone or email."),
@@ -168,7 +168,7 @@ lines_paragraph : List(Str) -> Document.Block
 lines_paragraph = |lines| {
 	var $inlines = List.with_capacity(lines.len() * 2)
 	for line in lines {
-		$inlines = if $inlines.is_empty() $inlines.append(Pdf.text(line)) else $inlines.append(Pdf.line_break).append(Pdf.text(line))
+		$inlines = if ($inlines.is_empty()) $inlines.append(Pdf.text(line)) else $inlines.append(Pdf.line_break).append(Pdf.text(line))
 	}
 	Pdf.rich_paragraph($inlines)
 }

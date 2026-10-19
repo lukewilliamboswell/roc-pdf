@@ -31,7 +31,7 @@ Input := {
 
 test : Input -> Fuzz.Outcome
 test = |Input.(input)| {
-	if FacadeTargets.facade_output(input) Fuzz.keep else crash "facade output contracts disagreed"
+	if (FacadeTargets.facade_output(input)) Fuzz.keep else crash "facade output contracts disagreed"
 }
 
 target = Fuzz.target({

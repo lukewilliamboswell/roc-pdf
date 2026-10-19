@@ -134,8 +134,8 @@ build_glyph_tables_from = |font, plan| {
 			return Err(InvalidPlan)
 		}
 		match $previous_original {
-			NoPrevious => if entry.original_glyph != 0 return Err(InvalidPlan)
-			Previous(value) => if entry.original_glyph <= value return Err(InvalidPlan)
+			NoPrevious => if (entry.original_glyph != 0) return Err(InvalidPlan)
+			Previous(value) => if (entry.original_glyph <= value) return Err(InvalidPlan)
 		}
 		original = entry.original_glyph.to_u64()
 		if original >= font.metrics.glyph_count or list_at(plan.original_to_subset, original) != entry.subset_glyph {
@@ -374,7 +374,7 @@ collect_source_tables = |font| {
 		$index = $index + 1
 	}
 	if $found != 15 {
-		missing = if $found.bitwise_and(1) == 0 tag_head else if $found.bitwise_and(2) == 0 tag_hhea else if $found.bitwise_and(4) == 0 tag_maxp else tag_os2
+		missing = if ($found.bitwise_and(1) == 0) tag_head else if ($found.bitwise_and(2) == 0) tag_hhea else if ($found.bitwise_and(4) == 0) tag_maxp else tag_os2
 		return Err(MissingSourceTable(missing))
 	}
 	Ok({ cvt: $cvt, fpgm: $fpgm, gasp: $gasp, head: $head, hhea: $hhea, maxp: $maxp, os2: $os2, prep: $prep })
@@ -481,7 +481,7 @@ checksum_bytes = |bytes| {
 		var $byte_index = 0
 		while $byte_index < 4 {
 			position = $index + $byte_index
-			byte = if position < bytes.len() list_at(bytes, position) else 0
+			byte = if (position < bytes.len()) list_at(bytes, position) else 0
 			$word = $word.bitwise_or(byte.to_u32().shl_wrap((3 - $byte_index).to_u8_wrap() * 8))
 			$byte_index = $byte_index + 1
 		}
@@ -492,7 +492,7 @@ checksum_bytes = |bytes| {
 }
 
 padded_length : U64 -> U64
-padded_length = |length| if length % 4 == 0 length else length + 4 - length % 4
+padded_length = |length| if (length % 4 == 0) length else length + 4 - length % 4
 
 concat_bytes : List(U8), List(U8) -> List(U8)
 concat_bytes = |left, right| append_range(left, right, 0, right.len())

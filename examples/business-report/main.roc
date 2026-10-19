@@ -271,7 +271,7 @@ plotted = |value| value * 160 // 4000
 thousands : I64 -> Str
 thousands = |value| if value >= 1000 {
 	rest = value % 1000
-	pad = if rest < 10 "00" else if rest < 100 "0" else ""
+	pad = if (rest < 10) "00" else if (rest < 100) "0" else ""
 	"${(value // 1000).to_str()},${pad}${rest.to_str()}"
 } else {
 	value.to_str()
@@ -365,7 +365,7 @@ supplier_row = |index| {
 		Pdf.cell([Pdf.text(supplier.location)]),
 		Pdf.cell([Pdf.text(supplier.category)]),
 		Pdf.cell([Pdf.text((120 + (index * 37) % 400).to_str())]),
-		Pdf.cell([Pdf.text(if index % 5 == 3 "No" else "Yes")]),
+		Pdf.cell([Pdf.text(if (index % 5 == 3) "No" else "Yes")]),
 	])
 }
 

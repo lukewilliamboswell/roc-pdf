@@ -56,12 +56,12 @@ main! = |args| {
 			Ok(value) => value
 			Err(_) => crash "SOURCE_LINE_RANGE"
 		}
-		expected_scalars = if $index == prepared.lines.len() - 1 0 else match $index % 3 {
+		expected_scalars = if ($index == prepared.lines.len() - 1) 0 else match $index % 3 {
 			0 => 5
 			1 => 0
 			_ => 5
 		}
-		expected_bytes = expected_scalars + (if $index % 3 == 0 and $index < prepared.lines.len() - 1 1 else 0)
+		expected_bytes = expected_scalars + (if ($index % 3 == 0 and $index < prepared.lines.len() - 1) 1 else 0)
 		if line.scalars.start() != $scalar_cursor or line.utf8_bytes.start() != $byte_cursor or line.scalars.length() != expected_scalars or line.utf8_bytes.length() != expected_bytes {
 			crash "SOURCE_EXACT_RANGES"
 		}

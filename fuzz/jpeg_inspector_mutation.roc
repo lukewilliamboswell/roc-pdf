@@ -8,7 +8,7 @@ import JpegTargets
 
 test : List(U8) -> Fuzz.Outcome
 test = |bytes| {
-	if JpegTargets.jpeg_mutation(bytes) Fuzz.keep else crash "accepted JPEG violated its sanitized-stream facts"
+	if (JpegTargets.jpeg_mutation(bytes)) Fuzz.keep else crash "accepted JPEG violated its sanitized-stream facts"
 }
 
 target = Fuzz.target_with({
