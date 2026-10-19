@@ -411,6 +411,51 @@ KernelObject :: [].{
 	add_reference : Builder, ObjectId -> Try({ builder : Builder, id : ValueId }, Error)
 	add_reference = |builder, object| add_value(builder, Reference(object), 1)
 
+	## `add_array` of exactly one item, without the caller allocating a
+	## one-item list: most structure elements have a single kid. Validation,
+	## limits and work counts are those of `add_array` with that list.
+	add_array_one : Builder, ValueId -> Try({ builder : Builder, id : ValueId }, Error)
+	add_array_one = |builder, item| {
+		{ limits, store, total_byte_string_bytes, total_name_bytes, total_payload_bytes, total_text_string_bytes, work } = builder
+		item_index = ValueId.index(item)
+		match check_index(item_index, store.values.len(), ValueIndex) {
+			Err(error) => Err(error)
+			Ok(_) => match checked_total(store.array_items.len(), 1, limits.max_array_items, ArrayItems) {
+				Err(error) => Err(error)
+				Ok(_) => match checked_increment(list_at(store.depths, item_index), limits.max_direct_depth, DirectDepth) {
+					Err(error) => Err(error)
+					Ok(depth) => match add_work(work, { bytes_checked: 0, edges_appended: 1, index_checks: 1, values_appended: 0 }) {
+						Err(error) => Err(error)
+						Ok(edge_work) => match value_work(limits, store, edge_work, depth) {
+							Err(error) => Err(error)
+							Ok(next_work) => {
+								start = store.array_items.len()
+								id = ValueId.from_index(store.values.len())
+								Ok({
+									builder: {
+										limits,
+										store: {
+											..store,
+											array_items: store.array_items.append(item),
+											depths: store.depths.append(depth),
+											values: store.values.append(Array({ start, length: 1 })),
+										},
+										total_byte_string_bytes,
+										total_name_bytes,
+										total_payload_bytes,
+										total_text_string_bytes,
+										work: next_work,
+									},
+									id,
+								})
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	add_array : Builder, List(ValueId) -> Try({ builder : Builder, id : ValueId }, Error)
 	add_array = |builder, items| {
 		{ limits, store, total_byte_string_bytes, total_name_bytes, total_payload_bytes, total_text_string_bytes, work } = builder
