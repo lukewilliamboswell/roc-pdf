@@ -148,6 +148,7 @@ attach_artifact_plan = |plan, sources, limits| {
 		byte_count = source.count_utf8_bytes()
 		$bytes = checked_add($bytes, byte_count)?
 		check_limit($bytes, limits.max_text_source_bytes, TextSourceBytes)?
+
 		## A source has at most one scalar per byte, so its offsets never regrow.
 		var $offsets = List.with_capacity(byte_count + 1).append(0)
 		var $scalars = 0
