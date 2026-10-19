@@ -580,15 +580,8 @@ add_structure_element = |builder, names, tagged, navigation, objects, catalog_la
 	{ builder: with_type, id: s_id } = KernelObject.add_name_value(with_role, role_id) ? Object
 
 	# `/Type /StructElem` is optional (ISO 32000-2 Table 355) and omitted.
-	var $base_entries = List.with_capacity(5)
-	if node_k.items.length() != 0 {
-		$base_entries = $base_entries.append({ key: names.k, value: k_id })
-	}
-	$base_entries = $base_entries.append({ key: names.ns, value: ns_id })
-	$base_entries = $base_entries.append({ key: names.p, value: p_id })
-	$base_entries = append_entry($base_entries, page_entry)
-	$base_entries = $base_entries.append({ key: names.s, value: s_id })
-	base_entries = $base_entries
+	k_entry = if (node_k.items.length() != 0) WithEntry({ key: names.k, value: k_id }) else NoEntry
+	base = { k: k_entry, ns: ns_id, p: p_id, page: page_entry, s: s_id }
 	properties = node_properties(semantics, node)
 	if node.role.local_name == "Figure" and properties.alternative == NoProperty {
 		return Err(InvalidFigureAlternative({ node: node.id.index() }))
@@ -596,6 +589,7 @@ add_structure_element = |builder, names, tagged, navigation, objects, catalog_la
 	lowered_language = lowered_node_language(semantics, catalog_language, node)
 	extras = node.attributes.length() != 0 or properties.actual != NoProperty or properties.alternative != NoProperty or properties.expansion != NoProperty or node.element_identifier != NoElementIdentifier or lowered_language != NoProperty
 	if !extras {
+		base_entries = append_base_entries(List.with_capacity(5), names, base, NoEntry)
 		{ builder: with_dictionary, id: dictionary_id } = KernelObject.add_dictionary(with_type, base_entries) ? Object
 		{ builder: with_object, id: object_id } = KernelObject.add_object(with_dictionary, dictionary_id) ? Object
 		ensure_object(object_id, expected)?
@@ -616,23 +610,13 @@ add_structure_element = |builder, names, tagged, navigation, objects, catalog_la
 		}
 	}
 	language = add_text_entry(identifier.builder, "Lang", lowered_language)?
-	var $entries = List.with_capacity(base_entries.len() + 6)
+	var $entries = List.with_capacity(11)
 	$entries = append_entry($entries, attributes.entry)
 	$entries = append_entry($entries, actual.entry)
 	$entries = append_entry($entries, alternative.entry)
 	$entries = append_entry($entries, expansion.entry)
 	$entries = append_entry($entries, identifier.entry)
-	var $base = 0
-	while $base < base_entries.len() {
-		entry = list_at(base_entries, $base)
-
-		# `/Lang` sorts after `/K` and before `/NS`.
-		if KernelObject.NameId.index(entry.key) == KernelObject.NameId.index(names.ns) {
-			$entries = append_entry($entries, language.entry)
-		}
-		$entries = $entries.append(entry)
-		$base = $base + 1
-	}
+	$entries = append_base_entries($entries, names, base, language.entry)
 	dictionary = KernelObject.add_dictionary(language.builder, $entries) ? Object
 	object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
 	ensure_object(object.id, expected)?
@@ -644,6 +628,19 @@ add_structure_element = |builder, names, tagged, navigation, objects, catalog_la
 }
 
 OptionalProperty : [NoProperty, Property(Str)]
+
+## Appends an element's `/K`, `/Lang`, `/NS`, `/P`, `/Pg` and `/S` entries in
+## key order (`/Lang` sorts after `/K` and before `/NS`), straight into the
+## dictionary's entry list rather than through a separate base list.
+append_base_entries : List({ key : KernelObject.NameId, value : KernelObject.ValueId }), Names, { k : OptionalEntry, ns : KernelObject.ValueId, p : KernelObject.ValueId, page : OptionalEntry, s : KernelObject.ValueId }, OptionalEntry -> List({ key : KernelObject.NameId, value : KernelObject.ValueId })
+append_base_entries = |entries, names, base, language| {
+	var $entries = append_entry(entries, base.k)
+	$entries = append_entry($entries, language)
+	$entries = $entries.append({ key: names.ns, value: base.ns })
+	$entries = $entries.append({ key: names.p, value: base.p })
+	$entries = append_entry($entries, base.page)
+	$entries.append({ key: names.s, value: base.s })
+}
 
 OptionalEntry : [NoEntry, WithEntry({ key : KernelObject.NameId, value : KernelObject.ValueId })]
 
@@ -948,6 +945,11 @@ add_id_tree = |builder, tagged, objects| {
 ## (development/performance/lowering-uniqueness.md).
 add_k_array : KernelObject.Builder, Names, List(KernelTagged.KItem), Semantics.Range, NavigationLowering, KernelObjectPlan.Plan, ElementPage -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelTaggedObjects.Error)
 add_k_array = |builder, names, items, range, navigation, objects, element_page| {
+	if range.length() == 1 {
+		value = add_k_item(builder, names, list_at(items, range.start()), navigation, objects, element_page)?
+		array = KernelObject.add_array_one(value.builder, value.id) ? Object
+		return Ok(array)
+	}
 	var $builder = builder
 	var $values = List.with_capacity(range.length())
 	var $index = range.start()
