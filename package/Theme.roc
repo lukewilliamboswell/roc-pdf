@@ -62,9 +62,7 @@ Theme := {
 	## Body text: paragraphs, list items, and table cells. Furniture inherits
 	## this style unless `furniture` selects its own.
 	BodyStyle := {
-		# TODO(roc-lang/roc#11922): a default names a sibling by its
-		# qualified name (`Theme.black`); a bare `black` is not in scope.
-		color : Color.SourceValue ?? Theme.black,
+		color : Color.SourceValue ?? black,
 		face : FaceChoice ?? ThemeFace,
 		leading : Layout.Unit ?? 14,
 		size : Layout.Unit ?? 11,
@@ -79,8 +77,7 @@ Theme := {
 
 	## The document title (`Pdf.title`).
 	TitleStyle := {
-		# TODO(roc-lang/roc#11922): qualified sibling in a default.
-		color : Color.SourceValue ?? Theme.black,
+		color : Color.SourceValue ?? black,
 		face : FaceChoice ?? ThemeFace,
 		leading : Layout.Unit ?? 28,
 		size : Layout.Unit ?? 24,
@@ -90,8 +87,7 @@ Theme := {
 
 	## One heading level's style.
 	HeadingStyle := {
-		# TODO(roc-lang/roc#11922): qualified sibling in a default.
-		color : Color.SourceValue ?? Theme.black,
+		color : Color.SourceValue ?? black,
 		face : FaceChoice ?? ThemeFace,
 		leading : Layout.Unit ?? 18,
 		size : Layout.Unit ?? 15,
@@ -224,8 +220,7 @@ Theme := {
 		header_fill : TableFill ?? NoFill,
 		row_gap : Layout.Unit ?? 4,
 		row_header_color : InlineColor ?? Inherited,
-		# TODO(roc-lang/roc#11922): qualified sibling in a default.
-		rule : TableRule ?? Rule({ color: Theme.black, width: 0.5 }),
+		rule : TableRule ?? Rule({ color: black, width: 0.5 }),
 	}.{
 		is_eq : _
 	}
