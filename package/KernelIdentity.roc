@@ -159,8 +159,7 @@ append_span = |facts, span| append_u64(append_u64(facts, span.start), span.lengt
 
 append_blob_digest : List(U8), List(U8) -> Try(List(U8), KernelIdentity.Error)
 append_blob_digest = |facts, bytes| {
-	digest = KernelSha256.digest(bytes) ? Hash
-	Ok(append_all(append_u64(facts, bytes.len()), digest))
+	KernelSha256.append_digest(append_u64(facts, bytes.len()), bytes).map_err(|error| Hash(error))
 }
 
 append_i64 : List(U8), I64 -> List(U8)
