@@ -293,7 +293,7 @@ emit_object = |encoder, index| {
 			}
 			Stored(value_id) => match list_at(store.values, KernelObject.ValueId.index(value_id)) {
 				Stream(stream_id) => TopLevel(stream_id)
-				_ => Member(emit_value([], store, value_id)?)
+				_ => Member(emit_value(List.with_capacity(member_capacity), store, value_id)?)
 			}
 		}
 		match body {
@@ -311,6 +311,13 @@ emit_object = |encoder, index| {
 		}
 	}
 }
+
+## Most serialized objects (structure elements, references, small
+## dictionaries) fit in this many bytes, so building one does not regrow its
+## list from empty. Writing objects straight onto the batch instead threads
+## the batch through emit_value's Try, which copied it on every object.
+member_capacity : U64
+member_capacity = 128
 
 ## A full object stream, or the last compressible object, closes the batch.
 flush_due : ObjectStreams -> Bool
