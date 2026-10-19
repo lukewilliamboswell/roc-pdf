@@ -253,7 +253,7 @@ build_scene_plan = |ownership, fonts, limits, phases| {
 				$phase_cursor = $phase_cursor + 1
 			}
 		}
-		emitted = emit_run_glyphs_phase([], text, run, { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) }, list_at($states, font_index).plan, $phase, remaining_body)?
+		emitted = emit_run_glyphs_phase(List.with_capacity(U64.min(run_capacity(run), remaining_body)), text, run, { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) }, list_at($states, font_index).plan, $phase, remaining_body)?
 		run_bytes = checked_add(actual_text_begin.len(), emitted.bytes.len())?
 		$content_bytes = checked_add($content_bytes, run_bytes)?
 		check_limit($content_bytes, limits.max_content_bytes, ContentBytes)?
@@ -284,6 +284,12 @@ build_scene_plan = |ownership, fonts, limits, phases| {
 		},
 	)
 }
+
+## Room for a run's glyph operators: four hex digits per glyph plus
+## occasional adjustments and the positioning prefix. A run body grown from
+## empty reallocated several times per run.
+run_capacity : Text.Run -> U64
+run_capacity = |run| run.glyphs.length() * 6 + 32
 
 initialize_fonts : List(KernelFontPlan.Plan) -> Try(List(FontState), KernelPdfText.Error)
 initialize_fonts = |fonts| {
