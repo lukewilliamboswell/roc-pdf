@@ -124,6 +124,18 @@ sixteen-variable loop join. The copies were in the helpers it called
 
 `AGENTS.md` now states causes 1, 2, and 6 beside the S6b rules.
 
+**2026-10-19, nightly-2026-10-18.** The rule against returning an
+accumulator beside another list still holds on this compiler. `emit_commands`
+was changed to take the caller's frame stack and return it beside the stream
+bytes in `EmitWork`, so that one cleared stack (`List.clear`) served every
+group, form, and pattern stream. The profiled documents, which nest few
+frames, allocated slightly less (the ten-copy report 3,380 times instead of
+3,397), but the suite copied the stack: `rich flow shared callouts x100`
+allocated 5,350 times instead of 4,592,
+`production-visual form retained-input ownership` 1,958 instead of 1,940,
+and 55 production-visual and rich-flow cases rose in all. The change was
+reverted, and `emit_commands` starts an empty stack per call.
+
 ## Scaling
 
 Every scale pair in the suite, measured from the tree before this slice
