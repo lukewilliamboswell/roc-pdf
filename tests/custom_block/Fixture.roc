@@ -151,13 +151,13 @@ site_plan = Scene.Drawing.empty.path(Scene.PathBuilder.start.rectangle(Layout.re
 supplier_row : U64 -> Pdf.Row
 supplier_row = |index| {
 	number = (index + 1).to_str()
-	supplier = if index == 7 Pdf.in_language("fr", [Pdf.text("Atelier Beaulieu")]) else Pdf.text("Supplier ${number} Pty Ltd")
+	supplier = if (index == 7) Pdf.in_language("fr", [Pdf.text("Atelier Beaulieu")]) else Pdf.text("Supplier ${number} Pty Ltd")
 	Pdf.row([
 		Pdf.header_cell(Row, [supplier]),
-		Pdf.cell([Pdf.text(if index % 3 == 0 "Hobart TAS" else if index % 3 == 1 "Launceston TAS" else "Lyon, France")]),
-		Pdf.cell([Pdf.text(if index % 2 == 0 "Timber" else "Hardware")]),
+		Pdf.cell([Pdf.text(if (index % 3 == 0) "Hobart TAS" else if (index % 3 == 1) "Launceston TAS" else "Lyon, France")]),
+		Pdf.cell([Pdf.text(if (index % 2 == 0) "Timber" else "Hardware")]),
 		Pdf.cell([Pdf.text("${(100 + index * 7).to_str()}")]),
-		Pdf.cell([Pdf.text(if index % 4 == 0 "No" else "Yes")]),
+		Pdf.cell([Pdf.text(if (index % 4 == 0) "No" else "Yes")]),
 	])
 }
 
@@ -179,7 +179,7 @@ supplier_table = {
 
 report_document : U64 -> Document
 report_document = |context| {
-	title = if context == 0 "Quarterly operations report" else "Quarterly operations report!"
+	title = if (context == 0) "Quarterly operations report" else "Quarterly operations report!"
 	contents = [
 		Pdf.title(title),
 		Pdf.rich_paragraph([Pdf.text("Q1 "), Pdf.expansion("FY2027", "financial year 2027"), Pdf.text(": July to September 2026 · Prepared by the Operations team, 12 October 2026")]),
@@ -384,7 +384,7 @@ descriptor = { flags: 32, italic_angle: 0, stem_v: 80 }
 
 rejects : Document, Conformance.DiagnosticCode, Str, List(Str) -> U64
 rejects = |document, expected_code, expected_feature, expected_paths| match Pdf.prepare_with_report(document, options) {
-	Err(InvalidDocument({ diagnostics: [{ code, details, feature: Feature(feature), location: Document, stage: AuthoringValidation, .. }], truncation: Complete, .. })) => if code == expected_code and feature == expected_feature and details == expected_paths 1 else 0
+	Err(InvalidDocument({ diagnostics: [{ code, details, feature: Feature(feature), location: Document, stage: AuthoringValidation, .. }], truncation: Complete, .. })) => if (code == expected_code and feature == expected_feature and details == expected_paths) 1 else 0
 	_ => 0
 }
 
@@ -399,7 +399,7 @@ budget_rejects = |document, budget| match Pdf.prepare_with_report_budget(documen
 ## authored path of each participating source, and no bytes or report.
 run_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 run_negatives = |context| {
-	title = if context == 0 "Custom block negatives" else "guarded"
+	title = if (context == 0) "Custom block negatives" else "guarded"
 	offset = (context % 1).to_i64_wrap()
 	document = |contents| Pdf.document({ contents, language: "en-AU", title })
 	lines = ["Revenue: AUD 9.22 m (+5.0%)", "On-time delivery: 96.4%"]

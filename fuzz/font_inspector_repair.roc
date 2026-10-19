@@ -18,7 +18,7 @@ Input := { edits : List(FontTargets.Edit), font : U8 }.{
 
 test : Input -> Fuzz.Outcome
 test = |Input.(input)| {
-	if FontTargets.inspect_repaired(input) Fuzz.keep else crash "repaired font inspection violated retained facts"
+	if (FontTargets.inspect_repaired(input)) Fuzz.keep else crash "repaired font inspection violated retained facts"
 }
 
 target = Fuzz.target({

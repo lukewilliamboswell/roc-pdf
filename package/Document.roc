@@ -885,7 +885,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 
 	## A normalized cell's own fill color.
 	cell_fill : NormalizedCell -> CellFill
-	cell_fill = |cell| if cell.fill == 0 NoCellFill else CellFill(unpack_color(cell.fill))
+	cell_fill = |cell| if (cell.fill == 0) NoCellFill else CellFill(unpack_color(cell.fill))
 
 	CellKind : CellKind
 	ColumnAlign : ColumnAlign
@@ -956,7 +956,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 				$high = middle
 			}
 		}
-		if $low < authoring.reference_paragraphs.len() and list_at(authoring.reference_paragraphs, $low).paragraph == paragraph HasReferences(list_at(authoring.reference_paragraphs, $low)) else NoReferences
+		if ($low < authoring.reference_paragraphs.len() and list_at(authoring.reference_paragraphs, $low).paragraph == paragraph) HasReferences(list_at(authoring.reference_paragraphs, $low)) else NoReferences
 	}
 
 	PageFieldStyle : PageFieldStyle
@@ -1822,7 +1822,7 @@ normalize_simple = |simple, initial| {
 	var $block_index = 0
 	while $block_index < simple.contents.len() {
 		block = list_at(simple.contents, $block_index)
-		$state = if is_grouping(block) append_group($state, block, $block_index) else append_leaf($state, block, 0, $block_index)
+		$state = if (is_grouping(block)) append_group($state, block, $block_index) else append_leaf($state, block, 0, $block_index)
 		$block_index = $block_index + 1
 	}
 	{
@@ -1890,7 +1890,7 @@ walk_group = |opened_state, opened_frame| {
 	var $frames = [opened_frame]
 	while !$frames.is_empty() {
 		top = list_at($frames, $frames.len() - 1)
-		limit = if top.listing top.items.len() else top.blocks.len()
+		limit = if (top.listing) top.items.len() else top.blocks.len()
 		if top.next >= limit {
 			$frames = $frames.drop_last(1)
 			$state = close_group($state, top.group - 1)
@@ -2071,7 +2071,7 @@ append_source_limited = |state, spec, parent, position, limits| {
 	}
 	var $line = 0
 	while $line < U64.max(1, facts.lines.len()) {
-		kind = if $line >= facts.lines.len() or list_at(facts.lines, $line).utf8_bytes.length() == 0 EmptySourceLine({ line: $line, source }) else SourceLine({ line: $line, source })
+		kind = if ($line >= facts.lines.len() or list_at(facts.lines, $line).utf8_bytes.length() == 0) EmptySourceLine({ line: $line, source }) else SourceLine({ line: $line, source })
 		$state = { ..$state, blocks: $state.blocks.append({ kind, parent: group + 1, text: "" }) }
 		$line = $line + 1
 	}
@@ -2389,8 +2389,8 @@ origin_violation = |segments, half, command| {
 ## A signed millipoint length as points, such as `-3 pt` or `0.375 pt`.
 signed_points : I64 -> Str
 signed_points = |raw| {
-	magnitude = if raw < 0 (0 - raw).to_u64_wrap() else raw.to_u64_wrap()
-	sign = if raw < 0 "-" else ""
+	magnitude = if (raw < 0) (0 - raw).to_u64_wrap() else raw.to_u64_wrap()
+	sign = if (raw < 0) "-" else ""
 	fraction = magnitude % 1000
 	if fraction == 0 {
 		"${sign}${(magnitude // 1000).to_str()} pt"
@@ -2505,7 +2505,7 @@ pack_color = |color| match color {
 unpack_color : U64 -> Color.SourceValue
 unpack_color = |packed| {
 	channel = |shift| packed.shr_wrap(shift).bitwise_and(0xFFFF).to_u16_wrap()
-	if packed >= gray_color_kind Srgb(Gray(channel(0))) else Srgb(Rgb({ blue: channel(0), green: channel(16), red: channel(32) }))
+	if (packed >= gray_color_kind) Srgb(Gray(channel(0))) else Srgb(Rgb({ blue: channel(0), green: channel(16), red: channel(32) }))
 }
 
 rgb_color_kind : U64
@@ -2739,7 +2739,7 @@ append_rich = |state, contents, parent, position| {
 		return { ..unchanged, blocks: blocks.append({ kind: RichParagraph(paragraph), parent, text: "" }), inlines: $inlines, line_breaks: $line_breaks, page_references: $references, rich_paragraphs: rich_paragraphs.append(rich) }
 	}
 	if $line_breaks.len() == first_break {
-		text = if $leaves == 1 single_leaf_text($inlines, base) else concatenated_text($inlines, base, $bytes)
+		text = if ($leaves == 1) single_leaf_text($inlines, base) else concatenated_text($inlines, base, $bytes)
 		return { ..unchanged, blocks: blocks.append({ kind: RichParagraph(paragraph), parent, text }), inlines: $inlines, line_breaks: $line_breaks, page_references: $references, rich_paragraphs: rich_paragraphs.append(rich) }
 	}
 	segments = segment_texts($inlines, base, $line_breaks, first_break)
@@ -2763,7 +2763,7 @@ separate_leaf = |inlines, last_text, base| {
 	index = last_text - 1
 	record = list_at(inlines, index)
 	match record.kind {
-		Text({ byte_length, byte_start, text }) => if text.ends_with(" ") inlines else list_set(inlines, index, { ..record, kind: Text({ byte_length: byte_length + 1, byte_start, text: text.concat(" ") }) })
+		Text({ byte_length, byte_start, text }) => if (text.ends_with(" ")) inlines else list_set(inlines, index, { ..record, kind: Text({ byte_length: byte_length + 1, byte_start, text: text.concat(" ") }) })
 		_ => inlines
 	}
 }

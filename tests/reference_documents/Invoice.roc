@@ -276,7 +276,7 @@ bill_to_section : List(Str) -> Document.Block
 bill_to_section = |lines| {
 	var $inlines = List.with_capacity(lines.len() * 2)
 	for line in lines {
-		$inlines = if $inlines.is_empty() $inlines.append(Pdf.text(line)) else $inlines.append(Pdf.line_break).append(Pdf.text(line))
+		$inlines = if ($inlines.is_empty()) $inlines.append(Pdf.text(line)) else $inlines.append(Pdf.line_break).append(Pdf.text(line))
 	}
 	Pdf.section([Pdf.heading(1, "Bill to"), Pdf.rich_paragraph($inlines)])
 }

@@ -479,7 +479,7 @@ emit_deflate_stream_prefix = |encoder, object_id, stream, payload, next_object| 
 
 payload_release : KernelStructure.Plan, KernelObject.Stream -> [KeepPayload, ReleasePayload(KernelObject.PayloadId)]
 payload_release = |plan, stream| match KernelSeal.Plan.payload_last_use(KernelStructure.Plan.sealed(plan), stream.source) {
-	LastStream(last) => if last == stream.id ReleasePayload(stream.source) else KeepPayload
+	LastStream(last) => if (last == stream.id) ReleasePayload(stream.source) else KeepPayload
 	Unused => KeepPayload
 }
 
@@ -693,7 +693,7 @@ encoder_with_deflate_work = |encoder, deflate_work| KernelEmit.Encoder.{
 next_object_phase : KernelStructure.Plan, U64 -> Phase
 next_object_phase = |plan, index| {
 	store = plan_store(plan)
-	if index < store.objects.len() Object(index) else XrefPrefix
+	if (index < store.objects.len()) Object(index) else XrefPrefix
 }
 
 emit_value : List(U8), KernelObject.Store, KernelObject.ValueId -> Try(List(U8), KernelEmit.Error)

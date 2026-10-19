@@ -150,7 +150,7 @@ leaf_objects = |plan| {
 ## representing one occurrence fragmented across two placements.
 build_semantics : U64, List(U64), Bool -> Semantics.Store
 build_semantics = |fragment_count, logical_order, split| {
-	paragraph_count = if split fragment_count - 1 else fragment_count
+	paragraph_count = if (split) fragment_count - 1 else fragment_count
 	var $spine = List.with_capacity(paragraph_count)
 	var $order_index = 0
 	while $order_index < logical_order.len() {
@@ -176,7 +176,7 @@ build_semantics = |fragment_count, logical_order, split| {
 	var $paragraph = 0
 	var $fragment = 0
 	while $paragraph < paragraph_count {
-		fragment_share = if split and $paragraph == paragraph_count - 1 2 else 1
+		fragment_share = if (split and $paragraph == paragraph_count - 1) 2 else 1
 		$content_spine = $content_spine.append(ContentOccurrence(Semantics.OccurrenceId.from_index($paragraph)))
 		$occurrences = $occurrences.append({
 			fragments: Semantics.Range.from_start_and_length($fragment, fragment_share),
@@ -467,7 +467,7 @@ run_scenario = |mode, scale| {
 		}
 		built = run_pipeline(repeat_scenario(scale)) ? |_| EvidenceFailure
 		work = KernelForm.Plan.work(built.form_plan)
-		if work.canonical_forms != 1 or work.artifact_placements != scale or work.shared_artifact_forms != (if scale > 1 1 else 0) {
+		if work.canonical_forms != 1 or work.artifact_placements != scale or work.shared_artifact_forms != (if (scale > 1) 1 else 0) {
 			return Err(SharingDiverged)
 		}
 		Ok({ bytes: built.bytes, work: work_vector(built) })
@@ -1210,7 +1210,7 @@ expect_scene_rejection = |ordinal, input, matches| {
 		text_runs: 0,
 	})
 	match KernelScene.FormPlan.build(input.scene, input.form_store, resources, scene_limits, form_scene_limits) {
-		Err(error) => if matches(error) Ok({}) else Err(MissingRejection(ordinal))
+		Err(error) => if (matches(error)) Ok({}) else Err(MissingRejection(ordinal))
 		Ok(_) => Err(MissingRejection(ordinal))
 	}
 }
@@ -1224,7 +1224,7 @@ expect_form_limit_rejection = |ordinal, input, limits, matches| {
 		text_runs: 0,
 	})
 	match KernelScene.FormPlan.build(input.scene, input.form_store, resources, scene_limits, limits) {
-		Err(error) => if matches(error) Ok({}) else Err(MissingRejection(ordinal))
+		Err(error) => if (matches(error)) Ok({}) else Err(MissingRejection(ordinal))
 		Ok(_) => Err(MissingRejection(ordinal))
 	}
 }
@@ -1240,7 +1240,7 @@ expect_facts_rejection = |ordinal, input, matches| {
 	form_scene = KernelScene.FormPlan.build(input.scene, input.form_store, resources, scene_limits, form_scene_limits) ? |_| MissingRejection(ordinal)
 	stores = build_stores(input.images) ? |_| MissingRejection(ordinal)
 	match KernelForm.Facts.build(form_scene, { colors: stores.colors, font_count: 0, images: stores.images }, NoTextStore, form_limits) {
-		Err(error) => if matches(error) Ok({}) else Err(MissingRejection(ordinal))
+		Err(error) => if (matches(error)) Ok({}) else Err(MissingRejection(ordinal))
 		Ok(_) => Err(MissingRejection(ordinal))
 	}
 }
@@ -1261,7 +1261,7 @@ expect_tagged_rejection = |ordinal, input, matches| {
 	})
 	form_scene = KernelScene.FormPlan.build(input.scene, input.form_store, resources, scene_limits, form_scene_limits) ? |_| MissingRejection(ordinal)
 	match KernelTagged.Plan.build(semantic, KernelScene.FormPlan.page(form_scene)) {
-		Err(error) => if matches(error) Ok({}) else Err(MissingRejection(ordinal))
+		Err(error) => if (matches(error)) Ok({}) else Err(MissingRejection(ordinal))
 		Ok(_) => Err(MissingRejection(ordinal))
 	}
 }

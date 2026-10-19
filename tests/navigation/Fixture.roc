@@ -955,7 +955,7 @@ names_scenario = |scale| {
 }
 
 pad_two : U64 -> Str
-pad_two = |value| if value < 10 "0${value.to_str()}" else value.to_str()
+pad_two = |value| if (value < 10) "0${value.to_str()}" else value.to_str()
 
 ## N page-label ranges over N pages with alternating styles and prefixes.
 labels_scenario : U64 -> Scenario
@@ -1289,7 +1289,7 @@ run_negatives = |runtime_context| {
 
 	## 32: the facade rejects an unknown internal destination atomically with
 	## the exact typed error and no bytes.
-	facade_title = if guard == 0 "Navigation negative" else "guarded"
+	facade_title = if (guard == 0) "Navigation negative" else "guarded"
 	facade_document = Pdf.document({ contents: [Pdf.internal_link("Broken", "missing")], language: "en-AU", title: facade_title })
 	match Pdf.to_bytes(facade_document) {
 		Err(InvalidNavigation(UnknownDestinationName({ annotation: 0 }))) => {}
@@ -1314,7 +1314,7 @@ replace_annotation = |input, annotation| {
 
 expect_rejection : U64, KernelNavigation.Input, KernelNavigation.Context, KernelNavigation.Limits, (Document.NavigationError -> Bool) -> Try({}, Fixture.EvidenceError)
 expect_rejection = |index, input, context, limits, matches| match KernelNavigation.validate(input, context, limits) {
-	Err(error) => if matches(error) Ok({}) else Err(MissingRejection(index))
+	Err(error) => if (matches(error)) Ok({}) else Err(MissingRejection(index))
 	Ok(_) => Err(MissingRejection(index))
 }
 

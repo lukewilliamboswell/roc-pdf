@@ -61,7 +61,7 @@ Font :: [].{
 		## `"latn"` is a compile error rather than an `InvalidScript`
 		## registration error. Use `from_iso15924` for a runtime string.
 		from_quote : Str -> Try(Script, [BadQuotedBytes(Str)])
-		from_quote = |value| if script_code_valid(value) Ok(Script.(value)) else Err(BadQuotedBytes("an ISO 15924 script code is one uppercase and three lowercase ASCII letters, such as \"Latn\""))
+		from_quote = |value| if (script_code_valid(value)) Ok(Script.(value)) else Err(BadQuotedBytes("an ISO 15924 script code is one uppercase and three lowercase ASCII letters, such as \"Latn\""))
 
 		to_str : Script -> Str
 		to_str = |Script.(value)| value

@@ -159,7 +159,7 @@ build_plan = |preliminary, text, navigation, proofs, limits, semantic_limits, na
 			attach_plan(with_sources, arena, text, navigation, proofs, semantic_limits, navigation_limits)
 		}
 		WithFurniture(furniture) => {
-			sources = if labels.is_empty() KernelFacadeFurniture.Plan.sources(furniture) else KernelFacadeFurniture.Plan.sources(furniture).concat(labels)
+			sources = if (labels.is_empty()) KernelFacadeFurniture.Plan.sources(furniture) else KernelFacadeFurniture.Plan.sources(furniture).concat(labels)
 			with_sources = KernelTextSemantics.Plan.attach_artifact_sources(preliminary, sources, artifact_source_limits) ? TextSemantics
 			attach_plan(with_sources, arena, text, navigation, proofs, semantic_limits, navigation_limits)
 		}
@@ -182,7 +182,7 @@ attach_plan = |preliminary, arena, text, navigation, proofs, semantic_limits, na
 				NoUnderline => text
 				Underline(underline) => {
 					rules = underline_rules(text, authored.links, store, underline)?
-					if rules.is_empty() text else KernelFacadeText.Plan.with_rules(text, merge_rules(KernelFacadeText.Plan.rules(text), rules))
+					if (rules.is_empty()) text else KernelFacadeText.Plan.with_rules(text, merge_rules(KernelFacadeText.Plan.rules(text), rules))
 				}
 			}
 			patch = patch_spine(store, authored.links, grouped.per_link)?
@@ -243,7 +243,7 @@ underline_rules = |text_plan, links, store, underline| {
 		} else {
 			run = list_at(text.runs, $run_index)
 			owner = match run.unicode {
-				OccurrenceText(occurrence) => if occurrence.index() < owners.len() list_at(owners, occurrence.index()) else sentinel
+				OccurrenceText(occurrence) => if (occurrence.index() < owners.len()) list_at(owners, occurrence.index()) else sentinel
 				_ => sentinel
 			}
 			if owner != sentinel {
@@ -260,7 +260,7 @@ underline_rules = |text_plan, links, store, underline| {
 				## with, which the line carries but never shows.
 				next = $run_index + 1
 				ends_line = next >= text.runs.len() or list_at(placements, next).page != placement.page or list_at(placements, next).origin.y != placement.origin.y
-				trailing = if ends_line trailing_space_advance(text, run, store)? else 0
+				trailing = if (ends_line) trailing_space_advance(text, run, store)? else 0
 				visible = $width - trailing
 				if visible > 0 {
 					bottom = placement.origin.y.raw() - underline.offset.raw() - underline.thickness.raw()
@@ -376,7 +376,7 @@ derive_run_geometry = |text_plan| {
 			}
 			size = run.size.raw()
 			leading = list_at(styles, $run_index).leading.raw()
-			height = if leading > size leading else size
+			height = if (leading > size) leading else size
 			top = checked_i64(placement.origin.y.raw(), size)?
 			bottom = top - height
 			$rects = $rects.append(
@@ -416,7 +416,7 @@ group_link_annotations = |store, text_plan, rects, links, page_count| {
 		if artifact {
 			$artifact_cursor = $artifact_cursor + 1
 		}
-		owner = if artifact sentinel else {
+		owner = if (artifact) sentinel else {
 			match run.unicode {
 				OccurrenceText(occurrence) => list_at(link_of_occurrence, occurrence.index())
 				ArtifactText(_) => return Err(InvalidRun({ run: $run_index }))
@@ -745,7 +745,7 @@ range_fits : Semantics.Range, U64 -> Bool
 range_fits = |range, available| range.start() <= available and range.length() <= available - range.start()
 
 check_limit : U64, U64, KernelFacadeFragments.Dimension -> Try({}, KernelFacadeFragments.Error)
-check_limit = |attempted, limit, dimension| if attempted > limit Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
+check_limit = |attempted, limit, dimension| if (attempted > limit) Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
 
 checked_add : U64, U64 -> Try(U64, KernelFacadeFragments.Error)
 checked_add = |left, right| match U64.plus_try(left, right) {

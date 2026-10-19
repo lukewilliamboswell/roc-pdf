@@ -278,7 +278,7 @@ index_node = |shape, level, index| {
 
 compare_bytes : List(U8), List(U8) -> Try({ ordering : [Equal, Greater, Less], steps : U64 }, KernelIndex.Error)
 compare_bytes = |left, right| {
-	shared = if left.len() < right.len() left.len() else right.len()
+	shared = if (left.len() < right.len()) left.len() else right.len()
 	var $index = 0
 	var $ordering = Equal
 	var $steps = 1

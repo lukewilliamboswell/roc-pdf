@@ -414,7 +414,7 @@ check_row = |name, scientific, season, status| Pdf.row([
 
 ## A threatened status is set in bold on a warm tint.
 threatened : Str -> Pdf.Cell
-threatened = |status| if status == "Endangered" or status == "Vulnerable" Pdf.cell([Pdf.strong([Pdf.text(status)])]).shaded(rgb(250, 232, 222)) else Pdf.cell([Pdf.text(status)])
+threatened = |status| if (status == "Endangered" or status == "Vulnerable") Pdf.cell([Pdf.strong([Pdf.text(status)])]).shaded(rgb(250, 232, 222)) else Pdf.cell([Pdf.text(status)])
 
 ## The survey sheet is kept whole so a surveyor can print one page: the
 ## details to fill in, then the checklist with its blank count column and

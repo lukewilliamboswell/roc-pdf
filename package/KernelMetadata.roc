@@ -181,7 +181,7 @@ compare_packaged_bytes = |bytes| {
 				$index = $index + 1
 			}
 		}
-		if $diverged Diverged($index + 1) else Equal($index)
+		if ($diverged) Diverged($index + 1) else Equal($index)
 	}
 }
 
@@ -201,7 +201,7 @@ validate_language = |language, max_bytes| {
 	var $outcome = Scanning
 	while $index <= length and $outcome == Scanning {
 		at_end = $index == length
-		byte = if at_end 0x2D else list_at(bytes, $index)
+		byte = if (at_end) 0x2D else list_at(bytes, $index)
 		if byte == 0x2D {
 			match classify_subtag(bytes, $start, $index, $position) {
 				Err(error) => {
@@ -488,7 +488,7 @@ digit_run_value = |bytes, start, count| {
 days_in_month : U64, U64 -> U64
 days_in_month = |year, month| if month == 2 {
 	leap = U64.mod_by(year, 4) == 0 and (U64.mod_by(year, 100) != 0 or U64.mod_by(year, 400) == 0)
-	if leap 29 else 28
+	if (leap) 29 else 28
 } else if month == 4 or month == 6 or month == 9 or month == 11 {
 	30
 } else {

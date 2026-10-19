@@ -493,7 +493,7 @@ gray_value = |space| { channels: Gray(32768), space: Color.SpaceId.from_index(sp
 
 test_scene : Color.Value, U64 -> Scene.Store
 test_scene = |color, image_count| {
-	image_commands = if image_count == 0 [] else [
+	image_commands = if (image_count == 0) [] else [
 		DrawImage({ image: Image.Id.from_index(0), placement: rect(0, 0, 1000, 1000) }),
 		DrawImage({ image: Image.Id.from_index(0), placement: rect(1000, 0, 1000, 1000) }),
 	]

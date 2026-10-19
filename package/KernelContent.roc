@@ -174,13 +174,13 @@ image_ordinal = |naming, index| match naming {
 pattern_ordinal : Naming, U64 -> [NoPaints, PaintOrdinal(U64)]
 pattern_ordinal = |naming, index| match naming {
 	AuthoredNames => NoPaints
-	CanonicalNames(maps) => if index < maps.patterns.len() PaintOrdinal(list_at(maps.patterns, index)) else NoPaints
+	CanonicalNames(maps) => if (index < maps.patterns.len()) PaintOrdinal(list_at(maps.patterns, index)) else NoPaints
 }
 
 shading_ordinal : Naming, U64 -> [NoPaints, PaintOrdinal(U64)]
 shading_ordinal = |naming, index| match naming {
 	AuthoredNames => NoPaints
-	CanonicalNames(maps) => if index < maps.shadings.len() PaintOrdinal(list_at(maps.shadings, index)) else NoPaints
+	CanonicalNames(maps) => if (index < maps.shadings.len()) PaintOrdinal(list_at(maps.shadings, index)) else NoPaints
 }
 
 Frame := { close_graphics : Bool, end : U64, next : U64 }
@@ -745,11 +745,11 @@ emit_text = |bytes, paint, run, naming, limit| {
 	$out = append_literal($out, " Tf\n", limit)?
 	$out = append_bytes($out, run.body, limit)?
 	$out = append_literal($out, "ET\n", limit)?
-	if run.close_actual_text append_literal($out, "EMC\n", limit) else Ok($out)
+	if (run.close_actual_text) append_literal($out, "EMC\n", limit) else Ok($out)
 }
 
 push_frame : List(Frame), U64, Frame -> List(Frame)
-push_frame = |frames, index, frame| if index < frames.len() list_set(frames, index, frame) else frames.append(frame)
+push_frame = |frames, index, frame| if (index < frames.len()) list_set(frames, index, frame) else frames.append(frame)
 
 emit_transform_open : List(U8), Scene.Matrix, U64 -> Try(List(U8), KernelContent.Error)
 emit_transform_open = |bytes, matrix, limit| {
@@ -844,7 +844,7 @@ append_thousandths_unchecked = |output, coefficient| {
 	if coefficient == 0 {
 		output.append(48)
 	} else {
-		magnitude = if coefficient < 0 U64.minus_wrap(0, coefficient.to_u64_wrap()) else coefficient.to_u64_wrap()
+		magnitude = if (coefficient < 0) U64.minus_wrap(0, coefficient.to_u64_wrap()) else coefficient.to_u64_wrap()
 		var $normalized = magnitude
 		var $scale = 3
 		while $scale > 0 and U64.mod_by($normalized, 10) == 0 {
@@ -854,7 +854,7 @@ append_thousandths_unchecked = |output, coefficient| {
 
 		## The sign is bound once and each branch consumes it, as in
 		## `KernelLex.append_decimal`.
-		signed = if coefficient < 0 output.append(45) else output
+		signed = if (coefficient < 0) output.append(45) else output
 		if $scale == 0 {
 			append_whole_unchecked(signed, $normalized)
 		} else {
@@ -1018,7 +1018,7 @@ emit_color : List(U8), Color.Value, Bool, Naming, U64 -> Try(List(U8), KernelCon
 emit_color = |bytes, color, stroking, naming, limit| {
 	var $out = append_literal(bytes, "/CS", limit)?
 	$out = append_resource_index($out, color_ordinal(naming, color.space.index()), limit)?
-	$out = append_literal($out, if stroking " CS\n" else " cs\n", limit)?
+	$out = append_literal($out, if (stroking) " CS\n" else " cs\n", limit)?
 
 	## The arms consume the stream without reassigning `$out`; see
 	## `emit_dash` for why an arm must not do both.
@@ -1032,7 +1032,7 @@ emit_color = |bytes, color, stroking, naming, limit| {
 			append_channel(with_green_space, blue, limit)?
 		}
 	}
-	append_literal($out, if stroking " SCN\n" else " scn\n", limit)
+	append_literal($out, if (stroking) " SCN\n" else " scn\n", limit)
 }
 
 emit_path : List(U8), Scene.PathId, Scene.Store, U64 -> Try(List(U8), KernelContent.Error)
@@ -1104,7 +1104,7 @@ round_half_even = |numerator, denominator| {
 	quotient = U64.div_by(numerator, denominator)
 	remainder = U64.mod_by(numerator, denominator)
 	twice = remainder * 2
-	if twice > denominator or (twice == denominator and U64.mod_by(quotient, 2) == 1) quotient + 1 else quotient
+	if (twice > denominator or (twice == denominator and U64.mod_by(quotient, 2) == 1)) quotient + 1 else quotient
 }
 
 append_unsigned : List(U8), U64, U64 -> Try(List(U8), KernelContent.Error)
@@ -1170,13 +1170,13 @@ decimal_length = |coefficient, original_scale| {
 	if coefficient == 0 {
 		1
 	} else {
-		var $magnitude = if coefficient < 0 U64.minus_wrap(0, coefficient.to_u64_wrap()) else coefficient.to_u64_wrap()
+		var $magnitude = if (coefficient < 0) U64.minus_wrap(0, coefficient.to_u64_wrap()) else coefficient.to_u64_wrap()
 		var $scale = original_scale.to_u64()
 		while $scale > 0 and U64.mod_by($magnitude, 10) == 0 {
 			$magnitude = U64.div_by($magnitude, 10)
 			$scale = $scale - 1
 		}
-		sign = if coefficient < 0 1 else 0
+		sign = if (coefficient < 0) 1 else 0
 		if $scale == 0 {
 			sign + unsigned_length($magnitude)
 		} else {

@@ -1083,7 +1083,7 @@ validate_dash = |range, phase, command, values| {
 			}
 			$index = $index + 1
 		}
-		if $has_positive Ok(span.end - span.start) else scene_failure(
+		if ($has_positive) Ok(span.end - span.start) else scene_failure(
 			DashAllZero({
 				command: command,
 			}),

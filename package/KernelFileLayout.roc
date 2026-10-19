@@ -52,7 +52,7 @@ KernelFileLayout :: [].{
 
 	## Object streams needed for `compressible` objects.
 	stream_count : U64 -> U64
-	stream_count = |members| if members == 0 0 else U64.div_by(members - 1, KernelFileLayout.max_objects_per_stream) + 1
+	stream_count = |members| if (members == 0) 0 else U64.div_by(members - 1, KernelFileLayout.max_objects_per_stream) + 1
 
 	## Emission keeps one `U64` per planned object for the cross-reference
 	## stream: a file offset for a top-level object, or this marker with the

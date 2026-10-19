@@ -183,7 +183,7 @@ callout = |options, name, style, paragraphs| {
 	size = { height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width: Layout.Unit.points(measure) }
 	block = Pdf.custom_block({ contents: paragraphs, inset: callout_inset, name, panel: callout_panel(style, size), size })
 	scope = Theme.Scope.{ strong: Themed(style.label), text: Themed(style.text) }
-	Ok(Pdf.scoped(if style.text == ink scope else { ..scope, code: Themed(style.label) }, [block]))
+	Ok(Pdf.scoped(if (style.text == ink) scope else { ..scope, code: Themed(style.label) }, [block]))
 }
 
 ## A rounded panel with a 3 pt accent along its top edge.
@@ -233,7 +233,7 @@ banner = {
 	var $x = 300
 	var $i = 0
 	while $i < 12 {
-		$d = $d.rectangle(Layout.rect($x, 28, 8, 8), if $i == 11 pink else lilac)
+		$d = $d.rectangle(Layout.rect($x, 28, 8, 8), if ($i == 11) pink else lilac)
 		$x = $x + 15
 		$i = $i + 1
 	}
@@ -255,7 +255,7 @@ latency_chart = {
 	for step in [0, 1, 2, 3, 4] {
 		x = left + bar(step * 100)
 		$d = $d.rectangle({ origin: Layout.point(x, 16), size: { height: 118, width: 0.6 } }, haze)
-		$d = $d.text({ align: Center, color: ink, origin: Layout.point(x, 4), size: 7, text: if step == 4 "400 ms" else (step * 100).to_str() })
+		$d = $d.text({ align: Center, color: ink, origin: Layout.point(x, 4), size: 7, text: if (step == 4) "400 ms" else (step * 100).to_str() })
 	}
 	var $y = 100
 	for (release, value, color) in values {
@@ -289,9 +289,9 @@ change = |inlines, number| Pdf.list_item([Pdf.rich_paragraph(inlines.concat([Pdf
 compat_row : Str, Str, Str, Str -> Pdf.Row
 compat_row = |target, old, new, note| Pdf.row([
 	Pdf.header_cell(Row, [Pdf.text(target)]),
-	if old.is_empty() Pdf.cell([]) else Pdf.cell([Pdf.text(old)]),
-	if new.is_empty() Pdf.cell([]) else Pdf.cell([Pdf.strong([Pdf.text(new)])]),
-	if new.is_empty() Pdf.cell([Pdf.text(note)]).shaded(Color.srgb8({ red: 253, green: 242, blue: 248 })) else Pdf.cell([Pdf.text(note)]),
+	if (old.is_empty()) Pdf.cell([]) else Pdf.cell([Pdf.text(old)]),
+	if (new.is_empty()) Pdf.cell([]) else Pdf.cell([Pdf.strong([Pdf.text(new)])]),
+	if (new.is_empty()) Pdf.cell([Pdf.text(note)]).shaded(Color.srgb8({ red: 253, green: 242, blue: 248 })) else Pdf.cell([Pdf.text(note)]),
 ])
 
 ## A 2.x flag or setting and its 3.0 form; a removal with no replacement
@@ -299,7 +299,7 @@ compat_row = |target, old, new, note| Pdf.row([
 flag_row : Str, Str, List(Pdf.Inline) -> Pdf.Row
 flag_row = |old, new, note| Pdf.row([
 	Pdf.header_cell(Row, [Pdf.code(old)]),
-	if new.is_empty() Pdf.cell([]) else Pdf.cell([Pdf.code(new)]),
+	if (new.is_empty()) Pdf.cell([]) else Pdf.cell([Pdf.code(new)]),
 	Pdf.cell(note),
 ])
 

@@ -113,7 +113,7 @@ inspection_invariants = |font| {
 		var $other_index = 0
 		while $other_index < $table_index {
 			other = list_at(font.tables, $other_index)
-			if table.offset < other.offset + other.length and other.offset < table.offset + table.length return False
+			if (table.offset < other.offset + other.length and other.offset < table.offset + table.length) return False
 			$other_index = $other_index + 1
 		}
 		$previous_tag = table.tag
@@ -140,7 +140,7 @@ inspection_invariants = |font| {
 		while $scalar <= span.last {
 			match KernelFont.glyph_for_scalar(font, $scalar) {
 				None => return False
-				Some(glyph) => if glyph == 0 or glyph.to_u64() >= font.metrics.glyph_count return False
+				Some(glyph) => if (glyph == 0 or glyph.to_u64() >= font.metrics.glyph_count) return False
 			}
 			$scalar = $scalar + 1
 		}
@@ -189,8 +189,8 @@ plan_and_subset_invariants = |source, plan, subset| {
 				None => {}
 				Some(original) => {
 					mapped = list_at(plan.original_to_subset, original.to_u64())
-					expected = if mapped != 0xffffffff and list_at(plan.retained, original.to_u64()) == 2 Some(mapped) else None
-					if KernelFont.glyph_for_scalar(subset, $scalar) != expected return False
+					expected = if (mapped != 0xffffffff and list_at(plan.retained, original.to_u64()) == 2) Some(mapped) else None
+					if (KernelFont.glyph_for_scalar(subset, $scalar) != expected) return False
 				}
 			}
 			$scalar = $scalar + 1
@@ -203,7 +203,7 @@ plan_and_subset_invariants = |source, plan, subset| {
 		mapped_parent = list_at(plan.original_to_subset, edge.parent.to_u64())
 		if mapped_parent != 0xffffffff {
 			mapped_child = list_at(plan.original_to_subset, edge.child.to_u64())
-			if mapped_child == 0xffffffff or !has_component(subset.components, mapped_parent, mapped_child) return False
+			if (mapped_child == 0xffffffff or !has_component(subset.components, mapped_parent, mapped_child)) return False
 		}
 		$edge_index = $edge_index + 1
 	}
@@ -215,7 +215,7 @@ has_component = |edges, parent, child| {
 	var $index = 0
 	while $index < edges.len() {
 		edge = list_at(edges, $index)
-		if edge.parent == parent and edge.child == child return True
+		if (edge.parent == parent and edge.child == child) return True
 		$index = $index + 1
 	}
 	False
@@ -312,7 +312,7 @@ checksum_at = |bytes, offset, length| {
 		var $byte_index = 0
 		while $byte_index < 4 {
 			position = $index + $byte_index
-			byte = if position >= length 0 else list_at(bytes, offset + position)
+			byte = if (position >= length) 0 else list_at(bytes, offset + position)
 			$word = $word.bitwise_or(byte.to_u32().shl_wrap((3 - $byte_index).to_u8_wrap() * 8))
 			$byte_index = $byte_index + 1
 		}
@@ -323,7 +323,7 @@ checksum_at = |bytes, offset, length| {
 }
 
 padded : U64 -> U64
-padded = |length| if length % 4 == 0 length else length + (4 - length % 4)
+padded = |length| if (length % 4 == 0) length else length + (4 - length % 4)
 
 read_u16_at : List(U8), U64 -> U64
 read_u16_at = |bytes, index| list_at(bytes, index).to_u64() * 256 + list_at(bytes, index + 1).to_u64()

@@ -179,7 +179,7 @@ extend_plan = |plan, inputs, limits| {
 	var $equality_checks = initial.equality_checks
 	var $equality_byte_bound = initial.equality_byte_bound
 	var $adjacent_hits = initial.adjacent_hits
-	var $previous = if $input_sources.is_empty() empty_slot else list_at($input_sources, $input_sources.len() - 1).index()
+	var $previous = if ($input_sources.is_empty()) empty_slot else list_at($input_sources, $input_sources.len() - 1).index()
 
 	## Rebuild only the bounded interning index; source Unicode facts are
 	## retained. Every hash/probe is charged to the same work/error bounds.
@@ -307,7 +307,7 @@ hash_source = |source| {
 }
 
 check_limit : U64, U64, KernelFacadeSources.Dimension -> Try({}, KernelFacadeSources.Error)
-check_limit = |attempted, limit, dimension| if attempted > limit Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
+check_limit = |attempted, limit, dimension| if (attempted > limit) Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
 
 checked_add : U64, U64 -> Try(U64, KernelFacadeSources.Error)
 checked_add = |left, right| match U64.plus_try(left, right) {
@@ -400,5 +400,5 @@ expect {
 	final = KernelFacadeSources.Plan.extend(initial, ["Café", "12", "12"], test_limits)?
 	KernelFacadeSources.Plan.input_sources(final).map(|id| id.index()) == [0, 1, 0, 2, 2]
 		and KernelFacadeSources.Plan.sources(final).map(|source| source.unicode) == ["Café", "A", "12"]
-			and KernelFacadeSources.Plan.work(final).unique_source_scalars == 7
+		and KernelFacadeSources.Plan.work(final).unique_source_scalars == 7
 }

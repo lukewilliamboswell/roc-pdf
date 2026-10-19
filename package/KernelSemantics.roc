@@ -886,27 +886,27 @@ check_attribute = |attribute, role| {
 			InvalidAttributeCheck
 		} else if name == "Scope" {
 			match attribute.value {
-				Name(value) => if role == role_th and (value == "Row" or value == "Column" or value == "Both") AttributeBit(1) else InvalidAttributeCheck
+				Name(value) => if (role == role_th and (value == "Row" or value == "Column" or value == "Both")) AttributeBit(1) else InvalidAttributeCheck
 				_ => InvalidAttributeCheck
 			}
 		} else if name == "Headers" {
 			match attribute.value {
-				Names(values) => if cell and !values.is_empty() HeadersBit(values) else InvalidAttributeCheck
+				Names(values) => if (cell and !values.is_empty()) HeadersBit(values) else InvalidAttributeCheck
 				_ => InvalidAttributeCheck
 			}
 		} else if name == "ColSpan" {
 			match attribute.value {
-				Integer(value) => if cell and value >= 1 AttributeBit(4) else InvalidAttributeCheck
+				Integer(value) => if (cell and value >= 1) AttributeBit(4) else InvalidAttributeCheck
 				_ => InvalidAttributeCheck
 			}
 		} else if name == "RowSpan" {
 			match attribute.value {
-				Integer(value) => if cell and value >= 1 AttributeBit(8) else InvalidAttributeCheck
+				Integer(value) => if (cell and value >= 1) AttributeBit(8) else InvalidAttributeCheck
 				_ => InvalidAttributeCheck
 			}
 		} else if name == "Summary" {
 			match attribute.value {
-				Text(value) => if role == role_table and !value.is_empty() AttributeBit(16) else InvalidAttributeCheck
+				Text(value) => if (role == role_table and !value.is_empty()) AttributeBit(16) else InvalidAttributeCheck
 				_ => InvalidAttributeCheck
 			}
 		} else {
@@ -916,7 +916,7 @@ check_attribute = |attribute, role| {
 			InvalidAttributeCheck
 		} else {
 			match attribute.value {
-				Name(value) => if valid_list_numbering(value) AttributeBit(32) else InvalidAttributeCheck
+				Name(value) => if (valid_list_numbering(value)) AttributeBit(32) else InvalidAttributeCheck
 				_ => InvalidAttributeCheck
 			}
 		}
@@ -1043,7 +1043,7 @@ validate_header_associations = |store| {
 		while $attribute < node.attributes.start() + node.attributes.length() {
 			attribute = list_at(store.attributes, $attribute)
 			headers = match (attribute.owner, attribute.name, attribute.value) {
-				(Table, Standard(name), Names(values)) => if name == "Headers" values else []
+				(Table, Standard(name), Names(values)) => if (name == "Headers") values else []
 				_ => []
 			}
 			if !headers.is_empty() {
@@ -1241,7 +1241,7 @@ role_quote = 20
 ## The namespace index that owns a role: `Code` and `Quote` are PDF 1.7
 ## standard types (namespace 1); every other accepted role is PDF 2.0.
 role_namespace : U64 -> U64
-role_namespace = |role| if role == role_code or role == role_quote 1 else 0
+role_namespace = |role| if (role == role_code or role == role_quote) 1 else 0
 
 role_hn : U64
 role_hn = 7
@@ -1274,7 +1274,7 @@ unknown_role : U64
 unknown_role = 63
 
 role_bit : U64 -> U64
-role_bit = |role| if role == unknown_role 0 else U64.shl_wrap(1, role.to_u8_wrap())
+role_bit = |role| if (role == unknown_role) 0 else U64.shl_wrap(1, role.to_u8_wrap())
 
 ## Roles are enabled per validation subset: the root is exactly `Document`
 ## (PDF/UA-2 8.2.5.2) and `Document` never nests; the tagged-visual subset
@@ -1496,7 +1496,7 @@ checked_add = |left, right| match U64.plus_try(left, right) {
 }
 
 check_limit : U64, U64, KernelSemantics.Dimension -> Try({}, KernelSemantics.Error)
-check_limit = |attempted, limit, dimension| if attempted > limit Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
+check_limit = |attempted, limit, dimension| if (attempted > limit) Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
 
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {
@@ -1819,7 +1819,7 @@ shaped_store = |shape, owner| {
 			element_identifier: NoElementIdentifier,
 			id: Semantics.NodeId.from_index($index),
 			language: Inherited,
-			parent: if $index == 0 DocumentRoot else ParentNode(Semantics.NodeId.from_index(entry.parent)),
+			parent: if ($index == 0) DocumentRoot else ParentNode(Semantics.NodeId.from_index(entry.parent)),
 			role: { local_name: entry.role, namespace: Semantics.NamespaceId.from_index(0) },
 			structure_element: Semantics.StructureElementId.from_index($index),
 			text_properties: empty_range,

@@ -49,7 +49,7 @@ main! = |args| {
 			crash "production-visual facade metadata evidence requires a mode"
 		}
 	}
-	title = if mode == "unused" "unused" else facade_title
+	title = if (mode == "unused") "unused" else facade_title
 	document = facade_document(title)
 	bytes = match Pdf.to_bytes(document) {
 		Ok(value) => value
@@ -64,7 +64,7 @@ main! = |args| {
 				crash "production-visual facade metadata regeneration failed"
 			}
 		}
-		identical = if bytes == second 1 else 0
+		identical = if (bytes == second) 1 else 0
 		{ bytes, work: [identical, bytes.len()] }
 	} else {
 		{ bytes, work: [bytes.len()] }

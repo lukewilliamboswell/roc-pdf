@@ -8,7 +8,7 @@ import FontTargets
 
 test : List(U8) -> Fuzz.Outcome
 test = |bytes| {
-	if FontTargets.inspect_mutation(bytes) Fuzz.keep else crash "successful font inspection violated retained facts"
+	if (FontTargets.inspect_mutation(bytes)) Fuzz.keep else crash "successful font inspection violated retained facts"
 }
 
 target = Fuzz.target_with({

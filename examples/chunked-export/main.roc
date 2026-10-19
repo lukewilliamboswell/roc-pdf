@@ -189,7 +189,7 @@ clock = |slot| {
 	minutes = 360 + slot * 30
 	hour = (minutes // 60) % 24
 	minute = minutes % 60
-	pad = |n| if n < 10 "0${n.to_str()}" else n.to_str()
+	pad = |n| if (n < 10) "0${n.to_str()}" else n.to_str()
 	"${pad(hour)}:${pad(minute)}"
 }
 
@@ -201,14 +201,14 @@ reading_row = |slot| {
 	a = probe_a(slot)
 	b = probe_b(slot)
 	over = a > limit or b > limit
-	value = |v| if v > limit Pdf.strong([Pdf.text(tenths(v))]) else Pdf.text(tenths(v))
+	value = |v| if (v > limit) Pdf.strong([Pdf.text(tenths(v))]) else Pdf.text(tenths(v))
 	Pdf.row([
 		Pdf.header_cell(Row, [Pdf.text(clock(slot))]),
 		Pdf.cell([value(a)]),
 		Pdf.cell([value(b)]),
 		Pdf.cell([Pdf.text(humidity(slot).to_str())]),
-		Pdf.cell([Pdf.text(if slot >= 28 and slot <= 30 "Open" else "Closed")]),
-		if over Pdf.cell([Pdf.strong([Pdf.text("Excursion")])]).shaded(Color.srgb8({ red: 254, green: 226, blue: 226 })) else Pdf.cell([Pdf.text("In range")]),
+		Pdf.cell([Pdf.text(if (slot >= 28 and slot <= 30) "Open" else "Closed")]),
+		if (over) Pdf.cell([Pdf.strong([Pdf.text("Excursion")])]).shaded(Color.srgb8({ red: 254, green: 226, blue: 226 })) else Pdf.cell([Pdf.text("In range")]),
 	])
 }
 
@@ -306,10 +306,10 @@ temperature_chart = {
 	var $tick = 0
 	while $tick <= 48 {
 		major = $tick % 12 == 0
-		$d = $d.rectangle({ origin: Layout.point(plot_x($tick), if major 16 else 20), size: { height: Layout.Unit.points(if major 8 else 4), width: 0.6 } }, slate)
+		$d = $d.rectangle({ origin: Layout.point(plot_x($tick), if (major) 16 else 20), size: { height: Layout.Unit.points(if (major) 8 else 4), width: 0.6 } }, slate)
 		if major {
 			## The last label ends at the axis end so it stays in the chart.
-			$d = $d.text({ align: if $tick == 48 End else Center, color: slate, origin: Layout.point(plot_x($tick), 5), size: 7, text: clock($tick) })
+			$d = $d.text({ align: if ($tick == 48) End else Center, color: slate, origin: Layout.point(plot_x($tick), 5), size: 7, text: clock($tick) })
 		}
 		$tick = $tick + 4
 	}

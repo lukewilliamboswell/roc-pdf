@@ -389,7 +389,7 @@ blocks_for = |input| {
 		## Empty body text is rejected before navigation runs, which would mask
 		## the whole surface under test, so a generated block always says
 		## something.
-		text = if section.words.is_empty() "Generated body text" else section.words
+		text = if (section.words.is_empty()) "Generated body text" else section.words
 		name = name_for(section.name, input.text)
 		$blocks = $blocks.append(
 			match section.kind % 6 {
@@ -466,7 +466,7 @@ depth_for = |code, previous| match code % 8 {
 	1 => previous
 	2 => previous + 1
 	3 => previous + 2
-	4 => if previous == 0 0 else previous - 1
+	4 => if (previous == 0) 0 else previous - 1
 	5 => max_outline_depth - 1
 	6 => max_outline_depth
 	_ => previous + 3
@@ -478,7 +478,7 @@ start_page_for = |code, previous| match code % 6 {
 	1 => previous
 	2 => previous + 1
 	3 => previous + 2
-	4 => if previous == 0 0 else previous - 1
+	4 => if (previous == 0) 0 else previous - 1
 	_ => beyond_pages
 }
 

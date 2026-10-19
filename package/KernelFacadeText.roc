@@ -435,7 +435,7 @@ materialize_requests = |at, requests, rules, flow, limits| {
 				$clusters = $clusters.append({
 					..cluster,
 					glyphs: Semantics.Range.from_start_and_length(new_references, $glyph_indices.len() - new_references),
-					source: if offset_source rebase(cluster.source, origin, source_run_index)? else cluster.source,
+					source: if (offset_source) rebase(cluster.source, origin, source_run_index)? else cluster.source,
 				})
 				$cluster_index = $cluster_index + 1
 			}
@@ -448,7 +448,7 @@ materialize_requests = |at, requests, rules, flow, limits| {
 				clusters: Semantics.Range.from_start_and_length(cluster_start, $clusters.len() - cluster_start),
 				glyphs: Semantics.Range.from_start_and_length(glyph_start, $glyphs.len() - glyph_start),
 				id: new_run_id,
-				source: if offset_source rebase(line.source, origin, source_run_index)? else line.source,
+				source: if (offset_source) rebase(line.source, origin, source_run_index)? else line.source,
 				substitutions: Semantics.Range.from_start_and_length(0, 0),
 				transformations: Semantics.Range.from_start_and_length(0, 0),
 			})
@@ -573,8 +573,8 @@ paint_split_logical = |accumulator, shape, styles, lines, origins, request, limi
 			return Err(UnsupportedRunEvidence({ run: $physical }))
 		}
 		run_cluster_end = range_end(run.clusters)?
-		segment_start = if line.clusters.start() > run.clusters.start() line.clusters.start() else run.clusters.start()
-		segment_end = if line_cluster_end < run_cluster_end line_cluster_end else run_cluster_end
+		segment_start = if (line.clusters.start() > run.clusters.start()) line.clusters.start() else run.clusters.start()
+		segment_end = if (line_cluster_end < run_cluster_end) line_cluster_end else run_cluster_end
 		if segment_end > segment_start {
 			origin = origin_of(origins, $physical)
 			cluster_start_new = $clusters.len()
@@ -706,7 +706,7 @@ interleave_furniture = |plan, furniture, limits| {
 					$body_run = $body_run + 1
 				}
 			} else {
-				band = if $band == 0 Above else Below
+				band = if ($band == 0) Above else Below
 				var $index = piece_start
 				while $index < piece_end {
 					piece = list_at(pieces, $index)
@@ -922,7 +922,7 @@ range_end : Semantics.Range -> Try(U64, KernelFacadeText.Error)
 range_end = |range| checked_add(range.start(), range.length())
 
 check_limit : U64, U64, KernelFacadeText.Dimension -> Try({}, KernelFacadeText.Error)
-check_limit = |attempted, limit, dimension| if attempted > limit Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
+check_limit = |attempted, limit, dimension| if (attempted > limit) Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
 
 checked_add : U64, U64 -> Try(U64, KernelFacadeText.Error)
 checked_add = |left, right| match U64.plus_try(left, right) {
@@ -1208,7 +1208,7 @@ paint_source_foregrounds = |plan, authoring, owners, limits| {
 						}
 						paint = if $paint < paint_end {
 							value = list_at(authoring.source_foregrounds, $paint)
-							if value.start <= start { color: value.color, end: value.end } else { color: style.color, end: value.start }
+							if (value.start <= start) { color: value.color, end: value.end } else { color: style.color, end: value.start }
 						} else { color: style.color, end: byte + run.source.utf8_bytes.start() + run.source.utf8_bytes.length() }
 						first_cluster = $cluster
 						first_glyph = list_at(text.glyph_indices, first.glyphs.start())
@@ -1348,7 +1348,7 @@ apply_occurrence_separators = |plan, separators, occurrences, limits| {
 					if end > separator.bytes {
 						return Err(InvalidRun({ run: run.id.index() }))
 					}
-					length = checked_add(run.source.utf8_bytes.length(), if end == separator.bytes 1 else 0)?
+					length = checked_add(run.source.utf8_bytes.length(), if (end == separator.bytes) 1 else 0)?
 					fact = { property: separator.property, utf8_bytes: Semantics.Range.from_start_and_length(run.source.utf8_bytes.start(), length) }
 					$runs = $runs.append({ ..run, actual_text: SemanticOverrideSlice(Text.ActualTextSlice.make(fact.property, fact.utf8_bytes)) })
 					$overrides = $overrides + 1

@@ -459,13 +459,13 @@ valid_utf8 = |bytes| {
 		if lead < 0x80 {
 			$index = $index + 1
 		} else {
-			width = if lead >= 0xC2 and lead <= 0xDF 2 else if lead >= 0xE0 and lead <= 0xEF 3 else if lead >= 0xF0 and lead <= 0xF4 4 else 0
+			width = if (lead >= 0xC2 and lead <= 0xDF) 2 else if (lead >= 0xE0 and lead <= 0xEF) 3 else if (lead >= 0xF0 and lead <= 0xF4) 4 else 0
 			if width == 0 or $index + width > bytes.len() {
 				return False
 			}
 			second = list_at(bytes, $index + 1)
-			low = if lead == 0xE0 0xA0 else if lead == 0xF0 0x90 else 0x80
-			high = if lead == 0xED 0x9F else if lead == 0xF4 0x8F else 0xBF
+			low = if (lead == 0xE0) 0xA0 else if (lead == 0xF0) 0x90 else 0x80
+			high = if (lead == 0xED) 0x9F else if (lead == 0xF4) 0x8F else 0xBF
 			if second < low or second > high {
 				return False
 			}
@@ -639,7 +639,7 @@ check_summary = |store, classes, summary, position| {
 		}
 	}
 	if summary.opi {
-		requirement = if summary.subtype == Form FormXObject else ImageDictionary
+		requirement = if (summary.subtype == Form) FormXObject else ImageDictionary
 		return Err({ position, requirement })
 	}
 	match summary.bits {
@@ -1123,7 +1123,7 @@ expect {
 expect {
 	packet = test_packet(PdfA4Identification)
 	plan = test_plan(packet)
-	sealed = resealed(plan, |store| { ..store, streams: store.streams.map(|stream| if stream.filter == Unfiltered and stream.dictionary.length == 2 { ..stream, filter: Deflate } else stream) })
+	sealed = resealed(plan, |store| { ..store, streams: store.streams.map(|stream| if (stream.filter == Unfiltered and stream.dictionary.length == 2) { ..stream, filter: Deflate } else stream) })
 	violation(KernelPdfA4.validate_lowered(StaticPdfA4Claim, { packet, root: KernelStructure.Plan.root(plan), sealed })) == Rejected(MetadataStream)
 }
 
@@ -1135,14 +1135,14 @@ expect {
 	check = |from, to| violation(KernelPdfA4.validate_lowered(StaticPdfA4Claim, { packet, root: KernelStructure.Plan.root(plan), sealed: resealed(plan, |store| rename(store, from, to)) }))
 	check("Lang", "Encrypt") == Rejected(Encryption)
 		and check("Lang", "OCProperties") == Rejected(OptionalContent)
-			and check("Lang", "AcroForm") == Rejected(InteractiveForms)
-				and check("Lang", "AA") == Rejected(AdditionalActions)
-					and check("Lang", "OpenAction") == Accepted
-						and check("Lang", "Requirements") == Rejected(RequirementsKey)
-							and check("Lang", "Perms") == Rejected(Permissions)
-								and check("Lang", "PieceInfo") == Rejected(DocumentInformation)
-									and check("Lang", "EmbeddedFiles") == Rejected(EmbeddedFiles)
-										and check("Lang", "Version") == Rejected(CatalogVersion)
+		and check("Lang", "AcroForm") == Rejected(InteractiveForms)
+		and check("Lang", "AA") == Rejected(AdditionalActions)
+		and check("Lang", "OpenAction") == Accepted
+		and check("Lang", "Requirements") == Rejected(RequirementsKey)
+		and check("Lang", "Perms") == Rejected(Permissions)
+		and check("Lang", "PieceInfo") == Rejected(DocumentInformation)
+		and check("Lang", "EmbeddedFiles") == Rejected(EmbeddedFiles)
+		and check("Lang", "Version") == Rejected(CatalogVersion)
 }
 
 # The output intent must be a single GTS_PDFA1 intent with an embedded
@@ -1153,8 +1153,8 @@ expect {
 	check = |from, to| violation(KernelPdfA4.validate_lowered(StaticPdfA4Claim, { packet, root: KernelStructure.Plan.root(plan), sealed: resealed(plan, |store| rename(store, from, to)) }))
 	check("GTS_PDFA1", "ISO_PDFA") == Rejected(OutputIntent)
 		and check("DestOutputProfile", "DestOutputProfileRef") == Rejected(OutputIntent)
-			and check("OutputIntents", "OutputIntentz") == Rejected(OutputIntent)
-				and check("Metadata", "Metadatum") == Rejected(MetadataStream)
+		and check("OutputIntents", "OutputIntentz") == Rejected(OutputIntent)
+		and check("Metadata", "Metadatum") == Rejected(MetadataStream)
 }
 
 # A profile whose device class is neither `mntr` nor `prtr` cannot be the
@@ -1165,7 +1165,7 @@ expect {
 	sealed = resealed(
 		plan,
 		|store| {
-			payloads = store.payloads.map(|payload| if payload.bytes.len() == KernelSrgbProfile.bytes.len() { ..payload, bytes: payload.bytes.sublist({ start: 0, len: 12 }).concat([115, 99, 110, 114]).concat(payload.bytes.sublist({ start: 16, len: payload.bytes.len() - 16 })) } else payload)
+			payloads = store.payloads.map(|payload| if (payload.bytes.len() == KernelSrgbProfile.bytes.len()) { ..payload, bytes: payload.bytes.sublist({ start: 0, len: 12 }).concat([115, 99, 110, 114]).concat(payload.bytes.sublist({ start: 16, len: payload.bytes.len() - 16 })) } else payload)
 			{ ..store, payloads }
 		},
 	)
@@ -1197,7 +1197,7 @@ expect {
 	private = { actual_text: PrivateUseInRun(3), mappings: [] }
 	KernelPdfA4.validate_text(StaticPdfA4Claim, clean) == Ok({ mappings_checked: 2, scalars_checked: 3 })
 		and KernelPdfA4.validate_text(StaticPdfA4Claim, bom) == Err({ position: 0, requirement: ToUnicodeValues })
-			and KernelPdfA4.validate_text(StaticPdfA4Claim, reversed) == Err({ position: 0, requirement: ToUnicodeValues })
-				and KernelPdfA4.validate_text(StaticPdfA4Claim, private) == Err({ position: 3, requirement: ActualTextPrivateUse })
-					and KernelPdfA4.validate_text(NoArchiveClaim, bom) == Ok({ mappings_checked: 0, scalars_checked: 0 })
+		and KernelPdfA4.validate_text(StaticPdfA4Claim, reversed) == Err({ position: 0, requirement: ToUnicodeValues })
+		and KernelPdfA4.validate_text(StaticPdfA4Claim, private) == Err({ position: 3, requirement: ActualTextPrivateUse })
+		and KernelPdfA4.validate_text(NoArchiveClaim, bom) == Ok({ mappings_checked: 0, scalars_checked: 0 })
 }

@@ -127,7 +127,7 @@ prepare_source = |text, tabs, limits, foregrounds| {
 }
 
 check_limit : U64, U64, KernelSourceText.Dimension -> Try({}, KernelSourceText.Error)
-check_limit = |attempted, limit, dimension| if attempted > limit Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
+check_limit = |attempted, limit, dimension| if (attempted > limit) Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
 
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {
@@ -210,18 +210,18 @@ validate_foregrounds = |text, ranges| {
 				if range.start == start {
 					$start_checked = True
 				}
-					else if range.start < end {
-						return Err(ForegroundRange({ range: $range, byte: range.start, reason: ClusterBoundary }))
-					}
+				else if range.start < end {
+					return Err(ForegroundRange({ range: $range, byte: range.start, reason: ClusterBoundary }))
+				}
 			}
 			if $start_checked {
 				if range.end == end {
 					$range = $range + 1
 					$start_checked = False
 				}
-					else if range.end < end {
-						return Err(ForegroundRange({ range: $range, byte: range.end, reason: ClusterBoundary }))
-					}
+				else if range.end < end {
+					return Err(ForegroundRange({ range: $range, byte: range.end, reason: ClusterBoundary }))
+				}
 			}
 		}
 	}

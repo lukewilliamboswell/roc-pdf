@@ -61,7 +61,7 @@ Callout :: [].{
 		leading = Theme.body_style(theme).leading.raw()
 		spacing = theme.paragraph_spacing.raw()
 		lines = count.to_i64_wrap()
-		gaps = if lines == 0 0 else lines - 1
+		gaps = if (lines == 0) 0 else lines - 1
 		{ height: Layout.Unit.from_raw(inset.raw() * 2 + leading * lines + spacing * gaps), width }
 	}
 

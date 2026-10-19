@@ -181,10 +181,10 @@ build_plan = |tagged, colors, images, content, font_plan, text, fonts, facts, na
 		WithNavigationPlan(plan_input) => WithNavigationObjects({
 			annotation_objects: plan_input.planned.by_id,
 			annotation_pages: plan_input.annotation_pages,
-			dests_root: if plan_input.planned.name_nodes.is_empty() NoDestsRoot else DestsRootAt(list_at(plan_input.planned.name_nodes, 0)),
+			dests_root: if (plan_input.planned.name_nodes.is_empty()) NoDestsRoot else DestsRootAt(list_at(plan_input.planned.name_nodes, 0)),
 			ordered_annotations: plan_input.store.page_annotations,
 			outline_root: plan_input.planned.outline_root,
-			page_labels_root: if plan_input.planned.label_nodes.is_empty() NoPageLabelsRoot else PageLabelsRootAt(list_at(plan_input.planned.label_nodes, 0)),
+			page_labels_root: if (plan_input.planned.label_nodes.is_empty()) NoPageLabelsRoot else PageLabelsRootAt(list_at(plan_input.planned.label_nodes, 0)),
 		})
 	}
 	prefix = KernelTaggedObjects.Plan.build_with_navigation(tagged, objects, catalog_facts, navigation_facts, limits.object_limits) ? TaggedObjects
@@ -380,7 +380,7 @@ add_metadata_stream = |builder, xmp, ids| {
 }
 
 ensure_object : KernelObject.ObjectId, KernelObject.ObjectId -> Try({}, KernelTaggedTextStructure.Error)
-ensure_object = |actual, expected| if actual == expected Ok({}) else Err(ObjectOrder({ actual, expected }))
+ensure_object = |actual, expected| if (actual == expected) Ok({}) else Err(ObjectOrder({ actual, expected }))
 
 checked_add : U64, U64 -> Try(U64, KernelTaggedTextStructure.Error)
 checked_add = |left, right| match U64.plus_try(left, right) {

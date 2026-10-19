@@ -405,7 +405,7 @@ validate_mappings = |plan, mappings, limits| {
 			}
 			mapping = list_at(mappings, $mapping_index)
 			if mapping.cid != entry.cid {
-				return if mapping.cid < entry.cid Err(UnexpectedUnicodeMapping({ cid: mapping.cid })) else Err(IncompleteUnicodeMapping({ cid: entry.cid }))
+				return if (mapping.cid < entry.cid) Err(UnexpectedUnicodeMapping({ cid: mapping.cid })) else Err(IncompleteUnicodeMapping({ cid: entry.cid }))
 			}
 			if mapping.scalars.len() == 0 {
 				return Err(IncompleteUnicodeMapping({ cid: entry.cid }))
@@ -467,7 +467,7 @@ build_to_unicode = |mappings, limit| {
 		ranged = list_at(runs, $run_index).length > 1
 		block_count = block_length(runs, $run_index, ranged)
 		$bytes = append_u64_decimal($bytes, block_count)
-		$bytes = append_ascii($bytes, if ranged " beginbfrange\n" else " beginbfchar\n")
+		$bytes = append_ascii($bytes, if (ranged) " beginbfrange\n" else " beginbfchar\n")
 		var $block_index = 0
 		while $block_index < block_count {
 			run = list_at(runs, $run_index + $block_index)
@@ -488,7 +488,7 @@ build_to_unicode = |mappings, limit| {
 			$bytes = append_ascii($bytes, ">\n")
 			$block_index = $block_index + 1
 		}
-		$bytes = append_ascii($bytes, if ranged "endbfrange\n" else "endbfchar\n")
+		$bytes = append_ascii($bytes, if (ranged) "endbfrange\n" else "endbfchar\n")
 		$run_index = $run_index + block_count
 	}
 	$bytes = append_ascii($bytes, to_unicode_footer)
@@ -545,8 +545,8 @@ to_unicode_size = |mappings, runs| {
 		ranged = list_at(runs, $run_index).length > 1
 		block_count = block_length(runs, $run_index, ranged)
 		$size = checked_add($size, decimal_digits(block_count))?
-		$size = checked_add($size, Str.count_utf8_bytes(if ranged " beginbfrange\n" else " beginbfchar\n"))?
-		$size = checked_add($size, Str.count_utf8_bytes(if ranged "endbfrange\n" else "endbfchar\n"))?
+		$size = checked_add($size, Str.count_utf8_bytes(if (ranged) " beginbfrange\n" else " beginbfchar\n"))?
+		$size = checked_add($size, Str.count_utf8_bytes(if (ranged) "endbfrange\n" else "endbfchar\n"))?
 		var $block_index = 0
 		while $block_index < block_count {
 			run = list_at(runs, $run_index + $block_index)
@@ -555,11 +555,11 @@ to_unicode_size = |mappings, runs| {
 			var $scalar_index = 0
 			while $scalar_index < mapping.scalars.len() {
 				scalar = list_at(mapping.scalars, $scalar_index)
-				$utf16_units = checked_add($utf16_units, if scalar <= 0xffff 1 else 2)?
+				$utf16_units = checked_add($utf16_units, if (scalar <= 0xffff) 1 else 2)?
 				$scalar_index = $scalar_index + 1
 			}
 			entry = checked_add(10, checked_times($utf16_units, 4)?)?
-			$size = checked_add($size, if ranged checked_add(entry, 7)? else entry)?
+			$size = checked_add($size, if (ranged) checked_add(entry, 7)? else entry)?
 			$block_index = $block_index + 1
 		}
 		$run_index = $run_index + block_count
@@ -568,7 +568,7 @@ to_unicode_size = |mappings, runs| {
 }
 
 decimal_digits : U64 -> U64
-decimal_digits = |value| if value < 10 1 else if value < 100 2 else if value < 1000 3 else 20
+decimal_digits = |value| if (value < 10) 1 else if (value < 100) 2 else if (value < 1000) 3 else 20
 
 append_scalar_utf16_hex : List(U8), U32 -> Try(List(U8), KernelPdfFont.Error)
 append_scalar_utf16_hex = |bytes, scalar| {
@@ -684,7 +684,7 @@ append_hex_u16 = |bytes, value| {
 }
 
 hex_digit : U8 -> U8
-hex_digit = |value| if value < 10 0x30 + value else 0x41 + value - 10
+hex_digit = |value| if (value < 10) 0x30 + value else 0x41 + value - 10
 
 append_all : List(U8), List(U8) -> List(U8)
 append_all = |target, source| {

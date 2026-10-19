@@ -51,7 +51,7 @@ format_value = |prefix, style, number, max_bytes, allow_empty| {
 		return Err(InvalidPage)
 	}
 	prefix_length = prefix.count_utf8_bytes()
-	digits = if style == DecimalArabic number.to_str() else ""
+	digits = if (style == DecimalArabic) number.to_str() else ""
 	suffix_length = match style {
 		NoNumber => 0
 		DecimalArabic => digits.count_utf8_bytes()
@@ -76,7 +76,7 @@ format_value = |prefix, style, number, max_bytes, allow_empty| {
 		}
 		LettersLower | LettersUpper => {
 			base : U8
-			base = if style == LettersLower 97 else 65
+			base = if (style == LettersLower) 97 else 65
 			letter = base + ((number - 1) % 26).to_u8_wrap()
 			var $index = 0
 			while $index < suffix_length {
@@ -131,7 +131,7 @@ append_roman = |output, number, lower| {
 		var $copy = 0
 		while $copy < count {
 			for byte in at(roman_tokens, $index).to_utf8() {
-				$output = $output.append(if lower byte + 32 else byte)
+				$output = $output.append(if (lower) byte + 32 else byte)
 			}
 			$copy = $copy + 1
 		}

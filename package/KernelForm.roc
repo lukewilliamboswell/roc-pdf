@@ -685,7 +685,7 @@ round_half_even_ratio = |numerator, denominator| {
 	quotient = U64.div_by(numerator, denominator)
 	remainder = U64.mod_by(numerator, denominator)
 	twice = remainder * 2
-	if twice > denominator or (twice == denominator and U64.mod_by(quotient, 2) == 1) quotient + 1 else quotient
+	if (twice > denominator or (twice == denominator and U64.mod_by(quotient, 2) == 1)) quotient + 1 else quotient
 }
 
 ## Distinct effective values and distinct mask forms receive dense indices in
@@ -839,9 +839,9 @@ derive_opacity = |scenes, form_store, image_alpha, isolated, has_opacity, has_ma
 	no_site = AmbientSite.{ alpha: False, mask: False }
 	var $page_arena = OpacityArena.{ ambient: List.repeat(no_site, scenes.commands.len()), states: List.repeat(state_sentinel, scenes.commands.len()) }
 	var $registry = OpacityRegistry.{
-		mask_index: if has_masks List.repeat(0, form_store.forms.len()) else [],
+		mask_index: if (has_masks) List.repeat(0, form_store.forms.len()) else [],
 		states: [],
-		value_index: if has_opacity List.repeat(0, 65536) else [],
+		value_index: if (has_opacity) List.repeat(0, 65536) else [],
 	}
 	var $page_direct = List.with_capacity(scenes.pages.len())
 	var $commands = 0
@@ -1067,7 +1067,7 @@ derive_counts = |stores, shading_store, pattern_store| {
 	while $shading_index < shading_store.shadings.len() {
 		shading = list_at(shading_store.shadings, $shading_index)
 		stops = shading.stops.length()
-		functions = if stops == 2 1 else stops
+		functions = if (stops == 2) 1 else stops
 		$running = $running + functions
 		$offsets = $offsets.append($running)
 		var $function = 0
@@ -1148,7 +1148,7 @@ build_facts = |form_plan, colors, counts, text, limits, pattern_store, appearanc
 	# anywhere; a fully opaque document never pays the probe and needs no
 	# blending declaration.
 	var $any_transparency = any_true(derivation.page_direct) or any_true(derivation.form_direct_alpha) or any_true(derivation.form_direct_opacity) or any_true(derivation.form_direct_mask) or any_true(isolated)
-	blending_probe = if $any_transparency select_blending(colors) else { blending: NoBlending, probe_bytes: 0 }
+	blending_probe = if ($any_transparency) select_blending(colors) else { blending: NoBlending, probe_bytes: 0 }
 	blending = blending_probe.blending
 
 	# Pass A: one walk per page over its owned groups collects that page's
@@ -1255,7 +1255,7 @@ build_facts = |form_plan, colors, counts, text, limits, pattern_store, appearanc
 	# derived graphics states; a sentinel state map keeps the shared walker
 	# total. An alpha image touched directly by a cell is rejected here.
 	var $pattern_cell_visits = 0
-	cell_states = if counts.patterns > 0 List.repeat(state_sentinel, pattern_store.commands.len()) else []
+	cell_states = if (counts.patterns > 0) List.repeat(state_sentinel, pattern_store.commands.len()) else []
 	var $cell_index = 0
 	while $cell_index < counts.patterns {
 		cell = list_at(pattern_store.cells, $cell_index)
@@ -1353,7 +1353,7 @@ build_facts = |form_plan, colors, counts, text, limits, pattern_store, appearanc
 	# canonical run later re-proves closure with the exact per-page uses.
 	var $structure_closure = match blending {
 		NoBlending => []
-		Blending(space) => if scenes.pages.len() > 0 [{ resource: color_node(space), root: 0 }] else []
+		Blending(space) => if (scenes.pages.len() > 0) [{ resource: color_node(space), root: 0 }] else []
 	}
 	var $appearance_scan = 0
 	while $appearance_scan < appearances.len() {
@@ -1723,7 +1723,7 @@ resolve_masks = |counts, form_count, order, states, nesting, edges, max_mask_dep
 			$deepest
 		}
 		$chain = list_set($chain, node, value)
-		$max_chain = U64.max($max_chain, if is_state value else 0)
+		$max_chain = U64.max($max_chain, if (is_state) value else 0)
 		$position = $position + 1
 		$visits = $visits + 1
 	}
@@ -2044,8 +2044,8 @@ node_descriptor = |counts, form_count, isolated, states, node| {
 	} else {
 		Function
 	}
-	flags = if kind == XObject and list_at(isolated, node - base) 1 else 0
-	components = if kind == Shading list_at(counts.shading_components, node - state_end) else 0
+	flags = if (kind == XObject and list_at(isolated, node - base)) 1 else 0
+	components = if (kind == Shading) list_at(counts.shading_components, node - state_end) else 0
 
 	## Shading subtypes carry the PDF shading type (2 axial, 3 radial),
 	## function subtypes the PDF function type (2 exponential segment,
@@ -2068,7 +2068,7 @@ node_descriptor = |counts, form_count, isolated, states, node| {
 		shading = list_at(counts.function_shadings, function_index)
 		segment_start = list_at(counts.shading_function_offsets, shading)
 		segment_count = list_at(counts.shading_function_offsets, shading + 1) - segment_start
-		if segment_count > 1 and function_index - segment_start == segment_count - 1 3 else 2
+		if (segment_count > 1 and function_index - segment_start == segment_count - 1) 3 else 2
 	} else {
 		0
 	}
@@ -2161,7 +2161,7 @@ resolve_ownership = |counts, form_count, order, page_placements, nested| {
 		if node >= base and node < base + form_count {
 			parent_form = node - base
 			parent_instances = list_at($instances, parent_form)
-			parent_owner = if parent_instances == 1 list_at($owners, parent_form) else MixedOwner
+			parent_owner = if (parent_instances == 1) list_at($owners, parent_form) else MixedOwner
 			var $edge = list_at($offsets, parent_form)
 			edge_end = list_at($offsets, parent_form + 1)
 			while $edge < edge_end {
@@ -2193,7 +2193,7 @@ merge_owner = |current, added| match current {
 		_ => MixedOwner
 	}
 	FragmentOwner(fragment) => match added {
-		FragmentOwner(other) => if Semantics.FragmentId.index(fragment) == Semantics.FragmentId.index(other) FragmentOwner(fragment) else MixedOwner
+		FragmentOwner(other) => if (Semantics.FragmentId.index(fragment) == Semantics.FragmentId.index(other)) FragmentOwner(fragment) else MixedOwner
 		UnplacedOwner => FragmentOwner(fragment)
 		_ => MixedOwner
 	}
@@ -2326,7 +2326,7 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 		state_base: form_base(counts) + form_count,
 	}
 	functions_start = function_base(counts, form_count, states_count)
-	pattern_command_states = if counts.patterns > 0 List.repeat(state_sentinel, pattern_store.commands.len()) else []
+	pattern_command_states = if (counts.patterns > 0) List.repeat(state_sentinel, pattern_store.commands.len()) else []
 	nodes = node_count(counts, form_count, states_count)
 	var $payload = []
 	var $sources = List.repeat({ descriptor: node_descriptor(counts, form_count, facts.form_isolated, facts.derived_states, 0), length: 0, start: 0 }, nodes)
@@ -2495,8 +2495,8 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 					append_i64_bytes($radial, end_radius.raw())
 				}
 			}
-			$recipe = $recipe.append(if shading.extend_start 1 else 0)
-			$recipe = $recipe.append(if shading.extend_end 1 else 0)
+			$recipe = $recipe.append(if (shading.extend_start) 1 else 0)
+			$recipe = $recipe.append(if (shading.extend_end) 1 else 0)
 			$recipe = append_bytes($recipe, list_at($digests, color_node(shading.space.index())))
 			$recipe = append_bytes($recipe, list_at($digests, functions_start + shading_root_function(counts, node - bases.shading_base)))
 			$payload = append_bytes($payload, $recipe)
@@ -3304,7 +3304,7 @@ serialize_range = |initial, missing_text, root, arena, scenes, digests, counts, 
 						$out = append_bytes($out, prepared.actual_text_begin)
 						$out = append_u64_bytes($out, prepared.body.len())
 						$out = append_bytes($out, prepared.body)
-						$out = $out.append(if prepared.close_actual_text 1 else 0)
+						$out = $out.append(if (prepared.close_actual_text) 1 else 0)
 					}
 				}
 				Opacity({ children, opacity: _ }) => {
@@ -3361,7 +3361,7 @@ serialize_range = |initial, missing_text, root, arena, scenes, digests, counts, 
 RecipeFrame := { close : Bool, end : U64, next : U64 }
 
 push_recipe_frame : List(RecipeFrame), U64, RecipeFrame -> List(RecipeFrame)
-push_recipe_frame = |frames, index, frame| if index < frames.len() list_set(frames, index, frame) else frames.append(frame)
+push_recipe_frame = |frames, index, frame| if (index < frames.len()) list_set(frames, index, frame) else frames.append(frame)
 
 append_style : List(U8), Scene.PathStyle, Scene.Store, List(List(U8)), NodeBases -> List(U8)
 append_style = |out, style, scenes, digests, bases| {
@@ -3532,7 +3532,7 @@ image_descriptor = |payload| match payload {
 		},
 		flags: match raster.alpha {
 			NoAlpha => 0
-			PackedAlpha(_) => if raster.dimensions.width.to_u64() * raster.dimensions.height.to_u64() > 0 1 else 0
+			PackedAlpha(_) => if (raster.dimensions.width.to_u64() * raster.dimensions.height.to_u64() > 0) 1 else 0
 		},
 		height: raster.dimensions.height.to_u64(),
 		kind: Image,

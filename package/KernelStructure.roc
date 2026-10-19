@@ -564,7 +564,7 @@ add_page_tree_node = |builder, shape, facts, level, node| {
 	} else {
 		checked_add(2, child_start)?
 	}
-	stride = if is_leaf 3 else 1
+	stride = if (is_leaf) 3 else 1
 	kids = add_object_reference_array(builder, first_child, child_count, stride)?
 	item_span = KernelBalanced.Shape.item_span(shape, level, node)
 	descendants = KernelBalanced.Span.length(item_span)

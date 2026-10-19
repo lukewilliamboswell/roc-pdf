@@ -115,7 +115,7 @@ navigation_document = |links| {
 ## evaluated at run time, inside the measured boundary.
 caller_bytes : U64 -> List(U8)
 caller_bytes = |scale| {
-	limits = if scale == 0 Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 }) else Font.ValidationLimits.default
+	limits = if (scale == 0) Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 }) else Font.ValidationLimits.default
 	registered = match Font.Registry.empty.register(caller_font_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits) {
 		Err(_) => crash "archive caller font registration failed"
 		Ok(value) => value
@@ -196,11 +196,11 @@ main! = |args| {
 			{ bytes, work: [bytes.len()] }
 		}
 		"chunked-own" | "chunked-share" => {
-			retention = if mode == "chunked-own" Pdf.ChunkRetention.OwnChunks else Pdf.ChunkRetention.ShareUnchangedResources
+			retention = if (mode == "chunked-own") Pdf.ChunkRetention.OwnChunks else Pdf.ChunkRetention.ShareUnchangedResources
 			document = report_document(scale)
 			streamed = chunked(document, retention)
 			buffered = generate(document, archive)
-			identical = if streamed.bytes == buffered 1 else 0
+			identical = if (streamed.bytes == buffered) 1 else 0
 			{ bytes: streamed.bytes, work: [streamed.bytes.len(), streamed.chunks, identical] }
 		}
 		"figures-standard" => {

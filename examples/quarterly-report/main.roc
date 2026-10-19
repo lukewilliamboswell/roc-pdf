@@ -271,20 +271,20 @@ revenue_chart = {
 		$chart = $chart.rectangle({ origin: Layout.point(left, base + revenue_height(step * 1000)), size: { height: 0.5, width: Layout.Unit.points(width) } }, grid)
 	}
 	for step in [0, 1, 2, 3, 4] {
-		$chart = $chart.text({ align: End, color: ink, origin: Layout.point(left - 6, base - 3 + revenue_height(step.to_i64_wrap() * 1000)), size: 8, text: if step == 0 "0" else "${step.to_i64_wrap().to_str()},000" })
+		$chart = $chart.text({ align: End, color: ink, origin: Layout.point(left - 6, base - 3 + revenue_height(step.to_i64_wrap() * 1000)), size: 8, text: if (step == 0) "0" else "${step.to_i64_wrap().to_str()},000" })
 	}
 	slot = width // 6
 	var $index = 0
 	var $line = Scene.PathBuilder.start
 	for month in monthly {
 		x = left + $index * slot + slot // 2
-		color = if $index < 3 slate else teal
+		color = if ($index < 3) slate else teal
 		$chart = $chart.rectangle(Layout.rect(x - 22, base, 44, revenue_height(month.revenue)), color)
 
 		## The month under its bar and its revenue above it.
 		$chart = $chart.text({ align: Center, color: ink, origin: Layout.point(x, 3), size: 8, text: month.name })
 		my = base + revenue_height(month.margin * 50 + 1000)
-		$line = if $index == 0 $line.move_to(Layout.point(x, my)) else $line.line_to(Layout.point(x, my))
+		$line = if ($index == 0) $line.move_to(Layout.point(x, my)) else $line.line_to(Layout.point(x, my))
 		$index = $index + 1
 	}
 	$chart = $chart
@@ -326,7 +326,7 @@ progress_chart = {
 	for (name, percent) in progress {
 		y = 3 * row_height - $row * row_height + 6
 		filled = track * percent.to_i64_wrap() // 100
-		color = if percent >= 50 teal else amber
+		color = if (percent >= 50) teal else amber
 		$chart = $chart.rectangle(Layout.rect(start, y, track, 14), grid).rectangle(Layout.rect(start, y, filled, 14), color)
 		$chart = $chart
 			.text({ align: End, color: ink, origin: Layout.point(start - 8, y + 3), size: 9, text: name })

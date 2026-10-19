@@ -47,7 +47,7 @@ KernelLex :: [].{
 	}
 
 	boolean : Bool -> List(U8)
-	boolean = |value| append_keyword_boolean(List.with_capacity(if value 4 else 5), value)
+	boolean = |value| append_keyword_boolean(List.with_capacity(if (value) 4 else 5), value)
 
 	null_value : List(U8)
 	null_value = append_keyword_null(List.with_capacity(4))
@@ -126,15 +126,15 @@ KernelLex :: [].{
 
 append_keyword_boolean : List(U8), Bool -> List(U8)
 append_keyword_boolean = |output, value| {
-	length = if value 4 else 5
+	length = if (value) 4 else 5
 	var $out = output
 	var $index = 0
 	while $index < length {
 		byte = match $index {
-			0 => if value 116 else 102
-			1 => if value 114 else 97
-			2 => if value 117 else 108
-			3 => if value 101 else 115
+			0 => if (value) 116 else 102
+			1 => if (value) 114 else 97
+			2 => if (value) 117 else 108
+			3 => if (value) 101 else 115
 			_ => 101
 		}
 		$out = $out.append(byte)
@@ -194,7 +194,7 @@ append_decimal = |output, coefficient, scale| {
 	if coefficient == 0 {
 		output.append(48)
 	} else {
-		magnitude = if coefficient < 0
+		magnitude = if (coefficient < 0)
 			U64.minus_wrap(0, coefficient.to_u64_wrap())
 		else
 			coefficient.to_u64_wrap()
@@ -206,7 +206,7 @@ append_decimal = |output, coefficient, scale| {
 			$scale = $scale - 1
 		}
 
-		signed = if coefficient < 0 output.append(45) else output
+		signed = if (coefficient < 0) output.append(45) else output
 		if $scale == 0 {
 			append_u64(signed, $normalized)
 		} else {
@@ -404,7 +404,7 @@ append_hex_byte = |output, byte| {
 
 append_hex_nibble : List(U8), U8 -> List(U8)
 append_hex_nibble = |output, nibble| {
-	byte = if nibble < 10 48 + nibble else 55 + nibble
+	byte = if (nibble < 10) 48 + nibble else 55 + nibble
 	output.append(byte)
 }
 

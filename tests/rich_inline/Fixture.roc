@@ -342,7 +342,7 @@ run_code_holds = |count| {
 ## The packaged face as body face 0 and the monospace fixture as face 1.
 code_faces : U64 -> Try({ body : Font.FaceId, mono : Font.FaceId, registry : Font.Registry }, Fixture.EvidenceError)
 code_faces = |context| {
-	limits = if context == 0 Font.ValidationLimits.default else Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })
+	limits = if (context == 0) Font.ValidationLimits.default else Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })
 	body = match Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits) {
 		Err(_) => return Err(EvidenceFailure)
 		Ok(value) => value
@@ -388,7 +388,7 @@ run_code_face = |context| {
 		_ => 0
 	}
 	unregistered = match Pdf.to_bytes_with(document, Pdf.Options.{ theme: theme }) {
-		Err(InvalidFontResource(UnknownFace(face))) => if face == faces.mono 1 else 0
+		Err(InvalidFontResource(UnknownFace(face))) => if (face == faces.mono) 1 else 0
 		_ => 0
 	}
 	rejections = under_policy + uncovered + unregistered
@@ -545,7 +545,7 @@ run_heading_faces = |count| {
 
 	## Rejections: each is transactional, with no bytes.
 	unregistered = match Pdf.to_bytes_with(document, Pdf.Options.{ theme: theme }) {
-		Err(InvalidFontResource(UnknownFace(face))) => if face == faces.mono 1 else 0
+		Err(InvalidFontResource(UnknownFace(face))) => if (face == faces.mono) 1 else 0
 		_ => 0
 	}
 	policy = match faces.registry.with_policy([faces.body, faces.mono]) {
@@ -709,7 +709,7 @@ teal = Color.srgb8({ blue: 120, green: 110, red: 0 })
 ## same content can be compared with and without scopes.
 scoped_colors_document : U64, Bool -> Document
 scoped_colors_document = |count, scoped| {
-	wrap = |scope, blocks| if scoped [Pdf.scoped(scope, blocks)] else blocks
+	wrap = |scope, blocks| if (scoped) [Pdf.scoped(scope, blocks)] else blocks
 	warning = Theme.Scope.{ strong: Themed(amber), link: Themed(amber) }
 	note = Theme.Scope.{ strong: Themed(teal), link: Themed(teal) }
 	var $contents = List.with_capacity(2 * count + 3)
@@ -729,7 +729,7 @@ scoped_colors_document = |count, scoped| {
 	## An inner scope overrides its outer scope; the outer still colors the
 	## role the inner leaves inherited.
 	inner = Theme.Scope.{ strong: Themed(teal) }
-	nested = if scoped [Pdf.scoped(warning, [Pdf.rich_paragraph([Pdf.strong([Pdf.text("Outer")]), Pdf.text(" and "), Pdf.inline_link([Pdf.text("outer link")], "https://example.org/outer")]), Pdf.scoped(inner, [Pdf.rich_paragraph([Pdf.strong([Pdf.text("Inner")]), Pdf.text(" and "), Pdf.inline_link([Pdf.text("inner link")], "https://example.org/inner")])])])] else [Pdf.rich_paragraph([Pdf.strong([Pdf.text("Outer")]), Pdf.text(" and "), Pdf.inline_link([Pdf.text("outer link")], "https://example.org/outer")]), Pdf.rich_paragraph([Pdf.strong([Pdf.text("Inner")]), Pdf.text(" and "), Pdf.inline_link([Pdf.text("inner link")], "https://example.org/inner")])]
+	nested = if (scoped) [Pdf.scoped(warning, [Pdf.rich_paragraph([Pdf.strong([Pdf.text("Outer")]), Pdf.text(" and "), Pdf.inline_link([Pdf.text("outer link")], "https://example.org/outer")]), Pdf.scoped(inner, [Pdf.rich_paragraph([Pdf.strong([Pdf.text("Inner")]), Pdf.text(" and "), Pdf.inline_link([Pdf.text("inner link")], "https://example.org/inner")])])])] else [Pdf.rich_paragraph([Pdf.strong([Pdf.text("Outer")]), Pdf.text(" and "), Pdf.inline_link([Pdf.text("outer link")], "https://example.org/outer")]), Pdf.rich_paragraph([Pdf.strong([Pdf.text("Inner")]), Pdf.text(" and "), Pdf.inline_link([Pdf.text("inner link")], "https://example.org/inner")])]
 	for block in nested {
 		$contents = $contents.append(block)
 	}
@@ -743,7 +743,7 @@ scoped_colors_document = |count, scoped| {
 
 scoped_text_document : U64, Bool -> Document
 scoped_text_document = |count, scoped| {
-	wrap = |scope, blocks| if scoped [Pdf.scoped(scope, blocks)] else blocks
+	wrap = |scope, blocks| if (scoped) [Pdf.scoped(scope, blocks)] else blocks
 	near_white = Color.srgb8({ blue: 245, green: 242, red: 240 })
 	dark = Theme.Scope.{ text: Themed(near_white), strong: Themed(amber), link: Themed(Color.srgb8({ blue: 250, green: 205, red: 125 })), code: Themed(near_white) }
 	slate = Theme.Scope.{ text: Themed(Color.srgb8({ blue: 105, green: 85, red: 70 })) }
@@ -840,7 +840,7 @@ Faces : [BuiltInFace, Policy({ policy : Font.PolicyId, registry : Font.Registry 
 
 mixed_document : U64 -> Document
 mixed_document = |context| {
-	suffix = if context == 0 "" else " (${context.to_str()})"
+	suffix = if (context == 0) "" else " (${context.to_str()})"
 	Pdf.document({
 		contents: [
 			Pdf.title("Quarterly summary${suffix}"),
@@ -932,7 +932,7 @@ paragraph_document = |count| {
 
 ordered_document : U64 -> Document
 ordered_document = |context| {
-	suffix = if context == 0 "" else " ${context.to_str()}"
+	suffix = if (context == 0) "" else " ${context.to_str()}"
 	Pdf.document({
 		contents: [
 			Pdf.rich_paragraph([
@@ -948,7 +948,7 @@ ordered_document = |context| {
 
 register_faces : U64 -> Try({ policy : Font.PolicyId, registry : Font.Registry }, Fixture.EvidenceError)
 register_faces = |context| {
-	limits = if context == 0 Font.ValidationLimits.default else Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })
+	limits = if (context == 0) Font.ValidationLimits.default else Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })
 	latin = match Font.Registry.empty.register(caller_font_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits) {
 		Err(_) => return Err(EvidenceFailure)
 		Ok(value) => value
@@ -1019,7 +1019,7 @@ descriptor = { flags: 32, italic_angle: 0, stem_v: 80 }
 
 rejects : Document, Conformance.DiagnosticCode, Str, Str -> U64
 rejects = |document, expected_code, expected_feature, expected_path| match Pdf.to_bytes(document) {
-	Err(InvalidDocument({ diagnostics: [{ code, details, feature: Feature(feature), location: Document, stage: AuthoringValidation, .. }], truncation: Complete, .. })) => if code == expected_code and feature == expected_feature and details == [expected_path] 1 else 0
+	Err(InvalidDocument({ diagnostics: [{ code, details, feature: Feature(feature), location: Document, stage: AuthoringValidation, .. }], truncation: Complete, .. })) => if (code == expected_code and feature == expected_feature and details == [expected_path]) 1 else 0
 	_ => 0
 }
 
@@ -1039,7 +1039,7 @@ nest_emphasis = |inner, depth| {
 ## and no bytes.
 run_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 run_negatives = |context| {
-	title = if context == 0 "Inline negatives" else "guarded"
+	title = if (context == 0) "Inline negatives" else "guarded"
 	document = |contents| Pdf.document({ contents, language: "en-AU", title })
 	offset = U64.mod_by(context, 1)
 	lead = Pdf.paragraph("Lead")

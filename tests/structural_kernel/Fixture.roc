@@ -176,7 +176,7 @@ Fixture :: [].{
 		} else {
 			crash "structural-kernel lexical stress fixture requires 2048 or 4096 bundles"
 		}
-		seed = if entry_count == 2048 4096 else entry_count
+		seed = if (entry_count == 2048) 4096 else entry_count
 		space = U64.mod_by(seed, 4064).to_u8_wrap()
 		name = match KernelLex.Name.from_bytes([65, space, 66, 47, 35]) {
 			Ok(value) => value
@@ -356,7 +356,7 @@ outline_entries = |count| {
 	while $index < count {
 		within_group = U64.mod_by($index, 32)
 		group = U64.div_by($index, 32)
-		depth = if within_group == 0 0 else 1
+		depth = if (within_group == 0) 0 else 1
 		open = depth == 0 and U64.mod_by(group, 2) == 0
 		$entries = $entries.append(
 			KernelOutline.Entry.make({
@@ -384,16 +384,16 @@ audit_outline = |plan| {
 		item = KernelOutline.Plan.item_at(plan, $index)
 		within_group = U64.mod_by($index, 32)
 		is_top = within_group == 0
-		expected_parent = if is_top Absent else At($index - within_group)
+		expected_parent = if (is_top) Absent else At($index - within_group)
 		expected_previous = if is_top {
-			if $index == 0 Absent else At($index - 32)
+			if ($index == 0) Absent else At($index - 32)
 		} else if within_group == 1 {
 			Absent
 		} else {
 			At($index - 1)
 		}
 		expected_next = if is_top {
-			if $index + 32 < KernelOutline.Plan.entry_count(plan) At($index + 32) else Absent
+			if ($index + 32 < KernelOutline.Plan.entry_count(plan)) At($index + 32) else Absent
 		} else if within_group == 31 {
 			Absent
 		} else {

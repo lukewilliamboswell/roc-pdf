@@ -324,7 +324,7 @@ build_ordered_pipeline = |authoring, multi, theme, page_size, descriptor, facts,
 	output_fonts = match KernelFacadeText.Plan.furniture(text) {
 		WithFurniture(furniture) => {
 			extra = KernelFacadeFurniture.Plan.extra_fonts(furniture)
-			if extra.is_empty() KernelFacadeShape.Plan.fonts(shape) else KernelFacadeShape.Plan.fonts(shape).concat(extra)
+			if (extra.is_empty()) KernelFacadeShape.Plan.fonts(shape) else KernelFacadeShape.Plan.fonts(shape).concat(extra)
 		}
 		NoFurniture => KernelFacadeShape.Plan.fonts(shape)
 	}
@@ -422,7 +422,7 @@ build_references = |authoring, selection, theme, page_size, descriptor, facts, r
 	output_fonts = match KernelFacadeText.Plan.furniture(text) {
 		WithFurniture(furniture) => {
 			extra = KernelFacadeFurniture.Plan.extra_fonts(furniture)
-			if extra.is_empty() base_fonts else base_fonts.concat(extra)
+			if (extra.is_empty()) base_fonts else base_fonts.concat(extra)
 		}
 		NoFurniture => base_fonts
 	}
@@ -524,7 +524,7 @@ probe_plan = |authoring, font, theme, page_size, descriptor, limits, stage| {
 	if stage == FragmentsReady {
 		return Ok(fragment_work)
 	}
-	probe_intent = if authoring.figures.is_empty() and authoring.decorations.is_empty() NoIntentProfile else PackagedSrgbIntent
+	probe_intent = if (authoring.figures.is_empty() and authoring.decorations.is_empty()) NoIntentProfile else PackagedSrgbIntent
 	scenes = KernelFacadeScenes.Plan.build_authoring_with_intent(fragments, page_size, authoring, probe_intent, limits.scenes) ? Scenes
 	scene_work = { ..fragment_work, scene_commands: KernelFacadeScenes.Plan.work(scenes).command_writes }
 	if stage == ScenesReady {

@@ -139,7 +139,7 @@ built_in_registry = |runtime_argument_count| {
 		Ok(value) => value
 	}
 	registered_options = Pdf.Options.{ theme: Theme.{ face: body.face }, fonts: Registered(body.registry) }
-	default_options = if runtime_argument_count == 2 Pdf.Options.default else registered_options
+	default_options = if (runtime_argument_count == 2) Pdf.Options.default else registered_options
 	default_bytes = match Pdf.to_bytes_with(caller_document({}), default_options) {
 		Err(_) => crash "default output failed"
 		Ok(value) => value

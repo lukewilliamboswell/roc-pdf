@@ -79,7 +79,7 @@ KernelObject :: [].{
 
 		from_number : U64 -> Try(ObjectId, Error)
 		from_number = |number|
-			if number == 0 Err(ObjectNumberZero) else Ok(ObjectId.(number))
+			if (number == 0) Err(ObjectNumberZero) else Ok(ObjectId.(number))
 
 		number : ObjectId -> U64
 		number = |ObjectId.(number)| number

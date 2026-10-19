@@ -12,10 +12,10 @@ import pdf.Pdf
 ## snapshot is an unrelated valid navigation document.
 run_negatives : U64 -> U64
 run_negatives = |guard| {
-	base_title = if guard == 0 "Navigation negatives" else "guarded"
+	base_title = if (guard == 0) "Navigation negatives" else "guarded"
 	document = |contents| Pdf.document({ contents, language: "en-AU", title: base_title })
 	expect_rejection = |doc, matches| match Pdf.to_bytes(doc) {
-		Err(InvalidNavigation(error)) => if matches(error) 1 else 0
+		Err(InvalidNavigation(error)) => if (matches(error)) 1 else 0
 		_ => 0
 	}
 
@@ -89,7 +89,7 @@ main! = |args| {
 	if passed != 9 {
 		crash "production-visual navigation facade negatives failed: ${passed.to_str()} of 9"
 	}
-	carrier_title = if guard == 0 "Navigation carrier" else "guarded"
+	carrier_title = if (guard == 0) "Navigation carrier" else "guarded"
 	carrier = Pdf.document({
 		contents: [
 			Pdf.title("Navigation carrier"),

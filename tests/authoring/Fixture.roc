@@ -485,7 +485,7 @@ synthetic_line_input = |scalars| {
 	var $glyphs = List.with_capacity(scalars)
 	var $index = 0
 	while $index < scalars {
-		decision = if $index > 0 and $index % 2 == 0 Allowed else Prohibited
+		decision = if ($index > 0 and $index % 2 == 0) Allowed else Prohibited
 		$boundaries = $boundaries.append({ authority: Tailorable, byte_offset: $index, decision, scalar_offset: $index })
 		$clusters = $clusters.append({
 			glyphs: Semantics.Range.from_start_and_length($index, 1),
@@ -633,7 +633,7 @@ synthetic_page_input = |block_count| {
 			policy: {
 				break_before: $block_index > 0 and $block_index % 10 == 0,
 				keep_together: kept,
-				keep_with_next: if $block_index % 10 == 5 and $block_index + 1 < block_count Required else NoKeep,
+				keep_with_next: if ($block_index % 10 == 5 and $block_index + 1 < block_count) Required else NoKeep,
 				minimum_first_lines: 2,
 				minimum_last_lines: 2,
 			},

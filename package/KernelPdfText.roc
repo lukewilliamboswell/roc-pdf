@@ -216,7 +216,7 @@ build_scene_plan = |ownership, fonts, limits, phases| {
 		collected = collect_run_mappings($states, font_index, semantics, scalars, text, run, $run_index, actual_length > 0)?
 		$states = collected.states
 		$mapping_conflicts = checked_add($mapping_conflicts, collected.conflicts)?
-		remaining = if $content_bytes > limits.max_content_bytes 0 else limits.max_content_bytes - $content_bytes
+		remaining = if ($content_bytes > limits.max_content_bytes) 0 else limits.max_content_bytes - $content_bytes
 		actual_text_begin = match actual_text {
 			NoActualText => []
 			UseActualText(values) => append_actual_text_begin([], values, run.id.index(), remaining)?
@@ -800,7 +800,7 @@ emitted_width : KernelFontPlan.Plan, U32 -> Try(I64, KernelPdfText.Error)
 emitted_width = |font, cid| {
 	entry = list_at(font.entries, cid.to_u64())
 	match KernelPdfFont.scaled_unsigned_metric(entry.width, font.units_per_em) {
-		Ok(width) => if width > I64.highest.to_u64_wrap() Err(ArithmeticOverflow) else Ok(width.to_i64_wrap())
+		Ok(width) => if (width > I64.highest.to_u64_wrap()) Err(ArithmeticOverflow) else Ok(width.to_i64_wrap())
 		Err(_) => Err(FontPlanInvalid({ font: 0 }))
 	}
 }
@@ -873,7 +873,7 @@ append_hex_u16 = |bytes, value, limit| {
 }
 
 hex_digit : U8 -> U8
-hex_digit = |value| if value < 10 0x30 + value else 0x41 + value - 10
+hex_digit = |value| if (value < 10) 0x30 + value else 0x41 + value - 10
 
 append_literal : List(U8), Str, U64 -> Try(List(U8), KernelPdfText.Error)
 append_literal = |bytes, literal, limit| append_bytes(bytes, Str.to_utf8(literal), limit)
@@ -909,7 +909,7 @@ check_room = |length, additional, limit| {
 }
 
 check_limit : U64, U64, KernelPdfText.Dimension -> Try({}, KernelPdfText.Error)
-check_limit = |attempted, limit, dimension| if attempted > limit Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
+check_limit = |attempted, limit, dimension| if (attempted > limit) Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
 
 checked_add : U64, U64 -> Try(U64, KernelPdfText.Error)
 checked_add = |left, right| match U64.plus_try(left, right) {

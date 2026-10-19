@@ -79,13 +79,13 @@ round_half_even : I64, I64 -> Try(I64, KernelGeometry.Error)
 round_half_even = |value, scale| {
 	quotient = I64.div_trunc_by(value, scale)
 	remainder = I64.rem_by(value, scale)
-	abs_remainder = if remainder < 0 -remainder else remainder
+	abs_remainder = if (remainder < 0) -remainder else remainder
 	twice_remainder = checked_times(abs_remainder, 2)?
 	adjust = twice_remainder > scale or
 		(twice_remainder == scale and I64.rem_by(quotient, 2) != 0)
 
 	if adjust {
-		checked_add(quotient, if value < 0 -1 else 1)
+		checked_add(quotient, if (value < 0) -1 else 1)
 	} else {
 		Ok(quotient)
 	}

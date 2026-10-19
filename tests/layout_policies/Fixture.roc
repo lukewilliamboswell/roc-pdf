@@ -85,7 +85,7 @@ item : Str -> Pdf.ListItem
 item = |text| Pdf.list_item([Pdf.paragraph(text)])
 
 suffix_for : U64 -> Str
-suffix_for = |context| if context == 0 "" else " (${context.to_str()})"
+suffix_for = |context| if (context == 0) "" else " (${context.to_str()})"
 
 lists_document : U64 -> Document
 lists_document = |context| Pdf.document({
@@ -304,7 +304,7 @@ page_size = { height: Layout.Unit.from_raw(842000), width: Layout.Unit.from_raw(
 
 rejects : Document, Conformance.DiagnosticCode, Str, List(Str) -> U64
 rejects = |document, expected_code, expected_feature, expected_paths| match Pdf.to_bytes(document) {
-	Err(InvalidDocument({ diagnostics: [{ code, details, feature: Feature(feature), location: Document, stage: AuthoringValidation, .. }], truncation: Complete, .. })) => if code == expected_code and feature == expected_feature and details == expected_paths 1 else 0
+	Err(InvalidDocument({ diagnostics: [{ code, details, feature: Feature(feature), location: Document, stage: AuthoringValidation, .. }], truncation: Complete, .. })) => if (code == expected_code and feature == expected_feature and details == expected_paths) 1 else 0
 	_ => 0
 }
 
@@ -338,7 +338,7 @@ roman_nest = |depth| {
 ## of each participating source, and no bytes.
 run_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 run_negatives = |context| {
-	title = if context == 0 "Layout negatives" else "guarded"
+	title = if (context == 0) "Layout negatives" else "guarded"
 	document = |contents| Pdf.document({ contents, language: "en-AU", title })
 	offset = U64.mod_by(context, 1)
 	lead = Pdf.paragraph("Lead")

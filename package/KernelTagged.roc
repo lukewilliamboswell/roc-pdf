@@ -694,7 +694,7 @@ compare_bytes = |left, right| {
 		}
 		$index = $index + 1
 	}
-	if left.len() < right.len() Less else if left.len() > right.len() Greater else Equal
+	if (left.len() < right.len()) Less else if (left.len() > right.len()) Greater else Equal
 }
 
 count_true : List(Bool) -> U64

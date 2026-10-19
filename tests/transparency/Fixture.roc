@@ -440,7 +440,7 @@ showcase_stores = |direction| {
 			Forward => $dense
 			Reversed => showcase_space_count - 1 - $dense
 		}
-		space = if logical == 0 cal_gray else Srgb(Color.ProfileId.from_index(0))
+		space = if (logical == 0) cal_gray else Srgb(Color.ProfileId.from_index(0))
 		$spaces = $spaces.append({ id: Color.SpaceId.from_index($dense), space })
 		$dense = $dense + 1
 	}
@@ -862,7 +862,7 @@ expect_facts_rejection = |ordinal, input, limits, matches| {
 	colors = KernelColor.Plan.build(input.colors, input.color_limits) ? |_| MissingRejection(ordinal)
 	images = KernelImage.Plan.build(input.images, colors, input.image_limits) ? |_| MissingRejection(ordinal)
 	match KernelForm.Facts.build(form_scene, { colors, font_count: 0, images }, NoTextStore, limits) {
-		Err(error) => if matches(error) Ok({}) else Err(MissingRejection(ordinal))
+		Err(error) => if (matches(error)) Ok({}) else Err(MissingRejection(ordinal))
 		Ok(_) => Err(MissingRejection(ordinal))
 	}
 }
@@ -876,7 +876,7 @@ expect_scene_rejection = |ordinal, input, matches| {
 		text_runs: 0,
 	})
 	match KernelScene.FormPlan.build(input.scene, input.form_store, resources, scene_limits, form_scene_limits) {
-		Err(error) => if matches(error) Ok({}) else Err(MissingRejection(ordinal))
+		Err(error) => if (matches(error)) Ok({}) else Err(MissingRejection(ordinal))
 		Ok(_) => Err(MissingRejection(ordinal))
 	}
 }
@@ -884,7 +884,7 @@ expect_scene_rejection = |ordinal, input, matches| {
 expect_plan_rejection : U64, Scenario, KernelForm.Limits, (BuildFailure -> Bool) -> Try({}, Fixture.EvidenceError)
 expect_plan_rejection = |ordinal, input, limits, matches| {
 	match build_plan_with_limits(input, limits) {
-		Err(error) => if matches(error) Ok({}) else Err(MissingRejection(ordinal))
+		Err(error) => if (matches(error)) Ok({}) else Err(MissingRejection(ordinal))
 		Ok(_) => Err(MissingRejection(ordinal))
 	}
 }

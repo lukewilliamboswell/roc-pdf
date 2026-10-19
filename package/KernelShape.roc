@@ -260,7 +260,7 @@ shape_simple_latin = |font, source, analysis, options, limits| {
 			return Err(AnalysisMismatch(ScalarFacts))
 		}
 		grapheme = list_at(analysis.graphemes, $visited)
-		grapheme_scalars = if grapheme.scalar_end >= grapheme.scalar_start grapheme.scalar_end - grapheme.scalar_start else 0
+		grapheme_scalars = if (grapheme.scalar_end >= grapheme.scalar_start) grapheme.scalar_end - grapheme.scalar_start else 0
 		if grapheme_scalars != 1 {
 			return Err(UnsupportedCluster({ grapheme: $visited, scalars: grapheme_scalars }))
 		}
@@ -415,7 +415,7 @@ shape_simple_batch_latin = |font, sources, options, requests, limits| {
 				return Err(AnalysisMismatch(ScalarFacts))
 			}
 			grapheme = list_at(analysis.graphemes, $visited)
-			grapheme_scalars = if grapheme.scalar_end >= grapheme.scalar_start grapheme.scalar_end - grapheme.scalar_start else 0
+			grapheme_scalars = if (grapheme.scalar_end >= grapheme.scalar_start) grapheme.scalar_end - grapheme.scalar_start else 0
 			if grapheme_scalars != 1 {
 				return Err(UnsupportedCluster({ grapheme: $visited, scalars: grapheme_scalars }))
 			}
@@ -622,7 +622,7 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 		font_index = request.instance.index()
 		if $group_writes {
 			existing = list_at($assignments, source_index)
-			var $updated = if existing.is_empty() List.repeat(fonts.len(), cluster_count) else existing
+			var $updated = if (existing.is_empty()) List.repeat(fonts.len(), cluster_count) else existing
 			var $cluster = range_start
 			while $cluster < range_end_index {
 				$updated = list_set($updated, $cluster, font_index)
@@ -647,7 +647,7 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 		}
 		grapheme_start = list_at(source.analysis.graphemes, range_start)
 		grapheme_last = list_at(source.analysis.graphemes, range_end_index - 1)
-		request_bytes = if grapheme_last.byte_end >= grapheme_start.byte_start grapheme_last.byte_end - grapheme_start.byte_start else 0
+		request_bytes = if (grapheme_last.byte_end >= grapheme_start.byte_start) grapheme_last.byte_end - grapheme_start.byte_start else 0
 		$planned_source_bytes = checked_add($planned_source_bytes, request_bytes)?
 		$planned_scalars = checked_add($planned_scalars, range_length)?
 		$planned_clusters = checked_add($planned_clusters, range_length)?
@@ -714,7 +714,7 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 					return Err(AnalysisMismatch(ScalarFacts))
 				}
 				grapheme = list_at(analysis.graphemes, $visited)
-				grapheme_scalars = if grapheme.scalar_end >= grapheme.scalar_start grapheme.scalar_end - grapheme.scalar_start else 0
+				grapheme_scalars = if (grapheme.scalar_end >= grapheme.scalar_start) grapheme.scalar_end - grapheme.scalar_start else 0
 				if grapheme_scalars != 1 {
 					return Err(UnsupportedCluster({ grapheme: $visited, scalars: grapheme_scalars }))
 				}
@@ -762,8 +762,8 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 	while $request_index < requests.len() {
 		request = list_at(requests, $request_index)
 		source_index = request.source.index()
-		variant = if $request_variants.is_empty() 0 else list_at($request_variants, $request_index)
-		template = list_at($source_templates, if variant == 0 source_index else sources.len() + variant - 1)
+		variant = if ($request_variants.is_empty()) 0 else list_at($request_variants, $request_index)
+		template = list_at($source_templates, if (variant == 0) source_index else sources.len() + variant - 1)
 		size = request.size.raw()
 		range_start = request.clusters.start()
 		range_length = request.clusters.length()
@@ -928,7 +928,7 @@ shape_ranged_selected = |fonts, sources, options, requests, limits| {
 		while $visited < range_length {
 			grapheme = list_at(source.analysis.graphemes, range_start + $visited)
 			if grapheme.scalar_start != range_start + $visited or grapheme.scalar_end != grapheme.scalar_start + 1 {
-				return Err(UnsupportedCluster({ grapheme: range_start + $visited, scalars: if grapheme.scalar_end >= grapheme.scalar_start grapheme.scalar_end - grapheme.scalar_start else 0 }))
+				return Err(UnsupportedCluster({ grapheme: range_start + $visited, scalars: if (grapheme.scalar_end >= grapheme.scalar_start) grapheme.scalar_end - grapheme.scalar_start else 0 }))
 			}
 			scalar = ranged_scalar(bytes, grapheme.byte_start, grapheme.byte_end)?
 			glyph = match KernelFont.glyph_for_scalar(font, scalar) {
@@ -1032,7 +1032,7 @@ check_ranged_script = |runs, start, end, expected, request| {
 		$cursor = U64.min(end, run.range.scalar_end)
 		$index = $index + 1
 	}
-	if $cursor != end Err(SelectedRequestInvalid({ reason: Script, request })) else Ok($visits)
+	if ($cursor != end) Err(SelectedRequestInvalid({ reason: Script, request })) else Ok($visits)
 }
 
 ## A Unicode analysis supplies a whole one-scalar grapheme range. Decode at
@@ -1065,8 +1065,8 @@ ranged_scalar = |bytes, start, end| {
 		$scalar = $scalar * 64 + byte.bitwise_and(63)
 		$index = $index + 1
 	}
-	minimum = if length == 1 0 else if length == 2 128 else if length == 3 2048 else 65536
-	if $scalar < minimum or $scalar > 1114111 or ($scalar >= 55296 and $scalar <= 57343) Err(AnalysisMismatch(GraphemeFacts)) else Ok($scalar)
+	minimum = if (length == 1) 0 else if (length == 2) 128 else if (length == 3) 2048 else 65536
+	if ($scalar < minimum or $scalar > 1114111 or ($scalar >= 55296 and $scalar <= 57343)) Err(AnalysisMismatch(GraphemeFacts)) else Ok($scalar)
 }
 
 expect ranged_scalar("aα木😀".to_utf8(), 1, 3) == Ok(945)
@@ -1120,7 +1120,7 @@ validate_selected_script = |runs, scalar_start, scalar_end, expected, request| {
 		}
 		$index = $index + 1
 	}
-	if $checked Ok({}) else Err(SelectedRequestInvalid({ reason: Script, request }))
+	if ($checked) Ok({}) else Err(SelectedRequestInvalid({ reason: Script, request }))
 }
 
 validate_scripts : List(KernelUnicode.ScriptRun), U64, U64, Str -> Try({}, KernelShape.Error)
@@ -1410,7 +1410,7 @@ validate_bidi_order = |font, store, order| {
 	## direction, which is the only direction defined for the whole span.
 	## Either way the direction is read from the resolved fact, never from
 	## the order glyphs happen to sit in.
-	paragraph_direction = if order.paragraph_level % 2 == 0 LeftToRight else RightToLeft
+	paragraph_direction = if (order.paragraph_level % 2 == 0) LeftToRight else RightToLeft
 	var $run_index = 0
 	while $run_index < store.runs.len() {
 		run = list_at(store.runs, $run_index)
@@ -1434,7 +1434,7 @@ validate_bidi_order = |font, store, order| {
 		if $overlaps == 0 {
 			return Err(BidiOrderInvalid({ reason: SourceRange, visual: $run_index }))
 		}
-		expected_direction = if $containing $contained_direction else paragraph_direction
+		expected_direction = if ($containing) $contained_direction else paragraph_direction
 		directions_agree = match (run.direction, expected_direction) {
 			(LeftToRight, LeftToRight) => True
 			(RightToLeft, RightToLeft) => True
@@ -1571,7 +1571,7 @@ range_within = |inner, outer| {
 }
 
 range_end : Semantics.Range, U64 -> Try(U64, [OutOfRange])
-range_end = |range, available| if range.start() > available or range.length() > available - range.start() Err(OutOfRange) else Ok(range.start() + range.length())
+range_end = |range, available| if (range.start() > available or range.length() > available - range.start()) Err(OutOfRange) else Ok(range.start() + range.length())
 
 valid_cluster_cardinality : Text.ClusterKind, U64, U64 -> Bool
 valid_cluster_cardinality = |kind, scalars, glyphs| match kind {
@@ -1601,7 +1601,7 @@ scale_advance = |width, size, units_per_em| {
 }
 
 check_limit : U64, U64, KernelShape.Dimension -> Try({}, KernelShape.Error)
-check_limit = |attempted, limit, dimension| if attempted > limit Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
+check_limit = |attempted, limit, dimension| if (attempted > limit) Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
 
 checked_add : U64, U64 -> Try(U64, KernelShape.Error)
 checked_add = |left, right| match U64.plus_try(left, right) {

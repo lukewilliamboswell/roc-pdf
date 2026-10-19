@@ -415,7 +415,7 @@ build_styled_plan = |authoring, owners, store, source_store, styled, theme, limi
 	var $index = 0
 	while $index < preparation.requests.len() {
 		request = list_at(preparation.requests, $index)
-		range = if preparation.ranges.is_empty() whole_source_range(source_store, request.source, preparation.options.language) else list_at(preparation.ranges, $index)
+		range = if (preparation.ranges.is_empty()) whole_source_range(source_store, request.source, preparation.options.language) else list_at(preparation.ranges, $index)
 		instance = Font.InstanceId.from_index(list_at($dense, list_at(candidates, $index)))
 		$selected = $selected.append({ clusters: range.clusters, instance, language: range.language, occurrence: request.occurrence, script: latin, size: request.size, source: request.source })
 		$index = $index + 1
@@ -509,9 +509,9 @@ build_source_styled = |authoring, preparation, store, sources, styled, candidate
 						} else {
 							end
 						}
-						alias = if is_source list_at(analysis.script_runs, $script).script else "Latn"
+						alias = if (is_source) list_at(analysis.script_runs, $script).script else "Latn"
 						if stop <= $cursor or (is_source and !declared_script(alias)) {
-							return Err(UnsupportedText({ block: $block, inline: NoInline, reason: Script(alias), scalars: Semantics.Range.from_start_and_length($cursor - range.clusters.start(), if stop > $cursor stop - $cursor else 1) }))
+							return Err(UnsupportedText({ block: $block, inline: NoInline, reason: Script(alias), scalars: Semantics.Range.from_start_and_length($cursor - range.clusters.start(), if (stop > $cursor) stop - $cursor else 1) }))
 						}
 						check_limit_requests($requests.len() + 1, limits.max_requests)?
 						$requests = $requests.append(original)
@@ -558,7 +558,7 @@ build_source_styled = |authoring, preparation, store, sources, styled, candidate
 }
 
 check_limit_requests : U64, U64 -> Try({}, KernelFacadeShape.Error)
-check_limit_requests = |attempted, limit| if attempted > limit Err(LimitExceeded({ attempted, dimension: Requests, limit })) else Ok({})
+check_limit_requests = |attempted, limit| if (attempted > limit) Err(LimitExceeded({ attempted, dimension: Requests, limit })) else Ok({})
 
 first_script_run : List(KernelUnicode.ScriptRun), U64 -> U64
 first_script_run = |runs, scalar| {
@@ -580,7 +580,7 @@ first_script_run = |runs, scalar| {
 ## 0). Labels and plain blocks shape in the body face.
 request_candidates : Document.NormalizedAuthoring, KernelFacadeShape.Preparation, KernelFacadeShape.StyledFaces, Theme -> List(U64)
 request_candidates = |authoring, preparation, styled, theme| {
-	face_indexes = if authoring.sources.is_empty() [] else styled_face_indexes(styled)
+	face_indexes = if (authoring.sources.is_empty()) [] else styled_face_indexes(styled)
 	var $candidates = List.repeat(0, preparation.requests.len())
 	var $block = 0
 	while $block < preparation.block_runs.len() {
@@ -591,7 +591,7 @@ request_candidates = |authoring, preparation, styled, theme| {
 				## heading face); its generated label stays in the body face.
 				face = block_style(authoring, $block, theme).font
 				if face.index() != styled_body_face(styled) {
-					candidate = if face_indexes.is_empty() candidate_of(styled, face) else list_at(face_indexes, face.index())
+					candidate = if (face_indexes.is_empty()) candidate_of(styled, face) else list_at(face_indexes, face.index())
 					$candidates = list_set($candidates, body.physical.start(), candidate)
 				}
 			}
@@ -701,11 +701,11 @@ candidate_of = |styled, face| {
 ## stage precondition that no block silently shapes in another face.
 validate_style_faces : Document.NormalizedAuthoring, Theme, KernelFacadeShape.StyledFaces -> Try({}, KernelFacadeShape.Error)
 validate_style_faces = |authoring, theme, styled| {
-	indexes = if authoring.sources.is_empty() [] else styled_face_indexes(styled)
+	indexes = if (authoring.sources.is_empty()) [] else styled_face_indexes(styled)
 	var $block = 0
 	while $block < authoring.blocks.len() {
 		face = block_style(authoring, $block, theme).font
-		valid = if indexes.is_empty() styled.faces.any(|known| known == face) else face.index() < indexes.len() and list_at(indexes, face.index()) != U64.highest
+		valid = if (indexes.is_empty()) styled.faces.any(|known| known == face) else face.index() < indexes.len() and list_at(indexes, face.index()) != U64.highest
 		if !valid {
 			return Err(UnsupportedThemeFace({ block: $block, face: face.index() }))
 		}
@@ -752,7 +752,7 @@ single_face_requests = |preparation| {
 }
 
 request_origins : List(KernelFacadeShape.RequestRange) -> KernelFacadeShape.Origins
-request_origins = |ranges| if ranges.is_empty() WholeSources else Origins(ranges.map(|range| range.origin))
+request_origins = |ranges| if (ranges.is_empty()) WholeSources else Origins(ranges.map(|range| range.origin))
 
 ## The single-face path requires every style to reference the exact resolved
 ## body face (`RequireFace` with the theme's body face index); the
@@ -1052,7 +1052,7 @@ source_cluster_range = |graphemes, start, end, block| {
 	while $index < graphemes.len() and list_at(graphemes, $index).scalar_start < end {
 		cluster = list_at(graphemes, $index)
 		if cluster.scalar_end != cluster.scalar_start + 1 {
-			return Err(UnsupportedText({ block, inline: NoInline, reason: Cluster, scalars: Semantics.Range.from_start_and_length(if cluster.scalar_start >= start cluster.scalar_start - start else 0, if cluster.scalar_end >= cluster.scalar_start cluster.scalar_end - cluster.scalar_start else 0) }))
+			return Err(UnsupportedText({ block, inline: NoInline, reason: Cluster, scalars: Semantics.Range.from_start_and_length(if (cluster.scalar_start >= start) cluster.scalar_start - start else 0, if (cluster.scalar_end >= cluster.scalar_start) cluster.scalar_end - cluster.scalar_start else 0) }))
 		}
 		$index = $index + 1
 	}
@@ -1130,7 +1130,7 @@ whole_occurrence = |at, occurrence_id| {
 		return Err(LanguageMismatch({ occurrence: occurrence_index }))
 	}
 	match occurrence.source {
-		Text(id, UnicodeRange(_)) => if id.index() < at.sources.len() Ok({ source: id, value: occurrence }) else Err(InvalidOccurrence({ block: at.block, occurrence: occurrence_index }))
+		Text(id, UnicodeRange(_)) => if (id.index() < at.sources.len()) Ok({ source: id, value: occurrence }) else Err(InvalidOccurrence({ block: at.block, occurrence: occurrence_index }))
 		_ => Err(InvalidOccurrence({ block: at.block, occurrence: occurrence_index }))
 	}
 }
@@ -1443,7 +1443,7 @@ cluster_at = |graphemes, from, scalar, block, inline| {
 		$cursor = $cursor + 1
 	}
 	if $cursor < graphemes.len() {
-		if list_at(graphemes, $cursor).scalar_start == scalar Ok($cursor) else Err(InlineClusterBoundary({ block, inline }))
+		if (list_at(graphemes, $cursor).scalar_start == scalar) Ok($cursor) else Err(InlineClusterBoundary({ block, inline }))
 	} else if $cursor > 0 and list_at(graphemes, $cursor - 1).scalar_end == scalar {
 		Ok($cursor)
 	} else {
@@ -1682,7 +1682,7 @@ build_ordered_plan = |authoring, owners, store, source_store, ordered, theme, li
 			face_record = list_at(registry_store.faces, face.index())
 			if face_record.provision != BuiltIn {
 				script_index = face_record.scripts.start()
-				script = if script_index < registry_store.scripts.len() list_at(registry_store.scripts, script_index) else Font.Script.from_iso15924("Zzzz")
+				script = if (script_index < registry_store.scripts.len()) list_at(registry_store.scripts, script_index) else Font.Script.from_iso15924("Zzzz")
 				return Err(FontSelectionRejected([UnsupportedBuiltInShaping({ cluster: 0, script })]))
 			}
 			inspection = ordered.registry.prepared_face(face) ? |_| PolicyInvalid(UnknownPolicyFace(face))
@@ -1737,7 +1737,7 @@ build_ordered_plan = |authoring, owners, store, source_store, ordered, theme, li
 	}
 	physical_requests = $expanded.requests
 	physical_styles = $expanded.styles
-	physical_origins = if preparation.ranges.is_empty() WholeSources else Origins($expanded.origins)
+	physical_origins = if (preparation.ranges.is_empty()) WholeSources else Origins($expanded.origins)
 
 	shape = match KernelShape.shape_selected_batch($fonts, source_store, { direction: LeftToRight, language: batch_language, writing_mode: Horizontal }, $expanded.selected, limits.shape) {
 		Err(_) => return Err(ShapeFailure)
@@ -1860,7 +1860,7 @@ ordered_segments = |face_ranges, script_runs, used_faces, source_index| {
 		var $cursor = range_start
 		while $cursor < range_end {
 			run = script_run_covering(script_runs, $cursor, source_index)?
-			segment_end = if run.range.scalar_end < range_end run.range.scalar_end else range_end
+			segment_end = if (run.range.scalar_end < range_end) run.range.scalar_end else range_end
 			if segment_end <= $cursor {
 				return Err(UndeclaredScript({ script: run.script, source: source_index }))
 			}
@@ -1947,7 +1947,7 @@ expand_logical = |logical, preparation, segments_per_source, buffers, max_reques
 		if segments.is_empty() {
 			return Err(OccurrenceCoverage({ actual: 0, expected: 1 }))
 		}
-		range = if ranged list_at(preparation.ranges, $request_index) else { clusters: Semantics.Range.from_start_and_length(0, segment_end(list_at(segments, segments.len() - 1))), language: preparation.options.language, origin: { byte: 0, scalar: 0 } }
+		range = if (ranged) list_at(preparation.ranges, $request_index) else { clusters: Semantics.Range.from_start_and_length(0, segment_end(list_at(segments, segments.len() - 1))), language: preparation.options.language, origin: { byte: 0, scalar: 0 } }
 		range_start = range.clusters.start()
 		range_end = range_start + range.clusters.length()
 		while $cursor < segments.len() and segment_end(list_at(segments, $cursor)) <= range_start {
@@ -2204,7 +2204,7 @@ source_failures = |source, rules| {
 		while $grapheme < analysis.graphemes.len() and list_at(analysis.graphemes, $grapheme).scalar_end <= scalar_index {
 			$grapheme = $grapheme + 1
 		}
-		script = if $run < analysis.script_runs.len() list_at(analysis.script_runs, $run).script else ""
+		script = if ($run < analysis.script_runs.len()) list_at(analysis.script_runs, $run).script else ""
 		cluster = if $grapheme < analysis.graphemes.len() {
 			record = list_at(analysis.graphemes, $grapheme)
 			{ length: record.scalar_end - record.scalar_start, start: record.scalar_start }
@@ -2264,7 +2264,7 @@ single_face_rules = |font| {
 		Some(glyph) => glyph != 0
 		None => False
 	},
-	script: |alias| if alias == "Latn" or alias == "Zyyy" or alias == "Zinh" Shaped else if alias == "Hani" Declared else Undeclared,
+	script: |alias| if (alias == "Latn" or alias == "Zyyy" or alias == "Zinh") Shaped else if (alias == "Hani") Declared else Undeclared,
 }
 
 ## The ordered-policy rules: the declared script set, covered by any face
@@ -2277,5 +2277,5 @@ policy_rules = |fonts| {
 			None => False
 		},
 	),
-	script: |alias| if declared_script(alias) Shaped else Undeclared,
+	script: |alias| if (declared_script(alias)) Shaped else Undeclared,
 }
