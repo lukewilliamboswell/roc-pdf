@@ -123,12 +123,17 @@ KernelLex :: [].{
 	append_text : List(U8), Text -> List(U8)
 	append_text = |output, value| write_text_utf8(output, Text.bytes(value))
 
+	## Orders two strings by their UTF-8 bytes without copying either into a
+	## list, which `Str.to_utf8` did once per comparison key.
+	compare_utf8 : Str, Str -> [Equal, Greater, Less]
+	compare_utf8 = |left, right| compare_iterators(Str.iter_utf8(left), Str.iter_utf8(right))
+
 	## The bytes of a PDF name given as a `Str`. The standard structure types
 	## and the attribute keys and values the package lowers come from static
 	## constants; `Str.to_utf8` would allocate a fresh list for every
 	## structure element and attribute. Any other name is converted.
 	name_bytes : Str -> List(U8)
-	name_bytes = |name| match name {
+	name_bytes = |value| match value {
 		"Document" => document_name
 		"DocumentFragment" => document_fragment_name
 		"Part" => part_name
@@ -211,7 +216,7 @@ KernelLex :: [].{
 		"E" => e_name
 		"Lang" => lang_name
 		"ID" => id_name
-		_ => Str.to_utf8(name)
+		_ => Str.to_utf8(value)
 	}
 }
 
@@ -827,3 +832,57 @@ expect KernelLex.byte_string(Str.to_utf8("c000008")) == Str.to_utf8("(c000008)")
 expect KernelLex.text_string("en-AU") == Str.to_utf8("(en-AU)") and
 	KernelLex.text_string("Café") == Str.to_utf8("<FEFF00430061006600E9>") and
 		KernelLex.text_string("") == Str.to_utf8("<>")
+
+compare_iterators : Iter(U8), Iter(U8) -> [Equal, Greater, Less]
+compare_iterators = |left, right| {
+	var $left = left
+	var $right = right
+	while True {
+		match Iter.next($left) {
+			Skip({ rest }) => {
+				$left = rest
+			}
+			Done => return match next_byte($right) {
+				NoByte => Equal
+				Byte(_) => Less
+			}
+			One({ item: a, rest: left_rest }) => match next_byte($right) {
+				NoByte => return Greater
+				Byte({ byte: b, rest: right_rest }) => {
+					if a < b {
+						return Less
+					}
+					if a > b {
+						return Greater
+					}
+					$left = left_rest
+					$right = right_rest
+				}
+			}
+		}
+	}
+}
+
+next_byte : Iter(U8) -> [Byte({ byte : U8, rest : Iter(U8) }), NoByte]
+next_byte = |iter| {
+	var $iter = iter
+	while True {
+		match Iter.next($iter) {
+			Skip({ rest }) => {
+				$iter = rest
+			}
+			Done => return NoByte
+			One({ item, rest }) => return Byte({ byte: item, rest })
+		}
+	}
+}
+
+# UTF-8 byte order: a proper prefix sorts first, and a multi-byte scalar
+# compares by its encoded bytes (é is C3 A9, above every ASCII byte).
+expect KernelLex.compare_utf8("c000001", "c000002") == Less and
+	KernelLex.compare_utf8("c000002", "c000001") == Greater and
+		KernelLex.compare_utf8("c000001", "c000001") == Equal and
+			KernelLex.compare_utf8("c", "c0") == Less and
+				KernelLex.compare_utf8("c0", "c") == Greater and
+					KernelLex.compare_utf8("", "") == Equal and
+						KernelLex.compare_utf8("z", "é") == Less
