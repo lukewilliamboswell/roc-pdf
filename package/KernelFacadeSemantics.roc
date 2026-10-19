@@ -2730,7 +2730,7 @@ cell_ordinal = |cells, block| {
 cell_identifier : U64 -> Str
 cell_identifier = |ordinal| {
 	digits = (1000000 + ordinal + 1).to_str()
-	match Str.from_utf8(Str.to_utf8(digits).drop_first(1)) {
+	match digits.drop_first_bytes(1) {
 		Ok(text) => "c${text}"
 		Err(_) => crash "generated cell identifier escaped ASCII"
 	}
