@@ -1658,7 +1658,7 @@ cluster_range = |store, run, scalars| {
 scalar_count : Str -> U64
 scalar_count = |text| {
 	var $count = 0
-	for byte in Str.to_utf8(text) {
+	for byte in Str.iter_utf8(text) {
 		if byte.bitwise_and(0xC0) != 0x80 {
 			$count = $count + 1
 		}

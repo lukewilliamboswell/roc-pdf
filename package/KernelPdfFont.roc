@@ -654,7 +654,15 @@ scale_unsigned = |value, units_per_em| {
 }
 
 append_ascii : List(U8), Str -> List(U8)
-append_ascii = |bytes, text| append_all(bytes, Str.to_utf8(text))
+
+## Iterates the text's bytes in place; `Str.to_utf8` allocated a list per call.
+append_ascii = |bytes, text| {
+	var $out = bytes
+	for byte in Str.iter_utf8(text) {
+		$out = $out.append(byte)
+	}
+	$out
+}
 
 append_u64_decimal : List(U8), U64 -> List(U8)
 append_u64_decimal = |bytes, value| {
