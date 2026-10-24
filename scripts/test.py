@@ -935,7 +935,12 @@ def run_parallel_roc_tasks(tasks: list[ValidationTask], jobs: int) -> None:
             if task.action == "fmt":
                 roc("fmt", "--check", *(relative(source) for source in task.sources))
             else:
-                roc(task.action, relative(task.sources[0]))
+                # TODO(roc-lang/roc#ISSUE): remove --no-cache. On
+                # nightly-2026-10-23-18478ff a shared cache that already holds
+                # the package from an earlier root makes every later root's
+                # number literals of package types fail compile-time
+                # `from_numeral` evaluation with a stack overflow.
+                roc(task.action, relative(task.sources[0]), "--no-cache")
         except SystemExit as error:
             if task.action != "test":
                 raise
