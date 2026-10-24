@@ -58,9 +58,12 @@ def render_group_app(
         return Path(os.path.relpath(path, base)).as_posix()
 
     ordered = sorted(members, key=lambda member: member.tag)
-    lines = ["app [main!] {", f'\tpf: platform "{rel(platform)}",']
-    for member in sorted(ordered, key=package_alias):
-        lines.append(f'\t{package_alias(member)}: "{rel(member.package)}",')
+    # `roc fmt` orders header entries by alias.
+    entries = [("pf", f'platform "{rel(platform)}"')]
+    entries.extend((package_alias(member), f'"{rel(member.package)}"') for member in ordered)
+    lines = ["app [main!] {"]
+    for alias, value in sorted(entries):
+        lines.append(f"\t{alias}: {value},")
     lines.append("}")
     lines.append("")
     lines.append("import pf.Metrics")

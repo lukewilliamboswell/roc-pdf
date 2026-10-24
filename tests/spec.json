@@ -237,10 +237,10 @@
     },
     {
       "name": "layout_policies",
-      "source": "tests/layout_policies/main.roc",
+      "source": "tests/layout_policies/package.roc",
       "cases_jsonl": "tests/layout_policies/cases.jsonl",
-      "group": null,
-      "tag": null
+      "group": "layout",
+      "tag": "LayoutPolicies"
     },
     {
       "name": "tables",
@@ -258,17 +258,17 @@
     },
     {
       "name": "flow_figures",
-      "source": "tests/flow_figures/main.roc",
+      "source": "tests/flow_figures/package.roc",
       "cases_jsonl": "tests/flow_figures/cases.jsonl",
-      "group": null,
-      "tag": null
+      "group": "layout",
+      "tag": "FlowFigures"
     },
     {
       "name": "custom_block",
-      "source": "tests/custom_block/main.roc",
+      "source": "tests/custom_block/package.roc",
       "cases_jsonl": "tests/custom_block/cases.jsonl",
-      "group": null,
-      "tag": null
+      "group": "layout",
+      "tag": "CustomBlock"
     },
     {
       "name": "reference_documents",
@@ -22282,7 +22282,7 @@
     {
       "name": "layout policies nested lists",
       "scenario_revision": "layout-policies-v1",
-      "source": "tests/layout_policies/main.roc",
+      "source": "tests/layout_policies/package.roc",
       "snapshot": "tests/layout_policies/nested_lists.pdf",
       "args": [
         "lists",
@@ -22364,7 +22364,7 @@
     {
       "name": "layout policies explicit breaks and spacers",
       "scenario_revision": "layout-policies-v1",
-      "source": "tests/layout_policies/main.roc",
+      "source": "tests/layout_policies/package.roc",
       "snapshot": "tests/layout_policies/breaks.pdf",
       "args": [
         "breaks",
@@ -22446,7 +22446,7 @@
     {
       "name": "layout policies keeps across page boundaries",
       "scenario_revision": "layout-policies-v1",
-      "source": "tests/layout_policies/main.roc",
+      "source": "tests/layout_policies/package.roc",
       "snapshot": "tests/layout_policies/keeps.pdf",
       "args": [
         "keeps",
@@ -22528,7 +22528,7 @@
     {
       "name": "layout policies reported relaxations",
       "scenario_revision": "layout-policies-v1",
-      "source": "tests/layout_policies/main.roc",
+      "source": "tests/layout_policies/package.roc",
       "snapshot": "tests/layout_policies/relaxations.pdf",
       "args": [
         "relaxations",
@@ -22610,7 +22610,7 @@
     {
       "name": "layout policies keep groups and lists x50",
       "scenario_revision": "layout-policies-v1",
-      "source": "tests/layout_policies/main.roc",
+      "source": "tests/layout_policies/package.roc",
       "snapshot": "tests/layout_policies/groups_50.pdf",
       "args": [
         "groups",
@@ -22692,7 +22692,7 @@
     {
       "name": "layout policies keep groups and lists x500",
       "scenario_revision": "layout-policies-v1",
-      "source": "tests/layout_policies/main.roc",
+      "source": "tests/layout_policies/package.roc",
       "snapshot": "tests/layout_policies/groups_500.pdf",
       "args": [
         "groups",
@@ -22774,7 +22774,7 @@
     {
       "name": "layout policies adversarial heading chain x50",
       "scenario_revision": "layout-policies-v1",
-      "source": "tests/layout_policies/main.roc",
+      "source": "tests/layout_policies/package.roc",
       "snapshot": "tests/layout_policies/heading_chain_50.pdf",
       "args": [
         "heading_chain",
@@ -22856,7 +22856,7 @@
     {
       "name": "layout policies adversarial heading chain x500",
       "scenario_revision": "layout-policies-v1",
-      "source": "tests/layout_policies/main.roc",
+      "source": "tests/layout_policies/package.roc",
       "snapshot": "tests/layout_policies/heading_chain_500.pdf",
       "args": [
         "heading_chain",
@@ -22938,7 +22938,7 @@
     {
       "name": "layout policies atomic negatives",
       "scenario_revision": "layout-policies-v1",
-      "source": "tests/layout_policies/main.roc",
+      "source": "tests/layout_policies/package.roc",
       "snapshot": "tests/layout_policies/negatives.pdf",
       "args": [
         "atomic_negatives",
@@ -24966,7 +24966,7 @@
     {
       "name": "flow figures report",
       "scenario_revision": "flow-figures-v1",
-      "source": "tests/flow_figures/main.roc",
+      "source": "tests/flow_figures/package.roc",
       "snapshot": "tests/flow_figures/report.pdf",
       "args": [
         "report"
@@ -25026,7 +25026,7 @@
     {
       "name": "flow figures sections x10",
       "scenario_revision": "flow-figures-v1",
-      "source": "tests/flow_figures/main.roc",
+      "source": "tests/flow_figures/package.roc",
       "snapshot": "tests/flow_figures/sections_10.pdf",
       "args": [
         "sections",
@@ -25087,7 +25087,7 @@
     {
       "name": "flow figures sections x100",
       "scenario_revision": "flow-figures-v1",
-      "source": "tests/flow_figures/main.roc",
+      "source": "tests/flow_figures/package.roc",
       "snapshot": "tests/flow_figures/sections_100.pdf",
       "args": [
         "sections",
@@ -25148,7 +25148,7 @@
     {
       "name": "flow figures labels x10",
       "scenario_revision": "flow-figures-labels-v1",
-      "source": "tests/flow_figures/main.roc",
+      "source": "tests/flow_figures/package.roc",
       "snapshot": "tests/flow_figures/labels_10.pdf",
       "args": [
         "labels",
@@ -25209,7 +25209,7 @@
     {
       "name": "flow figures labels x50",
       "scenario_revision": "flow-figures-labels-v1",
-      "source": "tests/flow_figures/main.roc",
+      "source": "tests/flow_figures/package.roc",
       "snapshot": "tests/flow_figures/labels_50.pdf",
       "args": [
         "labels",
@@ -25270,7 +25270,7 @@
     {
       "name": "flow figures label faces x10",
       "scenario_revision": "flow-figures-label-faces-v1",
-      "source": "tests/flow_figures/main.roc",
+      "source": "tests/flow_figures/package.roc",
       "snapshot": "tests/flow_figures/label_faces_10.pdf",
       "args": [
         "label_faces",
@@ -25334,7 +25334,7 @@
     {
       "name": "flow figures label faces x50",
       "scenario_revision": "flow-figures-label-faces-v1",
-      "source": "tests/flow_figures/main.roc",
+      "source": "tests/flow_figures/package.roc",
       "snapshot": "tests/flow_figures/label_faces_50.pdf",
       "args": [
         "label_faces",
@@ -25398,7 +25398,7 @@
     {
       "name": "flow figures spaced decorations x10",
       "scenario_revision": "flow-figures-spaced-decorations-v1",
-      "source": "tests/flow_figures/main.roc",
+      "source": "tests/flow_figures/package.roc",
       "snapshot": "tests/flow_figures/spaced_decorations_10.pdf",
       "args": [
         "spaced_decorations",
@@ -25459,7 +25459,7 @@
     {
       "name": "flow figures spaced decorations x100",
       "scenario_revision": "flow-figures-spaced-decorations-v1",
-      "source": "tests/flow_figures/main.roc",
+      "source": "tests/flow_figures/package.roc",
       "snapshot": "tests/flow_figures/spaced_decorations_100.pdf",
       "args": [
         "spaced_decorations",
@@ -25520,7 +25520,7 @@
     {
       "name": "flow figures drawing bound diagnostics",
       "scenario_revision": "flow-figures-bound-diagnostics-v1",
-      "source": "tests/flow_figures/main.roc",
+      "source": "tests/flow_figures/package.roc",
       "snapshot": "tests/flow_figures/bound_diagnostics.pdf",
       "args": [
         "bound_diagnostics",
@@ -25562,7 +25562,7 @@
     {
       "name": "flow figures atomic negatives",
       "scenario_revision": "flow-figures-v1",
-      "source": "tests/flow_figures/main.roc",
+      "source": "tests/flow_figures/package.roc",
       "snapshot": "tests/flow_figures/negatives.pdf",
       "args": [
         "negatives"
@@ -25603,7 +25603,7 @@
     {
       "name": "custom block report",
       "scenario_revision": "custom-block-v1",
-      "source": "tests/custom_block/main.roc",
+      "source": "tests/custom_block/package.roc",
       "snapshot": "tests/custom_block/report.pdf",
       "args": [
         "report"
@@ -25677,7 +25677,7 @@
     {
       "name": "custom block callouts x10",
       "scenario_revision": "custom-block-v1",
-      "source": "tests/custom_block/main.roc",
+      "source": "tests/custom_block/package.roc",
       "snapshot": "tests/custom_block/callouts_10.pdf",
       "args": [
         "callouts",
@@ -25749,7 +25749,7 @@
     {
       "name": "custom block callouts x100",
       "scenario_revision": "custom-block-v1",
-      "source": "tests/custom_block/main.roc",
+      "source": "tests/custom_block/package.roc",
       "snapshot": "tests/custom_block/callouts_100.pdf",
       "args": [
         "callouts",
@@ -25821,7 +25821,7 @@
     {
       "name": "custom block rich callouts x10",
       "scenario_revision": "custom-block-rich-callouts-v1",
-      "source": "tests/custom_block/main.roc",
+      "source": "tests/custom_block/package.roc",
       "snapshot": "tests/custom_block/rich_callouts_10.pdf",
       "args": [
         "rich_callouts",
@@ -25894,7 +25894,7 @@
     {
       "name": "custom block rich callouts x50",
       "scenario_revision": "custom-block-rich-callouts-v1",
-      "source": "tests/custom_block/main.roc",
+      "source": "tests/custom_block/package.roc",
       "snapshot": "tests/custom_block/rich_callouts_50.pdf",
       "args": [
         "rich_callouts",
@@ -25967,7 +25967,7 @@
     {
       "name": "custom block atomic negatives",
       "scenario_revision": "custom-block-v1",
-      "source": "tests/custom_block/main.roc",
+      "source": "tests/custom_block/package.roc",
       "snapshot": "tests/custom_block/negatives.pdf",
       "args": [
         "negatives"
@@ -27595,7 +27595,7 @@
     {
       "name": "custom block defaults",
       "scenario_revision": "custom-block-defaults-v1",
-      "source": "tests/custom_block/main.roc",
+      "source": "tests/custom_block/package.roc",
       "snapshot": "tests/custom_block/defaults.pdf",
       "args": [
         "defaults"
