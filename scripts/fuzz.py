@@ -24,6 +24,7 @@ request.
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import os
 import shutil
 import subprocess
@@ -167,12 +168,16 @@ class Budget:
     deadline: float
 
 
-def fuzz_target(target: Target, budget: Budget, timeout: int, memory_limit: int) -> float:
+def build_target(target: Target) -> Path:
     source = ROOT / "fuzz" / f"{target.name}.roc"
     if not source.is_file():
         raise LaneFailure(f"missing {source.relative_to(ROOT)}")
     binary = WORK / target.name
     run([ROC, "build", "--fuzz", str(source.relative_to(ROOT)), f"--output={binary}"])
+    return binary
+
+
+def fuzz_target(target: Target, binary: Path, budget: Budget, timeout: int, memory_limit: int) -> float:
     corpus = corpus_for(target)
     artifacts = ARTIFACTS / target.name
     if artifacts.exists():
@@ -196,6 +201,28 @@ def fuzz_target(target: Target, budget: Budget, timeout: int, memory_limit: int)
     return time.monotonic() - started
 
 
+def default_build_jobs() -> int:
+    """Parallel `roc build --fuzz` processes the machine's memory allows.
+
+    An LLVM fuzz build of a facade target peaks at about 5.6 GB resident on
+    nightly-2026-10-23, so each build is budgeted 6 GB with 2 GB held back.
+    """
+    cpus = max(1, os.cpu_count() or 1)
+    try:
+        memory = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
+    except (OSError, ValueError):
+        return 1
+    cgroup_limit = Path("/sys/fs/cgroup/memory.max")
+    try:
+        value = cgroup_limit.read_text(encoding="ascii").strip()
+        if value != "max":
+            memory = min(memory, int(value))
+    except (OSError, ValueError):
+        pass
+    by_memory = max(1, (memory - 2 * 1024**3) // (6 * 1024**3))
+    return max(1, min(cpus, by_memory))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
@@ -211,6 +238,11 @@ def main() -> None:
         action="append",
         metavar="NAME",
         help="run only this target; repeatable",
+    )
+    parser.add_argument(
+        "--jobs",
+        type=int,
+        help="parallel target builds (default: as many as memory allows at 6 GB each); runs stay sequential",
     )
     parser.add_argument("--timeout", type=int, default=10, help="seconds per target call")
     parser.add_argument("--memory-limit", type=int, default=2048, help="MB per target process")
@@ -237,10 +269,28 @@ def main() -> None:
 
     WORK.mkdir(parents=True, exist_ok=True)
     SEEDS.mkdir(parents=True, exist_ok=True)
+    jobs = default_build_jobs() if args.jobs is None else args.jobs
+    if jobs < 1:
+        raise SystemExit("--jobs must be positive")
+    print(f"Building {len(selected)} targets with {jobs} parallel builds", flush=True)
     failures: list[str] = []
+    binaries: dict[str, Path] = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
+        futures = {executor.submit(build_target, target): target for target in selected}
+        for future in concurrent.futures.as_completed(futures):
+            target = futures[future]
+            try:
+                binaries[target.name] = future.result()
+            except LaneFailure as error:
+                print(f"FAIL {target.name}: build {error}", flush=True)
+                failures.append(target.name)
+    # Runs are sequential so that each target's workload and memory limit are
+    # its own.
     for target in selected:
+        if target.name not in binaries:
+            continue
         try:
-            elapsed = fuzz_target(target, budget, args.timeout, args.memory_limit)
+            elapsed = fuzz_target(target, binaries[target.name], budget, args.timeout, args.memory_limit)
         except LaneFailure as error:
             print(f"FAIL {target.name}: {error}", flush=True)
             failures.append(target.name)

@@ -154,7 +154,8 @@ The smoke mode is the default and is what every pull request runs:
 It builds every target with `roc build --fuzz` for libFuzzer coverage
 instrumentation, then replays the target's seed corpus and 64 further inputs
 from a fixed seed, with `--time=1` capping the workload at one second per
-target. Its purpose is that every target keeps building and its property keeps
+target. Targets build in parallel (`--jobs`, by default as many 6 GB builds as
+memory allows) and run one at a time. Its purpose is that every target keeps building and its property keeps
 executing between campaigns; it makes no claim about search coverage.
 
 The campaign mode is the bounded search, 2000 executions per target by default:
@@ -164,7 +165,8 @@ The campaign mode is the bounded search, 2000 executions per target by default:
 ./scripts/fuzz.py --mode campaign --targets jpeg_inspector_mutation --runs 200000
 ```
 
-`.github/workflows/fuzz.yml` runs it daily and on manual dispatch, on the
+Pull requests run the smoke mode in the `Fuzz smoke` job of `ci.yml`, beside
+the test job. `.github/workflows/fuzz.yml` runs the campaign daily and on manual dispatch, on the
 default branch only; it never runs on a pull request.
 
 In both modes a crash, a per-input timeout (`--timeout`, 10 s), a memory-limit

@@ -66,20 +66,45 @@ jobs:
             blueprint run test
           fi
 
-      # Each property target builds and replays its seed corpus plus a few
-      # fixed-seed inputs within one second of workload. The suite above only
-      # formats, checks, and runs the `expect`s in these sources. The bounded
-      # search is fuzz.yml, which never runs on a pull request.
-      - name: Run property fuzz smoke
-        if: runner.os == 'Linux'
-        run: blueprint run fuzz
-
       - name: Verify release bundle consumer boundary
         run: blueprint run bundle-consumer
 
       - name: Verify public example gallery
         if: runner.os == 'Linux'
         run: blueprint run gallery
+
+  # Each property target builds and replays its seed corpus plus a few
+  # fixed-seed inputs within one second of workload. The test job only
+  # formats, checks, and runs the `expect`s in these sources. This job is
+  # compile-bound (LLVM fuzz builds), so it runs beside the test job and
+  # builds targets in parallel as memory allows. The bounded search is
+  # fuzz.yml, which never runs on a pull request.
+  fuzz-smoke:
+    name: Fuzz smoke
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Blueprint
+        uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@7aff4132691ad4fc348abe9df146a57512b49bd6
+        with:
+          cache: "true"
+          cache-workload: dev
+
+      - name: Read pinned Roc nightly
+        run: printf 'ROC_NIGHTLY_TAG=%s\n' "$(sed -n '1p' .roc-version)" >> "$GITHUB_ENV"
+
+      - name: Install Roc
+        uses: roc-lang/setup-roc@f5a74bf90aa694b43ab4a7cbfdb19273bc6aa697
+        with:
+          version: nightly-new-compiler
+          nightly-tag: ${{ env.ROC_NIGHTLY_TAG }}
+
+      - name: Run property fuzz smoke
+        run: blueprint run fuzz
 
   # Arlington PDF 2.0 object-model lane over every committed package snapshot
   # and public example. It runs after the Linux suite has proven the
