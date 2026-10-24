@@ -2,7 +2,7 @@
 
 This guide describes the changes from rc1 to rc2. For the current API and
 profile defaults, see the [authoring guide](authoring.md) and
-[rc3 release notes](releases/0.1.0-rc3.md).
+[0.1.0 release notes](releases/0.1.0.md).
 
 rc2 adds an explicit prepare/emit lifecycle and sRGB theme-color output.
 Existing `Pdf.to_bytes*` and `Pdf.to_chunks*` calls remain valid.
