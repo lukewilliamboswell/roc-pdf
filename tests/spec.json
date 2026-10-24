@@ -113,6 +113,14 @@
           "test"
         ],
         "reason": "Shared evidence modules are compiled through adjacent application roots that provide package aliases and a platform."
+      },
+      {
+        "pattern": "tests/*/package.roc",
+        "actions": [
+          "check",
+          "test"
+        ],
+        "reason": "A family package is checked, and its expects run, through its fixture group application."
       }
     ]
   },
@@ -122,7 +130,12 @@
     "zig_optimization": "ReleaseFast",
     "max_build_workers": 4
   },
-  "groups": [],
+  "groups": [
+    {
+      "name": "layout",
+      "source": "tests/groups/layout.roc"
+    }
+  ],
   "families": [
     {
       "name": "forms",
@@ -231,10 +244,10 @@
     },
     {
       "name": "tables",
-      "source": "tests/tables/main.roc",
+      "source": "tests/tables/package.roc",
       "cases_jsonl": "tests/tables/cases.jsonl",
-      "group": null,
-      "tag": null
+      "group": "layout",
+      "tag": "Tables"
     },
     {
       "name": "page_templates",
@@ -22972,7 +22985,7 @@
     {
       "name": "tables invoice x50",
       "scenario_revision": "tables-v1",
-      "source": "tests/tables/main.roc",
+      "source": "tests/tables/package.roc",
       "snapshot": "tests/tables/invoice_50.pdf",
       "args": [
         "invoice",
@@ -23058,7 +23071,7 @@
     {
       "name": "tables invoice x500",
       "scenario_revision": "tables-v1",
-      "source": "tests/tables/main.roc",
+      "source": "tests/tables/package.roc",
       "snapshot": "tests/tables/invoice_500.pdf",
       "args": [
         "invoice",
@@ -23144,7 +23157,7 @@
     {
       "name": "tables column spans and two header rows",
       "scenario_revision": "tables-v1",
-      "source": "tests/tables/main.roc",
+      "source": "tests/tables/package.roc",
       "snapshot": "tests/tables/spans.pdf",
       "args": [
         "spans",
@@ -23230,7 +23243,7 @@
     {
       "name": "tables split rows",
       "scenario_revision": "tables-v1",
-      "source": "tests/tables/main.roc",
+      "source": "tests/tables/package.roc",
       "snapshot": "tests/tables/split_rows.pdf",
       "args": [
         "split_rows",
@@ -23315,7 +23328,7 @@
     {
       "name": "tables footer carry",
       "scenario_revision": "tables-v1",
-      "source": "tests/tables/main.roc",
+      "source": "tests/tables/package.roc",
       "snapshot": "tests/tables/footer_carry.pdf",
       "args": [
         "footer_carry",
@@ -23401,7 +23414,7 @@
     {
       "name": "tables whole-table keep",
       "scenario_revision": "tables-kept-whole-v1",
-      "source": "tests/tables/main.roc",
+      "source": "tests/tables/package.roc",
       "snapshot": "tests/tables/kept_whole.pdf",
       "args": [
         "kept_whole",
@@ -23486,7 +23499,7 @@
     {
       "name": "tables styled x40",
       "scenario_revision": "tables-styled-v1",
-      "source": "tests/tables/main.roc",
+      "source": "tests/tables/package.roc",
       "snapshot": "tests/tables/styled_40.pdf",
       "args": [
         "styled",
@@ -23577,7 +23590,7 @@
     {
       "name": "tables styled x400",
       "scenario_revision": "tables-styled-v1",
-      "source": "tests/tables/main.roc",
+      "source": "tests/tables/package.roc",
       "snapshot": "tests/tables/styled_400.pdf",
       "args": [
         "styled",
@@ -23668,7 +23681,7 @@
     {
       "name": "tables empty cells x40",
       "scenario_revision": "tables-empty-cells-v1",
-      "source": "tests/tables/main.roc",
+      "source": "tests/tables/package.roc",
       "snapshot": "tests/tables/empty_cells_40.pdf",
       "args": [
         "empty_cells",
@@ -23751,7 +23764,7 @@
     {
       "name": "tables empty cells x400",
       "scenario_revision": "tables-empty-cells-v1",
-      "source": "tests/tables/main.roc",
+      "source": "tests/tables/package.roc",
       "snapshot": "tests/tables/empty_cells_400.pdf",
       "args": [
         "empty_cells",
@@ -23834,7 +23847,7 @@
     {
       "name": "tables ruled grid x40",
       "scenario_revision": "tables-ruled-v1",
-      "source": "tests/tables/main.roc",
+      "source": "tests/tables/package.roc",
       "snapshot": "tests/tables/ruled_40.pdf",
       "args": [
         "ruled",
@@ -23925,7 +23938,7 @@
     {
       "name": "tables ruled grid x400",
       "scenario_revision": "tables-ruled-v1",
-      "source": "tests/tables/main.roc",
+      "source": "tests/tables/package.roc",
       "snapshot": "tests/tables/ruled_400.pdf",
       "args": [
         "ruled",
@@ -24016,7 +24029,7 @@
     {
       "name": "tables ordered numeric cells",
       "scenario_revision": "tables-v1",
-      "source": "tests/tables/main.roc",
+      "source": "tests/tables/package.roc",
       "snapshot": "tests/tables/ordered.pdf",
       "args": [
         "ordered",
@@ -24102,7 +24115,7 @@
     {
       "name": "tables atomic negatives",
       "scenario_revision": "tables-v1",
-      "source": "tests/tables/main.roc",
+      "source": "tests/tables/package.roc",
       "snapshot": "tests/tables/negatives.pdf",
       "args": [
         "atomic_negatives",
