@@ -935,7 +935,8 @@ def run_parallel_roc_tasks(tasks: list[ValidationTask], jobs: int) -> None:
             if task.action == "fmt":
                 roc("fmt", "--check", *(relative(source) for source in task.sources))
             else:
-                # TODO(roc-lang/roc#ISSUE): remove --no-cache. On
+                # TODO(upstream issue drafted, not yet filed; see development/performance/
+                # roc-nightly-2026-10-23-18478ff.md): remove --no-cache. On
                 # nightly-2026-10-23-18478ff a shared cache that already holds
                 # the package from an earlier root makes every later root's
                 # number literals of package types fail compile-time
