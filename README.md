@@ -75,7 +75,7 @@ Add the 0.1.0 release bundle to your application header and build with the
 Roc nightly named in the [0.1.0 release notes](docs/releases/0.1.0.md):
 
 ```roc
-pdf: "https://github.com/lukewilliamboswell/roc-pdf/releases/download/0.1.0/TODO(release)-bundle-hash.tar.zst",
+pdf: "https://github.com/lukewilliamboswell/roc-pdf/releases/download/0.1.0/FtvjgqwbGNGsm97hoN8kayCX3QacEwMbJo6aPZd7LPEi.tar.zst",
 ```
 
 Then `import pdf.Pdf`. The [authoring guide](docs/authoring.md) starts from
