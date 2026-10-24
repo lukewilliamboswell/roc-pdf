@@ -1830,6 +1830,14 @@ graphics diversity; Ghostscript is used for declared advanced color and print
 capabilities. These engines have distinct configured expectations and do not
 vote on correctness.
 
+Contributor and CI tooling is declared in `Blueprint.roc` and locked in
+`Blueprint.lock` without a package provider: fixed tools such as Zig are
+fetched by committed digest, the remaining host tools are expected, and the
+test, fuzz, gallery, bundle and docs scripts are exposed as named tasks
+(`development/blueprint.md`). The package compiler is not a Blueprint input:
+`.roc-version` remains its single pin, because allocation baselines are exact
+for one compiler build and the nightly updater changes only that file.
+
 veraPDF is invoked with the explicit `4`, `ua2`, and `wt1a` profiles as
 applicable rather than relying only on metadata autodetection. The validator
 executable and validation-profile revisions are pinned independently.

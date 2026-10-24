@@ -12,6 +12,9 @@ with the [user documentation](../docs/README.md).
   representation and harness details.
 - [Testing and fixture development](testing.md) explains the pinned toolchain,
   focused tests, snapshot review, exact allocation/work baselines and validators.
+- [Contributor tooling with Blueprint](blueprint.md) lists the declared
+  tools and the named tasks that wrap the test, fuzz, gallery, bundle and docs
+  scripts.
 - [Reference-document contract](reference-documents.md) specifies the invoice,
   report and letter fixtures, adverse variants and acceptance obligations.
 - [Performance and implementation records](performance/) preserves design

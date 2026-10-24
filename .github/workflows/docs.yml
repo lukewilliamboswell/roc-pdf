@@ -23,6 +23,9 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@7aff4132691ad4fc348abe9df146a57512b49bd6
       - name: Read pinned Roc nightly
         run: printf 'ROC_NIGHTLY_TAG=%s\n' "$(sed -n '1p' .roc-version)" >> "$GITHUB_ENV"
       - uses: roc-lang/setup-roc@f5a74bf90aa694b43ab4a7cbfdb19273bc6aa697
@@ -30,7 +33,7 @@ jobs:
           version: nightly-new-compiler
           nightly-tag: ${{ env.ROC_NIGHTLY_TAG }}
       - name: Generate and audit public docs
-        run: ./scripts/docs.sh
+        run: blueprint run docs
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: generated-docs

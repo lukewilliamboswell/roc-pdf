@@ -24,9 +24,6 @@ jobs:
   test:
     name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        working-directory: roc-pdf
     # The pull-request gate runs the Linux target, which is the one with
     # measured allocation baselines. macOS still runs on pushes to main and
     # on demand, so platform-specific breakage is caught without paying for
@@ -39,13 +36,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          path: roc-pdf
+          persist-credentials: false
 
-      - name: Install Zig
-        uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29
+      # Blueprint verifies its own binary against the reviewed digest, then
+      # fetches Zig 0.16.0 by the digest in Blueprint.lock for the dev tasks.
+      - name: Install Blueprint
+        uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@7aff4132691ad4fc348abe9df146a57512b49bd6
         with:
-          version: 0.16.0
-          use-cache: false
+          cache: "true"
+          cache-workload: dev
+
+      - name: Check Blueprint configuration
+        run: blueprint check
 
       - name: Read pinned Roc nightly
         run: printf 'ROC_NIGHTLY_TAG=%s\n' "$(sed -n '1p' .roc-version)" >> "$GITHUB_ENV"
@@ -59,9 +61,9 @@ jobs:
       - name: Run spec-defined e2e evidence
         run: |
           if [[ "${{ runner.os }}" == "Linux" ]]; then
-            ./scripts/test.py --allocation-baselines
+            blueprint run test -- --allocation-baselines
           else
-            ./scripts/test.py
+            blueprint run test
           fi
 
       # A bounded campaign per property fuzz target. The suite above only
@@ -70,14 +72,14 @@ jobs:
       # the pull-request matrix.
       - name: Run bounded property fuzz lane
         if: runner.os == 'Linux'
-        run: python3 scripts/fuzz.py
+        run: blueprint run fuzz
 
       - name: Verify release bundle consumer boundary
-        run: python3 scripts/test_bundle_consumer.py
+        run: blueprint run bundle-consumer
 
       - name: Verify public example gallery
         if: runner.os == 'Linux'
-        run: python3 scripts/check_gallery.py
+        run: blueprint run gallery
 
   # Arlington PDF 2.0 object-model lane over every committed package snapshot
   # and public example. It runs after the Linux suite has proven the
