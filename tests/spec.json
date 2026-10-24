@@ -132,12 +132,12 @@
   },
   "groups": [
     {
-      "name": "documents",
-      "source": "tests/groups/documents.roc"
+      "name": "core",
+      "source": "tests/groups/core.roc"
     },
     {
-      "name": "graphics",
-      "source": "tests/groups/graphics.roc"
+      "name": "documents",
+      "source": "tests/groups/documents.roc"
     },
     {
       "name": "interactive",
@@ -160,6 +160,14 @@
       "source": "tests/groups/public.roc"
     },
     {
+      "name": "public_fonts",
+      "source": "tests/groups/public_fonts.roc"
+    },
+    {
+      "name": "public_output",
+      "source": "tests/groups/public_output.roc"
+    },
+    {
       "name": "structure",
       "source": "tests/groups/structure.roc"
     },
@@ -180,14 +188,14 @@
       "name": "soft_masks",
       "source": "tests/soft_masks/package.roc",
       "cases_jsonl": "tests/soft_masks/cases.jsonl",
-      "group": "graphics",
+      "group": "core",
       "tag": "SoftMasks"
     },
     {
       "name": "color_images",
       "source": "tests/color_images/package.roc",
       "cases_jsonl": "tests/color_images/cases.jsonl",
-      "group": "graphics",
+      "group": "core",
       "tag": "ColorImages"
     },
     {
@@ -201,14 +209,14 @@
       "name": "shading_patterns",
       "source": "tests/shading_patterns/package.roc",
       "cases_jsonl": "tests/shading_patterns/cases.jsonl",
-      "group": "graphics",
+      "group": "core",
       "tag": "ShadingPatterns"
     },
     {
       "name": "transparency",
       "source": "tests/transparency/package.roc",
       "cases_jsonl": "tests/transparency/cases.jsonl",
-      "group": "graphics",
+      "group": "core",
       "tag": "Transparency"
     },
     {
@@ -357,6 +365,181 @@
       "cases_jsonl": "tests/vector_diagrams/cases.jsonl",
       "group": "public",
       "tag": "VectorDiagrams"
+    },
+    {
+      "name": "archive",
+      "source": "tests/archive/package.roc",
+      "cases_jsonl": "tests/archive/cases.jsonl",
+      "group": "public",
+      "tag": "Archive"
+    },
+    {
+      "name": "structural_blank",
+      "source": "tests/structural_blank/package.roc",
+      "cases_jsonl": "tests/structural_blank/cases.jsonl",
+      "group": "public",
+      "tag": "StructuralBlank"
+    },
+    {
+      "name": "generated_label_facade",
+      "source": "tests/generated_label_facade/package.roc",
+      "cases_jsonl": "tests/generated_label_facade/cases.jsonl",
+      "group": "public",
+      "tag": "GeneratedLabelFacade"
+    },
+    {
+      "name": "caller_font_facade",
+      "source": "tests/caller_font_facade/package.roc",
+      "cases_jsonl": "tests/caller_font_facade/cases.jsonl",
+      "group": "public_fonts",
+      "tag": "CallerFontFacade"
+    },
+    {
+      "name": "multiface_facade",
+      "source": "tests/multiface_facade/package.roc",
+      "cases_jsonl": "tests/multiface_facade/cases.jsonl",
+      "group": "public_fonts",
+      "tag": "MultifaceFacade"
+    },
+    {
+      "name": "pdf_facade",
+      "source": "tests/pdf_facade/package.roc",
+      "cases_jsonl": "tests/pdf_facade/cases.jsonl",
+      "group": "public_output",
+      "tag": "PdfFacade"
+    },
+    {
+      "name": "metadata_facade",
+      "source": "tests/metadata_facade/package.roc",
+      "cases_jsonl": "tests/metadata_facade/cases.jsonl",
+      "group": "public_output",
+      "tag": "MetadataFacade"
+    },
+    {
+      "name": "navigation_facade",
+      "source": "tests/navigation_facade/package.roc",
+      "cases_jsonl": "tests/navigation_facade/cases.jsonl",
+      "group": "public_output",
+      "tag": "NavigationFacade"
+    },
+    {
+      "name": "font",
+      "source": "tests/font/package.roc",
+      "cases_jsonl": "tests/font/cases.jsonl",
+      "group": "core",
+      "tag": "Font"
+    },
+    {
+      "name": "font_subsetting",
+      "source": "tests/font_subsetting/package.roc",
+      "cases_jsonl": "tests/font_subsetting/cases.jsonl",
+      "group": "core",
+      "tag": "FontSubsetting"
+    },
+    {
+      "name": "pdf_font",
+      "source": "tests/pdf_font/package.roc",
+      "cases_jsonl": "tests/pdf_font/cases.jsonl",
+      "group": "core",
+      "tag": "PdfFont"
+    },
+    {
+      "name": "shaping",
+      "source": "tests/shaping/package.roc",
+      "cases_jsonl": "tests/shaping/cases.jsonl",
+      "group": "core",
+      "tag": "Shaping"
+    },
+    {
+      "name": "bidi",
+      "source": "tests/bidi/package.roc",
+      "cases_jsonl": "tests/bidi/cases.jsonl",
+      "group": "core",
+      "tag": "Bidi"
+    },
+    {
+      "name": "unicode_analysis",
+      "source": "tests/unicode_analysis/package.roc",
+      "cases_jsonl": "tests/unicode_analysis/cases.jsonl",
+      "group": "core",
+      "tag": "UnicodeAnalysis"
+    },
+    {
+      "name": "visible_text",
+      "source": "tests/visible_text/package.roc",
+      "cases_jsonl": "tests/visible_text/cases.jsonl",
+      "group": "core",
+      "tag": "VisibleText"
+    },
+    {
+      "name": "caller_font",
+      "source": "tests/caller_font/package.roc",
+      "cases_jsonl": "tests/caller_font/cases.jsonl",
+      "group": "core",
+      "tag": "CallerFont"
+    },
+    {
+      "name": "facade_fragments",
+      "source": "tests/facade_fragments/package.roc",
+      "cases_jsonl": "tests/facade_fragments/cases.jsonl",
+      "group": "core",
+      "tag": "FacadeFragments"
+    },
+    {
+      "name": "facade_scenes",
+      "source": "tests/facade_scenes/package.roc",
+      "cases_jsonl": "tests/facade_scenes/cases.jsonl",
+      "group": "core",
+      "tag": "FacadeScenes"
+    },
+    {
+      "name": "facade_text",
+      "source": "tests/facade_text/package.roc",
+      "cases_jsonl": "tests/facade_text/cases.jsonl",
+      "group": "core",
+      "tag": "FacadeText"
+    },
+    {
+      "name": "form_text",
+      "source": "tests/form_text/package.roc",
+      "cases_jsonl": "tests/form_text/cases.jsonl",
+      "group": "core",
+      "tag": "FormText"
+    },
+    {
+      "name": "authoring",
+      "source": "tests/authoring/package.roc",
+      "cases_jsonl": "tests/authoring/cases.jsonl",
+      "group": "core",
+      "tag": "Authoring"
+    },
+    {
+      "name": "font_leaves",
+      "source": "tests/font_leaves/package.roc",
+      "cases_jsonl": "tests/font_leaves/cases.jsonl",
+      "group": "core",
+      "tag": "FontLeaves"
+    },
+    {
+      "name": "placeholder",
+      "source": "tests/placeholder/package.roc",
+      "cases_jsonl": "tests/placeholder/cases.jsonl",
+      "group": "core",
+      "tag": "Placeholder"
+    },
+    {
+      "name": "tagged_visual",
+      "source": "tests/tagged_visual/package.roc",
+      "cases_jsonl": "tests/tagged_visual/cases.jsonl",
+      "group": "core",
+      "tag": "TaggedVisual"
+    },
+    {
+      "name": "generated_label",
+      "source": "tests/generated_label/package.roc",
+      "cases_jsonl": "tests/generated_label/cases.jsonl",
+      "group": "core",
+      "tag": "GeneratedLabel"
     }
   ],
   "cases": [
@@ -430,8 +613,8 @@
     {
       "name": "structural-kernel blank PDF",
       "scenario_revision": "blank-v1",
-      "source": "tests/structural_kernel/blank.roc",
-      "snapshot": "tests/structural_kernel/blank.pdf",
+      "source": "tests/structural_blank/package.roc",
+      "snapshot": "tests/structural_blank/blank.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
@@ -960,7 +1143,7 @@
     {
       "name": "placeholder PDF x1",
       "scenario_revision": "placeholder-v1",
-      "source": "tests/placeholder/main.roc",
+      "source": "tests/placeholder/package.roc",
       "snapshot": "tests/placeholder/snapshot.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -995,11 +1178,9 @@
     {
       "name": "placeholder PDF x4",
       "scenario_revision": "placeholder-v1",
-      "source": "tests/placeholder/main.roc",
+      "source": "tests/placeholder/package.roc",
       "snapshot": "tests/placeholder/snapshot.pdf",
-      "args": [
-        "scale"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "passes": 4
@@ -1032,7 +1213,7 @@
     {
       "name": "tagged-visual minimal tagged visual PDF",
       "scenario_revision": "minimal-tagged-visual-v2-contextual-artifact",
-      "source": "tests/tagged_visual/minimal.roc",
+      "source": "tests/tagged_visual/package.roc",
       "snapshot": "tests/tagged_visual/minimal.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -1076,11 +1257,9 @@
     {
       "name": "tagged-visual million-command image reuse",
       "scenario_revision": "million-command-v1",
-      "source": "tests/tagged_visual/command_stress.roc",
+      "source": "tests/tagged_visual/package.roc",
       "snapshot": "tests/tagged_visual/stress.pdf",
-      "args": [
-        "1000000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -1154,12 +1333,9 @@
     {
       "name": "text-layout simple-list authoring normalization x1000",
       "scenario_revision": "authoring-normalization-v1",
-      "source": "tests/authoring/authoring.roc",
+      "source": "tests/authoring/package.roc",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "simple",
-        "1000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -1218,12 +1394,9 @@
     {
       "name": "text-layout compact-builder authoring normalization x1000",
       "scenario_revision": "authoring-normalization-v1",
-      "source": "tests/authoring/authoring.roc",
+      "source": "tests/authoring/package.roc",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "builder",
-        "1000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -1282,12 +1455,9 @@
     {
       "name": "text-layout simple-list authoring normalization x10000",
       "scenario_revision": "authoring-normalization-v1",
-      "source": "tests/authoring/authoring.roc",
+      "source": "tests/authoring/package.roc",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "simple",
-        "10000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -1346,12 +1516,9 @@
     {
       "name": "text-layout compact-builder authoring normalization x10000",
       "scenario_revision": "authoring-normalization-v1",
-      "source": "tests/authoring/authoring.roc",
+      "source": "tests/authoring/package.roc",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "builder",
-        "10000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -1410,12 +1577,9 @@
     {
       "name": "text-layout shaped-cluster line selection x1000",
       "scenario_revision": "line-layout-v1",
-      "source": "tests/authoring/authoring.roc",
+      "source": "tests/authoring/package.roc",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "layout",
-        "1000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -1477,12 +1641,9 @@
     {
       "name": "text-layout shaped-cluster line selection x10000",
       "scenario_revision": "line-layout-v1",
-      "source": "tests/authoring/authoring.roc",
+      "source": "tests/authoring/package.roc",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "layout",
-        "10000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -1544,12 +1705,9 @@
     {
       "name": "text-layout single-column pagination x1000",
       "scenario_revision": "page-layout-v1",
-      "source": "tests/authoring/authoring.roc",
+      "source": "tests/authoring/package.roc",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "pages",
-        "1000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "authoring_blocks": 1000,
@@ -1608,12 +1766,9 @@
     {
       "name": "text-layout single-column pagination x10000",
       "scenario_revision": "page-layout-v1",
-      "source": "tests/authoring/authoring.roc",
+      "source": "tests/authoring/package.roc",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "pages",
-        "10000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "authoring_blocks": 10000,
@@ -1672,12 +1827,9 @@
     {
       "name": "text-layout shared facade source cache x1000",
       "scenario_revision": "facade-source-cache-v1",
-      "source": "tests/authoring/authoring.roc",
+      "source": "tests/authoring/package.roc",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "source-shared",
-        "1000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "input_sources": 1000,
@@ -1740,12 +1892,9 @@
     {
       "name": "text-layout shared facade source cache x10000",
       "scenario_revision": "facade-source-cache-v1",
-      "source": "tests/authoring/authoring.roc",
+      "source": "tests/authoring/package.roc",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "source-shared",
-        "10000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "input_sources": 10000,
@@ -1808,12 +1957,9 @@
     {
       "name": "text-layout unique facade source cache x1000",
       "scenario_revision": "facade-source-cache-v1",
-      "source": "tests/authoring/authoring.roc",
+      "source": "tests/authoring/package.roc",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "source-unique",
-        "1000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "input_sources": 1000,
@@ -1876,12 +2022,9 @@
     {
       "name": "text-layout unique facade source cache x10000",
       "scenario_revision": "facade-source-cache-v1",
-      "source": "tests/authoring/authoring.roc",
+      "source": "tests/authoring/package.roc",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "source-unique",
-        "10000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "input_sources": 10000,
@@ -1944,12 +2087,9 @@
     {
       "name": "text-layout facade semantic planning x1000",
       "scenario_revision": "facade-semantic-planning-v1",
-      "source": "tests/authoring/authoring.roc",
+      "source": "tests/authoring/package.roc",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "semantics",
-        "1000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -2035,12 +2175,9 @@
     {
       "name": "text-layout facade semantic planning x10000",
       "scenario_revision": "facade-semantic-planning-v1",
-      "source": "tests/authoring/authoring.roc",
+      "source": "tests/authoring/package.roc",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "semantics",
-        "10000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -2126,12 +2263,9 @@
     {
       "name": "text-layout facade batch shaping x1000",
       "scenario_revision": "facade-batch-shaping-v1",
-      "source": "tests/authoring/authoring.roc",
+      "source": "tests/authoring/package.roc",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "shape",
-        "1000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -2209,12 +2343,9 @@
     {
       "name": "text-layout facade batch shaping x10000",
       "scenario_revision": "facade-batch-shaping-v1",
-      "source": "tests/authoring/authoring.roc",
+      "source": "tests/authoring/package.roc",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "shape",
-        "10000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -2292,12 +2423,9 @@
     {
       "name": "text-layout facade cached line layout x1000",
       "scenario_revision": "facade-cached-line-layout-v1",
-      "source": "tests/authoring/authoring.roc",
+      "source": "tests/authoring/package.roc",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "lines",
-        "1000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -2381,12 +2509,9 @@
     {
       "name": "text-layout facade cached line layout x10000",
       "scenario_revision": "facade-cached-line-layout-v1",
-      "source": "tests/authoring/authoring.roc",
+      "source": "tests/authoring/package.roc",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "lines",
-        "10000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -2470,12 +2595,9 @@
     {
       "name": "text-layout facade row pagination x1000",
       "scenario_revision": "facade-row-pagination-v1",
-      "source": "tests/authoring/authoring.roc",
+      "source": "tests/authoring/package.roc",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "paginate",
-        "1000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -2545,12 +2667,9 @@
     {
       "name": "text-layout facade row pagination x10000",
       "scenario_revision": "facade-row-pagination-v1",
-      "source": "tests/authoring/authoring.roc",
+      "source": "tests/authoring/package.roc",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "paginate",
-        "10000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -2620,11 +2739,9 @@
     {
       "name": "text-layout built-in TrueType inspection",
       "scenario_revision": "font-inspection-v2",
-      "source": "tests/font/font.roc",
+      "source": "tests/font/package.roc",
       "snapshot": "tests/font/font.pdf",
-      "args": [
-        "font"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "component_edges": 1713,
@@ -2690,11 +2807,9 @@
     {
       "name": "text-layout caller-font registration",
       "scenario_revision": "caller-font-registration-v1",
-      "source": "tests/font/font.roc",
+      "source": "tests/font/package.roc",
       "snapshot": "tests/font/font.pdf",
-      "args": [
-        "caller"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "font_bytes": 7816,
@@ -2772,11 +2887,9 @@
     {
       "name": "text-layout Unicode analysis x1000",
       "scenario_revision": "unicode-analysis-v1",
-      "source": "tests/unicode_analysis/unicode.roc",
+      "source": "tests/unicode_analysis/package.roc",
       "snapshot": "tests/unicode_analysis/unicode.pdf",
-      "args": [
-        "1000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "unicode_version_major": 17,
@@ -2948,7 +3061,7 @@
     {
       "name": "text-layout UAX 9 conformance vectors",
       "scenario_revision": "uax9-r51-normative-vectors-v1",
-      "source": "tests/bidi/bidi.roc",
+      "source": "tests/bidi/package.roc",
       "snapshot": "tests/bidi/bidi.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -3008,11 +3121,9 @@
     {
       "name": "text-layout deterministic font plan",
       "scenario_revision": "font-plan-v1",
-      "source": "tests/font/font.roc",
+      "source": "tests/font/package.roc",
       "snapshot": "tests/font/font.pdf",
-      "args": [
-        "plan"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "component_edges": 1713,
@@ -3078,11 +3189,9 @@
     {
       "name": "text-layout ordered multi-face cluster selection",
       "scenario_revision": "ordered-multiface-selection-v1",
-      "source": "tests/font/font.roc",
+      "source": "tests/font/package.roc",
       "snapshot": "tests/font/font.pdf",
-      "args": [
-        "multi"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "atomic_negatives": 4,
@@ -3154,11 +3263,9 @@
     {
       "name": "text-layout Unicode analysis x10000",
       "scenario_revision": "unicode-analysis-v1",
-      "source": "tests/unicode_analysis/unicode.roc",
+      "source": "tests/unicode_analysis/package.roc",
       "snapshot": "tests/unicode_analysis/unicode.pdf",
-      "args": [
-        "10000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "unicode_version_major": 17,
@@ -3205,11 +3312,9 @@
     {
       "name": "text-layout sanitized TrueType subset",
       "scenario_revision": "font-subset-v1",
-      "source": "tests/font_subsetting/subset.roc",
+      "source": "tests/font_subsetting/package.roc",
       "snapshot": "tests/font_subsetting/subset.pdf",
-      "args": [
-        "subset"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "font_bytes": 166300,
@@ -3277,11 +3382,9 @@
     {
       "name": "text-layout simple and advanced shaping",
       "scenario_revision": "shaping-v1",
-      "source": "tests/shaping/shape.roc",
+      "source": "tests/shaping/package.roc",
       "snapshot": "tests/shaping/shape.pdf",
-      "args": [
-        "shape"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "advanced_glyphs": 1,
@@ -3377,11 +3480,9 @@
     {
       "name": "text-layout Type 0 PDF font objects",
       "scenario_revision": "pdf-font-objects-v1",
-      "source": "tests/pdf_font/pdf_font.roc",
+      "source": "tests/pdf_font/package.roc",
       "snapshot": "tests/pdf_font/pdf_font.pdf",
-      "args": [
-        "objects"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "font_bytes": 166300,
@@ -3477,11 +3578,9 @@
     {
       "name": "text-layout visible searchable text",
       "scenario_revision": "visible-text-v5-tagged-scene-content",
-      "source": "tests/visible_text/text.roc",
+      "source": "tests/visible_text/package.roc",
       "snapshot": "tests/visible_text/text.pdf",
-      "args": [
-        "visible"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -3824,11 +3923,9 @@
     {
       "name": "text-layout caller-font facade output",
       "scenario_revision": "caller-font-facade-v2-public-evidence",
-      "source": "tests/caller_font/caller_facade.roc",
-      "snapshot": "tests/caller_font/caller_facade.pdf",
-      "args": [
-        "positive"
-      ],
+      "source": "tests/caller_font_facade/package.roc",
+      "snapshot": "tests/caller_font_facade/caller_facade.pdf",
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -3905,8 +4002,8 @@
     {
       "name": "text-layout caller-font facade restricted-rights atomic negative",
       "scenario_revision": "caller-font-facade-v2-public-evidence",
-      "source": "tests/caller_font/caller_facade_negative.roc",
-      "snapshot": "tests/caller_font/caller_facade_negative.pdf",
+      "source": "tests/caller_font_facade/package.roc",
+      "snapshot": "tests/caller_font_facade/caller_facade_negative.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
@@ -3942,11 +4039,9 @@
     {
       "name": "text-layout caller-font unhinted facade output",
       "scenario_revision": "caller-font-unhinted-v1",
-      "source": "tests/caller_font/caller_facade.roc",
-      "snapshot": "tests/caller_font/caller_facade_unhinted.pdf",
-      "args": [
-        "unhinted"
-      ],
+      "source": "tests/caller_font_facade/package.roc",
+      "snapshot": "tests/caller_font_facade/caller_facade_unhinted.pdf",
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -3998,11 +4093,9 @@
     {
       "name": "text-layout built-in face through a registry",
       "scenario_revision": "built-in-registry-v1",
-      "source": "tests/caller_font/caller_facade.roc",
-      "snapshot": "tests/caller_font/built_in_registry.pdf",
-      "args": [
-        "built-in-registry"
-      ],
+      "source": "tests/caller_font_facade/package.roc",
+      "snapshot": "tests/caller_font_facade/built_in_registry.pdf",
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -4052,11 +4145,9 @@
     {
       "name": "text-layout caller-font shared registry retention",
       "scenario_revision": "caller-font-shared-registry-v1",
-      "source": "tests/caller_font/caller_facade.roc",
-      "snapshot": "tests/caller_font/caller_facade.pdf",
-      "args": [
-        "shared-registry"
-      ],
+      "source": "tests/caller_font_facade/package.roc",
+      "snapshot": "tests/caller_font_facade/caller_facade.pdf",
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -4137,11 +4228,9 @@
     {
       "name": "text-layout caller-font unique registry retention control",
       "scenario_revision": "caller-font-shared-registry-v1",
-      "source": "tests/caller_font/caller_facade.roc",
-      "snapshot": "tests/caller_font/caller_facade.pdf",
-      "args": [
-        "unique-registries"
-      ],
+      "source": "tests/caller_font_facade/package.roc",
+      "snapshot": "tests/caller_font_facade/caller_facade.pdf",
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -4229,11 +4318,9 @@
     {
       "name": "text-layout public built-in Pdf facade output",
       "scenario_revision": "public-pdf-facade-v1",
-      "source": "tests/pdf_facade/pdf_facade.roc",
+      "source": "tests/pdf_facade/package.roc",
       "snapshot": "tests/pdf_facade/pdf_facade.pdf",
-      "args": [
-        "0"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -4270,11 +4357,9 @@
     {
       "name": "text-layout public image-figure facade output",
       "scenario_revision": "public-image-figure-v1",
-      "source": "tests/pdf_facade/image_figure.roc",
+      "source": "tests/pdf_facade/package.roc",
       "snapshot": "tests/pdf_facade/image_figure.pdf",
-      "args": [
-        "image"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -4316,12 +4401,9 @@
     {
       "name": "text-layout chunked facade output shared resources",
       "scenario_revision": "chunked-facade-v2-compression-choice",
-      "source": "tests/pdf_facade/pdf_facade_chunks.roc",
+      "source": "tests/pdf_facade/package.roc",
       "snapshot": "tests/pdf_facade/pdf_facade_chunks.pdf",
-      "args": [
-        "share",
-        "balanced"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -4371,12 +4453,9 @@
     {
       "name": "text-layout chunked facade output shared resources smallest compression",
       "scenario_revision": "chunked-facade-v2-compression-choice",
-      "source": "tests/pdf_facade/pdf_facade_chunks.roc",
+      "source": "tests/pdf_facade/package.roc",
       "snapshot": "tests/pdf_facade/pdf_facade_chunks_smallest.pdf",
-      "args": [
-        "share",
-        "smallest"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -4426,12 +4505,9 @@
     {
       "name": "text-layout chunked facade output shared resources fastest compression",
       "scenario_revision": "chunked-facade-v2-compression-choice",
-      "source": "tests/pdf_facade/pdf_facade_chunks.roc",
+      "source": "tests/pdf_facade/package.roc",
       "snapshot": "tests/pdf_facade/pdf_facade_chunks_fastest.pdf",
-      "args": [
-        "share",
-        "fastest"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -4481,12 +4557,9 @@
     {
       "name": "text-layout chunked facade output owned chunks",
       "scenario_revision": "chunked-facade-v2-compression-choice",
-      "source": "tests/pdf_facade/pdf_facade_chunks.roc",
+      "source": "tests/pdf_facade/package.roc",
       "snapshot": "tests/pdf_facade/pdf_facade_chunks.pdf",
-      "args": [
-        "own",
-        "balanced"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -4536,12 +4609,9 @@
     {
       "name": "text-layout chunked facade output owned chunks smallest compression",
       "scenario_revision": "chunked-facade-v2-compression-choice",
-      "source": "tests/pdf_facade/pdf_facade_chunks.roc",
+      "source": "tests/pdf_facade/package.roc",
       "snapshot": "tests/pdf_facade/pdf_facade_chunks_smallest.pdf",
-      "args": [
-        "own",
-        "smallest"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -4591,12 +4661,9 @@
     {
       "name": "text-layout chunked facade output owned chunks fastest compression",
       "scenario_revision": "chunked-facade-v2-compression-choice",
-      "source": "tests/pdf_facade/pdf_facade_chunks.roc",
+      "source": "tests/pdf_facade/package.roc",
       "snapshot": "tests/pdf_facade/pdf_facade_chunks_fastest.pdf",
-      "args": [
-        "own",
-        "fastest"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -4646,7 +4713,7 @@
     {
       "name": "text-layout chunked facade atomic negative",
       "scenario_revision": "chunked-facade-v1-by-construction",
-      "source": "tests/pdf_facade/pdf_facade_chunks_negative.roc",
+      "source": "tests/pdf_facade/package.roc",
       "snapshot": "tests/pdf_facade/pdf_facade_chunks_negative.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -4686,11 +4753,9 @@
     {
       "name": "text-layout generated list-label text",
       "scenario_revision": "generated-label-v1-explicit-presentation",
-      "source": "tests/generated_label/generated_label.roc",
-      "snapshot": "tests/generated_label/generated_label.pdf",
-      "args": [
-        "0"
-      ],
+      "source": "tests/generated_label_facade/package.roc",
+      "snapshot": "tests/generated_label_facade/generated_label.pdf",
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -4727,11 +4792,9 @@
     {
       "name": "text-layout generated list-label atomic negative",
       "scenario_revision": "generated-label-v1-explicit-presentation",
-      "source": "tests/generated_label/generated_label_negative.roc",
+      "source": "tests/generated_label/package.roc",
       "snapshot": "tests/generated_label/generated_label_negative.pdf",
-      "args": [
-        "0"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "generated_label_property_rejected": 1,
@@ -4765,7 +4828,7 @@
     {
       "name": "text-layout caller-font visible searchable text",
       "scenario_revision": "caller-font-visible-text-v2-tagged-scene-content",
-      "source": "tests/caller_font/caller_text.roc",
+      "source": "tests/caller_font/package.roc",
       "snapshot": "tests/caller_font/caller_text.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -5919,12 +5982,9 @@
     {
       "name": "text-layout facade text prepared-input control x1000",
       "scenario_revision": "facade-text-materialization-v1",
-      "source": "tests/facade_text/facade_text.roc",
+      "source": "tests/facade_text/package.roc",
       "snapshot": "tests/facade_text/facade_text.pdf",
-      "args": [
-        "prepare",
-        "1000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -5991,12 +6051,9 @@
     {
       "name": "text-layout facade text materialization x1000",
       "scenario_revision": "facade-text-materialization-v1",
-      "source": "tests/facade_text/facade_text.roc",
+      "source": "tests/facade_text/package.roc",
       "snapshot": "tests/facade_text/facade_text.pdf",
-      "args": [
-        "materialize",
-        "1000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -6075,12 +6132,9 @@
     {
       "name": "text-layout facade text prepared-input control x10000",
       "scenario_revision": "facade-text-materialization-v1",
-      "source": "tests/facade_text/facade_text.roc",
+      "source": "tests/facade_text/package.roc",
       "snapshot": "tests/facade_text/facade_text.pdf",
-      "args": [
-        "prepare",
-        "10000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -6147,12 +6201,9 @@
     {
       "name": "text-layout facade text materialization x10000",
       "scenario_revision": "facade-text-materialization-v1",
-      "source": "tests/facade_text/facade_text.roc",
+      "source": "tests/facade_text/package.roc",
       "snapshot": "tests/facade_text/facade_text.pdf",
-      "args": [
-        "materialize",
-        "10000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -6231,12 +6282,9 @@
     {
       "name": "text-layout facade fragment prepared-input control x1000",
       "scenario_revision": "facade-fragments-v1",
-      "source": "tests/facade_fragments/facade_fragments.roc",
+      "source": "tests/facade_fragments/package.roc",
       "snapshot": "tests/facade_fragments/facade_fragments.pdf",
-      "args": [
-        "prepare",
-        "1000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -6294,12 +6342,9 @@
     {
       "name": "text-layout facade fragment arena x1000",
       "scenario_revision": "facade-fragments-v1",
-      "source": "tests/facade_fragments/facade_fragments.roc",
+      "source": "tests/facade_fragments/package.roc",
       "snapshot": "tests/facade_fragments/facade_fragments.pdf",
-      "args": [
-        "arena",
-        "1000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -6363,12 +6408,9 @@
     {
       "name": "text-layout facade fragment prepared-input control x10000",
       "scenario_revision": "facade-fragments-v1",
-      "source": "tests/facade_fragments/facade_fragments.roc",
+      "source": "tests/facade_fragments/package.roc",
       "snapshot": "tests/facade_fragments/facade_fragments.pdf",
-      "args": [
-        "prepare",
-        "10000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -6426,12 +6468,9 @@
     {
       "name": "text-layout facade fragment arena x10000",
       "scenario_revision": "facade-fragments-v1",
-      "source": "tests/facade_fragments/facade_fragments.roc",
+      "source": "tests/facade_fragments/package.roc",
       "snapshot": "tests/facade_fragments/facade_fragments.pdf",
-      "args": [
-        "arena",
-        "10000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -6495,12 +6534,9 @@
     {
       "name": "text-layout facade fragment semantic attachment",
       "scenario_revision": "facade-fragments-v1",
-      "source": "tests/facade_fragments/facade_fragments.roc",
+      "source": "tests/facade_fragments/package.roc",
       "snapshot": "tests/facade_fragments/facade_fragments.pdf",
-      "args": [
-        "validate",
-        "3"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -6558,12 +6594,9 @@
     {
       "name": "text-layout facade fragment atomic negatives",
       "scenario_revision": "facade-fragments-v1",
-      "source": "tests/facade_fragments/facade_fragments.roc",
+      "source": "tests/facade_fragments/package.roc",
       "snapshot": "tests/facade_fragments/facade_fragments.pdf",
-      "args": [
-        "negative",
-        "2"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -6612,12 +6645,9 @@
     {
       "name": "text-layout facade owned scene composition",
       "scenario_revision": "facade-scenes-v1",
-      "source": "tests/facade_fragments/facade_fragments.roc",
+      "source": "tests/facade_fragments/package.roc",
       "snapshot": "tests/facade_fragments/facade_fragments.pdf",
-      "args": [
-        "scene",
-        "3"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -6695,12 +6725,9 @@
     {
       "name": "text-layout facade scene prepared-input control x1000",
       "scenario_revision": "facade-scenes-v1",
-      "source": "tests/facade_scenes/facade_scenes.roc",
+      "source": "tests/facade_scenes/package.roc",
       "snapshot": "tests/facade_scenes/facade_scenes.pdf",
-      "args": [
-        "prepare",
-        "1000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -6751,12 +6778,9 @@
     {
       "name": "text-layout facade scene arena x1000",
       "scenario_revision": "facade-scenes-v1",
-      "source": "tests/facade_scenes/facade_scenes.roc",
+      "source": "tests/facade_scenes/package.roc",
       "snapshot": "tests/facade_scenes/facade_scenes.pdf",
-      "args": [
-        "arena",
-        "1000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -6830,12 +6854,9 @@
     {
       "name": "text-layout facade scene prepared-input control x10000",
       "scenario_revision": "facade-scenes-v1",
-      "source": "tests/facade_scenes/facade_scenes.roc",
+      "source": "tests/facade_scenes/package.roc",
       "snapshot": "tests/facade_scenes/facade_scenes.pdf",
-      "args": [
-        "prepare",
-        "10000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -6886,12 +6907,9 @@
     {
       "name": "text-layout facade scene arena x10000",
       "scenario_revision": "facade-scenes-v1",
-      "source": "tests/facade_scenes/facade_scenes.roc",
+      "source": "tests/facade_scenes/package.roc",
       "snapshot": "tests/facade_scenes/facade_scenes.pdf",
-      "args": [
-        "arena",
-        "10000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -6965,12 +6983,9 @@
     {
       "name": "text-layout facade scene atomic negatives",
       "scenario_revision": "facade-scenes-v1",
-      "source": "tests/facade_scenes/facade_scenes.roc",
+      "source": "tests/facade_scenes/package.roc",
       "snapshot": "tests/facade_scenes/facade_scenes.pdf",
-      "args": [
-        "negative",
-        "2"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -7258,11 +7273,9 @@
     {
       "name": "text-layout public ordered multi-face facade output",
       "scenario_revision": "multiface-public-facade-v1",
-      "source": "tests/multiface_facade/multiface_facade.roc",
+      "source": "tests/multiface_facade/package.roc",
       "snapshot": "tests/multiface_facade/multiface_facade.pdf",
-      "args": [
-        "positive"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -7333,11 +7346,9 @@
     {
       "name": "text-layout multi-face facade shared registry retention",
       "scenario_revision": "multiface-public-facade-v1",
-      "source": "tests/multiface_facade/multiface_facade.roc",
+      "source": "tests/multiface_facade/package.roc",
       "snapshot": "tests/multiface_facade/multiface_facade.pdf",
-      "args": [
-        "shared-registry"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -7404,11 +7415,9 @@
     {
       "name": "text-layout multi-face facade unique registries retention control",
       "scenario_revision": "multiface-public-facade-v1",
-      "source": "tests/multiface_facade/multiface_facade.roc",
+      "source": "tests/multiface_facade/package.roc",
       "snapshot": "tests/multiface_facade/multiface_facade.pdf",
-      "args": [
-        "unique-registries"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -7478,11 +7487,9 @@
     {
       "name": "text-layout multi-face facade missing coverage atomic negative",
       "scenario_revision": "multiface-public-facade-v1",
-      "source": "tests/multiface_facade/multiface_facade_negative.roc",
+      "source": "tests/multiface_facade/package.roc",
       "snapshot": "tests/multiface_facade/multiface_facade_negative.pdf",
-      "args": [
-        "missing-coverage"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "missing_coverage_rejected": 1
@@ -7515,11 +7522,9 @@
     {
       "name": "text-layout multi-face facade undeclared script atomic negative",
       "scenario_revision": "multiface-public-facade-v1",
-      "source": "tests/multiface_facade/multiface_facade_negative.roc",
+      "source": "tests/multiface_facade/package.roc",
       "snapshot": "tests/multiface_facade/multiface_facade_negative.pdf",
-      "args": [
-        "undeclared-script"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "undeclared_script_rejected": 1
@@ -7552,11 +7557,9 @@
     {
       "name": "text-layout multi-face facade unknown policy atomic negative",
       "scenario_revision": "multiface-public-facade-v1",
-      "source": "tests/multiface_facade/multiface_facade_negative.roc",
+      "source": "tests/multiface_facade/package.roc",
       "snapshot": "tests/multiface_facade/multiface_facade_negative.pdf",
-      "args": [
-        "unknown-policy"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "unknown_policy_rejected": 1
@@ -7589,11 +7592,9 @@
     {
       "name": "text-layout multi-face facade builtin policy atomic negative",
       "scenario_revision": "multiface-public-facade-v1",
-      "source": "tests/multiface_facade/multiface_facade_negative.roc",
+      "source": "tests/multiface_facade/package.roc",
       "snapshot": "tests/multiface_facade/multiface_facade_negative.pdf",
-      "args": [
-        "builtin-policy"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "builtin_policy_rejected": 1
@@ -7626,12 +7627,9 @@
     {
       "name": "text-layout adversarial ordered font selection x1000",
       "scenario_revision": "ordered-selection-bounds-v1",
-      "source": "tests/font/font.roc",
+      "source": "tests/font/package.roc",
       "snapshot": "tests/font/font.pdf",
-      "args": [
-        "probe",
-        "1000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -7680,12 +7678,9 @@
     {
       "name": "text-layout adversarial ordered font selection x10000",
       "scenario_revision": "ordered-selection-bounds-v1",
-      "source": "tests/font/font.roc",
+      "source": "tests/font/package.roc",
       "snapshot": "tests/font/font.pdf",
-      "args": [
-        "probe",
-        "10000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -7734,12 +7729,9 @@
     {
       "name": "text-layout ordered multi-face facade scale x1000",
       "scenario_revision": "ordered-facade-scale-v1",
-      "source": "tests/authoring/authoring.roc",
+      "source": "tests/authoring/package.roc",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "ordered",
-        "1000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -7815,12 +7807,9 @@
     {
       "name": "text-layout ordered multi-face facade scale x10000",
       "scenario_revision": "ordered-facade-scale-v1",
-      "source": "tests/authoring/authoring.roc",
+      "source": "tests/authoring/package.roc",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "ordered",
-        "10000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -10378,11 +10367,9 @@
     {
       "name": "production-visual text inside a meaningful form",
       "scenario_revision": "form-xobjects-v1",
-      "source": "tests/form_text/form_text.roc",
+      "source": "tests/form_text/package.roc",
       "snapshot": "tests/form_text/form_text.pdf",
-      "args": [
-        "0"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -16723,12 +16710,9 @@
     {
       "name": "production-visual font-leaf showcase with adversarial authoring",
       "scenario_revision": "font-leaves-v1",
-      "source": "tests/font_leaves/font_leaf_facts.roc",
+      "source": "tests/font_leaves/package.roc",
       "snapshot": "tests/font_leaves/font_leaves.pdf",
-      "args": [
-        "showcase",
-        "0"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 2,
@@ -16842,12 +16826,9 @@
     {
       "name": "production-visual font-leaf distinctness matrix",
       "scenario_revision": "font-leaves-v1",
-      "source": "tests/font_leaves/font_leaf_facts.roc",
+      "source": "tests/font_leaves/package.roc",
       "snapshot": "tests/font_leaves/font_leaf_facts.pdf",
-      "args": [
-        "facts",
-        "0"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -16961,12 +16942,9 @@
     {
       "name": "production-visual font-leaf unique-input ownership",
       "scenario_revision": "font-leaves-v1",
-      "source": "tests/font_leaves/font_leaf_facts.roc",
+      "source": "tests/font_leaves/package.roc",
       "snapshot": "tests/font_leaves/font_leaves_unique.pdf",
-      "args": [
-        "unique",
-        "0"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 2,
@@ -17078,12 +17056,9 @@
     {
       "name": "production-visual font-leaf retained-input ownership",
       "scenario_revision": "font-leaves-v1",
-      "source": "tests/font_leaves/font_leaf_facts.roc",
+      "source": "tests/font_leaves/package.roc",
       "snapshot": "tests/font_leaves/font_leaves_retained.pdf",
-      "args": [
-        "shared",
-        "0"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 2,
@@ -17195,12 +17170,9 @@
     {
       "name": "production-visual shared font subset x100",
       "scenario_revision": "font-leaves-v1",
-      "source": "tests/font_leaves/font_leaf_facts.roc",
+      "source": "tests/font_leaves/package.roc",
       "snapshot": "tests/font_leaves/font_leaves_share_100.pdf",
-      "args": [
-        "share",
-        "100"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -17312,12 +17284,9 @@
     {
       "name": "production-visual shared font subset x1000",
       "scenario_revision": "font-leaves-v1",
-      "source": "tests/font_leaves/font_leaf_facts.roc",
+      "source": "tests/font_leaves/package.roc",
       "snapshot": "tests/font_leaves/font_leaves_share_1000.pdf",
-      "args": [
-        "share",
-        "1000"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -17429,12 +17398,9 @@
     {
       "name": "production-visual equivalent authored fonts collapse x8",
       "scenario_revision": "font-leaves-v1",
-      "source": "tests/font_leaves/font_leaf_facts.roc",
+      "source": "tests/font_leaves/package.roc",
       "snapshot": "tests/font_leaves/font_leaves_dedupe_8.pdf",
-      "args": [
-        "dedupe",
-        "8"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -17546,12 +17512,9 @@
     {
       "name": "production-visual equivalent authored fonts collapse x64",
       "scenario_revision": "font-leaves-v1",
-      "source": "tests/font_leaves/font_leaf_facts.roc",
+      "source": "tests/font_leaves/package.roc",
       "snapshot": "tests/font_leaves/font_leaves_dedupe_64.pdf",
-      "args": [
-        "dedupe",
-        "64"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -17663,12 +17626,9 @@
     {
       "name": "production-visual distinct font subsets x8",
       "scenario_revision": "font-leaves-v1",
-      "source": "tests/font_leaves/font_leaf_facts.roc",
+      "source": "tests/font_leaves/package.roc",
       "snapshot": "tests/font_leaves/font_leaves_distinct_8.pdf",
-      "args": [
-        "distinct",
-        "8"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -17780,12 +17740,9 @@
     {
       "name": "production-visual distinct font subsets x64",
       "scenario_revision": "font-leaves-v1",
-      "source": "tests/font_leaves/font_leaf_facts.roc",
+      "source": "tests/font_leaves/package.roc",
       "snapshot": "tests/font_leaves/font_leaves_distinct_64.pdf",
-      "args": [
-        "distinct",
-        "64"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -17897,12 +17854,9 @@
     {
       "name": "production-visual font-leaf forced digest collisions x8",
       "scenario_revision": "font-leaves-v1",
-      "source": "tests/font_leaves/font_leaf_facts.roc",
+      "source": "tests/font_leaves/package.roc",
       "snapshot": "tests/font_leaves/font_leaves_collide_8.pdf",
-      "args": [
-        "collide",
-        "8"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -17965,12 +17919,9 @@
     {
       "name": "production-visual font-leaf forced digest collisions x64",
       "scenario_revision": "font-leaves-v1",
-      "source": "tests/font_leaves/font_leaf_facts.roc",
+      "source": "tests/font_leaves/package.roc",
       "snapshot": "tests/font_leaves/font_leaves_collide_64.pdf",
-      "args": [
-        "collide",
-        "64"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -18033,12 +17984,9 @@
     {
       "name": "production-visual font-leaf atomic negatives",
       "scenario_revision": "font-leaves-v1",
-      "source": "tests/font_leaves/font_leaf_facts.roc",
+      "source": "tests/font_leaves/package.roc",
       "snapshot": "tests/font_leaves/font_leaves_negative.pdf",
-      "args": [
-        "negative",
-        "1"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -18854,11 +18802,9 @@
     {
       "name": "production-visual public facade metadata output",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/metadata_facade.roc",
-      "snapshot": "tests/metadata/metadata_facade.pdf",
-      "args": [
-        "0"
-      ],
+      "source": "tests/metadata_facade/package.roc",
+      "snapshot": "tests/metadata_facade/metadata_facade.pdf",
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 3,
@@ -18894,11 +18840,9 @@
     {
       "name": "production-visual public facade metadata determinism",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/metadata_facade.roc",
-      "snapshot": "tests/metadata/metadata_facade.pdf",
-      "args": [
-        "twice"
-      ],
+      "source": "tests/metadata_facade/package.roc",
+      "snapshot": "tests/metadata_facade/metadata_facade.pdf",
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 3,
@@ -18937,11 +18881,9 @@
     {
       "name": "production-visual facade metadata atomic negatives",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/metadata_facade_negative.roc",
-      "snapshot": "tests/metadata/metadata_facade_negative.pdf",
-      "args": [
-        "1"
-      ],
+      "source": "tests/metadata_facade/package.roc",
+      "snapshot": "tests/metadata_facade/metadata_facade_negative.pdf",
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -20136,11 +20078,9 @@
     {
       "name": "production-visual navigation authored facade output",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/navigation_facade.roc",
-      "snapshot": "tests/navigation/navigation_facade.pdf",
-      "args": [
-        "0"
-      ],
+      "source": "tests/navigation_facade/package.roc",
+      "snapshot": "tests/navigation_facade/navigation_facade.pdf",
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 3,
@@ -20179,11 +20119,9 @@
     {
       "name": "production-visual navigation facade determinism",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/navigation_facade.roc",
-      "snapshot": "tests/navigation/navigation_facade.pdf",
-      "args": [
-        "twice"
-      ],
+      "source": "tests/navigation_facade/package.roc",
+      "snapshot": "tests/navigation_facade/navigation_facade.pdf",
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 3,
@@ -20225,11 +20163,9 @@
     {
       "name": "production-visual navigation facade atomic negatives",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/navigation_facade_negative.roc",
-      "snapshot": "tests/navigation/navigation_facade_negative.pdf",
-      "args": [
-        "1"
-      ],
+      "source": "tests/navigation_facade/package.roc",
+      "snapshot": "tests/navigation_facade/navigation_facade_negative.pdf",
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -20270,12 +20206,9 @@
     {
       "name": "static PDF/A-4 blank archive document",
       "scenario_revision": "static-pdfa4-v1",
-      "source": "tests/archive/archive_facade.roc",
+      "source": "tests/archive/package.roc",
       "snapshot": "tests/archive/archive_blank.pdf",
-      "args": [
-        "blank",
-        "1"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -20308,12 +20241,9 @@
     {
       "name": "static PDF/A-4 archived report with timestamps",
       "scenario_revision": "static-pdfa4-v1",
-      "source": "tests/archive/archive_facade.roc",
+      "source": "tests/archive/package.roc",
       "snapshot": "tests/archive/archive_report.pdf",
-      "args": [
-        "report",
-        "40"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4,
@@ -20347,12 +20277,9 @@
     {
       "name": "static PDF/A-4 archived report scaling x400",
       "scenario_revision": "static-pdfa4-v1",
-      "source": "tests/archive/archive_facade.roc",
+      "source": "tests/archive/package.roc",
       "snapshot": "tests/archive/archive_report_400.pdf",
-      "args": [
-        "report",
-        "400"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 29,
@@ -20386,12 +20313,9 @@
     {
       "name": "static PDF/A-4 archived raster, alpha, gray, and JPEG figures",
       "scenario_revision": "static-pdfa4-v1",
-      "source": "tests/archive/archive_facade.roc",
+      "source": "tests/archive/package.roc",
       "snapshot": "tests/archive/archive_figures.pdf",
-      "args": [
-        "figures",
-        "1"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -20425,12 +20349,9 @@
     {
       "name": "static PDF/A-4 archived navigation x8 links",
       "scenario_revision": "static-pdfa4-v1",
-      "source": "tests/archive/archive_facade.roc",
+      "source": "tests/archive/package.roc",
       "snapshot": "tests/archive/archive_navigation.pdf",
-      "args": [
-        "navigation",
-        "8"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -20464,12 +20385,9 @@
     {
       "name": "static PDF/A-4 archived navigation x64 links",
       "scenario_revision": "static-pdfa4-v1",
-      "source": "tests/archive/archive_facade.roc",
+      "source": "tests/archive/package.roc",
       "snapshot": "tests/archive/archive_navigation_64.pdf",
-      "args": [
-        "navigation",
-        "64"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 3,
@@ -20503,12 +20421,9 @@
     {
       "name": "static PDF/A-4 archived caller font",
       "scenario_revision": "static-pdfa4-v1",
-      "source": "tests/archive/archive_facade.roc",
+      "source": "tests/archive/package.roc",
       "snapshot": "tests/archive/archive_caller.pdf",
-      "args": [
-        "caller",
-        "1"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -20541,12 +20456,9 @@
     {
       "name": "static PDF/A-4 owned chunked output",
       "scenario_revision": "static-pdfa4-v1",
-      "source": "tests/archive/archive_facade.roc",
+      "source": "tests/archive/package.roc",
       "snapshot": "tests/archive/archive_report.pdf",
-      "args": [
-        "chunked-own",
-        "40"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4,
@@ -20586,12 +20498,9 @@
     {
       "name": "static PDF/A-4 shared chunked output",
       "scenario_revision": "static-pdfa4-v1",
-      "source": "tests/archive/archive_facade.roc",
+      "source": "tests/archive/package.roc",
       "snapshot": "tests/archive/archive_report.pdf",
-      "args": [
-        "chunked-share",
-        "40"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4,
@@ -20631,12 +20540,9 @@
     {
       "name": "static PDF/A-4 Archive and Standard profile twins",
       "scenario_revision": "static-pdfa4-v1",
-      "source": "tests/archive/archive_facade.roc",
+      "source": "tests/archive/package.roc",
       "snapshot": "tests/archive/archive_report.pdf",
-      "args": [
-        "profiles",
-        "40"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4,
@@ -20676,11 +20582,9 @@
     {
       "name": "static PDF/A-4 facade atomic negatives",
       "scenario_revision": "static-pdfa4-v1",
-      "source": "tests/archive/archive_facade_negative.roc",
+      "source": "tests/archive/package.roc",
       "snapshot": "tests/archive/archive_facade_negative.pdf",
-      "args": [
-        "Archive negatives"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -20717,12 +20621,9 @@
     {
       "name": "static PDF/A-4 Standard twin of the archived figures",
       "scenario_revision": "static-pdfa4-v1",
-      "source": "tests/archive/archive_facade.roc",
+      "source": "tests/archive/package.roc",
       "snapshot": "tests/archive/archive_figures_standard.pdf",
-      "args": [
-        "figures-standard",
-        "1"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -20756,12 +20657,9 @@
     {
       "name": "static PDF/A-4 Standard twin of the archived navigation",
       "scenario_revision": "static-pdfa4-v1",
-      "source": "tests/archive/archive_facade.roc",
+      "source": "tests/archive/package.roc",
       "snapshot": "tests/archive/archive_navigation_standard.pdf",
-      "args": [
-        "navigation-standard",
-        "8"
-      ],
+      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,

@@ -44,7 +44,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/archive/archive_facade.roc"
+        "generator": "tests/archive/Cases.roc"
       }
     },
     {
@@ -59,7 +59,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/archive/archive_facade.roc"
+        "generator": "tests/archive/Cases.roc"
       }
     },
     {
@@ -74,7 +74,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/archive/archive_facade_negative.roc"
+        "generator": "tests/archive/Cases.roc"
       }
     },
     {
@@ -89,7 +89,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/archive/archive_facade.roc"
+        "generator": "tests/archive/Cases.roc"
       }
     },
     {
@@ -104,7 +104,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/archive/archive_facade.roc"
+        "generator": "tests/archive/Cases.roc"
       }
     },
     {
@@ -119,7 +119,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/archive/archive_facade.roc"
+        "generator": "tests/archive/Cases.roc"
       }
     },
     {
@@ -134,7 +134,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/archive/archive_facade.roc"
+        "generator": "tests/archive/Cases.roc"
       }
     },
     {
@@ -149,7 +149,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/archive/archive_facade.roc"
+        "generator": "tests/archive/Cases.roc"
       }
     },
     {
@@ -164,7 +164,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/archive/archive_facade.roc"
+        "generator": "tests/archive/Cases.roc"
       }
     },
     {
@@ -179,7 +179,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/archive/archive_facade.roc"
+        "generator": "tests/archive/Cases.roc"
       }
     },
     {
@@ -194,7 +194,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/authoring/authoring.roc"
+        "generator": "tests/authoring/Cases.roc"
       }
     },
     {
@@ -224,12 +224,12 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/bidi/bidi.roc"
+        "generator": "tests/bidi/Cases.roc"
       }
     },
     {
       "id": "blank-pdf-snapshot",
-      "path": "tests/structural_kernel/blank.pdf",
+      "path": "tests/structural_blank/blank.pdf",
       "kind": "expected_pdf",
       "bytes": 4204,
       "sha256": "36aa15f7c3d7f7cbcbe72279c90637527422ab629231f730d6c55d3fcf89fb3b",
@@ -239,12 +239,12 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/structural_kernel/blank.roc"
+        "generator": "tests/structural_blank/Cases.roc"
       }
     },
     {
       "id": "caller-font-built-in-registry-pdf-snapshot",
-      "path": "tests/caller_font/built_in_registry.pdf",
+      "path": "tests/caller_font_facade/built_in_registry.pdf",
       "kind": "expected_pdf",
       "bytes": 14345,
       "sha256": "87080d379cf84240625965c88ce74145d260107685e08378564b41f57b5ac493",
@@ -254,12 +254,12 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/caller_font/caller_facade.roc"
+        "generator": "tests/caller_font_facade/Cases.roc"
       }
     },
     {
       "id": "caller-font-facade-negative-pdf-snapshot",
-      "path": "tests/caller_font/caller_facade_negative.pdf",
+      "path": "tests/caller_font_facade/caller_facade_negative.pdf",
       "kind": "expected_pdf",
       "bytes": 0,
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -269,12 +269,12 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/caller_font/caller_facade_negative.roc"
+        "generator": "tests/caller_font_facade/Cases.roc"
       }
     },
     {
       "id": "caller-font-facade-pdf-snapshot",
-      "path": "tests/caller_font/caller_facade.pdf",
+      "path": "tests/caller_font_facade/caller_facade.pdf",
       "kind": "expected_pdf",
       "bytes": 9458,
       "sha256": "76c249d11668601b8ef5d4179ff66fbb9db1d02be6cec718033550f9bf9b77cb",
@@ -284,12 +284,12 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/caller_font/caller_facade.roc"
+        "generator": "tests/caller_font_facade/Cases.roc"
       }
     },
     {
       "id": "caller-font-facade-unhinted-pdf-snapshot",
-      "path": "tests/caller_font/caller_facade_unhinted.pdf",
+      "path": "tests/caller_font_facade/caller_facade_unhinted.pdf",
       "kind": "expected_pdf",
       "bytes": 6691,
       "sha256": "84f5a4b8843368c5bcb1806f5f4632669610553581cf5d646e210c3f283fe4e0",
@@ -299,7 +299,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/caller_font/caller_facade.roc"
+        "generator": "tests/caller_font_facade/Cases.roc"
       }
     },
     {
@@ -344,7 +344,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/caller_font/caller_text.roc"
+        "generator": "tests/caller_font/Cases.roc"
       }
     },
     {
@@ -569,7 +569,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/tagged_visual/command_stress.roc"
+        "generator": "tests/tagged_visual/Cases.roc"
       }
     },
     {
@@ -1225,7 +1225,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/facade_fragments/facade_fragments.roc"
+        "generator": "tests/facade_fragments/Cases.roc"
       }
     },
     {
@@ -1270,7 +1270,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/facade_scenes/facade_scenes.roc"
+        "generator": "tests/facade_scenes/Cases.roc"
       }
     },
     {
@@ -1285,7 +1285,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/facade_text/facade_text.roc"
+        "generator": "tests/facade_text/Cases.roc"
       }
     },
     {
@@ -1495,7 +1495,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/font/font.roc"
+        "generator": "tests/font/Cases.roc"
       }
     },
     {
@@ -1510,7 +1510,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/font_leaves/font_leaf_facts.roc"
+        "generator": "tests/font_leaves/Cases.roc"
       }
     },
     {
@@ -1525,7 +1525,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/font_leaves/font_leaf_facts.roc"
+        "generator": "tests/font_leaves/Cases.roc"
       }
     },
     {
@@ -1540,7 +1540,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/font_leaves/font_leaf_facts.roc"
+        "generator": "tests/font_leaves/Cases.roc"
       }
     },
     {
@@ -1555,7 +1555,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/font_leaves/font_leaf_facts.roc"
+        "generator": "tests/font_leaves/Cases.roc"
       }
     },
     {
@@ -1570,7 +1570,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/font_leaves/font_leaf_facts.roc"
+        "generator": "tests/font_leaves/Cases.roc"
       }
     },
     {
@@ -1585,7 +1585,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/font_leaves/font_leaf_facts.roc"
+        "generator": "tests/font_leaves/Cases.roc"
       }
     },
     {
@@ -1600,7 +1600,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/font_leaves/font_leaf_facts.roc"
+        "generator": "tests/font_leaves/Cases.roc"
       }
     },
     {
@@ -1615,7 +1615,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/font_leaves/font_leaf_facts.roc"
+        "generator": "tests/font_leaves/Cases.roc"
       }
     },
     {
@@ -1630,7 +1630,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/font_leaves/font_leaf_facts.roc"
+        "generator": "tests/font_leaves/Cases.roc"
       }
     },
     {
@@ -1645,7 +1645,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/font_leaves/font_leaf_facts.roc"
+        "generator": "tests/font_leaves/Cases.roc"
       }
     },
     {
@@ -1660,7 +1660,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/font_leaves/font_leaf_facts.roc"
+        "generator": "tests/font_leaves/Cases.roc"
       }
     },
     {
@@ -1675,7 +1675,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/font_leaves/font_leaf_facts.roc"
+        "generator": "tests/font_leaves/Cases.roc"
       }
     },
     {
@@ -1690,7 +1690,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/font_leaves/font_leaf_facts.roc"
+        "generator": "tests/font_leaves/Cases.roc"
       }
     },
     {
@@ -1705,7 +1705,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/font_subsetting/subset.roc"
+        "generator": "tests/font_subsetting/Cases.roc"
       }
     },
     {
@@ -1735,7 +1735,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/form_text/form_text.roc"
+        "generator": "tests/form_text/Cases.roc"
       }
     },
     {
@@ -1855,12 +1855,12 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/generated_label/generated_label_negative.roc"
+        "generator": "tests/generated_label/Cases.roc"
       }
     },
     {
       "id": "generated-label-pdf-snapshot",
-      "path": "tests/generated_label/generated_label.pdf",
+      "path": "tests/generated_label_facade/generated_label.pdf",
       "kind": "expected_pdf",
       "bytes": 10030,
       "sha256": "45eb6fc1d4a1be29b1def9ad0867c73b2e02b572d2eb489253909f6190cb4a20",
@@ -1870,7 +1870,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/generated_label/generated_label.roc"
+        "generator": "tests/generated_label_facade/Cases.roc"
       }
     },
     {
@@ -2327,7 +2327,7 @@
     },
     {
       "id": "metadata-facade-negative-pdf-snapshot",
-      "path": "tests/metadata/metadata_facade_negative.pdf",
+      "path": "tests/metadata_facade/metadata_facade_negative.pdf",
       "kind": "expected_pdf",
       "bytes": 8898,
       "sha256": "56f014e0929f549a4f4663d95c26443706c403d1fac05adb9f66169e06a7c659",
@@ -2337,12 +2337,12 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/metadata/metadata_facade_negative.roc"
+        "generator": "tests/metadata_facade/Cases.roc"
       }
     },
     {
       "id": "metadata-facade-pdf-snapshot",
-      "path": "tests/metadata/metadata_facade.pdf",
+      "path": "tests/metadata_facade/metadata_facade.pdf",
       "kind": "expected_pdf",
       "bytes": 16325,
       "sha256": "7f898a6976f38cf4cc38c2cea9a0ee7951588966b5f1752440c0e537358b605e",
@@ -2352,7 +2352,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/metadata/metadata_facade.roc"
+        "generator": "tests/metadata_facade/Cases.roc"
       }
     },
     {
@@ -2502,7 +2502,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/tagged_visual/minimal.roc"
+        "generator": "tests/tagged_visual/Cases.roc"
       }
     },
     {
@@ -2517,7 +2517,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/multiface_facade/multiface_facade_negative.roc"
+        "generator": "tests/multiface_facade/Cases.roc"
       }
     },
     {
@@ -2532,7 +2532,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/multiface_facade/multiface_facade.roc"
+        "generator": "tests/multiface_facade/Cases.roc"
       }
     },
     {
@@ -2628,7 +2628,7 @@
     },
     {
       "id": "navigation-facade-negative-pdf-snapshot",
-      "path": "tests/navigation/navigation_facade_negative.pdf",
+      "path": "tests/navigation_facade/navigation_facade_negative.pdf",
       "kind": "expected_pdf",
       "bytes": 10820,
       "sha256": "39a3518ccd89d9391e23a75fcd1554385a0dff4d2127912b6da7670c64cfd9ea",
@@ -2638,12 +2638,12 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/navigation/navigation_facade_negative.roc"
+        "generator": "tests/navigation_facade/Cases.roc"
       }
     },
     {
       "id": "navigation-facade-pdf-snapshot",
-      "path": "tests/navigation/navigation_facade.pdf",
+      "path": "tests/navigation_facade/navigation_facade.pdf",
       "kind": "expected_pdf",
       "bytes": 15469,
       "sha256": "f8f615d6b11353b7fa05152b75d2a7d53565c194dbfbca790d8ea1428fdecc2f",
@@ -2653,7 +2653,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/navigation/navigation_facade.roc"
+        "generator": "tests/navigation_facade/Cases.roc"
       }
     },
     {
@@ -3268,7 +3268,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/pdf_facade/pdf_facade_chunks.roc"
+        "generator": "tests/pdf_facade/Cases.roc"
       }
     },
     {
@@ -3283,7 +3283,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/pdf_facade/pdf_facade_chunks_negative.roc"
+        "generator": "tests/pdf_facade/Cases.roc"
       }
     },
     {
@@ -3298,7 +3298,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/pdf_facade/pdf_facade_chunks.roc"
+        "generator": "tests/pdf_facade/Cases.roc"
       }
     },
     {
@@ -3313,7 +3313,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/pdf_facade/pdf_facade_chunks.roc"
+        "generator": "tests/pdf_facade/Cases.roc"
       }
     },
     {
@@ -3328,7 +3328,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/pdf_font/pdf_font.roc"
+        "generator": "tests/pdf_font/Cases.roc"
       }
     },
     {
@@ -3359,7 +3359,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/placeholder/main.roc"
+        "generator": "tests/placeholder/Cases.roc"
       }
     },
     {
@@ -3374,7 +3374,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/pdf_facade/image_figure.roc"
+        "generator": "tests/pdf_facade/Cases.roc"
       }
     },
     {
@@ -3389,7 +3389,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/pdf_facade/pdf_facade.roc"
+        "generator": "tests/pdf_facade/Cases.roc"
       }
     },
     {
@@ -4620,7 +4620,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/shaping/shape.roc"
+        "generator": "tests/shaping/Cases.roc"
       }
     },
     {
@@ -5550,7 +5550,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/visible_text/text.roc"
+        "generator": "tests/visible_text/Cases.roc"
       }
     },
     {
@@ -5745,7 +5745,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/unicode_analysis/unicode.roc"
+        "generator": "tests/unicode_analysis/Cases.roc"
       }
     },
     {

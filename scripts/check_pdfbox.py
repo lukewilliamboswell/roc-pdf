@@ -30,10 +30,13 @@ class Fixture:
     page_tree_nodes: int
     content_bytes: int
     operators: int
+    # The structural-kernel family's directory; the public blank document
+    # is its own family on the main.roc package root.
+    directory: str = "structural_kernel"
 
     @property
     def path(self) -> Path:
-        return ROOT / "tests" / "structural_kernel" / f"{self.name}.pdf"
+        return ROOT / "tests" / self.directory / f"{self.name}.pdf"
 
     def arguments(self) -> list[str]:
         return [
@@ -47,7 +50,7 @@ class Fixture:
 
 
 FIXTURES = (
-    Fixture("blank", 1, 6, 1, 0, 0),
+    Fixture("blank", 1, 6, 1, 0, 0, "structural_blank"),
     Fixture("deflate_one_block", 1, 6, 1, 65_535, 32_768),
     Fixture("deflate", 1, 6, 1, 262_144, 131_072),
     Fixture("pages", 4_096, 12_423, 133, 0, 0),
@@ -143,7 +146,11 @@ def run_recovery_negative(jar: Path, classes: Path, temporary: Path) -> None:
 
 def self_test() -> None:
     verify_jar(VENDORED_JAR)
-    discovered = {path.stem for path in (ROOT / "tests" / "structural_kernel").glob("*.pdf")}
+    discovered = {
+        path.stem
+        for directory in ("structural_kernel", "structural_blank")
+        for path in (ROOT / "tests" / directory).glob("*.pdf")
+    }
     declared = {fixture.name for fixture in FIXTURES}
     require(discovered == declared, "PDFBox fixture table must cover every structural-kernel snapshot")
     original = FIXTURES[0].path.read_bytes()

@@ -1,5 +1,5 @@
 import deflate.Deflate
-import "../tests/structural_kernel/blank.pdf" as blank_document : List(U8)
+import "../tests/structural_blank/blank.pdf" as blank_document : List(U8)
 import "../tests/structural_kernel/deflate.pdf" as deflate_document : List(U8)
 import "../tests/color_images/color_images.pdf" as image_document : List(U8)
 

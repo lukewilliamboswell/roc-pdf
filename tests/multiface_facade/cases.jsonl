@@ -1,0 +1,7 @@
+{"name":"text-layout multi-face facade builtin policy atomic negative","schema_version":1,"case":{"BuiltinPolicy":{"context":2}}}
+{"name":"text-layout multi-face facade missing coverage atomic negative","schema_version":1,"case":{"MissingCoverage":{"context":2}}}
+{"name":"text-layout multi-face facade shared registry retention","schema_version":1,"case":{"SharedRegistry":{"context":2}}}
+{"name":"text-layout multi-face facade undeclared script atomic negative","schema_version":1,"case":{"UndeclaredScript":{"context":2}}}
+{"name":"text-layout multi-face facade unique registries retention control","schema_version":1,"case":{"UniqueRegistries":{"context":2}}}
+{"name":"text-layout multi-face facade unknown policy atomic negative","schema_version":1,"case":{"UnknownPolicy":{"context":2}}}
+{"name":"text-layout public ordered multi-face facade output","schema_version":1,"case":{"Positive":{"context":2}}}

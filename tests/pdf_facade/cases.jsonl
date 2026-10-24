@@ -1,0 +1,9 @@
+{"name":"text-layout chunked facade atomic negative","schema_version":1,"case":{"ChunksNegative":{"context":1}}}
+{"name":"text-layout chunked facade output owned chunks","schema_version":1,"case":{"Chunks":{"compression":"Balanced","retention":"Own"}}}
+{"name":"text-layout chunked facade output owned chunks fastest compression","schema_version":1,"case":{"Chunks":{"compression":"Fastest","retention":"Own"}}}
+{"name":"text-layout chunked facade output owned chunks smallest compression","schema_version":1,"case":{"Chunks":{"compression":"Smallest","retention":"Own"}}}
+{"name":"text-layout chunked facade output shared resources","schema_version":1,"case":{"Chunks":{"compression":"Balanced","retention":"Share"}}}
+{"name":"text-layout chunked facade output shared resources fastest compression","schema_version":1,"case":{"Chunks":{"compression":"Fastest","retention":"Share"}}}
+{"name":"text-layout chunked facade output shared resources smallest compression","schema_version":1,"case":{"Chunks":{"compression":"Smallest","retention":"Share"}}}
+{"name":"text-layout public built-in Pdf facade output","schema_version":1,"case":{"Output":{"context":0}}}
+{"name":"text-layout public image-figure facade output","schema_version":1,"case":{"Image":{"context":0}}}

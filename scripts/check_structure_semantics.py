@@ -60,7 +60,7 @@ SNAPSHOTS = {
     "sections": ROOT / "tests" / "containers" / "sections_10.pdf",
     "lowering": ROOT / "tests" / "containers" / "lowering.pdf",
     "facade": ROOT / "tests" / "pdf_facade" / "pdf_facade.pdf",
-    "navigation": ROOT / "tests" / "navigation" / "navigation_facade.pdf",
+    "navigation": ROOT / "tests" / "navigation_facade" / "navigation_facade.pdf",
     "figure": ROOT / "tests" / "pdf_facade" / "image_figure.pdf",
     "table": ROOT / "tests" / "tables" / "spans.pdf",
     "continued_table": ROOT / "tests" / "tables" / "footer_carry.pdf",

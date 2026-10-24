@@ -1,0 +1,22 @@
+{"name":"text-layout compact-builder authoring normalization x1000","schema_version":1,"case":{"Builder":{"repetitions":1000}}}
+{"name":"text-layout compact-builder authoring normalization x10000","schema_version":1,"case":{"Builder":{"repetitions":10000}}}
+{"name":"text-layout facade batch shaping x1000","schema_version":1,"case":{"Shape":{"repetitions":1000}}}
+{"name":"text-layout facade batch shaping x10000","schema_version":1,"case":{"Shape":{"repetitions":10000}}}
+{"name":"text-layout facade cached line layout x1000","schema_version":1,"case":{"Lines":{"repetitions":1000}}}
+{"name":"text-layout facade cached line layout x10000","schema_version":1,"case":{"Lines":{"repetitions":10000}}}
+{"name":"text-layout facade row pagination x1000","schema_version":1,"case":{"Paginate":{"repetitions":1000}}}
+{"name":"text-layout facade row pagination x10000","schema_version":1,"case":{"Paginate":{"repetitions":10000}}}
+{"name":"text-layout facade semantic planning x1000","schema_version":1,"case":{"Semantics":{"repetitions":1000}}}
+{"name":"text-layout facade semantic planning x10000","schema_version":1,"case":{"Semantics":{"repetitions":10000}}}
+{"name":"text-layout ordered multi-face facade scale x1000","schema_version":1,"case":{"Ordered":{"repetitions":1000}}}
+{"name":"text-layout ordered multi-face facade scale x10000","schema_version":1,"case":{"Ordered":{"repetitions":10000}}}
+{"name":"text-layout shaped-cluster line selection x1000","schema_version":1,"case":{"Layout":{"repetitions":1000}}}
+{"name":"text-layout shaped-cluster line selection x10000","schema_version":1,"case":{"Layout":{"repetitions":10000}}}
+{"name":"text-layout shared facade source cache x1000","schema_version":1,"case":{"SourceShared":{"repetitions":1000}}}
+{"name":"text-layout shared facade source cache x10000","schema_version":1,"case":{"SourceShared":{"repetitions":10000}}}
+{"name":"text-layout simple-list authoring normalization x1000","schema_version":1,"case":{"Simple":{"repetitions":1000}}}
+{"name":"text-layout simple-list authoring normalization x10000","schema_version":1,"case":{"Simple":{"repetitions":10000}}}
+{"name":"text-layout single-column pagination x1000","schema_version":1,"case":{"Pages":{"repetitions":1000}}}
+{"name":"text-layout single-column pagination x10000","schema_version":1,"case":{"Pages":{"repetitions":10000}}}
+{"name":"text-layout unique facade source cache x1000","schema_version":1,"case":{"SourceUnique":{"repetitions":1000}}}
+{"name":"text-layout unique facade source cache x10000","schema_version":1,"case":{"SourceUnique":{"repetitions":10000}}}

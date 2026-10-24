@@ -429,6 +429,10 @@ def load_suite() -> TestSuite:
                 raise SystemExit(f"{cases_jsonl}:{row_index}: duplicate family case name {row_name}")
             family_cases_by_name[row_name] = (family, row_index, row)
 
+    committed_groups = {path.resolve() for path in (ROOT / "tests" / "groups").glob("*.roc")}
+    if committed_groups != set(group_sources.values()):
+        stray = ", ".join(sorted(relative(path) for path in committed_groups - set(group_sources.values())))
+        raise SystemExit(f"tests/groups holds applications that no spec group lists: {stray or 'none'}")
     groups: list[Group] = []
     for group_name, group_source in group_sources.items():
         members = tuple(family for family in families if family.group == group_name)
@@ -1185,7 +1189,20 @@ def build_case_units(
 
 
 def run_parallel_roc_tasks(tasks: list[ValidationTask], jobs: int) -> None:
+    # A group application compiles several families at once and peaks higher
+    # than a single root, so the tasks share a memory budget as well as the
+    # worker count.
+    budget = MemoryBudget(available_now_bytes())
+    groups_dir = ROOT / "tests" / "groups"
+
     def run_task(task: ValidationTask) -> tuple[ValidationTask, float]:
+        if task.action == "fmt":
+            return run_one(task)
+        weight = GROUP_CHECK_PEAK_BYTES if task.sources[0].parent == groups_dir else ROOT_CHECK_PEAK_BYTES
+        with budget.reserve(weight):
+            return run_one(task)
+
+    def run_one(task: ValidationTask) -> tuple[ValidationTask, float]:
         started = time.monotonic()
         detail(f"START {task.action.upper():5s} {task.label}")
         try:
@@ -1320,9 +1337,12 @@ def run_case(
     if injected_allocations:
         # The injection self-test adds known allocations inside the window;
         # the recorded count plus exactly those is the only passing result.
+        # Each injected allocation requests 136 bytes, which alone exceeds
+        # the 10% ceiling of a case that otherwise allocates nothing, so the
+        # ceiling gets a fixed allowance for them.
         expected_metrics = Metrics(
             expected_metrics.allocations + injected_allocations,
-            expected_metrics.allocated_bytes,
+            expected_metrics.allocated_bytes + 1024 * injected_allocations,
             expected_metrics.work,
         )
     mismatch = metrics_mismatch(
@@ -1404,6 +1424,61 @@ def available_memory_bytes() -> int | None:
 
 
 GROUP_BUILD_PEAK_BYTES = 7 * 1024**3
+# `roc check`/`roc test` of one root peaks near 4 GB, and of a group
+# application (several families) up to 5.5 GB.
+ROOT_CHECK_PEAK_BYTES = 4 * 1024**3
+GROUP_CHECK_PEAK_BYTES = 6 * 1024**3
+
+
+def available_now_bytes() -> int | None:
+    """Memory the machine can give now: other processes' resident memory is not available."""
+    memory = available_memory_bytes()
+    try:
+        for line in Path("/proc/meminfo").read_text(encoding="ascii").splitlines():
+            if line.startswith("MemAvailable:"):
+                current = int(line.split()[1]) * 1024
+                memory = current if memory is None else min(memory, current)
+    except (OSError, ValueError):
+        pass
+    return memory
+
+
+class MemoryBudget:
+    """Admit compiler processes while their expected peaks fit the budget.
+
+    One process is always admitted, however large, so a small machine still
+    makes progress one compile at a time.
+    """
+
+    def __init__(self, total: int | None) -> None:
+        self.free = None if total is None else max(0, total - 1024**3)
+        self.running = 0
+        self.condition = threading.Condition()
+
+    class _Reservation:
+        def __init__(self, budget: "MemoryBudget", weight: int) -> None:
+            self.budget = budget
+            self.weight = weight
+
+        def __enter__(self) -> None:
+            budget = self.budget
+            with budget.condition:
+                while budget.free is not None and budget.running > 0 and budget.free < self.weight:
+                    budget.condition.wait()
+                if budget.free is not None:
+                    budget.free -= self.weight
+                budget.running += 1
+
+        def __exit__(self, *_: object) -> None:
+            budget = self.budget
+            with budget.condition:
+                if budget.free is not None:
+                    budget.free += self.weight
+                budget.running -= 1
+                budget.condition.notify_all()
+
+    def reserve(self, weight: int) -> "MemoryBudget._Reservation":
+        return MemoryBudget._Reservation(self, weight)
 
 
 def default_build_jobs() -> int:
@@ -1413,16 +1488,7 @@ def default_build_jobs() -> int:
     nightly-2026-10-23 (development/performance/fixture-grouping.md), more
     than a single-source build, so builds get their own memory bound.
     """
-    # Memory the machine can give now, not its total: other processes'
-    # resident memory is not available to the builds.
-    memory = available_memory_bytes()
-    try:
-        for line in Path("/proc/meminfo").read_text(encoding="ascii").splitlines():
-            if line.startswith("MemAvailable:"):
-                current = int(line.split()[1]) * 1024
-                memory = current if memory is None else min(memory, current)
-    except (OSError, ValueError):
-        pass
+    memory = available_now_bytes()
     if memory is None:
         return available_cpu_count()
     return max(1, (max(0, memory - 1024**3)) // GROUP_BUILD_PEAK_BYTES)

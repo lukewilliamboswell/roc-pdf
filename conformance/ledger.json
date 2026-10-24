@@ -83,12 +83,12 @@
       "human_verification": "not_required",
       "positive_scenarios": [
         "tests/contracts/advanced_text_contract.roc",
-        "tests/font/font.roc",
-        "tests/multiface_facade/multiface_facade.roc"
+        "tests/font/Cases.roc",
+        "tests/multiface_facade/Cases.roc"
       ],
       "negative_scenarios": [
-        "tests/font/font.roc",
-        "tests/multiface_facade/multiface_facade.roc"
+        "tests/font/Cases.roc",
+        "tests/multiface_facade/Cases.roc"
       ],
       "external_rule_ids": []
     },
@@ -115,16 +115,16 @@
       "positive_scenarios": [
         "package/KernelXmp.roc",
         "scripts/check_metadata.py",
-        "tests/archive/archive_facade.roc",
+        "tests/archive/Cases.roc",
         "tests/contracts/advanced_encode_contract.roc",
         "tests/metadata/Cases.roc",
-        "tests/metadata/metadata_facade.roc"
+        "tests/metadata_facade/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelMetadata.roc",
         "package/KernelPdfA4.roc",
         "tests/metadata/Cases.roc",
-        "tests/metadata/metadata_facade_negative.roc"
+        "tests/metadata_facade/Cases.roc"
       ],
       "external_rule_ids": []
     },
@@ -189,8 +189,8 @@
         "scripts/check_arlington.py",
         "scripts/check_pdf_structure.py",
         "scripts/check_pdfbox.py",
-        "tests/structural_kernel/Cases.roc",
-        "tests/structural_kernel/blank.roc"
+        "tests/structural_blank/Cases.roc",
+        "tests/structural_kernel/Cases.roc"
       ],
       "negative_scenarios": [
         "scripts/check_arlington.py",
@@ -257,7 +257,7 @@
       "positive_scenarios": [
         "tests/navigation/Cases.roc",
         "tests/navigation/Fixture.roc",
-        "tests/navigation/navigation_facade.roc"
+        "tests/navigation_facade/Cases.roc"
       ],
       "negative_scenarios": [
         "tests/navigation/Cases.roc",
@@ -418,7 +418,7 @@
         "tests/destination_references/Cases.roc",
         "tests/navigation/Cases.roc",
         "tests/navigation/Fixture.roc",
-        "tests/navigation/navigation_facade.roc",
+        "tests/navigation_facade/Cases.roc",
         "tests/technical_manual/Cases.roc"
       ],
       "negative_scenarios": [
@@ -665,8 +665,7 @@
         "package/KernelStructure.roc",
         "scripts/check_tagged_visual.py",
         "scripts/check_visual_renderers.py",
-        "tests/tagged_visual/command_stress.roc",
-        "tests/tagged_visual/minimal.roc"
+        "tests/tagged_visual/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelGeometry.roc",
@@ -697,7 +696,7 @@
       "machine_verification": "unrepresentable_in_authoring; lowered_plan_forbidden_key_perms; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelPdfA4.roc"
@@ -725,7 +724,7 @@
       "machine_verification": "lowered_plan_catalog_version_check; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelPdfA4.roc"
@@ -754,7 +753,7 @@
       "human_verification": "not_required",
       "positive_scenarios": [
         "package/KernelEmit.roc",
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "scripts/check_pdfa4_structure.py"
@@ -783,7 +782,7 @@
       "machine_verification": "by_construction_trailer_without_info; lowered_plan_rejects_pieceinfo; structural_checker_rejects_trailer_info; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelPdfA4.roc",
@@ -813,7 +812,7 @@
       "machine_verification": "unrepresentable_in_authoring; lowered_plan_forbidden_key_encrypt; structural_checker_forbidden_key; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelPdfA4.roc",
@@ -843,7 +842,7 @@
       "human_verification": "not_required",
       "positive_scenarios": [
         "package/KernelEmit.roc",
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "scripts/check_pdfa4_structure.py"
@@ -873,7 +872,7 @@
       "human_verification": "not_required",
       "positive_scenarios": [
         "package/KernelEmit.roc",
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "scripts/check_pdfa4_structure.py"
@@ -902,7 +901,7 @@
       "human_verification": "not_required",
       "positive_scenarios": [
         "package/KernelLex.roc",
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelLex.roc"
@@ -931,7 +930,7 @@
       "machine_verification": "unrepresentable_in_authoring; lowered_plan_forbids_stream_file_keys; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelPdfA4.roc",
@@ -962,7 +961,7 @@
       "human_verification": "not_required",
       "positive_scenarios": [
         "package/KernelEmit.roc",
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "scripts/check_pdfa4_structure.py"
@@ -990,7 +989,7 @@
       "machine_verification": "closed_filter_plan_union; lowered_plan_filter_whitelist; structural_checker_forbidden_filters; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelPdfA4.roc",
@@ -1019,7 +1018,7 @@
       "machine_verification": "lowered_plan_strict_utf8_name_classification; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelPdfA4.roc"
@@ -1048,7 +1047,7 @@
       "human_verification": "not_required",
       "positive_scenarios": [
         "package/KernelEmit.roc",
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "scripts/check_pdfa4_structure.py"
@@ -1076,7 +1075,7 @@
       "machine_verification": "unrepresentable_closed_content_operator_set; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelContent.roc"
@@ -1104,7 +1103,7 @@
       "machine_verification": "unrepresentable_in_authoring; lowered_plan_forbidden_keys_ocproperties_oc; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelPdfA4.roc",
@@ -1135,7 +1134,7 @@
       "machine_verification": "unrepresentable_in_authoring; lowered_plan_forbidden_keys; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/Pdf.roc"
@@ -1164,7 +1163,7 @@
       "machine_verification": "unrepresentable_in_authoring; lowered_plan_forbidden_key_requirements; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelPdfA4.roc"
@@ -1192,7 +1191,7 @@
       "machine_verification": "lowered_plan_font_subtype_whitelist; structural_checker_font_subtypes; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/Pdf.roc",
@@ -1224,8 +1223,8 @@
       "machine_verification": "by_construction_identity_h_and_cid_to_gid_map; lowered_plan_requires_cid_to_gid_map; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc",
-        "tests/font_leaves/font_leaf_facts.roc"
+        "tests/archive/Cases.roc",
+        "tests/font_leaves/Cases.roc"
       ],
       "negative_scenarios": [
         "package/Pdf.roc"
@@ -1257,12 +1256,12 @@
       "machine_verification": "lowered_plan_requires_fontfile2; sanitized_subset_covers_every_used_glyph; caller_font_registration_rejects_restricted_fs_type; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc",
-        "tests/caller_font/caller_facade.roc"
+        "tests/archive/Cases.roc",
+        "tests/caller_font_facade/Cases.roc"
       ],
       "negative_scenarios": [
         "package/Pdf.roc",
-        "tests/caller_font/caller_facade_negative.roc"
+        "tests/caller_font_facade/Cases.roc"
       ],
       "external_rule_ids": [
         "verapdf-pdfa4:6.2.10.4.1-1",
@@ -1288,11 +1287,11 @@
       "machine_verification": "by_construction_widths_from_inspected_hmtx; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc",
-        "tests/font_leaves/font_leaf_facts.roc"
+        "tests/archive/Cases.roc",
+        "tests/font_leaves/Cases.roc"
       ],
       "negative_scenarios": [
-        "tests/font_leaves/font_leaf_facts.roc"
+        "tests/font_leaves/Cases.roc"
       ],
       "external_rule_ids": [
         "verapdf-pdfa4:6.2.10.5-1"
@@ -1317,12 +1316,12 @@
       "machine_verification": "profile_validation_over_prepared_to_unicode_mappings; facade_text_matrix_rejects_these_scalars_earlier; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelPdfA4.roc",
         "package/Pdf.roc",
-        "tests/archive/archive_facade_negative.roc"
+        "tests/archive/Cases.roc"
       ],
       "external_rule_ids": [
         "verapdf-pdfa4:6.2.10.7-1"
@@ -1348,12 +1347,12 @@
       "human_verification": "not_required",
       "positive_scenarios": [
         "tests/actual_text/Cases.roc",
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelPdfA4.roc",
         "package/Pdf.roc",
-        "tests/archive/archive_facade_negative.roc"
+        "tests/archive/Cases.roc"
       ],
       "external_rule_ids": [
         "verapdf-pdfa4:6.2.10.8-1"
@@ -1378,10 +1377,10 @@
       "machine_verification": "by_construction_font_coverage_rejects_unmapped_scalars; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
-        "tests/archive/archive_facade_negative.roc"
+        "tests/archive/Cases.roc"
       ],
       "external_rule_ids": [
         "verapdf-pdfa4:6.2.10.9-1"
@@ -1406,7 +1405,7 @@
       "machine_verification": "unrepresentable_single_type0_font_leaf; lowered_plan_font_subtype_whitelist; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/Pdf.roc",
@@ -1442,7 +1441,7 @@
       "human_verification": "not_required",
       "positive_scenarios": [
         "package/KernelContent.roc",
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelResourceGraph.roc"
@@ -1472,7 +1471,7 @@
       "machine_verification": "lowered_plan_single_intent_embedded_mntr_or_prtr_icc_v2_to_v4; structural_checker_intent_profile_bytes; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelPdfA4.roc",
@@ -1503,7 +1502,7 @@
       "machine_verification": "icc_inspection_allowlist; see ROC-PDF-RESOURCE-COLOR-ICC; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc",
+        "tests/archive/Cases.roc",
         "tests/color_images/Cases.roc"
       ],
       "negative_scenarios": [
@@ -1532,7 +1531,7 @@
       "machine_verification": "by_construction_output_intent_on_every_claimed_plan; lowered_plan_output_intent; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelPdfA4.roc"
@@ -1561,7 +1560,7 @@
       "machine_verification": "unrepresentable_closed_color_space_union; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelColor.roc"
@@ -1590,7 +1589,7 @@
       "machine_verification": "unrepresentable_closed_color_space_union; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelColor.roc"
@@ -1620,7 +1619,7 @@
       "machine_verification": "unrepresentable_graphics_state; lowered_plan_forbidden_keys_tr_tr2_ht_hto; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/Pdf.roc",
@@ -1654,7 +1653,7 @@
       "machine_verification": "lowered_plan_image_dictionary_whitelist; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/Pdf.roc",
@@ -1687,7 +1686,7 @@
       "machine_verification": "closed_filter_plan_union_without_jpx; lowered_plan_filter_whitelist; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelPdfA4.roc",
@@ -1720,7 +1719,7 @@
       "machine_verification": "lowered_plan_forbidden_opi; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelPdfA4.roc"
@@ -1748,7 +1747,7 @@
       "machine_verification": "unrepresentable_in_authoring; lowered_plan_forbidden_key_ref; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/Pdf.roc",
@@ -1777,7 +1776,7 @@
       "machine_verification": "lowered_plan_blend_mode_normal; output_intent_on_every_claimed_plan; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc",
+        "tests/archive/Cases.roc",
         "tests/transparency/Cases.roc"
       ],
       "negative_scenarios": [
@@ -1808,7 +1807,7 @@
       "machine_verification": "closed_annotation_union_link_only; lowered_plan_annotation_subtype_whitelist; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/Pdf.roc",
@@ -1837,7 +1836,7 @@
       "machine_verification": "facade_links_always_print; lowered_plan_rejects_kernel_screen_only_annotations; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/Pdf.roc",
@@ -1868,7 +1867,7 @@
       "machine_verification": "lowered_plan_normal_appearance_stream_only; link_exemption_per_pinned_rule_6_3_3_1; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc",
+        "tests/archive/Cases.roc",
         "tests/navigation/Cases.roc"
       ],
       "negative_scenarios": [
@@ -1900,7 +1899,7 @@
       "machine_verification": "unrepresentable_in_authoring; lowered_plan_forbidden_keys_acroform_xfa_needsrendering; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelPdfA4.roc",
@@ -1933,7 +1932,7 @@
       "machine_verification": "closed_action_union_uri_goto; lowered_plan_action_whitelist; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/Pdf.roc",
@@ -1963,7 +1962,7 @@
       "machine_verification": "unrepresentable_in_authoring; lowered_plan_forbidden_key_aa; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelPdfA4.roc"
@@ -1992,7 +1991,7 @@
       "human_verification": "not_required",
       "positive_scenarios": [
         "package/KernelXmp.roc",
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelPdfA4.roc",
@@ -2026,7 +2025,7 @@
       "human_verification": "not_required",
       "positive_scenarios": [
         "package/KernelXmp.roc",
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelPdfA4.roc",
@@ -2061,7 +2060,7 @@
       "machine_verification": "unrepresentable_in_authoring; lowered_plan_forbidden_keys_embeddedfiles_af; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelPdfA4.roc",
@@ -2092,7 +2091,7 @@
       "machine_verification": "no_rendering_intent_operators_or_ri_entries_are_emitted; digital_signatures_unrepresentable; lowered_plan_whitelist_rejects_unlisted_constructs",
       "human_verification": "clause_by_clause_confirmation_against_licensed_iso_19005_4_2020_text_pending_before_gate_7",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc"
+        "tests/archive/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelPdfA4.roc"
@@ -2469,13 +2468,13 @@
       "machine_verification": "schema_and_roc_contract; facade_claim_derived_from_claims_for_profile; archive_snapshots_pass_verapdf_pdfa4; never_falls_back_to_standard",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/archive/archive_facade.roc",
+        "tests/archive/Cases.roc",
         "tests/contracts/package_contract.roc",
         "tests/contracts/pdf_facade.roc"
       ],
       "negative_scenarios": [
         "package/Pdf.roc",
-        "tests/archive/archive_facade_negative.roc"
+        "tests/archive/Cases.roc"
       ],
       "external_rule_ids": []
     },
@@ -2679,14 +2678,14 @@
       "human_verification": "not_required",
       "positive_scenarios": [
         "tests/actual_text/Cases.roc",
-        "tests/bidi/bidi.roc",
+        "tests/bidi/Cases.roc",
         "tests/contracts/advanced_text_contract.roc",
-        "tests/shaping/shape.roc"
+        "tests/shaping/Cases.roc"
       ],
       "negative_scenarios": [
         "tests/actual_text/Cases.roc",
-        "tests/bidi/bidi.roc",
-        "tests/shaping/shape.roc"
+        "tests/bidi/Cases.roc",
+        "tests/shaping/Cases.roc"
       ],
       "external_rule_ids": []
     }

@@ -80,8 +80,8 @@ SNAPSHOTS = {
     "unique": ROOT / "tests" / "navigation" / "navigation_unique.pdf",
     "retained": ROOT / "tests" / "navigation" / "navigation_retained.pdf",
     "negative": ROOT / "tests" / "navigation" / "navigation_negative.pdf",
-    "facade": ROOT / "tests" / "navigation" / "navigation_facade.pdf",
-    "facade_negative": ROOT / "tests" / "navigation" / "navigation_facade_negative.pdf",
+    "facade": ROOT / "tests" / "navigation_facade" / "navigation_facade.pdf",
+    "facade_negative": ROOT / "tests" / "navigation_facade" / "navigation_facade_negative.pdf",
 }
 
 NUMBER = rb"-?\d+(?:\.\d+)?"
