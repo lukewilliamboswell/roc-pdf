@@ -902,8 +902,11 @@ def build_case_sources(
         # but re-tested on nightly-2026-10-18 a cold shared cache still
         # differs in 26 cases: "static PDF/A-4 archived report scaling x400"
         # allocates 13,877 times instead of 13,473 when other fixtures were
-        # built into the cache first. Keep it until a cold and a warm cache
-        # both match --no-cache for every case.
+        # built into the cache first. On nightly-2026-10-23 cached fixture
+        # builds fail outright (the cached compile-time literal regression
+        # noted in run_parallel_roc_tasks), so nothing could be compared.
+        # Keep it until a cold and a warm cache both match --no-cache for
+        # every case.
         roc(
             "build",
             relative(source),

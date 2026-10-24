@@ -310,7 +310,12 @@ Review of the distribution:
 - **Revisit:** `--no-cache` fixture builds (cause 6). Once report B is fixed,
   cached and uncached builds should produce identical programs, and the
   harness could use the cache again for speed. The guard would detect any
-  difference.
+  difference. Re-tested on nightly-2026-10-18 (a cold shared cache still
+  differed in 26 cases) and on nightly-2026-10-23-18478ff, where cached
+  fixture builds fail outright on a separate cached compile-time literal
+  regression, so no counts could be compared
+  ([October 23 review](roc-nightly-2026-10-23-18478ff.md)). Keep `--no-cache`
+  and re-test on the next nightly, which carries roc-lang/roc#12535.
 
 ## Open issues
 
