@@ -313,7 +313,7 @@ Review of the distribution:
   difference. Re-tested on nightly-2026-10-18 (a cold shared cache still
   differed in 26 cases) and on nightly-2026-10-23-18478ff, where cached
   fixture builds fail outright on a separate cached compile-time literal
-  regression, so no counts could be compared
+  regression (roc-lang/roc#12564), so no counts could be compared
   ([October 23 review](roc-nightly-2026-10-23-18478ff.md)). Keep `--no-cache`
   and re-test on the next nightly, which carries roc-lang/roc#12535.
 

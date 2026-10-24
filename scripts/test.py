@@ -446,6 +446,7 @@ def load_suite() -> TestSuite:
                 "`./scripts/test.py --write-groups`"
             )
         groups.append(Group(group_name, group_source, members))
+        group_package_root(groups[-1])
 
     raw_validation = data["validation"]
     if not isinstance(raw_validation, dict) or set(raw_validation) != {"sources", "skips"}:
@@ -720,6 +721,17 @@ def write_group_apps() -> list[Path]:
 GROUP_MODES = ("group", "isolate", "perturb", "inject")
 
 
+def group_package_root(group: Group) -> str:
+    """Which production package root a group's families build against."""
+    roots = set()
+    for family in group.members:
+        header = family.source.read_text(encoding="utf-8")
+        roots.update(re.findall(r'"[./]*package/(main|all)\.roc"', header))
+    if len(roots) != 1:
+        raise SystemExit(f"group {group.name} must use exactly one of package/main.roc and package/all.roc")
+    return roots.pop()
+
+
 def case_build_units(suite: TestSuite, build_dir: Path, mode: str) -> dict[str, BuildUnit]:
     """The fixture executable each case runs, keyed by case name.
 
@@ -748,10 +760,15 @@ def case_build_units(suite: TestSuite, build_dir: Path, mode: str) -> dict[str, 
             group = groups[case.group]
             members = list(group.members)
             if mode == "perturb":
+                # Only a group on the same production package root can join:
+                # one program cannot hold both package/main.roc and
+                # package/all.roc (the compiler crashes building it).
                 position = ordered.index(group)
-                neighbour = ordered[(position + 1) % len(ordered)]
-                if neighbour is not group:
-                    members.extend(neighbour.members)
+                for offset in range(1, len(ordered)):
+                    neighbour = ordered[(position + offset) % len(ordered)]
+                    if group_package_root(neighbour) == group_package_root(group):
+                        members.extend(neighbour.members)
+                        break
             app = build_dir / f"{mode}_{group.name}.roc"
             unit = BuildUnit(
                 f"{mode}-{group.name}",
@@ -801,8 +818,8 @@ def fixture_build_command(
     # differs in 26 cases: "static PDF/A-4 archived report scaling x400"
     # allocates 13,877 times instead of 13,473 when other fixtures were
     # built into the cache first. On nightly-2026-10-23 cached fixture
-    # builds fail outright (the cached compile-time literal regression
-    # noted in run_parallel_roc_tasks), so nothing could be compared.
+    # builds fail outright (the cached compile-time literal regression,
+    # roc-lang/roc#12564), so nothing could be compared.
     # Keep it until a cold and a warm cache both match --no-cache for
     # every case.
     return [
@@ -1175,8 +1192,7 @@ def run_parallel_roc_tasks(tasks: list[ValidationTask], jobs: int) -> None:
             if task.action == "fmt":
                 roc("fmt", "--check", *(relative(source) for source in task.sources))
             else:
-                # TODO(upstream issue drafted, not yet filed; see development/performance/
-                # roc-nightly-2026-10-23-18478ff.md): remove --no-cache. On
+                # TODO(roc-lang/roc#12564): remove --no-cache. On
                 # nightly-2026-10-23-18478ff a shared cache that already holds
                 # the package from an earlier root makes every later root's
                 # number literals of package types fail compile-time
@@ -1385,6 +1401,31 @@ def available_memory_bytes() -> int | None:
     except (OSError, ValueError):
         pass
     return min(limits) if limits else None
+
+
+GROUP_BUILD_PEAK_BYTES = 7 * 1024**3
+
+
+def default_build_jobs() -> int:
+    """Parallel fixture builds that fit in memory.
+
+    A fixture group build peaks at up to 6.9 GB resident on
+    nightly-2026-10-23 (development/performance/fixture-grouping.md), more
+    than a single-source build, so builds get their own memory bound.
+    """
+    # Memory the machine can give now, not its total: other processes'
+    # resident memory is not available to the builds.
+    memory = available_memory_bytes()
+    try:
+        for line in Path("/proc/meminfo").read_text(encoding="ascii").splitlines():
+            if line.startswith("MemAvailable:"):
+                current = int(line.split()[1]) * 1024
+                memory = current if memory is None else min(memory, current)
+    except (OSError, ValueError):
+        pass
+    if memory is None:
+        return available_cpu_count()
+    return max(1, (max(0, memory - 1024**3)) // GROUP_BUILD_PEAK_BYTES)
 
 
 def default_jobs() -> int:
@@ -1746,7 +1787,7 @@ def run_suite(
             cwd=TEST_PLATFORM,
         )
 
-        build_jobs = min(args.jobs, suite.toolchain.max_build_workers)
+        build_jobs = min(args.jobs, suite.toolchain.max_build_workers, default_build_jobs())
         phase(
             f"Building {len(units)} fixture executables "
             f"({sum(1 for unit in units if unit.key.startswith('group-'))} groups, "
