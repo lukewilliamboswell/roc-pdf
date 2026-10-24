@@ -16,6 +16,8 @@ with the [user documentation](../docs/README.md).
   report and letter fixtures, adverse variants and acceptance obligations.
 - [Performance and implementation records](performance/) preserves design
   reviews, scale measurements, compiler investigations and feature validation.
+- [PDF comparison trial](benchmarks/pdf-comparison/README.md) separates Python
+  and Roc source-to-PDF scripting from Roc/Go executable build and run costs.
 - [Release consumer smoke test](releases/0.1.0-rc1-consumer-smoke-test.md)
   records validation of the first release candidate's distribution boundary.
 
