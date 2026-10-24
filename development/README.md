@@ -21,6 +21,8 @@ with the [user documentation](../docs/README.md).
   reviews, scale measurements, compiler investigations and feature validation.
 - [PDF comparison trial](benchmarks/pdf-comparison/README.md) separates Python
   and Roc source-to-PDF scripting from Roc/Go executable build and run costs.
+- [Publishing a release](releases/publishing.md) explains how the release
+  workflow validates and publishes a bundle, and the steps to cut a release.
 - [Release consumer smoke test](releases/0.1.0-rc1-consumer-smoke-test.md)
   records validation of the first release candidate's distribution boundary.
 

@@ -1,7 +1,7 @@
 # roc-pdf
 
-An early-development pure [Roc](https://www.roc-lang.org/) package for
-deterministic PDF 2.0 generation.
+A pure [Roc](https://www.roc-lang.org/) package for deterministic PDF 2.0
+generation.
 
 The package offers a stable public authoring path whose default profile is
 `Archive`: `Pdf.to_bytes`, `Pdf.to_bytes_with`, and `Pdf.to_chunks_with` all
@@ -65,9 +65,21 @@ text and accept an optional caption. Fixed-page composition and unsupported
 drawing effects return located feature diagnostics. See the
 [authoring support matrix](docs/authoring.md#supported-features).
 
-The current candidate scope is recorded in [the 0.1.0-rc2 release
-notes](docs/releases/0.1.0-rc2.md), and the current Archive default in
-the [draft 0.1.0-rc3 notes](docs/releases/0.1.0-rc3.md).
+The [0.1.0 release notes](docs/releases/0.1.0.md) summarize what this
+release supports, its known limits, and how to upgrade from a release
+candidate.
+
+## Install
+
+Add the 0.1.0 release bundle to your application header and build with the
+Roc nightly named in the [0.1.0 release notes](docs/releases/0.1.0.md):
+
+```roc
+pdf: "https://github.com/lukewilliamboswell/roc-pdf/releases/download/0.1.0/TODO(release)-bundle-hash.tar.zst",
+```
+
+Then `import pdf.Pdf`. The [authoring guide](docs/authoring.md) starts from
+a complete document.
 
 ## Start here
 
@@ -76,7 +88,7 @@ the [draft 0.1.0-rc3 notes](docs/releases/0.1.0-rc3.md).
 - [Composing a technical manual](docs/manual-composition.md)
 - [Destination page references](docs/destination-page-references.md)
 - [Generated API documentation](https://lukewilliamboswell.github.io/roc-pdf/)
-- [Migrating to rc2](docs/migrating-to-rc2.md)
+- [Release notes](docs/README.md#release-notes)
 
 ## Examples
 

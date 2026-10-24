@@ -9,8 +9,8 @@
 - [Example gallery](../examples/README.md): complete runnable documents and PDFs.
 - [API reference](https://lukewilliamboswell.github.io/roc-pdf/): public types
   and functions.
-- [Migrating to rc2](migrating-to-rc2.md) and [release notes](releases/0.1.0-rc3.md):
-  changes that affect existing applications.
+- [0.1.0 release notes](releases/0.1.0.md): what this release supports,
+  its known limits, and how to upgrade from a release candidate.
 
 The default `Archive` profile produces tagged PDF 2.0 with static PDF/A-4.
 PDF/UA-2 is not currently claimed. See the
@@ -18,3 +18,11 @@ PDF/UA-2 is not currently claimed. See the
 
 For repository development and validation records, see the
 [contributor documentation](../development/README.md).
+
+## Release notes
+
+- [0.1.0](releases/0.1.0.md)
+- Release candidates: [rc6](releases/0.1.0-rc6.md),
+  [rc5](releases/0.1.0-rc5.md), [rc4](releases/0.1.0-rc4.md),
+  [rc3](releases/0.1.0-rc3.md), [rc2](releases/0.1.0-rc2.md) with its
+  [migration guide](migrating-to-rc2.md), and [rc1](releases/0.1.0-rc1.md)
