@@ -5,6 +5,11 @@ root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 output_dir="${1:-$root_dir/generated-docs}"
 roc_bin="${ROC:-roc}"
 
+if ! command -v rg >/dev/null; then
+    echo "ERROR: rg (ripgrep) is required for the private-type audit; run 'blueprint run docs'" >&2
+    exit 1
+fi
+
 mkdir -p "$output_dir"
 "$roc_bin" docs --output="$output_dir" "$root_dir/package/main.roc"
 

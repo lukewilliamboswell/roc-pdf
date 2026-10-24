@@ -14,7 +14,7 @@ machine.
 | Zig 0.16.0 | Fetched from ziglang.org for `x86_64-linux` and `aarch64-darwin`, checked against `Blueprint.lock` |
 | `roc` | Expected on `PATH`; it must be the nightly named in `.roc-version` |
 | `python3`, `bash`, `tar` | Expected on `PATH` |
-| `rg` | Expected on `PATH` for the `docs` task only |
+| ripgrep 15.2.0 (`rg`) | Fetched from its GitHub release for the `docs` task, checked against `Blueprint.lock` |
 
 The package compiler is deliberately not fetched by Blueprint. `.roc-version`
 stays its single pin, because the allocation baselines are exact for one build
@@ -23,7 +23,9 @@ CI installs the pinned nightly with `roc-lang/setup-roc`; locally, put it on
 `PATH` (or set `ROC`). The scripts refuse any other compiler.
 
 Zig is fetched because the test platform hosts need exactly 0.16.0, and a newer
-Zig on `PATH` is rejected by the harness. Inside a task the fetched Zig comes
+Zig on `PATH` is rejected by the harness. ripgrep is fetched because the docs
+audit for private `Kernel` types needs it and the Ubuntu runners do not ship
+it; `scripts/docs.sh` now refuses to run without it. Inside a task the fetched Zig comes
 first on `PATH`, so `ZIG` no longer needs to be set.
 
 The renderer oracles (PDFium, MuPDF, veraPDF, PDFBox) and the Arlington service
@@ -73,7 +75,8 @@ Blueprint version. The `ci.yml` test job caches Blueprint's download store
 - To move Zig or add a fetched program, edit `Blueprint.roc`, run
   `blueprint update`, review every URL, size and SHA-256 in the regenerated
   `Blueprint.lock` (compare Zig against
-  <https://ziglang.org/download/index.json>), and commit both files.
+  <https://ziglang.org/download/index.json> and ripgrep against the digests on
+  its GitHub release), and commit both files.
 - To upgrade Blueprint, follow roc-automation's "Upgrade Blueprint" steps: move
   the `setup-blueprint` revision to one that records the release, change the
   platform URL in `Blueprint.roc`, and regenerate the lock if the lock format

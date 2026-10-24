@@ -3,7 +3,8 @@
 # The package compiler is not fetched here. `.roc-version` stays its only pin:
 # CI installs that nightly with roc-lang/setup-roc, contributors put it on PATH
 # as `roc`, and the scripts refuse any other compiler. Zig is fetched by digest
-# because the test platform hosts need exactly 0.16.0.
+# because the test platform hosts need exactly 0.16.0, and ripgrep because the
+# docs audit needs it and the CI runners do not ship it.
 app [config] { pf: platform "https://github.com/lukewilliamboswell/roc-blueprint/releases/download/0.8.0/FbJymjYdCxx9vqMcau7r4tQfeAbnVGqqJoYrLGqPCqKu.tar.zst" }
 
 import pf.Config
@@ -14,7 +15,7 @@ config = [
 	Systems(["x86_64-linux", "aarch64-darwin"]),
 	Environment("package", [Expect(["roc", "python3", "bash", "tar"])]),
 	Environment("dev", [Extend("package"), Programs([Fetch("zig", zig)])]),
-	Environment("docs", [Extend("package"), Expect(["rg"])]),
+	Environment("docs", [Extend("package"), Programs([Fetch("rg", ripgrep)])]),
 	Shell("default", [Use("dev")]),
 	Task("test", [Use("dev"), Run(["python3", "scripts/test.py"])]),
 	Task("fuzz", [Use("dev"), Run(["python3", "scripts/fuzz.py", "--mode", "smoke"])]),
@@ -33,6 +34,16 @@ zig = |system| {
 	match system {
 		"x86_64-linux" => Archive("${base}/zig-x86_64-linux-0.16.0.tar.xz", TarXz, "zig-x86_64-linux-0.16.0/zig")
 		"aarch64-darwin" => Archive("${base}/zig-aarch64-macos-0.16.0.tar.xz", TarXz, "zig-aarch64-macos-0.16.0/zig")
+		_ => Unavailable
+	}
+}
+
+ripgrep : System -> Config.Download
+ripgrep = |system| {
+	base = "https://github.com/BurntSushi/ripgrep/releases/download/15.2.0"
+	match system {
+		"x86_64-linux" => Archive("${base}/ripgrep-15.2.0-x86_64-unknown-linux-musl.tar.gz", TarGz, "ripgrep-15.2.0-x86_64-unknown-linux-musl/rg")
+		"aarch64-darwin" => Archive("${base}/ripgrep-15.2.0-aarch64-apple-darwin.tar.gz", TarGz, "ripgrep-15.2.0-aarch64-apple-darwin/rg")
 		_ => Unavailable
 	}
 }
