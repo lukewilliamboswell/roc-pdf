@@ -110,16 +110,23 @@ including Linux, so a macOS checkout cannot silently replace a fixture module
 with a differently cased app root. App and module names must be distinct beyond
 capitalization.
 
-Evidence applications are ordinary apps under capability-named directories in
-`tests/`. Internal evidence imports the local `all.roc` root, while public API
-fixtures import `main.roc`. Test-only fixture modules live beside the apps that
-share them rather than in `package/`. Related cases with one fixture pipeline
-use one family app root and a deterministically ordered, versioned JSONL case
-file. The app decodes exactly one JSON argument into a closed typed case union;
-unknown tags, malformed fields, and unsupported schema versions are explicit
-failures. The harness builds each family root once, then may execute its rows in
-parallel. Genuinely different application/package boundaries may still use
-multiple named roots in one capability directory.
+Evidence cases belong to case families: local packages in capability-named
+directories under `tests/`, each exposing a `Cases` module with a closed typed
+case union and its dispatch, beside a deterministically ordered, versioned JSONL
+case file. Internal evidence families depend on the local `all.roc` root,
+public API families on `main.roc`; a directory holds one family and a program
+never holds both roots. Test-only fixture modules live in the family
+directories rather than in `package/`. Generated group applications under
+`tests/groups/` decode exactly one JSON argument, an envelope tagging the case
+with its family, into the union of their families' case types; unknown tags,
+malformed fields, non-canonical JSON and unsupported schema versions are
+explicit failures. The allocation reset follows the decode, so the measured
+window is the family's `run`. The harness builds each group once and runs
+every case in its own process. Group membership must not change any case's
+evidence: a family's allocations, allocated bytes, work and bytes are identical
+in its group, alone (`--isolate`) and beside another group (`--group-mode
+perturb`), from an empty cache. Only the retention probe, which needs its own
+platform, remains a standalone application.
 
 Case manifests declare their ordered structural validators explicitly by
 stable allowlisted ID. Numeric dimensions are evidence inputs, not implicit

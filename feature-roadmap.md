@@ -446,8 +446,10 @@ within an early correctness gate.
   validator work, reset at each declared whole-pipeline or phase boundary, and
   reproduce exactly for the pinned compiler, dev backend, target, fixture
   revision, and measurement boundary.
-- A deliberately introduced allocation regression fails the baseline check,
-  allocated bytes above the recorded ceiling fail it, and scaling fixtures
+- A deliberately introduced allocation regression fails the baseline check
+  (for grouped fixtures, `--group-mode inject` adds one allocation inside every
+  case's window and must be reported exactly), allocated bytes above the
+  recorded ceiling fail it, and scaling fixtures
   demonstrate that deterministic work counters catch a complexity regression
   even when allocation counts remain unchanged.
 

@@ -1763,7 +1763,10 @@ test case records the exact number of Roc allocations after resetting the
 allocator counter at its declared Roc measurement boundary. Whole-pipeline
 cases reset before authoring construction; phase cases reset immediately before
 the operation they isolate. Python harness and external-tool allocations are
-excluded. The baseline identifies compiler revision, target, optimization
+excluded. Cases run in a few shared fixture group executables, one process
+per case, and the reset follows the case decode; which families share an
+executable must not change any count, which the isolated and perturbed group
+builds check. The baseline identifies compiler revision, target, optimization
 mode, scenario revision, and measurement boundary, because exact counts are
 comparable only under the same configuration. An increased count fails review
 until its ownership or representation cause is understood and the checked-in

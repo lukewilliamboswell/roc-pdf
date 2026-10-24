@@ -112,8 +112,8 @@ class Family:
     name: str
     source: Path
     cases_jsonl: Path
-    group: str | None
-    tag: str | None
+    group: str
+    tag: str
 
 
 @dataclass(frozen=True)
@@ -358,15 +358,12 @@ def load_suite() -> TestSuite:
     group_sources: dict[str, Path] = {}
     for group_index, raw_group in enumerate(raw_groups):
         field = f"groups[{group_index}]"
-        if not isinstance(raw_group, dict) or set(raw_group) != {"name", "source"}:
-            raise SystemExit(f"{SPEC_PATH}: {field} must contain name and source")
+        if not isinstance(raw_group, dict) or set(raw_group) != {"name"}:
+            raise SystemExit(f"{SPEC_PATH}: {field} must contain exactly name")
         group_name = non_empty_string(raw_group["name"], f"{field}.name")
         if not re.fullmatch(r"[a-z][a-z0-9_]*", group_name) or group_name in group_sources:
             raise SystemExit(f"{SPEC_PATH}: {field}.name must be a unique snake_case name")
-        group_source = repository_path(raw_group["source"], f"{field}.source")
-        if group_source != (ROOT / "tests" / "groups" / f"{group_name}.roc").resolve():
-            raise SystemExit(f"{SPEC_PATH}: {field}.source must be tests/groups/{group_name}.roc")
-        group_sources[group_name] = group_source
+        group_sources[group_name] = group_source_for(group_name)
 
     raw_families = data["families"]
     if not isinstance(raw_families, list):
@@ -375,40 +372,26 @@ def load_suite() -> TestSuite:
     family_cases_by_name: dict[str, tuple[Family, int, dict[str, object]]] = {}
     for family_index, raw_family in enumerate(raw_families):
         field = f"families[{family_index}]"
-        if not isinstance(raw_family, dict) or set(raw_family) != {
-            "name",
-            "source",
-            "cases_jsonl",
-            "group",
-            "tag",
-        }:
-            raise SystemExit(
-                f"{SPEC_PATH}: {field} must contain name, source, cases_jsonl, group, and tag"
-            )
+        if not isinstance(raw_family, dict) or set(raw_family) != {"name", "group"}:
+            raise SystemExit(f"{SPEC_PATH}: {field} must contain exactly name and group")
         family_name = non_empty_string(raw_family["name"], f"{field}.name")
         if not re.fullmatch(r"[a-z][a-z0-9_]*", family_name) or any(
             family.name == family_name for family in families
         ):
             raise SystemExit(f"{SPEC_PATH}: {field}.name must be a unique snake_case name")
-        family_source = repository_path(raw_family["source"], f"{field}.source")
-        cases_jsonl = repository_path(raw_family["cases_jsonl"], f"{field}.cases_jsonl")
+        # A family is the local package in its own directory: the package
+        # root, its Cases module and its JSONL rows have fixed names, and its
+        # tag in the group envelope is the PascalCase of the family name.
+        family_source = (ROOT / "tests" / family_name / "package.roc").resolve()
+        cases_jsonl = (ROOT / "tests" / family_name / "cases.jsonl").resolve()
         if not family_source.is_file() or not cases_jsonl.is_file():
-            raise SystemExit(f"{SPEC_PATH}: {field} source or JSONL file does not exist")
+            raise SystemExit(
+                f"{SPEC_PATH}: {field}: tests/{family_name}/package.roc or cases.jsonl does not exist"
+            )
         family_group = raw_family["group"]
-        family_tag = raw_family["tag"]
-        if family_group is None:
-            if family_tag is not None:
-                raise SystemExit(f"{SPEC_PATH}: {field}: only a grouped family has a tag")
-        else:
-            if family_group not in group_sources:
-                raise SystemExit(f"{SPEC_PATH}: {field}: unknown group {family_group!r}")
-            if not isinstance(family_tag, str) or not re.fullmatch(r"[A-Z][A-Za-z0-9]*", family_tag):
-                raise SystemExit(f"{SPEC_PATH}: {field}: a grouped family needs a PascalCase tag")
-            if family_source.name != "package.roc" or family_source.parent.name != family_name:
-                raise SystemExit(
-                    f"{SPEC_PATH}: {field}: a grouped family's source must be "
-                    f"tests/{family_name}/package.roc"
-                )
+        if family_group not in group_sources:
+            raise SystemExit(f"{SPEC_PATH}: {field}: unknown group {family_group!r}")
+        family_tag = family_tag_for(family_name)
         family = Family(family_name, family_source, cases_jsonl, family_group, family_tag)
         families.append(family)
         for row_index, line in enumerate(
@@ -524,12 +507,13 @@ def load_suite() -> TestSuite:
         if not isinstance(raw, dict):
             raise SystemExit(f"{SPEC_PATH}: every case must be an object")
 
-        required_fields = {
+        # A family case names its family, which supplies its program and its
+        # typed argument; only a standalone application (the retention probe
+        # on its own platform) names a source and literal arguments.
+        common_fields = {
             "name",
             "scenario_revision",
-            "source",
             "snapshot",
-            "args",
             "measurement_boundary",
             "dimensions",
             "validators",
@@ -537,11 +521,14 @@ def load_suite() -> TestSuite:
             "expectations",
             "retention",
         }
-        if set(raw) != required_fields:
-            raise SystemExit(f"{SPEC_PATH}: every case must contain exactly {sorted(required_fields)}")
+        if set(raw) not in (common_fields | {"family"}, common_fields | {"source", "args"}):
+            raise SystemExit(
+                f"{SPEC_PATH}: every case must contain exactly {sorted(common_fields)} "
+                "plus either family or source and args"
+            )
         name = non_empty_string(raw["name"], "case.name")
         scenario_revision = non_empty_string(raw["scenario_revision"], f"{name}.scenario_revision")
-        args = string_list(raw["args"], f"{name}.args")
+        args = string_list(raw["args"], f"{name}.args") if "args" in raw else ()
         measurement_boundary = non_empty_string(
             raw["measurement_boundary"], f"{name}.measurement_boundary"
         )
@@ -618,21 +605,24 @@ def load_suite() -> TestSuite:
                 owned_capacity=raw_retention["owned_capacity"],
             )
 
-        declared_source = repository_path(raw.get("source"), f"{name}.source")
         family_entry = family_cases_by_name.pop(name, None)
         case_family: Family | None = None
-        if family_entry is None:
-            source = declared_source
+        if "family" not in raw:
+            if family_entry is not None:
+                raise SystemExit(f"{SPEC_PATH}: {name}: a case with a family JSONL row must name its family")
+            source = repository_path(raw.get("source"), f"{name}.source")
             family_cases = None
             family_row = None
         else:
+            if family_entry is None:
+                raise SystemExit(f"{SPEC_PATH}: {name}: family {raw['family']!r} has no JSONL row for it")
             case_family, family_row, family_case = family_entry
+            if raw["family"] != case_family.name:
+                raise SystemExit(
+                    f"{case_family.cases_jsonl}:{family_row}: {name}: spec family must be {case_family.name}"
+                )
             source = case_family.source
             family_cases = case_family.cases_jsonl
-            if declared_source != source:
-                raise SystemExit(
-                    f"{family_cases}:{family_row}: {name}: spec source must be the family source"
-                )
             args = (family_case_argument(case_family, family_case),)
         snapshot = repository_path(raw.get("snapshot"), f"{name}.snapshot")
         if not source.is_file():
@@ -689,17 +679,19 @@ def load_suite() -> TestSuite:
     )
 
 
-def family_case_argument(family: Family, row: dict[str, object]) -> str:
-    """The argv JSON a family case receives.
+def family_tag_for(name: str) -> str:
+    """A family's tag in the group envelope and its module alias in the group app."""
+    return "".join(part.capitalize() for part in name.split("_"))
 
-    An ungrouped family's own application reads its row's case directly. A
-    grouped family's case is tagged with the family inside the group envelope.
-    """
-    if family.tag is None:
-        envelope: dict[str, object] = {"case": row["case"], "schema_version": row["schema_version"]}
-    else:
-        envelope = {"case": {family.tag: row["case"]}, "schema_version": ENVELOPE_SCHEMA_VERSION}
+
+def family_case_argument(family: Family, row: dict[str, object]) -> str:
+    """The argv JSON a family case receives: its row's case tagged with the family."""
+    envelope = {"case": {family.tag: row["case"]}, "schema_version": ENVELOPE_SCHEMA_VERSION}
     return json.dumps(envelope, separators=(",", ":"), ensure_ascii=False)
+
+
+def group_source_for(name: str) -> Path:
+    return (ROOT / "tests" / "groups" / f"{name}.roc").resolve()
 
 
 def write_group_apps() -> list[Path]:
@@ -707,9 +699,9 @@ def write_group_apps() -> list[Path]:
     data = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     written: list[Path] = []
     for raw_group in data["groups"]:
-        source = (ROOT / raw_group["source"]).resolve()
+        source = group_source_for(raw_group["name"])
         members = [
-            Member(raw_family["tag"], (ROOT / raw_family["source"]).resolve())
+            Member(family_tag_for(raw_family["name"]), (ROOT / "tests" / raw_family["name"] / "package.roc").resolve())
             for raw_family in data["families"]
             if raw_family["group"] == raw_group["name"]
         ]
@@ -1093,7 +1085,9 @@ def plan_validation(
       the same exit codes, before running expects; a tested root is not also
       checked.
     - `roc build --no-cache` of a fixture source does the same, so a fixture
-      root that no `roc test` needs is checked by its evidence build.
+      root that no `roc test` needs is checked by its evidence build. A group
+      application's closure includes its family packages (validation_closure),
+      whose own package.roc roots are skipped: the group is their root.
     - `package/all.roc` runs every package-module expect (it exposes every
       module, see verify_all_package_root). An application root's `roc test`
       would re-run them all, so application roots are tested only for the
