@@ -1,0 +1,72 @@
+name: Fuzz campaign
+
+# The bounded search over every property target. Pull requests run only the
+# smoke mode in ci.yml; this campaign runs on a schedule or on request, on the
+# default branch.
+on:
+  schedule:
+    - cron: "41 14 * * *"
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: Executions per target
+        type: string
+        default: "2000"
+
+permissions: {}
+
+concurrency:
+  group: fuzz-campaign
+  cancel-in-progress: false
+
+jobs:
+  campaign:
+    if: >-
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Blueprint
+        uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@7aff4132691ad4fc348abe9df146a57512b49bd6
+
+      - name: Read pinned Roc nightly
+        run: printf 'ROC_NIGHTLY_TAG=%s\n' "$(sed -n '1p' .roc-version)" >> "$GITHUB_ENV"
+
+      - name: Install Roc
+        uses: roc-lang/setup-roc@f5a74bf90aa694b43ab4a7cbfdb19273bc6aa697
+        with:
+          version: nightly-new-compiler
+          nightly-tag: ${{ env.ROC_NIGHTLY_TAG }}
+
+      - name: Record the tested identities
+        run: |
+          {
+            echo "### Fuzz campaign"
+            echo "- source: \`$GITHUB_SHA\`"
+            echo "- compiler: \`$(roc version)\`"
+            echo "- runs per target: ${RUNS}"
+          } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          RUNS: ${{ inputs.runs || '2000' }}
+
+      - name: Run the bounded campaign
+        run: blueprint run fuzz-campaign -- --runs "$RUNS"
+        env:
+          RUNS: ${{ inputs.runs || '2000' }}
+
+      - name: Upload reproducers
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fuzz-reproducers
+          path: .roc-pdf-tmp/fuzz-artifacts/
+          if-no-files-found: warn
+          retention-days: 14

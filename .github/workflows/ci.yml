@@ -66,11 +66,11 @@ jobs:
             blueprint run test
           fi
 
-      # A bounded campaign per property fuzz target. The suite above only
-      # formats, checks, and runs the `expect`s in these sources; this is what
-      # executes their properties against generated input. Linux only, matching
-      # the pull-request matrix.
-      - name: Run bounded property fuzz lane
+      # Each property target builds and replays its seed corpus plus a few
+      # fixed-seed inputs within one second of workload. The suite above only
+      # formats, checks, and runs the `expect`s in these sources. The bounded
+      # search is fuzz.yml, which never runs on a pull request.
+      - name: Run property fuzz smoke
         if: runner.os == 'Linux'
         run: blueprint run fuzz
 

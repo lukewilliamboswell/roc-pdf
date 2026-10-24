@@ -142,20 +142,37 @@ The bounded property targets in `fuzz/` are evidence-only applications on the
 content-addressed `roc-fuzz` platform. `./scripts/test.py` formats every
 `fuzz/*.roc` source, checks every target, and tests the fewest targets that
 reach every helper module's `expect`s, which run against the committed corpus. Compiling a target
-proves nothing about its property, so a separate lane executes each one:
+proves nothing about its property, so a separate lane executes each one. It
+has two modes.
+
+The smoke mode is the default and is what every pull request runs:
 
 ```sh
-./scripts/fuzz.py
+./scripts/fuzz.py            # or: blueprint run fuzz
 ```
 
-That builds every target with `roc build --fuzz` for libFuzzer coverage
-instrumentation and runs a bounded campaign against its seed corpus. A crash, a
-timeout, or a memory-limit breach fails the run. Use `--targets NAME`
-(repeatable) to select one, and `--runs N` for a longer local campaign:
+It builds every target with `roc build --fuzz` for libFuzzer coverage
+instrumentation, then replays the target's seed corpus and 64 further inputs
+from a fixed seed, with `--time=1` capping the workload at one second per
+target. Its purpose is that every target keeps building and its property keeps
+executing between campaigns; it makes no claim about search coverage.
+
+The campaign mode is the bounded search, 2000 executions per target by default:
 
 ```sh
-./scripts/fuzz.py --targets jpeg_inspector_mutation --runs 200000
+./scripts/fuzz.py --mode campaign                        # or: blueprint run fuzz-campaign
+./scripts/fuzz.py --mode campaign --targets jpeg_inspector_mutation --runs 200000
 ```
+
+`.github/workflows/fuzz.yml` runs it daily and on manual dispatch, on the
+default branch only; it never runs on a pull request.
+
+In both modes a crash, a per-input timeout (`--timeout`, 10 s), a memory-limit
+breach (`--memory-limit`, 2048 MB), or a target still running at the hard
+deadline (60 s for a smoke run, 30 min for a campaign target) fails the lane.
+Every selected target still runs, and each target's failing inputs are written
+to `.roc-pdf-tmp/fuzz-artifacts/<target>/`, which `fuzz.yml` uploads when the
+campaign fails. Reproduce one with `.roc-pdf-tmp/fuzz/<target> replay <input>`.
 
 Seed corpora are copied into the ignored `.roc-pdf-tmp/fuzz-corpus/` before a
 run, because libFuzzer writes newly interesting inputs back into the directory

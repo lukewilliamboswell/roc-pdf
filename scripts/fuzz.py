@@ -1,20 +1,25 @@
 #!/usr/bin/env python3
-"""Build and smoke-run the bounded property fuzz targets in `fuzz/`.
+"""Build and run the property fuzz targets in `fuzz/`, as a smoke run or a campaign.
 
 The targets are evidence-only applications on the content-addressed `roc-fuzz`
 platform. They are software-quality tests for correctness, determinism, bounded
 error handling, and invariant preservation; they do not make a security claim.
 
-This lane exists because compiling a target proves nothing about its property.
 `scripts/test.py` already applies `roc fmt --check`, `roc check`, and `roc test`
 to every `fuzz/*.roc` source, which runs the `expect`s a target retains but
-never executes the property against generated input. A short bounded campaign
-per target is what turns a written property into a checked one.
+never executes the property against generated input. This lane does that.
 
 Each target is built with `--fuzz` for libFuzzer coverage instrumentation and
-run for a bounded number of executions against its seed corpus. A crash, a
-timeout, or a memory-limit breach fails the run. Long campaigns and corpus
-accumulation are a separate concern and are not performed here.
+run against its seed corpus. A crash, a per-input timeout, a memory-limit
+breach, or a run that outlives its hard deadline fails the lane; every target
+still runs, and failing inputs are saved under `.roc-pdf-tmp/fuzz-artifacts/`.
+
+`--mode smoke` (the default, and what pull-request CI runs) replays the
+committed seed corpus plus a few fixed-seed generated inputs, capped at one
+second of workload per target, so every target keeps building and its property
+keeps executing. `--mode campaign` is the bounded search that
+`.github/workflows/fuzz.yml` runs on a schedule; it never runs on a pull
+request.
 """
 from __future__ import annotations
 
@@ -23,6 +28,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -34,6 +40,18 @@ ROOT = Path(__file__).resolve().parents[1]
 ROC = os.environ.get("ROC", "roc")
 WORK = ROOT / ".roc-pdf-tmp" / "fuzz"
 SEEDS = ROOT / ".roc-pdf-tmp" / "fuzz-corpus"
+ARTIFACTS = ROOT / ".roc-pdf-tmp" / "fuzz-artifacts"
+
+# Smoke runs replay the seed corpus and then a handful of generated inputs
+# from a fixed seed. `--time` caps the workload at the one-second smoke budget
+# should a large corpus take longer; it ends the run normally. The hard
+# deadline is separate: a target still running after it is killed and fails.
+SMOKE_RUNS = 64
+SMOKE_SECONDS = 1
+SMOKE_SEED = 1
+CAMPAIGN_RUNS = 2000
+SMOKE_DEADLINE_SECONDS = 60
+CAMPAIGN_DEADLINE_SECONDS = 1800
 
 # Valid fonts are the only corpus that gets a raw-byte inspector past its
 # directory layer, so the font targets are seeded from the tracked faces.
@@ -70,9 +88,25 @@ TARGETS = (
 )
 
 
-def run(command: list[str], *, cwd: Path = ROOT) -> None:
+class LaneFailure(Exception):
+    pass
+
+
+def run(command: list[str], *, cwd: Path = ROOT, deadline: float | None = None) -> None:
     printable = " ".join(str(part) for part in command)
-    result = subprocess.run(command, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    try:
+        result = subprocess.run(
+            command,
+            cwd=cwd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            timeout=deadline,
+        )
+    except subprocess.TimeoutExpired as error:
+        output = error.stdout or ""
+        sys.stdout.write(output if isinstance(output, str) else output.decode(errors="replace"))
+        raise LaneFailure(f"exceeded the {deadline:.0f}s hard deadline: {printable}") from None
     sys.stdout.write(result.stdout)
     if result.returncode == 0:
         return
@@ -80,7 +114,7 @@ def run(command: list[str], *, cwd: Path = ROOT) -> None:
     # (see scripts/roc_diagnostics.py).
     if result.returncode == 2 and tolerated_warnings_only(result.stdout):
         return
-    raise SystemExit(f"fuzz lane failed ({result.returncode}): {printable}")
+    raise LaneFailure(f"failed ({result.returncode}): {printable}")
 
 
 def seed_font_corpus() -> Path:
@@ -123,35 +157,55 @@ def corpus_for(target: Target) -> Path:
     return corpus
 
 
-def smoke(target: Target, runs: int, timeout: int, memory_limit: int) -> None:
+@dataclass(frozen=True)
+class Budget:
+    """How long one target searches: a run count and an optional time cap."""
+
+    runs: int
+    seconds: int | None
+    seed: int | None
+    deadline: float
+
+
+def fuzz_target(target: Target, budget: Budget, timeout: int, memory_limit: int) -> float:
     source = ROOT / "fuzz" / f"{target.name}.roc"
     if not source.is_file():
-        raise SystemExit(f"{target.name}: missing {source.relative_to(ROOT)}")
+        raise LaneFailure(f"missing {source.relative_to(ROOT)}")
     binary = WORK / target.name
     run([ROC, "build", "--fuzz", str(source.relative_to(ROOT)), f"--output={binary}"])
     corpus = corpus_for(target)
-    run(
-        [
-            str(binary),
-            "run",
-            str(corpus),
-            f"--runs={runs}",
-            f"--max-input-size={target.max_input_size}",
-            f"--timeout={timeout}",
-            f"--memory-limit={memory_limit}",
-        ]
-    )
-    print(f"PASS {target.name} ({runs} runs)", flush=True)
+    artifacts = ARTIFACTS / target.name
+    if artifacts.exists():
+        shutil.rmtree(artifacts)
+    artifacts.mkdir(parents=True)
+    command = [
+        str(binary),
+        "run",
+        str(corpus),
+        f"--runs={budget.runs}",
+        f"--time={budget.seconds if budget.seconds is not None else 0}",
+        f"--max-input-size={target.max_input_size}",
+        f"--timeout={timeout}",
+        f"--memory-limit={memory_limit}",
+        f"--artifact-dir={artifacts}",
+    ]
+    if budget.seed is not None:
+        command.append(f"--seed={budget.seed}")
+    started = time.monotonic()
+    run(command, deadline=budget.deadline)
+    return time.monotonic() - started
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
-        "--runs",
-        type=int,
-        default=2000,
-        help="executions per target (default: 2000)",
+        "--mode",
+        choices=("smoke", "campaign"),
+        default="smoke",
+        help="smoke: replay seeds plus a few fixed-seed inputs within one second per target (default); "
+        f"campaign: a bounded search of --runs inputs per target (default {CAMPAIGN_RUNS})",
     )
+    parser.add_argument("--runs", type=int, help="campaign executions per target")
     parser.add_argument(
         "--targets",
         action="append",
@@ -171,14 +225,32 @@ def main() -> None:
     else:
         selected = list(TARGETS)
 
-    if args.runs < 1:
-        raise SystemExit("--runs must be positive")
+    if args.mode == "smoke":
+        if args.runs is not None:
+            raise SystemExit("--runs applies to --mode campaign; smoke runs are fixed")
+        budget = Budget(SMOKE_RUNS, SMOKE_SECONDS, SMOKE_SEED, SMOKE_DEADLINE_SECONDS)
+    else:
+        runs = CAMPAIGN_RUNS if args.runs is None else args.runs
+        if runs < 1:
+            raise SystemExit("--runs must be positive")
+        budget = Budget(runs, None, None, CAMPAIGN_DEADLINE_SECONDS)
 
     WORK.mkdir(parents=True, exist_ok=True)
     SEEDS.mkdir(parents=True, exist_ok=True)
+    failures: list[str] = []
     for target in selected:
-        smoke(target, args.runs, args.timeout, args.memory_limit)
-    print(f"PASS bounded fuzz lane ({len(selected)} targets)", flush=True)
+        try:
+            elapsed = fuzz_target(target, budget, args.timeout, args.memory_limit)
+        except LaneFailure as error:
+            print(f"FAIL {target.name}: {error}", flush=True)
+            failures.append(target.name)
+        else:
+            print(f"PASS {target.name} ({args.mode}, {budget.runs} runs, workload {elapsed:.1f}s)", flush=True)
+    if failures:
+        raise SystemExit(
+            f"fuzz {args.mode} failed for {', '.join(failures)}; inputs are under {ARTIFACTS.relative_to(ROOT)}/"
+        )
+    print(f"PASS fuzz {args.mode} ({len(selected)} targets)", flush=True)
 
 
 if __name__ == "__main__":

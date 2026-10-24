@@ -17,11 +17,14 @@ config = [
 	Environment("docs", [Extend("package"), Expect(["rg"])]),
 	Shell("default", [Use("dev")]),
 	Task("test", [Use("dev"), Run(["python3", "scripts/test.py"])]),
-	Task("fuzz", [Use("dev"), Run(["python3", "scripts/fuzz.py"])]),
+	Task("fuzz", [Use("dev"), Run(["python3", "scripts/fuzz.py", "--mode", "smoke"])]),
+	Task("fuzz-campaign", [Use("dev"), Run(["python3", "scripts/fuzz.py", "--mode", "campaign"])]),
 	Task("gallery", [Use("package"), Run(["python3", "scripts/check_gallery.py"])]),
 	Task("bundle", [Use("package"), Run(["bash", "scripts/bundle.sh"])]),
 	Task("bundle-consumer", [Use("package"), Run(["python3", "scripts/test_bundle_consumer.py"])]),
 	Task("docs", [Use("docs"), Run(["bash", "scripts/docs.sh"])]),
+	# What a pull request runs, in CI order. The fuzz campaign is not part of it.
+	Workflow("check", [RunTask("test", []), RunTask("fuzz", []), RunTask("bundle-consumer", []), RunTask("gallery", [])]),
 ]
 
 zig : System -> Config.Download

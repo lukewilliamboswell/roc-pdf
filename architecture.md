@@ -1817,11 +1817,14 @@ the same pinned dev backend before an iterator becomes a hot-path choice.
 
 The fast ordinary CI lane checks and tests the core `package/main.roc` public
 surface, checks the repository-only `package/all.roc` root, compiles and tests
-every checked-in public example, and runs a bounded campaign for every property
-fuzz target. A target that only compiles is not evidence about its property, and
-a raw-byte inspector reached from an empty corpus never leaves its reject paths,
-so every target carries a seed corpus and is executed rather than merely
-type-checked. The complete local suite remains the authoritative
+every checked-in public example, and gives every property fuzz target a smoke
+run: it builds the target and replays its seed corpus plus a few fixed-seed
+generated inputs within one second of workload. A target that only compiles is
+not evidence about its property, and a raw-byte inspector reached from an empty
+corpus never leaves its reject paths, so the raw-byte targets carry seed corpora
+and every target is executed rather than merely type-checked. The bounded
+search campaign is a separate scheduled job on the default branch, never a
+pull-request check, so its cost does not grow the ordinary lane. The complete local suite remains the authoritative
 feature-evidence path and is run through `./scripts/test.py`; release validation
 also runs that suite from scratch. That full evidence path uses PDFium and
 PDFBox as independent reader/render/extraction paths. PDF.js adds browser

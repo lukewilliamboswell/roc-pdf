@@ -41,11 +41,13 @@ blueprint check                     # validate Blueprint.roc
 blueprint tasks                     # list the tasks
 blueprint run test                  # ./scripts/test.py
 blueprint run test -- --compare-baselines --jobs 6
-blueprint run fuzz                  # scripts/fuzz.py
+blueprint run fuzz                  # fuzz smoke run (what pull requests run)
+blueprint run fuzz-campaign         # bounded fuzz campaign (scheduled in CI)
 blueprint run gallery               # scripts/check_gallery.py
 blueprint run bundle                # scripts/bundle.sh
 blueprint run bundle-consumer       # scripts/test_bundle_consumer.py
 blueprint run docs                  # scripts/docs.sh
+blueprint workflow check            # test, fuzz smoke, bundle consumer, gallery
 blueprint shell                     # a shell with the dev tools on PATH
 ```
 
@@ -53,9 +55,12 @@ Arguments after `--` are passed to the script unchanged. Every task wraps an
 existing script; the scripts still run directly when the tools are already on
 `PATH`.
 
+`blueprint workflow check` is what a pull request runs on Linux. The fuzz
+campaign is not part of it.
+
 ## CI
 
-`ci.yml` and `docs.yml` install Blueprint with the shared
+`ci.yml`, `docs.yml` and `fuzz.yml` install Blueprint with the shared
 `roc-automation` `actions/setup-blueprint` action at the reviewed `tools-0.4.0`
 commit. It verifies the Blueprint binary against its reviewed digest and reads
 the release from the platform URL in `Blueprint.roc`, so no workflow names the
