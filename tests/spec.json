@@ -1,5 +1,5 @@
 {
-  "schema_version": 6,
+  "schema_version": 7,
   "protocol_version": 2,
   "preflight_checks": [
     "contracts",
@@ -122,114 +122,196 @@
     "zig_optimization": "ReleaseFast",
     "max_build_workers": 4
   },
+  "groups": [],
   "families": [
     {
+      "name": "forms",
       "source": "tests/forms/main.roc",
-      "cases_jsonl": "tests/forms/cases.jsonl"
+      "cases_jsonl": "tests/forms/cases.jsonl",
+      "group": null,
+      "tag": null
     },
     {
+      "name": "soft_masks",
       "source": "tests/soft_masks/main.roc",
-      "cases_jsonl": "tests/soft_masks/cases.jsonl"
+      "cases_jsonl": "tests/soft_masks/cases.jsonl",
+      "group": null,
+      "tag": null
     },
     {
+      "name": "color_images",
       "source": "tests/color_images/main.roc",
-      "cases_jsonl": "tests/color_images/cases.jsonl"
+      "cases_jsonl": "tests/color_images/cases.jsonl",
+      "group": null,
+      "tag": null
     },
     {
+      "name": "resource_graph",
       "source": "tests/resource_graph/main.roc",
-      "cases_jsonl": "tests/resource_graph/cases.jsonl"
+      "cases_jsonl": "tests/resource_graph/cases.jsonl",
+      "group": null,
+      "tag": null
     },
     {
+      "name": "shading_patterns",
       "source": "tests/shading_patterns/main.roc",
-      "cases_jsonl": "tests/shading_patterns/cases.jsonl"
+      "cases_jsonl": "tests/shading_patterns/cases.jsonl",
+      "group": null,
+      "tag": null
     },
     {
+      "name": "transparency",
       "source": "tests/transparency/main.roc",
-      "cases_jsonl": "tests/transparency/cases.jsonl"
+      "cases_jsonl": "tests/transparency/cases.jsonl",
+      "group": null,
+      "tag": null
     },
     {
+      "name": "metadata",
       "source": "tests/metadata/main.roc",
-      "cases_jsonl": "tests/metadata/cases.jsonl"
+      "cases_jsonl": "tests/metadata/cases.jsonl",
+      "group": null,
+      "tag": null
     },
     {
+      "name": "navigation",
       "source": "tests/navigation/main.roc",
-      "cases_jsonl": "tests/navigation/cases.jsonl"
+      "cases_jsonl": "tests/navigation/cases.jsonl",
+      "group": null,
+      "tag": null
     },
     {
+      "name": "actual_text",
       "source": "tests/actual_text/main.roc",
-      "cases_jsonl": "tests/actual_text/cases.jsonl"
+      "cases_jsonl": "tests/actual_text/cases.jsonl",
+      "group": null,
+      "tag": null
     },
     {
+      "name": "facade_output",
       "source": "tests/facade_output/main.roc",
-      "cases_jsonl": "tests/facade_output/cases.jsonl"
+      "cases_jsonl": "tests/facade_output/cases.jsonl",
+      "group": null,
+      "tag": null
     },
     {
+      "name": "unicode_vectors",
       "source": "tests/unicode_vectors/main.roc",
-      "cases_jsonl": "tests/unicode_vectors/cases.jsonl"
+      "cases_jsonl": "tests/unicode_vectors/cases.jsonl",
+      "group": null,
+      "tag": null
     },
     {
+      "name": "structural_kernel",
       "source": "tests/structural_kernel/main.roc",
-      "cases_jsonl": "tests/structural_kernel/cases.jsonl"
+      "cases_jsonl": "tests/structural_kernel/cases.jsonl",
+      "group": null,
+      "tag": null
     },
     {
+      "name": "containers",
       "source": "tests/containers/main.roc",
-      "cases_jsonl": "tests/containers/cases.jsonl"
+      "cases_jsonl": "tests/containers/cases.jsonl",
+      "group": null,
+      "tag": null
     },
     {
+      "name": "rich_inline",
       "source": "tests/rich_inline/main.roc",
-      "cases_jsonl": "tests/rich_inline/cases.jsonl"
+      "cases_jsonl": "tests/rich_inline/cases.jsonl",
+      "group": null,
+      "tag": null
     },
     {
+      "name": "layout_policies",
       "source": "tests/layout_policies/main.roc",
-      "cases_jsonl": "tests/layout_policies/cases.jsonl"
+      "cases_jsonl": "tests/layout_policies/cases.jsonl",
+      "group": null,
+      "tag": null
     },
     {
+      "name": "tables",
       "source": "tests/tables/main.roc",
-      "cases_jsonl": "tests/tables/cases.jsonl"
+      "cases_jsonl": "tests/tables/cases.jsonl",
+      "group": null,
+      "tag": null
     },
     {
+      "name": "page_templates",
       "source": "tests/page_templates/main.roc",
-      "cases_jsonl": "tests/page_templates/cases.jsonl"
+      "cases_jsonl": "tests/page_templates/cases.jsonl",
+      "group": null,
+      "tag": null
     },
     {
+      "name": "flow_figures",
       "source": "tests/flow_figures/main.roc",
-      "cases_jsonl": "tests/flow_figures/cases.jsonl"
+      "cases_jsonl": "tests/flow_figures/cases.jsonl",
+      "group": null,
+      "tag": null
     },
     {
+      "name": "custom_block",
       "source": "tests/custom_block/main.roc",
-      "cases_jsonl": "tests/custom_block/cases.jsonl"
+      "cases_jsonl": "tests/custom_block/cases.jsonl",
+      "group": null,
+      "tag": null
     },
     {
+      "name": "reference_documents",
       "source": "tests/reference_documents/main.roc",
-      "cases_jsonl": "tests/reference_documents/cases.jsonl"
+      "cases_jsonl": "tests/reference_documents/cases.jsonl",
+      "group": null,
+      "tag": null
     },
     {
+      "name": "source_text",
       "source": "tests/source_text/main.roc",
-      "cases_jsonl": "tests/source_text/cases.jsonl"
+      "cases_jsonl": "tests/source_text/cases.jsonl",
+      "group": null,
+      "tag": null
     },
     {
+      "name": "source_blocks",
       "source": "tests/source_blocks/main.roc",
-      "cases_jsonl": "tests/source_blocks/cases.jsonl"
+      "cases_jsonl": "tests/source_blocks/cases.jsonl",
+      "group": null,
+      "tag": null
     },
     {
+      "name": "reference_layout",
       "source": "tests/reference_layout/main.roc",
-      "cases_jsonl": "tests/reference_layout/cases.jsonl"
+      "cases_jsonl": "tests/reference_layout/cases.jsonl",
+      "group": null,
+      "tag": null
     },
     {
+      "name": "technical_manual",
       "source": "tests/technical_manual/main.roc",
-      "cases_jsonl": "tests/technical_manual/cases.jsonl"
+      "cases_jsonl": "tests/technical_manual/cases.jsonl",
+      "group": null,
+      "tag": null
     },
     {
+      "name": "rich_flow",
       "source": "tests/rich_flow/main.roc",
-      "cases_jsonl": "tests/rich_flow/cases.jsonl"
+      "cases_jsonl": "tests/rich_flow/cases.jsonl",
+      "group": null,
+      "tag": null
     },
     {
+      "name": "destination_references",
       "source": "tests/destination_references/main.roc",
-      "cases_jsonl": "tests/destination_references/cases.jsonl"
+      "cases_jsonl": "tests/destination_references/cases.jsonl",
+      "group": null,
+      "tag": null
     },
     {
+      "name": "vector_diagrams",
       "source": "tests/vector_diagrams/main.roc",
-      "cases_jsonl": "tests/vector_diagrams/cases.jsonl"
+      "cases_jsonl": "tests/vector_diagrams/cases.jsonl",
+      "group": null,
+      "tag": null
     }
   ],
   "cases": [
