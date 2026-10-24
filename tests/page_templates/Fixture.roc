@@ -119,7 +119,7 @@ Fixture :: [].{
 		if paragraphs == 0 or paragraphs > 200 {
 			return Err(InvalidScale)
 		}
-		field_width = if paragraphs > 60 96 else 72
+		field_width = if (paragraphs > 60) 96 else 72
 		evidence(letter_document(paragraphs, field_width), letter_theme)
 	}
 
@@ -218,7 +218,7 @@ body_paragraph = |index| {
 			Ok(value) => value
 			Err(OutOfBounds) => crash "letter sentence escaped"
 		}
-		$text = if $offset == 0 sentence else "${$text} ${sentence}"
+		$text = if ($offset == 0) sentence else "${$text} ${sentence}"
 		$offset = $offset + 1
 	}
 	if index == 2 {
@@ -353,7 +353,7 @@ numbering_document = |context| {
 		if $page > 0 {
 			$contents = $contents.append(Pdf.page_break)
 		}
-		$contents = $contents.append(Pdf.paragraph("Page body ${($page + 1).to_str()}${if context == 0 "." else "!"}"))
+		$contents = $contents.append(Pdf.paragraph("Page body ${($page + 1).to_str()}${if (context == 0) "." else "!"}"))
 		$page = $page + 1
 	}
 	Pdf.document({
@@ -379,7 +379,7 @@ page_labels_document = |pages, width, empty| {
 		$contents = $contents.append(Pdf.paragraph("Page body ${($page + 1).to_str()}."))
 		$page = $page + 1
 	}
-	var $labels = [{ prefix: if empty "" else "pré-", start_number: 1, start_page: 0, style: if empty NoNumber else RomanLower }, { prefix: "A-", start_number: 27, start_page: 2, style: LettersUpper }]
+	var $labels = [{ prefix: if (empty) "" else "pré-", start_number: 1, start_page: 0, style: if (empty) NoNumber else RomanLower }, { prefix: "A-", start_number: 27, start_page: 2, style: LettersUpper }]
 	if pages > 15 {
 		$labels = $labels.append({ prefix: "R-", start_number: 4, start_page: 15, style: DecimalArabic })
 	}
@@ -400,7 +400,7 @@ images_document = |context| {
 		if $page > 0 {
 			$contents = $contents.append(Pdf.page_break)
 		}
-		$contents = $contents.append(Pdf.paragraph("Furniture drawing page ${($page + 1).to_str()}${if context == 0 "." else "!"}"))
+		$contents = $contents.append(Pdf.paragraph("Furniture drawing page ${($page + 1).to_str()}${if (context == 0) "." else "!"}"))
 		$page = $page + 1
 	}
 	Pdf.document({
@@ -430,7 +430,7 @@ images_document = |context| {
 ## evaluated at compile time.
 ordered_faces : U64 -> Try({ policy : Font.PolicyId, registry : Font.Registry }, Fixture.EvidenceError)
 ordered_faces = |sections| {
-	limits = if sections > 0 Font.ValidationLimits.default else Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })
+	limits = if (sections > 0) Font.ValidationLimits.default else Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })
 	latin = match Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits) {
 		Err(_) => return Err(EvidenceFailure)
 		Ok(value) => value
@@ -455,7 +455,7 @@ run_ordered = |sections| {
 	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
 	flow = KernelFacadePipeline.probe_ordered(Document.normalize(document), ordered, theme, page_size, pipeline_limits) ? |_| EvidenceFailure
 	rejected = |running_title, feature| match Pdf.to_bytes_with(report_with_header(6, running_title), options) {
-		Err(InvalidDocument({ diagnostics: [{ code: FontCoverageMissing, details: ["templates.continuation.header.start[0]"], feature: Feature(found), .. }], .. })) => if found == feature 1 else 0
+		Err(InvalidDocument({ diagnostics: [{ code: FontCoverageMissing, details: ["templates.continuation.header.start[0]"], feature: Feature(found), .. }], .. })) => if (found == feature) 1 else 0
 		_ => 0
 	}
 	rejections = rejected("Report שלום", "text.unsupported_script") + rejected("Report 中文", "text.coverage_missing")
@@ -506,7 +506,7 @@ descriptor = { flags: 32, italic_angle: 0, stem_v: 80 }
 
 rejects : Document, Conformance.DiagnosticCode, Str, List(Str) -> U64
 rejects = |document, expected_code, expected_feature, expected_paths| match Pdf.to_bytes_with(document, Pdf.Options.{ theme: letter_theme }) {
-	Err(InvalidDocument({ diagnostics: [{ code, details, feature: Feature(feature), location: Document, stage: AuthoringValidation, .. }], truncation: Complete, .. })) => if code == expected_code and feature == expected_feature and details == expected_paths 1 else 0
+	Err(InvalidDocument({ diagnostics: [{ code, details, feature: Feature(feature), location: Document, stage: AuthoringValidation, .. }], truncation: Complete, .. })) => if (code == expected_code and feature == expected_feature and details == expected_paths) 1 else 0
 	_ => 0
 }
 
@@ -515,7 +515,7 @@ rejects = |document, expected_code, expected_feature, expected_paths| match Pdf.
 ## of each participating source, and no bytes.
 run_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 run_negatives = |context| {
-	title = if context == 0 "Template negatives" else "guarded"
+	title = if (context == 0) "Template negatives" else "guarded"
 	offset = context % 1
 	body = [Pdf.paragraph("Body text.")]
 	templated = |contents, templates| Pdf.document({
@@ -565,7 +565,7 @@ run_negatives = |context| {
 ## against the same landscape size the options select.
 run_page_sizes : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 run_page_sizes = |context| {
-	title = if context == 0 "Landscape ledger" else "guarded"
+	title = if (context == 0) "Landscape ledger" else "guarded"
 	landscape = { height: Layout.Unit.from_raw(595000), width: Layout.Unit.from_raw(842000) }
 	options = |size| Pdf.Options.{ theme: report_theme, page_size: size }
 	heading_cell = |value| Pdf.header_cell(Column, [Pdf.text(value)])
@@ -601,7 +601,7 @@ run_page_sizes = |context| {
 	custom = Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.title("Six by nine"), Pdf.paragraph("A custom 432 × 648 pt page.")], language: "en-AU", title }), options(Custom({ height: 648, width: 432 }))) ? |_| EvidenceFailure
 	blank = Pdf.to_bytes_with(Pdf.document({ contents: [], language: "en-AU", title }), options(Custom({ height: 648, width: 432 }))) ? |_| EvidenceFailure
 	rejects_size = |size, feature, paths| match Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.paragraph("Body.")], language: "en-AU", title }), options(size)) {
-		Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details, feature: Feature(found), .. }], truncation: Complete, .. })) => if found == feature and details == paths 1 else 0
+		Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details, feature: Feature(found), .. }], truncation: Complete, .. })) => if (found == feature and details == paths) 1 else 0
 		_ => 0
 	}
 	custom_side = |width_raw, height_raw| Custom({ height: Layout.Unit.from_raw(height_raw), width: Layout.Unit.from_raw(width_raw) })
@@ -820,7 +820,7 @@ ledger_row = |index| {
 	n = (index + 1).to_str()
 	day = (index % 28 + 1).to_str()
 	cell = |value| Pdf.cell([Pdf.text(value)])
-	Pdf.row([Pdf.header_cell(Row, [Pdf.text("Batch ${n}")]), cell("2026-09-${if day.count_utf8_bytes() == 1 "0${day}" else day}"), cell("Hobart"), cell("${n} Kestrel Parade"), cell("${n}4.20"), cell("${n}1.75"), cell("${n}2.45"), cell("Settled")])
+	Pdf.row([Pdf.header_cell(Row, [Pdf.text("Batch ${n}")]), cell("2026-09-${if (day.count_utf8_bytes() == 1) "0${day}" else day}"), cell("Hobart"), cell("${n} Kestrel Parade"), cell("${n}4.20"), cell("${n}1.75"), cell("${n}2.45"), cell("Settled")])
 }
 
 ## The facade's standard pipeline limits (package/Pdf.roc).
@@ -950,7 +950,7 @@ run_typography = |pages| {
 	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(document), styled, probe_theme, page_size, descriptor, NoDocumentFacts, pipeline_limits) ? |_| EvidenceFailure
 	flow = KernelFacadePipeline.Plan.work(pipeline)
 	reject = |doc, opts, feature| match Pdf.to_bytes_with(doc, opts) {
-		Err(InvalidDocument({ diagnostics: [{ feature: Feature(found), .. }], .. })) => if found == feature 1 else 0
+		Err(InvalidDocument({ diagnostics: [{ feature: Feature(found), .. }], .. })) => if (found == feature) 1 else 0
 		_ => 0
 	}
 	rejections = reject(make(9, 70), options, "layout.template_region_overflow") + reject(make(10, 1), options, "layout.field_overflow") + reject(document, { ..options, theme: { ..theme, furniture: Own({ size: 8, leading: 7 }) } }, "text.furniture_style")
@@ -971,7 +971,7 @@ chapter_evidence = |count, mode| {
 	header = Pdf.region({ height: 44, start: [Pdf.furniture_text([Pdf.reserved_width(400, Start, [Pdf.running_label])])] })
 	opening = Pdf.page_template({ footer, gap: 10 })
 	continuation = Pdf.page_template({ footer, gap: 10, header })
-	var $contents = if mode == 1 [] else [Pdf.paragraph("Front matter belongs to the document.")]
+	var $contents = if (mode == 1) [] else [Pdf.paragraph("Front matter belongs to the document.")]
 	var $chapter = 0
 	while $chapter < count {
 		number = $chapter + 1
@@ -982,11 +982,11 @@ chapter_evidence = |count, mode| {
 			$body = $body.append(Pdf.paragraph("Chapter ${number.to_str()} paragraph ${($paragraph + 1).to_str()}. ${Str.repeat("The body keeps its authored order while chapter furniture changes only at committed full-page boundaries. ", 2)}"))
 			$paragraph = $paragraph + 1
 		}
-		$contents = $contents.append(Pdf.page_scope({ page_templates: Templates({ opening, continuation }), running_label: if mode == 2 Reset else Label(label) }, $body))
+		$contents = $contents.append(Pdf.page_scope({ page_templates: Templates({ opening, continuation }), running_label: if (mode == 2) Reset else Label(label) }, $body))
 		$chapter = $chapter + 1
 	}
 	$contents = $contents.append(Pdf.paragraph("Unscoped ending resets the chapter label."))
-	doc = Pdf.document({ contents: $contents, language: "en-AU", title: "Chapter scope evidence", page_templates: if mode == 1 NoTemplates else Templates({ first: Pdf.first_page_template({ footer, gap: 10, lead: Pdf.lead_region(40, [Pdf.paragraph("Semantic document lead")]) }), continuation: Pdf.page_template({ footer, gap: 10, header }) }) })
+	doc = Pdf.document({ contents: $contents, language: "en-AU", title: "Chapter scope evidence", page_templates: if (mode == 1) NoTemplates else Templates({ first: Pdf.first_page_template({ footer, gap: 10, lead: Pdf.lead_region(40, [Pdf.paragraph("Semantic document lead")]) }), continuation: Pdf.page_template({ footer, gap: 10, header }) }) })
 	reported = Pdf.prepare_with_report(doc, Pdf.Options.{ theme: report_theme }) ? |error| crash Str.inspect(error)
 	var $scopes = 0
 	var $openings = 0
@@ -1013,7 +1013,7 @@ chapter_evidence = |count, mode| {
 run_chapter_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 run_chapter_negatives = |context| {
 	paragraph = Pdf.paragraph("A scoped body paragraph.")
-	document = |contents| Pdf.document({ contents, language: "en-AU", title: if context == 0 "Scope rejections" else "Guard" })
+	document = |contents| Pdf.document({ contents, language: "en-AU", title: if (context == 0) "Scope rejections" else "Guard" })
 	scope = |contents| Pdf.page_scope({}, contents)
 	reject = |doc, feature, paths| rejects(doc, InvalidRelationship, feature, paths)
 	bad_header = Pdf.region({ height: 740, start: [Pdf.furniture_text([Pdf.text("Impossible")])] })

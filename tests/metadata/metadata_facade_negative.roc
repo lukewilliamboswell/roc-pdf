@@ -15,7 +15,7 @@ make = |language, title| Pdf.document({ contents: [Pdf.paragraph("Body")], langu
 
 rejected : Document, (Pdf.Error -> Bool) -> U64
 rejected = |document, matches| match Pdf.to_bytes(document) {
-	Err(error) => if matches(error) 1 else 0
+	Err(error) => if (matches(error)) 1 else 0
 	Ok(_) => 0
 }
 
@@ -39,7 +39,7 @@ main! = |args| {
 	## The runtime-derived guard keeps the exercised facade pipelines out of
 	## compile-time evaluation; it is always zero.
 	guard = U64.mod_by(context, 2) - 1
-	valid_title = if guard == 0 "Valid" else "guarded"
+	valid_title = if (guard == 0) "Valid" else "guarded"
 
 	var $rejections = 0
 	$rejections = $rejections + rejected(

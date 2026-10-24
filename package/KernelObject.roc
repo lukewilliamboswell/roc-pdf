@@ -79,7 +79,7 @@ KernelObject :: [].{
 
 		from_number : U64 -> Try(ObjectId, Error)
 		from_number = |number|
-			if number == 0 Err(ObjectNumberZero) else Ok(ObjectId.(number))
+			if (number == 0) Err(ObjectNumberZero) else Ok(ObjectId.(number))
 
 		number : ObjectId -> U64
 		number = |ObjectId.(number)| number
@@ -411,6 +411,51 @@ KernelObject :: [].{
 	add_reference : Builder, ObjectId -> Try({ builder : Builder, id : ValueId }, Error)
 	add_reference = |builder, object| add_value(builder, Reference(object), 1)
 
+	## `add_array` of exactly one item, without the caller allocating a
+	## one-item list: most structure elements have a single kid. Validation,
+	## limits and work counts are those of `add_array` with that list.
+	add_array_one : Builder, ValueId -> Try({ builder : Builder, id : ValueId }, Error)
+	add_array_one = |builder, item| {
+		{ limits, store, total_byte_string_bytes, total_name_bytes, total_payload_bytes, total_text_string_bytes, work } = builder
+		item_index = ValueId.index(item)
+		match check_index(item_index, store.values.len(), ValueIndex) {
+			Err(error) => Err(error)
+			Ok(_) => match checked_total(store.array_items.len(), 1, limits.max_array_items, ArrayItems) {
+				Err(error) => Err(error)
+				Ok(_) => match checked_increment(list_at(store.depths, item_index), limits.max_direct_depth, DirectDepth) {
+					Err(error) => Err(error)
+					Ok(depth) => match add_work(work, { bytes_checked: 0, edges_appended: 1, index_checks: 1, values_appended: 0 }) {
+						Err(error) => Err(error)
+						Ok(edge_work) => match value_work(limits, store, edge_work, depth) {
+							Err(error) => Err(error)
+							Ok(next_work) => {
+								start = store.array_items.len()
+								id = ValueId.from_index(store.values.len())
+								Ok({
+									builder: {
+										limits,
+										store: {
+											..store,
+											array_items: store.array_items.append(item),
+											depths: store.depths.append(depth),
+											values: store.values.append(Array({ start, length: 1 })),
+										},
+										total_byte_string_bytes,
+										total_name_bytes,
+										total_payload_bytes,
+										total_text_string_bytes,
+										work: next_work,
+									},
+									id,
+								})
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	add_array : Builder, List(ValueId) -> Try({ builder : Builder, id : ValueId }, Error)
 	add_array = |builder, items| {
 		{ limits, store, total_byte_string_bytes, total_name_bytes, total_payload_bytes, total_text_string_bytes, work } = builder
@@ -443,6 +488,70 @@ KernelObject :: [].{
 											array_items: append_all(store.array_items, items),
 											depths: store.depths.append(depth),
 											values: store.values.append(Array({ start, length: items.len() })),
+										},
+										total_byte_string_bytes,
+										total_name_bytes,
+										total_payload_bytes,
+										total_text_string_bytes,
+										work: next_work,
+									},
+									id,
+								})
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	## Building a dictionary without a temporary entry list: take a
+	## `dictionary_mark`, `push_entry` each entry onto the store, then
+	## `add_pushed_dictionary` turns the entries pushed since the mark into one
+	## dictionary value with exactly `add_dictionary`'s validation, limits and
+	## work. No other dictionary may be added between the mark and the close,
+	## because its entries would land inside the span: compute every value
+	## first, then push the entries.
+	dictionary_mark : Builder -> U64
+	dictionary_mark = |builder| builder.store.dictionary_entries.len()
+
+	push_entry : Builder, DictionaryEntry -> Builder
+	push_entry = |builder, entry| {
+		{ limits, store, total_byte_string_bytes, total_name_bytes, total_payload_bytes, total_text_string_bytes, work } = builder
+		{
+			limits,
+			store: { ..store, dictionary_entries: store.dictionary_entries.append(entry) },
+			total_byte_string_bytes,
+			total_name_bytes,
+			total_payload_bytes,
+			total_text_string_bytes,
+			work,
+		}
+	}
+
+	add_pushed_dictionary : Builder, U64 -> Try({ builder : Builder, id : ValueId }, Error)
+	add_pushed_dictionary = |builder, start| {
+		{ limits, store, total_byte_string_bytes, total_name_bytes, total_payload_bytes, total_text_string_bytes, work } = builder
+		count = store.dictionary_entries.len() - start
+		match validate_dictionary_span(store, store.dictionary_entries, start, count) {
+			Err(error) => Err(error)
+			Ok(validation) => match checked_total(start, count, limits.max_dictionary_entries, DictionaryEntries) {
+				Err(error) => Err(error)
+				Ok(_) => match checked_increment(validation.max_child_depth, limits.max_direct_depth, DirectDepth) {
+					Err(error) => Err(error)
+					Ok(depth) => match add_dictionary_work(work, count, validation.key_byte_comparisons, 0) {
+						Err(error) => Err(error)
+						Ok(entry_work) => match value_work(limits, store, entry_work, depth) {
+							Err(error) => Err(error)
+							Ok(next_work) => {
+								id = ValueId.from_index(store.values.len())
+								Ok({
+									builder: {
+										limits,
+										store: {
+											..store,
+											depths: store.depths.append(depth),
+											values: store.values.append(Dictionary({ start, length: count })),
 										},
 										total_byte_string_bytes,
 										total_name_bytes,
@@ -708,14 +817,18 @@ validate_value_edges = |store, items| {
 }
 
 validate_dictionary : KernelObject.Store, List(KernelObject.DictionaryEntry) -> Try({ key_byte_comparisons : U64, max_child_depth : U64 }, KernelObject.Error)
-validate_dictionary = |store, entries| {
-	length = entries.len()
+validate_dictionary = |store, entries| validate_dictionary_span(store, entries, 0, entries.len())
+
+## Validates `entries[start .. start + length]`, so entries already pushed
+## onto the store validate in place.
+validate_dictionary_span : KernelObject.Store, List(KernelObject.DictionaryEntry), U64, U64 -> Try({ key_byte_comparisons : U64, max_child_depth : U64 }, KernelObject.Error)
+validate_dictionary_span = |store, entries, start, length| {
 	var $index = 0
 	var $key_byte_comparisons = 0
 	var $max_depth = 0
 	var $previous = NoPrevious
 	while $index < length {
-		entry = list_at(entries, $index)
+		entry = list_at(entries, start + $index)
 		name_index = KernelObject.NameId.index(entry.key)
 		value_index = KernelObject.ValueId.index(entry.value)
 
@@ -1197,4 +1310,24 @@ expect {
 		Err(ObjectNumberZero) => True
 		_ => False
 	}
+}
+
+# A pushed dictionary is the dictionary `add_dictionary` builds from the same
+# entries: same value, store and work. Validation is the same too, so keys
+# out of order are rejected.
+expect {
+	a = KernelObject.add_name(KernelObject.init(test_limits), Str.to_utf8("A"))?
+	b = KernelObject.add_name(a.builder, Str.to_utf8("B"))?
+	value = KernelObject.add_integer(b.builder, 7)?
+	listed = KernelObject.add_dictionary(value.builder, [{ key: a.id, value: value.id }, { key: b.id, value: value.id }])?
+	mark = KernelObject.dictionary_mark(value.builder)
+	entries = KernelObject.push_entry(KernelObject.push_entry(value.builder, { key: a.id, value: value.id }), { key: b.id, value: value.id })
+	pushed = KernelObject.add_pushed_dictionary(entries, mark)?
+	reversed = KernelObject.push_entry(KernelObject.push_entry(value.builder, { key: b.id, value: value.id }), { key: a.id, value: value.id })
+	rejected = match KernelObject.add_pushed_dictionary(reversed, mark) {
+		Err(NonMonotonicDictionaryKeys(_)) => True
+		_ => False
+	}
+	same_store = pushed.builder.store.dictionary_entries == listed.builder.store.dictionary_entries and pushed.builder.store.depths == listed.builder.store.depths and KernelObject.counts(pushed.builder) == KernelObject.counts(listed.builder)
+	pushed.id == listed.id and same_store and pushed.builder.work == listed.builder.work and rejected
 }

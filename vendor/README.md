@@ -22,16 +22,19 @@ satisfy the pin. `package/main.roc` and `package/all.roc` declare both.
 
 | Package | Version | Release bundle | Archive SHA-256 | License | Use |
 | --- | --- | --- | --- | --- | --- |
-| `roc-lang/unicode` | 4.2.0 | [4W8SHzvwet9hH9qZewJ1J1CVQoH7YKA6zyijWFTB3y1w.tar.zst](https://github.com/roc-lang/unicode/releases/download/4.2.0/4W8SHzvwet9hH9qZewJ1J1CVQoH7YKA6zyijWFTB3y1w.tar.zst) | `dfd0524fb84363d18fd5c77acb68fa1eb7ac185bd781db9c2b1eda813cae3a29` | UPL-1.0 | Scalar, segmentation, bidirectional, and case analysis |
-| `lukewilliamboswell/roc-deflate` | 0.4.0-rc2 | [BE186Swhzh5dYZjaECgLSQFb17wiLtq4UkxTmiFAPWze.tar.zst](https://github.com/lukewilliamboswell/roc-deflate/releases/download/0.4.0-rc2/BE186Swhzh5dYZjaECgLSQFb17wiLtq4UkxTmiFAPWze.tar.zst) | `559780e20ca2d4740c37766be2c007784fcafea6ccf3746835296ef01dd47fa7` | Apache-2.0 | DEFLATE compression behind `package/KernelDeflate.roc` |
+| `roc-lang/unicode` | 4.3.0 | [7HGaK8HUHMs5judroSmUoS4TjPGZ1kAjPTyPDSCWiSKM.tar.zst](https://github.com/roc-lang/unicode/releases/download/4.3.0/7HGaK8HUHMs5judroSmUoS4TjPGZ1kAjPTyPDSCWiSKM.tar.zst) | `d33a566c0c5b6bfb2c294500580b27d3a29e9015c013ce59e3c7828727160b81` | UPL-1.0 | Scalar, segmentation, bidirectional, and case analysis |
+| `lukewilliamboswell/roc-deflate` | 0.4.0-rc4 | [FoGWbhCP9K1Qk7HA9wcSxHYTpiwTHmCpfNUZx7rAGSSk.tar.zst](https://github.com/lukewilliamboswell/roc-deflate/releases/download/0.4.0-rc4/FoGWbhCP9K1Qk7HA9wcSxHYTpiwTHmCpfNUZx7rAGSSk.tar.zst) | `ef6d916b1629440ef0dab40e8416014dac227aeb60c2ecf19f2a28ecddf6d77d` | Apache-2.0 | DEFLATE compression behind `package/KernelDeflate.roc` |
 
-`roc-deflate` 0.4.0-rc2 (fork commit `770df0e`) is a fork of
+`roc-deflate` 0.4.0-rc4 (fork commit `78e74dd`) is a fork of
 `niclas-ahden/roc-deflate` carrying Richard Feldman's pure-Roc port of
 libdeflate (upstream `rtfeldman/roc-deflate@1b39584`), which is
 byte-identical to libdeflate at levels 0 to 12. rc2's compressed output is
 byte-identical to rc1's; it sizes the level 10 to 12 matchfinder buffers
 to the input instead of libdeflate's fixed maximum, and works around
-roc-lang/roc#11933 and roc-lang/roc#11934. The package calls it from
+roc-lang/roc#11933 and roc-lang/roc#11934. rc3 builds on Roc
+nightly-2026-10-18 without warnings, and rc4 reuses its tables across blocks
+(level 10 allocates 30 times per stream instead of 114). Both are
+byte-identical to rc2's output at every level. The package calls it from
 exactly one place, `KernelDeflate.compress_raw`, at the fixed level
 `KernelDeflate.level`.
 

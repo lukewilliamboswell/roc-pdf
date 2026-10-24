@@ -210,7 +210,7 @@ node = |spec| {
 	element_identifier: spec.element,
 	id: Semantics.NodeId.from_index(spec.index),
 	language: spec.language,
-	parent: if spec.index == 0 DocumentRoot else ParentNode(Semantics.NodeId.from_index(spec.parent)),
+	parent: if (spec.index == 0) DocumentRoot else ParentNode(Semantics.NodeId.from_index(spec.parent)),
 	role: { local_name: spec.role, namespace: Semantics.NamespaceId.from_index(0) },
 	structure_element: Semantics.StructureElementId.from_index(spec.index),
 	text_properties: spec.properties,

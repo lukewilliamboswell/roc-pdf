@@ -207,11 +207,11 @@ validate_span : Semantics.Range, U64, U64 -> Try({ end : U64, start : U64 }, Ker
 validate_span = |range, available, owner| {
 	start = range.start()
 	length = range.length()
-	if start > available or length > available - start Err(SpanOutOfRange({ available, length, owner, start })) else Ok({ end: start + length, start })
+	if (start > available or length > available - start) Err(SpanOutOfRange({ available, length, owner, start })) else Ok({ end: start + length, start })
 }
 
 check_limit : U64, U64, KernelColor.Dimension -> Try({}, KernelColor.Error)
-check_limit = |attempted, limit, dimension| if attempted > limit Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
+check_limit = |attempted, limit, dimension| if (attempted > limit) Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
 
 first_zero : List(U8) -> [AllMarked, ZeroAt(U64)]
 first_zero = |marks| {

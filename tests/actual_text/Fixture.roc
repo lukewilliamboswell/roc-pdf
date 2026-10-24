@@ -1936,7 +1936,7 @@ soft_hyphen_scalar_range = |index| {
 		9 => 10
 		_ => crash "validated soft-hyphen scalar index escaped"
 	}
-	byte_length = if index == 2 2 else 1
+	byte_length = if (index == 2) 2 else 1
 	{ scalars: Semantics.Range.from_start_and_length(index, 1), utf8_bytes: Semantics.Range.from_start_and_length(byte_start, byte_length) }
 }
 
@@ -2174,7 +2174,7 @@ selected_external_discretionary_hyphen = |_| {
 		[SelectVisibleHyphen],
 	) ? |_| EvidenceFailure
 	match KernelDiscretionaryHyphen.Plan.selected(plan, KernelDiscretionaryHyphen.OpportunityId.from_index(0)) {
-		Ok({ kind: ExternalHyphenation, source: selected_source }) => if selected_source.scalars.length() == 0 and selected_source.utf8_bytes.length() == 0 Ok({ kind: ExternalHyphenation, source: selected_source }) else Err(EvidenceFailure)
+		Ok({ kind: ExternalHyphenation, source: selected_source }) => if (selected_source.scalars.length() == 0 and selected_source.utf8_bytes.length() == 0) Ok({ kind: ExternalHyphenation, source: selected_source }) else Err(EvidenceFailure)
 		_ => Err(EvidenceFailure)
 	}
 }

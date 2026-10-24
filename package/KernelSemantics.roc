@@ -1,3 +1,4 @@
+import KernelLex
 import Semantics
 
 KernelSemantics :: [].{
@@ -696,8 +697,8 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 		ensure_all_owned($artifact_owners, ContextualArtifactIndex)?
 		ensure_all_owned($attribute_owners, AttributeIndex)?
 		ensure_all_owned($identifier_owners, ElementIdentifierIndex)?
-		keys = validate_identifiers(store.element_identifiers)?
-		attribute_checks = validate_attributes(store, keys)?
+		validate_identifiers(store.element_identifiers)?
+		attribute_checks = validate_attributes(store)?
 		relationship_visits = validate_relationships(store)?
 		association_checks = validate_header_associations(store)?
 		Ok({
@@ -771,12 +772,10 @@ repeats_language = |store, owner, tag| if owner >= store.nodes.len() {
 ## 8.4.4 checks for every structure-element `/Lang` (RFC 3066 syntax).
 valid_language_tag : Str -> Bool
 valid_language_tag = |tag| {
-	bytes = Str.to_utf8(tag)
-	zero = bytes.len() - bytes.len()
-	var $subtag = zero
-	var $length = zero
-	var $valid = !bytes.is_empty()
-	for byte in bytes {
+	var $subtag = 0
+	var $length = 0
+	var $valid = !tag.is_empty()
+	for byte in Str.iter_utf8(tag) {
 		if byte == 45 {
 			$valid = $valid and $length >= 1 and $length <= 8
 			$subtag = $subtag + 1
@@ -793,35 +792,29 @@ valid_language_tag = |tag| {
 ## Element identifiers are dense, non-empty, and stored in strictly
 ## ascending byte order of their values. Order is a normalized-store
 ## invariant: uniqueness is one adjacent comparison per identifier and the
-## IDTree lowers the same order without sorting. The returned keys serve
-## `/Headers` target lookups by binary search.
-validate_identifiers : List(Semantics.ElementIdentifier) -> Try(List(List(U8)), KernelSemantics.Error)
+## IDTree lowers the same order without sorting, and `/Headers` targets are
+## found by binary search over the identifiers themselves.
+validate_identifiers : List(Semantics.ElementIdentifier) -> Try({}, KernelSemantics.Error)
 validate_identifiers = |identifiers| {
-	if identifiers.is_empty() {
-		return Ok([])
-	}
-	var $keys = List.with_capacity(identifiers.len())
 	var $index = 0
 	while $index < identifiers.len() {
 		identifier = list_at(identifiers, $index)
 		if identifier.id.index() != $index {
 			return Err(NonDenseIdentity({ actual: identifier.id.index(), expected: $index, kind: ElementIdentifierIndex }))
 		}
-		key = Str.to_utf8(identifier.value)
-		if key.is_empty() {
+		if identifier.value.is_empty() {
 			return Err(EmptyElementIdentifier({ element: $index }))
 		}
 		if $index > 0 {
-			match compare_bytes(list_at($keys, $index - 1), key) {
+			match KernelLex.compare_utf8(list_at(identifiers, $index - 1).value, identifier.value) {
 				Less => {}
 				Equal => return Err(DuplicateElementIdentifier({ first: $index - 1, second: $index }))
 				Greater => return Err(ElementIdentifierOrder({ element: $index }))
 			}
 		}
-		$keys = $keys.append(key)
 		$index = $index + 1
 	}
-	Ok($keys)
+	Ok({})
 }
 
 AttributeCheck := [AttributeBit(U64), HeadersBit(List(Str)), InvalidAttributeCheck]
@@ -830,8 +823,8 @@ AttributeCheck := [AttributeBit(U64), HeadersBit(List(Str)), InvalidAttributeChe
 ## they sit on (ISO 32000-2 14.8.5.4 List and 14.8.5.7 Table attributes).
 ## Each name occurs at most once per node, and every `/Headers` value names
 ## an existing element identifier.
-validate_attributes : Semantics.Store, List(List(U8)) -> Try(U64, KernelSemantics.Error)
-validate_attributes = |store, keys| {
+validate_attributes : Semantics.Store -> Try(U64, KernelSemantics.Error)
+validate_attributes = |store| {
 	if store.attributes.is_empty() {
 		return Ok(0)
 	}
@@ -852,7 +845,7 @@ validate_attributes = |store, keys| {
 					HeadersBit(header_ids) => {
 						var $target = 0
 						while $target < header_ids.len() {
-							if !contains_key(keys, Str.to_utf8(list_at(header_ids, $target))) {
+							if !contains_identifier(store.element_identifiers, list_at(header_ids, $target)) {
 								return Err(UnknownAttributeTarget({ attribute: $attribute, node: $node_index }))
 							}
 							$checks = $checks + 1
@@ -886,27 +879,27 @@ check_attribute = |attribute, role| {
 			InvalidAttributeCheck
 		} else if name == "Scope" {
 			match attribute.value {
-				Name(value) => if role == role_th and (value == "Row" or value == "Column" or value == "Both") AttributeBit(1) else InvalidAttributeCheck
+				Name(value) => if (role == role_th and (value == "Row" or value == "Column" or value == "Both")) AttributeBit(1) else InvalidAttributeCheck
 				_ => InvalidAttributeCheck
 			}
 		} else if name == "Headers" {
 			match attribute.value {
-				Names(values) => if cell and !values.is_empty() HeadersBit(values) else InvalidAttributeCheck
+				Names(values) => if (cell and !values.is_empty()) HeadersBit(values) else InvalidAttributeCheck
 				_ => InvalidAttributeCheck
 			}
 		} else if name == "ColSpan" {
 			match attribute.value {
-				Integer(value) => if cell and value >= 1 AttributeBit(4) else InvalidAttributeCheck
+				Integer(value) => if (cell and value >= 1) AttributeBit(4) else InvalidAttributeCheck
 				_ => InvalidAttributeCheck
 			}
 		} else if name == "RowSpan" {
 			match attribute.value {
-				Integer(value) => if cell and value >= 1 AttributeBit(8) else InvalidAttributeCheck
+				Integer(value) => if (cell and value >= 1) AttributeBit(8) else InvalidAttributeCheck
 				_ => InvalidAttributeCheck
 			}
 		} else if name == "Summary" {
 			match attribute.value {
-				Text(value) => if role == role_table and !value.is_empty() AttributeBit(16) else InvalidAttributeCheck
+				Text(value) => if (role == role_table and !value.is_empty()) AttributeBit(16) else InvalidAttributeCheck
 				_ => InvalidAttributeCheck
 			}
 		} else {
@@ -916,7 +909,7 @@ check_attribute = |attribute, role| {
 			InvalidAttributeCheck
 		} else {
 			match attribute.value {
-				Name(value) => if valid_list_numbering(value) AttributeBit(32) else InvalidAttributeCheck
+				Name(value) => if (valid_list_numbering(value)) AttributeBit(32) else InvalidAttributeCheck
 				_ => InvalidAttributeCheck
 			}
 		}
@@ -937,14 +930,14 @@ valid_list_numbering : Str -> Bool
 valid_list_numbering = |value|
 	value == "None" or value == "Unordered" or value == "Description" or value == "Disc" or value == "Circle" or value == "Square" or value == "Ordered" or value == "Decimal" or value == "UpperRoman" or value == "LowerRoman" or value == "UpperAlpha" or value == "LowerAlpha"
 
-contains_key : List(List(U8)), List(U8) -> Bool
-contains_key = |keys, key| {
+contains_identifier : List(Semantics.ElementIdentifier), Str -> Bool
+contains_identifier = |identifiers, key| {
 	var $low = 0
-	var $high = keys.len()
+	var $high = identifiers.len()
 	var $found = False
 	while !$found and $low < $high {
 		middle = $low + ($high - $low) // 2
-		match compare_bytes(list_at(keys, middle), key) {
+		match KernelLex.compare_utf8(list_at(identifiers, middle).value, key) {
 			Equal => {
 				$found = True
 			}
@@ -957,32 +950,6 @@ contains_key = |keys, key| {
 		}
 	}
 	$found
-}
-
-compare_bytes : List(U8), List(U8) -> [Equal, Greater, Less]
-compare_bytes = |left, right| {
-	shared = U64.min(left.len(), right.len())
-	var $index = 0
-	var $ordering = Equal
-	while $ordering == Equal and $index < shared {
-		a = list_at(left, $index)
-		b = list_at(right, $index)
-		if a < b {
-			$ordering = Less
-		} else if a > b {
-			$ordering = Greater
-		}
-		$index = $index + 1
-	}
-	if $ordering != Equal {
-		$ordering
-	} else if left.len() < right.len() {
-		Less
-	} else if left.len() > right.len() {
-		Greater
-	} else {
-		Equal
-	}
 }
 
 ## Typed non-parental relations. `HeaderFor` links a TH or TD cell to a TH
@@ -1043,7 +1010,7 @@ validate_header_associations = |store| {
 		while $attribute < node.attributes.start() + node.attributes.length() {
 			attribute = list_at(store.attributes, $attribute)
 			headers = match (attribute.owner, attribute.name, attribute.value) {
-				(Table, Standard(name), Names(values)) => if name == "Headers" values else []
+				(Table, Standard(name), Names(values)) => if (name == "Headers") values else []
 				_ => []
 			}
 			if !headers.is_empty() {
@@ -1241,7 +1208,7 @@ role_quote = 20
 ## The namespace index that owns a role: `Code` and `Quote` are PDF 1.7
 ## standard types (namespace 1); every other accepted role is PDF 2.0.
 role_namespace : U64 -> U64
-role_namespace = |role| if role == role_code or role == role_quote 1 else 0
+role_namespace = |role| if (role == role_code or role == role_quote) 1 else 0
 
 role_hn : U64
 role_hn = 7
@@ -1274,7 +1241,7 @@ unknown_role : U64
 unknown_role = 63
 
 role_bit : U64 -> U64
-role_bit = |role| if role == unknown_role 0 else U64.shl_wrap(1, role.to_u8_wrap())
+role_bit = |role| if (role == unknown_role) 0 else U64.shl_wrap(1, role.to_u8_wrap())
 
 ## Roles are enabled per validation subset: the root is exactly `Document`
 ## (PDF/UA-2 8.2.5.2) and `Document` never nests; the tagged-visual subset
@@ -1496,7 +1463,7 @@ checked_add = |left, right| match U64.plus_try(left, right) {
 }
 
 check_limit : U64, U64, KernelSemantics.Dimension -> Try({}, KernelSemantics.Error)
-check_limit = |attempted, limit, dimension| if attempted > limit Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
+check_limit = |attempted, limit, dimension| if (attempted > limit) Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
 
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {
@@ -1819,7 +1786,7 @@ shaped_store = |shape, owner| {
 			element_identifier: NoElementIdentifier,
 			id: Semantics.NodeId.from_index($index),
 			language: Inherited,
-			parent: if $index == 0 DocumentRoot else ParentNode(Semantics.NodeId.from_index(entry.parent)),
+			parent: if ($index == 0) DocumentRoot else ParentNode(Semantics.NodeId.from_index(entry.parent)),
 			role: { local_name: entry.role, namespace: Semantics.NamespaceId.from_index(0) },
 			structure_element: Semantics.StructureElementId.from_index($index),
 			text_properties: empty_range,

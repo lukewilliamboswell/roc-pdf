@@ -309,12 +309,12 @@ plan_containers = |containers, count| {
 		if $active != U64.highest and end > range_end(list_at(containers, $active).blocks)? {
 			return Err(InvalidGroup({ group: $index }))
 		}
-		depth = if $active == U64.highest 1 else list_at($ranges, $active).length() + 1
+		depth = if ($active == U64.highest) 1 else list_at($ranges, $active).length() + 1
 		if depth > 17 {
 			return Err(InvalidGroup({ group: $index }))
 		}
 		padding = nonnegative_raw(container.padding)?
-		previous_sum = if $active == U64.highest 0 else list_at($sums, $active)
+		previous_sum = if ($active == U64.highest) 0 else list_at($sums, $active)
 		$parents = $parents.append($active)
 		$sums = $sums.append(checked_add(previous_sum, padding)?)
 		start = $ancestors.len()
@@ -345,25 +345,25 @@ plan_containers = |containers, count| {
 			$active = $next
 			$next = $next + 1
 		}
-		padding = if $active == U64.highest 0 else list_at($sums, $active)
+		padding = if ($active == U64.highest) 0 else list_at($sums, $active)
 		var $common = $previous
 		var $current = $active
 		while $common != $current {
 			if $common == U64.highest {
 				$current = list_at($parents, $current)
 			}
-				else if $current == U64.highest {
-					$common = list_at($parents, $common)
-				}
-					else if $common > $current {
-						$common = list_at($parents, $common)
-					}
-						else {
-							$current = list_at($parents, $current)
-						}
+			else if $current == U64.highest {
+				$common = list_at($parents, $common)
+			}
+			else if $common > $current {
+				$common = list_at($parents, $common)
+			}
+			else {
+				$current = list_at($parents, $current)
+			}
 		}
-		common_sum = if $common == U64.highest 0 else list_at($sums, $common)
-		old_sum = if $previous == U64.highest 0 else list_at($sums, $previous)
+		common_sum = if ($common == U64.highest) 0 else list_at($sums, $common)
+		old_sum = if ($previous == U64.highest) 0 else list_at($sums, $previous)
 		transition = checked_add(old_sum - common_sum, padding - common_sum)?
 		$prefix = checked_add($prefix, transition)?
 		$contexts = $contexts.append({ active: $active, padding, prefix: $prefix, transition })
@@ -374,7 +374,7 @@ plan_containers = |containers, count| {
 }
 
 container_padding : ContainerFacts, U64 -> U64
-container_padding = |facts, block| if facts.contexts.is_empty() 0 else list_at(facts.contexts, block).padding
+container_padding = |facts, block| if (facts.contexts.is_empty()) 0 else list_at(facts.contexts, block).padding
 
 ## Ordinary repeated headers use their already-selected page frame top.
 ## Only an active container consumes the explicit lead band, including a
@@ -383,10 +383,10 @@ has_active_container : ContainerFacts, U64 -> Bool
 has_active_container = |facts, block| !facts.contexts.is_empty() and list_at(facts.contexts, block).active != U64.highest
 
 container_transition : ContainerFacts, U64 -> U64
-container_transition = |facts, block| if facts.contexts.is_empty() 0 else list_at(facts.contexts, block).transition
+container_transition = |facts, block| if (facts.contexts.is_empty()) 0 else list_at(facts.contexts, block).transition
 
 container_internal_height : ContainerFacts, U64, U64 -> U64
-container_internal_height = |facts, start, end| if facts.contexts.is_empty() 0 else list_at(facts.contexts, end - 1).prefix - list_at(facts.contexts, start).prefix
+container_internal_height = |facts, start, end| if (facts.contexts.is_empty()) 0 else list_at(facts.contexts, end - 1).prefix - list_at(facts.contexts, start).prefix
 
 ## Accepted unit fragments plus explicit ancestry/padding determine panel
 ## rectangles. No semantic identity or order is recovered from geometry.
@@ -417,7 +417,7 @@ materialize_containers = |containers, facts, blocks, fragments, view, leads, lim
 			while $lead < leads.len() and list_at(leads, $lead).page < page {
 				$lead = $lead + 1
 			}
-			header = if $lead < leads.len() and list_at(leads, $lead).page == page and list_at(leads, $lead).block == $unit nonnegative_raw(list_at(blocks, $unit).lead)? else 0
+			header = if ($lead < leads.len() and list_at(leads, $lead).page == page and list_at(leads, $lead).block == $unit) nonnegative_raw(list_at(blocks, $unit).lead)? else 0
 			source_padding = fragment_padding(list_at(blocks, $unit))?
 			range = list_at(facts.ancestor_ranges, context.active)
 			var $ancestor = range.start()
@@ -429,7 +429,7 @@ materialize_containers = |containers, facts, blocks, fragments, view, leads, lim
 					NoPaint => {}
 					Paint(identity) => {
 						parent = list_at(facts.parents, id)
-						outer_sum = if parent == U64.highest 0 else list_at(facts.sums, parent)
+						outer_sum = if (parent == U64.highest) 0 else list_at(facts.sums, parent)
 						padding = checked_add(source_padding, context.padding - outer_sum)?
 						top = checked_add(nonnegative_raw(fragment.geometry.origin.y)?, checked_add(nonnegative_raw(fragment.geometry.size.height)?, checked_add(padding, header)?)?)?
 						bottom = nonnegative_raw(fragment.geometry.origin.y)?
@@ -463,7 +463,7 @@ materialize_containers = |containers, facts, blocks, fragments, view, leads, lim
 		prior = list_at($previous, fragment.container)
 		if prior != U64.highest {
 			old = list_at($out, prior)
-			part = if old.part == Whole First else Middle
+			part = if (old.part == Whole) First else Middle
 			$out = list_set($out, prior, { ..old, part })
 			$out = list_set($out, $index, { ..fragment, part: Last })
 		}
@@ -594,13 +594,13 @@ build_plan = |blocks, groups, lines, constraints, template, scopes, containers, 
 			$scope_visits = $scope_visits + 1
 			$scope_cursor = $scope_cursor + 1
 		}
-		scope_index = if $scope_cursor < scopes.len() and list_at(scopes, $scope_cursor).blocks.start() <= $block $scope_cursor else scopes.len()
+		scope_index = if ($scope_cursor < scopes.len() and list_at(scopes, $scope_cursor).blocks.start() <= $block) $scope_cursor else scopes.len()
 		selected = if scope_index < scopes.len() {
 			scope = list_at(scopes, scope_index)
-			frame = if scope_index == $previous_scope scope.continuation else scope.opening
+			frame = if (scope_index == $previous_scope) scope.continuation else scope.opening
 			{ height: frame.height.raw().to_u64_wrap(), top: frame.top.raw().to_u64_wrap() }
 		} else {
-			{ height: if page_index == 0 frames.first_height else frames.continuation_height, top: if page_index == 0 frames.first_top else frames.continuation_top }
+			{ height: if (page_index == 0) frames.first_height else frames.continuation_height, top: if (page_index == 0) frames.first_top else frames.continuation_top }
 		}
 		if scope_index < scopes.len() {
 			$scope_pages = $scope_pages.append({ scope: scope_index, page: page_index, opening: scope_index != $previous_scope })
@@ -636,12 +636,12 @@ build_plan = |blocks, groups, lines, constraints, template, scopes, containers, 
 				$used = checked_add($used, container_transition(container_facts, $cursor_block))?
 			}
 			line_count = block.lines.length()
-			stop = if $cursor_block == end.block end.line else line_count
+			stop = if ($cursor_block == end.block) end.line else line_count
 			take = stop - $cursor_line
 			leading = positive_raw(block.leading)?
 			fragment_height = checked_mul(take, leading)?
 			padding = fragment_padding(block)?
-			decoration = if $cursor_line == 0 nonnegative_raw(block.decoration)? else 0
+			decoration = if ($cursor_line == 0) nonnegative_raw(block.decoration)? else 0
 			if decoration > 0 {
 				$bands = $bands.append({ block: $cursor_block, page: page_index, top: page_geometry.page_height - page_geometry.margin_top - $used })
 				$used = checked_add($used, decoration)?
@@ -668,7 +668,7 @@ build_plan = |blocks, groups, lines, constraints, template, scopes, containers, 
 			if stop == line_count {
 				$used = checked_add($used, nonnegative_raw(block.trailing)?)?
 				spaced = checked_add($used, nonnegative_raw(block.space_after)?)?
-				$used = if spaced > page_geometry.content_height page_geometry.content_height else spaced
+				$used = if (spaced > page_geometry.content_height) page_geometry.content_height else spaced
 				$cursor_block = $cursor_block + 1
 				$cursor_line = 0
 			} else {
@@ -796,13 +796,13 @@ choose_rows = |blocks, groups, row_count, constraints, template, scopes, contain
 			$scope_visits = $scope_visits + 1
 			$scope_cursor = $scope_cursor + 1
 		}
-		scope_index = if $scope_cursor < scopes.len() and list_at(scopes, $scope_cursor).blocks.start() <= $block $scope_cursor else scopes.len()
+		scope_index = if ($scope_cursor < scopes.len() and list_at(scopes, $scope_cursor).blocks.start() <= $block) $scope_cursor else scopes.len()
 		selected = if scope_index < scopes.len() {
 			scope = list_at(scopes, scope_index)
-			frame = if scope_index == $previous_scope scope.continuation else scope.opening
+			frame = if (scope_index == $previous_scope) scope.continuation else scope.opening
 			{ height: frame.height.raw().to_u64_wrap(), top: frame.top.raw().to_u64_wrap() }
 		} else {
-			{ height: if page_index == 0 frames.first_height else frames.continuation_height, top: if page_index == 0 frames.first_top else frames.continuation_top }
+			{ height: if (page_index == 0) frames.first_height else frames.continuation_height, top: if (page_index == 0) frames.first_top else frames.continuation_top }
 		}
 		if scope_index < scopes.len() {
 			$scope_pages = $scope_pages.append({ scope: scope_index, page: page_index, opening: scope_index != $previous_scope })
@@ -837,12 +837,12 @@ choose_rows = |blocks, groups, row_count, constraints, template, scopes, contain
 				$used = checked_add($used, container_transition(container_facts, $cursor_block))?
 			}
 			line_count = block.lines.length()
-			stop = if $cursor_block == end.block end.line else line_count
+			stop = if ($cursor_block == end.block) end.line else line_count
 			take = stop - $cursor_line
 			leading = positive_raw(block.leading)?
 			fragment_height = checked_mul(take, leading)?
 			padding = fragment_padding(block)?
-			decoration = if $cursor_line == 0 nonnegative_raw(block.decoration)? else 0
+			decoration = if ($cursor_line == 0) nonnegative_raw(block.decoration)? else 0
 			if decoration > 0 {
 				$bands = $bands.append({ block: $cursor_block, page: page_index, top: page_geometry.page_height - page_geometry.margin_top - $used })
 				$used = checked_add($used, decoration)?
@@ -858,7 +858,7 @@ choose_rows = |blocks, groups, row_count, constraints, template, scopes, contain
 			if stop == line_count {
 				$used = checked_add($used, nonnegative_raw(block.trailing)?)?
 				spaced = checked_add($used, nonnegative_raw(block.space_after)?)?
-				$used = if spaced > page_geometry.content_height page_geometry.content_height else spaced
+				$used = if (spaced > page_geometry.content_height) page_geometry.content_height else spaced
 				$cursor_block = $cursor_block + 1
 				$cursor_line = 0
 			} else {
@@ -946,14 +946,14 @@ scan_page = |blocks, validation, containers, height, start_block, start_line| {
 		if $index > start_block {
 			$used = checked_add($used, container_transition(containers, $index))?
 		}
-		atomic_end = if validation.atomic_ends.is_empty() or $first_line != 0 0 else list_at(validation.atomic_ends, $index)
+		atomic_end = if (validation.atomic_ends.is_empty() or $first_line != 0) 0 else list_at(validation.atomic_ends, $index)
 		if atomic_end != 0 {
 			unit = checked_add(group_height(blocks, validation.heights, $index, atomic_end)?, container_internal_height(containers, $index, atomic_end))?
 			if checked_add(checked_add($used, unit)?, container_padding(containers, atomic_end - 1))? > height {
 				return finish_scan($best_score, $best_block, $best_line, $visits, { blocked: $blocked, height, start: start_block, stop: $index, unit, used: checked_add($used, container_padding(containers, atomic_end - 1))? }, blocks)
 			}
 			spaced = checked_add(checked_add($used, unit)?, nonnegative_raw(list_at(blocks, atomic_end - 1).space_after)?)?
-			$used = if spaced > height height else spaced
+			$used = if (spaced > height) height else spaced
 			$index = atomic_end
 			$first_line = 0
 		} else if block.policy.keep_together and $first_line == 0 {
@@ -962,7 +962,7 @@ scan_page = |blocks, validation, containers, height, start_block, start_line| {
 				return finish_scan($best_score, $best_block, $best_line, $visits, { blocked: $blocked, height, start: start_block, stop: $index, unit, used: checked_add($used, container_padding(containers, $index))? }, blocks)
 			}
 			spaced = checked_add(checked_add($used, unit)?, nonnegative_raw(block.space_after)?)?
-			$used = if spaced > height height else spaced
+			$used = if (spaced > height) height else spaced
 			$index = $index + 1
 		} else {
 			leading = positive_raw(block.leading)?
@@ -970,14 +970,14 @@ scan_page = |blocks, validation, containers, height, start_block, start_line| {
 			remaining = line_count - $first_line
 
 			## A block starting here places its decoration band first.
-			decoration = if $first_line == 0 nonnegative_raw(block.decoration)? else 0
+			decoration = if ($first_line == 0) nonnegative_raw(block.decoration)? else 0
 			padding = checked_mul(fragment_padding(block)?, 2)?
 			$used = checked_add(checked_add($used, decoration)?, padding)?
 			reserved = checked_add($used, container_padding(containers, $index))?
-			fit = if reserved >= height 0 else (height - reserved) / leading
-			take_max = if fit < remaining fit else remaining
+			fit = if (reserved >= height) 0 else (height - reserved) / leading
+			take_max = if (fit < remaining) fit else remaining
 			starts_here = $first_line == 0
-			previous_keep = if starts_here and $index > start_block list_at(blocks, $index - 1).policy.keep_with_next else NoKeep
+			previous_keep = if (starts_here and $index > start_block) list_at(blocks, $index - 1).policy.keep_with_next else NoKeep
 			var $taken = $first_line + 1
 			while $taken <= $first_line + take_max and $taken < line_count {
 				$visits = $visits + 1
@@ -1009,7 +1009,7 @@ scan_page = |blocks, validation, containers, height, start_block, start_line| {
 				return finish_scan($best_score, $best_block, $best_line, $visits, { blocked: $blocked, height, start: start_block, stop: $index, unit: leading, used: reserved }, blocks)
 			}
 			spaced = checked_add(checked_add($used, checked_mul(remaining, leading)?)?, nonnegative_raw(block.space_after)?)?
-			$used = if spaced > height height else spaced
+			$used = if (spaced > height) height else spaced
 			$index = $index + 1
 			$first_line = 0
 		}
@@ -1313,7 +1313,7 @@ validate_input = |blocks, groups, rows, content_height| {
 				if next.policy.break_before {
 					return Err(KeepConflict(BreakAfterRequiredKeep({ block: $reverse, next: $reverse + 1 })))
 				}
-				tail = if block.policy.keep_together or block.lines.length() == 1 list_at($heights, $reverse) else positive_raw(block.leading)?
+				tail = if (block.policy.keep_together or block.lines.length() == 1) list_at($heights, $reverse) else positive_raw(block.leading)?
 				next_unit = match next.policy.keep_with_next {
 					Required => list_at($requirements, $reverse + 1)
 					_ => first_unit(next, list_at($heights, $reverse + 1), atomic_ends, $reverse + 1, blocks, $heights)?
@@ -1334,7 +1334,7 @@ validate_input = |blocks, groups, rows, content_height| {
 ## when unsplittable, or its orphan-minimum lines.
 first_unit : KernelPageLayout.Block, U64, List(U64), U64, List(KernelPageLayout.Block), List(U64) -> Try(U64, KernelPageLayout.Error)
 first_unit = |block, height, atomic_ends, index, blocks, heights| {
-	atomic_end = if atomic_ends.is_empty() 0 else list_at(atomic_ends, index)
+	atomic_end = if (atomic_ends.is_empty()) 0 else list_at(atomic_ends, index)
 	if atomic_end != 0 {
 		group_height(blocks, heights, index, atomic_end)
 	} else if block.policy.keep_together {
@@ -1395,8 +1395,8 @@ make_fragment = |block, lines, start, length, height, used, geometry, page_index
 	last = list_at(lines, start + length - 1)
 	scalar_end = range_end(last.source.scalars)?
 	byte_end = range_end(last.source.utf8_bytes)?
-	scalar_start = if scalar_end < first.source.scalars.start() 0 else first.source.scalars.start()
-	byte_start = if byte_end < first.source.utf8_bytes.start() 0 else first.source.utf8_bytes.start()
+	scalar_start = if (scalar_end < first.source.scalars.start()) 0 else first.source.scalars.start()
+	byte_start = if (byte_end < first.source.utf8_bytes.start()) 0 else first.source.utf8_bytes.start()
 	origin_y = geometry.page_height - geometry.margin_top - used - height
 	Ok({
 		geometry: {
@@ -1473,7 +1473,7 @@ checked_mul = |left, right| {
 }
 
 check_limit : U64, U64, KernelPageLayout.Dimension -> Try({}, KernelPageLayout.Error)
-check_limit = |attempted, limit, dimension| if attempted > limit Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
+check_limit = |attempted, limit, dimension| if (attempted > limit) Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
 
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {

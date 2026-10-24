@@ -8,6 +8,7 @@ import FacadeTargets
 
 Input := {
 	blocks : List({ items : List(Str), kind : U8, level : U8, text : Str }),
+	compression : U8,
 	language : U8,
 	title : Str,
 }.{
@@ -23,6 +24,7 @@ Input := {
 				}.Fuzz,
 				8,
 			),
+			compression: Fuzz.u8,
 			language: Fuzz.u8,
 			title: Fuzz.str,
 		}.Fuzz
@@ -31,7 +33,7 @@ Input := {
 
 test : Input -> Fuzz.Outcome
 test = |Input.(input)| {
-	if FacadeTargets.facade_output(input) Fuzz.keep else crash "facade output contracts disagreed"
+	if (FacadeTargets.facade_output(input)) Fuzz.keep else crash "facade output contracts disagreed"
 }
 
 target = Fuzz.target({

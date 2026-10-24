@@ -9,7 +9,7 @@ import "fonts/Inter-Regular.ttf" as font_bytes : List(U8)
 Diagram :: [].{
 	options : U64 -> Try(Pdf.Options, [FontRejected])
 	options = |context| {
-		registered = Font.Registry.empty.register(font_bytes, { provision: BuiltIn, scripts: ["Latn"] }, if context > 0 Font.ValidationLimits.default else Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })) ? |_| FontRejected
+		registered = Font.Registry.empty.register(font_bytes, { provision: BuiltIn, scripts: ["Latn"] }, if (context > 0) Font.ValidationLimits.default else Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })) ? |_| FontRejected
 		Ok(Pdf.Options.{ theme: { face: registered.face, page_margin: { top: 24, bottom: 24, left: 24, right: 24 } }, fonts: Registered(registered.registry) })
 	}
 

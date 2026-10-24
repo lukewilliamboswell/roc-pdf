@@ -375,8 +375,8 @@ add_page_tree_node : KernelObject.Builder, Names, KernelObjectPlan.Plan, U64, U6
 add_page_tree_node = |builder, names, objects, level, node| {
 	shape = KernelObjectPlan.Plan.page_tree_shape(objects)
 	is_leaf = level == KernelBalanced.Shape.leaf_level(shape)
-	span = if is_leaf KernelBalanced.Shape.item_span(shape, level, node) else KernelBalanced.Shape.child_span(shape, level, node)
-	kids = (if is_leaf add_page_reference_array(builder, KernelObjectPlan.Plan.pages(objects), span) else add_tree_reference_array(builder, KernelObjectPlan.Plan.page_tree(objects), span))?
+	span = if (is_leaf) KernelBalanced.Shape.item_span(shape, level, node) else KernelBalanced.Shape.child_span(shape, level, node)
+	kids = (if (is_leaf) add_page_reference_array(builder, KernelObjectPlan.Plan.pages(objects), span) else add_tree_reference_array(builder, KernelObjectPlan.Plan.page_tree(objects), span))?
 	descendants = KernelBalanced.Span.length(KernelBalanced.Shape.item_span(shape, level, node))
 	count = KernelObject.add_integer(kids.builder, descendants.to_i64_wrap()) ? Object
 	type_value = KernelObject.add_name_value(count.builder, names.pages) ? Object
@@ -574,8 +574,8 @@ same_rect : Layout.Rect, Layout.Rect -> Bool
 same_rect = |left, right|
 	left.origin.x == right.origin.x
 		and left.origin.y == right.origin.y
-			and left.size.width == right.size.width
-				and left.size.height == right.size.height
+		and left.size.width == right.size.width
+		and left.size.height == right.size.height
 
 append_box : List(KernelObject.DictionaryEntry), KernelObject.NameId, [DefaultBox, Box(KernelObject.ValueId)] -> List(KernelObject.DictionaryEntry)
 append_box = |entries, key, value| match value {
@@ -614,7 +614,7 @@ rotation_degrees = |rotation| match rotation {
 }
 
 ensure_object : KernelObject.ObjectId, KernelObject.ObjectId -> Try({}, KernelPageObjects.Error)
-ensure_object = |actual, expected| if actual == expected Ok({}) else Err(ObjectOrder({ actual, expected }))
+ensure_object = |actual, expected| if (actual == expected) Ok({}) else Err(ObjectOrder({ actual, expected }))
 
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {

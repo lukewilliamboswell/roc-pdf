@@ -216,7 +216,7 @@ build_scene_plan = |ownership, fonts, limits, phases| {
 		collected = collect_run_mappings($states, font_index, semantics, scalars, text, run, $run_index, actual_length > 0)?
 		$states = collected.states
 		$mapping_conflicts = checked_add($mapping_conflicts, collected.conflicts)?
-		remaining = if $content_bytes > limits.max_content_bytes 0 else limits.max_content_bytes - $content_bytes
+		remaining = if ($content_bytes > limits.max_content_bytes) 0 else limits.max_content_bytes - $content_bytes
 		actual_text_begin = match actual_text {
 			NoActualText => []
 			UseActualText(values) => append_actual_text_begin([], values, run.id.index(), remaining)?
@@ -253,7 +253,7 @@ build_scene_plan = |ownership, fonts, limits, phases| {
 				$phase_cursor = $phase_cursor + 1
 			}
 		}
-		emitted = emit_run_glyphs_phase([], text, run, { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) }, list_at($states, font_index).plan, $phase, remaining_body)?
+		emitted = emit_run_glyphs_phase(List.with_capacity(U64.min(run_capacity(run), remaining_body)), text, run, { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) }, list_at($states, font_index).plan, $phase, remaining_body)?
 		run_bytes = checked_add(actual_text_begin.len(), emitted.bytes.len())?
 		$content_bytes = checked_add($content_bytes, run_bytes)?
 		check_limit($content_bytes, limits.max_content_bytes, ContentBytes)?
@@ -284,6 +284,12 @@ build_scene_plan = |ownership, fonts, limits, phases| {
 		},
 	)
 }
+
+## Room for a run's glyph operators: four hex digits per glyph plus
+## occasional adjustments and the positioning prefix. A run body grown from
+## empty reallocated several times per run.
+run_capacity : Text.Run -> U64
+run_capacity = |run| run.glyphs.length() * 6 + 32
 
 initialize_fonts : List(KernelFontPlan.Plan) -> Try(List(FontState), KernelPdfText.Error)
 initialize_fonts = |fonts| {
@@ -512,14 +518,14 @@ collect_run_mappings = |states, font_index, semantics, scalars, text, run, run_i
 				if cluster.source.scalars.length() != 0 or cluster.source.utf8_bytes.length() != 0 or !generated_discretionary_property(source.properties, semantics.text_properties, property, cluster.source) {
 					return Err(ClusterInvalid({ cluster: $cluster_index, run: run_index }))
 				}
-				[0x002d]
+				Hyphen
 			}
 			_ => {
 				if cluster.source.scalars.length() == 0 {
 					return Err(ClusterInvalid({ cluster: $cluster_index, run: run_index }))
 				}
 				source_start = checked_add(source.range.scalars.start(), cluster.source.scalars.start())?
-				source_scalars(scalars, source.id, source_start, cluster.source.scalars.length(), run_index)?
+				Scalars(source_span(scalars, source.id, source_start, cluster.source.scalars.length(), run_index)?)
 			}
 		}
 		var $glyph_reference = cluster.glyphs.start()
@@ -533,9 +539,9 @@ collect_run_mappings = |states, font_index, semantics, scalars, text, run, run_i
 			cid = cid_for_glyph(state.plan, glyph, run_index)?
 			match list_at($slots, cid.to_u64()) {
 				Unmapped => {
-					$slots = list_set($slots, cid.to_u64(), Mapped(mapping))
+					$slots = list_set($slots, cid.to_u64(), Mapped(mapping_values(scalars, mapping)))
 				}
-				Mapped(existing) => if existing != mapping {
+				Mapped(existing) => if !mapping_matches(existing, scalars, mapping) {
 					if allow_conflicts {
 						$conflicts = checked_add($conflicts, 1)?
 					} else {
@@ -559,6 +565,53 @@ generated_discretionary_property = |range, properties, property_id, source| {
 	match list_at(properties, index) {
 		SourceToPresentation({ kind: InsertedDiscretionaryHyphen, presentation, source: property_source }) => presentation == "-" and property_source == source
 		_ => False
+	}
+}
+
+## A cluster's Unicode mapping, located in the scalar cache rather than
+## copied out of it: most clusters repeat a glyph that is already mapped and
+## only need comparing, so a list is materialized only for a first mapping.
+ClusterMapping : [Hyphen, Scalars({ begin : U64, length : U64 })]
+
+source_span : ScalarCache, Semantics.TextSourceId, U64, U64, U64 -> Try({ begin : U64, length : U64 }, KernelPdfText.Error)
+source_span = |cache, source, start, length, run| {
+	begin = list_at(cache.starts, source.index())
+	end = list_at(cache.starts, source.index() + 1)
+	if start > end - begin or length > end - begin - start {
+		return Err(RunInvalid({ run: run }))
+	}
+	Ok({ begin: begin + start, length })
+}
+
+mapping_values : ScalarCache, ClusterMapping -> List(U32)
+mapping_values = |cache, mapping| match mapping {
+	Hyphen => [0x002d]
+	Scalars({ begin, length }) => {
+		var $values = List.with_capacity(length)
+		var $index = 0
+		while $index < length {
+			$values = $values.append(list_at(cache.values, begin + $index))
+			$index = $index + 1
+		}
+		$values
+	}
+}
+
+mapping_matches : List(U32), ScalarCache, ClusterMapping -> Bool
+mapping_matches = |existing, cache, mapping| match mapping {
+	Hyphen => existing == [0x002d]
+	Scalars({ begin, length }) => {
+		if existing.len() != length {
+			return False
+		}
+		var $index = 0
+		while $index < length {
+			if list_at(existing, $index) != list_at(cache.values, begin + $index) {
+				return False
+			}
+			$index = $index + 1
+		}
+		True
 	}
 }
 
@@ -800,7 +853,7 @@ emitted_width : KernelFontPlan.Plan, U32 -> Try(I64, KernelPdfText.Error)
 emitted_width = |font, cid| {
 	entry = list_at(font.entries, cid.to_u64())
 	match KernelPdfFont.scaled_unsigned_metric(entry.width, font.units_per_em) {
-		Ok(width) => if width > I64.highest.to_u64_wrap() Err(ArithmeticOverflow) else Ok(width.to_i64_wrap())
+		Ok(width) => if (width > I64.highest.to_u64_wrap()) Err(ArithmeticOverflow) else Ok(width.to_i64_wrap())
 		Err(_) => Err(FontPlanInvalid({ font: 0 }))
 	}
 }
@@ -826,7 +879,7 @@ floor_div = |numerator, denominator| {
 ## A TJ number: `steps` / `adjustment_scale` thousandths of text space, in
 ## canonical decimal form.
 append_adjustment : List(U8), I64, U64 -> Try(List(U8), KernelPdfText.Error)
-append_adjustment = |bytes, steps, limit| append_bytes(bytes, KernelLex.append_decimal_digits([], steps, adjustment_digits), limit)
+append_adjustment = |bytes, steps, limit| within_limit(KernelLex.append_decimal_digits(bytes, steps, adjustment_digits), limit)
 
 append_actual_text_begin : List(U8), List(U32), U64, U64 -> Try(List(U8), KernelPdfText.Error)
 append_actual_text_begin = |bytes, scalars, run, limit| {
@@ -860,7 +913,7 @@ append_utf16_scalar = |bytes, scalar, run, limit| {
 }
 
 append_layout : List(U8), Layout.Unit, U64 -> Try(List(U8), KernelPdfText.Error)
-append_layout = |bytes, value, limit| append_bytes(bytes, KernelLex.append_thousandths([], value.raw()), limit)
+append_layout = |bytes, value, limit| within_limit(KernelLex.append_thousandths(bytes, value.raw()), limit)
 
 append_hex_u16 : List(U8), U16, U64 -> Try(List(U8), KernelPdfText.Error)
 append_hex_u16 = |bytes, value, limit| {
@@ -873,10 +926,20 @@ append_hex_u16 = |bytes, value, limit| {
 }
 
 hex_digit : U8 -> U8
-hex_digit = |value| if value < 10 0x30 + value else 0x41 + value - 10
+hex_digit = |value| if (value < 10) 0x30 + value else 0x41 + value - 10
 
 append_literal : List(U8), Str, U64 -> Try(List(U8), KernelPdfText.Error)
-append_literal = |bytes, literal, limit| append_bytes(bytes, Str.to_utf8(literal), limit)
+
+## Iterates the literal's bytes in place: `Str.to_utf8` allocated a fresh
+## list for every literal on every call.
+append_literal = |bytes, literal, limit| {
+	check_room(bytes.len(), Str.count_utf8_bytes(literal), limit)?
+	var $out = bytes
+	for byte in Str.iter_utf8(literal) {
+		$out = $out.append(byte)
+	}
+	Ok($out)
+}
 
 append_bytes : List(U8), List(U8), U64 -> Try(List(U8), KernelPdfText.Error)
 append_bytes = |bytes, added, limit| {
@@ -888,6 +951,18 @@ append_bytes = |bytes, added, limit| {
 		$index = $index + 1
 	}
 	Ok($out)
+}
+
+## Writes a number straight onto the content and then checks the limit, so
+## no temporary list holds its digits. The attempted length is exactly the
+## one `check_room` would report.
+within_limit : List(U8), U64 -> Try(List(U8), KernelPdfText.Error)
+within_limit = |bytes, limit| {
+	if bytes.len() > limit {
+		Err(LimitExceeded({ attempted: bytes.len(), dimension: ContentBytes, limit }))
+	} else {
+		Ok(bytes)
+	}
 }
 
 ## Checks that `additional` more bytes fit the content limit. It takes only
@@ -909,7 +984,7 @@ check_room = |length, additional, limit| {
 }
 
 check_limit : U64, U64, KernelPdfText.Dimension -> Try({}, KernelPdfText.Error)
-check_limit = |attempted, limit, dimension| if attempted > limit Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
+check_limit = |attempted, limit, dimension| if (attempted > limit) Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
 
 checked_add : U64, U64 -> Try(U64, KernelPdfText.Error)
 checked_add = |left, right| match U64.plus_try(left, right) {

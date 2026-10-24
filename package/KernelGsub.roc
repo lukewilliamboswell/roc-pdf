@@ -68,7 +68,7 @@ validate = |font, request, limits| {
 				subtable_records: matched.subtable_records,
 			},
 		})
-		None => if matched.output_seen Err(OutputMismatch(request.output)) else Err(LigatureMissing)
+		None => if (matched.output_seen) Err(OutputMismatch(request.output)) else Err(LigatureMissing)
 	}
 }
 
@@ -112,7 +112,7 @@ select_language_system = |bytes, script_list, end, wanted_script, language| {
 			default_offset = read_u16(bytes, offset).to_u64()
 			language_count = read_u16_checked(bytes, offset + 2, end, 2)?
 			match language {
-				Default => if default_offset == 0 Err(LanguageMissing(language)) else at(offset, end, default_offset, 6)
+				Default => if (default_offset == 0) Err(LanguageMissing(language)) else at(offset, end, default_offset, 6)
 				Tagged(wanted) => select_tagged_language(bytes, offset, end, language_count, wanted, language)
 			}
 		}
@@ -168,7 +168,7 @@ select_feature = |bytes, language_system, end, feature_list, wanted| {
 	}
 	match $found {
 		NoFeature => Err(FeatureMissing(wanted))
-		FoundFeature(offset) => Ok({ offset, records: feature_index_count + if required_index == 0xffff 0 else 1 })
+		FoundFeature(offset) => Ok({ offset, records: feature_index_count + if (required_index == 0xffff) 0 else 1 })
 	}
 }
 
@@ -383,7 +383,7 @@ checked_offset = |base, relative, end, needed| {
 		Err(InvalidGsub)
 	} else {
 		offset = base + relative
-		if needed > end - offset Err(InvalidGsub) else Ok(offset)
+		if (needed > end - offset) Err(InvalidGsub) else Ok(offset)
 	}
 }
 

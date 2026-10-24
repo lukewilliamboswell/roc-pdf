@@ -248,9 +248,9 @@ def command(executable: str, *args: str, cwd: Path = ROOT) -> None:
     result = managed_run(values, cwd=cwd, text=True, stderr=subprocess.STDOUT)
     log(result.stdout)
     if result.returncode == 2 and executable == ROC and tolerated_warnings_only(result.stdout):
-        # The only tolerated warning: a downloaded package pins an older Roc
-        # nightly in its header (see scripts/roc_diagnostics.py).
-        detail(f"PASS command with a tolerated package version-pin warning: {' '.join(values)}")
+        # The only tolerated warnings are located in a downloaded package
+        # (see scripts/roc_diagnostics.py).
+        detail(f"PASS command with tolerated downloaded-package warnings: {' '.join(values)}")
         return
     if result.returncode != 0:
         tail = "\n".join(result.stdout.splitlines()[-30:])
@@ -898,7 +898,12 @@ def build_case_sources(
         # fixture compiles exactly as a standalone `roc build --no-cache`
         # does, whatever the order or cache state
         # (development/performance/lowering-uniqueness.md).
-        # --no-cache works around roc-lang/roc#11826; remove it once that is fixed.
+        # --no-cache works around roc-lang/roc#11826. That issue is closed,
+        # but re-tested on nightly-2026-10-18 a cold shared cache still
+        # differs in 26 cases: "static PDF/A-4 archived report scaling x400"
+        # allocates 13,877 times instead of 13,473 when other fixtures were
+        # built into the cache first. Keep it until a cold and a warm cache
+        # both match --no-cache for every case.
         roc(
             "build",
             relative(source),

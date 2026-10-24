@@ -281,7 +281,7 @@ literal_segments = |analysis, range, context, authoring, selection, source, cand
 				while $stop < end and list_at(analysis.graphemes, $stop).scalar_start < script.range.scalar_end {
 					$stop = $stop + 1
 				}
-				$segments = $segments.append({ clusters: Semantics.Range.from_start_and_length($cursor, $stop - $cursor), font: font_index, script: Font.Script.from_iso15924(if is_source and script.script != "Zyyy" and script.script != "Zinh" script.script else "Latn") })
+				$segments = $segments.append({ clusters: Semantics.Range.from_start_and_length($cursor, $stop - $cursor), font: font_index, script: Font.Script.from_iso15924(if (is_source and script.script != "Zyyy" and script.script != "Zinh") script.script else "Latn") })
 				$cursor = $stop
 			}
 		}
@@ -496,7 +496,7 @@ locate_failure = |contexts, spans, sources, fonts, requests, error| {
 				Some(glyph) => glyph != 0
 				None => False
 			}
-			reason = if grapheme.scalar_end - grapheme.scalar_start != 1 Failed(Cluster) else if !covered Failed(Coverage(value)) else if actual_script != "Zyyy" and actual_script != "Zinh" and actual_script != request.script.to_str() Failed(Script(actual_script)) else Passed
+			reason = if (grapheme.scalar_end - grapheme.scalar_start != 1) Failed(Cluster) else if (!covered) Failed(Coverage(value)) else if (actual_script != "Zyyy" and actual_script != "Zinh" and actual_script != request.script.to_str()) Failed(Script(actual_script)) else Passed
 			match reason {
 				Failed(found) => return Style(UnsupportedText({ block: context.block, inline: context.inline, reason: found, scalars: Semantics.Range.from_start_and_length(grapheme.scalar_start - literal_start(context), grapheme.scalar_end - grapheme.scalar_start) }))
 				Passed => {}

@@ -86,7 +86,7 @@ expect {
 		KernelStabilization.initial,
 		4,
 		|state, _candidate, pass| {
-			pages = if state.pages == 2 3 else 2
+			pages = if (state.pages == 2) 3 else 2
 			Ok({ candidate: pass, state: { pages, values: [] } })
 		},
 	)

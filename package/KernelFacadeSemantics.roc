@@ -394,7 +394,7 @@ rich_source_count = |authoring, paragraph, breaks| match Document.reference_para
 
 append_rich_sources : List(Str), Document.NormalizedAuthoring, U64, Str, U64, U64 -> List(Str)
 append_rich_sources = |sources, authoring, paragraph, text, first_break, breaks| match Document.reference_paragraph(authoring, paragraph) {
-	NoReferences => if breaks == 0 sources.append(text) else append_segment_sources(sources.append(text), authoring.line_breaks, first_break, breaks)
+	NoReferences => if (breaks == 0) sources.append(text) else append_segment_sources(sources.append(text), authoring.line_breaks, first_break, breaks)
 	HasReferences(record) => {
 		var $sources = sources
 		var $chunk = record.chunks.start()
@@ -589,7 +589,7 @@ finalize_symbolic = |KernelFacadeSemantics.Symbolic.{ authoring, block_ownership
 			field = list_at(pending, $pending)
 			source_id = list_at(input_sources, first_reference_input + field.reference)
 			source = list_at(unique_sources, source_id.index())
-			properties = if field.separator_after Semantics.Range.from_start_and_length($properties.len(), 1) else Semantics.Range.from_start_and_length(0, 0)
+			properties = if (field.separator_after) Semantics.Range.from_start_and_length($properties.len(), 1) else Semantics.Range.from_start_and_length(0, 0)
 			if field.separator_after {
 				# This explicit authored transformation belongs to the semantic
 				# occurrence; it never changes glyphs, fit, or atom alignment.
@@ -617,7 +617,7 @@ finalize_symbolic = |KernelFacadeSemantics.Symbolic.{ authoring, block_ownership
 	final_components = { attributes, content_spine, element_identifiers, namespaces, nodes, literals, relationships, text_properties: $properties }
 	store = complete_store(final_components, $occurrences, sources)
 	navigated = !links.is_empty() or !destinations.is_empty()
-	preliminary = (if navigated KernelTextSemantics.Plan.build_navigation(store, 0, 0, limits.semantics, limits.text_semantics) else KernelTextSemantics.Plan.build(store, 0, 0, limits.semantics, limits.text_semantics)) ? TextSemantics
+	preliminary = (if (navigated) KernelTextSemantics.Plan.build_navigation(store, 0, 0, limits.semantics, limits.text_semantics) else KernelTextSemantics.Plan.build(store, 0, 0, limits.semantics, limits.text_semantics)) ? TextSemantics
 	Ok(
 		KernelFacadeSemantics.Plan.{
 			authoring: authoring,
@@ -640,12 +640,12 @@ plan_blocks = |authoring, limits| {
 	blocks = authoring.blocks
 	groups = authoring.groups
 	check_heading_progression(blocks)?
-	source_bound = if blocks.len() > U64.highest / 2 U64.highest else blocks.len() * 2
+	source_bound = if (blocks.len() > U64.highest / 2) U64.highest else blocks.len() * 2
 	var $destinations = []
 	var $links = []
 	var $sources = List.with_capacity(U64.min(source_bound, limits.max_source_inputs))
 	var $top_nodes = List.with_capacity(U64.min(checked_add(blocks.len(), groups.len())?, limits.max_nodes))
-	var $group_nodes = if groups.is_empty() [] else List.with_capacity(groups.len())
+	var $group_nodes = if (groups.is_empty()) [] else List.with_capacity(groups.len())
 	var $next_group = 0
 	var $content_count = 0
 	var $list_count = 0
@@ -661,7 +661,7 @@ plan_blocks = |authoring, limits| {
 	var $break_cursor = 0
 	var $cell_cursor = 0
 	var $cell_headers = []
-	var $header_ranges = if authoring.cells.is_empty() [] else List.with_capacity(authoring.cells.len())
+	var $header_ranges = if (authoring.cells.is_empty()) [] else List.with_capacity(authoring.cells.len())
 	var $relationship_count = 0
 	var $table_count = 0
 	var $empty_cells = 0
@@ -690,7 +690,7 @@ plan_blocks = |authoring, limits| {
 					attempted_nodes = checked_add($next_node, 2)?
 					attempted_content = checked_add($content_count, checked_add(2, $painted)?)?
 					attempted_occurrences = checked_add($next_occurrence, $painted)?
-					nonempty = if source.text.is_empty() 0 else 1
+					nonempty = if (source.text.is_empty()) 0 else 1
 					attempted_properties = checked_add($property_count, nonempty)?
 					check_at(attempted_nodes, limits.max_nodes, Nodes, group.first_block)?
 					check_at(attempted_content, limits.max_content_spine, ContentSpine, group.first_block)?
@@ -889,8 +889,8 @@ plan_blocks = |authoring, limits| {
 					crash "normalized empty cell escaped its table"
 				}
 				Bullet({ item, list }) => {
-					node_increment = if item == 0 4 else 3
-					content_increment = if item == 0 6 else 5
+					node_increment = if (item == 0) 4 else 3
+					content_increment = if (item == 0) 6 else 5
 					attempted_nodes = checked_add($next_node, node_increment)?
 					attempted_occurrences = checked_add($next_occurrence, 2)?
 					attempted_content = checked_add($content_count, content_increment)?
@@ -1144,8 +1144,8 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 	if columns == 0 or table.body_rows == 0 {
 		return Err(TableEmpty({ group: group_index }))
 	}
-	caption_nodes = if table.caption 2 else 0
-	sections = (if table.header_rows > 0 1 else 0) + 1 + (if table.footer_rows > 0 1 else 0)
+	caption_nodes = if (table.caption) 2 else 0
+	sections = (if (table.header_rows > 0) 1 else 0) + 1 + (if (table.footer_rows > 0) 1 else 0)
 
 	# Fresh table-sized buffers; the caller appends them to its own.
 	var $group_nodes = List.with_capacity(group.group_end - group_index).append(at.node)
@@ -1154,7 +1154,7 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 	var $ranges = List.with_capacity(group.block_end - group.first_block)
 	var $sources = List.with_capacity(group.block_end - group.first_block)
 	var $next_node = at.node + 1 + caption_nodes
-	var $content = 1 + (if table.caption 1 else 0) + sections + caption_nodes
+	var $content = 1 + (if (table.caption) 1 else 0) + sections + caption_nodes
 	var $occurrences = 0
 	var $attributes = 0
 	var $relationships = 0
@@ -1335,7 +1335,7 @@ append_spanned_headers = |headers, column_headers, column, span| {
 		$merged = append_all($merged, list_at(column_headers, $index))
 		$index = $index + 1
 	}
-	sorted = $merged.sort_with(|left, right| if left < right Before else if left > right After else Same)
+	sorted = $merged.sort_with(|left, right| if (left < right) Before else if (left > right) After else Same)
 	var $headers = headers
 	var $previous = U64.highest
 	for value in sorted {
@@ -1448,7 +1448,7 @@ check_figure = |figure, block| {
 	}
 	match figure.fit {
 		ExactFit => Ok({})
-		ScaleFit(floor) => if floor > 100 Err(FigureFitInvalid({ block: block })) else Ok({})
+		ScaleFit(floor) => if (floor > 100) Err(FigureFitInvalid({ block: block })) else Ok({})
 	}
 }
 
@@ -1667,7 +1667,7 @@ check_numbering = |list, group| match list.marker {
 				LowerRoman | UpperRoman => start >= 1 and last <= 3999
 			}
 		}
-		if valid Ok({}) else Err(ListNumbering({ group: group }))
+		if (valid) Ok({}) else Err(ListNumbering({ group: group }))
 	}
 }
 
@@ -1820,7 +1820,7 @@ check_rich = |inlines, rich, block, max_depth| {
 					_ => False
 				}
 				if record.leaf_end == record.first_leaf {
-					return if linked Err(EmptyLinkText({ block, inline: $index })) else Err(EmptyInline({ block, inline: $index }))
+					return if (linked) Err(EmptyLinkText({ block, inline: $index })) else Err(EmptyInline({ block, inline: $index }))
 				}
 				if linked {
 					if inside_link(inlines, record.parent) {
@@ -1950,7 +1950,7 @@ build_components = |authoring, planning, source_plan| {
 	dummy = make_node(0, DocumentRoot, "Document", empty, Language(language))
 	var $nodes = List.repeat(dummy, planning.node_count)
 	var $content = List.with_capacity(planning.content_count)
-	var $attributes = if planning.attribute_count == 0 [] else List.with_capacity(planning.attribute_count)
+	var $attributes = if (planning.attribute_count == 0) [] else List.with_capacity(planning.attribute_count)
 	if groups.is_empty() {
 		for entry in planning.top_nodes {
 			$content = $content.append(ChildNode(entry.node))
@@ -2023,8 +2023,8 @@ build_components = |authoring, planning, source_plan| {
 	}
 	var $occurrences = List.with_capacity(planning.occurrence_count)
 	var $properties = List.with_capacity(planning.property_count)
-	var $identifiers = if planning.header_ranges.is_empty() [] else List.with_capacity(planning.header_ranges.len())
-	var $relationships = if planning.relationship_count == 0 [] else List.with_capacity(planning.relationship_count)
+	var $identifiers = if (planning.header_ranges.is_empty()) [] else List.with_capacity(planning.header_ranges.len())
+	var $relationships = if (planning.relationship_count == 0) [] else List.with_capacity(planning.relationship_count)
 	var $ownership = List.repeat(TextBlock({ body: Semantics.OccurrenceId.from_index(0), label: NoLabel, level: 0 }), blocks.len())
 	var $index = 0
 	var $next_node = 1
@@ -2066,7 +2066,7 @@ build_components = |authoring, planning, source_plan| {
 						$properties = $properties.append(ActualText(source.text))
 					}
 					node = make_node(code, ParentNode(Semantics.NodeId.from_index(wrapper)), "Code", Semantics.Range.from_start_and_length(code_start, $content.len() - code_start), Inherited)
-					$nodes = list_set($nodes, code, { ..node, text_properties: Semantics.Range.from_start_and_length(property_start, if source.text.is_empty() 0 else 1) })
+					$nodes = list_set($nodes, code, { ..node, text_properties: Semantics.Range.from_start_and_length(property_start, if (source.text.is_empty()) 0 else 1) })
 					$next_node = $next_node + 2
 					if !source.text.is_empty() {
 						$source_input = $source_input + 1
@@ -2335,7 +2335,7 @@ build_components = |authoring, planning, source_plan| {
 		attributes: $attributes,
 		content_spine: $content,
 		element_identifiers: $identifiers,
-		namespaces: if $nodes.any(|node| node.role.namespace.index() == 1) standard_namespaces_with_pdf17 else standard_namespaces,
+		namespaces: if ($nodes.any(|node| node.role.namespace.index() == 1)) standard_namespaces_with_pdf17 else standard_namespaces,
 		nodes: $nodes,
 		literals: $occurrences,
 		relationships: $relationships,
@@ -2424,8 +2424,8 @@ place_rich = |buffers, authoring, rich, at, source_plan| {
 	end = rich.inlines + rich.length
 	while $index < end {
 		record = list_at(inlines, $index)
-		owner_spine = if record.parent == 0 base else base + list_at(inlines, record.parent - 1).spine
-		owner_node = if record.parent == 0 at.node else at.node + 1 + list_at(inlines, record.parent - 1).element
+		owner_spine = if (record.parent == 0) base else base + list_at(inlines, record.parent - 1).spine
+		owner_node = if (record.parent == 0) at.node else at.node + 1 + list_at(inlines, record.parent - 1).element
 		position = owner_spine + record.position
 		match record.kind {
 			Text({ byte_length, byte_start, text: _ }) => {
@@ -2515,7 +2515,7 @@ place_table = |attributes, { content, nodes, occurrences, properties }, identifi
 	table = list_at(authoring.tables, at.table)
 	empty = Semantics.Range.from_start_and_length(0, 0)
 	table_node = at.node
-	caption_nodes = if table.caption 2 else 0
+	caption_nodes = if (table.caption) 2 else 0
 	var $attributes = attributes
 	var $content = content
 	var $nodes = nodes
@@ -2534,8 +2534,8 @@ place_table = |attributes, { content, nodes, occurrences, properties }, identifi
 	body_start = at.group + 1 + header_rows
 	footer_start = body_start + table.body_rows
 	head_node = table_node + 1 + caption_nodes
-	body_node = if header_rows > 0 list_at(planning.group_nodes, body_start) - 1 else head_node
-	foot_node = if table.footer_rows > 0 list_at(planning.group_nodes, footer_start) - 1 else 0
+	body_node = if (header_rows > 0) list_at(planning.group_nodes, body_start) - 1 else head_node
+	foot_node = if (table.footer_rows > 0) list_at(planning.group_nodes, footer_start) - 1 else 0
 	table_children = $content.len()
 	if table.caption {
 		$content = $content.append(ChildNode(Semantics.NodeId.from_index(table_node + 1)))
@@ -2563,9 +2563,9 @@ place_table = |attributes, { content, nodes, occurrences, properties }, identifi
 	}
 	var $row_group = at.group + 1
 	while $row_group < group.group_end {
-		section_end = if $row_group < body_start body_start else if $row_group < footer_start footer_start else group.group_end
-		section_node = if $row_group < body_start head_node else if $row_group < footer_start body_node else foot_node
-		section_role = if $row_group < body_start "THead" else if $row_group < footer_start "TBody" else "TFoot"
+		section_end = if ($row_group < body_start) body_start else if ($row_group < footer_start) footer_start else group.group_end
+		section_node = if ($row_group < body_start) head_node else if ($row_group < footer_start) body_node else foot_node
+		section_role = if ($row_group < body_start) "THead" else if ($row_group < footer_start) "TBody" else "TFoot"
 		section_span = $content.len()
 		var $member = $row_group
 		while $member < section_end {
@@ -2730,7 +2730,7 @@ cell_ordinal = |cells, block| {
 cell_identifier : U64 -> Str
 cell_identifier = |ordinal| {
 	digits = (1000000 + ordinal + 1).to_str()
-	match Str.from_utf8(Str.to_utf8(digits).drop_first(1)) {
+	match digits.drop_first_bytes(1) {
 		Ok(text) => "c${text}"
 		Err(_) => crash "generated cell identifier escaped ASCII"
 	}
@@ -2811,7 +2811,7 @@ container_role = |kind| match kind {
 }
 
 parent_node : U64, List(U64) -> Semantics.NodeId
-parent_node = |parent, group_nodes| if parent == 0 Semantics.NodeId.from_index(0) else Semantics.NodeId.from_index(list_at(group_nodes, parent - 1))
+parent_node = |parent, group_nodes| if (parent == 0) Semantics.NodeId.from_index(0) else Semantics.NodeId.from_index(list_at(group_nodes, parent - 1))
 
 child_spans : List(ChildEntry), U64 -> { counts : List(U64), ordered : List(Semantics.NodeId) }
 child_spans = |entries, group_count| {
@@ -2850,7 +2850,7 @@ standard_namespaces_with_pdf17 = [
 ## `Code` and `Quote` are PDF 1.7 standard structure types (ISO 32000-2
 ## 14.8.6); every other facade role is in the PDF 2.0 namespace.
 role_namespace : Str -> Semantics.NamespaceId
-role_namespace = |role| if role == "Code" or role == "Quote" Semantics.NamespaceId.from_index(1) else Semantics.NamespaceId.from_index(0)
+role_namespace = |role| if (role == "Code" or role == "Quote") Semantics.NamespaceId.from_index(1) else Semantics.NamespaceId.from_index(0)
 
 make_node : U64, Semantics.NodeParent, Str, Semantics.Range, Semantics.Language -> Semantics.Node
 make_node = |index, parent, role, content, language| {
@@ -2919,10 +2919,10 @@ check_source = |authoring, index| {
 
 ## A facade content bound checked at authored leaf `block`.
 check_at : U64, U64, KernelFacadeSemantics.Dimension, U64 -> Try({}, KernelFacadeSemantics.Error)
-check_at = |attempted, limit, dimension, block| if attempted > limit Err(BlockLimitExceeded({ attempted, block, dimension, limit })) else Ok({})
+check_at = |attempted, limit, dimension, block| if (attempted > limit) Err(BlockLimitExceeded({ attempted, block, dimension, limit })) else Ok({})
 
 check_limit : U64, U64, KernelFacadeSemantics.Dimension -> Try({}, KernelFacadeSemantics.Error)
-check_limit = |attempted, limit, dimension| if attempted > limit Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
+check_limit = |attempted, limit, dimension| if (attempted > limit) Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
 
 checked_add : U64, U64 -> Try(U64, KernelFacadeSemantics.Error)
 checked_add = |left, right| match U64.plus_try(left, right) {
@@ -3182,7 +3182,7 @@ expect {
 	deep = { ..nested_authoring, groups: nested_authoring.groups.map(|group| { ..group, depth: group.depth + 1 }) }
 	empty = {
 		..nested_authoring,
-		blocks: nested_authoring.blocks.map(|block| if block.parent == 2 { ..block, parent: 1 } else block),
+		blocks: nested_authoring.blocks.map(|block| if (block.parent == 2) { ..block, parent: 1 } else block),
 		groups: [
 			{ block_end: 5, depth: 1, first_block: 1, group_end: 2, kind: Container(Section), parent: 0, position: 1 },
 			{ block_end: 5, depth: 2, first_block: 5, group_end: 2, kind: Container(Part), parent: 1, position: 4 },
@@ -3238,20 +3238,20 @@ expect {
 
 	store.nodes.map(|node| node.role.local_name) == ["Document", "P", "Em", "Strong", "Span"]
 		and spine(1) == [1, 20, 31]
-			and spine(2) == [11, 30]
-				and spine(3) == [40]
-					and spine(4) == [21]
-						and ranges == [[0, 3, 0, 3], [3, 3, 3, 3], [6, 1, 6, 2], [7, 2, 8, 2]]
-							and french
-								and list_at(store.nodes, 4).language == Language("fr")
-									and work.inline_elements == 3
-										and work.inline_leaves == 4
-											and (
-												match KernelFacadeSemantics.Plan.block_ownership(plan) {
-													[RichTextBlock({ label: NoLabel, level: 0, occurrences })] => occurrences.start() == 0 and occurrences.length() == 4
-													_ => False
-												}
-											)
+		and spine(2) == [11, 30]
+		and spine(3) == [40]
+		and spine(4) == [21]
+		and ranges == [[0, 3, 0, 3], [3, 3, 3, 3], [6, 1, 6, 2], [7, 2, 8, 2]]
+		and french
+		and list_at(store.nodes, 4).language == Language("fr")
+		and work.inline_elements == 3
+		and work.inline_leaves == 4
+		and (
+			match KernelFacadeSemantics.Plan.block_ownership(plan) {
+				[RichTextBlock({ label: NoLabel, level: 0, occurrences })] => occurrences.start() == 0 and occurrences.length() == 4
+				_ => False
+			}
+		)
 }
 
 # Inline rejections name the paragraph block and the inline's arena index.
@@ -3307,9 +3307,9 @@ expect {
 
 	roles == ["Document", "Table", "Caption", "P", "THead", "TR", "TH", "TH", "TBody", "TR", "TH", "TD", "TR", "TD"]
 		and store.element_identifiers.map(|identifier| identifier.value) == ["c000001", "c000002", "c000003", "c000004", "c000005"]
-			and headers == [Names(["c000002", "c000003"]), Names(["c000001", "c000002"])]
-				and store.relationships.len() == 4
-					and work.tables == 1 and work.table_cells == 5 and work.header_association_edges == 4
+		and headers == [Names(["c000002", "c000003"]), Names(["c000001", "c000002"])]
+		and store.relationships.len() == 4
+		and work.tables == 1 and work.table_cells == 5 and work.header_association_edges == 4
 }
 
 # Table rejections name the table, the row, or the cell.
@@ -3394,12 +3394,12 @@ expect {
 	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(plan)))
 	view.literals.map(|context| context.occurrence.id.index()) == [0, 2]
 		and view.pending.map(|context| context.occurrence.index()) == [1]
-			and view.literals.map(|context| context.segment) == [0, 0]
-				and view.pending.map(|context| context.segment) == [0]
-					and KernelFacadeSources.Plan.sources(view.sources).map(|source| source.unicode) == ["é", "x"]
-						and store.occurrences.map(|occurrence| occurrence.id.index()) == [0, 1, 2]
-							and store.text_sources.map(|source| source.unicode) == ["é", "x", "12"]
-								and store.nodes.map(|node| node.role.local_name) == ["Document", "P", "Strong"]
+		and view.literals.map(|context| context.segment) == [0, 0]
+		and view.pending.map(|context| context.segment) == [0]
+		and KernelFacadeSources.Plan.sources(view.sources).map(|source| source.unicode) == ["é", "x"]
+		and store.occurrences.map(|occurrence| occurrence.id.index()) == [0, 1, 2]
+		and store.text_sources.map(|source| source.unicode) == ["é", "x", "12"]
+		and store.nodes.map(|node| node.role.local_name) == ["Document", "P", "Strong"]
 }
 
 # A reference-only paragraph has a real semantic leaf but no literal source
@@ -3417,9 +3417,9 @@ expect {
 	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(plan)))
 	view.literals.is_empty() and KernelFacadeSources.Plan.sources(view.sources).is_empty()
 		and view.pending.map(|context| context.segment) == [0, 1]
-			and store.text_sources.map(|source| source.unicode) == ["iv", "1"]
-				and store.text_properties == [ActualText("iv ")]
-					and store.occurrences.map(|occurrence| occurrence.text_properties.length()) == [1, 0]
+		and store.text_sources.map(|source| source.unicode) == ["iv", "1"]
+		and store.text_properties == [ActualText("iv ")]
+		and store.occurrences.map(|occurrence| occurrence.text_properties.length()) == [1, 0]
 }
 
 # Ordinary preliminary plans cannot contain unresolved reference leaves.
@@ -3487,8 +3487,8 @@ expect {
 	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(plan)))
 	view.literals.map(|context| context.occurrence.id.index()) == [0, 1, 3]
 		and view.pending.map(|context| context.occurrence.index()) == [2, 4]
-			and store.text_sources.map(|source| source.unicode) == ["H", "A", "B", "4", "9"]
-				and store.occurrences.len() == 5
+		and store.text_sources.map(|source| source.unicode) == ["H", "A", "B", "4", "9"]
+		and store.occurrences.len() == 5
 }
 
 expect {
@@ -3505,7 +3505,7 @@ expect {
 	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(plan)))
 	view.literals.map(|context| context.occurrence.id.index()) == [0, 2]
 		and view.literals.map(|context| context.role) == [GeneratedLabel, Body]
-			and view.literals.map(|context| context.segment) == [0, 1]
-				and view.pending.map(|context| context.segment) == [1]
-					and store.occurrences.len() == 3
+		and view.literals.map(|context| context.segment) == [0, 1]
+		and view.pending.map(|context| context.segment) == [1]
+		and store.occurrences.len() == 3
 }

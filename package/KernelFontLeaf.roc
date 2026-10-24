@@ -173,7 +173,7 @@ build_leaf = |bundle| {
 				}
 				Ok(width) => {
 					$recipe = append_u64_bytes($recipe, width)
-					$recipe = $recipe.append(if entry.content 1 else 0)
+					$recipe = $recipe.append(if (entry.content) 1 else 0)
 				}
 			}
 		}
@@ -241,7 +241,7 @@ validate_mappings = |plan, mappings| {
 			}
 			mapping = list_at(mappings, $mapping_index)
 			if mapping.cid != entry.cid {
-				return if mapping.cid < entry.cid Err(UnexpectedUnicodeMapping({ cid: mapping.cid })) else Err(MissingUnicodeMapping({ cid: entry.cid }))
+				return if (mapping.cid < entry.cid) Err(UnexpectedUnicodeMapping({ cid: mapping.cid })) else Err(MissingUnicodeMapping({ cid: entry.cid }))
 			}
 			if mapping.scalars.len() == 0 {
 				return Err(EmptyUnicodeMapping({ cid: entry.cid }))

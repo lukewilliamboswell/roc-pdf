@@ -485,7 +485,7 @@ synthetic_line_input = |scalars| {
 	var $glyphs = List.with_capacity(scalars)
 	var $index = 0
 	while $index < scalars {
-		decision = if $index > 0 and $index % 2 == 0 Allowed else Prohibited
+		decision = if ($index > 0 and $index % 2 == 0) Allowed else Prohibited
 		$boundaries = $boundaries.append({ authority: Tailorable, byte_offset: $index, decision, scalar_offset: $index })
 		$clusters = $clusters.append({
 			glyphs: Semantics.Range.from_start_and_length($index, 1),
@@ -633,7 +633,7 @@ synthetic_page_input = |block_count| {
 			policy: {
 				break_before: $block_index > 0 and $block_index % 10 == 0,
 				keep_together: kept,
-				keep_with_next: if $block_index % 10 == 5 and $block_index + 1 < block_count Required else NoKeep,
+				keep_with_next: if ($block_index % 10 == 5 and $block_index + 1 < block_count) Required else NoKeep,
 				minimum_first_lines: 2,
 				minimum_last_lines: 2,
 			},
@@ -907,12 +907,12 @@ list_at = |items, index| match items.get(index) {
 expect {
 	simple = Fixture.normalize_simple(2)?
 	builder = Fixture.normalize_builder(2)?
-	simple.work == [5, 6, 27, 1, 1, 2, 2, 1, 713] and builder.work == simple.work and builder.bytes == simple.bytes
+	simple.work == [5, 6, 27, 1, 1, 2, 2, 1, 715] and builder.work == simple.work and builder.bytes == simple.bytes
 }
 
 expect {
 	result = Fixture.line_layout(1)?
-	result.work == [1, 6, 7, 6, 6, 6, 10, 3, 713]
+	result.work == [1, 6, 7, 6, 6, 6, 10, 3, 715]
 }
 
 expect {
@@ -922,12 +922,12 @@ expect {
 
 expect {
 	result = Fixture.semantic_facade(2)?
-	result.work == [5, 6, 12, 8, 19, 2, 8, 6, 1, 2, 12, 19, 8, 4, 26, 24, 713]
+	result.work == [5, 6, 12, 8, 19, 2, 8, 6, 1, 2, 12, 19, 8, 4, 26, 24, 715]
 }
 
 expect {
 	result = Fixture.shape_facade(2)?
-	result.work == [2, 8, 33, 29, 29, 24, 6, 8, 29, 29, 29, 166300, 17, 713]
+	result.work == [2, 8, 33, 29, 29, 24, 6, 8, 29, 29, 29, 166300, 17, 715]
 }
 
 expect {

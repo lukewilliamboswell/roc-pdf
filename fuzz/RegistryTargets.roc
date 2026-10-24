@@ -145,7 +145,7 @@ register_all = |specs| {
 				## single face it was created for.
 				match result.registry.policy_faces(result.policy) {
 					Err(_) => return Err(Violation)
-					Ok(returned) => if !same_faces(returned, [result.face]) return Err(Violation)
+					Ok(returned) => if (!same_faces(returned, [result.face])) return Err(Violation)
 				}
 				$registry = result.registry
 				$faces = $faces.append(result.face)
@@ -594,7 +594,7 @@ add_policies = |configured, requests| {
 				## list re-derived from registration order.
 				match result.registry.policy_faces(result.policy) {
 					Err(_) => return Err(Violation)
-					Ok(returned) => if !same_faces(returned, requested) return Err(Violation)
+					Ok(returned) => if (!same_faces(returned, requested)) return Err(Violation)
 				}
 
 				# The pre-call registry keeps working and does not learn about a
@@ -688,7 +688,7 @@ boundary_probes = |configured, probe| {
 	while $policy < configured.policies {
 		match configured.registry.policy_faces(Font.PolicyId.from_index($policy)) {
 			Err(_) => return False
-			Ok(returned) => if returned.is_empty() return False
+			Ok(returned) => if (returned.is_empty()) return False
 		}
 		$policy = $policy + 1
 	}
@@ -888,9 +888,11 @@ cluster_succeeds = |store, instances, cluster| match selected_instance(store, in
 }
 
 ## The first instance in the policy's order whose face declares the cluster's
-## script and covers every scalar in it. Ordered search over a finite policy is
-## the whole selection contract: there is no name lookup, no host font, and no
-## implicit fallback to registration order.
+## script and covers every scalar in it. A Common (`Zyyy`) or Inherited
+## (`Zinh`) cluster belongs to no script a face declares, so coverage alone
+## selects it. Ordered search over a finite policy is the whole selection
+## contract: there is no name lookup, no host font, and no implicit fallback to
+## registration order.
 selected_instance : Font.Store, List(Font.InstanceId), Font.SourceCluster -> [NoInstance, Selected(U64)]
 selected_instance = |store, instances, cluster| {
 	if cluster.scalars.is_empty() {
@@ -903,13 +905,16 @@ selected_instance = |store, instances, cluster| {
 			return NoInstance
 		}
 		face = list_at(store.faces, list_at(store.instances, instance.index()).face.index())
-		if declares_script(store, face, cluster.script) and covers_all(store, face, cluster.scalars) {
+		if (common_script(cluster.script) or declares_script(store, face, cluster.script)) and covers_all(store, face, cluster.scalars) {
 			return Selected(instance.index())
 		}
 		$index = $index + 1
 	}
 	NoInstance
 }
+
+common_script : Font.Script -> Bool
+common_script = |script| script.to_str() == "Zyyy" or script.to_str() == "Zinh"
 
 declares_script : Font.Store, Font.Face, Font.Script -> Bool
 declares_script = |store, face, script| {
@@ -1294,5 +1299,20 @@ expect RegistryTargets.registry_boundary({
 	registrations: [
 		{ font: 1, limits: 0, provision: 1, scripts: [0] },
 		{ font: 4, limits: 0, provision: 2, scripts: [0, 4] },
+	],
+})
+
+# A Common (`Zyyy`) space cluster under a face that declares only Latin. The
+# planner selects it by coverage alone, so the oracle must too: this minimized
+# campaign input once failed because the oracle demanded a declared script.
+expect RegistryTargets.registry_boundary({
+	clusters: [{ scalars: [110], script: 43 }],
+	facade: 99,
+	plan_policy: 3,
+	policies: [],
+	probe: 0,
+	registrations: [
+		{ font: 0, limits: 0, provision: 0, scripts: [0] },
+		{ font: 0, limits: 0, provision: 0, scripts: [] },
 	],
 })

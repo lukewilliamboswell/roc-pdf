@@ -199,7 +199,18 @@ build_labels = |authoring, text, store, fonts, language, source_base, limits| {
 			KernelShape.shape_selected_batch(styled.fonts, unique, { direction: LeftToRight, language, writing_mode: Horizontal }, $selected, limits.shape) ? Shape
 		}
 	}
-	shaped = { ..batch.store, runs: batch.store.runs.map(|run| { ..run, unicode: ArtifactText(Semantics.TextSourceId.from_index(source_base + list_at(input_sources, run.id.index()).index())) }) }
+
+	## The runs are rewritten in place rather than with `map`: dev builds
+	## never reuse `List.map`'s list.
+	{ advances, store: batch_store, work: _ } = batch
+	var $runs = batch_store.runs
+	var $run_index = 0
+	while $run_index < $runs.len() {
+		run = list_at($runs, $run_index)
+		$runs = list_set($runs, $run_index, { ..run, unicode: ArtifactText(Semantics.TextSourceId.from_index(source_base + list_at(input_sources, run.id.index()).index())) })
+		$run_index = $run_index + 1
+	}
+	shaped = { ..batch_store, runs: $runs }
 
 	# Align each run to its anchor by its exact advance, prove it lies
 	# inside its drawing, and place it on its page.
@@ -207,7 +218,7 @@ build_labels = |authoring, text, store, fonts, language, source_base, limits| {
 	$index = 0
 	while $index < entries.len() {
 		entry = list_at(entries, $index)
-		advance = list_at(batch.advances, $index).raw()
+		advance = list_at(advances, $index).raw()
 		shift = match entry.align {
 			Start => 0
 			Center => advance // 2
@@ -234,7 +245,7 @@ build_labels = |authoring, text, store, fonts, language, source_base, limits| {
 
 	## Pieces join their pages in page order; within a page they keep
 	## entry order (the run index is the entry index).
-	pieces = $pieces.sort_with(|left, right| if left.page < right.page Before else if left.page > right.page After else if left.run < right.run Before else if left.run > right.run After else Same)
+	pieces = $pieces.sort_with(|left, right| if (left.page < right.page) Before else if (left.page > right.page) After else if (left.run < right.run) Before else if (left.run > right.run) After else Same)
 	Ok(Labels({ labels: entries.len(), pieces, sources: unique.map(|source| source.unicode), store: shaped }))
 }
 

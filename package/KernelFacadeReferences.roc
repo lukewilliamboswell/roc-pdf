@@ -437,7 +437,7 @@ occurrence_of = |run| match run.unicode {
 
 anchor_rect : Layout.Point, Layout.Unit, Layout.Unit, Layout.Unit -> Try(Layout.Rect, KernelFacadeReferences.Error)
 anchor_rect = |origin, width, size, leading| {
-	height = if leading > size leading else size
+	height = if (leading > size) leading else size
 	top = add_unit(origin.y, size)?
 	bottom = checked_i64_add(top.raw(), -height.raw())?
 	Ok({ origin: { x: origin.x, y: Layout.Unit.from_raw(bottom) }, size: { height, width } })
@@ -518,9 +518,9 @@ expect {
 	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(view.semantics)))
 	view.resolved == [{ reference: 0, physical_page: 2, value: "2" }]
 		and store.text_sources.map(|source| source.unicode) == ["See ", " now", "Destination", "2"]
-			and KernelFacadeText.Plan.pages(view.text).len() == 2
-				and view.work.reference_atoms == 1
-					and view.work.positioned_pieces == 4
+		and KernelFacadeText.Plan.pages(view.text).len() == 2
+		and view.work.reference_atoms == 1
+		and view.work.positioned_pieces == 4
 }
 
 # A reference-only body and configured page labels remain source-free
@@ -533,8 +533,8 @@ expect {
 	view = KernelFacadeReferences.Plan.view(plan)
 	view.resolved == [{ reference: 0, physical_page: 2, value: "iv" }]
 		and view.work.reference_atoms == 1
-			and view.work.literal_shape_requests == 1
-				and KernelFacadeText.Plan.text(view.text).runs.len() == 2
+		and view.work.literal_shape_requests == 1
+		and KernelFacadeText.Plan.text(view.text).runs.len() == 2
 }
 
 # Unknown targets, an empty configured label, exact width overflow and
@@ -596,7 +596,7 @@ expect {
 	left = Theme.default.page_margin.left.raw()
 	list_at(placements, 0).origin.x.raw() == left
 		and list_at(placements, 1).origin.x.raw() == left + 24000 + (24000 - advance) // 2
-			and list_at(placements, 2).origin.x.raw() == left + 48000 + 24000 - advance
+		and list_at(placements, 2).origin.x.raw() == left + 48000 + 24000 - advance
 }
 
 # An authored break after a reference reaches the emitted-run handoff as

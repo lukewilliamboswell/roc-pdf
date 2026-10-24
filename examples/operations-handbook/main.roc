@@ -466,7 +466,7 @@ drill_row : Str, Str, Str, Str -> Pdf.Row
 drill_row = |procedure, owner, last, next| Pdf.row([
 	Pdf.header_cell(Row, [Pdf.text(procedure)]),
 	Pdf.cell([Pdf.text(owner)]),
-	if last.is_empty() Pdf.cell([]) else Pdf.cell([Pdf.text(last)]),
+	if (last.is_empty()) Pdf.cell([]) else Pdf.cell([Pdf.text(last)]),
 	Pdf.cell([Pdf.text(next)]),
 ])
 

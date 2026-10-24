@@ -396,7 +396,7 @@ expect {
 	var $items = List.with_capacity(1000)
 	while $items.len() < 1000 {
 		index = $items.len()
-		$items = $items.append({ advance: 1, after: if index == 999 Mandatory else Allowed, source: ReferenceAtom(index) })
+		$items = $items.append({ advance: 1, after: if (index == 999) Mandatory else Allowed, source: ReferenceAtom(index) })
 	}
 	plan = KernelReferenceLayout.wrap($items, 3, { max_items: 1000, max_lines: 1000 })?
 	var $cursor = 0

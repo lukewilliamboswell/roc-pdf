@@ -240,7 +240,7 @@ Fixture :: [].{
 		var $clusters = List.with_capacity(count)
 		var $index = 0
 		while $index < count {
-			next = if $index % 2 == 0 cluster($index, "Latn", [0x43]) else cluster($index, "Hani", [0x4e2d])
+			next = if ($index % 2 == 0) cluster($index, "Latn", [0x43]) else cluster($index, "Hani", [0x4e2d])
 			$clusters = $clusters.append(next)
 			$index = $index + 1
 		}

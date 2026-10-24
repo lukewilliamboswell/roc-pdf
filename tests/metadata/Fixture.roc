@@ -786,7 +786,7 @@ run_negatives = |runtime_context| {
 
 	## 18: the public facade rejects invalid metadata atomically with no
 	## bytes; the typed error carries the exact validation fact.
-	facade_title = if guard == 0 "Facade negative" else "guarded"
+	facade_title = if (guard == 0) "Facade negative" else "guarded"
 	facade_document = Pdf.document({ contents: [Pdf.paragraph("Facade negative")], language: "en-au", title: facade_title })
 	match Pdf.to_bytes(facade_document) {
 		Err(InvalidMetadata(LanguageNotCanonicalCase({ offset: 3 }))) => {}
@@ -799,13 +799,13 @@ run_negatives = |runtime_context| {
 
 expect_metadata_rejection : U64, { created : Metadata.TimestampInput, language : Str, modified : Metadata.TimestampInput, title : Str }, (Metadata.Error -> Bool) -> Try({}, Fixture.EvidenceError)
 expect_metadata_rejection = |index, input, matches| match KernelMetadata.validate(input, metadata_limits) {
-	Err(error) => if matches(error) Ok({}) else Err(MissingRejection(index))
+	Err(error) => if (matches(error)) Ok({}) else Err(MissingRejection(index))
 	Ok(_) => Err(MissingRejection(index))
 }
 
 expect_intent_rejection : U64, Color.OutputIntent, Str, Color.Store, (KernelMetadata.IntentError -> Bool) -> Try({}, Fixture.EvidenceError)
 expect_intent_rejection = |index, intent, identifier, store, matches| match KernelMetadata.validate_intent(intent, identifier, store) {
-	Err(error) => if matches(error) Ok({}) else Err(MissingRejection(index))
+	Err(error) => if (matches(error)) Ok({}) else Err(MissingRejection(index))
 	Ok(_) => Err(MissingRejection(index))
 }
 

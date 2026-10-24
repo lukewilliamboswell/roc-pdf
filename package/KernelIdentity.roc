@@ -111,7 +111,7 @@ digest_plan = |sealed| {
 append_value : List(U8), KernelObject.Value -> List(U8)
 append_value = |facts, value| match value {
 	Array(span) => append_span(facts.append(0), span)
-	Boolean(boolean) => facts.append(1).append(if boolean 1 else 0)
+	Boolean(boolean) => facts.append(1).append(if (boolean) 1 else 0)
 	ByteString(string) => append_u64(facts.append(2), KernelObject.ByteStringId.index(string))
 	Dictionary(span) => append_span(facts.append(3), span)
 	Integer(integer) => append_i64(facts.append(4), integer)
@@ -159,8 +159,7 @@ append_span = |facts, span| append_u64(append_u64(facts, span.start), span.lengt
 
 append_blob_digest : List(U8), List(U8) -> Try(List(U8), KernelIdentity.Error)
 append_blob_digest = |facts, bytes| {
-	digest = KernelSha256.digest(bytes) ? Hash
-	Ok(append_all(append_u64(facts, bytes.len()), digest))
+	KernelSha256.append_digest(append_u64(facts, bytes.len()), bytes).map_err(|error| Hash(error))
 }
 
 append_i64 : List(U8), I64 -> List(U8)

@@ -700,7 +700,7 @@ validate_annotations = |inputs, destinations, name_order, context, limits| {
 		match input.description {
 			NoDescription => {}
 			WithDescription(text) => {
-				bytes = Str.to_utf8(text).len()
+				bytes = text.count_utf8_bytes()
 				if bytes == 0 {
 					return Err(DescriptionEmpty({ annotation: $index }))
 				}
@@ -1501,7 +1501,7 @@ resolve_node = |index, role| {
 	element_identifier: NoElementIdentifier,
 	id: Semantics.NodeId.from_index(index),
 	language: Inherited,
-	parent: if index == 0 DocumentRoot else ParentNode(Semantics.NodeId.from_index(0)),
+	parent: if (index == 0) DocumentRoot else ParentNode(Semantics.NodeId.from_index(0)),
 	role: { local_name: role, namespace: Semantics.NamespaceId.from_index(0) },
 	structure_element: Semantics.StructureElementId.from_index(index),
 	text_properties: empty_semantic_range,

@@ -234,7 +234,7 @@ inspect_document = |bytes| {
 		}
 		$number = $number + 1
 	}
-	sorted_starts = $starts.sort_with(|left, right| if left < right Before else if left > right After else Same)
+	sorted_starts = $starts.sort_with(|left, right| if (left < right) Before else if (left > right) After else Same)
 
 	if dictionary.root == 0 or dictionary.root >= xref_object {
 		return Err(RootNotCatalog)
@@ -554,7 +554,7 @@ decode_object_stream = |bytes, body, end, number, entries, _ordinal| {
 			return Err(BadStreamFraming(number))
 		}
 		offset = read_unsigned(content, member_number.end + 1, first - 1) ? |_| BadStreamFraming(number)
-		separator = if $index + 1 == count 10 else 32
+		separator = if ($index + 1 == count) 10 else 32
 		if list_at(content, offset.end) != separator {
 			return Err(BadStreamFraming(number))
 		}
@@ -575,7 +575,7 @@ decode_object_stream = |bytes, body, end, number, entries, _ordinal| {
 	$index = 0
 	while $index < count {
 		member = list_at($members, $index)
-		next_start = if $index + 1 == count content.len() else list_at($members, $index + 1).start
+		next_start = if ($index + 1 == count) content.len() else list_at($members, $index + 1).start
 		if next_start <= member.start or next_start > content.len() or list_at(content, next_start - 1) != 10 {
 			return Err(BadStreamFraming(member.number))
 		}
@@ -593,7 +593,7 @@ direct_integer = |bytes, tokens, top_keys, key| match top_key_index(bytes, top_k
 			return Err(Malformed)
 		}
 		token = list_at(tokens, index)
-		if token.kind == IntegerToken Ok(token.value) else Err(Malformed)
+		if (token.kind == IntegerToken) Ok(token.value) else Err(Malformed)
 	}
 }
 
@@ -790,7 +790,7 @@ classify = |bytes, from, to, number| {
 		return Ok({ kind: ReferenceToken, len: length, start: from, value: 0 })
 	}
 	negative = list_at(bytes, from) == 45
-	var $cursor = if negative from + 1 else from
+	var $cursor = if (negative) from + 1 else from
 	whole_start = $cursor
 	while $cursor < to and is_digit(list_at(bytes, $cursor)) {
 		$cursor = $cursor + 1
@@ -843,7 +843,7 @@ walk_structure = |bytes, tokens, number, size| {
 	var $index = 0
 	while $index < tokens.len() {
 		token = list_at(tokens, $index)
-		awaiting_key = if $depth == 0 False else {
+		awaiting_key = if ($depth == 0) False else {
 			frame = list_at($stack, $depth - 1)
 			frame.is_dict and frame.expecting_key
 		}
@@ -919,12 +919,12 @@ walk_structure = |bytes, tokens, number, size| {
 ## The frame stack is reused rather than truncated, so a nested object costs one
 ## allocation per depth ever reached rather than one per push.
 push_frame : List(Frame), U64, Frame -> List(Frame)
-push_frame = |stack, depth, frame| if depth < stack.len() list_put(stack, depth, frame) else stack.append(frame)
+push_frame = |stack, depth, frame| if (depth < stack.len()) list_put(stack, depth, frame) else stack.append(frame)
 
 complete_value : List(Frame), U64 -> List(Frame)
-complete_value = |stack, depth| if depth == 0 stack else {
+complete_value = |stack, depth| if (depth == 0) stack else {
 	frame = list_at(stack, depth - 1)
-	if frame.is_dict list_put(stack, depth - 1, { ..frame, expecting_key: True }) else stack
+	if (frame.is_dict) list_put(stack, depth - 1, { ..frame, expecting_key: True }) else stack
 }
 
 is_reference : List(Token), U64 -> Bool
@@ -956,7 +956,7 @@ top_key_index = |bytes, top_keys, name| {
 top_key_value : List(U8), List(Token), List(TopKey), List(U8) -> [Found(Token), Missing]
 top_key_value = |bytes, tokens, top_keys, name| match top_key_index(bytes, top_keys, name) {
 	Missing => Missing
-	Found(index) => if index < tokens.len() Found(list_at(tokens, index)) else Missing
+	Found(index) => if (index < tokens.len()) Found(list_at(tokens, index)) else Missing
 }
 
 read_object_header : List(U8), U64, U64 -> Try({ body : U64, number : U64 }, [Malformed])
@@ -1022,7 +1022,7 @@ read_big_endian = |bytes, from, width| {
 }
 
 expect_bytes : List(U8), U64, List(U8) -> Try(U64, [Malformed])
-expect_bytes = |bytes, from, needle| if matches_at(bytes, from, needle) Ok(from + needle.len()) else Err(Malformed)
+expect_bytes = |bytes, from, needle| if (matches_at(bytes, from, needle)) Ok(from + needle.len()) else Err(Malformed)
 
 expect_hex_digits : List(U8), U64, U64 -> Try(U64, [Malformed])
 expect_hex_digits = |bytes, from, count| {
@@ -1055,7 +1055,7 @@ matches_at = |bytes, from, needle| {
 }
 
 ends_at : List(U8), U64, List(U8) -> Bool
-ends_at = |bytes, at, needle| if at < needle.len() False else matches_at(bytes, at - needle.len(), needle)
+ends_at = |bytes, at, needle| if (at < needle.len()) False else matches_at(bytes, at - needle.len(), needle)
 
 ## Scan for a marker inside a known non-payload window only. The dictionary of a
 ## stream object carries no newline, so the first `\nstream\n` at or after the
@@ -1080,7 +1080,7 @@ region_equals = |bytes, start, len, needle| len == needle.len() and matches_at(b
 
 compare_regions : List(U8), U64, U64, U64, U64 -> [Equal, Greater, Less]
 compare_regions = |bytes, left_start, left_len, right_start, right_len| {
-	shared = if left_len < right_len left_len else right_len
+	shared = if (left_len < right_len) left_len else right_len
 	var $index = 0
 	while $index < shared {
 		left = list_at(bytes, left_start + $index)
@@ -1093,7 +1093,7 @@ compare_regions = |bytes, left_start, left_len, right_start, right_len| {
 		}
 		$index = $index + 1
 	}
-	if left_len < right_len Less else if left_len > right_len Greater else Equal
+	if (left_len < right_len) Less else if (left_len > right_len) Greater else Equal
 }
 
 is_digit : U8 -> Bool
@@ -1141,7 +1141,7 @@ list_put = |items, index, value| match items.set(index, value) {
 corrupted : List(U8), U64 -> List(U8)
 corrupted = |bytes, index| {
 	byte = list_at(bytes, index)
-	list_put(bytes, index, if byte == 48 49 else 48)
+	list_put(bytes, index, if (byte == 48) 49 else 48)
 }
 
 # The positive expects pin the oracle against real emitter output rather than a

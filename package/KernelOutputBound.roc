@@ -110,7 +110,7 @@ calculate_bound = |sealed, xref_object| {
 value_bound : KernelObject.Store, KernelObject.ValueId -> Try(ValueBound, KernelOutputBound.Error)
 value_bound = |store, value_id| match list_at(store.values, KernelObject.ValueId.index(value_id)) {
 	Array(span) => array_bound(store, span)
-	Boolean(value) => Ok({ bytes: if value 4 else 5, visits: 1 })
+	Boolean(value) => Ok({ bytes: if (value) 4 else 5, visits: 1 })
 	ByteString(string) => Ok({ bytes: checked_add(checked_times(list_at(store.byte_strings, KernelObject.ByteStringId.index(string)).len(), 2)?, 2)?, visits: 1 })
 	Dictionary(span) => dictionary_bound(store, span)
 	Integer(_) => Ok({ bytes: 20, visits: 1 })
@@ -124,7 +124,7 @@ value_bound = |store, value_id| match list_at(store.values, KernelObject.ValueId
 
 array_bound : KernelObject.Store, KernelObject.Span -> Try(ValueBound, KernelOutputBound.Error)
 array_bound = |store, span| {
-	var $bytes = checked_add(2, if span.length == 0 0 else span.length - 1)?
+	var $bytes = checked_add(2, if (span.length == 0) 0 else span.length - 1)?
 	var $visits = 1
 	var $index = 0
 	while $index < span.length {

@@ -456,7 +456,7 @@ identity_prefix = |source| {
 fold_fingerprint : U64, KernelResourceGraph.DigestPolicy -> U64
 fold_fingerprint = |fingerprint, policy| match policy {
 	DomainSeparatedSha256 => fingerprint
-	TruncatedTestDigest(modulus) => if modulus == 0 fingerprint else U64.mod_by(fingerprint, modulus)
+	TruncatedTestDigest(modulus) => if (modulus == 0) fingerprint else U64.mod_by(fingerprint, modulus)
 }
 
 leading_u64 : List(U8) -> U64
@@ -1195,15 +1195,15 @@ sort_pairs = |pairs| {
 entry_order : Entry, Entry -> Order
 entry_order = |left, right| {
 	if left.fingerprint != right.fingerprint {
-		if left.fingerprint < right.fingerprint Ascending else Descending
+		if (left.fingerprint < right.fingerprint) Ascending else Descending
 	} else {
 		descriptor = descriptor_order(left.descriptor, right.descriptor)
 		if descriptor != Equal {
 			descriptor
 		} else if left.length != right.length {
-			if left.length < right.length Ascending else Descending
+			if (left.length < right.length) Ascending else Descending
 		} else if left.index != right.index {
-			if left.index < right.index Ascending else Descending
+			if (left.index < right.index) Ascending else Descending
 		} else {
 			Equal
 		}
@@ -1238,9 +1238,9 @@ scalar_order = |current, left, right| {
 pair_order : Pair, Pair -> Order
 pair_order = |left, right| {
 	if left.left != right.left {
-		if left.left < right.left Ascending else Descending
+		if (left.left < right.left) Ascending else Descending
 	} else if left.right != right.right {
-		if left.right < right.right Ascending else Descending
+		if (left.right < right.right) Ascending else Descending
 	} else {
 		Equal
 	}
@@ -1265,7 +1265,7 @@ unique_pairs = |pairs| {
 	var $index = 0
 	while $index < pairs.len() {
 		pair = list_at(pairs, $index)
-		if $index == 0 or pair_order(list_at(pairs, if $index == 0 0 else $index - 1), pair) != Equal {
+		if $index == 0 or pair_order(list_at(pairs, if ($index == 0) 0 else $index - 1), pair) != Equal {
 			$unique = $unique.append(pair)
 		}
 		$index = $index + 1
@@ -1362,7 +1362,7 @@ append_u64 = |output, value| output
 	.append(value.to_u8_wrap())
 
 smaller : U64, U64 -> U64
-smaller = |left, right| if left < right left else right
+smaller = |left, right| if (left < right) left else right
 
 swap : List(U64), U64, U64 -> List(U64)
 swap = |values, left, right| {

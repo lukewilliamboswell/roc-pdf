@@ -466,6 +466,11 @@ within an early correctness gate.
   pinned pure-Roc `roc-deflate` dependency (a libdeflate port); the
   independent Python checker uses zlib to reconstruct the exact emitted
   payload.
+- Three sealed compression presets selected by `Pdf.Options.compression`:
+  `Balanced` (the default), `Smallest`, and `Fastest`. Each preset is
+  deterministic and byte-identical across buffered, chunked, and prepared
+  output; `Smallest` reproduces the earlier level-10 bytes. Evidence:
+  [development/performance/output-size.md](development/performance/output-size.md).
 - Stable object allocation, resource naming, stream length handling, and file
   identifiers.
 - Deterministic fixed-fanout balanced builders for page, name, number, ID, and
@@ -1066,11 +1071,12 @@ headings keep with their next block, `semantics.heading_skip` is returned,
 and table semantics no longer copy the document's node lists once per table.
 Closing Gate 6 makes no PDF/UA-2 or combined-profile claim.
 
-The compiler pin is the published `nightly-2026-10-14-38a3029`, replacing
-the former unpublished local build. Its reviewed allocation baselines and the
-basic-cli `0.26.0-rc2` example upgrade are recorded in the
-[October 14 compiler review](development/performance/roc-nightly-2026-10-14-38a3029.md).
-This retires the compiler-provisioning blocker without changing Gate 6's
+The compiler pin is the published `nightly-2026-10-18-1df370f`. Its
+upgrade and allocation sweep cut recorded Roc allocation events by 85.4%
+with byte-identical snapshots and unchanged work vectors, recorded in the
+[October 18 compiler review](development/performance/roc-nightly-2026-10-18-1df370f.md);
+the preceding [October 14 compiler review](development/performance/roc-nightly-2026-10-14-38a3029.md)
+retired the compiler-provisioning blocker. Neither changes Gate 6's
 capability or conformance claims.
 
 The following public authoring is executable under the default `Archive`

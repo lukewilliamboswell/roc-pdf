@@ -206,7 +206,7 @@ run_labels = |count| {
 	if passed != checks.len() {
 		return Err(MissingRejection(passed))
 	}
-	policy_rejected = match Font.Registry.empty.register_built_in(if count > 0 Font.ValidationLimits.default else Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })) {
+	policy_rejected = match Font.Registry.empty.register_built_in(if (count > 0) Font.ValidationLimits.default else Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })) {
 		Err(_) => 0
 		Ok(registered) => {
 			options = Pdf.Options.{ theme: { ..report_theme, font_selection: Policy(registered.policy) }, fonts: Registered(registered.registry) }
@@ -225,7 +225,7 @@ run_labels = |count| {
 ## The body face (packaged), a `Strong` face, and a `Code` face.
 label_face_options : U64 -> Try(Pdf.Options, Fixture.EvidenceError)
 label_face_options = |context| {
-	limits = if context > 0 Font.ValidationLimits.default else Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })
+	limits = if (context > 0) Font.ValidationLimits.default else Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })
 	body = Font.Registry.empty.register_built_in(limits) ? |_| EvidenceFailure
 	strong = body.registry.register(caller_font_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits) ? |_| EvidenceFailure
 	code = strong.registry.register(mono_font_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits) ? |_| EvidenceFailure
@@ -409,7 +409,7 @@ paragraph = |index| {
 			Ok(value) => value
 			Err(OutOfBounds) => crash "report sentence escaped"
 		}
-		$text = if $offset == 0 sentence else "${$text} ${sentence}"
+		$text = if ($offset == 0) sentence else "${$text} ${sentence}"
 		$offset = $offset + 1
 	}
 	Pdf.paragraph($text)
@@ -420,7 +420,7 @@ regions = [(120, 150), (90, 118), (60, 84), (140, 176)]
 
 report_document : U64 -> Document
 report_document = |context| {
-	title = if context == 0 "Annual timber report" else "Annual timber report!"
+	title = if (context == 0) "Annual timber report" else "Annual timber report!"
 	photo = Scene.Drawing.empty.image(photo_image, Layout.rect(0, 0, 320, 160))
 	contents = [
 		Pdf.title(title),
@@ -593,7 +593,7 @@ descriptor = { flags: 32, italic_angle: 0, stem_v: 80 }
 
 rejects : Document, Conformance.DiagnosticCode, Str, List(Str) -> U64
 rejects = |document, expected_code, expected_feature, expected_paths| match Pdf.to_bytes_with(document, Pdf.Options.{ theme: report_theme }) {
-	Err(InvalidDocument({ diagnostics: [{ code, details, feature: Feature(feature), location: Document, stage: AuthoringValidation, .. }], truncation: Complete, .. })) => if code == expected_code and feature == expected_feature and details == expected_paths 1 else 0
+	Err(InvalidDocument({ diagnostics: [{ code, details, feature: Feature(feature), location: Document, stage: AuthoringValidation, .. }], truncation: Complete, .. })) => if (code == expected_code and feature == expected_feature and details == expected_paths) 1 else 0
 	_ => 0
 }
 
@@ -602,7 +602,7 @@ rejects = |document, expected_code, expected_feature, expected_paths| match Pdf.
 ## path of each participating source, and no bytes.
 run_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 run_negatives = |context| {
-	title = if context == 0 "Figure negatives" else "guarded"
+	title = if (context == 0) "Figure negatives" else "guarded"
 	offset = (context % 1).to_i64_wrap()
 	document = |contents| Pdf.document({ contents, language: "en-AU", title })
 	tall = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 600, 900 + offset), oak)

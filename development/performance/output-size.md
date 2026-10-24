@@ -133,12 +133,16 @@ preview is byte-identical after re-rendering.
 
 ## 2. DEFLATE through `roc-deflate` at libdeflate level 10
 
+Level 10 was the package's only level until 2026-10-19. It is now the
+`Smallest` compression preset, and the default is `Balanced` (level 6); see
+[Compression presets](#compression-presets-2026-10-19) below.
+
 ### What changed
 
 `KernelDeflate` no longer implements LZ77 and Huffman coding. It is the
 package's single DEFLATE seam: zlib framing, limits, a checked output bound,
 and one call (`compress_raw`) into the pinned pure-Roc `roc-deflate`
-(0.4.0-rc1 when this step landed, now 0.4.0-rc2; see below), a port of
+(0.4.0-rc1 when this step landed, now 0.4.0-rc4; see below), a port of
 libdeflate that is byte-identical to libdeflate at every level (`vendor/README.md` records its provenance and upgrade policy). The
 emitter compresses each generated payload whole at its stream's transition and
 emits the compressed bytes as one owned segment; the payload was already held
@@ -287,6 +291,121 @@ and a gallery regeneration:
 - **Nothing rises**: no allocation count or allocated-bytes value in the
   run is above its record because of this change.
 
+### Compression presets (2026-10-19)
+
+The maintainer chose level 6 as the default, with the level selectable by
+consumers who want smaller documents. Level 10 was chosen when the dev-backend
+cost of levels 6 to 9 dominated (8.49 GB allocated for 762 KB at level 6, in
+the table above). roc-deflate 0.4.0-rc2 to rc4 removed that copying, so the
+remaining cost of level 10 is time. Emission of a 100-copy report under
+`--opt=speed`, measured by the maintainer for this decision:
+
+| Level | Emission | Bytes vs level 10 |
+| --- | ---: | ---: |
+| 1 | 8 ms | +77% |
+| 6 | 12 ms | +18% (+1.7% on a one-page document) |
+| 9 | 23 ms | +6.7% |
+| 10 | 119 ms | 0 |
+
+Level 6 compresses about ten times faster than level 10. Its size cost is
+largest on long documents whose content streams repeat, and small for the
+short documents the package mostly writes, where font programs and the ICC
+profile dominate.
+
+**API.** `Pdf.Options` gains `compression : Compression ?? Balanced`, with
+`Pdf.Compression := [Balanced, Fastest, Smallest]`. The mapping to levels is
+package-internal (`KernelDeflate.Level`): `Fastest` is level 1, `Balanced`
+level 6, and `Smallest` level 10. There is no numeric level option, because
+each preset is a reviewed byte contract.
+
+**Stage flow.** `Pdf.build_plan` maps the choice to a `KernelDeflate.Level`
+and seals it into `KernelStructure.Plan.compression`. Internal builders seal
+`balanced`. `Pdf.Prepared` wraps that plan, so `to_bytes_prepared`,
+`to_chunks_prepared`, `to_bytes_with`, and `to_chunks_with` emit identical
+bytes for each preset. `KernelEmit.prepare_deflate` takes the plan's level
+for every content, font, image, and ICC stream, every object stream, and the
+cross-reference stream; emission has no level of its own.
+`KernelDeflate.Plan.prepare` takes the level, and the zlib FLG byte carries
+its FLEVEL (`78 01`, `78 9C`, `78 DA`). The empty stream keeps its canonical
+`78 9C` bytes. The level changes no other planning fact:
+
+- `KernelDeflate.output_bound` is the stored-block bound, which libdeflate
+  computes without the level, so `KernelOutputBound` and the sealed
+  output bound are unchanged.
+- The plan identity, and so the `/ID`, digests normalized plan facts and
+  uncompressed generated payloads, never compressed bytes. The presets of a
+  document therefore share one file identifier, and `Smallest` reproduces
+  the earlier bytes exactly.
+- `KernelDeflate.Work` counts streams, input bytes, and emitted bytes. Only
+  the emitted bytes depend on the level.
+- `Encode.canonical.compression.streams` now lists the three presets.
+
+**Evidence.**
+
+- *Smallest reproduces the old bytes.* The chunked-facade fixture takes a
+  compression argument. Its `smallest` snapshot,
+  `tests/pdf_facade/pdf_facade_chunks_smallest.pdf`, is the file the fixture
+  wrote before this change, byte for byte. Its identity counter also requires
+  the prepared buffered output to match the one-shot and chunked output under
+  each preset and retention policy, giving six cases.
+- *Package expects.* `KernelDeflate` checks framing, FLEVEL, round trip, and
+  bound at every level, and checks that size never grows from `fastest` to
+  `smallest` on repetitive content. `KernelEmit` checks that a plan's level,
+  not a constant, compresses its streams, that buffered and chunked output
+  agree at every level, and that the default is `balanced`. `Pdf` checks
+  that each preset agrees across all four entrypoints, that `Balanced` is
+  the default, that file sizes order as the preset names promise, and that
+  the plan identity does not depend on the preset.
+- *Fuzzing.* `facade_output_equivalence` now generates the preset and checks
+  the prepared paths against the one-shot output.
+- *Decoded equivalence.* All 347 tracked PDFs were compared object by object
+  with HEAD after inflating every FlateDecode stream: 345 are identical apart
+  from compressed bytes and stream lengths, with the same header, `/Root`, and
+  `/ID`. The other 2 are the empty negative snapshots. Every gallery preview
+  renders byte-identically with `pdftoppm -r 96`.
+- *Conformance.* veraPDF 1.30.2 PDF/A-4 reports all 195 Archive snapshots
+  and all 15 gallery and new preset files compliant, with zero failed checks.
+  The 139 Standard snapshots fail only their deliberate omissions. Every
+  preflight and post-update checker self-test passes on the new snapshots.
+  Only one checker needed a change: `check_pdf_structure.py` corrupted the
+  `78 DA` header by name, and now accepts any preset's header.
+
+**Size.** These sizes are for the new `Balanced` default against the old
+level 10, which is now `Smallest`.
+
+| Corpus | Level 10 | Level 6 | Change |
+| --- | ---: | ---: | ---: |
+| 334 spec snapshots | 7,208,080 | 7,566,510 | +4.97% |
+| 13 gallery PDFs | 542,684 | 557,685 | +2.76% |
+| Tax invoice | 32,369 | 33,450 | +3.3% |
+| Product brief | 47,518 | 49,083 | +3.3% |
+| Warranty letter | 37,679 | 38,583 | +2.4% |
+
+The median snapshot grows 1.0%. The largest growth is in long documents with
+repetitive page content: `page_templates/letter_200` grows 23.4% and
+`archive/archive_report_400` 15.6%. Three snapshots shrink slightly, for
+example `forms/forms_deep_64` by 1.7%, because level 10 is not always smaller
+on tiny or deeply nested streams. The blank one-page file grows from 713 to
+715 bytes, and four `tests/authoring` expects that pin it were updated.
+
+**Allocation and work.** The rebaseline is from a cold cache with the pinned
+compiler. 406 of 413 cases moved: allocations fell 2.6% (2,496,271 to
+2,432,494) and allocated bytes 30% (8.98 GB to 6.26 GB). In the dev backend,
+a level 6 stream allocates 16 times where a level 10 stream allocates 31
+(`profile.py` `deflate_content` and `deflate_content_smallest`), and emission
+allocations in the profiled documents fall 37 to 39%. Only the six
+chunked-facade cases rose. The fixture now prepares once more and emits a
+third time, to compare the prepared path. At `smallest`, those cases also pay
+the level 10 working set three times per stream. Every other moved work
+counter is a byte count derived from output (`output_bytes`, `*_bytes`,
+`byte_visits`, chunk sizes, and offset weights); no structural counter
+changed.
+
+**Smallest output.** Pass `compression: Smallest`, for example
+`Pdf.to_bytes_with(document, { compression: Smallest })`. That gives the
+level 10 bytes recorded throughout this document, including the results
+below.
+
 ## 3. One `TJ` array per glyph run
 
 ### What changed
@@ -424,8 +543,9 @@ clean -d`) expand any file for reading.
   cross-reference stream follows the object streams.
 - `KernelOutputBound` bounds the new layout with the same partition, and blank
   plans now store that bound too (`development/performance/output-bounds.md`).
-- `Encode.canonical` records the policy: `LibdeflateLevel(10)`, object
-  streams of 400 members, and `FlateUpPredictor` cross-reference compression.
+- `Encode.canonical` records the policy: `LibdeflateLevel(10)` (now the
+  `Smallest` preset; see the compression presets above), object streams of
+  400 members, and `FlateUpPredictor` cross-reference compression.
 - `KernelEmit.object_text` renders every non-stream object flat for package
   tests that inspect object bodies; it is not a file layout.
 
@@ -661,7 +781,9 @@ with the shorter page dictionaries and CMaps.
 
 ## Result
 
-Final sizes against Typst 0.15.1 on the same content (Typst `--pdf-standard
+These sizes are at level 10, now the `Smallest` preset; the default
+`Balanced` preset is a few percent larger (see the compression presets
+above). Final sizes against Typst 0.15.1 on the same content (Typst `--pdf-standard
 a-4`; both PDF 2.0, PDF/A-4, and tagged). Typst writes neither object streams
 nor a compressed cross-reference table.
 

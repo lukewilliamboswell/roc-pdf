@@ -1,7 +1,7 @@
 app [main!] {
 	pdf: "../../package/all.roc",
 	pf: platform "../platform/main.roc",
-	unicode: "https://github.com/roc-lang/unicode/releases/download/4.2.0/4W8SHzvwet9hH9qZewJ1J1CVQoH7YKA6zyijWFTB3y1w.tar.zst",
+	unicode: "https://github.com/roc-lang/unicode/releases/download/4.3.0/7HGaK8HUHMs5judroSmUoS4TjPGZ1kAjPTyPDSCWiSKM.tar.zst",
 }
 
 import Fixture

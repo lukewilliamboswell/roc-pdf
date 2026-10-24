@@ -76,8 +76,8 @@ def run(command: list[str], *, cwd: Path = ROOT) -> None:
     sys.stdout.write(result.stdout)
     if result.returncode == 0:
         return
-    # A downloaded package that pins an older Roc nightly in its header is the
-    # only tolerated warning (see scripts/roc_diagnostics.py).
+    # Warnings located in a downloaded package are the only tolerated ones
+    # (see scripts/roc_diagnostics.py).
     if result.returncode == 2 and tolerated_warnings_only(result.stdout):
         return
     raise SystemExit(f"fuzz lane failed ({result.returncode}): {printable}")

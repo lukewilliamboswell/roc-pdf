@@ -101,7 +101,7 @@ KernelFacadeLines :: [].{
 		## cell out at its text width through the logical batch; any other
 		## document takes `build` exactly.
 		build_authoring : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, Limits -> Try(Plan, Error)
-		build_authoring = |authoring, shape, sources, page, theme, limits| if authoring.tables.is_empty() and authoring.sources.is_empty() build_plan(authoring, shape, sources, page, theme, limits) else build_table_plan(authoring, shape, sources, page, theme, limits)
+		build_authoring = |authoring, shape, sources, page, theme, limits| if (authoring.tables.is_empty() and authoring.sources.is_empty()) build_plan(authoring, shape, sources, page, theme, limits) else build_table_plan(authoring, shape, sources, page, theme, limits)
 
 		frame : Plan, U64 -> { offset : U64, width : U64 }
 		frame = |plan, block| {
@@ -112,7 +112,7 @@ KernelFacadeLines :: [].{
 		group_frame : Plan, U64 -> { offset : U64, width : U64 }
 		group_frame = |plan, group| {
 			offset = list_at(plan.group_offsets, group)
-			end = if plan.group_ends.is_empty() plan.work.content_width else list_at(plan.group_ends, group)
+			end = if (plan.group_ends.is_empty()) plan.work.content_width else list_at(plan.group_ends, group)
 			{ offset, width: end - offset }
 		}
 
@@ -125,7 +125,7 @@ KernelFacadeLines :: [].{
 		build_ordered = |authoring, shape, sources, page, theme, limits| build_ordered_plan(authoring, shape, sources, page, theme, limits, [], Calculate)
 
 		build_ordered_authoring : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, Limits -> Try(Plan, Error)
-		build_ordered_authoring = |authoring, shape, sources, page, theme, limits| if authoring.tables.is_empty() and authoring.sources.is_empty() build_ordered_plan(authoring, shape, sources, page, theme, limits, [], Calculate) else build_table_plan(authoring, shape, sources, page, theme, limits)
+		build_ordered_authoring = |authoring, shape, sources, page, theme, limits| if (authoring.tables.is_empty() and authoring.sources.is_empty()) build_ordered_plan(authoring, shape, sources, page, theme, limits, [], Calculate) else build_table_plan(authoring, shape, sources, page, theme, limits)
 
 		source_frames : Plan -> List(SourceFrame)
 		source_frames = |plan| plan.source_frames
@@ -383,8 +383,8 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths, pr
 					}
 				}
 				body_start = logical_run_bounds(body, $block_index, $next_physical, run_count)?
-				override = if widths.is_empty() 0 else list_at(widths, $block_index)
-				width = if override == 0 geometry.body_width else override
+				override = if (widths.is_empty()) 0 else list_at(widths, $block_index)
+				width = if (override == 0) geometry.body_width else override
 				$logical_index_of_body = list_set(
 					$logical_index_of_body,
 					$block_index,
@@ -459,7 +459,7 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths, pr
 	} else if !authoring.sources.is_empty() {
 		KernelLineLayout.BatchPlan.build_source_mixed(sources, shape_batch.store, $line_requests, $holds, $modes, limits.line) ? |error| source_layout_error(authoring, $logical_index_of_body, geometries, shape_batch.store, error)
 	} else {
-		(if $holds.is_empty() KernelLineLayout.BatchPlan.build_logical(sources, shape_batch.store, $line_requests, limits.line) else KernelLineLayout.BatchPlan.build_logical_held(sources, shape_batch.store, $line_requests, $holds, limits.line)) ? LineLayout
+		(if ($holds.is_empty()) KernelLineLayout.BatchPlan.build_logical(sources, shape_batch.store, $line_requests, limits.line) else KernelLineLayout.BatchPlan.build_logical_held(sources, shape_batch.store, $line_requests, $holds, limits.line)) ? LineLayout
 	}
 	run_lines = KernelLineLayout.BatchPlan.run_lines(line)
 	var $blocks = List.with_capacity(block_runs.len())
@@ -472,7 +472,7 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths, pr
 				segments = segment_count(styles, body.physical.start(), body.physical.start() + body.physical.length())
 				first_lines = list_at(run_lines, first_request)
 				last_lines = list_at(run_lines, first_request + segments - 1)
-				body_lines = if segments == 1 first_lines else Semantics.Range.from_start_and_length(first_lines.start(), last_lines.start() + last_lines.length() - first_lines.start())
+				body_lines = if (segments == 1) first_lines else Semantics.Range.from_start_and_length(first_lines.start(), last_lines.start() + last_lines.length() - first_lines.start())
 				label_lines = match label {
 					NoLabel => NoLabel
 					Label(label_run) => Label({ lines: list_at(run_lines, list_at($logical_index_of_label, $block_index)), offset: Layout.Unit.from_raw(geometry.label_offset.to_i64_wrap()), runs: label_run })
@@ -643,7 +643,7 @@ resolve_geometry = |authoring, block_count, label_at, labelled, indent, content_
 	while $block < block_count {
 		match label_at($block)? {
 			Label(measured) => {
-				column = if measured.width <= indent indent else checked_add(measured.width, measured.size // 2)?
+				column = if (measured.width <= indent) indent else checked_add(measured.width, measured.size // 2)?
 				match list_key(blocks, groups, $block) {
 					LegacyList(list) => {
 						while $legacy_columns.len() <= list {
@@ -669,9 +669,9 @@ resolve_geometry = |authoring, block_count, label_at, labelled, indent, content_
 	customs = authoring.customs
 	var $offsets = List.with_capacity(groups.len())
 	has_boxes = !customs.is_empty() or !authoring.sources.is_empty() or !authoring.callouts.is_empty()
-	var $ends = if has_boxes List.with_capacity(groups.len()) else []
+	var $ends = if (has_boxes) List.with_capacity(groups.len()) else []
 	for group in groups {
-		outer = if group.parent == 0 0 else list_at($offsets, group.parent - 1)
+		outer = if (group.parent == 0) 0 else list_at($offsets, group.parent - 1)
 		own = match group.kind {
 			ItemList(_) => list_at($group_columns, $offsets.len())
 			Custom(_) => nonnegative_raw(list_at(customs, custom_index(group.kind)).inset)?
@@ -680,12 +680,12 @@ resolve_geometry = |authoring, block_count, label_at, labelled, indent, content_
 			_ => 0
 		}
 		if has_boxes {
-			outer_end = if group.parent == 0 content_width else list_at($ends, group.parent - 1)
+			outer_end = if (group.parent == 0) content_width else list_at($ends, group.parent - 1)
 			end = match group.kind {
 				Custom(index) => {
 					custom = list_at(customs, index.to_u64())
 					width = positive_raw(custom.width)?
-					available = if outer_end > outer outer_end - outer else 0
+					available = if (outer_end > outer) outer_end - outer else 0
 					if width > available {
 						return Err(CustomWidth({ available, custom: index.to_u64(), width }))
 					}
@@ -693,7 +693,7 @@ resolve_geometry = |authoring, block_count, label_at, labelled, indent, content_
 				}
 				Callout(index) => {
 					padding = nonnegative_raw(list_at(authoring.callouts, index.to_u64()).padding)?
-					available = if outer_end > outer outer_end - outer else 0
+					available = if (outer_end > outer) outer_end - outer else 0
 					if padding >= (available + 1) // 2 {
 						return Err(CalloutWidth({ group: list_at(authoring.callouts, index.to_u64()).group }))
 					}
@@ -701,7 +701,7 @@ resolve_geometry = |authoring, block_count, label_at, labelled, indent, content_
 				}
 				Source(index) => {
 					padding = nonnegative_raw(list_at(authoring.sources, index).padding)?
-					available = if outer_end > outer outer_end - outer else 0
+					available = if (outer_end > outer) outer_end - outer else 0
 					if padding >= (available + 1) // 2 {
 						return Err(SourceContentWidth({ available, padding, source: index }))
 					}
@@ -717,8 +717,8 @@ resolve_geometry = |authoring, block_count, label_at, labelled, indent, content_
 	$block = 0
 	while $block < block_count {
 		record = list_at(blocks, $block)
-		outer = if record.parent == 0 0 else list_at($offsets, record.parent - 1)
-		end = if $ends.is_empty() or record.parent == 0 content_width else list_at($ends, record.parent - 1)
+		outer = if (record.parent == 0) 0 else list_at($offsets, record.parent - 1)
+		end = if ($ends.is_empty() or record.parent == 0) content_width else list_at($ends, record.parent - 1)
 		geometry = if labelled($block) {
 			placed = match list_key(blocks, groups, $block) {
 				LegacyList(list) => {
@@ -730,7 +730,7 @@ resolve_geometry = |authoring, block_count, label_at, labelled, indent, content_
 			}
 			label_offset = placed.body_offset - placed.column
 			if placed.body_offset >= end {
-				return Err(LabelTooWide({ available: if end > label_offset end - label_offset else 0, block: $block, width: placed.column }))
+				return Err(LabelTooWide({ available: if (end > label_offset) end - label_offset else 0, block: $block, width: placed.column }))
 			}
 			{ body_offset: placed.body_offset, body_width: end - placed.body_offset, column: placed.column, label_offset }
 		} else {
@@ -760,7 +760,7 @@ list_key = |blocks, groups, block| {
 			NoList
 		} else {
 			item = list_at(groups, record.parent - 1)
-			if item.parent == 0 NoList else ListGroup(item.parent - 1)
+			if (item.parent == 0) NoList else ListGroup(item.parent - 1)
 		}
 	}
 }
@@ -775,11 +775,11 @@ label_width = |store, label| {
 	while $run < label.physical.start() + label.physical.length() {
 		record = list_at(store.runs, $run)
 		raw_size = record.size.raw()
-		$size = if raw_size > 0 U64.max($size, raw_size.to_u64_wrap()) else $size
+		$size = if (raw_size > 0) U64.max($size, raw_size.to_u64_wrap()) else $size
 		var $glyph = record.glyphs.start()
 		while $glyph < record.glyphs.start() + record.glyphs.length() {
 			advance = list_at(store.glyphs, $glyph).advance_x.raw()
-			$width = if advance > 0 checked_add($width, advance.to_u64_wrap())? else $width
+			$width = if (advance > 0) checked_add($width, advance.to_u64_wrap())? else $width
 			$glyph = $glyph + 1
 		}
 		$run = $run + 1
@@ -829,23 +829,23 @@ calculate_content_width = |page, margins| {
 	left = nonnegative_raw(margins.left)?
 	right = nonnegative_raw(margins.right)?
 	horizontal = checked_add(left, right)?
-	if horizontal >= width Err(InvalidGeometry) else Ok(width - horizontal)
+	if (horizontal >= width) Err(InvalidGeometry) else Ok(width - horizontal)
 }
 
 positive_raw : Layout.Unit -> Try(U64, KernelFacadeLines.Error)
 positive_raw = |unit| {
 	raw = unit.raw()
-	if raw <= 0 Err(InvalidGeometry) else Ok(raw.to_u64_wrap())
+	if (raw <= 0) Err(InvalidGeometry) else Ok(raw.to_u64_wrap())
 }
 
 nonnegative_raw : Layout.Unit -> Try(U64, KernelFacadeLines.Error)
 nonnegative_raw = |unit| {
 	raw = unit.raw()
-	if raw < 0 Err(InvalidGeometry) else Ok(raw.to_u64_wrap())
+	if (raw < 0) Err(InvalidGeometry) else Ok(raw.to_u64_wrap())
 }
 
 check_limit : U64, U64, KernelFacadeLines.Dimension -> Try({}, KernelFacadeLines.Error)
-check_limit = |attempted, limit, dimension| if attempted > limit Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
+check_limit = |attempted, limit, dimension| if (attempted > limit) Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
 
 checked_add : U64, U64 -> Try(U64, KernelFacadeLines.Error)
 checked_add = |left, right| match U64.plus_try(left, right) {

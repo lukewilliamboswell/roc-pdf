@@ -107,7 +107,7 @@ KernelBidiBoundary :: [].{
 	validate_paragraph : Str, KernelUnicode.UnicodeAnalysis, BaseDirection, Paragraph, Limits -> Try({}, Error)
 	validate_paragraph = |source, analysis, base, paragraph, limits| {
 		expected = analyze(source, analysis, base, limits)?
-		if paragraph_equal(expected, paragraph) Ok({}) else Err(ParagraphFactsMismatch)
+		if (paragraph_equal(expected, paragraph)) Ok({}) else Err(ParagraphFactsMismatch)
 	}
 
 	## UAX #9 L1/L2 for one selected logical line, projected onto grapheme

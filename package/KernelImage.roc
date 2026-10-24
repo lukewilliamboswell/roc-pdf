@@ -285,7 +285,7 @@ inspect_jpeg = |source, resource, colors, limits| {
 		}
 
 		orientation_evidence = resolve_orientation($orientation, source.orientation_policy, resource)?
-		components = if $component_count == 1 One else Three
+		components = if ($component_count == 1) One else Three
 		Ok({
 			decoded_row_bytes: checked_times($width.to_u64(), $component_count.to_u64())?,
 			jpeg: { bytes: $output, color_space: source.color_space, components, dimensions: { height: $height, width: $width }, orientation: orientation_evidence },
@@ -313,7 +313,7 @@ inspect_frame = |bytes, start, length, resource, colors, color_space, limits| {
 		} else if height > limits.max_height {
 			Err(LimitExceeded({ attempted: height.to_u64(), dimension: Height, limit: limits.max_height.to_u64() }))
 		} else {
-			expected = if components == 1 One else Three
+			expected = if (components == 1) One else Three
 			if KernelColor.Plan.components(colors, color_space) != expected {
 				Err(ColorComponentMismatch({ resource: resource }))
 			} else if !valid_frame_components(bytes, start + 6, components) {
@@ -356,7 +356,7 @@ valid_quantization_tables = |bytes, start, length| {
 		if precision > 1 or info.bitwise_and(0x0f) > 3 {
 			$valid = False
 		} else {
-			table_bytes = if precision == 0 64 else 128
+			table_bytes = if (precision == 0) 64 else 128
 			if table_bytes > end - ($index + 1) {
 				$valid = False
 			} else {
@@ -530,10 +530,10 @@ read_u16_be : List(U8), U64 -> U16
 read_u16_be = |bytes, index| list_at(bytes, index).to_u16().shl_wrap(8).bitwise_or(list_at(bytes, index + 1).to_u16())
 
 read_u16_ordered : List(U8), U64, Bool -> U16
-read_u16_ordered = |bytes, index, little| if little list_at(bytes, index).to_u16().bitwise_or(list_at(bytes, index + 1).to_u16().shl_wrap(8)) else read_u16_be(bytes, index)
+read_u16_ordered = |bytes, index, little| if (little) list_at(bytes, index).to_u16().bitwise_or(list_at(bytes, index + 1).to_u16().shl_wrap(8)) else read_u16_be(bytes, index)
 
 read_u32_ordered : List(U8), U64, Bool -> U32
-read_u32_ordered = |bytes, index, little| if little list_at(bytes, index).to_u32()
+read_u32_ordered = |bytes, index, little| if (little) list_at(bytes, index).to_u32()
 	.bitwise_or(list_at(bytes, index + 1).to_u32().shl_wrap(8))
 	.bitwise_or(list_at(bytes, index + 2).to_u32().shl_wrap(16))
 	.bitwise_or(list_at(bytes, index + 3).to_u32().shl_wrap(24)) else list_at(bytes, index).to_u32().shl_wrap(24)

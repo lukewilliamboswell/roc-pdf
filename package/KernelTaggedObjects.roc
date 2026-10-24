@@ -1,4 +1,5 @@
 import KernelIndex
+import KernelLex
 import KernelObjectPlan
 import KernelPipelineFixture
 import KernelMetadata
@@ -575,19 +576,12 @@ add_structure_element = |builder, names, tagged, navigation, objects, catalog_la
 			{ builder: reference.builder, page_entry: WithEntry({ key: names.pg, value: reference.id }) }
 		}
 	}
-	{ builder: with_role, id: role_id } = KernelObject.add_name(with_page, Str.to_utf8(node.role.local_name)) ? Object
+	{ builder: with_role, id: role_id } = KernelObject.add_name(with_page, KernelLex.name_bytes(node.role.local_name)) ? Object
 	{ builder: with_type, id: s_id } = KernelObject.add_name_value(with_role, role_id) ? Object
 
 	# `/Type /StructElem` is optional (ISO 32000-2 Table 355) and omitted.
-	var $base_entries = List.with_capacity(5)
-	if node_k.items.length() != 0 {
-		$base_entries = $base_entries.append({ key: names.k, value: k_id })
-	}
-	$base_entries = $base_entries.append({ key: names.ns, value: ns_id })
-	$base_entries = $base_entries.append({ key: names.p, value: p_id })
-	$base_entries = append_entry($base_entries, page_entry)
-	$base_entries = $base_entries.append({ key: names.s, value: s_id })
-	base_entries = $base_entries
+	k_entry = if (node_k.items.length() != 0) WithEntry({ key: names.k, value: k_id }) else NoEntry
+	base = { k: k_entry, ns: ns_id, p: p_id, page: page_entry, s: s_id }
 	properties = node_properties(semantics, node)
 	if node.role.local_name == "Figure" and properties.alternative == NoProperty {
 		return Err(InvalidFigureAlternative({ node: node.id.index() }))
@@ -595,7 +589,8 @@ add_structure_element = |builder, names, tagged, navigation, objects, catalog_la
 	lowered_language = lowered_node_language(semantics, catalog_language, node)
 	extras = node.attributes.length() != 0 or properties.actual != NoProperty or properties.alternative != NoProperty or properties.expansion != NoProperty or node.element_identifier != NoElementIdentifier or lowered_language != NoProperty
 	if !extras {
-		{ builder: with_dictionary, id: dictionary_id } = KernelObject.add_dictionary(with_type, base_entries) ? Object
+		mark = KernelObject.dictionary_mark(with_type)
+		{ builder: with_dictionary, id: dictionary_id } = KernelObject.add_pushed_dictionary(push_base_entries(with_type, names, base, NoEntry), mark) ? Object
 		{ builder: with_object, id: object_id } = KernelObject.add_object(with_dictionary, dictionary_id) ? Object
 		ensure_object(object_id, expected)?
 		return Ok({ attribute_dictionaries: 0, builder: with_object, language_entries: 0 })
@@ -615,42 +610,47 @@ add_structure_element = |builder, names, tagged, navigation, objects, catalog_la
 		}
 	}
 	language = add_text_entry(identifier.builder, "Lang", lowered_language)?
-	var $entries = List.with_capacity(base_entries.len() + 6)
-	$entries = append_entry($entries, attributes.entry)
-	$entries = append_entry($entries, actual.entry)
-	$entries = append_entry($entries, alternative.entry)
-	$entries = append_entry($entries, expansion.entry)
-	$entries = append_entry($entries, identifier.entry)
-	var $base = 0
-	while $base < base_entries.len() {
-		entry = list_at(base_entries, $base)
 
-		# `/Lang` sorts after `/K` and before `/NS`.
-		if KernelObject.NameId.index(entry.key) == KernelObject.NameId.index(names.ns) {
-			$entries = append_entry($entries, language.entry)
-		}
-		$entries = $entries.append(entry)
-		$base = $base + 1
-	}
-	dictionary = KernelObject.add_dictionary(language.builder, $entries) ? Object
+	## Every value, nested attribute dictionaries included, exists before the
+	## first entry is pushed, as `KernelObject.add_pushed_dictionary` requires.
+	mark = KernelObject.dictionary_mark(language.builder)
+	var $pushed = push_optional(language.builder, attributes.entry)
+	$pushed = push_optional($pushed, actual.entry)
+	$pushed = push_optional($pushed, alternative.entry)
+	$pushed = push_optional($pushed, expansion.entry)
+	$pushed = push_optional($pushed, identifier.entry)
+	dictionary = KernelObject.add_pushed_dictionary(push_base_entries($pushed, names, base, language.entry), mark) ? Object
 	object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
 	ensure_object(object.id, expected)?
 	Ok({
 		attribute_dictionaries: attributes.dictionaries,
 		builder: object.builder,
-		language_entries: if lowered_language == NoProperty 0 else 1,
+		language_entries: if (lowered_language == NoProperty) 0 else 1,
 	})
 }
 
 OptionalProperty : [NoProperty, Property(Str)]
 
-OptionalEntry : [NoEntry, WithEntry({ key : KernelObject.NameId, value : KernelObject.ValueId })]
-
-append_entry : List({ key : KernelObject.NameId, value : KernelObject.ValueId }), OptionalEntry -> List({ key : KernelObject.NameId, value : KernelObject.ValueId })
-append_entry = |entries, entry| match entry {
-	NoEntry => entries
-	WithEntry(value) => entries.append(value)
+## Pushes an element's `/K`, `/Lang`, `/NS`, `/P`, `/Pg` and `/S` entries in
+## key order (`/Lang` sorts after `/K` and before `/NS`) straight onto the
+## object store, so no element builds a temporary entry list.
+push_base_entries : KernelObject.Builder, Names, { k : OptionalEntry, ns : KernelObject.ValueId, p : KernelObject.ValueId, page : OptionalEntry, s : KernelObject.ValueId }, OptionalEntry -> KernelObject.Builder
+push_base_entries = |builder, names, base, language| {
+	var $builder = push_optional(builder, base.k)
+	$builder = push_optional($builder, language)
+	$builder = KernelObject.push_entry($builder, { key: names.ns, value: base.ns })
+	$builder = KernelObject.push_entry($builder, { key: names.p, value: base.p })
+	$builder = push_optional($builder, base.page)
+	KernelObject.push_entry($builder, { key: names.s, value: base.s })
 }
+
+push_optional : KernelObject.Builder, OptionalEntry -> KernelObject.Builder
+push_optional = |builder, entry| match entry {
+	NoEntry => builder
+	WithEntry(value) => KernelObject.push_entry(builder, value)
+}
+
+OptionalEntry : [NoEntry, WithEntry({ key : KernelObject.NameId, value : KernelObject.ValueId })]
 
 ## Validated node text properties hold at most one of each kind.
 node_properties : Semantics.Store, Semantics.Node -> { actual : OptionalProperty, alternative : OptionalProperty, expansion : OptionalProperty }
@@ -689,11 +689,11 @@ lowered_node_language = |semantics, catalog, node| match node.language {
 	Inherited => NoProperty
 	Language(tag) => match node.parent {
 		DocumentRoot => match catalog {
-			CatalogLanguage(document) => if document == tag NoProperty else Property(tag)
+			CatalogLanguage(document) => if (document == tag) NoProperty else Property(tag)
 			NoCatalogLanguage => NoProperty
 		}
 		ParentNode(parent) => match inherited_language(semantics, catalog, parent.index()) {
-			Property(inherited) => if inherited == tag NoProperty else Property(tag)
+			Property(inherited) => if (inherited == tag) NoProperty else Property(tag)
 			NoProperty => Property(tag)
 		}
 	}
@@ -739,7 +739,7 @@ add_text_entry : KernelObject.Builder, Str, OptionalProperty -> Try({ builder : 
 add_text_entry = |builder, key, property| match property {
 	NoProperty => Ok({ builder, entry: NoEntry })
 	Property(value) => {
-		name = KernelObject.add_name(builder, Str.to_utf8(key)) ? Object
+		name = KernelObject.add_name(builder, KernelLex.name_bytes(key)) ? Object
 		text = KernelObject.add_text_string(name.builder, value) ? Object
 		text_value = KernelObject.add_text_string_value(text.builder, text.id) ? Object
 		Ok({ builder: text_value.builder, entry: WithEntry({ key: name.id, value: text_value.id }) })
@@ -756,19 +756,21 @@ add_attribute_value = |builder, semantics, node| {
 	}
 	list_dictionary = add_owner_dictionary(builder, semantics, node, ListOwner)?
 	table_dictionary = add_owner_dictionary(list_dictionary.builder, semantics, node, TableOwner)?
-	present = [list_dictionary.value, table_dictionary.value].keep_if(|value| value != NoValue)
 	a_name = KernelObject.add_name(table_dictionary.builder, Str.to_utf8("A")) ? Object
-	match present {
-		[WithValue(single)] => Ok({ builder: a_name.builder, dictionaries: 1, entry: WithEntry({ key: a_name.id, value: single }) })
-		_ => {
-			values = present.keep_oks(
-				|value| match value {
-					WithValue(id) => Ok(id)
-					NoValue => Err(NoValue)
-				},
-			)
-			array = KernelObject.add_array(a_name.builder, values) ? Object
-			Ok({ builder: array.builder, dictionaries: values.len(), entry: WithEntry({ key: a_name.id, value: array.id }) })
+
+	## Matching the two owners directly avoids building and filtering a list
+	## of them for every attributed element.
+	single = |value| Ok({ builder: a_name.builder, dictionaries: 1, entry: WithEntry({ key: a_name.id, value }) })
+	match (list_dictionary.value, table_dictionary.value) {
+		(WithValue(value), NoValue) => single(value)
+		(NoValue, WithValue(value)) => single(value)
+		(WithValue(list_value), WithValue(table_value)) => {
+			array = KernelObject.add_array(a_name.builder, [list_value, table_value]) ? Object
+			Ok({ builder: array.builder, dictionaries: 2, entry: WithEntry({ key: a_name.id, value: array.id }) })
+		}
+		(NoValue, NoValue) => {
+			array = KernelObject.add_array(a_name.builder, []) ? Object
+			Ok({ builder: array.builder, dictionaries: 0, entry: WithEntry({ key: a_name.id, value: array.id }) })
 		}
 	}
 }
@@ -806,17 +808,20 @@ add_owner_dictionary = |builder, semantics, node, kind| {
 		return Ok({ builder, value: NoValue })
 	}
 	keys = owner_keys(kind)
+
+	## Entries are pushed straight onto the store between the values they
+	## name; an attribute value adds names, strings and arrays but never a
+	## dictionary, as `KernelObject.add_pushed_dictionary` requires.
+	mark = KernelObject.dictionary_mark(builder)
 	var $builder = builder
-	var $entries = List.with_capacity(keys.len())
 	var $key_index = 0
 	while $key_index < keys.len() {
 		key = list_at(keys, $key_index)
 		if key == "O" {
-			o_name = KernelObject.add_name($builder, Str.to_utf8("O")) ? Object
-			owner_name = KernelObject.add_name(o_name.builder, Str.to_utf8(if kind == ListOwner "List" else "Table")) ? Object
+			o_name = KernelObject.add_name($builder, KernelLex.name_bytes("O")) ? Object
+			owner_name = KernelObject.add_name(o_name.builder, KernelLex.name_bytes(if (kind == ListOwner) "List" else "Table")) ? Object
 			owner_value = KernelObject.add_name_value(owner_name.builder, owner_name.id) ? Object
-			$builder = owner_value.builder
-			$entries = $entries.append({ key: o_name.id, value: owner_value.id })
+			$builder = KernelObject.push_entry(owner_value.builder, { key: o_name.id, value: owner_value.id })
 		} else {
 			var $attribute = start
 			while $attribute < end {
@@ -826,17 +831,16 @@ add_owner_dictionary = |builder, semantics, node, kind| {
 					Namespaced(_) => False
 				}
 				if named and owner_matches(attribute.owner, kind) {
-					key_name = KernelObject.add_name($builder, Str.to_utf8(key)) ? Object
+					key_name = KernelObject.add_name($builder, KernelLex.name_bytes(key)) ? Object
 					value = add_attribute_scalar(key_name.builder, attribute.value)?
-					$builder = value.builder
-					$entries = $entries.append({ key: key_name.id, value: value.id })
+					$builder = KernelObject.push_entry(value.builder, { key: key_name.id, value: value.id })
 				}
 				$attribute = $attribute + 1
 			}
 		}
 		$key_index = $key_index + 1
 	}
-	dictionary = KernelObject.add_dictionary($builder, $entries) ? Object
+	dictionary = KernelObject.add_pushed_dictionary($builder, mark) ? Object
 	Ok({ builder: dictionary.builder, value: WithValue(dictionary.id) })
 }
 
@@ -845,7 +849,7 @@ add_owner_dictionary = |builder, semantics, node, kind| {
 add_attribute_scalar : KernelObject.Builder, Semantics.AttributeValue -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelTaggedObjects.Error)
 add_attribute_scalar = |builder, value| match value {
 	Name(name) => {
-		interned = KernelObject.add_name(builder, Str.to_utf8(name)) ? Object
+		interned = KernelObject.add_name(builder, KernelLex.name_bytes(name)) ? Object
 		added = KernelObject.add_name_value(interned.builder, interned.id) ? Object
 		Ok(added)
 	}
@@ -945,6 +949,11 @@ add_id_tree = |builder, tagged, objects| {
 ## (development/performance/lowering-uniqueness.md).
 add_k_array : KernelObject.Builder, Names, List(KernelTagged.KItem), Semantics.Range, NavigationLowering, KernelObjectPlan.Plan, ElementPage -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelTaggedObjects.Error)
 add_k_array = |builder, names, items, range, navigation, objects, element_page| {
+	if range.length() == 1 {
+		value = add_k_item(builder, names, list_at(items, range.start()), navigation, objects, element_page)?
+		array = KernelObject.add_array_one(value.builder, value.id) ? Object
+		return Ok(array)
+	}
 	var $builder = builder
 	var $values = List.with_capacity(range.length())
 	var $index = range.start()
@@ -1122,7 +1131,7 @@ index_nodes_by_structure = |nodes| {
 }
 
 ensure_object : KernelObject.ObjectId, KernelObject.ObjectId -> Try({}, KernelTaggedObjects.Error)
-ensure_object = |actual, expected| if actual == expected Ok({}) else Err(ObjectOrder({ actual, expected }))
+ensure_object = |actual, expected| if (actual == expected) Ok({}) else Err(ObjectOrder({ actual, expected }))
 
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {

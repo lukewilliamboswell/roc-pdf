@@ -4,6 +4,7 @@ import Document
 import Font
 import Image
 import KernelLex
+import KernelDeflate
 import KernelEmit
 import KernelBuiltInFont
 import KernelFacadePipeline
@@ -73,6 +74,23 @@ Pdf :: [].{
 	}
 
 	ChunkRetention := [OwnChunks, ShareUnchangedResources].{
+		is_eq : _
+	}
+
+	## How hard to compress the document's streams: a trade between file
+	## size and generation time. Every choice writes a complete, valid file
+	## with the same content, pages, structure, and conformance; only the
+	## size of the compressed data and the time spent producing it differ.
+	##
+	## - `Balanced` (the default) generates quickly and writes compact files.
+	## - `Smallest` writes the smallest files the package can produce, for
+	##   documents that are stored, archived, or downloaded many times, and
+	##   takes noticeably longer to generate.
+	## - `Fastest` generates fastest and writes larger files, for documents
+	##   that are short-lived or immediately recompressed.
+	##
+	## Identical documents and options always produce identical bytes.
+	Compression := [Balanced, Fastest, Smallest].{
 		is_eq : _
 	}
 
@@ -381,7 +399,7 @@ Pdf :: [].{
 			InternalGenerationFailure => "Pdf.Error.InternalGenerationFailure"
 			InvalidDocument(batch) => {
 				count = batch.diagnostics.len()
-				var $text = "Pdf.Error.InvalidDocument (${count.to_str()} ${if count == 1 "diagnostic" else "diagnostics"}"
+				var $text = "Pdf.Error.InvalidDocument (${count.to_str()} ${if (count == 1) "diagnostic" else "diagnostics"}"
 				$text = match batch.truncation {
 					Complete => "${$text}):"
 					Truncated => "${$text}, truncated):"
@@ -391,7 +409,7 @@ Pdf :: [].{
 						Feature(name) => name
 						NoFeature => Str.inspect(diagnostic.code)
 					}
-					at = if diagnostic.details.is_empty() "" else " at ${Str.join_with(diagnostic.details, ", ")}"
+					at = if (diagnostic.details.is_empty()) "" else " at ${Str.join_with(diagnostic.details, ", ")}"
 					$text = "${$text}\n  ${code}${at}: ${diagnostic.message}"
 				}
 				$text
@@ -404,7 +422,7 @@ Pdf :: [].{
 	}
 
 	## How a document is prepared: its conformance profile, page size,
-	## theme, fonts, and chunk retention. A transparent record whose
+	## theme, fonts, compression, and chunk retention. A transparent record whose
 	## fields all default, so `{}` (or `Pdf.Options.default`) is the
 	## production default and a caller names only what it changes:
 	## `Pdf.to_bytes_with(document, { page_size: Letter, theme, fonts:
@@ -417,10 +435,13 @@ Pdf :: [].{
 	## `fonts` is the complete public caller-resource boundary: a
 	## `Registered` registry carries the original immutable font bytes and
 	## the once-produced inspection facts, and the theme selects only the
-	## registry's opaque faces. Changing a default is a reviewed
+	## registry's opaque faces. `compression` trades file size against
+	## generation time (see `Compression`); pass `compression: Smallest` for
+	## the smallest files. Changing a default is a reviewed
 	## package-version change.
 	Options := {
 		chunk_retention : ChunkRetention ?? ShareUnchangedResources,
+		compression : Compression ?? Balanced,
 		fonts : FontSource ?? BuiltIn,
 		page_size : PageSize ?? A4,
 		profile : Profile ?? Archive,
@@ -435,7 +456,9 @@ Pdf :: [].{
 	## An opaque, fully validated document plan. Preparation performs all
 	## authoring, layout, resource, navigation, conformance, and object-planning
 	## work once; emission cannot reinterpret author intent or fail with a
-	## document diagnostic after this boundary.
+	## document diagnostic after this boundary. The compression choice is
+	## fixed here too, so `to_bytes_prepared` and `to_chunks_prepared` write
+	## identical bytes.
 	Prepared :: KernelStructure.Plan.{}
 
 	Encode :: KernelEmit.Encoder.{}
@@ -993,7 +1016,7 @@ build_plan = |doc, options| {
 			},
 		) ? |_| InternalGenerationFailure
 		validate_lowered_plan(claim, xmp, plan)?
-		return Ok(plan)
+		return Ok(KernelStructure.Plan.with_compression(plan, deflate_level(options.compression)))
 	}
 	facts = WithDocumentFacts({
 		condition_identifier: KernelMetadata.srgb_condition_identifier,
@@ -1037,7 +1060,19 @@ build_plan = |doc, options| {
 	_text_work = KernelPdfA4.validate_text(claim, KernelFacadeOutput.Plan.text_facts(output)) ? |violation| InvalidDocument(profile_batch(violation, ProfileValidation))
 	plan = KernelFacadeOutput.Plan.structure(output)
 	validate_lowered_plan(claim, xmp, plan)?
-	Ok(plan)
+	Ok(KernelStructure.Plan.with_compression(plan, deflate_level(options.compression)))
+}
+
+## The author's compression choice becomes the sealed plan's DEFLATE level,
+## which emission consumes for every stream. The level changes no planning
+## fact: the output bound holds at every level, and the file identifier
+## digests normalized plan facts, so `Smallest` reproduces the bytes the
+## package wrote before the choice existed.
+deflate_level : Pdf.Compression -> KernelDeflate.Level
+deflate_level = |compression| match compression {
+	Fastest => KernelDeflate.Level.fastest
+	Balanced => KernelDeflate.Level.balanced
+	Smallest => KernelDeflate.Level.smallest
 }
 
 ## Custom-block content height through the facade pipeline. The probe is a
@@ -1126,7 +1161,7 @@ build_reporting_plan = |doc, options| {
 			},
 		) ? |_| InternalGenerationFailure
 		validate_lowered_plan(claim, xmp, plan)?
-		return Ok({ facts: NoFacts, normalized: Document.normalize(doc), plan })
+		return Ok({ facts: NoFacts, normalized: Document.normalize(doc), plan: KernelStructure.Plan.with_compression(plan, deflate_level(options.compression)) })
 	}
 	facts = WithDocumentFacts({
 		condition_identifier: KernelMetadata.srgb_condition_identifier,
@@ -1170,7 +1205,7 @@ build_reporting_plan = |doc, options| {
 	_text_work = KernelPdfA4.validate_text(claim, KernelFacadeOutput.Plan.text_facts(output)) ? |violation| InvalidDocument(profile_batch(violation, ProfileValidation))
 	plan = KernelFacadeOutput.Plan.structure(output)
 	validate_lowered_plan(claim, xmp, plan)?
-	Ok({ facts: KernelFacadePipeline.Plan.facts(pipeline), normalized, plan })
+	Ok({ facts: KernelFacadePipeline.Plan.facts(pipeline), normalized, plan: KernelStructure.Plan.with_compression(plan, deflate_level(options.compression)) })
 }
 
 ## Lowered-plan validation runs on every prepared plan before it is wrapped:
@@ -1190,7 +1225,7 @@ profile_batch = |violation, stage| {
 	requirement = violation.requirement
 	message = "The Archive profile requires that ${KernelPdfA4.summary(requirement)} (${KernelPdfA4.clause(requirement)}). No PDF bytes were emitted; this is not a downgrade to Standard."
 	{
-		detail_bytes: Str.to_utf8(message).len(),
+		detail_bytes: message.count_utf8_bytes(),
 		diagnostics: [
 			{
 				clause_references: [KernelPdfA4.clause(requirement)],
@@ -1213,9 +1248,9 @@ profile_batch = |violation, stage| {
 ## stable typed error rather than an implicit single-face fallback.
 selected_fonts : Pdf.Options -> Try(KernelFacadeShape.FontSelection, Pdf.Error)
 selected_fonts = |options| match options.theme.font_selection {
-	StyleFaces => if !has_role_face(options.theme) and !has_block_face(options.theme) Ok(Single(selected_font(options)?)) else selected_styled_fonts(options)
+	StyleFaces => if (!has_role_face(options.theme) and !has_block_face(options.theme)) Ok(Single(selected_font(options)?)) else selected_styled_fonts(options)
 	Policy(_) if has_block_face(options.theme) => Err(InvalidDocument(located_batch(FeatureUnavailable, "text.block_font_policy", "A furniture, title, or heading face applies to style faces only; under an ordered font policy every cluster takes the first policy face that covers it. Give furniture, titles, and headings the body face or use style faces.", [])))
-	Policy(policy) => if has_role_face(options.theme) Err(InvalidDocument(located_batch(FeatureUnavailable, "text.inline_font_policy", "An inline role face applies to style faces only; under an ordered font policy every cluster takes the first policy face that covers it. Remove the inline role faces or use style faces.", []))) else match options.fonts {
+	Policy(policy) => if (has_role_face(options.theme)) Err(InvalidDocument(located_batch(FeatureUnavailable, "text.inline_font_policy", "An inline role face applies to style faces only; under an ordered font policy every cluster takes the first policy face that covers it. Remove the inline role faces or use style faces.", []))) else match options.fonts {
 		BuiltIn => Err(InvalidFontSelection([InvalidPolicy(policy)]))
 		Registered(registry) => {
 			_faces = registry.policy_faces(policy) ? |_| InvalidFontSelection([InvalidPolicy(policy)])
@@ -1335,7 +1370,7 @@ pipeline_error = |error, doc| match error {
 	Semantics(TableGridMismatch({ columns, group, spanned })) => group_error(doc, group, InvalidRelationship, "table.grid_mismatch", "A table row spans ${spanned.to_str()} columns but the table declares ${columns.to_str()}; every row's column spans must sum to the column count and each span must be at least one.")
 	Semantics(TableHeaderMissing({ group })) => group_error(doc, group, InvalidRelationship, "table.header_missing", "A table declares no header cell; at least one cell must be a header_cell with a declared scope.")
 	Semantics(TableRowSpan({ block })) => located_error(doc, FeatureUnavailable, "table.row_span", "A table cell spans rows; row spans are scheduled for Gate 8 and only column spans are supported.", [leaf_path(doc, block)])
-	Semantics(BlockLimitExceeded({ attempted, block, dimension, limit })) => located_error(doc, BudgetExceeded, "document.content_limit", "The document needs ${attempted.to_str()} ${dimension_name(dimension)} but the facade accepts at most ${limit.to_str()}.", if block < Document.normalize(doc).blocks.len() [member_path(doc, Document.normalize(doc), block)] else [])
+	Semantics(BlockLimitExceeded({ attempted, block, dimension, limit })) => located_error(doc, BudgetExceeded, "document.content_limit", "The document needs ${attempted.to_str()} ${dimension_name(dimension)} but the facade accepts at most ${limit.to_str()}.", if (block < Document.normalize(doc).blocks.len()) [member_path(doc, Document.normalize(doc), block)] else [])
 	Lines(Tables(TableWidth({ available, group, required }))) => group_error(doc, group, LayoutConstraintViolated, "layout.table_width", "A table's fixed column widths and column minimums need ${points_text(required)} but the table has ${points_text(available)}; content is never shrunk or clipped.")
 	Lines(Tables(UnbreakableToken({ available, block, token, width }))) => located_error(doc, LayoutConstraintViolated, "layout.unbreakable_token", "A table cell holds text with no break opportunity (scalars ${token.start().to_str()} to ${(token.start() + token.length()).to_str()}) that is ${points_text(width)} wide, but its column gives it at most ${points_text(available)}; there is no emergency breaking.", [leaf_path(doc, block)])
 	Lines(Tables(UnbreakableItems({ available, block, items, width }))) => located_error(doc, LayoutConstraintViolated, "layout.unbreakable_reference_items", "A table cell has an unbreakable measured item span ${items.start().to_str()} to ${(items.start() + items.length()).to_str()} of width ${points_text(width)}, but its columns provide ${points_text(available)}.", [leaf_path(doc, block)])
@@ -1445,7 +1480,7 @@ label_error = |doc, error| {
 
 ## A signed length in points, such as `-1.5 pt`.
 signed_points : I64 -> Str
-signed_points = |raw| if raw < 0 "-${points_text((0 - raw).to_u64_wrap())}" else points_text(raw.to_u64_wrap())
+signed_points = |raw| if (raw < 0) "-${points_text((0 - raw).to_u64_wrap())}" else points_text(raw.to_u64_wrap())
 
 ## The authored path of figure `figure` (in authored order).
 figure_path : Document, U64 -> Str
@@ -1577,7 +1612,7 @@ describe_failure = |inspected| {
 			}
 			$end = $end + 1
 		}
-		": ${Str.from_utf8(bytes.sublist({ start: $index, len: $end - $index })) ?? ""}${if $open "…" else ""}"
+		": ${Str.from_utf8(bytes.sublist({ start: $index, len: $end - $index })) ?? ""}${if ($open) "…" else ""}"
 	} else {
 		""
 	}
@@ -1590,7 +1625,7 @@ describe_failure = |inspected| {
 }
 
 is_tag_byte : U8, Bool -> Bool
-is_tag_byte = |byte, first| if first byte >= 'A' and byte <= 'Z' else (byte >= 'A' and byte <= 'Z') or (byte >= 'a' and byte <= 'z') or (byte >= '0' and byte <= '9')
+is_tag_byte = |byte, first| if (first) byte >= 'A' and byte <= 'Z' else (byte >= 'A' and byte <= 'Z') or (byte >= 'a' and byte <= 'z') or (byte >= '0' and byte <= '9')
 
 list_at_byte : List(U8), U64 -> U8
 list_at_byte = |bytes, index| bytes.get(index) ?? 0
@@ -1603,7 +1638,7 @@ unsupported_text_error : Document, U64, [AtInline(U64), NoInline], [Cluster, Cov
 unsupported_text_error = |doc, block, inline, reason, scalars| {
 	at = "scalars ${scalars.start().to_str()} to ${(scalars.start() + scalars.length()).to_str()}"
 	(feature, message) = match reason {
-		Script(script) => ("text.unsupported_script", "Text at ${at} uses the script ${if script.is_empty() "Unknown" else script}, which the selected text path does not shape.")
+		Script(script) => ("text.unsupported_script", "Text at ${at} uses the script ${if (script.is_empty()) "Unknown" else script}, which the selected text path does not shape.")
 		Cluster => ("text.unsupported_cluster", "Text at ${at} is a multi-scalar grapheme cluster, which the convenience shaper does not support.")
 		Coverage(scalar) => ("text.coverage_missing", "No selected face covers U+${scalar_hex(scalar)} at ${at}; no face is substituted.")
 	}
@@ -1677,8 +1712,8 @@ furniture_error = |error| {
 		BodySpace({ footer, gap, header, lead, line, remaining, template }) => {
 			zero : I64
 			zero = 0
-			remaining_text = if remaining < zero "-${points_text((zero - remaining).to_u64_wrap())}" else points_text(remaining.to_u64_wrap())
-			lead_text = if lead == 0 "" else ", lead region ${points_text(lead)}"
+			remaining_text = if (remaining < zero) "-${points_text((zero - remaining).to_u64_wrap())}" else points_text(remaining.to_u64_wrap())
+			lead_text = if (lead == 0) "" else ", lead region ${points_text(lead)}"
 			located(LayoutConstraintViolated, "layout.template_body_space", "The template's regions (header ${points_text(header)}${lead_text}, footer ${points_text(footer)}, gap ${points_text(gap)}) leave ${remaining_text} of body flow, less than one body line of ${points_text(line)}.", [template])
 		}
 		ScopeInvalid({ group, reason }) => located(InvalidRelationship, "layout.page_scope", reason, ["page_scopes[${group.to_str()}]"])
@@ -1696,7 +1731,7 @@ furniture_error = |error| {
 		InsetNegative({ path }) => located(LayoutConstraintViolated, "layout.spacer_negative", "A template region's slot inset is negative; slot furniture never leaves its region.", [path])
 		FurnitureCluster({ path }) => located(FontCoverageMissing, "text.unsupported_cluster", "Furniture text contains a cluster the selected shaping subset cannot represent.", [path])
 		FurnitureText({ path, reason: Coverage }) => located(FontCoverageMissing, "text.coverage_missing", "No face of the ordered font policy covers every cluster of this furniture text; no face is substituted.", [path])
-		FurnitureText({ path, reason: Script(script) }) => located(FontCoverageMissing, "text.unsupported_script", "Furniture text uses the script ${if script.is_empty() "Unknown" else script}, which the convenience text path does not shape.", [path])
+		FurnitureText({ path, reason: Script(script) }) => located(FontCoverageMissing, "text.unsupported_script", "Furniture text uses the script ${if (script.is_empty()) "Unknown" else script}, which the convenience text path does not shape.", [path])
 		other => stage_error(Furniture(other))
 	}
 }
@@ -1729,7 +1764,7 @@ member_path = |doc, normalized, block| {
 		}
 		$code = record.parent
 	}
-	if $table == 0 leaf_path(doc, block) else group_path(normalized.groups, $table - 1)
+	if ($table == 0) leaf_path(doc, block) else group_path(normalized.groups, $table - 1)
 }
 
 ## A page-layout rejection of a document with tables, whose block indexes
@@ -1826,7 +1861,7 @@ located_error = |_doc, diagnostic, feature, message, paths| InvalidDocument(loca
 
 ## A scale in thousandths as a percentage, such as `80.5%`.
 percent_text : U64 -> Str
-percent_text = |scale| if scale % 10 == 0 "${(scale // 10).to_str()}%" else "${(scale // 10).to_str()}.${(scale % 10).to_str()}%"
+percent_text = |scale| if (scale % 10 == 0) "${(scale // 10).to_str()}%" else "${(scale // 10).to_str()}.${(scale % 10).to_str()}%"
 
 ## A page break, spacer, or decoration located by its authored parent and
 ## position.
@@ -1859,7 +1894,7 @@ line_break_error = |doc, block, line_break| {
 		Ok(value) => value
 		Err(OutOfBounds) => crash "normalized line break path escaped"
 	}
-	owner = if record.parent == 0 NoInline else AtInline(record.parent - 1)
+	owner = if (record.parent == 0) NoInline else AtInline(record.parent - 1)
 	path = "${inline_path(normalized, block, owner)}.inlines[${record.position.to_str()}]"
 	located_error(doc, InvalidRelationship, "semantics.line_break_position", "A line break must separate text inside its paragraph; it cannot begin or end the paragraph or follow another line break.", [path])
 }
@@ -1879,7 +1914,7 @@ label_width_error = |doc, block, width, available| {
 		}
 		$index = $index + 1
 	}
-	path = if $item < normalized.groups.len() group_path(normalized.groups, $item) else leaf_path(doc, block)
+	path = if ($item < normalized.groups.len()) group_path(normalized.groups, $item) else leaf_path(doc, block)
 	located_error(doc, LayoutConstraintViolated, "layout.list_label_width", "A list's label column, widened to ${points_text(width)} for its widest generated label, leaves its body no width: the column may use at most ${points_text(available)}. Labels are never shrunk or allowed to overlap their body.", [path])
 }
 
@@ -1922,7 +1957,7 @@ oversize_error = |doc, block, required, available| {
 		}
 		Err(OutOfBounds) => False
 	}
-	feature = if figure "document.figure_oversize" else "layout.oversize_block"
+	feature = if (figure) "document.figure_oversize" else "layout.oversize_block"
 	located_error(doc, LayoutConstraintViolated, feature, "An unsplittable block needs ${points_text(required)} but a page body holds ${points_text(available)}; content is never shrunk, clipped, or split to fit.", [leaf_path(doc, block)])
 }
 
@@ -1991,7 +2026,7 @@ required_keep_path = |doc, normalized, block| {
 		}
 		$index = $index + 1
 	}
-	if $found < normalized.groups.len() group_path(normalized.groups, $found) else leaf_path(doc, block)
+	if ($found < normalized.groups.len()) group_path(normalized.groups, $found) else leaf_path(doc, block)
 }
 
 ## A fixed-point length as points, such as `746 pt` or `12.5 pt`.
@@ -2152,7 +2187,7 @@ leaf_position = |normalized, block, parent| {
 	}
 	match normalized.blocks.get(block) {
 		Ok(record) => match record.kind {
-			Bullet({ item, list: _ }) => if item > 0 $position - 1 else $position
+			Bullet({ item, list: _ }) => if (item > 0) $position - 1 else $position
 			_ => $position
 		}
 		Err(OutOfBounds) => $position
@@ -2270,7 +2305,7 @@ chain_path = |groups, code| {
 			TableRow(Footer) => "table.footer_rows[${record.position.to_str()}]"
 			_ => child_segment(groups, record.parent, record.position)
 		}
-		$path = if $path.is_empty() segment else "${$path}.${segment}"
+		$path = if ($path.is_empty()) segment else "${$path}.${segment}"
 		$index = $index - 1
 	}
 	$path
@@ -2399,7 +2434,7 @@ selected_styled_fonts = |options| {
 		}
 	}
 	candidate = |role| match Theme.inline_font(options.theme, role) {
-		Face(face) => if face == body_face Inherited else Candidate(index_of($faces, face))
+		Face(face) => if (face == body_face) Inherited else Candidate(index_of($faces, face))
 		Inherited => Inherited
 	}
 	Ok(Styled({ faces: $faces, fonts: $fonts, roles: { code: candidate(Code), emphasis: candidate(Emphasis), quote: candidate(Quote), strong: candidate(Strong) } }))
@@ -2507,7 +2542,7 @@ validate_profile_request : Pdf.Options -> Try(KernelPdfA4.Claim, Pdf.Error)
 validate_profile_request = |options| {
 	match options.profile {
 		AccessibleArchive => Err(Pdf.Error.InvalidDocument(unavailable_batch(AccessibleArchiveProfile, "The AccessibleArchive profile requires the unfinished combined PDF/A-4 and PDF/UA-2 capability.")))
-		Archive | Standard => Ok(if Pdf.claims_for_profile(options.profile).static_pdf_a4 StaticPdfA4Claim else NoArchiveClaim)
+		Archive | Standard => Ok(if (Pdf.claims_for_profile(options.profile).static_pdf_a4) StaticPdfA4Claim else NoArchiveClaim)
 	}
 }
 
@@ -2553,7 +2588,7 @@ unavailable_batch : Document.Feature, Str -> Conformance.DiagnosticBatch
 unavailable_batch = |feature, summary| {
 	message = unavailable_message(feature, summary)
 	{
-		detail_bytes: Str.to_utf8(message).len(),
+		detail_bytes: message.count_utf8_bytes(),
 		diagnostics: [
 			{
 				clause_references: [],
@@ -2633,7 +2668,7 @@ page_side_valid = |unit| {
 }
 
 signed_points_text : I64 -> Str
-signed_points_text = |raw| if raw < 0 "-${points_text(U64.minus_wrap(0, raw.to_u64_wrap()))}" else points_text(raw.to_u64_wrap())
+signed_points_text = |raw| if (raw < 0) "-${points_text(U64.minus_wrap(0, raw.to_u64_wrap()))}" else points_text(raw.to_u64_wrap())
 
 expect signed_points_text(I64.lowest) == "-9223372036854775.808 pt"
 
@@ -2862,6 +2897,32 @@ expect {
 	buffered == chunked.bytes
 }
 
+# Every compression choice is sealed into the prepared plan: buffered,
+# chunked, prepared, and one-shot output agree for each choice, `Balanced` is
+# the default, the choices write distinct files ordered by size as their
+# names promise, and the plan identity (and so the file identifier) does not
+# depend on the choice.
+expect {
+	document = Pdf.document({ contents: [Pdf.title("Compression"), Pdf.paragraph("Smaller files or faster generation, with identical content.")], language: "en-AU", title: "Compression" })
+	fastest = compressed_output(document, Fastest)
+	balanced = compressed_output(document, Balanced)
+	smallest = compressed_output(document, Smallest)
+	default = Pdf.to_bytes(document)?
+	fastest_plan = build_plan(document, Pdf.Options.{ compression: Fastest })?
+	smallest_plan = build_plan(document, Pdf.Options.{ compression: Smallest })?
+	default_plan = build_plan(document, Pdf.Options.default)?
+	smallest != [] and
+		balanced == default and
+			fastest != balanced and
+				balanced != smallest and
+					smallest.len() <= balanced.len() and
+						balanced.len() <= fastest.len() and
+							KernelStructure.Plan.compression(fastest_plan) == KernelDeflate.Level.fastest and
+								KernelStructure.Plan.compression(smallest_plan) == KernelDeflate.Level.smallest and
+									KernelStructure.Plan.compression(default_plan) == KernelDeflate.Level.balanced and
+										KernelStructure.Plan.identity(fastest_plan) == KernelStructure.Plan.identity(smallest_plan)
+}
+
 # Every sRGB theme color is resolved through the packaged profile rather
 # than being silently reduced to black.
 expect {
@@ -3040,6 +3101,33 @@ expect {
 	collected = collect_chunks(Pdf.to_chunks_with(document, options)?)
 
 	collected.bytes == expected
+}
+
+## The document's bytes under one compression choice, or `[]` when any of
+## the buffered, chunked, prepared, and one-shot paths disagree.
+compressed_output : Document, Pdf.Compression -> List(U8)
+compressed_output = |document, compression| {
+	options = Pdf.Options.{ compression: compression }
+	match Pdf.prepare(document, options) {
+		Err(_) => []
+		Ok(prepared) => {
+			buffered = Pdf.to_bytes_prepared(prepared) ?? []
+			shared = match Pdf.to_chunks_prepared(prepared, ShareUnchangedResources) {
+				Err(_) => []
+				Ok(encoder) => collect_chunks(encoder).bytes
+			}
+			owned = match Pdf.to_chunks_with(document, Pdf.Options.{ compression: compression, chunk_retention: OwnChunks }) {
+				Err(_) => []
+				Ok(encoder) => collect_chunks(encoder).bytes
+			}
+			one_shot = Pdf.to_bytes_with(document, options) ?? []
+			if buffered == shared and buffered == owned and buffered == one_shot {
+				buffered
+			} else {
+				[]
+			}
+		}
+	}
 }
 
 collect_chunks : Pdf.Encode -> { bytes : List(U8), chunks : U64 }
@@ -3308,7 +3396,7 @@ expect archive_twin_lowered(|store| store) == Accepted
 # Annotation flags: a hidden or unprintable link is rejected.
 expect archive_twin_lowered(archive_twin_rewrite("F", Integer(0))) == Rejected(AnnotationFlags)
 	and archive_twin_lowered(archive_twin_rewrite("F", Integer(6))) == Rejected(AnnotationFlags)
-		and archive_twin_lowered(archive_twin_rewrite("F", Integer(4 + 32))) == Rejected(AnnotationFlags)
+	and archive_twin_lowered(archive_twin_rewrite("F", Integer(4 + 32))) == Rejected(AnnotationFlags)
 
 # Actions: a non-whitelisted action type, and a URI action retyped as a
 # non-link annotation.
@@ -3318,22 +3406,22 @@ expect archive_twin_lowered(archive_twin_rename("URI", "Launch")) == Rejected(Ac
 # Images: interpolation, an unsupported bit depth, and OPI data.
 expect archive_twin_lowered(archive_twin_rewrite("BitsPerComponent", Integer(3))) == Rejected(ImageDictionary)
 	and archive_twin_lowered(archive_twin_rename("BitsPerComponent", "Interpolate")) == Rejected(ImageDictionary)
-		and archive_twin_lowered(archive_twin_rename("Width", "OPI")) == Rejected(ImageDictionary)
+	and archive_twin_lowered(archive_twin_rename("Width", "OPI")) == Rejected(ImageDictionary)
 
 # Fonts: a simple font subtype, a non-FontFile2 program, and a CIDFont
 # without CIDToGIDMap.
 expect archive_twin_lowered(archive_twin_rename("Type0", "TrueType")) == Rejected(FontDictionary)
 	and archive_twin_lowered(archive_twin_rename("FontFile2", "FontFile3")) == Rejected(FontEmbedding)
-		and archive_twin_lowered(archive_twin_rename("CIDToGIDMap", "CIDToGIDMapz")) == Rejected(CompositeFont)
+	and archive_twin_lowered(archive_twin_rename("CIDToGIDMap", "CIDToGIDMapz")) == Rejected(CompositeFont)
 
 # Package exclusions reachable as keys anywhere in the plan.
 expect archive_twin_lowered(archive_twin_rename("Lang", "JS")) == Rejected(Actions)
 	and archive_twin_lowered(archive_twin_rename("Lang", "OC")) == Rejected(OptionalContent)
-		and archive_twin_lowered(archive_twin_rename("Lang", "AF")) == Rejected(EmbeddedFiles)
-			and archive_twin_lowered(archive_twin_rename("Lang", "PresSteps")) == Rejected(Presentations)
-				and archive_twin_lowered(archive_twin_rename("Lang", "Ref")) == Rejected(ReferenceXObject)
-					and archive_twin_lowered(archive_twin_rename("Lang", "TR")) == Rejected(GraphicsState)
-						and archive_twin_lowered(archive_twin_rename("Lang", "NeedsRendering")) == Rejected(InteractiveForms)
+	and archive_twin_lowered(archive_twin_rename("Lang", "AF")) == Rejected(EmbeddedFiles)
+	and archive_twin_lowered(archive_twin_rename("Lang", "PresSteps")) == Rejected(Presentations)
+	and archive_twin_lowered(archive_twin_rename("Lang", "Ref")) == Rejected(ReferenceXObject)
+	and archive_twin_lowered(archive_twin_rename("Lang", "TR")) == Rejected(GraphicsState)
+	and archive_twin_lowered(archive_twin_rename("Lang", "NeedsRendering")) == Rejected(InteractiveForms)
 
 # Stream dictionaries must not reference external file data.
 expect archive_twin_lowered(archive_twin_rename("Length1", "FFilter")) == Rejected(StreamExternal)
@@ -3346,7 +3434,7 @@ expect {
 	private = KernelPdfA4.validate_text(StaticPdfA4Claim, { ..facts, actual_text: PrivateUseInRun(0) })
 	clean.is_ok()
 		and bom == Err({ position: facts.mappings.map(|font| font.len()).sum(), requirement: ToUnicodeValues })
-			and private == Err({ position: 0, requirement: ActualTextPrivateUse })
+		and private == Err({ position: 0, requirement: ActualTextPrivateUse })
 }
 
 twin_at : List(a), U64 -> a
@@ -3494,11 +3582,11 @@ expect {
 	}
 	check([Pdf.paragraph("Lead"), Pdf.bullet_list([Pdf.list_item([])])], "semantics.list_item_empty", "contents[1].items[0]")
 		and check([Pdf.bullet_list([Pdf.list_item([Pdf.paragraph("One"), Pdf.heading(2, "Nope")])])], "semantics.list_item_content", "contents[0].items[0].contents[1]")
-			and check([Pdf.paragraph("A"), Pdf.page_break, Pdf.page_break, Pdf.paragraph("B")], "layout.page_break_position", "contents[2]")
-				and check([Pdf.paragraph("A"), Pdf.keep_together([Pdf.paragraph("B"), Pdf.page_break, Pdf.paragraph("C")])], "layout.keep_conflict", "contents[1].contents[1]")
-					and check([Pdf.rich_paragraph([Pdf.text("A"), Pdf.line_break])], "semantics.line_break_position", "contents[0].inlines[1]")
-						and check([Pdf.keep_with_next(Required, Pdf.paragraph("A")), Pdf.page_break, Pdf.paragraph("B")], "layout.keep_conflict", "contents[0]")
-							and check([Pdf.numbered_list({ start: 0, style: UpperAlpha }, [Pdf.list_item([Pdf.paragraph("A")])])], "semantics.list_numbering", "contents[0]")
+		and check([Pdf.paragraph("A"), Pdf.page_break, Pdf.page_break, Pdf.paragraph("B")], "layout.page_break_position", "contents[2]")
+		and check([Pdf.paragraph("A"), Pdf.keep_together([Pdf.paragraph("B"), Pdf.page_break, Pdf.paragraph("C")])], "layout.keep_conflict", "contents[1].contents[1]")
+		and check([Pdf.rich_paragraph([Pdf.text("A"), Pdf.line_break])], "semantics.line_break_position", "contents[0].inlines[1]")
+		and check([Pdf.keep_with_next(Required, Pdf.paragraph("A")), Pdf.page_break, Pdf.paragraph("B")], "layout.keep_conflict", "contents[0]")
+		and check([Pdf.numbered_list({ start: 0, style: UpperAlpha }, [Pdf.list_item([Pdf.paragraph("A")])])], "semantics.list_numbering", "contents[0]")
 }
 
 # A public table lowers `Table > THead/TBody > TR > TH/TD` with typed
@@ -3617,8 +3705,8 @@ build_report = |normalized, collected, budget| {
 		} else {
 			leaf_role(normalized, record)
 		}
-		first = if span.fragments == 0 0 else span.first_page + 1
-		last = if span.fragments == 0 0 else span.last_page + 1
+		first = if (span.fragments == 0) 0 else span.first_page + 1
+		last = if (span.fragments == 0) 0 else span.last_page + 1
 		$blocks = $blocks.append({ first_page: first, fragments: span.fragments, last_page: last, path: path_at($index), role })
 		$index = $index + 1
 	}
@@ -3703,7 +3791,7 @@ build_report = |normalized, collected, budget| {
 	}
 	for context in facts.layout.scope_pages {
 		scope = normalized.page_scopes.get(context.scope) ?? crash "scope report identity escaped"
-		$outcomes = $outcomes.append(PageScopeApplied({ page: context.page + 1, path: group_path(normalized.groups, scope.group), part: if context.opening Opening else Continuation, running_label: scope.running_label }))
+		$outcomes = $outcomes.append(PageScopeApplied({ page: context.page + 1, path: group_path(normalized.groups, scope.group), part: if (context.opening) Opening else Continuation, running_label: scope.running_label }))
 	}
 	for fragment in facts.layout.callouts {
 		callout_value = match normalized.callouts.get(fragment.container) {
@@ -3856,7 +3944,7 @@ leaf_role = |normalized, record| {
 		FigureCaption(_) => "Caption"
 		Heading(level) => "H${level.to_str()}"
 		InternalLink(_) | Link(_) => "Link"
-		Paragraph => if in_table "Caption" else "P"
+		Paragraph => if (in_table) "Caption" else "P"
 		RichParagraph(_) => "P"
 		Title => "Title"
 	}
@@ -3883,7 +3971,7 @@ leaf_paths = |normalized| {
 		}
 		$group_index = $group_index + 1
 	}
-	ends = $closed.sort_with(|left, right| if left.end < right.end Before else if left.end > right.end After else Same)
+	ends = $closed.sort_with(|left, right| if (left.end < right.end) Before else if (left.end > right.end) After else Same)
 	var $siblings = List.repeat(0, slots)
 	var $leaves = List.repeat(0, slots)
 	var $lists = List.repeat(U64.highest, slots)
@@ -3945,7 +4033,7 @@ leaf_paths = |normalized| {
 				Ok(rich) => rich.position
 				Err(OutOfBounds) => own
 			}
-			Bullet(_) => if counted own else own - 1
+			Bullet(_) => if (counted) own else own - 1
 			_ => own
 		}
 		if counted {

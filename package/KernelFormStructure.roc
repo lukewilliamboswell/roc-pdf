@@ -347,10 +347,10 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 		WithNavigationPlan(plan_input) => WithNavigationObjects({
 			annotation_objects: plan_input.planned.by_id,
 			annotation_pages: plan_input.annotation_pages,
-			dests_root: if plan_input.planned.name_nodes.is_empty() NoDestsRoot else DestsRootAt(list_at(plan_input.planned.name_nodes, 0)),
+			dests_root: if (plan_input.planned.name_nodes.is_empty()) NoDestsRoot else DestsRootAt(list_at(plan_input.planned.name_nodes, 0)),
 			ordered_annotations: plan_input.store.page_annotations,
 			outline_root: plan_input.planned.outline_root,
-			page_labels_root: if plan_input.planned.label_nodes.is_empty() NoPageLabelsRoot else PageLabelsRootAt(list_at(plan_input.planned.label_nodes, 0)),
+			page_labels_root: if (plan_input.planned.label_nodes.is_empty()) NoPageLabelsRoot else PageLabelsRootAt(list_at(plan_input.planned.label_nodes, 0)),
 		})
 	}
 	prefix = KernelTaggedObjects.Plan.build_with_navigation(tagged, base, catalog_facts, navigation_facts, limits.object_limits) ? TaggedObjects
@@ -1665,7 +1665,7 @@ add_alpha_value = |builder, value| {
 	quotient = U64.div_by(numerator, 65535)
 	remainder = U64.mod_by(numerator, 65535)
 	twice = remainder * 2
-	coefficient = if twice > 65535 or (twice == 65535 and U64.mod_by(quotient, 2) == 1) quotient + 1 else quotient
+	coefficient = if (twice > 65535 or (twice == 65535 and U64.mod_by(quotient, 2) == 1)) quotient + 1 else quotient
 	decimal = match KernelLex.Decimal.from_coefficient(coefficient.to_i64_wrap(), 9) {
 		Err(_) => {
 			crash "fixed production-visual alpha scale escaped"
@@ -1709,7 +1709,7 @@ add_layout = |builder, value| {
 }
 
 ensure_object : KernelObject.ObjectId, KernelObject.ObjectId -> Try({}, KernelFormStructure.Error)
-ensure_object = |actual, expected| if actual == expected Ok({}) else Err(ObjectOrder({ actual, expected }))
+ensure_object = |actual, expected| if (actual == expected) Ok({}) else Err(ObjectOrder({ actual, expected }))
 
 any_flag : List(Bool) -> Bool
 any_flag = |flags| {

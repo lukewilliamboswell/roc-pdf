@@ -60,7 +60,7 @@ Fixture :: [].{
 				"Building C, Kestrel Parade Business Park, 42 Kestrel Parade, off Marine Terrace and Beach Street, opposite the Fremantle Fishing Boat Harbour",
 				"Fremantle, Western Australia 6160, Australia (deliveries by the loading dock on Beach Street only, between 7 am and 3 pm on business days)",
 			],
-			row: |index| if index == 2 Invoice.row_with(index, [Pdf.text(long_description)], Invoice.product_code(index)) else Invoice.item_row(index),
+			row: |index| if (index == 2) Invoice.row_with(index, [Pdf.text(long_description)], Invoice.product_code(index)) else Invoice.item_row(index),
 		}
 		evidence(Invoice.document(config), invoice_options(context)?, long_text_observations)
 	}
@@ -68,7 +68,7 @@ Fixture :: [].{
 	## INV-A2a: a code wider than its content column's share.
 	invoice_wide_code : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	invoice_wide_code = |context| {
-		config = { ..Invoice.ordinary, row: |index| if index == 0 Invoice.row_with(index, Invoice.product_description(index), "HF-DSK-140-TASMANIAN-OAK/L2") else Invoice.item_row(index) }
+		config = { ..Invoice.ordinary, row: |index| if (index == 0) Invoice.row_with(index, Invoice.product_description(index), "HF-DSK-140-TASMANIAN-OAK/L2") else Invoice.item_row(index) }
 		evidence(Invoice.document(config), invoice_options(context)?, wide_code_observations)
 	}
 
@@ -228,7 +228,7 @@ tall_figure = |floor| {
 		drawing: plan.rectangle(Layout.rect(60, 60, 480, 780), slate),
 		alt: "Bar chart of revenue by region, drawn at poster size.",
 		caption: Pdf.caption("Figure 1. Revenue by region, AUD thousands"),
-		fit: if floor == 0 Exact else ScaleToFit({ minimum_percent: floor }),
+		fit: if (floor == 0) Exact else ScaleToFit({ minimum_percent: floor }),
 	})
 }
 
@@ -627,7 +627,7 @@ run_negatives = |guard| {
 	report_faces = report_options(guard)?
 	letter_faces = letter_options(guard)?
 	invoice_with = |config| Invoice.document(config)
-	row_override = |target, replacement| |index| if index == target replacement(index) else Invoice.item_row(index)
+	row_override = |target, replacement| |index| if (index == target) replacement(index) else Invoice.item_row(index)
 	serial = Str.repeat("0123456789abcdef", 8)
 	wide_columns = [
 		{ width: Content, align: Start },
