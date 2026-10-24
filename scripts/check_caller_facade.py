@@ -21,8 +21,8 @@ from check_pdf_structure import ValidationError, dictionary_ref, dictionary_ref_
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SNAPSHOT = ROOT / "tests" / "caller_font" / "caller_facade.pdf"
-UNHINTED_SNAPSHOT = ROOT / "tests" / "caller_font" / "caller_facade_unhinted.pdf"
+SNAPSHOT = ROOT / "tests" / "caller_font_facade" / "caller_facade.pdf"
+UNHINTED_SNAPSHOT = ROOT / "tests" / "caller_font_facade" / "caller_facade_unhinted.pdf"
 HINTING_TABLES = {b"cvt ", b"fpgm", b"gasp", b"prep"}
 ORACLE = ROOT / "tests" / "caller_font" / "oracles.json"
 

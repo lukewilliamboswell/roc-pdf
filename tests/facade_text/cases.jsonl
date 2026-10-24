@@ -1,0 +1,4 @@
+{"name":"text-layout facade text materialization x1000","schema_version":1,"case":{"Materialize":{"repetitions":1000}}}
+{"name":"text-layout facade text materialization x10000","schema_version":1,"case":{"Materialize":{"repetitions":10000}}}
+{"name":"text-layout facade text prepared-input control x1000","schema_version":1,"case":{"Prepare":{"repetitions":1000}}}
+{"name":"text-layout facade text prepared-input control x10000","schema_version":1,"case":{"Prepare":{"repetitions":10000}}}

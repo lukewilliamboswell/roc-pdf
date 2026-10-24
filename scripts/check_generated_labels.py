@@ -18,7 +18,7 @@ from check_pdf_structure import ValidationError, object_slices, require
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SELF_TEST_SNAPSHOT = ROOT / "tests" / "generated_label" / "generated_label.pdf"
+SELF_TEST_SNAPSHOT = ROOT / "tests" / "generated_label_facade" / "generated_label.pdf"
 DIRECT_TEXT = "•First•Second"
 PDFBOX_TEXT = "• First\n• Second\n"
 PDFBOX_METRICS = InkMetrics(bounds=(73, 74, 128, 97), changed_pixels=340, dark_pixels=164, ink=41648)

@@ -12,14 +12,18 @@ Build and run every target through the harness:
 ./scripts/fuzz.py
 ```
 
-That builds each target with `roc build --fuzz` and runs a bounded campaign
-against its seed corpus, failing on a crash, a timeout, or a memory-limit
-breach. `--targets NAME` (repeatable) selects one and `--runs N` lengthens the
-campaign:
+The default `--mode smoke` builds each target with `roc build --fuzz`, replays
+its seed corpus and 64 fixed-seed generated inputs within one second of
+workload, and fails on a crash, a timeout, or a memory-limit breach. Pull
+requests run this. `--mode campaign` is the bounded search (2000 executions per
+target unless `--runs N` says otherwise) that `.github/workflows/fuzz.yml` runs
+daily on the default branch. `--targets NAME` (repeatable) selects one:
 
 ```sh
-./scripts/fuzz.py --targets jpeg_inspector_mutation --runs 200000
+./scripts/fuzz.py --mode campaign --targets jpeg_inspector_mutation --runs 200000
 ```
+
+Failing inputs are saved under `.roc-pdf-tmp/fuzz-artifacts/<target>/`.
 
 `./scripts/test.py` separately applies `roc fmt --check`, `roc check`, and
 `roc test` to every source here, which runs the `expect`s each target retains.

@@ -1,0 +1,6 @@
+{"name":"text-layout built-in face through a registry","schema_version":1,"case":{"BuiltInRegistry":{"context":2}}}
+{"name":"text-layout caller-font facade output","schema_version":1,"case":{"Positive":{"context":2}}}
+{"name":"text-layout caller-font facade restricted-rights atomic negative","schema_version":1,"case":{"RestrictedNegative":{"context":1}}}
+{"name":"text-layout caller-font shared registry retention","schema_version":1,"case":{"SharedRegistry":{"context":2}}}
+{"name":"text-layout caller-font unhinted facade output","schema_version":1,"case":{"Unhinted":{"context":2}}}
+{"name":"text-layout caller-font unique registry retention control","schema_version":1,"case":{"UniqueRegistries":{"context":2}}}

@@ -1,0 +1,6 @@
+{"name":"text-layout built-in TrueType inspection","schema_version":1,"case":{"Font":{"context":0}}}
+{"name":"text-layout caller-font registration","schema_version":1,"case":{"Caller":{"context":0}}}
+{"name":"text-layout deterministic font plan","schema_version":1,"case":{"Plan":{"context":0}}}
+{"name":"text-layout ordered multi-face cluster selection","schema_version":1,"case":{"Multi":{"context":0}}}
+{"name":"text-layout adversarial ordered font selection x1000","schema_version":1,"case":{"Probe":{"clusters":1000,"context":0}}}
+{"name":"text-layout adversarial ordered font selection x10000","schema_version":1,"case":{"Probe":{"clusters":10000,"context":0}}}

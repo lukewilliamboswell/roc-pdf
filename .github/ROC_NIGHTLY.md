@@ -7,12 +7,17 @@ after the upstream 09:00 UTC build. Late publication can wait until the next day
 repository's validation workflows, including their validation-only release paths.
 The controller, its tests, and job permissions are maintained in
 [roc-automation](https://github.com/lukewilliamboswell/roc-automation).
-The caller workflows pin shared code to `20b09cca5b8e68d1a0e56f633e74890840c47f08`.
-Dependabot proposes reviewed updates to Actions/workflow references.
+The caller workflows pin shared code to `7aff4132691ad4fc348abe9df146a57512b49bd6`
+(roc-automation `tools-0.4.0`). Dependabot proposes reviewed updates to
+Actions/workflow references.
 
-Follow the shared [integration and permissions guide](https://github.com/lukewilliamboswell/roc-automation/blob/20b09cca5b8e68d1a0e56f633e74890840c47f08/docs/integration.md)
-for the PR-creation setting, action allowlists, required checks, and first live
-GITHUB_TOKEN run. Keep default token permissions read-only. The updater merges
+Follow the shared [repository settings](https://github.com/lukewilliamboswell/roc-automation/blob/7aff4132691ad4fc348abe9df146a57512b49bd6/docs/settings.adoc)
+for action allowlists at full SHAs, required checks and signed commits. Keep
+default token permissions read-only. Unlike the shared model, which floats the
+package compiler and opens no pull requests, this repository pins the compiler
+because its allocation baselines are exact for one build. The updater therefore
+needs "Allow GitHub Actions to create and approve pull requests" for its
+pin-only PR, and its first live GITHUB_TOKEN run must be verified after merge. The updater merges
 only its signed, pin-only PR after the configured validation workflows succeed
 and the live strict ruleset accepts the exact candidate. It receives no
 protection bypass.
@@ -26,6 +31,6 @@ The shared repository owns the controller regression suite. Project tests remain
 in this repository and run on the exact candidate commit. Scheduled bot-token
 acceptance must be verified after merge; file changes alone cannot prove it.
 
-Use the shared [OpenSSF rollout checklist](https://github.com/lukewilliamboswell/roc-automation/blob/20b09cca5b8e68d1a0e56f633e74890840c47f08/docs/openssf.md)
+Use the shared [project-practice evidence](https://github.com/lukewilliamboswell/roc-automation/blob/7aff4132691ad4fc348abe9df146a57512b49bd6/docs/project-practices.adoc)
 to record project-specific evidence. This integration does not establish badge
 compliance or change repository settings.

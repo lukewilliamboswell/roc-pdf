@@ -1,0 +1,2 @@
+{"name":"tagged-visual minimal tagged visual PDF","schema_version":1,"case":{"Minimal":{"context":0}}}
+{"name":"tagged-visual million-command image reuse","schema_version":1,"case":{"CommandStress":{"command_count":1000000,"phase":0}}}

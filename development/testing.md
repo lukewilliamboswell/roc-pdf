@@ -15,9 +15,19 @@ ROC=/path/to/roc ./scripts/test.py --jobs 8 --verbose
 
 The driver applies `roc fmt --check` to the validation inventory in
 `tests/spec.json`, type-checks every root in it and runs every `expect`, builds
-each distinct fixture app once, and executes independent evidence cases in
-parallel. Fixture builds also obey `toolchain.max_build_workers` to avoid
-memory pressure. Logs are written under `.roc-pdf-tmp/logs/`.
+each fixture group application once (see [Family fixtures and fixture
+groups](#family-fixtures-and-fixture-groups)), and executes independent
+evidence cases in parallel, one process per case. Fixture builds obey
+`toolchain.max_build_workers` and run as many at once as available memory
+allows at 7 GB each; validation tasks share a memory budget of 4 GB per root
+and 6 GB per group application. Logs are written under `.roc-pdf-tmp/logs/`.
+
+To iterate on one group or case without the preflight and validation phases:
+
+```sh
+./scripts/test.py --quick --group layout
+./scripts/test.py --quick --case "tables invoice x50" --compare-baselines
+```
 
 The Zig build installs the ordinary host into `tests/platform/targets/`
 and the retention host into `tests/retention_platform/targets/`. It also
@@ -34,8 +44,11 @@ root exactly one compiler invocation (`plan_validation` in `scripts/test.py`):
 - An application root's `roc test` would re-run every package `expect` too,
   so application roots are tested only for the expects in their own file and
   in the same-directory modules they import: every root whose own file has
-  expects is tested, then, per directory (family), the fewest roots whose
-  local import closures reach the remaining expect-bearing modules.
+  expects is tested, then, per directory, the fewest roots whose local import
+  closures reach the remaining expect-bearing modules. A group application's
+  closure also follows its package edges into its family packages, whose
+  expects its `roc test` runs; the families' own `package.roc` files are not
+  roots.
 - `roc test` and `roc build` report the same errors and warnings as `roc
   check`, with the same exit codes, so a tested root is not also checked, and
   a fixture root that no test needs is checked by its evidence build.
@@ -47,8 +60,9 @@ expects in ...)`, `PLAN check <root>`, `PLAN <root>: checked by its fixture
 build`). A failing `expect` names its own file and line, and the driver adds
 the test root and every module that root covers. A new expect-bearing module
 needs no registration, but it is only run if some root imports it: a module
-that no root reaches is not tested (`tests/shaping/GsubFixture.roc` is
-currently such a module). See `development/performance/test-suite-speed.md` for the
+that no root reaches is not tested. (`tests/shaping/GsubFixture.roc` was such
+a module until the shaping family's package made it part of the `core` group's
+closure.) See `development/performance/test-suite-speed.md` for the
 measurements.
 
 Integration cases use the dev backend and require exact PDF snapshots,
@@ -142,20 +156,39 @@ The bounded property targets in `fuzz/` are evidence-only applications on the
 content-addressed `roc-fuzz` platform. `./scripts/test.py` formats every
 `fuzz/*.roc` source, checks every target, and tests the fewest targets that
 reach every helper module's `expect`s, which run against the committed corpus. Compiling a target
-proves nothing about its property, so a separate lane executes each one:
+proves nothing about its property, so a separate lane executes each one. It
+has two modes.
+
+The smoke mode is the default and is what every pull request runs:
 
 ```sh
-./scripts/fuzz.py
+./scripts/fuzz.py            # or: blueprint run fuzz
 ```
 
-That builds every target with `roc build --fuzz` for libFuzzer coverage
-instrumentation and runs a bounded campaign against its seed corpus. A crash, a
-timeout, or a memory-limit breach fails the run. Use `--targets NAME`
-(repeatable) to select one, and `--runs N` for a longer local campaign:
+It builds every target with `roc build --fuzz` for libFuzzer coverage
+instrumentation, then replays the target's seed corpus and 64 further inputs
+from a fixed seed, with `--time=1` capping the workload at one second per
+target. Targets build in parallel (`--jobs`, by default as many 6 GB builds as
+memory allows) and run one at a time. Its purpose is that every target keeps building and its property keeps
+executing between campaigns; it makes no claim about search coverage.
+
+The campaign mode is the bounded search, 2000 executions per target by default:
 
 ```sh
-./scripts/fuzz.py --targets jpeg_inspector_mutation --runs 200000
+./scripts/fuzz.py --mode campaign                        # or: blueprint run fuzz-campaign
+./scripts/fuzz.py --mode campaign --targets jpeg_inspector_mutation --runs 200000
 ```
+
+Pull requests run the smoke mode in the `Fuzz smoke` job of `ci.yml`, beside
+the test job. `.github/workflows/fuzz.yml` runs the campaign daily and on manual dispatch, on the
+default branch only; it never runs on a pull request.
+
+In both modes a crash, a per-input timeout (`--timeout`, 10 s), a memory-limit
+breach (`--memory-limit`, 2048 MB), or a target still running at the hard
+deadline (60 s for a smoke run, 30 min for a campaign target) fails the lane.
+Every selected target still runs, and each target's failing inputs are written
+to `.roc-pdf-tmp/fuzz-artifacts/<target>/`, which `fuzz.yml` uploads when the
+campaign fails. Reproduce one with `.roc-pdf-tmp/fuzz/<target> replay <input>`.
 
 Seed corpora are copied into the ignored `.roc-pdf-tmp/fuzz-corpus/` before a
 run, because libFuzzer writes newly interesting inputs back into the directory
@@ -173,29 +206,70 @@ Minimized reproductions are retained as `fuzz_seed` assets under `tests/assets/`
 with provenance, and promoted to atomic regression tests beside the code they
 exercise.
 
-## Family fixtures
+## Family fixtures and fixture groups
 
-Related runtime cases share one directory containing `main.roc`, `Fixture.roc`,
-and a deterministically ordered `cases.jsonl`. Each schema-version-1 JSONL row
-has exactly `name`, `schema_version`, and `case`. The `case` value is decoded by
-`Json.parse` into a closed, family-specific Roc tag union; malformed or unknown
-cases fail explicitly.
+Every evidence case belongs to a case family. The only exception is the
+retention probe, which runs on its own platform. A family is a local package
+in its own directory under `tests/`:
+
+- `package.roc` exposes `Cases`. Public-surface families depend on
+  `package/main.roc` and internal evidence families on `package/all.roc`;
+  one directory, and one program, never mixes the two.
+- `Cases.roc` holds the family's closed `Case` tag union and its `run`
+  dispatch.
+- `cases.jsonl` is a deterministically ordered file. Each schema-version-1
+  row has exactly `name`, `schema_version`, and `case`.
+- `Fixture.roc` and any other modules hold the shared scenario pipeline.
+
+Families run in fixture groups. `tests/groups/<group>.roc` is generated from
+`tests/spec.json`, and the driver refuses a stale or unlisted copy. It
+decodes one argv envelope,
+`{"case":{"<FamilyTag>":<row case>},"schema_version":2}`, into the union of
+its families' `Case` types and checks that it round-trips canonically.
+Malformed or unknown cases fail explicitly. It then resets the allocation
+counters and calls the family's `run`. The family tag is the PascalCase of
+the family name. Each case still runs in its own process. The harness
+builds each group once.
 
 To add a family case:
 
-1. Add its typed case tag and fields to `main.roc` and implement the scenario
-   through the shared fixture pipeline.
+1. Add its typed case tag and fields to the family's `Cases.roc` and
+   implement the scenario through the shared fixture pipeline. Pass runtime
+   guards as typed fields (for example `context : U64`). A payload-less
+   case, or a constant computed in a `match` arm, can be evaluated at
+   compile time and measure nothing. A JSON-decoded `Str` field does not
+   allocate like an argv string; see
+   [fixture grouping](performance/fixture-grouping.md).
 2. Add one ordered row to `cases.jsonl`.
-3. Add the matching case to `tests/spec.json`, including its snapshot,
+3. Add the matching case to `tests/spec.json` with its `family`, snapshot,
    dimensions, work counters, allocation baseline, retention contract, and
-   ordered `validators` list.
-4. For a new family, register its root and JSONL file in the top-level
-   `families` list.
+   ordered `validators` list. The snapshot lives in the family directory.
 
-The harness requires a one-to-one match between JSONL rows and spec cases,
-passes only `schema_version` and `case` to Roc, builds the family root once,
-and reuses that executable for every row. Public-surface fixtures import
-`package/main.roc`; internal evidence fixtures import `package/all.roc`.
+To add a family:
+
+1. Create `tests/<family>/package.roc`, `Cases.roc` and `cases.jsonl`.
+2. Add `{"name": "<family>", "group": "<group>"}` to `families`.
+3. Run `./scripts/test.py --write-groups`.
+4. Keep each group's build under 7 GB peak RSS. Facade families cost 5 to
+   6 GB alone and kernel families 2.5 to 3 GB. Check with
+   `/usr/bin/time -v roc build tests/groups/<group>.roc --opt=dev --no-cache`.
+
+Before landing a change to group membership, run the equivalence modes on
+the affected groups from an empty `XDG_CACHE_HOME`. Each must report no
+exact difference:
+
+```sh
+./scripts/test.py --quick --group <group> --compare-baselines --baseline-report group.json
+./scripts/test.py --quick --group <group> --isolate --compare-baselines --baseline-report isolate.json
+./scripts/test.py --quick --group <group> --group-mode perturb --compare-baselines --jobs 2
+./scripts/test.py --quick --group <group> --group-mode inject --compare-baselines
+```
+
+`--group-mode inject` must pass with exactly one extra allocation in every
+grouped case. `./scripts/test.py --list-groups` lists the groups and their
+families.
+
+The harness requires a one-to-one match between JSONL rows and spec cases.
 
 Validator, preflight, and post-update IDs are resolved through the allowlisted
 registry in `scripts/harness_validators.py`. Unknown or duplicate IDs are

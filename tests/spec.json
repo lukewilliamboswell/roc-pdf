@@ -1,5 +1,5 @@
 {
-  "schema_version": 6,
+  "schema_version": 7,
   "protocol_version": 2,
   "preflight_checks": [
     "contracts",
@@ -113,6 +113,14 @@
           "test"
         ],
         "reason": "Shared evidence modules are compiled through adjacent application roots that provide package aliases and a platform."
+      },
+      {
+        "pattern": "tests/*/package.roc",
+        "actions": [
+          "check",
+          "test"
+        ],
+        "reason": "A family package is checked, and its expects run, through its fixture group application."
       }
     ]
   },
@@ -122,123 +130,257 @@
     "zig_optimization": "ReleaseFast",
     "max_build_workers": 4
   },
+  "groups": [
+    {
+      "name": "core"
+    },
+    {
+      "name": "documents"
+    },
+    {
+      "name": "interactive"
+    },
+    {
+      "name": "kernel"
+    },
+    {
+      "name": "layout"
+    },
+    {
+      "name": "pages"
+    },
+    {
+      "name": "public"
+    },
+    {
+      "name": "public_fonts"
+    },
+    {
+      "name": "public_output"
+    },
+    {
+      "name": "structure"
+    },
+    {
+      "name": "text"
+    }
+  ],
   "families": [
     {
-      "source": "tests/forms/main.roc",
-      "cases_jsonl": "tests/forms/cases.jsonl"
+      "name": "forms",
+      "group": "interactive"
     },
     {
-      "source": "tests/soft_masks/main.roc",
-      "cases_jsonl": "tests/soft_masks/cases.jsonl"
+      "name": "soft_masks",
+      "group": "core"
     },
     {
-      "source": "tests/color_images/main.roc",
-      "cases_jsonl": "tests/color_images/cases.jsonl"
+      "name": "color_images",
+      "group": "core"
     },
     {
-      "source": "tests/resource_graph/main.roc",
-      "cases_jsonl": "tests/resource_graph/cases.jsonl"
+      "name": "resource_graph",
+      "group": "kernel"
     },
     {
-      "source": "tests/shading_patterns/main.roc",
-      "cases_jsonl": "tests/shading_patterns/cases.jsonl"
+      "name": "shading_patterns",
+      "group": "core"
     },
     {
-      "source": "tests/transparency/main.roc",
-      "cases_jsonl": "tests/transparency/cases.jsonl"
+      "name": "transparency",
+      "group": "core"
     },
     {
-      "source": "tests/metadata/main.roc",
-      "cases_jsonl": "tests/metadata/cases.jsonl"
+      "name": "metadata",
+      "group": "interactive"
     },
     {
-      "source": "tests/navigation/main.roc",
-      "cases_jsonl": "tests/navigation/cases.jsonl"
+      "name": "navigation",
+      "group": "structure"
     },
     {
-      "source": "tests/actual_text/main.roc",
-      "cases_jsonl": "tests/actual_text/cases.jsonl"
+      "name": "actual_text",
+      "group": "structure"
     },
     {
-      "source": "tests/facade_output/main.roc",
-      "cases_jsonl": "tests/facade_output/cases.jsonl"
+      "name": "facade_output",
+      "group": "structure"
     },
     {
-      "source": "tests/unicode_vectors/main.roc",
-      "cases_jsonl": "tests/unicode_vectors/cases.jsonl"
+      "name": "unicode_vectors",
+      "group": "kernel"
     },
     {
-      "source": "tests/structural_kernel/main.roc",
-      "cases_jsonl": "tests/structural_kernel/cases.jsonl"
+      "name": "structural_kernel",
+      "group": "kernel"
     },
     {
-      "source": "tests/containers/main.roc",
-      "cases_jsonl": "tests/containers/cases.jsonl"
+      "name": "containers",
+      "group": "kernel"
     },
     {
-      "source": "tests/rich_inline/main.roc",
-      "cases_jsonl": "tests/rich_inline/cases.jsonl"
+      "name": "rich_inline",
+      "group": "text"
     },
     {
-      "source": "tests/layout_policies/main.roc",
-      "cases_jsonl": "tests/layout_policies/cases.jsonl"
+      "name": "layout_policies",
+      "group": "layout"
     },
     {
-      "source": "tests/tables/main.roc",
-      "cases_jsonl": "tests/tables/cases.jsonl"
+      "name": "tables",
+      "group": "layout"
     },
     {
-      "source": "tests/page_templates/main.roc",
-      "cases_jsonl": "tests/page_templates/cases.jsonl"
+      "name": "page_templates",
+      "group": "pages"
     },
     {
-      "source": "tests/flow_figures/main.roc",
-      "cases_jsonl": "tests/flow_figures/cases.jsonl"
+      "name": "flow_figures",
+      "group": "layout"
     },
     {
-      "source": "tests/custom_block/main.roc",
-      "cases_jsonl": "tests/custom_block/cases.jsonl"
+      "name": "custom_block",
+      "group": "layout"
     },
     {
-      "source": "tests/reference_documents/main.roc",
-      "cases_jsonl": "tests/reference_documents/cases.jsonl"
+      "name": "reference_documents",
+      "group": "documents"
     },
     {
-      "source": "tests/source_text/main.roc",
-      "cases_jsonl": "tests/source_text/cases.jsonl"
+      "name": "source_text",
+      "group": "kernel"
     },
     {
-      "source": "tests/source_blocks/main.roc",
-      "cases_jsonl": "tests/source_blocks/cases.jsonl"
+      "name": "source_blocks",
+      "group": "text"
     },
     {
-      "source": "tests/reference_layout/main.roc",
-      "cases_jsonl": "tests/reference_layout/cases.jsonl"
+      "name": "reference_layout",
+      "group": "kernel"
     },
     {
-      "source": "tests/technical_manual/main.roc",
-      "cases_jsonl": "tests/technical_manual/cases.jsonl"
+      "name": "technical_manual",
+      "group": "documents"
     },
     {
-      "source": "tests/rich_flow/main.roc",
-      "cases_jsonl": "tests/rich_flow/cases.jsonl"
+      "name": "rich_flow",
+      "group": "documents"
     },
     {
-      "source": "tests/destination_references/main.roc",
-      "cases_jsonl": "tests/destination_references/cases.jsonl"
+      "name": "destination_references",
+      "group": "pages"
     },
     {
-      "source": "tests/vector_diagrams/main.roc",
-      "cases_jsonl": "tests/vector_diagrams/cases.jsonl"
+      "name": "vector_diagrams",
+      "group": "public"
+    },
+    {
+      "name": "archive",
+      "group": "public"
+    },
+    {
+      "name": "structural_blank",
+      "group": "public"
+    },
+    {
+      "name": "generated_label_facade",
+      "group": "public"
+    },
+    {
+      "name": "caller_font_facade",
+      "group": "public_fonts"
+    },
+    {
+      "name": "multiface_facade",
+      "group": "public_fonts"
+    },
+    {
+      "name": "pdf_facade",
+      "group": "public_output"
+    },
+    {
+      "name": "metadata_facade",
+      "group": "public_output"
+    },
+    {
+      "name": "navigation_facade",
+      "group": "public_output"
+    },
+    {
+      "name": "font",
+      "group": "core"
+    },
+    {
+      "name": "font_subsetting",
+      "group": "core"
+    },
+    {
+      "name": "pdf_font",
+      "group": "core"
+    },
+    {
+      "name": "shaping",
+      "group": "core"
+    },
+    {
+      "name": "bidi",
+      "group": "core"
+    },
+    {
+      "name": "unicode_analysis",
+      "group": "core"
+    },
+    {
+      "name": "visible_text",
+      "group": "core"
+    },
+    {
+      "name": "caller_font",
+      "group": "core"
+    },
+    {
+      "name": "facade_fragments",
+      "group": "core"
+    },
+    {
+      "name": "facade_scenes",
+      "group": "core"
+    },
+    {
+      "name": "facade_text",
+      "group": "core"
+    },
+    {
+      "name": "form_text",
+      "group": "core"
+    },
+    {
+      "name": "authoring",
+      "group": "core"
+    },
+    {
+      "name": "font_leaves",
+      "group": "core"
+    },
+    {
+      "name": "placeholder",
+      "group": "core"
+    },
+    {
+      "name": "tagged_visual",
+      "group": "core"
+    },
+    {
+      "name": "generated_label",
+      "group": "core"
     }
   ],
   "cases": [
     {
       "name": "text-layout selected external discretionary-hyphen extraction",
       "scenario_revision": "external-discretionary-hyphen-v1-explicit-selection",
-      "source": "tests/actual_text/main.roc",
+      "family": "actual_text",
       "snapshot": "tests/actual_text/external_discretionary_hyphen.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -303,9 +445,8 @@
     {
       "name": "structural-kernel blank PDF",
       "scenario_revision": "blank-v1",
-      "source": "tests/structural_kernel/blank.roc",
-      "snapshot": "tests/structural_kernel/blank.pdf",
-      "args": [],
+      "family": "structural_blank",
+      "snapshot": "tests/structural_blank/blank.pdf",
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -342,11 +483,8 @@
     {
       "name": "structural-kernel balanced 4096-page PDF",
       "scenario_revision": "pages-v2",
-      "source": "tests/structural_kernel/main.roc",
+      "family": "structural_kernel",
       "snapshot": "tests/structural_kernel/pages.pdf",
-      "args": [
-        "stress"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4096
@@ -402,12 +540,8 @@
     {
       "name": "structural-kernel balanced index plans",
       "scenario_revision": "indexes-v1",
-      "source": "tests/structural_kernel/main.roc",
+      "family": "structural_kernel",
       "snapshot": "tests/structural_kernel/pages.pdf",
-      "args": [
-        "indexes",
-        "4096"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4096,
@@ -465,12 +599,8 @@
     {
       "name": "structural-kernel linked outline plan",
       "scenario_revision": "outline-v1",
-      "source": "tests/structural_kernel/main.roc",
+      "family": "structural_kernel",
       "snapshot": "tests/structural_kernel/pages.pdf",
-      "args": [
-        "outlines",
-        "4096"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4096,
@@ -543,12 +673,8 @@
     {
       "name": "structural-kernel stable resource names",
       "scenario_revision": "resource-names-v1",
-      "source": "tests/structural_kernel/main.roc",
+      "family": "structural_kernel",
       "snapshot": "tests/structural_kernel/pages.pdf",
-      "args": [
-        "resources",
-        "4096"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4096,
@@ -605,12 +731,8 @@
     {
       "name": "structural-kernel bulk lexical values x2048",
       "scenario_revision": "lexical-v1",
-      "source": "tests/structural_kernel/main.roc",
+      "family": "structural_kernel",
       "snapshot": "tests/structural_kernel/pages.pdf",
-      "args": [
-        "lexical",
-        "2048"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4096,
@@ -661,12 +783,8 @@
     {
       "name": "structural-kernel bulk lexical values x4096",
       "scenario_revision": "lexical-v1",
-      "source": "tests/structural_kernel/main.roc",
+      "family": "structural_kernel",
       "snapshot": "tests/structural_kernel/pages.pdf",
-      "args": [
-        "lexical",
-        "4096"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4096,
@@ -717,11 +835,8 @@
     {
       "name": "structural-kernel one-block dynamic DEFLATE",
       "scenario_revision": "deflate-one-block-v1",
-      "source": "tests/structural_kernel/main.roc",
+      "family": "structural_kernel",
       "snapshot": "tests/structural_kernel/deflate_one_block.pdf",
-      "args": [
-        "65535"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -775,11 +890,8 @@
     {
       "name": "structural-kernel stateful dynamic DEFLATE",
       "scenario_revision": "deflate-v1",
-      "source": "tests/structural_kernel/main.roc",
+      "family": "structural_kernel",
       "snapshot": "tests/structural_kernel/deflate.pdf",
-      "args": [
-        "262144"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -833,9 +945,8 @@
     {
       "name": "placeholder PDF x1",
       "scenario_revision": "placeholder-v1",
-      "source": "tests/placeholder/main.roc",
+      "family": "placeholder",
       "snapshot": "tests/placeholder/snapshot.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "passes": 1
@@ -868,11 +979,8 @@
     {
       "name": "placeholder PDF x4",
       "scenario_revision": "placeholder-v1",
-      "source": "tests/placeholder/main.roc",
+      "family": "placeholder",
       "snapshot": "tests/placeholder/snapshot.pdf",
-      "args": [
-        "scale"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "passes": 4
@@ -905,9 +1013,8 @@
     {
       "name": "tagged-visual minimal tagged visual PDF",
       "scenario_revision": "minimal-tagged-visual-v2-contextual-artifact",
-      "source": "tests/tagged_visual/minimal.roc",
+      "family": "tagged_visual",
       "snapshot": "tests/tagged_visual/minimal.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -949,11 +1056,8 @@
     {
       "name": "tagged-visual million-command image reuse",
       "scenario_revision": "million-command-v1",
-      "source": "tests/tagged_visual/command_stress.roc",
+      "family": "tagged_visual",
       "snapshot": "tests/tagged_visual/stress.pdf",
-      "args": [
-        "1000000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -1027,12 +1131,8 @@
     {
       "name": "text-layout simple-list authoring normalization x1000",
       "scenario_revision": "authoring-normalization-v1",
-      "source": "tests/authoring/authoring.roc",
+      "family": "authoring",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "simple",
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -1091,12 +1191,8 @@
     {
       "name": "text-layout compact-builder authoring normalization x1000",
       "scenario_revision": "authoring-normalization-v1",
-      "source": "tests/authoring/authoring.roc",
+      "family": "authoring",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "builder",
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -1155,12 +1251,8 @@
     {
       "name": "text-layout simple-list authoring normalization x10000",
       "scenario_revision": "authoring-normalization-v1",
-      "source": "tests/authoring/authoring.roc",
+      "family": "authoring",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "simple",
-        "10000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -1219,12 +1311,8 @@
     {
       "name": "text-layout compact-builder authoring normalization x10000",
       "scenario_revision": "authoring-normalization-v1",
-      "source": "tests/authoring/authoring.roc",
+      "family": "authoring",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "builder",
-        "10000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -1283,12 +1371,8 @@
     {
       "name": "text-layout shaped-cluster line selection x1000",
       "scenario_revision": "line-layout-v1",
-      "source": "tests/authoring/authoring.roc",
+      "family": "authoring",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "layout",
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -1350,12 +1434,8 @@
     {
       "name": "text-layout shaped-cluster line selection x10000",
       "scenario_revision": "line-layout-v1",
-      "source": "tests/authoring/authoring.roc",
+      "family": "authoring",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "layout",
-        "10000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -1417,12 +1497,8 @@
     {
       "name": "text-layout single-column pagination x1000",
       "scenario_revision": "page-layout-v1",
-      "source": "tests/authoring/authoring.roc",
+      "family": "authoring",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "pages",
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "authoring_blocks": 1000,
@@ -1481,12 +1557,8 @@
     {
       "name": "text-layout single-column pagination x10000",
       "scenario_revision": "page-layout-v1",
-      "source": "tests/authoring/authoring.roc",
+      "family": "authoring",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "pages",
-        "10000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "authoring_blocks": 10000,
@@ -1545,12 +1617,8 @@
     {
       "name": "text-layout shared facade source cache x1000",
       "scenario_revision": "facade-source-cache-v1",
-      "source": "tests/authoring/authoring.roc",
+      "family": "authoring",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "source-shared",
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "input_sources": 1000,
@@ -1613,12 +1681,8 @@
     {
       "name": "text-layout shared facade source cache x10000",
       "scenario_revision": "facade-source-cache-v1",
-      "source": "tests/authoring/authoring.roc",
+      "family": "authoring",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "source-shared",
-        "10000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "input_sources": 10000,
@@ -1681,12 +1745,8 @@
     {
       "name": "text-layout unique facade source cache x1000",
       "scenario_revision": "facade-source-cache-v1",
-      "source": "tests/authoring/authoring.roc",
+      "family": "authoring",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "source-unique",
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "input_sources": 1000,
@@ -1749,12 +1809,8 @@
     {
       "name": "text-layout unique facade source cache x10000",
       "scenario_revision": "facade-source-cache-v1",
-      "source": "tests/authoring/authoring.roc",
+      "family": "authoring",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "source-unique",
-        "10000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "input_sources": 10000,
@@ -1817,12 +1873,8 @@
     {
       "name": "text-layout facade semantic planning x1000",
       "scenario_revision": "facade-semantic-planning-v1",
-      "source": "tests/authoring/authoring.roc",
+      "family": "authoring",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "semantics",
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -1908,12 +1960,8 @@
     {
       "name": "text-layout facade semantic planning x10000",
       "scenario_revision": "facade-semantic-planning-v1",
-      "source": "tests/authoring/authoring.roc",
+      "family": "authoring",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "semantics",
-        "10000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -1999,12 +2047,8 @@
     {
       "name": "text-layout facade batch shaping x1000",
       "scenario_revision": "facade-batch-shaping-v1",
-      "source": "tests/authoring/authoring.roc",
+      "family": "authoring",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "shape",
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -2082,12 +2126,8 @@
     {
       "name": "text-layout facade batch shaping x10000",
       "scenario_revision": "facade-batch-shaping-v1",
-      "source": "tests/authoring/authoring.roc",
+      "family": "authoring",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "shape",
-        "10000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -2165,12 +2205,8 @@
     {
       "name": "text-layout facade cached line layout x1000",
       "scenario_revision": "facade-cached-line-layout-v1",
-      "source": "tests/authoring/authoring.roc",
+      "family": "authoring",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "lines",
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -2254,12 +2290,8 @@
     {
       "name": "text-layout facade cached line layout x10000",
       "scenario_revision": "facade-cached-line-layout-v1",
-      "source": "tests/authoring/authoring.roc",
+      "family": "authoring",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "lines",
-        "10000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -2343,12 +2375,8 @@
     {
       "name": "text-layout facade row pagination x1000",
       "scenario_revision": "facade-row-pagination-v1",
-      "source": "tests/authoring/authoring.roc",
+      "family": "authoring",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "paginate",
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -2418,12 +2446,8 @@
     {
       "name": "text-layout facade row pagination x10000",
       "scenario_revision": "facade-row-pagination-v1",
-      "source": "tests/authoring/authoring.roc",
+      "family": "authoring",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "paginate",
-        "10000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -2493,11 +2517,8 @@
     {
       "name": "text-layout built-in TrueType inspection",
       "scenario_revision": "font-inspection-v2",
-      "source": "tests/font/font.roc",
+      "family": "font",
       "snapshot": "tests/font/font.pdf",
-      "args": [
-        "font"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "component_edges": 1713,
@@ -2563,11 +2584,8 @@
     {
       "name": "text-layout caller-font registration",
       "scenario_revision": "caller-font-registration-v1",
-      "source": "tests/font/font.roc",
+      "family": "font",
       "snapshot": "tests/font/font.pdf",
-      "args": [
-        "caller"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "font_bytes": 7816,
@@ -2645,11 +2663,8 @@
     {
       "name": "text-layout Unicode analysis x1000",
       "scenario_revision": "unicode-analysis-v1",
-      "source": "tests/unicode_analysis/unicode.roc",
+      "family": "unicode_analysis",
       "snapshot": "tests/unicode_analysis/unicode.pdf",
-      "args": [
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "unicode_version_major": 17,
@@ -2696,9 +2711,8 @@
     {
       "name": "text-layout UAX boundary seam vectors",
       "scenario_revision": "uax14-r55-uax29-r47-seam-v1",
-      "source": "tests/unicode_vectors/main.roc",
+      "family": "unicode_vectors",
       "snapshot": "tests/unicode_vectors/unicode_vectors.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -2783,9 +2797,8 @@
     {
       "name": "text-layout UAX boundary atomic limits",
       "scenario_revision": "uax14-r55-uax29-r47-atomic-limits-v1",
-      "source": "tests/unicode_vectors/main.roc",
+      "family": "unicode_vectors",
       "snapshot": "tests/unicode_vectors/unicode_vectors_negative.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -2821,9 +2834,8 @@
     {
       "name": "text-layout UAX 9 conformance vectors",
       "scenario_revision": "uax9-r51-normative-vectors-v1",
-      "source": "tests/bidi/bidi.roc",
+      "family": "bidi",
       "snapshot": "tests/bidi/bidi.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -2881,11 +2893,8 @@
     {
       "name": "text-layout deterministic font plan",
       "scenario_revision": "font-plan-v1",
-      "source": "tests/font/font.roc",
+      "family": "font",
       "snapshot": "tests/font/font.pdf",
-      "args": [
-        "plan"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "component_edges": 1713,
@@ -2951,11 +2960,8 @@
     {
       "name": "text-layout ordered multi-face cluster selection",
       "scenario_revision": "ordered-multiface-selection-v1",
-      "source": "tests/font/font.roc",
+      "family": "font",
       "snapshot": "tests/font/font.pdf",
-      "args": [
-        "multi"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "atomic_negatives": 4,
@@ -3027,11 +3033,8 @@
     {
       "name": "text-layout Unicode analysis x10000",
       "scenario_revision": "unicode-analysis-v1",
-      "source": "tests/unicode_analysis/unicode.roc",
+      "family": "unicode_analysis",
       "snapshot": "tests/unicode_analysis/unicode.pdf",
-      "args": [
-        "10000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "unicode_version_major": 17,
@@ -3078,11 +3081,8 @@
     {
       "name": "text-layout sanitized TrueType subset",
       "scenario_revision": "font-subset-v1",
-      "source": "tests/font_subsetting/subset.roc",
+      "family": "font_subsetting",
       "snapshot": "tests/font_subsetting/subset.pdf",
-      "args": [
-        "subset"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "font_bytes": 166300,
@@ -3150,11 +3150,8 @@
     {
       "name": "text-layout simple and advanced shaping",
       "scenario_revision": "shaping-v1",
-      "source": "tests/shaping/shape.roc",
+      "family": "shaping",
       "snapshot": "tests/shaping/shape.pdf",
-      "args": [
-        "shape"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "advanced_glyphs": 1,
@@ -3250,11 +3247,8 @@
     {
       "name": "text-layout Type 0 PDF font objects",
       "scenario_revision": "pdf-font-objects-v1",
-      "source": "tests/pdf_font/pdf_font.roc",
+      "family": "pdf_font",
       "snapshot": "tests/pdf_font/pdf_font.pdf",
-      "args": [
-        "objects"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "font_bytes": 166300,
@@ -3350,11 +3344,8 @@
     {
       "name": "text-layout visible searchable text",
       "scenario_revision": "visible-text-v5-tagged-scene-content",
-      "source": "tests/visible_text/text.roc",
+      "family": "visible_text",
       "snapshot": "tests/visible_text/text.pdf",
-      "args": [
-        "visible"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -3564,12 +3555,8 @@
     {
       "name": "text-layout authored facade output",
       "scenario_revision": "facade-output-v2-real-authoring",
-      "source": "tests/facade_output/main.roc",
+      "family": "facade_output",
       "snapshot": "tests/facade_output/facade_output.pdf",
-      "args": [
-        "visible",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -3655,11 +3642,8 @@
     {
       "name": "text-layout authored facade output atomic negative",
       "scenario_revision": "facade-output-v2-real-authoring",
-      "source": "tests/facade_output/main.roc",
+      "family": "facade_output",
       "snapshot": "tests/facade_output/facade_output_negative.pdf",
-      "args": [
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -3697,11 +3681,8 @@
     {
       "name": "text-layout caller-font facade output",
       "scenario_revision": "caller-font-facade-v2-public-evidence",
-      "source": "tests/caller_font/caller_facade.roc",
-      "snapshot": "tests/caller_font/caller_facade.pdf",
-      "args": [
-        "positive"
-      ],
+      "family": "caller_font_facade",
+      "snapshot": "tests/caller_font_facade/caller_facade.pdf",
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -3778,9 +3759,8 @@
     {
       "name": "text-layout caller-font facade restricted-rights atomic negative",
       "scenario_revision": "caller-font-facade-v2-public-evidence",
-      "source": "tests/caller_font/caller_facade_negative.roc",
-      "snapshot": "tests/caller_font/caller_facade_negative.pdf",
-      "args": [],
+      "family": "caller_font_facade",
+      "snapshot": "tests/caller_font_facade/caller_facade_negative.pdf",
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "caller_font_restricted": 1,
@@ -3815,11 +3795,8 @@
     {
       "name": "text-layout caller-font unhinted facade output",
       "scenario_revision": "caller-font-unhinted-v1",
-      "source": "tests/caller_font/caller_facade.roc",
-      "snapshot": "tests/caller_font/caller_facade_unhinted.pdf",
-      "args": [
-        "unhinted"
-      ],
+      "family": "caller_font_facade",
+      "snapshot": "tests/caller_font_facade/caller_facade_unhinted.pdf",
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -3871,11 +3848,8 @@
     {
       "name": "text-layout built-in face through a registry",
       "scenario_revision": "built-in-registry-v1",
-      "source": "tests/caller_font/caller_facade.roc",
-      "snapshot": "tests/caller_font/built_in_registry.pdf",
-      "args": [
-        "built-in-registry"
-      ],
+      "family": "caller_font_facade",
+      "snapshot": "tests/caller_font_facade/built_in_registry.pdf",
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -3925,11 +3899,8 @@
     {
       "name": "text-layout caller-font shared registry retention",
       "scenario_revision": "caller-font-shared-registry-v1",
-      "source": "tests/caller_font/caller_facade.roc",
-      "snapshot": "tests/caller_font/caller_facade.pdf",
-      "args": [
-        "shared-registry"
-      ],
+      "family": "caller_font_facade",
+      "snapshot": "tests/caller_font_facade/caller_facade.pdf",
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -4010,11 +3981,8 @@
     {
       "name": "text-layout caller-font unique registry retention control",
       "scenario_revision": "caller-font-shared-registry-v1",
-      "source": "tests/caller_font/caller_facade.roc",
-      "snapshot": "tests/caller_font/caller_facade.pdf",
-      "args": [
-        "unique-registries"
-      ],
+      "family": "caller_font_facade",
+      "snapshot": "tests/caller_font_facade/caller_facade.pdf",
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -4102,11 +4070,8 @@
     {
       "name": "text-layout public built-in Pdf facade output",
       "scenario_revision": "public-pdf-facade-v1",
-      "source": "tests/pdf_facade/pdf_facade.roc",
+      "family": "pdf_facade",
       "snapshot": "tests/pdf_facade/pdf_facade.pdf",
-      "args": [
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -4143,11 +4108,8 @@
     {
       "name": "text-layout public image-figure facade output",
       "scenario_revision": "public-image-figure-v1",
-      "source": "tests/pdf_facade/image_figure.roc",
+      "family": "pdf_facade",
       "snapshot": "tests/pdf_facade/image_figure.pdf",
-      "args": [
-        "image"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -4189,12 +4151,8 @@
     {
       "name": "text-layout chunked facade output shared resources",
       "scenario_revision": "chunked-facade-v2-compression-choice",
-      "source": "tests/pdf_facade/pdf_facade_chunks.roc",
+      "family": "pdf_facade",
       "snapshot": "tests/pdf_facade/pdf_facade_chunks.pdf",
-      "args": [
-        "share",
-        "balanced"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -4244,12 +4202,8 @@
     {
       "name": "text-layout chunked facade output shared resources smallest compression",
       "scenario_revision": "chunked-facade-v2-compression-choice",
-      "source": "tests/pdf_facade/pdf_facade_chunks.roc",
+      "family": "pdf_facade",
       "snapshot": "tests/pdf_facade/pdf_facade_chunks_smallest.pdf",
-      "args": [
-        "share",
-        "smallest"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -4299,12 +4253,8 @@
     {
       "name": "text-layout chunked facade output shared resources fastest compression",
       "scenario_revision": "chunked-facade-v2-compression-choice",
-      "source": "tests/pdf_facade/pdf_facade_chunks.roc",
+      "family": "pdf_facade",
       "snapshot": "tests/pdf_facade/pdf_facade_chunks_fastest.pdf",
-      "args": [
-        "share",
-        "fastest"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -4354,12 +4304,8 @@
     {
       "name": "text-layout chunked facade output owned chunks",
       "scenario_revision": "chunked-facade-v2-compression-choice",
-      "source": "tests/pdf_facade/pdf_facade_chunks.roc",
+      "family": "pdf_facade",
       "snapshot": "tests/pdf_facade/pdf_facade_chunks.pdf",
-      "args": [
-        "own",
-        "balanced"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -4409,12 +4355,8 @@
     {
       "name": "text-layout chunked facade output owned chunks smallest compression",
       "scenario_revision": "chunked-facade-v2-compression-choice",
-      "source": "tests/pdf_facade/pdf_facade_chunks.roc",
+      "family": "pdf_facade",
       "snapshot": "tests/pdf_facade/pdf_facade_chunks_smallest.pdf",
-      "args": [
-        "own",
-        "smallest"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -4464,12 +4406,8 @@
     {
       "name": "text-layout chunked facade output owned chunks fastest compression",
       "scenario_revision": "chunked-facade-v2-compression-choice",
-      "source": "tests/pdf_facade/pdf_facade_chunks.roc",
+      "family": "pdf_facade",
       "snapshot": "tests/pdf_facade/pdf_facade_chunks_fastest.pdf",
-      "args": [
-        "own",
-        "fastest"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -4519,9 +4457,8 @@
     {
       "name": "text-layout chunked facade atomic negative",
       "scenario_revision": "chunked-facade-v1-by-construction",
-      "source": "tests/pdf_facade/pdf_facade_chunks_negative.roc",
+      "family": "pdf_facade",
       "snapshot": "tests/pdf_facade/pdf_facade_chunks_negative.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -4559,11 +4496,8 @@
     {
       "name": "text-layout generated list-label text",
       "scenario_revision": "generated-label-v1-explicit-presentation",
-      "source": "tests/generated_label/generated_label.roc",
-      "snapshot": "tests/generated_label/generated_label.pdf",
-      "args": [
-        "0"
-      ],
+      "family": "generated_label_facade",
+      "snapshot": "tests/generated_label_facade/generated_label.pdf",
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -4600,11 +4534,8 @@
     {
       "name": "text-layout generated list-label atomic negative",
       "scenario_revision": "generated-label-v1-explicit-presentation",
-      "source": "tests/generated_label/generated_label_negative.roc",
+      "family": "generated_label",
       "snapshot": "tests/generated_label/generated_label_negative.pdf",
-      "args": [
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "generated_label_property_rejected": 1,
@@ -4638,9 +4569,8 @@
     {
       "name": "text-layout caller-font visible searchable text",
       "scenario_revision": "caller-font-visible-text-v2-tagged-scene-content",
-      "source": "tests/caller_font/caller_text.roc",
+      "family": "caller_font",
       "snapshot": "tests/caller_font/caller_text.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -4871,9 +4801,8 @@
     {
       "name": "text-layout reordered ActualText",
       "scenario_revision": "reordered-actual-text-v2-tagged-scene-content",
-      "source": "tests/actual_text/main.roc",
+      "family": "actual_text",
       "snapshot": "tests/actual_text/actual_text.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -5098,9 +5027,8 @@
     {
       "name": "text-layout selected soft-hyphen extraction",
       "scenario_revision": "soft-hyphen-v1-explicit-selection",
-      "source": "tests/actual_text/main.roc",
+      "family": "actual_text",
       "snapshot": "tests/actual_text/soft_hyphen.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -5164,9 +5092,8 @@
     {
       "name": "text-layout malformed soft-hyphen opportunity atomic negative",
       "scenario_revision": "soft-hyphen-v1-explicit-selection",
-      "source": "tests/actual_text/main.roc",
+      "family": "actual_text",
       "snapshot": "tests/actual_text/soft_hyphen_malformed_negative.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -5204,9 +5131,8 @@
     {
       "name": "text-layout unselected soft-hyphen atomic negative",
       "scenario_revision": "soft-hyphen-v1-explicit-selection",
-      "source": "tests/actual_text/main.roc",
+      "family": "actual_text",
       "snapshot": "tests/actual_text/soft_hyphen_unselected_negative.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -5244,9 +5170,8 @@
     {
       "name": "text-layout malformed external discretionary-hyphen opportunity atomic negative",
       "scenario_revision": "external-discretionary-hyphen-v1-explicit-selection",
-      "source": "tests/actual_text/main.roc",
+      "family": "actual_text",
       "snapshot": "tests/actual_text/external_discretionary_hyphen_negative.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -5284,9 +5209,8 @@
     {
       "name": "text-layout unselected external discretionary-hyphen opportunity atomic negative",
       "scenario_revision": "external-discretionary-hyphen-v1-explicit-selection",
-      "source": "tests/actual_text/main.roc",
+      "family": "actual_text",
       "snapshot": "tests/actual_text/external_discretionary_hyphen_unselected_negative.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -5324,9 +5248,8 @@
     {
       "name": "text-layout supplementary-plane searchable text",
       "scenario_revision": "supplementary-plane-v1-advanced-inter",
-      "source": "tests/actual_text/main.roc",
+      "family": "actual_text",
       "snapshot": "tests/actual_text/supplementary_text.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -5398,9 +5321,8 @@
     {
       "name": "text-layout supplementary-plane text atomic negative",
       "scenario_revision": "supplementary-plane-v1-advanced-inter",
-      "source": "tests/actual_text/main.roc",
+      "family": "actual_text",
       "snapshot": "tests/actual_text/supplementary_text_negative.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -5437,9 +5359,8 @@
     {
       "name": "text-layout CJK searchable text",
       "scenario_revision": "cjk-v1-noto-sc-static-fixture",
-      "source": "tests/actual_text/main.roc",
+      "family": "actual_text",
       "snapshot": "tests/actual_text/cjk_text.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -5511,9 +5432,8 @@
     {
       "name": "text-layout ordered multi-face advanced output",
       "scenario_revision": "multiface-v1-selected-ranges-output",
-      "source": "tests/actual_text/main.roc",
+      "family": "actual_text",
       "snapshot": "tests/actual_text/multiface_text.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -5600,9 +5520,8 @@
     {
       "name": "text-layout ordered multi-face script mismatch atomic negative",
       "scenario_revision": "multiface-v1-selected-ranges-output",
-      "source": "tests/actual_text/main.roc",
+      "family": "actual_text",
       "snapshot": "tests/actual_text/multiface_text_negative.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "font_selection_rejected": 1,
@@ -5640,9 +5559,8 @@
     {
       "name": "text-layout CJK text atomic negative",
       "scenario_revision": "cjk-v1-noto-sc-static-fixture",
-      "source": "tests/actual_text/main.roc",
+      "family": "actual_text",
       "snapshot": "tests/actual_text/cjk_text_negative.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -5679,9 +5597,8 @@
     {
       "name": "text-layout combining-mark searchable text",
       "scenario_revision": "combining-v1-decomposed-built-in",
-      "source": "tests/actual_text/main.roc",
+      "family": "actual_text",
       "snapshot": "tests/actual_text/combining_text.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -5753,9 +5670,8 @@
     {
       "name": "text-layout combining-mark text atomic negative",
       "scenario_revision": "combining-v1-decomposed-built-in",
-      "source": "tests/actual_text/main.roc",
+      "family": "actual_text",
       "snapshot": "tests/actual_text/combining_text_negative.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -5792,12 +5708,8 @@
     {
       "name": "text-layout facade text prepared-input control x1000",
       "scenario_revision": "facade-text-materialization-v1",
-      "source": "tests/facade_text/facade_text.roc",
+      "family": "facade_text",
       "snapshot": "tests/facade_text/facade_text.pdf",
-      "args": [
-        "prepare",
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -5864,12 +5776,8 @@
     {
       "name": "text-layout facade text materialization x1000",
       "scenario_revision": "facade-text-materialization-v1",
-      "source": "tests/facade_text/facade_text.roc",
+      "family": "facade_text",
       "snapshot": "tests/facade_text/facade_text.pdf",
-      "args": [
-        "materialize",
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -5948,12 +5856,8 @@
     {
       "name": "text-layout facade text prepared-input control x10000",
       "scenario_revision": "facade-text-materialization-v1",
-      "source": "tests/facade_text/facade_text.roc",
+      "family": "facade_text",
       "snapshot": "tests/facade_text/facade_text.pdf",
-      "args": [
-        "prepare",
-        "10000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -6020,12 +5924,8 @@
     {
       "name": "text-layout facade text materialization x10000",
       "scenario_revision": "facade-text-materialization-v1",
-      "source": "tests/facade_text/facade_text.roc",
+      "family": "facade_text",
       "snapshot": "tests/facade_text/facade_text.pdf",
-      "args": [
-        "materialize",
-        "10000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -6104,12 +6004,8 @@
     {
       "name": "text-layout facade fragment prepared-input control x1000",
       "scenario_revision": "facade-fragments-v1",
-      "source": "tests/facade_fragments/facade_fragments.roc",
+      "family": "facade_fragments",
       "snapshot": "tests/facade_fragments/facade_fragments.pdf",
-      "args": [
-        "prepare",
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -6167,12 +6063,8 @@
     {
       "name": "text-layout facade fragment arena x1000",
       "scenario_revision": "facade-fragments-v1",
-      "source": "tests/facade_fragments/facade_fragments.roc",
+      "family": "facade_fragments",
       "snapshot": "tests/facade_fragments/facade_fragments.pdf",
-      "args": [
-        "arena",
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -6236,12 +6128,8 @@
     {
       "name": "text-layout facade fragment prepared-input control x10000",
       "scenario_revision": "facade-fragments-v1",
-      "source": "tests/facade_fragments/facade_fragments.roc",
+      "family": "facade_fragments",
       "snapshot": "tests/facade_fragments/facade_fragments.pdf",
-      "args": [
-        "prepare",
-        "10000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -6299,12 +6187,8 @@
     {
       "name": "text-layout facade fragment arena x10000",
       "scenario_revision": "facade-fragments-v1",
-      "source": "tests/facade_fragments/facade_fragments.roc",
+      "family": "facade_fragments",
       "snapshot": "tests/facade_fragments/facade_fragments.pdf",
-      "args": [
-        "arena",
-        "10000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -6368,12 +6252,8 @@
     {
       "name": "text-layout facade fragment semantic attachment",
       "scenario_revision": "facade-fragments-v1",
-      "source": "tests/facade_fragments/facade_fragments.roc",
+      "family": "facade_fragments",
       "snapshot": "tests/facade_fragments/facade_fragments.pdf",
-      "args": [
-        "validate",
-        "3"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -6431,12 +6311,8 @@
     {
       "name": "text-layout facade fragment atomic negatives",
       "scenario_revision": "facade-fragments-v1",
-      "source": "tests/facade_fragments/facade_fragments.roc",
+      "family": "facade_fragments",
       "snapshot": "tests/facade_fragments/facade_fragments.pdf",
-      "args": [
-        "negative",
-        "2"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -6485,12 +6361,8 @@
     {
       "name": "text-layout facade owned scene composition",
       "scenario_revision": "facade-scenes-v1",
-      "source": "tests/facade_fragments/facade_fragments.roc",
+      "family": "facade_fragments",
       "snapshot": "tests/facade_fragments/facade_fragments.pdf",
-      "args": [
-        "scene",
-        "3"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -6568,12 +6440,8 @@
     {
       "name": "text-layout facade scene prepared-input control x1000",
       "scenario_revision": "facade-scenes-v1",
-      "source": "tests/facade_scenes/facade_scenes.roc",
+      "family": "facade_scenes",
       "snapshot": "tests/facade_scenes/facade_scenes.pdf",
-      "args": [
-        "prepare",
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -6624,12 +6492,8 @@
     {
       "name": "text-layout facade scene arena x1000",
       "scenario_revision": "facade-scenes-v1",
-      "source": "tests/facade_scenes/facade_scenes.roc",
+      "family": "facade_scenes",
       "snapshot": "tests/facade_scenes/facade_scenes.pdf",
-      "args": [
-        "arena",
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -6703,12 +6567,8 @@
     {
       "name": "text-layout facade scene prepared-input control x10000",
       "scenario_revision": "facade-scenes-v1",
-      "source": "tests/facade_scenes/facade_scenes.roc",
+      "family": "facade_scenes",
       "snapshot": "tests/facade_scenes/facade_scenes.pdf",
-      "args": [
-        "prepare",
-        "10000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -6759,12 +6619,8 @@
     {
       "name": "text-layout facade scene arena x10000",
       "scenario_revision": "facade-scenes-v1",
-      "source": "tests/facade_scenes/facade_scenes.roc",
+      "family": "facade_scenes",
       "snapshot": "tests/facade_scenes/facade_scenes.pdf",
-      "args": [
-        "arena",
-        "10000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -6838,12 +6694,8 @@
     {
       "name": "text-layout facade scene atomic negatives",
       "scenario_revision": "facade-scenes-v1",
-      "source": "tests/facade_scenes/facade_scenes.roc",
+      "family": "facade_scenes",
       "snapshot": "tests/facade_scenes/facade_scenes.pdf",
-      "args": [
-        "negative",
-        "2"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -6892,9 +6744,8 @@
     {
       "name": "text-layout GSUB fi ligature searchable text",
       "scenario_revision": "fi-ligature-v1-ibm-plex-serif-liga",
-      "source": "tests/actual_text/main.roc",
+      "family": "actual_text",
       "snapshot": "tests/actual_text/ligature_text.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -6968,9 +6819,8 @@
     {
       "name": "text-layout GSUB fi ligature atomic negative",
       "scenario_revision": "fi-ligature-v1-ibm-plex-serif-liga",
-      "source": "tests/actual_text/main.roc",
+      "family": "actual_text",
       "snapshot": "tests/actual_text/ligature_text_negative.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "gsub_output_mismatch_rejected": 1,
@@ -7005,9 +6855,8 @@
     {
       "name": "text-layout resolved right-to-left text",
       "scenario_revision": "rtl-uax9-r51-bracket-pair-v1",
-      "source": "tests/actual_text/main.roc",
+      "family": "actual_text",
       "snapshot": "tests/actual_text/rtl_text.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -7092,9 +6941,8 @@
     {
       "name": "text-layout right-to-left mismatched bidi fact atomic negative",
       "scenario_revision": "rtl-uax9-r51-bracket-pair-v1",
-      "source": "tests/actual_text/main.roc",
+      "family": "actual_text",
       "snapshot": "tests/actual_text/rtl_text_negative.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -7131,11 +6979,8 @@
     {
       "name": "text-layout public ordered multi-face facade output",
       "scenario_revision": "multiface-public-facade-v1",
-      "source": "tests/multiface_facade/multiface_facade.roc",
+      "family": "multiface_facade",
       "snapshot": "tests/multiface_facade/multiface_facade.pdf",
-      "args": [
-        "positive"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -7206,11 +7051,8 @@
     {
       "name": "text-layout multi-face facade shared registry retention",
       "scenario_revision": "multiface-public-facade-v1",
-      "source": "tests/multiface_facade/multiface_facade.roc",
+      "family": "multiface_facade",
       "snapshot": "tests/multiface_facade/multiface_facade.pdf",
-      "args": [
-        "shared-registry"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -7277,11 +7119,8 @@
     {
       "name": "text-layout multi-face facade unique registries retention control",
       "scenario_revision": "multiface-public-facade-v1",
-      "source": "tests/multiface_facade/multiface_facade.roc",
+      "family": "multiface_facade",
       "snapshot": "tests/multiface_facade/multiface_facade.pdf",
-      "args": [
-        "unique-registries"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -7351,11 +7190,8 @@
     {
       "name": "text-layout multi-face facade missing coverage atomic negative",
       "scenario_revision": "multiface-public-facade-v1",
-      "source": "tests/multiface_facade/multiface_facade_negative.roc",
+      "family": "multiface_facade",
       "snapshot": "tests/multiface_facade/multiface_facade_negative.pdf",
-      "args": [
-        "missing-coverage"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "missing_coverage_rejected": 1
@@ -7388,11 +7224,8 @@
     {
       "name": "text-layout multi-face facade undeclared script atomic negative",
       "scenario_revision": "multiface-public-facade-v1",
-      "source": "tests/multiface_facade/multiface_facade_negative.roc",
+      "family": "multiface_facade",
       "snapshot": "tests/multiface_facade/multiface_facade_negative.pdf",
-      "args": [
-        "undeclared-script"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "undeclared_script_rejected": 1
@@ -7425,11 +7258,8 @@
     {
       "name": "text-layout multi-face facade unknown policy atomic negative",
       "scenario_revision": "multiface-public-facade-v1",
-      "source": "tests/multiface_facade/multiface_facade_negative.roc",
+      "family": "multiface_facade",
       "snapshot": "tests/multiface_facade/multiface_facade_negative.pdf",
-      "args": [
-        "unknown-policy"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "unknown_policy_rejected": 1
@@ -7462,11 +7292,8 @@
     {
       "name": "text-layout multi-face facade builtin policy atomic negative",
       "scenario_revision": "multiface-public-facade-v1",
-      "source": "tests/multiface_facade/multiface_facade_negative.roc",
+      "family": "multiface_facade",
       "snapshot": "tests/multiface_facade/multiface_facade_negative.pdf",
-      "args": [
-        "builtin-policy"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "builtin_policy_rejected": 1
@@ -7499,12 +7326,8 @@
     {
       "name": "text-layout adversarial ordered font selection x1000",
       "scenario_revision": "ordered-selection-bounds-v1",
-      "source": "tests/font/font.roc",
+      "family": "font",
       "snapshot": "tests/font/font.pdf",
-      "args": [
-        "probe",
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -7553,12 +7376,8 @@
     {
       "name": "text-layout adversarial ordered font selection x10000",
       "scenario_revision": "ordered-selection-bounds-v1",
-      "source": "tests/font/font.roc",
+      "family": "font",
       "snapshot": "tests/font/font.pdf",
-      "args": [
-        "probe",
-        "10000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -7607,12 +7426,8 @@
     {
       "name": "text-layout ordered multi-face facade scale x1000",
       "scenario_revision": "ordered-facade-scale-v1",
-      "source": "tests/authoring/authoring.roc",
+      "family": "authoring",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "ordered",
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -7688,12 +7503,8 @@
     {
       "name": "text-layout ordered multi-face facade scale x10000",
       "scenario_revision": "ordered-facade-scale-v1",
-      "source": "tests/authoring/authoring.roc",
+      "family": "authoring",
       "snapshot": "tests/authoring/authoring.pdf",
-      "args": [
-        "ordered",
-        "10000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -7769,9 +7580,8 @@
     {
       "name": "text-layout case transformation text",
       "scenario_revision": "case-transform-v1-unicode-default-upper",
-      "source": "tests/actual_text/main.roc",
+      "family": "actual_text",
       "snapshot": "tests/actual_text/case_text.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -7856,9 +7666,8 @@
     {
       "name": "text-layout case transformation atomic negative",
       "scenario_revision": "case-transform-v1-unicode-default-upper",
-      "source": "tests/actual_text/main.roc",
+      "family": "actual_text",
       "snapshot": "tests/actual_text/case_text_negative.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -7958,12 +7767,8 @@
     {
       "name": "production-visual resource dependency chain x100",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/main.roc",
+      "family": "resource_graph",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
-      "args": [
-        "chain",
-        "100"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -8070,12 +7875,8 @@
     {
       "name": "production-visual resource dependency chain x1000",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/main.roc",
+      "family": "resource_graph",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
-      "args": [
-        "chain",
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -8182,12 +7983,8 @@
     {
       "name": "production-visual resource dependency fan x100",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/main.roc",
+      "family": "resource_graph",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
-      "args": [
-        "fan",
-        "100"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -8294,12 +8091,8 @@
     {
       "name": "production-visual resource dependency fan x1000",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/main.roc",
+      "family": "resource_graph",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
-      "args": [
-        "fan",
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -8406,12 +8199,8 @@
     {
       "name": "production-visual dense resource dependency graph x100",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/main.roc",
+      "family": "resource_graph",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
-      "args": [
-        "dense",
-        "100"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -8518,12 +8307,8 @@
     {
       "name": "production-visual dense resource dependency graph x1000",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/main.roc",
+      "family": "resource_graph",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
-      "args": [
-        "dense",
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -8630,12 +8415,8 @@
     {
       "name": "production-visual forced digest-collision bucket x100",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/main.roc",
+      "family": "resource_graph",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
-      "args": [
-        "collide",
-        "100"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -8742,12 +8523,8 @@
     {
       "name": "production-visual forced digest-collision bucket x1000",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/main.roc",
+      "family": "resource_graph",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
-      "args": [
-        "collide",
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -8854,12 +8631,8 @@
     {
       "name": "production-visual unique resource-input ownership x100",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/main.roc",
+      "family": "resource_graph",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
-      "args": [
-        "unique",
-        "100"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -8966,12 +8739,8 @@
     {
       "name": "production-visual retained resource-input ownership x100",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/main.roc",
+      "family": "resource_graph",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
-      "args": [
-        "shared",
-        "100"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -9078,9 +8847,8 @@
     {
       "name": "production-visual resource-graph atomic negatives",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/main.roc",
+      "family": "resource_graph",
       "snapshot": "tests/resource_graph/resource_graph_negative.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -9120,12 +8888,8 @@
     {
       "name": "production-visual form showcase with adversarial authoring",
       "scenario_revision": "form-xobjects-v1",
-      "source": "tests/forms/main.roc",
+      "family": "forms",
       "snapshot": "tests/forms/forms.pdf",
-      "args": [
-        "showcase",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -9262,12 +9026,8 @@
     {
       "name": "production-visual form unique-input ownership",
       "scenario_revision": "form-xobjects-v1",
-      "source": "tests/forms/main.roc",
+      "family": "forms",
       "snapshot": "tests/forms/forms.pdf",
-      "args": [
-        "unique",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -9404,12 +9164,8 @@
     {
       "name": "production-visual form retained-input ownership",
       "scenario_revision": "form-xobjects-v1",
-      "source": "tests/forms/main.roc",
+      "family": "forms",
       "snapshot": "tests/forms/forms.pdf",
-      "args": [
-        "shared",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -9546,12 +9302,8 @@
     {
       "name": "production-visual artifact form repeated x100",
       "scenario_revision": "form-xobjects-v1",
-      "source": "tests/forms/main.roc",
+      "family": "forms",
       "snapshot": "tests/forms/forms_repeat_100.pdf",
-      "args": [
-        "repeat",
-        "100"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -9687,12 +9439,8 @@
     {
       "name": "production-visual artifact form repeated x1000",
       "scenario_revision": "form-xobjects-v1",
-      "source": "tests/forms/main.roc",
+      "family": "forms",
       "snapshot": "tests/forms/forms_repeat_1000.pdf",
-      "args": [
-        "repeat",
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -9828,12 +9576,8 @@
     {
       "name": "production-visual nested form DAG x8",
       "scenario_revision": "form-xobjects-v1",
-      "source": "tests/forms/main.roc",
+      "family": "forms",
       "snapshot": "tests/forms/forms_dag_8.pdf",
-      "args": [
-        "dag",
-        "8"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -9969,12 +9713,8 @@
     {
       "name": "production-visual nested form DAG x32",
       "scenario_revision": "form-xobjects-v1",
-      "source": "tests/forms/main.roc",
+      "family": "forms",
       "snapshot": "tests/forms/forms_dag_32.pdf",
-      "args": [
-        "dag",
-        "32"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -10110,12 +9850,8 @@
     {
       "name": "production-visual deep nested form chain x64",
       "scenario_revision": "form-xobjects-v1",
-      "source": "tests/forms/main.roc",
+      "family": "forms",
       "snapshot": "tests/forms/forms_deep_64.pdf",
-      "args": [
-        "deep",
-        "64"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -10251,11 +9987,8 @@
     {
       "name": "production-visual text inside a meaningful form",
       "scenario_revision": "form-xobjects-v1",
-      "source": "tests/form_text/form_text.roc",
+      "family": "form_text",
       "snapshot": "tests/form_text/form_text.pdf",
-      "args": [
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -10348,11 +10081,8 @@
     {
       "name": "production-visual form atomic negatives",
       "scenario_revision": "form-xobjects-v1",
-      "source": "tests/forms/main.roc",
+      "family": "forms",
       "snapshot": "tests/forms/forms_negative.pdf",
-      "args": [
-        "1"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -10394,12 +10124,8 @@
     {
       "name": "production-visual color-image showcase with adversarial authoring",
       "scenario_revision": "color-image-leaves-v1",
-      "source": "tests/color_images/main.roc",
+      "family": "color_images",
       "snapshot": "tests/color_images/color_images.pdf",
-      "args": [
-        "showcase",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -10552,12 +10278,8 @@
     {
       "name": "production-visual color-image unique-input ownership",
       "scenario_revision": "color-image-leaves-v1",
-      "source": "tests/color_images/main.roc",
+      "family": "color_images",
       "snapshot": "tests/color_images/color_images.pdf",
-      "args": [
-        "unique",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -10710,12 +10432,8 @@
     {
       "name": "production-visual color-image retained-input ownership",
       "scenario_revision": "color-image-leaves-v1",
-      "source": "tests/color_images/main.roc",
+      "family": "color_images",
       "snapshot": "tests/color_images/color_images.pdf",
-      "args": [
-        "shared",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -10868,12 +10586,8 @@
     {
       "name": "production-visual duplicate image collapse x8",
       "scenario_revision": "color-image-leaves-v1",
-      "source": "tests/color_images/main.roc",
+      "family": "color_images",
       "snapshot": "tests/color_images/color_images_dedup_8.pdf",
-      "args": [
-        "dedup",
-        "8"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -11022,12 +10736,8 @@
     {
       "name": "production-visual duplicate image collapse x64",
       "scenario_revision": "color-image-leaves-v1",
-      "source": "tests/color_images/main.roc",
+      "family": "color_images",
       "snapshot": "tests/color_images/color_images_dedup_64.pdf",
-      "args": [
-        "dedup",
-        "64"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -11176,12 +10886,8 @@
     {
       "name": "production-visual distinct image emission x8",
       "scenario_revision": "color-image-leaves-v1",
-      "source": "tests/color_images/main.roc",
+      "family": "color_images",
       "snapshot": "tests/color_images/color_images_distinct_8.pdf",
-      "args": [
-        "distinct",
-        "8"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -11330,12 +11036,8 @@
     {
       "name": "production-visual distinct image emission x64",
       "scenario_revision": "color-image-leaves-v1",
-      "source": "tests/color_images/main.roc",
+      "family": "color_images",
       "snapshot": "tests/color_images/color_images_distinct_64.pdf",
-      "args": [
-        "distinct",
-        "64"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -11484,11 +11186,8 @@
     {
       "name": "production-visual color-image atomic negatives",
       "scenario_revision": "color-image-leaves-v1",
-      "source": "tests/color_images/main.roc",
+      "family": "color_images",
       "snapshot": "tests/color_images/color_images_negative.pdf",
-      "args": [
-        "1"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -11531,12 +11230,8 @@
     {
       "name": "production-visual transparency showcase with adversarial authoring",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/main.roc",
+      "family": "transparency",
       "snapshot": "tests/transparency/transparency.pdf",
-      "args": [
-        "showcase",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -11664,12 +11359,8 @@
     {
       "name": "production-visual transparency unique-input ownership",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/main.roc",
+      "family": "transparency",
       "snapshot": "tests/transparency/transparency_unique.pdf",
-      "args": [
-        "unique",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -11797,12 +11488,8 @@
     {
       "name": "production-visual transparency retained-input ownership",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/main.roc",
+      "family": "transparency",
       "snapshot": "tests/transparency/transparency_retained.pdf",
-      "args": [
-        "shared",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -11930,12 +11617,8 @@
     {
       "name": "production-visual shared-constant opacity x100",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/main.roc",
+      "family": "transparency",
       "snapshot": "tests/transparency/transparency_share_100.pdf",
-      "args": [
-        "share",
-        "100"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -12060,12 +11743,8 @@
     {
       "name": "production-visual shared-constant opacity x1000",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/main.roc",
+      "family": "transparency",
       "snapshot": "tests/transparency/transparency_share_1000.pdf",
-      "args": [
-        "share",
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -12190,12 +11869,8 @@
     {
       "name": "production-visual distinct opacity states x100",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/main.roc",
+      "family": "transparency",
       "snapshot": "tests/transparency/transparency_states_100.pdf",
-      "args": [
-        "states",
-        "100"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -12320,12 +11995,8 @@
     {
       "name": "production-visual distinct opacity states x1000",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/main.roc",
+      "family": "transparency",
       "snapshot": "tests/transparency/transparency_states_1000.pdf",
-      "args": [
-        "states",
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -12450,12 +12121,8 @@
     {
       "name": "production-visual nested opacity chain x16",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/main.roc",
+      "family": "transparency",
       "snapshot": "tests/transparency/transparency_nest_16.pdf",
-      "args": [
-        "nest",
-        "16"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -12579,12 +12246,8 @@
     {
       "name": "production-visual nested opacity chain x64",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/main.roc",
+      "family": "transparency",
       "snapshot": "tests/transparency/transparency_nest_64.pdf",
-      "args": [
-        "nest",
-        "64"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -12708,12 +12371,8 @@
     {
       "name": "production-visual per-form opacity x8",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/main.roc",
+      "family": "transparency",
       "snapshot": "tests/transparency/transparency_forms_8.pdf",
-      "args": [
-        "forms",
-        "8"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -12837,12 +12496,8 @@
     {
       "name": "production-visual per-form opacity x32",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/main.roc",
+      "family": "transparency",
       "snapshot": "tests/transparency/transparency_forms_32.pdf",
-      "args": [
-        "forms",
-        "32"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -12966,11 +12621,8 @@
     {
       "name": "production-visual transparency atomic negatives",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/main.roc",
+      "family": "transparency",
       "snapshot": "tests/transparency/transparency_negative.pdf",
-      "args": [
-        "1"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -13011,12 +12663,8 @@
     {
       "name": "production-visual soft-mask showcase with adversarial authoring",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/main.roc",
+      "family": "soft_masks",
       "snapshot": "tests/soft_masks/soft_masks.pdf",
-      "args": [
-        "showcase",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -13154,12 +12802,8 @@
     {
       "name": "production-visual soft-mask unique-input ownership",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/main.roc",
+      "family": "soft_masks",
       "snapshot": "tests/soft_masks/soft_masks_unique.pdf",
-      "args": [
-        "unique",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -13297,12 +12941,8 @@
     {
       "name": "production-visual soft-mask retained-input ownership",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/main.roc",
+      "family": "soft_masks",
       "snapshot": "tests/soft_masks/soft_masks_retained.pdf",
-      "args": [
-        "shared",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -13440,12 +13080,8 @@
     {
       "name": "production-visual shared mask reuse x100",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/main.roc",
+      "family": "soft_masks",
       "snapshot": "tests/soft_masks/soft_masks_reuse_100.pdf",
-      "args": [
-        "reuse",
-        "100"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -13579,12 +13215,8 @@
     {
       "name": "production-visual shared mask reuse x1000",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/main.roc",
+      "family": "soft_masks",
       "snapshot": "tests/soft_masks/soft_masks_reuse_1000.pdf",
-      "args": [
-        "reuse",
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -13718,12 +13350,8 @@
     {
       "name": "production-visual distinct mask forms x8",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/main.roc",
+      "family": "soft_masks",
       "snapshot": "tests/soft_masks/soft_masks_masks_8.pdf",
-      "args": [
-        "masks",
-        "8"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -13857,12 +13485,8 @@
     {
       "name": "production-visual distinct mask forms x64",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/main.roc",
+      "family": "soft_masks",
       "snapshot": "tests/soft_masks/soft_masks_masks_64.pdf",
-      "args": [
-        "masks",
-        "64"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -13996,12 +13620,8 @@
     {
       "name": "production-visual mask chain x2",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/main.roc",
+      "family": "soft_masks",
       "snapshot": "tests/soft_masks/soft_masks_chain_2.pdf",
-      "args": [
-        "chain",
-        "2"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -14134,12 +13754,8 @@
     {
       "name": "production-visual mask chain x4",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/main.roc",
+      "family": "soft_masks",
       "snapshot": "tests/soft_masks/soft_masks_chain_4.pdf",
-      "args": [
-        "chain",
-        "4"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -14272,11 +13888,8 @@
     {
       "name": "production-visual soft-mask atomic negatives",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/main.roc",
+      "family": "soft_masks",
       "snapshot": "tests/soft_masks/soft_masks_negative.pdf",
-      "args": [
-        "1"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -14317,12 +13930,8 @@
     {
       "name": "production-visual shading-pattern showcase with adversarial authoring",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/main.roc",
+      "family": "shading_patterns",
       "snapshot": "tests/shading_patterns/shadings.pdf",
-      "args": [
-        "showcase",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -14471,12 +14080,8 @@
     {
       "name": "production-visual shading-pattern unique-input ownership",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/main.roc",
+      "family": "shading_patterns",
       "snapshot": "tests/shading_patterns/shadings_unique.pdf",
-      "args": [
-        "unique",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -14625,12 +14230,8 @@
     {
       "name": "production-visual shading-pattern retained-input ownership",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/main.roc",
+      "family": "shading_patterns",
       "snapshot": "tests/shading_patterns/shadings_retained.pdf",
-      "args": [
-        "shared",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -14779,12 +14380,8 @@
     {
       "name": "production-visual shared shading x100",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/main.roc",
+      "family": "shading_patterns",
       "snapshot": "tests/shading_patterns/shadings_share_100.pdf",
-      "args": [
-        "share",
-        "100"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -14927,12 +14524,8 @@
     {
       "name": "production-visual shared shading x1000",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/main.roc",
+      "family": "shading_patterns",
       "snapshot": "tests/shading_patterns/shadings_share_1000.pdf",
-      "args": [
-        "share",
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -15075,12 +14668,8 @@
     {
       "name": "production-visual distinct shadings x8",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/main.roc",
+      "family": "shading_patterns",
       "snapshot": "tests/shading_patterns/shadings_distinct_8.pdf",
-      "args": [
-        "distinct",
-        "8"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -15222,12 +14811,8 @@
     {
       "name": "production-visual distinct shadings x64",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/main.roc",
+      "family": "shading_patterns",
       "snapshot": "tests/shading_patterns/shadings_distinct_64.pdf",
-      "args": [
-        "distinct",
-        "64"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -15369,12 +14954,8 @@
     {
       "name": "production-visual shading stops x16",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/main.roc",
+      "family": "shading_patterns",
       "snapshot": "tests/shading_patterns/shadings_stops_16.pdf",
-      "args": [
-        "stops",
-        "16"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -15517,12 +15098,8 @@
     {
       "name": "production-visual shading stops x64",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/main.roc",
+      "family": "shading_patterns",
       "snapshot": "tests/shading_patterns/shadings_stops_64.pdf",
-      "args": [
-        "stops",
-        "64"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -15665,12 +15242,8 @@
     {
       "name": "production-visual shared pattern x100",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/main.roc",
+      "family": "shading_patterns",
       "snapshot": "tests/shading_patterns/patterns_share_100.pdf",
-      "args": [
-        "pshare",
-        "100"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -15813,12 +15386,8 @@
     {
       "name": "production-visual shared pattern x1000",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/main.roc",
+      "family": "shading_patterns",
       "snapshot": "tests/shading_patterns/patterns_share_1000.pdf",
-      "args": [
-        "pshare",
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -15961,12 +15530,8 @@
     {
       "name": "production-visual distinct patterns x8",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/main.roc",
+      "family": "shading_patterns",
       "snapshot": "tests/shading_patterns/patterns_distinct_8.pdf",
-      "args": [
-        "pdistinct",
-        "8"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -16108,12 +15673,8 @@
     {
       "name": "production-visual distinct patterns x64",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/main.roc",
+      "family": "shading_patterns",
       "snapshot": "tests/shading_patterns/patterns_distinct_64.pdf",
-      "args": [
-        "pdistinct",
-        "64"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -16255,12 +15816,8 @@
     {
       "name": "production-visual pattern cell commands x16",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/main.roc",
+      "family": "shading_patterns",
       "snapshot": "tests/shading_patterns/patterns_cells_16.pdf",
-      "args": [
-        "pcells",
-        "16"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -16403,12 +15960,8 @@
     {
       "name": "production-visual pattern cell commands x64",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/main.roc",
+      "family": "shading_patterns",
       "snapshot": "tests/shading_patterns/patterns_cells_64.pdf",
-      "args": [
-        "pcells",
-        "64"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -16551,11 +16104,8 @@
     {
       "name": "production-visual shading-pattern atomic negatives",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/main.roc",
+      "family": "shading_patterns",
       "snapshot": "tests/shading_patterns/shadings_negative.pdf",
-      "args": [
-        "1"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -16596,12 +16146,8 @@
     {
       "name": "production-visual font-leaf showcase with adversarial authoring",
       "scenario_revision": "font-leaves-v1",
-      "source": "tests/font_leaves/font_leaf_facts.roc",
+      "family": "font_leaves",
       "snapshot": "tests/font_leaves/font_leaves.pdf",
-      "args": [
-        "showcase",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 2,
@@ -16715,12 +16261,8 @@
     {
       "name": "production-visual font-leaf distinctness matrix",
       "scenario_revision": "font-leaves-v1",
-      "source": "tests/font_leaves/font_leaf_facts.roc",
+      "family": "font_leaves",
       "snapshot": "tests/font_leaves/font_leaf_facts.pdf",
-      "args": [
-        "facts",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -16834,12 +16376,8 @@
     {
       "name": "production-visual font-leaf unique-input ownership",
       "scenario_revision": "font-leaves-v1",
-      "source": "tests/font_leaves/font_leaf_facts.roc",
+      "family": "font_leaves",
       "snapshot": "tests/font_leaves/font_leaves_unique.pdf",
-      "args": [
-        "unique",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 2,
@@ -16951,12 +16489,8 @@
     {
       "name": "production-visual font-leaf retained-input ownership",
       "scenario_revision": "font-leaves-v1",
-      "source": "tests/font_leaves/font_leaf_facts.roc",
+      "family": "font_leaves",
       "snapshot": "tests/font_leaves/font_leaves_retained.pdf",
-      "args": [
-        "shared",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 2,
@@ -17068,12 +16602,8 @@
     {
       "name": "production-visual shared font subset x100",
       "scenario_revision": "font-leaves-v1",
-      "source": "tests/font_leaves/font_leaf_facts.roc",
+      "family": "font_leaves",
       "snapshot": "tests/font_leaves/font_leaves_share_100.pdf",
-      "args": [
-        "share",
-        "100"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -17185,12 +16715,8 @@
     {
       "name": "production-visual shared font subset x1000",
       "scenario_revision": "font-leaves-v1",
-      "source": "tests/font_leaves/font_leaf_facts.roc",
+      "family": "font_leaves",
       "snapshot": "tests/font_leaves/font_leaves_share_1000.pdf",
-      "args": [
-        "share",
-        "1000"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -17302,12 +16828,8 @@
     {
       "name": "production-visual equivalent authored fonts collapse x8",
       "scenario_revision": "font-leaves-v1",
-      "source": "tests/font_leaves/font_leaf_facts.roc",
+      "family": "font_leaves",
       "snapshot": "tests/font_leaves/font_leaves_dedupe_8.pdf",
-      "args": [
-        "dedupe",
-        "8"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -17419,12 +16941,8 @@
     {
       "name": "production-visual equivalent authored fonts collapse x64",
       "scenario_revision": "font-leaves-v1",
-      "source": "tests/font_leaves/font_leaf_facts.roc",
+      "family": "font_leaves",
       "snapshot": "tests/font_leaves/font_leaves_dedupe_64.pdf",
-      "args": [
-        "dedupe",
-        "64"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -17536,12 +17054,8 @@
     {
       "name": "production-visual distinct font subsets x8",
       "scenario_revision": "font-leaves-v1",
-      "source": "tests/font_leaves/font_leaf_facts.roc",
+      "family": "font_leaves",
       "snapshot": "tests/font_leaves/font_leaves_distinct_8.pdf",
-      "args": [
-        "distinct",
-        "8"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -17653,12 +17167,8 @@
     {
       "name": "production-visual distinct font subsets x64",
       "scenario_revision": "font-leaves-v1",
-      "source": "tests/font_leaves/font_leaf_facts.roc",
+      "family": "font_leaves",
       "snapshot": "tests/font_leaves/font_leaves_distinct_64.pdf",
-      "args": [
-        "distinct",
-        "64"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -17770,12 +17280,8 @@
     {
       "name": "production-visual font-leaf forced digest collisions x8",
       "scenario_revision": "font-leaves-v1",
-      "source": "tests/font_leaves/font_leaf_facts.roc",
+      "family": "font_leaves",
       "snapshot": "tests/font_leaves/font_leaves_collide_8.pdf",
-      "args": [
-        "collide",
-        "8"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -17838,12 +17344,8 @@
     {
       "name": "production-visual font-leaf forced digest collisions x64",
       "scenario_revision": "font-leaves-v1",
-      "source": "tests/font_leaves/font_leaf_facts.roc",
+      "family": "font_leaves",
       "snapshot": "tests/font_leaves/font_leaves_collide_64.pdf",
-      "args": [
-        "collide",
-        "64"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -17906,12 +17408,8 @@
     {
       "name": "production-visual font-leaf atomic negatives",
       "scenario_revision": "font-leaves-v1",
-      "source": "tests/font_leaves/font_leaf_facts.roc",
+      "family": "font_leaves",
       "snapshot": "tests/font_leaves/font_leaves_negative.pdf",
-      "args": [
-        "negative",
-        "1"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -17950,12 +17448,8 @@
     {
       "name": "production-visual metadata showcase with adversarial authoring",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/main.roc",
+      "family": "metadata",
       "snapshot": "tests/metadata/metadata.pdf",
-      "args": [
-        "showcase",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -18043,12 +17537,8 @@
     {
       "name": "production-visual metadata omitted-timestamp packet",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/main.roc",
+      "family": "metadata",
       "snapshot": "tests/metadata/metadata_minimal.pdf",
-      "args": [
-        "minimal",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -18135,12 +17625,8 @@
     {
       "name": "production-visual metadata unique-input ownership",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/main.roc",
+      "family": "metadata",
       "snapshot": "tests/metadata/metadata_unique.pdf",
-      "args": [
-        "unique",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -18226,12 +17712,8 @@
     {
       "name": "production-visual metadata retained-input ownership",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/main.roc",
+      "family": "metadata",
       "snapshot": "tests/metadata/metadata_retained.pdf",
-      "args": [
-        "shared",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -18317,12 +17799,8 @@
     {
       "name": "production-visual shared intent profile x16",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/main.roc",
+      "family": "metadata",
       "snapshot": "tests/metadata/metadata_share_16.pdf",
-      "args": [
-        "share",
-        "16"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -18409,12 +17887,8 @@
     {
       "name": "production-visual shared intent profile x64",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/main.roc",
+      "family": "metadata",
       "snapshot": "tests/metadata/metadata_share_64.pdf",
-      "args": [
-        "share",
-        "64"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -18501,12 +17975,8 @@
     {
       "name": "production-visual metadata title scaling x64",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/main.roc",
+      "family": "metadata",
       "snapshot": "tests/metadata/metadata_title_64.pdf",
-      "args": [
-        "title",
-        "64"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -18592,12 +18062,8 @@
     {
       "name": "production-visual metadata title scaling x256",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/main.roc",
+      "family": "metadata",
       "snapshot": "tests/metadata/metadata_title_256.pdf",
-      "args": [
-        "title",
-        "256"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -18683,11 +18149,8 @@
     {
       "name": "production-visual metadata atomic negatives",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/main.roc",
+      "family": "metadata",
       "snapshot": "tests/metadata/metadata_negative.pdf",
-      "args": [
-        "1"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -18727,11 +18190,8 @@
     {
       "name": "production-visual public facade metadata output",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/metadata_facade.roc",
-      "snapshot": "tests/metadata/metadata_facade.pdf",
-      "args": [
-        "0"
-      ],
+      "family": "metadata_facade",
+      "snapshot": "tests/metadata_facade/metadata_facade.pdf",
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 3,
@@ -18767,11 +18227,8 @@
     {
       "name": "production-visual public facade metadata determinism",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/metadata_facade.roc",
-      "snapshot": "tests/metadata/metadata_facade.pdf",
-      "args": [
-        "twice"
-      ],
+      "family": "metadata_facade",
+      "snapshot": "tests/metadata_facade/metadata_facade.pdf",
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 3,
@@ -18810,11 +18267,8 @@
     {
       "name": "production-visual facade metadata atomic negatives",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/metadata_facade_negative.roc",
-      "snapshot": "tests/metadata/metadata_facade_negative.pdf",
-      "args": [
-        "1"
-      ],
+      "family": "metadata_facade",
+      "snapshot": "tests/metadata_facade/metadata_facade_negative.pdf",
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -18852,12 +18306,8 @@
     {
       "name": "production-visual navigation showcase with adversarial authoring",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/main.roc",
+      "family": "navigation",
       "snapshot": "tests/navigation/navigation.pdf",
-      "args": [
-        "showcase",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 2,
@@ -18940,12 +18390,8 @@
     {
       "name": "production-visual navigation annotations x8",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/main.roc",
+      "family": "navigation",
       "snapshot": "tests/navigation/navigation_annots_8.pdf",
-      "args": [
-        "annots",
-        "8"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -19025,12 +18471,8 @@
     {
       "name": "production-visual navigation annotations x64",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/main.roc",
+      "family": "navigation",
       "snapshot": "tests/navigation/navigation_annots_64.pdf",
-      "args": [
-        "annots",
-        "64"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -19110,12 +18552,8 @@
     {
       "name": "production-visual navigation fragmented link x32 quads",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/main.roc",
+      "family": "navigation",
       "snapshot": "tests/navigation/navigation_quads_32.pdf",
-      "args": [
-        "quads",
-        "32"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -19195,12 +18633,8 @@
     {
       "name": "production-visual navigation shared destination x32 links",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/main.roc",
+      "family": "navigation",
       "snapshot": "tests/navigation/navigation_share_32.pdf",
-      "args": [
-        "share",
-        "32"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -19281,12 +18715,8 @@
     {
       "name": "production-visual navigation shared appearance x16 links",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/main.roc",
+      "family": "navigation",
       "snapshot": "tests/navigation/navigation_appearance_16.pdf",
-      "args": [
-        "appearance",
-        "16"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -19366,12 +18796,8 @@
     {
       "name": "production-visual navigation outline depth x16",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/main.roc",
+      "family": "navigation",
       "snapshot": "tests/navigation/navigation_outline_deep_16.pdf",
-      "args": [
-        "outline_deep",
-        "16"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -19452,12 +18878,8 @@
     {
       "name": "production-visual navigation outline width x64",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/main.roc",
+      "family": "navigation",
       "snapshot": "tests/navigation/navigation_outline_wide_64.pdf",
-      "args": [
-        "outline_wide",
-        "64"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -19538,12 +18960,8 @@
     {
       "name": "production-visual navigation destination names x8",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/main.roc",
+      "family": "navigation",
       "snapshot": "tests/navigation/navigation_names_8.pdf",
-      "args": [
-        "names",
-        "8"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -19623,12 +19041,8 @@
     {
       "name": "production-visual navigation destination names x40",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/main.roc",
+      "family": "navigation",
       "snapshot": "tests/navigation/navigation_names_40.pdf",
-      "args": [
-        "names",
-        "40"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -19708,12 +19122,8 @@
     {
       "name": "production-visual navigation page labels x8",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/main.roc",
+      "family": "navigation",
       "snapshot": "tests/navigation/navigation_labels_8.pdf",
-      "args": [
-        "labels",
-        "8"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 8,
@@ -19793,12 +19203,8 @@
     {
       "name": "production-visual navigation unique-input ownership",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/main.roc",
+      "family": "navigation",
       "snapshot": "tests/navigation/navigation_unique.pdf",
-      "args": [
-        "unique",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 2,
@@ -19879,12 +19285,8 @@
     {
       "name": "production-visual navigation retained-input ownership",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/main.roc",
+      "family": "navigation",
       "snapshot": "tests/navigation/navigation_retained.pdf",
-      "args": [
-        "retained",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 2,
@@ -19965,11 +19367,8 @@
     {
       "name": "production-visual navigation atomic negatives",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/main.roc",
+      "family": "navigation",
       "snapshot": "tests/navigation/navigation_negative.pdf",
-      "args": [
-        "1"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 2,
@@ -20009,11 +19408,8 @@
     {
       "name": "production-visual navigation authored facade output",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/navigation_facade.roc",
-      "snapshot": "tests/navigation/navigation_facade.pdf",
-      "args": [
-        "0"
-      ],
+      "family": "navigation_facade",
+      "snapshot": "tests/navigation_facade/navigation_facade.pdf",
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 3,
@@ -20052,11 +19448,8 @@
     {
       "name": "production-visual navigation facade determinism",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/navigation_facade.roc",
-      "snapshot": "tests/navigation/navigation_facade.pdf",
-      "args": [
-        "twice"
-      ],
+      "family": "navigation_facade",
+      "snapshot": "tests/navigation_facade/navigation_facade.pdf",
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 3,
@@ -20098,11 +19491,8 @@
     {
       "name": "production-visual navigation facade atomic negatives",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/navigation_facade_negative.roc",
-      "snapshot": "tests/navigation/navigation_facade_negative.pdf",
-      "args": [
-        "1"
-      ],
+      "family": "navigation_facade",
+      "snapshot": "tests/navigation_facade/navigation_facade_negative.pdf",
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -20143,12 +19533,8 @@
     {
       "name": "static PDF/A-4 blank archive document",
       "scenario_revision": "static-pdfa4-v1",
-      "source": "tests/archive/archive_facade.roc",
+      "family": "archive",
       "snapshot": "tests/archive/archive_blank.pdf",
-      "args": [
-        "blank",
-        "1"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -20181,12 +19567,8 @@
     {
       "name": "static PDF/A-4 archived report with timestamps",
       "scenario_revision": "static-pdfa4-v1",
-      "source": "tests/archive/archive_facade.roc",
+      "family": "archive",
       "snapshot": "tests/archive/archive_report.pdf",
-      "args": [
-        "report",
-        "40"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4,
@@ -20220,12 +19602,8 @@
     {
       "name": "static PDF/A-4 archived report scaling x400",
       "scenario_revision": "static-pdfa4-v1",
-      "source": "tests/archive/archive_facade.roc",
+      "family": "archive",
       "snapshot": "tests/archive/archive_report_400.pdf",
-      "args": [
-        "report",
-        "400"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 29,
@@ -20259,12 +19637,8 @@
     {
       "name": "static PDF/A-4 archived raster, alpha, gray, and JPEG figures",
       "scenario_revision": "static-pdfa4-v1",
-      "source": "tests/archive/archive_facade.roc",
+      "family": "archive",
       "snapshot": "tests/archive/archive_figures.pdf",
-      "args": [
-        "figures",
-        "1"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -20298,12 +19672,8 @@
     {
       "name": "static PDF/A-4 archived navigation x8 links",
       "scenario_revision": "static-pdfa4-v1",
-      "source": "tests/archive/archive_facade.roc",
+      "family": "archive",
       "snapshot": "tests/archive/archive_navigation.pdf",
-      "args": [
-        "navigation",
-        "8"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -20337,12 +19707,8 @@
     {
       "name": "static PDF/A-4 archived navigation x64 links",
       "scenario_revision": "static-pdfa4-v1",
-      "source": "tests/archive/archive_facade.roc",
+      "family": "archive",
       "snapshot": "tests/archive/archive_navigation_64.pdf",
-      "args": [
-        "navigation",
-        "64"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 3,
@@ -20376,12 +19742,8 @@
     {
       "name": "static PDF/A-4 archived caller font",
       "scenario_revision": "static-pdfa4-v1",
-      "source": "tests/archive/archive_facade.roc",
+      "family": "archive",
       "snapshot": "tests/archive/archive_caller.pdf",
-      "args": [
-        "caller",
-        "1"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -20414,12 +19776,8 @@
     {
       "name": "static PDF/A-4 owned chunked output",
       "scenario_revision": "static-pdfa4-v1",
-      "source": "tests/archive/archive_facade.roc",
+      "family": "archive",
       "snapshot": "tests/archive/archive_report.pdf",
-      "args": [
-        "chunked-own",
-        "40"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4,
@@ -20459,12 +19817,8 @@
     {
       "name": "static PDF/A-4 shared chunked output",
       "scenario_revision": "static-pdfa4-v1",
-      "source": "tests/archive/archive_facade.roc",
+      "family": "archive",
       "snapshot": "tests/archive/archive_report.pdf",
-      "args": [
-        "chunked-share",
-        "40"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4,
@@ -20504,12 +19858,8 @@
     {
       "name": "static PDF/A-4 Archive and Standard profile twins",
       "scenario_revision": "static-pdfa4-v1",
-      "source": "tests/archive/archive_facade.roc",
+      "family": "archive",
       "snapshot": "tests/archive/archive_report.pdf",
-      "args": [
-        "profiles",
-        "40"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4,
@@ -20549,11 +19899,8 @@
     {
       "name": "static PDF/A-4 facade atomic negatives",
       "scenario_revision": "static-pdfa4-v1",
-      "source": "tests/archive/archive_facade_negative.roc",
+      "family": "archive",
       "snapshot": "tests/archive/archive_facade_negative.pdf",
-      "args": [
-        "Archive negatives"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -20590,12 +19937,8 @@
     {
       "name": "static PDF/A-4 Standard twin of the archived figures",
       "scenario_revision": "static-pdfa4-v1",
-      "source": "tests/archive/archive_facade.roc",
+      "family": "archive",
       "snapshot": "tests/archive/archive_figures_standard.pdf",
-      "args": [
-        "figures-standard",
-        "1"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -20629,12 +19972,8 @@
     {
       "name": "static PDF/A-4 Standard twin of the archived navigation",
       "scenario_revision": "static-pdfa4-v1",
-      "source": "tests/archive/archive_facade.roc",
+      "family": "archive",
       "snapshot": "tests/archive/archive_navigation_standard.pdf",
-      "args": [
-        "navigation-standard",
-        "8"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -20668,12 +20007,8 @@
     {
       "name": "semantic foundation nested public containers",
       "scenario_revision": "semantic-foundation-v1",
-      "source": "tests/containers/main.roc",
+      "family": "containers",
       "snapshot": "tests/containers/nested.pdf",
-      "args": [
-        "nested",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -20729,12 +20064,8 @@
     {
       "name": "semantic foundation sections x10",
       "scenario_revision": "semantic-foundation-v1",
-      "source": "tests/containers/main.roc",
+      "family": "containers",
       "snapshot": "tests/containers/sections_10.pdf",
-      "args": [
-        "sections",
-        "10"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 2,
@@ -20790,12 +20121,8 @@
     {
       "name": "semantic foundation sections x100",
       "scenario_revision": "semantic-foundation-v1",
-      "source": "tests/containers/main.roc",
+      "family": "containers",
       "snapshot": "tests/containers/sections_100.pdf",
-      "args": [
-        "sections",
-        "100"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 11,
@@ -20851,12 +20178,8 @@
     {
       "name": "semantic foundation container atomic negatives",
       "scenario_revision": "semantic-foundation-v1",
-      "source": "tests/containers/main.roc",
+      "family": "containers",
       "snapshot": "tests/containers/containers_negative.pdf",
-      "args": [
-        "negatives",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -20897,12 +20220,8 @@
     {
       "name": "semantic foundation kernel attribute, identifier, and language lowering",
       "scenario_revision": "semantic-foundation-v1",
-      "source": "tests/containers/main.roc",
+      "family": "containers",
       "snapshot": "tests/containers/lowering.pdf",
-      "args": [
-        "lowering",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -20966,12 +20285,8 @@
     {
       "name": "rich inline mixed styles, links, languages, and expansions",
       "scenario_revision": "rich-inline-v1",
-      "source": "tests/rich_inline/main.roc",
+      "family": "rich_inline",
       "snapshot": "tests/rich_inline/mixed.pdf",
-      "args": [
-        "mixed",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -21044,12 +20359,8 @@
     {
       "name": "rich inline paragraphs x10",
       "scenario_revision": "rich-inline-v1",
-      "source": "tests/rich_inline/main.roc",
+      "family": "rich_inline",
       "snapshot": "tests/rich_inline/paragraphs_10.pdf",
-      "args": [
-        "paragraphs",
-        "10"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -21123,12 +20434,8 @@
     {
       "name": "rich inline paragraphs x100",
       "scenario_revision": "rich-inline-v1",
-      "source": "tests/rich_inline/main.roc",
+      "family": "rich_inline",
       "snapshot": "tests/rich_inline/paragraphs_100.pdf",
-      "args": [
-        "paragraphs",
-        "100"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 6,
@@ -21202,12 +20509,8 @@
     {
       "name": "rich inline ordered multi-face spans",
       "scenario_revision": "rich-inline-v1",
-      "source": "tests/rich_inline/main.roc",
+      "family": "rich_inline",
       "snapshot": "tests/rich_inline/ordered.pdf",
-      "args": [
-        "ordered",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -21280,12 +20583,8 @@
     {
       "name": "rich inline code face",
       "scenario_revision": "rich-inline-v2",
-      "source": "tests/rich_inline/main.roc",
+      "family": "rich_inline",
       "snapshot": "tests/rich_inline/code_face.pdf",
-      "args": [
-        "code_face",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -21337,12 +20636,8 @@
     {
       "name": "rich inline shared source faces x10",
       "scenario_revision": "rich-inline-shared-source-v1",
-      "source": "tests/rich_inline/main.roc",
+      "family": "rich_inline",
       "snapshot": "tests/rich_inline/shared_source_10.pdf",
-      "args": [
-        "shared_source",
-        "10"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 2,
@@ -21393,12 +20688,8 @@
     {
       "name": "rich inline shared source faces x50",
       "scenario_revision": "rich-inline-shared-source-v1",
-      "source": "tests/rich_inline/main.roc",
+      "family": "rich_inline",
       "snapshot": "tests/rich_inline/shared_source_50.pdf",
-      "args": [
-        "shared_source",
-        "50"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 5,
@@ -21449,12 +20740,8 @@
     {
       "name": "rich inline heading faces x10",
       "scenario_revision": "rich-inline-heading-faces-v1",
-      "source": "tests/rich_inline/main.roc",
+      "family": "rich_inline",
       "snapshot": "tests/rich_inline/heading_faces_10.pdf",
-      "args": [
-        "heading_faces",
-        "10"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 2,
@@ -21504,12 +20791,8 @@
     {
       "name": "rich inline heading faces x50",
       "scenario_revision": "rich-inline-heading-faces-v1",
-      "source": "tests/rich_inline/main.roc",
+      "family": "rich_inline",
       "snapshot": "tests/rich_inline/heading_faces_50.pdf",
-      "args": [
-        "heading_faces",
-        "50"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 8,
@@ -21559,12 +20842,8 @@
     {
       "name": "rich inline scaled code x10",
       "scenario_revision": "rich-inline-scaled-code-v1",
-      "source": "tests/rich_inline/main.roc",
+      "family": "rich_inline",
       "snapshot": "tests/rich_inline/scaled_code_10.pdf",
-      "args": [
-        "scaled_code",
-        "10"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -21614,12 +20893,8 @@
     {
       "name": "rich inline scaled code x50",
       "scenario_revision": "rich-inline-scaled-code-v1",
-      "source": "tests/rich_inline/main.roc",
+      "family": "rich_inline",
       "snapshot": "tests/rich_inline/scaled_code_50.pdf",
-      "args": [
-        "scaled_code",
-        "50"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 3,
@@ -21669,12 +20944,8 @@
     {
       "name": "rich inline link style x10",
       "scenario_revision": "rich-inline-link-style-v1",
-      "source": "tests/rich_inline/main.roc",
+      "family": "rich_inline",
       "snapshot": "tests/rich_inline/link_style_10.pdf",
-      "args": [
-        "link_style",
-        "10"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -21716,12 +20987,8 @@
     {
       "name": "rich inline link style x50",
       "scenario_revision": "rich-inline-link-style-v1",
-      "source": "tests/rich_inline/main.roc",
+      "family": "rich_inline",
       "snapshot": "tests/rich_inline/link_style_50.pdf",
-      "args": [
-        "link_style",
-        "50"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 5,
@@ -21763,12 +21030,8 @@
     {
       "name": "rich inline scoped colors x10",
       "scenario_revision": "rich-inline-scoped-colors-v1",
-      "source": "tests/rich_inline/main.roc",
+      "family": "rich_inline",
       "snapshot": "tests/rich_inline/scoped_colors_10.pdf",
-      "args": [
-        "scoped_colors",
-        "10"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -21815,12 +21078,8 @@
     {
       "name": "rich inline scoped colors x50",
       "scenario_revision": "rich-inline-scoped-colors-v1",
-      "source": "tests/rich_inline/main.roc",
+      "family": "rich_inline",
       "snapshot": "tests/rich_inline/scoped_colors_50.pdf",
-      "args": [
-        "scoped_colors",
-        "50"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4,
@@ -21867,12 +21126,8 @@
     {
       "name": "rich inline scoped text x10",
       "scenario_revision": "rich-inline-scoped-text-v1",
-      "source": "tests/rich_inline/main.roc",
+      "family": "rich_inline",
       "snapshot": "tests/rich_inline/scoped_text_10.pdf",
-      "args": [
-        "scoped_text",
-        "10"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -21916,12 +21171,8 @@
     {
       "name": "rich inline scoped text x50",
       "scenario_revision": "rich-inline-scoped-text-v1",
-      "source": "tests/rich_inline/main.roc",
+      "family": "rich_inline",
       "snapshot": "tests/rich_inline/scoped_text_50.pdf",
-      "args": [
-        "scoped_text",
-        "50"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4,
@@ -21965,12 +21216,8 @@
     {
       "name": "rich inline code holds x14",
       "scenario_revision": "rich-inline-code-holds-v1",
-      "source": "tests/rich_inline/main.roc",
+      "family": "rich_inline",
       "snapshot": "tests/rich_inline/code_holds_14.pdf",
-      "args": [
-        "code_holds",
-        "14"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -22053,12 +21300,8 @@
     {
       "name": "rich inline code holds x140",
       "scenario_revision": "rich-inline-code-holds-v1",
-      "source": "tests/rich_inline/main.roc",
+      "family": "rich_inline",
       "snapshot": "tests/rich_inline/code_holds_140.pdf",
-      "args": [
-        "code_holds",
-        "140"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 8,
@@ -22141,12 +21384,8 @@
     {
       "name": "rich inline atomic negatives",
       "scenario_revision": "rich-inline-v1",
-      "source": "tests/rich_inline/main.roc",
+      "family": "rich_inline",
       "snapshot": "tests/rich_inline/negatives.pdf",
-      "args": [
-        "atomic_negatives",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -22187,12 +21426,8 @@
     {
       "name": "layout policies nested lists",
       "scenario_revision": "layout-policies-v1",
-      "source": "tests/layout_policies/main.roc",
+      "family": "layout_policies",
       "snapshot": "tests/layout_policies/nested_lists.pdf",
-      "args": [
-        "lists",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -22269,12 +21504,8 @@
     {
       "name": "layout policies explicit breaks and spacers",
       "scenario_revision": "layout-policies-v1",
-      "source": "tests/layout_policies/main.roc",
+      "family": "layout_policies",
       "snapshot": "tests/layout_policies/breaks.pdf",
-      "args": [
-        "breaks",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 2,
@@ -22351,12 +21582,8 @@
     {
       "name": "layout policies keeps across page boundaries",
       "scenario_revision": "layout-policies-v1",
-      "source": "tests/layout_policies/main.roc",
+      "family": "layout_policies",
       "snapshot": "tests/layout_policies/keeps.pdf",
-      "args": [
-        "keeps",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 5,
@@ -22433,12 +21660,8 @@
     {
       "name": "layout policies reported relaxations",
       "scenario_revision": "layout-policies-v1",
-      "source": "tests/layout_policies/main.roc",
+      "family": "layout_policies",
       "snapshot": "tests/layout_policies/relaxations.pdf",
-      "args": [
-        "relaxations",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4,
@@ -22515,12 +21738,8 @@
     {
       "name": "layout policies keep groups and lists x50",
       "scenario_revision": "layout-policies-v1",
-      "source": "tests/layout_policies/main.roc",
+      "family": "layout_policies",
       "snapshot": "tests/layout_policies/groups_50.pdf",
-      "args": [
-        "groups",
-        "50"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 5,
@@ -22597,12 +21816,8 @@
     {
       "name": "layout policies keep groups and lists x500",
       "scenario_revision": "layout-policies-v1",
-      "source": "tests/layout_policies/main.roc",
+      "family": "layout_policies",
       "snapshot": "tests/layout_policies/groups_500.pdf",
-      "args": [
-        "groups",
-        "500"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 48,
@@ -22679,12 +21894,8 @@
     {
       "name": "layout policies adversarial heading chain x50",
       "scenario_revision": "layout-policies-v1",
-      "source": "tests/layout_policies/main.roc",
+      "family": "layout_policies",
       "snapshot": "tests/layout_policies/heading_chain_50.pdf",
-      "args": [
-        "heading_chain",
-        "50"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 2,
@@ -22761,12 +21972,8 @@
     {
       "name": "layout policies adversarial heading chain x500",
       "scenario_revision": "layout-policies-v1",
-      "source": "tests/layout_policies/main.roc",
+      "family": "layout_policies",
       "snapshot": "tests/layout_policies/heading_chain_500.pdf",
-      "args": [
-        "heading_chain",
-        "500"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 19,
@@ -22843,12 +22050,8 @@
     {
       "name": "layout policies atomic negatives",
       "scenario_revision": "layout-policies-v1",
-      "source": "tests/layout_policies/main.roc",
+      "family": "layout_policies",
       "snapshot": "tests/layout_policies/negatives.pdf",
-      "args": [
-        "atomic_negatives",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -22890,12 +22093,8 @@
     {
       "name": "tables invoice x50",
       "scenario_revision": "tables-v1",
-      "source": "tests/tables/main.roc",
+      "family": "tables",
       "snapshot": "tests/tables/invoice_50.pdf",
-      "args": [
-        "invoice",
-        "50"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4,
@@ -22976,12 +22175,8 @@
     {
       "name": "tables invoice x500",
       "scenario_revision": "tables-v1",
-      "source": "tests/tables/main.roc",
+      "family": "tables",
       "snapshot": "tests/tables/invoice_500.pdf",
-      "args": [
-        "invoice",
-        "500"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 27,
@@ -23062,12 +22257,8 @@
     {
       "name": "tables column spans and two header rows",
       "scenario_revision": "tables-v1",
-      "source": "tests/tables/main.roc",
+      "family": "tables",
       "snapshot": "tests/tables/spans.pdf",
-      "args": [
-        "spans",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -23148,12 +22339,8 @@
     {
       "name": "tables split rows",
       "scenario_revision": "tables-v1",
-      "source": "tests/tables/main.roc",
+      "family": "tables",
       "snapshot": "tests/tables/split_rows.pdf",
-      "args": [
-        "split_rows",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 6,
@@ -23233,12 +22420,8 @@
     {
       "name": "tables footer carry",
       "scenario_revision": "tables-v1",
-      "source": "tests/tables/main.roc",
+      "family": "tables",
       "snapshot": "tests/tables/footer_carry.pdf",
-      "args": [
-        "footer_carry",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 2,
@@ -23319,12 +22502,8 @@
     {
       "name": "tables whole-table keep",
       "scenario_revision": "tables-kept-whole-v1",
-      "source": "tests/tables/main.roc",
+      "family": "tables",
       "snapshot": "tests/tables/kept_whole.pdf",
-      "args": [
-        "kept_whole",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 2,
@@ -23404,12 +22583,8 @@
     {
       "name": "tables styled x40",
       "scenario_revision": "tables-styled-v1",
-      "source": "tests/tables/main.roc",
+      "family": "tables",
       "snapshot": "tests/tables/styled_40.pdf",
-      "args": [
-        "styled",
-        "40"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 2,
@@ -23495,12 +22670,8 @@
     {
       "name": "tables styled x400",
       "scenario_revision": "tables-styled-v1",
-      "source": "tests/tables/main.roc",
+      "family": "tables",
       "snapshot": "tests/tables/styled_400.pdf",
-      "args": [
-        "styled",
-        "400"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 12,
@@ -23586,12 +22757,8 @@
     {
       "name": "tables empty cells x40",
       "scenario_revision": "tables-empty-cells-v1",
-      "source": "tests/tables/main.roc",
+      "family": "tables",
       "snapshot": "tests/tables/empty_cells_40.pdf",
-      "args": [
-        "empty_cells",
-        "40"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 2,
@@ -23669,12 +22836,8 @@
     {
       "name": "tables empty cells x400",
       "scenario_revision": "tables-empty-cells-v1",
-      "source": "tests/tables/main.roc",
+      "family": "tables",
       "snapshot": "tests/tables/empty_cells_400.pdf",
-      "args": [
-        "empty_cells",
-        "400"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 11,
@@ -23752,12 +22915,8 @@
     {
       "name": "tables ruled grid x40",
       "scenario_revision": "tables-ruled-v1",
-      "source": "tests/tables/main.roc",
+      "family": "tables",
       "snapshot": "tests/tables/ruled_40.pdf",
-      "args": [
-        "ruled",
-        "40"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 2,
@@ -23843,12 +23002,8 @@
     {
       "name": "tables ruled grid x400",
       "scenario_revision": "tables-ruled-v1",
-      "source": "tests/tables/main.roc",
+      "family": "tables",
       "snapshot": "tests/tables/ruled_400.pdf",
-      "args": [
-        "ruled",
-        "400"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 12,
@@ -23934,12 +23089,8 @@
     {
       "name": "tables ordered numeric cells",
       "scenario_revision": "tables-v1",
-      "source": "tests/tables/main.roc",
+      "family": "tables",
       "snapshot": "tests/tables/ordered.pdf",
-      "args": [
-        "ordered",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -24020,12 +23171,8 @@
     {
       "name": "tables atomic negatives",
       "scenario_revision": "tables-v1",
-      "source": "tests/tables/main.roc",
+      "family": "tables",
       "snapshot": "tests/tables/negatives.pdf",
-      "args": [
-        "atomic_negatives",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -24065,12 +23212,8 @@
     {
       "name": "page templates letter x6",
       "scenario_revision": "page-templates-v1",
-      "source": "tests/page_templates/main.roc",
+      "family": "page_templates",
       "snapshot": "tests/page_templates/letter_6.pdf",
-      "args": [
-        "letter",
-        "6"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 3,
@@ -24128,12 +23271,8 @@
     {
       "name": "page templates letter x20",
       "scenario_revision": "page-templates-v1",
-      "source": "tests/page_templates/main.roc",
+      "family": "page_templates",
       "snapshot": "tests/page_templates/letter_20.pdf",
-      "args": [
-        "letter",
-        "20"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 6,
@@ -24191,12 +23330,8 @@
     {
       "name": "page templates letter x200",
       "scenario_revision": "page-templates-v1",
-      "source": "tests/page_templates/main.roc",
+      "family": "page_templates",
       "snapshot": "tests/page_templates/letter_200.pdf",
-      "args": [
-        "letter",
-        "200"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 36,
@@ -24254,12 +23389,8 @@
     {
       "name": "page templates report",
       "scenario_revision": "page-templates-v1",
-      "source": "tests/page_templates/main.roc",
+      "family": "page_templates",
       "snapshot": "tests/page_templates/report.pdf",
-      "args": [
-        "report",
-        "12"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 7,
@@ -24317,12 +23448,8 @@
     {
       "name": "page templates ordered policy",
       "scenario_revision": "page-templates-v1",
-      "source": "tests/page_templates/main.roc",
+      "family": "page_templates",
       "snapshot": "tests/page_templates/ordered.pdf",
-      "args": [
-        "ordered",
-        "12"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 7,
@@ -24383,12 +23510,8 @@
     {
       "name": "page templates landscape and custom page sizes",
       "scenario_revision": "page-sizes-v1",
-      "source": "tests/page_templates/main.roc",
+      "family": "page_templates",
       "snapshot": "tests/page_templates/page_sizes.pdf",
-      "args": [
-        "page_sizes",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 2,
@@ -24444,12 +23567,8 @@
     {
       "name": "page templates backdrops x3",
       "scenario_revision": "page-templates-backdrops-v1",
-      "source": "tests/page_templates/main.roc",
+      "family": "page_templates",
       "snapshot": "tests/page_templates/backdrops_3.pdf",
-      "args": [
-        "backdrops",
-        "3"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 3
@@ -24507,12 +23626,8 @@
     {
       "name": "page templates backdrops x30",
       "scenario_revision": "page-templates-backdrops-v1",
-      "source": "tests/page_templates/main.roc",
+      "family": "page_templates",
       "snapshot": "tests/page_templates/backdrops_30.pdf",
-      "args": [
-        "backdrops",
-        "30"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 30
@@ -24570,12 +23685,8 @@
     {
       "name": "page templates slot inset",
       "scenario_revision": "page-templates-slot-inset-v1",
-      "source": "tests/page_templates/main.roc",
+      "family": "page_templates",
       "snapshot": "tests/page_templates/slot_inset.pdf",
-      "args": [
-        "slot_inset",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 2
@@ -24636,12 +23747,8 @@
     {
       "name": "page templates furniture groups",
       "scenario_revision": "page-templates-furniture-groups-v1",
-      "source": "tests/page_templates/main.roc",
+      "family": "page_templates",
       "snapshot": "tests/page_templates/furniture_groups.pdf",
-      "args": [
-        "furniture_groups",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 2
@@ -24699,12 +23806,8 @@
     {
       "name": "page templates number styles",
       "scenario_revision": "page-templates-v1",
-      "source": "tests/page_templates/main.roc",
+      "family": "page_templates",
       "snapshot": "tests/page_templates/number_styles.pdf",
-      "args": [
-        "numbering",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 5,
@@ -24762,12 +23865,8 @@
     {
       "name": "page templates furniture drawings",
       "scenario_revision": "page-templates-v1",
-      "source": "tests/page_templates/main.roc",
+      "family": "page_templates",
       "snapshot": "tests/page_templates/drawings.pdf",
-      "args": [
-        "images",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 3,
@@ -24825,12 +23924,8 @@
     {
       "name": "page templates atomic negatives",
       "scenario_revision": "page-templates-v1",
-      "source": "tests/page_templates/main.roc",
+      "family": "page_templates",
       "snapshot": "tests/page_templates/negatives.pdf",
-      "args": [
-        "atomic_negatives",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -24871,11 +23966,8 @@
     {
       "name": "flow figures report",
       "scenario_revision": "flow-figures-v1",
-      "source": "tests/flow_figures/main.roc",
+      "family": "flow_figures",
       "snapshot": "tests/flow_figures/report.pdf",
-      "args": [
-        "report"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4,
@@ -24931,12 +24023,8 @@
     {
       "name": "flow figures sections x10",
       "scenario_revision": "flow-figures-v1",
-      "source": "tests/flow_figures/main.roc",
+      "family": "flow_figures",
       "snapshot": "tests/flow_figures/sections_10.pdf",
-      "args": [
-        "sections",
-        "10"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4,
@@ -24992,12 +24080,8 @@
     {
       "name": "flow figures sections x100",
       "scenario_revision": "flow-figures-v1",
-      "source": "tests/flow_figures/main.roc",
+      "family": "flow_figures",
       "snapshot": "tests/flow_figures/sections_100.pdf",
-      "args": [
-        "sections",
-        "100"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 34,
@@ -25053,12 +24137,8 @@
     {
       "name": "flow figures labels x10",
       "scenario_revision": "flow-figures-labels-v1",
-      "source": "tests/flow_figures/main.roc",
+      "family": "flow_figures",
       "snapshot": "tests/flow_figures/labels_10.pdf",
-      "args": [
-        "labels",
-        "10"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 5,
@@ -25076,8 +24156,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 5845,
-          "allocated_bytes": 10235879,
+          "allocations": 5835,
+          "allocated_bytes": 10181959,
           "work": {
             "lines": 69,
             "pages": 5,
@@ -25090,8 +24170,8 @@
           }
         },
         "x64musl": {
-          "allocations": 5845,
-          "allocated_bytes": 10235879,
+          "allocations": 5835,
+          "allocated_bytes": 10181959,
           "work": {
             "lines": 69,
             "pages": 5,
@@ -25114,12 +24194,8 @@
     {
       "name": "flow figures labels x50",
       "scenario_revision": "flow-figures-labels-v1",
-      "source": "tests/flow_figures/main.roc",
+      "family": "flow_figures",
       "snapshot": "tests/flow_figures/labels_50.pdf",
-      "args": [
-        "labels",
-        "50"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 19,
@@ -25137,8 +24213,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 17589,
-          "allocated_bytes": 37693845,
+          "allocations": 17539,
+          "allocated_bytes": 37424245,
           "work": {
             "lines": 329,
             "pages": 19,
@@ -25151,8 +24227,8 @@
           }
         },
         "x64musl": {
-          "allocations": 17589,
-          "allocated_bytes": 37693845,
+          "allocations": 17539,
+          "allocated_bytes": 37424245,
           "work": {
             "lines": 329,
             "pages": 19,
@@ -25175,12 +24251,8 @@
     {
       "name": "flow figures label faces x10",
       "scenario_revision": "flow-figures-label-faces-v1",
-      "source": "tests/flow_figures/main.roc",
+      "family": "flow_figures",
       "snapshot": "tests/flow_figures/label_faces_10.pdf",
-      "args": [
-        "label_faces",
-        "10"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4,
@@ -25199,8 +24271,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 4951,
-          "allocated_bytes": 10576818,
+          "allocations": 4931,
+          "allocated_bytes": 10466418,
           "work": {
             "lines": 56,
             "pages": 4,
@@ -25214,8 +24286,8 @@
           }
         },
         "x64musl": {
-          "allocations": 4951,
-          "allocated_bytes": 10576818,
+          "allocations": 4931,
+          "allocated_bytes": 10466418,
           "work": {
             "lines": 56,
             "pages": 4,
@@ -25239,12 +24311,8 @@
     {
       "name": "flow figures label faces x50",
       "scenario_revision": "flow-figures-label-faces-v1",
-      "source": "tests/flow_figures/main.roc",
+      "family": "flow_figures",
       "snapshot": "tests/flow_figures/label_faces_50.pdf",
-      "args": [
-        "label_faces",
-        "50"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 17,
@@ -25263,8 +24331,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 17222,
-          "allocated_bytes": 36822347,
+          "allocations": 17122,
+          "allocated_bytes": 36270347,
           "work": {
             "lines": 276,
             "pages": 17,
@@ -25278,8 +24346,8 @@
           }
         },
         "x64musl": {
-          "allocations": 17222,
-          "allocated_bytes": 36822347,
+          "allocations": 17122,
+          "allocated_bytes": 36270347,
           "work": {
             "lines": 276,
             "pages": 17,
@@ -25303,12 +24371,8 @@
     {
       "name": "flow figures spaced decorations x10",
       "scenario_revision": "flow-figures-spaced-decorations-v1",
-      "source": "tests/flow_figures/main.roc",
+      "family": "flow_figures",
       "snapshot": "tests/flow_figures/spaced_decorations_10.pdf",
-      "args": [
-        "spaced_decorations",
-        "10"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 2,
@@ -25364,12 +24428,8 @@
     {
       "name": "flow figures spaced decorations x100",
       "scenario_revision": "flow-figures-spaced-decorations-v1",
-      "source": "tests/flow_figures/main.roc",
+      "family": "flow_figures",
       "snapshot": "tests/flow_figures/spaced_decorations_100.pdf",
-      "args": [
-        "spaced_decorations",
-        "100"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 15,
@@ -25425,12 +24485,8 @@
     {
       "name": "flow figures drawing bound diagnostics",
       "scenario_revision": "flow-figures-bound-diagnostics-v1",
-      "source": "tests/flow_figures/main.roc",
+      "family": "flow_figures",
       "snapshot": "tests/flow_figures/bound_diagnostics.pdf",
-      "args": [
-        "bound_diagnostics",
-        "0"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1
@@ -25467,11 +24523,8 @@
     {
       "name": "flow figures atomic negatives",
       "scenario_revision": "flow-figures-v1",
-      "source": "tests/flow_figures/main.roc",
+      "family": "flow_figures",
       "snapshot": "tests/flow_figures/negatives.pdf",
-      "args": [
-        "negatives"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -25508,11 +24561,8 @@
     {
       "name": "custom block report",
       "scenario_revision": "custom-block-v1",
-      "source": "tests/custom_block/main.roc",
+      "family": "custom_block",
       "snapshot": "tests/custom_block/report.pdf",
-      "args": [
-        "report"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4,
@@ -25582,12 +24632,8 @@
     {
       "name": "custom block callouts x10",
       "scenario_revision": "custom-block-v1",
-      "source": "tests/custom_block/main.roc",
+      "family": "custom_block",
       "snapshot": "tests/custom_block/callouts_10.pdf",
-      "args": [
-        "callouts",
-        "10"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 2,
@@ -25654,12 +24700,8 @@
     {
       "name": "custom block callouts x100",
       "scenario_revision": "custom-block-v1",
-      "source": "tests/custom_block/main.roc",
+      "family": "custom_block",
       "snapshot": "tests/custom_block/callouts_100.pdf",
-      "args": [
-        "callouts",
-        "100"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 19,
@@ -25726,12 +24768,8 @@
     {
       "name": "custom block rich callouts x10",
       "scenario_revision": "custom-block-rich-callouts-v1",
-      "source": "tests/custom_block/main.roc",
+      "family": "custom_block",
       "snapshot": "tests/custom_block/rich_callouts_10.pdf",
-      "args": [
-        "rich_callouts",
-        "10"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 2,
@@ -25799,12 +24837,8 @@
     {
       "name": "custom block rich callouts x50",
       "scenario_revision": "custom-block-rich-callouts-v1",
-      "source": "tests/custom_block/main.roc",
+      "family": "custom_block",
       "snapshot": "tests/custom_block/rich_callouts_50.pdf",
-      "args": [
-        "rich_callouts",
-        "50"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 10,
@@ -25872,11 +24906,8 @@
     {
       "name": "custom block atomic negatives",
       "scenario_revision": "custom-block-v1",
-      "source": "tests/custom_block/main.roc",
+      "family": "custom_block",
       "snapshot": "tests/custom_block/negatives.pdf",
-      "args": [
-        "negatives"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -25919,11 +24950,8 @@
     {
       "name": "reference invoice",
       "scenario_revision": "reference-documents-v12",
-      "source": "tests/reference_documents/main.roc",
+      "family": "reference_documents",
       "snapshot": "tests/reference_documents/invoice.pdf",
-      "args": [
-        "reference"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 2
@@ -25984,11 +25012,8 @@
     {
       "name": "reference report",
       "scenario_revision": "reference-documents-v12",
-      "source": "tests/reference_documents/main.roc",
+      "family": "reference_documents",
       "snapshot": "tests/reference_documents/report.pdf",
-      "args": [
-        "reference"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4
@@ -26050,11 +25075,8 @@
     {
       "name": "reference letter",
       "scenario_revision": "reference-documents-v12",
-      "source": "tests/reference_documents/main.roc",
+      "family": "reference_documents",
       "snapshot": "tests/reference_documents/letter.pdf",
-      "args": [
-        "reference"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 3
@@ -26115,11 +25137,8 @@
     {
       "name": "reference invoice long text (INV-A1)",
       "scenario_revision": "reference-documents-v12",
-      "source": "tests/reference_documents/main.roc",
+      "family": "reference_documents",
       "snapshot": "tests/reference_documents/invoice_long_text.pdf",
-      "args": [
-        "reference"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 3
@@ -26180,11 +25199,8 @@
     {
       "name": "reference invoice wide code (INV-A2a)",
       "scenario_revision": "reference-documents-v12",
-      "source": "tests/reference_documents/main.roc",
+      "family": "reference_documents",
       "snapshot": "tests/reference_documents/invoice_wide_code.pdf",
-      "args": [
-        "reference"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 3
@@ -26245,11 +25261,8 @@
     {
       "name": "reference invoice split row (INV-A4b)",
       "scenario_revision": "reference-documents-v12",
-      "source": "tests/reference_documents/main.roc",
+      "family": "reference_documents",
       "snapshot": "tests/reference_documents/invoice_split_row.pdf",
-      "args": [
-        "reference"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 7
@@ -26309,11 +25322,8 @@
     {
       "name": "reference invoice totals carry (INV-A5)",
       "scenario_revision": "reference-documents-v12",
-      "source": "tests/reference_documents/main.roc",
+      "family": "reference_documents",
       "snapshot": "tests/reference_documents/invoice_totals_carry.pdf",
-      "args": [
-        "reference"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 3
@@ -26374,11 +25384,8 @@
     {
       "name": "reference invoice rows x50",
       "scenario_revision": "reference-documents-v12",
-      "source": "tests/reference_documents/main.roc",
+      "family": "reference_documents",
       "snapshot": "tests/reference_documents/invoice_50.pdf",
-      "args": [
-        "reference"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 3
@@ -26439,11 +25446,8 @@
     {
       "name": "reference invoice rows x500 (INV-A3)",
       "scenario_revision": "reference-documents-v12",
-      "source": "tests/reference_documents/main.roc",
+      "family": "reference_documents",
       "snapshot": "tests/reference_documents/invoice_500.pdf",
-      "args": [
-        "reference"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 21
@@ -26504,11 +25508,8 @@
     {
       "name": "reference report heading keep (REP-A1)",
       "scenario_revision": "reference-documents-v12",
-      "source": "tests/reference_documents/main.roc",
+      "family": "reference_documents",
       "snapshot": "tests/reference_documents/report_heading_keep.pdf",
-      "args": [
-        "reference"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 5
@@ -26570,11 +25571,8 @@
     {
       "name": "reference report figure and caption (REP-A2)",
       "scenario_revision": "reference-documents-v12",
-      "source": "tests/reference_documents/main.roc",
+      "family": "reference_documents",
       "snapshot": "tests/reference_documents/report_figure_caption.pdf",
-      "args": [
-        "reference"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 5
@@ -26636,11 +25634,8 @@
     {
       "name": "reference report table break (REP-A3)",
       "scenario_revision": "reference-documents-v12",
-      "source": "tests/reference_documents/main.roc",
+      "family": "reference_documents",
       "snapshot": "tests/reference_documents/report_table_break.pdf",
-      "args": [
-        "reference"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 5
@@ -26702,11 +25697,8 @@
     {
       "name": "reference report ordered faces (REP-A5)",
       "scenario_revision": "reference-documents-v12",
-      "source": "tests/reference_documents/main.roc",
+      "family": "reference_documents",
       "snapshot": "tests/reference_documents/report_ordered.pdf",
-      "args": [
-        "reference"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4
@@ -26768,11 +25760,8 @@
     {
       "name": "reference report scaled figure (REP-A6b)",
       "scenario_revision": "reference-documents-v12",
-      "source": "tests/reference_documents/main.roc",
+      "family": "reference_documents",
       "snapshot": "tests/reference_documents/report_scaled_figure.pdf",
-      "args": [
-        "reference"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 5
@@ -26834,11 +25823,8 @@
     {
       "name": "reference report sections x10",
       "scenario_revision": "reference-documents-v12",
-      "source": "tests/reference_documents/main.roc",
+      "family": "reference_documents",
       "snapshot": "tests/reference_documents/report_sections_10.pdf",
-      "args": [
-        "reference"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4
@@ -26900,11 +25886,8 @@
     {
       "name": "reference report sections x100",
       "scenario_revision": "reference-documents-v12",
-      "source": "tests/reference_documents/main.roc",
+      "family": "reference_documents",
       "snapshot": "tests/reference_documents/report_sections_100.pdf",
-      "args": [
-        "reference"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 38
@@ -26966,11 +25949,8 @@
     {
       "name": "reference letter long recipient (LET-A1)",
       "scenario_revision": "reference-documents-v12",
-      "source": "tests/reference_documents/main.roc",
+      "family": "reference_documents",
       "snapshot": "tests/reference_documents/letter_long_recipient.pdf",
-      "args": [
-        "reference"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 3
@@ -27031,11 +26011,8 @@
     {
       "name": "reference letter x60 (LET-A2)",
       "scenario_revision": "reference-documents-v12",
-      "source": "tests/reference_documents/main.roc",
+      "family": "reference_documents",
       "snapshot": "tests/reference_documents/letter_60.pdf",
-      "args": [
-        "reference"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 11
@@ -27096,11 +26073,8 @@
     {
       "name": "reference letter x20",
       "scenario_revision": "reference-documents-v12",
-      "source": "tests/reference_documents/main.roc",
+      "family": "reference_documents",
       "snapshot": "tests/reference_documents/letter_20.pdf",
-      "args": [
-        "reference"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 5
@@ -27161,11 +26135,8 @@
     {
       "name": "reference letter x200",
       "scenario_revision": "reference-documents-v12",
-      "source": "tests/reference_documents/main.roc",
+      "family": "reference_documents",
       "snapshot": "tests/reference_documents/letter_200.pdf",
-      "args": [
-        "reference"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 31
@@ -27226,11 +26197,8 @@
     {
       "name": "reference variant rejections",
       "scenario_revision": "reference-documents-v12",
-      "source": "tests/reference_documents/main.roc",
+      "family": "reference_documents",
       "snapshot": "tests/reference_documents/rejections.pdf",
-      "args": [
-        "reference"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1
@@ -27270,9 +26238,8 @@
     {
       "name": "source-text whitespace 16",
       "scenario_revision": "source-text-v1",
-      "source": "tests/source_text/main.roc",
+      "family": "source_text",
       "snapshot": "tests/source_text/whitespace.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "repetitions": 16,
@@ -27321,9 +26288,8 @@
     {
       "name": "source-text whitespace 160",
       "scenario_revision": "source-text-v1",
-      "source": "tests/source_text/main.roc",
+      "family": "source_text",
       "snapshot": "tests/source_text/whitespace.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "repetitions": 160,
@@ -27372,12 +26338,8 @@
     {
       "name": "page templates typography x3",
       "scenario_revision": "furniture-typography-v1",
-      "source": "tests/page_templates/main.roc",
+      "family": "page_templates",
       "snapshot": "tests/page_templates/typography_3.pdf",
-      "args": [
-        "typography",
-        "3"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 3
@@ -27436,12 +26398,8 @@
     {
       "name": "page templates typography x30",
       "scenario_revision": "furniture-typography-v1",
-      "source": "tests/page_templates/main.roc",
+      "family": "page_templates",
       "snapshot": "tests/page_templates/typography_30.pdf",
-      "args": [
-        "typography",
-        "30"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 30
@@ -27500,11 +26458,8 @@
     {
       "name": "custom block defaults",
       "scenario_revision": "custom-block-defaults-v1",
-      "source": "tests/custom_block/main.roc",
+      "family": "custom_block",
       "snapshot": "tests/custom_block/defaults.pdf",
-      "args": [
-        "defaults"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -27573,12 +26528,8 @@
     {
       "name": "rich inline repeated segments x10",
       "scenario_revision": "rich-inline-segment-identity-v1",
-      "source": "tests/rich_inline/main.roc",
+      "family": "rich_inline",
       "snapshot": "tests/rich_inline/repeated_segments_10.pdf",
-      "args": [
-        "repeated_segments",
-        "10"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "repeated_segments": 10,
@@ -27661,12 +26612,8 @@
     {
       "name": "rich inline repeated segments x50",
       "scenario_revision": "rich-inline-segment-identity-v1",
-      "source": "tests/rich_inline/main.roc",
+      "family": "rich_inline",
       "snapshot": "tests/rich_inline/repeated_segments_50.pdf",
-      "args": [
-        "repeated_segments",
-        "50"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "repeated_segments": 50,
@@ -27749,12 +26696,8 @@
     {
       "name": "rich inline repeated ordered segments x10",
       "scenario_revision": "rich-inline-segment-identity-v1",
-      "source": "tests/rich_inline/main.roc",
+      "family": "rich_inline",
       "snapshot": "tests/rich_inline/repeated_ordered_segments_10.pdf",
-      "args": [
-        "repeated_segments_ordered",
-        "10"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "repeated_segments": 10,
@@ -27838,12 +26781,8 @@
     {
       "name": "rich inline repeated ordered segments x50",
       "scenario_revision": "rich-inline-segment-identity-v1",
-      "source": "tests/rich_inline/main.roc",
+      "family": "rich_inline",
       "snapshot": "tests/rich_inline/repeated_ordered_segments_50.pdf",
-      "args": [
-        "repeated_segments_ordered",
-        "50"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "repeated_segments": 50,
@@ -27927,9 +26866,8 @@
     {
       "name": "source blocks whitespace",
       "scenario_revision": "source-blocks-v1",
-      "source": "tests/source_blocks/main.roc",
+      "family": "source_blocks",
       "snapshot": "tests/source_blocks/whitespace.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "source_scenario": 0,
@@ -28007,9 +26945,8 @@
     {
       "name": "source blocks long x60",
       "scenario_revision": "source-blocks-v1",
-      "source": "tests/source_blocks/main.roc",
+      "family": "source_blocks",
       "snapshot": "tests/source_blocks/long_60.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "source_scenario": 1,
@@ -28087,9 +27024,8 @@
     {
       "name": "source blocks long x600",
       "scenario_revision": "source-blocks-v1",
-      "source": "tests/source_blocks/main.roc",
+      "family": "source_blocks",
       "snapshot": "tests/source_blocks/long_600.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "source_scenario": 1,
@@ -28167,9 +27103,8 @@
     {
       "name": "source blocks near bottom",
       "scenario_revision": "source-blocks-v1",
-      "source": "tests/source_blocks/main.roc",
+      "family": "source_blocks",
       "snapshot": "tests/source_blocks/near_bottom.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "source_scenario": 2,
@@ -28247,9 +27182,8 @@
     {
       "name": "source blocks wrapping",
       "scenario_revision": "source-blocks-v1",
-      "source": "tests/source_blocks/main.roc",
+      "family": "source_blocks",
       "snapshot": "tests/source_blocks/wrapping.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "source_scenario": 3,
@@ -28327,9 +27261,8 @@
     {
       "name": "source blocks unicode",
       "scenario_revision": "source-blocks-v1",
-      "source": "tests/source_blocks/main.roc",
+      "family": "source_blocks",
       "snapshot": "tests/source_blocks/unicode.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "source_scenario": 4,
@@ -28407,9 +27340,8 @@
     {
       "name": "source blocks atomic negatives",
       "scenario_revision": "source-blocks-v1",
-      "source": "tests/source_blocks/main.roc",
+      "family": "source_blocks",
       "snapshot": "tests/source_blocks/negatives.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "source_scenario": 5,
@@ -28487,9 +27419,8 @@
     {
       "name": "source blocks empty",
       "scenario_revision": "source-blocks-v1",
-      "source": "tests/source_blocks/main.roc",
+      "family": "source_blocks",
       "snapshot": "tests/source_blocks/empty.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "source_scenario": 6,
@@ -28567,9 +27498,8 @@
     {
       "name": "source blocks blank lines",
       "scenario_revision": "source-blocks-v1",
-      "source": "tests/source_blocks/main.roc",
+      "family": "source_blocks",
       "snapshot": "tests/source_blocks/blank_lines.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "source_scenario": 6,
@@ -28647,9 +27577,8 @@
     {
       "name": "source blocks defaults",
       "scenario_revision": "source-blocks-v1",
-      "source": "tests/source_blocks/main.roc",
+      "family": "source_blocks",
       "snapshot": "tests/source_blocks/defaults.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "source_scenario": 7,
@@ -28727,9 +27656,8 @@
     {
       "name": "source blocks Han",
       "scenario_revision": "source-blocks-v1",
-      "source": "tests/source_blocks/main.roc",
+      "family": "source_blocks",
       "snapshot": "tests/source_blocks/han.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "source_scenario": 8,
@@ -28807,9 +27735,8 @@
     {
       "name": "source blocks empty without background",
       "scenario_revision": "source-blocks-v1",
-      "source": "tests/source_blocks/main.roc",
+      "family": "source_blocks",
       "snapshot": "tests/source_blocks/empty_plain.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "source_scenario": 9,
@@ -28887,9 +27814,8 @@
     {
       "name": "source blocks source only",
       "scenario_revision": "source-blocks-v1",
-      "source": "tests/source_blocks/main.roc",
+      "family": "source_blocks",
       "snapshot": "tests/source_blocks/source_only.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "source_scenario": 10,
@@ -28967,9 +27893,8 @@
     {
       "name": "source blocks source identities",
       "scenario_revision": "source-blocks-v1",
-      "source": "tests/source_blocks/main.roc",
+      "family": "source_blocks",
       "snapshot": "tests/source_blocks/multiple.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "source_scenario": 11,
@@ -29047,9 +27972,8 @@
     {
       "name": "source blocks Han source only",
       "scenario_revision": "source-blocks-v1",
-      "source": "tests/source_blocks/main.roc",
+      "family": "source_blocks",
       "snapshot": "tests/source_blocks/han_only.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "source_scenario": 12,
@@ -29128,9 +28052,8 @@
     {
       "name": "source blocks Han shared face",
       "scenario_revision": "source-blocks-v1",
-      "source": "tests/source_blocks/main.roc",
+      "family": "source_blocks",
       "snapshot": "tests/source_blocks/han_shared.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "source_scenario": 12,
@@ -29209,9 +28132,8 @@
     {
       "name": "source foregrounds kind0 x0 plain",
       "scenario_revision": "source-foregrounds-v1",
-      "source": "tests/source_blocks/main.roc",
+      "family": "source_blocks",
       "snapshot": "tests/source_blocks/foreground_0_0_plain.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "foreground_kind": 0,
@@ -29299,9 +28221,8 @@
     {
       "name": "source foregrounds kind0 x0 color",
       "scenario_revision": "source-foregrounds-v1",
-      "source": "tests/source_blocks/main.roc",
+      "family": "source_blocks",
       "snapshot": "tests/source_blocks/foreground_0_0_color.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "foreground_kind": 0,
@@ -29389,9 +28310,8 @@
     {
       "name": "source foregrounds kind1 x0 plain",
       "scenario_revision": "source-foregrounds-v1",
-      "source": "tests/source_blocks/main.roc",
+      "family": "source_blocks",
       "snapshot": "tests/source_blocks/foreground_1_0_plain.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "foreground_kind": 1,
@@ -29479,9 +28399,8 @@
     {
       "name": "source foregrounds kind1 x0 color",
       "scenario_revision": "source-foregrounds-v1",
-      "source": "tests/source_blocks/main.roc",
+      "family": "source_blocks",
       "snapshot": "tests/source_blocks/foreground_1_0_color.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "foreground_kind": 1,
@@ -29569,9 +28488,8 @@
     {
       "name": "source foregrounds kind2 x60 plain",
       "scenario_revision": "source-foregrounds-v1",
-      "source": "tests/source_blocks/main.roc",
+      "family": "source_blocks",
       "snapshot": "tests/source_blocks/foreground_2_60_plain.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "foreground_kind": 2,
@@ -29659,9 +28577,8 @@
     {
       "name": "source foregrounds kind2 x60 color",
       "scenario_revision": "source-foregrounds-v1",
-      "source": "tests/source_blocks/main.roc",
+      "family": "source_blocks",
       "snapshot": "tests/source_blocks/foreground_2_60_color.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "foreground_kind": 2,
@@ -29749,9 +28666,8 @@
     {
       "name": "source foregrounds kind2 x600 plain",
       "scenario_revision": "source-foregrounds-v1",
-      "source": "tests/source_blocks/main.roc",
+      "family": "source_blocks",
       "snapshot": "tests/source_blocks/foreground_2_600_plain.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "foreground_kind": 2,
@@ -29839,9 +28755,8 @@
     {
       "name": "source foregrounds kind2 x600 color",
       "scenario_revision": "source-foregrounds-v1",
-      "source": "tests/source_blocks/main.roc",
+      "family": "source_blocks",
       "snapshot": "tests/source_blocks/foreground_2_600_color.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "foreground_kind": 2,
@@ -29929,9 +28844,8 @@
     {
       "name": "source foregrounds atomic negatives",
       "scenario_revision": "source-foregrounds-v1",
-      "source": "tests/source_blocks/main.roc",
+      "family": "source_blocks",
       "snapshot": "tests/source_blocks/foreground_negatives.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "source_scenario": 0,
@@ -30009,9 +28923,8 @@
     {
       "name": "source foregrounds kind3 x0 plain",
       "scenario_revision": "source-foregrounds-v1",
-      "source": "tests/source_blocks/main.roc",
+      "family": "source_blocks",
       "snapshot": "tests/source_blocks/foreground_3_0_plain.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "foreground_kind": 3,
@@ -30100,9 +29013,8 @@
     {
       "name": "source foregrounds kind3 x0 color",
       "scenario_revision": "source-foregrounds-v1",
-      "source": "tests/source_blocks/main.roc",
+      "family": "source_blocks",
       "snapshot": "tests/source_blocks/foreground_3_0_color.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "foreground_kind": 3,
@@ -30191,9 +29103,8 @@
     {
       "name": "source foregrounds kind4 x0 plain",
       "scenario_revision": "source-foregrounds-v1",
-      "source": "tests/source_blocks/main.roc",
+      "family": "source_blocks",
       "snapshot": "tests/source_blocks/foreground_4_0_plain.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "foreground_kind": 4,
@@ -30281,9 +29192,8 @@
     {
       "name": "source foregrounds kind4 x0 color",
       "scenario_revision": "source-foregrounds-v1",
-      "source": "tests/source_blocks/main.roc",
+      "family": "source_blocks",
       "snapshot": "tests/source_blocks/foreground_4_0_color.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "foreground_kind": 4,
@@ -30371,9 +29281,8 @@
     {
       "name": "chapter templates x2",
       "scenario_revision": "chapter-templates-v1",
-      "source": "tests/page_templates/main.roc",
+      "family": "page_templates",
       "snapshot": "tests/page_templates/chapters_2.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 6,
@@ -30445,9 +29354,8 @@
     {
       "name": "chapter templates x20",
       "scenario_revision": "chapter-templates-v1",
-      "source": "tests/page_templates/main.roc",
+      "family": "page_templates",
       "snapshot": "tests/page_templates/chapters_20.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 42,
@@ -30519,9 +29427,8 @@
     {
       "name": "chapter templates without document templates",
       "scenario_revision": "chapter-templates-v1",
-      "source": "tests/page_templates/main.roc",
+      "family": "page_templates",
       "snapshot": "tests/page_templates/chapters_no_templates.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 3,
@@ -30593,9 +29500,8 @@
     {
       "name": "chapter templates reset label",
       "scenario_revision": "chapter-templates-v1",
-      "source": "tests/page_templates/main.roc",
+      "family": "page_templates",
       "snapshot": "tests/page_templates/chapters_reset.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4,
@@ -30667,11 +29573,8 @@
     {
       "name": "vector diagrams x1",
       "scenario_revision": "vector-diagrams-v1",
-      "source": "tests/vector_diagrams/main.roc",
+      "family": "vector_diagrams",
       "snapshot": "tests/vector_diagrams/diagrams_1.pdf",
-      "args": [
-        "1"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -30723,11 +29626,8 @@
     {
       "name": "vector diagrams x10",
       "scenario_revision": "vector-diagrams-v1",
-      "source": "tests/vector_diagrams/main.roc",
+      "family": "vector_diagrams",
       "snapshot": "tests/vector_diagrams/diagrams_10.pdf",
-      "args": [
-        "10"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 3,
@@ -30779,11 +29679,8 @@
     {
       "name": "vector diagrams x50",
       "scenario_revision": "vector-diagrams-v1",
-      "source": "tests/vector_diagrams/main.roc",
+      "family": "vector_diagrams",
       "snapshot": "tests/vector_diagrams/diagrams_50.pdf",
-      "args": [
-        "50"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 13,
@@ -30835,12 +29732,8 @@
     {
       "name": "page labels visible x3",
       "scenario_revision": "destination-page-references-v1",
-      "source": "tests/page_templates/main.roc",
+      "family": "page_templates",
       "snapshot": "tests/page_templates/page_labels_3.pdf",
-      "args": [
-        "page-labels",
-        "3"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 3
@@ -30896,12 +29789,8 @@
     {
       "name": "page labels visible x30",
       "scenario_revision": "destination-page-references-v1",
-      "source": "tests/page_templates/main.roc",
+      "family": "page_templates",
       "snapshot": "tests/page_templates/page_labels_30.pdf",
-      "args": [
-        "page-labels",
-        "30"
-      ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 30
@@ -30957,9 +29846,8 @@
     {
       "name": "reference item layout x100",
       "scenario_revision": "destination-page-references-v1",
-      "source": "tests/reference_layout/main.roc",
+      "family": "reference_layout",
       "snapshot": "tests/reference_layout/measurement_100.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "atoms": 100,
@@ -31022,9 +29910,8 @@
     {
       "name": "reference item layout x1000",
       "scenario_revision": "destination-page-references-v1",
-      "source": "tests/reference_layout/main.roc",
+      "family": "reference_layout",
       "snapshot": "tests/reference_layout/measurement_1000.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "atoms": 1000,
@@ -31087,9 +29974,8 @@
     {
       "name": "chapter templates atomic negatives",
       "scenario_revision": "chapter-templates-v1",
-      "source": "tests/page_templates/main.roc",
+      "family": "page_templates",
       "snapshot": "tests/page_templates/chapters_negative.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -31147,9 +30033,8 @@
     {
       "name": "rich flow list items x10",
       "scenario_revision": "rich-flow-v1",
-      "source": "tests/rich_flow/main.roc",
+      "family": "rich_flow",
       "snapshot": "tests/rich_flow/list_items_x10.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 12,
@@ -31235,9 +30120,8 @@
     {
       "name": "rich flow list items x100",
       "scenario_revision": "rich-flow-v1",
-      "source": "tests/rich_flow/main.roc",
+      "family": "rich_flow",
       "snapshot": "tests/rich_flow/list_items_x100.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 112,
@@ -31323,9 +30207,8 @@
     {
       "name": "rich flow paragraph callout x10",
       "scenario_revision": "rich-flow-v1",
-      "source": "tests/rich_flow/main.roc",
+      "family": "rich_flow",
       "snapshot": "tests/rich_flow/paragraph_callout_x10.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 2,
@@ -31411,9 +30294,8 @@
     {
       "name": "rich flow paragraph callout x100",
       "scenario_revision": "rich-flow-v1",
-      "source": "tests/rich_flow/main.roc",
+      "family": "rich_flow",
       "snapshot": "tests/rich_flow/paragraph_callout_x100.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 12,
@@ -31499,9 +30381,8 @@
     {
       "name": "rich flow nested callouts x3",
       "scenario_revision": "rich-flow-v1",
-      "source": "tests/rich_flow/main.roc",
+      "family": "rich_flow",
       "snapshot": "tests/rich_flow/nested_callouts_x3.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 9,
@@ -31587,9 +30468,8 @@
     {
       "name": "rich flow nested callouts x30",
       "scenario_revision": "rich-flow-v1",
-      "source": "tests/rich_flow/main.roc",
+      "family": "rich_flow",
       "snapshot": "tests/rich_flow/nested_callouts_x30.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 81,
@@ -31675,9 +30555,8 @@
     {
       "name": "rich flow atomic negatives",
       "scenario_revision": "rich-flow-v1",
-      "source": "tests/rich_flow/main.roc",
+      "family": "rich_flow",
       "snapshot": "tests/rich_flow/atomic_negatives.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -31760,9 +30639,8 @@
     {
       "name": "rich flow rebuilt callouts x10",
       "scenario_revision": "rich-flow-v1",
-      "source": "tests/rich_flow/main.roc",
+      "family": "rich_flow",
       "snapshot": "tests/rich_flow/rebuilt_callouts_x10.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -31848,9 +30726,8 @@
     {
       "name": "rich flow rebuilt callouts x100",
       "scenario_revision": "rich-flow-v1",
-      "source": "tests/rich_flow/main.roc",
+      "family": "rich_flow",
       "snapshot": "tests/rich_flow/rebuilt_callouts_x100.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 6,
@@ -31936,9 +30813,8 @@
     {
       "name": "rich flow shared callouts x10",
       "scenario_revision": "rich-flow-v1",
-      "source": "tests/rich_flow/main.roc",
+      "family": "rich_flow",
       "snapshot": "tests/rich_flow/rebuilt_callouts_x10.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
@@ -32024,9 +30900,8 @@
     {
       "name": "rich flow shared callouts x100",
       "scenario_revision": "rich-flow-v1",
-      "source": "tests/rich_flow/main.roc",
+      "family": "rich_flow",
       "snapshot": "tests/rich_flow/rebuilt_callouts_x100.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 6,
@@ -32112,9 +30987,8 @@
     {
       "name": "rich flow zero padding table",
       "scenario_revision": "rich-flow-v1",
-      "source": "tests/rich_flow/main.roc",
+      "family": "rich_flow",
       "snapshot": "tests/rich_flow/zero_padding_table.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 3,
@@ -32200,9 +31074,8 @@
     {
       "name": "technical manual chapters x2",
       "scenario_revision": "technical-manual-v1",
-      "source": "tests/technical_manual/main.roc",
+      "family": "technical_manual",
       "snapshot": "tests/technical_manual/manual_2.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 9,
@@ -32236,8 +31109,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 14883,
-          "allocated_bytes": 38390264,
+          "allocations": 14881,
+          "allocated_bytes": 37705688,
           "work": {
             "authored_chapters": 2,
             "authored_table_rows": 80,
@@ -32265,8 +31138,8 @@
           }
         },
         "x64musl": {
-          "allocations": 14883,
-          "allocated_bytes": 38390264,
+          "allocations": 14881,
+          "allocated_bytes": 37705688,
           "work": {
             "authored_chapters": 2,
             "authored_table_rows": 80,
@@ -32304,9 +31177,8 @@
     {
       "name": "technical manual chapters x20",
       "scenario_revision": "technical-manual-v1",
-      "source": "tests/technical_manual/main.roc",
+      "family": "technical_manual",
       "snapshot": "tests/technical_manual/manual_20.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 81,
@@ -32340,8 +31212,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 115811,
-          "allocated_bytes": 356058988,
+          "allocations": 115809,
+          "allocated_bytes": 349212012,
           "work": {
             "authored_chapters": 20,
             "authored_table_rows": 800,
@@ -32369,8 +31241,8 @@
           }
         },
         "x64musl": {
-          "allocations": 115811,
-          "allocated_bytes": 356058988,
+          "allocations": 115809,
+          "allocated_bytes": 349212012,
           "work": {
             "authored_chapters": 20,
             "authored_table_rows": 800,
@@ -32408,9 +31280,8 @@
     {
       "name": "destination references x2",
       "scenario_revision": "destination-page-references-v1",
-      "source": "tests/destination_references/main.roc",
+      "family": "destination_references",
       "snapshot": "tests/destination_references/references_2.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "sections": 2,
@@ -32445,8 +31316,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2753,
-          "allocated_bytes": 4253954,
+          "allocations": 2751,
+          "allocated_bytes": 4233298,
           "work": {
             "reference_atoms": 15,
             "normalization_chunks": 33,
@@ -32475,8 +31346,8 @@
           }
         },
         "x64musl": {
-          "allocations": 2753,
-          "allocated_bytes": 4253954,
+          "allocations": 2751,
+          "allocated_bytes": 4233298,
           "work": {
             "reference_atoms": 15,
             "normalization_chunks": 33,
@@ -32515,9 +31386,8 @@
     {
       "name": "destination references x20",
       "scenario_revision": "destination-page-references-v1",
-      "source": "tests/destination_references/main.roc",
+      "family": "destination_references",
       "snapshot": "tests/destination_references/references_20.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "sections": 20,
@@ -32552,8 +31422,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 9170,
-          "allocated_bytes": 15440587,
+          "allocations": 9168,
+          "allocated_bytes": 15346171,
           "work": {
             "reference_atoms": 87,
             "normalization_chunks": 213,
@@ -32582,8 +31452,8 @@
           }
         },
         "x64musl": {
-          "allocations": 9170,
-          "allocated_bytes": 15440587,
+          "allocations": 9168,
+          "allocated_bytes": 15346171,
           "work": {
             "reference_atoms": 87,
             "normalization_chunks": 213,
@@ -32622,9 +31492,8 @@
     {
       "name": "destination references inherited face",
       "scenario_revision": "destination-page-references-v1",
-      "source": "tests/destination_references/main.roc",
+      "family": "destination_references",
       "snapshot": "tests/destination_references/styled.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "sections": 2,
@@ -32659,8 +31528,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1180,
-          "allocated_bytes": 3354451,
+          "allocations": 1178,
+          "allocated_bytes": 3350035,
           "work": {
             "reference_atoms": 1,
             "normalization_chunks": 3,
@@ -32689,8 +31558,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1180,
-          "allocated_bytes": 3354451,
+          "allocations": 1178,
+          "allocated_bytes": 3350035,
           "work": {
             "reference_atoms": 1,
             "normalization_chunks": 3,
@@ -32729,9 +31598,8 @@
     {
       "name": "destination references atomic negatives",
       "scenario_revision": "destination-page-references-v1",
-      "source": "tests/destination_references/main.roc",
+      "family": "destination_references",
       "snapshot": "tests/destination_references/atomic_negatives.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "sections": 2,
@@ -32743,15 +31611,15 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2102,
-          "allocated_bytes": 2386679,
+          "allocations": 2093,
+          "allocated_bytes": 2383567,
           "work": {
             "rejections": 13
           }
         },
         "x64musl": {
-          "allocations": 2102,
-          "allocated_bytes": 2386679,
+          "allocations": 2093,
+          "allocated_bytes": 2383567,
           "work": {
             "rejections": 13
           }
@@ -32766,9 +31634,8 @@
     {
       "name": "destination references ordered mixed fonts",
       "scenario_revision": "destination-page-references-v1",
-      "source": "tests/destination_references/main.roc",
+      "family": "destination_references",
       "snapshot": "tests/destination_references/ordered.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "sections": 0,
@@ -32803,8 +31670,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1701,
-          "allocated_bytes": 3362564,
+          "allocations": 1699,
+          "allocated_bytes": 3357908,
           "work": {
             "reference_atoms": 2,
             "normalization_chunks": 5,
@@ -32833,8 +31700,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1701,
-          "allocated_bytes": 3362564,
+          "allocations": 1699,
+          "allocated_bytes": 3357908,
           "work": {
             "reference_atoms": 2,
             "normalization_chunks": 5,
@@ -32873,9 +31740,8 @@
     {
       "name": "destination references measured geometry",
       "scenario_revision": "destination-page-references-v1",
-      "source": "tests/destination_references/main.roc",
+      "family": "destination_references",
       "snapshot": "tests/destination_references/geometry.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "sections": 0,
@@ -32910,8 +31776,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 4830,
-          "allocated_bytes": 10206659,
+          "allocations": 4828,
+          "allocated_bytes": 10095923,
           "work": {
             "reference_atoms": 43,
             "normalization_chunks": 46,
@@ -32940,8 +31806,8 @@
           }
         },
         "x64musl": {
-          "allocations": 4830,
-          "allocated_bytes": 10206659,
+          "allocations": 4828,
+          "allocated_bytes": 10095923,
           "work": {
             "reference_atoms": 43,
             "normalization_chunks": 46,
@@ -32980,9 +31846,8 @@
     {
       "name": "scoped table paint decorated x2",
       "scenario_revision": "table-paint-footprints-v1",
-      "source": "tests/rich_flow/main.roc",
+      "family": "rich_flow",
       "snapshot": "tests/rich_flow/scoped_tables_2_0.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 7,
@@ -33068,9 +31933,8 @@
     {
       "name": "scoped table paint decorated x20",
       "scenario_revision": "table-paint-footprints-v1",
-      "source": "tests/rich_flow/main.roc",
+      "family": "rich_flow",
       "snapshot": "tests/rich_flow/scoped_tables_20_0.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 61,
@@ -33156,9 +32020,8 @@
     {
       "name": "scoped table paint cell fill x1",
       "scenario_revision": "table-paint-footprints-v1",
-      "source": "tests/rich_flow/main.roc",
+      "family": "rich_flow",
       "snapshot": "tests/rich_flow/scoped_tables_1_1.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4,
@@ -33244,9 +32107,8 @@
     {
       "name": "scoped table paint column rule x1",
       "scenario_revision": "table-paint-footprints-v1",
-      "source": "tests/rich_flow/main.roc",
+      "family": "rich_flow",
       "snapshot": "tests/rich_flow/scoped_tables_1_2.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4,
@@ -33332,9 +32194,8 @@
     {
       "name": "scoped table paint internal rules x1",
       "scenario_revision": "table-paint-footprints-v1",
-      "source": "tests/rich_flow/main.roc",
+      "family": "rich_flow",
       "snapshot": "tests/rich_flow/scoped_tables_1_3.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4,
@@ -33420,9 +32281,8 @@
     {
       "name": "scoped table paint spanning control x1",
       "scenario_revision": "table-paint-footprints-v1",
-      "source": "tests/rich_flow/main.roc",
+      "family": "rich_flow",
       "snapshot": "tests/rich_flow/scoped_tables_1_4.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4,
@@ -33508,9 +32368,8 @@
     {
       "name": "scoped table paint reference header x1",
       "scenario_revision": "table-paint-footprints-v1",
-      "source": "tests/rich_flow/main.roc",
+      "family": "rich_flow",
       "snapshot": "tests/rich_flow/scoped_tables_1_5.pdf",
-      "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 4,
@@ -33539,8 +32398,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 10022,
-          "allocated_bytes": 15010106,
+          "allocations": 10020,
+          "allocated_bytes": 14868490,
           "work": {
             "authored_scale": 1,
             "shaped_runs": 164,
@@ -33562,8 +32421,8 @@
           }
         },
         "x64musl": {
-          "allocations": 10022,
-          "allocated_bytes": 15010106,
+          "allocations": 10020,
+          "allocated_bytes": 14868490,
           "work": {
             "authored_scale": 1,
             "shaped_runs": 164,

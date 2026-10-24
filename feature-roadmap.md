@@ -446,8 +446,10 @@ within an early correctness gate.
   validator work, reset at each declared whole-pipeline or phase boundary, and
   reproduce exactly for the pinned compiler, dev backend, target, fixture
   revision, and measurement boundary.
-- A deliberately introduced allocation regression fails the baseline check,
-  allocated bytes above the recorded ceiling fail it, and scaling fixtures
+- A deliberately introduced allocation regression fails the baseline check
+  (for grouped fixtures, `--group-mode inject` adds one allocation inside every
+  case's window and must be reported exactly), allocated bytes above the
+  recorded ceiling fail it, and scaling fixtures
   demonstrate that deterministic work counters catch a complexity regression
   even when allocation counts remain unchanged.
 
@@ -1071,12 +1073,15 @@ headings keep with their next block, `semantics.heading_skip` is returned,
 and table semantics no longer copy the document's node lists once per table.
 Closing Gate 6 makes no PDF/UA-2 or combined-profile claim.
 
-The compiler pin is the published `nightly-2026-10-18-1df370f`. Its
-upgrade and allocation sweep cut recorded Roc allocation events by 85.4%
-with byte-identical snapshots and unchanged work vectors, recorded in the
+The compiler pin is the published `nightly-2026-10-23-18478ff`. It keeps
+every snapshot byte-identical and every work vector unchanged, and removes one
+list copy per post-loop drawing append in 13 cases, recorded in the
+[October 23 compiler review](development/performance/roc-nightly-2026-10-23-18478ff.md).
+The earlier October 18 upgrade and allocation sweep cut recorded Roc
+allocation events by 85.4%, recorded in the
 [October 18 compiler review](development/performance/roc-nightly-2026-10-18-1df370f.md);
 the preceding [October 14 compiler review](development/performance/roc-nightly-2026-10-14-38a3029.md)
-retired the compiler-provisioning blocker. Neither changes Gate 6's
+retired the compiler-provisioning blocker. None of them changes Gate 6's
 capability or conformance claims.
 
 The following public authoring is executable under the default `Archive`

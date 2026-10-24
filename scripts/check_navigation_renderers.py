@@ -49,7 +49,7 @@ NAVIGATE_SOURCE = ROOT / "scripts" / "PdfBoxNavigate.java"
 SHOWCASE = ROOT / "tests" / "navigation" / "navigation.pdf"
 APPEARANCE = ROOT / "tests" / "navigation" / "navigation_appearance_16.pdf"
 LABELS = ROOT / "tests" / "navigation" / "navigation_labels_8.pdf"
-FACADE = ROOT / "tests" / "navigation" / "navigation_facade.pdf"
+FACADE = ROOT / "tests" / "navigation_facade" / "navigation_facade.pdf"
 
 SHOWCASE_REPORT = """annot page=0 rect=10,44,70,66 quads=2 goto=1 left=10 top=42
 annot page=0 rect=10,68,70,78 quads=1 uri=https://example.org/reference?section=1&lang=en

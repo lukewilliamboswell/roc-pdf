@@ -1,0 +1,7 @@
+{"name":"text-layout facade fragment arena x1000","schema_version":1,"case":{"Arena":{"repetitions":1000}}}
+{"name":"text-layout facade fragment arena x10000","schema_version":1,"case":{"Arena":{"repetitions":10000}}}
+{"name":"text-layout facade fragment atomic negatives","schema_version":1,"case":{"Negative":{"repetitions":2}}}
+{"name":"text-layout facade fragment prepared-input control x1000","schema_version":1,"case":{"Prepare":{"repetitions":1000}}}
+{"name":"text-layout facade fragment prepared-input control x10000","schema_version":1,"case":{"Prepare":{"repetitions":10000}}}
+{"name":"text-layout facade fragment semantic attachment","schema_version":1,"case":{"Validate":{"repetitions":3}}}
+{"name":"text-layout facade owned scene composition","schema_version":1,"case":{"Scene":{"repetitions":3}}}

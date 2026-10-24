@@ -38,7 +38,7 @@ from check_form_renderers import compile_java, render_mutool, require
 ROOT = Path(__file__).resolve().parents[1]
 SHOWCASE_SNAPSHOT = ROOT / "tests" / "metadata" / "metadata.pdf"
 SHARE_SNAPSHOT = ROOT / "tests" / "metadata" / "metadata_share_64.pdf"
-FACADE_SNAPSHOT = ROOT / "tests" / "metadata" / "metadata_facade.pdf"
+FACADE_SNAPSHOT = ROOT / "tests" / "metadata_facade" / "metadata_facade.pdf"
 PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
 SIZE = 100
 

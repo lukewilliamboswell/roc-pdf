@@ -316,7 +316,7 @@ def reader_check(snapshot: Path, dimensions: dict[str, int], mutool: Path | None
 
 
 def self_test() -> None:
-    cases = [case for case in json.loads((ROOT / "tests/spec.json").read_text())["cases"] if case["source"] == "tests/source_blocks/main.roc" and "source_foregrounds" not in case["validators"]]
+    cases = [case for case in json.loads((ROOT / "tests/spec.json").read_text())["cases"] if case.get("family") == "source_blocks" and "source_foregrounds" not in case["validators"]]
     require(len(cases) >= 10, "source acceptance family is incomplete")
     for case in cases:
         validator = validate_multiple_sources_pdf if "source_blocks_multiple" in case["validators"] else validate_source_blocks_pdf

@@ -89,3 +89,9 @@ work counter is identical, so no baseline changed. Both the literal and the
 byte import are compile-time `List(U8)` constants that the dev backend emits
 as static data; neither is materialized inside the `before_fixture_main`
 measurement boundary, so the representation change is invisible to it.
+
+## Later: fixture grouping
+
+On nightly-2026-10-23 the suite builds 12 fixture executables (11 group
+applications and the retention probe) instead of 62, which halves the build
+phase; see [fixture grouping](fixture-grouping.md) for the measurements.

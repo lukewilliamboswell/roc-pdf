@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from roc_diagnostics import tolerated_warnings_only
+from fixture_groups import ENVELOPE_SCHEMA_VERSION, Member, render_group_app
 from harness_validators import (
     PREFLIGHT_CHECKS,
     run_validators,
@@ -100,6 +101,36 @@ class TestCase:
     retention: Retention | None
     family_cases: Path | None
     family_row: int | None
+    # The family's name, and its fixture group when the family is a local
+    # package run through a group application.
+    family: str | None = None
+    group: str | None = None
+
+
+@dataclass(frozen=True)
+class Family:
+    name: str
+    source: Path
+    cases_jsonl: Path
+    group: str
+    tag: str
+
+
+@dataclass(frozen=True)
+class Group:
+    name: str
+    source: Path
+    members: tuple[Family, ...]
+
+
+@dataclass(frozen=True)
+class BuildUnit:
+    """One fixture executable: a group application, an isolated family, or a source."""
+
+    key: str
+    source: Path
+    # The application text of a generated (isolated) unit, written before it builds.
+    generated: str | None = None
 
 
 @dataclass(frozen=True)
@@ -111,6 +142,7 @@ class TestSuite:
     validation_sources: tuple[Path, ...]
     validation_skips: tuple["ValidationSkip", ...]
     cases: tuple[TestCase, ...]
+    groups: tuple[Group, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -307,35 +339,61 @@ def load_suite() -> TestSuite:
         "post_update_checks",
         "validation",
         "toolchain",
+        "groups",
         "families",
         "cases",
     }:
         raise SystemExit(f"{SPEC_PATH}: unexpected top-level schema")
-    if data["schema_version"] != 6 or data["protocol_version"] != 2:
-        raise SystemExit(f"{SPEC_PATH}: schema_version must be 6 and protocol_version must be 2")
+    if data["schema_version"] != 7 or data["protocol_version"] != 2:
+        raise SystemExit(f"{SPEC_PATH}: schema_version must be 7 and protocol_version must be 2")
 
     preflight_checks = string_list(data["preflight_checks"], "preflight_checks")
     validate_preflight_ids(preflight_checks, f"{SPEC_PATH}: preflight_checks")
     post_update_checks = string_list(data["post_update_checks"], "post_update_checks")
     validate_preflight_ids(post_update_checks, f"{SPEC_PATH}: post_update_checks")
 
+    raw_groups = data["groups"]
+    if not isinstance(raw_groups, list):
+        raise SystemExit(f"{SPEC_PATH}: groups must be a list")
+    group_sources: dict[str, Path] = {}
+    for group_index, raw_group in enumerate(raw_groups):
+        field = f"groups[{group_index}]"
+        if not isinstance(raw_group, dict) or set(raw_group) != {"name"}:
+            raise SystemExit(f"{SPEC_PATH}: {field} must contain exactly name")
+        group_name = non_empty_string(raw_group["name"], f"{field}.name")
+        if not re.fullmatch(r"[a-z][a-z0-9_]*", group_name) or group_name in group_sources:
+            raise SystemExit(f"{SPEC_PATH}: {field}.name must be a unique snake_case name")
+        group_sources[group_name] = group_source_for(group_name)
+
     raw_families = data["families"]
     if not isinstance(raw_families, list):
         raise SystemExit(f"{SPEC_PATH}: families must be a list")
-    family_cases_by_name: dict[str, tuple[Path, Path, int, dict[str, object]]] = {}
+    families: list[Family] = []
+    family_cases_by_name: dict[str, tuple[Family, int, dict[str, object]]] = {}
     for family_index, raw_family in enumerate(raw_families):
         field = f"families[{family_index}]"
-        if not isinstance(raw_family, dict) or set(raw_family) != {
-            "source",
-            "cases_jsonl",
-        }:
-            raise SystemExit(
-                f"{SPEC_PATH}: {field} must contain source and cases_jsonl"
-            )
-        family_source = repository_path(raw_family["source"], f"{field}.source")
-        cases_jsonl = repository_path(raw_family["cases_jsonl"], f"{field}.cases_jsonl")
+        if not isinstance(raw_family, dict) or set(raw_family) != {"name", "group"}:
+            raise SystemExit(f"{SPEC_PATH}: {field} must contain exactly name and group")
+        family_name = non_empty_string(raw_family["name"], f"{field}.name")
+        if not re.fullmatch(r"[a-z][a-z0-9_]*", family_name) or any(
+            family.name == family_name for family in families
+        ):
+            raise SystemExit(f"{SPEC_PATH}: {field}.name must be a unique snake_case name")
+        # A family is the local package in its own directory: the package
+        # root, its Cases module and its JSONL rows have fixed names, and its
+        # tag in the group envelope is the PascalCase of the family name.
+        family_source = (ROOT / "tests" / family_name / "package.roc").resolve()
+        cases_jsonl = (ROOT / "tests" / family_name / "cases.jsonl").resolve()
         if not family_source.is_file() or not cases_jsonl.is_file():
-            raise SystemExit(f"{SPEC_PATH}: {field} source or JSONL file does not exist")
+            raise SystemExit(
+                f"{SPEC_PATH}: {field}: tests/{family_name}/package.roc or cases.jsonl does not exist"
+            )
+        family_group = raw_family["group"]
+        if family_group not in group_sources:
+            raise SystemExit(f"{SPEC_PATH}: {field}: unknown group {family_group!r}")
+        family_tag = family_tag_for(family_name)
+        family = Family(family_name, family_source, cases_jsonl, family_group, family_tag)
+        families.append(family)
         for row_index, line in enumerate(
             cases_jsonl.read_text(encoding="utf-8").splitlines(), start=1
         ):
@@ -352,7 +410,30 @@ def load_suite() -> TestSuite:
                 raise SystemExit(f"{cases_jsonl}:{row_index}: unsupported schema_version")
             if row_name in family_cases_by_name:
                 raise SystemExit(f"{cases_jsonl}:{row_index}: duplicate family case name {row_name}")
-            family_cases_by_name[row_name] = (family_source, cases_jsonl, row_index, row)
+            family_cases_by_name[row_name] = (family, row_index, row)
+
+    committed_groups = {path.resolve() for path in (ROOT / "tests" / "groups").glob("*.roc")}
+    if committed_groups != set(group_sources.values()):
+        stray = ", ".join(sorted(relative(path) for path in committed_groups - set(group_sources.values())))
+        raise SystemExit(f"tests/groups holds applications that no spec group lists: {stray or 'none'}")
+    groups: list[Group] = []
+    for group_name, group_source in group_sources.items():
+        members = tuple(family for family in families if family.group == group_name)
+        if not members:
+            raise SystemExit(f"{SPEC_PATH}: group {group_name} has no families")
+        expected = render_group_app(
+            group_name,
+            group_source,
+            TEST_PLATFORM / "main.roc",
+            [Member(family.tag, family.source) for family in members],
+        )
+        if not group_source.is_file() or group_source.read_text(encoding="utf-8") != expected:
+            raise SystemExit(
+                f"{relative(group_source)} is stale; regenerate it with "
+                "`./scripts/test.py --write-groups`"
+            )
+        groups.append(Group(group_name, group_source, members))
+        group_package_root(groups[-1])
 
     raw_validation = data["validation"]
     if not isinstance(raw_validation, dict) or set(raw_validation) != {"sources", "skips"}:
@@ -426,12 +507,13 @@ def load_suite() -> TestSuite:
         if not isinstance(raw, dict):
             raise SystemExit(f"{SPEC_PATH}: every case must be an object")
 
-        required_fields = {
+        # A family case names its family, which supplies its program and its
+        # typed argument; only a standalone application (the retention probe
+        # on its own platform) names a source and literal arguments.
+        common_fields = {
             "name",
             "scenario_revision",
-            "source",
             "snapshot",
-            "args",
             "measurement_boundary",
             "dimensions",
             "validators",
@@ -439,11 +521,14 @@ def load_suite() -> TestSuite:
             "expectations",
             "retention",
         }
-        if set(raw) != required_fields:
-            raise SystemExit(f"{SPEC_PATH}: every case must contain exactly {sorted(required_fields)}")
+        if set(raw) not in (common_fields | {"family"}, common_fields | {"source", "args"}):
+            raise SystemExit(
+                f"{SPEC_PATH}: every case must contain exactly {sorted(common_fields)} "
+                "plus either family or source and args"
+            )
         name = non_empty_string(raw["name"], "case.name")
         scenario_revision = non_empty_string(raw["scenario_revision"], f"{name}.scenario_revision")
-        args = string_list(raw["args"], f"{name}.args")
+        args = string_list(raw["args"], f"{name}.args") if "args" in raw else ()
         measurement_boundary = non_empty_string(
             raw["measurement_boundary"], f"{name}.measurement_boundary"
         )
@@ -520,23 +605,25 @@ def load_suite() -> TestSuite:
                 owned_capacity=raw_retention["owned_capacity"],
             )
 
-        declared_source = repository_path(raw.get("source"), f"{name}.source")
         family_entry = family_cases_by_name.pop(name, None)
-        if family_entry is None:
-            source = declared_source
+        case_family: Family | None = None
+        if "family" not in raw:
+            if family_entry is not None:
+                raise SystemExit(f"{SPEC_PATH}: {name}: a case with a family JSONL row must name its family")
+            source = repository_path(raw.get("source"), f"{name}.source")
             family_cases = None
             family_row = None
         else:
-            source, family_cases, family_row, family_case = family_entry
-            if declared_source != source:
+            if family_entry is None:
+                raise SystemExit(f"{SPEC_PATH}: {name}: family {raw['family']!r} has no JSONL row for it")
+            case_family, family_row, family_case = family_entry
+            if raw["family"] != case_family.name:
                 raise SystemExit(
-                    f"{family_cases}:{family_row}: {name}: spec source must be the family source"
+                    f"{case_family.cases_jsonl}:{family_row}: {name}: spec family must be {case_family.name}"
                 )
-            args = (json.dumps(
-                {"case": family_case["case"], "schema_version": family_case["schema_version"]},
-                separators=(",", ":"),
-                ensure_ascii=False,
-            ),)
+            source = case_family.source
+            family_cases = case_family.cases_jsonl
+            args = (family_case_argument(case_family, family_case),)
         snapshot = repository_path(raw.get("snapshot"), f"{name}.snapshot")
         if not source.is_file():
             raise SystemExit(f"{SPEC_PATH}: {name}: source does not exist: {source}")
@@ -557,6 +644,8 @@ def load_suite() -> TestSuite:
                 retention,
                 family_cases,
                 family_row,
+                None if case_family is None else case_family.name,
+                None if case_family is None else case_family.group,
             )
         )
 
@@ -586,7 +675,158 @@ def load_suite() -> TestSuite:
         tuple(sorted(validation_sources)),
         tuple(validation_skips),
         tuple(cases),
+        tuple(groups),
     )
+
+
+def family_tag_for(name: str) -> str:
+    """A family's tag in the group envelope and its module alias in the group app."""
+    return "".join(part.capitalize() for part in name.split("_"))
+
+
+def family_case_argument(family: Family, row: dict[str, object]) -> str:
+    """The argv JSON a family case receives: its row's case tagged with the family."""
+    envelope = {"case": {family.tag: row["case"]}, "schema_version": ENVELOPE_SCHEMA_VERSION}
+    return json.dumps(envelope, separators=(",", ":"), ensure_ascii=False)
+
+
+def group_source_for(name: str) -> Path:
+    return (ROOT / "tests" / "groups" / f"{name}.roc").resolve()
+
+
+def write_group_apps() -> list[Path]:
+    """Regenerate every tests/groups/<group>.roc from tests/spec.json."""
+    data = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    written: list[Path] = []
+    for raw_group in data["groups"]:
+        source = group_source_for(raw_group["name"])
+        members = [
+            Member(family_tag_for(raw_family["name"]), (ROOT / "tests" / raw_family["name"] / "package.roc").resolve())
+            for raw_family in data["families"]
+            if raw_family["group"] == raw_group["name"]
+        ]
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_text(
+            render_group_app(raw_group["name"], source, TEST_PLATFORM / "main.roc", members),
+            encoding="utf-8",
+        )
+        written.append(source)
+    return written
+
+
+GROUP_MODES = ("group", "isolate", "perturb", "inject")
+
+
+def group_package_root(group: Group) -> str:
+    """Which production package root a group's families build against."""
+    roots = set()
+    for family in group.members:
+        header = family.source.read_text(encoding="utf-8")
+        roots.update(re.findall(r'"[./]*package/(main|all)\.roc"', header))
+    if len(roots) != 1:
+        raise SystemExit(f"group {group.name} must use exactly one of package/main.roc and package/all.roc")
+    return roots.pop()
+
+
+def case_build_units(suite: TestSuite, build_dir: Path, mode: str) -> dict[str, BuildUnit]:
+    """The fixture executable each case runs, keyed by case name.
+
+    A grouped case runs its committed group application (`group`), or a
+    generated one:
+
+    - `isolate`: only its family, the equivalence oracle for the group;
+    - `perturb`: its group's families plus the next group's (cyclically), so a
+      count that depends on which families share an executable shows up;
+    - `inject`: its group with one known allocation added inside the
+      measured window, which every grouped case must then report.
+
+    Every other case runs its own source.
+    """
+    if mode not in GROUP_MODES:
+        raise ValueError(mode)
+    units: dict[str, BuildUnit] = {}
+    groups = {group.name: group for group in suite.groups}
+    ordered = list(suite.groups)
+    for case in suite.cases:
+        if case.group is None:
+            unit = BuildUnit(f"source-{source_key(case.source)}", case.source)
+        elif mode == "group":
+            unit = BuildUnit(f"group-{case.group}", groups[case.group].source)
+        elif mode in ("perturb", "inject"):
+            group = groups[case.group]
+            members = list(group.members)
+            if mode == "perturb":
+                # Only a group on the same production package root can join:
+                # one program cannot hold both package/main.roc and
+                # package/all.roc (the compiler crashes building it).
+                position = ordered.index(group)
+                for offset in range(1, len(ordered)):
+                    neighbour = ordered[(position + offset) % len(ordered)]
+                    if group_package_root(neighbour) == group_package_root(group):
+                        members.extend(neighbour.members)
+                        break
+            app = build_dir / f"{mode}_{group.name}.roc"
+            unit = BuildUnit(
+                f"{mode}-{group.name}",
+                app,
+                render_group_app(
+                    f"{mode}_{group.name}",
+                    app,
+                    TEST_PLATFORM / "main.roc",
+                    [Member(family.tag, family.source) for family in members],
+                    inject_allocation=mode == "inject",
+                ),
+            )
+        else:
+            family = next(
+                member for member in groups[case.group].members if member.name == case.family
+            )
+            app = build_dir / f"isolate_{family.name}.roc"
+            unit = BuildUnit(
+                f"isolate-{family.name}",
+                app,
+                render_group_app(
+                    f"isolate_{family.name}",
+                    app,
+                    TEST_PLATFORM / "main.roc",
+                    [Member(family.tag, family.source)],
+                ),
+            )
+        units[case.name] = unit
+    return units
+
+
+def fixture_build_command(
+    source: Path, roc_optimization: str, target: str, executable: Path
+) -> list[str]:
+    """Every flag an evidence executable is built with, in one place."""
+    # Evidence executables never reuse compiled procedures from the
+    # cache. The pinned compiler reuses a package procedure compiled for
+    # an earlier fixture program in a later one, and the later program
+    # can then copy lists that it updates in place when built alone: the
+    # allocation counts and allocated bytes of a case depended on which
+    # fixtures were built before it. Built without the cache, every
+    # fixture compiles exactly as a standalone `roc build --no-cache`
+    # does, whatever the order or cache state
+    # (development/performance/lowering-uniqueness.md).
+    # --no-cache works around roc-lang/roc#11826. That issue is closed,
+    # but re-tested on nightly-2026-10-18 a cold shared cache still
+    # differs in 26 cases: "static PDF/A-4 archived report scaling x400"
+    # allocates 13,877 times instead of 13,473 when other fixtures were
+    # built into the cache first. On nightly-2026-10-23 cached fixture
+    # builds fail outright (the cached compile-time literal regression,
+    # roc-lang/roc#12564), so nothing could be compared.
+    # Keep it until a cold and a warm cache both match --no-cache for
+    # every case.
+    return [
+        ROC,
+        "build",
+        source.relative_to(ROOT).as_posix() if source.is_relative_to(ROOT) else str(source),
+        f"--opt={roc_optimization}",
+        f"--target={target}",
+        "--no-cache",
+        f"--output={executable}",
+    ]
 
 
 def verify_all_package_root() -> None:
@@ -796,6 +1036,36 @@ def local_import_closure(root: Path) -> tuple[Path, ...]:
     return tuple(seen)
 
 
+LOCAL_PACKAGE_DEPENDENCY = re.compile(r'^\s*[a-z][a-z0-9_]*:\s*"([^"]*/package\.roc)",?\s*$', re.MULTILINE)
+PACKAGE_EXPOSES = re.compile(r"^package\s*\[([^\]]*)\]", re.MULTILINE)
+
+
+def validation_closure(root: Path) -> tuple[Path, ...]:
+    """The root's local import closure plus the local family packages it depends on.
+
+    A group application reaches its families through package edges
+    (`tables: "../tables/package.roc"`); its `roc test` runs the expects in
+    those packages' modules, so they belong to its closure. Only packages
+    under tests/ are followed: the production package has its own roots.
+    """
+    seen = list(local_import_closure(root))
+    for dependency in LOCAL_PACKAGE_DEPENDENCY.findall(root.read_text(encoding="utf-8")):
+        package = (root.parent / dependency).resolve()
+        if not package.is_file() or not package.is_relative_to(ROOT / "tests"):
+            continue
+        if package not in seen:
+            seen.append(package)
+        exposes = PACKAGE_EXPOSES.search(package.read_text(encoding="utf-8"))
+        names = [] if exposes is None else [name.strip() for name in exposes.group(1).split(",")]
+        for name in names:
+            module = package.parent / f"{name}.roc"
+            if module.is_file():
+                for reached in local_import_closure(module):
+                    if reached not in seen:
+                        seen.append(reached)
+    return tuple(seen)
+
+
 def has_expect(source: Path) -> bool:
     return TOP_LEVEL_EXPECT.search(source.read_text(encoding="utf-8")) is not None
 
@@ -815,7 +1085,9 @@ def plan_validation(
       the same exit codes, before running expects; a tested root is not also
       checked.
     - `roc build --no-cache` of a fixture source does the same, so a fixture
-      root that no `roc test` needs is checked by its evidence build.
+      root that no `roc test` needs is checked by its evidence build. A group
+      application's closure includes its family packages (validation_closure),
+      whose own package.roc roots are skipped: the group is their root.
     - `package/all.roc` runs every package-module expect (it exposes every
       module, see verify_all_package_root). An application root's `roc test`
       would re-run them all, so application roots are tested only for the
@@ -837,7 +1109,7 @@ def plan_validation(
         if batch:
             tasks.append(ValidationTask("fmt", batch))
 
-    closures = {root: local_import_closure(root) for root in roots}
+    closures = {root: validation_closure(root) for root in roots}
     tested: dict[Path, tuple[Path, ...]] = {}
     if package_all in closures:
         tested[package_all] = tuple(
@@ -876,50 +1148,33 @@ def plan_validation(
     return ValidationPlan(tuple(tasks), tuple(delegated))
 
 
-def build_case_sources(
-    cases: tuple[TestCase, ...],
+def unit_label(unit: BuildUnit) -> str:
+    return relative(unit.source)
+
+
+def build_case_units(
+    units: list[BuildUnit],
     build_dir: Path,
     target: str,
     roc_optimization: str,
     jobs: int,
 ) -> None:
-    sources = sorted({case.source for case in cases})
-
-    def build_source(source: Path) -> tuple[Path, float]:
-        executable = build_dir / f"source-{source_key(source)}"
+    def build_unit(unit: BuildUnit) -> tuple[BuildUnit, float]:
+        executable = build_dir / unit.key
         started = time.monotonic()
-        detail(f"START BUILD {relative(source)}")
-        # Evidence executables never reuse compiled procedures from the
-        # cache. The pinned compiler reuses a package procedure compiled for
-        # an earlier fixture program in a later one, and the later program
-        # can then copy lists that it updates in place when built alone: the
-        # allocation counts and allocated bytes of a case depended on which
-        # fixtures were built before it. Built without the cache, every
-        # fixture compiles exactly as a standalone `roc build --no-cache`
-        # does, whatever the order or cache state
-        # (development/performance/lowering-uniqueness.md).
-        # --no-cache works around roc-lang/roc#11826. That issue is closed,
-        # but re-tested on nightly-2026-10-18 a cold shared cache still
-        # differs in 26 cases: "static PDF/A-4 archived report scaling x400"
-        # allocates 13,877 times instead of 13,473 when other fixtures were
-        # built into the cache first. Keep it until a cold and a warm cache
-        # both match --no-cache for every case.
-        roc(
-            "build",
-            relative(source),
-            f"--opt={roc_optimization}",
-            f"--target={target}",
-            "--no-cache",
-            f"--output={executable}",
-        )
-        return source, time.monotonic() - started
+        if unit.generated is not None:
+            unit.source.write_text(unit.generated, encoding="utf-8")
+        detail(f"START BUILD {unit_label(unit)}")
+        build = fixture_build_command(unit.source, roc_optimization, target, executable)
+        command(build[0], *build[1:])
+        return unit, time.monotonic() - started
 
     executor = concurrent.futures.ThreadPoolExecutor(max_workers=jobs)
-    futures = [executor.submit(build_source, source) for source in sources]
+    futures = [executor.submit(build_unit, unit) for unit in units]
     try:
         for future in concurrent.futures.as_completed(futures):
-            source, elapsed = future.result()
-            progress("PASS", f"BUILD {relative(source)} ({elapsed:.1f}s)")
+            unit, elapsed = future.result()
+            progress("PASS", f"BUILD {unit_label(unit)} ({elapsed:.1f}s)")
     except KeyboardInterrupt:
         cancel_parallel(executor, futures)
         raise
@@ -928,14 +1183,32 @@ def build_case_sources(
 
 
 def run_parallel_roc_tasks(tasks: list[ValidationTask], jobs: int) -> None:
+    # A group application compiles several families at once and peaks higher
+    # than a single root, so the tasks share a memory budget as well as the
+    # worker count.
+    budget = MemoryBudget(available_now_bytes())
+    groups_dir = ROOT / "tests" / "groups"
+
     def run_task(task: ValidationTask) -> tuple[ValidationTask, float]:
+        if task.action == "fmt":
+            return run_one(task)
+        weight = GROUP_CHECK_PEAK_BYTES if task.sources[0].parent == groups_dir else ROOT_CHECK_PEAK_BYTES
+        with budget.reserve(weight):
+            return run_one(task)
+
+    def run_one(task: ValidationTask) -> tuple[ValidationTask, float]:
         started = time.monotonic()
         detail(f"START {task.action.upper():5s} {task.label}")
         try:
             if task.action == "fmt":
                 roc("fmt", "--check", *(relative(source) for source in task.sources))
             else:
-                roc(task.action, relative(task.sources[0]))
+                # TODO(roc-lang/roc#12564): remove --no-cache. On
+                # nightly-2026-10-23-18478ff a shared cache that already holds
+                # the package from an earlier root makes every later root's
+                # number literals of package types fail compile-time
+                # `from_numeral` evaluation with a stack overflow.
+                roc(task.action, relative(task.sources[0]), "--no-cache")
         except SystemExit as error:
             if task.action != "test":
                 raise
@@ -961,24 +1234,25 @@ def run_parallel_roc_tasks(tasks: list[ValidationTask], jobs: int) -> None:
 def run_case(
     case: TestCase,
     index: int,
-    build_dir: Path,
+    executable: Path,
     target: str,
     protocol_version: int,
     update_snapshots: bool,
     check_allocations: bool,
     compare_baselines: bool,
     linux_x64_container: str | None,
+    injected_allocations: int = 0,
 ) -> CaseRunResult:
-    # Half the registered cases differ from another case only in the runtime
-    # arguments they pass to the same fixture, and every case in one run
-    # compiles with the same optimization and target. Keying the executable
-    # on the source therefore builds each fixture exactly once per run
-    # instead of once per case, without weakening what is compiled: the
-    # source is still built from the current working tree under the same
-    # flags before any case that uses it runs.
-    executable = build_dir / f"source-{source_key(case.source)}"
+    # Most registered cases differ from another case only in the runtime
+    # argument they pass to the same fixture executable, and every case in
+    # one run compiles with the same optimization and target. Keying the
+    # executable on its build unit (a group application, or a source) builds
+    # each fixture exactly once per run instead of once per case, without
+    # weakening what is compiled: the unit is still built from the current
+    # working tree under the same flags before any case that uses it runs.
+    # Each case still runs in its own process.
     if not executable.exists():
-        raise SystemExit(f"missing prebuilt fixture executable for {relative(case.source)}")
+        raise SystemExit(f"missing prebuilt fixture executable for {case.name}: {executable.name}")
 
     if linux_x64_container is None:
         invocation = [executable, *case.args]
@@ -1054,6 +1328,17 @@ def run_case(
         actual_work,
     )
     expected_metrics = case.expectations[target]
+    if injected_allocations:
+        # The injection self-test adds known allocations inside the window;
+        # the recorded count plus exactly those is the only passing result.
+        # Each injected allocation requests 136 bytes, which alone exceeds
+        # the 10% ceiling of a case that otherwise allocates nothing, so the
+        # ceiling gets a fixed allowance for them.
+        expected_metrics = Metrics(
+            expected_metrics.allocations + injected_allocations,
+            expected_metrics.allocated_bytes + 1024 * injected_allocations,
+            expected_metrics.work,
+        )
     mismatch = metrics_mismatch(
         expected_metrics,
         actual_metrics,
@@ -1132,6 +1417,77 @@ def available_memory_bytes() -> int | None:
     return min(limits) if limits else None
 
 
+GROUP_BUILD_PEAK_BYTES = 7 * 1024**3
+# `roc check`/`roc test` of one root peaks near 4 GB, and of a group
+# application (several families) up to 5.5 GB.
+ROOT_CHECK_PEAK_BYTES = 4 * 1024**3
+GROUP_CHECK_PEAK_BYTES = 6 * 1024**3
+
+
+def available_now_bytes() -> int | None:
+    """Memory the machine can give now: other processes' resident memory is not available."""
+    memory = available_memory_bytes()
+    try:
+        for line in Path("/proc/meminfo").read_text(encoding="ascii").splitlines():
+            if line.startswith("MemAvailable:"):
+                current = int(line.split()[1]) * 1024
+                memory = current if memory is None else min(memory, current)
+    except (OSError, ValueError):
+        pass
+    return memory
+
+
+class MemoryBudget:
+    """Admit compiler processes while their expected peaks fit the budget.
+
+    One process is always admitted, however large, so a small machine still
+    makes progress one compile at a time.
+    """
+
+    def __init__(self, total: int | None) -> None:
+        self.free = None if total is None else max(0, total - 1024**3)
+        self.running = 0
+        self.condition = threading.Condition()
+
+    class _Reservation:
+        def __init__(self, budget: "MemoryBudget", weight: int) -> None:
+            self.budget = budget
+            self.weight = weight
+
+        def __enter__(self) -> None:
+            budget = self.budget
+            with budget.condition:
+                while budget.free is not None and budget.running > 0 and budget.free < self.weight:
+                    budget.condition.wait()
+                if budget.free is not None:
+                    budget.free -= self.weight
+                budget.running += 1
+
+        def __exit__(self, *_: object) -> None:
+            budget = self.budget
+            with budget.condition:
+                if budget.free is not None:
+                    budget.free += self.weight
+                budget.running -= 1
+                budget.condition.notify_all()
+
+    def reserve(self, weight: int) -> "MemoryBudget._Reservation":
+        return MemoryBudget._Reservation(self, weight)
+
+
+def default_build_jobs() -> int:
+    """Parallel fixture builds that fit in memory.
+
+    A fixture group build peaks at up to 6.9 GB resident on
+    nightly-2026-10-23 (development/performance/fixture-grouping.md), more
+    than a single-source build, so builds get their own memory bound.
+    """
+    memory = available_now_bytes()
+    if memory is None:
+        return available_cpu_count()
+    return max(1, (max(0, memory - 1024**3)) // GROUP_BUILD_PEAK_BYTES)
+
+
 def default_jobs() -> int:
     cpu_jobs = available_cpu_count()
     memory = available_memory_bytes()
@@ -1207,6 +1563,54 @@ def main() -> None:
         ),
     )
     parser.add_argument(
+        "--group",
+        action="append",
+        dest="group_names",
+        metavar="NAME",
+        help="Run only the cases of the named fixture group; repeatable, and combines with --case",
+    )
+    parser.add_argument(
+        "--quick",
+        action="store_true",
+        help=(
+            "With --case, build only the selected cases' fixtures and run them, skipping the "
+            "preflight self-tests and the fmt/check/test validation phase"
+        ),
+    )
+    parser.add_argument(
+        "--isolate",
+        action="store_true",
+        help=(
+            "Build each grouped family as its own generated application instead of its group "
+            "application: the equivalence oracle for fixture grouping"
+        ),
+    )
+    parser.add_argument(
+        "--group-mode",
+        choices=GROUP_MODES,
+        default="group",
+        help=(
+            "How grouped families are built: their committed group application (default), "
+            "isolated (as --isolate), perturbed (each group plus the next group's families), "
+            "or inject (one known extra allocation in every grouped case, which must be reported)"
+        ),
+    )
+    parser.add_argument(
+        "--list-groups",
+        action="store_true",
+        help="Print the fixture groups, their families and case counts, and exit",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="With --list-groups, print JSON",
+    )
+    parser.add_argument(
+        "--write-groups",
+        action="store_true",
+        help="Regenerate tests/groups/<group>.roc from tests/spec.json and exit",
+    )
+    parser.add_argument(
         "--log",
         type=Path,
         help="Detailed run log path (default: .roc-pdf-tmp/logs/test-<timestamp>.log)",
@@ -1223,6 +1627,50 @@ def main() -> None:
         parser.error("--update-snapshots and --compare-baselines cannot be combined")
     if args.baseline_report is not None and not (args.update_snapshots or args.compare_baselines):
         parser.error("--baseline-report requires --compare-baselines or --update-snapshots")
+    if args.quick and not (args.case_names or args.group_names):
+        parser.error("--quick requires at least one --case or --group")
+    if args.quick and args.update_snapshots:
+        parser.error("--quick cannot update snapshots: it skips the post-update contract checks")
+    if args.json and not args.list_groups:
+        parser.error("--json requires --list-groups")
+    if args.isolate:
+        if args.group_mode not in ("group", "isolate"):
+            parser.error("--isolate conflicts with --group-mode")
+        args.group_mode = "isolate"
+    if args.group_mode != "group" and args.update_snapshots:
+        parser.error("snapshots are updated only from the committed group applications")
+    if args.write_groups:
+        for written in write_group_apps():
+            print(relative(written))
+        return
+    if args.list_groups:
+        listed = load_suite()
+        listing = [
+            {
+                "name": group.name,
+                "source": relative(group.source),
+                "families": [
+                    {
+                        "name": family.name,
+                        "tag": family.tag,
+                        "cases": sum(1 for case in listed.cases if case.family == family.name),
+                    }
+                    for family in group.members
+                ],
+            }
+            for group in listed.groups
+        ]
+        ungrouped = sorted({relative(case.source) for case in listed.cases if case.group is None})
+        if args.json:
+            print(json.dumps({"groups": listing, "ungrouped_sources": ungrouped}, indent=2))
+        else:
+            for group in listing:
+                cases = sum(family["cases"] for family in group["families"])
+                print(f"{group['name']}: {group['source']} ({len(group['families'])} families, {cases} cases)")
+                for family in group["families"]:
+                    print(f"  {family['tag']}: {family['name']} ({family['cases']} cases)")
+            print(f"ungrouped: {len(ungrouped)} sources")
+        return
     TEMP_ROOT.mkdir(exist_ok=True)
     LOG_ROOT.mkdir(exist_ok=True)
     RUN_LOG = (args.log or LOG_ROOT / f"test-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{os.getpid()}.log").resolve()
@@ -1243,9 +1691,15 @@ def main() -> None:
         args.allocation_baselines or args.compare_baselines or args.update_snapshots
     )
     suite = load_suite()
-    if args.case_names:
-        requested = set(args.case_names)
-        selected = tuple(case for case in suite.cases if case.name in requested)
+    if args.case_names or args.group_names:
+        requested = set(args.case_names or ())
+        requested_groups = set(args.group_names or ())
+        unknown_groups = requested_groups - {group.name for group in suite.groups}
+        if unknown_groups:
+            raise SystemExit(f"unknown fixture group(s): {', '.join(sorted(unknown_groups))}")
+        selected = tuple(
+            case for case in suite.cases if case.name in requested or case.group in requested_groups
+        )
         missing = requested - {case.name for case in selected}
         if missing:
             raise SystemExit(f"unknown test case(s): {', '.join(sorted(missing))}")
@@ -1257,19 +1711,31 @@ def main() -> None:
             suite.validation_sources,
             suite.validation_skips,
             selected,
+            suite.groups,
         )
     target = "x64musl" if args.linux_x64_container is not None else native_roc_target()
 
-    phase("Preflight contract and checker self-tests")
-    for check_id in suite.preflight_checks:
-        check = PREFLIGHT_CHECKS[check_id]
-        if not (args.update_snapshots and check.skip_on_snapshot_update):
-            command(sys.executable, f"scripts/{check.script}", "--self-test")
-    self_test_metrics(suite)
-    self_test_roc_version_pin()
-    verify_toolchain(suite.toolchain)
-    verify_all_package_root()
+    if args.quick:
+        phase("Quick run: skipping preflight self-tests and Roc validation")
+        verify_toolchain(suite.toolchain)
+        plan = ValidationPlan((), ())
+        fmt_sources: list[Path] = []
+        skipped_tasks = 0
+    else:
+        phase("Preflight contract and checker self-tests")
+        for check_id in suite.preflight_checks:
+            check = PREFLIGHT_CHECKS[check_id]
+            if not (args.update_snapshots and check.skip_on_snapshot_update):
+                command(sys.executable, f"scripts/{check.script}", "--self-test")
+        self_test_metrics(suite)
+        self_test_roc_version_pin()
+        verify_toolchain(suite.toolchain)
+        verify_all_package_root()
+        plan, fmt_sources, skipped_tasks = validation_phase_plan(suite, args.jobs)
+    run_suite(suite, args, plan, fmt_sources, skipped_tasks, target, check_allocations)
 
+
+def validation_phase_plan(suite: TestSuite, jobs: int) -> tuple[ValidationPlan, list[Path], int]:
     fmt_sources: list[Path] = []
     roots: list[Path] = []
     skipped_tasks = 0
@@ -1296,12 +1762,14 @@ def main() -> None:
                 roots.append(source)
     # Selecting cases never drops validation: every root is still checked by
     # a test, a check, or one of the fixture builds, so delegate a root to a
-    # fixture build only when that build runs in this invocation.
+    # fixture build only when that build runs in this invocation. A group
+    # application is delegated only when it is built, which --isolate does not.
     plan = plan_validation(
         fmt_sources,
         roots,
-        {case.source for case in suite.cases},
-        args.jobs,
+        {case.source for case in suite.cases if case.group is None}
+        | {group.source for group in suite.groups if any(case.group == group.name for case in suite.cases)},
+        jobs,
     )
     for task in plan.tasks:
         if task.action == "test":
@@ -1313,88 +1781,116 @@ def main() -> None:
             log(f"PLAN check {task.label}")
     for root, reason in plan.delegated:
         log(f"PLAN {relative(root)}: {reason}")
+    return plan, fmt_sources, skipped_tasks
 
-    PROGRESS_TOTAL = (
-        len(plan.tasks)
-        + len({case.source for case in suite.cases})
-        + len(suite.cases)
-    )
 
-    # The package roots run first and alone so that every later root reads
-    # the package's checked modules from a warm cache.
-    seed_paths = {
-        (ROOT / "package" / "main.roc").resolve(),
-        (ROOT / "package" / "all.roc").resolve(),
-    }
-    seed_tasks = [task for task in plan.tasks if task.action != "fmt" and task.sources[0] in seed_paths]
-    other_tasks = [task for task in plan.tasks if task not in seed_tasks]
-    counts = {action: sum(1 for task in plan.tasks if task.action == action) for action in ("fmt", "check", "test")}
-    phase(
-        f"Running {len(plan.tasks)} Roc validation tasks: {counts['fmt']} fmt batches over "
-        f"{len(fmt_sources)} files, {counts['test']} test roots, {counts['check']} check roots; "
-        f"{len(plan.delegated)} fixture roots are checked by their builds "
-        f"({skipped_tasks} documented skips)"
-    )
-    run_parallel_roc_tasks(seed_tasks, 1)
-    run_parallel_roc_tasks(other_tasks, args.jobs)
-    command(
-        ZIG,
-        "fmt",
-        "--check",
-        "build.zig",
-        "host.zig",
-        "retention_host.zig",
-        "roc_platform_abi.zig",
-        cwd=TEST_PLATFORM,
-    )
-    command(
-        ZIG,
-        "build",
-        f"-Doptimize={suite.toolchain.zig_optimization}",
-        cwd=TEST_PLATFORM,
-    )
-
-    build_jobs = min(args.jobs, suite.toolchain.max_build_workers)
-    phase(
-        f"Building {len({case.source for case in suite.cases})} distinct fixture apps "
-        f"with {build_jobs} job{'s' if build_jobs != 1 else ''} "
-        f"(toolchain cap {suite.toolchain.max_build_workers})"
-    )
-    baseline_deltas: list[BaselineDelta] = []
-    baseline_drift: list[BaselineDelta] = []
+def run_suite(
+    suite: TestSuite,
+    args: argparse.Namespace,
+    plan: ValidationPlan,
+    fmt_sources: list[Path],
+    skipped_tasks: int,
+    target: str,
+    check_allocations: bool,
+) -> None:
+    global PROGRESS_TOTAL
     with tempfile.TemporaryDirectory(prefix="test-", dir=TEMP_ROOT) as temporary:
         build_dir = Path(temporary)
-        build_case_sources(
-            suite.cases,
+        units_by_case = case_build_units(suite, build_dir, args.group_mode)
+        units = sorted({unit.key: unit for unit in units_by_case.values()}.values(), key=lambda unit: unit.key)
+        if args.group_mode != "group" and not any(case.group is not None for case in suite.cases):
+            raise SystemExit(f"--group-mode {args.group_mode} needs at least one grouped case")
+        # A generated application is a separate program from the group
+        # application: keep the group root checked when its build is skipped.
+        validation_tasks = list(plan.tasks)
+        if args.group_mode != "group":
+            delegated_groups = [root for root, _ in plan.delegated if root.parent == ROOT / "tests" / "groups"]
+            validation_tasks.extend(ValidationTask("check", (root,)) for root in delegated_groups)
+
+        PROGRESS_TOTAL = len(validation_tasks) + len(units) + len(suite.cases)
+
+        # The package roots run first and alone so that every later root reads
+        # the package's checked modules from a warm cache.
+        seed_paths = {
+            (ROOT / "package" / "main.roc").resolve(),
+            (ROOT / "package" / "all.roc").resolve(),
+        }
+        seed_tasks = [task for task in validation_tasks if task.action != "fmt" and task.sources[0] in seed_paths]
+        other_tasks = [task for task in validation_tasks if task not in seed_tasks]
+        if not args.quick:
+            counts = {
+                action: sum(1 for task in validation_tasks if task.action == action)
+                for action in ("fmt", "check", "test")
+            }
+            phase(
+                f"Running {len(validation_tasks)} Roc validation tasks: {counts['fmt']} fmt batches over "
+                f"{len(fmt_sources)} files, {counts['test']} test roots, {counts['check']} check roots; "
+                f"{len(plan.delegated)} fixture roots are checked by their builds "
+                f"({skipped_tasks} documented skips)"
+            )
+            run_parallel_roc_tasks(seed_tasks, 1)
+            run_parallel_roc_tasks(other_tasks, args.jobs)
+            command(
+                ZIG,
+                "fmt",
+                "--check",
+                "build.zig",
+                "host.zig",
+                "retention_host.zig",
+                "roc_platform_abi.zig",
+                cwd=TEST_PLATFORM,
+            )
+        command(
+            ZIG,
+            "build",
+            f"-Doptimize={suite.toolchain.zig_optimization}",
+            cwd=TEST_PLATFORM,
+        )
+
+        build_jobs = min(args.jobs, suite.toolchain.max_build_workers, default_build_jobs())
+        phase(
+            f"Building {len(units)} fixture executables "
+            f"({sum(1 for unit in units if unit.key.startswith('group-'))} groups, "
+            f"{sum(1 for unit in units if unit.generated is not None)} generated {args.group_mode} apps, "
+            f"{sum(1 for unit in units if unit.key.startswith('source-'))} sources) "
+            f"with {build_jobs} job{'s' if build_jobs != 1 else ''} "
+            f"(toolchain cap {suite.toolchain.max_build_workers})"
+        )
+        baseline_deltas: list[BaselineDelta] = []
+        baseline_drift: list[BaselineDelta] = []
+        build_case_units(
+            units,
             build_dir,
             target,
             suite.toolchain.roc_optimization if check_allocations else "dev",
             build_jobs,
         )
         phase(f"Executing {len(suite.cases)} evidence cases with {args.jobs} workers")
-        source_use_counts = {
-            source: sum(1 for candidate in suite.cases if candidate.source == source)
-            for source in {candidate.source for candidate in suite.cases}
+        unit_use_counts = {
+            unit.key: sum(1 for candidate in suite.cases if units_by_case[candidate.name].key == unit.key)
+            for unit in units
         }
 
         def execute_case(item: tuple[int, TestCase]) -> tuple[int, TestCase, CaseRunResult, float]:
             index, case = item
             started = time.monotonic()
+            unit = units_by_case[case.name]
             detail(
                 f"START CASE {case.name} "
-                f"({relative(case.source)}, {source_use_counts[case.source]} "
-                f"case{'s' if source_use_counts[case.source] != 1 else ''}/build)"
+                f"({unit_label(unit)}, {unit_use_counts[unit.key]} "
+                f"case{'s' if unit_use_counts[unit.key] != 1 else ''}/build)"
             )
             result = run_case(
                 case,
                 index,
-                build_dir,
+                build_dir / unit.key,
                 target,
                 suite.protocol_version,
                 args.update_snapshots,
                 check_allocations,
                 args.compare_baselines,
                 args.linux_x64_container,
+                1 if args.group_mode == "inject" and case.group is not None else 0,
             )
             return index, case, result, time.monotonic() - started
 

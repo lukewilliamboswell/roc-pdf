@@ -23,7 +23,9 @@ from check_facade_output import validate_facade_output_pdf
 
 
 ROOT = Path(__file__).resolve().parents[1]
-EXAMPLE = ROOT / "tests" / "pdf_facade" / "pdf_facade.roc"
+# A standalone public-API application: the fixture families run through
+# group applications, which a bundle consumer could not build by itself.
+EXAMPLE = ROOT / "tests" / "bundle_consumer" / "main.roc"
 TEMP_ROOT = ROOT / ".roc-pdf-tmp"
 ZIG = os.environ.get("ZIG", "zig")
 PACKAGE_DEPENDENCY = 'pdf: "../../package/main.roc",'

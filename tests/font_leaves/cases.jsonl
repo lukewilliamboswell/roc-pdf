@@ -1,0 +1,13 @@
+{"name":"production-visual distinct font subsets x64","schema_version":1,"case":{"Distinct":{"scale":64}}}
+{"name":"production-visual distinct font subsets x8","schema_version":1,"case":{"Distinct":{"scale":8}}}
+{"name":"production-visual equivalent authored fonts collapse x64","schema_version":1,"case":{"Dedupe":{"scale":64}}}
+{"name":"production-visual equivalent authored fonts collapse x8","schema_version":1,"case":{"Dedupe":{"scale":8}}}
+{"name":"production-visual font-leaf atomic negatives","schema_version":1,"case":{"Negative":{"scale":1}}}
+{"name":"production-visual font-leaf distinctness matrix","schema_version":1,"case":{"Facts":{"scale":0}}}
+{"name":"production-visual font-leaf forced digest collisions x64","schema_version":1,"case":{"Collide":{"scale":64}}}
+{"name":"production-visual font-leaf forced digest collisions x8","schema_version":1,"case":{"Collide":{"scale":8}}}
+{"name":"production-visual font-leaf retained-input ownership","schema_version":1,"case":{"Shared":{"scale":0}}}
+{"name":"production-visual font-leaf showcase with adversarial authoring","schema_version":1,"case":{"Showcase":{"scale":0}}}
+{"name":"production-visual font-leaf unique-input ownership","schema_version":1,"case":{"Unique":{"scale":0}}}
+{"name":"production-visual shared font subset x100","schema_version":1,"case":{"Share":{"scale":100}}}
+{"name":"production-visual shared font subset x1000","schema_version":1,"case":{"Share":{"scale":1000}}}

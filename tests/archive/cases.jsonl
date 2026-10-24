@@ -1,0 +1,13 @@
+{"name":"static PDF/A-4 Archive and Standard profile twins","schema_version":1,"case":{"Profiles":{"scale":40}}}
+{"name":"static PDF/A-4 Standard twin of the archived figures","schema_version":1,"case":{"FiguresStandard":{}}}
+{"name":"static PDF/A-4 Standard twin of the archived navigation","schema_version":1,"case":{"NavigationStandard":{"scale":8}}}
+{"name":"static PDF/A-4 archived caller font","schema_version":1,"case":{"Caller":{"scale":1}}}
+{"name":"static PDF/A-4 archived navigation x64 links","schema_version":1,"case":{"Navigation":{"scale":64}}}
+{"name":"static PDF/A-4 archived navigation x8 links","schema_version":1,"case":{"Navigation":{"scale":8}}}
+{"name":"static PDF/A-4 archived raster, alpha, gray, and JPEG figures","schema_version":1,"case":{"Figures":{}}}
+{"name":"static PDF/A-4 archived report scaling x400","schema_version":1,"case":{"Report":{"scale":400}}}
+{"name":"static PDF/A-4 archived report with timestamps","schema_version":1,"case":{"Report":{"scale":40}}}
+{"name":"static PDF/A-4 blank archive document","schema_version":1,"case":{"Blank":{}}}
+{"name":"static PDF/A-4 facade atomic negatives","schema_version":1,"case":{"Negatives":{"context":0}}}
+{"name":"static PDF/A-4 owned chunked output","schema_version":1,"case":{"ChunkedOwn":{"scale":40}}}
+{"name":"static PDF/A-4 shared chunked output","schema_version":1,"case":{"ChunkedShare":{"scale":40}}}

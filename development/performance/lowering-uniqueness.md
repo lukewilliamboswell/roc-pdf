@@ -201,10 +201,12 @@ Why this design:
 
 ## Harness builds without the cache
 
-`build_case_sources` passes `--no-cache`. Allocation evidence no longer
+`build_case_sources` passed `--no-cache`; since fixture grouping the flag
+lives in `fixture_build_command`. Allocation evidence no longer
 depends on which fixtures were built first, on parallel build order, or on a
 developer's cache. A case reproduces with a plain
-`roc build --no-cache --opt=dev --target=x64musl` of its fixture. The build
+`roc build --no-cache --opt=dev --target=x64musl` of its fixture group
+application ([fixture grouping](fixture-grouping.md)). The build
 phase took 50 s for 51 fixtures, against 47 s with the shared cache, and the
 full suite still runs in about 3.5 minutes at `--jobs 6`. Validation
 (`roc check`, `roc test`) still uses the cache.
@@ -310,7 +312,12 @@ Review of the distribution:
 - **Revisit:** `--no-cache` fixture builds (cause 6). Once report B is fixed,
   cached and uncached builds should produce identical programs, and the
   harness could use the cache again for speed. The guard would detect any
-  difference.
+  difference. Re-tested on nightly-2026-10-18 (a cold shared cache still
+  differed in 26 cases) and on nightly-2026-10-23-18478ff, where cached
+  fixture builds fail outright on a separate cached compile-time literal
+  regression (roc-lang/roc#12564), so no counts could be compared
+  ([October 23 review](roc-nightly-2026-10-23-18478ff.md)). Keep `--no-cache`
+  and re-test on the next nightly, which carries roc-lang/roc#12535.
 
 ## Open issues
 

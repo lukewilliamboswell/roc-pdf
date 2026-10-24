@@ -1,0 +1,5 @@
+{"name":"text-layout facade scene arena x1000","schema_version":1,"case":{"Arena":{"repetitions":1000}}}
+{"name":"text-layout facade scene arena x10000","schema_version":1,"case":{"Arena":{"repetitions":10000}}}
+{"name":"text-layout facade scene atomic negatives","schema_version":1,"case":{"Negative":{"repetitions":2}}}
+{"name":"text-layout facade scene prepared-input control x1000","schema_version":1,"case":{"Prepare":{"repetitions":1000}}}
+{"name":"text-layout facade scene prepared-input control x10000","schema_version":1,"case":{"Prepare":{"repetitions":10000}}}

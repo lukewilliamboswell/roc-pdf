@@ -13,7 +13,7 @@ from pdf_layout import parse as parse_layout
 
 
 ROOT = Path(__file__).resolve().parents[1]
-BLANK_SNAPSHOT = ROOT / "tests" / "structural_kernel" / "blank.pdf"
+BLANK_SNAPSHOT = ROOT / "tests" / "structural_blank" / "blank.pdf"
 DEFLATE_SNAPSHOT = ROOT / "tests" / "structural_kernel" / "deflate.pdf"
 OBJECT_HEADER = re.compile(rb"(?m)^([1-9][0-9]*) 0 obj\n")
 

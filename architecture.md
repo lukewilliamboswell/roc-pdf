@@ -1763,7 +1763,10 @@ test case records the exact number of Roc allocations after resetting the
 allocator counter at its declared Roc measurement boundary. Whole-pipeline
 cases reset before authoring construction; phase cases reset immediately before
 the operation they isolate. Python harness and external-tool allocations are
-excluded. The baseline identifies compiler revision, target, optimization
+excluded. Cases run in a few shared fixture group executables, one process
+per case, and the reset follows the case decode; which families share an
+executable must not change any count, which the isolated and perturbed group
+builds check. The baseline identifies compiler revision, target, optimization
 mode, scenario revision, and measurement boundary, because exact counts are
 comparable only under the same configuration. An increased count fails review
 until its ownership or representation cause is understood and the checked-in
@@ -1817,11 +1820,14 @@ the same pinned dev backend before an iterator becomes a hot-path choice.
 
 The fast ordinary CI lane checks and tests the core `package/main.roc` public
 surface, checks the repository-only `package/all.roc` root, compiles and tests
-every checked-in public example, and runs a bounded campaign for every property
-fuzz target. A target that only compiles is not evidence about its property, and
-a raw-byte inspector reached from an empty corpus never leaves its reject paths,
-so every target carries a seed corpus and is executed rather than merely
-type-checked. The complete local suite remains the authoritative
+every checked-in public example, and gives every property fuzz target a smoke
+run: it builds the target and replays its seed corpus plus a few fixed-seed
+generated inputs within one second of workload. A target that only compiles is
+not evidence about its property, and a raw-byte inspector reached from an empty
+corpus never leaves its reject paths, so the raw-byte targets carry seed corpora
+and every target is executed rather than merely type-checked. The bounded
+search campaign is a separate scheduled job on the default branch, never a
+pull-request check, so its cost does not grow the ordinary lane. The complete local suite remains the authoritative
 feature-evidence path and is run through `./scripts/test.py`; release validation
 also runs that suite from scratch. That full evidence path uses PDFium and
 PDFBox as independent reader/render/extraction paths. PDF.js adds browser
@@ -1829,6 +1835,14 @@ text-, annotation-, and structure-layer coverage. MuPDF or Poppler extends
 graphics diversity; Ghostscript is used for declared advanced color and print
 capabilities. These engines have distinct configured expectations and do not
 vote on correctness.
+
+Contributor and CI tooling is declared in `Blueprint.roc` and locked in
+`Blueprint.lock` without a package provider: fixed tools such as Zig are
+fetched by committed digest, the remaining host tools are expected, and the
+test, fuzz, gallery, bundle and docs scripts are exposed as named tasks
+(`development/blueprint.md`). The package compiler is not a Blueprint input:
+`.roc-version` remains its single pin, because allocation baselines are exact
+for one compiler build and the nightly updater changes only that file.
 
 veraPDF is invoked with the explicit `4`, `ua2`, and `wt1a` profiles as
 applicable rather than relying only on metadata autodetection. The validator
