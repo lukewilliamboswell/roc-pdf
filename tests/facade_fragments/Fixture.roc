@@ -244,7 +244,7 @@ evidence_negative = |repetitions| {
 		_ => return Err(EvidenceFailure)
 	}
 	first_run = list_at(prepared.text.runs, 0)
-	bad_runs = list_set(prepared.text.runs, 0, { ..first_run, source: { scalars: Semantics.Range.from_start_and_length(0, 7), utf8_bytes: Semantics.Range.from_start_and_length(0, 7) } })
+	bad_runs = list_set(prepared.text.runs, 0, { ..first_run, source: { scalars: Semantics.IndexRange.from_start_and_length(0, 7), utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 7) } })
 	bad_source_rejected = match KernelFacadeFragments.Arena.build_prepared(input.preliminary, { ..prepared, text: { ..prepared.text, runs: bad_runs } }, fragment_limits(prepared)) {
 		Err(SourceRangeMismatch(_)) => 1
 		_ => return Err(EvidenceFailure)
@@ -317,7 +317,7 @@ semantic_store = |occurrence_count| {
 		nodes: [
 			{
 				attributes: empty_range,
-				content: Semantics.Range.from_start_and_length(0, 1),
+				content: Semantics.IndexRange.from_start_and_length(0, 1),
 				element_identifier: NoElementIdentifier,
 				id: Semantics.NodeId.from_index(0),
 				language: Language("en"),
@@ -328,7 +328,7 @@ semantic_store = |occurrence_count| {
 			},
 			{
 				attributes: empty_range,
-				content: Semantics.Range.from_start_and_length(1, occurrence_count),
+				content: Semantics.IndexRange.from_start_and_length(1, occurrence_count),
 				element_identifier: NoElementIdentifier,
 				id: Semantics.NodeId.from_index(1),
 				language: Language("en"),
@@ -368,11 +368,11 @@ prepared_text = |occurrence_count| {
 			while $local < 3 {
 				glyph_index = $glyphs.len()
 				$clusters = $clusters.append({
-					glyphs: Semantics.Range.from_start_and_length($glyph_indices.len(), 1),
+					glyphs: Semantics.IndexRange.from_start_and_length($glyph_indices.len(), 1),
 					kind: OneToOne,
 					source: {
-						scalars: Semantics.Range.from_start_and_length(source_start + $local, 1),
-						utf8_bytes: Semantics.Range.from_start_and_length(source_start + $local, 1),
+						scalars: Semantics.IndexRange.from_start_and_length(source_start + $local, 1),
+						utf8_bytes: Semantics.IndexRange.from_start_and_length(source_start + $local, 1),
 					},
 				})
 				$glyph_indices = $glyph_indices.append(glyph_index)
@@ -388,17 +388,17 @@ prepared_text = |occurrence_count| {
 			run_id = Text.RunId.from_index(run_index)
 			$runs = $runs.append({
 				actual_text: FromOccurrence,
-				clusters: Semantics.Range.from_start_and_length(glyph_start, 3),
+				clusters: Semantics.IndexRange.from_start_and_length(glyph_start, 3),
 				direction: LeftToRight,
-				glyphs: Semantics.Range.from_start_and_length(glyph_start, 3),
+				glyphs: Semantics.IndexRange.from_start_and_length(glyph_start, 3),
 				id: run_id,
 				instance: Font.InstanceId.from_index(0),
 				language: Language("en"),
 				script: Font.Script.from_iso15924("Latn"),
 				size: Layout.Unit.from_raw(1000),
 				source: {
-					scalars: Semantics.Range.from_start_and_length(source_start, 3),
-					utf8_bytes: Semantics.Range.from_start_and_length(source_start, 3),
+					scalars: Semantics.IndexRange.from_start_and_length(source_start, 3),
+					utf8_bytes: Semantics.IndexRange.from_start_and_length(source_start, 3),
 				},
 				substitutions: empty_range,
 				transformations: empty_range,
@@ -422,7 +422,7 @@ prepared_text = |occurrence_count| {
 		length = U64.min(64, run_count - $run_start)
 		$pages = $pages.append({
 			id: Semantics.PageId.from_index(page_index),
-			runs: Semantics.Range.from_start_and_length($run_start, length),
+			runs: Semantics.IndexRange.from_start_and_length($run_start, length),
 		})
 		$run_start = $run_start + length
 	}
@@ -505,12 +505,12 @@ output_object_limits = {
 
 full_source_range : Semantics.TextRange
 full_source_range = {
-	scalars: Semantics.Range.from_start_and_length(0, 6),
-	utf8_bytes: Semantics.Range.from_start_and_length(0, 6),
+	scalars: Semantics.IndexRange.from_start_and_length(0, 6),
+	utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 6),
 }
 
-empty_range : Semantics.Range
-empty_range = Semantics.Range.from_start_and_length(0, 0)
+empty_range : Semantics.IndexRange
+empty_range = Semantics.IndexRange.from_start_and_length(0, 0)
 
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {

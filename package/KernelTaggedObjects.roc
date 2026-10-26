@@ -947,7 +947,7 @@ add_id_tree = |builder, tagged, objects| {
 ## backend treat the builder's store lists as shared once the caller passed
 ## both on, so the next append copied every list once per element
 ## (development/performance/lowering-uniqueness.md).
-add_k_array : KernelObject.Builder, Names, List(KernelTagged.KItem), Semantics.Range, NavigationLowering, KernelObjectPlan.Plan, ElementPage -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelTaggedObjects.Error)
+add_k_array : KernelObject.Builder, Names, List(KernelTagged.KItem), Semantics.IndexRange, NavigationLowering, KernelObjectPlan.Plan, ElementPage -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelTaggedObjects.Error)
 add_k_array = |builder, names, items, range, navigation, objects, element_page| {
 	if range.length() == 1 {
 		value = add_k_item(builder, names, list_at(items, range.start()), navigation, objects, element_page)?
@@ -989,7 +989,7 @@ add_k_item = |builder, names, item, navigation, objects, element_page| {
 
 ElementPage : [ElementPage(Semantics.PageId), NoElementPage]
 
-first_marked_page : List(KernelTagged.KItem), Semantics.Range -> ElementPage
+first_marked_page : List(KernelTagged.KItem), Semantics.IndexRange -> ElementPage
 first_marked_page = |items, range| {
 	var $index = range.start()
 	end = range.start() + range.length()
@@ -1081,7 +1081,7 @@ add_contextual_artifact = |builder, names, parent_object, expected| {
 	Ok(object.builder)
 }
 
-add_parent_entry_array : KernelObject.Builder, List(KernelTagged.MarkedContentReference), Semantics.Range, List(KernelObject.ObjectId) -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelObject.Error)
+add_parent_entry_array : KernelObject.Builder, List(KernelTagged.MarkedContentReference), Semantics.IndexRange, List(KernelObject.ObjectId) -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelObject.Error)
 add_parent_entry_array = |builder, entries, range, structure| {
 	var $builder = builder
 	var $values = List.with_capacity(range.length())

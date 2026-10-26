@@ -501,11 +501,11 @@ test_scene = |color, image_count| {
 	{
 		commands,
 		dash_lengths: [],
-		groups: [{ commands: Semantics.Range.from_start_and_length(0, commands.len()), id: Scene.GroupId.from_index(0), owner: PageArtifact(Background) }],
+		groups: [{ commands: Semantics.IndexRange.from_start_and_length(0, commands.len()), id: Scene.GroupId.from_index(0), owner: PageArtifact(Background) }],
 		page_groups: [Scene.GroupId.from_index(0)],
-		pages: [{ boxes: { art: rect(0, 0, 10000, 10000), bleed: rect(0, 0, 10000, 10000), crop: rect(0, 0, 10000, 10000), media: rect(0, 0, 10000, 10000), trim: rect(0, 0, 10000, 10000) }, id: Semantics.PageId.from_index(0), paint_order: Semantics.Range.from_start_and_length(0, 1), rotation: Rotate0 }],
+		pages: [{ boxes: { art: rect(0, 0, 10000, 10000), bleed: rect(0, 0, 10000, 10000), crop: rect(0, 0, 10000, 10000), media: rect(0, 0, 10000, 10000), trim: rect(0, 0, 10000, 10000) }, id: Semantics.PageId.from_index(0), paint_order: Semantics.IndexRange.from_start_and_length(0, 1), rotation: Rotate0 }],
 		path_segments: [Rectangle(rect(0, 0, 1000, 1000))],
-		paths: [{ id: Scene.PathId.from_index(0), segments: Semantics.Range.from_start_and_length(0, 1) }],
+		paths: [{ id: Scene.PathId.from_index(0), segments: Semantics.IndexRange.from_start_and_length(0, 1) }],
 	}
 }
 

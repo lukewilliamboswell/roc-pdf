@@ -21,7 +21,7 @@ KernelSourceText :: [].{
 		TabRejected({ byte : U64 }),
 	]
 	Limits : { max_input_bytes : U64, max_lines : U64, max_output_bytes : U64 }
-	Line : { scalars : Semantics.Range, utf8_bytes : Semantics.Range }
+	Line : { scalars : Semantics.IndexRange, utf8_bytes : Semantics.IndexRange }
 	Work : { input_bytes : U64, line_writes : U64, output_bytes : U64, tab_spaces : U64 }
 	Foreground : { start : U64, end : U64, color : Color.SourceValue }
 	Prepared : { foregrounds : List(Foreground), lines : List(Line), text : Str, work : Work }
@@ -73,8 +73,8 @@ prepare_source = |text, tabs, limits, foregrounds| {
 			check_limit($lines.len() + 2, limits.max_lines, Lines)?
 			check_limit($bytes.len() + 1, limits.max_output_bytes, OutputBytes)?
 			line = {
-				scalars: Semantics.Range.from_start_and_length($line_scalar, $scalars - $line_scalar),
-				utf8_bytes: Semantics.Range.from_start_and_length($line_byte, $bytes.len() - $line_byte),
+				scalars: Semantics.IndexRange.from_start_and_length($line_scalar, $scalars - $line_scalar),
+				utf8_bytes: Semantics.IndexRange.from_start_and_length($line_byte, $bytes.len() - $line_byte),
 			}
 			$lines = $lines.append(line)
 			$bytes = $bytes.append(10)
@@ -115,8 +115,8 @@ prepare_source = |text, tabs, limits, foregrounds| {
 		}
 	}
 	$lines = $lines.append({
-		scalars: Semantics.Range.from_start_and_length($line_scalar, $scalars - $line_scalar),
-		utf8_bytes: Semantics.Range.from_start_and_length($line_byte, $bytes.len() - $line_byte),
+		scalars: Semantics.IndexRange.from_start_and_length($line_scalar, $scalars - $line_scalar),
+		utf8_bytes: Semantics.IndexRange.from_start_and_length($line_byte, $bytes.len() - $line_byte),
 	})
 	output_bytes = $bytes.len()
 	canonical = match Str.from_utf8($bytes) {

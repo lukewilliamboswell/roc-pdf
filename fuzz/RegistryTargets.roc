@@ -1020,8 +1020,8 @@ clusters_for = |specs| {
 			scalars: $scalars,
 			script: script_for(spec.script),
 			source: {
-				scalars: Semantics.Range.from_start_and_length($index, spec.scalars.len()),
-				utf8_bytes: Semantics.Range.from_start_and_length($index * 4, spec.scalars.len() * 4),
+				scalars: Semantics.IndexRange.from_start_and_length($index, spec.scalars.len()),
+				utf8_bytes: Semantics.IndexRange.from_start_and_length($index * 4, spec.scalars.len() * 4),
 			},
 		})
 		$index = $index + 1

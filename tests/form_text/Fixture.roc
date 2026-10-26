@@ -140,12 +140,12 @@ source = "Café PDF"
 
 source_range : Semantics.TextRange
 source_range = {
-	scalars: Semantics.Range.from_start_and_length(0, 8),
-	utf8_bytes: Semantics.Range.from_start_and_length(0, 9),
+	scalars: Semantics.IndexRange.from_start_and_length(0, 8),
+	utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 9),
 }
 
-empty_range : Semantics.Range
-empty_range = Semantics.Range.from_start_and_length(0, 0)
+empty_range : Semantics.IndexRange
+empty_range = Semantics.IndexRange.from_start_and_length(0, 0)
 
 text_colors : Color.Store
 text_colors = {
@@ -201,7 +201,7 @@ semantics = {
 	nodes: [
 		{
 			attributes: empty_range,
-			content: Semantics.Range.from_start_and_length(0, 1),
+			content: Semantics.IndexRange.from_start_and_length(0, 1),
 			element_identifier: NoElementIdentifier,
 			id: Semantics.NodeId.from_index(0),
 			language: Language("en-AU"),
@@ -212,7 +212,7 @@ semantics = {
 		},
 		{
 			attributes: empty_range,
-			content: Semantics.Range.from_start_and_length(1, 1),
+			content: Semantics.IndexRange.from_start_and_length(1, 1),
 			element_identifier: NoElementIdentifier,
 			id: Semantics.NodeId.from_index(1),
 			language: Language("en-AU"),
@@ -226,7 +226,7 @@ semantics = {
 	occurrence_fragments: [Semantics.FragmentId.from_index(0)],
 	occurrences: [
 		{
-			fragments: Semantics.Range.from_start_and_length(0, 1),
+			fragments: Semantics.IndexRange.from_start_and_length(0, 1),
 			id: Semantics.OccurrenceId.from_index(0),
 			language: Language("en-AU"),
 			source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange(source_range)),
@@ -252,20 +252,20 @@ text_paint = {
 text_form_store : Scene.FormStore
 text_form_store = {
 	commands: [DrawText({ paint: text_paint, run: Text.RunId.from_index(0) })],
-	forms: [{ bbox: rect(0, -3000, 60000, 17000), commands: Semantics.Range.from_start_and_length(0, 1), group: NoGroup, id: Scene.FormId.from_index(0) }],
+	forms: [{ bbox: rect(0, -3000, 60000, 17000), commands: Semantics.IndexRange.from_start_and_length(0, 1), group: NoGroup, id: Scene.FormId.from_index(0) }],
 }
 
 single_placement_scene : {} -> Scene.Store
 single_placement_scene = |_| {
 	commands: [PlaceForm({ form: Scene.FormId.from_index(0), transform: translate(72000, 700000) })],
 	dash_lengths: [],
-	groups: [{ commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
+	groups: [{ commands: Semantics.IndexRange.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
 	page_groups: [Scene.GroupId.from_index(0)],
 	pages: [
 		{
 			boxes: { art: a4_box, bleed: a4_box, crop: a4_box, media: a4_box, trim: a4_box },
 			id: Semantics.PageId.from_index(0),
-			paint_order: Semantics.Range.from_start_and_length(0, 1),
+			paint_order: Semantics.IndexRange.from_start_and_length(0, 1),
 			rotation: Rotate0,
 		},
 	],
@@ -486,7 +486,7 @@ check_text_negatives = |prelude| {
 			PlaceForm({ form: Scene.FormId.from_index(0), transform: translate(72000, 700000) }),
 			PlaceForm({ form: Scene.FormId.from_index(0), transform: translate(72000, 650000) }),
 		],
-		groups: [{ commands: Semantics.Range.from_start_and_length(0, 2), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
+		groups: [{ commands: Semantics.IndexRange.from_start_and_length(0, 2), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
 	}
 	twice_rejected = match build_facts_for(prelude, twice) {
 		Err(TextFormMultiplyPlaced({ form: 0, instances: 2 })) => True
@@ -499,7 +499,7 @@ check_text_negatives = |prelude| {
 	## 2: a text-bearing form reachable only under an artifact owner.
 	artifact = {
 		..base_scene,
-		groups: [{ commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: PageArtifact(Header) }],
+		groups: [{ commands: Semantics.IndexRange.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: PageArtifact(Header) }],
 	}
 	artifact_rejected = match build_facts_for(prelude, artifact) {
 		Err(ArtifactTextInForm({ form: 0 })) => True

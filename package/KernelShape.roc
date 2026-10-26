@@ -131,7 +131,7 @@ KernelShape :: [].{
 	## request's language is the natural language of its occurrence and
 	## becomes the run's language fact.
 	SelectedBatchRequest : {
-		clusters : Semantics.Range,
+		clusters : Semantics.IndexRange,
 		instance : Font.InstanceId,
 		language : Semantics.Language,
 		occurrence : Semantics.OccurrenceId,
@@ -286,11 +286,11 @@ shape_simple_latin = |font, source, analysis, options, limits| {
 			offset_y: zero_unit,
 		})
 		$clusters = $clusters.append({
-			glyphs: Semantics.Range.from_start_and_length($glyph_indices.len(), 1),
+			glyphs: Semantics.IndexRange.from_start_and_length($glyph_indices.len(), 1),
 			kind: OneToOne,
 			source: {
-				scalars: Semantics.Range.from_start_and_length(located.scalar_index, 1),
-				utf8_bytes: Semantics.Range.from_start_and_length(byte_start, byte_end - byte_start),
+				scalars: Semantics.IndexRange.from_start_and_length(located.scalar_index, 1),
+				utf8_bytes: Semantics.IndexRange.from_start_and_length(byte_start, byte_end - byte_start),
 			},
 		})
 		$glyph_indices = $glyph_indices.append($visited)
@@ -302,20 +302,20 @@ shape_simple_latin = |font, source, analysis, options, limits| {
 
 	run = {
 		actual_text: FromOccurrence,
-		clusters: Semantics.Range.from_start_and_length(0, $clusters.len()),
+		clusters: Semantics.IndexRange.from_start_and_length(0, $clusters.len()),
 		direction: options.direction,
-		glyphs: Semantics.Range.from_start_and_length(0, $glyphs.len()),
+		glyphs: Semantics.IndexRange.from_start_and_length(0, $glyphs.len()),
 		id: Text.RunId.from_index(0),
 		instance: options.instance,
 		language: options.language,
 		script: options.script,
 		size: Layout.Unit.from_raw(size),
 		source: {
-			scalars: Semantics.Range.from_start_and_length(0, scalar_count),
-			utf8_bytes: Semantics.Range.from_start_and_length(0, source_bytes),
+			scalars: Semantics.IndexRange.from_start_and_length(0, scalar_count),
+			utf8_bytes: Semantics.IndexRange.from_start_and_length(0, source_bytes),
 		},
-		substitutions: Semantics.Range.from_start_and_length(0, 0),
-		transformations: Semantics.Range.from_start_and_length(0, 0),
+		substitutions: Semantics.IndexRange.from_start_and_length(0, 0),
+		transformations: Semantics.IndexRange.from_start_and_length(0, 0),
 		unicode: OccurrenceText(options.occurrence),
 		writing_mode: options.writing_mode,
 	}
@@ -342,7 +342,7 @@ shape_simple_latin = |font, source, analysis, options, limits| {
 
 SimpleGlyphTemplate : { byte_end : U64, byte_start : U64, glyph : U32, scalar_index : U64, width : U32 }
 
-SourceTemplate : { glyphs : Semantics.Range }
+SourceTemplate : { glyphs : Semantics.IndexRange }
 
 shape_simple_batch_latin : KernelFont.Inspection, List(KernelShape.SimpleSource), KernelShape.BatchOptions, List(KernelShape.SimpleRequest), KernelShape.Limits -> Try(KernelShape.Batch, KernelShape.Error)
 shape_simple_batch_latin = |font, sources, options, requests, limits| {
@@ -438,7 +438,7 @@ shape_simple_batch_latin = |font, sources, options, requests, limits| {
 		if $visited != scalar_count {
 			return Err(AnalysisMismatch(ScalarFacts))
 		}
-		$source_templates = $source_templates.append({ glyphs: Semantics.Range.from_start_and_length(template_start, $visited) })
+		$source_templates = $source_templates.append({ glyphs: Semantics.IndexRange.from_start_and_length(template_start, $visited) })
 		$source_index = $source_index + 1
 	}
 	var $advances = List.with_capacity(requests.len())
@@ -480,11 +480,11 @@ shape_simple_batch_latin = |font, sources, options, requests, limits| {
 				offset_y: zero_unit,
 			})
 			$clusters = $clusters.append({
-				glyphs: Semantics.Range.from_start_and_length($glyph_indices.len(), 1),
+				glyphs: Semantics.IndexRange.from_start_and_length($glyph_indices.len(), 1),
 				kind: OneToOne,
 				source: {
-					scalars: Semantics.Range.from_start_and_length(template_glyph.scalar_index, 1),
-					utf8_bytes: Semantics.Range.from_start_and_length(template_glyph.byte_start, template_glyph.byte_end - template_glyph.byte_start),
+					scalars: Semantics.IndexRange.from_start_and_length(template_glyph.scalar_index, 1),
+					utf8_bytes: Semantics.IndexRange.from_start_and_length(template_glyph.byte_start, template_glyph.byte_end - template_glyph.byte_start),
 				},
 			})
 			$glyph_indices = $glyph_indices.append(glyph_index)
@@ -496,20 +496,20 @@ shape_simple_batch_latin = |font, sources, options, requests, limits| {
 
 		$runs = $runs.append({
 			actual_text: FromOccurrence,
-			clusters: Semantics.Range.from_start_and_length(cluster_start, cluster_count),
+			clusters: Semantics.IndexRange.from_start_and_length(cluster_start, cluster_count),
 			direction: options.direction,
-			glyphs: Semantics.Range.from_start_and_length(glyph_start, scalar_count),
+			glyphs: Semantics.IndexRange.from_start_and_length(glyph_start, scalar_count),
 			id: Text.RunId.from_index($request_index),
 			instance: options.instance,
 			language: options.language,
 			script: options.script,
 			size: request.size,
 			source: {
-				scalars: Semantics.Range.from_start_and_length(0, scalar_count),
-				utf8_bytes: Semantics.Range.from_start_and_length(0, source_bytes),
+				scalars: Semantics.IndexRange.from_start_and_length(0, scalar_count),
+				utf8_bytes: Semantics.IndexRange.from_start_and_length(0, source_bytes),
 			},
-			substitutions: Semantics.Range.from_start_and_length(0, 0),
-			transformations: Semantics.Range.from_start_and_length(0, 0),
+			substitutions: Semantics.IndexRange.from_start_and_length(0, 0),
+			transformations: Semantics.IndexRange.from_start_and_length(0, 0),
 			unicode: OccurrenceText(request.occurrence),
 			writing_mode: options.writing_mode,
 		})
@@ -700,7 +700,7 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 		source_record = list_at(sources, template_source)
 		template_start = $template_glyphs.len()
 		if assignment.is_empty() {
-			$source_templates = $source_templates.append({ glyphs: Semantics.Range.from_start_and_length(template_start, 0) })
+			$source_templates = $source_templates.append({ glyphs: Semantics.IndexRange.from_start_and_length(template_start, 0) })
 		} else {
 			source = source_record.unicode
 			analysis = source_record.analysis
@@ -742,7 +742,7 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 			if $visited != scalar_count {
 				return Err(AnalysisMismatch(ScalarFacts))
 			}
-			$source_templates = $source_templates.append({ glyphs: Semantics.Range.from_start_and_length(template_start, $visited) })
+			$source_templates = $source_templates.append({ glyphs: Semantics.IndexRange.from_start_and_length(template_start, $visited) })
 		}
 		$template_index = $template_index + 1
 	}
@@ -795,11 +795,11 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 				offset_y: zero_unit,
 			})
 			$clusters = $clusters.append({
-				glyphs: Semantics.Range.from_start_and_length($glyph_indices.len(), 1),
+				glyphs: Semantics.IndexRange.from_start_and_length($glyph_indices.len(), 1),
 				kind: OneToOne,
 				source: {
-					scalars: Semantics.Range.from_start_and_length(template_glyph.scalar_index, 1),
-					utf8_bytes: Semantics.Range.from_start_and_length(template_glyph.byte_start, template_glyph.byte_end - template_glyph.byte_start),
+					scalars: Semantics.IndexRange.from_start_and_length(template_glyph.scalar_index, 1),
+					utf8_bytes: Semantics.IndexRange.from_start_and_length(template_glyph.byte_start, template_glyph.byte_end - template_glyph.byte_start),
 				},
 			})
 			$glyph_indices = $glyph_indices.append(glyph_index)
@@ -807,20 +807,20 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 		}
 		$runs = $runs.append({
 			actual_text: FromOccurrence,
-			clusters: Semantics.Range.from_start_and_length(cluster_start, range_length),
+			clusters: Semantics.IndexRange.from_start_and_length(cluster_start, range_length),
 			direction: options.direction,
-			glyphs: Semantics.Range.from_start_and_length(glyph_start, range_length),
+			glyphs: Semantics.IndexRange.from_start_and_length(glyph_start, range_length),
 			id: Text.RunId.from_index($request_index),
 			instance: request.instance,
 			language: request.language,
 			script: request.script,
 			size: request.size,
 			source: {
-				scalars: Semantics.Range.from_start_and_length(range_start, range_length),
-				utf8_bytes: Semantics.Range.from_start_and_length($run_byte_start, $run_byte_end - $run_byte_start),
+				scalars: Semantics.IndexRange.from_start_and_length(range_start, range_length),
+				utf8_bytes: Semantics.IndexRange.from_start_and_length($run_byte_start, $run_byte_end - $run_byte_start),
 			},
-			substitutions: Semantics.Range.from_start_and_length(0, 0),
-			transformations: Semantics.Range.from_start_and_length(0, 0),
+			substitutions: Semantics.IndexRange.from_start_and_length(0, 0),
+			transformations: Semantics.IndexRange.from_start_and_length(0, 0),
 			unicode: OccurrenceText(request.occurrence),
 			writing_mode: options.writing_mode,
 		})
@@ -954,11 +954,11 @@ shape_ranged_selected = |fonts, sources, options, requests, limits| {
 				offset_y: zero_unit,
 			})
 			$clusters = $clusters.append({
-				glyphs: Semantics.Range.from_start_and_length($glyph_indices.len(), 1),
+				glyphs: Semantics.IndexRange.from_start_and_length($glyph_indices.len(), 1),
 				kind: OneToOne,
 				source: {
-					scalars: Semantics.Range.from_start_and_length(template_glyph.scalar_index, 1),
-					utf8_bytes: Semantics.Range.from_start_and_length(template_glyph.byte_start, template_glyph.byte_end - template_glyph.byte_start),
+					scalars: Semantics.IndexRange.from_start_and_length(template_glyph.scalar_index, 1),
+					utf8_bytes: Semantics.IndexRange.from_start_and_length(template_glyph.byte_start, template_glyph.byte_end - template_glyph.byte_start),
 				},
 			})
 			$glyph_indices = $glyph_indices.append(glyph_index)
@@ -966,20 +966,20 @@ shape_ranged_selected = |fonts, sources, options, requests, limits| {
 		}
 		$runs = $runs.append({
 			actual_text: FromOccurrence,
-			clusters: Semantics.Range.from_start_and_length(cluster_start, range_length),
+			clusters: Semantics.IndexRange.from_start_and_length(cluster_start, range_length),
 			direction: options.direction,
-			glyphs: Semantics.Range.from_start_and_length(glyph_start, range_length),
+			glyphs: Semantics.IndexRange.from_start_and_length(glyph_start, range_length),
 			id: Text.RunId.from_index($request_index),
 			instance: request.instance,
 			language: request.language,
 			script: request.script,
 			size: request.size,
 			source: {
-				scalars: Semantics.Range.from_start_and_length(range_start, range_length),
-				utf8_bytes: Semantics.Range.from_start_and_length($run_byte_start, $run_byte_end - $run_byte_start),
+				scalars: Semantics.IndexRange.from_start_and_length(range_start, range_length),
+				utf8_bytes: Semantics.IndexRange.from_start_and_length($run_byte_start, $run_byte_end - $run_byte_start),
 			},
-			substitutions: Semantics.Range.from_start_and_length(0, 0),
-			transformations: Semantics.Range.from_start_and_length(0, 0),
+			substitutions: Semantics.IndexRange.from_start_and_length(0, 0),
+			transformations: Semantics.IndexRange.from_start_and_length(0, 0),
 			unicode: OccurrenceText(request.occurrence),
 			writing_mode: options.writing_mode,
 		})
@@ -1556,10 +1556,10 @@ valid_text_range = |range, boundaries, source_bytes, scalar_count| {
 text_range_within : Semantics.TextRange, Semantics.TextRange -> Bool
 text_range_within = |inner, outer| range_within(inner.scalars, outer.scalars) and range_within(inner.utf8_bytes, outer.utf8_bytes)
 
-range_starts_and_fits : Semantics.Range, U64, U64 -> Bool
+range_starts_and_fits : Semantics.IndexRange, U64, U64 -> Bool
 range_starts_and_fits = |range, expected_start, available| range.start() == expected_start and range.start() <= available and range.length() <= available - range.start()
 
-range_within : Semantics.Range, Semantics.Range -> Bool
+range_within : Semantics.IndexRange, Semantics.IndexRange -> Bool
 range_within = |inner, outer| {
 	inner_start = inner.start()
 	outer_start = outer.start()
@@ -1570,7 +1570,7 @@ range_within = |inner, outer| {
 	}
 }
 
-range_end : Semantics.Range, U64 -> Try(U64, [OutOfRange])
+range_end : Semantics.IndexRange, U64 -> Try(U64, [OutOfRange])
 range_end = |range, available| if (range.start() > available or range.length() > available - range.start()) Err(OutOfRange) else Ok(range.start() + range.length())
 
 valid_cluster_cardinality : Text.ClusterKind, U64, U64 -> Bool

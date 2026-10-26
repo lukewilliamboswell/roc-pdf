@@ -156,7 +156,7 @@ dictionary_bound = |store, span| {
 name_bound : KernelLex.Name -> Try(U64, KernelOutputBound.Error)
 name_bound = |name| checked_add(checked_times(KernelLex.Name.bytes(name).len(), 3)?, 1)
 
-stream_inserted_entries_bound : KernelObject.Stream -> U64
+stream_inserted_entries_bound : KernelObject.StreamObject -> U64
 stream_inserted_entries_bound = |stream| {
 	length_entry = 13 + decimal_length(KernelObject.ObjectId.number(stream.length_object))
 	filter_entry = match stream.filter {

@@ -56,9 +56,9 @@ KernelBidiBoundary :: [].{
 	## The coordinate facts of one already-selected logical line. Taking the
 	## selection rather than the line breaker's record keeps this boundary
 	## independent of layout: it consumes ranges, not a layout decision.
-	LineSelection : { clusters : Semantics.Range, source : Semantics.TextRange }
+	LineSelection : { clusters : Semantics.IndexRange, source : Semantics.TextRange }
 
-	VisualRunFact : { direction : Direction, level : U8, logical_scalars : Semantics.Range }
+	VisualRunFact : { direction : Direction, level : U8, logical_scalars : Semantics.IndexRange }
 
 	Paragraph : {
 		analysis : Bidi.Analysis,
@@ -75,7 +75,7 @@ KernelBidiBoundary :: [].{
 	## Isolate initiators and PDI are not removed: they stay in the sequence
 	## and remain flagged non-rendering in the paragraph facts.
 	LineOrder : {
-		logical_clusters : Semantics.Range,
+		logical_clusters : Semantics.IndexRange,
 		logical_source : Semantics.TextRange,
 		mirrors : List(MirrorInfo),
 		paragraph_level : U8,
@@ -173,8 +173,8 @@ analyze = |source, analysis, base, limits| {
 		base_level: Bidi.paragraph_level(resolved),
 		entries: $facts,
 		logical_source: {
-			scalars: Semantics.Range.from_start_and_length(0, $scalar_visits),
-			utf8_bytes: Semantics.Range.from_start_and_length(0, $last_byte_end),
+			scalars: Semantics.IndexRange.from_start_and_length(0, $scalar_visits),
+			utf8_bytes: Semantics.IndexRange.from_start_and_length(0, $last_byte_end),
 		},
 		work: { cluster_visits: 0, mirror_visits: $mirror_visits, scalar_visits: $scalar_visits, visual_writes: 0 },
 	})
@@ -323,7 +323,7 @@ resolve = |paragraph, line, clusters, limits| {
 				RightToLeft => RightToLeft
 			},
 			level: run.level,
-			logical_scalars: Semantics.Range.from_start_and_length(run_start, run_length),
+			logical_scalars: Semantics.IndexRange.from_start_and_length(run_start, run_length),
 		})
 		$run_index = $run_index + 1
 	}
@@ -381,7 +381,7 @@ map_bidi_error = |error| match error {
 	LineOutOfBounds(_) => UnicodeBidi(LineOutOfBounds)
 }
 
-range_end : Semantics.Range -> Try(U64, KernelBidiBoundary.Error)
+range_end : Semantics.IndexRange -> Try(U64, KernelBidiBoundary.Error)
 range_end = |range| {
 	match U64.plus_try(range.start(), range.length()) {
 		Err(_) => Err(InvalidLineRange)

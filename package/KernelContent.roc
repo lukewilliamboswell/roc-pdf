@@ -26,7 +26,7 @@ KernelContent :: [].{
 		make = |limits| Limits.(limits)
 	}
 
-	Stream : { bytes : List(U8), page : Semantics.PageId, stream : Semantics.ContentStreamId }
+	ContentStream : { bytes : List(U8), page : Semantics.PageId, stream : Semantics.ContentStreamId }
 
 	## One lowered physical Form XObject content stream, identified by its
 	## dense canonical form ordinal.
@@ -60,9 +60,9 @@ KernelContent :: [].{
 		page_states : List(U64),
 		pattern_arena : List(Scene.Command),
 		pattern_names : List(U64),
-		pattern_streams : List(Semantics.Range),
+		pattern_streams : List(Semantics.IndexRange),
 		shading_names : List(U64),
-		streams : List(Semantics.Range),
+		streams : List(Semantics.IndexRange),
 	}
 
 	Work : {
@@ -104,7 +104,7 @@ KernelContent :: [].{
 		run_count = |plan| plan.runs.len()
 	}
 
-	Plan :: { form_streams : List(FormStream), pattern_streams : List(PatternStream), streams : List(Stream), work : Work }.{
+	Plan :: { form_streams : List(FormStream), pattern_streams : List(PatternStream), streams : List(ContentStream), work : Work }.{
 		build : KernelTagged.Plan, Limits -> Try(Plan, Error)
 		build = |tagged, limits| build_plan(tagged, NoText, NoForms, limits)
 
@@ -129,7 +129,7 @@ KernelContent :: [].{
 		pattern_stream_count : Plan -> U64
 		pattern_stream_count = |plan| plan.pattern_streams.len()
 
-		stream : Plan, Semantics.ContentStreamId -> Stream
+		stream : Plan, Semantics.ContentStreamId -> ContentStream
 		stream = |plan, stream| list_at(plan.streams, stream.index())
 
 		stream_count : Plan -> U64
@@ -468,7 +468,7 @@ open_group = |bytes, owner, marked, page, limit| match owner {
 	}
 }
 
-emit_commands : List(U8), Semantics.Range, List(Scene.Command), Scene.Store, TextLowering, FormEmission, Naming, List(U64), U64 -> Try(EmitWork, KernelContent.Error)
+emit_commands : List(U8), Semantics.IndexRange, List(Scene.Command), Scene.Store, TextLowering, FormEmission, Naming, List(U64), U64 -> Try(EmitWork, KernelContent.Error)
 emit_commands = |initial, root, arena, scenes, text, forms, naming, states, limit| {
 	var $bytes = initial
 	var $frames = []
@@ -997,7 +997,7 @@ emit_stroke = |bytes, stroke, dash_lengths, naming, limit| {
 ## one did, the join after the `match` carried the `var` beside the arm's
 ## result, the other arm's call saw a second reference, and it copied the
 ## whole stream once per stroke (development/performance/emission-linearity.md).
-emit_dash : List(U8), Semantics.Range, Layout.Unit, List(Layout.Unit), U64 -> Try(List(U8), KernelContent.Error)
+emit_dash : List(U8), Semantics.IndexRange, Layout.Unit, List(Layout.Unit), U64 -> Try(List(U8), KernelContent.Error)
 emit_dash = |bytes, lengths, phase, dash_lengths, limit| {
 	var $out = append_literal(bytes, "[", limit)?
 	var $index = lengths.start()
@@ -1268,7 +1268,7 @@ expect {
 	stroke = {
 		cap: ProjectingSquareCap,
 		color: { channels: Gray(65535), space: Color.SpaceId.from_index(0) },
-		dash: Dashed({ lengths: Semantics.Range.from_start_and_length(0, 2), phase: KernelFixture.unit(250) }),
+		dash: Dashed({ lengths: Semantics.IndexRange.from_start_and_length(0, 2), phase: KernelFixture.unit(250) }),
 		join: BevelJoin,
 		miter_limit: KernelFixture.unit(10000),
 		width: KernelFixture.unit(500),
@@ -1276,12 +1276,12 @@ expect {
 	scenes = {
 		..KernelFixture.scene,
 		commands: [
-			Clip({ children: Semantics.Range.from_start_and_length(1, 1), path: Scene.PathId.from_index(0) }),
+			Clip({ children: Semantics.IndexRange.from_start_and_length(1, 1), path: Scene.PathId.from_index(0) }),
 			DrawPath({ path: Scene.PathId.from_index(0), style: { fill: NoFill, stroke: SolidStroke(stroke) } }),
 		],
 		dash_lengths: [KernelFixture.unit(1000), KernelFixture.unit(500)],
 	}
-	emitted = emit_commands([], Semantics.Range.from_start_and_length(0, 1), scenes.commands, scenes, NoText, NoForms, AuthoredNames, [], 512)?
+	emitted = emit_commands([], Semantics.IndexRange.from_start_and_length(0, 1), scenes.commands, scenes, NoText, NoForms, AuthoredNames, [], 512)?
 	expected =
 		\\q
 		\\0 0 1 1 re
@@ -1306,14 +1306,14 @@ expect {
 	scenes = {
 		..KernelFixture.scene,
 		commands: [
-			Opacity({ children: Semantics.Range.from_start_and_length(1, 2), opacity: 32768 }),
+			Opacity({ children: Semantics.IndexRange.from_start_and_length(1, 2), opacity: 32768 }),
 			DrawPath({ path: Scene.PathId.from_index(0), style: { fill: SolidFill({ color: { channels: Gray(65535), space: Color.SpaceId.from_index(0) }, rule: Nonzero }), stroke: NoStroke } }),
-			Opacity({ children: Semantics.Range.from_start_and_length(3, 1), opacity: 65535 }),
+			Opacity({ children: Semantics.IndexRange.from_start_and_length(3, 1), opacity: 65535 }),
 			DrawPath({ path: Scene.PathId.from_index(0), style: { fill: SolidFill({ color: { channels: Gray(0), space: Color.SpaceId.from_index(0) }, rule: Nonzero }), stroke: NoStroke } }),
 		],
 	}
 	states = [1, U64.highest, U64.highest, U64.highest]
-	emitted = emit_commands([], Semantics.Range.from_start_and_length(0, 1), scenes.commands, scenes, NoText, NoForms, AuthoredNames, states, 512)?
+	emitted = emit_commands([], Semantics.IndexRange.from_start_and_length(0, 1), scenes.commands, scenes, NoText, NoForms, AuthoredNames, states, 512)?
 	expected =
 		\\q
 		\\/GS1_1 gs
@@ -1326,7 +1326,7 @@ expect {
 		\\0 0 1 1 re
 		\\f
 		\\Q
-	rejected = match emit_commands([], Semantics.Range.from_start_and_length(0, 1), scenes.commands, scenes, NoText, NoForms, AuthoredNames, [], 512) {
+	rejected = match emit_commands([], Semantics.IndexRange.from_start_and_length(0, 1), scenes.commands, scenes, NoText, NoForms, AuthoredNames, [], 512) {
 		Err(UnsupportedValidatedCommand({ command: 0 })) => True
 		_ => False
 	}
@@ -1339,12 +1339,12 @@ expect {
 	scenes = {
 		..KernelFixture.scene,
 		commands: [
-			SoftMask({ children: Semantics.Range.from_start_and_length(1, 1), mask: Scene.FormId.from_index(0) }),
+			SoftMask({ children: Semantics.IndexRange.from_start_and_length(1, 1), mask: Scene.FormId.from_index(0) }),
 			DrawPath({ path: Scene.PathId.from_index(0), style: { fill: SolidFill({ color: { channels: Gray(65535), space: Color.SpaceId.from_index(0) }, rule: Nonzero }), stroke: NoStroke } }),
 		],
 	}
 	states = [2, U64.highest]
-	emitted = emit_commands([], Semantics.Range.from_start_and_length(0, 1), scenes.commands, scenes, NoText, NoForms, AuthoredNames, states, 512)?
+	emitted = emit_commands([], Semantics.IndexRange.from_start_and_length(0, 1), scenes.commands, scenes, NoText, NoForms, AuthoredNames, states, 512)?
 	expected =
 		\\q
 		\\/GS1_2 gs
@@ -1368,9 +1368,9 @@ expect {
 		..KernelFixture.scene,
 		commands: [DrawPath({ path: Scene.PathId.from_index(0), style: { fill: SolidFill({ color: { channels: Rgb({ blue: 0, green: 32768, red: 65535 }), space: Color.SpaceId.from_index(0) }, rule: EvenOdd }), stroke: NoStroke } })],
 		path_segments: segments,
-		paths: [{ id: Scene.PathId.from_index(0), segments: Semantics.Range.from_start_and_length(0, segments.len()) }],
+		paths: [{ id: Scene.PathId.from_index(0), segments: Semantics.IndexRange.from_start_and_length(0, segments.len()) }],
 	}
-	emitted = emit_commands([], Semantics.Range.from_start_and_length(0, 1), scenes.commands, scenes, NoText, NoForms, AuthoredNames, [], 512)?
+	emitted = emit_commands([], Semantics.IndexRange.from_start_and_length(0, 1), scenes.commands, scenes, NoText, NoForms, AuthoredNames, [], 512)?
 	expected =
 		\\/CS1_0 cs
 		\\1 0.50000763 0 scn
@@ -1422,13 +1422,13 @@ expect {
 	scenes = {
 		..KernelFixture.scene,
 		commands: [
-			Clip({ children: Semantics.Range.from_start_and_length(2, 1), path: Scene.PathId.from_index(0) }),
+			Clip({ children: Semantics.IndexRange.from_start_and_length(2, 1), path: Scene.PathId.from_index(0) }),
 			DrawPath({ path: Scene.PathId.from_index(0), style: { fill: PatternFill({ pattern: Scene.PatternId.from_index(1), rule: EvenOdd }), stroke: NoStroke } }),
 			PaintShading({ shading: Scene.ShadingId.from_index(0) }),
 		],
 	}
 	naming = CanonicalNames({ colors: [0], fonts: [], images: [], patterns: [7, 3], shadings: [5] })
-	emitted = emit_commands([], Semantics.Range.from_start_and_length(0, 2), scenes.commands, scenes, NoText, NoForms, naming, [], 512)?
+	emitted = emit_commands([], Semantics.IndexRange.from_start_and_length(0, 2), scenes.commands, scenes, NoText, NoForms, naming, [], 512)?
 	expected =
 		\\q
 		\\0 0 1 1 re
@@ -1439,7 +1439,7 @@ expect {
 		\\/Pt1_3 scn
 		\\0 0 1 1 re
 		\\f*
-	rejected = match emit_commands([], Semantics.Range.from_start_and_length(0, 2), scenes.commands, scenes, NoText, NoForms, AuthoredNames, [], 512) {
+	rejected = match emit_commands([], Semantics.IndexRange.from_start_and_length(0, 2), scenes.commands, scenes, NoText, NoForms, AuthoredNames, [], 512) {
 		Err(UnsupportedValidatedCommand({ command: 2 })) => True
 		_ => False
 	}

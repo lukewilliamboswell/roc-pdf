@@ -268,7 +268,7 @@ Fixture :: [].{
 
 cluster : U64, Str, List(U32) -> Font.SourceCluster
 cluster = |index, script, scalars| {
-	range = Semantics.Range.from_start_and_length(index, scalars.len())
+	range = Semantics.IndexRange.from_start_and_length(index, scalars.len())
 	{ scalars, script: Font.Script.from_iso15924(script), source: { scalars: range, utf8_bytes: range } }
 }
 

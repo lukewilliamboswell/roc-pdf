@@ -277,7 +277,7 @@ Scene :: [].{
 	LineCap : [ButtCap, ProjectingSquareCap, RoundCap]
 	LineJoin : [BevelJoin, MiterJoin, RoundJoin]
 	DashPattern : [
-		Dashed({ lengths : Semantics.Range, phase : Layout.Unit }),
+		Dashed({ lengths : Semantics.IndexRange, phase : Layout.Unit }),
 		SolidLine,
 	]
 	StrokeStyle : {
@@ -309,7 +309,7 @@ Scene :: [].{
 		MoveTo(Layout.Point),
 		Rectangle(Layout.Rect),
 	]
-	Path : { id : PathId, segments : Semantics.Range }
+	Path : { id : PathId, segments : Semantics.IndexRange }
 
 	TextRenderingMode : [Fill, FillAndStroke]
 	TextPaint : {
@@ -345,19 +345,19 @@ Scene :: [].{
 	## the user space active at the paint site, so authors bound the painted
 	## area with an enclosing `Clip` and position it with `Transform`.
 	Command : [
-		Clip({ children : Semantics.Range, path : PathId }),
+		Clip({ children : Semantics.IndexRange, path : PathId }),
 		DrawImage({ image : Image.Id, placement : Layout.Rect }),
 		DrawPath({ path : PathId, style : PathStyle }),
 		DrawText({ paint : TextPaint, run : Text.RunId }),
-		Opacity({ children : Semantics.Range, opacity : U16 }),
+		Opacity({ children : Semantics.IndexRange, opacity : U16 }),
 		PaintShading({ shading : ShadingId }),
 		PlaceForm({ form : FormId, transform : Matrix }),
-		SoftMask({ children : Semantics.Range, mask : FormId }),
-		Transform({ children : Semantics.Range, matrix : Matrix }),
+		SoftMask({ children : Semantics.IndexRange, mask : FormId }),
+		Transform({ children : Semantics.IndexRange, matrix : Matrix }),
 	]
 
 	OwnedGroup : {
-		commands : Semantics.Range,
+		commands : Semantics.IndexRange,
 		id : GroupId,
 		owner : GroupOwner,
 	}
@@ -365,7 +365,7 @@ Scene :: [].{
 	Page : {
 		boxes : PageBoxes,
 		id : Semantics.PageId,
-		paint_order : Semantics.Range,
+		paint_order : Semantics.IndexRange,
 		rotation : Rotation,
 	}
 
@@ -399,7 +399,7 @@ Scene :: [].{
 	## separate so page and form content each keep dense once-each ownership.
 	Form : {
 		bbox : Layout.Rect,
-		commands : Semantics.Range,
+		commands : Semantics.IndexRange,
 		group : FormGroup,
 		id : FormId,
 	}
@@ -439,7 +439,7 @@ Scene :: [].{
 		geometry : ShadingGeometry,
 		id : ShadingId,
 		space : Color.SpaceId,
-		stops : Semantics.Range,
+		stops : Semantics.IndexRange,
 	}
 
 	ShadingStore : { shadings : List(Shading), stops : List(GradientStop) }
@@ -458,7 +458,7 @@ Scene :: [].{
 	## explicitly. `x_step`/`y_step` are the positive tile advances.
 	PatternCell : {
 		bbox : Layout.Rect,
-		commands : Semantics.Range,
+		commands : Semantics.IndexRange,
 		id : PatternId,
 		matrix : Matrix,
 		x_step : Layout.Unit,

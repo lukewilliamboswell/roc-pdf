@@ -42,9 +42,9 @@ KernelFacadeReferenceLines :: [].{
 	}
 }
 
-BlockItems : { body : Semantics.Range, label : [NoLabel, Label(Semantics.Range)], size : Layout.Unit }
+BlockItems : { body : Semantics.IndexRange, label : [NoLabel, Label(Semantics.IndexRange)], size : Layout.Unit }
 
-Holds : { ranges : List(Semantics.Range), contexts : List(Semantics.Range), scalars : U64 }
+Holds : { ranges : List(Semantics.IndexRange), contexts : List(Semantics.IndexRange), scalars : U64 }
 
 build_plan : KernelFacadeSemantics.SymbolicView, KernelFacadeReferenceShape.Plan, Layout.Size, Theme, KernelFacadeLines.Limits -> Try(KernelFacadeReferenceLines.Plan, KernelFacadeReferenceLines.Error)
 build_plan = |symbolic, shape, page, theme, line_limits| {
@@ -72,7 +72,7 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 				$builder = append_literal($builder, shaped, $literal, holds, sources)
 				$builder = KernelReferenceLayout.Builder.segment_end($builder)
 				label_end = KernelReferenceLayout.Builder.position($builder) ? |error| Items({ block: $block, error })
-				$label = Label(Semantics.Range.from_start_and_length(label_start, label_end - label_start))
+				$label = Label(Semantics.IndexRange.from_start_and_length(label_start, label_end - label_start))
 				$literal = $literal + 1
 			}
 		}
@@ -116,7 +116,7 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 		if end > start {
 			$builder = KernelReferenceLayout.Builder.segment_end($builder)
 		}
-		$blocks = $blocks.append({ body: Semantics.Range.from_start_and_length(start, end - start), label: $label, size: Layout.Unit.from_raw($size) })
+		$blocks = $blocks.append({ body: Semantics.IndexRange.from_start_and_length(start, end - start), label: $label, size: Layout.Unit.from_raw($size) })
 		$block = $block + 1
 	}
 	if $literal != shaped.literals.len() or $pending != symbolic.pending.len() {
@@ -194,7 +194,7 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 		measure = if (range.length() == 0) { max_content: 0, min_content: 0, token: Items(range) } else {
 			measured = KernelReferenceLayout.measure(items.sublist({ start: range.start(), len: range.length() }), item_limits) ? |error| Items({ block: cell.block, error })
 			$measured_items = $measured_items + measured.work.item_visits
-			{ max_content: positive(measured.max_content), min_content: positive(measured.min_content), token: Items(Semantics.Range.from_start_and_length(range.start() + measured.widest.start(), measured.widest.length())) }
+			{ max_content: positive(measured.max_content), min_content: positive(measured.min_content), token: Items(Semantics.IndexRange.from_start_and_length(range.start() + measured.widest.start(), measured.widest.length())) }
 		}
 		$cell_measures = $cell_measures.append(measure)
 	}
@@ -220,12 +220,12 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 			Label(range) => {
 				wrapped = KernelReferenceLayout.wrap(items.sublist({ start: range.start(), len: range.length() }), Layout.Unit.from_raw(frame.column.to_i64_wrap()), item_limits) ? |error| Items({ block: $block, error })
 				for line in wrapped.lines {
-					$rows = $rows.append({ advance: line.advance, items: Semantics.Range.from_start_and_length(range.start() + line.items.start(), line.items.length()) })
+					$rows = $rows.append({ advance: line.advance, items: Semantics.IndexRange.from_start_and_length(range.start() + line.items.start(), line.items.length()) })
 					$visible = $visible.append(positive(line.advance))
 				}
 				$wrapped_items = $wrapped_items + wrapped.work.item_visits
 				$boundaries = $boundaries + wrapped.work.boundary_visits
-				$label = Label({ rows: Semantics.Range.from_start_and_length(start, $rows.len() - start), offset: Layout.Unit.from_raw(frame.label_offset.to_i64_wrap()) })
+				$label = Label({ rows: Semantics.IndexRange.from_start_and_length(start, $rows.len() - start), offset: Layout.Unit.from_raw(frame.label_offset.to_i64_wrap()) })
 			}
 		}
 		body_start = $rows.len()
@@ -247,7 +247,7 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 				if $rows.len() >= item_limits.max_lines {
 					return Err(LimitExceeded)
 				}
-				row = { advance: line.advance, items: Semantics.Range.from_start_and_length(block_items.body.start() + line.items.start(), line.items.length()) }
+				row = { advance: line.advance, items: Semantics.IndexRange.from_start_and_length(block_items.body.start() + line.items.start(), line.items.length()) }
 				visible = if (list_at($cell_widths, $block) > 0) literal_visible_advance(items, row, shaped, sources) else { advance: positive(line.advance), visits: 0 }
 				$alignment_items = $alignment_items + visible.visits
 				$rows = $rows.append(row)
@@ -264,11 +264,11 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 			}
 			TextBlock({ body, level, .. }) => {
 				style = KernelFacadeShape.leaf_style(authoring, $block, NoInline, Body, theme)
-				MeasuredText({ rows: Semantics.Range.from_start_and_length(body_start, $rows.len() - body_start), size: style.size, leading: style.leading, owner: body, level, body_offset: Layout.Unit.from_raw(frame.body_offset.to_i64_wrap()), label: $label })
+				MeasuredText({ rows: Semantics.IndexRange.from_start_and_length(body_start, $rows.len() - body_start), size: style.size, leading: style.leading, owner: body, level, body_offset: Layout.Unit.from_raw(frame.body_offset.to_i64_wrap()), label: $label })
 			}
 			RichTextBlock({ occurrences, level, .. }) => {
 				style = Theme.body_style(theme)
-				MeasuredText({ rows: Semantics.Range.from_start_and_length(body_start, $rows.len() - body_start), size: block_items.size, leading: style.leading, owner: Semantics.OccurrenceId.from_index(occurrences.start()), level, body_offset: Layout.Unit.from_raw(frame.body_offset.to_i64_wrap()), label: $label })
+				MeasuredText({ rows: Semantics.IndexRange.from_start_and_length(body_start, $rows.len() - body_start), size: block_items.size, leading: style.leading, owner: Semantics.OccurrenceId.from_index(occurrences.start()), level, body_offset: Layout.Unit.from_raw(frame.body_offset.to_i64_wrap()), label: $label })
 			}
 		}
 		$page_blocks = $page_blocks.append(page_block)
@@ -315,7 +315,7 @@ append_literal = |builder, shaped, context, holds, sources| {
 			$stop = $stop + 1
 		}
 		analysis = list_at(sources, list_at(shaped.requests, $run).source.index()).analysis
-		$builder = KernelReferenceLayout.Builder.run($builder, shaped.store, Text.RunId.from_index($run), analysis, { ranges: holds.ranges, span: Semantics.Range.from_start_and_length($hold, $stop - $hold) })
+		$builder = KernelReferenceLayout.Builder.run($builder, shaped.store, Text.RunId.from_index($run), analysis, { ranges: holds.ranges, span: Semantics.IndexRange.from_start_and_length($hold, $stop - $hold) })
 		$run = $run + 1
 	}
 	$builder
@@ -352,7 +352,7 @@ build_holds = |authoring, literals, limit| {
 							if $ranges.len() >= limit {
 								return Err(LimitExceeded)
 							}
-							$ranges = $ranges.append(Semantics.Range.from_start_and_length(origin + first, located.scalar_index - first))
+							$ranges = $ranges.append(Semantics.IndexRange.from_start_and_length(origin + first, located.scalar_index - first))
 						}
 						NoWord => {}
 					}
@@ -366,12 +366,12 @@ build_holds = |authoring, literals, limit| {
 					if $ranges.len() >= limit {
 						return Err(LimitExceeded)
 					}
-					$ranges = $ranges.append(Semantics.Range.from_start_and_length(origin + first, $end - first))
+					$ranges = $ranges.append(Semantics.IndexRange.from_start_and_length(origin + first, $end - first))
 				}
 				NoWord => {}
 			}
 		}
-		$contexts = $contexts.append(Semantics.Range.from_start_and_length(start, $ranges.len() - start))
+		$contexts = $contexts.append(Semantics.IndexRange.from_start_and_length(start, $ranges.len() - start))
 	}
 	Ok({ ranges: $ranges, contexts: $contexts, scalars: $scalars })
 }
@@ -379,7 +379,7 @@ build_holds = |authoring, literals, limit| {
 positive : Layout.Unit -> U64
 positive = |value| if (value.raw() > 0) value.raw().to_u64_wrap() else 0
 
-range_end : Semantics.Range -> U64
+range_end : Semantics.IndexRange -> U64
 range_end = |range| range.start() + range.length()
 
 list_at : List(a), U64 -> a
@@ -396,10 +396,10 @@ list_set = |items, index, value| match items.set(index, value) {
 
 expect {
 	authoring = Document.normalize(Document.from_blocks({ title: "Code holds", language: "en", contents: [Document.rich_paragraph([Document.code("pré-2 x")])] }))
-	empty = Semantics.Range.from_start_and_length(0, 0)
-	context = { block: 0, inline: AtInline(1), segment: 0, role: Body, occurrence: { id: Semantics.OccurrenceId.from_index(0), fragments: empty, language: Language("en"), text_properties: empty, source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange({ scalars: Semantics.Range.from_start_and_length(0, 7), utf8_bytes: Semantics.Range.from_start_and_length(0, 8) })) } }
+	empty = Semantics.IndexRange.from_start_and_length(0, 0)
+	context = { block: 0, inline: AtInline(1), segment: 0, role: Body, occurrence: { id: Semantics.OccurrenceId.from_index(0), fragments: empty, language: Language("en"), text_properties: empty, source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange({ scalars: Semantics.IndexRange.from_start_and_length(0, 7), utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 8) })) } }
 	plan = build_holds(authoring, [context], 10)?
-	plan.scalars == 7 and plan.ranges == [Semantics.Range.from_start_and_length(0, 5), Semantics.Range.from_start_and_length(6, 1)] and plan.contexts == [Semantics.Range.from_start_and_length(0, 2)]
+	plan.scalars == 7 and plan.ranges == [Semantics.IndexRange.from_start_and_length(0, 5), Semantics.IndexRange.from_start_and_length(6, 1)] and plan.contexts == [Semantics.IndexRange.from_start_and_length(0, 2)]
 }
 
 literal_visible_advance : List(KernelReferenceLayout.Item), KernelReferenceLayout.Line, KernelFacadeReferenceShape.View, List(KernelFacadeSources.Source) -> { advance : U64, visits : U64 }

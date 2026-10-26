@@ -431,7 +431,7 @@ valid_text_range = |range, fact| {
 text_range_contains : Semantics.TextRange, Semantics.TextRange -> Bool
 text_range_contains = |outer, inner| range_contains(outer.scalars, inner.scalars) and range_contains(outer.utf8_bytes, inner.utf8_bytes)
 
-range_contains : Semantics.Range, Semantics.Range -> Bool
+range_contains : Semantics.IndexRange, Semantics.IndexRange -> Bool
 range_contains = |outer, inner| {
 	outer_start = outer.start()
 	outer_length = outer.length()
@@ -482,7 +482,7 @@ build_reverse_index = |occurrences, fragments| {
 	$occurrence_index = 0
 	while $occurrence_index < occurrences.len() {
 		occurrence = list_at(occurrences, $occurrence_index)
-		normalized = { ..occurrence, fragments: Semantics.Range.from_start_and_length(list_at($starts, $occurrence_index), list_at($counts, $occurrence_index)) }
+		normalized = { ..occurrence, fragments: Semantics.IndexRange.from_start_and_length(list_at($starts, $occurrence_index), list_at($counts, $occurrence_index)) }
 		$normalized_occurrences = list_set($normalized_occurrences, $occurrence_index, normalized)
 		$occurrence_index = $occurrence_index + 1
 	}
@@ -1385,7 +1385,7 @@ at_most_one_children = |parent| match parent {
 valid_role : Semantics.Node, Bool, Bool, Bool -> Bool
 valid_role = |node, is_root, text_enabled, navigation| role_enabled(role_index(node.role.local_name), node.role.namespace.index(), is_root, text_enabled, navigation)
 
-mark_attribute_range : Semantics.Range, U64, Bool, List(U8), List(Semantics.StructureAttribute) -> Try({ owners : List(U8), visits : U64 }, KernelSemantics.Error)
+mark_attribute_range : Semantics.IndexRange, U64, Bool, List(U8), List(Semantics.StructureAttribute) -> Try({ owners : List(U8), visits : U64 }, KernelSemantics.Error)
 mark_attribute_range = |range, owner, contextual, owners, attributes| {
 	span = validate_span(range, attributes.len(), AttributeIndex, owner)?
 	var $owners = owners
@@ -1445,7 +1445,7 @@ ensure_all_owned = |owners, kind| {
 	}
 }
 
-validate_span : Semantics.Range, U64, KernelSemantics.IndexKind, U64 -> Try({ end : U64, start : U64 }, KernelSemantics.Error)
+validate_span : Semantics.IndexRange, U64, KernelSemantics.IndexKind, U64 -> Try({ end : U64, start : U64 }, KernelSemantics.Error)
 validate_span = |range, available, kind, owner| {
 	start = range.start()
 	length = range.length()
@@ -1481,8 +1481,8 @@ list_set = |items, index, value| match items.set(index, value) {
 	}
 }
 
-empty_range : Semantics.Range
-empty_range = Semantics.Range.from_start_and_length(0, 0)
+empty_range : Semantics.IndexRange
+empty_range = Semantics.IndexRange.from_start_and_length(0, 0)
 
 test_occurrence : U64 -> Semantics.ContentOccurrence
 test_occurrence = |index| {
@@ -1510,15 +1510,15 @@ test_store = {
 	attribute_roles: [],
 	attributes: [{ applicability: AllRoles, name: Standard("Type"), owner: Artifact, value: Name("Pagination") }],
 	content_spine: [ChildNode(Semantics.NodeId.from_index(1)), ContextualArtifact(Semantics.ContextualArtifactId.from_index(0)), ContentOccurrence(Semantics.OccurrenceId.from_index(0)), ContentOccurrence(Semantics.OccurrenceId.from_index(1))],
-	contextual_artifacts: [{ attributes: Semantics.Range.from_start_and_length(0, 1), id: Semantics.ContextualArtifactId.from_index(0), parent: Semantics.NodeId.from_index(0) }],
+	contextual_artifacts: [{ attributes: Semantics.IndexRange.from_start_and_length(0, 1), id: Semantics.ContextualArtifactId.from_index(0), parent: Semantics.NodeId.from_index(0) }],
 	document_root: Semantics.NodeId.from_index(0),
 	fragments: [test_fragment(0, 1), test_fragment(1, 0), test_fragment(2, 0)],
 	element_identifiers: [],
 	mathml_subtrees: [],
 	namespaces: [{ id: Semantics.NamespaceId.from_index(0), kind: Pdf20, uri: "http://iso.org/pdf2/ssn" }],
 	nodes: [
-		{ attributes: empty_range, content: Semantics.Range.from_start_and_length(0, 2), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(0), language: Inherited, parent: DocumentRoot, role: { local_name: "Document", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(0), text_properties: empty_range },
-		{ attributes: empty_range, content: Semantics.Range.from_start_and_length(2, 2), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(1), language: Inherited, parent: ParentNode(Semantics.NodeId.from_index(0)), role: { local_name: "P", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(1), text_properties: empty_range },
+		{ attributes: empty_range, content: Semantics.IndexRange.from_start_and_length(0, 2), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(0), language: Inherited, parent: DocumentRoot, role: { local_name: "Document", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(0), text_properties: empty_range },
+		{ attributes: empty_range, content: Semantics.IndexRange.from_start_and_length(2, 2), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(1), language: Inherited, parent: ParentNode(Semantics.NodeId.from_index(0)), role: { local_name: "P", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(1), text_properties: empty_range },
 	],
 	non_text_sources: [[], []],
 	occurrence_fragments: [],
@@ -1650,7 +1650,7 @@ expect {
 # Contextual Artifact structure attributes cannot leak onto ordinary nodes.
 expect {
 	root = list_at(test_store.nodes, 0)
-	nodes = list_set(test_store.nodes, 0, { ..root, attributes: Semantics.Range.from_start_and_length(0, 1) })
+	nodes = list_set(test_store.nodes, 0, { ..root, attributes: Semantics.IndexRange.from_start_and_length(0, 1) })
 	artifact = list_at(test_store.contextual_artifacts, 0)
 	contextual_artifacts = list_set(test_store.contextual_artifacts, 0, { ..artifact, attributes: empty_range })
 	bad = { ..test_store, contextual_artifacts, nodes }
@@ -1670,8 +1670,8 @@ navigation_store = {
 	annotations: [navigation_annotation],
 	content_spine: [ChildNode(Semantics.NodeId.from_index(1)), ContextualArtifact(Semantics.ContextualArtifactId.from_index(0)), ContentOccurrence(Semantics.OccurrenceId.from_index(0)), ContentOccurrence(Semantics.OccurrenceId.from_index(1)), AnnotationOccurrence(Semantics.AnnotationId.from_index(0))],
 	nodes: [
-		{ attributes: empty_range, content: Semantics.Range.from_start_and_length(0, 2), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(0), language: Inherited, parent: DocumentRoot, role: { local_name: "Document", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(0), text_properties: empty_range },
-		{ attributes: empty_range, content: Semantics.Range.from_start_and_length(2, 3), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(1), language: Inherited, parent: ParentNode(Semantics.NodeId.from_index(0)), role: { local_name: "Link", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(1), text_properties: empty_range },
+		{ attributes: empty_range, content: Semantics.IndexRange.from_start_and_length(0, 2), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(0), language: Inherited, parent: DocumentRoot, role: { local_name: "Document", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(0), text_properties: empty_range },
+		{ attributes: empty_range, content: Semantics.IndexRange.from_start_and_length(2, 3), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(1), language: Inherited, parent: ParentNode(Semantics.NodeId.from_index(0)), role: { local_name: "Link", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(1), text_properties: empty_range },
 	],
 }
 
@@ -1725,7 +1725,7 @@ expect {
 # duplicate-ownership check remains as defense in depth behind it).
 expect {
 	orphan_spine = [ChildNode(Semantics.NodeId.from_index(1)), ContextualArtifact(Semantics.ContextualArtifactId.from_index(0)), ContentOccurrence(Semantics.OccurrenceId.from_index(0)), ContentOccurrence(Semantics.OccurrenceId.from_index(1))]
-	orphan_nodes = list_set(navigation_store.nodes, 1, { ..list_at(navigation_store.nodes, 1), content: Semantics.Range.from_start_and_length(2, 2) })
+	orphan_nodes = list_set(navigation_store.nodes, 1, { ..list_at(navigation_store.nodes, 1), content: Semantics.IndexRange.from_start_and_length(2, 2) })
 	orphan = { ..navigation_store, content_spine: orphan_spine, nodes: orphan_nodes }
 
 	duplicate_spine = [ChildNode(Semantics.NodeId.from_index(1)), ContextualArtifact(Semantics.ContextualArtifactId.from_index(0)), ContentOccurrence(Semantics.OccurrenceId.from_index(0)), AnnotationOccurrence(Semantics.AnnotationId.from_index(0)), AnnotationOccurrence(Semantics.AnnotationId.from_index(0))]
@@ -1782,7 +1782,7 @@ shaped_store = |shape, owner| {
 		}
 		$nodes = $nodes.append({
 			attributes: empty_range,
-			content: Semantics.Range.from_start_and_length(start, $spine.len() - start),
+			content: Semantics.IndexRange.from_start_and_length(start, $spine.len() - start),
 			element_identifier: NoElementIdentifier,
 			id: Semantics.NodeId.from_index($index),
 			language: Inherited,
@@ -1974,9 +1974,9 @@ table_store = {
 	header = list_at(store.nodes, 3)
 	cell = list_at(store.nodes, 4)
 	nodes = list_set(
-		list_set(store.nodes, 3, { ..header, attributes: Semantics.Range.from_start_and_length(0, 1), element_identifier: HasElementIdentifier(Semantics.ElementId.from_index(1)) }),
+		list_set(store.nodes, 3, { ..header, attributes: Semantics.IndexRange.from_start_and_length(0, 1), element_identifier: HasElementIdentifier(Semantics.ElementId.from_index(1)) }),
 		4,
-		{ ..cell, attributes: Semantics.Range.from_start_and_length(1, 1), element_identifier: HasElementIdentifier(Semantics.ElementId.from_index(0)), language: Language("fr-CA") },
+		{ ..cell, attributes: Semantics.IndexRange.from_start_and_length(1, 1), element_identifier: HasElementIdentifier(Semantics.ElementId.from_index(0)), language: Language("fr-CA") },
 	)
 	{
 		..store,
@@ -2080,7 +2080,7 @@ expect {
 	captioned = {
 		..store,
 		attributes: [{ applicability: Family(ListRoles), name: Standard("ListNumbering"), owner: List, value: Name("Disc") }],
-		nodes: list_set(store.nodes, 3, { ..list_node, attributes: Semantics.Range.from_start_and_length(0, 1) }),
+		nodes: list_set(store.nodes, 3, { ..list_node, attributes: Semantics.IndexRange.from_start_and_length(0, 1) }),
 		relationships: [CaptionFor({ caption: Semantics.NodeId.from_index(2), target: Semantics.NodeId.from_index(1) })],
 	}
 	bad_numbering = { ..captioned, attributes: [{ applicability: Family(ListRoles), name: Standard("ListNumbering"), owner: List, value: Name("Bullets") }] }
@@ -2102,7 +2102,7 @@ expect {
 	bad_language = { ..table_store, nodes: list_set(table_store.nodes, 4, { ..cell, language: Language("fr_CA") }) }
 	with_properties = |properties| {
 		..table_store,
-		nodes: list_set(table_store.nodes, 4, { ..cell, text_properties: Semantics.Range.from_start_and_length(0, properties.len()) }),
+		nodes: list_set(table_store.nodes, 4, { ..cell, text_properties: Semantics.IndexRange.from_start_and_length(0, properties.len()) }),
 		text_properties: properties,
 	}
 	language = match build_shaped(bad_language) {

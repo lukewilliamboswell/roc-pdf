@@ -488,7 +488,7 @@ add_pages = |builder, names, resources, tagged, content, objects, groups, annota
 	Ok($builder)
 }
 
-add_page : KernelObject.Builder, Names, KernelObject.ValueId, KernelObject.ValueId, KernelObject.ValueId, Scene.Page, KernelContent.Stream, KernelObject.ObjectId, KernelObjectPlan.PageObjects, KernelPageObjects.PageGroup, KernelPageObjects.PageAnnots -> Try(KernelObject.Builder, KernelPageObjects.Error)
+add_page : KernelObject.Builder, Names, KernelObject.ValueId, KernelObject.ValueId, KernelObject.ValueId, Scene.Page, KernelContent.ContentStream, KernelObject.ObjectId, KernelObjectPlan.PageObjects, KernelPageObjects.PageGroup, KernelPageObjects.PageAnnots -> Try(KernelObject.Builder, KernelPageObjects.Error)
 add_page = |builder, names, resources, page_type, tabs_s, page, content, parent_object, planned, group, annots| {
 	## ISO 32000-2 Table 31 defaults: CropBox is the MediaBox, BleedBox,
 	## TrimBox, and ArtBox are the CropBox, and Rotate is 0. A box equal to its

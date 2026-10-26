@@ -59,8 +59,8 @@ Text :: [].{
 	## font-selection fact and does not imply built-in shaping support.
 	InputCapability : [
 		AdvancedShapedRuns,
-		BuiltInShaping({ scripts : Semantics.Range }),
-		PackagedFontCoverage({ faces : Semantics.Range }),
+		BuiltInShaping({ scripts : Semantics.IndexRange }),
+		PackagedFontCoverage({ faces : Semantics.IndexRange }),
 	]
 
 	Glyph : {
@@ -92,29 +92,29 @@ Text :: [].{
 	## the run's Unicode (its occurrence or artifact source) and can represent
 	## combining and reordering.
 	Cluster : {
-		glyphs : Semantics.Range,
+		glyphs : Semantics.IndexRange,
 		kind : ClusterKind,
 		source : Semantics.TextRange,
 	}
 
 	Substitution : {
 		feature : FeatureTag,
-		glyphs : Semantics.Range,
+		glyphs : Semantics.IndexRange,
 		source : Semantics.TextRange,
 	}
 
 	TransformationEvidence : {
-		glyphs : Semantics.Range,
+		glyphs : Semantics.IndexRange,
 		kind : Semantics.PresentationTransformation,
 		source : Semantics.TextRange,
 	}
 
 	## An explicit byte slice of an owned ActualText property. Boxed so the
 	## evidence union and ordinary Run records retain their existing size.
-	ActualTextSlice :: Box({ property : Semantics.TextPropertyId, utf8_bytes : Semantics.Range }).{
-		make : Semantics.TextPropertyId, Semantics.Range -> ActualTextSlice
+	ActualTextSlice :: Box({ property : Semantics.TextPropertyId, utf8_bytes : Semantics.IndexRange }).{
+		make : Semantics.TextPropertyId, Semantics.IndexRange -> ActualTextSlice
 		make = |property, utf8_bytes| ActualTextSlice.(Box.box({ property, utf8_bytes }))
-		value : ActualTextSlice -> { property : Semantics.TextPropertyId, utf8_bytes : Semantics.Range }
+		value : ActualTextSlice -> { property : Semantics.TextPropertyId, utf8_bytes : Semantics.IndexRange }
 		value = |ActualTextSlice.(boxed)| Box.unbox(boxed)
 		is_eq : ActualTextSlice, ActualTextSlice -> Bool
 		is_eq = |ActualTextSlice.(left), ActualTextSlice.(right)| Box.unbox(left) == Box.unbox(right)
@@ -152,17 +152,17 @@ Text :: [].{
 
 	Run : {
 		actual_text : ActualTextEvidence,
-		clusters : Semantics.Range,
+		clusters : Semantics.IndexRange,
 		direction : Direction,
-		glyphs : Semantics.Range,
+		glyphs : Semantics.IndexRange,
 		id : RunId,
 		instance : Font.InstanceId,
 		language : Semantics.Language,
 		script : Font.Script,
 		size : Layout.Unit,
 		source : Semantics.TextRange,
-		substitutions : Semantics.Range,
-		transformations : Semantics.Range,
+		substitutions : Semantics.IndexRange,
+		transformations : Semantics.IndexRange,
 		unicode : RunUnicode,
 		writing_mode : WritingMode,
 	}

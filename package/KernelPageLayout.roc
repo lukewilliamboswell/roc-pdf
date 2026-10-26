@@ -56,7 +56,7 @@ KernelPageLayout :: [].{
 
 	## A page-aligned scope over paginator units; frames are prevalidated
 	## explicit geometry. Spans are ordered, nonempty and disjoint.
-	ScopedFrame : { blocks : Semantics.Range, opening : Frame, continuation : Frame }
+	ScopedFrame : { blocks : Semantics.IndexRange, opening : Frame, continuation : Frame }
 
 	## Typed per-block policy. `break_before` is a mandatory explicit page
 	## break and `keep_together` a mandatory unsplittable block;
@@ -88,7 +88,7 @@ KernelPageLayout :: [].{
 		decoration : Layout.Unit,
 		lead : Layout.Unit,
 		leading : Layout.Unit,
-		lines : Semantics.Range,
+		lines : Semantics.IndexRange,
 
 		## A source unit owns canonical visual rows and its per-fragment
 		## padding, including when every row is blank.
@@ -101,7 +101,7 @@ KernelPageLayout :: [].{
 	## A required keep-together group over a contiguous block range. Groups
 	## are listed in preorder: a group either nests inside an earlier one or
 	## starts after it ends.
-	KeepGroup : { blocks : Semantics.Range }
+	KeepGroup : { blocks : Semantics.IndexRange }
 
 	## One preference the chosen break left unsatisfied: its rank, the block
 	## whose policy declared it, and the page the break closed.
@@ -120,7 +120,7 @@ KernelPageLayout :: [].{
 		geometry : Layout.Rect,
 		owner : [Content(Semantics.OccurrenceId), SourceBlock(U64)],
 		source_range : Semantics.SourceRange,
-		lines : Semantics.Range,
+		lines : Semantics.IndexRange,
 		page : Semantics.PageId,
 	}
 	PlacedLine : {
@@ -129,9 +129,9 @@ KernelPageLayout :: [].{
 		line : U64,
 	}
 	Page : {
-		fragments : Semantics.Range,
+		fragments : Semantics.IndexRange,
 		id : Semantics.PageId,
-		placements : Semantics.Range,
+		placements : Semantics.IndexRange,
 	}
 
 	## `candidate_visits` counts every break position scored by the page
@@ -152,12 +152,12 @@ KernelPageLayout :: [].{
 		page_writes : U64,
 		placement_writes : U64,
 	}
-	Container : { paint : [Paint(U64), NoPaint], blocks : Semantics.Range, padding : Layout.Unit, offset : Layout.Unit, width : Layout.Unit }
+	Container : { paint : [Paint(U64), NoPaint], blocks : Semantics.IndexRange, padding : Layout.Unit, offset : Layout.Unit, width : Layout.Unit }
 	ContainerFragment : { container : U64, page : U64, rect : Layout.Rect, part : [Whole, First, Middle, Last] }
 	ScopePage : { scope : U64, page : U64, opening : Bool }
 
-	ChosenSpan : { block : U64, rows : Semantics.Range, page : Semantics.PageId, geometry : Layout.Rect, baseline : Layout.Point, leading : Layout.Unit }
-	ChosenPage : { spans : Semantics.Range, id : Semantics.PageId }
+	ChosenSpan : { block : U64, rows : Semantics.IndexRange, page : Semantics.PageId, geometry : Layout.Rect, baseline : Layout.Point, leading : Layout.Unit }
+	ChosenPage : { spans : Semantics.IndexRange, id : Semantics.PageId }
 	Choice :: { spans : List(ChosenSpan), pages : List(ChosenPage), bands : List(Band), lead_bands : List(Band), container_fragments : List(ContainerFragment), scope_pages : List(ScopePage), page_frames : List(Frame), relaxations : List(Relaxation), work : Work }.{
 		build : List(Block), List(KeepGroup), U64, Constraints, [NoTemplate, WithTemplate(Template)], List(ScopedFrame), List(Container), Limits -> Try(Choice, Error)
 		build = |blocks, groups, rows, constraints, template, scopes, containers, limits| choose_rows(blocks, groups, rows, constraints, template, scopes, containers, limits)
@@ -269,7 +269,7 @@ Scan := { candidates : U64, end : [AllFits, Break({ block : U64, line : U64 })] 
 ## At most sixteen callout ancestors exist; continuation retains scalar IDs.
 ContainerContext : { active : U64, padding : U64, prefix : U64, transition : U64 }
 
-ContainerFacts : { ancestors : List(U64), ancestor_ranges : List(Semantics.Range), contexts : List(ContainerContext), parents : List(U64), sums : List(U64) }
+ContainerFacts : { ancestors : List(U64), ancestor_ranges : List(Semantics.IndexRange), contexts : List(ContainerContext), parents : List(U64), sums : List(U64) }
 
 plan_containers : List(KernelPageLayout.Container), U64 -> Try(ContainerFacts, KernelPageLayout.Error)
 plan_containers = |containers, count| {
@@ -327,7 +327,7 @@ plan_containers = |containers, count| {
 			}
 		}
 		$ancestors = $ancestors.append($index)
-		$ranges = $ranges.append(Semantics.Range.from_start_and_length(start, depth))
+		$ranges = $ranges.append(Semantics.IndexRange.from_start_and_length(start, depth))
 		$active = $index
 		$index = $index + 1
 	}
@@ -390,7 +390,7 @@ container_internal_height = |facts, start, end| if (facts.contexts.is_empty()) 0
 
 ## Accepted unit fragments plus explicit ancestry/padding determine panel
 ## rectangles. No semantic identity or order is recovered from geometry.
-ContainerGeometry : { geometry : Layout.Rect, lines : Semantics.Range, page : Semantics.PageId }
+ContainerGeometry : { geometry : Layout.Rect, lines : Semantics.IndexRange, page : Semantics.PageId }
 
 materialize_containers : List(KernelPageLayout.Container), ContainerFacts, List(KernelPageLayout.Block), List(a), (a -> ContainerGeometry), List(KernelPageLayout.Band), U64 -> Try({ fragments : List(KernelPageLayout.ContainerFragment), updates : U64 }, KernelPageLayout.Error)
 
@@ -866,7 +866,7 @@ choose_rows = |blocks, groups, row_count, constraints, template, scopes, contain
 			}
 		}
 		check_limit(checked_add($pages.len(), 1)?, limits.max_pages, Pages)?
-		$pages = $pages.append({ id: Semantics.PageId.from_index($pages.len()), spans: Semantics.Range.from_start_and_length(fragment_start, $spans.len() - fragment_start) })
+		$pages = $pages.append({ id: Semantics.PageId.from_index($pages.len()), spans: Semantics.IndexRange.from_start_and_length(fragment_start, $spans.len() - fragment_start) })
 		$page_fragment_start = $spans.len()
 		match scan.end {
 			AllFits => {}
@@ -1408,10 +1408,10 @@ make_fragment = |block, lines, start, length, height, used, geometry, page_index
 			SourceBlock({ source, .. }) => SourceBlock(source)
 		},
 		source_range: UnicodeRange({
-			scalars: Semantics.Range.from_start_and_length(scalar_start, scalar_end - scalar_start),
-			utf8_bytes: Semantics.Range.from_start_and_length(byte_start, byte_end - byte_start),
+			scalars: Semantics.IndexRange.from_start_and_length(scalar_start, scalar_end - scalar_start),
+			utf8_bytes: Semantics.IndexRange.from_start_and_length(byte_start, byte_end - byte_start),
 		}),
-		lines: Semantics.Range.from_start_and_length(start, length),
+		lines: Semantics.IndexRange.from_start_and_length(start, length),
 		page: Semantics.PageId.from_index(page_index),
 	})
 }
@@ -1424,9 +1424,9 @@ append_page = |pages, fragment_start, fragment_end, placement_start, placement_e
 	check_limit(checked_add(pages.len(), 1)?, limit, Pages)?
 	Ok(
 		pages.append({
-			fragments: Semantics.Range.from_start_and_length(fragment_start, fragment_end - fragment_start),
+			fragments: Semantics.IndexRange.from_start_and_length(fragment_start, fragment_end - fragment_start),
 			id: Semantics.PageId.from_index(pages.len()),
-			placements: Semantics.Range.from_start_and_length(placement_start, placement_end - placement_start),
+			placements: Semantics.IndexRange.from_start_and_length(placement_start, placement_end - placement_start),
 		}),
 	)
 }
@@ -1451,7 +1451,7 @@ nonnegative_raw = |value| {
 	}
 }
 
-range_end : Semantics.Range -> Try(U64, KernelPageLayout.Error)
+range_end : Semantics.IndexRange -> Try(U64, KernelPageLayout.Error)
 range_end = |range| checked_add(range.start(), range.length())
 
 checked_add : U64, U64 -> Try(U64, KernelPageLayout.Error)
@@ -1496,10 +1496,10 @@ test_lines = List.map(
 	[0, 1, 2, 3, 4, 5, 6, 7],
 	|index| {
 		advance: Layout.Unit.from_raw(1000),
-		clusters: Semantics.Range.from_start_and_length(index, 1),
+		clusters: Semantics.IndexRange.from_start_and_length(index, 1),
 		source: {
-			scalars: Semantics.Range.from_start_and_length(index, 1),
-			utf8_bytes: Semantics.Range.from_start_and_length(index, 1),
+			scalars: Semantics.IndexRange.from_start_and_length(index, 1),
+			utf8_bytes: Semantics.IndexRange.from_start_and_length(index, 1),
 		},
 	},
 )
@@ -1522,7 +1522,7 @@ test_block = {
 	decoration: Layout.Unit.from_raw(0),
 	lead: Layout.Unit.from_raw(0),
 	leading: Layout.Unit.from_raw(1000),
-	lines: Semantics.Range.from_start_and_length(0, 1),
+	lines: Semantics.IndexRange.from_start_and_length(0, 1),
 	owner: Content(Semantics.OccurrenceId.from_index(0)),
 	policy: test_policy,
 	space_after: Layout.Unit.from_raw(0),
@@ -1531,7 +1531,7 @@ test_block = {
 
 # Five lines split three/two without violating widow/orphan minima.
 expect {
-	block = { ..test_block, lines: Semantics.Range.from_start_and_length(0, 5) }
+	block = { ..test_block, lines: Semantics.IndexRange.from_start_and_length(0, 5) }
 	plan = KernelPageLayout.Plan.build([block], test_lines.take_first(5), test_constraints, test_limits)?
 	fragments = KernelPageLayout.Plan.fragments(plan)
 	pages = KernelPageLayout.Plan.pages(plan)
@@ -1543,9 +1543,9 @@ expect {
 # following paragraph's first two lines; nothing is relaxed.
 expect {
 	blocks = [
-		{ ..test_block, lines: Semantics.Range.from_start_and_length(0, 2), policy: { ..test_policy, keep_together: True } },
-		{ ..test_block, lines: Semantics.Range.from_start_and_length(2, 1), policy: { ..test_policy, keep_together: True, keep_with_next: Preferred(HeadingKeep), minimum_first_lines: 1, minimum_last_lines: 1 } },
-		{ ..test_block, lines: Semantics.Range.from_start_and_length(3, 5), policy: test_policy },
+		{ ..test_block, lines: Semantics.IndexRange.from_start_and_length(0, 2), policy: { ..test_policy, keep_together: True } },
+		{ ..test_block, lines: Semantics.IndexRange.from_start_and_length(2, 1), policy: { ..test_policy, keep_together: True, keep_with_next: Preferred(HeadingKeep), minimum_first_lines: 1, minimum_last_lines: 1 } },
+		{ ..test_block, lines: Semantics.IndexRange.from_start_and_length(3, 5), policy: test_policy },
 	]
 	plan = KernelPageLayout.Plan.build(blocks, test_lines, test_constraints, test_limits)?
 	pages = KernelPageLayout.Plan.pages(plan)
@@ -1559,8 +1559,8 @@ expect {
 expect {
 	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
 	blocks = [
-		{ ..base, lines: Semantics.Range.from_start_and_length(0, 2) },
-		{ ..base, decoration: Layout.Unit.from_raw(1500), lines: Semantics.Range.from_start_and_length(2, 1) },
+		{ ..base, lines: Semantics.IndexRange.from_start_and_length(0, 2) },
+		{ ..base, decoration: Layout.Unit.from_raw(1500), lines: Semantics.IndexRange.from_start_and_length(2, 1) },
 	]
 	plan = KernelPageLayout.Plan.build(blocks, test_lines.take_first(3), test_constraints, test_limits)?
 	placements = KernelPageLayout.Plan.placements(plan)
@@ -1575,13 +1575,13 @@ expect {
 expect {
 	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
 	blocks = [
-		{ ..base, lines: Semantics.Range.from_start_and_length(0, 2) },
-		{ ..base, lines: Semantics.Range.from_start_and_length(2, 1), policy: { ..base.policy, keep_together: True }, trailing: Layout.Unit.from_raw(1000) },
-		{ ..base, lines: Semantics.Range.from_start_and_length(3, 1) },
+		{ ..base, lines: Semantics.IndexRange.from_start_and_length(0, 2) },
+		{ ..base, lines: Semantics.IndexRange.from_start_and_length(2, 1), policy: { ..base.policy, keep_together: True }, trailing: Layout.Unit.from_raw(1000) },
+		{ ..base, lines: Semantics.IndexRange.from_start_and_length(3, 1) },
 	]
 	plan = KernelPageLayout.Plan.build(blocks, test_lines.take_first(4), test_constraints, test_limits)?
 	placements = KernelPageLayout.Plan.placements(plan)
-	splittable = [{ ..base, lines: Semantics.Range.from_start_and_length(0, 1), trailing: Layout.Unit.from_raw(1) }]
+	splittable = [{ ..base, lines: Semantics.IndexRange.from_start_and_length(0, 1), trailing: Layout.Unit.from_raw(1) }]
 	rejected = match KernelPageLayout.Plan.build(splittable, test_lines.take_first(1), test_constraints, test_limits) {
 		Err(InvalidBlock({ block: 0 })) => True
 		_ => False
@@ -1603,8 +1603,8 @@ expect {
 expect {
 	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
 	blocks = [
-		{ ..base, lines: Semantics.Range.from_start_and_length(0, 1) },
-		{ ..base, lines: Semantics.Range.from_start_and_length(1, 1), policy: { ..base.policy, break_before: True } },
+		{ ..base, lines: Semantics.IndexRange.from_start_and_length(0, 1) },
+		{ ..base, lines: Semantics.IndexRange.from_start_and_length(1, 1), policy: { ..base.policy, break_before: True } },
 	]
 	plan = KernelPageLayout.Plan.build(blocks, test_lines.take_first(2), test_constraints, test_limits)?
 	KernelPageLayout.Plan.pages(plan).len() == 2
@@ -1613,7 +1613,7 @@ expect {
 # An unsplittable block larger than the content box fails instead of
 # overflowing the page or silently dropping the policy.
 expect {
-	block = { ..test_block, lines: Semantics.Range.from_start_and_length(0, 5), policy: { ..test_policy, keep_together: True } }
+	block = { ..test_block, lines: Semantics.IndexRange.from_start_and_length(0, 5), policy: { ..test_policy, keep_together: True } }
 	match KernelPageLayout.Plan.build([block], test_lines.take_first(5), test_constraints, test_limits) {
 		Err(Oversize({ available: 3000, block: 0, required: 5000 })) => True
 		_ => False
@@ -1625,7 +1625,7 @@ expect {
 	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
 	blocks = [
 		{ ..base, policy: { ..base.policy, keep_together: True, keep_with_next: Required } },
-		{ ..base, lines: Semantics.Range.from_start_and_length(1, 1), policy: { ..base.policy, break_before: True } },
+		{ ..base, lines: Semantics.IndexRange.from_start_and_length(1, 1), policy: { ..base.policy, break_before: True } },
 	]
 	match KernelPageLayout.Plan.build(blocks, test_lines.take_first(2), test_constraints, test_limits) {
 		Err(KeepConflict(BreakAfterRequiredKeep({ block: 0, next: 1 }))) => True
@@ -1637,8 +1637,8 @@ expect {
 # break before it satisfies every preference.
 expect {
 	blocks = [
-		{ ..test_block, lines: Semantics.Range.from_start_and_length(0, 1), policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } },
-		{ ..test_block, lines: Semantics.Range.from_start_and_length(1, 3) },
+		{ ..test_block, lines: Semantics.IndexRange.from_start_and_length(0, 1), policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } },
+		{ ..test_block, lines: Semantics.IndexRange.from_start_and_length(1, 3) },
 	]
 	plan = KernelPageLayout.Plan.build(blocks, test_lines.take_first(4), test_constraints, test_limits)?
 	fragments = KernelPageLayout.Plan.fragments(plan)
@@ -1650,7 +1650,7 @@ expect {
 # minimum (R4) and relaxes the widow minimum (R5), which is recorded.
 expect {
 	small = { ..test_constraints, page: { height: Layout.Unit.from_raw(4000), width: Layout.Unit.from_raw(10000) } }
-	block = { ..test_block, lines: Semantics.Range.from_start_and_length(0, 3) }
+	block = { ..test_block, lines: Semantics.IndexRange.from_start_and_length(0, 3) }
 	plan = KernelPageLayout.Plan.build([block], test_lines.take_first(3), small, test_limits)?
 	fragments = KernelPageLayout.Plan.fragments(plan)
 	relaxations = KernelPageLayout.Plan.relaxations(plan)
@@ -1663,7 +1663,7 @@ expect {
 expect {
 	blocks = [
 		{ ..test_block, policy: { ..test_policy, keep_together: True, keep_with_next: Preferred(HeadingKeep), minimum_first_lines: 1, minimum_last_lines: 1 } },
-		{ ..test_block, lines: Semantics.Range.from_start_and_length(1, 3), policy: { ..test_policy, keep_together: True, minimum_first_lines: 1, minimum_last_lines: 1 } },
+		{ ..test_block, lines: Semantics.IndexRange.from_start_and_length(1, 3), policy: { ..test_policy, keep_together: True, minimum_first_lines: 1, minimum_last_lines: 1 } },
 	]
 	plan = KernelPageLayout.Plan.build(blocks, test_lines.take_first(4), test_constraints, test_limits)?
 	KernelPageLayout.Plan.pages(plan).len() == 2 and KernelPageLayout.Plan.relaxations(plan) == [{ block: 0, page: 0, rank: HeadingKeep }]
@@ -1674,13 +1674,13 @@ expect {
 expect {
 	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
 	blocks = [
-		{ ..base, lines: Semantics.Range.from_start_and_length(0, 2) },
-		{ ..base, lines: Semantics.Range.from_start_and_length(2, 1) },
-		{ ..base, lines: Semantics.Range.from_start_and_length(3, 1) },
+		{ ..base, lines: Semantics.IndexRange.from_start_and_length(0, 2) },
+		{ ..base, lines: Semantics.IndexRange.from_start_and_length(2, 1) },
+		{ ..base, lines: Semantics.IndexRange.from_start_and_length(3, 1) },
 	]
-	plan = KernelPageLayout.Plan.build_with_groups(blocks, [{ blocks: Semantics.Range.from_start_and_length(1, 2) }], test_lines.take_first(4), test_constraints, test_limits)?
+	plan = KernelPageLayout.Plan.build_with_groups(blocks, [{ blocks: Semantics.IndexRange.from_start_and_length(1, 2) }], test_lines.take_first(4), test_constraints, test_limits)?
 	fragments = KernelPageLayout.Plan.fragments(plan)
-	tall = KernelPageLayout.Plan.build_with_groups(blocks, [{ blocks: Semantics.Range.from_start_and_length(0, 3) }], test_lines.take_first(4), test_constraints, test_limits)
+	tall = KernelPageLayout.Plan.build_with_groups(blocks, [{ blocks: Semantics.IndexRange.from_start_and_length(0, 3) }], test_lines.take_first(4), test_constraints, test_limits)
 	moved = list_at(fragments, 1).page.index() == 1 and list_at(fragments, 2).page.index() == 1
 	moved and match tall {
 		Err(KeepConflict(GroupTooTall({ available: 3000, group: 0, required: 4000 }))) => True
@@ -1693,9 +1693,9 @@ expect {
 	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
 	blocks = [
 		base,
-		{ ..base, lines: Semantics.Range.from_start_and_length(1, 1), policy: { ..base.policy, break_before: True } },
+		{ ..base, lines: Semantics.IndexRange.from_start_and_length(1, 1), policy: { ..base.policy, break_before: True } },
 	]
-	match KernelPageLayout.Plan.build_with_groups(blocks, [{ blocks: Semantics.Range.from_start_and_length(0, 2) }], test_lines.take_first(2), test_constraints, test_limits) {
+	match KernelPageLayout.Plan.build_with_groups(blocks, [{ blocks: Semantics.IndexRange.from_start_and_length(0, 2) }], test_lines.take_first(2), test_constraints, test_limits) {
 		Err(KeepConflict(BreakInsideGroup({ block: 1, group: 0 }))) => True
 		_ => False
 	}
@@ -1705,8 +1705,8 @@ expect {
 expect {
 	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
 	blocks = [
-		{ ..base, lines: Semantics.Range.from_start_and_length(0, 2), policy: { ..base.policy, keep_together: True, keep_with_next: Required } },
-		{ ..base, lines: Semantics.Range.from_start_and_length(2, 2), policy: { ..base.policy, keep_together: True } },
+		{ ..base, lines: Semantics.IndexRange.from_start_and_length(0, 2), policy: { ..base.policy, keep_together: True, keep_with_next: Required } },
+		{ ..base, lines: Semantics.IndexRange.from_start_and_length(2, 2), policy: { ..base.policy, keep_together: True } },
 	]
 	match KernelPageLayout.Plan.build(blocks, test_lines.take_first(4), test_constraints, test_limits) {
 		Err(KeepConflict(ChainTooTall({ available: 3000, block: 0, next: 1, required: 4000 }))) => True
@@ -1720,13 +1720,13 @@ expect {
 expect {
 	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
 	blocks = [
-		{ ..base, lines: Semantics.Range.from_start_and_length(0, 2) },
-		{ ..base, lead: Layout.Unit.from_raw(1000), lines: Semantics.Range.from_start_and_length(2, 2), policy: { ..base.policy, keep_together: True } },
+		{ ..base, lines: Semantics.IndexRange.from_start_and_length(0, 2) },
+		{ ..base, lead: Layout.Unit.from_raw(1000), lines: Semantics.IndexRange.from_start_and_length(2, 2), policy: { ..base.policy, keep_together: True } },
 	]
 	plan = KernelPageLayout.Plan.build(blocks, test_lines.take_first(4), test_constraints, test_limits)?
 	placements = KernelPageLayout.Plan.placements(plan)
 	moved = KernelPageLayout.Plan.pages(plan).len() == 2 and list_at(placements, 2).baseline.y.raw() == 2200 and list_at(placements, 3).baseline.y.raw() == 1200
-	oversize = match KernelPageLayout.Plan.build([{ ..base, lead: Layout.Unit.from_raw(1000), lines: Semantics.Range.from_start_and_length(0, 3), policy: { ..base.policy, keep_together: True } }], test_lines.take_first(3), test_constraints, test_limits) {
+	oversize = match KernelPageLayout.Plan.build([{ ..base, lead: Layout.Unit.from_raw(1000), lines: Semantics.IndexRange.from_start_and_length(0, 3), policy: { ..base.policy, keep_together: True } }], test_lines.take_first(3), test_constraints, test_limits) {
 		Err(Oversize({ available: 3000, block: 0, required: 4000 })) => True
 		_ => False
 	}
@@ -1740,8 +1740,8 @@ expect {
 	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
 	blocks = [
 		base,
-		{ ..base, lines: Semantics.Range.from_start_and_length(1, 2) },
-		{ ..base, lines: Semantics.Range.from_start_and_length(3, 2) },
+		{ ..base, lines: Semantics.IndexRange.from_start_and_length(1, 2) },
+		{ ..base, lines: Semantics.IndexRange.from_start_and_length(3, 2) },
 	]
 	template = {
 		continuation: { height: Layout.Unit.from_raw(2000), top: Layout.Unit.from_raw(1000) },
@@ -1764,8 +1764,8 @@ expect {
 expect {
 	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
 	blocks = [
-		{ ..base, lines: Semantics.Range.from_start_and_length(0, 2) },
-		{ ..base, lines: Semantics.Range.from_start_and_length(2, 1) },
+		{ ..base, lines: Semantics.IndexRange.from_start_and_length(0, 2) },
+		{ ..base, lines: Semantics.IndexRange.from_start_and_length(2, 1) },
 	]
 	template = {
 		continuation: { height: Layout.Unit.from_raw(3000), top: Layout.Unit.from_raw(0) },
@@ -1783,13 +1783,13 @@ expect {
 # separators; blank rows retain an empty range and have no invented glyph.
 expect {
 	rows = [
-		{ advance: Layout.Unit.from_raw(1000), clusters: Semantics.Range.from_start_and_length(0, 1), source: { scalars: Semantics.Range.from_start_and_length(0, 1), utf8_bytes: Semantics.Range.from_start_and_length(0, 1) } },
-		{ advance: Layout.Unit.from_raw(0), clusters: Semantics.Range.from_start_and_length(1, 0), source: { scalars: Semantics.Range.from_start_and_length(2, 0), utf8_bytes: Semantics.Range.from_start_and_length(2, 0) } },
-		{ advance: Layout.Unit.from_raw(1000), clusters: Semantics.Range.from_start_and_length(1, 1), source: { scalars: Semantics.Range.from_start_and_length(3, 1), utf8_bytes: Semantics.Range.from_start_and_length(3, 1) } },
-		{ advance: Layout.Unit.from_raw(1000), clusters: Semantics.Range.from_start_and_length(2, 1), source: { scalars: Semantics.Range.from_start_and_length(5, 1), utf8_bytes: Semantics.Range.from_start_and_length(5, 1) } },
-		{ advance: Layout.Unit.from_raw(1000), clusters: Semantics.Range.from_start_and_length(3, 1), source: { scalars: Semantics.Range.from_start_and_length(7, 1), utf8_bytes: Semantics.Range.from_start_and_length(7, 1) } },
+		{ advance: Layout.Unit.from_raw(1000), clusters: Semantics.IndexRange.from_start_and_length(0, 1), source: { scalars: Semantics.IndexRange.from_start_and_length(0, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 1) } },
+		{ advance: Layout.Unit.from_raw(0), clusters: Semantics.IndexRange.from_start_and_length(1, 0), source: { scalars: Semantics.IndexRange.from_start_and_length(2, 0), utf8_bytes: Semantics.IndexRange.from_start_and_length(2, 0) } },
+		{ advance: Layout.Unit.from_raw(1000), clusters: Semantics.IndexRange.from_start_and_length(1, 1), source: { scalars: Semantics.IndexRange.from_start_and_length(3, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(3, 1) } },
+		{ advance: Layout.Unit.from_raw(1000), clusters: Semantics.IndexRange.from_start_and_length(2, 1), source: { scalars: Semantics.IndexRange.from_start_and_length(5, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(5, 1) } },
+		{ advance: Layout.Unit.from_raw(1000), clusters: Semantics.IndexRange.from_start_and_length(3, 1), source: { scalars: Semantics.IndexRange.from_start_and_length(7, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(7, 1) } },
 	]
-	block = { ..test_block, owner: SourceBlock({ source: 0, padding: Layout.Unit.from_raw(500) }), lines: Semantics.Range.from_start_and_length(0, 5), policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
+	block = { ..test_block, owner: SourceBlock({ source: 0, padding: Layout.Unit.from_raw(500) }), lines: Semantics.IndexRange.from_start_and_length(0, 5), policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
 	plan = KernelPageLayout.Plan.build([block], rows, test_constraints, test_limits)?
 	fragments = KernelPageLayout.Plan.fragments(plan)
 	placements = KernelPageLayout.Plan.placements(plan)
@@ -1799,8 +1799,8 @@ expect {
 # A wholly blank source has explicit contentless ownership and still occupies
 # its measured visual rows; it has no phantom semantic occurrence.
 expect {
-	rows = List.map([0, 1, 2], |index| { advance: Layout.Unit.from_raw(0), clusters: Semantics.Range.from_start_and_length(0, 0), source: { scalars: Semantics.Range.from_start_and_length(index, 0), utf8_bytes: Semantics.Range.from_start_and_length(index, 0) } })
-	block = { ..test_block, owner: SourceBlock({ source: 7, padding: Layout.Unit.from_raw(500) }), lines: Semantics.Range.from_start_and_length(0, 3), policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
+	rows = List.map([0, 1, 2], |index| { advance: Layout.Unit.from_raw(0), clusters: Semantics.IndexRange.from_start_and_length(0, 0), source: { scalars: Semantics.IndexRange.from_start_and_length(index, 0), utf8_bytes: Semantics.IndexRange.from_start_and_length(index, 0) } })
+	block = { ..test_block, owner: SourceBlock({ source: 7, padding: Layout.Unit.from_raw(500) }), lines: Semantics.IndexRange.from_start_and_length(0, 3), policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
 	plan = KernelPageLayout.Plan.build([block], rows, test_constraints, test_limits)?
 	KernelPageLayout.Plan.pages(plan).len() == 2 and KernelPageLayout.Plan.placements(plan).len() == 3 and KernelPageLayout.Plan.fragments(plan).all(|fragment| fragment.owner == SourceBlock(7))
 }
@@ -1818,12 +1818,12 @@ expect {
 expect {
 	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
 	blocks = [
-		{ ..base, lines: Semantics.Range.from_start_and_length(0, 1) },
-		{ ..base, lines: Semantics.Range.from_start_and_length(1, 3), policy: { ..base.policy, break_before: True } },
-		{ ..base, lines: Semantics.Range.from_start_and_length(4, 1), policy: { ..base.policy, break_before: True } },
+		{ ..base, lines: Semantics.IndexRange.from_start_and_length(0, 1) },
+		{ ..base, lines: Semantics.IndexRange.from_start_and_length(1, 3), policy: { ..base.policy, break_before: True } },
+		{ ..base, lines: Semantics.IndexRange.from_start_and_length(4, 1), policy: { ..base.policy, break_before: True } },
 	]
 	default_frame = { height: Layout.Unit.from_raw(3000), top: Layout.Unit.from_raw(0) }
-	scope = { blocks: Semantics.Range.from_start_and_length(1, 1), opening: { height: Layout.Unit.from_raw(1000), top: Layout.Unit.from_raw(500) }, continuation: { height: Layout.Unit.from_raw(2000), top: Layout.Unit.from_raw(1000) } }
+	scope = { blocks: Semantics.IndexRange.from_start_and_length(1, 1), opening: { height: Layout.Unit.from_raw(1000), top: Layout.Unit.from_raw(500) }, continuation: { height: Layout.Unit.from_raw(2000), top: Layout.Unit.from_raw(1000) } }
 	plan = KernelPageLayout.Plan.build_with_scopes(blocks, [], test_lines.take_first(5), test_constraints, { first: default_frame, continuation: default_frame, lead: NoLead }, [scope], test_limits)?
 	KernelPageLayout.Plan.pages(plan).len() == 4 and KernelPageLayout.Plan.scope_pages(plan) == [{ opening: True, page: 1, scope: 0 }, { opening: False, page: 2, scope: 0 }]
 }
@@ -1833,11 +1833,11 @@ expect {
 expect {
 	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
 	blocks = [
-		{ ..base, lines: Semantics.Range.from_start_and_length(0, 1), policy: { ..base.policy, keep_with_next: Required } },
-		{ ..base, lines: Semantics.Range.from_start_and_length(1, 1), policy: { ..base.policy, break_before: True } },
+		{ ..base, lines: Semantics.IndexRange.from_start_and_length(0, 1), policy: { ..base.policy, keep_with_next: Required } },
+		{ ..base, lines: Semantics.IndexRange.from_start_and_length(1, 1), policy: { ..base.policy, break_before: True } },
 	]
 	frame = { height: Layout.Unit.from_raw(3000), top: Layout.Unit.from_raw(0) }
-	match KernelPageLayout.Plan.build_with_scopes(blocks, [], test_lines.take_first(2), test_constraints, { first: frame, continuation: frame, lead: NoLead }, [{ blocks: Semantics.Range.from_start_and_length(1, 1), opening: frame, continuation: frame }], test_limits) {
+	match KernelPageLayout.Plan.build_with_scopes(blocks, [], test_lines.take_first(2), test_constraints, { first: frame, continuation: frame, lead: NoLead }, [{ blocks: Semantics.IndexRange.from_start_and_length(1, 1), opening: frame, continuation: frame }], test_limits) {
 		Err(KeepConflict(BreakAfterRequiredKeep(_))) => True
 		_ => False
 	}
@@ -1846,8 +1846,8 @@ expect {
 # One semantic container's padding is reserved once on every accepted page,
 # including a break inside its sole paragraph. No empty panel is emitted.
 expect {
-	block = { ..test_block, lines: Semantics.Range.from_start_and_length(0, 8), space_after: Layout.Unit.from_raw(0) }
-	container = { paint: Paint(0), blocks: Semantics.Range.from_start_and_length(0, 1), padding: Layout.Unit.from_raw(500), offset: Layout.Unit.from_raw(0), width: Layout.Unit.from_raw(8000) }
+	block = { ..test_block, lines: Semantics.IndexRange.from_start_and_length(0, 8), space_after: Layout.Unit.from_raw(0) }
+	container = { paint: Paint(0), blocks: Semantics.IndexRange.from_start_and_length(0, 1), padding: Layout.Unit.from_raw(500), offset: Layout.Unit.from_raw(0), width: Layout.Unit.from_raw(8000) }
 	plan = KernelPageLayout.Plan.build_with_containers([block], [], test_lines, test_constraints, NoTemplate, [container], test_limits)?
 	panels = KernelPageLayout.Plan.container_fragments(plan)
 	KernelPageLayout.Plan.pages(plan).len() == 4 and panels.len() == 4 and panels.map(|panel| panel.part) == [First, Middle, Middle, Last] and panels.all(|panel| panel.rect.origin.y.raw() == 1000 and panel.rect.size.height.raw() == 3000) and KernelPageLayout.Plan.placements(plan).len() == 8
@@ -1856,8 +1856,8 @@ expect {
 # Nested padding reduces a continued source's exact row capacity. The outer
 # panel starts at the page body edge and the inner panel stays within it.
 expect {
-	block = { ..test_block, owner: SourceBlock({ source: 0, padding: Layout.Unit.from_raw(250) }), lines: Semantics.Range.from_start_and_length(0, 3), space_after: Layout.Unit.from_raw(0), policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
-	outer = { paint: Paint(0), blocks: Semantics.Range.from_start_and_length(0, 1), padding: Layout.Unit.from_raw(250), offset: Layout.Unit.from_raw(0), width: Layout.Unit.from_raw(8000) }
+	block = { ..test_block, owner: SourceBlock({ source: 0, padding: Layout.Unit.from_raw(250) }), lines: Semantics.IndexRange.from_start_and_length(0, 3), space_after: Layout.Unit.from_raw(0), policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
+	outer = { paint: Paint(0), blocks: Semantics.IndexRange.from_start_and_length(0, 1), padding: Layout.Unit.from_raw(250), offset: Layout.Unit.from_raw(0), width: Layout.Unit.from_raw(8000) }
 	inner = { ..outer, paint: Paint(1), offset: Layout.Unit.from_raw(250), width: Layout.Unit.from_raw(7500), padding: Layout.Unit.from_raw(250) }
 	plan = KernelPageLayout.Plan.build_with_containers([block], [], test_lines.take_first(3), test_constraints, NoTemplate, [outer, inner], test_limits)?
 	panels = KernelPageLayout.Plan.container_fragments(plan)
@@ -1867,8 +1867,8 @@ expect {
 # A continued table header is placed below the reopened callout's top
 # padding. The accepted band is passed forward rather than recomputed.
 expect {
-	block = { ..test_block, lead: Layout.Unit.from_raw(500), lines: Semantics.Range.from_start_and_length(0, 2), space_after: Layout.Unit.from_raw(0), policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
-	container = { paint: Paint(0), blocks: Semantics.Range.from_start_and_length(0, 1), padding: Layout.Unit.from_raw(500), offset: Layout.Unit.from_raw(0), width: Layout.Unit.from_raw(8000) }
+	block = { ..test_block, lead: Layout.Unit.from_raw(500), lines: Semantics.IndexRange.from_start_and_length(0, 2), space_after: Layout.Unit.from_raw(0), policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
+	container = { paint: Paint(0), blocks: Semantics.IndexRange.from_start_and_length(0, 1), padding: Layout.Unit.from_raw(500), offset: Layout.Unit.from_raw(0), width: Layout.Unit.from_raw(8000) }
 	plan = KernelPageLayout.Plan.build_with_containers([block], [], test_lines.take_first(2), test_constraints, NoTemplate, [container], test_limits)?
 	KernelPageLayout.Plan.lead_bands(plan).map(|band| band.top) == [3500, 3500] and KernelPageLayout.Plan.container_fragments(plan).all(|panel| panel.rect.size.height.raw() == 2500 and panel.rect.origin.y.raw() == 1500)
 }
@@ -1879,7 +1879,7 @@ make_span = |block_index, block, start, length, height, used, geometry, page_ind
 	baseline = geometry.page_height - geometry.margin_top - checked_add(used, positive_raw(block.baseline_offset)?)?
 	Ok({
 		block: block_index,
-		rows: Semantics.Range.from_start_and_length(start, length),
+		rows: Semantics.IndexRange.from_start_and_length(start, length),
 		page: Semantics.PageId.from_index(page_index),
 		geometry: { origin: { x: Layout.Unit.from_raw(geometry.margin_left.to_i64_wrap()), y: Layout.Unit.from_raw((geometry.page_height - geometry.margin_top - used - height).to_i64_wrap()) }, size: { width: Layout.Unit.from_raw(geometry.content_width.to_i64_wrap()), height: Layout.Unit.from_raw(height.to_i64_wrap()) } },
 		baseline: { x: Layout.Unit.from_raw(geometry.margin_left.to_i64_wrap()), y: Layout.Unit.from_raw(baseline.to_i64_wrap()) },
@@ -1890,10 +1890,10 @@ make_span = |block_index, block, start, length, height, used, geometry, page_ind
 # Measured rows and concrete lines consume identical policy/container/scoped
 # geometry; only the concrete path carries and validates Unicode continuity.
 expect {
-	block = { ..test_block, lines: Semantics.Range.from_start_and_length(0, 8), space_after: Layout.Unit.from_raw(0) }
-	container = { paint: Paint(0), blocks: Semantics.Range.from_start_and_length(0, 1), padding: Layout.Unit.from_raw(500), offset: Layout.Unit.from_raw(0), width: Layout.Unit.from_raw(8000) }
+	block = { ..test_block, lines: Semantics.IndexRange.from_start_and_length(0, 8), space_after: Layout.Unit.from_raw(0) }
+	container = { paint: Paint(0), blocks: Semantics.IndexRange.from_start_and_length(0, 1), padding: Layout.Unit.from_raw(500), offset: Layout.Unit.from_raw(0), width: Layout.Unit.from_raw(8000) }
 	frame = { height: Layout.Unit.from_raw(3000), top: Layout.Unit.from_raw(0) }
-	scopes = [{ blocks: Semantics.Range.from_start_and_length(0, 1), opening: { height: Layout.Unit.from_raw(2000), top: Layout.Unit.from_raw(1000) }, continuation: frame }]
+	scopes = [{ blocks: Semantics.IndexRange.from_start_and_length(0, 1), opening: { height: Layout.Unit.from_raw(2000), top: Layout.Unit.from_raw(1000) }, continuation: frame }]
 	template = WithTemplate({ first: frame, continuation: frame, lead: NoLead })
 	concrete = KernelPageLayout.Plan.build_with_contexts([block], [], test_lines, test_constraints, template, scopes, [container], test_limits)?
 	choice = KernelPageLayout.Choice.build([block], [], 8, test_constraints, template, scopes, [container], test_limits)?
@@ -1910,7 +1910,7 @@ expect {
 # Repeated header space alone creates no container-placement facts. Both
 # geometry paths keep their exact accepted spans without a per-page arena.
 expect {
-	block = { ..test_block, lead: Layout.Unit.from_raw(500), lines: Semantics.Range.from_start_and_length(0, 4), policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
+	block = { ..test_block, lead: Layout.Unit.from_raw(500), lines: Semantics.IndexRange.from_start_and_length(0, 4), policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
 	concrete = KernelPageLayout.Plan.build([block], test_lines.take_first(4), test_constraints, test_limits)?
 	choice = KernelPageLayout.Choice.build([block], [], 4, test_constraints, NoTemplate, [], [], test_limits)?
 	KernelPageLayout.Plan.pages(concrete).len() == 2 and KernelPageLayout.Plan.lead_bands(concrete).is_empty() and KernelPageLayout.Choice.lead_bands(choice).is_empty() and
@@ -1920,8 +1920,8 @@ expect {
 # Even zero-padding painted containers must enclose their repeated header;
 # active ownership, rather than nonzero padding, decides the needed band.
 expect {
-	block = { ..test_block, lead: Layout.Unit.from_raw(500), lines: Semantics.Range.from_start_and_length(0, 4), policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
-	container = { paint: Paint(0), blocks: Semantics.Range.from_start_and_length(0, 1), padding: Layout.Unit.from_raw(0), offset: Layout.Unit.from_raw(0), width: Layout.Unit.from_raw(8000) }
+	block = { ..test_block, lead: Layout.Unit.from_raw(500), lines: Semantics.IndexRange.from_start_and_length(0, 4), policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
+	container = { paint: Paint(0), blocks: Semantics.IndexRange.from_start_and_length(0, 1), padding: Layout.Unit.from_raw(0), offset: Layout.Unit.from_raw(0), width: Layout.Unit.from_raw(8000) }
 	concrete = KernelPageLayout.Plan.build_with_containers([block], [], test_lines.take_first(4), test_constraints, NoTemplate, [container], test_limits)?
 	choice = KernelPageLayout.Choice.build([block], [], 4, test_constraints, NoTemplate, [], [container], test_limits)?
 	panels = KernelPageLayout.Plan.container_fragments(concrete)

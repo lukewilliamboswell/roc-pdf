@@ -76,11 +76,11 @@ unit = |raw| Layout.Unit.from_raw(raw)
 rect : I64, I64, I64, I64 -> Layout.Rect
 rect = |x, y, width, height| { origin: { x: unit(x), y: unit(y) }, size: { height: unit(height), width: unit(width) } }
 
-empty_range : Semantics.Range
-empty_range = Semantics.Range.from_start_and_length(0, 0)
+empty_range : Semantics.IndexRange
+empty_range = Semantics.IndexRange.from_start_and_length(0, 0)
 
-span : U64, U64 -> Semantics.Range
-span = |start, length| Semantics.Range.from_start_and_length(start, length)
+span : U64, U64 -> Semantics.IndexRange
+span = |start, length| Semantics.IndexRange.from_start_and_length(start, length)
 
 page_box : Layout.Rect
 page_box = rect(0, 0, 100000, 100000)
@@ -925,7 +925,7 @@ calibrated_only = |base| {
 
 ## A minimal scene placing one form under page opacity, with the form's
 ## content supplied by the caller.
-ambient_form_scenario : List(Scene.Command), Semantics.Range, Scene.FormGroup -> Scenario
+ambient_form_scenario : List(Scene.Command), Semantics.IndexRange, Scene.FormGroup -> Scenario
 ambient_form_scenario = |form_commands, root, group| {
 	commands = [
 		anchor_command,

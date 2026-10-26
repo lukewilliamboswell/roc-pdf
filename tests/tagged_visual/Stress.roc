@@ -155,9 +155,9 @@ stress_scene = |command_count| {
 	{
 		commands,
 		dash_lengths: [],
-		groups: [{ commands: Semantics.Range.from_start_and_length(0, command_count), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
+		groups: [{ commands: Semantics.IndexRange.from_start_and_length(0, command_count), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
 		page_groups: [Scene.GroupId.from_index(0)],
-		pages: [{ boxes: { art: page_box, bleed: page_box, crop: page_box, media: page_box, trim: page_box }, id: Semantics.PageId.from_index(0), paint_order: Semantics.Range.from_start_and_length(0, 1), rotation: Rotate0 }],
+		pages: [{ boxes: { art: page_box, bleed: page_box, crop: page_box, media: page_box, trim: page_box }, id: Semantics.PageId.from_index(0), paint_order: Semantics.IndexRange.from_start_and_length(0, 1), rotation: Rotate0 }],
 		path_segments: [],
 		paths: [],
 	}

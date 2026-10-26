@@ -115,11 +115,11 @@ synthetic_input = |source_runs| {
 		while $local < clusters_per_run {
 			global = glyph_start + $local
 			$clusters = $clusters.append({
-				glyphs: Semantics.Range.from_start_and_length(global, 1),
+				glyphs: Semantics.IndexRange.from_start_and_length(global, 1),
 				kind: OneToOne,
 				source: {
-					scalars: Semantics.Range.from_start_and_length($local, 1),
-					utf8_bytes: Semantics.Range.from_start_and_length($local, 1),
+					scalars: Semantics.IndexRange.from_start_and_length($local, 1),
+					utf8_bytes: Semantics.IndexRange.from_start_and_length($local, 1),
 				},
 			})
 			$glyph_indices = $glyph_indices.append(global)
@@ -135,20 +135,20 @@ synthetic_input = |source_runs| {
 		run_id = Text.RunId.from_index($run_index)
 		$runs = $runs.append({
 			actual_text: FromOccurrence,
-			clusters: Semantics.Range.from_start_and_length(cluster_start, clusters_per_run),
+			clusters: Semantics.IndexRange.from_start_and_length(cluster_start, clusters_per_run),
 			direction: LeftToRight,
-			glyphs: Semantics.Range.from_start_and_length(glyph_start, clusters_per_run),
+			glyphs: Semantics.IndexRange.from_start_and_length(glyph_start, clusters_per_run),
 			id: run_id,
 			instance: Font.InstanceId.from_index(0),
 			language: Language("en"),
 			script: Font.Script.from_iso15924("Latn"),
 			size: Layout.Unit.from_raw(1000),
 			source: {
-				scalars: Semantics.Range.from_start_and_length(0, clusters_per_run),
-				utf8_bytes: Semantics.Range.from_start_and_length(0, clusters_per_run),
+				scalars: Semantics.IndexRange.from_start_and_length(0, clusters_per_run),
+				utf8_bytes: Semantics.IndexRange.from_start_and_length(0, clusters_per_run),
 			},
-			substitutions: Semantics.Range.from_start_and_length(0, 0),
-			transformations: Semantics.Range.from_start_and_length(0, 0),
+			substitutions: Semantics.IndexRange.from_start_and_length(0, 0),
+			transformations: Semantics.IndexRange.from_start_and_length(0, 0),
 			unicode: OccurrenceText(Semantics.OccurrenceId.from_index($run_index)),
 			writing_mode: Horizontal,
 		})
@@ -159,10 +159,10 @@ synthetic_input = |source_runs| {
 			local_start = $line_local * clusters_per_line
 			$lines = $lines.append({
 				advance: Layout.Unit.from_raw(3000),
-				clusters: Semantics.Range.from_start_and_length(cluster_start + local_start, clusters_per_line),
+				clusters: Semantics.IndexRange.from_start_and_length(cluster_start + local_start, clusters_per_line),
 				source: {
-					scalars: Semantics.Range.from_start_and_length(local_start, clusters_per_line),
-					utf8_bytes: Semantics.Range.from_start_and_length(local_start, clusters_per_line),
+					scalars: Semantics.IndexRange.from_start_and_length(local_start, clusters_per_line),
+					utf8_bytes: Semantics.IndexRange.from_start_and_length(local_start, clusters_per_line),
 				},
 			})
 			$placements = $placements.append({
@@ -174,7 +174,7 @@ synthetic_input = |source_runs| {
 				kind: ContentRow,
 				body_line: line_index,
 				body_offset: Layout.Unit.from_raw(0),
-				body_runs: { physical: Semantics.Range.from_start_and_length($run_index, 1) },
+				body_runs: { physical: Semantics.IndexRange.from_start_and_length($run_index, 1) },
 				label: NoLabel,
 			})
 			$line_local = $line_local + 1
@@ -187,9 +187,9 @@ synthetic_input = |source_runs| {
 		page_index = $pages.len()
 		length = U64.min(64, line_count - $placement_start)
 		$pages = $pages.append({
-			fragments: Semantics.Range.from_start_and_length(page_index, 1),
+			fragments: Semantics.IndexRange.from_start_and_length(page_index, 1),
 			id: Semantics.PageId.from_index(page_index),
-			placements: Semantics.Range.from_start_and_length($placement_start, length),
+			placements: Semantics.IndexRange.from_start_and_length($placement_start, length),
 		})
 		$placement_start = $placement_start + length
 	}

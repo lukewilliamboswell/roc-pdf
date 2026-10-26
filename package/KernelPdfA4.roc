@@ -720,7 +720,7 @@ resolve_dictionary = |store, value| match list_at(store.values, KernelObject.Val
 	_ => NotDictionary
 }
 
-resolve_stream : KernelObject.Store, KernelObject.ValueId -> [NotStream, ResolvedStream(KernelObject.Stream)]
+resolve_stream : KernelObject.Store, KernelObject.ValueId -> [NotStream, ResolvedStream(KernelObject.StreamObject)]
 resolve_stream = |store, value| {
 	stream_value = match list_at(store.values, KernelObject.ValueId.index(value)) {
 		Reference(object) => match list_at(store.objects, KernelObject.ObjectId.number(object) - 1).content {

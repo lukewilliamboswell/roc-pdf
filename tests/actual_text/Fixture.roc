@@ -472,7 +472,7 @@ Fixture :: [].{
 		glyph = required_glyph(font, 0x1f12f) ? |_| EvidenceFailure
 		store = supplementary_store(Font.InstanceId.from_index(0), glyph)
 		cluster = list_at(store.clusters, 0)
-		bad_store = { ..store, clusters: [{ ..cluster, source: { ..supplementary_source_range, utf8_bytes: Semantics.Range.from_start_and_length(0, 3) } }] }
+		bad_store = { ..store, clusters: [{ ..cluster, source: { ..supplementary_source_range, utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 3) } }] }
 		rejected = match KernelShape.validate_advanced(
 			font,
 			supplementary_source,
@@ -532,7 +532,7 @@ Fixture :: [].{
 		glyph = required_glyph(font, 0x4e2d) ? |_| EvidenceFailure
 		store = cjk_store(Font.InstanceId.from_index(0), glyph)
 		cluster = list_at(store.clusters, 0)
-		bad_store = { ..store, clusters: [{ ..cluster, source: { ..cjk_source_range, utf8_bytes: Semantics.Range.from_start_and_length(0, 2) } }] }
+		bad_store = { ..store, clusters: [{ ..cluster, source: { ..cjk_source_range, utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 2) } }] }
 		rejected = match KernelShape.validate_advanced(
 			font,
 			cjk_source,
@@ -585,7 +585,7 @@ Fixture :: [].{
 		}
 		sample = build_combining_sample({}) ? |_| EvidenceFailure
 		cluster = list_at(sample.shape.store.clusters, 0)
-		bad_store = { ..sample.shape.store, clusters: [{ ..cluster, source: { ..combining_source_range, utf8_bytes: Semantics.Range.from_start_and_length(0, 2) } }] }
+		bad_store = { ..sample.shape.store, clusters: [{ ..cluster, source: { ..combining_source_range, utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 2) } }] }
 		rejected = match KernelShape.validate_advanced(
 			sample.font,
 			combining_source,
@@ -712,8 +712,8 @@ rtl_source = "אב(גד[&ef].)gh"
 
 rtl_source_range : Semantics.TextRange
 rtl_source_range = {
-	scalars: Semantics.Range.from_start_and_length(0, 14),
-	utf8_bytes: Semantics.Range.from_start_and_length(0, 18),
+	scalars: Semantics.IndexRange.from_start_and_length(0, 14),
+	utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 18),
 }
 
 rtl_semantics : Semantics.Store
@@ -752,11 +752,11 @@ resolve_rtl = |_| {
 	while $index < analysis.graphemes.len() {
 		grapheme = list_at(analysis.graphemes, $index)
 		$clusters = $clusters.append({
-			glyphs: Semantics.Range.from_start_and_length($index, 1),
+			glyphs: Semantics.IndexRange.from_start_and_length($index, 1),
 			kind: Reordered,
 			source: {
-				scalars: Semantics.Range.from_start_and_length(grapheme.scalar_start, grapheme.scalar_end - grapheme.scalar_start),
-				utf8_bytes: Semantics.Range.from_start_and_length(grapheme.byte_start, grapheme.byte_end - grapheme.byte_start),
+				scalars: Semantics.IndexRange.from_start_and_length(grapheme.scalar_start, grapheme.scalar_end - grapheme.scalar_start),
+				utf8_bytes: Semantics.IndexRange.from_start_and_length(grapheme.byte_start, grapheme.byte_end - grapheme.byte_start),
 			},
 		})
 		$index = $index + 1
@@ -770,7 +770,7 @@ resolve_rtl = |_| {
 	}
 	order = KernelBidiBoundary.resolve_line(
 		paragraph,
-		{ clusters: Semantics.Range.from_start_and_length(0, 14), source: rtl_source_range },
+		{ clusters: Semantics.IndexRange.from_start_and_length(0, 14), source: rtl_source_range },
 		$clusters,
 		limits,
 	) ? |_| EvidenceFailure
@@ -827,9 +827,9 @@ rtl_store = |resolved| {
 		runs: [
 			{
 				actual_text: FromOccurrence,
-				clusters: Semantics.Range.from_start_and_length(0, 14),
+				clusters: Semantics.IndexRange.from_start_and_length(0, 14),
 				direction: RightToLeft,
-				glyphs: Semantics.Range.from_start_and_length(0, 14),
+				glyphs: Semantics.IndexRange.from_start_and_length(0, 14),
 				id: Text.RunId.from_index(0),
 				instance: Font.InstanceId.from_index(0),
 				language: Language("he"),
@@ -961,8 +961,8 @@ case_presentation = "ASS"
 
 case_source_range : Semantics.TextRange
 case_source_range = {
-	scalars: Semantics.Range.from_start_and_length(0, 2),
-	utf8_bytes: Semantics.Range.from_start_and_length(0, 3),
+	scalars: Semantics.IndexRange.from_start_and_length(0, 2),
+	utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 3),
 }
 
 case_semantics : Semantics.Store
@@ -973,7 +973,7 @@ case_semantics = {
 		{
 			..list_at(semantics.occurrences, 0),
 			source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange(case_source_range)),
-			text_properties: Semantics.Range.from_start_and_length(0, 1),
+			text_properties: Semantics.IndexRange.from_start_and_length(0, 1),
 		},
 	],
 	text_properties: [SourceToPresentation({ kind: CaseMapping, presentation: case_presentation, source: case_source_range })],
@@ -1043,14 +1043,14 @@ case_store = |font| {
 	{
 		clusters: [
 			{
-				glyphs: Semantics.Range.from_start_and_length(0, 1),
+				glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
 				kind: OneToOne,
-				source: { scalars: Semantics.Range.from_start_and_length(0, 1), utf8_bytes: Semantics.Range.from_start_and_length(0, 1) },
+				source: { scalars: Semantics.IndexRange.from_start_and_length(0, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 1) },
 			},
 			{
-				glyphs: Semantics.Range.from_start_and_length(1, 2),
+				glyphs: Semantics.IndexRange.from_start_and_length(1, 2),
 				kind: OneToMany,
-				source: { scalars: Semantics.Range.from_start_and_length(1, 1), utf8_bytes: Semantics.Range.from_start_and_length(1, 2) },
+				source: { scalars: Semantics.IndexRange.from_start_and_length(1, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(1, 2) },
 			},
 		],
 		glyph_indices: [0, 1, 2],
@@ -1062,9 +1062,9 @@ case_store = |font| {
 		runs: [
 			{
 				actual_text: FromOccurrence,
-				clusters: Semantics.Range.from_start_and_length(0, 2),
+				clusters: Semantics.IndexRange.from_start_and_length(0, 2),
 				direction: LeftToRight,
-				glyphs: Semantics.Range.from_start_and_length(0, 3),
+				glyphs: Semantics.IndexRange.from_start_and_length(0, 3),
 				id: Text.RunId.from_index(0),
 				instance: Font.InstanceId.from_index(0),
 				language: Language("en-AU"),
@@ -1072,7 +1072,7 @@ case_store = |font| {
 				size: Layout.Unit.from_raw(11000),
 				source: case_source_range,
 				substitutions: empty_range,
-				transformations: Semantics.Range.from_start_and_length(0, 2),
+				transformations: Semantics.IndexRange.from_start_and_length(0, 2),
 				unicode: OccurrenceText(Semantics.OccurrenceId.from_index(0)),
 				writing_mode: Horizontal,
 			},
@@ -1083,14 +1083,14 @@ case_store = |font| {
 		## exact source range so later lowering never infers it from glyphs.
 		transformations: [
 			{
-				glyphs: Semantics.Range.from_start_and_length(0, 1),
+				glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
 				kind: CaseMapping,
-				source: { scalars: Semantics.Range.from_start_and_length(0, 1), utf8_bytes: Semantics.Range.from_start_and_length(0, 1) },
+				source: { scalars: Semantics.IndexRange.from_start_and_length(0, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 1) },
 			},
 			{
-				glyphs: Semantics.Range.from_start_and_length(1, 2),
+				glyphs: Semantics.IndexRange.from_start_and_length(1, 2),
 				kind: CaseMapping,
-				source: { scalars: Semantics.Range.from_start_and_length(1, 1), utf8_bytes: Semantics.Range.from_start_and_length(1, 2) },
+				source: { scalars: Semantics.IndexRange.from_start_and_length(1, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(1, 2) },
 			},
 		],
 	}
@@ -1464,7 +1464,7 @@ text_scene : Scene.Store
 text_scene = {
 	commands: [
 		Transform({
-			children: Semantics.Range.from_start_and_length(1, 1),
+			children: Semantics.IndexRange.from_start_and_length(1, 1),
 			matrix: { a: Layout.Unit.from_raw(1000), b: Layout.Unit.from_raw(0), c: Layout.Unit.from_raw(0), d: Layout.Unit.from_raw(1000), e: Layout.Unit.from_raw(72000), f: Layout.Unit.from_raw(700000) },
 		}),
 		DrawText({
@@ -1478,13 +1478,13 @@ text_scene = {
 		}),
 	],
 	dash_lengths: [],
-	groups: [{ commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
+	groups: [{ commands: Semantics.IndexRange.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
 	page_groups: [Scene.GroupId.from_index(0)],
 	pages: [
 		{
 			boxes: { art: a4_box, bleed: a4_box, crop: a4_box, media: a4_box, trim: a4_box },
 			id: Semantics.PageId.from_index(0),
-			paint_order: Semantics.Range.from_start_and_length(0, 1),
+			paint_order: Semantics.IndexRange.from_start_and_length(0, 1),
 			rotation: Rotate0,
 		},
 	],
@@ -1519,12 +1519,12 @@ reordered_store = |instance, f_glyph, a_glyph| {
 	{
 		clusters: [
 			{
-				glyphs: Semantics.Range.from_start_and_length(0, 1),
+				glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
 				kind: Reordered,
 				source: text_range(0, 1),
 			},
 			{
-				glyphs: Semantics.Range.from_start_and_length(1, 1),
+				glyphs: Semantics.IndexRange.from_start_and_length(1, 1),
 				kind: Reordered,
 				source: text_range(1, 1),
 			},
@@ -1537,9 +1537,9 @@ reordered_store = |instance, f_glyph, a_glyph| {
 		runs: [
 			{
 				actual_text: FromOccurrence,
-				clusters: Semantics.Range.from_start_and_length(0, 2),
+				clusters: Semantics.IndexRange.from_start_and_length(0, 2),
 				direction: LeftToRight,
-				glyphs: Semantics.Range.from_start_and_length(0, 2),
+				glyphs: Semantics.IndexRange.from_start_and_length(0, 2),
 				id: Text.RunId.from_index(0),
 				instance,
 				language: Language("en-AU"),
@@ -1566,7 +1566,7 @@ combining_store = |instance, agrave_glyph| {
 	{
 		clusters: [
 			{
-				glyphs: Semantics.Range.from_start_and_length(0, 1),
+				glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
 				kind: ManyToOne,
 				source: combining_source_range,
 			},
@@ -1578,9 +1578,9 @@ combining_store = |instance, agrave_glyph| {
 		runs: [
 			{
 				actual_text: FromOccurrence,
-				clusters: Semantics.Range.from_start_and_length(0, 1),
+				clusters: Semantics.IndexRange.from_start_and_length(0, 1),
 				direction: LeftToRight,
-				glyphs: Semantics.Range.from_start_and_length(0, 1),
+				glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
 				id: Text.RunId.from_index(0),
 				instance,
 				language: Language("en-AU"),
@@ -1602,28 +1602,28 @@ ligature_store : Font.InstanceId, U32 -> Text.Store
 ligature_store = |instance, fi_glyph| {
 	zero = Layout.Unit.from_raw(0)
 	{
-		clusters: [{ glyphs: Semantics.Range.from_start_and_length(0, 1), kind: Ligature, source: source_range }],
+		clusters: [{ glyphs: Semantics.IndexRange.from_start_and_length(0, 1), kind: Ligature, source: source_range }],
 		glyph_indices: [0],
 		glyphs: [{ advance_x: Layout.Unit.from_raw(6963), advance_y: zero, id: Text.GlyphId.from_raw(fi_glyph), offset_x: zero, offset_y: zero }],
 		runs: [
 			{
 				actual_text: FromOccurrence,
-				clusters: Semantics.Range.from_start_and_length(0, 1),
+				clusters: Semantics.IndexRange.from_start_and_length(0, 1),
 				direction: LeftToRight,
-				glyphs: Semantics.Range.from_start_and_length(0, 1),
+				glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
 				id: Text.RunId.from_index(0),
 				instance,
 				language: Language("en-AU"),
 				script: Font.Script.from_iso15924("Latn"),
 				size: Layout.Unit.from_raw(11000),
 				source: source_range,
-				substitutions: Semantics.Range.from_start_and_length(0, 1),
+				substitutions: Semantics.IndexRange.from_start_and_length(0, 1),
 				transformations: empty_range,
 				unicode: OccurrenceText(Semantics.OccurrenceId.from_index(0)),
 				writing_mode: Horizontal,
 			},
 		],
-		substitutions: [{ feature: Text.FeatureTag.from_raw(liga_feature), glyphs: Semantics.Range.from_start_and_length(0, 1), source: source_range }],
+		substitutions: [{ feature: Text.FeatureTag.from_raw(liga_feature), glyphs: Semantics.IndexRange.from_start_and_length(0, 1), source: source_range }],
 		transformations: [],
 	}
 }
@@ -1634,7 +1634,7 @@ supplementary_store = |instance, glyph| {
 	{
 		clusters: [
 			{
-				glyphs: Semantics.Range.from_start_and_length(0, 1),
+				glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
 				kind: OneToOne,
 				source: supplementary_source_range,
 			},
@@ -1646,9 +1646,9 @@ supplementary_store = |instance, glyph| {
 		runs: [
 			{
 				actual_text: FromOccurrence,
-				clusters: Semantics.Range.from_start_and_length(0, 1),
+				clusters: Semantics.IndexRange.from_start_and_length(0, 1),
 				direction: LeftToRight,
-				glyphs: Semantics.Range.from_start_and_length(0, 1),
+				glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
 				id: Text.RunId.from_index(0),
 				instance,
 				language: Language("en-AU"),
@@ -1672,7 +1672,7 @@ cjk_store = |instance, glyph| {
 	{
 		clusters: [
 			{
-				glyphs: Semantics.Range.from_start_and_length(0, 1),
+				glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
 				kind: OneToOne,
 				source: cjk_source_range,
 			},
@@ -1684,9 +1684,9 @@ cjk_store = |instance, glyph| {
 		runs: [
 			{
 				actual_text: FromOccurrence,
-				clusters: Semantics.Range.from_start_and_length(0, 1),
+				clusters: Semantics.IndexRange.from_start_and_length(0, 1),
 				direction: LeftToRight,
-				glyphs: Semantics.Range.from_start_and_length(0, 1),
+				glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
 				id: Text.RunId.from_index(0),
 				instance,
 				language: Language("zh-Hans"),
@@ -1715,9 +1715,9 @@ multi_face_store = |ranges, latin_c, han, latin_eacute| {
 	zero = Layout.Unit.from_raw(0)
 	{
 		clusters: [
-			{ glyphs: Semantics.Range.from_start_and_length(0, 1), kind: OneToOne, source: multi_face_range(0) },
-			{ glyphs: Semantics.Range.from_start_and_length(1, 1), kind: OneToOne, source: multi_face_range(1) },
-			{ glyphs: Semantics.Range.from_start_and_length(2, 1), kind: OneToOne, source: multi_face_range(2) },
+			{ glyphs: Semantics.IndexRange.from_start_and_length(0, 1), kind: OneToOne, source: multi_face_range(0) },
+			{ glyphs: Semantics.IndexRange.from_start_and_length(1, 1), kind: OneToOne, source: multi_face_range(1) },
+			{ glyphs: Semantics.IndexRange.from_start_and_length(2, 1), kind: OneToOne, source: multi_face_range(2) },
 		],
 		glyph_indices: [0, 1, 2],
 		glyphs: [
@@ -1741,7 +1741,7 @@ multi_face_run = |index, range, script, language, run_source| {
 		actual_text: FromOccurrence,
 		clusters: range.clusters,
 		direction: LeftToRight,
-		glyphs: Semantics.Range.from_start_and_length(index, 1),
+		glyphs: Semantics.IndexRange.from_start_and_length(index, 1),
 		id: Text.RunId.from_index(index),
 		instance: range.instance,
 		language,
@@ -1759,15 +1759,15 @@ soft_hyphen_store : Font.InstanceId, List(U32), KernelDiscretionaryHyphen.Select
 soft_hyphen_store = |instance, glyph_ids, selection| {
 	zero = Layout.Unit.from_raw(0)
 	{
-		clusters: List.map([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], |index| { glyphs: Semantics.Range.from_start_and_length(index, 1), kind: OneToOne, source: soft_hyphen_scalar_range(index) }),
+		clusters: List.map([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], |index| { glyphs: Semantics.IndexRange.from_start_and_length(index, 1), kind: OneToOne, source: soft_hyphen_scalar_range(index) }),
 		glyph_indices: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
 		glyphs: List.map(glyph_ids, |glyph_id| { advance_x: Layout.Unit.from_raw(6000), advance_y: zero, id: Text.GlyphId.from_raw(glyph_id), offset_x: zero, offset_y: zero }),
 		runs: [
 			{
 				actual_text: FromOccurrence,
-				clusters: Semantics.Range.from_start_and_length(0, 10),
+				clusters: Semantics.IndexRange.from_start_and_length(0, 10),
 				direction: LeftToRight,
-				glyphs: Semantics.Range.from_start_and_length(0, 10),
+				glyphs: Semantics.IndexRange.from_start_and_length(0, 10),
 				id: Text.RunId.from_index(0),
 				instance,
 				language: Language("en-AU"),
@@ -1775,13 +1775,13 @@ soft_hyphen_store = |instance, glyph_ids, selection| {
 				size: Layout.Unit.from_raw(11000),
 				source: soft_hyphen_full_source_range,
 				substitutions: empty_range,
-				transformations: Semantics.Range.from_start_and_length(0, 1),
+				transformations: Semantics.IndexRange.from_start_and_length(0, 1),
 				unicode: OccurrenceText(Semantics.OccurrenceId.from_index(0)),
 				writing_mode: Horizontal,
 			},
 		],
 		substitutions: [],
-		transformations: [{ glyphs: Semantics.Range.from_start_and_length(2, 1), kind: SelectedSoftHyphen, source: selection.source }],
+		transformations: [{ glyphs: Semantics.IndexRange.from_start_and_length(2, 1), kind: SelectedSoftHyphen, source: selection.source }],
 	}
 }
 
@@ -1790,22 +1790,22 @@ external_discretionary_hyphen_store = |instance, glyph_ids, selection| {
 	zero = Layout.Unit.from_raw(0)
 	{
 		clusters: [
-			{ glyphs: Semantics.Range.from_start_and_length(0, 1), kind: OneToOne, source: external_discretionary_scalar_range(0) },
+			{ glyphs: Semantics.IndexRange.from_start_and_length(0, 1), kind: OneToOne, source: external_discretionary_scalar_range(0) },
 			{
-				glyphs: Semantics.Range.from_start_and_length(1, 1),
+				glyphs: Semantics.IndexRange.from_start_and_length(1, 1),
 				kind: GeneratedDiscretionaryHyphen({ property: Semantics.TextPropertyId.from_index(0), transformation: 0 }),
 				source: selection.source,
 			},
-			{ glyphs: Semantics.Range.from_start_and_length(2, 1), kind: OneToOne, source: external_discretionary_scalar_range(1) },
+			{ glyphs: Semantics.IndexRange.from_start_and_length(2, 1), kind: OneToOne, source: external_discretionary_scalar_range(1) },
 		],
 		glyph_indices: [0, 1, 2],
 		glyphs: List.map(glyph_ids, |glyph_id| { advance_x: Layout.Unit.from_raw(6000), advance_y: zero, id: Text.GlyphId.from_raw(glyph_id), offset_x: zero, offset_y: zero }),
 		runs: [
 			{
 				actual_text: FromOccurrence,
-				clusters: Semantics.Range.from_start_and_length(0, 3),
+				clusters: Semantics.IndexRange.from_start_and_length(0, 3),
 				direction: LeftToRight,
-				glyphs: Semantics.Range.from_start_and_length(0, 3),
+				glyphs: Semantics.IndexRange.from_start_and_length(0, 3),
 				id: Text.RunId.from_index(0),
 				instance,
 				language: Language("en-AU"),
@@ -1813,13 +1813,13 @@ external_discretionary_hyphen_store = |instance, glyph_ids, selection| {
 				size: Layout.Unit.from_raw(11000),
 				source: external_discretionary_hyphen_full_source_range,
 				substitutions: empty_range,
-				transformations: Semantics.Range.from_start_and_length(0, 1),
+				transformations: Semantics.IndexRange.from_start_and_length(0, 1),
 				unicode: OccurrenceText(Semantics.OccurrenceId.from_index(0)),
 				writing_mode: Horizontal,
 			},
 		],
 		substitutions: [],
-		transformations: [{ glyphs: Semantics.Range.from_start_and_length(1, 1), kind: InsertedDiscretionaryHyphen, source: selection.source }],
+		transformations: [{ glyphs: Semantics.IndexRange.from_start_and_length(1, 1), kind: InsertedDiscretionaryHyphen, source: selection.source }],
 	}
 }
 
@@ -1863,8 +1863,8 @@ external_discretionary_hyphen_source = "ab"
 text_range : U64, U64 -> Semantics.TextRange
 text_range = |start, length| {
 	{
-		scalars: Semantics.Range.from_start_and_length(start, length),
-		utf8_bytes: Semantics.Range.from_start_and_length(start, length),
+		scalars: Semantics.IndexRange.from_start_and_length(start, length),
+		utf8_bytes: Semantics.IndexRange.from_start_and_length(start, length),
 	}
 }
 
@@ -1873,52 +1873,52 @@ source_range = text_range(0, 2)
 
 combining_source_range : Semantics.TextRange
 combining_source_range = {
-	scalars: Semantics.Range.from_start_and_length(0, 2),
-	utf8_bytes: Semantics.Range.from_start_and_length(0, 3),
+	scalars: Semantics.IndexRange.from_start_and_length(0, 2),
+	utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 3),
 }
 
 supplementary_source_range : Semantics.TextRange
 supplementary_source_range = {
-	scalars: Semantics.Range.from_start_and_length(0, 1),
-	utf8_bytes: Semantics.Range.from_start_and_length(0, 4),
+	scalars: Semantics.IndexRange.from_start_and_length(0, 1),
+	utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 4),
 }
 
 cjk_source_range : Semantics.TextRange
 cjk_source_range = {
-	scalars: Semantics.Range.from_start_and_length(0, 1),
-	utf8_bytes: Semantics.Range.from_start_and_length(0, 3),
+	scalars: Semantics.IndexRange.from_start_and_length(0, 1),
+	utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 3),
 }
 
 multi_face_range : U64 -> Semantics.TextRange
 multi_face_range = |index| match index {
-	0 => { scalars: Semantics.Range.from_start_and_length(0, 1), utf8_bytes: Semantics.Range.from_start_and_length(0, 1) }
-	1 => { scalars: Semantics.Range.from_start_and_length(1, 1), utf8_bytes: Semantics.Range.from_start_and_length(1, 3) }
-	2 => { scalars: Semantics.Range.from_start_and_length(2, 1), utf8_bytes: Semantics.Range.from_start_and_length(4, 2) }
+	0 => { scalars: Semantics.IndexRange.from_start_and_length(0, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 1) }
+	1 => { scalars: Semantics.IndexRange.from_start_and_length(1, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(1, 3) }
+	2 => { scalars: Semantics.IndexRange.from_start_and_length(2, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(4, 2) }
 	_ => crash "validated multi-face source range escaped"
 }
 
 soft_hyphen_source_range : Semantics.TextRange
 soft_hyphen_source_range = {
-	scalars: Semantics.Range.from_start_and_length(2, 1),
-	utf8_bytes: Semantics.Range.from_start_and_length(2, 2),
+	scalars: Semantics.IndexRange.from_start_and_length(2, 1),
+	utf8_bytes: Semantics.IndexRange.from_start_and_length(2, 2),
 }
 
 soft_hyphen_full_source_range : Semantics.TextRange
 soft_hyphen_full_source_range = {
-	scalars: Semantics.Range.from_start_and_length(0, 10),
-	utf8_bytes: Semantics.Range.from_start_and_length(0, 11),
+	scalars: Semantics.IndexRange.from_start_and_length(0, 10),
+	utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 11),
 }
 
 external_discretionary_hyphen_boundary : Semantics.TextRange
 external_discretionary_hyphen_boundary = {
-	scalars: Semantics.Range.from_start_and_length(1, 0),
-	utf8_bytes: Semantics.Range.from_start_and_length(1, 0),
+	scalars: Semantics.IndexRange.from_start_and_length(1, 0),
+	utf8_bytes: Semantics.IndexRange.from_start_and_length(1, 0),
 }
 
 external_discretionary_hyphen_full_source_range : Semantics.TextRange
 external_discretionary_hyphen_full_source_range = {
-	scalars: Semantics.Range.from_start_and_length(0, 2),
-	utf8_bytes: Semantics.Range.from_start_and_length(0, 2),
+	scalars: Semantics.IndexRange.from_start_and_length(0, 2),
+	utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 2),
 }
 
 soft_hyphen_scalar_range : U64 -> Semantics.TextRange
@@ -1937,7 +1937,7 @@ soft_hyphen_scalar_range = |index| {
 		_ => crash "validated soft-hyphen scalar index escaped"
 	}
 	byte_length = if (index == 2) 2 else 1
-	{ scalars: Semantics.Range.from_start_and_length(index, 1), utf8_bytes: Semantics.Range.from_start_and_length(byte_start, byte_length) }
+	{ scalars: Semantics.IndexRange.from_start_and_length(index, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(byte_start, byte_length) }
 }
 
 external_discretionary_scalar_range : U64 -> Semantics.TextRange
@@ -1945,11 +1945,11 @@ external_discretionary_scalar_range = |index| {
 	if index >= 2 {
 		crash "validated external discretionary scalar index escaped"
 	}
-	{ scalars: Semantics.Range.from_start_and_length(index, 1), utf8_bytes: Semantics.Range.from_start_and_length(index, 1) }
+	{ scalars: Semantics.IndexRange.from_start_and_length(index, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(index, 1) }
 }
 
-empty_range : Semantics.Range
-empty_range = Semantics.Range.from_start_and_length(0, 0)
+empty_range : Semantics.IndexRange
+empty_range = Semantics.IndexRange.from_start_and_length(0, 0)
 
 semantics : Semantics.Store
 semantics = {
@@ -1976,7 +1976,7 @@ semantics = {
 	nodes: [
 		{
 			attributes: empty_range,
-			content: Semantics.Range.from_start_and_length(0, 1),
+			content: Semantics.IndexRange.from_start_and_length(0, 1),
 			element_identifier: NoElementIdentifier,
 			id: Semantics.NodeId.from_index(0),
 			language: Language("en-AU"),
@@ -1987,7 +1987,7 @@ semantics = {
 		},
 		{
 			attributes: empty_range,
-			content: Semantics.Range.from_start_and_length(1, 1),
+			content: Semantics.IndexRange.from_start_and_length(1, 1),
 			element_identifier: NoElementIdentifier,
 			id: Semantics.NodeId.from_index(1),
 			language: Language("en-AU"),
@@ -2001,7 +2001,7 @@ semantics = {
 	occurrence_fragments: [Semantics.FragmentId.from_index(0)],
 	occurrences: [
 		{
-			fragments: Semantics.Range.from_start_and_length(0, 1),
+			fragments: Semantics.IndexRange.from_start_and_length(0, 1),
 			id: Semantics.OccurrenceId.from_index(0),
 			language: Language("en-AU"),
 			source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange(source_range)),
@@ -2044,23 +2044,23 @@ cjk_semantics = {
 multi_face_semantics : Semantics.Store
 multi_face_semantics = {
 	..semantics,
-	fragments: [{ ..list_at(semantics.fragments, 0), source_range: UnicodeRange({ scalars: Semantics.Range.from_start_and_length(0, 3), utf8_bytes: Semantics.Range.from_start_and_length(0, 6) }) }],
-	occurrences: [{ ..list_at(semantics.occurrences, 0), source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange({ scalars: Semantics.Range.from_start_and_length(0, 3), utf8_bytes: Semantics.Range.from_start_and_length(0, 6) })) }],
+	fragments: [{ ..list_at(semantics.fragments, 0), source_range: UnicodeRange({ scalars: Semantics.IndexRange.from_start_and_length(0, 3), utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 6) }) }],
+	occurrences: [{ ..list_at(semantics.occurrences, 0), source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange({ scalars: Semantics.IndexRange.from_start_and_length(0, 3), utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 6) })) }],
 	text_sources: [{ unicode: multi_face_source }],
 }
 
 multi_face_scene : Scene.Store
 multi_face_scene = {
 	commands: [
-		Transform({ children: Semantics.Range.from_start_and_length(1, 3), matrix: { a: Layout.Unit.from_raw(1000), b: Layout.Unit.from_raw(0), c: Layout.Unit.from_raw(0), d: Layout.Unit.from_raw(1000), e: Layout.Unit.from_raw(72000), f: Layout.Unit.from_raw(700000) } }),
+		Transform({ children: Semantics.IndexRange.from_start_and_length(1, 3), matrix: { a: Layout.Unit.from_raw(1000), b: Layout.Unit.from_raw(0), c: Layout.Unit.from_raw(0), d: Layout.Unit.from_raw(1000), e: Layout.Unit.from_raw(72000), f: Layout.Unit.from_raw(700000) } }),
 		DrawText({ paint: { fill: { channels: Gray(0), space: Color.SpaceId.from_index(0) }, mode: Fill, opacity: 65535, stroke: NoStroke }, run: Text.RunId.from_index(0) }),
 		DrawText({ paint: { fill: { channels: Gray(0), space: Color.SpaceId.from_index(0) }, mode: Fill, opacity: 65535, stroke: NoStroke }, run: Text.RunId.from_index(1) }),
 		DrawText({ paint: { fill: { channels: Gray(0), space: Color.SpaceId.from_index(0) }, mode: Fill, opacity: 65535, stroke: NoStroke }, run: Text.RunId.from_index(2) }),
 	],
 	dash_lengths: [],
-	groups: [{ commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
+	groups: [{ commands: Semantics.IndexRange.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
 	page_groups: [Scene.GroupId.from_index(0)],
-	pages: [{ boxes: { art: a4_box, bleed: a4_box, crop: a4_box, media: a4_box, trim: a4_box }, id: Semantics.PageId.from_index(0), paint_order: Semantics.Range.from_start_and_length(0, 1), rotation: Rotate0 }],
+	pages: [{ boxes: { art: a4_box, bleed: a4_box, crop: a4_box, media: a4_box, trim: a4_box }, id: Semantics.PageId.from_index(0), paint_order: Semantics.IndexRange.from_start_and_length(0, 1), rotation: Rotate0 }],
 	path_segments: [],
 	paths: [],
 }
@@ -2069,7 +2069,7 @@ soft_hyphen_semantics : Semantics.Store
 soft_hyphen_semantics = {
 	..semantics,
 	fragments: [{ ..list_at(semantics.fragments, 0), source_range: UnicodeRange(soft_hyphen_full_source_range) }],
-	occurrences: [{ ..list_at(semantics.occurrences, 0), source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange(soft_hyphen_full_source_range)), text_properties: Semantics.Range.from_start_and_length(0, 1) }],
+	occurrences: [{ ..list_at(semantics.occurrences, 0), source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange(soft_hyphen_full_source_range)), text_properties: Semantics.IndexRange.from_start_and_length(0, 1) }],
 	text_properties: [SourceToPresentation({ kind: SelectedSoftHyphen, presentation: "-", source: soft_hyphen_source_range })],
 	text_sources: [{ unicode: soft_hyphen_source }],
 }
@@ -2078,7 +2078,7 @@ external_discretionary_hyphen_semantics : Semantics.Store
 external_discretionary_hyphen_semantics = {
 	..semantics,
 	fragments: [{ ..list_at(semantics.fragments, 0), source_range: UnicodeRange(external_discretionary_hyphen_full_source_range) }],
-	occurrences: [{ ..list_at(semantics.occurrences, 0), source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange(external_discretionary_hyphen_full_source_range)), text_properties: Semantics.Range.from_start_and_length(0, 1) }],
+	occurrences: [{ ..list_at(semantics.occurrences, 0), source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange(external_discretionary_hyphen_full_source_range)), text_properties: Semantics.IndexRange.from_start_and_length(0, 1) }],
 	text_properties: [SourceToPresentation({ kind: InsertedDiscretionaryHyphen, presentation: "-", source: external_discretionary_hyphen_boundary })],
 	text_sources: [{ unicode: external_discretionary_hyphen_source }],
 }
@@ -2185,7 +2185,7 @@ malformed_soft_hyphen_rejected = |_| {
 	match KernelDiscretionaryHyphen.Plan.build(
 		"-",
 		analysis,
-		[{ id: KernelDiscretionaryHyphen.OpportunityId.from_index(0), kind: ExplicitSoftHyphen, source: { scalars: Semantics.Range.from_start_and_length(0, 1), utf8_bytes: Semantics.Range.from_start_and_length(0, 1) } }],
+		[{ id: KernelDiscretionaryHyphen.OpportunityId.from_index(0), kind: ExplicitSoftHyphen, source: { scalars: Semantics.IndexRange.from_start_and_length(0, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 1) } }],
 		[SelectVisibleHyphen],
 	) {
 		Err(InvalidExplicitSoftHyphen({ opportunity: 0 })) => Ok(True)
@@ -2214,7 +2214,7 @@ malformed_external_hyphen_rejected = |_| {
 	match KernelDiscretionaryHyphen.Plan.build(
 		external_discretionary_hyphen_source,
 		analysis,
-		[{ id: KernelDiscretionaryHyphen.OpportunityId.from_index(0), kind: ExternalHyphenation, source: { scalars: Semantics.Range.from_start_and_length(1, 1), utf8_bytes: Semantics.Range.from_start_and_length(1, 1) } }],
+		[{ id: KernelDiscretionaryHyphen.OpportunityId.from_index(0), kind: ExternalHyphenation, source: { scalars: Semantics.IndexRange.from_start_and_length(1, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(1, 1) } }],
 		[SelectVisibleHyphen],
 	) {
 		Err(InvalidSourceRange({ opportunity: 0 })) => Ok(True)
@@ -2266,13 +2266,13 @@ expect {
 		..sample.shape.store,
 		clusters: [
 			{
-				glyphs: Semantics.Range.from_start_and_length(0, 2),
+				glyphs: Semantics.IndexRange.from_start_and_length(0, 2),
 				kind: ManyToMany,
 				source: source_range,
 			},
 		],
 		glyph_indices: [0, 1],
-		runs: [{ ..base_run, clusters: Semantics.Range.from_start_and_length(0, 1) }],
+		runs: [{ ..base_run, clusters: Semantics.IndexRange.from_start_and_length(0, 1) }],
 	}
 	validated = KernelShape.validate_advanced(
 		font,
@@ -2308,7 +2308,7 @@ expect {
 	occurrence = list_at(semantics.occurrences, 0)
 	override_semantics = {
 		..semantics,
-		occurrences: [{ ..occurrence, text_properties: Semantics.Range.from_start_and_length(0, 1) }],
+		occurrences: [{ ..occurrence, text_properties: Semantics.IndexRange.from_start_and_length(0, 1) }],
 		text_properties: [ActualText("logical")],
 	}
 	run = list_at(sample.shape.store.runs, 0)
@@ -2353,8 +2353,8 @@ expect {
 	advance = Layout.Unit.from_raw(6000)
 	base_store = {
 		clusters: [
-			{ glyphs: Semantics.Range.from_start_and_length(0, 1), kind: OneToOne, source: text_range(0, 1) },
-			{ glyphs: Semantics.Range.from_start_and_length(1, 1), kind: OneToOne, source: text_range(1, 1) },
+			{ glyphs: Semantics.IndexRange.from_start_and_length(0, 1), kind: OneToOne, source: text_range(0, 1) },
+			{ glyphs: Semantics.IndexRange.from_start_and_length(1, 1), kind: OneToOne, source: text_range(1, 1) },
 		],
 		glyph_indices: [0, 1],
 		glyphs: [
@@ -2364,9 +2364,9 @@ expect {
 		runs: [
 			{
 				actual_text: FromOccurrence,
-				clusters: Semantics.Range.from_start_and_length(0, 2),
+				clusters: Semantics.IndexRange.from_start_and_length(0, 2),
 				direction: LeftToRight,
-				glyphs: Semantics.Range.from_start_and_length(0, 2),
+				glyphs: Semantics.IndexRange.from_start_and_length(0, 2),
 				id: Text.RunId.from_index(0),
 				instance: registered.instance,
 				language: Language("en-AU"),

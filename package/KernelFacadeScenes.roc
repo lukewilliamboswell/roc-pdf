@@ -355,7 +355,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 					command_start = $commands.len()
 					$commands = $commands.append(
 						Transform({
-							children: Semantics.Range.from_start_and_length(command_start + 1, panel.commands.len()),
+							children: Semantics.IndexRange.from_start_and_length(command_start + 1, panel.commands.len()),
 							matrix: {
 								a: Layout.Unit.from_raw(1000),
 								b: Layout.Unit.from_raw(0),
@@ -372,7 +372,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 							FlowText(_) => {}
 							FlowPath({ fill, segments, stroke }) => {
 								path = Scene.PathId.from_index($paths.len())
-								$paths = $paths.append({ id: path, segments: Semantics.Range.from_start_and_length($path_segments.len(), segments.len()) })
+								$paths = $paths.append({ id: path, segments: Semantics.IndexRange.from_start_and_length($path_segments.len(), segments.len()) })
 								for segment in segments {
 									$path_segments = $path_segments.append(segment)
 								}
@@ -381,7 +381,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 						}
 					}
 					group = Scene.GroupId.from_index($groups.len())
-					$groups = $groups.append({ commands: Semantics.Range.from_start_and_length(command_start, 1), id: group, owner: PageArtifact(Decoration) })
+					$groups = $groups.append({ commands: Semantics.IndexRange.from_start_and_length(command_start, 1), id: group, owner: PageArtifact(Decoration) })
 					$page_groups = $page_groups.append(group)
 				}
 				$panel_cursor = $panel_cursor + 1
@@ -453,7 +453,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 					FigureDrawing({ drawing: figure_drawing, figure: figure_index, scale }) => {
 						$commands = $commands.append(
 							Transform({
-								children: Semantics.Range.from_start_and_length(command_start + 2, drawn),
+								children: Semantics.IndexRange.from_start_and_length(command_start + 2, drawn),
 								matrix: {
 									a: Layout.Unit.from_raw(scale.to_i64_wrap()),
 									b: Layout.Unit.from_raw(0),
@@ -467,7 +467,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 						$painted_figures = list_set($painted_figures, figure_index, True)
 						$commands = $commands.append(
 							Transform({
-								children: Semantics.Range.from_start_and_length(text_command, 1),
+								children: Semantics.IndexRange.from_start_and_length(text_command, 1),
 								matrix: {
 									a: Layout.Unit.from_raw(1000),
 									b: Layout.Unit.from_raw(0),
@@ -486,7 +486,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 								FlowText(_) => {}
 								FlowPath({ fill, segments, stroke }) => {
 									path = Scene.PathId.from_index($paths.len())
-									$paths = $paths.append({ id: path, segments: Semantics.Range.from_start_and_length($path_segments.len(), segments.len()) })
+									$paths = $paths.append({ id: path, segments: Semantics.IndexRange.from_start_and_length($path_segments.len(), segments.len()) })
 									for segment in segments {
 										$path_segments = $path_segments.append(segment)
 									}
@@ -499,7 +499,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 				if drawn == 0 {
 					$commands = $commands.append(
 						Transform({
-							children: Semantics.Range.from_start_and_length(text_command, 1),
+							children: Semantics.IndexRange.from_start_and_length(text_command, 1),
 							matrix: {
 								a: Layout.Unit.from_raw(1000),
 								b: Layout.Unit.from_raw(0),
@@ -527,7 +527,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 					Fragment(Semantics.FragmentId.from_index(fragment))
 				}
 				$groups = $groups.append({
-					commands: Semantics.Range.from_start_and_length(command_start, group_length),
+					commands: Semantics.IndexRange.from_start_and_length(command_start, group_length),
 					id: group,
 					owner,
 				})
@@ -543,12 +543,12 @@ build_arena_with_intent = |prepared, intent, limits| {
 					Err(_) => return Err(UnsupportedColor({ run: $placement_cursor }))
 				}
 				path = Scene.PathId.from_index($paths.len())
-				$paths = $paths.append({ id: path, segments: Semantics.Range.from_start_and_length($path_segments.len(), 1) })
+				$paths = $paths.append({ id: path, segments: Semantics.IndexRange.from_start_and_length($path_segments.len(), 1) })
 				$path_segments = $path_segments.append(Rectangle(rule.rect))
 				command = $commands.len()
 				$commands = $commands.append(DrawPath({ path, style: { fill: SolidFill({ color: fill, rule: Nonzero }), stroke: NoStroke } }))
 				group = Scene.GroupId.from_index($groups.len())
-				$groups = $groups.append({ commands: Semantics.Range.from_start_and_length(command, 1), id: group, owner: PageArtifact(Decoration) })
+				$groups = $groups.append({ commands: Semantics.IndexRange.from_start_and_length(command, 1), id: group, owner: PageArtifact(Decoration) })
 				$page_groups = $page_groups.append(group)
 				$rule_cursor = $rule_cursor + 1
 			} else if !backdrop_ready and $decoration_cursor < decoration_count and list_at(prepared.flow.decorations, $decoration_cursor).page == $page_index {
@@ -560,7 +560,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 				command_start = $commands.len()
 				$commands = $commands.append(
 					Transform({
-						children: Semantics.Range.from_start_and_length(command_start + 1, decoration.commands.len()),
+						children: Semantics.IndexRange.from_start_and_length(command_start + 1, decoration.commands.len()),
 						matrix: {
 							a: Layout.Unit.from_raw(1000),
 							b: Layout.Unit.from_raw(0),
@@ -579,7 +579,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 						FlowText(_) => {}
 						FlowPath({ fill, segments, stroke }) => {
 							path = Scene.PathId.from_index($paths.len())
-							$paths = $paths.append({ id: path, segments: Semantics.Range.from_start_and_length($path_segments.len(), segments.len()) })
+							$paths = $paths.append({ id: path, segments: Semantics.IndexRange.from_start_and_length($path_segments.len(), segments.len()) })
 							for segment in segments {
 								$path_segments = $path_segments.append(segment)
 							}
@@ -588,7 +588,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 					}
 				}
 				group = Scene.GroupId.from_index($groups.len())
-				$groups = $groups.append({ commands: Semantics.Range.from_start_and_length(command_start, 1), id: group, owner: PageArtifact(Decoration) })
+				$groups = $groups.append({ commands: Semantics.IndexRange.from_start_and_length(command_start, 1), id: group, owner: PageArtifact(Decoration) })
 				$page_groups = $page_groups.append(group)
 				$decoration_cursor = $decoration_cursor + 1
 			} else {
@@ -601,7 +601,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 				command_start = $commands.len()
 				$commands = $commands.append(
 					Transform({
-						children: Semantics.Range.from_start_and_length(command_start + 1, drawing.commands.len()),
+						children: Semantics.IndexRange.from_start_and_length(command_start + 1, drawing.commands.len()),
 						matrix: {
 							a: Layout.Unit.from_raw(1000),
 							b: Layout.Unit.from_raw(0),
@@ -619,7 +619,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 						}
 						DrawingPath({ fill, segments, stroke }) => {
 							path = Scene.PathId.from_index($paths.len())
-							$paths = $paths.append({ id: path, segments: Semantics.Range.from_start_and_length($path_segments.len(), segments.len()) })
+							$paths = $paths.append({ id: path, segments: Semantics.IndexRange.from_start_and_length($path_segments.len(), segments.len()) })
 							for segment in segments {
 								$path_segments = $path_segments.append(segment)
 							}
@@ -629,7 +629,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 					}
 				}
 				group = Scene.GroupId.from_index($groups.len())
-				$groups = $groups.append({ commands: Semantics.Range.from_start_and_length(command_start, 1), id: group, owner: PageArtifact(paint.kind) })
+				$groups = $groups.append({ commands: Semantics.IndexRange.from_start_and_length(command_start, 1), id: group, owner: PageArtifact(paint.kind) })
 				$page_groups = $page_groups.append(group)
 				$paint_cursor = $paint_cursor + 1
 			}
@@ -637,7 +637,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 		$pages = $pages.append({
 			boxes: { art: page_box, bleed: page_box, crop: page_box, media: page_box, trim: page_box },
 			id: page.id,
-			paint_order: Semantics.Range.from_start_and_length(paint_start, $page_groups.len() - paint_start),
+			paint_order: Semantics.IndexRange.from_start_and_length(paint_start, $page_groups.len() - paint_start),
 			rotation: Rotate0,
 		})
 		$page_index = $page_index + 1
@@ -1020,7 +1020,7 @@ has_nonblack_srgb = |styles| {
 	$found
 }
 
-range_fits : Semantics.Range, U64 -> Bool
+range_fits : Semantics.IndexRange, U64 -> Bool
 range_fits = |range, available| range.start() <= available and range.length() <= available - range.start()
 
 check_limit : U64, U64, KernelFacadeScenes.Dimension -> Try({}, KernelFacadeScenes.Error)

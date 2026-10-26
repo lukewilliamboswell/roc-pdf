@@ -71,7 +71,7 @@ def verify_profile(payload: bytes) -> list[tuple[int, int, int]]:
 def module_source(payload: bytes, tags: list[tuple[int, int, int]]) -> str:
     digest_values = ", ".join(str(value) for value in hashlib.sha256(payload).digest())
     tag_lines = "\n".join(
-        f"\t\t{{ bytes: Semantics.Range.from_start_and_length({offset}, {length}),"
+        f"\t\t{{ bytes: Semantics.IndexRange.from_start_and_length({offset}, {length}),"
         f" signature: Color.TagSignature.from_raw({signature}) }},"
         for signature, offset, length in tags
     )
@@ -112,7 +112,7 @@ def module_source(payload: bytes, tags: list[tuple[int, int, int]]) -> str:
         "\t\tbytes,\n"
         "\t\tcomponents: Three,\n"
         "\t\tid: Color.ProfileId.from_index(index),\n"
-        "\t\ttags: Semantics.Range.from_start_and_length(tag_start, tag_count),\n"
+        "\t\ttags: Semantics.IndexRange.from_start_and_length(tag_start, tag_count),\n"
         "\t\tversion: IccV2,\n"
         "\t}\n"
         "\n"

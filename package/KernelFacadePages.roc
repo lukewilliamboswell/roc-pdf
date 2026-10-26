@@ -86,13 +86,13 @@ KernelFacadePages :: [].{
 	## `leaves` normalized leaf blocks (the lead region's group).
 	FlowTemplate : { continuation : KernelPageLayout.Frame, first : KernelPageLayout.Frame, lead : [Lead({ frame : KernelPageLayout.Frame, leaves : U64 }), NoLead] }
 
-	FlowScope : { leaves : Semantics.Range, opening : KernelPageLayout.Frame, continuation : KernelPageLayout.Frame }
+	FlowScope : { leaves : Semantics.IndexRange, opening : KernelPageLayout.Frame, continuation : KernelPageLayout.Frame }
 
 	FlowSelection : [NoFlowTemplate, WithFlowTemplate(FlowTemplate), WithScopedFlow({ template : FlowTemplate, scopes : List(FlowScope) })]
 	MeasuredBlock : [
 		ContentlessCell,
 		EmptySourceLine({ source : U64, line : U64 }),
-		MeasuredText({ rows : Semantics.Range, size : Layout.Unit, leading : Layout.Unit, owner : Semantics.OccurrenceId, level : U64, body_offset : Layout.Unit, label : [NoLabel, Label({ rows : Semantics.Range, offset : Layout.Unit })] }),
+		MeasuredText({ rows : Semantics.IndexRange, size : Layout.Unit, leading : Layout.Unit, owner : Semantics.OccurrenceId, level : U64, body_offset : Layout.Unit, label : [NoLabel, Label({ rows : Semantics.IndexRange, offset : Layout.Unit })] }),
 	]
 	MeasuredInput : {
 		blocks : List(MeasuredBlock),
@@ -173,7 +173,7 @@ KernelFacadePages :: [].{
 	## the page layout's own pages and placements apply; a document with
 	## tables rebuilds them, one placement per painted cell line, and names
 	## its repeated-header rows (ascending row indexes) in `artifact_rows`.
-	SourceFragment : { source : U64, page : U64, lines : Semantics.Range, rect : Layout.Rect, part : [Whole, First, Middle, Last] }
+	SourceFragment : { source : U64, page : U64, lines : Semantics.IndexRange, rect : Layout.Rect, part : [Whole, First, Middle, Last] }
 
 	Plan :: {
 		callout_fragments : List(KernelPageLayout.ContainerFragment),
@@ -320,7 +320,7 @@ callout_containers = |authoring, group_frame, units, theme| {
 				first_block = group.first_block + if (facts.skip_caption) 1 else 0
 				first = if (units.is_empty()) first_block else list_at(units, first_block)
 				last = if (units.is_empty()) group.block_end else list_at(units, group.block_end - 1) + 1
-				$containers = $containers.append({ paint: facts.paint, blocks: Semantics.Range.from_start_and_length(first, last - first), padding: Layout.Unit.from_raw(facts.padding.to_i64_wrap()), offset: Layout.Unit.from_raw(facts.offset.to_i64_wrap()), width: Layout.Unit.from_raw(facts.width.to_i64_wrap()) })
+				$containers = $containers.append({ paint: facts.paint, blocks: Semantics.IndexRange.from_start_and_length(first, last - first), padding: Layout.Unit.from_raw(facts.padding.to_i64_wrap()), offset: Layout.Unit.from_raw(facts.offset.to_i64_wrap()), width: Layout.Unit.from_raw(facts.width.to_i64_wrap()) })
 			}
 		}
 		$group = $group + 1
@@ -556,7 +556,7 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 							$segment_length = segment_length(styles, $segment_start, body_index + body_run.physical.length())
 						}
 					}
-					runs = if (segmented) { physical: Semantics.Range.from_start_and_length($segment_start, $segment_length) } else body_run
+					runs = if (segmented) { physical: Semantics.IndexRange.from_start_and_length($segment_start, $segment_length) } else body_run
 					$visual_lines = $visual_lines.append(line)
 					$rows = $rows.append({ kind: ContentRow, body_line: body_line_index, body_offset, body_runs: runs, label })
 					$local = $local + 1
@@ -585,7 +585,7 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 							decoration: Layout.Unit.from_raw(0),
 							lead: Layout.Unit.from_raw(0),
 							leading: body_style.leading,
-							lines: Semantics.Range.from_start_and_length(visual_start, body_lines.lines.length()),
+							lines: Semantics.IndexRange.from_start_and_length(visual_start, body_lines.lines.length()),
 							owner: Content(semantic_occurrence(body_record, $block_index, body_index)?),
 							policy: {
 								break_before,
@@ -664,11 +664,11 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 ##
 ## `fill` is the row's theme fill and `body_rule` whether the theme's body
 ## rule separates it from the body row before it.
-RowInfo : { body_rule : Bool, cells : Semantics.Range, fill : Theme.TableFill, grid : U64, rule_above : Bool, rule_below : Bool, table : U64 }
+RowInfo : { body_rule : Bool, cells : Semantics.IndexRange, fill : Theme.TableFill, grid : U64, rule_above : Bool, rule_below : Bool, table : U64 }
 
 ## One table's repeat facts: its header row units, the height they and the
 ## gap after them reserve on a continuation page, and its width.
-TableInfo : { offset : U64, header_height : U64, header_units : Semantics.Range, width : U64 }
+TableInfo : { offset : U64, header_height : U64, header_units : Semantics.IndexRange, width : U64 }
 
 TableRuleStyle : [NoTableRule, TableRule({ color : Color.SourceValue, width : U64 })]
 
@@ -753,9 +753,9 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 	cell_geometry = KernelFacadeTables.Plan.cells(tables)
 	table_geometry = KernelFacadeTables.Plan.tables(tables)
 	table_sources = KernelFacadeTables.Plan.sources(tables)
-	synthetic = { advance: Layout.Unit.from_raw(0), clusters: Semantics.Range.from_start_and_length(0, 0), source: { scalars: Semantics.Range.from_start_and_length(0, 0), utf8_bytes: Semantics.Range.from_start_and_length(0, 0) } }
-	dummy_row = { kind: ContentRow, body_line: 0, body_offset: Layout.Unit.from_raw(0), body_runs: { physical: Semantics.Range.from_start_and_length(0, 0) }, label: NoLabel }
-	no_row = { body_rule: False, cells: Semantics.Range.from_start_and_length(0, 0), fill: NoFill, grid: 0, rule_above: False, rule_below: False, table: 0 }
+	synthetic = { advance: Layout.Unit.from_raw(0), clusters: Semantics.IndexRange.from_start_and_length(0, 0), source: { scalars: Semantics.IndexRange.from_start_and_length(0, 0), utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 0) } }
+	dummy_row = { kind: ContentRow, body_line: 0, body_offset: Layout.Unit.from_raw(0), body_runs: { physical: Semantics.IndexRange.from_start_and_length(0, 0) }, label: NoLabel }
+	no_row = { body_rule: False, cells: Semantics.IndexRange.from_start_and_length(0, 0), fill: NoFill, grid: 0, rule_above: False, rule_below: False, table: 0 }
 	var $visual_lines = []
 	var $line_rows = []
 	var $cell_rows = []
@@ -792,8 +792,8 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 						}
 						check_limit(checked_add($visual_lines.len(), 1)?, limits.max_rows, Rows)?
 						range = list_at(authoring.source_lines, source.lines.start() + logical)
-						$visual_lines = $visual_lines.append({ advance: Layout.Unit.from_raw(0), clusters: Semantics.Range.from_start_and_length(0, 0), source: range })
-						$line_rows = $line_rows.append({ kind: EmptySourceRow({ source: source_id, line: logical }), body_line: 0, body_offset: source_frame.offset, body_runs: { physical: Semantics.Range.from_start_and_length(0, 0) }, label: NoLabel })
+						$visual_lines = $visual_lines.append({ advance: Layout.Unit.from_raw(0), clusters: Semantics.IndexRange.from_start_and_length(0, 0), source: range })
+						$line_rows = $line_rows.append({ kind: EmptySourceRow({ source: source_id, line: logical }), body_line: 0, body_offset: source_frame.offset, body_runs: { physical: Semantics.IndexRange.from_start_and_length(0, 0) }, label: NoLabel })
 					}
 					TextBlock({ body, body_offset, label: NoLabel }) => {
 						check_limit(checked_add($visual_lines.len(), body.lines.length())?, limits.max_rows, Rows)?
@@ -821,7 +821,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 				decoration: leaf_decoration(flow_facts, group.first_block),
 				lead: Layout.Unit.from_raw(0),
 				leading: source.leading,
-				lines: Semantics.Range.from_start_and_length(visual_start, $visual_lines.len() - visual_start),
+				lines: Semantics.IndexRange.from_start_and_length(visual_start, $visual_lines.len() - visual_start),
 				owner: SourceBlock({ source: $source_cursor, padding: source.padding }),
 				policy: { break_before, keep_together: source.fragmentation == Unsplittable, keep_with_next: authored, minimum_first_lines: 1, minimum_last_lines: 1 },
 				space_after: Layout.Unit.from_raw(checked_add(paragraph_spacing, spaced.amount)?.to_i64_wrap()),
@@ -982,7 +982,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 					Footer => table_style.footer_fill
 					Body => if ($body_ordinal % 2 == 0) table_style.body_fills.odd else table_style.body_fills.even
 				}
-				$row_info = $row_info.append({ body_rule: section == Body and $body_ordinal > 0, cells: Semantics.Range.from_start_and_length(first_cell, $cell_cursor - first_cell), fill, grid: $grid, rule_above: first_footer, rule_below: last_header, table: $table_cursor })
+				$row_info = $row_info.append({ body_rule: section == Body and $body_ordinal > 0, cells: Semantics.IndexRange.from_start_and_length(first_cell, $cell_cursor - first_cell), fill, grid: $grid, rule_above: first_footer, rule_below: last_header, table: $table_cursor })
 				if section == Body {
 					$body_ordinal = $body_ordinal + 1
 				}
@@ -991,7 +991,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 					decoration: leaf_decoration(flow_facts, row.first_block),
 					lead: Layout.Unit.from_raw(lead.to_i64_wrap()),
 					leading: Layout.Unit.from_raw($leading.to_i64_wrap()),
-					lines: Semantics.Range.from_start_and_length(visual_start, $grid),
+					lines: Semantics.IndexRange.from_start_and_length(visual_start, $grid),
 					owner: Content($occurrence),
 					policy: {
 						break_before: $pending_break,
@@ -1010,10 +1010,10 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 				$row_group = $row_group + 1
 			}
 			if table.footer_rows > 1 {
-				$footer_groups = $footer_groups.append({ blocks: Semantics.Range.from_start_and_length($units.len() - table.footer_rows, table.footer_rows) })
+				$footer_groups = $footer_groups.append({ blocks: Semantics.IndexRange.from_start_and_length($units.len() - table.footer_rows, table.footer_rows) })
 				$footer_sources = $footer_sources.append(FooterRows({ first: group.group_end - table.footer_rows, last: group.group_end - 1 }))
 			}
-			$table_info = $table_info.append({ offset: list_at(table_geometry, $table_cursor).offset, header_height: $header_height, header_units: Semantics.Range.from_start_and_length(header_first, table.header_rows), width: list_at(table_geometry, $table_cursor).width })
+			$table_info = $table_info.append({ offset: list_at(table_geometry, $table_cursor).offset, header_height: $header_height, header_units: Semantics.IndexRange.from_start_and_length(header_first, table.header_rows), width: list_at(table_geometry, $table_cursor).width })
 			$table_cursor = $table_cursor + 1
 			$block_index = group.block_end
 		} else {
@@ -1215,7 +1215,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 					is_first = fragment.lines.start() == unit_block.lines.start()
 					is_last = range_end(fragment.lines)? == range_end(unit_block.lines)?
 					part = if (is_first and is_last) Whole else if (is_first) First else if (is_last) Last else Middle
-					$source_fragments = $source_fragments.append({ source: source_id, page: page_index, lines: Semantics.Range.from_start_and_length(fragment.lines.start() - unit_block.lines.start(), taken), rect, part })
+					$source_fragments = $source_fragments.append({ source: source_id, page: page_index, lines: Semantics.IndexRange.from_start_and_length(fragment.lines.start() - unit_block.lines.start(), taken), rect, part })
 					match source.background {
 						NoBackground => {}
 						Background(color) => {
@@ -1281,7 +1281,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 		}
 		$rules = close_segment($rules, frame, $segment, page_index, margin_left, $table_info)
 		$segment = NoSegment
-		$pages = $pages.append({ ..layout_page, placements: Semantics.Range.from_start_and_length(placement_start, $placements.len() - placement_start) })
+		$pages = $pages.append({ ..layout_page, placements: Semantics.IndexRange.from_start_and_length(placement_start, $placements.len() - placement_start) })
 	}
 	check_limit($rows.len(), limits.max_rows, Rows)?
 	decorations = decoration_paints(authoring, KernelPageLayout.Plan.bands(page), $unit_of_block, margin_left)?
@@ -1358,7 +1358,7 @@ table_leaf_unit = |at, block_index, buffers| {
 						$segment_length = segment_length(at.styles, $segment_start, body_index + body_run.physical.length())
 					}
 				}
-				runs = if (segmented) { physical: Semantics.Range.from_start_and_length($segment_start, $segment_length) } else body_run
+				runs = if (segmented) { physical: Semantics.IndexRange.from_start_and_length($segment_start, $segment_length) } else body_run
 				$visual_lines = $visual_lines.append(line)
 				$rows = $rows.append({ kind: ContentRow, body_line: body_line_index, body_offset, body_runs: runs, label })
 				$local = $local + 1
@@ -1369,7 +1369,7 @@ table_leaf_unit = |at, block_index, buffers| {
 					decoration: Layout.Unit.from_raw(0),
 					lead: Layout.Unit.from_raw(0),
 					leading: body_style.leading,
-					lines: Semantics.Range.from_start_and_length(visual_start, body_lines.lines.length()),
+					lines: Semantics.IndexRange.from_start_and_length(visual_start, body_lines.lines.length()),
 					owner: Content(semantic_occurrence(body_record, block_index, body_index)?),
 					policy: { break_before: False, keep_together: False, keep_with_next: NoKeep, minimum_first_lines: 1, minimum_last_lines: 1 },
 					space_after: Layout.Unit.from_raw(0),
@@ -1392,7 +1392,7 @@ table_leaf_unit = |at, block_index, buffers| {
 ## line's visible advance inside the cell's text box. A line that ends at a
 ## soft break carries the spaces before it in its advance; end and center
 ## alignment measure the line without them.
-append_cell_rows : List(KernelFacadePages.Row), { body_lines : Semantics.Range, body_run : KernelFacadeShape.LogicalRun, geometry : KernelFacadeTables.CellGeometry, lines : List(KernelLineLayout.Line), requests : List(KernelShape.SimpleRequest), styles : List(KernelFacadeShape.RunStyle), sources : List(KernelFacadeSources.Source), store : Text.Store }, U64 -> Try(List(KernelFacadePages.Row), KernelFacadePages.Error)
+append_cell_rows : List(KernelFacadePages.Row), { body_lines : Semantics.IndexRange, body_run : KernelFacadeShape.LogicalRun, geometry : KernelFacadeTables.CellGeometry, lines : List(KernelLineLayout.Line), requests : List(KernelShape.SimpleRequest), styles : List(KernelFacadeShape.RunStyle), sources : List(KernelFacadeSources.Source), store : Text.Store }, U64 -> Try(List(KernelFacadePages.Row), KernelFacadePages.Error)
 append_cell_rows = |rows, at, block| {
 	body_run = at.body_run
 	body_index = body_run.physical.start()
@@ -1414,7 +1414,7 @@ append_cell_rows = |rows, at, block| {
 				$segment_length = segment_length(at.styles, $segment_start, body_end)
 			}
 		}
-		runs = if (segmented) { physical: Semantics.Range.from_start_and_length($segment_start, $segment_length) } else body_run
+		runs = if (segmented) { physical: Semantics.IndexRange.from_start_and_length($segment_start, $segment_length) } else body_run
 		offset = match at.geometry.align {
 			Start => at.geometry.x
 			alignment => {
@@ -1502,7 +1502,7 @@ append_rule = |rules, rule, page, x, width, center| match rule {
 ## The column rules of one row: one centered on each boundary between
 ## adjacent cells (a cell box is its text box widened by the padding on
 ## both sides), from half the row gap below the row to half above it.
-append_column_rules : List(KernelFacadePages.Rule), TableRuleStyle, List(KernelFacadeTables.CellGeometry), Semantics.Range, { bottom : U64, gap : U64, padding : U64, page : U64, top : U64, x : U64 } -> List(KernelFacadePages.Rule)
+append_column_rules : List(KernelFacadePages.Rule), TableRuleStyle, List(KernelFacadeTables.CellGeometry), Semantics.IndexRange, { bottom : U64, gap : U64, padding : U64, page : U64, top : U64, x : U64 } -> List(KernelFacadePages.Rule)
 append_column_rules = |rules, rule, geometry, range, box| match rule {
 	NoTableRule => rules
 	TableRule({ color, width: thickness }) => {
@@ -1589,7 +1589,7 @@ append_fill = |fills, fill, page, box| match fill {
 
 ## The fills of a row's own shaded cells, each across its cell box: its
 ## text box widened by the cell padding on both sides.
-append_cell_fills : List(KernelFacadePages.Rule), Document.NormalizedAuthoring, List(KernelFacadeTables.CellGeometry), Semantics.Range, { bottom : U64, gap : U64, padding : U64, page : U64, top : U64, x : U64 } -> List(KernelFacadePages.Rule)
+append_cell_fills : List(KernelFacadePages.Rule), Document.NormalizedAuthoring, List(KernelFacadeTables.CellGeometry), Semantics.IndexRange, { bottom : U64, gap : U64, padding : U64, page : U64, top : U64, x : U64 } -> List(KernelFacadePages.Rule)
 append_cell_fills = |fills, authoring, geometry, range, box| {
 	cells = authoring.cells
 	var $fills = fills
@@ -1658,7 +1658,7 @@ unit_groups = |authoring, unit_of_block| {
 				if !is_splittable_callout(authoring, group.kind) {
 					first = list_at(unit_of_block, group.first_block)
 					last = list_at(unit_of_block, group.block_end - 1)
-					$together = $together.append({ blocks: Semantics.Range.from_start_and_length(first, last + 1 - first) })
+					$together = $together.append({ blocks: Semantics.IndexRange.from_start_and_length(first, last + 1 - first) })
 				}
 			}
 			_ => {}
@@ -1769,7 +1769,7 @@ together_groups = |authoring| {
 		match group.kind {
 			KeepTogether | Custom(_) | Callout(_) => {
 				if !is_splittable_callout(authoring, group.kind) {
-					$together = $together.append({ blocks: Semantics.Range.from_start_and_length(group.first_block, group.block_end - group.first_block) })
+					$together = $together.append({ blocks: Semantics.IndexRange.from_start_and_length(group.first_block, group.block_end - group.first_block) })
 				}
 			}
 			_ => {}
@@ -1920,7 +1920,7 @@ outermost_list = |groups, code| {
 	$found
 }
 
-range_end : Semantics.Range -> Try(U64, KernelFacadePages.Error)
+range_end : Semantics.IndexRange -> Try(U64, KernelFacadePages.Error)
 range_end = |range| checked_add(range.start(), range.length())
 
 ## The flow drawings' layout facts before pagination: `decorations[b]` is
@@ -2281,7 +2281,7 @@ expect keeps_together(Title) and keeps_with_next(Heading(2)) and !keeps_together
 
 expect {
 	authoring = Document.normalize(Document.from_blocks({ contents: [Document.bullets(["One", "Two"]), Document.paragraph("Three")], language: "en-AU", title: "Lists" }))
-	runs = List.repeat(TextBlock({ body: { physical: Semantics.Range.from_start_and_length(0, 1) }, label: NoLabel, level: 1 }), 3)
+	runs = List.repeat(TextBlock({ body: { physical: Semantics.IndexRange.from_start_and_length(0, 1) }, label: NoLabel, level: 1 }), 3)
 	continues_list(authoring, runs, 0, 1) and !continues_list(authoring, runs, 1, 1)
 }
 
@@ -2291,7 +2291,7 @@ expect {
 	item = |text| Document.list_item([Document.paragraph(text)])
 	nested = Document.bullet_list([Document.list_item([Document.paragraph("One"), Document.bullet_list([item("Two")])]), item("Three")])
 	authoring = Document.normalize(Document.from_blocks({ contents: [nested, Document.paragraph("After")], language: "en-AU", title: "Lists" }))
-	runs = [1, 2, 1, 0].map(|level| TextBlock({ body: { physical: Semantics.Range.from_start_and_length(0, 1) }, label: NoLabel, level }))
+	runs = [1, 2, 1, 0].map(|level| TextBlock({ body: { physical: Semantics.IndexRange.from_start_and_length(0, 1) }, label: NoLabel, level }))
 	continues_list(authoring, runs, 0, 1) and continues_list(authoring, runs, 1, 2) and !continues_list(authoring, runs, 2, 1)
 }
 
@@ -2345,7 +2345,7 @@ layout_scopes = |flow, unit_of_block| match flow {
 			last = first + scope.leaves.length()
 			start = if (unit_of_block.is_empty()) first else list_at(unit_of_block, first)
 			end = if (unit_of_block.is_empty()) last else list_at(unit_of_block, last - 1) + 1
-			$scopes = $scopes.append({ blocks: Semantics.Range.from_start_and_length(start, end - start), opening: scope.opening, continuation: scope.continuation })
+			$scopes = $scopes.append({ blocks: Semantics.IndexRange.from_start_and_length(start, end - start), opening: scope.opening, continuation: scope.continuation })
 		}
 		$scopes
 	}
@@ -2528,7 +2528,7 @@ build_measured = |authoring, input, page_size, theme, flow, limits| {
 	author_keeps = authored_keeps(authoring.groups, input.blocks.len())
 	gap = nonnegative_raw(theme.table.row_gap)?
 	spacing = nonnegative_raw(theme.paragraph_spacing)?
-	no_row = { body_rule: False, cells: Semantics.Range.from_start_and_length(0, 0), fill: NoFill, grid: 0, rule_above: False, rule_below: False, table: 0 }
+	no_row = { body_rule: False, cells: Semantics.IndexRange.from_start_and_length(0, 0), fill: NoFill, grid: 0, rule_above: False, rule_below: False, table: 0 }
 	var $blocks = []
 	var $units = []
 	var $grid_rows = []
@@ -2580,7 +2580,7 @@ build_measured = |authoring, input, page_size, theme, flow, limits| {
 				$break = $break + 1
 			}
 			keep = if (author_keeps.is_empty()) NoKeep else list_at(author_keeps, group.block_end - 1)
-			$blocks = $blocks.append({ baseline_offset: source.size, leading: source.leading, decoration: leaf_decoration(flow_facts, $index), lead: Layout.Unit.from_raw(0), trailing: Layout.Unit.from_raw(0), lines: Semantics.Range.from_start_and_length(start, $grid_rows.len() - start), owner: SourceBlock({ source: $source, padding: source.padding }), policy: { break_before, keep_together: source.fragmentation == Unsplittable, keep_with_next: keep, minimum_first_lines: 1, minimum_last_lines: 1 }, space_after: Layout.Unit.from_raw(checked_add(spacing, spaced.amount)?.to_i64_wrap()) })
+			$blocks = $blocks.append({ baseline_offset: source.size, leading: source.leading, decoration: leaf_decoration(flow_facts, $index), lead: Layout.Unit.from_raw(0), trailing: Layout.Unit.from_raw(0), lines: Semantics.IndexRange.from_start_and_length(start, $grid_rows.len() - start), owner: SourceBlock({ source: $source, padding: source.padding }), policy: { break_before, keep_together: source.fragmentation == Unsplittable, keep_with_next: keep, minimum_first_lines: 1, minimum_last_lines: 1 }, space_after: Layout.Unit.from_raw(checked_add(spacing, spaced.amount)?.to_i64_wrap()) })
 			$units = $units.append(SourceUnit($source))
 			$row_info = $row_info.append(no_row)
 			$source = $source + 1
@@ -2695,12 +2695,12 @@ build_measured = |authoring, input, page_size, theme, flow, limits| {
 					Footer => theme.table.footer_fill
 					Body => if ($ordinal % 2 == 0) theme.table.body_fills.odd else theme.table.body_fills.even
 				}
-				$row_info = $row_info.append({ body_rule: section == Body and $ordinal > 0, cells: Semantics.Range.from_start_and_length(first_cell, $cell - first_cell), fill, grid: $grid, rule_above: first_footer, rule_below: last_header, table: $table })
+				$row_info = $row_info.append({ body_rule: section == Body and $ordinal > 0, cells: Semantics.IndexRange.from_start_and_length(first_cell, $cell - first_cell), fill, grid: $grid, rule_above: first_footer, rule_below: last_header, table: $table })
 				if section == Body {
 					$ordinal = $ordinal + 1
 				}
 				minimum = U64.min(2, $grid)
-				$blocks = $blocks.append({ baseline_offset: Layout.Unit.from_raw($size.to_i64_wrap()), leading: Layout.Unit.from_raw($leading.to_i64_wrap()), lines: Semantics.Range.from_start_and_length(start, $grid), owner: Content($owner), decoration: leaf_decoration(flow_facts, row.first_block), trailing: Layout.Unit.from_raw(0), lead: Layout.Unit.from_raw((if (section == Header) 0 else $header_height).to_i64_wrap()), policy: { break_before: $pending_break, keep_together: section != Body or table.row_split == KeepRows, keep_with_next: keep, minimum_first_lines: minimum, minimum_last_lines: minimum }, space_after: Layout.Unit.from_raw(space.to_i64_wrap()) })
+				$blocks = $blocks.append({ baseline_offset: Layout.Unit.from_raw($size.to_i64_wrap()), leading: Layout.Unit.from_raw($leading.to_i64_wrap()), lines: Semantics.IndexRange.from_start_and_length(start, $grid), owner: Content($owner), decoration: leaf_decoration(flow_facts, row.first_block), trailing: Layout.Unit.from_raw(0), lead: Layout.Unit.from_raw((if (section == Header) 0 else $header_height).to_i64_wrap()), policy: { break_before: $pending_break, keep_together: section != Body or table.row_split == KeepRows, keep_with_next: keep, minimum_first_lines: minimum, minimum_last_lines: minimum }, space_after: Layout.Unit.from_raw(space.to_i64_wrap()) })
 				$units = $units.append(RowUnit($row_group))
 				$pending_break = False
 				if section == Header {
@@ -2709,10 +2709,10 @@ build_measured = |authoring, input, page_size, theme, flow, limits| {
 				$row_group = $row_group + 1
 			}
 			if table.footer_rows > 1 {
-				$footer_groups = $footer_groups.append({ blocks: Semantics.Range.from_start_and_length($units.len() - table.footer_rows, table.footer_rows) })
+				$footer_groups = $footer_groups.append({ blocks: Semantics.IndexRange.from_start_and_length($units.len() - table.footer_rows, table.footer_rows) })
 				$footer_sources = $footer_sources.append(FooterRows({ first: group.group_end - table.footer_rows, last: group.group_end - 1 }))
 			}
-			$table_info = $table_info.append({ offset: table_geometry.offset, width: table_geometry.width, header_height: $header_height, header_units: Semantics.Range.from_start_and_length(header_first, table.header_rows) })
+			$table_info = $table_info.append({ offset: table_geometry.offset, width: table_geometry.width, header_height: $header_height, header_units: Semantics.IndexRange.from_start_and_length(header_first, table.header_rows) })
 			$table = $table + 1
 			$index = group.block_end
 		} else {
@@ -2768,7 +2768,7 @@ build_measured = |authoring, input, page_size, theme, flow, limits| {
 	Ok(KernelFacadePages.Measured.({ choice, continuation_top, blocks: $blocks, units: $units, unit_of_block: $unit_of_block, grid_rows: $grid_rows, row_info: $row_info, table_info: $table_info, flow: flow_facts }))
 }
 
-MeasuredTextInfo : { rows : Semantics.Range, size : Layout.Unit, leading : Layout.Unit, owner : Semantics.OccurrenceId, level : U64, body_offset : Layout.Unit, label : [NoLabel, Label({ rows : Semantics.Range, offset : Layout.Unit })] }
+MeasuredTextInfo : { rows : Semantics.IndexRange, size : Layout.Unit, leading : Layout.Unit, owner : Semantics.OccurrenceId, level : U64, body_offset : Layout.Unit, label : [NoLabel, Label({ rows : Semantics.IndexRange, offset : Layout.Unit })] }
 
 measured_text : KernelFacadePages.MeasuredBlock, U64 -> Try(MeasuredTextInfo, KernelFacadePages.Error)
 measured_text = |block, index| match block {
@@ -2783,7 +2783,7 @@ measured_row_count = |block| match block {
 }
 
 measured_leaf : MeasuredTextInfo, U64 -> KernelPageLayout.Block
-measured_leaf = |text, start| { baseline_offset: text.size, leading: text.leading, lines: Semantics.Range.from_start_and_length(start, text.rows.length()), owner: Content(text.owner), decoration: Layout.Unit.from_raw(0), lead: Layout.Unit.from_raw(0), trailing: Layout.Unit.from_raw(0), policy: { break_before: False, keep_together: False, keep_with_next: NoKeep, minimum_first_lines: U64.min(2, text.rows.length()), minimum_last_lines: U64.min(2, text.rows.length()) }, space_after: Layout.Unit.from_raw(0) }
+measured_leaf = |text, start| { baseline_offset: text.size, leading: text.leading, lines: Semantics.IndexRange.from_start_and_length(start, text.rows.length()), owner: Content(text.owner), decoration: Layout.Unit.from_raw(0), lead: Layout.Unit.from_raw(0), trailing: Layout.Unit.from_raw(0), policy: { break_before: False, keep_together: False, keep_with_next: NoKeep, minimum_first_lines: U64.min(2, text.rows.length()), minimum_last_lines: U64.min(2, text.rows.length()) }, space_after: Layout.Unit.from_raw(0) }
 
 measured_continues_list : Document.NormalizedAuthoring, List(KernelFacadePages.MeasuredBlock), U64, U64 -> Bool
 measured_continues_list = |authoring, blocks, index, level| {
@@ -2805,7 +2805,7 @@ measured_continues_list = |authoring, blocks, index, level| {
 
 expect {
 	authoring = Document.normalize(Document.from_blocks({ contents: [Document.paragraph("Measured paragraph")], language: "en-AU", title: "Geometry" }))
-	input = { blocks: [MeasuredText({ rows: Semantics.Range.from_start_and_length(0, 100), size: Layout.Unit.points(11), leading: Layout.Unit.points(14), owner: Semantics.OccurrenceId.from_index(0), level: 0, body_offset: Layout.Unit.points(0), label: NoLabel })], cells: [], tables: [], group_frames: [], source_frames: [], figure_frames: [] }
+	input = { blocks: [MeasuredText({ rows: Semantics.IndexRange.from_start_and_length(0, 100), size: Layout.Unit.points(11), leading: Layout.Unit.points(14), owner: Semantics.OccurrenceId.from_index(0), level: 0, body_offset: Layout.Unit.points(0), label: NoLabel })], cells: [], tables: [], group_frames: [], source_frames: [], figure_frames: [] }
 	limits = KernelFacadePages.Limits.make({ max_blocks: 10, max_rows: 100, page: KernelPageLayout.Limits.make({ max_blocks: 10, max_fragments: 10, max_lines: 100, max_pages: 10, max_placements: 100 }) })
 	page = { height: Layout.Unit.points(842), width: Layout.Unit.points(595) }
 	plan = KernelFacadePages.Measured.build(authoring, input, page, Theme.{ page_margin: { bottom: 48, top: 48, left: 56, right: 56 } }, NoFlowTemplate, limits)?
@@ -2822,7 +2822,7 @@ measured_header_frame_test = |kind| {
 	contents = if (kind == Scoped) [Document.page_scope({}, [table])] else [table]
 	authoring = Document.normalize(Document.from_blocks({ contents, language: "en", title: "Measured header frames" }))
 	input = {
-		blocks: [0, 1, 2, 3, 4].map(|index| MeasuredText({ rows: Semantics.Range.from_start_and_length(index, 1), size: Layout.Unit.points(11), leading: Layout.Unit.points(14), owner: Semantics.OccurrenceId.from_index(index), level: 0, body_offset: Layout.Unit.points(0), label: NoLabel })),
+		blocks: [0, 1, 2, 3, 4].map(|index| MeasuredText({ rows: Semantics.IndexRange.from_start_and_length(index, 1), size: Layout.Unit.points(11), leading: Layout.Unit.points(14), owner: Semantics.OccurrenceId.from_index(index), level: 0, body_offset: Layout.Unit.points(0), label: NoLabel })),
 		cells: authoring.cells.map(|cell| { offset: 0, align: Start, block: cell.block, width: 72000, x: 4000 }),
 		tables: [{ offset: 0, columns: [80000], group: if (kind == Scoped) 1 else 0, width: 80000 }],
 		group_frames: List.repeat({ offset: 0, width: 80000 }, authoring.groups.len()),
@@ -2834,7 +2834,7 @@ measured_header_frame_test = |kind| {
 	flow = match kind {
 		Plain => NoFlowTemplate
 		Template => WithFlowTemplate({ first, continuation: next, lead: NoLead })
-		Scoped => WithScopedFlow({ template: { first, continuation: first, lead: NoLead }, scopes: [{ leaves: Semantics.Range.from_start_and_length(0, 5), opening: first, continuation: next }] })
+		Scoped => WithScopedFlow({ template: { first, continuation: first, lead: NoLead }, scopes: [{ leaves: Semantics.IndexRange.from_start_and_length(0, 5), opening: first, continuation: next }] })
 	}
 	theme : Theme
 	theme = { body: { size: 11, leading: 14 }, page_margin: { top: 10, bottom: 10, left: 10, right: 10 } }
@@ -3000,7 +3000,7 @@ paint_measured = |plan, authoring, input, advances, page_size, theme, limits| {
 							is_first = first_grid == 0
 							is_last = first_grid + taken == unit_block.lines.length()
 							part = if (is_first and is_last) Whole else if (is_first) First else if (is_last) Last else Middle
-							$sources = $sources.append({ source: source_id, page: page_index, lines: Semantics.Range.from_start_and_length(first_grid, taken), rect, part })
+							$sources = $sources.append({ source: source_id, page: page_index, lines: Semantics.IndexRange.from_start_and_length(first_grid, taken), rect, part })
 							match source.background {
 								NoBackground => {}
 								Background(color) => {

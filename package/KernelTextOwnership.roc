@@ -68,7 +68,7 @@ RunOwner := [ArtifactOwned, Owned(Semantics.FragmentId), Unowned]
 
 ArtifactText := [AcceptArtifactText, RejectArtifactText]
 
-Frame := { range : Semantics.Range }
+Frame := { range : Semantics.IndexRange }
 
 Collected := { command_visits : U64, group_visits : U64, owners : List(RunOwner) }
 

@@ -38,7 +38,7 @@ Color :: [].{
 	ProfileVersion : [IccV2, IccV4]
 
 	IccTag : {
-		bytes : Semantics.Range,
+		bytes : Semantics.IndexRange,
 		signature : TagSignature,
 	}
 
@@ -47,7 +47,7 @@ Color :: [].{
 		bytes : List(U8),
 		components : ComponentCount,
 		id : ProfileId,
-		tags : Semantics.Range,
+		tags : Semantics.IndexRange,
 		version : ProfileVersion,
 	}
 

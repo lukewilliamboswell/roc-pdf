@@ -78,11 +78,11 @@ rect = |x, y, width, height| { origin: { x: unit(x), y: unit(y) }, size: { heigh
 translate : I64, I64 -> Scene.Matrix
 translate = |x, y| { a: unit(1000), b: unit(0), c: unit(0), d: unit(1000), e: unit(x), f: unit(y) }
 
-empty_range : Semantics.Range
-empty_range = Semantics.Range.from_start_and_length(0, 0)
+empty_range : Semantics.IndexRange
+empty_range = Semantics.IndexRange.from_start_and_length(0, 0)
 
-span : U64, U64 -> Semantics.Range
-span = |start, length| Semantics.Range.from_start_and_length(start, length)
+span : U64, U64 -> Semantics.IndexRange
+span = |start, length| Semantics.IndexRange.from_start_and_length(start, length)
 
 page_box : Layout.Rect
 page_box = rect(0, 0, 100000, 100000)

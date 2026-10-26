@@ -254,7 +254,7 @@ code_holds_document = |count, inline| {
 ## The lines of `document` that end strictly inside one of `ranges`: for
 ## each leaf block, its scalar ranges (per source) and every line but the
 ## last of each explicit-line-break segment.
-lines_ending_inside : Document, (Document.NormalizedAuthoring, KernelFacadeShape.Plan, U64, List(KernelFacadeSources.Source) -> List(Semantics.Range)) -> Try({ holds : U64, inside : U64 }, Fixture.EvidenceError)
+lines_ending_inside : Document, (Document.NormalizedAuthoring, KernelFacadeShape.Plan, U64, List(KernelFacadeSources.Source) -> List(Semantics.IndexRange)) -> Try({ holds : U64, inside : U64 }, Fixture.EvidenceError)
 lines_ending_inside = |document, ranges_of| {
 	authoring = Document.normalize(document)
 	semantics = KernelFacadeSemantics.Plan.build(authoring, semantic_limits) ? |_| EvidenceFailure
@@ -298,14 +298,14 @@ lines_ending_inside = |document, ranges_of| {
 
 ## The scalar range of `held_identifier` in a block's source, if the block
 ## holds it. The document's text is ASCII, so bytes are scalars.
-identifier_ranges : Document.NormalizedAuthoring, KernelFacadeShape.Plan, U64, List(KernelFacadeSources.Source) -> List(Semantics.Range)
+identifier_ranges : Document.NormalizedAuthoring, KernelFacadeShape.Plan, U64, List(KernelFacadeSources.Source) -> List(Semantics.IndexRange)
 identifier_ranges = |authoring, _shape, block, _sources| {
 	bytes = list_at(authoring.blocks, block).text.to_utf8()
 	needle = held_identifier.to_utf8()
 	var $start = 0
 	while $start + needle.len() <= bytes.len() {
 		if bytes.sublist({ start: $start, len: needle.len() }) == needle {
-			return [Semantics.Range.from_start_and_length($start, needle.len())]
+			return [Semantics.IndexRange.from_start_and_length($start, needle.len())]
 		}
 		$start = $start + 1
 	}

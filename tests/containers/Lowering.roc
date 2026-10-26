@@ -153,7 +153,7 @@ text_scene : Scene.Store
 text_scene = {
 	commands: [
 		Transform({
-			children: Semantics.Range.from_start_and_length(1, 1),
+			children: Semantics.IndexRange.from_start_and_length(1, 1),
 			matrix: { a: Layout.Unit.from_raw(1000), b: Layout.Unit.from_raw(0), c: Layout.Unit.from_raw(0), d: Layout.Unit.from_raw(1000), e: Layout.Unit.from_raw(72000), f: Layout.Unit.from_raw(700000) },
 		}),
 		DrawText({
@@ -167,13 +167,13 @@ text_scene = {
 		}),
 	],
 	dash_lengths: [],
-	groups: [{ commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
+	groups: [{ commands: Semantics.IndexRange.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
 	page_groups: [Scene.GroupId.from_index(0)],
 	pages: [
 		{
 			boxes: { art: a4_box, bleed: a4_box, crop: a4_box, media: a4_box, trim: a4_box },
 			id: Semantics.PageId.from_index(0),
-			paint_order: Semantics.Range.from_start_and_length(0, 1),
+			paint_order: Semantics.IndexRange.from_start_and_length(0, 1),
 			rotation: Rotate0,
 		},
 	],
@@ -196,14 +196,14 @@ source = "Café PDF"
 
 source_range : Semantics.TextRange
 source_range = {
-	scalars: Semantics.Range.from_start_and_length(0, 8),
-	utf8_bytes: Semantics.Range.from_start_and_length(0, 9),
+	scalars: Semantics.IndexRange.from_start_and_length(0, 8),
+	utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 9),
 }
 
-range : U64, U64 -> Semantics.Range
-range = |start, length| Semantics.Range.from_start_and_length(start, length)
+range : U64, U64 -> Semantics.IndexRange
+range = |start, length| Semantics.IndexRange.from_start_and_length(start, length)
 
-node : { attributes : Semantics.Range, content : Semantics.Range, element : [HasElementIdentifier(Semantics.ElementId), NoElementIdentifier], index : U64, language : Semantics.Language, parent : U64, properties : Semantics.Range, role : Str } -> Semantics.Node
+node : { attributes : Semantics.IndexRange, content : Semantics.IndexRange, element : [HasElementIdentifier(Semantics.ElementId), NoElementIdentifier], index : U64, language : Semantics.Language, parent : U64, properties : Semantics.IndexRange, role : Str } -> Semantics.Node
 node = |spec| {
 	attributes: spec.attributes,
 	content: spec.content,

@@ -324,9 +324,9 @@ KernelForm :: [].{
 		shadings : List(U64),
 	}
 
-	CanonicalForm : { bbox : Layout.Rect, commands : Semantics.Range, representative : U64 }
+	CanonicalForm : { bbox : Layout.Rect, commands : Semantics.IndexRange, representative : U64 }
 
-	CanonicalPattern : { bbox : Layout.Rect, commands : Semantics.Range, matrix : Scene.Matrix, representative : U64, x_step : Layout.Unit, y_step : Layout.Unit }
+	CanonicalPattern : { bbox : Layout.Rect, commands : Semantics.IndexRange, matrix : Scene.Matrix, representative : U64, x_step : Layout.Unit, y_step : Layout.Unit }
 
 	## The emitted facts of one canonical shading: its geometry and extend
 	## flags from the representative authored shading, the canonical ordinal
@@ -619,7 +619,7 @@ UseState := {
 	touched : List(U64),
 }
 
-WalkFrame := { range : Semantics.Range }
+WalkFrame := { range : Semantics.IndexRange }
 
 ## The dense node-space bases the use walker touches derived and paint nodes
 ## through; all three are arithmetic offsets over one fixed kind order.
@@ -636,7 +636,7 @@ opaque_alpha = 65535
 state_sentinel : U64
 state_sentinel = U64.highest
 
-OpacityFrame := { alpha : U64, depth : U64, mask : Bool, range : Semantics.Range }
+OpacityFrame := { alpha : U64, depth : U64, mask : Bool, range : Semantics.IndexRange }
 
 ## Ambient facts at one form placement site: whether a non-identity constant
 ## alpha and whether a soft mask is active there.
@@ -735,7 +735,7 @@ register_mask = |registry, form| {
 ## transparency facts. One stream context supports at most one active mask,
 ## so a soft-mask group under another is rejected here, and a mask must name
 ## an isolated-group form.
-walk_opacity : OpacityArena, OpacityRegistry, Semantics.Range, List(Scene.Command), List(Bool), List(Bool), U64 -> Try(OpacityWalkResult, KernelForm.Error)
+walk_opacity : OpacityArena, OpacityRegistry, Semantics.IndexRange, List(Scene.Command), List(Bool), List(Bool), U64 -> Try(OpacityWalkResult, KernelForm.Error)
 walk_opacity = |arena_state, registry, root, arena, image_alpha, isolated, max_depth| {
 	var $states = arena_state.states
 	var $ambient = arena_state.ambient
@@ -1905,7 +1905,7 @@ resolve_transparency = |counts, form_count, order, facts| {
 ## derived graphics-state node the opacity pre-pass assigned to the command;
 ## opaque groups carry no state and contribute only their children. Shading
 ## paints and pattern fills touch their paint nodes through the same bases.
-collect_range_uses : UseState, Semantics.Range, List(Scene.Command), KernelForm.Counts, TextInput, List(U64), NodeBases -> Try(UseState, KernelForm.Error)
+collect_range_uses : UseState, Semantics.IndexRange, List(Scene.Command), KernelForm.Counts, TextInput, List(U64), NodeBases -> Try(UseState, KernelForm.Error)
 collect_range_uses = |initial, root, arena, counts, text, command_states, bases| {
 	var $state = initial
 	var $frames = [WalkFrame.{ range: root }]
@@ -2679,7 +2679,7 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 			Pattern => {
 				$kinds = list_set($kinds, $canonical_id, { kind: kind_pattern, ordinal: $canonical_pattern_cells.len() })
 				$pattern_ordinal_canonicals = $pattern_ordinal_canonicals.append($canonical_id)
-				$canonical_pattern_cells = $canonical_pattern_cells.append({ bbox: zero_rect, commands: Semantics.Range.from_start_and_length(0, 0), matrix: identity_matrix, representative: U64.highest, x_step: Layout.Unit.from_raw(0), y_step: Layout.Unit.from_raw(0) })
+				$canonical_pattern_cells = $canonical_pattern_cells.append({ bbox: zero_rect, commands: Semantics.IndexRange.from_start_and_length(0, 0), matrix: identity_matrix, representative: U64.highest, x_step: Layout.Unit.from_raw(0), y_step: Layout.Unit.from_raw(0) })
 			}
 			Shading => {
 				$kinds = list_set($kinds, $canonical_id, { kind: kind_shading, ordinal: $shading_reps.len() })
@@ -2689,7 +2689,7 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 				$form_ordinals = list_set($form_ordinals, $canonical_id, $canonical_forms.len())
 				$kinds = list_set($kinds, $canonical_id, { kind: kind_form, ordinal: $canonical_forms.len() })
 				$ordinal_canonicals = $ordinal_canonicals.append($canonical_id)
-				$canonical_forms = $canonical_forms.append({ bbox: zero_rect, commands: Semantics.Range.from_start_and_length(0, 0), representative: U64.highest })
+				$canonical_forms = $canonical_forms.append({ bbox: zero_rect, commands: Semantics.IndexRange.from_start_and_length(0, 0), representative: U64.highest })
 			}
 		}
 		$canonical_id = $canonical_id + 1
@@ -3249,7 +3249,7 @@ serialize_pattern_recipe = |cell, arena, scenes, digests, counts, bases, text, c
 	serialize_range($initial, MissingTextPlan({ form: Scene.PatternId.index(cell.id) }), cell.commands, arena, scenes, digests, counts, bases, text, command_states, derived_states)
 }
 
-serialize_range : List(U8), KernelForm.Error, Semantics.Range, List(Scene.Command), Scene.Store, List(List(U8)), KernelForm.Counts, NodeBases, TextRecipes, List(U64), List(KernelForm.DerivedState) -> Try(List(U8), KernelForm.Error)
+serialize_range : List(U8), KernelForm.Error, Semantics.IndexRange, List(Scene.Command), Scene.Store, List(List(U8)), KernelForm.Counts, NodeBases, TextRecipes, List(U64), List(KernelForm.DerivedState) -> Try(List(U8), KernelForm.Error)
 serialize_range = |initial, missing_text, root, arena, scenes, digests, counts, bases, text, command_states, derived_states| {
 	var $out = initial
 	var $frames = []
@@ -3621,7 +3621,7 @@ expect {
 				geometry: Axial({ end: point(9000, 0), start: point(1000, 0) }),
 				id: Scene.ShadingId.from_index(0),
 				space: Color.SpaceId.from_index(0),
-				stops: Semantics.Range.from_start_and_length(0, 2),
+				stops: Semantics.IndexRange.from_start_and_length(0, 2),
 			},
 			{
 				extend_end: True,
@@ -3629,7 +3629,7 @@ expect {
 				geometry: Radial({ end_center: point(5000, 0), end_radius: Layout.Unit.from_raw(2000), start_center: point(1000, 0), start_radius: Layout.Unit.from_raw(0) }),
 				id: Scene.ShadingId.from_index(1),
 				space: Color.SpaceId.from_index(0),
-				stops: Semantics.Range.from_start_and_length(2, 4),
+				stops: Semantics.IndexRange.from_start_and_length(2, 4),
 			},
 		],
 		stops: [stop(0, 0), stop(65535, 65535), stop(0, 0), stop(16384, 32768), stop(49152, 16384), stop(65535, 65535)],
