@@ -21,6 +21,7 @@ For repository development and validation records, see the
 
 ## Release notes
 
+- [0.1.1](releases/0.1.1.md): builds on Roc nightlies from 2026-10-24
 - [0.1.0](releases/0.1.0.md)
 - Release candidates: [rc6](releases/0.1.0-rc6.md),
   [rc5](releases/0.1.0-rc5.md), [rc4](releases/0.1.0-rc4.md),
