@@ -74,8 +74,8 @@ unit = |raw| Layout.Unit.from_raw(raw)
 rect : I64, I64, I64, I64 -> Layout.Rect
 rect = |x, y, width, height| { origin: { x: unit(x), y: unit(y) }, size: { height: unit(height), width: unit(width) } }
 
-empty_range : Semantics.Range
-empty_range = Semantics.Range.from_start_and_length(0, 0)
+empty_range : Semantics.IndexRange
+empty_range = Semantics.IndexRange.from_start_and_length(0, 0)
 
 page_box : Layout.Rect
 page_box = rect(0, 0, 100000, 100000)
@@ -289,9 +289,9 @@ build_stores = |page_count, specs| {
 			slot = $next_fragment
 			geometry = fragment_rect(slot)
 			$segments = $segments.append(Rectangle(geometry))
-			$paths = $paths.append({ id: Scene.PathId.from_index(slot), segments: Semantics.Range.from_start_and_length(slot, 1) })
+			$paths = $paths.append({ id: Scene.PathId.from_index(slot), segments: Semantics.IndexRange.from_start_and_length(slot, 1) })
 			$commands = $commands.append(DrawPath({ path: Scene.PathId.from_index(slot), style: fill_with(gray_value(24672)) }))
-			$groups = $groups.append({ commands: Semantics.Range.from_start_and_length(slot, 1), id: Scene.GroupId.from_index(slot), owner: Fragment(Semantics.FragmentId.from_index(slot)) })
+			$groups = $groups.append({ commands: Semantics.IndexRange.from_start_and_length(slot, 1), id: Scene.GroupId.from_index(slot), owner: Fragment(Semantics.FragmentId.from_index(slot)) })
 			$page_group_lists = list_set($page_group_lists, page, list_at($page_group_lists, page).append(Scene.GroupId.from_index(slot)))
 			$fragments = $fragments.append({
 				content_stream: Semantics.ContentStreamId.from_index(page),
@@ -318,7 +318,7 @@ build_stores = |page_count, specs| {
 				node = $next_node
 				start = $spine.len()
 				$spine = $spine.append(ContentOccurrence(Semantics.OccurrenceId.from_index(occurrence)))
-				$nodes = $nodes.append(make_node(node, ParentNode(Semantics.NodeId.from_index(0)), "P", Semantics.Range.from_start_and_length(start, 1)))
+				$nodes = $nodes.append(make_node(node, ParentNode(Semantics.NodeId.from_index(0)), "P", Semantics.IndexRange.from_start_and_length(start, 1)))
 				$block_nodes = $block_nodes.append(Semantics.NodeId.from_index(node))
 				$next_node = $next_node + 1
 			}
@@ -341,8 +341,8 @@ build_stores = |page_count, specs| {
 					$logical = $logical + 1
 					$slot = $slot + 1
 				}
-				$nodes = $nodes.append(make_node(wrapper, ParentNode(Semantics.NodeId.from_index(0)), "P", Semantics.Range.from_start_and_length(wrapper_start, 1)))
-				$nodes = $nodes.append(make_node(link_node, ParentNode(Semantics.NodeId.from_index(wrapper)), "Link", Semantics.Range.from_start_and_length(link_start, 1 + annotations)))
+				$nodes = $nodes.append(make_node(wrapper, ParentNode(Semantics.NodeId.from_index(0)), "P", Semantics.IndexRange.from_start_and_length(wrapper_start, 1)))
+				$nodes = $nodes.append(make_node(link_node, ParentNode(Semantics.NodeId.from_index(wrapper)), "Link", Semantics.IndexRange.from_start_and_length(link_start, 1 + annotations)))
 				$block_nodes = $block_nodes.append(Semantics.NodeId.from_index(link_node))
 				$next_node = $next_node + 2
 			}
@@ -360,13 +360,13 @@ build_stores = |page_count, specs| {
 		$pages = $pages.append({
 			boxes: { art: page_box, bleed: page_box, crop: page_box, media: page_box, trim: page_box },
 			id: Semantics.PageId.from_index($page_index),
-			paint_order: Semantics.Range.from_start_and_length(start, $page_groups.len() - start),
+			paint_order: Semantics.IndexRange.from_start_and_length(start, $page_groups.len() - start),
 			rotation: Rotate0,
 		})
 		$page_index = $page_index + 1
 	}
 
-	root = make_node(0, DocumentRoot, "Document", Semantics.Range.from_start_and_length(0, specs.len()))
+	root = make_node(0, DocumentRoot, "Document", Semantics.IndexRange.from_start_and_length(0, specs.len()))
 	all_nodes = [root].concat($nodes)
 	{
 		anchor_rects: $anchor_rects,
@@ -408,7 +408,7 @@ build_stores = |page_count, specs| {
 top_offset : List(BlockSpec), U64 -> U64
 top_offset = |_specs, _index| 0
 
-make_node : U64, Semantics.NodeParent, Str, Semantics.Range -> Semantics.Node
+make_node : U64, Semantics.NodeParent, Str, Semantics.IndexRange -> Semantics.Node
 make_node = |index, parent, role, content| {
 	attributes: empty_range,
 	content,
@@ -729,7 +729,7 @@ with_appearance_path = |stores, target| {
 			scene: {
 				..scene,
 				path_segments: scene.path_segments.append(Rectangle(inset)),
-				paths: scene.paths.append({ id: Scene.PathId.from_index(path_index), segments: Semantics.Range.from_start_and_length(segment_index, 1) }),
+				paths: scene.paths.append({ id: Scene.PathId.from_index(path_index), segments: Semantics.IndexRange.from_start_and_length(segment_index, 1) }),
 			},
 			semantics: stores.semantics,
 		},
@@ -742,7 +742,7 @@ appearance_form_store = |path, target| {
 	forms: [
 		{
 			bbox: rect(0, 0, target.size.width.raw(), target.size.height.raw()),
-			commands: Semantics.Range.from_start_and_length(0, 1),
+			commands: Semantics.IndexRange.from_start_and_length(0, 1),
 			group: NoGroup,
 			id: Scene.FormId.from_index(0),
 		},
@@ -1225,7 +1225,7 @@ run_negatives = |runtime_context| {
 			forms: [
 				{
 					bbox: rect(0, 0, 12345, 10000),
-					commands: Semantics.Range.from_start_and_length(0, 1),
+					commands: Semantics.IndexRange.from_start_and_length(0, 1),
 					group: NoGroup,
 					id: Scene.FormId.from_index(0),
 				},

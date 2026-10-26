@@ -44,7 +44,7 @@ KernelFacadeText :: [].{
 		} -> Limits
 		make = |limits| Limits.(limits)
 	}
-	Page : { id : Semantics.PageId, runs : Semantics.Range }
+	Page : { id : Semantics.PageId, runs : Semantics.IndexRange }
 	Placement : { origin : Layout.Point, page : Semantics.PageId, run : Text.RunId }
 	Prepared : {
 		blank_rows : U64,
@@ -344,7 +344,7 @@ materialize_requests = |at, requests, rules, flow, limits| {
 		while $page_cursor < request.page.index() {
 			$page_records = $page_records.append({
 				id: Semantics.PageId.from_index($page_cursor),
-				runs: Semantics.Range.from_start_and_length($page_run_start, $runs.len() - $page_run_start),
+				runs: Semantics.IndexRange.from_start_and_length($page_run_start, $runs.len() - $page_run_start),
 			})
 			$page_cursor = $page_cursor + 1
 			$page_run_start = $runs.len()
@@ -434,7 +434,7 @@ materialize_requests = |at, requests, rules, flow, limits| {
 				check_limit(checked_add($clusters.len(), 1)?, limits.max_clusters, Clusters)?
 				$clusters = $clusters.append({
 					..cluster,
-					glyphs: Semantics.Range.from_start_and_length(new_references, $glyph_indices.len() - new_references),
+					glyphs: Semantics.IndexRange.from_start_and_length(new_references, $glyph_indices.len() - new_references),
 					source: if (offset_source) rebase(cluster.source, origin, source_run_index)? else cluster.source,
 				})
 				$cluster_index = $cluster_index + 1
@@ -445,12 +445,12 @@ materialize_requests = |at, requests, rules, flow, limits| {
 			new_run_id = Text.RunId.from_index($runs.len())
 			$runs = $runs.append({
 				..run,
-				clusters: Semantics.Range.from_start_and_length(cluster_start, $clusters.len() - cluster_start),
-				glyphs: Semantics.Range.from_start_and_length(glyph_start, $glyphs.len() - glyph_start),
+				clusters: Semantics.IndexRange.from_start_and_length(cluster_start, $clusters.len() - cluster_start),
+				glyphs: Semantics.IndexRange.from_start_and_length(glyph_start, $glyphs.len() - glyph_start),
 				id: new_run_id,
 				source: if (offset_source) rebase(line.source, origin, source_run_index)? else line.source,
-				substitutions: Semantics.Range.from_start_and_length(0, 0),
-				transformations: Semantics.Range.from_start_and_length(0, 0),
+				substitutions: Semantics.IndexRange.from_start_and_length(0, 0),
+				transformations: Semantics.IndexRange.from_start_and_length(0, 0),
 			})
 			$placements = $placements.append({ origin: request.origin, page: request.page, run: new_run_id })
 			$final_styles = $final_styles.append(list_at(styles, source_run_index))
@@ -466,7 +466,7 @@ materialize_requests = |at, requests, rules, flow, limits| {
 	while $page_cursor < at.pages {
 		$page_records = $page_records.append({
 			id: Semantics.PageId.from_index($page_cursor),
-			runs: Semantics.Range.from_start_and_length($page_run_start, $runs.len() - $page_run_start),
+			runs: Semantics.IndexRange.from_start_and_length($page_run_start, $runs.len() - $page_run_start),
 		})
 		$page_cursor = $page_cursor + 1
 		$page_run_start = $runs.len()
@@ -549,10 +549,10 @@ paint_split_logical = |accumulator, shape, styles, lines, origins, request, limi
 	if last_cluster_end < first.clusters.start() or last_scalar_end < first.source.scalars.start() or last_byte_end < first.source.utf8_bytes.start() {
 		return Err(InvalidRun({ run: physical_start }))
 	}
-	merged_clusters = Semantics.Range.from_start_and_length(first.clusters.start(), last_cluster_end - first.clusters.start())
+	merged_clusters = Semantics.IndexRange.from_start_and_length(first.clusters.start(), last_cluster_end - first.clusters.start())
 	merged_source = {
-		scalars: Semantics.Range.from_start_and_length(first.source.scalars.start(), last_scalar_end - first.source.scalars.start()),
-		utf8_bytes: Semantics.Range.from_start_and_length(first.source.utf8_bytes.start(), last_byte_end - first.source.utf8_bytes.start()),
+		scalars: Semantics.IndexRange.from_start_and_length(first.source.scalars.start(), last_scalar_end - first.source.scalars.start()),
+		utf8_bytes: Semantics.IndexRange.from_start_and_length(first.source.utf8_bytes.start(), last_byte_end - first.source.utf8_bytes.start()),
 	}
 	if line.clusters.length() == 0 or !range_within(line.clusters, merged_clusters) or !text_range_within(line.source, merged_source) {
 		return Err(InvalidLine({ line: request.line, run: physical_start }))
@@ -613,7 +613,7 @@ paint_split_logical = |accumulator, shape, styles, lines, origins, request, limi
 				check_limit(checked_add($clusters.len(), 1)?, limits.max_clusters, Clusters)?
 				$clusters = $clusters.append({
 					..cluster,
-					glyphs: Semantics.Range.from_start_and_length(new_references, $glyph_indices.len() - new_references),
+					glyphs: Semantics.IndexRange.from_start_and_length(new_references, $glyph_indices.len() - new_references),
 					source: rebase(cluster.source, origin, $physical)?,
 				})
 				$cluster_index = $cluster_index + 1
@@ -624,19 +624,19 @@ paint_split_logical = |accumulator, shape, styles, lines, origins, request, limi
 			origin_x = checked_i64_add(request.origin.x.raw(), $advance_offset)?
 			$runs = $runs.append({
 				..run,
-				clusters: Semantics.Range.from_start_and_length(cluster_start_new, $clusters.len() - cluster_start_new),
-				glyphs: Semantics.Range.from_start_and_length(glyph_start_new, $glyphs.len() - glyph_start_new),
+				clusters: Semantics.IndexRange.from_start_and_length(cluster_start_new, $clusters.len() - cluster_start_new),
+				glyphs: Semantics.IndexRange.from_start_and_length(glyph_start_new, $glyphs.len() - glyph_start_new),
 				id: new_run_id,
 				source: rebase(
 					{
-						scalars: Semantics.Range.from_start_and_length(segment_scalar_start, $source_scalar - segment_scalar_start),
-						utf8_bytes: Semantics.Range.from_start_and_length(segment_byte_start, $source_byte - segment_byte_start),
+						scalars: Semantics.IndexRange.from_start_and_length(segment_scalar_start, $source_scalar - segment_scalar_start),
+						utf8_bytes: Semantics.IndexRange.from_start_and_length(segment_byte_start, $source_byte - segment_byte_start),
 					},
 					origin,
 					$physical,
 				)?,
-				substitutions: Semantics.Range.from_start_and_length(0, 0),
-				transformations: Semantics.Range.from_start_and_length(0, 0),
+				substitutions: Semantics.IndexRange.from_start_and_length(0, 0),
+				transformations: Semantics.IndexRange.from_start_and_length(0, 0),
 			})
 			$placements = $placements.append({ origin: { x: Layout.Unit.from_raw(origin_x), y: request.origin.y }, page: request.page, run: new_run_id })
 			$final_styles = $final_styles.append(list_at(styles, $physical))
@@ -724,7 +724,7 @@ interleave_furniture = |plan, furniture, limits| {
 								$glyphs = $glyphs.append(list_at(source.glyphs, list_at(source.glyph_indices, $reference)))
 								$reference = $reference + 1
 							}
-							$clusters = $clusters.append({ ..record, glyphs: Semantics.Range.from_start_and_length(reference_start, $glyph_indices.len() - reference_start) })
+							$clusters = $clusters.append({ ..record, glyphs: Semantics.IndexRange.from_start_and_length(reference_start, $glyph_indices.len() - reference_start) })
 							$cluster = $cluster + 1
 						}
 						check_limit($clusters.len(), limits.max_clusters, Clusters)?
@@ -735,12 +735,12 @@ interleave_furniture = |plan, furniture, limits| {
 						$artifact_kinds = $artifact_kinds.append(piece.kind)
 						$runs = $runs.append({
 							..shaped,
-							clusters: Semantics.Range.from_start_and_length(cluster_start, $clusters.len() - cluster_start),
-							glyphs: Semantics.Range.from_start_and_length(glyph_start, $glyphs.len() - glyph_start),
+							clusters: Semantics.IndexRange.from_start_and_length(cluster_start, $clusters.len() - cluster_start),
+							glyphs: Semantics.IndexRange.from_start_and_length(glyph_start, $glyphs.len() - glyph_start),
 							id: new_id,
 							source: piece.source,
-							substitutions: Semantics.Range.from_start_and_length(0, 0),
-							transformations: Semantics.Range.from_start_and_length(0, 0),
+							substitutions: Semantics.IndexRange.from_start_and_length(0, 0),
+							transformations: Semantics.IndexRange.from_start_and_length(0, 0),
 						})
 						$placements = $placements.append({ origin: piece.origin, page: page.id, run: new_id })
 						$styles = $styles.append(furniture_style)
@@ -750,7 +750,7 @@ interleave_furniture = |plan, furniture, limits| {
 			}
 			$band = $band + 1
 		}
-		$pages = $pages.append({ id: page.id, runs: Semantics.Range.from_start_and_length(page_start, $runs.len() - page_start) })
+		$pages = $pages.append({ id: page.id, runs: Semantics.IndexRange.from_start_and_length(page_start, $runs.len() - page_start) })
 	}
 	if $piece_cursor != pieces.len() or $artifact_cursor != plan.artifact_runs.len() or $runs.len() != run_count {
 		return Err(InvalidRun({ run: $runs.len() }))
@@ -828,7 +828,7 @@ append_labels = |plan, pieces, source, sources, limits| {
 					$glyphs = $glyphs.append(list_at(source.glyphs, list_at(source.glyph_indices, $reference)))
 					$reference = $reference + 1
 				}
-				$clusters = $clusters.append({ ..record, glyphs: Semantics.Range.from_start_and_length(reference_start, $glyph_indices.len() - reference_start) })
+				$clusters = $clusters.append({ ..record, glyphs: Semantics.IndexRange.from_start_and_length(reference_start, $glyph_indices.len() - reference_start) })
 				$cluster = $cluster + 1
 			}
 			check_limit($clusters.len(), limits.max_clusters, Clusters)?
@@ -839,17 +839,17 @@ append_labels = |plan, pieces, source, sources, limits| {
 			$artifact_kinds = $artifact_kinds.append(Decoration)
 			$runs = $runs.append({
 				..shaped,
-				clusters: Semantics.Range.from_start_and_length(cluster_start, $clusters.len() - cluster_start),
-				glyphs: Semantics.Range.from_start_and_length(glyph_start, $glyphs.len() - glyph_start),
+				clusters: Semantics.IndexRange.from_start_and_length(cluster_start, $clusters.len() - cluster_start),
+				glyphs: Semantics.IndexRange.from_start_and_length(glyph_start, $glyphs.len() - glyph_start),
 				id: new_id,
-				substitutions: Semantics.Range.from_start_and_length(0, 0),
-				transformations: Semantics.Range.from_start_and_length(0, 0),
+				substitutions: Semantics.IndexRange.from_start_and_length(0, 0),
+				transformations: Semantics.IndexRange.from_start_and_length(0, 0),
 			})
 			$placements = $placements.append({ origin: piece.origin, page: page.id, run: new_id })
 			$styles = $styles.append({ color: piece.color, leading: piece.size, segment: 0 })
 			$piece_cursor = $piece_cursor + 1
 		}
-		$pages = $pages.append({ id: page.id, runs: Semantics.Range.from_start_and_length(page_start, $runs.len() - page_start) })
+		$pages = $pages.append({ id: page.id, runs: Semantics.IndexRange.from_start_and_length(page_start, $runs.len() - page_start) })
 	}
 	if $piece_cursor != pieces.len() or $artifact_cursor != plan.artifact_runs.len() or $runs.len() != run_count {
 		return Err(InvalidRun({ run: $runs.len() }))
@@ -887,8 +887,8 @@ rebase = |range, origin, run| {
 		return Err(InvalidRun({ run: run }))
 	}
 	Ok({
-		scalars: Semantics.Range.from_start_and_length(range.scalars.start() - origin.scalar, range.scalars.length()),
-		utf8_bytes: Semantics.Range.from_start_and_length(range.utf8_bytes.start() - origin.byte, range.utf8_bytes.length()),
+		scalars: Semantics.IndexRange.from_start_and_length(range.scalars.start() - origin.scalar, range.scalars.length()),
+		utf8_bytes: Semantics.IndexRange.from_start_and_length(range.utf8_bytes.start() - origin.byte, range.utf8_bytes.length()),
 	})
 }
 
@@ -905,7 +905,7 @@ single_run_index = |logical| {
 text_range_within : Semantics.TextRange, Semantics.TextRange -> Bool
 text_range_within = |inner, outer| range_within(inner.scalars, outer.scalars) and range_within(inner.utf8_bytes, outer.utf8_bytes)
 
-range_within : Semantics.Range, Semantics.Range -> Bool
+range_within : Semantics.IndexRange, Semantics.IndexRange -> Bool
 range_within = |inner, outer| {
 	if inner.start() < outer.start() {
 		False
@@ -915,10 +915,10 @@ range_within = |inner, outer| {
 	}
 }
 
-range_fits : Semantics.Range, U64 -> Bool
+range_fits : Semantics.IndexRange, U64 -> Bool
 range_fits = |range, available| range.start() <= available and range.length() <= available - range.start()
 
-range_end : Semantics.Range -> Try(U64, KernelFacadeText.Error)
+range_end : Semantics.IndexRange -> Try(U64, KernelFacadeText.Error)
 range_end = |range| checked_add(range.start(), range.length())
 
 check_limit : U64, U64, KernelFacadeText.Dimension -> Try({}, KernelFacadeText.Error)
@@ -948,14 +948,14 @@ test_text : Text.Store
 test_text = {
 	clusters: [
 		{
-			glyphs: Semantics.Range.from_start_and_length(0, 1),
+			glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
 			kind: OneToOne,
-			source: { scalars: Semantics.Range.from_start_and_length(0, 1), utf8_bytes: Semantics.Range.from_start_and_length(0, 1) },
+			source: { scalars: Semantics.IndexRange.from_start_and_length(0, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 1) },
 		},
 		{
-			glyphs: Semantics.Range.from_start_and_length(1, 1),
+			glyphs: Semantics.IndexRange.from_start_and_length(1, 1),
 			kind: OneToOne,
-			source: { scalars: Semantics.Range.from_start_and_length(1, 1), utf8_bytes: Semantics.Range.from_start_and_length(1, 1) },
+			source: { scalars: Semantics.IndexRange.from_start_and_length(1, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(1, 1) },
 		},
 	],
 	glyph_indices: [0, 1],
@@ -966,17 +966,17 @@ test_text = {
 	runs: [
 		{
 			actual_text: FromOccurrence,
-			clusters: Semantics.Range.from_start_and_length(0, 2),
+			clusters: Semantics.IndexRange.from_start_and_length(0, 2),
 			direction: LeftToRight,
-			glyphs: Semantics.Range.from_start_and_length(0, 2),
+			glyphs: Semantics.IndexRange.from_start_and_length(0, 2),
 			id: Text.RunId.from_index(0),
 			instance: Font.InstanceId.from_index(0),
 			language: Language("en"),
 			script: Font.Script.from_iso15924("Latn"),
 			size: Layout.Unit.from_raw(1000),
-			source: { scalars: Semantics.Range.from_start_and_length(0, 2), utf8_bytes: Semantics.Range.from_start_and_length(0, 2) },
-			substitutions: Semantics.Range.from_start_and_length(0, 0),
-			transformations: Semantics.Range.from_start_and_length(0, 0),
+			source: { scalars: Semantics.IndexRange.from_start_and_length(0, 2), utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 2) },
+			substitutions: Semantics.IndexRange.from_start_and_length(0, 0),
+			transformations: Semantics.IndexRange.from_start_and_length(0, 0),
 			unicode: OccurrenceText(Semantics.OccurrenceId.from_index(0)),
 			writing_mode: Horizontal,
 		},
@@ -989,13 +989,13 @@ test_lines : List(KernelLineLayout.Line)
 test_lines = [
 	{
 		advance: Layout.Unit.from_raw(500),
-		clusters: Semantics.Range.from_start_and_length(0, 1),
-		source: { scalars: Semantics.Range.from_start_and_length(0, 1), utf8_bytes: Semantics.Range.from_start_and_length(0, 1) },
+		clusters: Semantics.IndexRange.from_start_and_length(0, 1),
+		source: { scalars: Semantics.IndexRange.from_start_and_length(0, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 1) },
 	},
 	{
 		advance: Layout.Unit.from_raw(500),
-		clusters: Semantics.Range.from_start_and_length(1, 1),
-		source: { scalars: Semantics.Range.from_start_and_length(1, 1), utf8_bytes: Semantics.Range.from_start_and_length(1, 1) },
+		clusters: Semantics.IndexRange.from_start_and_length(1, 1),
+		source: { scalars: Semantics.IndexRange.from_start_and_length(1, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(1, 1) },
 	},
 ]
 
@@ -1013,14 +1013,14 @@ test_prepared = |shape| {
 	lines: test_lines,
 	origins: WholeSources,
 	page_placements: [{ baseline: { x: Layout.Unit.from_raw(10), y: Layout.Unit.from_raw(20) }, fragment: Semantics.FragmentId.from_index(0), line: 0 }],
-	pages: [{ fragments: Semantics.Range.from_start_and_length(0, 1), id: Semantics.PageId.from_index(0), placements: Semantics.Range.from_start_and_length(0, 1) }],
+	pages: [{ fragments: Semantics.IndexRange.from_start_and_length(0, 1), id: Semantics.PageId.from_index(0), placements: Semantics.IndexRange.from_start_and_length(0, 1) }],
 	rows: [
 		{
 			kind: ContentRow,
 			body_line: 1,
 			body_offset: Layout.Unit.from_raw(5),
-			body_runs: { physical: Semantics.Range.from_start_and_length(0, 1) },
-			label: Label({ line: 0, offset: Layout.Unit.from_raw(0), runs: { physical: Semantics.Range.from_start_and_length(0, 1) } }),
+			body_runs: { physical: Semantics.IndexRange.from_start_and_length(0, 1) },
+			label: Label({ line: 0, offset: Layout.Unit.from_raw(0), runs: { physical: Semantics.IndexRange.from_start_and_length(0, 1) } }),
 		},
 	],
 	shape,
@@ -1042,7 +1042,7 @@ expect {
 # splitting a run.
 expect {
 	run = list_at(test_text.runs, 0)
-	bad = { ..test_text, runs: [{ ..run, substitutions: Semantics.Range.from_start_and_length(0, 1) }] }
+	bad = { ..test_text, runs: [{ ..run, substitutions: Semantics.IndexRange.from_start_and_length(0, 1) }] }
 	match KernelFacadeText.Plan.build_prepared(test_prepared(bad), test_limits) {
 		Err(UnsupportedRunEvidence({ run: 0 })) => True
 		_ => False
@@ -1066,7 +1066,7 @@ expect {
 	row = list_at(prepared.rows, 0)
 	bad = {
 		..prepared,
-		rows: [{ ..row, body_runs: { physical: Semantics.Range.from_start_and_length(0, 2) } }],
+		rows: [{ ..row, body_runs: { physical: Semantics.IndexRange.from_start_and_length(0, 2) } }],
 	}
 	match KernelFacadeText.Plan.build_prepared(bad, test_limits) {
 		Err(InvalidLine({ line: 1, run: 0 })) => True
@@ -1085,11 +1085,11 @@ expect {
 		..base,
 		blank_rows: 1,
 		rows: [
-			{ body_line: 0, body_offset: Layout.Unit.from_raw(0), body_runs: { physical: Semantics.Range.from_start_and_length(0, 0) }, kind: EmptySourceRow({ source: 0, line: 0 }), label: NoLabel },
+			{ body_line: 0, body_offset: Layout.Unit.from_raw(0), body_runs: { physical: Semantics.IndexRange.from_start_and_length(0, 0) }, kind: EmptySourceRow({ source: 0, line: 0 }), label: NoLabel },
 			content,
 		],
 		page_placements: [{ ..placement, baseline: { x: Layout.Unit.from_raw(10), y: Layout.Unit.from_raw(1220) } }, { ..placement, line: 1 }],
-		pages: [{ ..list_at(base.pages, 0), placements: Semantics.Range.from_start_and_length(0, 2) }],
+		pages: [{ ..list_at(base.pages, 0), placements: Semantics.IndexRange.from_start_and_length(0, 2) }],
 	}
 	plan = KernelFacadeText.Plan.build_prepared(prepared, test_limits)?
 	text = KernelFacadeText.Plan.text(plan)
@@ -1108,8 +1108,8 @@ expect {
 		lines: [],
 		origins: WholeSources,
 		page_placements: [{ baseline: { x: Layout.Unit.from_raw(80000), y: Layout.Unit.from_raw(750000) }, fragment: Semantics.FragmentId.from_index(0), line: 0 }],
-		pages: [{ fragments: Semantics.Range.from_start_and_length(0, 1), id: Semantics.PageId.from_index(0), placements: Semantics.Range.from_start_and_length(0, 1) }],
-		rows: [{ body_line: 0, body_offset: Layout.Unit.from_raw(0), body_runs: { physical: Semantics.Range.from_start_and_length(0, 0) }, kind: EmptySourceRow({ source: 0, line: 0 }), label: NoLabel }],
+		pages: [{ fragments: Semantics.IndexRange.from_start_and_length(0, 1), id: Semantics.PageId.from_index(0), placements: Semantics.IndexRange.from_start_and_length(0, 1) }],
+		rows: [{ body_line: 0, body_offset: Layout.Unit.from_raw(0), body_runs: { physical: Semantics.IndexRange.from_start_and_length(0, 0) }, kind: EmptySourceRow({ source: 0, line: 0 }), label: NoLabel }],
 		shape: { clusters: [], glyph_indices: [], glyphs: [], runs: [], substitutions: [], transformations: [] },
 		styles: [],
 	}
@@ -1252,9 +1252,9 @@ paint_source_foregrounds = |plan, authoring, owners, limits| {
 						$runs = $runs.append({
 							..run,
 							id,
-							clusters: Semantics.Range.from_start_and_length(first_cluster, $cluster - first_cluster),
-							glyphs: Semantics.Range.from_start_and_length(first_glyph, last_glyph + 1 - first_glyph),
-							source: { scalars: Semantics.Range.from_start_and_length(first.source.scalars.start(), $last.source.scalars.start() + $last.source.scalars.length() - first.source.scalars.start()), utf8_bytes: Semantics.Range.from_start_and_length(first.source.utf8_bytes.start(), $last.source.utf8_bytes.start() + $last.source.utf8_bytes.length() - first.source.utf8_bytes.start()) },
+							clusters: Semantics.IndexRange.from_start_and_length(first_cluster, $cluster - first_cluster),
+							glyphs: Semantics.IndexRange.from_start_and_length(first_glyph, last_glyph + 1 - first_glyph),
+							source: { scalars: Semantics.IndexRange.from_start_and_length(first.source.scalars.start(), $last.source.scalars.start() + $last.source.scalars.length() - first.source.scalars.start()), utf8_bytes: Semantics.IndexRange.from_start_and_length(first.source.utf8_bytes.start(), $last.source.utf8_bytes.start() + $last.source.utf8_bytes.length() - first.source.utf8_bytes.start()) },
 						})
 						$styles = $styles.append({ ..style, color: paint.color })
 						x = checked_i64_add(placement.origin.x.raw(), $advance)?
@@ -1266,7 +1266,7 @@ paint_source_foregrounds = |plan, authoring, owners, limits| {
 			}
 			$index = $index + 1
 		}
-		$pages = $pages.append({ ..page, runs: Semantics.Range.from_start_and_length(page_start, $runs.len() - page_start) })
+		$pages = $pages.append({ ..page, runs: Semantics.IndexRange.from_start_and_length(page_start, $runs.len() - page_start) })
 	}
 	Ok({ ..plan, paint_phases: $paint_phases, paint_work: { clusters: $cluster_visits, ranges: $range_visits }, text: { ..text, runs: $runs }, styles: $styles, placements: $placements, pages: $pages, artifact_runs: $artifacts, work: { ..plan.work, run_writes: $runs.len(), placement_visits: $placements.len() } })
 }
@@ -1349,7 +1349,7 @@ apply_occurrence_separators = |plan, separators, occurrences, limits| {
 						return Err(InvalidRun({ run: run.id.index() }))
 					}
 					length = checked_add(run.source.utf8_bytes.length(), if (end == separator.bytes) 1 else 0)?
-					fact = { property: separator.property, utf8_bytes: Semantics.Range.from_start_and_length(run.source.utf8_bytes.start(), length) }
+					fact = { property: separator.property, utf8_bytes: Semantics.IndexRange.from_start_and_length(run.source.utf8_bytes.start(), length) }
 					$runs = $runs.append({ ..run, actual_text: SemanticOverrideSlice(Text.ActualTextSlice.make(fact.property, fact.utf8_bytes)) })
 					$overrides = $overrides + 1
 				}
@@ -1365,8 +1365,8 @@ expect {
 	prepared = test_prepared(test_text)
 	base = KernelFacadeText.Plan.build_prepared(prepared, test_limits)?
 	pieces = [
-		{ artifact: False, line: 0, origin: { x: Layout.Unit.from_raw(10), y: Layout.Unit.from_raw(20) }, page: Semantics.PageId.from_index(0), source_runs: { physical: Semantics.Range.from_start_and_length(0, 1) } },
-		{ artifact: False, line: 1, origin: { x: Layout.Unit.from_raw(15), y: Layout.Unit.from_raw(20) }, page: Semantics.PageId.from_index(0), source_runs: { physical: Semantics.Range.from_start_and_length(0, 1) } },
+		{ artifact: False, line: 0, origin: { x: Layout.Unit.from_raw(10), y: Layout.Unit.from_raw(20) }, page: Semantics.PageId.from_index(0), source_runs: { physical: Semantics.IndexRange.from_start_and_length(0, 1) } },
+		{ artifact: False, line: 1, origin: { x: Layout.Unit.from_raw(15), y: Layout.Unit.from_raw(20) }, page: Semantics.PageId.from_index(0), source_runs: { physical: Semantics.IndexRange.from_start_and_length(0, 1) } },
 	]
 	positioned = KernelFacadeText.Plan.build_positioned({ shape: prepared.shape, styles: prepared.styles, origins: prepared.origins, lines: prepared.lines, pages: 1, pieces }, [], { decorations: [], figure_scales: [], panels: [] }, test_limits)?
 	KernelFacadeText.Plan.text(positioned) == KernelFacadeText.Plan.text(base) and KernelFacadeText.Plan.placements(positioned) == KernelFacadeText.Plan.placements(base)

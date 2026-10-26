@@ -82,7 +82,7 @@ defined is gone.
 ### Language-reference idioms
 
 - `is_eq : _` and `to_hash : _` on every opaque ID, `Layout.Unit`,
-  `Font.Script`, and `Semantics.Range`, and `is_eq : _` on `Profile`,
+  `Font.Script`, and `Semantics.IndexRange`, and `is_eq : _` on `Profile`,
   `PageSize`, and `ChunkRetention`. With these, `.index() == .index()`,
   `.raw() == .raw()`, and `KernelObject.ObjectId.is_eq(a, b)` become `==`.
   The helpers `range_equal`, `ranges_equal`, `text_range(s)_equal`,

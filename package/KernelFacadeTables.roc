@@ -25,11 +25,11 @@ KernelFacadeTables :: [].{
 		## A cell's widest unbreakable piece (`token`, a scalar range of the
 		## cell text's `source` segment) is wider than the width its columns
 		## receive.
-		UnbreakableToken({ available : U64, block : U64, token : Semantics.Range, width : U64 }),
-		UnbreakableItems({ available : U64, block : U64, items : Semantics.Range, width : U64 }),
+		UnbreakableToken({ available : U64, block : U64, token : Semantics.IndexRange, width : U64 }),
+		UnbreakableItems({ available : U64, block : U64, items : Semantics.IndexRange, width : U64 }),
 	]
 
-	WidthToken : [Scalars(Semantics.Range), Items(Semantics.Range)]
+	WidthToken : [Scalars(Semantics.IndexRange), Items(Semantics.IndexRange)]
 	MeasuredWidth : { max_content : U64, min_content : U64, token : WidthToken }
 
 	## One cell's resolved geometry: its text box starts `x` from the flow
@@ -111,9 +111,9 @@ build_plan = |authoring, shape, sources, available, frames, theme, limits| {
 		physical = match list_at(block_runs, record.block) {
 			TextBlock({ body, label: _, level: _ }) => body.physical
 			EmptySourceLine(_) => return Err(InvalidCell({ block: record.block }))
-			ContentlessCell => Semantics.Range.from_start_and_length(0, 0)
+			ContentlessCell => Semantics.IndexRange.from_start_and_length(0, 0)
 		}
-		var $cell = { max_content: 0, min_content: 0, token: Scalars(Semantics.Range.from_start_and_length(0, 0)) }
+		var $cell = { max_content: 0, min_content: 0, token: Scalars(Semantics.IndexRange.from_start_and_length(0, 0)) }
 		code = KernelFacadeShape.Plan.code_holds(shape, authoring, record.block, sources)
 		var $segment = physical.start()
 		end = physical.start() + physical.length()
@@ -255,7 +255,7 @@ segment_holds = |code, start, end| {
 ## whole source, as a logical request.
 measure_segment : List(KernelShape.SimpleSource), Text.Store, U64, U64, Semantics.TextSourceId, List(KernelLineLayout.Hold), KernelLineLayout.Limits -> Try(CellMeasure, KernelFacadeTables.Error)
 measure_segment = |sources, store, start, length, source, holds, limits| {
-	request = { runs: Semantics.Range.from_start_and_length(start, length), source, width: Layout.Unit.from_raw(1) }
+	request = { runs: Semantics.IndexRange.from_start_and_length(start, length), source, width: Layout.Unit.from_raw(1) }
 	measured = (if (holds.is_empty()) KernelLineLayout.measure_logical(sources, store, request, limits) else KernelLineLayout.measure_logical_held(sources, store, request, holds, limits)) ? Measure
 	first = list_at(store.clusters, measured.measure.token.start())
 	last = list_at(store.clusters, measured.measure.token.start() + U64.max(measured.measure.token.length(), 1) - 1)
@@ -264,7 +264,7 @@ measure_segment = |sources, store, start, length, source, holds, limits| {
 	Ok({
 		max_content: nonnegative(measured.measure.max_content)?,
 		min_content: nonnegative(measured.measure.min_content)?,
-		token: Scalars(Semantics.Range.from_start_and_length(token_start, token_end - token_start)),
+		token: Scalars(Semantics.IndexRange.from_start_and_length(token_start, token_end - token_start)),
 	})
 }
 

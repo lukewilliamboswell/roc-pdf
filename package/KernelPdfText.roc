@@ -103,7 +103,7 @@ ScalarCache := { starts : List(U64), values : List(U32) }
 
 ActualText := [NoActualText, UseActualText(List(U32))]
 
-RunSource := { id : Semantics.TextSourceId, properties : Semantics.Range, range : Semantics.TextRange }
+RunSource := { id : Semantics.TextSourceId, properties : Semantics.IndexRange, range : Semantics.TextRange }
 
 build_plan : Semantics.Store, Text.Store, List(KernelFontPlan.Plan), List(KernelPdfText.Placement), KernelPdfText.Limits -> Try(KernelPdfText.Plan, KernelPdfText.Error)
 build_plan = |semantics, text, fonts, placements, limits| {
@@ -363,10 +363,10 @@ run_source = |semantics, scalars, run, run_index| {
 			scalar_count = list_at(scalars.starts, source_id.index() + 1) - list_at(scalars.starts, source_id.index())
 			{
 				id: source_id,
-				properties: Semantics.Range.from_start_and_length(0, 0),
+				properties: Semantics.IndexRange.from_start_and_length(0, 0),
 				range: {
-					scalars: Semantics.Range.from_start_and_length(0, scalar_count),
-					utf8_bytes: Semantics.Range.from_start_and_length(0, unicode.count_utf8_bytes()),
+					scalars: Semantics.IndexRange.from_start_and_length(0, scalar_count),
+					utf8_bytes: Semantics.IndexRange.from_start_and_length(0, unicode.count_utf8_bytes()),
 				},
 			}
 		}
@@ -380,7 +380,7 @@ run_source = |semantics, scalars, run, run_index| {
 relative_text_range_fits : Semantics.TextRange, Semantics.TextRange -> Bool
 relative_text_range_fits = |inner, outer| relative_range_fits(inner.scalars, outer.scalars) and relative_range_fits(inner.utf8_bytes, outer.utf8_bytes)
 
-relative_range_fits : Semantics.Range, Semantics.Range -> Bool
+relative_range_fits : Semantics.IndexRange, Semantics.IndexRange -> Bool
 relative_range_fits = |inner, outer| inner.start() <= outer.length() and inner.length() <= outer.length() - inner.start()
 
 ## Private Use Area planes: U+E000..U+F8FF, plane 15, and plane 16.
@@ -457,7 +457,7 @@ actual_text_for_run = |semantics, scalars, text, run, run_index, used, limit| {
 
 ## Decode only the explicit owned byte interval. Across a split occurrence
 ## the intervals partition its replacement, so this never rescans prefixes.
-actual_text_slice : Str, Semantics.Range, U64, U64, U64 -> Try(ActualText, KernelPdfText.Error)
+actual_text_slice : Str, Semantics.IndexRange, U64, U64, U64 -> Try(ActualText, KernelPdfText.Error)
 actual_text_slice = |value, range, used, limit, run_index| {
 	bytes = value.to_utf8()
 	if range.length() == 0 or range.start() > bytes.len() or range.length() > bytes.len() - range.start() {
@@ -556,7 +556,7 @@ collect_run_mappings = |states, font_index, semantics, scalars, text, run, run_i
 	Ok({ conflicts: $conflicts, states: list_set(states, font_index, { mappings: $slots, plan: state.plan }) })
 }
 
-generated_discretionary_property : Semantics.Range, List(Semantics.TextProperty), Semantics.TextPropertyId, Semantics.TextRange -> Bool
+generated_discretionary_property : Semantics.IndexRange, List(Semantics.TextProperty), Semantics.TextPropertyId, Semantics.TextRange -> Bool
 generated_discretionary_property = |range, properties, property_id, source| {
 	index = property_id.index()
 	if index < range.start() or index >= properties.len() or index - range.start() >= range.length() {
@@ -1048,21 +1048,21 @@ expect append_adjustment([], -3, 16) == Ok(Str.to_utf8("-0.3")) and
 # Explicit replacement intervals preserve UTF-8 boundaries and share the
 # cumulative scalar budget. Splitting a label emits its separator once.
 expect {
-	first = actual_text_slice("pré-2 ", Semantics.Range.from_start_and_length(0, 5), 0, 6, 0)?
-	last = actual_text_slice("pré-2 ", Semantics.Range.from_start_and_length(5, 2), 4, 6, 1)?
+	first = actual_text_slice("pré-2 ", Semantics.IndexRange.from_start_and_length(0, 5), 0, 6, 0)?
+	last = actual_text_slice("pré-2 ", Semantics.IndexRange.from_start_and_length(5, 2), 4, 6, 1)?
 	valid = match (first, last) {
 		(UseActualText(a), UseActualText(b)) => a == [112, 114, 233, 45] and b == [50, 32]
 		_ => False
 	}
-	bad_utf8 = match actual_text_slice("pré-2 ", Semantics.Range.from_start_and_length(3, 1), 0, 6, 0) {
+	bad_utf8 = match actual_text_slice("pré-2 ", Semantics.IndexRange.from_start_and_length(3, 1), 0, 6, 0) {
 		Err(ActualTextRequired({ run: 0 })) => True
 		_ => False
 	}
-	bad_range = match actual_text_slice("pré-2 ", Semantics.Range.from_start_and_length(0, 8), 0, 6, 0) {
+	bad_range = match actual_text_slice("pré-2 ", Semantics.IndexRange.from_start_and_length(0, 8), 0, 6, 0) {
 		Err(ActualTextRequired({ run: 0 })) => True
 		_ => False
 	}
-	budget = match actual_text_slice("pré-2 ", Semantics.Range.from_start_and_length(5, 2), 5, 6, 0) {
+	budget = match actual_text_slice("pré-2 ", Semantics.IndexRange.from_start_and_length(5, 2), 5, 6, 0) {
 		Err(LimitExceeded({ dimension: ActualTextScalars, attempted: 7, limit: 6 })) => True
 		_ => False
 	}

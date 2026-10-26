@@ -119,7 +119,7 @@ test_page = {
 		trim: page_rect(750, 750, 8500, 8500),
 	},
 	id: Semantics.PageId.from_index(0),
-	paint_order: Semantics.Range.from_start_and_length(0, 0),
+	paint_order: Semantics.IndexRange.from_start_and_length(0, 0),
 	rotation: Rotate0,
 }
 

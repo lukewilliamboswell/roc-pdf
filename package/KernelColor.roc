@@ -203,7 +203,7 @@ read_u32_be = |bytes, index| list_at(bytes, index).to_u32().shl_wrap(24)
 	.bitwise_or(list_at(bytes, index + 2).to_u32().shl_wrap(8))
 	.bitwise_or(list_at(bytes, index + 3).to_u32())
 
-validate_span : Semantics.Range, U64, U64 -> Try({ end : U64, start : U64 }, KernelColor.Error)
+validate_span : Semantics.IndexRange, U64, U64 -> Try({ end : U64, start : U64 }, KernelColor.Error)
 validate_span = |range, available, owner| {
 	start = range.start()
 	length = range.length()
@@ -264,7 +264,7 @@ test_profile_bytes = {
 }
 
 test_profile : Color.IccProfile
-test_profile = { bytes: test_profile_bytes, components: Three, id: Color.ProfileId.from_index(0), tags: Semantics.Range.from_start_and_length(0, 0), version: IccV4 }
+test_profile = { bytes: test_profile_bytes, components: Three, id: Color.ProfileId.from_index(0), tags: Semantics.IndexRange.from_start_and_length(0, 0), version: IccV4 }
 
 test_store : Color.Store
 test_store = {

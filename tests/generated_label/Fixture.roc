@@ -34,7 +34,7 @@ Fixture :: [].{
 		occurrence = list_at(store.occurrences, label)
 		malformed = {
 			..store,
-			occurrences: list_set(store.occurrences, label, { ..occurrence, text_properties: Semantics.Range.from_start_and_length(0, 0) }),
+			occurrences: list_set(store.occurrences, label, { ..occurrence, text_properties: Semantics.IndexRange.from_start_and_length(0, 0) }),
 		}
 		rejected = match KernelFacadeShape.Preparation.build(
 			KernelFacadeSemantics.Plan.authoring(plan),

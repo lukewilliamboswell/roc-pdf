@@ -101,7 +101,7 @@ KernelObject :: [].{
 	}
 
 	FilterPlan : [Dct, Deflate, Unfiltered]
-	Stream : {
+	StreamObject : {
 		dictionary : Span,
 		filter : FilterPlan,
 		id : StreamId,
@@ -184,7 +184,7 @@ KernelObject :: [].{
 		names : List(KernelLex.Name),
 		objects : List(Object),
 		payloads : List(Payload),
-		streams : List(Stream),
+		streams : List(StreamObject),
 		text_strings : List(KernelLex.Text),
 		values : List(Value),
 	}

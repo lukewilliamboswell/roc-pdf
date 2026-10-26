@@ -70,8 +70,8 @@ unit = |raw| Layout.Unit.from_raw(raw)
 rect : I64, I64, I64, I64 -> Layout.Rect
 rect = |x, y, width, height| { origin: { x: unit(x), y: unit(y) }, size: { height: unit(height), width: unit(width) } }
 
-empty_range : Semantics.Range
-empty_range = Semantics.Range.from_start_and_length(0, 0)
+empty_range : Semantics.IndexRange
+empty_range = Semantics.IndexRange.from_start_and_length(0, 0)
 
 page_box : Layout.Rect
 page_box = rect(0, 0, 100000, 100000)
@@ -304,7 +304,7 @@ build_semantics = |fragment_count, logical_order| {
 	var $nodes = List.with_capacity(fragment_count + 1)
 	$nodes = $nodes.append({
 		attributes: empty_range,
-		content: Semantics.Range.from_start_and_length(0, fragment_count),
+		content: Semantics.IndexRange.from_start_and_length(0, fragment_count),
 		element_identifier: NoElementIdentifier,
 		id: Semantics.NodeId.from_index(0),
 		language: Inherited,
@@ -321,7 +321,7 @@ build_semantics = |fragment_count, logical_order| {
 	while $paragraph < fragment_count {
 		$content_spine = $content_spine.append(ContentOccurrence(Semantics.OccurrenceId.from_index($paragraph)))
 		$occurrences = $occurrences.append({
-			fragments: Semantics.Range.from_start_and_length($paragraph, 1),
+			fragments: Semantics.IndexRange.from_start_and_length($paragraph, 1),
 			id: Semantics.OccurrenceId.from_index($paragraph),
 			language: Inherited,
 			source: NonText(Semantics.NonTextSourceId.from_index(0), ByteRange(empty_range)),
@@ -338,7 +338,7 @@ build_semantics = |fragment_count, logical_order| {
 		})
 		$nodes = $nodes.append({
 			attributes: empty_range,
-			content: Semantics.Range.from_start_and_length(fragment_count + $paragraph, 1),
+			content: Semantics.IndexRange.from_start_and_length(fragment_count + $paragraph, 1),
 			element_identifier: NoElementIdentifier,
 			id: Semantics.NodeId.from_index($paragraph + 1),
 			language: Inherited,
@@ -696,11 +696,11 @@ showcase_scenario = |direction| {
 		commands: page_commands,
 		dash_lengths: [],
 		groups: [
-			{ commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) },
-			{ commands: Semantics.Range.from_start_and_length(1, 2), id: Scene.GroupId.from_index(1), owner: PageArtifact(Background) },
-			{ commands: Semantics.Range.from_start_and_length(3, 1), id: Scene.GroupId.from_index(2), owner: Fragment(Semantics.FragmentId.from_index(1)) },
-			{ commands: Semantics.Range.from_start_and_length(4, 1), id: Scene.GroupId.from_index(3), owner: Fragment(Semantics.FragmentId.from_index(2)) },
-			{ commands: Semantics.Range.from_start_and_length(5, 1), id: Scene.GroupId.from_index(4), owner: PageArtifact(Decoration) },
+			{ commands: Semantics.IndexRange.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) },
+			{ commands: Semantics.IndexRange.from_start_and_length(1, 2), id: Scene.GroupId.from_index(1), owner: PageArtifact(Background) },
+			{ commands: Semantics.IndexRange.from_start_and_length(3, 1), id: Scene.GroupId.from_index(2), owner: Fragment(Semantics.FragmentId.from_index(1)) },
+			{ commands: Semantics.IndexRange.from_start_and_length(4, 1), id: Scene.GroupId.from_index(3), owner: Fragment(Semantics.FragmentId.from_index(2)) },
+			{ commands: Semantics.IndexRange.from_start_and_length(5, 1), id: Scene.GroupId.from_index(4), owner: PageArtifact(Decoration) },
 		],
 		page_groups: [
 			Scene.GroupId.from_index(0),
@@ -713,14 +713,14 @@ showcase_scenario = |direction| {
 			{
 				boxes: { art: page_box, bleed: page_box, crop: page_box, media: page_box, trim: page_box },
 				id: Semantics.PageId.from_index(0),
-				paint_order: Semantics.Range.from_start_and_length(0, 5),
+				paint_order: Semantics.IndexRange.from_start_and_length(0, 5),
 				rotation: Rotate0,
 			},
 		],
 		path_segments: [Rectangle(rect(10000, 10000, 30000, 10000)), Rectangle(rect(20000, 0, 10000, 10000))],
 		paths: [
-			{ id: Scene.PathId.from_index(0), segments: Semantics.Range.from_start_and_length(0, 1) },
-			{ id: Scene.PathId.from_index(1), segments: Semantics.Range.from_start_and_length(1, 1) },
+			{ id: Scene.PathId.from_index(0), segments: Semantics.IndexRange.from_start_and_length(0, 1) },
+			{ id: Scene.PathId.from_index(1), segments: Semantics.IndexRange.from_start_and_length(1, 1) },
 		],
 	}
 	{
@@ -728,7 +728,7 @@ showcase_scenario = |direction| {
 		colors: stores.colors,
 		form_store: {
 			commands: form_commands,
-			forms: [{ bbox: rect(0, 0, 30000, 10000), commands: Semantics.Range.from_start_and_length(0, 2), group: NoGroup, id: Scene.FormId.from_index(0) }],
+			forms: [{ bbox: rect(0, 0, 30000, 10000), commands: Semantics.IndexRange.from_start_and_length(0, 2), group: NoGroup, id: Scene.FormId.from_index(0) }],
 		},
 		image_limits: showcase_image_limits,
 		images: stores.images,
@@ -781,20 +781,20 @@ grid_scenario = |scale, variant| {
 		commands: $page_commands,
 		dash_lengths: [],
 		groups: [
-			{ commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) },
-			{ commands: Semantics.Range.from_start_and_length(1, scale), id: Scene.GroupId.from_index(1), owner: PageArtifact(Watermark) },
+			{ commands: Semantics.IndexRange.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) },
+			{ commands: Semantics.IndexRange.from_start_and_length(1, scale), id: Scene.GroupId.from_index(1), owner: PageArtifact(Watermark) },
 		],
 		page_groups: [Scene.GroupId.from_index(0), Scene.GroupId.from_index(1)],
 		pages: [
 			{
 				boxes: { art: page_box, bleed: page_box, crop: page_box, media: page_box, trim: page_box },
 				id: Semantics.PageId.from_index(0),
-				paint_order: Semantics.Range.from_start_and_length(0, 2),
+				paint_order: Semantics.IndexRange.from_start_and_length(0, 2),
 				rotation: Rotate0,
 			},
 		],
 		path_segments: [Rectangle(rect(0, 95000, 4000, 4000))],
-		paths: [{ id: Scene.PathId.from_index(0), segments: Semantics.Range.from_start_and_length(0, 1) }],
+		paths: [{ id: Scene.PathId.from_index(0), segments: Semantics.IndexRange.from_start_and_length(0, 1) }],
 	}
 	{
 		color_limits: KernelColor.Limits.make({ max_icc_bytes: 0, max_profiles: 0, max_spaces: 1, max_tags: 0 }),
@@ -890,7 +890,7 @@ patched_profile_bytes : U64, U8 -> List(U8)
 patched_profile_bytes = |offset, value| list_set(KernelSrgbProfile.bytes, offset, value)
 
 profile_with_bytes : List(U8) -> Color.IccProfile
-profile_with_bytes = |bytes| { bytes, components: Three, id: Color.ProfileId.from_index(0), tags: Semantics.Range.from_start_and_length(0, KernelSrgbProfile.tag_count), version: IccV2 }
+profile_with_bytes = |bytes| { bytes, components: Three, id: Color.ProfileId.from_index(0), tags: Semantics.IndexRange.from_start_and_length(0, KernelSrgbProfile.tag_count), version: IccV2 }
 
 store_with_profile : Color.IccProfile -> Color.Store
 store_with_profile = |profile| { ..valid_single_profile_store, profiles: [profile] }
@@ -903,7 +903,7 @@ check_negatives = |context| {
 	## 1: a truncated ICC payload.
 	truncated_profile = {
 		..profile_with_bytes(KernelSrgbProfile.bytes.sublist({ len: 100, start: 0 })),
-		tags: Semantics.Range.from_start_and_length(0, 0),
+		tags: Semantics.IndexRange.from_start_and_length(0, 0),
 	}
 	expect_color_rejection(
 		1,
@@ -962,7 +962,7 @@ check_negatives = |context| {
 
 	## 6: a tag record disagreeing with the profile's tag table.
 	first_tag = list_at(KernelSrgbProfile.tags, 0)
-	shifted_tag = { ..first_tag, bytes: Semantics.Range.from_start_and_length(first_tag.bytes.start() + 1, first_tag.bytes.length()) }
+	shifted_tag = { ..first_tag, bytes: Semantics.IndexRange.from_start_and_length(first_tag.bytes.start() + 1, first_tag.bytes.length()) }
 	expect_color_rejection(
 		6,
 		{ ..valid_single_profile_store, tags: list_set(KernelSrgbProfile.tags, 0, shifted_tag) },

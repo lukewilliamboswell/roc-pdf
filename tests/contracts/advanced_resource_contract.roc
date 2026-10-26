@@ -96,7 +96,7 @@ expect {
 		bytes: [0, 0, 0, 12],
 		components: Three,
 		id: Color.ProfileId.from_index(0),
-		tags: Semantics.Range.from_start_and_length(0, 1),
+		tags: Semantics.IndexRange.from_start_and_length(0, 1),
 		version: IccV4,
 	}
 

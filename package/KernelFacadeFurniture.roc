@@ -114,7 +114,7 @@ KernelFacadeFurniture :: [].{
 	## baseline origin. Through the single face a source is one run; under
 	## an ordered policy a source is one run per selected face and script
 	## segment, and a piece never crosses a run.
-	Piece : { band : Band, clusters : Semantics.Range, kind : Scene.PageArtifactKind, origin : Layout.Point, page : U64, run : U64, source : Semantics.TextRange }
+	Piece : { band : Band, clusters : Semantics.IndexRange, kind : Scene.PageArtifactKind, origin : Layout.Point, page : U64, run : U64, source : Semantics.TextRange }
 
 	Work : {
 		template_region_visits : U64,
@@ -126,7 +126,7 @@ KernelFacadeFurniture :: [].{
 
 	## The pre-flow template facts. `flow` is the page-layout geometry;
 	## nothing else here may influence pagination.
-	Static :: { scope_flows : List(KernelFacadePages.FlowScope), scope_templates : List({ opening : U64, continuation : U64, label : Str }), template_regions : List(Semantics.Range), drawings : List(Drawing), flow : KernelFacadePages.FlowTemplate, frame : FrameFacts, images : List(Image.Source), items : List(Item), labels : List(Document.PageLabelRange), regions : List(Region), style : Theme.TextStyle, texts : List(TextTemplate) }.{
+	Static :: { scope_flows : List(KernelFacadePages.FlowScope), scope_templates : List({ opening : U64, continuation : U64, label : Str }), template_regions : List(Semantics.IndexRange), drawings : List(Drawing), flow : KernelFacadePages.FlowTemplate, frame : FrameFacts, images : List(Image.Source), items : List(Item), labels : List(Document.PageLabelRange), regions : List(Region), style : Theme.TextStyle, texts : List(TextTemplate) }.{
 		build : Document.NormalizedAuthoring, Theme, Layout.Size -> Try(Static, Error)
 		build = |authoring, theme, page_size| build_static(authoring, theme, page_size)
 
@@ -226,7 +226,7 @@ Slot : [BackdropSlot, CenterSlot, EndSlot, StartSlot]
 
 ## One present header or footer region: its items (in slot order, each
 ## stack top to bottom), its offset below the body frame top, and height.
-Region : { band : KernelFacadeFurniture.Band, height : U64, items : Semantics.Range, kind : Scene.PageArtifactKind, path : Str, template : TemplateKind, top : U64 }
+Region : { band : KernelFacadeFurniture.Band, height : U64, items : Semantics.IndexRange, kind : Scene.PageArtifactKind, path : Str, template : TemplateKind, top : U64 }
 
 ## One furniture item: its content, height, path, slot, and the offset of
 ## its top edge below the body frame top.
@@ -248,7 +248,7 @@ TextTemplate : { fields : Bool, parts : List(Part) }
 
 ## One segment of a resolved furniture line: the text outside reserved
 ## widths, or one reserved width's content, with its first field.
-Segment : { box : [Box({ align : Document.ReservedAlign, path : Str, width : U64 }), Free], bytes : Semantics.Range, field : [Field({ path : Str, value : Str }), NoField], scalars : Semantics.Range }
+Segment : { box : [Box({ align : Document.ReservedAlign, path : Str, width : U64 }), Free], bytes : Semantics.IndexRange, field : [Field({ path : Str, value : Str }), NoField], scalars : Semantics.IndexRange }
 
 ## One resolved text item on one page, before shaping.
 Pending : { input : [Input(U64), NoText], item : U64, page : U64, region : U64, segments : List(Segment) }
@@ -333,12 +333,12 @@ build_static = |authoring, theme, page_size| {
 			$items = $items.append({ ..item, content })
 		}
 		for region in plan.regions {
-			$regions = $regions.append({ ..region, items: Semantics.Range.from_start_and_length(region.items.start() + item_base, region.items.length()), template: region.template + $plan_id * 2 })
+			$regions = $regions.append({ ..region, items: Semantics.IndexRange.from_start_and_length(region.items.start() + item_base, region.items.length()), template: region.template + $plan_id * 2 })
 		}
 		var $template_id = 0
 		while $template_id < 2 {
 			region_span = regions_for(plan, $template_id)
-			$spans = $spans.append(Semantics.Range.from_start_and_length(region_span.start() + region_base, region_span.length()))
+			$spans = $spans.append(Semantics.IndexRange.from_start_and_length(region_span.start() + region_base, region_span.length()))
 			$template_id = $template_id + 1
 		}
 		$plan_id = $plan_id + 1
@@ -527,7 +527,7 @@ add_region = |state, region, at, style| match region {
 		$state = add_slot($state, start, StartSlot, "${at.path}.start", { band: at.band, height: region_height_value, inset: slot_inset, top: at.top }, style)?
 		$state = add_slot($state, center, CenterSlot, "${at.path}.center", { band: at.band, height: region_height_value, inset: slot_inset, top: at.top }, style)?
 		$state = add_slot($state, end, EndSlot, "${at.path}.end", { band: at.band, height: region_height_value, inset: slot_inset, top: at.top }, style)?
-		region_record = { band: at.band, height: region_height_value, items: Semantics.Range.from_start_and_length(first_item, $state.items.len() - first_item), kind: at.kind, path: at.path, template: at.template, top: at.top }
+		region_record = { band: at.band, height: region_height_value, items: Semantics.IndexRange.from_start_and_length(first_item, $state.items.len() - first_item), kind: at.kind, path: at.path, template: at.template, top: at.top }
 		Ok({ ..$state, regions: $state.regions.append(region_record) })
 	}
 }
@@ -1235,7 +1235,7 @@ resolve_line = |parts, page, pages, labels, label| {
 
 ## The measured width of every item of one region on one page, and its
 ## slots' widths; every reserved width and the region width are proven.
-measure_region : KernelFacadeFurniture.Static, Text.Store, List(Semantics.Range), List(Semantics.TextSourceId), List(Pending), U64, Region, U64, U64 -> Try(List(U64), KernelFacadeFurniture.Error)
+measure_region : KernelFacadeFurniture.Static, Text.Store, List(Semantics.IndexRange), List(Semantics.TextSourceId), List(Pending), U64, Region, U64, U64 -> Try(List(U64), KernelFacadeFurniture.Error)
 measure_region = |static, store, source_runs, input_sources, pending, cursor, region, region_index, page| {
 	width = static.frame.width
 	var $widths = List.with_capacity(region.items.length())
@@ -1375,7 +1375,7 @@ first_field = |static, pending, cursor, region, page| {
 ## Place one region's measured items on one page: drawings by their
 ## bottom-left corners, text pieces by their baselines. A reserved width's
 ## content aligns inside it.
-place_region : KernelFacadeFurniture.Static, Text.Store, List(Semantics.Range), List(Semantics.TextSourceId), List(Pending), U64, Region, List(U64), U64, List(KernelFacadeFurniture.Piece), List(KernelFacadeFurniture.DrawingPaint) -> Try({ cursor : U64, drawing_paints : List(KernelFacadeFurniture.DrawingPaint), pieces : List(KernelFacadeFurniture.Piece) }, KernelFacadeFurniture.Error)
+place_region : KernelFacadeFurniture.Static, Text.Store, List(Semantics.IndexRange), List(Semantics.TextSourceId), List(Pending), U64, Region, List(U64), U64, List(KernelFacadeFurniture.Piece), List(KernelFacadeFurniture.DrawingPaint) -> Try({ cursor : U64, drawing_paints : List(KernelFacadeFurniture.DrawingPaint), pieces : List(KernelFacadeFurniture.Piece) }, KernelFacadeFurniture.Error)
 place_region = |static, store, source_runs, input_sources, pending, cursor, region, widths, page, pieces, drawing_paints| {
 	var $pieces = pieces
 	var $drawing_paints = drawing_paints
@@ -1456,7 +1456,7 @@ place_region = |static, store, source_runs, input_sources, pending, cursor, regi
 
 ## No index allocation for the legacy two-template path (at most four
 ## regions). Scoped templates use one indexed span, independent of scopes.
-regions_for : KernelFacadeFurniture.Static, U64 -> Semantics.Range
+regions_for : KernelFacadeFurniture.Static, U64 -> Semantics.IndexRange
 regions_for = |static, template| {
 	if !static.template_regions.is_empty() {
 		return list_at(static.template_regions, template)
@@ -1483,17 +1483,17 @@ page_context = |static, pages, cursor, page| {
 
 ## The runs shaping one furniture source: `source_runs` is empty through
 ## the single face, where source `k` is run `k`.
-pending_runs : List(Semantics.Range), List(Semantics.TextSourceId), [Input(U64), NoText] -> Semantics.Range
+pending_runs : List(Semantics.IndexRange), List(Semantics.TextSourceId), [Input(U64), NoText] -> Semantics.IndexRange
 pending_runs = |source_runs, input_sources, input| match input {
-	NoText => Semantics.Range.from_start_and_length(0, 0)
+	NoText => Semantics.IndexRange.from_start_and_length(0, 0)
 	Input(index) => runs_of(source_runs, list_at(input_sources, index).index())
 }
 
-runs_of : List(Semantics.Range), U64 -> Semantics.Range
-runs_of = |source_runs, source| if (source_runs.is_empty()) Semantics.Range.from_start_and_length(source, 1) else list_at(source_runs, source)
+runs_of : List(Semantics.IndexRange), U64 -> Semantics.IndexRange
+runs_of = |source_runs, source| if (source_runs.is_empty()) Semantics.IndexRange.from_start_and_length(source, 1) else list_at(source_runs, source)
 
 ## The advance width of a scalar range across the runs of one source.
-runs_width : Text.Store, Semantics.Range, Semantics.Range -> U64
+runs_width : Text.Store, Semantics.IndexRange, Semantics.IndexRange -> U64
 runs_width = |store, runs, scalars| {
 	var $total = 0
 	var $run = runs.start()
@@ -1507,7 +1507,7 @@ runs_width = |store, runs, scalars| {
 ## The clusters of one run inside a scalar range and the source range they
 ## cover, or `Uncovered` when the run holds none of it. A range boundary
 ## inside a cluster is invalid.
-run_clusters : Text.Store, Text.Run, Semantics.Range -> [Covered({ clusters : Semantics.Range, source : Semantics.TextRange }), Uncovered]
+run_clusters : Text.Store, Text.Run, Semantics.IndexRange -> [Covered({ clusters : Semantics.IndexRange, source : Semantics.TextRange }), Uncovered]
 run_clusters = |store, run, scalars| {
 	var $first = 0
 	var $count = 0
@@ -1534,14 +1534,14 @@ run_clusters = |store, run, scalars| {
 	if $count == 0 {
 		Uncovered
 	} else {
-		Covered({ clusters: Semantics.Range.from_start_and_length($first, $count), source: { scalars: span($scalar_start, $scalar_end), utf8_bytes: span($byte_start, $byte_end) } })
+		Covered({ clusters: Semantics.IndexRange.from_start_and_length($first, $count), source: { scalars: span($scalar_start, $scalar_end), utf8_bytes: span($byte_start, $byte_end) } })
 	}
 }
 
 ## Shape every distinct furniture line under an ordered policy: each source
 ## is selected exactly as body text is, its segments become runs in order,
 ## and a face the body did not use becomes an extra output font.
-shape_under_policy : KernelFacadeFurniture.PolicyFonts, List(KernelFacadeSources.Source), KernelFacadeFurniture.Static, List(Semantics.TextSourceId), List(Pending), Semantics.Language, KernelFacadeFurniture.Limits -> Try({ batch : KernelShape.Batch, extra_fonts : List(KernelFont.Inspection), run_sources : List(U64), source_runs : List(Semantics.Range) }, KernelFacadeFurniture.Error)
+shape_under_policy : KernelFacadeFurniture.PolicyFonts, List(KernelFacadeSources.Source), KernelFacadeFurniture.Static, List(Semantics.TextSourceId), List(Pending), Semantics.Language, KernelFacadeFurniture.Limits -> Try({ batch : KernelShape.Batch, extra_fonts : List(KernelFont.Inspection), run_sources : List(U64), source_runs : List(Semantics.IndexRange) }, KernelFacadeFurniture.Error)
 shape_under_policy = |policy, unique, static, input_sources, pending, language, limits| {
 	var $faces = policy.faces
 	var $fonts = policy.fonts
@@ -1616,7 +1616,7 @@ furniture_text_error = |error, path| match error {
 
 ## The advance width of a scalar range of one furniture run.
 ## The convenience shaper forms one cluster of one glyph per scalar.
-scalar_width : Text.Store, Text.Run, Semantics.Range -> U64
+scalar_width : Text.Store, Text.Run, Semantics.IndexRange -> U64
 scalar_width = |store, run, scalars| {
 	var $total = 0
 	var $cluster = run.clusters.start()
@@ -1638,7 +1638,7 @@ scalar_width = |store, run, scalars| {
 
 ## The absolute cluster range of a run covering exactly a scalar range; a
 ## segment boundary inside a cluster is invalid.
-cluster_range : Text.Store, Text.Run, Semantics.Range -> Try(Semantics.Range, KernelFacadeFurniture.Error)
+cluster_range : Text.Store, Text.Run, Semantics.IndexRange -> Try(Semantics.IndexRange, KernelFacadeFurniture.Error)
 cluster_range = |store, run, scalars| {
 	var $first = run.clusters.start() + run.clusters.length()
 	var $count = 0
@@ -1659,7 +1659,7 @@ cluster_range = |store, run, scalars| {
 	if $count == 0 or $covered != scalars.length() {
 		Err(ArithmeticOverflow)
 	} else {
-		Ok(Semantics.Range.from_start_and_length($first, $count))
+		Ok(Semantics.IndexRange.from_start_and_length($first, $count))
 	}
 }
 
@@ -1674,8 +1674,8 @@ scalar_count = |text| {
 	$count
 }
 
-span : U64, U64 -> Semantics.Range
-span = |start, end| Semantics.Range.from_start_and_length(start, end - start)
+span : U64, U64 -> Semantics.IndexRange
+span = |start, end| Semantics.IndexRange.from_start_and_length(start, end - start)
 
 point : U64, U64 -> Layout.Point
 point = |x, y| { x: Layout.Unit.from_raw(x.to_i64_wrap()), y: Layout.Unit.from_raw(y.to_i64_wrap()) }

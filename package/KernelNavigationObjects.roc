@@ -466,7 +466,7 @@ add_destination_array = |builder, names, target_object, target| {
 
 ## QuadPoints in the pinned per-quad number order: top-left, top-right,
 ## bottom-left, bottom-right.
-add_quad_points : KernelObject.Builder, KernelNavigation.Store, Semantics.Range -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelNavigationObjects.Error)
+add_quad_points : KernelObject.Builder, KernelNavigation.Store, Semantics.IndexRange -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelNavigationObjects.Error)
 add_quad_points = |builder, store, range| {
 	var $builder = builder
 	var $values = List.with_capacity(range.length() * 8)
@@ -1012,13 +1012,13 @@ expect {
 	store = {
 		annotations: List.repeat(
 			{
-				action: UriAction(Semantics.Range.from_start_and_length(0, 0)),
+				action: UriAction(Semantics.IndexRange.from_start_and_length(0, 0)),
 				appearance: NoAppearance,
 				description: NoDescription,
 				keyboard_order: 0,
 				page: Semantics.PageId.from_index(0),
 				print: True,
-				quads: Semantics.Range.from_start_and_length(0, 0),
+				quads: Semantics.IndexRange.from_start_and_length(0, 0),
 				rect: { origin: { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) }, size: { height: Layout.Unit.from_raw(1), width: Layout.Unit.from_raw(1) } },
 			},
 			2,
@@ -1027,7 +1027,7 @@ expect {
 			{
 				anchor: Semantics.OccurrenceId.from_index(0),
 				id: Semantics.DestinationId.from_index(0),
-				name: Semantics.Range.from_start_and_length(0, 1),
+				name: Semantics.IndexRange.from_start_and_length(0, 1),
 				target: Semantics.NodeId.from_index(0),
 			},
 		],

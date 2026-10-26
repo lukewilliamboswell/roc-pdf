@@ -22,7 +22,7 @@ KernelReferenceLayout :: [].{
 		after : Boundary,
 		source : [LiteralCluster({ cluster : U64, run : U64 }), ReferenceAtom(U64)],
 	}
-	Line : { advance : Layout.Unit, items : Semantics.Range }
+	Line : { advance : Layout.Unit, items : Semantics.IndexRange }
 	Limits : { max_items : U64, max_lines : U64 }
 	Error : [ArithmeticOverflow, EmptyItems, InvalidAdvance({ item : U64 }), InvalidFinalBoundary, InvalidLiteral({ run : U64 }), InvalidWidth, LimitExceeded, Unbreakable({ first : ItemId, last : ItemId, required : Layout.Unit, width : Layout.Unit })]
 	Work : { boundary_visits : U64, item_visits : U64, line_writes : U64, validation_visits : U64 }
@@ -32,7 +32,7 @@ KernelReferenceLayout :: [].{
 	## The exact source-scalar holds intersecting one physical run, as a
 	## span into the shared hold arena. A forward merge prepares these
 	## spans; appending a run never scans an earlier run's holds again.
-	Holds : { ranges : List(Semantics.Range), span : Semantics.Range }
+	Holds : { ranges : List(Semantics.IndexRange), span : Semantics.IndexRange }
 
 	## A consuming builder has no Try around its growing arena. Failure
 	## drops that arena and retains only one compact error; every caller
@@ -69,7 +69,7 @@ KernelReferenceLayout :: [].{
 			Open(state) => Ok({ items: state.items, work: state.work })
 		}
 	}
-	Measure : { max_content : Layout.Unit, min_content : Layout.Unit, widest : Semantics.Range, work : Work }
+	Measure : { max_content : Layout.Unit, min_content : Layout.Unit, widest : Semantics.IndexRange, work : Work }
 	Plan : { lines : List(Line), work : Work }
 
 	## Exact intrinsic widths of the same item sequence used by wrapping.
@@ -262,7 +262,7 @@ measure_items = |items, limits| {
 		}
 		$index = $index + 1
 	}
-	Ok({ max_content: Layout.Unit.from_raw($max), min_content: Layout.Unit.from_raw($min), widest: Semantics.Range.from_start_and_length($widest_start, $widest_length), work: { boundary_visits: items.len(), item_visits: items.len(), line_writes: 0, validation_visits: items.len() } })
+	Ok({ max_content: Layout.Unit.from_raw($max), min_content: Layout.Unit.from_raw($min), widest: Semantics.IndexRange.from_start_and_length($widest_start, $widest_length), work: { boundary_visits: items.len(), item_visits: items.len(), line_writes: 0, validation_visits: items.len() } })
 }
 
 wrap_items : List(KernelReferenceLayout.Item), Layout.Unit, KernelReferenceLayout.Limits -> Try(KernelReferenceLayout.Plan, KernelReferenceLayout.Error)
@@ -289,7 +289,7 @@ wrap_items = |items, width, limits| {
 			if $lines.len() >= limits.max_lines {
 				return Err(LimitExceeded)
 			}
-			$lines = $lines.append({ advance: Layout.Unit.from_raw($break_advance), items: Semantics.Range.from_start_and_length($start, $break - $start) })
+			$lines = $lines.append({ advance: Layout.Unit.from_raw($break_advance), items: Semantics.IndexRange.from_start_and_length($start, $break - $start) })
 			$start = $break
 			$cursor = $break
 			$advance = 0
@@ -305,7 +305,7 @@ wrap_items = |items, width, limits| {
 				if $lines.len() >= limits.max_lines {
 					return Err(LimitExceeded)
 				}
-				$lines = $lines.append({ advance: Layout.Unit.from_raw($advance), items: Semantics.Range.from_start_and_length($start, $cursor - $start) })
+				$lines = $lines.append({ advance: Layout.Unit.from_raw($advance), items: Semantics.IndexRange.from_start_and_length($start, $cursor - $start) })
 				$start = $cursor
 				$advance = 0
 				$break_advance = 0
@@ -370,7 +370,7 @@ test_items = [
 
 expect {
 	plan = KernelReferenceLayout.wrap(test_items, 32, { max_items: 10, max_lines: 10 })?
-	plan.lines == [{ advance: 32, items: Semantics.Range.from_start_and_length(0, 2) }, { advance: 8, items: Semantics.Range.from_start_and_length(2, 1) }]
+	plan.lines == [{ advance: 32, items: Semantics.IndexRange.from_start_and_length(0, 2) }, { advance: 8, items: Semantics.IndexRange.from_start_and_length(2, 1) }]
 }
 
 expect {
@@ -413,26 +413,26 @@ expect {
 test_literal_store : Text.Store
 test_literal_store = {
 	clusters: [
-		{ glyphs: Semantics.Range.from_start_and_length(0, 1), kind: OneToOne, source: test_text_range(0, 1) },
-		{ glyphs: Semantics.Range.from_start_and_length(1, 1), kind: OneToOne, source: test_text_range(1, 1) },
-		{ glyphs: Semantics.Range.from_start_and_length(2, 1), kind: OneToOne, source: test_text_range(2, 1) },
+		{ glyphs: Semantics.IndexRange.from_start_and_length(0, 1), kind: OneToOne, source: test_text_range(0, 1) },
+		{ glyphs: Semantics.IndexRange.from_start_and_length(1, 1), kind: OneToOne, source: test_text_range(1, 1) },
+		{ glyphs: Semantics.IndexRange.from_start_and_length(2, 1), kind: OneToOne, source: test_text_range(2, 1) },
 	],
 	glyph_indices: [0, 1, 2],
 	glyphs: List.repeat({ advance_x: Layout.Unit.points(2), advance_y: Layout.Unit.points(0), id: Text.GlyphId.from_raw(1), offset_x: Layout.Unit.points(0), offset_y: Layout.Unit.points(0) }, 3),
-	runs: [{ actual_text: FromOccurrence, clusters: Semantics.Range.from_start_and_length(0, 3), direction: LeftToRight, glyphs: Semantics.Range.from_start_and_length(0, 3), id: Text.RunId.from_index(0), instance: Font.InstanceId.from_index(0), language: Language("en"), script: Font.Script.from_iso15924("Latn"), size: Layout.Unit.points(10), source: test_text_range(0, 3), substitutions: Semantics.Range.from_start_and_length(0, 0), transformations: Semantics.Range.from_start_and_length(0, 0), unicode: OccurrenceText(Semantics.OccurrenceId.from_index(0)), writing_mode: Horizontal }],
+	runs: [{ actual_text: FromOccurrence, clusters: Semantics.IndexRange.from_start_and_length(0, 3), direction: LeftToRight, glyphs: Semantics.IndexRange.from_start_and_length(0, 3), id: Text.RunId.from_index(0), instance: Font.InstanceId.from_index(0), language: Language("en"), script: Font.Script.from_iso15924("Latn"), size: Layout.Unit.points(10), source: test_text_range(0, 3), substitutions: Semantics.IndexRange.from_start_and_length(0, 0), transformations: Semantics.IndexRange.from_start_and_length(0, 0), unicode: OccurrenceText(Semantics.OccurrenceId.from_index(0)), writing_mode: Horizontal }],
 	substitutions: [],
 	transformations: [],
 }
 
 test_text_range : U64, U64 -> Semantics.TextRange
-test_text_range = |start, length| { scalars: Semantics.Range.from_start_and_length(start, length), utf8_bytes: Semantics.Range.from_start_and_length(start, length) }
+test_text_range = |start, length| { scalars: Semantics.IndexRange.from_start_and_length(start, length), utf8_bytes: Semantics.IndexRange.from_start_and_length(start, length) }
 
 # Literal source-end analysis does not force a line break before the
 # following symbolic reference; only the accepted authored segment does.
 expect {
 	analysis = KernelUnicode.analyze("a b", KernelUnicode.default_limits)?
 	var $builder = KernelReferenceLayout.Builder.start({ max_items: 10, max_lines: 10 })
-	$builder = KernelReferenceLayout.Builder.run($builder, test_literal_store, Text.RunId.from_index(0), analysis, { ranges: [], span: Semantics.Range.from_start_and_length(0, 0) })
+	$builder = KernelReferenceLayout.Builder.run($builder, test_literal_store, Text.RunId.from_index(0), analysis, { ranges: [], span: Semantics.IndexRange.from_start_and_length(0, 0) })
 	$builder = KernelReferenceLayout.Builder.reference($builder, 0, 3)
 	measured = KernelReferenceLayout.Builder.finish($builder)?
 	plan = KernelReferenceLayout.wrap(measured.items, 10, { max_items: 10, max_lines: 10 })?
@@ -442,7 +442,7 @@ expect {
 expect {
 	analysis = KernelUnicode.analyze("a b", KernelUnicode.default_limits)?
 	var $builder = KernelReferenceLayout.Builder.start({ max_items: 10, max_lines: 10 })
-	$builder = KernelReferenceLayout.Builder.run($builder, test_literal_store, Text.RunId.from_index(0), analysis, { ranges: [Semantics.Range.from_start_and_length(0, 3)], span: Semantics.Range.from_start_and_length(0, 1) })
+	$builder = KernelReferenceLayout.Builder.run($builder, test_literal_store, Text.RunId.from_index(0), analysis, { ranges: [Semantics.IndexRange.from_start_and_length(0, 3)], span: Semantics.IndexRange.from_start_and_length(0, 1) })
 	measured = KernelReferenceLayout.Builder.finish($builder)?
 	widths = KernelReferenceLayout.measure(measured.items, { max_items: 10, max_lines: 10 })?
 	widths.min_content == 6

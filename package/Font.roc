@@ -89,14 +89,14 @@ Font :: [].{
 	## Coverage and script fields are exact ranges into their respective flat
 	## store buffers. A validated face never consults a system font registry.
 	Face : {
-		coverage : Semantics.Range,
+		coverage : Semantics.IndexRange,
 		embedding_rights : EmbeddingRights,
 		format : Format,
 		id : FaceId,
 		postscript_name : List(U8),
 		provision : ShapingProvision,
 		resource : ResourceId,
-		scripts : Semantics.Range,
+		scripts : Semantics.IndexRange,
 	}
 
 	## contract-definition accepts only static instances. A future variable-font capability
@@ -148,7 +148,7 @@ Font :: [].{
 	## A face range covers whole grapheme clusters; it cannot split one to
 	## select a different font for an independent scalar.
 	FaceRange : {
-		clusters : Semantics.Range,
+		clusters : Semantics.IndexRange,
 		instance : InstanceId,
 	}
 
@@ -313,14 +313,14 @@ register_font = |Font.Registry.(state), bytes, registration, Font.ValidationLimi
 	store = {
 		coverage_spans: $coverage,
 		faces: state.store.faces.append({
-			coverage: Semantics.Range.from_start_and_length(coverage_start, inspection.coverage.len()),
+			coverage: Semantics.IndexRange.from_start_and_length(coverage_start, inspection.coverage.len()),
 			embedding_rights: font_rights,
 			format: OpenTypeTrueType,
 			id: face,
 			postscript_name: KernelFont.postscript_name(inspection),
 			provision: registration.provision,
 			resource,
-			scripts: Semantics.Range.from_start_and_length(script_start, registration.scripts.len()),
+			scripts: Semantics.IndexRange.from_start_and_length(script_start, registration.scripts.len()),
 		}),
 		instances: state.store.instances.append({ face, id: instance, kind: Static }),
 		policies: state.store.policies.append({ id: policy, instances: [instance] }),
@@ -537,17 +537,17 @@ cluster_coverage = |store, face, scalars, prior_visits| {
 append_face_range : List(Font.FaceRange), Font.InstanceId, U64 -> List(Font.FaceRange)
 append_face_range = |ranges, instance, cluster| {
 	if ranges.is_empty() {
-		return [{ clusters: Semantics.Range.from_start_and_length(cluster, 1), instance }]
+		return [{ clusters: Semantics.IndexRange.from_start_and_length(cluster, 1), instance }]
 	}
 	last_index = ranges.len() - 1
 	last = list_at(ranges, last_index)
 	if last.instance == instance and last.clusters.start() + last.clusters.length() == cluster {
-		match ranges.set(last_index, { clusters: Semantics.Range.from_start_and_length(last.clusters.start(), last.clusters.length() + 1), instance }) {
+		match ranges.set(last_index, { clusters: Semantics.IndexRange.from_start_and_length(last.clusters.start(), last.clusters.length() + 1), instance }) {
 			Ok(updated) => updated
 			Err(OutOfBounds) => crash "validated font plan range update escaped"
 		}
 	} else {
-		ranges.append({ clusters: Semantics.Range.from_start_and_length(cluster, 1), instance })
+		ranges.append({ clusters: Semantics.IndexRange.from_start_and_length(cluster, 1), instance })
 	}
 }
 

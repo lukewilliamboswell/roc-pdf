@@ -418,7 +418,7 @@ emit_stream_prefix = |encoder, object_id, stream_id, next_object| {
 	}
 }
 
-emit_stored_stream_prefix : KernelEmit.Encoder, KernelObject.ObjectId, KernelObject.Stream, KernelObject.Payload, U64 -> Try(KernelEmit.Step, KernelEmit.Error)
+emit_stored_stream_prefix : KernelEmit.Encoder, KernelObject.ObjectId, KernelObject.StreamObject, KernelObject.Payload, U64 -> Try(KernelEmit.Step, KernelEmit.Error)
 emit_stored_stream_prefix = |encoder, object_id, stream, payload, next_object| {
 	{ bytes: emitted_payload, ownership } = match payload.kind {
 		Generated => { bytes: payload.bytes, ownership: Generated }
@@ -447,7 +447,7 @@ emit_stored_stream_prefix = |encoder, object_id, stream, payload, next_object| {
 	}
 }
 
-emit_deflate_stream_prefix : KernelEmit.Encoder, KernelObject.ObjectId, KernelObject.Stream, KernelObject.Payload, U64 -> Try(KernelEmit.Step, KernelEmit.Error)
+emit_deflate_stream_prefix : KernelEmit.Encoder, KernelObject.ObjectId, KernelObject.StreamObject, KernelObject.Payload, U64 -> Try(KernelEmit.Step, KernelEmit.Error)
 emit_deflate_stream_prefix = |encoder, object_id, stream, payload, next_object| {
 	if KernelObject.StreamId.index(stream.id) != encoder.stream_lengths.len() {
 		Err(IndexInvariant)
@@ -481,7 +481,7 @@ emit_deflate_stream_prefix = |encoder, object_id, stream, payload, next_object| 
 	}
 }
 
-payload_release : KernelStructure.Plan, KernelObject.Stream -> [KeepPayload, ReleasePayload(KernelObject.PayloadId)]
+payload_release : KernelStructure.Plan, KernelObject.StreamObject -> [KeepPayload, ReleasePayload(KernelObject.PayloadId)]
 payload_release = |plan, stream| match KernelSeal.Plan.payload_last_use(KernelStructure.Plan.sealed(plan), stream.source) {
 	LastStream(last) => if (last == stream.id) ReleasePayload(stream.source) else KeepPayload
 	Unused => KeepPayload
@@ -825,7 +825,7 @@ append_reference = |output, object| {
 	$out.append(82)
 }
 
-append_stream_dictionary : List(U8), KernelObject.Store, KernelObject.Stream -> Try(List(U8), KernelEmit.Error)
+append_stream_dictionary : List(U8), KernelObject.Store, KernelObject.StreamObject -> Try(List(U8), KernelEmit.Error)
 append_stream_dictionary = |output, store, stream| {
 	var $out = append_dictionary_open(output)
 	var $filter_pending = stream.filter != Unfiltered

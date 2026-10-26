@@ -112,7 +112,7 @@ synthetic_input = |repetitions| {
 		length = U64.min(64, run_count - $run_start)
 		$pages = $pages.append({
 			id: Semantics.PageId.from_index(page_index),
-			runs: Semantics.Range.from_start_and_length($run_start, length),
+			runs: Semantics.IndexRange.from_start_and_length($run_start, length),
 		})
 		$run_start = $run_start + length
 	}

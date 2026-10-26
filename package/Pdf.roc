@@ -1634,7 +1634,7 @@ list_at_byte = |bytes, index| bytes.get(index) ?? 0
 ## inline with the failing cluster's scalars. A script outside the path's
 ## set is reported before a multi-scalar cluster, and both before coverage,
 ## so the author sees the fundamental cause; no face is substituted.
-unsupported_text_error : Document, U64, [AtInline(U64), NoInline], [Cluster, Coverage(U32), Script(Str)], Semantics.Range -> Pdf.Error
+unsupported_text_error : Document, U64, [AtInline(U64), NoInline], [Cluster, Coverage(U32), Script(Str)], Semantics.IndexRange -> Pdf.Error
 unsupported_text_error = |doc, block, inline, reason, scalars| {
 	at = "scalars ${scalars.start().to_str()} to ${(scalars.start() + scalars.length()).to_str()}"
 	(feature, message) = match reason {

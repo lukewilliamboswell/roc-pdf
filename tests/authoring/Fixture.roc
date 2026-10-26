@@ -488,11 +488,11 @@ synthetic_line_input = |scalars| {
 		decision = if ($index > 0 and $index % 2 == 0) Allowed else Prohibited
 		$boundaries = $boundaries.append({ authority: Tailorable, byte_offset: $index, decision, scalar_offset: $index })
 		$clusters = $clusters.append({
-			glyphs: Semantics.Range.from_start_and_length($index, 1),
+			glyphs: Semantics.IndexRange.from_start_and_length($index, 1),
 			kind: OneToOne,
 			source: {
-				scalars: Semantics.Range.from_start_and_length($index, 1),
-				utf8_bytes: Semantics.Range.from_start_and_length($index, 1),
+				scalars: Semantics.IndexRange.from_start_and_length($index, 1),
+				utf8_bytes: Semantics.IndexRange.from_start_and_length($index, 1),
 			},
 		})
 		$graphemes = $graphemes.append({ byte_start: $index, byte_end: $index + 1, scalar_start: $index, scalar_end: $index + 1 })
@@ -523,20 +523,20 @@ synthetic_line_input = |scalars| {
 				runs: [
 					{
 						actual_text: FromOccurrence,
-						clusters: Semantics.Range.from_start_and_length(0, scalars),
+						clusters: Semantics.IndexRange.from_start_and_length(0, scalars),
 						direction: LeftToRight,
-						glyphs: Semantics.Range.from_start_and_length(0, scalars),
+						glyphs: Semantics.IndexRange.from_start_and_length(0, scalars),
 						id: Text.RunId.from_index(0),
 						instance: Font.InstanceId.from_index(0),
 						language: Language("en"),
 						script: Font.Script.from_iso15924("Latn"),
 						size: Layout.Unit.from_raw(1000),
 						source: {
-							scalars: Semantics.Range.from_start_and_length(0, scalars),
-							utf8_bytes: Semantics.Range.from_start_and_length(0, scalars),
+							scalars: Semantics.IndexRange.from_start_and_length(0, scalars),
+							utf8_bytes: Semantics.IndexRange.from_start_and_length(0, scalars),
 						},
-						substitutions: Semantics.Range.from_start_and_length(0, 0),
-						transformations: Semantics.Range.from_start_and_length(0, 0),
+						substitutions: Semantics.IndexRange.from_start_and_length(0, 0),
+						transformations: Semantics.IndexRange.from_start_and_length(0, 0),
 						unicode: OccurrenceText(Semantics.OccurrenceId.from_index(0)),
 						writing_mode: Horizontal,
 					},
@@ -614,10 +614,10 @@ synthetic_page_input = |block_count| {
 		while $local < 6 {
 			$lines = $lines.append({
 				advance: Layout.Unit.from_raw(3000),
-				clusters: Semantics.Range.from_start_and_length(line_start + $local, 1),
+				clusters: Semantics.IndexRange.from_start_and_length(line_start + $local, 1),
 				source: {
-					scalars: Semantics.Range.from_start_and_length($local, 1),
-					utf8_bytes: Semantics.Range.from_start_and_length($local, 1),
+					scalars: Semantics.IndexRange.from_start_and_length($local, 1),
+					utf8_bytes: Semantics.IndexRange.from_start_and_length($local, 1),
 				},
 			})
 			$local = $local + 1
@@ -628,7 +628,7 @@ synthetic_page_input = |block_count| {
 			decoration: Layout.Unit.from_raw(0),
 			lead: Layout.Unit.from_raw(0),
 			leading: Layout.Unit.from_raw(1000),
-			lines: Semantics.Range.from_start_and_length(line_start, 6),
+			lines: Semantics.IndexRange.from_start_and_length(line_start, 6),
 			owner: Content(Semantics.OccurrenceId.from_index($block_index)),
 			policy: {
 				break_before: $block_index > 0 and $block_index % 10 == 0,

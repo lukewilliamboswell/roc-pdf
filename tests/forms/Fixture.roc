@@ -75,8 +75,8 @@ gray = |level| { channels: Gray(level), space: Color.SpaceId.from_index(0) }
 fill_style : U16 -> Scene.PathStyle
 fill_style = |level| { fill: SolidFill({ color: gray(level), rule: Nonzero }), stroke: NoStroke }
 
-empty_range : Semantics.Range
-empty_range = Semantics.Range.from_start_and_length(0, 0)
+empty_range : Semantics.IndexRange
+empty_range = Semantics.IndexRange.from_start_and_length(0, 0)
 
 page_box : Layout.Rect
 page_box = rect(0, 0, 100000, 100000)
@@ -160,7 +160,7 @@ build_semantics = |fragment_count, logical_order, split| {
 	var $nodes = List.with_capacity(paragraph_count + 1)
 	$nodes = $nodes.append({
 		attributes: empty_range,
-		content: Semantics.Range.from_start_and_length(0, paragraph_count),
+		content: Semantics.IndexRange.from_start_and_length(0, paragraph_count),
 		element_identifier: NoElementIdentifier,
 		id: Semantics.NodeId.from_index(0),
 		language: Inherited,
@@ -179,7 +179,7 @@ build_semantics = |fragment_count, logical_order, split| {
 		fragment_share = if (split and $paragraph == paragraph_count - 1) 2 else 1
 		$content_spine = $content_spine.append(ContentOccurrence(Semantics.OccurrenceId.from_index($paragraph)))
 		$occurrences = $occurrences.append({
-			fragments: Semantics.Range.from_start_and_length($fragment, fragment_share),
+			fragments: Semantics.IndexRange.from_start_and_length($fragment, fragment_share),
 			id: Semantics.OccurrenceId.from_index($paragraph),
 			language: Inherited,
 			source: NonText(Semantics.NonTextSourceId.from_index(0), ByteRange(empty_range)),
@@ -201,7 +201,7 @@ build_semantics = |fragment_count, logical_order, split| {
 		}
 		$nodes = $nodes.append({
 			attributes: empty_range,
-			content: Semantics.Range.from_start_and_length(paragraph_count + $paragraph, 1),
+			content: Semantics.IndexRange.from_start_and_length(paragraph_count + $paragraph, 1),
 			element_identifier: NoElementIdentifier,
 			id: Semantics.NodeId.from_index($paragraph + 1),
 			language: Inherited,
@@ -596,7 +596,7 @@ showcase_scenario = |direction| {
 		$arena = $arena.concat(commands)
 		$forms = $forms.append({
 			bbox: list_at(logical_boxes, logical),
-			commands: Semantics.Range.from_start_and_length(start, commands.len()),
+			commands: Semantics.IndexRange.from_start_and_length(start, commands.len()),
 			group: NoGroup,
 			id: Scene.FormId.from_index($dense_index),
 		})
@@ -618,13 +618,13 @@ showcase_scenario = |direction| {
 		place(5, 30000, 30000),
 	]
 	groups = [
-		{ commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) },
-		{ commands: Semantics.Range.from_start_and_length(1, 4), id: Scene.GroupId.from_index(1), owner: PageArtifact(Background) },
-		{ commands: Semantics.Range.from_start_and_length(5, 1), id: Scene.GroupId.from_index(2), owner: Fragment(Semantics.FragmentId.from_index(1)) },
-		{ commands: Semantics.Range.from_start_and_length(6, 1), id: Scene.GroupId.from_index(3), owner: Fragment(Semantics.FragmentId.from_index(2)) },
-		{ commands: Semantics.Range.from_start_and_length(7, 2), id: Scene.GroupId.from_index(4), owner: PageArtifact(Decoration) },
-		{ commands: Semantics.Range.from_start_and_length(9, 1), id: Scene.GroupId.from_index(5), owner: Fragment(Semantics.FragmentId.from_index(3)) },
-		{ commands: Semantics.Range.from_start_and_length(10, 1), id: Scene.GroupId.from_index(6), owner: Fragment(Semantics.FragmentId.from_index(4)) },
+		{ commands: Semantics.IndexRange.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) },
+		{ commands: Semantics.IndexRange.from_start_and_length(1, 4), id: Scene.GroupId.from_index(1), owner: PageArtifact(Background) },
+		{ commands: Semantics.IndexRange.from_start_and_length(5, 1), id: Scene.GroupId.from_index(2), owner: Fragment(Semantics.FragmentId.from_index(1)) },
+		{ commands: Semantics.IndexRange.from_start_and_length(6, 1), id: Scene.GroupId.from_index(3), owner: Fragment(Semantics.FragmentId.from_index(2)) },
+		{ commands: Semantics.IndexRange.from_start_and_length(7, 2), id: Scene.GroupId.from_index(4), owner: PageArtifact(Decoration) },
+		{ commands: Semantics.IndexRange.from_start_and_length(9, 1), id: Scene.GroupId.from_index(5), owner: Fragment(Semantics.FragmentId.from_index(3)) },
+		{ commands: Semantics.IndexRange.from_start_and_length(10, 1), id: Scene.GroupId.from_index(6), owner: Fragment(Semantics.FragmentId.from_index(4)) },
 	]
 	scene = {
 		commands: page_commands,
@@ -643,7 +643,7 @@ showcase_scenario = |direction| {
 			{
 				boxes: { art: page_box, bleed: page_box, crop: page_box, media: page_box, trim: page_box },
 				id: Semantics.PageId.from_index(0),
-				paint_order: Semantics.Range.from_start_and_length(0, 7),
+				paint_order: Semantics.IndexRange.from_start_and_length(0, 7),
 				rotation: Rotate0,
 			},
 		],
@@ -654,10 +654,10 @@ showcase_scenario = |direction| {
 			Rectangle(rect(40000, 90000, 10000, 10000)),
 		],
 		paths: [
-			{ id: Scene.PathId.from_index(0), segments: Semantics.Range.from_start_and_length(0, 1) },
-			{ id: Scene.PathId.from_index(1), segments: Semantics.Range.from_start_and_length(1, 1) },
-			{ id: Scene.PathId.from_index(2), segments: Semantics.Range.from_start_and_length(2, 1) },
-			{ id: Scene.PathId.from_index(3), segments: Semantics.Range.from_start_and_length(3, 1) },
+			{ id: Scene.PathId.from_index(0), segments: Semantics.IndexRange.from_start_and_length(0, 1) },
+			{ id: Scene.PathId.from_index(1), segments: Semantics.IndexRange.from_start_and_length(1, 1) },
+			{ id: Scene.PathId.from_index(2), segments: Semantics.IndexRange.from_start_and_length(2, 1) },
+			{ id: Scene.PathId.from_index(3), segments: Semantics.IndexRange.from_start_and_length(3, 1) },
 		],
 	}
 
@@ -690,28 +690,28 @@ repeat_scenario = |scale| {
 		commands: $page_commands,
 		dash_lengths: [],
 		groups: [
-			{ commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) },
-			{ commands: Semantics.Range.from_start_and_length(1, scale), id: Scene.GroupId.from_index(1), owner: PageArtifact(Watermark) },
+			{ commands: Semantics.IndexRange.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) },
+			{ commands: Semantics.IndexRange.from_start_and_length(1, scale), id: Scene.GroupId.from_index(1), owner: PageArtifact(Watermark) },
 		],
 		page_groups: [Scene.GroupId.from_index(0), Scene.GroupId.from_index(1)],
 		pages: [
 			{
 				boxes: { art: page_box, bleed: page_box, crop: page_box, media: page_box, trim: page_box },
 				id: Semantics.PageId.from_index(0),
-				paint_order: Semantics.Range.from_start_and_length(0, 2),
+				paint_order: Semantics.IndexRange.from_start_and_length(0, 2),
 				rotation: Rotate0,
 			},
 		],
 		path_segments: [Rectangle(rect(0, 0, 4000, 4000)), Rectangle(rect(0, 95000, 4000, 4000))],
 		paths: [
-			{ id: Scene.PathId.from_index(0), segments: Semantics.Range.from_start_and_length(0, 1) },
-			{ id: Scene.PathId.from_index(1), segments: Semantics.Range.from_start_and_length(1, 1) },
+			{ id: Scene.PathId.from_index(0), segments: Semantics.IndexRange.from_start_and_length(0, 1) },
+			{ id: Scene.PathId.from_index(1), segments: Semantics.IndexRange.from_start_and_length(1, 1) },
 		],
 	}
 	{
 		form_store: {
 			commands: [DrawPath({ path: Scene.PathId.from_index(0), style: fill_style(32896) })],
-			forms: [{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(0, 1), group: NoGroup, id: Scene.FormId.from_index(0) }],
+			forms: [{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.IndexRange.from_start_and_length(0, 1), group: NoGroup, id: Scene.FormId.from_index(0) }],
 		},
 		images: empty_image_sources,
 		scene,
@@ -731,7 +731,7 @@ dag_scenario = |scale| {
 	while $base < 4 {
 		start = $arena.len()
 		$arena = $arena.append(DrawPath({ path: Scene.PathId.from_index($base), style: fill_style((($base + 1) * 8224).to_u16_wrap()) }))
-		$forms = $forms.append({ bbox: rect(0, 0, 2000, 2000), commands: Semantics.Range.from_start_and_length(start, 1), group: NoGroup, id: Scene.FormId.from_index($base) })
+		$forms = $forms.append({ bbox: rect(0, 0, 2000, 2000), commands: Semantics.IndexRange.from_start_and_length(start, 1), group: NoGroup, id: Scene.FormId.from_index($base) })
 		$base = $base + 1
 	}
 	var $parent = 0
@@ -749,7 +749,7 @@ dag_scenario = |scale| {
 		}
 		marker_level = ((U64.div_by($parent, 10) + 1) * 4112).to_u16_wrap()
 		$arena = $arena.append(DrawPath({ path: Scene.PathId.from_index(5 + $parent), style: fill_style(marker_level) }))
-		$forms = $forms.append({ bbox: rect(0, 0, 10000, 4000), commands: Semantics.Range.from_start_and_length(start, 5), group: NoGroup, id: Scene.FormId.from_index(4 + $parent) })
+		$forms = $forms.append({ bbox: rect(0, 0, 10000, 4000), commands: Semantics.IndexRange.from_start_and_length(start, 5), group: NoGroup, id: Scene.FormId.from_index(4 + $parent) })
 		$parent = $parent + 1
 	}
 	var $page_commands = [DrawPath({ path: Scene.PathId.from_index(4), style: fill_style(8224) })]
@@ -773,32 +773,32 @@ dag_scenario = |scale| {
 		Rectangle(rect(0, 95000, 4000, 4000)),
 	]
 	var $paths = [
-		{ id: Scene.PathId.from_index(0), segments: Semantics.Range.from_start_and_length(0, 1) },
-		{ id: Scene.PathId.from_index(1), segments: Semantics.Range.from_start_and_length(1, 1) },
-		{ id: Scene.PathId.from_index(2), segments: Semantics.Range.from_start_and_length(2, 1) },
-		{ id: Scene.PathId.from_index(3), segments: Semantics.Range.from_start_and_length(3, 1) },
-		{ id: Scene.PathId.from_index(4), segments: Semantics.Range.from_start_and_length(4, 1) },
+		{ id: Scene.PathId.from_index(0), segments: Semantics.IndexRange.from_start_and_length(0, 1) },
+		{ id: Scene.PathId.from_index(1), segments: Semantics.IndexRange.from_start_and_length(1, 1) },
+		{ id: Scene.PathId.from_index(2), segments: Semantics.IndexRange.from_start_and_length(2, 1) },
+		{ id: Scene.PathId.from_index(3), segments: Semantics.IndexRange.from_start_and_length(3, 1) },
+		{ id: Scene.PathId.from_index(4), segments: Semantics.IndexRange.from_start_and_length(4, 1) },
 	]
 	$parent = 0
 	while $parent < scale {
 		marker_x = (U64.mod_by($parent, 10) * 1000).to_i64_wrap()
 		$path_segments = $path_segments.append(Rectangle(rect(marker_x, 3000, 1000, 1000)))
-		$paths = $paths.append({ id: Scene.PathId.from_index(5 + $parent), segments: Semantics.Range.from_start_and_length(5 + $parent, 1) })
+		$paths = $paths.append({ id: Scene.PathId.from_index(5 + $parent), segments: Semantics.IndexRange.from_start_and_length(5 + $parent, 1) })
 		$parent = $parent + 1
 	}
 	scene = {
 		commands: $page_commands,
 		dash_lengths: [],
 		groups: [
-			{ commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) },
-			{ commands: Semantics.Range.from_start_and_length(1, scale), id: Scene.GroupId.from_index(1), owner: PageArtifact(Decoration) },
+			{ commands: Semantics.IndexRange.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) },
+			{ commands: Semantics.IndexRange.from_start_and_length(1, scale), id: Scene.GroupId.from_index(1), owner: PageArtifact(Decoration) },
 		],
 		page_groups: [Scene.GroupId.from_index(0), Scene.GroupId.from_index(1)],
 		pages: [
 			{
 				boxes: { art: page_box, bleed: page_box, crop: page_box, media: page_box, trim: page_box },
 				id: Semantics.PageId.from_index(0),
-				paint_order: Semantics.Range.from_start_and_length(0, 2),
+				paint_order: Semantics.IndexRange.from_start_and_length(0, 2),
 				rotation: Rotate0,
 			},
 		],
@@ -831,7 +831,7 @@ deep_scenario = |scale| {
 		}
 		$forms = $forms.append({
 			bbox: rect(0, 0, (scale.to_i64_wrap() - $index.to_i64_wrap() + 1) * 1000, (scale.to_i64_wrap() - $index.to_i64_wrap() + 1) * 1000),
-			commands: Semantics.Range.from_start_and_length(start, commands),
+			commands: Semantics.IndexRange.from_start_and_length(start, commands),
 			group: NoGroup,
 			id: Scene.FormId.from_index($index),
 		})
@@ -844,22 +844,22 @@ deep_scenario = |scale| {
 		],
 		dash_lengths: [],
 		groups: [
-			{ commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) },
-			{ commands: Semantics.Range.from_start_and_length(1, 1), id: Scene.GroupId.from_index(1), owner: PageArtifact(Background) },
+			{ commands: Semantics.IndexRange.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) },
+			{ commands: Semantics.IndexRange.from_start_and_length(1, 1), id: Scene.GroupId.from_index(1), owner: PageArtifact(Background) },
 		],
 		page_groups: [Scene.GroupId.from_index(0), Scene.GroupId.from_index(1)],
 		pages: [
 			{
 				boxes: { art: page_box, bleed: page_box, crop: page_box, media: page_box, trim: page_box },
 				id: Semantics.PageId.from_index(0),
-				paint_order: Semantics.Range.from_start_and_length(0, 2),
+				paint_order: Semantics.IndexRange.from_start_and_length(0, 2),
 				rotation: Rotate0,
 			},
 		],
 		path_segments: [Rectangle(rect(0, 0, 800, 800)), Rectangle(rect(0, 95000, 4000, 4000))],
 		paths: [
-			{ id: Scene.PathId.from_index(0), segments: Semantics.Range.from_start_and_length(0, 1) },
-			{ id: Scene.PathId.from_index(1), segments: Semantics.Range.from_start_and_length(1, 1) },
+			{ id: Scene.PathId.from_index(0), segments: Semantics.IndexRange.from_start_and_length(0, 1) },
+			{ id: Scene.PathId.from_index(1), segments: Semantics.IndexRange.from_start_and_length(1, 1) },
 		],
 	}
 	{
@@ -910,7 +910,7 @@ check_negatives = |context| {
 	)?
 
 	## 3: an empty form content range.
-	empty_form = { ..base, form_store: { ..base.form_store, forms: [{ ..list_at(base.form_store.forms, 0), commands: Semantics.Range.from_start_and_length(0, 0) }] } }
+	empty_form = { ..base, form_store: { ..base.form_store, forms: [{ ..list_at(base.form_store.forms, 0), commands: Semantics.IndexRange.from_start_and_length(0, 0) }] } }
 	expect_scene_rejection(
 		3,
 		empty_form,
@@ -921,7 +921,7 @@ check_negatives = |context| {
 	)?
 
 	## 4: a form content range escaping the arena.
-	escaping = { ..base, form_store: { ..base.form_store, forms: [{ ..list_at(base.form_store.forms, 0), commands: Semantics.Range.from_start_and_length(0, 2) }] } }
+	escaping = { ..base, form_store: { ..base.form_store, forms: [{ ..list_at(base.form_store.forms, 0), commands: Semantics.IndexRange.from_start_and_length(0, 2) }] } }
 	expect_scene_rejection(
 		4,
 		escaping,
@@ -980,7 +980,7 @@ check_negatives = |context| {
 		..base,
 		form_store: {
 			..base.form_store,
-			forms: base.form_store.forms.append({ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(0, 1), group: NoGroup, id: Scene.FormId.from_index(1) }),
+			forms: base.form_store.forms.append({ bbox: rect(0, 0, 4000, 4000), commands: Semantics.IndexRange.from_start_and_length(0, 1), group: NoGroup, id: Scene.FormId.from_index(1) }),
 		},
 	}
 	expect_scene_rejection(
@@ -995,7 +995,7 @@ check_negatives = |context| {
 	## 10: an empty opacity group inside form content. (The transparency slice
 	## made constant opacity executable in form-aware scenes, so the former
 	## unsupported-command rejection moved to the ownerless-children class.)
-	transparent = { ..base, form_store: { ..base.form_store, commands: [Opacity({ children: Semantics.Range.from_start_and_length(0, 0), opacity: 32768 })] } }
+	transparent = { ..base, form_store: { ..base.form_store, commands: [Opacity({ children: Semantics.IndexRange.from_start_and_length(0, 0), opacity: 32768 })] } }
 	expect_scene_rejection(
 		10,
 		transparent,
@@ -1032,11 +1032,11 @@ check_negatives = |context| {
 		..base,
 		form_store: {
 			commands: [
-				Transform({ children: Semantics.Range.from_start_and_length(1, 1), matrix: translate(0, 0) }),
-				Transform({ children: Semantics.Range.from_start_and_length(2, 1), matrix: translate(0, 0) }),
+				Transform({ children: Semantics.IndexRange.from_start_and_length(1, 1), matrix: translate(0, 0) }),
+				Transform({ children: Semantics.IndexRange.from_start_and_length(2, 1), matrix: translate(0, 0) }),
 				DrawPath({ path: Scene.PathId.from_index(0), style: fill_style(32896) }),
 			],
-			forms: [{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(0, 1), group: NoGroup, id: Scene.FormId.from_index(0) }],
+			forms: [{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.IndexRange.from_start_and_length(0, 1), group: NoGroup, id: Scene.FormId.from_index(0) }],
 		},
 	}
 	shallow = KernelScene.Limits.make({
@@ -1062,7 +1062,7 @@ check_negatives = |context| {
 		..base,
 		form_store: {
 			commands: [PlaceForm({ form: Scene.FormId.from_index(0), transform: translate(0, 0) })],
-			forms: [{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(0, 1), group: NoGroup, id: Scene.FormId.from_index(0) }],
+			forms: [{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.IndexRange.from_start_and_length(0, 1), group: NoGroup, id: Scene.FormId.from_index(0) }],
 		},
 	}
 	expect_facts_rejection(
@@ -1083,8 +1083,8 @@ check_negatives = |context| {
 				PlaceForm({ form: Scene.FormId.from_index(0), transform: translate(0, 0) }),
 			],
 			forms: [
-				{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(0, 1), group: NoGroup, id: Scene.FormId.from_index(0) },
-				{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(1, 1), group: NoGroup, id: Scene.FormId.from_index(1) },
+				{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.IndexRange.from_start_and_length(0, 1), group: NoGroup, id: Scene.FormId.from_index(0) },
+				{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.IndexRange.from_start_and_length(1, 1), group: NoGroup, id: Scene.FormId.from_index(1) },
 			],
 		},
 	}
@@ -1102,7 +1102,7 @@ check_negatives = |context| {
 		..base,
 		form_store: {
 			commands: base.form_store.commands.append(DrawPath({ path: Scene.PathId.from_index(0), style: fill_style(16448) })),
-			forms: base.form_store.forms.append({ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(1, 1), group: NoGroup, id: Scene.FormId.from_index(1) }),
+			forms: base.form_store.forms.append({ bbox: rect(0, 0, 4000, 4000), commands: Semantics.IndexRange.from_start_and_length(1, 1), group: NoGroup, id: Scene.FormId.from_index(1) }),
 		},
 	}
 	expect_facts_rejection(

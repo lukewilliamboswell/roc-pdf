@@ -37,8 +37,8 @@ KernelTagged :: [].{
 		MarkedContent(MarkedContentReference),
 	]
 
-	NodeK : { items : Semantics.Range, node : Semantics.NodeId }
-	ParentTreeRow : { content_stream : Semantics.ContentStreamId, entries : Semantics.Range }
+	NodeK : { items : Semantics.IndexRange, node : Semantics.NodeId }
+	ParentTreeRow : { content_stream : Semantics.ContentStreamId, entries : Semantics.IndexRange }
 
 	Work : {
 		annotation_items : U64,
@@ -304,7 +304,7 @@ build_parent_tree = |store, fragment_order, occurrence_nodes, stream_count| {
 	while $stream < stream_count {
 		$starts = list_set($starts, $stream, $total)
 		count = list_at($counts, $stream)
-		$rows = $rows.append({ content_stream: Semantics.ContentStreamId.from_index($stream), entries: Semantics.Range.from_start_and_length($total, count) })
+		$rows = $rows.append({ content_stream: Semantics.ContentStreamId.from_index($stream), entries: Semantics.IndexRange.from_start_and_length($total, count) })
 		$total = U64.plus_try($total, count) ? |_| ArithmeticOverflow
 		$stream = $stream + 1
 	}
@@ -383,7 +383,7 @@ build_k_order = |store, marked| {
 			}
 			$content_index = $content_index + 1
 		}
-		$ranges = $ranges.append({ items: Semantics.Range.from_start_and_length(start, $items.len() - start), node: node.id })
+		$ranges = $ranges.append({ items: Semantics.IndexRange.from_start_and_length(start, $items.len() - start), node: node.id })
 		$node_index = $node_index + 1
 	}
 	Ok({ annotation_items: $annotation_items, items: $items, node_k: $ranges })
@@ -433,8 +433,8 @@ list_set = |items, index, value| match items.set(index, value) {
 	}
 }
 
-empty_range : Semantics.Range
-empty_range = Semantics.Range.from_start_and_length(0, 0)
+empty_range : Semantics.IndexRange
+empty_range = Semantics.IndexRange.from_start_and_length(0, 0)
 
 tagged_semantics : Semantics.Store
 tagged_semantics = {
@@ -443,15 +443,15 @@ tagged_semantics = {
 	attribute_roles: [],
 	attributes: [{ applicability: AllRoles, name: Standard("Type"), owner: Artifact, value: Name("Pagination") }],
 	content_spine: [ChildNode(Semantics.NodeId.from_index(1)), ContextualArtifact(Semantics.ContextualArtifactId.from_index(0)), ContentOccurrence(Semantics.OccurrenceId.from_index(0))],
-	contextual_artifacts: [{ attributes: Semantics.Range.from_start_and_length(0, 1), id: Semantics.ContextualArtifactId.from_index(0), parent: Semantics.NodeId.from_index(0) }],
+	contextual_artifacts: [{ attributes: Semantics.IndexRange.from_start_and_length(0, 1), id: Semantics.ContextualArtifactId.from_index(0), parent: Semantics.NodeId.from_index(0) }],
 	document_root: Semantics.NodeId.from_index(0),
 	fragments: [{ content_stream: Semantics.ContentStreamId.from_index(0), continuation_index: 0, id: Semantics.FragmentId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0), page: Semantics.PageId.from_index(0), source_range: ByteRange(empty_range) }],
 	element_identifiers: [],
 	mathml_subtrees: [],
 	namespaces: [{ id: Semantics.NamespaceId.from_index(0), kind: Pdf20, uri: "http://iso.org/pdf2/ssn" }],
 	nodes: [
-		{ attributes: empty_range, content: Semantics.Range.from_start_and_length(0, 2), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(0), language: Inherited, parent: DocumentRoot, role: { local_name: "Document", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(0), text_properties: empty_range },
-		{ attributes: empty_range, content: Semantics.Range.from_start_and_length(2, 1), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(1), language: Inherited, parent: ParentNode(Semantics.NodeId.from_index(0)), role: { local_name: "P", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(1), text_properties: empty_range },
+		{ attributes: empty_range, content: Semantics.IndexRange.from_start_and_length(0, 2), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(0), language: Inherited, parent: DocumentRoot, role: { local_name: "Document", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(0), text_properties: empty_range },
+		{ attributes: empty_range, content: Semantics.IndexRange.from_start_and_length(2, 1), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(1), language: Inherited, parent: ParentNode(Semantics.NodeId.from_index(0)), role: { local_name: "P", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(1), text_properties: empty_range },
 	],
 	non_text_sources: [[]],
 	occurrence_fragments: [],
@@ -476,11 +476,11 @@ tagged_scene = {
 	],
 	dash_lengths: [],
 	groups: [
-		{ commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) },
-		{ commands: Semantics.Range.from_start_and_length(1, 1), id: Scene.GroupId.from_index(1), owner: PageArtifact(Background) },
+		{ commands: Semantics.IndexRange.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) },
+		{ commands: Semantics.IndexRange.from_start_and_length(1, 1), id: Scene.GroupId.from_index(1), owner: PageArtifact(Background) },
 	],
 	page_groups: [Scene.GroupId.from_index(0), Scene.GroupId.from_index(1)],
-	pages: [{ boxes: { art: rect(0, 0, 10000, 10000), bleed: rect(0, 0, 10000, 10000), crop: rect(0, 0, 10000, 10000), media: rect(0, 0, 10000, 10000), trim: rect(0, 0, 10000, 10000) }, id: Semantics.PageId.from_index(0), paint_order: Semantics.Range.from_start_and_length(0, 2), rotation: Rotate0 }],
+	pages: [{ boxes: { art: rect(0, 0, 10000, 10000), bleed: rect(0, 0, 10000, 10000), crop: rect(0, 0, 10000, 10000), media: rect(0, 0, 10000, 10000), trim: rect(0, 0, 10000, 10000) }, id: Semantics.PageId.from_index(0), paint_order: Semantics.IndexRange.from_start_and_length(0, 2), rotation: Rotate0 }],
 	path_segments: [],
 	paths: [],
 }
@@ -586,8 +586,8 @@ navigation_tagged_semantics = {
 	annotations: [{ id: Semantics.AnnotationId.from_index(0), logical_order: 0, owner: Semantics.NodeId.from_index(1) }],
 	content_spine: [ChildNode(Semantics.NodeId.from_index(1)), ContextualArtifact(Semantics.ContextualArtifactId.from_index(0)), ContentOccurrence(Semantics.OccurrenceId.from_index(0)), AnnotationOccurrence(Semantics.AnnotationId.from_index(0))],
 	nodes: [
-		{ attributes: empty_range, content: Semantics.Range.from_start_and_length(0, 2), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(0), language: Inherited, parent: DocumentRoot, role: { local_name: "Document", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(0), text_properties: empty_range },
-		{ attributes: empty_range, content: Semantics.Range.from_start_and_length(2, 2), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(1), language: Inherited, parent: ParentNode(Semantics.NodeId.from_index(0)), role: { local_name: "Link", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(1), text_properties: empty_range },
+		{ attributes: empty_range, content: Semantics.IndexRange.from_start_and_length(0, 2), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(0), language: Inherited, parent: DocumentRoot, role: { local_name: "Document", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(0), text_properties: empty_range },
+		{ attributes: empty_range, content: Semantics.IndexRange.from_start_and_length(2, 2), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(1), language: Inherited, parent: ParentNode(Semantics.NodeId.from_index(0)), role: { local_name: "Link", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(1), text_properties: empty_range },
 	],
 }
 

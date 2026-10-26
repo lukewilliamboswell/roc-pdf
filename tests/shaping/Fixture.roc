@@ -99,11 +99,11 @@ advanced_store : Text.Store
 advanced_store = {
 	clusters: [
 		{
-			glyphs: Semantics.Range.from_start_and_length(0, 1),
+			glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
 			kind: Ligature,
 			source: {
-				scalars: Semantics.Range.from_start_and_length(0, 2),
-				utf8_bytes: Semantics.Range.from_start_and_length(0, 3),
+				scalars: Semantics.IndexRange.from_start_and_length(0, 2),
+				utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 3),
 			},
 		},
 	],
@@ -120,20 +120,20 @@ advanced_store = {
 	runs: [
 		{
 			actual_text: FromOccurrence,
-			clusters: Semantics.Range.from_start_and_length(0, 1),
+			clusters: Semantics.IndexRange.from_start_and_length(0, 1),
 			direction: LeftToRight,
-			glyphs: Semantics.Range.from_start_and_length(0, 1),
+			glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
 			id: Text.RunId.from_index(0),
 			instance: Font.InstanceId.from_index(0),
 			language: Language("en-AU"),
 			script: Font.Script.from_iso15924("Latn"),
 			size: Layout.Unit.from_raw(11000),
 			source: {
-				scalars: Semantics.Range.from_start_and_length(0, 2),
-				utf8_bytes: Semantics.Range.from_start_and_length(0, 3),
+				scalars: Semantics.IndexRange.from_start_and_length(0, 2),
+				utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 3),
 			},
-			substitutions: Semantics.Range.from_start_and_length(0, 1),
-			transformations: Semantics.Range.from_start_and_length(0, 0),
+			substitutions: Semantics.IndexRange.from_start_and_length(0, 1),
+			transformations: Semantics.IndexRange.from_start_and_length(0, 0),
 			unicode: OccurrenceText(Semantics.OccurrenceId.from_index(1)),
 			writing_mode: Horizontal,
 		},
@@ -141,10 +141,10 @@ advanced_store = {
 	substitutions: [
 		{
 			feature: Text.FeatureTag.from_raw(0x63636d70),
-			glyphs: Semantics.Range.from_start_and_length(0, 1),
+			glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
 			source: {
-				scalars: Semantics.Range.from_start_and_length(0, 2),
-				utf8_bytes: Semantics.Range.from_start_and_length(0, 3),
+				scalars: Semantics.IndexRange.from_start_and_length(0, 2),
+				utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 3),
 			},
 		},
 	],
@@ -240,7 +240,7 @@ expect {
 	base_glyph = list_at(advanced_store.glyphs, 0)
 	duplicate_store = {
 		..advanced_store,
-		clusters: [{ ..base_cluster, glyphs: Semantics.Range.from_start_and_length(0, 2), kind: ManyToMany }],
+		clusters: [{ ..base_cluster, glyphs: Semantics.IndexRange.from_start_and_length(0, 2), kind: ManyToMany }],
 		glyph_indices: [0, 0],
 	}
 	notdef_store = { ..advanced_store, glyphs: [{ ..base_glyph, id: Text.GlyphId.from_raw(0) }] }
@@ -252,8 +252,8 @@ expect {
 			{
 				..base_cluster,
 				source: {
-					scalars: Semantics.Range.from_start_and_length(0, 2),
-					utf8_bytes: Semantics.Range.from_start_and_length(0, 2),
+					scalars: Semantics.IndexRange.from_start_and_length(0, 2),
+					utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 2),
 				},
 			},
 		],

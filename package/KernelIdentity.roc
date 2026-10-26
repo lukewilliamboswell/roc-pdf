@@ -132,7 +132,7 @@ append_object = |facts, object| {
 	}
 }
 
-append_stream : List(U8), KernelObject.Stream -> List(U8)
+append_stream : List(U8), KernelObject.StreamObject -> List(U8)
 append_stream = |facts, stream| {
 	with_dictionary = append_span(facts, stream.dictionary)
 	with_filter = with_dictionary.append(

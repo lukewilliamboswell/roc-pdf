@@ -186,7 +186,7 @@ build_labels = |authoring, text, store, fonts, language, source_base, limits| {
 				entry = list_at(entries, $index)
 				source = list_at(input_sources, $index)
 				$selected = $selected.append({
-					clusters: Semantics.Range.from_start_and_length(0, list_at(unique, source.index()).analysis.graphemes.len()),
+					clusters: Semantics.IndexRange.from_start_and_length(0, list_at(unique, source.index()).analysis.graphemes.len()),
 					instance: Font.InstanceId.from_index(face_instance(fonts, entry.face)),
 					language,
 					occurrence: Semantics.OccurrenceId.from_index($index),

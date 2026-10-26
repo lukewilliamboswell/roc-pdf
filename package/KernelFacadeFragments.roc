@@ -52,7 +52,7 @@ KernelFacadeFragments :: [].{
 		WithNavigationAuthoring(
 			{
 				destinations : List({ anchor : Semantics.OccurrenceId, name : Str, target : Semantics.NodeId }),
-				links : List({ node : Semantics.NodeId, occurrences : Semantics.Range, target : [InternalDestination(Str), Uri(Str)] }),
+				links : List({ node : Semantics.NodeId, occurrences : Semantics.IndexRange, target : [InternalDestination(Str), Uri(Str)] }),
 				outline : List(Document.OutlineEntry),
 				page_labels : List(Document.PageLabelRange),
 				underline : LinkUnderline,
@@ -226,7 +226,7 @@ attach_plan = |preliminary, arena, text, navigation, proofs, semantic_limits, na
 ## advance sum, `offset` below the baseline, `thickness` tall. Repainted
 ## header runs and furniture are artifacts and join no link. Rules follow
 ## the runs' page order.
-underline_rules : KernelFacadeText.Plan, List({ node : Semantics.NodeId, occurrences : Semantics.Range, target : [InternalDestination(Str), Uri(Str)] }), Semantics.Store, { offset : Layout.Unit, thickness : Layout.Unit } -> Try(List(KernelFacadePages.Rule), KernelFacadeFragments.Error)
+underline_rules : KernelFacadeText.Plan, List({ node : Semantics.NodeId, occurrences : Semantics.IndexRange, target : [InternalDestination(Str), Uri(Str)] }), Semantics.Store, { offset : Layout.Unit, thickness : Layout.Unit } -> Try(List(KernelFacadePages.Rule), KernelFacadeFragments.Error)
 underline_rules = |text_plan, links, store, underline| {
 	owners = link_owners(links, store.occurrences.len())?
 	sentinel = links.len()
@@ -395,7 +395,7 @@ derive_run_geometry = |text_plan| {
 ## per (link, page) with the page's line boxes as quadrilaterals and their
 ## union as the rectangle. Keyboard order is the per-page annotation
 ## creation order, which follows the links' spine order.
-group_link_annotations : Semantics.Store, KernelFacadeText.Plan, List(KernelNavigation.AnchorRect), List({ node : Semantics.NodeId, occurrences : Semantics.Range, target : [InternalDestination(Str), Uri(Str)] }), U64 -> Try({ annotations : List(KernelNavigation.AnnotationInput), per_link : List(U64) }, KernelFacadeFragments.Error)
+group_link_annotations : Semantics.Store, KernelFacadeText.Plan, List(KernelNavigation.AnchorRect), List({ node : Semantics.NodeId, occurrences : Semantics.IndexRange, target : [InternalDestination(Str), Uri(Str)] }), U64 -> Try({ annotations : List(KernelNavigation.AnnotationInput), per_link : List(U64) }, KernelFacadeFragments.Error)
 group_link_annotations = |store, text_plan, rects, links, page_count| {
 	text = KernelFacadeText.Plan.text(text_plan)
 	placements = KernelFacadeText.Plan.placements(text_plan)
@@ -502,7 +502,7 @@ group_link_annotations = |store, text_plan, rects, links, page_count| {
 
 ## The owning link of every occurrence (`links.len()` for none), in one
 ## flat pass over the links' dense occurrence ranges.
-link_owners : List({ node : Semantics.NodeId, occurrences : Semantics.Range, target : [InternalDestination(Str), Uri(Str)] }), U64 -> Try(List(U64), KernelFacadeFragments.Error)
+link_owners : List({ node : Semantics.NodeId, occurrences : Semantics.IndexRange, target : [InternalDestination(Str), Uri(Str)] }), U64 -> Try(List(U64), KernelFacadeFragments.Error)
 link_owners = |links, occurrence_count| {
 	sentinel = links.len()
 	var $owners = List.repeat(sentinel, occurrence_count)
@@ -560,7 +560,7 @@ union_quads = |quads| {
 ## Rebuild the content spine with each Link node's per-page annotation
 ## occurrences appended to its span, in node order, assigning dense
 ## annotation identities and logical ranks in the same pass.
-patch_spine : Semantics.Store, List({ node : Semantics.NodeId, occurrences : Semantics.Range, target : [InternalDestination(Str), Uri(Str)] }), List(U64) -> Try({ annotations : List(Semantics.Annotation), content_spine : List(Semantics.ContentSpineItem), nodes : List(Semantics.Node) }, KernelFacadeFragments.Error)
+patch_spine : Semantics.Store, List({ node : Semantics.NodeId, occurrences : Semantics.IndexRange, target : [InternalDestination(Str), Uri(Str)] }), List(U64) -> Try({ annotations : List(Semantics.Annotation), content_spine : List(Semantics.ContentSpineItem), nodes : List(Semantics.Node) }, KernelFacadeFragments.Error)
 patch_spine = |store, links, per_link| {
 	sentinel = links.len()
 	var $link_of_node = List.repeat(sentinel, store.nodes.len())
@@ -613,7 +613,7 @@ patch_spine = |store, links, per_link| {
 				$slot = $slot + 1
 			}
 		}
-		$nodes = list_set($nodes, $node_index, { ..node, content: Semantics.Range.from_start_and_length(new_start, $spine.len() - new_start) })
+		$nodes = list_set($nodes, $node_index, { ..node, content: Semantics.IndexRange.from_start_and_length(new_start, $spine.len() - new_start) })
 		$node_index = $node_index + 1
 	}
 	Ok({ annotations: $annotations, content_spine: $spine, nodes: $nodes })
@@ -708,8 +708,8 @@ build_arena = |preliminary, prepared, artifact_runs, limits| {
 				return Err(SourceRangeMismatch({ run: $run_index }))
 			}
 			fragment_range = {
-				scalars: Semantics.Range.from_start_and_length(checked_add(occurrence_range.scalars.start(), run.source.scalars.start())?, run.source.scalars.length()),
-				utf8_bytes: Semantics.Range.from_start_and_length(checked_add(occurrence_range.utf8_bytes.start(), run.source.utf8_bytes.start())?, run.source.utf8_bytes.length()),
+				scalars: Semantics.IndexRange.from_start_and_length(checked_add(occurrence_range.scalars.start(), run.source.scalars.start())?, run.source.scalars.length()),
+				utf8_bytes: Semantics.IndexRange.from_start_and_length(checked_add(occurrence_range.utf8_bytes.start(), run.source.utf8_bytes.start())?, run.source.utf8_bytes.length()),
 			}
 			continuation = list_at($continuations, occurrence_index)
 			$continuations = list_set($continuations, occurrence_index, checked_add(continuation, 1)?)
@@ -741,7 +741,7 @@ build_arena = |preliminary, prepared, artifact_runs, limits| {
 relative_range_fits : Semantics.TextRange, Semantics.TextRange -> Bool
 relative_range_fits = |relative, occurrence| range_fits(relative.scalars, occurrence.scalars.length()) and range_fits(relative.utf8_bytes, occurrence.utf8_bytes.length())
 
-range_fits : Semantics.Range, U64 -> Bool
+range_fits : Semantics.IndexRange, U64 -> Bool
 range_fits = |range, available| range.start() <= available and range.length() <= available - range.start()
 
 check_limit : U64, U64, KernelFacadeFragments.Dimension -> Try({}, KernelFacadeFragments.Error)
@@ -818,7 +818,7 @@ expect {
 	labels = KernelNavigation.LabelPlan.build([], 1, KernelNavigation.standard_limits)?
 	rect = Layout.rect(10, 20, 1, 14)
 	proof = { registry, labels, anchors: [At({ page: Semantics.PageId.from_index(0), rect })] }
-	fragment = { content_stream: Semantics.ContentStreamId.from_index(0), continuation_index: 0, id: Semantics.FragmentId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0), page: Semantics.PageId.from_index(0), source_range: UnicodeRange({ scalars: Semantics.Range.from_start_and_length(0, 1), utf8_bytes: Semantics.Range.from_start_and_length(0, 1) }) }
+	fragment = { content_stream: Semantics.ContentStreamId.from_index(0), continuation_index: 0, id: Semantics.FragmentId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0), page: Semantics.PageId.from_index(0), source_range: UnicodeRange({ scalars: Semantics.IndexRange.from_start_and_length(0, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 1) }) }
 	accepted = match verify_committed_anchors(proof, [fragment], [AnchorAt(Layout.rect(10, 20, 100, 14))], 1) {
 		Ok(_) => True
 		Err(_) => False

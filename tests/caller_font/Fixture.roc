@@ -240,7 +240,7 @@ text_scene : Scene.Store
 text_scene = {
 	commands: [
 		Transform({
-			children: Semantics.Range.from_start_and_length(1, 1),
+			children: Semantics.IndexRange.from_start_and_length(1, 1),
 			matrix: { a: Layout.Unit.from_raw(1000), b: Layout.Unit.from_raw(0), c: Layout.Unit.from_raw(0), d: Layout.Unit.from_raw(1000), e: Layout.Unit.from_raw(72000), f: Layout.Unit.from_raw(700000) },
 		}),
 		DrawText({
@@ -254,13 +254,13 @@ text_scene = {
 		}),
 	],
 	dash_lengths: [],
-	groups: [{ commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
+	groups: [{ commands: Semantics.IndexRange.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
 	page_groups: [Scene.GroupId.from_index(0)],
 	pages: [
 		{
 			boxes: { art: a4_box, bleed: a4_box, crop: a4_box, media: a4_box, trim: a4_box },
 			id: Semantics.PageId.from_index(0),
-			paint_order: Semantics.Range.from_start_and_length(0, 1),
+			paint_order: Semantics.IndexRange.from_start_and_length(0, 1),
 			rotation: Rotate0,
 		},
 	],
@@ -297,12 +297,12 @@ source = "Café PDF"
 
 source_range : Semantics.TextRange
 source_range = {
-	scalars: Semantics.Range.from_start_and_length(0, 8),
-	utf8_bytes: Semantics.Range.from_start_and_length(0, 9),
+	scalars: Semantics.IndexRange.from_start_and_length(0, 8),
+	utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 9),
 }
 
-empty_range : Semantics.Range
-empty_range = Semantics.Range.from_start_and_length(0, 0)
+empty_range : Semantics.IndexRange
+empty_range = Semantics.IndexRange.from_start_and_length(0, 0)
 
 semantics : Semantics.Store
 semantics = {
@@ -329,7 +329,7 @@ semantics = {
 	nodes: [
 		{
 			attributes: empty_range,
-			content: Semantics.Range.from_start_and_length(0, 1),
+			content: Semantics.IndexRange.from_start_and_length(0, 1),
 			element_identifier: NoElementIdentifier,
 			id: Semantics.NodeId.from_index(0),
 			language: Language("en-AU"),
@@ -340,7 +340,7 @@ semantics = {
 		},
 		{
 			attributes: empty_range,
-			content: Semantics.Range.from_start_and_length(1, 1),
+			content: Semantics.IndexRange.from_start_and_length(1, 1),
 			element_identifier: NoElementIdentifier,
 			id: Semantics.NodeId.from_index(1),
 			language: Language("en-AU"),
@@ -354,7 +354,7 @@ semantics = {
 	occurrence_fragments: [Semantics.FragmentId.from_index(0)],
 	occurrences: [
 		{
-			fragments: Semantics.Range.from_start_and_length(0, 1),
+			fragments: Semantics.IndexRange.from_start_and_length(0, 1),
 			id: Semantics.OccurrenceId.from_index(0),
 			language: Language("en-AU"),
 			source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange(source_range)),

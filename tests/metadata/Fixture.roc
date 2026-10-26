@@ -79,8 +79,8 @@ unit = |raw| Layout.Unit.from_raw(raw)
 rect : I64, I64, I64, I64 -> Layout.Rect
 rect = |x, y, width, height| { origin: { x: unit(x), y: unit(y) }, size: { height: unit(height), width: unit(width) } }
 
-empty_range : Semantics.Range
-empty_range = Semantics.Range.from_start_and_length(0, 0)
+empty_range : Semantics.IndexRange
+empty_range = Semantics.IndexRange.from_start_and_length(0, 0)
 
 page_box : Layout.Rect
 page_box = rect(0, 0, 100000, 100000)
@@ -205,7 +205,7 @@ build_semantics = |fragment_count, logical_order| {
 	var $nodes = List.with_capacity(fragment_count + 1)
 	$nodes = $nodes.append({
 		attributes: empty_range,
-		content: Semantics.Range.from_start_and_length(0, fragment_count),
+		content: Semantics.IndexRange.from_start_and_length(0, fragment_count),
 		element_identifier: NoElementIdentifier,
 		id: Semantics.NodeId.from_index(0),
 		language: Inherited,
@@ -222,7 +222,7 @@ build_semantics = |fragment_count, logical_order| {
 	while $paragraph < fragment_count {
 		$content_spine = $content_spine.append(ContentOccurrence(Semantics.OccurrenceId.from_index($paragraph)))
 		$occurrences = $occurrences.append({
-			fragments: Semantics.Range.from_start_and_length($paragraph, 1),
+			fragments: Semantics.IndexRange.from_start_and_length($paragraph, 1),
 			id: Semantics.OccurrenceId.from_index($paragraph),
 			language: Inherited,
 			source: NonText(Semantics.NonTextSourceId.from_index(0), ByteRange(empty_range)),
@@ -239,7 +239,7 @@ build_semantics = |fragment_count, logical_order| {
 		})
 		$nodes = $nodes.append({
 			attributes: empty_range,
-			content: Semantics.Range.from_start_and_length(fragment_count + $paragraph, 1),
+			content: Semantics.IndexRange.from_start_and_length(fragment_count + $paragraph, 1),
 			element_identifier: NoElementIdentifier,
 			id: Semantics.NodeId.from_index($paragraph + 1),
 			language: Inherited,
@@ -460,16 +460,16 @@ showcase_scenario = |direction| {
 		],
 		dash_lengths: [],
 		groups: [
-			{ commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: PageArtifact(Background) },
-			{ commands: Semantics.Range.from_start_and_length(1, 1), id: Scene.GroupId.from_index(1), owner: Fragment(Semantics.FragmentId.from_index(0)) },
-			{ commands: Semantics.Range.from_start_and_length(2, 1), id: Scene.GroupId.from_index(2), owner: Fragment(Semantics.FragmentId.from_index(1)) },
+			{ commands: Semantics.IndexRange.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: PageArtifact(Background) },
+			{ commands: Semantics.IndexRange.from_start_and_length(1, 1), id: Scene.GroupId.from_index(1), owner: Fragment(Semantics.FragmentId.from_index(0)) },
+			{ commands: Semantics.IndexRange.from_start_and_length(2, 1), id: Scene.GroupId.from_index(2), owner: Fragment(Semantics.FragmentId.from_index(1)) },
 		],
 		page_groups: [Scene.GroupId.from_index(0), Scene.GroupId.from_index(1), Scene.GroupId.from_index(2)],
 		pages: [
 			{
 				boxes: { art: page_box, bleed: page_box, crop: page_box, media: page_box, trim: page_box },
 				id: Semantics.PageId.from_index(0),
-				paint_order: Semantics.Range.from_start_and_length(0, 3),
+				paint_order: Semantics.IndexRange.from_start_and_length(0, 3),
 				rotation: Rotate0,
 			},
 		],
@@ -479,9 +479,9 @@ showcase_scenario = |direction| {
 			Rectangle(rect(10000, 15000, 80000, 30000)),
 		],
 		paths: [
-			{ id: Scene.PathId.from_index(0), segments: Semantics.Range.from_start_and_length(0, 1) },
-			{ id: Scene.PathId.from_index(1), segments: Semantics.Range.from_start_and_length(1, 1) },
-			{ id: Scene.PathId.from_index(2), segments: Semantics.Range.from_start_and_length(2, 1) },
+			{ id: Scene.PathId.from_index(0), segments: Semantics.IndexRange.from_start_and_length(0, 1) },
+			{ id: Scene.PathId.from_index(1), segments: Semantics.IndexRange.from_start_and_length(1, 1) },
+			{ id: Scene.PathId.from_index(2), segments: Semantics.IndexRange.from_start_and_length(2, 1) },
 		],
 	}
 	{
@@ -518,9 +518,9 @@ share_scenario = |scale| {
 		column = U64.mod_by($index, 8) * 12000
 		row = U64.mod_by(U64.div_by($index, 8), 8) * 12000
 		$segments = $segments.append(Rectangle(rect(column.to_i64_wrap(), row.to_i64_wrap(), 10000, 10000)))
-		$paths = $paths.append({ id: Scene.PathId.from_index($index), segments: Semantics.Range.from_start_and_length($index, 1) })
+		$paths = $paths.append({ id: Scene.PathId.from_index($index), segments: Semantics.IndexRange.from_start_and_length($index, 1) })
 		$commands = $commands.append(DrawPath({ path: Scene.PathId.from_index($index), style: fill_with(rgb_value(65535, 32896, 8224, $index)) }))
-		$groups = $groups.append({ commands: Semantics.Range.from_start_and_length($index, 1), id: Scene.GroupId.from_index($index), owner: Fragment(Semantics.FragmentId.from_index($index)) })
+		$groups = $groups.append({ commands: Semantics.IndexRange.from_start_and_length($index, 1), id: Scene.GroupId.from_index($index), owner: Fragment(Semantics.FragmentId.from_index($index)) })
 		$page_groups = $page_groups.append(Scene.GroupId.from_index($index))
 		$order = $order.append($index)
 		$index = $index + 1
@@ -550,7 +550,7 @@ share_scenario = |scale| {
 				{
 					boxes: { art: page_box, bleed: page_box, crop: page_box, media: page_box, trim: page_box },
 					id: Semantics.PageId.from_index(0),
-					paint_order: Semantics.Range.from_start_and_length(0, scale),
+					paint_order: Semantics.IndexRange.from_start_and_length(0, scale),
 					rotation: Rotate0,
 				},
 			],

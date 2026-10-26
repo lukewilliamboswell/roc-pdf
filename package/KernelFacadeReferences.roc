@@ -290,7 +290,7 @@ map_literal_clusters = |measured, final| {
 	Ok({ entries: $entries, clusters: $clusters, glyphs: $glyphs })
 }
 
-FieldFit : { runs : Semantics.Range, inset : Layout.Unit }
+FieldFit : { runs : Semantics.IndexRange, inset : Layout.Unit }
 
 ## Shaping already produced each physical run's exact advance. Prove the
 ## reserved field once per logical reference, including repeated headers;
@@ -376,10 +376,10 @@ position_items = |authoring, pending, measured, literal, final, mapping, rows, a
 							}
 						}
 					}
-					line = { advance: $advance, clusters: Semantics.Range.from_start_and_length(mapped.cluster, $end - $item), source: joined_source(first.source, $last.source)? }
+					line = { advance: $advance, clusters: Semantics.IndexRange.from_start_and_length(mapped.cluster, $end - $item), source: joined_source(first.source, $last.source)? }
 					index = $lines.len()
 					$lines = $lines.append(line)
-					$pieces = $pieces.append({ artifact: row.artifact, line: index, origin, page: Semantics.PageId.from_index(row.page), source_runs: { physical: Semantics.Range.from_start_and_length(mapped.run, 1) } })
+					$pieces = $pieces.append({ artifact: row.artifact, line: index, origin, page: Semantics.PageId.from_index(row.page), source_runs: { physical: Semantics.IndexRange.from_start_and_length(mapped.run, 1) } })
 					$item = $end
 				}
 				ReferenceAtom(reference) => {
@@ -397,7 +397,7 @@ position_items = |authoring, pending, measured, literal, final, mapping, rows, a
 						index = $lines.len()
 						$lines = $lines.append({ advance, clusters: run.clusters, source: run.source })
 						piece_origin = { ..origin, x: $x }
-						$pieces = $pieces.append({ artifact: row.artifact, line: index, origin: piece_origin, page: Semantics.PageId.from_index(row.page), source_runs: { physical: Semantics.Range.from_start_and_length($physical, 1) } })
+						$pieces = $pieces.append({ artifact: row.artifact, line: index, origin: piece_origin, page: Semantics.PageId.from_index(row.page), source_runs: { physical: Semantics.IndexRange.from_start_and_length($physical, 1) } })
 						if !row.artifact {
 							match list_at($anchors, context.occurrence.index()) {
 								At(_) => {}
@@ -450,7 +450,7 @@ joined_source = |first, last| {
 	if scalar_end < first.scalars.start() or byte_end < first.utf8_bytes.start() {
 		return Err(InvalidMapping({ item: first.scalars.start() }))
 	}
-	Ok({ scalars: Semantics.Range.from_start_and_length(first.scalars.start(), scalar_end - first.scalars.start()), utf8_bytes: Semantics.Range.from_start_and_length(first.utf8_bytes.start(), byte_end - first.utf8_bytes.start()) })
+	Ok({ scalars: Semantics.IndexRange.from_start_and_length(first.scalars.start(), scalar_end - first.scalars.start()), utf8_bytes: Semantics.IndexRange.from_start_and_length(first.utf8_bytes.start(), byte_end - first.utf8_bytes.start()) })
 }
 
 add_unit : Layout.Unit, Layout.Unit -> Try(Layout.Unit, KernelFacadeReferences.Error)

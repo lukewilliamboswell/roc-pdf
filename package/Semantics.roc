@@ -175,17 +175,19 @@ Semantics :: [].{
 		index = |ContentStreamId.(index)| index
 	}
 
-	Range :: { length : U64, start : U64 }.{
+	## A contiguous run of `length` indices beginning at `start`, into one of
+	## the model's dense buffers (attributes, nodes, glyphs, bytes and so on).
+	IndexRange :: { length : U64, start : U64 }.{
 		is_eq : _
 		to_hash : _
 
-		from_start_and_length : U64, U64 -> Range
-		from_start_and_length = |start, length| Range.{ start, length }
+		from_start_and_length : U64, U64 -> IndexRange
+		from_start_and_length = |start, length| IndexRange.{ start, length }
 
-		length : Range -> U64
+		length : IndexRange -> U64
 		length = |range| range.length
 
-		start : Range -> U64
+		start : IndexRange -> U64
 		start = |range| range.start
 	}
 
@@ -212,24 +214,24 @@ Semantics :: [].{
 	]
 
 	Node : {
-		attributes : Range,
-		content : Range,
+		attributes : IndexRange,
+		content : IndexRange,
 		element_identifier : [HasElementIdentifier(ElementId), NoElementIdentifier],
 		id : NodeId,
 		language : Language,
 		parent : NodeParent,
 		role : Role,
 		structure_element : StructureElementId,
-		text_properties : Range,
+		text_properties : IndexRange,
 	}
 
 	Language : [Inherited, Language(Str)]
 
 	TextRange : {
-		scalars : Range,
-		utf8_bytes : Range,
+		scalars : IndexRange,
+		utf8_bytes : IndexRange,
 	}
-	SourceRange : [ByteRange(Range), UnicodeRange(TextRange)]
+	SourceRange : [ByteRange(IndexRange), UnicodeRange(TextRange)]
 
 	OccurrenceSource : [
 		NonText(NonTextSourceId, SourceRange),
@@ -237,11 +239,11 @@ Semantics :: [].{
 	]
 
 	ContentOccurrence : {
-		fragments : Range,
+		fragments : IndexRange,
 		id : OccurrenceId,
 		language : Language,
 		source : OccurrenceSource,
-		text_properties : Range,
+		text_properties : IndexRange,
 	}
 
 	## Source Unicode is owned exactly once in this dense store.
@@ -279,7 +281,7 @@ Semantics :: [].{
 		Standard(Str),
 	]
 	RoleFamily : [ArtifactRoles, BlockRoles, InlineRoles, ListRoles, TableRoles]
-	AttributeApplicability : [AllRoles, ExactRoles(Range), Family(RoleFamily)]
+	AttributeApplicability : [AllRoles, ExactRoles(IndexRange), Family(RoleFamily)]
 	AttributeValue : [Integer(I64), Name(Str), Names(List(Str)), Text(Str)]
 	StructureAttribute : {
 		applicability : AttributeApplicability,
@@ -289,7 +291,7 @@ Semantics :: [].{
 	}
 
 	ContextualArtifact : {
-		attributes : Range,
+		attributes : IndexRange,
 		id : ContextualArtifactId,
 		parent : NodeId,
 	}
@@ -325,7 +327,7 @@ Semantics :: [].{
 	MathMlSubtree : {
 		id : MathMlSubtreeId,
 		namespace : NamespaceId,
-		nodes : Range,
+		nodes : IndexRange,
 		origin : MathMlOrigin,
 		root : NodeId,
 	}
@@ -392,13 +394,13 @@ expect Semantics.StructureElementId.from_index(19).index() == 19
 expect Semantics.ElementId.from_index(23).index() == 23
 
 # Ranges preserve their exact start offset.
-expect Semantics.Range.from_start_and_length(5, 8).start() == 5
+expect Semantics.IndexRange.from_start_and_length(5, 8).start() == 5
 
 # Ranges preserve their exact length.
-expect Semantics.Range.from_start_and_length(5, 8).length() == 8
+expect Semantics.IndexRange.from_start_and_length(5, 8).length() == 8
 
 # Nested public type modules construct opaque node IDs directly.
 expect Semantics.NodeId.from_index(17).index() == 17
 
 # Nested public type modules construct exact ranges directly.
-expect Semantics.Range.from_start_and_length(2, 3).length() == 3
+expect Semantics.IndexRange.from_start_and_length(2, 3).length() == 3

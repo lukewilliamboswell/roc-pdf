@@ -23,7 +23,7 @@ KernelFacadeReferenceShape :: [].{
 		Shape(KernelShape.Error),
 		Style(KernelFacadeShape.Error),
 	]
-	LiteralRuns : { context : U64, runs : Semantics.Range }
+	LiteralRuns : { context : U64, runs : Semantics.IndexRange }
 	Work : { literal_visits : U64, range_probes : U64, selected_runs : U64, source_selections : U64, shape : KernelShape.Work }
 	View : {
 		literals : List(LiteralContext),
@@ -47,7 +47,7 @@ KernelFacadeReferenceShape :: [].{
 	}
 }
 
-Selected : { clusters : Semantics.Range, face : Font.FaceId, script : Font.Script }
+Selected : { clusters : Semantics.IndexRange, face : Font.FaceId, script : Font.Script }
 
 SelectedSources : [FixedFace(List(U64)), PolicyFaces({ segments : List(List(Selected)), indexes : List(U64) })]
 
@@ -108,7 +108,7 @@ build_plan = |authoring, literals, sources, selection, theme, limits| {
 			$origins = $origins.append({ byte: located.range.utf8_bytes.start(), scalar: located.range.scalars.start() })
 			$selected = $selected.append({ clusters: segment.clusters, instance: Font.InstanceId.from_index(segment.font), language: occurrence.language, occurrence: occurrence.id, script: segment.script, size: style.size, source: located.source })
 		}
-		$literal_runs = $literal_runs.append({ context: $literal, runs: Semantics.Range.from_start_and_length(start, $requests.len() - start) })
+		$literal_runs = $literal_runs.append({ context: $literal, runs: Semantics.IndexRange.from_start_and_length(start, $requests.len() - start) })
 		$literal = $literal + 1
 	}
 
@@ -203,9 +203,9 @@ prepare_selection = |authoring, literals, sources, selection, theme| match selec
 zero_selection_work : KernelFacadeShape.SelectionWork
 zero_selection_work = { coverage_span_visits: 0, face_visits: 0, grapheme_visits: 0, planned_sources: 0, selection_ranges: 0 }
 
-PhysicalSegment : { clusters : Semantics.Range, font : U64, script : Font.Script }
+PhysicalSegment : { clusters : Semantics.IndexRange, font : U64, script : Font.Script }
 
-literal_segments : KernelUnicode.UnicodeAnalysis, Semantics.Range, KernelFacadeReferenceShape.LiteralContext, Document.NormalizedAuthoring, SelectedSources, U64, U64 -> Try({ segments : List(PhysicalSegment), probes : U64 }, KernelFacadeReferenceShape.Error)
+literal_segments : KernelUnicode.UnicodeAnalysis, Semantics.IndexRange, KernelFacadeReferenceShape.LiteralContext, Document.NormalizedAuthoring, SelectedSources, U64, U64 -> Try({ segments : List(PhysicalSegment), probes : U64 }, KernelFacadeReferenceShape.Error)
 literal_segments = |analysis, range, context, authoring, selection, source, candidate| {
 	end = range.start() + range.length()
 	var $segments = []
@@ -235,7 +235,7 @@ literal_segments = |analysis, range, context, authoring, selection, source, cand
 				if segment.face.index() >= policy.indexes.len() or list_at(policy.indexes, segment.face.index()) == U64.highest or segment.clusters.start() > $cursor or stop <= $cursor {
 					return Err(InvalidSelection)
 				}
-				$segments = $segments.append({ clusters: Semantics.Range.from_start_and_length($cursor, stop - $cursor), font: list_at(policy.indexes, segment.face.index()), script: segment.script })
+				$segments = $segments.append({ clusters: Semantics.IndexRange.from_start_and_length($cursor, stop - $cursor), font: list_at(policy.indexes, segment.face.index()), script: segment.script })
 				$cursor = stop
 				$low = $low + 1
 			}
@@ -275,13 +275,13 @@ literal_segments = |analysis, range, context, authoring, selection, source, cand
 				}
 				script = list_at(analysis.script_runs, $script)
 				if !declared_script(script.script) {
-					return Err(Style(UnsupportedText({ block: context.block, inline: context.inline, reason: Script(script.script), scalars: Semantics.Range.from_start_and_length(first.scalar_start - literal_start(context), first.scalar_end - first.scalar_start) })))
+					return Err(Style(UnsupportedText({ block: context.block, inline: context.inline, reason: Script(script.script), scalars: Semantics.IndexRange.from_start_and_length(first.scalar_start - literal_start(context), first.scalar_end - first.scalar_start) })))
 				}
 				var $stop = $cursor + 1
 				while $stop < end and list_at(analysis.graphemes, $stop).scalar_start < script.range.scalar_end {
 					$stop = $stop + 1
 				}
-				$segments = $segments.append({ clusters: Semantics.Range.from_start_and_length($cursor, $stop - $cursor), font: font_index, script: Font.Script.from_iso15924(if (is_source and script.script != "Zyyy" and script.script != "Zinh") script.script else "Latn") })
+				$segments = $segments.append({ clusters: Semantics.IndexRange.from_start_and_length($cursor, $stop - $cursor), font: font_index, script: Font.Script.from_iso15924(if (is_source and script.script != "Zyyy" and script.script != "Zinh") script.script else "Latn") })
 				$cursor = $stop
 			}
 		}
@@ -298,7 +298,7 @@ literal_start = |context| match context.occurrence.source {
 	_ => 0
 }
 
-cluster_bounds : KernelUnicode.UnicodeAnalysis, Semantics.TextRange, U64 -> Try({ range : Semantics.Range, probes : U64 }, KernelFacadeReferenceShape.Error)
+cluster_bounds : KernelUnicode.UnicodeAnalysis, Semantics.TextRange, U64 -> Try({ range : Semantics.IndexRange, probes : U64 }, KernelFacadeReferenceShape.Error)
 cluster_bounds = |analysis, range, occurrence| {
 	start = cluster_boundary(analysis.graphemes, range.scalars.start(), occurrence)?
 	end = cluster_boundary(analysis.graphemes, range.scalars.start() + range.scalars.length(), occurrence)?
@@ -314,7 +314,7 @@ cluster_bounds = |analysis, range, occurrence| {
 			InvalidLiteral({ occurrence: occurrence }),
 		)
 	}
-	Ok({ range: Semantics.Range.from_start_and_length(start.index, end.index - start.index), probes: start.probes + end.probes })
+	Ok({ range: Semantics.IndexRange.from_start_and_length(start.index, end.index - start.index), probes: start.probes + end.probes })
 }
 
 cluster_boundary : List(KernelUnicode.UnicodeRange), U64, U64 -> Try({ index : U64, probes : U64 }, KernelFacadeReferenceShape.Error)
@@ -399,7 +399,7 @@ finalize_shape = |plan, authoring, owners, count| {
 				}
 				first = list_at(view.literal_runs, occurrences.start()).runs
 				last = list_at(view.literal_runs, occurrences.start() + occurrences.length() - 1).runs
-				TextBlock({ body: { physical: Semantics.Range.from_start_and_length(first.start(), last.start() + last.length() - first.start()) }, label: resolved_label(view.literal_runs, label), level })
+				TextBlock({ body: { physical: Semantics.IndexRange.from_start_and_length(first.start(), last.start() + last.length() - first.start()) }, label: resolved_label(view.literal_runs, label), level })
 			}
 		}
 		$blocks = $blocks.append(block)
@@ -424,13 +424,13 @@ resolved_label = |runs, label| match label {
 
 expect {
 	analysis = KernelUnicode.analyze("pré", KernelUnicode.default_limits)?
-	bounds = cluster_bounds(analysis, { scalars: Semantics.Range.from_start_and_length(0, 3), utf8_bytes: Semantics.Range.from_start_and_length(0, 4) }, 9)?
+	bounds = cluster_bounds(analysis, { scalars: Semantics.IndexRange.from_start_and_length(0, 3), utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 4) }, 9)?
 	bounds.range.start() == 0 and bounds.range.length() == 3 and bounds.probes <= 6
 }
 
 expect {
 	analysis = KernelUnicode.analyze("pré", KernelUnicode.default_limits)?
-	match cluster_bounds(analysis, { scalars: Semantics.Range.from_start_and_length(0, 3), utf8_bytes: Semantics.Range.from_start_and_length(0, 3) }, 9) {
+	match cluster_bounds(analysis, { scalars: Semantics.IndexRange.from_start_and_length(0, 3), utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 3) }, 9) {
 		Err(InvalidLiteral({ occurrence: 9 })) => True
 		_ => False
 	}
@@ -498,7 +498,7 @@ locate_failure = |contexts, spans, sources, fonts, requests, error| {
 			}
 			reason = if (grapheme.scalar_end - grapheme.scalar_start != 1) Failed(Cluster) else if (!covered) Failed(Coverage(value)) else if (actual_script != "Zyyy" and actual_script != "Zinh" and actual_script != request.script.to_str()) Failed(Script(actual_script)) else Passed
 			match reason {
-				Failed(found) => return Style(UnsupportedText({ block: context.block, inline: context.inline, reason: found, scalars: Semantics.Range.from_start_and_length(grapheme.scalar_start - literal_start(context), grapheme.scalar_end - grapheme.scalar_start) }))
+				Failed(found) => return Style(UnsupportedText({ block: context.block, inline: context.inline, reason: found, scalars: Semantics.IndexRange.from_start_and_length(grapheme.scalar_start - literal_start(context), grapheme.scalar_end - grapheme.scalar_start) }))
 				Passed => {}
 			}
 		}
@@ -569,7 +569,7 @@ locate_policy_failure = |contexts, source, source_id, error| {
 						}
 					}
 				}
-				return Style(UnsupportedText({ block: context.block, inline: context.inline, reason, scalars: Semantics.Range.from_start_and_length(grapheme.scalar_start - range.scalars.start(), grapheme.scalar_end - grapheme.scalar_start) }))
+				return Style(UnsupportedText({ block: context.block, inline: context.inline, reason, scalars: Semantics.IndexRange.from_start_and_length(grapheme.scalar_start - range.scalars.start(), grapheme.scalar_end - grapheme.scalar_start) }))
 			}
 			_ => {}
 		}

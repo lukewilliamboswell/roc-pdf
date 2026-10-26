@@ -102,10 +102,10 @@ NormalizedSource : {
 	color : Color.SourceValue,
 	face : Font.FaceId,
 	fragmentation : [Lines, Unsplittable],
-	foregrounds : Semantics.Range,
+	foregrounds : Semantics.IndexRange,
 	group : U64,
 	leading : Layout.Unit,
-	lines : Semantics.Range,
+	lines : Semantics.IndexRange,
 	padding : Layout.Unit,
 	size : Layout.Unit,
 	text : Str,
@@ -620,7 +620,7 @@ ReferenceChunkSource := [Literal({ ordinal : U64, text : Str }), Reference(U64)]
 
 NormalizedReferenceChunk : { first_leaf : U64, leaf_end : U64, paragraph : U64, segment : U64, source : ReferenceChunkSource }
 
-NormalizedReferenceParagraph : { chunks : Semantics.Range, paragraph : U64, sources : U64 }
+NormalizedReferenceParagraph : { chunks : Semantics.IndexRange, paragraph : U64, sources : U64 }
 
 NormalizedAuthoring := {
 	blocks : List(NormalizedBlock),
@@ -1539,7 +1539,7 @@ finish_reference_chunks = |authoring| {
 			$chunks = $chunks.append({ first_leaf: $first_leaf, leaf_end: $leaf_end, paragraph, segment: $segment, source: Literal({ ordinal: $ordinal, text: Str.join_with($texts, "") }) })
 			$ordinal = $ordinal + 1
 		}
-		$paragraphs = $paragraphs.append({ chunks: Semantics.Range.from_start_and_length(first_chunk, $chunks.len() - first_chunk), paragraph, sources: $ordinal })
+		$paragraphs = $paragraphs.append({ chunks: Semantics.IndexRange.from_start_and_length(first_chunk, $chunks.len() - first_chunk), paragraph, sources: $ordinal })
 		while $reference < authoring.page_references.len() and list_at(authoring.page_references, $reference).paragraph == paragraph {
 			$reference = $reference + 1
 		}
@@ -2060,7 +2060,7 @@ append_source_limited = |state, spec, parent, position, limits| {
 	}
 	source = state.sources.len()
 	group = state.groups.len()
-	record = { foregrounds: Semantics.Range.from_start_and_length(state.source_foregrounds.len(), facts.foregrounds.len()), background: spec.background, color: spec.color, face: spec.face, fragmentation: spec.fragmentation, group, leading: spec.leading, lines: Semantics.Range.from_start_and_length(state.source_lines.len(), facts.lines.len()), padding: spec.padding, size: spec.size, text: facts.text, validation: facts.validation, wrap: spec.wrap }
+	record = { foregrounds: Semantics.IndexRange.from_start_and_length(state.source_foregrounds.len(), facts.foregrounds.len()), background: spec.background, color: spec.color, face: spec.face, fragmentation: spec.fragmentation, group, leading: spec.leading, lines: Semantics.IndexRange.from_start_and_length(state.source_lines.len(), facts.lines.len()), padding: spec.padding, size: spec.size, text: facts.text, validation: facts.validation, wrap: spec.wrap }
 	next_bytes = state.source_bytes + facts.bytes
 	var $state = open_group({ ..state, source_bytes: next_bytes, source_exhaustion: facts.exhaustion, sources: state.sources.append(record) }, Source(source), parent, 0, position)
 	for foreground in facts.foregrounds {
