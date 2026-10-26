@@ -11,13 +11,10 @@ import os
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
 import threading
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from roc_diagnostics import tolerated_warnings_only  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 GALLERY = ROOT / "examples"
@@ -96,25 +93,6 @@ def bundled_example(example: Path, destination: Path, bundle_url: str) -> Path:
     return destination / "main.roc"
 
 
-def run_example(source: Path, cwd: Path) -> None:
-    """Run one gallery app under the harness's warnings-are-failures policy.
-
-    `roc run` exits with status 2 after running the app when the compiler
-    reported warnings. Warnings located in a downloaded package are the only
-    tolerated ones (see scripts/roc_diagnostics.py); the generated PDF is
-    still compared byte for byte afterwards.
-    """
-    result = subprocess.run(
-        [ROC, "run", str(source)], cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
-    )
-    print(result.stdout, end="", flush=True)
-    if result.returncode == 0:
-        return
-    if result.returncode == 2 and tolerated_warnings_only(result.stdout):
-        return
-    raise SystemExit(f"roc run failed ({result.returncode}): {source}")
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--bundle-path", type=Path)
@@ -139,7 +117,7 @@ def main() -> None:
                 generated_path = output / pdf_name
                 if generated_path.exists():
                     generated_path.unlink()
-                run_example(source, output)
+                subprocess.run([ROC, "run", str(source)], cwd=output, check=True)
                 generated = generated_path.read_bytes()
                 expected = (example / pdf_name).read_bytes()
                 if generated != expected:

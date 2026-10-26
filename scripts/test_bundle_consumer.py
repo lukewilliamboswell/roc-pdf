@@ -19,9 +19,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from check_facade_output import validate_facade_output_pdf  # noqa: E402
-from roc_diagnostics import tolerated_warnings_only  # noqa: E402
+from check_facade_output import validate_facade_output_pdf
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -49,16 +47,9 @@ class TestFailure(RuntimeError):
 
 def command(*args: str, cwd: Path = ROOT, env: dict[str, str] | None = None) -> None:
     print("+", " ".join(args), flush=True)
-    completed = subprocess.run(args, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, check=False)
-    print(completed.stdout, end="", flush=True)
-    if completed.returncode == 0:
-        return
-    # `roc` exits with status 2 when it reports only warnings. Warnings located
-    # in a downloaded package are the only tolerated ones (see
-    # scripts/roc_diagnostics.py).
-    if completed.returncode == 2 and tolerated_warnings_only(completed.stdout):
-        return
-    raise TestFailure(f"command exited {completed.returncode}: {' '.join(args)}")
+    completed = subprocess.run(args, cwd=cwd, env=env, check=False)
+    if completed.returncode != 0:
+        raise TestFailure(f"command exited {completed.returncode}: {' '.join(args)}")
 
 
 def command_must_fail(*args: str, cwd: Path = ROOT, env: dict[str, str] | None = None) -> None:
