@@ -4,3 +4,7 @@
 {"name":"destination references atomic negatives","schema_version":1,"case":{"Negatives":{"context":0}}}
 {"name":"destination references ordered mixed fonts","schema_version":1,"case":{"Ordered":{"context":0}}}
 {"name":"destination references measured geometry","schema_version":1,"case":{"Geometry":{"context":0}}}
+{"name":"contents entries x2","schema_version":1,"case":{"Contents":{"entries":2}}}
+{"name":"contents entries x80","schema_version":1,"case":{"Contents":{"entries":80}}}
+{"name":"contents entry across pages","schema_version":1,"case":{"Contents":{"entries":0}}}
+{"name":"contents entries atomic negatives","schema_version":1,"case":{"ContentsNegatives":{"context":0}}}

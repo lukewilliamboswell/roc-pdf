@@ -60,7 +60,8 @@
     "rich_flow",
     "technical_manual",
     "destination_references",
-    "table_paint_frames"
+    "table_paint_frames",
+    "contents_entries"
   ],
   "post_update_checks": [
     "contracts",
@@ -80,7 +81,8 @@
     "rich_flow",
     "technical_manual",
     "destination_references",
-    "table_paint_frames"
+    "table_paint_frames",
+    "contents_entries"
   ],
   "validation": {
     "sources": [
@@ -32450,6 +32452,376 @@
         "structure_semantics",
         "rich_inline",
         "table_paint_frames"
+      ]
+    },
+    {
+      "name": "contents entries x2",
+      "scenario_revision": "contents-entry-v1",
+      "family": "destination_references",
+      "snapshot": "tests/destination_references/contents_2.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "entries": 2,
+        "pages": 2,
+        "tall": 0
+      },
+      "work_counters": [
+        "reference_atoms",
+        "normalization_chunks",
+        "literal_shape_requests",
+        "measured_items",
+        "measured_rows",
+        "committed_row_visits",
+        "anchor_item_visits",
+        "registry_lookup_steps",
+        "resolved_labels",
+        "resolved_label_bytes",
+        "mapping_cluster_visits",
+        "mapping_glyph_visits",
+        "reference_fit_run_visits",
+        "positioned_pieces",
+        "shape_metric_reads",
+        "hold_scalars",
+        "intrinsic_item_visits",
+        "wrapped_item_visits",
+        "boundary_visits",
+        "positioned_items",
+        "alignment_items",
+        "separator_run_visits",
+        "separator_override_writes",
+        "output_bytes",
+        "contents_rows",
+        "leader_dots"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1204,
+          "allocated_bytes": 3399297,
+          "work": {
+            "reference_atoms": 2,
+            "normalization_chunks": 4,
+            "literal_shape_requests": 5,
+            "measured_items": 317,
+            "measured_rows": 6,
+            "committed_row_visits": 6,
+            "anchor_item_visits": 317,
+            "registry_lookup_steps": 2,
+            "resolved_labels": 2,
+            "resolved_label_bytes": 2,
+            "mapping_cluster_visits": 315,
+            "mapping_glyph_visits": 315,
+            "reference_fit_run_visits": 2,
+            "positioned_pieces": 10,
+            "shape_metric_reads": 632,
+            "hold_scalars": 0,
+            "intrinsic_item_visits": 0,
+            "wrapped_item_visits": 331,
+            "boundary_visits": 331,
+            "positioned_items": 317,
+            "alignment_items": 0,
+            "separator_run_visits": 0,
+            "separator_override_writes": 0,
+            "output_bytes": 12613,
+            "contents_rows": 2,
+            "leader_dots": 125
+          }
+        },
+        "x64musl": {
+          "allocations": 1204,
+          "allocated_bytes": 3399297,
+          "work": {
+            "reference_atoms": 2,
+            "normalization_chunks": 4,
+            "literal_shape_requests": 5,
+            "measured_items": 317,
+            "measured_rows": 6,
+            "committed_row_visits": 6,
+            "anchor_item_visits": 317,
+            "registry_lookup_steps": 2,
+            "resolved_labels": 2,
+            "resolved_label_bytes": 2,
+            "mapping_cluster_visits": 315,
+            "mapping_glyph_visits": 315,
+            "reference_fit_run_visits": 2,
+            "positioned_pieces": 10,
+            "shape_metric_reads": 632,
+            "hold_scalars": 0,
+            "intrinsic_item_visits": 0,
+            "wrapped_item_visits": 331,
+            "boundary_visits": 331,
+            "positioned_items": 317,
+            "alignment_items": 0,
+            "separator_run_visits": 0,
+            "separator_override_writes": 0,
+            "output_bytes": 12613,
+            "contents_rows": 2,
+            "leader_dots": 125
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "contents_entries"
+      ]
+    },
+    {
+      "name": "contents entries x80",
+      "scenario_revision": "contents-entry-v1",
+      "family": "destination_references",
+      "snapshot": "tests/destination_references/contents_80.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "entries": 80,
+        "pages": 5,
+        "tall": 0
+      },
+      "work_counters": [
+        "reference_atoms",
+        "normalization_chunks",
+        "literal_shape_requests",
+        "measured_items",
+        "measured_rows",
+        "committed_row_visits",
+        "anchor_item_visits",
+        "registry_lookup_steps",
+        "resolved_labels",
+        "resolved_label_bytes",
+        "mapping_cluster_visits",
+        "mapping_glyph_visits",
+        "reference_fit_run_visits",
+        "positioned_pieces",
+        "shape_metric_reads",
+        "hold_scalars",
+        "intrinsic_item_visits",
+        "wrapped_item_visits",
+        "boundary_visits",
+        "positioned_items",
+        "alignment_items",
+        "separator_run_visits",
+        "separator_override_writes",
+        "output_bytes",
+        "contents_rows",
+        "leader_dots"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 10092,
+          "allocated_bytes": 34971089,
+          "work": {
+            "reference_atoms": 80,
+            "normalization_chunks": 160,
+            "literal_shape_requests": 161,
+            "measured_items": 8657,
+            "measured_rows": 162,
+            "committed_row_visits": 162,
+            "anchor_item_visits": 8657,
+            "registry_lookup_steps": 80,
+            "resolved_labels": 80,
+            "resolved_label_bytes": 80,
+            "mapping_cluster_visits": 8577,
+            "mapping_glyph_visits": 8577,
+            "reference_fit_run_visits": 80,
+            "positioned_pieces": 322,
+            "shape_metric_reads": 17234,
+            "hold_scalars": 0,
+            "intrinsic_item_visits": 0,
+            "wrapped_item_visits": 8983,
+            "boundary_visits": 8983,
+            "positioned_items": 8657,
+            "alignment_items": 0,
+            "separator_run_visits": 0,
+            "separator_override_writes": 0,
+            "output_bytes": 46216,
+            "contents_rows": 80,
+            "leader_dots": 6322
+          }
+        },
+        "x64musl": {
+          "allocations": 10092,
+          "allocated_bytes": 34971089,
+          "work": {
+            "reference_atoms": 80,
+            "normalization_chunks": 160,
+            "literal_shape_requests": 161,
+            "measured_items": 8657,
+            "measured_rows": 162,
+            "committed_row_visits": 162,
+            "anchor_item_visits": 8657,
+            "registry_lookup_steps": 80,
+            "resolved_labels": 80,
+            "resolved_label_bytes": 80,
+            "mapping_cluster_visits": 8577,
+            "mapping_glyph_visits": 8577,
+            "reference_fit_run_visits": 80,
+            "positioned_pieces": 322,
+            "shape_metric_reads": 17234,
+            "hold_scalars": 0,
+            "intrinsic_item_visits": 0,
+            "wrapped_item_visits": 8983,
+            "boundary_visits": 8983,
+            "positioned_items": 8657,
+            "alignment_items": 0,
+            "separator_run_visits": 0,
+            "separator_override_writes": 0,
+            "output_bytes": 46216,
+            "contents_rows": 80,
+            "leader_dots": 6322
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "contents_entries"
+      ]
+    },
+    {
+      "name": "contents entry across pages",
+      "scenario_revision": "contents-entry-v1",
+      "family": "destination_references",
+      "snapshot": "tests/destination_references/contents_tall.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "entries": 1,
+        "pages": 4,
+        "tall": 1
+      },
+      "work_counters": [
+        "reference_atoms",
+        "normalization_chunks",
+        "literal_shape_requests",
+        "measured_items",
+        "measured_rows",
+        "committed_row_visits",
+        "anchor_item_visits",
+        "registry_lookup_steps",
+        "resolved_labels",
+        "resolved_label_bytes",
+        "mapping_cluster_visits",
+        "mapping_glyph_visits",
+        "reference_fit_run_visits",
+        "positioned_pieces",
+        "shape_metric_reads",
+        "hold_scalars",
+        "intrinsic_item_visits",
+        "wrapped_item_visits",
+        "boundary_visits",
+        "positioned_items",
+        "alignment_items",
+        "separator_run_visits",
+        "separator_override_writes",
+        "output_bytes",
+        "contents_rows",
+        "leader_dots"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1845,
+          "allocated_bytes": 21919647,
+          "work": {
+            "reference_atoms": 1,
+            "normalization_chunks": 2,
+            "literal_shape_requests": 3,
+            "measured_items": 11916,
+            "measured_rows": 118,
+            "committed_row_visits": 118,
+            "anchor_item_visits": 11916,
+            "registry_lookup_steps": 1,
+            "resolved_labels": 1,
+            "resolved_label_bytes": 1,
+            "mapping_cluster_visits": 11915,
+            "mapping_glyph_visits": 11915,
+            "reference_fit_run_visits": 1,
+            "positioned_pieces": 120,
+            "shape_metric_reads": 23831,
+            "hold_scalars": 0,
+            "intrinsic_item_visits": 0,
+            "wrapped_item_visits": 12494,
+            "boundary_visits": 12494,
+            "positioned_items": 11916,
+            "alignment_items": 0,
+            "separator_run_visits": 0,
+            "separator_override_writes": 0,
+            "output_bytes": 13708,
+            "contents_rows": 1,
+            "leader_dots": 0
+          }
+        },
+        "x64musl": {
+          "allocations": 1845,
+          "allocated_bytes": 21919647,
+          "work": {
+            "reference_atoms": 1,
+            "normalization_chunks": 2,
+            "literal_shape_requests": 3,
+            "measured_items": 11916,
+            "measured_rows": 118,
+            "committed_row_visits": 118,
+            "anchor_item_visits": 11916,
+            "registry_lookup_steps": 1,
+            "resolved_labels": 1,
+            "resolved_label_bytes": 1,
+            "mapping_cluster_visits": 11915,
+            "mapping_glyph_visits": 11915,
+            "reference_fit_run_visits": 1,
+            "positioned_pieces": 120,
+            "shape_metric_reads": 23831,
+            "hold_scalars": 0,
+            "intrinsic_item_visits": 0,
+            "wrapped_item_visits": 12494,
+            "boundary_visits": 12494,
+            "positioned_items": 11916,
+            "alignment_items": 0,
+            "separator_run_visits": 0,
+            "separator_override_writes": 0,
+            "output_bytes": 13708,
+            "contents_rows": 1,
+            "leader_dots": 0
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "contents_entries"
+      ]
+    },
+    {
+      "name": "contents entries atomic negatives",
+      "scenario_revision": "contents-entry-v1",
+      "family": "destination_references",
+      "snapshot": "tests/destination_references/contents_negatives.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1
+      },
+      "work_counters": [
+        "rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1159,
+          "allocated_bytes": 178597,
+          "work": {
+            "rejections": 11
+          }
+        },
+        "x64musl": {
+          "allocations": 1159,
+          "allocated_bytes": 178597,
+          "work": {
+            "rejections": 11
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics"
       ]
     }
   ]

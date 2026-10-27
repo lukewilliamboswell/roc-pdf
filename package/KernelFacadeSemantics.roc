@@ -18,6 +18,7 @@ KernelFacadeSemantics :: [].{
 		CalloutFlow({ group : U64, position : U64 }),
 		ArithmeticOverflow,
 		ReferenceStageRequired,
+		ContentsEntry({ block : U64, reason : Str }),
 		PageReference({ block : U64, inline : U64, reason : Str }),
 		ReferenceResolution({ reference : U64, reason : Str }),
 		SourceWhitespace({ error : KernelSourceText.Error, source : U64 }),
@@ -375,6 +376,37 @@ build_plan = |authoring, limits| {
 
 check_page_references : Document.NormalizedAuthoring -> Try({}, KernelFacadeSemantics.Error)
 check_page_references = |authoring| {
+	for entry in authoring.contents_entries {
+		if entry.block >= authoring.blocks.len() or entry.reference >= authoring.page_references.len() {
+			return Err(ContentsEntry({ block: entry.block, reason: "A contents entry needs its terminal destination reference." }))
+		}
+		reference = list_at(authoring.page_references, entry.reference)
+		if reference.block != entry.block or (entry.reference + 1 < authoring.page_references.len() and list_at(authoring.page_references, entry.reference + 1).block == entry.block) {
+			return Err(ContentsEntry({ block: entry.block, reason: "A contents title cannot contain another page reference." }))
+		}
+		if entry.indent < 0 or entry.gap < 0 or reference.spec.align != End {
+			return Err(ContentsEntry({ block: entry.block, reason: "A contents entry needs nonnegative indentation and gap, and an end-aligned reference." }))
+		}
+		# Reference paragraphs have no placeholder block text. Their exact
+		# authored literal leaves remain in the normalized inline arena.
+		rich = list_at(authoring.rich_paragraphs, reference.paragraph)
+		var $inline = rich.inlines
+		var $title = False
+		while $inline < reference.inline {
+			match list_at(authoring.inlines, $inline).kind {
+				Text({ text, .. }) => {
+					if text.to_utf8().any(|byte| byte != 32 and byte != 9 and byte != 10 and byte != 13) {
+						$title = True
+					}
+				}
+				_ => {}
+			}
+			$inline = $inline + 1
+		}
+		if !$title {
+			return Err(ContentsEntry({ block: entry.block, reason: "A contents entry needs a nonempty title." }))
+		}
+	}
 	for reference in authoring.page_references {
 		if reference.spec.destination.is_empty() {
 			return Err(PageReference({ block: reference.block, inline: reference.inline, reason: "A page reference needs a nonempty destination name." }))

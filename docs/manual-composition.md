@@ -6,9 +6,11 @@ tables, callouts and diagrams in one document.
 ## Print page numbers in a table of contents
 
 Give each chapter a named destination with `Pdf.destination_heading`, then
-use `Pdf.page_reference` to print its page number. Wrap the reference in
-`Pdf.inline_internal_link` to make it clickable. References reserve a fixed
-width; choose enough space for the longest page number or configured label.
+use `Pdf.contents_entry` for a linked title and a page number at a common right
+edge. Set `indent` for ancestry and `leader: Dots` for decorative subsection
+leaders. Titles wrap and may continue across pages; the number stays beside
+the final title line. References reserve a fixed width; choose enough space
+for the longest page number or configured label.
 
 See [Destination page references](destination-page-references.md) for a complete
 example, numbering options and overflow diagnostics. You author the contents

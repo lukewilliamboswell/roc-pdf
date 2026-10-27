@@ -5,6 +5,34 @@ page containing a named destination. The field reserves its authored width
 before pagination, then prints the exact page value in that box. Forward and
 backward references use the same destination placement as internal links.
 
+Use `Pdf.contents_entry` for a linked title and a page number aligned at the
+right edge of the current content frame:
+
+```roc
+Pdf.contents_entry({
+    title: [Pdf.strong([Pdf.text("Installation")])],
+    reference: { destination: "installation", width: 32 },
+    indent: 18,
+    leader: Dots,
+})
+```
+
+Every title line reserves the reference width and a gap of 6 points. `indent`
+defaults to zero and shifts all of the title's wrapped lines together without
+moving the page-number column. The page number sits beside the final title
+line, including when the title continues onto another page. `leader` defaults
+to `NoLeader`; `Dots` paints decorative dots between the final title line and
+the number column when there is room. Dots are page artifacts, excluded from
+selectable text and reading order.
+
+Both the title and number link to `reference.destination`. Supply title text
+and inline styling, without nested links or page references. The entry retains
+ordinary paragraph/link semantics with one logical space between title and
+number. Its reference must use `End` alignment. Empty titles, negative `indent`
+or `gap`, and geometry leaving no title width reject before emission. The
+exact resolved number must fit the reserved reference width as usual. Heading
+collection, numbering, ancestry and entry selection remain caller decisions.
+
 ```roc
 contents = [
     Pdf.rich_paragraph([

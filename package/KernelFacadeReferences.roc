@@ -72,6 +72,8 @@ KernelFacadeReferences :: [].{
 		mapping_glyph_visits : U64,
 		reference_fit_run_visits : U64,
 		positioned_pieces : U64,
+		contents_rows : U64,
+		leader_dots : U64,
 		separator_run_visits : U64,
 		separator_override_writes : U64,
 	}
@@ -118,7 +120,9 @@ build_plan = |authoring, selection, theme, page_size, flow, limits| {
 	shape = KernelFacadeReferenceShape.Plan.final_shape(final_shape, authoring, spine.block_ownership, occurrences) ? Shape
 	mapping = map_literal_clusters(literal, final)?
 	positioned = position_items(authoring, spine.pending, measured_lines, literal, final, mapping.entries, paint.rows, committed.anchors)?
-	positioned_text = KernelFacadeText.Plan.build_positioned({ shape: final.store, styles: final.styles, lines: positioned.lines, origins: Origins(final.origins), pages, pieces: positioned.pieces }, paint.rules, paint.flow, limits.text) ? Text
+	leaders = contents_rules(measured_lines.contents, paint.rows, theme, KernelLineLayout.BatchLimits.max_items(KernelFacadeLines.Limits.values(limits.lines).line))?
+	rules = merge_contents_rules(paint.rules, leaders.rules)
+	positioned_text = KernelFacadeText.Plan.build_positioned({ shape: final.store, styles: final.styles, lines: positioned.lines, origins: Origins(final.origins), pages, pieces: positioned.pieces }, rules, paint.flow, limits.text) ? Text
 	separated = KernelFacadeText.Plan.with_occurrence_separators(positioned_text, finalized.separators, occurrences, limits.text) ? Text
 	text = separated.plan
 	Ok(
@@ -152,6 +156,8 @@ build_plan = |authoring, selection, theme, page_size, flow, limits| {
 				mapping_glyph_visits: mapping.glyphs,
 				reference_fit_run_visits: positioned.fit_visits,
 				positioned_pieces: positioned.pieces.len(),
+				contents_rows: measured_lines.contents.len(),
+				leader_dots: leaders.rules.len(),
 				separator_run_visits: separated.work.run_visits,
 				separator_override_writes: separated.work.override_writes,
 			},
@@ -228,6 +234,62 @@ resolve_labels = |authoring, registry, labels, anchors, max_bytes| {
 		$reference = $reference + 1
 	}
 	Ok({ values: $values, facts: $facts, steps: $steps, bytes: $bytes })
+}
+
+## The final title row is explicit measurement evidence. Paint bounded small
+## dots as Decoration rectangles; neither dots nor alignment gaps enter the
+## semantic text sources, glyph arena, or link ownership.
+contents_rules : List(KernelFacadeReferenceLines.ContentsTerminal), List(KernelFacadePages.PositionedRow), Theme, U64 -> Try({ rules : List(KernelFacadePages.Rule) }, KernelFacadeReferences.Error)
+contents_rules = |terminals, rows, theme, max_dots| {
+	if terminals.is_empty() {
+		return Ok({ rules: [] })
+	}
+	var $rules = []
+	var $terminal = 0
+	for row in rows {
+		if $terminal < terminals.len() and list_at(terminals, $terminal).row == row.row {
+			terminal = list_at(terminals, $terminal)
+			$terminal = $terminal + 1
+			if terminal.leader == Dots {
+				var $x = add_unit(row.origin.x, terminal.title_advance)?
+				$x = add_unit($x, 3)?
+				end = add_unit(row.origin.x, terminal.field_offset)?
+				while $x.raw() + 3600 <= end.raw() {
+					if $rules.len() >= max_dots {
+						return Err(ArithmeticOverflow)
+					}
+					$rules = $rules.append({ color: Theme.body_style(theme).color, layer: Front, page: row.page, rect: { origin: { x: $x, y: add_unit(row.origin.y, 0.6)? }, size: { width: 0.6, height: 0.6 } } })
+					$x = add_unit($x, 3)?
+				}
+			}
+		}
+	}
+	if $terminal != terminals.len() {
+		return Err(InvalidMapping({ item: $terminal }))
+	}
+	Ok({ rules: $rules })
+}
+
+## Both arenas are already in page order. Existing Behind rules precede
+## ordinary Front rules, then contents decorations, on each physical page.
+merge_contents_rules : List(KernelFacadePages.Rule), List(KernelFacadePages.Rule) -> List(KernelFacadePages.Rule)
+merge_contents_rules = |ordinary, contents| {
+	if contents.is_empty() {
+		return ordinary
+	}
+	var $rules = List.with_capacity(ordinary.len() + contents.len())
+	var $ordinary = 0
+	var $contents = 0
+	while $ordinary < ordinary.len() or $contents < contents.len() {
+		if $ordinary < ordinary.len() and ($contents >= contents.len() or list_at(ordinary, $ordinary).page <= list_at(contents, $contents).page) {
+			$rules = $rules.append(list_at(ordinary, $ordinary))
+			$ordinary = $ordinary + 1
+		} else {
+			$rules = $rules.append(list_at(contents, $contents))
+			$contents = $contents + 1
+		}
+	}
+	$rules
 }
 
 MappedCluster : [Unmapped, Mapped({ cluster : U64, run : U64 })]

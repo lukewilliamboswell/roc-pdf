@@ -103,6 +103,7 @@ Pdf :: [].{
 	SourceTabs : Document.SourceTabs
 	SourceBlockProps : Document.SourceBlockProps
 
+	ContentsEntryProps : Document.ContentsEntryProps
 	PageReferenceProps : Document.PageReferenceProps
 	PageReferenceNumbering : Document.PageReferenceNumbering
 
@@ -664,6 +665,11 @@ Pdf :: [].{
 
 	rich_paragraph : List(Inline) -> Document.Block
 	rich_paragraph = |inlines| Document.rich_paragraph(inlines)
+
+	## Linked title and exact destination page in a common end column.
+	## Leaders are geometric page decorations, never extracted text.
+	contents_entry : ContentsEntryProps -> Document.Block
+	contents_entry = |props| Document.contents_entry(props)
 
 	## Plain inline text in the surrounding language and role.
 	text : Str -> Inline
@@ -1439,6 +1445,7 @@ pipeline_error = |error, doc| match error {
 	Pages(PageLayout(LimitExceeded({ attempted, dimension: Pages, limit }))) => located_error(doc, BudgetExceeded, "document.content_limit", "The document needs ${attempted.to_str()} pages but the facade accepts at most ${limit.to_str()}.", [])
 	Pages(PageLayout(LeadOverflow({ available, required }))) => lead_overflow_error(available, required)
 	Semantics(PageReference({ block, inline, reason })) => inline_error(doc, block, AtInline(inline), InvalidRelationship, "document.page_reference", reason)
+	Semantics(ContentsEntry({ block, reason })) => located_error(doc, InvalidRelationship, "document.contents_entry", reason, [leaf_path(doc, block)])
 	Semantics(FurnitureInline({ block, inline })) => inline_error(doc, block, AtInline(inline), FeatureUnavailable, "document.generated_reference", "Page-number, page-label, total-page and running-label fields belong in page furniture. Use page_reference for a fixed-width destination reference in body content.")
 	Furniture(ScopeInvalid({ group, reason })) => group_error(doc, group, InvalidRelationship, "layout.page_scope", reason)
 	Furniture(furniture) => furniture_error(furniture)
@@ -1686,6 +1693,7 @@ reference_error = |doc, error| match error {
 	}
 	FieldOverflow({ reference, required, width }) => reference_diagnostic(doc, reference, LayoutConstraintViolated, "layout.reference_field_overflow", "The exact destination page text needs ${points_text(required.raw().to_u64_wrap())} but its fixed field reserves ${points_text(width.raw().to_u64_wrap())}; values are never shortened or shrunk.")
 	Lines(Items({ block, error: problem })) => located_error(doc, LayoutConstraintViolated, "layout.reference_items", "The paragraph's measured literal/reference items cannot fit its parent frame: ${Str.inspect(problem)}.", [leaf_path(doc, block)])
+	Lines(ContentsGeometry({ block })) => located_error(doc, LayoutConstraintViolated, "layout.contents_entry", "The contents entry's indentation, gap and page column leave no title width inside its parent frame.", [leaf_path(doc, block)])
 	Lines(SourceOverflow({ source, line, width, available })) => source_error(doc, source, LayoutConstraintViolated, "source.line_width", "Source line ${(line + 1).to_str()} needs ${points_text(width.raw().to_u64_wrap())} but its parent frame gives it ${points_text(available.raw().to_u64_wrap())}.")
 	ArithmeticOverflow | Lines(LimitExceeded) | Shape(LimitExceeded(_)) => located_error(doc, BudgetExceeded, "layout.reference_budget", "Reference preparation exceeded its explicit measurement or arithmetic budget.", [])
 	other => located_error(doc, LayoutConstraintViolated, "layout.reference_mapping", "Reference preparation could not produce a complete validated plan: ${Str.inspect(other)}.", [])

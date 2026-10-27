@@ -111,6 +111,13 @@ are not a substitute for the full conformance ledger.
 
 ### Bounded manual-authoring extensions (issues #49–#53)
 
+Issue #65 adds bounded authored contents entries to that destination-reference
+path: wrapped linked titles, a common terminal page column and optional
+decorative leaders. It does not collect headings or generate a contents tree,
+and does not close Gate 8's general generated-content/stabilization capability.
+Its geometry, semantic ownership and scale evidence is recorded separately in
+[contents entries](development/performance/contents-entries.md).
+
 The following selected Gate 8 capabilities are brought forward as dependency-
 gated Gate 6 extensions. Their acceptance does not close Gate 7, enable
 `PdfUa2`, or change the default profile. Each extension closes its own public
