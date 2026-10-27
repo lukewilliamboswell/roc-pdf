@@ -34,6 +34,7 @@ DocumentBlock :: [
 	PageScope(Box(PageScopeSpec)),
 	Paragraph(Str),
 	RichParagraph(List(DocumentInline)),
+	ContentsEntry(Box(ContentsEntryProps)),
 
 	## Blocks whose inline colors a `Theme.Scope` overrides, boxed so the
 	## block union keeps the size of its other alternatives.
@@ -254,6 +255,19 @@ PageReferenceProps := {
 	numbering : PageReferenceNumbering ?? Physical,
 	width : Layout.Unit,
 }.{}
+
+## A linked contents entry. The page field is terminal and end-aligned;
+## every title line reserves the field and gap before pagination.
+ContentsEntryProps := {
+	title : List(DocumentInline),
+	reference : PageReferenceProps,
+	indent : Layout.Unit ?? 0,
+	gap : Layout.Unit ?? 6,
+	leader : [NoLeader, Dots] ?? NoLeader,
+}.{}
+
+## Sparse geometry facts, kept separately from the ordinary P/Link spine.
+NormalizedContentsEntry : { block : U64, indent : Layout.Unit, gap : Layout.Unit, leader : [NoLeader, Dots], reference : U64 }
 
 ReservedAlign := [CenterReserved, EndReserved, StartReserved]
 
@@ -624,6 +638,7 @@ NormalizedReferenceParagraph : { chunks : Semantics.IndexRange, paragraph : U64,
 
 NormalizedAuthoring := {
 	blocks : List(NormalizedBlock),
+	contents_entries : List(NormalizedContentsEntry) ?? [],
 	cells : List(NormalizedCell),
 	customs : List(NormalizedCustom),
 	callouts : List(NormalizedCallout),
@@ -938,6 +953,8 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	PageScopeProps : PageScopeProps
 	NormalizedRegion : NormalizedRegion
 	PageReferenceProps : PageReferenceProps
+	ContentsEntryProps : ContentsEntryProps
+	NormalizedContentsEntry : NormalizedContentsEntry
 	PageReferenceNumbering : PageReferenceNumbering
 	NormalizedPageReference : NormalizedPageReference
 	NormalizedReferenceChunk : NormalizedReferenceChunk
@@ -1260,6 +1277,9 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	## A paragraph of inline content in authored order.
 	rich_paragraph : List(DocumentInline) -> DocumentBlock
 	rich_paragraph = |inlines| DocumentBlock.RichParagraph(inlines)
+
+	contents_entry : ContentsEntryProps -> DocumentBlock
+	contents_entry = |props| DocumentBlock.ContentsEntry(Box.box(props))
 
 	## An unordered list; each item's label is a generated bullet.
 	bullet_list : List(DocumentListItem) -> DocumentBlock
@@ -1597,7 +1617,7 @@ furniture_leaf = |inline, position, inner| match inline {
 }
 
 empty_state : SimpleState
-empty_state = { page_references: [], source_bytes: 0, source_exhaustion: NoSourceExhaustion, blocks: [], cells: [], customs: [], callouts: [], decorations: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], page_scopes: [], rich_paragraphs: [], scopes: [], source_foregrounds: [], source_lines: [], sources: [], spacers: [], tables: [] }
+empty_state = { contents_entries: [], page_references: [], source_bytes: 0, source_exhaustion: NoSourceExhaustion, blocks: [], cells: [], customs: [], callouts: [], decorations: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], page_scopes: [], rich_paragraphs: [], scopes: [], source_foregrounds: [], source_lines: [], sources: [], spacers: [], tables: [] }
 
 normalize_authoring : DocumentAuthoring, SimpleState -> NormalizedAuthoring
 normalize_authoring = |authoring, initial| match authoring {
@@ -1761,6 +1781,7 @@ normalize_compact = |compact, initial| {
 	}
 	{
 		blocks: $blocks,
+		contents_entries: initial.contents_entries,
 		cells: initial.cells,
 		customs: initial.customs,
 		callouts: initial.callouts,
@@ -1791,6 +1812,7 @@ normalize_compact = |compact, initial| {
 SourceExhaustion : [NoSourceExhaustion, SourceExhausted(KernelSourceText.Error)]
 
 SimpleState : {
+	contents_entries : List(NormalizedContentsEntry),
 	source_bytes : U64,
 	source_exhaustion : SourceExhaustion,
 	blocks : List(NormalizedBlock),
@@ -1827,6 +1849,7 @@ normalize_simple = |simple, initial| {
 	}
 	{
 		blocks: $state.blocks,
+		contents_entries: $state.contents_entries,
 		cells: $state.cells,
 		customs: $state.customs,
 		callouts: $state.callouts,
@@ -2014,6 +2037,15 @@ append_leaf = |state, block, parent, position| match block {
 	PageBreak => { ..state, page_breaks: state.page_breaks.append({ block: state.blocks.len(), parent, position }) }
 	Paragraph(text) => { ..state, blocks: state.blocks.append({ kind: Paragraph, parent, text }) }
 	RichParagraph(contents) => append_rich(state, contents, parent, position)
+	ContentsEntry(boxed) => {
+		props = Box.unbox(boxed)
+		entry_block = state.blocks.len()
+		reference = state.page_references.len()
+		# The separator is real logical text; geometry never pads with spaces.
+		contents = [Document.inline_internal_link(props.title, props.reference.destination), Document.plain_text(" "), Document.inline_internal_link([Document.page_reference(props.reference)], props.reference.destination)]
+		with_entry = { ..state, contents_entries: state.contents_entries.append({ block: entry_block, reference, indent: props.indent, gap: props.gap, leader: props.leader }) }
+		append_rich(with_entry, contents, parent, position)
+	}
 	Source(boxed) => append_source(state, Box.unbox(boxed), parent, position)
 	Spacer(amount) => { ..state, spacers: state.spacers.append({ amount, block: state.blocks.len(), parent, position }) }
 	Table(spec) => append_table(state, Box.unbox(spec), parent, position)
@@ -2566,6 +2598,7 @@ append_rich = |state, contents, parent, position| {
 	## Capture every input field before any inline/reference arena grows.
 	## The original state record must not keep its old accumulator live.
 	unchanged = {
+		contents_entries: state.contents_entries,
 		blocks: [],
 		inlines: [],
 		line_breaks: [],

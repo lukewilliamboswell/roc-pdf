@@ -17,8 +17,10 @@ import unicode.Scalar
 ## One source-free row arena is selected before pagination. Its items
 ## retain real literal-cluster identity or an unresolved fixed-width atom.
 KernelFacadeReferenceLines :: [].{
+	ContentsTerminal : ContentsTerminal
 	Error : [
 		InvalidContext({ block : U64 }),
+		ContentsGeometry({ block : U64 }),
 		LimitExceeded,
 		Geometry(KernelFacadeLines.Error),
 		Items({ block : U64, error : KernelReferenceLayout.Error }),
@@ -27,6 +29,7 @@ KernelFacadeReferenceLines :: [].{
 	]
 	Work : { atoms : U64, literal_clusters : U64, glyph_indices : U64, hold_scalars : U64, holds : U64, measured_items : U64, wrapped_items : U64, boundaries : U64, rows : U64, row_items : U64, alignment_items : U64 }
 	View : {
+		contents : List(ContentsTerminal),
 		items : List(KernelReferenceLayout.Item),
 		rows : List(KernelReferenceLayout.Line),
 		item_offsets : List(Layout.Unit),
@@ -41,6 +44,10 @@ KernelFacadeReferenceLines :: [].{
 		view = |Plan.(value)| value
 	}
 }
+
+## Committed geometry for a terminal contents field. Logical item order
+## remains title, separator, reference; only the reference's x offset moves.
+ContentsTerminal : { row : U64, item : U64, field_offset : Layout.Unit, title_advance : Layout.Unit, leader : [NoLeader, Dots] }
 
 BlockItems : { body : Semantics.IndexRange, label : [NoLabel, Label(Semantics.IndexRange)], size : Layout.Unit }
 
@@ -209,6 +216,8 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 	var $wrapped_items = 0
 	var $boundaries = 0
 	var $alignment_items = 0
+	var $entry = 0
+	var $contents = []
 	$block = 0
 	while $block < owners.len() {
 		block_items = list_at(block_ranges, $block)
@@ -230,6 +239,12 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 		}
 		body_start = $rows.len()
 		width = if (list_at($cell_widths, $block) > 0) list_at($cell_widths, $block) else frame.body_width
+		entry = if ($entry < authoring.contents_entries.len() and list_at(authoring.contents_entries, $entry).block == $block) Contents(list_at(authoring.contents_entries, $entry)) else Ordinary
+		indent = match entry {
+			Ordinary => 0
+			Contents(spec) => positive(spec.indent)
+		}
+
 		if block_items.body.length() > 0 {
 			body = items.sublist({ start: block_items.body.start(), len: block_items.body.length() })
 			match list_at(authoring.blocks, $block).kind {
@@ -242,13 +257,40 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 				}
 				_ => {}
 			}
-			wrapped = KernelReferenceLayout.wrap(body, Layout.Unit.from_raw(width.to_i64_wrap()), item_limits) ? |error| Items({ block: $block, error })
+			wrapped = match entry {
+				Ordinary => KernelReferenceLayout.wrap(body, Layout.Unit.from_raw(width.to_i64_wrap()), item_limits) ? |error| Items({ block: $block, error })
+				Contents(spec) => {
+					field = list_at(authoring.page_references, spec.reference).spec.width
+					gap = positive(spec.gap)
+					if indent >= width or positive(field) >= width - indent or gap >= width - indent - positive(field) or body.len() < 3 or list_at(body, body.len() - 1).source != ReferenceAtom(spec.reference) {
+						return Err(ContentsGeometry({ block: $block }))
+					}
+					# The normalizer authored one space separator and one field;
+					# neither participates in title wrapping. The logical source
+					# and its measured clusters remain untouched.
+					last = body.len() - 3
+					title = list_set(body.drop_last(2), last, { ..list_at(body, last), after: Mandatory })
+					KernelReferenceLayout.wrap(title, Layout.Unit.from_raw((width - indent - positive(field) - gap).to_i64_wrap()), item_limits) ? |error| Items({ block: $block, error })
+				}
+			}
 			for line in wrapped.lines {
 				if $rows.len() >= item_limits.max_lines {
 					return Err(LimitExceeded)
 				}
-				row = { advance: line.advance, items: Semantics.IndexRange.from_start_and_length(block_items.body.start() + line.items.start(), line.items.length()) }
+				terminal = match entry {
+					Ordinary => False
+					Contents(_) => line.items.start() + line.items.length() + 2 == body.len()
+				}
+				row = { advance: if (terminal) Layout.Unit.from_raw((width - indent).to_i64_wrap()) else line.advance, items: Semantics.IndexRange.from_start_and_length(block_items.body.start() + line.items.start(), line.items.length() + (if (terminal) 2 else 0)) }
+				if terminal {
+					spec = match entry {
+						Contents(value) => value
+						Ordinary => crash "contents terminal escaped"
+					}
+					$contents = $contents.append({ row: $rows.len(), item: block_items.body.start() + body.len() - 1, field_offset: Layout.Unit.from_raw((width - indent - positive(list_at(authoring.page_references, spec.reference).spec.width)).to_i64_wrap()), title_advance: line.advance, leader: spec.leader })
+				}
 				visible = if (list_at($cell_widths, $block) > 0) literal_visible_advance(items, row, shaped, sources) else { advance: positive(line.advance), visits: 0 }
+
 				$alignment_items = $alignment_items + visible.visits
 				$rows = $rows.append(row)
 				$visible = $visible.append(visible.advance)
@@ -268,18 +310,29 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 			}
 			RichTextBlock({ occurrences, level, .. }) => {
 				style = Theme.body_style(theme)
-				MeasuredText({ rows: Semantics.IndexRange.from_start_and_length(body_start, $rows.len() - body_start), size: block_items.size, leading: style.leading, owner: Semantics.OccurrenceId.from_index(occurrences.start()), level, body_offset: Layout.Unit.from_raw(frame.body_offset.to_i64_wrap()), label: $label })
+				MeasuredText({ rows: Semantics.IndexRange.from_start_and_length(body_start, $rows.len() - body_start), size: block_items.size, leading: style.leading, owner: Semantics.OccurrenceId.from_index(occurrences.start()), level, body_offset: Layout.Unit.from_raw((frame.body_offset + indent).to_i64_wrap()), label: $label })
 			}
 		}
 		$page_blocks = $page_blocks.append(page_block)
+		match entry {
+			Contents(_) => {
+				$entry = $entry + 1
+			}
+			Ordinary => {}
+		}
 		$block = $block + 1
 	}
 	var $offsets = List.repeat(Layout.Unit.from_raw(0), items.len())
 	var $row_items = 0
+	var $terminal = 0
 	for row in $rows {
 		var $advance = 0.I64
 		var $item = row.items.start()
 		while $item < row.items.start() + row.items.length() {
+			if $terminal < $contents.len() and list_at($contents, $terminal).item == $item {
+				$advance = list_at($contents, $terminal).field_offset.raw()
+				$terminal = $terminal + 1
+			}
 			$offsets = list_set($offsets, $item, Layout.Unit.from_raw($advance))
 			$advance = $advance + list_at(items, $item).advance.raw()
 			$row_items = $row_items + 1
@@ -292,7 +345,7 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 	if $row_items != items.len() {
 		return Err(InvalidContext({ block: 0 }))
 	}
-	Ok(KernelFacadeReferenceLines.Plan.{ items, rows: $rows, item_offsets: $offsets, visible_advances: $visible, input: { blocks: $page_blocks, group_frames: $group_frames, source_frames: $source_frames, figure_frames: $figure_frames, tables: KernelFacadeTables.Plan.tables(tables), cells: KernelFacadeTables.Plan.cells(tables) }, work: { atoms: built.work.atom_writes, literal_clusters: built.work.cluster_visits, glyph_indices: built.work.glyph_index_visits, hold_scalars: holds.scalars, holds: holds.ranges.len(), measured_items: $measured_items, wrapped_items: $wrapped_items, boundaries: $boundaries, rows: $rows.len(), row_items: $row_items, alignment_items: $alignment_items } })
+	Ok(KernelFacadeReferenceLines.Plan.{ contents: $contents, items, rows: $rows, item_offsets: $offsets, visible_advances: $visible, input: { blocks: $page_blocks, group_frames: $group_frames, source_frames: $source_frames, figure_frames: $figure_frames, tables: KernelFacadeTables.Plan.tables(tables), cells: KernelFacadeTables.Plan.cells(tables) }, work: { atoms: built.work.atom_writes, literal_clusters: built.work.cluster_visits, glyph_indices: built.work.glyph_index_visits, hold_scalars: holds.scalars, holds: holds.ranges.len(), measured_items: $measured_items, wrapped_items: $wrapped_items, boundaries: $boundaries, rows: $rows.len(), row_items: $row_items, alignment_items: $alignment_items } })
 }
 
 append_literal : KernelReferenceLayout.Builder, KernelFacadeReferenceShape.View, U64, Holds, List(KernelFacadeSources.Source) -> KernelReferenceLayout.Builder

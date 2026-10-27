@@ -3,6 +3,8 @@ import Fixture
 ## The destination_references family's typed cases and their dispatch, run by a fixture group app.
 Cases :: [].{
 	Case : [
+		Contents({ entries : U64 }),
+		ContentsNegatives({ context : U64 }),
 		References({ sections : U64 }),
 		Styled({ context : U64 }),
 		Ordered({ context : U64 }),
@@ -13,6 +15,8 @@ Cases :: [].{
 	run : Case -> { bytes : List(U8), work : List(U64) }
 	run = |case| {
 		result = match case {
+			Contents({ entries }) => Fixture.contents(entries)
+			ContentsNegatives({ context }) => Fixture.contents_negatives(context)
 			References({ sections }) => Fixture.references(sections)
 			Styled({ context }) => Fixture.styled(context)
 			Ordered({ context }) => Fixture.ordered(context)

@@ -83,6 +83,67 @@ Fixture :: [].{
 		selection = Styled({ faces: [body.face, mono.face], fonts: [body_font, mono_font], roles: { code: Candidate(1), emphasis: Candidate(1), quote: Inherited, strong: Inherited } })
 		evidence(document, selected_theme, { theme: selected_theme, fonts: Registered(mono.registry) }, selection)
 	}
+	contents : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
+	contents = |entries| {
+		if entries != 0 and entries != 2 and entries != 80 {
+			return Err(InvalidCase)
+		}
+		count = if (entries == 0) 1 else entries
+		var $blocks = []
+		var $index = 0
+		while $index < count {
+			label = if (entries == 0) Str.join_with(List.repeat("continuing title", 700), " ") else if ($index % 3 == 1) Str.join_with(["WrappedMarker", Str.join_with(List.repeat("wrapping title", 18), " ")], " ") else "Café overview ${$index.to_str()}"
+			title = if ($index % 3 == 0) [Pdf.strong([Pdf.text(label)])] else [Pdf.text(label)]
+			$blocks = $blocks.append(Pdf.contents_entry({ title, reference: { destination: "target", width: 32 }, indent: Layout.Unit.points(($index % 3).to_i64_wrap() * 18), leader: if ($index % 3 == 0) NoLeader else Dots }))
+			$index = $index + 1
+		}
+		$blocks = $blocks.append(Pdf.page_break).append(Pdf.destination_heading("target", 1, "Contents target"))
+		registered = Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, Font.ValidationLimits.default) ? |_| FontFailure
+		font = registered.registry.prepared_face(registered.face) ? |_| FontFailure
+		evidence_mode(
+			Pdf.document({ title: "Wrapped contents evidence", language: "en", contents: $blocks }),
+			theme,
+			{ theme: theme },
+			Single(font),
+			True,
+		)
+	}
+	contents_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
+	contents_negatives = |context| {
+		if context != 0 {
+			return Err(InvalidCase)
+		}
+		make : Pdf.ContentsEntryProps -> Document
+		make = |props| Pdf.document({ title: "Rejected contents", language: "en", contents: [Pdf.contents_entry(props), Pdf.destination_heading("target", 1, "Target")] })
+		bad : List(Pdf.ContentsEntryProps)
+		bad = [
+			{ title: [], reference: { destination: "target", width: 32 } },
+			{ title: [Pdf.text("  ")], reference: { destination: "target", width: 32 } },
+			{ title: [Pdf.page_reference({ destination: "target", width: 32 })], reference: { destination: "target", width: 32 } },
+			{ title: [Pdf.text("Title")], reference: { destination: "target", width: 32 }, indent: -1 },
+			{ title: [Pdf.text("Title")], reference: { destination: "target", width: 32 }, gap: -1 },
+			{ title: [Pdf.text("Title")], reference: { destination: "target", width: 32, align: Start } },
+			{ title: [Pdf.text("Title")], reference: { destination: "target", width: 32 }, indent: 500 },
+			{ title: [Pdf.text("Title")], reference: { destination: "target", width: 32 }, gap: 500 },
+			{ title: [Pdf.text("Title")], reference: { destination: "target", width: 500 } },
+			{ title: [Pdf.text("Title")], reference: { destination: "missing", width: 32 } },
+			{ title: [Pdf.text("Title")], reference: { destination: "target", width: 0.001 } },
+		]
+		features = ["document.contents_entry", "document.contents_entry", "document.contents_entry", "document.contents_entry", "document.contents_entry", "document.contents_entry", "layout.contents_entry", "layout.contents_entry", "layout.contents_entry", "navigation.reference_destination", "layout.reference_field_overflow"]
+
+		var $passed = 0
+		for props in bad {
+			expected = features.get($passed) ?? ""
+			match Pdf.to_bytes_with(make(props), { theme: theme }) {
+				Err(InvalidDocument({ diagnostics: [{ feature: Feature(found), .. }], truncation: Complete, .. })) if found == expected => {
+					$passed = $passed + 1
+				}
+				_ => return Err(ExpectedRejection($passed))
+			}
+		}
+		bytes = Pdf.to_bytes(Pdf.document({ title: "Contents rejection evidence", language: "en", contents: [Pdf.paragraph("Invalid contents inputs fail before emission.")] })) ? PdfFailure
+		Ok({ bytes, work: [$passed] })
+	}
 	negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
 	negatives = |context| run_negatives(context)
 }
@@ -130,7 +191,10 @@ reference_document = |sections| {
 }
 
 evidence : Document, Theme, Pdf.Options, KernelFacadeShape.FontSelection -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Error)
-evidence = |document, selected_theme, options, selection| {
+evidence = |document, selected_theme, options, selection| evidence_mode(document, selected_theme, options, selection, False)
+
+evidence_mode : Document, Theme, Pdf.Options, KernelFacadeShape.FontSelection, Bool -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Error)
+evidence_mode = |document, selected_theme, options, selection, contents_counters| {
 	bytes = Pdf.to_bytes_with(document, options) ? PdfFailure
 	authoring = Document.normalize(document)
 	flow = match authoring.templates {
@@ -143,7 +207,8 @@ evidence = |document, selected_theme, options, selection| {
 	plan = KernelFacadeReferences.Plan.build(authoring, selection, selected_theme, page_size, flow, reference_limits) ? ReferenceFailure
 	view = KernelFacadeReferences.Plan.view(plan)
 	work = view.work
-	Ok({ bytes, work: [work.reference_atoms, work.normalization_chunks, work.literal_shape_requests, work.measured_items, work.measured_rows, work.committed_row_visits, work.anchor_item_visits, work.registry_lookup_steps, work.resolved_labels, work.resolved_label_bytes, work.mapping_cluster_visits, work.mapping_glyph_visits, work.reference_fit_run_visits, work.positioned_pieces, work.shape_metric_reads, work.measurement.hold_scalars, work.measurement.measured_items, work.measurement.wrapped_items, work.measurement.boundaries, work.measurement.row_items, work.measurement.alignment_items, work.separator_run_visits, work.separator_override_writes, bytes.len()] })
+	counters = [work.reference_atoms, work.normalization_chunks, work.literal_shape_requests, work.measured_items, work.measured_rows, work.committed_row_visits, work.anchor_item_visits, work.registry_lookup_steps, work.resolved_labels, work.resolved_label_bytes, work.mapping_cluster_visits, work.mapping_glyph_visits, work.reference_fit_run_visits, work.positioned_pieces, work.shape_metric_reads, work.measurement.hold_scalars, work.measurement.measured_items, work.measurement.wrapped_items, work.measurement.boundaries, work.measurement.row_items, work.measurement.alignment_items, work.separator_run_visits, work.separator_override_writes, bytes.len()]
+	Ok({ bytes, work: if (contents_counters) counters.append(work.contents_rows).append(work.leader_dots) else counters })
 }
 
 run_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Error)

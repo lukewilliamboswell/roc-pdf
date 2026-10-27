@@ -1064,6 +1064,13 @@ choice when the final value is resolved, shaped, and proven to fit. The
 architecture permits such exact strategies without requiring every reference
 to change surrounding flow or participate in general iterative stabilization.
 
+A bounded contents entry reserves a terminal page-reference column before
+pagination. Normalization retains its title/reference logical order and sparse
+indentation/leader facts; line measurement commits the title rows and terminal
+field offset. Reference resolution consumes those rows without wrapping again.
+Decorative leaders are bounded geometric page artifacts derived from that
+committed final-row interval, never generated text or inferred semantics.
+
 Paragraph analysis, measurement shaping, break selection, final boundary
 shaping, and per-line bidirectional placement are explicit operations inside
 the shaping/layout stage. A measured run carries sufficient boundary/context
