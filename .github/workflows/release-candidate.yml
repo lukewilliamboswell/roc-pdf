@@ -69,11 +69,20 @@ jobs:
       - name: Smoke-test gallery against bundled package
         run: ROC=roc python3 scripts/check_gallery.py --bundle-path "$(find dist -maxdepth 1 -name '*.tar.zst' -type f -print -quit)"
 
+      # The shared nightly tests this archive from the latest final release.
+      # Pull requests and validation runs build it under a placeholder tag.
+      - name: Build and test examples archive
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag || '0.0.0-dry-run' }}
+        run: ROC=roc python3 scripts/examples_archive.py --bundle-path "$(find dist -maxdepth 1 -name '*.tar.zst' -type f -print -quit)" --tag "$RELEASE_TAG" --output-dir dist --test-bundle
+
       - name: Upload bundle
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: roc-pdf-release-bundle
-          path: dist/*.tar.zst
+          path: |
+            dist/*.tar.zst
+            dist/roc-pdf-examples-*.zip
           if-no-files-found: error
           retention-days: 30
 
@@ -136,7 +145,7 @@ jobs:
           RELEASE_TAG: ${{ github.event.inputs.release_tag }}
         run: |
           if [[ "$RELEASE_TAG" == *-rc* ]]; then kind=--prerelease; else kind=--latest; fi
-          gh release create "$RELEASE_TAG" "$BUNDLE" \
+          gh release create "$RELEASE_TAG" "$BUNDLE" "dist/roc-pdf-examples-$RELEASE_TAG.zip" \
             --title "roc-pdf $RELEASE_TAG" \
             "$kind" \
             --target "$GITHUB_SHA" \

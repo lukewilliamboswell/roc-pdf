@@ -21,6 +21,7 @@ For repository development and validation records, see the
 
 ## Release notes
 
+- [0.2.0](releases/0.2.0.md): aligned, wrapped contents entries
 - [0.2.0-rc1](releases/0.2.0-rc1.md): aligned, wrapped contents entries
 - [0.1.1](releases/0.1.1.md): builds on Roc nightlies from 2026-10-24
 - [0.1.0](releases/0.1.0.md)

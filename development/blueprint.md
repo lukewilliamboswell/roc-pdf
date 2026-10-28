@@ -18,7 +18,7 @@ machine.
 
 The package compiler is deliberately not fetched by Blueprint. `.roc-version`
 stays its single pin, because the allocation baselines are exact for one build
-and the nightly updater (`.github/ROC_NIGHTLY.md`) rewrites only that file.
+and compiler-pin updates (`.github/ROC_NIGHTLY.md`) change only that file.
 CI installs the pinned nightly with `roc-lang/setup-roc`; locally, put it on
 `PATH` (or set `ROC`). The scripts refuse any other compiler.
 
