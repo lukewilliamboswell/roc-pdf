@@ -75,7 +75,7 @@ Add the 0.2.0 release bundle to your application header and build with the
 Roc nightly named in the [0.2.0 release notes](docs/releases/0.2.0.md):
 
 ```roc
-pdf: "https://github.com/lukewilliamboswell/roc-pdf/releases/download/0.2.0/J3ssr9CQcBBnd66d7677qWM3AJwvdaHMN3RbHp75VpPa.tar.zst",
+pdf: "https://github.com/lukewilliamboswell/roc-pdf/releases/download/0.2.0/2hTpvYoKFHy8C6VeEgiv4FgWkP4oNTVupc1XCN8UwdiZ.tar.zst",
 ```
 
 Then `import pdf.Pdf`. The [authoring guide](docs/authoring.md) starts from
@@ -143,3 +143,7 @@ implementation contracts, performance evidence and release validation.
 ## License
 
 This project is licensed under the [Universal Permissive License](LICENSE).
+
+Use the [Inter and Fira Code preset](docs/roc-font.md) to share roc-font's
+sans and monospace assets, including the `⌘` character, with explicit PDF
+instances and reusable font registration.

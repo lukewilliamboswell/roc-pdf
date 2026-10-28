@@ -61,7 +61,8 @@
     "technical_manual",
     "destination_references",
     "table_paint_frames",
-    "contents_entries"
+    "contents_entries",
+    "roc_font"
   ],
   "post_update_checks": [
     "contracts",
@@ -82,7 +83,8 @@
     "technical_manual",
     "destination_references",
     "table_paint_frames",
-    "contents_entries"
+    "contents_entries",
+    "roc_font"
   ],
   "validation": {
     "sources": [
@@ -32822,6 +32824,45 @@
       "validators": [
         "pdfa4",
         "structure_semantics"
+      ]
+    },
+    {
+      "name": "roc-font static instances",
+      "scenario_revision": "roc-font-static-v1",
+      "family": "caller_font_facade",
+      "snapshot": "tests/caller_font_facade/roc_fonts.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1
+      },
+      "work_counters": [
+        "resources",
+        "faces",
+        "instances"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1076,
+          "allocated_bytes": 4737468,
+          "work": {
+            "resources": 3,
+            "faces": 3,
+            "instances": 3
+          }
+        },
+        "x64musl": {
+          "allocations": 1076,
+          "allocated_bytes": 4737468,
+          "work": {
+            "resources": 3,
+            "faces": 3,
+            "instances": 3
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4"
       ]
     }
   ]

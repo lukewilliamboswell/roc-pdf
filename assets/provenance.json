@@ -4474,6 +4474,98 @@
       }
     },
     {
+      "id": "roc-font-package-fonts-firacode-regular",
+      "path": "package/fonts/FiraCode-Regular.ttf",
+      "kind": "font",
+      "bytes": 208724,
+      "sha256": "d3779e715e8673dcd568a40497593b7b9194cd9f225f51fd932183b99d8212ce",
+      "license": "OFL-1.1",
+      "attribution": "package/fonts/FiraCode-OFL.txt",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "scripts/build_roc_font_instances.py"
+      }
+    },
+    {
+      "id": "roc-font-package-fonts-inter-bold",
+      "path": "package/fonts/Inter-Bold.ttf",
+      "kind": "font",
+      "bytes": 343804,
+      "sha256": "40a5edf01b1f5b8dc88733587e023aa1b15e218f44505bd40fdf1e6159e54335",
+      "license": "OFL-1.1",
+      "attribution": "package/fonts/Inter-OFL.txt",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "scripts/build_roc_font_instances.py"
+      }
+    },
+    {
+      "id": "roc-font-package-fonts-inter-regular",
+      "path": "package/fonts/Inter-Regular.ttf",
+      "kind": "font",
+      "bytes": 342044,
+      "sha256": "a2781df42d8ec0e76ab11f1287e1114f0e0f2692879a765654b6563ce909a172",
+      "license": "OFL-1.1",
+      "attribution": "package/fonts/Inter-OFL.txt",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "scripts/build_roc_font_instances.py"
+      }
+    },
+    {
+      "id": "roc-font-pdf-snapshot",
+      "path": "tests/caller_font_facade/roc_fonts.pdf",
+      "kind": "expected_pdf",
+      "bytes": 10526,
+      "sha256": "4f870f0bceac1a51f7ae4e4125f6d17ee148521d221f9d0995476007f7dfecd7",
+      "license": "UPL-1.0",
+      "attribution": "package/fonts/Inter-OFL.txt",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "tests/caller_font_facade/Cases.roc"
+      }
+    },
+    {
+      "id": "roc-font-vendor-fonts-roc-font-firacode-variable",
+      "path": "vendor/fonts/roc-font/FiraCode-Variable.ttf",
+      "kind": "font",
+      "bytes": 286320,
+      "sha256": "04149681350f161aca538858b88d17443c586cacca83c165939a13423fe91a26",
+      "license": "OFL-1.1",
+      "attribution": "package/fonts/FiraCode-OFL.txt",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "external",
+        "source_url": "https://github.com/lukewilliamboswell/roc-font/blob/8befe25ddd8cc65adadea77631704fe78b3e2b20/package/fonts/FiraCode-Variable.ttf",
+        "upstream_revision": "8befe25ddd8cc65adadea77631704fe78b3e2b20"
+      }
+    },
+    {
+      "id": "roc-font-vendor-fonts-roc-font-inter-variable",
+      "path": "vendor/fonts/roc-font/Inter-Variable.ttf",
+      "kind": "font",
+      "bytes": 879708,
+      "sha256": "4989b125924991b90d05b2d16e0e388c48f7d5bb8b30539bbf9c755278d0ccaf",
+      "license": "OFL-1.1",
+      "attribution": "package/fonts/Inter-OFL.txt",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "external",
+        "source_url": "https://github.com/lukewilliamboswell/roc-font/blob/8befe25ddd8cc65adadea77631704fe78b3e2b20/package/fonts/Inter-Variable.ttf",
+        "upstream_revision": "8befe25ddd8cc65adadea77631704fe78b3e2b20"
+      }
+    },
+    {
       "id": "roc-pdf-sans-regular-font",
       "path": "package/RocPdfSans-Regular.ttf",
       "kind": "font",

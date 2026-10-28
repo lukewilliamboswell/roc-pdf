@@ -232,6 +232,7 @@ PREFLIGHT_CHECKS["contracts"] = PreflightCheck("check_contracts.py", True)
 PREFLIGHT_CHECKS["pdf_structure"] = PreflightCheck("check_pdf_structure.py", True)
 # The font self-test validates the committed font-leaf snapshots' exact
 # descendant dictionaries, which are also in flux during --update-snapshots.
+PREFLIGHT_CHECKS["roc_font"] = PreflightCheck("check_roc_font.py", True)
 PREFLIGHT_CHECKS["fonts"] = PreflightCheck("check_fonts.py", True)
 # The structure-semantics self-test reads committed facade and container
 # snapshots, which are in flux during --update-snapshots.
