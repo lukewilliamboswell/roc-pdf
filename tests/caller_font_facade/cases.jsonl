@@ -4,3 +4,4 @@
 {"name":"text-layout caller-font shared registry retention","schema_version":1,"case":{"SharedRegistry":{"context":2}}}
 {"name":"text-layout caller-font unhinted facade output","schema_version":1,"case":{"Unhinted":{"context":2}}}
 {"name":"text-layout caller-font unique registry retention control","schema_version":1,"case":{"UniqueRegistries":{"context":2}}}
+{"name":"roc-font static instances","schema_version":1,"case":{"RocFonts":{"context":2}}}

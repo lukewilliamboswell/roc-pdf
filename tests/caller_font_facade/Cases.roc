@@ -2,6 +2,7 @@ import pdf.Font
 import pdf.Document
 import pdf.Pdf
 import pdf.Theme
+import pdf.RocFont
 import "../assets/CallerFont-Regular.ttf" as caller_font_bytes : List(U8)
 import "../assets/CallerFont-Restricted.ttf" as restricted_font_bytes : List(U8)
 import "../assets/CallerFont-Unhinted.ttf" as unhinted_font_bytes : List(U8)
@@ -19,6 +20,7 @@ import "../assets/NotoSansMono-Code-Fixture.ttf" as mono_font_bytes : List(U8)
 ## cannot evaluate the evidence at compile time.
 Cases :: [].{
 	Case : [
+		RocFonts({ context : U64 }),
 		Positive({ context : U64 }),
 		SharedRegistry({ context : U64 }),
 		UniqueRegistries({ context : U64 }),
@@ -31,6 +33,7 @@ Cases :: [].{
 	run : Case -> { bytes : List(U8), work : List(U64) }
 	run = |case| {
 		match case {
+			RocFonts({ context }) => roc_fonts(context)
 			Positive({ context }) => positive(context)
 			SharedRegistry({ context }) => shared_registry(context)
 			UniqueRegistries({ context }) => unique_registries(context)
@@ -407,4 +410,37 @@ negative_limits = |runtime_argument_count| {
 	} else {
 		Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })
 	}
+}
+
+roc_fonts : U64 -> { bytes : List(U8), work : List(U64) }
+roc_fonts = |context| {
+	if context != 2 {
+		crash "roc-font context invalid"
+	}
+	faces = match RocFont.register(Font.Registry.empty, facade_limits(context)) {
+		Ok(value) => value
+		Err(_) => crash "roc-font registration failed"
+	}
+	options : Pdf.Options
+	options = { fonts: Registered(faces.registry), theme: RocFont.theme(faces, {}) }
+	document = Pdf.document({
+		contents: [
+			Pdf.paragraph("Body ⌘K"),
+			Pdf.rich_paragraph([Pdf.code("Inline ⌘K"), Pdf.strong([Pdf.text(" Bold")])]),
+			Pdf.source_block({ face: faces.source_code, text: "Source ⌘K" }),
+		],
+		language: "en-AU",
+		title: "Roc fonts",
+	})
+	bytes = match Pdf.to_bytes_with(document, options) {
+		Ok(value) => value
+		Err(_) => crash "roc-font output failed"
+	}
+	missing = Pdf.document({ contents: [Pdf.paragraph("Missing 🦄")], language: "en-AU", title: "Missing" })
+	match Pdf.to_bytes_with(missing, options) {
+		Ok(_) => crash "roc-font accepted missing glyph"
+		Err(_) => {}
+	}
+	store = faces.registry.store()
+	{ bytes, work: [store.resources.len(), store.faces.len(), store.instances.len()] }
 }

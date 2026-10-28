@@ -112,3 +112,7 @@ atomically. Do not use Git LFS or add a download fallback.
 Whole Roc/Zig toolchains, JDK distributions, and container images are too
 large and platform-specific for Git. Hermetic deployments should preload those
 exactly pinned dependencies into an immutable runner image.
+
+The optional `RocFont` preset retains roc-font's pinned Inter/Fira Code source
+files in `vendor/fonts/roc-font/` and materialized static instances and OFL
+notices in `package/fonts/`. See [the recipe](../development/roc-font.md).

@@ -1,0 +1,98 @@
+{
+  "about": "The three default fonts shipped in package/fonts/, each byte-for-byte as its upstream released it. Every file is pinned by SHA-256 and size, and its provenance by a release archive (or a file at a tag) and the archive's own SHA-256. verify.py checks the committed files against these pins and, with --fetch, downloads each upstream again to prove where the bytes came from. Changing any entry changes measurements: it is a breaking change of the package. See docs/default-fonts.adoc.",
+  "schema": 1,
+  "faces": [
+    {
+      "id": "sans",
+      "family": "Inter",
+      "file": "package/fonts/Inter-Variable.ttf",
+      "sha256": "4989b125924991b90d05b2d16e0e388c48f7d5bb8b30539bbf9c755278d0ccaf",
+      "size": 879708,
+      "version": "Version 4.001;git-9221beed3",
+      "font_revision": "4.001",
+      "upstream": {
+        "repository": "https://github.com/rsms/inter",
+        "release": "v4.1",
+        "commit": "e3a3d4c57d5ecc01453a575621882a384c1995a3",
+        "archive": {
+          "url": "https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip",
+          "sha256": "9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e",
+          "size": 33707794,
+          "member": "InterVariable.ttf"
+        },
+        "file_url": "https://raw.githubusercontent.com/rsms/inter/e3a3d4c57d5ecc01453a575621882a384c1995a3/docs/font-files/InterVariable.ttf"
+      },
+      "licence": {
+        "file": "package/fonts/Inter-OFL.txt",
+        "sha256": "262481e844521b326f5ecd053e59b98c8b2da78c8ee1bdbb6e8174305e54935a",
+        "size": 4380,
+        "spdx": "OFL-1.1",
+        "url": "https://raw.githubusercontent.com/rsms/inter/e3a3d4c57d5ecc01453a575621882a384c1995a3/LICENSE.txt",
+        "archive_member": "LICENSE.txt",
+        "copyright": "Copyright (c) 2016 The Inter Project Authors (https://github.com/rsms/inter)",
+        "reserved_font_names": []
+      }
+    },
+    {
+      "id": "serif",
+      "family": "Merriweather",
+      "file": "package/fonts/Merriweather-Variable.ttf",
+      "sha256": "22e924e4ea00ef19a5b30dd2c5c32674009badb39bb4611336960eb32ad7a422",
+      "size": 4628080,
+      "version": "Version 2.100",
+      "font_revision": "2.100",
+      "upstream": {
+        "repository": "https://github.com/EbenSorkin/Merriweather4",
+        "release": "4.009",
+        "commit": "e586023aa0fe1dba9a7d4ec80fa8b9e546cb7ecf",
+        "archive": {
+          "url": "https://github.com/EbenSorkin/Merriweather4/releases/download/4.009/Merriweather4-4.009.zip",
+          "sha256": "526473e3bc1c98fc962207eaaed92487f126c3ac4238d50e279462a43b22da40",
+          "size": 12880085,
+          "member": "Merriweather4-4.009/fonts/variable/Merriweather[opsz,wdth,wght].ttf"
+        },
+        "notes": "The release archive is the authority. The copy committed in the repository at the same commit is a different build (also named Version 2.100), and the copy in google/fonts differs only in head.modified."
+      },
+      "licence": {
+        "file": "package/fonts/Merriweather-OFL.txt",
+        "sha256": "715bd349bfa6116f99e351e1548321dcfa25b91df65502d22ca8d624557697d2",
+        "size": 4438,
+        "spdx": "OFL-1.1",
+        "url": "https://raw.githubusercontent.com/EbenSorkin/Merriweather4/e586023aa0fe1dba9a7d4ec80fa8b9e546cb7ecf/OFL.txt",
+        "archive_member": "Merriweather4-4.009/OFL.txt",
+        "copyright": "Copyright 2020 The Merriweather Project Authors (https://github.com/EbenSorkin/Merriweather4) with Reserved Font Name \"Merriweather\".",
+        "reserved_font_names": ["Merriweather"]
+      }
+    },
+    {
+      "id": "mono",
+      "family": "Fira Code",
+      "file": "package/fonts/FiraCode-Variable.ttf",
+      "sha256": "04149681350f161aca538858b88d17443c586cacca83c165939a13423fe91a26",
+      "size": 286320,
+      "version": "Version 6.002",
+      "font_revision": "6.002",
+      "upstream": {
+        "repository": "https://github.com/tonsky/FiraCode",
+        "release": "6.2",
+        "commit": "eee6db993696aba61ff4eef03698e2987d79910c",
+        "archive": {
+          "url": "https://github.com/tonsky/FiraCode/releases/download/6.2/Fira_Code_v6.2.zip",
+          "sha256": "0949915ba8eb24d89fd93d10a7ff623f42830d7c5ffc3ecbf960e4ecad3e3e79",
+          "size": 2462987,
+          "member": "variable_ttf/FiraCode-VF.ttf"
+        },
+        "notes": "The release archive carries no licence file; the licence is the repository's LICENSE at the release commit. The built fonts are not committed in the repository."
+      },
+      "licence": {
+        "file": "package/fonts/FiraCode-OFL.txt",
+        "sha256": "1d41e10031ab125302780a05ec4c91d218e47db0c7e37cf315cce5e608cdc25c",
+        "size": 4389,
+        "spdx": "OFL-1.1",
+        "url": "https://raw.githubusercontent.com/tonsky/FiraCode/eee6db993696aba61ff4eef03698e2987d79910c/LICENSE",
+        "copyright": "Copyright (c) 2014, The Fira Code Project Authors (https://github.com/tonsky/FiraCode)",
+        "reserved_font_names": []
+      }
+    }
+  ]
+}

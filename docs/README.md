@@ -4,6 +4,7 @@
   add tables and figures, and handle diagnostics.
 - [Composing a technical manual](manual-composition.md): printed page references,
   chapter headers, numbered instructions, continued callouts and vector diagrams.
+- [Inter and Fira Code](roc-font.md): reusable packaged PDF font instances.
 - [Destination page references](destination-page-references.md): print
   destination page numbers and configured page labels.
 - [Example gallery](../examples/README.md): complete runnable documents and PDFs.
@@ -21,7 +22,7 @@ For repository development and validation records, see the
 
 ## Release notes
 
-- [0.2.0](releases/0.2.0.md): aligned, wrapped contents entries
+- [0.2.0](releases/0.2.0.md): aligned contents entries and the Inter/Fira Code preset
 - [0.2.0-rc1](releases/0.2.0-rc1.md): aligned, wrapped contents entries
 - [0.1.1](releases/0.1.1.md): builds on Roc nightlies from 2026-10-24
 - [0.1.0](releases/0.1.0.md)

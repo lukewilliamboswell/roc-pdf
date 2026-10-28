@@ -1470,3 +1470,10 @@ capabilities if ever justified:
 
 Some of these conflict with the static package policy and may remain
 permanently unsupported.
+
+## roc-font integration evidence in progress
+
+The optional static sans/mono preset and its evidence are recorded in
+[development/roc-font.md](development/roc-font.md). This does not claim runtime
+variable-font instancing, italic assets, serif fallback, or complete issue #69
+acceptance.

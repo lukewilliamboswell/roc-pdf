@@ -1926,3 +1926,11 @@ deterministic assets.
 The defining architectural decision is that accessibility evidence crosses the
 layout boundary as first-class typed data, while PDF syntax remains private and
 downstream.
+
+## Packaged roc-font instances
+
+The optional `RocFont` preset supplies pinned static Inter Regular/Bold and
+Fira Code Regular through the existing caller-resource boundary. Asset
+instancing is a reproducible development operation; production remains pure
+Roc. Measurement and embedding consume identical static bytes, never a
+variable font with unapplied axes. See [the integration record](development/roc-font.md).

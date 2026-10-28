@@ -9,6 +9,7 @@ package
 		Layout,
 		Metadata,
 		Pdf,
+		RocFont,
 		Scene,
 		Semantics,
 		Text,
