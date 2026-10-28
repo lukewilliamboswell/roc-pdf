@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Independent extraction and rendering of the roc-font facade regression."""
+import argparse
 import subprocess
 import tempfile
 from pathlib import Path
@@ -12,6 +13,10 @@ JAR = ROOT / 'vendor/pdfbox/pdfbox-app-3.0.8.jar'
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--self-test', action='store_true', help='Validate the retained regression fixture.')
+    parser.add_argument('--poppler', action='store_true', help='Also require independent extraction with pdftotext.')
+    args = parser.parse_args()
     expected = ['Body ⌘K', 'Inline ⌘K Bold', 'Source ⌘K']
     with tempfile.TemporaryDirectory() as directory:
         temp = Path(directory)
@@ -20,8 +25,9 @@ def main():
                         str(ROOT / 'scripts/PdfBoxRender.java')], check=True)
         text = subprocess.check_output(['java', '-cp', f'{temp}:{JAR}', 'PdfBoxTextExtract', str(PDF)], text=True)
         assert text.splitlines() == expected, repr(text)
-        poppler = subprocess.check_output(['pdftotext', '-layout', str(PDF), '-'], text=True)
-        assert [line.strip() for line in poppler.splitlines() if line.strip()] == expected, repr(poppler)
+        if args.poppler:
+            poppler = subprocess.check_output(['pdftotext', '-layout', str(PDF), '-'], text=True)
+            assert [line.strip() for line in poppler.splitlines() if line.strip()] == expected, repr(poppler)
         image = temp / 'render.ppm'
         subprocess.run(['java', '-Djava.awt.headless=true', '-cp', f'{temp}:{JAR}', 'PdfBoxRender', str(PDF), str(image), '72'], check=True)
         raster = read_ppm(image)

@@ -56,3 +56,7 @@ unchanged. `scripts/test_bundle_consumer.py` passes with the pinned Roc and Zig
 
 Release verification on nightly-2026-10-28-bad769b repeats the focused case
 with identical PDF bytes, 1,076 allocations and unchanged work/byte counts.
+
+The harness requires the retained PDFBox extraction/rendering oracle.
+`python3 scripts/check_roc_font.py --poppler` additionally checks Poppler
+extraction when that separately installed tool is explicitly requested.
