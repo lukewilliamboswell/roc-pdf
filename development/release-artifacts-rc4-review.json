@@ -1,0 +1,564 @@
+{
+  "schema_version": 1,
+  "kind": "local_working_tree_release_smoke_test",
+  "published": false,
+  "scope": "Local artifacts after the committed missing-source-face diagnostic correction, from inputs byte-compared with c08a3f81e21a2641bcdb9b786f381c6a5e59398e. Final clean CI remains authoritative for publication; this does not assert that the whole final integration commit was tested here.",
+  "source_audit": {
+    "revision": "c08a3f81e21a2641bcdb9b786f381c6a5e59398e",
+    "tracked_package_example_docs_inputs_equal": 250,
+    "zip_source_resource_members_equal": 85,
+    "only_zip_source_change": "Only the explicit release bundle URL changes in each main.roc."
+  },
+  "checks": {
+    "served_gallery": {
+      "result": "pass",
+      "examples": 14,
+      "pdf_comparison": "byte-for-byte against reviewed retained PDFs",
+      "bundle_requested": true
+    },
+    "isolated_public_consumer": {
+      "result": "pass",
+      "roc": "nightly-2026-10-28-bad769b",
+      "zig": "0.16.0",
+      "checks": [
+        "default 10 MiB expanded payload cap",
+        "all ten unchanged static font files and three licences",
+        "ICC and byte-imported package data",
+        "public facade formatting and type checking",
+        "private KernelObject import rejection",
+        "pinned host build and Roc executable build",
+        "emitted original-byte Caf\u00e9 PDF validation"
+      ]
+    },
+    "examples_zip": {
+      "result": "pass",
+      "expected_default_cases_reused": 14,
+      "extracted_and_tested_apps": 14,
+      "source_resource_members": 85,
+      "baseline_archive_sha256": "001c63ee0bde122952a19bf367b0a2ac6e67529c5639d2c041c6f3cef563ab1a"
+    },
+    "manual": {
+      "result": "pass",
+      "html_pages": 21,
+      "desktop_width": 1280,
+      "mobile_width": 390,
+      "pdf_pages": 49,
+      "exact_source_blocks": 39,
+      "exact_rgb_figures": 3,
+      "tagged_tables": 3,
+      "dark_mode": true,
+      "independent_reader": "PDFBox 3.0.8",
+      "rendered_screenshot_hashes": "manual-publication-review/pdf.json",
+      "review_page_pixels_unchanged_from_previous_candidate": true
+    },
+    "manual_pdfa4": {
+      "result": "pass",
+      "validator": "veraPDF greenfield 1.30.2",
+      "profile": "PDF/A-4",
+      "installer_sha256": "6cc6341cb1af644044054b81f00a6590a7918abb18f762243de115258bcad838",
+      "failed_rules": 0,
+      "failed_checks": 0,
+      "parser_warnings": 0,
+      "pdf_sha256": "1725ffb15eac64b84251cb8954a18f69b8c9e0b9a8a5fe25f4737394190f3dd2"
+    },
+    "artifact_binding_rejections": {
+      "result": "pass",
+      "rejected": [
+        "stale manual source revision",
+        "different bundle URL or SHA-256",
+        "examples ZIP naming an earlier package bundle"
+      ]
+    },
+    "artifact_manifest": {
+      "result": "pass",
+      "asset_hashes_rechecked": 4,
+      "notes_hash_rechecked": true
+    },
+    "workflow_lint": {
+      "result": "pass",
+      "tool": "actionlint 1.7.12"
+    }
+  },
+  "manifest": {
+    "schema_version": 1,
+    "revision": "c08a3f81e21a2641bcdb9b786f381c6a5e59398e",
+    "version": "0.3.0",
+    "compiler": "Roc compiler version nightly-2026-10-28-bad769b",
+    "bundle_expanded_bytes": 10158917,
+    "notes_sha256": "c573eed5307adb3f533d83baefa0835d97b43281e587d64836d031f51207db28",
+    "assets": [
+      {
+        "name": "C3YnjBMeN7A9ar7F5seM73coSTkYLSksTD2BNikQEVSP.tar.zst",
+        "size": 3974692,
+        "sha256": "83e4ca7077ca2bb561d39f944ea23e7bc13ffa3a9c78637ea63e9d68674dfaa4"
+      },
+      {
+        "name": "roc-pdf-examples-0.3.0.zip",
+        "size": 6082465,
+        "sha256": "08caa3937745d65b1c78695d86905da00c1b3a6d2031da529a48333f1d8a91c7"
+      },
+      {
+        "name": "roc-pdf-docs-0.3.0.zip",
+        "size": 1921185,
+        "sha256": "b8f1c9d82b43b1ac6c5683256616ece4a9308398c650cf51a3f5634f2d0d31aa"
+      },
+      {
+        "name": "roc-pdf-0.3.0.pdf",
+        "size": 470926,
+        "sha256": "1725ffb15eac64b84251cb8954a18f69b8c9e0b9a8a5fe25f4737394190f3dd2"
+      }
+    ]
+  },
+  "historical_candidate": {
+    "scope": "Earlier local candidate before the installation/version-matching guide correction. This is retained evidence, not a released artifact or final integration result.",
+    "source_revision": "a3e0a326cdee62af25eac51bb6f3d7a1963573bb",
+    "tracked_inputs_compared": 250,
+    "zip_source_resource_members_compared": 85,
+    "manifest": {
+      "schema_version": 1,
+      "revision": "a3e0a326cdee62af25eac51bb6f3d7a1963573bb",
+      "version": "0.3.0",
+      "compiler": "Roc compiler version nightly-2026-10-28-bad769b",
+      "bundle_expanded_bytes": 10158511,
+      "notes_sha256": "7933ae6ee2e4d8634680da3b0c0ec0e16fde0ddc8f8bb5c83ded3f86fe62305c",
+      "assets": [
+        {
+          "name": "418pLV65t6TtiHWPtDmWorrsLCrEjTnEjrWrkNvigeDQ.tar.zst",
+          "size": 3974464,
+          "sha256": "a43327f74c38caf2af20bf8270bf09317811404728de8dd3392e57b7bf2c4a72"
+        },
+        {
+          "name": "roc-pdf-examples-0.3.0.zip",
+          "size": 6082432,
+          "sha256": "001c63ee0bde122952a19bf367b0a2ac6e67529c5639d2c041c6f3cef563ab1a"
+        },
+        {
+          "name": "roc-pdf-docs-0.3.0.zip",
+          "size": 1919881,
+          "sha256": "8dee726d0d910f83b4dfc39fdd5510bfb8140fae79756ea7bba5eba5d06bdce5"
+        },
+        {
+          "name": "roc-pdf-0.3.0.pdf",
+          "size": 470244,
+          "sha256": "100df108c25e824ecf057175ad331e5017ce050659192e6a2b78b506f5dd4609"
+        }
+      ]
+    }
+  },
+  "previous_candidate": {
+    "scope": "Earlier local candidate before the missing-source-face diagnostic correction. Retained history, not the current package pin.",
+    "source_audit": {
+      "revision": "6811fdd5be790166ab1d99d502110fa421ec69e1",
+      "tracked_package_example_docs_inputs_equal": 250,
+      "zip_source_resource_members_equal": 85,
+      "only_zip_source_change": "Explicit versioned release bundle URL replaces the checkout dependency."
+    },
+    "manifest": {
+      "schema_version": 1,
+      "revision": "6811fdd5be790166ab1d99d502110fa421ec69e1",
+      "version": "0.3.0",
+      "compiler": "Roc compiler version nightly-2026-10-28-bad769b",
+      "bundle_expanded_bytes": 10158511,
+      "notes_sha256": "7005943df4110c3b7fcc6aa821f535df63d4de6b2b5f1f1d7227153170327347",
+      "assets": [
+        {
+          "name": "418pLV65t6TtiHWPtDmWorrsLCrEjTnEjrWrkNvigeDQ.tar.zst",
+          "size": 3974464,
+          "sha256": "a43327f74c38caf2af20bf8270bf09317811404728de8dd3392e57b7bf2c4a72"
+        },
+        {
+          "name": "roc-pdf-examples-0.3.0.zip",
+          "size": 6082432,
+          "sha256": "001c63ee0bde122952a19bf367b0a2ac6e67529c5639d2c041c6f3cef563ab1a"
+        },
+        {
+          "name": "roc-pdf-docs-0.3.0.zip",
+          "size": 1921171,
+          "sha256": "2f1bf6190df29b3100455c59e5b47b418e08719b04a2846fb13edf21d3b183f7"
+        },
+        {
+          "name": "roc-pdf-0.3.0.pdf",
+          "size": 470925,
+          "sha256": "8306524e2cb261fd6c59770a37e33565ee41fd5a708febda99997e8eea7c3af9"
+        }
+      ]
+    }
+  },
+  "archive_reconstruction": {
+    "source_revision": "c08a3f81e21a2641bcdb9b786f381c6a5e59398e",
+    "baseline_archive_sha256": "001c63ee0bde122952a19bf367b0a2ac6e67529c5639d2c041c6f3cef563ab1a",
+    "baseline_spec_sha256": "c2347bd800142f1376df76960aa921928932917ab250ac87b8b82dc0cfabf942",
+    "curated_apps": 14,
+    "exact_default_cases_reused": 14,
+    "source_resource_members_equal": 85,
+    "source_inventory": [
+      {
+        "path": "examples/brand-brief/fonts/PublicSans-Bold.ttf",
+        "sha256": "bddd96a0bcd49b292524b4beff57d770ce97482fb3f84b788959422e06b863a6"
+      },
+      {
+        "path": "examples/brand-brief/fonts/PublicSans-Italic.ttf",
+        "sha256": "d77f79eca3f513e0b883ddbd293a3d2bb8fd35453ff74aff4afc6a6a1c6ce8f1"
+      },
+      {
+        "path": "examples/brand-brief/fonts/PublicSans-LICENSE.md",
+        "sha256": "82f0d3cad45f264192db156360b4a710fe7060885f6aa261e6539f13cb9eb0d9"
+      },
+      {
+        "path": "examples/brand-brief/fonts/PublicSans-OFL.txt",
+        "sha256": "157a9e77f7580246e97c769490e2e977ae94399f9d30f4556015c41fe8c28bac"
+      },
+      {
+        "path": "examples/brand-brief/fonts/PublicSans-Regular.ttf",
+        "sha256": "b577e9bc9887284e90aae5ad0699689ce36b5cd96207efbec68f77f8aed88379"
+      },
+      {
+        "path": "examples/brand-brief/fonts/SourceCodePro-OFL.md",
+        "sha256": "7c940e28a5388e9bba866cf0e408edda45fe0899ba98665b8f6ab31dc5e4b8ff"
+      },
+      {
+        "path": "examples/brand-brief/fonts/SourceCodePro-Regular.ttf",
+        "sha256": "74bd80d3e42a08517cd7e1108ba3d86f2da29ac0f3065be95e0357956ab9db37"
+      },
+      {
+        "path": "examples/brand-brief/main.roc",
+        "sha256": "a11da8edf1552250c0009701546c203a325a73805aa4f3f5e5e0753869f1e12e"
+      },
+      {
+        "path": "examples/business-report/drying-yard.jpg",
+        "sha256": "186d81389302d7482b772325073cd381138b229a56dc7d136bbe2c409b11c043"
+      },
+      {
+        "path": "examples/business-report/fonts/SourceCodePro-OFL.md",
+        "sha256": "7c940e28a5388e9bba866cf0e408edda45fe0899ba98665b8f6ab31dc5e4b8ff"
+      },
+      {
+        "path": "examples/business-report/fonts/SourceCodePro-Regular.ttf",
+        "sha256": "74bd80d3e42a08517cd7e1108ba3d86f2da29ac0f3065be95e0357956ab9db37"
+      },
+      {
+        "path": "examples/business-report/fonts/SourceSans3-Bold.ttf",
+        "sha256": "9214b9d95e4231c609802815c2646c98174e2102d0d37f88978a7f8e71006e6a"
+      },
+      {
+        "path": "examples/business-report/fonts/SourceSans3-It.ttf",
+        "sha256": "192afd78f0f54a3c69eaf02d43f4d9a821e9d6110e41d3d25d61a7385cd580e4"
+      },
+      {
+        "path": "examples/business-report/fonts/SourceSans3-OFL.md",
+        "sha256": "89ad2c4f66dd29127527493e729c31e731f111cf10faf5774c3db9275ed0c22c"
+      },
+      {
+        "path": "examples/business-report/fonts/SourceSans3-Regular.ttf",
+        "sha256": "4644c81b86ec9caaa76b634889968ed3c4f4f52f054855933acc7c2b21e53b0f"
+      },
+      {
+        "path": "examples/business-report/main.roc",
+        "sha256": "e7a8ecd4f3ed6b5c19ab1762aa4b0dde1b9f09f5fbccdfd8706ac5ec08d6589c"
+      },
+      {
+        "path": "examples/chunked-export/fonts/SourceCodePro-Bold.ttf",
+        "sha256": "b2095e0d657e6d28dc32444a9dacabab0c9241d0bf39d96371756cc9bdbc3a5f"
+      },
+      {
+        "path": "examples/chunked-export/fonts/SourceCodePro-OFL.md",
+        "sha256": "7c940e28a5388e9bba866cf0e408edda45fe0899ba98665b8f6ab31dc5e4b8ff"
+      },
+      {
+        "path": "examples/chunked-export/fonts/SourceCodePro-Regular.ttf",
+        "sha256": "74bd80d3e42a08517cd7e1108ba3d86f2da29ac0f3065be95e0357956ab9db37"
+      },
+      {
+        "path": "examples/chunked-export/main.roc",
+        "sha256": "0a57212add35ea2d2983af07c9982d8a4cdd460688601341ff96a02136b20b85"
+      },
+      {
+        "path": "examples/field-guide/fonts/Literata-Bold.ttf",
+        "sha256": "b6af95b3b443cdbce964aa06741596987f2f5c3ede46a2bc846e5addd99d061f"
+      },
+      {
+        "path": "examples/field-guide/fonts/Literata-Italic.ttf",
+        "sha256": "198f70cc9a17bab578553fa274b81984d58c440efe26bc06f1d841c194b6691a"
+      },
+      {
+        "path": "examples/field-guide/fonts/Literata-OFL.txt",
+        "sha256": "8742963604cd89dc81437811a850018fc03b2bfad686d7422c8235967c87614e"
+      },
+      {
+        "path": "examples/field-guide/fonts/Literata-Regular.ttf",
+        "sha256": "0390890de9bb9d5862a6ba4125b82c61792ccc3d66b63e73eee75c1a16fcd208"
+      },
+      {
+        "path": "examples/field-guide/main.roc",
+        "sha256": "6acec061ac3ba0deb85a26def2ea39e12d2b44e9669fcc34261366db5d9d1c86"
+      },
+      {
+        "path": "examples/font-families/README.md",
+        "sha256": "7e2a0d0cfd4a88e24c7b56147c57d56e9767c27f1a7c543fd21ae4e6f8cf3600"
+      },
+      {
+        "path": "examples/font-families/main.roc",
+        "sha256": "b166dc917c219ca78eca20ba1f5cbb8f1c294b3b17075a1bb564aa997975b706"
+      },
+      {
+        "path": "examples/furniture-typography/main.roc",
+        "sha256": "5bd19c2a476aeecedccc8d057470082b7b0bab1cb9d9a8d2dd6d643499b4320e"
+      },
+      {
+        "path": "examples/operations-handbook/fonts/SourceCodePro-OFL.md",
+        "sha256": "7c940e28a5388e9bba866cf0e408edda45fe0899ba98665b8f6ab31dc5e4b8ff"
+      },
+      {
+        "path": "examples/operations-handbook/fonts/SourceCodePro-Regular.ttf",
+        "sha256": "74bd80d3e42a08517cd7e1108ba3d86f2da29ac0f3065be95e0357956ab9db37"
+      },
+      {
+        "path": "examples/operations-handbook/fonts/SourceSans3-Bold.ttf",
+        "sha256": "9214b9d95e4231c609802815c2646c98174e2102d0d37f88978a7f8e71006e6a"
+      },
+      {
+        "path": "examples/operations-handbook/fonts/SourceSans3-It.ttf",
+        "sha256": "192afd78f0f54a3c69eaf02d43f4d9a821e9d6110e41d3d25d61a7385cd580e4"
+      },
+      {
+        "path": "examples/operations-handbook/fonts/SourceSans3-OFL.md",
+        "sha256": "89ad2c4f66dd29127527493e729c31e731f111cf10faf5774c3db9275ed0c22c"
+      },
+      {
+        "path": "examples/operations-handbook/fonts/SourceSans3-Regular.ttf",
+        "sha256": "4644c81b86ec9caaa76b634889968ed3c4f4f52f054855933acc7c2b21e53b0f"
+      },
+      {
+        "path": "examples/operations-handbook/main.roc",
+        "sha256": "326901daf499056563ef295c29e1dcb8af3773d7cb7aa9a31d98531ad8365e71"
+      },
+      {
+        "path": "examples/product-brief/fonts/Inter-Bold.ttf",
+        "sha256": "288316099b1e0a47a4716d159098005eef7c0066921f34e3200393dbdb01947f"
+      },
+      {
+        "path": "examples/product-brief/fonts/Inter-Italic.ttf",
+        "sha256": "bbc051dd204b5019a1aa0bc0ae2aa8a05ab13e7a3f979fa357631dc7feb6833a"
+      },
+      {
+        "path": "examples/product-brief/fonts/Inter-OFL.txt",
+        "sha256": "262481e844521b326f5ecd053e59b98c8b2da78c8ee1bdbb6e8174305e54935a"
+      },
+      {
+        "path": "examples/product-brief/fonts/Inter-Regular.ttf",
+        "sha256": "40d692fce188e4471e2b3cba937be967878f631ad3ebbbdcd587687c7ebe0c82"
+      },
+      {
+        "path": "examples/product-brief/fonts/SourceCodePro-OFL.md",
+        "sha256": "7c940e28a5388e9bba866cf0e408edda45fe0899ba98665b8f6ab31dc5e4b8ff"
+      },
+      {
+        "path": "examples/product-brief/fonts/SourceCodePro-Regular.ttf",
+        "sha256": "74bd80d3e42a08517cd7e1108ba3d86f2da29ac0f3065be95e0357956ab9db37"
+      },
+      {
+        "path": "examples/product-brief/main.roc",
+        "sha256": "a4ea0381f65f32727118842856c6702a973a0b4783993c8aac054ece3b9f6134"
+      },
+      {
+        "path": "examples/quarterly-report/fonts/NotoSerif-Bold.ttf",
+        "sha256": "96656aa5cec8f1d6fd0e804c1fad397e1a1cfa082e6642124e0bda68cd8363ce"
+      },
+      {
+        "path": "examples/quarterly-report/fonts/NotoSerif-Italic.ttf",
+        "sha256": "749e80e313ef711f9373c6cce17c72297ef05490b3dcda7967d1d5d90bf1183f"
+      },
+      {
+        "path": "examples/quarterly-report/fonts/NotoSerif-OFL.txt",
+        "sha256": "cee9892f9f0cc8fe882c9e9537ee6a89621d86ee7ceaf70b02e2b2b1c25c061a"
+      },
+      {
+        "path": "examples/quarterly-report/fonts/NotoSerif-Regular.ttf",
+        "sha256": "19e72cd8d595fae5bd74a5206f5d938512e1183d4fed7abb1ec1be1d7efa5f88"
+      },
+      {
+        "path": "examples/quarterly-report/main.roc",
+        "sha256": "e85d91d32fda3e9983158d86a3763e0976cd8951031c36c13fa9cc2f35b1a1a9"
+      },
+      {
+        "path": "examples/release-notes/fonts/NotoSans-Bold.ttf",
+        "sha256": "1df075a380fc7cb898acf64c1f7b3b4dd780de3caa860178bf929de35817a913"
+      },
+      {
+        "path": "examples/release-notes/fonts/NotoSans-OFL.txt",
+        "sha256": "cee9892f9f0cc8fe882c9e9537ee6a89621d86ee7ceaf70b02e2b2b1c25c061a"
+      },
+      {
+        "path": "examples/release-notes/fonts/NotoSans-Regular.ttf",
+        "sha256": "478c558ea716033cd60c03438f628dfa75694dcf6b5f6d505a2f05fd2b4f3823"
+      },
+      {
+        "path": "examples/release-notes/fonts/SourceCodePro-OFL.md",
+        "sha256": "7c940e28a5388e9bba866cf0e408edda45fe0899ba98665b8f6ab31dc5e4b8ff"
+      },
+      {
+        "path": "examples/release-notes/fonts/SourceCodePro-Regular.ttf",
+        "sha256": "74bd80d3e42a08517cd7e1108ba3d86f2da29ac0f3065be95e0357956ab9db37"
+      },
+      {
+        "path": "examples/release-notes/main.roc",
+        "sha256": "c41c221e571f487ef55592ebd1813bbda9708977c0bf3137ed643ed342ec6013"
+      },
+      {
+        "path": "examples/source-blocks/fonts/SourceCodePro-OFL.md",
+        "sha256": "7c940e28a5388e9bba866cf0e408edda45fe0899ba98665b8f6ab31dc5e4b8ff"
+      },
+      {
+        "path": "examples/source-blocks/fonts/SourceCodePro-Regular.ttf",
+        "sha256": "74bd80d3e42a08517cd7e1108ba3d86f2da29ac0f3065be95e0357956ab9db37"
+      },
+      {
+        "path": "examples/source-blocks/main.roc",
+        "sha256": "500f0bff2127fea7394501e293f803507dc3508c12144e0cb3097731ce1ff6e1"
+      },
+      {
+        "path": "examples/tax-invoice/fonts/SourceSans3-Bold.ttf",
+        "sha256": "9214b9d95e4231c609802815c2646c98174e2102d0d37f88978a7f8e71006e6a"
+      },
+      {
+        "path": "examples/tax-invoice/fonts/SourceSans3-OFL.md",
+        "sha256": "89ad2c4f66dd29127527493e729c31e731f111cf10faf5774c3db9275ed0c22c"
+      },
+      {
+        "path": "examples/tax-invoice/fonts/SourceSans3-Regular.ttf",
+        "sha256": "4644c81b86ec9caaa76b634889968ed3c4f4f52f054855933acc7c2b21e53b0f"
+      },
+      {
+        "path": "examples/tax-invoice/main.roc",
+        "sha256": "41c11a4058a6fe097f4b74935bb7da23e00285338bcd97fd299b31f22c8c156a"
+      },
+      {
+        "path": "examples/vector-diagrams/.gitignore",
+        "sha256": "323664fcd98c1f0d32f41500afa0d1d449e3fa73c389123c6cfc1b79ef37be5e"
+      },
+      {
+        "path": "examples/vector-diagrams/Diagram.roc",
+        "sha256": "1ea2bb24640189475b81777504ed74066cc4d64416c6a1eb934ca8493518b684"
+      },
+      {
+        "path": "examples/vector-diagrams/PreparedDiagram.roc",
+        "sha256": "7b753f253c000188f876d6e58d8cc5d7508efcaffc08dfcf3e95c480611b606e"
+      },
+      {
+        "path": "examples/vector-diagrams/README.md",
+        "sha256": "4e499ad243f8d795c62980e35ed1fad595f2a86def11ea70e1320d32643962a3"
+      },
+      {
+        "path": "examples/vector-diagrams/all.roc",
+        "sha256": "63b825ed4f61dd59a1d8138b3d7c1e1fbf11b1da3d403ef616d7d1c8828b923c"
+      },
+      {
+        "path": "examples/vector-diagrams/fonts/Inter-OFL.txt",
+        "sha256": "262481e844521b326f5ecd053e59b98c8b2da78c8ee1bdbb6e8174305e54935a"
+      },
+      {
+        "path": "examples/vector-diagrams/fonts/Inter-Regular.ttf",
+        "sha256": "40d692fce188e4471e2b3cba937be967878f631ad3ebbbdcd587687c7ebe0c82"
+      },
+      {
+        "path": "examples/vector-diagrams/main.roc",
+        "sha256": "f1c8c78fdcb18868f337618ec52b8c96b3dae2bb0b1fcab091952741f61bf206"
+      },
+      {
+        "path": "examples/vector-diagrams/package.roc",
+        "sha256": "bd0eae7ec2603260f86cae980e9788d581bac447d396ee3643a8249b284b4c22"
+      },
+      {
+        "path": "examples/vector-diagrams/preparation/.node-version",
+        "sha256": "2b543fedb51500d7f38fe3765846b9e3bd2eedf4bc19c2bd3634b85967aebdd2"
+      },
+      {
+        "path": "examples/vector-diagrams/preparation/diagram.mmd",
+        "sha256": "d15e98d9c1557aeb07f08fffdc7d6d1e10e4e584d6c2cc4c18b6e9041ba35257"
+      },
+      {
+        "path": "examples/vector-diagrams/preparation/diagram.svg",
+        "sha256": "ace66d956567180acf4e537bd0357e0830d2fa895a966225ce859913ffe9847a"
+      },
+      {
+        "path": "examples/vector-diagrams/preparation/mermaid.json",
+        "sha256": "c4bb323f42df993bfa3f2d7f35ce7894bc2f68fc18a14d8f425df17d2cfa7e59"
+      },
+      {
+        "path": "examples/vector-diagrams/preparation/package-lock.json",
+        "sha256": "465c51dce6d209ee47134e91c76ad022942c3425bb3f984bb43a9760ceae3c7b"
+      },
+      {
+        "path": "examples/vector-diagrams/preparation/package.json",
+        "sha256": "a18d3f50b8debca375fd4cb29e1d49c49297dd9b5d01cb1329637d1e6ddeb910"
+      },
+      {
+        "path": "examples/vector-diagrams/preparation/prepare.mjs",
+        "sha256": "11d1ff9c0dd2ec0b3d43ff394b14e66c19e9f41361c62ab9112b1d337e0261fd"
+      },
+      {
+        "path": "examples/vector-diagrams/preparation/provenance.json",
+        "sha256": "d174e7e32efad2866bf0c798dfec9afaae88a0cdd9c41570bf7f26579735a68e"
+      },
+      {
+        "path": "examples/vector-diagrams/preparation/reference.png",
+        "sha256": "5abb847664993f869acc18e333d785ecfbbfe8c7f6f0fd4300e341720e1fabf0"
+      },
+      {
+        "path": "examples/vector-diagrams/preparation/resolved.json",
+        "sha256": "80b31e2b44287f37518fac68561e264288e3d85db2c751e76f7a2c3e4504be5b"
+      },
+      {
+        "path": "examples/vector-diagrams/preparation/test.mjs",
+        "sha256": "11d000889d8c3626dc44d854c9d7df7bccb55c808b6346b583bb8d905ef4aeb7"
+      },
+      {
+        "path": "examples/warranty-letter/fonts/Literata-Bold.ttf",
+        "sha256": "b6af95b3b443cdbce964aa06741596987f2f5c3ede46a2bc846e5addd99d061f"
+      },
+      {
+        "path": "examples/warranty-letter/fonts/Literata-Italic.ttf",
+        "sha256": "198f70cc9a17bab578553fa274b81984d58c440efe26bc06f1d841c194b6691a"
+      },
+      {
+        "path": "examples/warranty-letter/fonts/Literata-OFL.txt",
+        "sha256": "8742963604cd89dc81437811a850018fc03b2bfad686d7422c8235967c87614e"
+      },
+      {
+        "path": "examples/warranty-letter/fonts/Literata-Regular.ttf",
+        "sha256": "0390890de9bb9d5862a6ba4125b82c61792ccc3d66b63e73eee75c1a16fcd208"
+      },
+      {
+        "path": "examples/warranty-letter/main.roc",
+        "sha256": "eb4e0d04a94eb743015db630ac47d794802d051440be7d572ee1867910c21cb1"
+      }
+    ],
+    "new_source_change": "Only the explicit release bundle URL changes in each main.roc.",
+    "extracted_archive_tests_passed": 14,
+    "method": "Existing examples_archive.main/build/spec/test functions; only record is replaced with validated prior expectations. No production CLI change.",
+    "private_helper_sha256": "869bad1847f5dfdb0e4a7f035cb4833ec8d6f378ed92ab043af50b0e5cbbf063",
+    "case_contract": {
+      "name": "default",
+      "args": [],
+      "stdin": "",
+      "exit_code": 0,
+      "stderr": ""
+    },
+    "expected_stdout_sha256_by_app": {
+      "examples/brand-brief/main.roc": "cb2ccf8df4388197bfb8cabc0eb07272c2f6388f44f0f3d1e6c840b2c8d8c7f5",
+      "examples/business-report/main.roc": "5db943d9ad0aa15b63634a9e959493e4940d3af0d31045c3a805d481cc972278",
+      "examples/chunked-export/main.roc": "41b1494199bdfe0e7c2af9101169f51ff227bab7f0c70ebdabf6c82161f72916",
+      "examples/field-guide/main.roc": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "examples/font-families/main.roc": "e30d3a672a1a1207de90484c99a50396b2a1b00f5ecc9a6c7ed31fdcf59daf97",
+      "examples/furniture-typography/main.roc": "b30013f6c71e73d6a794cb75103d19bd28d474298dd2dc07c7e58774df977864",
+      "examples/operations-handbook/main.roc": "a60994681c5312695916358ae3297712209d6eb655e64ab91367cdfddcf78ff0",
+      "examples/product-brief/main.roc": "9b11d2afed4a5353139d0094afb3cbf69095685b4bbbc9b19f3b4465172d2de2",
+      "examples/quarterly-report/main.roc": "2d0661a65b32066c6b1e8428e6e3080f64f6d99267cb64284b1db9df2ac24bf3",
+      "examples/release-notes/main.roc": "0745df68158eae5997e343365dead0ae3a9c58b42f786c720363d41357799dad",
+      "examples/source-blocks/main.roc": "022a78681b06711b47d4c4d0e29bfea5153631bf2feba375117d7a9c42160390",
+      "examples/tax-invoice/main.roc": "6fd1b5d96716c6a4d45cc123271cb1ddbb4c2ffa1e9aab186feb5c3ceb19a734",
+      "examples/vector-diagrams/main.roc": "06f6bd97c8a23e306bc2f94552fb4c32557b7d5d56b53b30ee50a4a8584209c7",
+      "examples/warranty-letter/main.roc": "0de14c4adbbfa5fa0773115b56ce83e99d2b4df3de301c66b967ad6446585710"
+    }
+  }
+}

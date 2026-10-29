@@ -1209,7 +1209,7 @@ test_style = {
 	stroke: SolidStroke({
 		cap: RoundCap,
 		color: test_color,
-		dash: Dashed({ lengths: Semantics.IndexRange.from_start_and_length(0, 2), phase: unit(0) }),
+		dash: Dashed({ lengths: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }), phase: unit(0) }),
 		join: MiterJoin,
 		miter_limit: unit(10000),
 		width: unit(1000),
@@ -1226,7 +1226,7 @@ test_page = {
 		trim: rect(750, 750, 8500, 8500),
 	},
 	id: Semantics.PageId.from_index(0),
-	paint_order: Semantics.IndexRange.from_start_and_length(0, 1),
+	paint_order: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 	rotation: Rotate0,
 }
 
@@ -1234,15 +1234,15 @@ test_store : Scene.Store
 test_store = {
 	commands: [
 		Transform({
-			children: Semantics.IndexRange.from_start_and_length(2, 1),
+			children: Semantics.IndexRange.from_start_and_length({ start: 2, length: 1 }),
 			matrix: { a: unit(1000), b: unit(0), c: unit(0), d: unit(1000), e: unit(0), f: unit(0) },
 		}),
 		DrawPath({ path: Scene.PathId.from_index(0), style: test_style }),
-		Clip({ children: Semantics.IndexRange.from_start_and_length(3, 1), path: Scene.PathId.from_index(0) }),
+		Clip({ children: Semantics.IndexRange.from_start_and_length({ start: 3, length: 1 }), path: Scene.PathId.from_index(0) }),
 		DrawImage({ image: Image.Id.from_index(0), placement: rect(0, 0, 1000, 1000) }),
 	],
 	dash_lengths: [unit(1000), unit(500)],
-	groups: [{ commands: Semantics.IndexRange.from_start_and_length(0, 2), id: Scene.GroupId.from_index(0), owner: PageArtifact(Background) }],
+	groups: [{ commands: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }), id: Scene.GroupId.from_index(0), owner: PageArtifact(Background) }],
 	page_groups: [Scene.GroupId.from_index(0)],
 	pages: [test_page],
 	path_segments: [
@@ -1252,7 +1252,7 @@ test_store = {
 		Close,
 		Rectangle(rect(100, 100, 200, 300)),
 	],
-	paths: [{ id: Scene.PathId.from_index(0), segments: Semantics.IndexRange.from_start_and_length(0, 5) }],
+	paths: [{ id: Scene.PathId.from_index(0), segments: Semantics.IndexRange.from_start_and_length({ start: 0, length: 5 }) }],
 }
 
 test_limits : KernelScene.Limits
@@ -1273,7 +1273,7 @@ text_store : Scene.Store
 text_store = {
 	..test_store,
 	commands: [DrawText({ paint: test_text_paint, run: Text.RunId.from_index(0) })],
-	groups: [{ commands: Semantics.IndexRange.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
+	groups: [{ commands: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
 }
 
 text_limits : KernelScene.Limits
@@ -1373,7 +1373,7 @@ expect {
 		test_store.commands,
 		0,
 		Transform({
-			children: Semantics.IndexRange.from_start_and_length(1, 1),
+			children: Semantics.IndexRange.from_start_and_length({ start: 1, length: 1 }),
 			matrix: { a: unit(1000), b: unit(0), c: unit(0), d: unit(1000), e: unit(0), f: unit(0) },
 		}),
 	)
@@ -1407,7 +1407,7 @@ expect {
 
 # production-visual opacity remains explicitly unavailable in a tagged-visual scene.
 expect {
-	commands = list_set(test_store.commands, 3, Opacity({ children: Semantics.IndexRange.from_start_and_length(0, 1), opacity: 32768 }))
+	commands = list_set(test_store.commands, 3, Opacity({ children: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), opacity: 32768 }))
 	bad = { ..test_store, commands }
 
 	match KernelScene.Plan.build(bad, test_resources, test_limits) {
@@ -1418,7 +1418,7 @@ expect {
 
 # Dense path identities cannot be detached from their arena index.
 expect {
-	paths = [{ id: Scene.PathId.from_index(1), segments: Semantics.IndexRange.from_start_and_length(0, 5) }]
+	paths = [{ id: Scene.PathId.from_index(1), segments: Semantics.IndexRange.from_start_and_length({ start: 0, length: 5 }) }]
 	bad = { ..test_store, paths }
 
 	match KernelScene.Plan.build(bad, test_resources, test_limits) {
@@ -1440,7 +1440,7 @@ expect {
 # Every command is reached exactly once from one group root.
 expect {
 	group = list_at(test_store.groups, 0)
-	groups = [{ ..group, commands: Semantics.IndexRange.from_start_and_length(0, 1) }]
+	groups = [{ ..group, commands: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }) }]
 	bad = { ..test_store, groups }
 
 	match KernelScene.Plan.build(bad, test_resources, test_limits) {
@@ -1452,7 +1452,7 @@ expect {
 # Command ranges are checked before any arena access.
 expect {
 	group = list_at(test_store.groups, 0)
-	groups = [{ ..group, commands: Semantics.IndexRange.from_start_and_length(4, 1) }]
+	groups = [{ ..group, commands: Semantics.IndexRange.from_start_and_length({ start: 4, length: 1 }) }]
 	bad = { ..test_store, groups }
 
 	match KernelScene.Plan.build(bad, test_resources, test_limits) {
@@ -1506,12 +1506,12 @@ test_form_store : Scene.FormStore
 test_form_store = {
 	commands: [
 		Transform({
-			children: Semantics.IndexRange.from_start_and_length(1, 1),
+			children: Semantics.IndexRange.from_start_and_length({ start: 1, length: 1 }),
 			matrix: { a: unit(1000), b: unit(0), c: unit(0), d: unit(1000), e: unit(0), f: unit(0) },
 		}),
 		DrawPath({ path: Scene.PathId.from_index(0), style: test_style }),
 	],
-	forms: [{ bbox: rect(0, 0, 1000, 1000), commands: Semantics.IndexRange.from_start_and_length(0, 1), group: NoGroup, id: Scene.FormId.from_index(0) }],
+	forms: [{ bbox: rect(0, 0, 1000, 1000), commands: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), group: NoGroup, id: Scene.FormId.from_index(0) }],
 }
 
 form_placing_store : Scene.Store
@@ -1519,13 +1519,13 @@ form_placing_store = {
 	..test_store,
 	commands: [
 		Transform({
-			children: Semantics.IndexRange.from_start_and_length(2, 1),
+			children: Semantics.IndexRange.from_start_and_length({ start: 2, length: 1 }),
 			matrix: { a: unit(1000), b: unit(0), c: unit(0), d: unit(1000), e: unit(0), f: unit(0) },
 		}),
 		PlaceForm({ form: Scene.FormId.from_index(0), transform: { a: unit(1000), b: unit(0), c: unit(0), d: unit(1000), e: unit(2000), f: unit(3000) } }),
 		DrawImage({ image: Image.Id.from_index(0), placement: rect(0, 0, 1000, 1000) }),
 	],
-	groups: [{ commands: Semantics.IndexRange.from_start_and_length(0, 2), id: Scene.GroupId.from_index(0), owner: PageArtifact(Background) }],
+	groups: [{ commands: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }), id: Scene.GroupId.from_index(0), owner: PageArtifact(Background) }],
 }
 
 form_test_resources : KernelScene.Resources
@@ -1553,11 +1553,7 @@ expect {
 expect {
 	bad = {
 		..form_placing_store,
-		commands: list_set(
-			form_placing_store.commands,
-			1,
-			PlaceForm({ form: Scene.FormId.from_index(0), transform: { a: unit(0), b: unit(0), c: unit(0), d: unit(1000), e: unit(0), f: unit(0) } }),
-		),
+		commands: list_set(form_placing_store.commands, 1, PlaceForm({ form: Scene.FormId.from_index(0), transform: { a: unit(0), b: unit(0), c: unit(0), d: unit(1000), e: unit(0), f: unit(0) } })),
 	}
 	match KernelScene.FormPlan.build(bad, test_form_store, form_test_resources, test_limits, KernelScene.FormLimits.make({ max_form_commands: 2, max_forms: 1 })) {
 		Err(FormTransformSingular({ command: 1 })) => True
@@ -1585,12 +1581,12 @@ opacity_store : Scene.Store
 opacity_store = {
 	..test_store,
 	commands: [
-		Opacity({ children: Semantics.IndexRange.from_start_and_length(1, 2), opacity: 32768 }),
+		Opacity({ children: Semantics.IndexRange.from_start_and_length({ start: 1, length: 2 }), opacity: 32768 }),
 		DrawPath({ path: Scene.PathId.from_index(0), style: test_style }),
-		Opacity({ children: Semantics.IndexRange.from_start_and_length(3, 1), opacity: 65535 }),
+		Opacity({ children: Semantics.IndexRange.from_start_and_length({ start: 3, length: 1 }), opacity: 65535 }),
 		DrawImage({ image: Image.Id.from_index(0), placement: rect(0, 0, 1000, 1000) }),
 	],
-	groups: [{ commands: Semantics.IndexRange.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: PageArtifact(Background) }],
+	groups: [{ commands: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), id: Scene.GroupId.from_index(0), owner: PageArtifact(Background) }],
 }
 
 # A form-aware scene validates constant-opacity groups like any nested range:
@@ -1621,9 +1617,9 @@ expect {
 	bad = {
 		..opacity_store,
 		commands: [
-			Opacity({ children: Semantics.IndexRange.from_start_and_length(1, 2), opacity: 32768 }),
+			Opacity({ children: Semantics.IndexRange.from_start_and_length({ start: 1, length: 2 }), opacity: 32768 }),
 			DrawPath({ path: Scene.PathId.from_index(0), style: test_style }),
-			Opacity({ children: Semantics.IndexRange.from_start_and_length(0, 0), opacity: 32768 }),
+			Opacity({ children: Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 }), opacity: 32768 }),
 			DrawImage({ image: Image.Id.from_index(0), placement: rect(0, 0, 1000, 1000) }),
 		],
 	}
@@ -1669,16 +1665,16 @@ expect {
 }
 
 span_of : U64, U64 -> Semantics.IndexRange
-span_of = |start, length| Semantics.IndexRange.from_start_and_length(start, length)
+span_of = |start, length| Semantics.IndexRange.from_start_and_length({ start: start, length: length })
 
 # Opacity groups inside form content validate with the identical command
 # rules and are counted as form validation work.
 expect {
 	form_commands = [
-		Opacity({ children: Semantics.IndexRange.from_start_and_length(1, 1), opacity: 16384 }),
+		Opacity({ children: Semantics.IndexRange.from_start_and_length({ start: 1, length: 1 }), opacity: 16384 }),
 		DrawPath({ path: Scene.PathId.from_index(0), style: test_style }),
 	]
-	forms = { commands: form_commands, forms: [{ bbox: rect(0, 0, 1000, 1000), commands: Semantics.IndexRange.from_start_and_length(0, 1), group: IsolatedGroup, id: Scene.FormId.from_index(0) }] }
+	forms = { commands: form_commands, forms: [{ bbox: rect(0, 0, 1000, 1000), commands: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), group: IsolatedGroup, id: Scene.FormId.from_index(0) }] }
 	plan = KernelScene.FormPlan.build(form_placing_store, forms, form_test_resources, test_limits, KernelScene.FormLimits.make({ max_form_commands: 2, max_forms: 1 }))?
 	work = KernelScene.FormPlan.work(plan)
 	work.form_opacity_commands == 1 and work.form_command_visits == 2 and work.max_form_depth == 2
@@ -1697,7 +1693,7 @@ test_shading = {
 	geometry: Axial({ end: { x: unit(9000), y: unit(0) }, start: { x: unit(1000), y: unit(0) } }),
 	id: Scene.ShadingId.from_index(0),
 	space: Color.SpaceId.from_index(0),
-	stops: Semantics.IndexRange.from_start_and_length(0, 2),
+	stops: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }),
 }
 
 test_shading_store : Scene.ShadingStore
@@ -1714,7 +1710,7 @@ test_pattern_store = {
 	cells: [
 		{
 			bbox: rect(0, 0, 1000, 1000),
-			commands: Semantics.IndexRange.from_start_and_length(0, 1),
+			commands: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 			id: Scene.PatternId.from_index(0),
 			matrix: { a: unit(1000), b: unit(0), c: unit(0), d: unit(1000), e: unit(0), f: unit(0) },
 			x_step: unit(1000),

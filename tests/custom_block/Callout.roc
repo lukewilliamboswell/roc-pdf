@@ -126,5 +126,5 @@ panel = |style, size| {
 		.close()
 		.finish()
 	Scene.Drawing.empty
-		.path(outline, { fill: AuthorSolidFill(style.fill), stroke: AuthorSolidStroke({ color: style.stroke, width: 1 }) })
+		.path({ path: outline, style: { fill: AuthorSolidFill(style.fill), stroke: AuthorSolidStroke({ color: style.stroke, width: 1 }) } })
 }

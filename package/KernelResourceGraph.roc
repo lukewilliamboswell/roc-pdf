@@ -407,12 +407,7 @@ build_identity = |input, limits| {
 					if total > limits.max_hash_bytes {
 						return Err(HashByteLimitExceeded({ attempted: total, limit: limits.max_hash_bytes }))
 					} else {
-						digest = KernelSha256.digest_range(
-							identity_prefix(source),
-							input.payload_bytes,
-							source.start,
-							source.length,
-						)
+						digest = KernelSha256.digest_range(identity_prefix(source), input.payload_bytes, source.start, source.length)
 						match digest {
 							Err(_) => {
 								return Err(DigestFailed({ resource: $index }))
@@ -773,9 +768,7 @@ build_dependencies = |edges, canonical_of, resource_count, canonical_count| {
 	$index = 0
 	while $index < count {
 		pair = list_at(sorted.pairs, $index)
-		$canonical_pairs = $canonical_pairs.append(
-			{ left: list_at(canonical_of, pair.left), right: list_at(canonical_of, pair.right) },
-		)
+		$canonical_pairs = $canonical_pairs.append({ left: list_at(canonical_of, pair.left), right: list_at(canonical_of, pair.right) })
 		$index = $index + 1
 	}
 	canonical_sorted = sort_pairs($canonical_pairs)
@@ -799,13 +792,7 @@ build_dependencies = |edges, canonical_of, resource_count, canonical_count| {
 }
 
 ## Each content-stream root receives exactly its direct canonical resources.
-build_roots : List(KernelResourceGraph.RootUse),
-List(U64),
-U64,
-U64 -> Try(
-	{ comparisons : U64, offsets : List(U64), heads : List(U64) },
-	KernelResourceGraph.Error,
-)
+build_roots : List(KernelResourceGraph.RootUse), List(U64), U64, U64 -> Try({ comparisons : U64, offsets : List(U64), heads : List(U64) }, KernelResourceGraph.Error)
 build_roots = |root_uses, canonical_of, resource_count, root_count| {
 	count = root_uses.len()
 	var $pairs = List.with_capacity(count)
@@ -869,14 +856,7 @@ build_closure_seeds = |closure_uses, canonical_of, resource_count, root_count| {
 
 ## Iterative closure proof from every declared content-stream root. An explicit
 ## stack walks attacker-controlled depth; no per-node reachability set is built.
-prove_closure : { comparisons : U64, offsets : List(U64), heads : List(U64) },
-List(U64),
-{ comparisons : U64, offsets : List(U64), reverse_offsets : List(U64), reverse_targets : List(U64), heads : List(U64) },
-U64,
-KernelResourceGraph.Limits -> Try(
-	{ edge_visits : U64, node_visits : U64, work : U64 },
-	KernelResourceGraph.Error,
-)
+prove_closure : { comparisons : U64, offsets : List(U64), heads : List(U64) }, List(U64), { comparisons : U64, offsets : List(U64), reverse_offsets : List(U64), reverse_targets : List(U64), heads : List(U64) }, U64, KernelResourceGraph.Limits -> Try({ edge_visits : U64, node_visits : U64, work : U64 }, KernelResourceGraph.Error)
 prove_closure = |roots, closure_seeds, dependencies, canonical_count, limits| {
 	var $seen = List.repeat(False, canonical_count)
 	var $stack = List.with_capacity(canonical_count)
@@ -947,13 +927,7 @@ prove_closure = |roots, closure_seeds, dependencies, canonical_count, limits| {
 ## content-derived digest, descriptor, length, and bytewise order, so the plan
 ## is independent of insertion, map, and traversal order. Worst case is
 ## `O((V + E) log V)`.
-plan_order : { comparisons : U64, offsets : List(U64), reverse_offsets : List(U64), reverse_targets : List(U64), heads : List(U64) },
-U64,
-KernelResourceGraph.Limits,
-U64 -> Try(
-	{ edge_visits : U64, node_visits : U64, order : List(U64), ready_operations : U64 },
-	KernelResourceGraph.Error,
-)
+plan_order : { comparisons : U64, offsets : List(U64), reverse_offsets : List(U64), reverse_targets : List(U64), heads : List(U64) }, U64, KernelResourceGraph.Limits, U64 -> Try({ edge_visits : U64, node_visits : U64, order : List(U64), ready_operations : U64 }, KernelResourceGraph.Error)
 plan_order = |dependencies, canonical_count, limits, prior_work| {
 	var $remaining = List.with_capacity(canonical_count)
 	var $index = 0
@@ -1095,9 +1069,7 @@ build_placements = |placements, canonical_of, resource_count| {
 			if !shareable and placement.reuse == Reusable {
 				return Err(SemanticOwnershipMerge({ placement: $index, resource: placement.resource }))
 			} else {
-				$result = $result.append(
-					{ ownership: placement.ownership, resource: list_at(canonical_of, placement.resource), reuse: placement.reuse },
-				)
+				$result = $result.append({ ownership: placement.ownership, resource: list_at(canonical_of, placement.resource), reuse: placement.reuse })
 			}
 		}
 		$index = $index + 1
@@ -1526,14 +1498,7 @@ expect {
 # nodes are resolved by ascending canonical identity, which is the documented
 # total tie-break order.
 expect {
-	input = test_input(
-		[leaf(1), leaf(2), leaf(3)],
-		[],
-		1,
-		[{ resource: 0, root: 0 }, { resource: 1, root: 0 }, { resource: 2, root: 0 }],
-		[],
-		DomainSeparatedSha256,
-	)
+	input = test_input([leaf(1), leaf(2), leaf(3)], [], 1, [{ resource: 0, root: 0 }, { resource: 1, root: 0 }, { resource: 2, root: 0 }], [], DomainSeparatedSha256)
 	plan = KernelResourceGraph.Plan.build(input, open_limits)?
 	work = KernelResourceGraph.Plan.work(plan)
 	KernelResourceGraph.Plan.order(plan) == [0, 1, 2] and
@@ -1548,14 +1513,7 @@ expect {
 # A linear nested chain plans dependencies first and keeps each nested
 # dictionary limited to that resource's own direct dependency.
 expect {
-	input = test_input(
-		[leaf(1), leaf(2), leaf(3)],
-		[{ source: 0, target: 1 }, { source: 1, target: 2 }],
-		1,
-		[{ resource: 0, root: 0 }],
-		[],
-		DomainSeparatedSha256,
-	)
+	input = test_input([leaf(1), leaf(2), leaf(3)], [{ source: 0, target: 1 }, { source: 1, target: 2 }], 1, [{ resource: 0, root: 0 }], [], DomainSeparatedSha256)
 	plan = KernelResourceGraph.Plan.build(input, open_limits)?
 	work = KernelResourceGraph.Plan.work(plan)
 	normalized_order(plan) == [leaf(3).payload, leaf(2).payload, leaf(1).payload] and
@@ -1570,14 +1528,7 @@ expect {
 # A branching DAG with one shared dependency stores that dependency once and
 # still lists it in both nested dictionaries.
 expect {
-	input = test_input(
-		[leaf(1), leaf(2), leaf(3), leaf(4)],
-		[{ source: 0, target: 1 }, { source: 0, target: 2 }, { source: 1, target: 3 }, { source: 2, target: 3 }],
-		1,
-		[{ resource: 0, root: 0 }],
-		[],
-		DomainSeparatedSha256,
-	)
+	input = test_input([leaf(1), leaf(2), leaf(3), leaf(4)], [{ source: 0, target: 1 }, { source: 0, target: 2 }, { source: 1, target: 3 }, { source: 2, target: 3 }], 1, [{ resource: 0, root: 0 }], [], DomainSeparatedSha256)
 	plan = KernelResourceGraph.Plan.build(input, open_limits)?
 	work = KernelResourceGraph.Plan.work(plan)
 	shared = leaf(4).payload
@@ -1592,30 +1543,9 @@ expect {
 # Equivalent graphs supplied in adversarial insertion orders normalize to one
 # plan, one set of nested dictionaries, and one root dictionary.
 expect {
-	forward = test_input(
-		[leaf(1), leaf(2), leaf(3)],
-		[{ source: 0, target: 1 }, { source: 1, target: 2 }],
-		1,
-		[{ resource: 0, root: 0 }],
-		[],
-		DomainSeparatedSha256,
-	)
-	reversed = test_input(
-		[leaf(3), leaf(2), leaf(1)],
-		[{ source: 1, target: 0 }, { source: 2, target: 1 }],
-		1,
-		[{ resource: 2, root: 0 }],
-		[],
-		DomainSeparatedSha256,
-	)
-	shuffled = test_input(
-		[leaf(2), leaf(3), leaf(1)],
-		[{ source: 0, target: 1 }, { source: 2, target: 0 }],
-		1,
-		[{ resource: 2, root: 0 }],
-		[],
-		DomainSeparatedSha256,
-	)
+	forward = test_input([leaf(1), leaf(2), leaf(3)], [{ source: 0, target: 1 }, { source: 1, target: 2 }], 1, [{ resource: 0, root: 0 }], [], DomainSeparatedSha256)
+	reversed = test_input([leaf(3), leaf(2), leaf(1)], [{ source: 1, target: 0 }, { source: 2, target: 1 }], 1, [{ resource: 2, root: 0 }], [], DomainSeparatedSha256)
+	shuffled = test_input([leaf(2), leaf(3), leaf(1)], [{ source: 0, target: 1 }, { source: 2, target: 0 }], 1, [{ resource: 2, root: 0 }], [], DomainSeparatedSha256)
 	first = KernelResourceGraph.Plan.build(forward, open_limits)?
 	second = KernelResourceGraph.Plan.build(reversed, open_limits)?
 	third = KernelResourceGraph.Plan.build(shuffled, open_limits)?
@@ -1628,14 +1558,7 @@ expect {
 # Byte-identical, descriptor-identical resources deduplicate to one payload
 # identity while both root uses collapse to one dictionary entry.
 expect {
-	input = test_input(
-		[leaf(1), leaf(1)],
-		[],
-		1,
-		[{ resource: 0, root: 0 }, { resource: 1, root: 0 }],
-		[],
-		DomainSeparatedSha256,
-	)
+	input = test_input([leaf(1), leaf(1)], [], 1, [{ resource: 0, root: 0 }, { resource: 1, root: 0 }], [], DomainSeparatedSha256)
 	plan = KernelResourceGraph.Plan.build(input, open_limits)?
 	work = KernelResourceGraph.Plan.work(plan)
 	KernelResourceGraph.Plan.resource_count(plan) == 1 and
@@ -1704,14 +1627,7 @@ expect {
 # Multiple content-stream roots each receive a complete, exact direct
 # dictionary; a nested dependency never leaks into a root dictionary.
 expect {
-	input = test_input(
-		[leaf(1), leaf(2), leaf(3)],
-		[{ source: 0, target: 2 }],
-		2,
-		[{ resource: 0, root: 0 }, { resource: 1, root: 1 }],
-		[],
-		DomainSeparatedSha256,
-	)
+	input = test_input([leaf(1), leaf(2), leaf(3)], [{ source: 0, target: 2 }], 2, [{ resource: 0, root: 0 }, { resource: 1, root: 1 }], [], DomainSeparatedSha256)
 	plan = KernelResourceGraph.Plan.build(input, open_limits)?
 	work = KernelResourceGraph.Plan.work(plan)
 	normalized_root(plan, 0) == [leaf(1).payload] and
@@ -1726,14 +1642,7 @@ expect {
 # only the exactly equal pair, and its ordering and equality work stays within
 # the declared entries-plus-bytes bound rather than an all-pairs comparison.
 expect {
-	input = test_input(
-		[leaf(1), leaf(2), leaf(1), leaf(3)],
-		[],
-		1,
-		[{ resource: 0, root: 0 }, { resource: 1, root: 0 }, { resource: 2, root: 0 }, { resource: 3, root: 0 }],
-		[],
-		TruncatedTestDigest(1),
-	)
+	input = test_input([leaf(1), leaf(2), leaf(1), leaf(3)], [], 1, [{ resource: 0, root: 0 }, { resource: 1, root: 0 }, { resource: 2, root: 0 }, { resource: 3, root: 0 }], [], TruncatedTestDigest(1))
 	plan = KernelResourceGraph.Plan.build(input, open_limits)?
 	work = KernelResourceGraph.Plan.work(plan)
 	entries = 4
@@ -1748,19 +1657,13 @@ expect {
 }
 
 # An out-of-range direct-edge source is rejected transactionally.
-expect match KernelResourceGraph.Plan.build(
-	test_input([leaf(1)], [{ source: 4, target: 0 }], 1, [{ resource: 0, root: 0 }], [], DomainSeparatedSha256),
-	open_limits,
-) {
+expect match KernelResourceGraph.Plan.build(test_input([leaf(1)], [{ source: 4, target: 0 }], 1, [{ resource: 0, root: 0 }], [], DomainSeparatedSha256), open_limits) {
 	Err(EdgeSourceOutOfRange({ count: 1, edge: 0, source: 4 })) => True
 	_ => False
 }
 
 # A missing nested dependency reachable from a stream root is rejected.
-expect match KernelResourceGraph.Plan.build(
-	test_input([leaf(1), leaf(2)], [{ source: 0, target: 2 }], 1, [{ resource: 0, root: 0 }], [], DomainSeparatedSha256),
-	open_limits,
-) {
+expect match KernelResourceGraph.Plan.build(test_input([leaf(1), leaf(2)], [{ source: 0, target: 2 }], 1, [{ resource: 0, root: 0 }], [], DomainSeparatedSha256), open_limits) {
 	Err(EdgeTargetOutOfRange({ count: 2, edge: 0, target: 2 })) => True
 	_ => False
 }
@@ -1768,32 +1671,9 @@ expect match KernelResourceGraph.Plan.build(
 # A self-cycle, a two-node cycle, and a longer cycle each fail with a stable
 # structured diagnostic and no partial plan.
 expect {
-	self_cycle = KernelResourceGraph.Plan.build(
-		test_input([leaf(1)], [{ source: 0, target: 0 }], 1, [{ resource: 0, root: 0 }], [], DomainSeparatedSha256),
-		open_limits,
-	)
-	two_node = KernelResourceGraph.Plan.build(
-		test_input(
-			[leaf(1), leaf(2)],
-			[{ source: 0, target: 1 }, { source: 1, target: 0 }],
-			1,
-			[{ resource: 0, root: 0 }],
-			[],
-			DomainSeparatedSha256,
-		),
-		open_limits,
-	)
-	longer = KernelResourceGraph.Plan.build(
-		test_input(
-			[leaf(1), leaf(2), leaf(3)],
-			[{ source: 0, target: 1 }, { source: 1, target: 2 }, { source: 2, target: 0 }],
-			1,
-			[{ resource: 0, root: 0 }],
-			[],
-			DomainSeparatedSha256,
-		),
-		open_limits,
-	)
+	self_cycle = KernelResourceGraph.Plan.build(test_input([leaf(1)], [{ source: 0, target: 0 }], 1, [{ resource: 0, root: 0 }], [], DomainSeparatedSha256), open_limits)
+	two_node = KernelResourceGraph.Plan.build(test_input([leaf(1), leaf(2)], [{ source: 0, target: 1 }, { source: 1, target: 0 }], 1, [{ resource: 0, root: 0 }], [], DomainSeparatedSha256), open_limits)
+	longer = KernelResourceGraph.Plan.build(test_input([leaf(1), leaf(2), leaf(3)], [{ source: 0, target: 1 }, { source: 1, target: 2 }, { source: 2, target: 0 }], 1, [{ resource: 0, root: 0 }], [], DomainSeparatedSha256), open_limits)
 	match self_cycle {
 		Err(SelfCycle({ resource: 0 })) => match two_node {
 			Err(DependencyCycle({ planned: 0, resource: 0 })) => match longer {
@@ -1808,21 +1688,8 @@ expect {
 
 # Duplicate direct edges and duplicate root uses are forbidden by contract.
 expect {
-	duplicate_edge = KernelResourceGraph.Plan.build(
-		test_input(
-			[leaf(1), leaf(2)],
-			[{ source: 0, target: 1 }, { source: 0, target: 1 }],
-			1,
-			[{ resource: 0, root: 0 }],
-			[],
-			DomainSeparatedSha256,
-		),
-		open_limits,
-	)
-	duplicate_use = KernelResourceGraph.Plan.build(
-		test_input([leaf(1)], [], 1, [{ resource: 0, root: 0 }, { resource: 0, root: 0 }], [], DomainSeparatedSha256),
-		open_limits,
-	)
+	duplicate_edge = KernelResourceGraph.Plan.build(test_input([leaf(1), leaf(2)], [{ source: 0, target: 1 }, { source: 0, target: 1 }], 1, [{ resource: 0, root: 0 }], [], DomainSeparatedSha256), open_limits)
+	duplicate_use = KernelResourceGraph.Plan.build(test_input([leaf(1)], [], 1, [{ resource: 0, root: 0 }, { resource: 0, root: 0 }], [], DomainSeparatedSha256), open_limits)
 	match duplicate_edge {
 		Err(DuplicateEdge({ source: 0, target: 1 })) => match duplicate_use {
 			Err(DuplicateRootUse({ resource: 0, root: 0 })) => True
@@ -1834,10 +1701,7 @@ expect {
 
 # A resource that no declared content-stream root can reach fails the closure
 # proof.
-expect match KernelResourceGraph.Plan.build(
-	test_input([leaf(1), leaf(2)], [], 1, [{ resource: 0, root: 0 }], [], DomainSeparatedSha256),
-	open_limits,
-) {
+expect match KernelResourceGraph.Plan.build(test_input([leaf(1), leaf(2)], [], 1, [{ resource: 0, root: 0 }], [], DomainSeparatedSha256), open_limits) {
 	Err(UnreachableResource(_)) => True
 	_ => False
 }
@@ -1846,14 +1710,7 @@ expect match KernelResourceGraph.Plan.build(
 # root dictionary, and its dependencies stay reachable through ordinary
 # direct edges. The same input without the closure use fails closure.
 expect {
-	input = test_input(
-		[leaf(1), leaf(2), leaf(3)],
-		[{ source: 1, target: 2 }],
-		1,
-		[{ resource: 0, root: 0 }],
-		[],
-		DomainSeparatedSha256,
-	)
+	input = test_input([leaf(1), leaf(2), leaf(3)], [{ source: 1, target: 2 }], 1, [{ resource: 0, root: 0 }], [], DomainSeparatedSha256)
 	plan = KernelResourceGraph.Plan.build_with_closure_uses(input, [{ resource: 1, root: 0 }], open_limits)?
 	work = KernelResourceGraph.Plan.work(plan)
 	without = KernelResourceGraph.Plan.build(input, open_limits)
@@ -1870,14 +1727,7 @@ expect {
 # A closure use over an authored twin resolves through the same canonical
 # identity as the surviving twin, so deduplication still leaves one plan.
 expect {
-	input = test_input(
-		[leaf(1), leaf(1)],
-		[],
-		1,
-		[{ resource: 0, root: 0 }],
-		[],
-		DomainSeparatedSha256,
-	)
+	input = test_input([leaf(1), leaf(1)], [], 1, [{ resource: 0, root: 0 }], [], DomainSeparatedSha256)
 	plan = KernelResourceGraph.Plan.build_with_closure_uses(input, [{ resource: 1, root: 0 }], open_limits)?
 	work = KernelResourceGraph.Plan.work(plan)
 	KernelResourceGraph.Plan.resource_count(plan) == 1 and work.deduplicated_payloads == 1 and work.closure_uses == 1
@@ -1904,25 +1754,9 @@ expect {
 
 # Out-of-range roots, root resources, and placements are rejected.
 expect {
-	bad_root = KernelResourceGraph.Plan.build(
-		test_input([leaf(1)], [], 1, [{ resource: 0, root: 3 }], [], DomainSeparatedSha256),
-		open_limits,
-	)
-	bad_root_resource = KernelResourceGraph.Plan.build(
-		test_input([leaf(1)], [], 1, [{ resource: 5, root: 0 }], [], DomainSeparatedSha256),
-		open_limits,
-	)
-	bad_placement = KernelResourceGraph.Plan.build(
-		test_input(
-			[leaf(1)],
-			[],
-			1,
-			[{ resource: 0, root: 0 }],
-			[{ ownership: Artifact(Background), resource: 6, reuse: Reusable }],
-			DomainSeparatedSha256,
-		),
-		open_limits,
-	)
+	bad_root = KernelResourceGraph.Plan.build(test_input([leaf(1)], [], 1, [{ resource: 0, root: 3 }], [], DomainSeparatedSha256), open_limits)
+	bad_root_resource = KernelResourceGraph.Plan.build(test_input([leaf(1)], [], 1, [{ resource: 5, root: 0 }], [], DomainSeparatedSha256), open_limits)
+	bad_placement = KernelResourceGraph.Plan.build(test_input([leaf(1)], [], 1, [{ resource: 0, root: 0 }], [{ ownership: Artifact(Background), resource: 6, reuse: Reusable }], DomainSeparatedSha256), open_limits)
 	match bad_root {
 		Err(RootOutOfRange({ count: 1, root: 3, use: 0 })) => match bad_root_resource {
 			Err(RootResourceOutOfRange({ count: 1, resource: 5, use: 0 })) => match bad_placement {
@@ -1937,17 +1771,7 @@ expect {
 
 # Sharing a placement whose ownership is a placement-specific semantic
 # association would erase that association, so it is rejected.
-expect match KernelResourceGraph.Plan.build(
-	test_input(
-		[leaf(1)],
-		[],
-		1,
-		[{ resource: 0, root: 0 }],
-		[{ ownership: Semantic({ fragment: Semantics.FragmentId.from_index(1), mcid: 0 }), resource: 0, reuse: Reusable }],
-		DomainSeparatedSha256,
-	),
-	open_limits,
-) {
+expect match KernelResourceGraph.Plan.build(test_input([leaf(1)], [], 1, [{ resource: 0, root: 0 }], [{ ownership: Semantic({ fragment: Semantics.FragmentId.from_index(1), mcid: 0 }), resource: 0, reuse: Reusable }], DomainSeparatedSha256), open_limits) {
 	Err(SemanticOwnershipMerge({ placement: 0, resource: 0 })) => True
 	_ => False
 }
@@ -2033,22 +1857,8 @@ expect {
 # Placement-count, collision-entry, ordering-work, and compared-byte budgets are
 # each independently enforced.
 expect {
-	collision_input = test_input(
-		[leaf(1), leaf(2), leaf(3)],
-		[],
-		1,
-		[{ resource: 0, root: 0 }, { resource: 1, root: 0 }, { resource: 2, root: 0 }],
-		[],
-		TruncatedTestDigest(1),
-	)
-	placement_input = test_input(
-		[leaf(1)],
-		[],
-		1,
-		[{ resource: 0, root: 0 }],
-		[{ ownership: Artifact(Header), resource: 0, reuse: Reusable }],
-		DomainSeparatedSha256,
-	)
+	collision_input = test_input([leaf(1), leaf(2), leaf(3)], [], 1, [{ resource: 0, root: 0 }, { resource: 1, root: 0 }, { resource: 2, root: 0 }], [], TruncatedTestDigest(1))
+	placement_input = test_input([leaf(1)], [], 1, [{ resource: 0, root: 0 }], [{ ownership: Artifact(Header), resource: 0, reuse: Reusable }], DomainSeparatedSha256)
 	placements_limited = KernelResourceGraph.Plan.build(placement_input, { ..open_limits, max_placements: 0 })
 	collisions_limited = KernelResourceGraph.Plan.build(collision_input, { ..open_limits, max_collision_entries: 2 })
 	ordering_limited = KernelResourceGraph.Plan.build(collision_input, { ..open_limits, max_ordering_work: 0 })
@@ -2113,10 +1923,7 @@ expect {
 		$uses = $uses.append({ resource: $index, root: 0 })
 		$index = $index + 1
 	}
-	plan = KernelResourceGraph.Plan.build(
-		test_input(payloads, [], 1, $uses, [], TruncatedTestDigest(2)),
-		open_limits,
-	)?
+	plan = KernelResourceGraph.Plan.build(test_input(payloads, [], 1, $uses, [], TruncatedTestDigest(2)), open_limits)?
 	work = KernelResourceGraph.Plan.work(plan)
 	KernelResourceGraph.Plan.resource_count(plan) == 3 and
 		work.unique_payloads == 3 and

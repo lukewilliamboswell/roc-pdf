@@ -1,141 +1,114 @@
 # Property fuzz targets
 
-These targets use the content-addressed `roc-fuzz` 0.4.3 release platform. They
-are evidence-only applications: the production package remains pure Roc and does
-not expose its private stage facts through the public facade. They are
-software-quality tests for correctness, determinism, bounded error handling, and
-invariant preservation; they do not make or test a security claim.
+These evidence-only applications check correctness, determinism, bounded errors
+and invariants through the content-addressed `roc-fuzz` platform. They do not
+make a security claim or add a production dependency to the pure Roc package.
 
-Build and run every target through the harness:
+Run all targets with the repository's pinned Roc compiler:
 
 ```sh
-./scripts/fuzz.py
+./scripts/fuzz.py --jobs 1
 ```
 
-The default `--mode smoke` builds each target with `roc build --fuzz`, replays
-its seed corpus and 64 fixed-seed generated inputs within one second of
-workload, and fails on a crash, a timeout, or a memory-limit breach. Pull
-requests run this. `--mode campaign` is the bounded search (2000 executions per
-target unless `--runs N` says otherwise) that `.github/workflows/fuzz.yml` runs
-daily on the default branch. `--targets NAME` (repeatable) selects one:
+The smoke lane checks every declared example in a fresh supervised process,
+compares its exact accepted allocation observations, then requests fixed-seed
+coverage exploration with a 64-run cap and a one second exploration budget.
+An input already executing may finish later under its invocation deadline;
+the separate whole-target deadline remains enforced. A campaign may finish
+fewer executions within its budget. Campaigns default to 2,000
+executions; select targets and bounds explicitly for a longer search:
 
 ```sh
-./scripts/fuzz.py --mode campaign --targets jpeg_inspector_mutation --runs 200000
+./scripts/fuzz.py --mode campaign --targets jpeg_inspector_mutation --runs 200000 --jobs 1
 ```
 
-Failing inputs are saved under `.roc-pdf-tmp/fuzz-artifacts/<target>/`.
+The supervisor enforces invocation deadlines and the exploration worker's RSS
+limit. The harness also enforces a whole-target deadline, requires useful
+accepted exploration, checks reported provenance and effective controls, and
+rejects unbaselined or incomplete example evidence. Compiler warnings are
+accepted only under the repository's existing downloaded-package policy.
 
-`./scripts/test.py` separately applies `roc fmt --check`, `roc check`, and
-`roc test` to every source here, which runs the `expect`s each target retains.
-Those expects are the regression floor: they pin concrete inputs and hold even
-when no campaign runs.
+## Review allocation observations separately
 
-## Targets
+Named examples and saved witnesses live beside each target. New observations
+are reviewed before explicit acceptance; verification never accepts changes:
 
-`font_inspector_mutation` passes every fuzzer byte directly to the bounded
-TrueType inspector. Typed inspection errors are ordinary outcomes. Successful
-inspections must preserve independently checked table, loca, coverage, glyph,
-component, and deterministic-work facts.
+```sh
+./scripts/fuzz.py --check-only --jobs 1
+# Inspect the printed report directories and review source/ownership causes.
+./scripts/fuzz.py --accept-baselines --no-build --jobs 1
+./scripts/fuzz.py --no-build --jobs 1
+```
 
-`font_inspector_repair` edits table payload bytes and then independently
-restores the per-table and whole-font checksums. This exists because raw
-mutation cannot reach past the inspector's two checksum gates: measured on the
-`font_inspector_mutation` binary, a valid font reaches 330 edges, the same font
-with one flipped byte reaches 45, and that same flip with checksums repaired
-reaches 330 again. Without repair, the loca, glyf, cmap, OS/2, and name parsers
-are effectively unreachable and only the directory layer is exercised. The
-checksum arithmetic is reimplemented in the property rather than reused from
-`KernelFont`, so the two implementations act as independent oracles.
+`--no-build` requires a matching source/asset closure, compiler, host and binary
+digest from the recorded build. It refuses stale executables. The optional
+`fuzz-accept` Blueprint task performs the same explicit maintenance action.
+Accepted files under `fuzz/baselines/` contain separate host entries for the
+`llvm-fuzz` profile; reductions also require review. These observations do not
+replace the dev-backend PDF allocation, byte, work or retention contracts in
+`tests/spec.json`.
 
-`font_subset_roundtrip` generates bounded glyph choices and a retained-glyph
-budget against five already-inspected text-layout fixtures. Typed planning failures
-are ordinary outcomes. Successful plans must be deterministic, produce
-byte-identical subsets on repetition, re-inspect successfully, preserve metrics
-and cmap intent, and rewrite composite dependencies to subset glyphs. Glyph
-choices and the retained budget are sized against the widest fixture, which has
-1376 glyphs; a `U8` choice could select only its first 256 glyphs and a budget
-capped at 96 rejected every large subset before it was built.
+Use `--linux-x64-container IMAGE` to cross-build and exercise the Linux host in
+a local container. Reports retain the actual compiler/platform/source identity.
+For published CI use, the ordinary workflow executes on a native Linux runner.
 
-`jpeg_inspector_mutation` passes every fuzzer byte to the bounded JPEG
-inspector. Accepted images must yield a sanitized stream: framed by SOI/EOI,
-never longer than its source, carrying a resolved orientation and dimensions and
-work counters inside the declared limits, and retaining an application segment
-only when it is the JFIF `APP0` or Adobe `APP14` that `KernelImage` deliberately
-copies through for pixel density and colour transform. Every other application
-segment, an Exif `APP1` above all, and every comment segment must be stripped.
-Each input is inspected under both a calibrated-grey and an sRGB space, because
-the inspector matches a frame's component count against its declared space and a
-single-space store would send every three-component image down the reject path.
+## Read reports and retain witnesses
 
-`facade_output_equivalence` drives the public facade over generated typed
-documents and checks the enduring output contracts: identical inputs produce
-identical bytes, the buffered and chunked encoders agree byte for byte, the
-chunk retention policy changes allocation only, the prepared buffered and
-chunked paths agree with the one-shot output under a generated compression
-choice, and a rejected document is rejected the same way every time.
+Each invocation prints a fresh directory under `.roc-pdf-tmp/fuzz-artifacts/`.
+It contains an invocation record, build logs, each supervisor's `report.json`,
+summary and combined child log, original example inputs, observations and any
+failure artifacts. CI uploads this evidence on success and failure. The report
+keeps outcome, baseline matching, metric validity, trace results and capture
+completeness separate; a successful process exit alone is insufficient.
 
-`facade_structure` checks that emitted bytes are a structurally valid PDF, which
-the equivalence target cannot: comparing output to itself passes even if the
-output is not a PDF at all. Its oracle re-derives structure from the bytes,
-driving `startxref` to the cross-reference stream to the object offsets, and
-verifies framing, `/Size == xref + 1`, `/Length == Size * 11`, the free-object
-head, offsets landing on their own object headers, contiguous object tiling,
-stream `/Length` adjacency, reference resolution, delimiter balance, and
-canonical sorted dictionary keys. It imports no package module at all, so a
-disagreement between the emitter and the oracle surfaces instead of cancelling
-out.
+The raw font and JPEG targets copy tracked seeds into ignored writable corpora.
+Structured targets preserve their existing entropy generators and reject decoded
+values outside their explicit size domains. Source-declared examples are checked
+independently of coverage retention. Raw font witnesses use `Fuzz.saved` original
+bytes: encoding a large byte list as a typed value would exceed the binary
+codec's node budget and would not preserve the original inspector input.
 
-`navigation_property` drives the authored navigation surface. The five
-validation stages run in a fixed order and mask each other, so the free-form
-property asserts only what survives that: a document seals to the same bytes or
-the same typed error every time, and a rejection is transactional through both
-entrypoints. A separate single-fault table injects exactly one navigation fault
-into a valid base authoring and asserts the exact variant and location. Limits
-come from `KernelNavigation.standard_limit_values` rather than being restated,
-so the property cannot drift from the value the pipeline enforces.
+A target's `show`, `replay`, `measure` and `retain` commands inspect inputs and
+record reproducible findings. Keep storage-sensitive witnesses as original
+bytes; logical encoding preserves values, not capacity, sharing or slices.
+Minimized inputs promoted to tracked binary regressions need the usual asset
+provenance entry. Existing tracked corpora are never mutated in place.
 
-`registry_property` drives the public `Font.Registry` boundary over repeated
-registrations and explicit policies, which the font targets skip by calling
-`KernelFont` directly. It checks dense identity across the parallel stores, the
-implicit single-face policy each registration creates, exact tiling of the
-coverage and script buffers, pure-append growth, round-trips through
-`policy_faces`, the `index == len` boundaries, the unconditional zero-copy claim,
-and face-range tiling with coalesced adjacent instances. Its plan oracle
-reimplements selection rather than reusing the planner.
+## Properties
 
-`theme_options` drives the theme and options surface, whose layout units are
-unvalidated raw `I64` values feeding pagination directly. It maps each knob onto
-a ladder of magnitudes — zero, negative, degenerate, ordinary, page-sized, and
-±2^62 — across both page sizes and all three profiles, and requires determinism,
-buffered and chunked agreement, and termination.
+- `font_inspector_mutation`: successful bounded TrueType inspection preserves
+  independently checked directory, coverage, glyph, component and work facts.
+- `font_inspector_repair`: independent checksum restoration lets bounded table
+  edits reach parsers behind the checksum gates. The five-font selector mapping
+  is retained.
+- `font_subset_roundtrip`: repeated bounded plans/subsets agree, re-inspect,
+  preserve source style facts and metrics, and rewrite composite dependencies.
+- `jpeg_inspector_mutation`: successful grey/RGB inspection produces a bounded
+  sanitized stream with resolved dimensions/orientation and only allowed
+  application segments.
+- `facade_output_equivalence`: repeatability, buffered/chunked equality, chunk
+  ownership invariance, prepared output and transactional rejection agree.
+- `facade_structure`: an independent byte-level oracle verifies PDF framing,
+  xref/object offsets, stream lengths, references and canonical dictionaries.
+- `navigation_property`: generated navigation is deterministic and transactional;
+  one-fault scenarios also assert exact typed rejection.
+- `registry_property`: registration, explicit policies, cluster selection,
+  retained ownership and expected errors satisfy their public contracts.
+- `theme_options`: ordinary and extreme themes terminate deterministically,
+  preserve buffered/chunked agreement, or reject without partial bytes.
 
-## Corpora
+## Profiling aid
 
-The JPEG corpus is tracked under `tests/assets/jpeg-fuzz-corpus/` with asset
-provenance and is regenerated by `scripts/build_jpeg_fuzz_corpus.py`. The
-font targets are seeded from the faces in `vendor/fonts/` and `tests/assets/`.
-`scripts/fuzz.py` copies a seed corpus into the ignored
-`.roc-pdf-tmp/fuzz-corpus/` before every run, because libFuzzer writes newly
-interesting inputs back into the directory it is given and must never own
-tracked files. Longer-lived accumulated corpora belong under the ignored
-`.roc-fuzz/`.
+`./scripts/profile.py` measures four document and six kernel workloads through
+named allocation regions in fresh processes. Its table counts Roc allocation
+events (`allocs + reallocs`), while supervisor reports retain all statistics.
+PDF lengths/fingerprints are output metadata, independent of allocation counts.
+The empty-input executable path runs all workloads; individual selector inputs
+isolate each workload. This app deliberately declares no baseline examples and
+is replay/measurement tooling, not a coverage campaign or an acceptance gate.
 
-A corpus is what decides whether a property is exercised at all. The JPEG
-accept-path invariants were unevaluated for as long as no valid JPEG was
-checked in: raw mutation never synthesised one, so every execution took the
-reject path while the target reported success. A target whose success arm is a
-typed rejection cannot tell you that its interesting half ever ran, so pair a
-replayed seed with positive evidence that the accept path was reached.
+Saved profile comparisons require the same compiler, backend, host, platform
+and counting definition. Previous instrumentation records remain separate.
 
-The structured targets are generator-encoded, so inspect hand-authored seeds
-with their `show` command before retaining them. That command is also how to
-check a generator is not starving itself: fields are decoded in declaration
-order out of an input whose length libFuzzer raises only slowly, so a field
-placed behind a string- or list-carrying one receives no entropy and decodes to
-one repeated exhausted byte. Declare the cheap selectors first and the content
-last, and confirm with `show` that a retained corpus really varies the fields
-the target exists to vary.
-
-Minimized reproductions are retained as `fuzz_seed` assets under
-`tests/assets/` with provenance, and promoted to atomic regression tests beside
-the code they exercise.
+See the [upgrade evidence](../development/roc-fuzz-0.5.0.md) for immutable inputs,
+API migration, reviewed initial example observations and validation results.

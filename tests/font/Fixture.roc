@@ -15,11 +15,7 @@ Fixture :: [].{
 		if runtime_guard != 0 {
 			return Err(InvalidRuntimeGuard)
 		}
-		registered = Font.Registry.empty.register(
-			caller_font_bytes,
-			{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
-			Font.ValidationLimits.default,
-		) ? |_| EvidenceFailure
+		registered = Font.Registry.empty.register({ bytes: caller_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| EvidenceFailure
 		store = registered.registry.store()
 		theme = Theme.{ face: registered.face }
 		if theme.body_font() != registered.face or
@@ -103,11 +99,7 @@ Fixture :: [].{
 			Err(_) => return Err(EvidenceFailure)
 			Ok(value) => value
 		}
-		plan = match KernelFontPlan.plan(
-			font,
-			[{ glyph: glyph_a }, { glyph: glyph_e_acute }, { glyph: glyph_a }],
-			KernelFontPlan.Limits.make({ max_retained_glyphs: 64 }),
-		) {
+		plan = match KernelFontPlan.plan(font, [{ glyph: glyph_a }, { glyph: glyph_e_acute }, { glyph: glyph_a }], KernelFontPlan.Limits.make({ max_retained_glyphs: 64 })) {
 			Err(_) => return Err(EvidenceFailure)
 			Ok(value) => value
 		}
@@ -147,16 +139,8 @@ Fixture :: [].{
 		if runtime_guard != 0 {
 			return Err(InvalidRuntimeGuard)
 		}
-		caller = Font.Registry.empty.register(
-			caller_font_bytes,
-			{ provision: AdvancedRunsRequired, scripts: [Font.Script.from_iso15924("Latn")] },
-			Font.ValidationLimits.default,
-		) ? |_| EvidenceFailure
-		cjk = caller.registry.register(
-			cjk_font_bytes,
-			{ provision: AdvancedRunsRequired, scripts: [Font.Script.from_iso15924("Hani")] },
-			Font.ValidationLimits.default,
-		) ? |_| EvidenceFailure
+		caller = Font.Registry.empty.register({ bytes: caller_font_bytes, registration: { provision: AdvancedRunsRequired, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| EvidenceFailure
+		cjk = caller.registry.register({ bytes: cjk_font_bytes, registration: { provision: AdvancedRunsRequired, scripts: [Font.Script.from_iso15924("Hani")] }, limits: Font.ValidationLimits.default }) ? |_| EvidenceFailure
 		configured = cjk.registry.with_policy([caller.face, cjk.face]) ? |_| EvidenceFailure
 		if configured.registry.store().policies.len() != 3 {
 			return Err(EvidenceFailure)
@@ -226,16 +210,8 @@ Fixture :: [].{
 		if count == 0 or count % 2 != 0 {
 			return Err(EvidenceFailure)
 		}
-		caller = Font.Registry.empty.register(
-			caller_font_bytes,
-			{ provision: AdvancedRunsRequired, scripts: [Font.Script.from_iso15924("Latn")] },
-			Font.ValidationLimits.default,
-		) ? |_| EvidenceFailure
-		cjk = caller.registry.register(
-			cjk_font_bytes,
-			{ provision: AdvancedRunsRequired, scripts: [Font.Script.from_iso15924("Hani")] },
-			Font.ValidationLimits.default,
-		) ? |_| EvidenceFailure
+		caller = Font.Registry.empty.register({ bytes: caller_font_bytes, registration: { provision: AdvancedRunsRequired, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| EvidenceFailure
+		cjk = caller.registry.register({ bytes: cjk_font_bytes, registration: { provision: AdvancedRunsRequired, scripts: [Font.Script.from_iso15924("Hani")] }, limits: Font.ValidationLimits.default }) ? |_| EvidenceFailure
 		configured = cjk.registry.with_policy([caller.face, cjk.face]) ? |_| EvidenceFailure
 		var $clusters = List.with_capacity(count)
 		var $index = 0
@@ -268,7 +244,7 @@ Fixture :: [].{
 
 cluster : U64, Str, List(U32) -> Font.SourceCluster
 cluster = |index, script, scalars| {
-	range = Semantics.IndexRange.from_start_and_length(index, scalars.len())
+	range = Semantics.IndexRange.from_start_and_length({ start: index, length: scalars.len() })
 	{ scalars, script: Font.Script.from_iso15924(script), source: { scalars: range, utf8_bytes: range } }
 }
 
@@ -329,11 +305,7 @@ expect {
 }
 
 # Invalid caller bytes fail without returning a usable face or registry.
-expect match Font.Registry.empty.register(
-	List.repeat(0, 12),
-	{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
-	Font.ValidationLimits.default,
-) {
+expect match Font.Registry.empty.register({ bytes: List.repeat(0, 12), registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) {
 	Err(UnsupportedFormat(0)) => True
 	_ => False
 }

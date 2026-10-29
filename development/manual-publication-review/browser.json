@@ -1,0 +1,770 @@
+{
+  "node": "v23.9.0",
+  "chrome": "Google Chrome 156.0.8078.49",
+  "source_inventory_sha256": "b5423343bc4b09a97c0e5f0b674186cd79798f8d05ef3f814c4083be76bc4ce7",
+  "chrome_sha256": "8fc0b8ffb31698a1be44f41df5e4adbdfae8720e94fa458e29f9dfd3bf142e1c",
+  "records": [
+    {
+      "page": "authoring.html",
+      "viewport": 1280,
+      "html_sha256": "1328abe8ec7b2837ec3843c12c563beec274ac5aa485a7c4332fd38cbb1538f1",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "Authoring with roc-pdf§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(0, 90, 133)",
+        "rgb(36, 99, 51)",
+        "rgb(156, 61, 16)",
+        "rgb(82, 101, 115)"
+      ],
+      "transparent": true,
+      "tables": 1
+    },
+    {
+      "page": "destination-page-references.html",
+      "viewport": 1280,
+      "html_sha256": "e0f9dbd4964af560a4bdd173cc45ee6f1d9550c497b2433e6ad7d1e3e4ae6a75",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "Destination page references§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(0, 90, 133)",
+        "rgb(70, 83, 105)",
+        "rgb(52, 84, 164)",
+        "rgb(36, 99, 51)",
+        "rgb(156, 61, 16)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "gallery.html",
+      "viewport": 1280,
+      "html_sha256": "6028323381918e68dc6ee178073b4b4f0735fc9135bfdae45dc865f7b43b540e",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "Runnable document gallery§",
+      "version": "0.3.0",
+      "images": [
+        {
+          "loaded": true,
+          "alt": "Invoice preview"
+        },
+        {
+          "loaded": true,
+          "alt": "Business report preview"
+        },
+        {
+          "loaded": true,
+          "alt": "Prepared vector diagrams preview"
+        }
+      ],
+      "colours": [],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "index.html",
+      "viewport": 1280,
+      "html_sha256": "ad9bce1dd6cebb966a5e551389487c2a4d56fee78635646f3cae7c1b19d0aec7",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "roc-pdf user manual§",
+      "version": "0.3.0",
+      "images": [
+        {
+          "loaded": true,
+          "alt": "Invoice preview"
+        },
+        {
+          "loaded": true,
+          "alt": "Business report preview"
+        },
+        {
+          "loaded": true,
+          "alt": "Prepared vector diagrams preview"
+        }
+      ],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(0, 90, 133)",
+        "rgb(36, 99, 51)",
+        "rgb(156, 61, 16)",
+        "rgb(82, 101, 115)",
+        "rgb(118, 57, 165)"
+      ],
+      "transparent": true,
+      "tables": 3
+    },
+    {
+      "page": "manual-composition.html",
+      "viewport": 1280,
+      "html_sha256": "95d945786767f7156d85d456e4abd1c6b1e730295127325089e06b5402acb5cb",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "Composing a technical manual§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "migrating-named-arguments.html",
+      "viewport": 1280,
+      "html_sha256": "b7c7340eb2c25f580b6321dca93582578b2c06cb32d564d5f14511eebe4b1160",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "Migrating to named arguments§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(0, 90, 133)",
+        "rgb(70, 83, 105)",
+        "rgb(52, 84, 164)",
+        "rgb(36, 99, 51)",
+        "rgb(156, 61, 16)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "migrating-to-rc2.html",
+      "viewport": 1280,
+      "html_sha256": "740b6e0cf6398e5bfe2e7a914fd9a75ae8110489a327b7314b23bb3c03b73e2c",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "Migrating to 0.1.0-rc2§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "release-0.1.0-rc1.html",
+      "viewport": 1280,
+      "html_sha256": "2102320c8962c1b250582037a808a293c0bf7b0de2f7fe118354ef059f483fee",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "roc-pdf 0.1.0-rc1§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "release-0.1.0-rc2.html",
+      "viewport": 1280,
+      "html_sha256": "6223e69663ddbb150dbb32b73588d1421db3e2cb68786d63dd2411a93453260a",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "roc-pdf 0.1.0-rc2§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "release-0.1.0-rc3.html",
+      "viewport": 1280,
+      "html_sha256": "589fdeb6cf5cd0629b8a89b8603d7f9ffd56007d2d2da9eacc390d53f041da26",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "roc-pdf 0.1.0-rc3 (draft)§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(0, 90, 133)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "release-0.1.0-rc4.html",
+      "viewport": 1280,
+      "html_sha256": "22cb8f09a0820bf237e0dab7183f0e5c7a071ab3818585e24dc25cec06963654",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "roc-pdf 0.1.0-rc4§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(36, 99, 51)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "release-0.1.0-rc5.html",
+      "viewport": 1280,
+      "html_sha256": "cc1333bf09df83143aca4fe77881879b65f0f0130e2e9a419bb268f043557987",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "roc-pdf 0.1.0-rc5§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(36, 99, 51)",
+        "rgb(0, 90, 133)",
+        "rgb(156, 61, 16)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "release-0.1.0-rc6.html",
+      "viewport": 1280,
+      "html_sha256": "5b58146adfbec694f05ce58c5c93afb89789e106039df9000c378f48ac7a0529",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "roc-pdf 0.1.0-rc6§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(36, 99, 51)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "release-0.1.0.html",
+      "viewport": 1280,
+      "html_sha256": "d0774feac6aa2dd13c3a77281c91166ea40fbab8e567706d2b453692514bda87",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "roc-pdf 0.1.0§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(36, 99, 51)",
+        "rgb(0, 90, 133)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "release-0.1.1.html",
+      "viewport": 1280,
+      "html_sha256": "56b65dec68959f6e6c725a5dcb768e1c6ddf089e7787d38e484d7ebf6f80d70d",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "roc-pdf 0.1.1§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(36, 99, 51)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "release-0.2.0-rc1.html",
+      "viewport": 1280,
+      "html_sha256": "ba73fa07935c4067f9cd1b404d7464da300d7056da3dc1eed60bc017e1b08925",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "roc-pdf 0.2.0-rc1§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(36, 99, 51)",
+        "rgb(0, 90, 133)",
+        "rgb(156, 61, 16)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "release-0.2.0.html",
+      "viewport": 1280,
+      "html_sha256": "b7f08bd324f613b604ceaddab99f245eee665284d8d5437923620036939df054",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "roc-pdf 0.2.0§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(36, 99, 51)",
+        "rgb(0, 90, 133)",
+        "rgb(156, 61, 16)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "release-0.3.0.html",
+      "viewport": 1280,
+      "html_sha256": "ffe0d39c82c8bc417daec5ac0ffb35c8d6f2f9a4c00b7bfcfca5e3b62bc4b2ac",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "roc-pdf 0.3.0§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(36, 99, 51)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "releases.html",
+      "viewport": 1280,
+      "html_sha256": "2f451889f959de4ddfe63ddf11b2f9119a084fbd45084c2a9074466dec1a919b",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "Release notes§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(36, 99, 51)",
+        "rgb(0, 90, 133)",
+        "rgb(156, 61, 16)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "roc-font.html",
+      "viewport": 1280,
+      "html_sha256": "0a94cf2f8b0e87e1c33e54b8842f9f0ccc7d0c772e139ae46ea632dc8881b7c0",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "Choose built-in and caller fonts§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(118, 57, 165)",
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(0, 90, 133)",
+        "rgb(36, 99, 51)"
+      ],
+      "transparent": true,
+      "tables": 2
+    },
+    {
+      "page": "start-here.html",
+      "viewport": 1280,
+      "html_sha256": "9c98af29328e03fb6ac772ea3be6c41f9d4d43fd9289baae4204c3f22187a7b6",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "Using roc-pdf§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "authoring.html",
+      "viewport": 390,
+      "html_sha256": "1328abe8ec7b2837ec3843c12c563beec274ac5aa485a7c4332fd38cbb1538f1",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "Authoring with roc-pdf§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(0, 90, 133)",
+        "rgb(36, 99, 51)",
+        "rgb(156, 61, 16)",
+        "rgb(82, 101, 115)"
+      ],
+      "transparent": true,
+      "tables": 1
+    },
+    {
+      "page": "destination-page-references.html",
+      "viewport": 390,
+      "html_sha256": "e0f9dbd4964af560a4bdd173cc45ee6f1d9550c497b2433e6ad7d1e3e4ae6a75",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "Destination page references§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(0, 90, 133)",
+        "rgb(70, 83, 105)",
+        "rgb(52, 84, 164)",
+        "rgb(36, 99, 51)",
+        "rgb(156, 61, 16)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "gallery.html",
+      "viewport": 390,
+      "html_sha256": "6028323381918e68dc6ee178073b4b4f0735fc9135bfdae45dc865f7b43b540e",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "Runnable document gallery§",
+      "version": "0.3.0",
+      "images": [
+        {
+          "loaded": true,
+          "alt": "Invoice preview"
+        },
+        {
+          "loaded": true,
+          "alt": "Business report preview"
+        },
+        {
+          "loaded": true,
+          "alt": "Prepared vector diagrams preview"
+        }
+      ],
+      "colours": [],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "index.html",
+      "viewport": 390,
+      "html_sha256": "ad9bce1dd6cebb966a5e551389487c2a4d56fee78635646f3cae7c1b19d0aec7",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "roc-pdf user manual§",
+      "version": "0.3.0",
+      "images": [
+        {
+          "loaded": true,
+          "alt": "Invoice preview"
+        },
+        {
+          "loaded": true,
+          "alt": "Business report preview"
+        },
+        {
+          "loaded": true,
+          "alt": "Prepared vector diagrams preview"
+        }
+      ],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(0, 90, 133)",
+        "rgb(36, 99, 51)",
+        "rgb(156, 61, 16)",
+        "rgb(82, 101, 115)",
+        "rgb(118, 57, 165)"
+      ],
+      "transparent": true,
+      "tables": 3
+    },
+    {
+      "page": "manual-composition.html",
+      "viewport": 390,
+      "html_sha256": "95d945786767f7156d85d456e4abd1c6b1e730295127325089e06b5402acb5cb",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "Composing a technical manual§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "migrating-named-arguments.html",
+      "viewport": 390,
+      "html_sha256": "b7c7340eb2c25f580b6321dca93582578b2c06cb32d564d5f14511eebe4b1160",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "Migrating to named arguments§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(0, 90, 133)",
+        "rgb(70, 83, 105)",
+        "rgb(52, 84, 164)",
+        "rgb(36, 99, 51)",
+        "rgb(156, 61, 16)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "migrating-to-rc2.html",
+      "viewport": 390,
+      "html_sha256": "740b6e0cf6398e5bfe2e7a914fd9a75ae8110489a327b7314b23bb3c03b73e2c",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "Migrating to 0.1.0-rc2§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "release-0.1.0-rc1.html",
+      "viewport": 390,
+      "html_sha256": "2102320c8962c1b250582037a808a293c0bf7b0de2f7fe118354ef059f483fee",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "roc-pdf 0.1.0-rc1§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "release-0.1.0-rc2.html",
+      "viewport": 390,
+      "html_sha256": "6223e69663ddbb150dbb32b73588d1421db3e2cb68786d63dd2411a93453260a",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "roc-pdf 0.1.0-rc2§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "release-0.1.0-rc3.html",
+      "viewport": 390,
+      "html_sha256": "589fdeb6cf5cd0629b8a89b8603d7f9ffd56007d2d2da9eacc390d53f041da26",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "roc-pdf 0.1.0-rc3 (draft)§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(0, 90, 133)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "release-0.1.0-rc4.html",
+      "viewport": 390,
+      "html_sha256": "22cb8f09a0820bf237e0dab7183f0e5c7a071ab3818585e24dc25cec06963654",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "roc-pdf 0.1.0-rc4§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(36, 99, 51)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "release-0.1.0-rc5.html",
+      "viewport": 390,
+      "html_sha256": "cc1333bf09df83143aca4fe77881879b65f0f0130e2e9a419bb268f043557987",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "roc-pdf 0.1.0-rc5§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(36, 99, 51)",
+        "rgb(0, 90, 133)",
+        "rgb(156, 61, 16)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "release-0.1.0-rc6.html",
+      "viewport": 390,
+      "html_sha256": "5b58146adfbec694f05ce58c5c93afb89789e106039df9000c378f48ac7a0529",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "roc-pdf 0.1.0-rc6§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(36, 99, 51)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "release-0.1.0.html",
+      "viewport": 390,
+      "html_sha256": "d0774feac6aa2dd13c3a77281c91166ea40fbab8e567706d2b453692514bda87",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "roc-pdf 0.1.0§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(36, 99, 51)",
+        "rgb(0, 90, 133)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "release-0.1.1.html",
+      "viewport": 390,
+      "html_sha256": "56b65dec68959f6e6c725a5dcb768e1c6ddf089e7787d38e484d7ebf6f80d70d",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "roc-pdf 0.1.1§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(36, 99, 51)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "release-0.2.0-rc1.html",
+      "viewport": 390,
+      "html_sha256": "ba73fa07935c4067f9cd1b404d7464da300d7056da3dc1eed60bc017e1b08925",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "roc-pdf 0.2.0-rc1§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(36, 99, 51)",
+        "rgb(0, 90, 133)",
+        "rgb(156, 61, 16)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "release-0.2.0.html",
+      "viewport": 390,
+      "html_sha256": "b7f08bd324f613b604ceaddab99f245eee665284d8d5437923620036939df054",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "roc-pdf 0.2.0§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(36, 99, 51)",
+        "rgb(0, 90, 133)",
+        "rgb(156, 61, 16)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "release-0.3.0.html",
+      "viewport": 390,
+      "html_sha256": "ffe0d39c82c8bc417daec5ac0ffb35c8d6f2f9a4c00b7bfcfca5e3b62bc4b2ac",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "roc-pdf 0.3.0§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(36, 99, 51)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "releases.html",
+      "viewport": 390,
+      "html_sha256": "2f451889f959de4ddfe63ddf11b2f9119a084fbd45084c2a9074466dec1a919b",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "Release notes§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(36, 99, 51)",
+        "rgb(0, 90, 133)",
+        "rgb(156, 61, 16)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "roc-font.html",
+      "viewport": 390,
+      "html_sha256": "0a94cf2f8b0e87e1c33e54b8842f9f0ccc7d0c772e139ae46ea632dc8881b7c0",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "Choose built-in and caller fonts§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(118, 57, 165)",
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(0, 90, 133)",
+        "rgb(36, 99, 51)"
+      ],
+      "transparent": true,
+      "tables": 2
+    },
+    {
+      "page": "start-here.html",
+      "viewport": 390,
+      "html_sha256": "9c98af29328e03fb6ac772ea3be6c41f9d4d43fd9289baae4204c3f22187a7b6",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "Using roc-pdf§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [],
+      "transparent": true,
+      "tables": 0
+    }
+  ]
+}

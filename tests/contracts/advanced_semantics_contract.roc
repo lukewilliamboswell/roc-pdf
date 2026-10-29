@@ -24,7 +24,7 @@ expect {
 expect {
 	attribute : Semantics.StructureAttribute
 	attribute = {
-		applicability: ExactRoles(Semantics.IndexRange.from_start_and_length(0, 2)),
+		applicability: ExactRoles(Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 })),
 		name: Standard("Scope"),
 		owner: Table,
 		value: Name("Column"),
@@ -56,7 +56,7 @@ expect {
 	subtree = {
 		id: Semantics.MathMlSubtreeId.from_index(0),
 		namespace: mathml,
-		nodes: Semantics.IndexRange.from_start_and_length(7, 3),
+		nodes: Semantics.IndexRange.from_start_and_length({ start: 7, length: 3 }),
 		origin: ValidatedParse({
 			source: Semantics.NonTextSourceId.from_index(0),
 			work: { attribute_visits: 2, node_visits: 3, utf8_bytes: 48 },

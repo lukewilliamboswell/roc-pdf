@@ -53,7 +53,7 @@ register_fonts : {} -> Try(Faces, [FontRejected(Font.ResourceError)])
 register_fonts = |_| {
 	latin : List(Font.Script)
 	latin = ["Latn"]
-	add = |registry, bytes| registry.register(bytes, { provision: BuiltIn, scripts: latin }, Font.ValidationLimits.default).map_err(|err| FontRejected(err))
+	add = |registry, bytes| registry.register({ bytes: bytes, registration: { provision: BuiltIn, scripts: latin }, limits: Font.ValidationLimits.default }).map_err(|err| FontRejected(err))
 	regular = add(Font.Registry.empty, regular_bytes)?
 	bold = add(regular.registry, bold_bytes)?
 	mono = add(bold.registry, mono_bytes)?
@@ -87,7 +87,8 @@ measure = 492
 
 ## US Letter with 60 pt side margins. Regular for body text; Bold for the
 ## title, the first two heading levels, and `Pdf.strong`; the monospace
-## face for `Pdf.code`, at 88% of the text around it.
+## face for `Pdf.code`, at 88% of the text around it. Link accents deliberately
+## select genuine Inter Italic; the retained Noto Sans pair has no italic face.
 theme : Faces -> Theme
 theme = |faces| {
 	face: faces.regular,
@@ -100,7 +101,7 @@ theme = |faces| {
 	},
 	inline: {
 		strong: { font: Face(faces.bold) },
-		emphasis: { color: Themed(indigo) },
+		emphasis: { color: Themed(indigo), font: Family(BuiltIn(Sans)) },
 		code: { color: Themed(pink), font: Face(faces.mono), scale: Percent(88) },
 	},
 	page_margin: { top: 48, right: 60, bottom: 46, left: 60 },
@@ -120,7 +121,7 @@ theme = |faces| {
 ## Running furniture.
 
 page_of : Pdf.Inline
-page_of = Pdf.reserved_width(72, End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+page_of = Pdf.reserved_width({ width: 72, align: End, contents: [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)] })
 
 footer : Pdf.Region
 footer = Pdf.region({
@@ -130,13 +131,13 @@ footer = Pdf.region({
 })
 
 header_mark : Scene.Drawing
-header_mark = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 8, 8), indigo).rectangle(Layout.rect(10, 0, 8, 8), pink)
+header_mark = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 8, height: 8 }), color: indigo }).rectangle({ bounds: Layout.rect({ x: 10, y: 0, width: 8, height: 8 }), color: pink })
 
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({ footer, gap: 14 }),
 	continuation: Pdf.page_template({
-		header: Pdf.region({ height: 19, start: [Pdf.furniture_text([Pdf.text("Kestrel 3.0 release notes")])], end: [Pdf.furniture_image(Scene.Drawing.empty.group(Layout.point(0, 4), header_mark))], backdrop: Backdrop(Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: 0.6, width: Layout.Unit.points(measure) } }, haze)), slot_inset: 3 }),
+		header: Pdf.region({ height: 19, start: [Pdf.furniture_text([Pdf.text("Kestrel 3.0 release notes")])], end: [Pdf.furniture_image(Scene.Drawing.empty.group({ offset: Layout.point({ x: 0, y: 4 }), drawing: header_mark }))], backdrop: Backdrop(Scene.Drawing.empty.rectangle({ bounds: { origin: Layout.point({ x: 0, y: 0 }), size: { height: 0.6, width: Layout.Unit.points(measure) } }, color: haze })), slot_inset: 3 }),
 		footer,
 		gap: 16,
 	}),
@@ -215,7 +216,7 @@ callout_panel = |style, size| {
 		.line_to(point(right, top - 3000))
 		.close()
 		.finish()
-	Scene.Drawing.empty.path(body, Scene.solid_fill(style.fill)).path(cap, Scene.solid_fill(style.accent))
+	Scene.Drawing.empty.path({ path: body, style: Scene.solid_fill(style.fill) }).path({ path: cap, style: Scene.solid_fill(style.accent) })
 }
 
 ## ---------------------------------------------------------------------
@@ -226,18 +227,18 @@ banner : Document.Block
 banner = {
 	# The band keeps 14 pt between itself and the title through its
 	# decoration spacing, not empty drawing area.
-	var $d = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, measure, 64), night)
-	$d = $d.rectangle(Layout.rect(0, 0, 6, 64), pink)
+	var $d = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: measure, height: 64 }), color: night })
+	$d = $d.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 6, height: 64 }), color: pink })
 
 	# Twelve release dots: minor releases in lilac, this major in pink.
 	var $x = 300
 	var $i = 0
 	while $i < 12 {
-		$d = $d.rectangle(Layout.rect($x, 28, 8, 8), if ($i == 11) pink else lilac)
+		$d = $d.rectangle({ bounds: Layout.rect({ x: $x, y: 28, width: 8, height: 8 }), color: if ($i == 11) pink else lilac })
 		$x = $x + 15
 		$i = $i + 1
 	}
-	Pdf.decoration({ drawing: $d.rectangle(Layout.rect(300, 22, 173, 1), lilac), below: 14 })
+	Pdf.decoration({ drawing: $d.rectangle({ bounds: Layout.rect({ x: 300, y: 22, width: 173, height: 1 }), color: lilac }), below: 14 })
 }
 
 ## ---------------------------------------------------------------------
@@ -254,14 +255,14 @@ latency_chart = {
 	var $d = Scene.Drawing.empty
 	for step in [0, 1, 2, 3, 4] {
 		x = left + bar(step * 100)
-		$d = $d.rectangle({ origin: Layout.point(x, 16), size: { height: 118, width: 0.6 } }, haze)
-		$d = $d.text({ align: Center, color: ink, origin: Layout.point(x, 4), size: 7, text: if (step == 4) "400 ms" else (step * 100).to_str() })
+		$d = $d.rectangle({ bounds: { origin: Layout.point({ x: x, y: 16 }), size: { height: 118, width: 0.6 } }, color: haze })
+		$d = $d.text({ align: Center, color: ink, origin: Layout.point({ x: x, y: 4 }), size: 7, text: if (step == 4) "400 ms" else (step * 100).to_str() })
 	}
 	var $y = 100
 	for (release, value, color) in values {
-		$d = $d.rectangle(Layout.rect(left, $y, bar(value), 24), color)
-		$d = $d.text({ align: End, color: ink, origin: Layout.point(left - 8, $y + 9), size: 9, text: release })
-		$d = $d.text({ align: Start, color: ink, origin: Layout.point(left + bar(value) + 6, $y + 9), size: 8, text: "${value.to_str()} ms" })
+		$d = $d.rectangle({ bounds: Layout.rect({ x: left, y: $y, width: bar(value), height: 24 }), color: color })
+		$d = $d.text({ align: End, color: ink, origin: Layout.point({ x: left - 8, y: $y + 9 }), size: 9, text: release })
+		$d = $d.text({ align: Start, color: ink, origin: Layout.point({ x: left + bar(value) + 6, y: $y + 9 }), size: 8, text: "${value.to_str()} ms" })
 		$y = $y - 36
 	}
 
@@ -269,10 +270,10 @@ latency_chart = {
 	end_29 = left + bar(356)
 	end_30 = left + bar(188)
 	$d
-		.path(Scene.PathBuilder.start.move_to(Layout.point(end_29, 76)).line_to(Layout.point(end_29, 52)).line_to(Layout.point(end_30 + 8, 52)).finish(), Scene.solid_stroke(pink, 1.5))
-		.path(Scene.PathBuilder.start.move_to(Layout.point(end_30, 52)).line_to(Layout.point(end_30 + 8, 56)).line_to(Layout.point(end_30 + 8, 48)).close().finish(), Scene.solid_fill(pink))
-		.text_in(Strong, { align: Start, color: pink, origin: Layout.point(end_29 + 6, 60), size: 8, text: "−47%" })
-		.path(Scene.PathBuilder.start.move_to(Layout.point(left, 16)).line_to(Layout.point(measure - 1, 16)).finish(), Scene.solid_stroke(ink, 0.7))
+		.path({ path: Scene.PathBuilder.start.move_to(Layout.point({ x: end_29, y: 76 })).line_to(Layout.point({ x: end_29, y: 52 })).line_to(Layout.point({ x: end_30 + 8, y: 52 })).finish(), style: Scene.solid_stroke(pink, 1.5) })
+		.path({ path: Scene.PathBuilder.start.move_to(Layout.point({ x: end_30, y: 52 })).line_to(Layout.point({ x: end_30 + 8, y: 56 })).line_to(Layout.point({ x: end_30 + 8, y: 48 })).close().finish(), style: Scene.solid_fill(pink) })
+		.text_in({ role: Strong, label: { align: Start, color: pink, origin: Layout.point({ x: end_29 + 6, y: 60 }), size: 8, text: "−47%" } })
+		.path({ path: Scene.PathBuilder.start.move_to(Layout.point({ x: left, y: 16 })).line_to(Layout.point({ x: measure - 1, y: 16 })).finish(), style: Scene.solid_stroke(ink, 0.7) })
 }
 
 ## ---------------------------------------------------------------------
@@ -374,7 +375,7 @@ contents = |options| Ok([
 		Pdf.inline_internal_link([Pdf.emphasis([Pdf.text("Upgrade guide")])], "upgrading"),
 	]),
 	Pdf.section([
-		Pdf.destination_heading("highlights", 1, "Highlights"),
+		Pdf.destination_heading({ name: "highlights", level: 1, text: "Highlights" }),
 		Pdf.rich_paragraph([
 			Pdf.text("Kestrel 3.0 is the first major release in two years. It replaces the scenario engine, halves tail latency under load, and makes every run reproducible from a single "),
 			Pdf.code("kestrel.lock"),
@@ -393,9 +394,9 @@ contents = |options| Ok([
 		Pdf.figure({ drawing: latency_chart, alt: "Horizontal bar chart of p99 latency in the reference scenario: 412 ms in 2.8, 356 ms in 2.9, and 188 ms in 3.0. An arrow marks the 47% reduction from 2.9 to 3.0.", caption: Pdf.caption("Figure 1. p99 latency in the reference scenario for 2.8, 2.9, and 3.0 (shorter is better)") }),
 	]),
 	Pdf.section([
-		Pdf.destination_heading("v3-0-0", 1, "3.0.0 · 30 September 2026"),
+		Pdf.destination_heading({ name: "v3-0-0", level: 1, text: "3.0.0 · 30 September 2026" }),
 		Pdf.section([
-			Pdf.destination_heading("breaking", 2, "Breaking changes"),
+			Pdf.destination_heading({ name: "breaking", level: 2, text: "Breaking changes" }),
 			callout(
 				options,
 				"Breaking changes",
@@ -413,7 +414,7 @@ contents = |options| Ok([
 			]),
 		]),
 		Pdf.section([
-			Pdf.destination_heading("added", 2, "Added"),
+			Pdf.destination_heading({ name: "added", level: 2, text: "Added" }),
 			Pdf.bullet_list([
 				change([Pdf.code("kestrel.lock"), Pdf.text(" pins the random seed, target versions, and plugin hashes for every run.")], 2102),
 				change([Pdf.code("kestrel check"), Pdf.text(" validates scenarios, including unreachable steps and unused variables.")], 2125),
@@ -429,7 +430,7 @@ contents = |options| Ok([
 			]),
 		]),
 		Pdf.section([
-			Pdf.destination_heading("fixed", 2, "Fixed"),
+			Pdf.destination_heading({ name: "fixed", level: 2, text: "Fixed" }),
 			Pdf.bullet_list([
 				change([Pdf.text("Coordinated omission no longer hides stalls longer than the sampling interval.")], 2091),
 				change([Pdf.text("HTTP/2 connections are reused across scenario steps instead of per step.")], 2118),
@@ -437,14 +438,14 @@ contents = |options| Ok([
 			]),
 		]),
 		Pdf.section([
-			Pdf.destination_heading("deprecated", 2, "Deprecated"),
+			Pdf.destination_heading({ name: "deprecated", level: 2, text: "Deprecated" }),
 			Pdf.bullet_list([
 				change([Pdf.text("The "), Pdf.code("--duration"), Pdf.text(" flag; set "), Pdf.code("duration"), Pdf.text(" in the scenario file instead. Removal is planned for 4.0.")], 2215),
 				change([Pdf.text("The Graphite exporter, in favour of OpenTelemetry.")], 2144),
 			]),
 		]),
 		Pdf.section([
-			Pdf.destination_heading("known-issues", 2, "Known issues"),
+			Pdf.destination_heading({ name: "known-issues", level: 2, text: "Known issues" }),
 			Pdf.bullet_list([
 				change([Pdf.text("The live dashboard flickers in terminals narrower than 80 columns.")], 2240),
 				change([Pdf.code("kestrel migrate"), Pdf.text(" drops YAML comments; review converted files before committing them.")], 2236),
@@ -452,12 +453,12 @@ contents = |options| Ok([
 		]),
 	]),
 	Pdf.section([
-		Pdf.destination_heading("compatibility", 1, "Compatibility"),
+		Pdf.destination_heading({ name: "compatibility", level: 1, text: "Compatibility" }),
 		Pdf.paragraph("Kestrel 3.0 raises the minimum versions on most platforms. Check Table 1 before you upgrade agents on older hosts."),
 		compatibility_table,
 	]),
 	Pdf.section([
-		Pdf.destination_heading("upgrading", 1, "Upgrading from 2.x"),
+		Pdf.destination_heading({ name: "upgrading", level: 1, text: "Upgrading from 2.x" }),
 		Pdf.keep_together([
 			Pdf.numbered_list(
 				{},
@@ -479,21 +480,21 @@ contents = |options| Ok([
 		]),
 	]),
 	Pdf.section([
-		Pdf.destination_heading("v2-9-2", 1, "2.9.2 · 12 August 2026"),
+		Pdf.destination_heading({ name: "v2-9-2", level: 1, text: "2.9.2 · 12 August 2026" }),
 		Pdf.bullet_list([
 			change([Pdf.text("Warns when a scenario uses a flag removed in 3.0.")], 2176),
 			change([Pdf.text("Fixed a crash when a target returned an empty "), Pdf.code("Content-Type"), Pdf.text(" header.")], 2171),
 		]),
 	]),
 	Pdf.section([
-		Pdf.destination_heading("v2-9-1", 1, "2.9.1 · 29 July 2026"),
+		Pdf.destination_heading({ name: "v2-9-1", level: 1, text: "2.9.1 · 29 July 2026" }),
 		Pdf.bullet_list([
-			change([Pdf.text("Security: updated the bundled TLS library to address "), Pdf.expansion("CVE-2026-31337", "Common Vulnerabilities and Exposures entry 2026-31337"), Pdf.text(".")], 2160),
+			change([Pdf.text("Security: updated the bundled TLS library to address "), Pdf.expansion({ text: "CVE-2026-31337", expanded: "Common Vulnerabilities and Exposures entry 2026-31337" }), Pdf.text(".")], 2160),
 			change([Pdf.text("Histogram buckets above 60 s are no longer merged.")], 2158),
 		]),
 	]),
 	Pdf.section([
-		Pdf.destination_heading("thanks", 1, "Thanks"),
+		Pdf.destination_heading({ name: "thanks", level: 1, text: "Thanks" }),
 		Pdf.rich_paragraph([
 			Pdf.text("Kestrel 3.0 includes work from 64 contributors, 23 of them new. Special thanks to "),
 			Pdf.strong([Pdf.text("Amara Okafor")]),
@@ -502,7 +503,7 @@ contents = |options| Ok([
 			Pdf.text(" for the TOML migration, and "),
 			Pdf.strong([Pdf.text("Yuki Tanaka")]),
 			Pdf.text(" for the coordinated-omission fix. Kestrel is released under the "),
-			Pdf.expansion("MPL-2.0", "Mozilla Public License, version 2.0"),
+			Pdf.expansion({ text: "MPL-2.0", expanded: "Mozilla Public License, version 2.0" }),
 			Pdf.text("."),
 		]),
 	]),

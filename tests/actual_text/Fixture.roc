@@ -80,14 +80,7 @@ Fixture :: [].{
 		i_glyph = required_glyph(font, 0x0069) ? |_| EvidenceFailure
 		fact = KernelGsub.validate_ligature(font, { feature: liga_feature, input: [f_glyph, i_glyph], language: Default, output: ligature_output_glyph, script: latin_script_tag }, ligature_gsub_limits({})) ? |_| EvidenceFailure
 		store = ligature_store(Font.InstanceId.from_index(0), ligature_output_glyph)
-		rejected = match KernelShape.validate_advanced_with_ligature_fact(
-			font,
-			ligature_source,
-			store,
-			{ instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) },
-			{ ..fact.fact, output: i_glyph },
-			ligature_shape_limits({}),
-		) {
+		rejected = match KernelShape.validate_advanced_with_ligature_fact(font, ligature_source, store, { instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) }, { ..fact.fact, output: i_glyph }, ligature_shape_limits({})) {
 			Err(AdvancedRunInvalid({ reason: AuxiliaryRange, run: 0 })) => True
 			_ => False
 		}
@@ -150,14 +143,7 @@ Fixture :: [].{
 		## Swapping two painted glyph references keeps every logical fact
 		## intact but paints a sequence the resolution never produced.
 		swapped_indices = swap_at(store.glyph_indices, 0, 1)
-		order_rejected = match KernelShape.validate_advanced_with_bidi_order(
-			resolved.font,
-			rtl_source,
-			{ ..store, glyph_indices: swapped_indices },
-			{ instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) },
-			resolved.order,
-			rtl_advanced_limits,
-		) {
+		order_rejected = match KernelShape.validate_advanced_with_bidi_order(resolved.font, rtl_source, { ..store, glyph_indices: swapped_indices }, { instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) }, resolved.order, rtl_advanced_limits) {
 			Err(BidiOrderInvalid({ reason: PaintPosition, .. })) => True
 			_ => False
 		}
@@ -165,14 +151,7 @@ Fixture :: [].{
 		## Painting the bracket's own glyph instead of its mirrored partner
 		## is the classic unmirrored-fallback bug; it must not be accepted.
 		unmirrored = unmirror_first_bracket(resolved, store)?
-		mirror_rejected = match KernelShape.validate_advanced_with_bidi_order(
-			resolved.font,
-			rtl_source,
-			unmirrored,
-			{ instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) },
-			resolved.order,
-			rtl_advanced_limits,
-		) {
+		mirror_rejected = match KernelShape.validate_advanced_with_bidi_order(resolved.font, rtl_source, unmirrored, { instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) }, resolved.order, rtl_advanced_limits) {
 			Err(BidiOrderInvalid({ reason: MirrorGlyphMismatch, .. })) => True
 			_ => False
 		}
@@ -229,10 +208,7 @@ Fixture :: [].{
 		if runtime_guard != 0 {
 			return Err(InvalidRuntimeGuard)
 		}
-		budget_rejected = match KernelCaseTransform.to_upper(
-			case_source,
-			case_limits(runtime_guard, 2),
-		) {
+		budget_rejected = match KernelCaseTransform.to_upper(case_source, case_limits(runtime_guard, 2)) {
 			Err(Unicode(LimitExceeded({ dimension: OutputScalars, .. }))) => True
 			_ => False
 		}
@@ -240,13 +216,7 @@ Fixture :: [].{
 		store = case_store(mapping.font)
 		expanded_cluster = list_at(store.clusters, 1)
 		malformed = { ..store, clusters: list_set(store.clusters, 1, { ..expanded_cluster, kind: OneToOne }) }
-		cardinality_rejected = match KernelShape.validate_advanced(
-			mapping.font,
-			case_source,
-			malformed,
-			{ instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) },
-			case_advanced_limits,
-		) {
+		cardinality_rejected = match KernelShape.validate_advanced(mapping.font, case_source, malformed, { instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) }, case_advanced_limits) {
 			Err(AdvancedClusterInvalid({ cluster: 1, reason: Cardinality })) => True
 			_ => False
 		}
@@ -351,17 +321,8 @@ Fixture :: [].{
 			return Err(InvalidRuntimeGuard)
 		}
 		selection = selected_soft_hyphen({}) ? |_| EvidenceFailure
-		font = KernelFont.inspect(
-			built_in_font_bytes,
-			KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }),
-		) ? |_| EvidenceFailure
-		semantic = KernelTextSemantics.Plan.build(
-			soft_hyphen_semantics,
-			1,
-			1,
-			KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
-			KernelTextSemantics.Limits.make({ max_text_properties: 1, max_text_property_bytes: 1, max_text_source_bytes: 11, max_text_source_scalars: 10, max_text_sources: 1 }),
-		) ? |_| EvidenceFailure
+		font = KernelFont.inspect(built_in_font_bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
+		semantic = KernelTextSemantics.Plan.build(soft_hyphen_semantics, 1, 1, KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }), KernelTextSemantics.Limits.make({ max_text_properties: 1, max_text_property_bytes: 1, max_text_source_bytes: 11, max_text_source_scalars: 10, max_text_sources: 1 })) ? |_| EvidenceFailure
 		glyphs = [
 			required_glyph(font, 0x0063) ? |_| EvidenceFailure,
 			required_glyph(font, 0x006f) ? |_| EvidenceFailure,
@@ -404,17 +365,8 @@ Fixture :: [].{
 			return Err(InvalidRuntimeGuard)
 		}
 		selection = selected_external_discretionary_hyphen({}) ? |_| EvidenceFailure
-		font = KernelFont.inspect(
-			built_in_font_bytes,
-			KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }),
-		) ? |_| EvidenceFailure
-		semantic = KernelTextSemantics.Plan.build(
-			external_discretionary_hyphen_semantics,
-			1,
-			1,
-			KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
-			KernelTextSemantics.Limits.make({ max_text_properties: 1, max_text_property_bytes: 1, max_text_source_bytes: 2, max_text_source_scalars: 2, max_text_sources: 1 }),
-		) ? |_| EvidenceFailure
+		font = KernelFont.inspect(built_in_font_bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
+		semantic = KernelTextSemantics.Plan.build(external_discretionary_hyphen_semantics, 1, 1, KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }), KernelTextSemantics.Limits.make({ max_text_properties: 1, max_text_property_bytes: 1, max_text_source_bytes: 2, max_text_source_scalars: 2, max_text_sources: 1 })) ? |_| EvidenceFailure
 		glyphs = [
 			required_glyph(font, 0x0061) ? |_| EvidenceFailure,
 			required_glyph(font, 0x002d) ? |_| EvidenceFailure,
@@ -465,21 +417,12 @@ Fixture :: [].{
 		if runtime_guard != 0 {
 			return Err(InvalidRuntimeGuard)
 		}
-		font = KernelFont.inspect(
-			supplementary_font_bytes,
-			KernelFont.Limits.make({ max_bytes: 500000, max_cmap_mappings: 10000, max_glyphs: 5000, max_tables: 32 }),
-		) ? |_| EvidenceFailure
+		font = KernelFont.inspect(supplementary_font_bytes, KernelFont.Limits.make({ max_bytes: 500000, max_cmap_mappings: 10000, max_glyphs: 5000, max_tables: 32 })) ? |_| EvidenceFailure
 		glyph = required_glyph(font, 0x1f12f) ? |_| EvidenceFailure
 		store = supplementary_store(Font.InstanceId.from_index(0), glyph)
 		cluster = list_at(store.clusters, 0)
-		bad_store = { ..store, clusters: [{ ..cluster, source: { ..supplementary_source_range, utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 3) } }] }
-		rejected = match KernelShape.validate_advanced(
-			font,
-			supplementary_source,
-			bad_store,
-			{ instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) },
-			KernelShape.AdvancedLimits.make({ max_clusters: 1, max_glyph_indices: 1, max_glyphs: 1, max_runs: 1, max_scalars: 1, max_source_bytes: 4, max_substitutions: 0, max_transformations: 0 }),
-		) {
+		bad_store = { ..store, clusters: [{ ..cluster, source: { ..supplementary_source_range, utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 3 }) } }] }
+		rejected = match KernelShape.validate_advanced(font, supplementary_source, bad_store, { instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) }, KernelShape.AdvancedLimits.make({ max_clusters: 1, max_glyph_indices: 1, max_glyphs: 1, max_runs: 1, max_scalars: 1, max_source_bytes: 4, max_substitutions: 0, max_transformations: 0 })) {
 			Err(AdvancedClusterInvalid({ cluster: 0, reason: SourceRange })) => True
 			_ => False
 		}
@@ -525,21 +468,12 @@ Fixture :: [].{
 		if runtime_guard != 0 {
 			return Err(InvalidRuntimeGuard)
 		}
-		font = KernelFont.inspect(
-			cjk_font_bytes,
-			KernelFont.Limits.make({ max_bytes: 4096, max_cmap_mappings: 16, max_glyphs: 16, max_tables: 32 }),
-		) ? |_| EvidenceFailure
+		font = KernelFont.inspect(cjk_font_bytes, KernelFont.Limits.make({ max_bytes: 4096, max_cmap_mappings: 16, max_glyphs: 16, max_tables: 32 })) ? |_| EvidenceFailure
 		glyph = required_glyph(font, 0x4e2d) ? |_| EvidenceFailure
 		store = cjk_store(Font.InstanceId.from_index(0), glyph)
 		cluster = list_at(store.clusters, 0)
-		bad_store = { ..store, clusters: [{ ..cluster, source: { ..cjk_source_range, utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 2) } }] }
-		rejected = match KernelShape.validate_advanced(
-			font,
-			cjk_source,
-			bad_store,
-			{ instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) },
-			KernelShape.AdvancedLimits.make({ max_clusters: 1, max_glyph_indices: 1, max_glyphs: 1, max_runs: 1, max_scalars: 1, max_source_bytes: 3, max_substitutions: 0, max_transformations: 0 }),
-		) {
+		bad_store = { ..store, clusters: [{ ..cluster, source: { ..cjk_source_range, utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }) } }] }
+		rejected = match KernelShape.validate_advanced(font, cjk_source, bad_store, { instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) }, KernelShape.AdvancedLimits.make({ max_clusters: 1, max_glyph_indices: 1, max_glyphs: 1, max_runs: 1, max_scalars: 1, max_source_bytes: 3, max_substitutions: 0, max_transformations: 0 })) {
 			Err(AdvancedClusterInvalid({ cluster: 0, reason: SourceRange })) => True
 			_ => False
 		}
@@ -585,14 +519,8 @@ Fixture :: [].{
 		}
 		sample = build_combining_sample({}) ? |_| EvidenceFailure
 		cluster = list_at(sample.shape.store.clusters, 0)
-		bad_store = { ..sample.shape.store, clusters: [{ ..cluster, source: { ..combining_source_range, utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 2) } }] }
-		rejected = match KernelShape.validate_advanced(
-			sample.font,
-			combining_source,
-			bad_store,
-			{ instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) },
-			KernelShape.AdvancedLimits.make({ max_clusters: 1, max_glyph_indices: 1, max_glyphs: 1, max_runs: 1, max_scalars: 2, max_source_bytes: 3, max_substitutions: 0, max_transformations: 0 }),
-		) {
+		bad_store = { ..sample.shape.store, clusters: [{ ..cluster, source: { ..combining_source_range, utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }) } }] }
+		rejected = match KernelShape.validate_advanced(sample.font, combining_source, bad_store, { instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) }, KernelShape.AdvancedLimits.make({ max_clusters: 1, max_glyph_indices: 1, max_glyphs: 1, max_runs: 1, max_scalars: 2, max_source_bytes: 3, max_substitutions: 0, max_transformations: 0 })) {
 			Err(AdvancedClusterInvalid({ cluster: 0, reason: SourceRange })) => True
 			_ => False
 		}
@@ -712,8 +640,8 @@ rtl_source = "אב(גד[&ef].)gh"
 
 rtl_source_range : Semantics.TextRange
 rtl_source_range = {
-	scalars: Semantics.IndexRange.from_start_and_length(0, 14),
-	utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 18),
+	scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: 14 }),
+	utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 18 }),
 }
 
 rtl_semantics : Semantics.Store
@@ -740,10 +668,7 @@ ResolvedRtl := {
 ## store construction and its validation both consume.
 resolve_rtl : {} -> Try(ResolvedRtl, [EvidenceFailure, InvalidRuntimeGuard])
 resolve_rtl = |_| {
-	font = KernelFont.inspect(
-		rtl_font_bytes,
-		KernelFont.Limits.make({ max_bytes: 8192, max_cmap_mappings: 32, max_glyphs: 32, max_tables: 32 }),
-	) ? |_| EvidenceFailure
+	font = KernelFont.inspect(rtl_font_bytes, KernelFont.Limits.make({ max_bytes: 8192, max_cmap_mappings: 32, max_glyphs: 32, max_tables: 32 })) ? |_| EvidenceFailure
 	analysis = KernelUnicode.analyze(rtl_source, { max_graphemes: 16, max_line_boundaries: 17, max_scalars: 16, max_script_runs: 16 }) ? |_| EvidenceFailure
 	limits = KernelBidiBoundary.Limits.make({ max_clusters: 16, max_scalars: 16, max_visual_order: 16 })
 	paragraph = KernelBidiBoundary.analyze_paragraph(rtl_source, analysis, RightToLeft, limits) ? |_| EvidenceFailure
@@ -752,11 +677,11 @@ resolve_rtl = |_| {
 	while $index < analysis.graphemes.len() {
 		grapheme = list_at(analysis.graphemes, $index)
 		$clusters = $clusters.append({
-			glyphs: Semantics.IndexRange.from_start_and_length($index, 1),
+			glyphs: Semantics.IndexRange.from_start_and_length({ start: $index, length: 1 }),
 			kind: Reordered,
 			source: {
-				scalars: Semantics.IndexRange.from_start_and_length(grapheme.scalar_start, grapheme.scalar_end - grapheme.scalar_start),
-				utf8_bytes: Semantics.IndexRange.from_start_and_length(grapheme.byte_start, grapheme.byte_end - grapheme.byte_start),
+				scalars: Semantics.IndexRange.from_start_and_length({ start: grapheme.scalar_start, length: grapheme.scalar_end - grapheme.scalar_start }),
+				utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: grapheme.byte_start, length: grapheme.byte_end - grapheme.byte_start }),
 			},
 		})
 		$index = $index + 1
@@ -768,12 +693,7 @@ resolve_rtl = |_| {
 	for located in Scalar.iter(rtl_source) {
 		$scalars = $scalars.append(Scalar.to_u32(located.scalar))
 	}
-	order = KernelBidiBoundary.resolve_line(
-		paragraph,
-		{ clusters: Semantics.IndexRange.from_start_and_length(0, 14), source: rtl_source_range },
-		$clusters,
-		limits,
-	) ? |_| EvidenceFailure
+	order = KernelBidiBoundary.resolve_line(paragraph, { clusters: Semantics.IndexRange.from_start_and_length({ start: 0, length: 14 }), source: rtl_source_range }, $clusters, limits) ? |_| EvidenceFailure
 	var $mirrored = 0
 	var $mirror_index = 0
 	while $mirror_index < order.mirrors.len() {
@@ -827,9 +747,9 @@ rtl_store = |resolved| {
 		runs: [
 			{
 				actual_text: FromOccurrence,
-				clusters: Semantics.IndexRange.from_start_and_length(0, 14),
+				clusters: Semantics.IndexRange.from_start_and_length({ start: 0, length: 14 }),
 				direction: RightToLeft,
-				glyphs: Semantics.IndexRange.from_start_and_length(0, 14),
+				glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 14 }),
 				id: Text.RunId.from_index(0),
 				instance: Font.InstanceId.from_index(0),
 				language: Language("he"),
@@ -888,46 +808,21 @@ swap_at = |items, first, second| {
 
 build_rtl_sample : ResolvedRtl -> Try(Sample, [ColorFailure, ContentFailure, FontFailure, FontObjectFailure, FontPlanFailure, ImageFailure, ObjectFailure, OwnershipFailure, ResourceFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
 build_rtl_sample = |resolved| {
-	semantic = KernelTextSemantics.Plan.build(
-		rtl_semantics,
-		1,
-		1,
-		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
-		KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 18, max_text_source_scalars: 14, max_text_sources: 1 }),
-	) ? |_| SemanticFailure
-	shape = KernelShape.validate_advanced_with_bidi_order(
-		resolved.font,
-		rtl_source,
-		rtl_store(resolved),
-		{ instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) },
-		resolved.order,
-		rtl_advanced_limits,
-	) ? |_| ShapeFailure
+	semantic = KernelTextSemantics.Plan.build(rtl_semantics, 1, 1, KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }), KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 18, max_text_source_scalars: 14, max_text_sources: 1 })) ? |_| SemanticFailure
+	shape = KernelShape.validate_advanced_with_bidi_order(resolved.font, rtl_source, rtl_store(resolved), { instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) }, resolved.order, rtl_advanced_limits) ? |_| ShapeFailure
 	build_rtl_sample_after_shape(resolved.font, semantic, shape)
 }
 
 build_rtl_sample_after_shape : KernelFont.Inspection, KernelTextSemantics.Plan, KernelShape.Validated -> Try(Sample, [ColorFailure, ContentFailure, FontFailure, FontObjectFailure, FontPlanFailure, ImageFailure, ObjectFailure, OwnershipFailure, ResourceFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
 build_rtl_sample_after_shape = |font, semantic, shape| {
-	scene = KernelScene.Plan.build(
-		text_scene,
-		KernelScene.Resources.with_text({ color_spaces: 1, images: 0, text_runs: shape.store.runs.len() }),
-		KernelScene.Limits.make({ max_commands: 2, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1, max_pages: 1, max_path_segments: 0, max_paths: 0 }),
-	) ? |_| SceneFailure
+	scene = KernelScene.Plan.build(text_scene, KernelScene.Resources.with_text({ color_spaces: 1, images: 0, text_runs: shape.store.runs.len() }), KernelScene.Limits.make({ max_commands: 2, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1, max_pages: 1, max_path_segments: 0, max_paths: 0 })) ? |_| SceneFailure
 	ownership = KernelTextOwnership.Plan.build(semantic, scene, shape.store) ? |_| OwnershipFailure
 	font_plan = KernelFontPlan.plan(font, glyph_usages(shape.store.glyphs), KernelFontPlan.Limits.make({ max_retained_glyphs: 32 })) ? |_| FontPlanFailure
 	subset = KernelFontSubset.build(font, font_plan) ? |_| SubsetFailure
 	colors = KernelColor.Plan.build(text_colors, KernelColor.Limits.make({ max_icc_bytes: 0, max_profiles: 0, max_spaces: 1, max_tags: 0 })) ? |_| ColorFailure
-	images = KernelImage.Plan.build(
-		empty_image_sources,
-		colors,
-		KernelImage.Limits.make({ max_decoded_bytes: 0, max_encoded_bytes: 0, max_height: 0, max_markers: 0, max_resources: 0, max_width: 0 }),
-	) ? |_| ImageFailure
+	images = KernelImage.Plan.build(empty_image_sources, colors, KernelImage.Limits.make({ max_decoded_bytes: 0, max_encoded_bytes: 0, max_height: 0, max_markers: 0, max_resources: 0, max_width: 0 })) ? |_| ImageFailure
 	resource_use = KernelResourceUse.TextPlan.build(scene, colors, images) ? |_| ResourceFailure
-	text = KernelPdfText.ScenePlan.build(
-		ownership,
-		[font_plan],
-		KernelPdfText.Limits.make({ max_actual_text_scalars: 32, max_content_bytes: 4096, max_mappings: 32, max_placements: 0, max_source_scalars: 32 }),
-	) ? |_| TextFailure
+	text = KernelPdfText.ScenePlan.build(ownership, [font_plan], KernelPdfText.Limits.make({ max_actual_text_scalars: 32, max_content_bytes: 4096, max_mappings: 32, max_placements: 0, max_source_scalars: 32 })) ? |_| TextFailure
 	tagged = KernelTextOwnership.Plan.tagged(ownership)
 	content = KernelContent.Plan.build_with_text(tagged, KernelPdfText.ScenePlan.content(text), KernelContent.Limits.make({ max_content_bytes: 8192, max_content_streams: 1 })) ? |_| ContentFailure
 	base_objects = KernelObjectPlan.Plan.build_with_text(tagged, colors, images, resource_use, content, KernelObjectPlan.Limits.make({ max_objects: 32, max_pages: 1 })) ? |_| ObjectFailure
@@ -961,8 +856,8 @@ case_presentation = "ASS"
 
 case_source_range : Semantics.TextRange
 case_source_range = {
-	scalars: Semantics.IndexRange.from_start_and_length(0, 2),
-	utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 3),
+	scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }),
+	utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 3 }),
 }
 
 case_semantics : Semantics.Store
@@ -973,7 +868,7 @@ case_semantics = {
 		{
 			..list_at(semantics.occurrences, 0),
 			source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange(case_source_range)),
-			text_properties: Semantics.IndexRange.from_start_and_length(0, 1),
+			text_properties: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 		},
 	],
 	text_properties: [SourceToPresentation({ kind: CaseMapping, presentation: case_presentation, source: case_source_range })],
@@ -1006,10 +901,7 @@ CaseMappingFacts := {
 ## covering the whole source.
 case_mapping : U64 -> Try(CaseMappingFacts, [EvidenceFailure, InvalidRuntimeGuard])
 case_mapping = |runtime_guard| {
-	font = KernelFont.inspect(
-		built_in_font_bytes,
-		KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }),
-	) ? |_| EvidenceFailure
+	font = KernelFont.inspect(built_in_font_bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
 	result = KernelCaseTransform.to_upper(case_source, case_limits(runtime_guard, 8)) ? |_| EvidenceFailure
 	if result.text != case_presentation or result.unicode_version != "17.0.0" or result.facts.len() != 2 {
 		return Err(EvidenceFailure)
@@ -1043,14 +935,14 @@ case_store = |font| {
 	{
 		clusters: [
 			{
-				glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
+				glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 				kind: OneToOne,
-				source: { scalars: Semantics.IndexRange.from_start_and_length(0, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 1) },
+				source: { scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }) },
 			},
 			{
-				glyphs: Semantics.IndexRange.from_start_and_length(1, 2),
+				glyphs: Semantics.IndexRange.from_start_and_length({ start: 1, length: 2 }),
 				kind: OneToMany,
-				source: { scalars: Semantics.IndexRange.from_start_and_length(1, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(1, 2) },
+				source: { scalars: Semantics.IndexRange.from_start_and_length({ start: 1, length: 1 }), utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 1, length: 2 }) },
 			},
 		],
 		glyph_indices: [0, 1, 2],
@@ -1062,9 +954,9 @@ case_store = |font| {
 		runs: [
 			{
 				actual_text: FromOccurrence,
-				clusters: Semantics.IndexRange.from_start_and_length(0, 2),
+				clusters: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }),
 				direction: LeftToRight,
-				glyphs: Semantics.IndexRange.from_start_and_length(0, 3),
+				glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 3 }),
 				id: Text.RunId.from_index(0),
 				instance: Font.InstanceId.from_index(0),
 				language: Language("en-AU"),
@@ -1072,7 +964,7 @@ case_store = |font| {
 				size: Layout.Unit.from_raw(11000),
 				source: case_source_range,
 				substitutions: empty_range,
-				transformations: Semantics.IndexRange.from_start_and_length(0, 2),
+				transformations: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }),
 				unicode: OccurrenceText(Semantics.OccurrenceId.from_index(0)),
 				writing_mode: Horizontal,
 			},
@@ -1083,14 +975,14 @@ case_store = |font| {
 		## exact source range so later lowering never infers it from glyphs.
 		transformations: [
 			{
-				glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
+				glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 				kind: CaseMapping,
-				source: { scalars: Semantics.IndexRange.from_start_and_length(0, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 1) },
+				source: { scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }) },
 			},
 			{
-				glyphs: Semantics.IndexRange.from_start_and_length(1, 2),
+				glyphs: Semantics.IndexRange.from_start_and_length({ start: 1, length: 2 }),
 				kind: CaseMapping,
-				source: { scalars: Semantics.IndexRange.from_start_and_length(1, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(1, 2) },
+				source: { scalars: Semantics.IndexRange.from_start_and_length({ start: 1, length: 1 }), utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 1, length: 2 }) },
 			},
 		],
 	}
@@ -1117,20 +1009,8 @@ case_advance = |font, glyph| {
 
 build_case_sample : CaseMappingFacts -> Try(Sample, [ColorFailure, ContentFailure, FontFailure, FontObjectFailure, FontPlanFailure, ImageFailure, ObjectFailure, OwnershipFailure, ResourceFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
 build_case_sample = |mapping| {
-	semantic = KernelTextSemantics.Plan.build(
-		case_semantics,
-		1,
-		1,
-		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
-		KernelTextSemantics.Limits.make({ max_text_properties: 1, max_text_property_bytes: 8, max_text_source_bytes: 3, max_text_source_scalars: 2, max_text_sources: 1 }),
-	) ? |_| SemanticFailure
-	shape = KernelShape.validate_advanced(
-		mapping.font,
-		case_source,
-		case_store(mapping.font),
-		{ instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) },
-		case_advanced_limits,
-	) ? |_| ShapeFailure
+	semantic = KernelTextSemantics.Plan.build(case_semantics, 1, 1, KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }), KernelTextSemantics.Limits.make({ max_text_properties: 1, max_text_property_bytes: 8, max_text_source_bytes: 3, max_text_source_scalars: 2, max_text_sources: 1 })) ? |_| SemanticFailure
+	shape = KernelShape.validate_advanced(mapping.font, case_source, case_store(mapping.font), { instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) }, case_advanced_limits) ? |_| ShapeFailure
 	build_sample_after_shape(mapping.font, semantic, shape)
 }
 
@@ -1155,12 +1035,7 @@ build_multi_face_sample = |_| {
 	}
 	latin = registry.prepared_face(Font.FaceId.from_index(0)) ? |_| EvidenceFailure
 	cjk = registry.prepared_face(Font.FaceId.from_index(1)) ? |_| EvidenceFailure
-	store = multi_face_store(
-		selection.face_ranges,
-		required_glyph(latin, 0x43) ? |_| EvidenceFailure,
-		required_glyph(cjk, 0x4e2d) ? |_| EvidenceFailure,
-		required_glyph(latin, 0x00e9) ? |_| EvidenceFailure,
-	)
+	store = multi_face_store(selection.face_ranges, required_glyph(latin, 0x43) ? |_| EvidenceFailure, required_glyph(cjk, 0x4e2d) ? |_| EvidenceFailure, required_glyph(latin, 0x00e9) ? |_| EvidenceFailure)
 	shape = KernelShape.validate_advanced_selected(
 		multi_face_source,
 		store,
@@ -1174,18 +1049,8 @@ build_multi_face_sample = |_| {
 		},
 		KernelShape.AdvancedLimits.make({ max_clusters: 3, max_glyph_indices: 3, max_glyphs: 3, max_runs: 3, max_scalars: 3, max_source_bytes: 6, max_substitutions: 0, max_transformations: 0 }),
 	) ? |_| EvidenceFailure
-	semantic = KernelTextSemantics.Plan.build(
-		multi_face_semantics,
-		1,
-		1,
-		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
-		KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 6, max_text_source_scalars: 3, max_text_sources: 1 }),
-	) ? |_| EvidenceFailure
-	scene = KernelScene.Plan.build(
-		multi_face_scene,
-		KernelScene.Resources.with_text({ color_spaces: 1, images: 0, text_runs: 3 }),
-		KernelScene.Limits.make({ max_commands: 4, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1, max_pages: 1, max_path_segments: 0, max_paths: 0 }),
-	) ? |_| EvidenceFailure
+	semantic = KernelTextSemantics.Plan.build(multi_face_semantics, 1, 1, KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }), KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 6, max_text_source_scalars: 3, max_text_sources: 1 })) ? |_| EvidenceFailure
+	scene = KernelScene.Plan.build(multi_face_scene, KernelScene.Resources.with_text({ color_spaces: 1, images: 0, text_runs: 3 }), KernelScene.Limits.make({ max_commands: 4, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1, max_pages: 1, max_path_segments: 0, max_paths: 0 })) ? |_| EvidenceFailure
 	ownership = KernelTextOwnership.Plan.build(semantic, scene, shape.store) ? |_| EvidenceFailure
 	latin_plan = KernelFontPlan.plan(latin, [{ glyph: list_at(shape.store.glyphs, 0).id.raw() }, { glyph: list_at(shape.store.glyphs, 2).id.raw() }], KernelFontPlan.Limits.make({ max_retained_glyphs: 8 })) ? |_| EvidenceFailure
 	cjk_plan = KernelFontPlan.plan(cjk, [{ glyph: list_at(shape.store.glyphs, 1).id.raw() }], KernelFontPlan.Limits.make({ max_retained_glyphs: 8 })) ? |_| EvidenceFailure
@@ -1217,8 +1082,8 @@ build_multi_face_sample = |_| {
 
 multi_face_registry : {} -> Try(Font.Registry, [EvidenceFailure])
 multi_face_registry = |_| {
-	latin = Font.Registry.empty.register(caller_font_bytes, { provision: AdvancedRunsRequired, scripts: [Font.Script.from_iso15924("Latn")] }, Font.ValidationLimits.default) ? |_| EvidenceFailure
-	cjk = latin.registry.register(cjk_font_bytes, { provision: AdvancedRunsRequired, scripts: [Font.Script.from_iso15924("Hani")] }, Font.ValidationLimits.default) ? |_| EvidenceFailure
+	latin = Font.Registry.empty.register({ bytes: caller_font_bytes, registration: { provision: AdvancedRunsRequired, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| EvidenceFailure
+	cjk = latin.registry.register({ bytes: cjk_font_bytes, registration: { provision: AdvancedRunsRequired, scripts: [Font.Script.from_iso15924("Hani")] }, limits: Font.ValidationLimits.default }) ? |_| EvidenceFailure
 	policy = cjk.registry.with_policy([latin.face, cjk.face]) ? |_| EvidenceFailure
 	Ok(policy.registry)
 }
@@ -1239,19 +1104,9 @@ Sample := {
 
 build_sample : {} -> Try(Sample, [ColorFailure, ContentFailure, FontFailure, FontObjectFailure, FontPlanFailure, ImageFailure, ObjectFailure, OwnershipFailure, ResourceFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
 build_sample = |_| {
-	registered = Font.Registry.empty.register(
-		caller_font_bytes,
-		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
-		Font.ValidationLimits.default,
-	) ? |_| FontFailure
+	registered = Font.Registry.empty.register({ bytes: caller_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
 	font = registered.registry.prepared_face(registered.face) ? |_| FontFailure
-	semantic = KernelTextSemantics.Plan.build(
-		semantics,
-		1,
-		1,
-		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
-		KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 2, max_text_source_scalars: 2, max_text_sources: 1 }),
-	) ? |_| SemanticFailure
+	semantic = KernelTextSemantics.Plan.build(semantics, 1, 1, KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }), KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 2, max_text_source_scalars: 2, max_text_sources: 1 })) ? |_| SemanticFailure
 	f_glyph = required_glyph(font, 0x66) ? |_| FontFailure
 	a_glyph = required_glyph(font, 0x61) ? |_| FontFailure
 	store = reordered_store(registered.instance, f_glyph, a_glyph)
@@ -1260,17 +1115,8 @@ build_sample = |_| {
 
 build_combining_sample : {} -> Try(Sample, [ColorFailure, ContentFailure, FontFailure, FontObjectFailure, FontPlanFailure, ImageFailure, ObjectFailure, OwnershipFailure, ResourceFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
 build_combining_sample = |_| {
-	font = KernelFont.inspect(
-		built_in_font_bytes,
-		KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }),
-	) ? |_| FontFailure
-	semantic = KernelTextSemantics.Plan.build(
-		combining_semantics,
-		1,
-		1,
-		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
-		KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 3, max_text_source_scalars: 2, max_text_sources: 1 }),
-	) ? |_| SemanticFailure
+	font = KernelFont.inspect(built_in_font_bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| FontFailure
+	semantic = KernelTextSemantics.Plan.build(combining_semantics, 1, 1, KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }), KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 3, max_text_source_scalars: 2, max_text_sources: 1 })) ? |_| SemanticFailure
 	agrave_glyph = required_glyph(font, 0x00c0) ? |_| FontFailure
 	store = combining_store(Font.InstanceId.from_index(0), agrave_glyph)
 	build_sample_from(font, semantic, combining_source, store)
@@ -1283,13 +1129,7 @@ build_combining_sample = |_| {
 build_ligature_sample : {} -> Try(Sample, [ColorFailure, ContentFailure, FontFailure, FontObjectFailure, FontPlanFailure, ImageFailure, ObjectFailure, OwnershipFailure, ResourceFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
 build_ligature_sample = |_| {
 	font = ligature_font({}) ? |_| FontFailure
-	semantic = KernelTextSemantics.Plan.build(
-		ligature_semantics,
-		1,
-		1,
-		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
-		KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 2, max_text_source_scalars: 2, max_text_sources: 1 }),
-	) ? |_| SemanticFailure
+	semantic = KernelTextSemantics.Plan.build(ligature_semantics, 1, 1, KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }), KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 2, max_text_source_scalars: 2, max_text_sources: 1 })) ? |_| SemanticFailure
 	f_glyph = required_glyph(font, 0x0066) ? |_| FontFailure
 	i_glyph = required_glyph(font, 0x0069) ? |_| FontFailure
 	fact = KernelGsub.validate_ligature(font, { feature: liga_feature, input: [f_glyph, i_glyph], language: Default, output: ligature_output_glyph, script: latin_script_tag }, ligature_gsub_limits({})) ? |_| ShapeFailure
@@ -1299,14 +1139,7 @@ build_ligature_sample = |_| {
 
 build_ligature_sample_from : KernelFont.Inspection, KernelTextSemantics.Plan, Text.Store, KernelGsub.Fact -> Try(Sample, [ColorFailure, ContentFailure, FontFailure, FontObjectFailure, FontPlanFailure, ImageFailure, ObjectFailure, OwnershipFailure, ResourceFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
 build_ligature_sample_from = |font, semantic, store, fact| {
-	shape = KernelShape.validate_advanced_with_ligature_fact(
-		font,
-		ligature_source,
-		store,
-		{ instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) },
-		fact,
-		ligature_shape_limits({}),
-	) ? |_| ShapeFailure
+	shape = KernelShape.validate_advanced_with_ligature_fact(font, ligature_source, store, { instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) }, fact, ligature_shape_limits({})) ? |_| ShapeFailure
 	build_sample_after_shape(font, semantic, shape)
 }
 
@@ -1315,17 +1148,8 @@ build_ligature_sample_from = |font, semantic, store, fact| {
 ## UTF-16 surrogate pair without the PDF layer inventing any Unicode relation.
 build_supplementary_sample : {} -> Try(Sample, [ColorFailure, ContentFailure, FontFailure, FontObjectFailure, FontPlanFailure, ImageFailure, ObjectFailure, OwnershipFailure, ResourceFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
 build_supplementary_sample = |_| {
-	font = KernelFont.inspect(
-		supplementary_font_bytes,
-		KernelFont.Limits.make({ max_bytes: 500000, max_cmap_mappings: 10000, max_glyphs: 5000, max_tables: 32 }),
-	) ? |_| FontFailure
-	semantic = KernelTextSemantics.Plan.build(
-		supplementary_semantics,
-		1,
-		1,
-		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
-		KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 4, max_text_source_scalars: 1, max_text_sources: 1 }),
-	) ? |_| SemanticFailure
+	font = KernelFont.inspect(supplementary_font_bytes, KernelFont.Limits.make({ max_bytes: 500000, max_cmap_mappings: 10000, max_glyphs: 5000, max_tables: 32 })) ? |_| FontFailure
+	semantic = KernelTextSemantics.Plan.build(supplementary_semantics, 1, 1, KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }), KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 4, max_text_source_scalars: 1, max_text_sources: 1 })) ? |_| SemanticFailure
 	glyph = required_glyph(font, 0x1f12f) ? |_| FontFailure
 	store = supplementary_store(Font.InstanceId.from_index(0), glyph)
 	build_sample_from_with_source_limits(font, semantic, supplementary_source, store, 1, 4, 0, 8, 2)
@@ -1333,17 +1157,8 @@ build_supplementary_sample = |_| {
 
 build_cjk_sample : {} -> Try(Sample, [ColorFailure, ContentFailure, FontFailure, FontObjectFailure, FontPlanFailure, ImageFailure, ObjectFailure, OwnershipFailure, ResourceFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
 build_cjk_sample = |_| {
-	font = KernelFont.inspect(
-		cjk_font_bytes,
-		KernelFont.Limits.make({ max_bytes: 4096, max_cmap_mappings: 16, max_glyphs: 16, max_tables: 32 }),
-	) ? |_| FontFailure
-	semantic = KernelTextSemantics.Plan.build(
-		cjk_semantics,
-		1,
-		1,
-		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
-		KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 3, max_text_source_scalars: 1, max_text_sources: 1 }),
-	) ? |_| SemanticFailure
+	font = KernelFont.inspect(cjk_font_bytes, KernelFont.Limits.make({ max_bytes: 4096, max_cmap_mappings: 16, max_glyphs: 16, max_tables: 32 })) ? |_| FontFailure
+	semantic = KernelTextSemantics.Plan.build(cjk_semantics, 1, 1, KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }), KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 3, max_text_source_scalars: 1, max_text_sources: 1 })) ? |_| SemanticFailure
 	glyph = required_glyph(font, 0x4e2d) ? |_| FontFailure
 	store = cjk_store(Font.InstanceId.from_index(0), glyph)
 	build_sample_from_with_source_limits(font, semantic, cjk_source, store, 1, 3, 0, 8, 2)
@@ -1372,40 +1187,17 @@ build_sample_from_with_source_limits = |font, semantic, source_text, store, max_
 			max_transformations,
 		}),
 	) ? |_| ShapeFailure
-	scene = KernelScene.Plan.build(
-		text_scene,
-		KernelScene.Resources.with_text({ color_spaces: 1, images: 0, text_runs: shape.store.runs.len() }),
-		KernelScene.Limits.make({ max_commands: 2, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1, max_pages: 1, max_path_segments: 0, max_paths: 0 }),
-	) ? |_| SceneFailure
+	scene = KernelScene.Plan.build(text_scene, KernelScene.Resources.with_text({ color_spaces: 1, images: 0, text_runs: shape.store.runs.len() }), KernelScene.Limits.make({ max_commands: 2, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1, max_pages: 1, max_path_segments: 0, max_paths: 0 })) ? |_| SceneFailure
 	ownership = KernelTextOwnership.Plan.build(semantic, scene, shape.store) ? |_| OwnershipFailure
 	font_plan = KernelFontPlan.plan(font, glyph_usages(shape.store.glyphs), KernelFontPlan.Limits.make({ max_retained_glyphs: 16 })) ? |_| FontPlanFailure
 	subset = KernelFontSubset.build(font, font_plan) ? |_| SubsetFailure
 	colors = KernelColor.Plan.build(text_colors, KernelColor.Limits.make({ max_icc_bytes: 0, max_profiles: 0, max_spaces: 1, max_tags: 0 })) ? |_| ColorFailure
-	images = KernelImage.Plan.build(
-		empty_image_sources,
-		colors,
-		KernelImage.Limits.make({ max_decoded_bytes: 0, max_encoded_bytes: 0, max_height: 0, max_markers: 0, max_resources: 0, max_width: 0 }),
-	) ? |_| ImageFailure
+	images = KernelImage.Plan.build(empty_image_sources, colors, KernelImage.Limits.make({ max_decoded_bytes: 0, max_encoded_bytes: 0, max_height: 0, max_markers: 0, max_resources: 0, max_width: 0 })) ? |_| ImageFailure
 	resource_use = KernelResourceUse.TextPlan.build(scene, colors, images) ? |_| ResourceFailure
-	text = KernelPdfText.ScenePlan.build(
-		ownership,
-		[font_plan],
-		KernelPdfText.Limits.make({ max_actual_text_scalars: max_scalars, max_content_bytes: 1024, max_mappings, max_placements: 0, max_source_scalars: max_scalars }),
-	) ? |_| TextFailure
+	text = KernelPdfText.ScenePlan.build(ownership, [font_plan], KernelPdfText.Limits.make({ max_actual_text_scalars: max_scalars, max_content_bytes: 1024, max_mappings, max_placements: 0, max_source_scalars: max_scalars })) ? |_| TextFailure
 	tagged = KernelTextOwnership.Plan.tagged(ownership)
-	content = KernelContent.Plan.build_with_text(
-		tagged,
-		KernelPdfText.ScenePlan.content(text),
-		KernelContent.Limits.make({ max_content_bytes: 2048, max_content_streams: 1 }),
-	) ? |_| ContentFailure
-	base_objects = KernelObjectPlan.Plan.build_with_text(
-		tagged,
-		colors,
-		images,
-		resource_use,
-		content,
-		KernelObjectPlan.Limits.make({ max_objects: 32, max_pages: 1 }),
-	) ? |_| ObjectFailure
+	content = KernelContent.Plan.build_with_text(tagged, KernelPdfText.ScenePlan.content(text), KernelContent.Limits.make({ max_content_bytes: 2048, max_content_streams: 1 })) ? |_| ContentFailure
+	base_objects = KernelObjectPlan.Plan.build_with_text(tagged, colors, images, resource_use, content, KernelObjectPlan.Limits.make({ max_objects: 32, max_pages: 1 })) ? |_| ObjectFailure
 	font_objects = KernelFontObjects.Plan.build(base_objects, 1, 32) ? |_| FontObjectFailure
 	structure = KernelTaggedTextStructure.Plan.build(
 		tagged,
@@ -1428,11 +1220,7 @@ build_sample_from_with_source_limits = |font, semantic, source_text, store, max_
 ## GSUB tables or closures after the validated one-glyph run has been formed.
 build_sample_after_shape : KernelFont.Inspection, KernelTextSemantics.Plan, KernelShape.Validated -> Try(Sample, [ColorFailure, ContentFailure, FontFailure, FontObjectFailure, FontPlanFailure, ImageFailure, ObjectFailure, OwnershipFailure, ResourceFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
 build_sample_after_shape = |font, semantic, shape| {
-	scene = KernelScene.Plan.build(
-		text_scene,
-		KernelScene.Resources.with_text({ color_spaces: 1, images: 0, text_runs: shape.store.runs.len() }),
-		KernelScene.Limits.make({ max_commands: 2, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1, max_pages: 1, max_path_segments: 0, max_paths: 0 }),
-	) ? |_| SceneFailure
+	scene = KernelScene.Plan.build(text_scene, KernelScene.Resources.with_text({ color_spaces: 1, images: 0, text_runs: shape.store.runs.len() }), KernelScene.Limits.make({ max_commands: 2, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1, max_pages: 1, max_path_segments: 0, max_paths: 0 })) ? |_| SceneFailure
 	ownership = KernelTextOwnership.Plan.build(semantic, scene, shape.store) ? |_| OwnershipFailure
 	font_plan = KernelFontPlan.plan(font, glyph_usages(shape.store.glyphs), KernelFontPlan.Limits.make({ max_retained_glyphs: 16 })) ? |_| FontPlanFailure
 	subset = KernelFontSubset.build(font, font_plan) ? |_| SubsetFailure
@@ -1464,7 +1252,7 @@ text_scene : Scene.Store
 text_scene = {
 	commands: [
 		Transform({
-			children: Semantics.IndexRange.from_start_and_length(1, 1),
+			children: Semantics.IndexRange.from_start_and_length({ start: 1, length: 1 }),
 			matrix: { a: Layout.Unit.from_raw(1000), b: Layout.Unit.from_raw(0), c: Layout.Unit.from_raw(0), d: Layout.Unit.from_raw(1000), e: Layout.Unit.from_raw(72000), f: Layout.Unit.from_raw(700000) },
 		}),
 		DrawText({
@@ -1478,13 +1266,13 @@ text_scene = {
 		}),
 	],
 	dash_lengths: [],
-	groups: [{ commands: Semantics.IndexRange.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
+	groups: [{ commands: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
 	page_groups: [Scene.GroupId.from_index(0)],
 	pages: [
 		{
 			boxes: { art: a4_box, bleed: a4_box, crop: a4_box, media: a4_box, trim: a4_box },
 			id: Semantics.PageId.from_index(0),
-			paint_order: Semantics.IndexRange.from_start_and_length(0, 1),
+			paint_order: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 			rotation: Rotate0,
 		},
 	],
@@ -1519,12 +1307,12 @@ reordered_store = |instance, f_glyph, a_glyph| {
 	{
 		clusters: [
 			{
-				glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
+				glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 				kind: Reordered,
 				source: text_range(0, 1),
 			},
 			{
-				glyphs: Semantics.IndexRange.from_start_and_length(1, 1),
+				glyphs: Semantics.IndexRange.from_start_and_length({ start: 1, length: 1 }),
 				kind: Reordered,
 				source: text_range(1, 1),
 			},
@@ -1537,9 +1325,9 @@ reordered_store = |instance, f_glyph, a_glyph| {
 		runs: [
 			{
 				actual_text: FromOccurrence,
-				clusters: Semantics.IndexRange.from_start_and_length(0, 2),
+				clusters: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }),
 				direction: LeftToRight,
-				glyphs: Semantics.IndexRange.from_start_and_length(0, 2),
+				glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }),
 				id: Text.RunId.from_index(0),
 				instance,
 				language: Language("en-AU"),
@@ -1566,7 +1354,7 @@ combining_store = |instance, agrave_glyph| {
 	{
 		clusters: [
 			{
-				glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
+				glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 				kind: ManyToOne,
 				source: combining_source_range,
 			},
@@ -1578,9 +1366,9 @@ combining_store = |instance, agrave_glyph| {
 		runs: [
 			{
 				actual_text: FromOccurrence,
-				clusters: Semantics.IndexRange.from_start_and_length(0, 1),
+				clusters: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 				direction: LeftToRight,
-				glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
+				glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 				id: Text.RunId.from_index(0),
 				instance,
 				language: Language("en-AU"),
@@ -1602,28 +1390,28 @@ ligature_store : Font.InstanceId, U32 -> Text.Store
 ligature_store = |instance, fi_glyph| {
 	zero = Layout.Unit.from_raw(0)
 	{
-		clusters: [{ glyphs: Semantics.IndexRange.from_start_and_length(0, 1), kind: Ligature, source: source_range }],
+		clusters: [{ glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), kind: Ligature, source: source_range }],
 		glyph_indices: [0],
 		glyphs: [{ advance_x: Layout.Unit.from_raw(6963), advance_y: zero, id: Text.GlyphId.from_raw(fi_glyph), offset_x: zero, offset_y: zero }],
 		runs: [
 			{
 				actual_text: FromOccurrence,
-				clusters: Semantics.IndexRange.from_start_and_length(0, 1),
+				clusters: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 				direction: LeftToRight,
-				glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
+				glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 				id: Text.RunId.from_index(0),
 				instance,
 				language: Language("en-AU"),
 				script: Font.Script.from_iso15924("Latn"),
 				size: Layout.Unit.from_raw(11000),
 				source: source_range,
-				substitutions: Semantics.IndexRange.from_start_and_length(0, 1),
+				substitutions: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 				transformations: empty_range,
 				unicode: OccurrenceText(Semantics.OccurrenceId.from_index(0)),
 				writing_mode: Horizontal,
 			},
 		],
-		substitutions: [{ feature: Text.FeatureTag.from_raw(liga_feature), glyphs: Semantics.IndexRange.from_start_and_length(0, 1), source: source_range }],
+		substitutions: [{ feature: Text.FeatureTag.from_raw(liga_feature), glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), source: source_range }],
 		transformations: [],
 	}
 }
@@ -1634,7 +1422,7 @@ supplementary_store = |instance, glyph| {
 	{
 		clusters: [
 			{
-				glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
+				glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 				kind: OneToOne,
 				source: supplementary_source_range,
 			},
@@ -1646,9 +1434,9 @@ supplementary_store = |instance, glyph| {
 		runs: [
 			{
 				actual_text: FromOccurrence,
-				clusters: Semantics.IndexRange.from_start_and_length(0, 1),
+				clusters: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 				direction: LeftToRight,
-				glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
+				glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 				id: Text.RunId.from_index(0),
 				instance,
 				language: Language("en-AU"),
@@ -1672,7 +1460,7 @@ cjk_store = |instance, glyph| {
 	{
 		clusters: [
 			{
-				glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
+				glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 				kind: OneToOne,
 				source: cjk_source_range,
 			},
@@ -1684,9 +1472,9 @@ cjk_store = |instance, glyph| {
 		runs: [
 			{
 				actual_text: FromOccurrence,
-				clusters: Semantics.IndexRange.from_start_and_length(0, 1),
+				clusters: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 				direction: LeftToRight,
-				glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
+				glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 				id: Text.RunId.from_index(0),
 				instance,
 				language: Language("zh-Hans"),
@@ -1715,9 +1503,9 @@ multi_face_store = |ranges, latin_c, han, latin_eacute| {
 	zero = Layout.Unit.from_raw(0)
 	{
 		clusters: [
-			{ glyphs: Semantics.IndexRange.from_start_and_length(0, 1), kind: OneToOne, source: multi_face_range(0) },
-			{ glyphs: Semantics.IndexRange.from_start_and_length(1, 1), kind: OneToOne, source: multi_face_range(1) },
-			{ glyphs: Semantics.IndexRange.from_start_and_length(2, 1), kind: OneToOne, source: multi_face_range(2) },
+			{ glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), kind: OneToOne, source: multi_face_range(0) },
+			{ glyphs: Semantics.IndexRange.from_start_and_length({ start: 1, length: 1 }), kind: OneToOne, source: multi_face_range(1) },
+			{ glyphs: Semantics.IndexRange.from_start_and_length({ start: 2, length: 1 }), kind: OneToOne, source: multi_face_range(2) },
 		],
 		glyph_indices: [0, 1, 2],
 		glyphs: [
@@ -1741,7 +1529,7 @@ multi_face_run = |index, range, script, language, run_source| {
 		actual_text: FromOccurrence,
 		clusters: range.clusters,
 		direction: LeftToRight,
-		glyphs: Semantics.IndexRange.from_start_and_length(index, 1),
+		glyphs: Semantics.IndexRange.from_start_and_length({ start: index, length: 1 }),
 		id: Text.RunId.from_index(index),
 		instance: range.instance,
 		language,
@@ -1759,15 +1547,15 @@ soft_hyphen_store : Font.InstanceId, List(U32), KernelDiscretionaryHyphen.Select
 soft_hyphen_store = |instance, glyph_ids, selection| {
 	zero = Layout.Unit.from_raw(0)
 	{
-		clusters: List.map([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], |index| { glyphs: Semantics.IndexRange.from_start_and_length(index, 1), kind: OneToOne, source: soft_hyphen_scalar_range(index) }),
+		clusters: List.map([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], |index| { glyphs: Semantics.IndexRange.from_start_and_length({ start: index, length: 1 }), kind: OneToOne, source: soft_hyphen_scalar_range(index) }),
 		glyph_indices: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
 		glyphs: List.map(glyph_ids, |glyph_id| { advance_x: Layout.Unit.from_raw(6000), advance_y: zero, id: Text.GlyphId.from_raw(glyph_id), offset_x: zero, offset_y: zero }),
 		runs: [
 			{
 				actual_text: FromOccurrence,
-				clusters: Semantics.IndexRange.from_start_and_length(0, 10),
+				clusters: Semantics.IndexRange.from_start_and_length({ start: 0, length: 10 }),
 				direction: LeftToRight,
-				glyphs: Semantics.IndexRange.from_start_and_length(0, 10),
+				glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 10 }),
 				id: Text.RunId.from_index(0),
 				instance,
 				language: Language("en-AU"),
@@ -1775,13 +1563,13 @@ soft_hyphen_store = |instance, glyph_ids, selection| {
 				size: Layout.Unit.from_raw(11000),
 				source: soft_hyphen_full_source_range,
 				substitutions: empty_range,
-				transformations: Semantics.IndexRange.from_start_and_length(0, 1),
+				transformations: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 				unicode: OccurrenceText(Semantics.OccurrenceId.from_index(0)),
 				writing_mode: Horizontal,
 			},
 		],
 		substitutions: [],
-		transformations: [{ glyphs: Semantics.IndexRange.from_start_and_length(2, 1), kind: SelectedSoftHyphen, source: selection.source }],
+		transformations: [{ glyphs: Semantics.IndexRange.from_start_and_length({ start: 2, length: 1 }), kind: SelectedSoftHyphen, source: selection.source }],
 	}
 }
 
@@ -1790,22 +1578,22 @@ external_discretionary_hyphen_store = |instance, glyph_ids, selection| {
 	zero = Layout.Unit.from_raw(0)
 	{
 		clusters: [
-			{ glyphs: Semantics.IndexRange.from_start_and_length(0, 1), kind: OneToOne, source: external_discretionary_scalar_range(0) },
+			{ glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), kind: OneToOne, source: external_discretionary_scalar_range(0) },
 			{
-				glyphs: Semantics.IndexRange.from_start_and_length(1, 1),
+				glyphs: Semantics.IndexRange.from_start_and_length({ start: 1, length: 1 }),
 				kind: GeneratedDiscretionaryHyphen({ property: Semantics.TextPropertyId.from_index(0), transformation: 0 }),
 				source: selection.source,
 			},
-			{ glyphs: Semantics.IndexRange.from_start_and_length(2, 1), kind: OneToOne, source: external_discretionary_scalar_range(1) },
+			{ glyphs: Semantics.IndexRange.from_start_and_length({ start: 2, length: 1 }), kind: OneToOne, source: external_discretionary_scalar_range(1) },
 		],
 		glyph_indices: [0, 1, 2],
 		glyphs: List.map(glyph_ids, |glyph_id| { advance_x: Layout.Unit.from_raw(6000), advance_y: zero, id: Text.GlyphId.from_raw(glyph_id), offset_x: zero, offset_y: zero }),
 		runs: [
 			{
 				actual_text: FromOccurrence,
-				clusters: Semantics.IndexRange.from_start_and_length(0, 3),
+				clusters: Semantics.IndexRange.from_start_and_length({ start: 0, length: 3 }),
 				direction: LeftToRight,
-				glyphs: Semantics.IndexRange.from_start_and_length(0, 3),
+				glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 3 }),
 				id: Text.RunId.from_index(0),
 				instance,
 				language: Language("en-AU"),
@@ -1813,13 +1601,13 @@ external_discretionary_hyphen_store = |instance, glyph_ids, selection| {
 				size: Layout.Unit.from_raw(11000),
 				source: external_discretionary_hyphen_full_source_range,
 				substitutions: empty_range,
-				transformations: Semantics.IndexRange.from_start_and_length(0, 1),
+				transformations: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 				unicode: OccurrenceText(Semantics.OccurrenceId.from_index(0)),
 				writing_mode: Horizontal,
 			},
 		],
 		substitutions: [],
-		transformations: [{ glyphs: Semantics.IndexRange.from_start_and_length(1, 1), kind: InsertedDiscretionaryHyphen, source: selection.source }],
+		transformations: [{ glyphs: Semantics.IndexRange.from_start_and_length({ start: 1, length: 1 }), kind: InsertedDiscretionaryHyphen, source: selection.source }],
 	}
 }
 
@@ -1863,8 +1651,8 @@ external_discretionary_hyphen_source = "ab"
 text_range : U64, U64 -> Semantics.TextRange
 text_range = |start, length| {
 	{
-		scalars: Semantics.IndexRange.from_start_and_length(start, length),
-		utf8_bytes: Semantics.IndexRange.from_start_and_length(start, length),
+		scalars: Semantics.IndexRange.from_start_and_length({ start: start, length: length }),
+		utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: start, length: length }),
 	}
 }
 
@@ -1873,52 +1661,52 @@ source_range = text_range(0, 2)
 
 combining_source_range : Semantics.TextRange
 combining_source_range = {
-	scalars: Semantics.IndexRange.from_start_and_length(0, 2),
-	utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 3),
+	scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }),
+	utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 3 }),
 }
 
 supplementary_source_range : Semantics.TextRange
 supplementary_source_range = {
-	scalars: Semantics.IndexRange.from_start_and_length(0, 1),
-	utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 4),
+	scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
+	utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 4 }),
 }
 
 cjk_source_range : Semantics.TextRange
 cjk_source_range = {
-	scalars: Semantics.IndexRange.from_start_and_length(0, 1),
-	utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 3),
+	scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
+	utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 3 }),
 }
 
 multi_face_range : U64 -> Semantics.TextRange
 multi_face_range = |index| match index {
-	0 => { scalars: Semantics.IndexRange.from_start_and_length(0, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 1) }
-	1 => { scalars: Semantics.IndexRange.from_start_and_length(1, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(1, 3) }
-	2 => { scalars: Semantics.IndexRange.from_start_and_length(2, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(4, 2) }
+	0 => { scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }) }
+	1 => { scalars: Semantics.IndexRange.from_start_and_length({ start: 1, length: 1 }), utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 1, length: 3 }) }
+	2 => { scalars: Semantics.IndexRange.from_start_and_length({ start: 2, length: 1 }), utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 4, length: 2 }) }
 	_ => crash "validated multi-face source range escaped"
 }
 
 soft_hyphen_source_range : Semantics.TextRange
 soft_hyphen_source_range = {
-	scalars: Semantics.IndexRange.from_start_and_length(2, 1),
-	utf8_bytes: Semantics.IndexRange.from_start_and_length(2, 2),
+	scalars: Semantics.IndexRange.from_start_and_length({ start: 2, length: 1 }),
+	utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 2, length: 2 }),
 }
 
 soft_hyphen_full_source_range : Semantics.TextRange
 soft_hyphen_full_source_range = {
-	scalars: Semantics.IndexRange.from_start_and_length(0, 10),
-	utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 11),
+	scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: 10 }),
+	utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 11 }),
 }
 
 external_discretionary_hyphen_boundary : Semantics.TextRange
 external_discretionary_hyphen_boundary = {
-	scalars: Semantics.IndexRange.from_start_and_length(1, 0),
-	utf8_bytes: Semantics.IndexRange.from_start_and_length(1, 0),
+	scalars: Semantics.IndexRange.from_start_and_length({ start: 1, length: 0 }),
+	utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 1, length: 0 }),
 }
 
 external_discretionary_hyphen_full_source_range : Semantics.TextRange
 external_discretionary_hyphen_full_source_range = {
-	scalars: Semantics.IndexRange.from_start_and_length(0, 2),
-	utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 2),
+	scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }),
+	utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }),
 }
 
 soft_hyphen_scalar_range : U64 -> Semantics.TextRange
@@ -1937,7 +1725,7 @@ soft_hyphen_scalar_range = |index| {
 		_ => crash "validated soft-hyphen scalar index escaped"
 	}
 	byte_length = if (index == 2) 2 else 1
-	{ scalars: Semantics.IndexRange.from_start_and_length(index, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(byte_start, byte_length) }
+	{ scalars: Semantics.IndexRange.from_start_and_length({ start: index, length: 1 }), utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: byte_start, length: byte_length }) }
 }
 
 external_discretionary_scalar_range : U64 -> Semantics.TextRange
@@ -1945,11 +1733,11 @@ external_discretionary_scalar_range = |index| {
 	if index >= 2 {
 		crash "validated external discretionary scalar index escaped"
 	}
-	{ scalars: Semantics.IndexRange.from_start_and_length(index, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(index, 1) }
+	{ scalars: Semantics.IndexRange.from_start_and_length({ start: index, length: 1 }), utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: index, length: 1 }) }
 }
 
 empty_range : Semantics.IndexRange
-empty_range = Semantics.IndexRange.from_start_and_length(0, 0)
+empty_range = Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 })
 
 semantics : Semantics.Store
 semantics = {
@@ -1976,7 +1764,7 @@ semantics = {
 	nodes: [
 		{
 			attributes: empty_range,
-			content: Semantics.IndexRange.from_start_and_length(0, 1),
+			content: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 			element_identifier: NoElementIdentifier,
 			id: Semantics.NodeId.from_index(0),
 			language: Language("en-AU"),
@@ -1987,7 +1775,7 @@ semantics = {
 		},
 		{
 			attributes: empty_range,
-			content: Semantics.IndexRange.from_start_and_length(1, 1),
+			content: Semantics.IndexRange.from_start_and_length({ start: 1, length: 1 }),
 			element_identifier: NoElementIdentifier,
 			id: Semantics.NodeId.from_index(1),
 			language: Language("en-AU"),
@@ -2001,7 +1789,7 @@ semantics = {
 	occurrence_fragments: [Semantics.FragmentId.from_index(0)],
 	occurrences: [
 		{
-			fragments: Semantics.IndexRange.from_start_and_length(0, 1),
+			fragments: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 			id: Semantics.OccurrenceId.from_index(0),
 			language: Language("en-AU"),
 			source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange(source_range)),
@@ -2044,23 +1832,23 @@ cjk_semantics = {
 multi_face_semantics : Semantics.Store
 multi_face_semantics = {
 	..semantics,
-	fragments: [{ ..list_at(semantics.fragments, 0), source_range: UnicodeRange({ scalars: Semantics.IndexRange.from_start_and_length(0, 3), utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 6) }) }],
-	occurrences: [{ ..list_at(semantics.occurrences, 0), source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange({ scalars: Semantics.IndexRange.from_start_and_length(0, 3), utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 6) })) }],
+	fragments: [{ ..list_at(semantics.fragments, 0), source_range: UnicodeRange({ scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: 3 }), utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 6 }) }) }],
+	occurrences: [{ ..list_at(semantics.occurrences, 0), source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange({ scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: 3 }), utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 6 }) })) }],
 	text_sources: [{ unicode: multi_face_source }],
 }
 
 multi_face_scene : Scene.Store
 multi_face_scene = {
 	commands: [
-		Transform({ children: Semantics.IndexRange.from_start_and_length(1, 3), matrix: { a: Layout.Unit.from_raw(1000), b: Layout.Unit.from_raw(0), c: Layout.Unit.from_raw(0), d: Layout.Unit.from_raw(1000), e: Layout.Unit.from_raw(72000), f: Layout.Unit.from_raw(700000) } }),
+		Transform({ children: Semantics.IndexRange.from_start_and_length({ start: 1, length: 3 }), matrix: { a: Layout.Unit.from_raw(1000), b: Layout.Unit.from_raw(0), c: Layout.Unit.from_raw(0), d: Layout.Unit.from_raw(1000), e: Layout.Unit.from_raw(72000), f: Layout.Unit.from_raw(700000) } }),
 		DrawText({ paint: { fill: { channels: Gray(0), space: Color.SpaceId.from_index(0) }, mode: Fill, opacity: 65535, stroke: NoStroke }, run: Text.RunId.from_index(0) }),
 		DrawText({ paint: { fill: { channels: Gray(0), space: Color.SpaceId.from_index(0) }, mode: Fill, opacity: 65535, stroke: NoStroke }, run: Text.RunId.from_index(1) }),
 		DrawText({ paint: { fill: { channels: Gray(0), space: Color.SpaceId.from_index(0) }, mode: Fill, opacity: 65535, stroke: NoStroke }, run: Text.RunId.from_index(2) }),
 	],
 	dash_lengths: [],
-	groups: [{ commands: Semantics.IndexRange.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
+	groups: [{ commands: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
 	page_groups: [Scene.GroupId.from_index(0)],
-	pages: [{ boxes: { art: a4_box, bleed: a4_box, crop: a4_box, media: a4_box, trim: a4_box }, id: Semantics.PageId.from_index(0), paint_order: Semantics.IndexRange.from_start_and_length(0, 1), rotation: Rotate0 }],
+	pages: [{ boxes: { art: a4_box, bleed: a4_box, crop: a4_box, media: a4_box, trim: a4_box }, id: Semantics.PageId.from_index(0), paint_order: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), rotation: Rotate0 }],
 	path_segments: [],
 	paths: [],
 }
@@ -2069,7 +1857,7 @@ soft_hyphen_semantics : Semantics.Store
 soft_hyphen_semantics = {
 	..semantics,
 	fragments: [{ ..list_at(semantics.fragments, 0), source_range: UnicodeRange(soft_hyphen_full_source_range) }],
-	occurrences: [{ ..list_at(semantics.occurrences, 0), source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange(soft_hyphen_full_source_range)), text_properties: Semantics.IndexRange.from_start_and_length(0, 1) }],
+	occurrences: [{ ..list_at(semantics.occurrences, 0), source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange(soft_hyphen_full_source_range)), text_properties: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }) }],
 	text_properties: [SourceToPresentation({ kind: SelectedSoftHyphen, presentation: "-", source: soft_hyphen_source_range })],
 	text_sources: [{ unicode: soft_hyphen_source }],
 }
@@ -2078,7 +1866,7 @@ external_discretionary_hyphen_semantics : Semantics.Store
 external_discretionary_hyphen_semantics = {
 	..semantics,
 	fragments: [{ ..list_at(semantics.fragments, 0), source_range: UnicodeRange(external_discretionary_hyphen_full_source_range) }],
-	occurrences: [{ ..list_at(semantics.occurrences, 0), source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange(external_discretionary_hyphen_full_source_range)), text_properties: Semantics.IndexRange.from_start_and_length(0, 1) }],
+	occurrences: [{ ..list_at(semantics.occurrences, 0), source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange(external_discretionary_hyphen_full_source_range)), text_properties: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }) }],
 	text_properties: [SourceToPresentation({ kind: InsertedDiscretionaryHyphen, presentation: "-", source: external_discretionary_hyphen_boundary })],
 	text_sources: [{ unicode: external_discretionary_hyphen_source }],
 }
@@ -2100,10 +1888,7 @@ ligature_output_glyph = 6
 
 ligature_font : {} -> Try(KernelFont.Inspection, [FontFailure])
 ligature_font = |_| {
-	font = KernelFont.inspect(
-		ligature_font_bytes,
-		KernelFont.Limits.make({ max_bytes: 4096, max_cmap_mappings: 16, max_glyphs: 16, max_tables: 32 }),
-	) ? |_| FontFailure
+	font = KernelFont.inspect(ligature_font_bytes, KernelFont.Limits.make({ max_bytes: 4096, max_cmap_mappings: 16, max_glyphs: 16, max_tables: 32 })) ? |_| FontFailure
 	Ok(font)
 }
 
@@ -2152,12 +1937,7 @@ multi_face_object_limits = {
 selected_soft_hyphen : {} -> Try(KernelDiscretionaryHyphen.Selected, [EvidenceFailure])
 selected_soft_hyphen = |_| {
 	analysis = KernelUnicode.analyze(soft_hyphen_source, { max_graphemes: 10, max_line_boundaries: 11, max_scalars: 10, max_script_runs: 3 }) ? |_| EvidenceFailure
-	plan = KernelDiscretionaryHyphen.Plan.build(
-		soft_hyphen_source,
-		analysis,
-		[{ id: KernelDiscretionaryHyphen.OpportunityId.from_index(0), kind: ExplicitSoftHyphen, source: soft_hyphen_source_range }],
-		[SelectVisibleHyphen],
-	) ? |_| EvidenceFailure
+	plan = KernelDiscretionaryHyphen.Plan.build(soft_hyphen_source, analysis, [{ id: KernelDiscretionaryHyphen.OpportunityId.from_index(0), kind: ExplicitSoftHyphen, source: soft_hyphen_source_range }], [SelectVisibleHyphen]) ? |_| EvidenceFailure
 	match KernelDiscretionaryHyphen.Plan.selected(plan, KernelDiscretionaryHyphen.OpportunityId.from_index(0)) {
 		Ok(selected) => Ok(selected)
 		Err(_) => Err(EvidenceFailure)
@@ -2167,12 +1947,7 @@ selected_soft_hyphen = |_| {
 selected_external_discretionary_hyphen : {} -> Try(KernelDiscretionaryHyphen.Selected, [EvidenceFailure])
 selected_external_discretionary_hyphen = |_| {
 	analysis = KernelUnicode.analyze(external_discretionary_hyphen_source, { max_graphemes: 2, max_line_boundaries: 3, max_scalars: 2, max_script_runs: 1 }) ? |_| EvidenceFailure
-	plan = KernelDiscretionaryHyphen.Plan.build(
-		external_discretionary_hyphen_source,
-		analysis,
-		[{ id: KernelDiscretionaryHyphen.OpportunityId.from_index(0), kind: ExternalHyphenation, source: external_discretionary_hyphen_boundary }],
-		[SelectVisibleHyphen],
-	) ? |_| EvidenceFailure
+	plan = KernelDiscretionaryHyphen.Plan.build(external_discretionary_hyphen_source, analysis, [{ id: KernelDiscretionaryHyphen.OpportunityId.from_index(0), kind: ExternalHyphenation, source: external_discretionary_hyphen_boundary }], [SelectVisibleHyphen]) ? |_| EvidenceFailure
 	match KernelDiscretionaryHyphen.Plan.selected(plan, KernelDiscretionaryHyphen.OpportunityId.from_index(0)) {
 		Ok({ kind: ExternalHyphenation, source: selected_source }) => if (selected_source.scalars.length() == 0 and selected_source.utf8_bytes.length() == 0) Ok({ kind: ExternalHyphenation, source: selected_source }) else Err(EvidenceFailure)
 		_ => Err(EvidenceFailure)
@@ -2182,12 +1957,7 @@ selected_external_discretionary_hyphen = |_| {
 malformed_soft_hyphen_rejected : {} -> Try(Bool, [EvidenceFailure])
 malformed_soft_hyphen_rejected = |_| {
 	analysis = KernelUnicode.analyze("-", { max_graphemes: 1, max_line_boundaries: 2, max_scalars: 1, max_script_runs: 1 }) ? |_| EvidenceFailure
-	match KernelDiscretionaryHyphen.Plan.build(
-		"-",
-		analysis,
-		[{ id: KernelDiscretionaryHyphen.OpportunityId.from_index(0), kind: ExplicitSoftHyphen, source: { scalars: Semantics.IndexRange.from_start_and_length(0, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 1) } }],
-		[SelectVisibleHyphen],
-	) {
+	match KernelDiscretionaryHyphen.Plan.build("-", analysis, [{ id: KernelDiscretionaryHyphen.OpportunityId.from_index(0), kind: ExplicitSoftHyphen, source: { scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }) } }], [SelectVisibleHyphen]) {
 		Err(InvalidExplicitSoftHyphen({ opportunity: 0 })) => Ok(True)
 		_ => Ok(False)
 	}
@@ -2196,12 +1966,7 @@ malformed_soft_hyphen_rejected = |_| {
 unselected_soft_hyphen_rejected : {} -> Try(Bool, [EvidenceFailure])
 unselected_soft_hyphen_rejected = |_| {
 	analysis = KernelUnicode.analyze(soft_hyphen_source, { max_graphemes: 10, max_line_boundaries: 11, max_scalars: 10, max_script_runs: 3 }) ? |_| EvidenceFailure
-	plan = KernelDiscretionaryHyphen.Plan.build(
-		soft_hyphen_source,
-		analysis,
-		[{ id: KernelDiscretionaryHyphen.OpportunityId.from_index(0), kind: ExplicitSoftHyphen, source: soft_hyphen_source_range }],
-		[NotSelected],
-	) ? |_| EvidenceFailure
+	plan = KernelDiscretionaryHyphen.Plan.build(soft_hyphen_source, analysis, [{ id: KernelDiscretionaryHyphen.OpportunityId.from_index(0), kind: ExplicitSoftHyphen, source: soft_hyphen_source_range }], [NotSelected]) ? |_| EvidenceFailure
 	match KernelDiscretionaryHyphen.Plan.selected(plan, KernelDiscretionaryHyphen.OpportunityId.from_index(0)) {
 		Err(UnselectedOpportunity({ opportunity: 0 })) => Ok(True)
 		_ => Ok(False)
@@ -2211,12 +1976,7 @@ unselected_soft_hyphen_rejected = |_| {
 malformed_external_hyphen_rejected : {} -> Try(Bool, [EvidenceFailure])
 malformed_external_hyphen_rejected = |_| {
 	analysis = KernelUnicode.analyze(external_discretionary_hyphen_source, { max_graphemes: 2, max_line_boundaries: 3, max_scalars: 2, max_script_runs: 1 }) ? |_| EvidenceFailure
-	match KernelDiscretionaryHyphen.Plan.build(
-		external_discretionary_hyphen_source,
-		analysis,
-		[{ id: KernelDiscretionaryHyphen.OpportunityId.from_index(0), kind: ExternalHyphenation, source: { scalars: Semantics.IndexRange.from_start_and_length(1, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(1, 1) } }],
-		[SelectVisibleHyphen],
-	) {
+	match KernelDiscretionaryHyphen.Plan.build(external_discretionary_hyphen_source, analysis, [{ id: KernelDiscretionaryHyphen.OpportunityId.from_index(0), kind: ExternalHyphenation, source: { scalars: Semantics.IndexRange.from_start_and_length({ start: 1, length: 1 }), utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 1, length: 1 }) } }], [SelectVisibleHyphen]) {
 		Err(InvalidSourceRange({ opportunity: 0 })) => Ok(True)
 		_ => Ok(False)
 	}
@@ -2225,12 +1985,7 @@ malformed_external_hyphen_rejected = |_| {
 unselected_external_hyphen_rejected : {} -> Try(Bool, [EvidenceFailure])
 unselected_external_hyphen_rejected = |_| {
 	analysis = KernelUnicode.analyze(external_discretionary_hyphen_source, { max_graphemes: 2, max_line_boundaries: 3, max_scalars: 2, max_script_runs: 1 }) ? |_| EvidenceFailure
-	plan = KernelDiscretionaryHyphen.Plan.build(
-		external_discretionary_hyphen_source,
-		analysis,
-		[{ id: KernelDiscretionaryHyphen.OpportunityId.from_index(0), kind: ExternalHyphenation, source: external_discretionary_hyphen_boundary }],
-		[NotSelected],
-	) ? |_| EvidenceFailure
+	plan = KernelDiscretionaryHyphen.Plan.build(external_discretionary_hyphen_source, analysis, [{ id: KernelDiscretionaryHyphen.OpportunityId.from_index(0), kind: ExternalHyphenation, source: external_discretionary_hyphen_boundary }], [NotSelected]) ? |_| EvidenceFailure
 	match KernelDiscretionaryHyphen.Plan.selected(plan, KernelDiscretionaryHyphen.OpportunityId.from_index(0)) {
 		Err(UnselectedOpportunity({ opportunity: 0 })) => Ok(True)
 		_ => Ok(False)
@@ -2255,24 +2010,20 @@ expect {
 # ActualText; every painted CID still receives a deterministic ToUnicode map.
 expect {
 	sample = build_sample({})?
-	registered = Font.Registry.empty.register(
-		caller_font_bytes,
-		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
-		Font.ValidationLimits.default,
-	)?
+	registered = Font.Registry.empty.register({ bytes: caller_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default })?
 	font = registered.registry.prepared_face(registered.face)?
 	base_run = list_at(sample.shape.store.runs, 0)
 	multi_store = {
 		..sample.shape.store,
 		clusters: [
 			{
-				glyphs: Semantics.IndexRange.from_start_and_length(0, 2),
+				glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }),
 				kind: ManyToMany,
 				source: source_range,
 			},
 		],
 		glyph_indices: [0, 1],
-		runs: [{ ..base_run, clusters: Semantics.IndexRange.from_start_and_length(0, 1) }],
+		runs: [{ ..base_run, clusters: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }) }],
 	}
 	validated = KernelShape.validate_advanced(
 		font,
@@ -2290,13 +2041,7 @@ expect {
 			max_transformations: 0,
 		}),
 	)?
-	plan = KernelPdfText.Plan.build(
-		semantics,
-		validated.store,
-		[sample.font_plan],
-		[{ origin: { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) }, run: Text.RunId.from_index(0) }],
-		KernelPdfText.Limits.make({ max_actual_text_scalars: 2, max_content_bytes: 512, max_mappings: 2, max_placements: 1, max_source_scalars: 2 }),
-	)?
+	plan = KernelPdfText.Plan.build(semantics, validated.store, [sample.font_plan], [{ origin: { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) }, run: Text.RunId.from_index(0) }], KernelPdfText.Limits.make({ max_actual_text_scalars: 2, max_content_bytes: 512, max_mappings: 2, max_placements: 1, max_source_scalars: 2 }))?
 	work = KernelPdfText.Plan.work(plan)
 	work.actual_text_runs == 1 and work.actual_text_scalars == 2 and work.mappings == 2
 }
@@ -2308,7 +2053,7 @@ expect {
 	occurrence = list_at(semantics.occurrences, 0)
 	override_semantics = {
 		..semantics,
-		occurrences: [{ ..occurrence, text_properties: Semantics.IndexRange.from_start_and_length(0, 1) }],
+		occurrences: [{ ..occurrence, text_properties: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }) }],
 		text_properties: [ActualText("logical")],
 	}
 	run = list_at(sample.shape.store.runs, 0)
@@ -2317,21 +2062,9 @@ expect {
 		runs: [{ ..run, actual_text: SemanticOverride(Semantics.TextPropertyId.from_index(0)) }],
 	}
 	placement = { origin: { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) }, run: Text.RunId.from_index(0) }
-	accepted = KernelPdfText.Plan.build(
-		override_semantics,
-		override_store,
-		[sample.font_plan],
-		[placement],
-		KernelPdfText.Limits.make({ max_actual_text_scalars: 7, max_content_bytes: 512, max_mappings: 2, max_placements: 1, max_source_scalars: 2 }),
-	)?
+	accepted = KernelPdfText.Plan.build(override_semantics, override_store, [sample.font_plan], [placement], KernelPdfText.Limits.make({ max_actual_text_scalars: 7, max_content_bytes: 512, max_mappings: 2, max_placements: 1, max_source_scalars: 2 }))?
 	accepted_work = KernelPdfText.Plan.work(accepted)
-	bounded = match KernelPdfText.Plan.build(
-		override_semantics,
-		override_store,
-		[sample.font_plan],
-		[placement],
-		KernelPdfText.Limits.make({ max_actual_text_scalars: 6, max_content_bytes: 512, max_mappings: 2, max_placements: 1, max_source_scalars: 2 }),
-	) {
+	bounded = match KernelPdfText.Plan.build(override_semantics, override_store, [sample.font_plan], [placement], KernelPdfText.Limits.make({ max_actual_text_scalars: 6, max_content_bytes: 512, max_mappings: 2, max_placements: 1, max_source_scalars: 2 })) {
 		Err(LimitExceeded({ attempted: 7, dimension: ActualTextScalars, limit: 6 })) => True
 		_ => False
 	}
@@ -2342,19 +2075,15 @@ expect {
 # rejected; the reordered twin has exact ActualText, retains the first CMap
 # fallback deterministically, and reports the resolved conflict.
 expect {
-	registered = Font.Registry.empty.register(
-		caller_font_bytes,
-		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
-		Font.ValidationLimits.default,
-	)?
+	registered = Font.Registry.empty.register({ bytes: caller_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default })?
 	font = registered.registry.prepared_face(registered.face)?
 	f_glyph = required_glyph(font, 0x66)?
 	zero = Layout.Unit.from_raw(0)
 	advance = Layout.Unit.from_raw(6000)
 	base_store = {
 		clusters: [
-			{ glyphs: Semantics.IndexRange.from_start_and_length(0, 1), kind: OneToOne, source: text_range(0, 1) },
-			{ glyphs: Semantics.IndexRange.from_start_and_length(1, 1), kind: OneToOne, source: text_range(1, 1) },
+			{ glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), kind: OneToOne, source: text_range(0, 1) },
+			{ glyphs: Semantics.IndexRange.from_start_and_length({ start: 1, length: 1 }), kind: OneToOne, source: text_range(1, 1) },
 		],
 		glyph_indices: [0, 1],
 		glyphs: [
@@ -2364,9 +2093,9 @@ expect {
 		runs: [
 			{
 				actual_text: FromOccurrence,
-				clusters: Semantics.IndexRange.from_start_and_length(0, 2),
+				clusters: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }),
 				direction: LeftToRight,
-				glyphs: Semantics.IndexRange.from_start_and_length(0, 2),
+				glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }),
 				id: Text.RunId.from_index(0),
 				instance: registered.instance,
 				language: Language("en-AU"),

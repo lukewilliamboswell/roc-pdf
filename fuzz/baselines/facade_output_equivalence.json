@@ -1,0 +1,120 @@
+{
+  "format": "roc-fuzz-baseline/1",
+  "target": "roc-pdf-facade-output-equivalence",
+  "entries": [
+    {
+      "host_target": "arm64mac",
+      "profile": "llvm-fuzz",
+      "metric_version": "roc-fuzz-allocations/1",
+      "examples": [
+        {
+          "name": "paragraph-and-bullets",
+          "revision": "1",
+          "input_sha256": "fb22ad93cad9351fd9c96af21e97dd1399260b11b95c0124c0be51a09ec3ed5f",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 2576,
+                "reallocs": 865,
+                "deallocs": 2579,
+                "requested_bytes": 15006903,
+                "entry_live_allocs": 3,
+                "entry_live_bytes": 532,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 419592
+              }
+            }
+          ]
+        },
+        {
+          "name": "atomic-text-rejection",
+          "revision": "1",
+          "input_sha256": "af010d0d77831fae4e8387caac726cce89f94799b51ec668e9d48b30e6d5f808",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 277,
+                "reallocs": 147,
+                "deallocs": 279,
+                "requested_bytes": 1541436,
+                "entry_live_allocs": 2,
+                "entry_live_bytes": 290,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 242574
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "host_target": "x64musl",
+      "profile": "llvm-fuzz",
+      "metric_version": "roc-fuzz-allocations/1",
+      "examples": [
+        {
+          "name": "paragraph-and-bullets",
+          "revision": "1",
+          "input_sha256": "fb22ad93cad9351fd9c96af21e97dd1399260b11b95c0124c0be51a09ec3ed5f",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 2576,
+                "reallocs": 865,
+                "deallocs": 2579,
+                "requested_bytes": 15006903,
+                "entry_live_allocs": 3,
+                "entry_live_bytes": 532,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 419592
+              }
+            }
+          ]
+        },
+        {
+          "name": "atomic-text-rejection",
+          "revision": "1",
+          "input_sha256": "af010d0d77831fae4e8387caac726cce89f94799b51ec668e9d48b30e6d5f808",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 277,
+                "reallocs": 147,
+                "deallocs": 279,
+                "requested_bytes": 1541436,
+                "entry_live_allocs": 2,
+                "entry_live_bytes": 290,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 242574
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -12,6 +12,10 @@
   Keep branch names, agent coordination, commit-by-commit narratives, and gate
   checklists out of user guides and release notes. Technical details belong in
   a user guide only when they help someone use the supported API.
+- Keep the README and evergreen guides release-neutral. Avoid repeated current
+  or upcoming version labels and install pins; link release notes for exact
+  package/compiler pins and release-specific migration. Derive publication
+  version labels from build metadata.
 - Read `architecture.md` and `feature-roadmap.md` before making changes in this
   repository.
 - Treat `architecture.md` as the enduring source of truth for package scope,

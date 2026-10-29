@@ -1,152 +1,126 @@
 name: Release candidate
 
 on:
-  pull_request:
   workflow_dispatch:
     inputs:
       nightly_validation:
-        description: "Validate a nightly candidate without publishing or deploying"
-        type: boolean
-        required: false
+        description: Validate a candidate without publishing or deploying
         default: false
+        type: boolean
       release_tag:
-        description: "Release tag to publish, such as 0.1.0 or 0.1.0-rc7; docs/releases/<tag>.md is the release body"
+        description: Authored release version, for example 0.3.0-rc1
         required: false
         type: string
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 permissions:
   contents: read
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  bundle-and-validate:
-    name: Bundle and smoke-test gallery
-    runs-on: ubuntu-latest
+  validate:
+    runs-on: ubuntu-22.04
+    outputs:
+      source_sha: ${{ steps.identity.outputs.sha }}
+      version: ${{ steps.identity.outputs.version }}
+      prerelease: ${{ steps.identity.outputs.prerelease }}
     steps:
-      - name: Require a version for publication
-        if: github.event_name == 'workflow_dispatch' && !inputs.nightly_validation
-        shell: bash
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - id: identity
+        name: Record the default-branch commit and reject existing versions
         env:
+          GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ inputs.release_tag }}
+          SOURCE_SHA: ${{ github.sha }}
+          SOURCE_REF: ${{ github.ref }}
+          NIGHTLY_VALIDATION: ${{ inputs.nightly_validation }}
         run: |
-          test -n "$RELEASE_VERSION" || { echo "A release version is required for publication" >&2; exit 1; }
-          [[ "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)?$ ]] || { echo "Release version must look like 0.1.0 or 0.1.0-rc7" >&2; exit 1; }
-
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Check release notes
-        if: github.event_name == 'workflow_dispatch' && !inputs.nightly_validation
-        shell: bash
-        env:
-          RELEASE_VERSION: ${{ inputs.release_tag }}
-        run: |
-          notes="docs/releases/$RELEASE_VERSION.md"
-          test -f "$notes" || { echo "Missing $notes" >&2; exit 1; }
-          if grep -n 'TODO(release)' "$notes" README.md; then
-            echo "Fill every TODO(release) placeholder before publishing" >&2
-            exit 1
+          if [[ "$NIGHTLY_VALIDATION" != true ]]; then test "$SOURCE_REF" = refs/heads/main; fi
+          if [[ -z "$RELEASE_VERSION" && "$NIGHTLY_VALIDATION" == true ]]; then
+            RELEASE_VERSION=$(python3 scripts/release_artifacts.py --latest-notes)
           fi
-          grep -qF "$(sed -n '1p' .roc-version)" "$notes" || { echo "$notes must name the pinned Roc nightly" >&2; exit 1; }
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)?$ ]]
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test -f "docs/releases/$RELEASE_VERSION.md"
+          printf 'sha=%s\nversion=%s\n' "$SOURCE_SHA" "$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
+          if [[ "$RELEASE_VERSION" == *-rc* ]]; then prerelease=true; else prerelease=false; fi
+          printf 'prerelease=%s\n' "$prerelease" >> "$GITHUB_OUTPUT"
+          # Compiler-candidate dispatch retains its read-only branch/no-tag mode.
+          if [[ "$NIGHTLY_VALIDATION" == true ]]; then exit 0; fi
+          gh api --paginate "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/$RELEASE_VERSION" > "$RUNNER_TEMP/tags.json"
+          gh release list --limit 1000 --json tagName > "$RUNNER_TEMP/releases.json"
+          python3 - "$RUNNER_TEMP/tags.json" "$RUNNER_TEMP/releases.json" "$RELEASE_VERSION" <<'PYTHON'
+          import json, sys
+          tags, releases, version = sys.argv[1:]
+          assert not any(tag['ref'] == 'refs/tags/' + version for tag in json.load(open(tags))), 'version tag already exists'
+          assert not any(item['tagName'] == version for item in json.load(open(releases))), 'version release already exists'
+          PYTHON
 
-      # This intentionally uses only released setup-roc inputs. It does not
-      # download, build, or provision the local roc-lang/roc#10700 patch.
-      - name: Read pinned Roc nightly
-        run: printf 'ROC_NIGHTLY_TAG=%s\n' "$(sed -n '1p' .roc-version)" >> "$GITHUB_ENV"
-
-      - name: Install Roc
-        uses: roc-lang/setup-roc@f5a74bf90aa694b43ab4a7cbfdb19273bc6aa697
-        with:
-          version: nightly-new-compiler
-          nightly-tag: ${{ env.ROC_NIGHTLY_TAG }}
-
-      - name: Bundle package
-        run: ROC=roc ./scripts/bundle.sh --output-dir dist
-
-      - name: Smoke-test gallery against bundled package
-        run: ROC=roc python3 scripts/check_gallery.py --bundle-path "$(find dist -maxdepth 1 -name '*.tar.zst' -type f -print -quit)"
-
-      # The shared nightly tests this archive from the latest final release.
-      # Pull requests and validation runs build it under a placeholder tag.
-      - name: Build and test examples archive
-        env:
-          RELEASE_TAG: ${{ inputs.release_tag || '0.0.0-dry-run' }}
-        run: ROC=roc python3 scripts/examples_archive.py --bundle-path "$(find dist -maxdepth 1 -name '*.tar.zst' -type f -print -quit)" --tag "$RELEASE_TAG" --output-dir dist --test-bundle
-
-      - name: Upload bundle
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: roc-pdf-release-bundle
-          path: |
-            dist/*.tar.zst
-            dist/roc-pdf-examples-*.zip
-          if-no-files-found: error
-          retention-days: 30
+  checks:
+    needs: validate
+    uses: ./.github/workflows/checks.yml
+    with:
+      source_sha: ${{ needs.validate.outputs.source_sha }}
+      release_version: ${{ needs.validate.outputs.version }}
+      full_validation: true
+      nightly_validation: ${{ inputs.nightly_validation }}
 
   publish:
-    name: Publish release
-    needs: bundle-and-validate
-    if: (github.event_name == 'workflow_dispatch' && !inputs.nightly_validation)
+    name: Publish tested release artifacts
+    needs: [validate, checks]
+    if: ${{ !inputs.nightly_validation }}
     runs-on: ubuntu-22.04
+    environment: release
     permissions:
       contents: write
     steps:
-      - name: Checkout release notes
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Download validated bundle
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      # No project checkout, source execution or rebuild occurs in this job.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
-          name: roc-pdf-release-bundle
+          name: ${{ needs.checks.outputs.artifact-name }}
           path: dist
-
-      # The notes must already name the bundle this run validated, so the
-      # published body, README and asset agree.
-      - name: Check notes against bundle
+      - id: verified
+        name: Verify the tested manifest, notes, revision and explicit asset inventory
         env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+          SOURCE_SHA: ${{ needs.validate.outputs.source_sha }}
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
         run: |
-          bundle="$(find dist -maxdepth 1 -name '*.tar.zst' -type f -print -quit)"
-          notes="docs/releases/$RELEASE_TAG.md"
-          url="https://github.com/$GITHUB_REPOSITORY/releases/download/$RELEASE_TAG/$(basename "$bundle")"
-          digest="$(sha256sum "$bundle" | cut -d' ' -f1)"
-          grep -qF "$url" "$notes" || { echo "$notes must name $url" >&2; exit 1; }
-          grep -qF "$digest" "$notes" || { echo "$notes must state SHA-256 $digest" >&2; exit 1; }
-          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            echo "Release $RELEASE_TAG already exists" >&2
-            exit 1
-          fi
-          printf 'BUNDLE=%s\n' "$bundle" >> "$GITHUB_ENV"
-
-      # Relative links in the notes resolve against this commit's tree.
-      - name: Pin release note links
-        env:
-          RELEASE_TAG: ${{ github.event.inputs.release_tag }}
-        run: |
-          python3 - "docs/releases/$RELEASE_TAG.md" "https://github.com/$GITHUB_REPOSITORY/blob/$GITHUB_SHA" > "$RUNNER_TEMP/notes.md" <<'EOF'
-          import posixpath, re, sys
-          path, base = sys.argv[1], sys.argv[2]
-          folder = posixpath.dirname(path)
-          def pin(match):
-              target = match.group(2)
-              if re.match(r"[a-z]+:|#", target):
-                  return match.group(0)
-              return f"{match.group(1)}{base}/{posixpath.normpath(posixpath.join(folder, target))})"
-          sys.stdout.write(re.sub(r"(\]\()([^)\s]+)\)", pin, open(path).read()))
-          EOF
-
-      - name: Create release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.event.inputs.release_tag }}
-        run: |
-          if [[ "$RELEASE_TAG" == *-rc* ]]; then kind=--prerelease; else kind=--latest; fi
-          gh release create "$RELEASE_TAG" "$BUNDLE" "dist/roc-pdf-examples-$RELEASE_TAG.zip" \
-            --title "roc-pdf $RELEASE_TAG" \
-            "$kind" \
-            --target "$GITHUB_SHA" \
-            --notes-file "$RUNNER_TEMP/notes.md"
+          python3 - <<'PYTHON'
+          import hashlib, json, os
+          from pathlib import Path
+          root = Path('dist')
+          manifest = json.loads((root / 'release-manifest.json').read_text())
+          assert manifest['schema_version'] == 1
+          assert manifest['revision'] == os.environ['SOURCE_SHA']
+          assert manifest['version'] == os.environ['RELEASE_VERSION']
+          assert hashlib.sha256((root / 'release-notes.md').read_bytes()).hexdigest() == manifest['notes_sha256']
+          assets = manifest['assets']
+          assert len(assets) == 4 and len({item['name'] for item in assets}) == 4
+          assert sum(item['name'].endswith('.tar.zst') for item in assets) == 1
+          version = os.environ['RELEASE_VERSION']
+          assert {item['name'] for item in assets if not item['name'].endswith('.tar.zst')} == {
+              f'roc-pdf-examples-{version}.zip', f'roc-pdf-docs-{version}.zip', f'roc-pdf-{version}.pdf'}
+          for item in assets:
+              assert Path(item['name']).name == item['name']
+              path = root / item['name']
+              assert path.is_file() and not path.is_symlink()
+              assert path.stat().st_size == item['size']
+              assert hashlib.sha256(path.read_bytes()).hexdigest() == item['sha256']
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('assets<<ASSETS\n')
+              output.write('\n'.join('dist/' + item['name'] for item in assets))
+              output.write('\ndist/release-manifest.json\nASSETS\n')
+          PYTHON
+      - uses: lukewilliamboswell/roc-automation/actions/publish-release@8acff758d5d73210f1731bed75adb9322f5e773d
+        with:
+          version: ${{ needs.validate.outputs.version }}
+          prerelease: ${{ needs.validate.outputs.prerelease }}
+          target: ${{ needs.validate.outputs.source_sha }}
+          notes-file: dist/release-notes.md
+          assets: ${{ steps.verified.outputs.assets }}

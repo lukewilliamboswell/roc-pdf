@@ -160,7 +160,7 @@ inspection_invariants = |font| {
 
 plan_and_subset_invariants : KernelFont.Inspection, KernelFontPlan.Plan, KernelFont.Inspection -> Bool
 plan_and_subset_invariants = |source, plan, subset| {
-	if !inspection_invariants(subset) or subset.metrics.glyph_count != plan.entries.len() {
+	if !inspection_invariants(subset) or subset.metrics.glyph_count != plan.entries.len() or subset.style != source.style {
 		return False
 	}
 	var $entry_index = 0
@@ -365,4 +365,15 @@ expect match repair(built_in_font, [{ byte: 3, table: 2, value: 0x5a }]) {
 		Err(FontChecksumMismatch(_)) => False
 		_ => True
 	}
+}
+
+## A successful subset retains validated style facts; otherwise-identical
+## inspection facts with a changed angle must fail the round-trip oracle.
+expect {
+	source = KernelFont.inspect(built_in_font, inspection_limits)?
+	plan = KernelFontPlan.plan(source, [{ glyph: 1 }, { glyph: 2 }], KernelFontPlan.Limits.make({ max_retained_glyphs: 8 }))?
+	subset = KernelFontSubset.build(source, plan)?
+	inspected = KernelFont.inspect(subset.bytes, inspection_limits)?
+	changed = { ..inspected, style: { ..inspected.style, italic_angle: inspected.style.italic_angle + 1 } }
+	plan_and_subset_invariants(source, plan, inspected) and !plan_and_subset_invariants(source, plan, changed)
 }

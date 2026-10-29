@@ -6,7 +6,7 @@ import Image
 import KernelLex
 import KernelDeflate
 import KernelEmit
-import KernelBuiltInFont
+import KernelBuiltInFonts
 import KernelFacadePipeline
 import KernelFont
 import KernelFontPlan
@@ -17,7 +17,9 @@ import KernelSrgbProfile
 import KernelXmp
 import Metadata
 import Semantics
+import KernelFacadeFonts
 import KernelFacadeFragments
+import KernelFacadeFailure
 import KernelFacadeFurniture
 import KernelFacadeLabels
 import KernelFacadeLines
@@ -584,7 +586,7 @@ Pdf :: [].{
 	## unless its `fit` is `ScaleToFit`; nothing is clipped or
 	## silently shrunk.
 	figure : FigureProps -> Document.Block
-	figure = |props| Document.fitted_figure(props.drawing, props.alt, props.caption, props.fit)
+	figure = |props| Document.fitted_figure(props.drawing, { alternative: props.alt, caption: props.caption, fit: props.fit })
 
 	## An in-flow decorative drawing, such as a divider rule: a `Decoration`
 	## page artifact outside the logical structure. It occupies its
@@ -708,8 +710,8 @@ Pdf :: [].{
 
 	## An abbreviation with its expansion: a `Span` whose `/E` is the
 	## expansion, such as `Pdf.expansion("GST", "Goods and Services Tax")`.
-	expansion : Str, Str -> Inline
-	expansion = |value, expanded| Document.expansion(value, expanded)
+	expansion : { text : Str, expanded : Str } -> Inline
+	expansion = |{ text: value, expanded }| Document.expansion({ text: value, expanded: expanded })
 
 	## A mandatory line break inside a rich paragraph. It paints nothing and
 	## must separate text: a break at either end of the paragraph or directly
@@ -790,19 +792,19 @@ Pdf :: [].{
 	custom_layout = |summary| Document.unavailable(CustomLayout, summary)
 
 	## A URI link block; the whole text is the link.
-	link : Str, Str -> Document.Block
-	link = |value, uri| Document.link(value, uri)
+	link : { text : Str, uri : Str } -> Document.Block
+	link = |{ text: value, uri }| Document.link({ text: value, uri: uri })
 
 	## An internal link block referencing an authored destination name.
-	internal_link : Str, Str -> Document.Block
-	internal_link = |value, destination| Document.internal_link(value, destination)
+	internal_link : { text : Str, destination : Str } -> Document.Block
+	internal_link = |{ text: value, destination }| Document.internal_link({ text: value, destination: destination })
 
 	## A heading that also declares a named destination.
-	destination_heading : Str, U8, Str -> Document.Block
-	destination_heading = |name, level, value| Document.destination_heading(name, level, value)
+	destination_heading : { name : Str, level : U8, text : Str } -> Document.Block
+	destination_heading = |{ name, level, text: value }| Document.destination_heading({ name: name, level: level, text: value })
 
-	destination_paragraph : Str, Str -> Document.Block
-	destination_paragraph = |name, value| Document.destination_paragraph(name, value)
+	destination_paragraph : { name : Str, text : Str } -> Document.Block
+	destination_paragraph = |{ name, text: value }| Document.destination_paragraph({ name: name, text: value })
 
 	## The first page's template. `lead` is a lead region of semantic blocks
 	## (such as a letterhead) or `no_lead`.
@@ -897,8 +899,8 @@ Pdf :: [].{
 	## Furniture content laid out in an exact width and aligned inside it,
 	## such as `Page N of M` in 64 pt. Each page's resolved content must fit
 	## the width, or preparation reports `layout.field_overflow`.
-	reserved_width : Layout.Unit, Align, List(Inline) -> Inline
-	reserved_width = |width, align, contents| Document.reserved_width(width, align, contents)
+	reserved_width : { width : Layout.Unit, align : Align, contents : List(Inline) } -> Inline
+	reserved_width = |{ width, align, contents }| Document.reserved_width({ width: width, align: align, contents: contents })
 
 	## The default profile is `Archive`: content follows the completed typed
 	## facade pipeline and passes static PDF/A-4 profile and lowered-plan
@@ -932,11 +934,11 @@ Pdf :: [].{
 	## default report budget of 65,536 entries and 4 MiB of text. The
 	## prepared document, and so its bytes, is identical to `prepare`'s.
 	prepare_with_report : Document, Options -> Try({ prepared : Prepared, report : Report }, Error)
-	prepare_with_report = |doc, options| prepare_with_report_budget(doc, options, default_report_budget)
+	prepare_with_report = |doc, options| prepare_with_report_budget(doc, { options, budget: default_report_budget })
 
 	## `prepare_with_report` under an explicit report budget.
-	prepare_with_report_budget : Document, Options, ReportBudget -> Try({ prepared : Prepared, report : Report }, Error)
-	prepare_with_report_budget = |doc, options, budget| {
+	prepare_with_report_budget : Document, { options : Options, budget : ReportBudget } -> Try({ prepared : Prepared, report : Report }, Error)
+	prepare_with_report_budget = |doc, { options, budget }| {
 		match Document.first_unavailable(doc) {
 			Available => {}
 			UnavailableFeature({ feature, summary }) => return Err(InvalidDocument(unavailable_batch(feature, summary)))
@@ -1031,42 +1033,23 @@ build_plan = |doc, options| {
 		language: validated.facts.language,
 		xmp: KernelXmp.Packet.bytes(xmp),
 	})
-	base_fonts = selected_fonts(options)?
-	normalized = Document.normalize(doc)
-	pipeline = match enrich_source_fonts(base_fonts, options, normalized)? {
-		Single(font) => KernelFacadePipeline.Plan.build_with_facts(
-			normalized,
-			font,
-			options.theme,
-			layout_page_size(options.page_size),
-			standard_font_descriptor,
-			facts,
-			standard_pipeline_limits,
-		) ? |error| pipeline_error(error, doc)
-		Styled(styled) => KernelFacadePipeline.Plan.build_styled_with_facts(
-			normalized,
-			styled,
-			options.theme,
-			layout_page_size(options.page_size),
-			standard_font_descriptor,
-			facts,
-			standard_pipeline_limits,
-		) ? |error| pipeline_error(error, doc)
-		Ordered(ordered) => KernelFacadePipeline.Plan.build_ordered_with_facts(
-			normalized,
-			ordered,
-			options.theme,
-			layout_page_size(options.page_size),
-			standard_font_descriptor,
-			facts,
-			standard_pipeline_limits,
-		) ? |error| ordered_pipeline_error(error, ordered.policy, doc)
+	font_page_size = options.page_size
+	font_compression = options.compression
+	planned = resolve_font_plan(Document.normalize(doc), { options: options, doc: doc })?
+	font_selection = planned.fonts
+	font_theme = planned.theme
+	font_sources = planned.authoring.sources
+	normalized = planned.authoring
+	pipeline = match font_selection {
+		Single(font) => KernelFacadePipeline.Plan.build_with_facts(normalized, font, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| pipeline_error(error, doc)
+		Styled(styled) => KernelFacadePipeline.Plan.build_styled_with_facts(normalized, styled, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| font_pipeline_error(error, { doc: doc, styled: styled, theme: font_theme, sources: font_sources })
+		Ordered(ordered) => KernelFacadePipeline.Plan.build_ordered_with_facts(normalized, ordered, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| ordered_pipeline_error(error, ordered.policy, doc)
 	}
 	output = KernelFacadePipeline.Plan.output(pipeline)
 	_text_work = KernelPdfA4.validate_text(claim, KernelFacadeOutput.Plan.text_facts(output)) ? |violation| InvalidDocument(profile_batch(violation, ProfileValidation))
 	plan = KernelFacadeOutput.Plan.structure(output)
 	validate_lowered_plan(claim, xmp, plan)?
-	Ok(KernelStructure.Plan.with_compression(plan, deflate_level(options.compression)))
+	Ok(KernelStructure.Plan.with_compression(plan, deflate_level(font_compression)))
 }
 
 ## The author's compression choice becomes the sealed plan's DEFLATE level,
@@ -1093,7 +1076,7 @@ measure_content = |options, contents, language, width| {
 	}
 	inset = Layout.Unit.from_raw(1)
 	probe = Pdf.document({
-		contents: [Pdf.custom_block({ contents, fragmentation: Unsplittable, inset, name: "measurement", panel: Scene.Drawing.empty.rectangle({ origin: { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) }, size: { height: Layout.Unit.from_raw(1), width: Layout.Unit.from_raw(1) } }, Color.srgb8({ blue: 0, green: 0, red: 0 })), size: { height: Layout.Unit.from_raw(3), width: Layout.Unit.from_raw(width.raw() + 2) } })],
+		contents: [Pdf.custom_block({ contents, fragmentation: Unsplittable, inset, name: "measurement", panel: Scene.Drawing.empty.rectangle({ bounds: { origin: { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) }, size: { height: Layout.Unit.from_raw(1), width: Layout.Unit.from_raw(1) } }, color: Color.srgb8({ blue: 0, green: 0, red: 0 }) }), size: { height: Layout.Unit.from_raw(3), width: Layout.Unit.from_raw(width.raw() + 2) } })],
 		language,
 		title: "Custom-block measurement",
 	})
@@ -1117,12 +1100,16 @@ measure_content = |options, contents, language, width| {
 		Err(error) => Err(on_error(error))
 		Ok(_) => Err(InternalGenerationFailure)
 	}
-	base_fonts = selected_fonts(options)?
-	normalized = Document.normalize(probe)
-	match enrich_source_fonts(base_fonts, options, normalized)? {
-		Single(single) => measured(KernelFacadePipeline.Plan.build_with_facts(normalized, single, options.theme, layout_page_size(options.page_size), standard_font_descriptor, facts, standard_pipeline_limits), |error| pipeline_error(error, probe))
-		Styled(styled) => measured(KernelFacadePipeline.Plan.build_styled_with_facts(normalized, styled, options.theme, layout_page_size(options.page_size), standard_font_descriptor, facts, standard_pipeline_limits), |error| pipeline_error(error, probe))
-		Ordered(ordered) => measured(KernelFacadePipeline.Plan.build_ordered_with_facts(normalized, ordered, options.theme, layout_page_size(options.page_size), standard_font_descriptor, facts, standard_pipeline_limits), |error| ordered_pipeline_error(error, ordered.policy, probe))
+	font_page_size = options.page_size
+	planned = resolve_font_plan(Document.normalize(probe), { options: options, doc: probe })?
+	font_selection = planned.fonts
+	font_theme = planned.theme
+	font_sources = planned.authoring.sources
+	normalized = planned.authoring
+	match font_selection {
+		Single(single) => measured(KernelFacadePipeline.Plan.build_with_facts(normalized, single, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits), |error| pipeline_error(error, probe))
+		Styled(styled) => measured(KernelFacadePipeline.Plan.build_styled_with_facts(normalized, styled, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits), |error| font_pipeline_error(error, { doc: probe, styled: styled, theme: font_theme, sources: font_sources }))
+		Ordered(ordered) => measured(KernelFacadePipeline.Plan.build_ordered_with_facts(normalized, ordered, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits), |error| ordered_pipeline_error(error, ordered.policy, probe))
 	}
 }
 
@@ -1176,42 +1163,23 @@ build_reporting_plan = |doc, options| {
 		language: validated.facts.language,
 		xmp: KernelXmp.Packet.bytes(xmp),
 	})
-	base_fonts = selected_fonts(options)?
-	normalized = Document.normalize(doc)
-	pipeline = match enrich_source_fonts(base_fonts, options, normalized)? {
-		Single(font) => KernelFacadePipeline.Plan.build_reporting(
-			normalized,
-			font,
-			options.theme,
-			layout_page_size(options.page_size),
-			standard_font_descriptor,
-			facts,
-			standard_pipeline_limits,
-		) ? |error| pipeline_error(error, doc)
-		Styled(styled) => KernelFacadePipeline.Plan.build_styled_reporting(
-			normalized,
-			styled,
-			options.theme,
-			layout_page_size(options.page_size),
-			standard_font_descriptor,
-			facts,
-			standard_pipeline_limits,
-		) ? |error| pipeline_error(error, doc)
-		Ordered(ordered) => KernelFacadePipeline.Plan.build_ordered_reporting(
-			normalized,
-			ordered,
-			options.theme,
-			layout_page_size(options.page_size),
-			standard_font_descriptor,
-			facts,
-			standard_pipeline_limits,
-		) ? |error| ordered_pipeline_error(error, ordered.policy, doc)
+	font_page_size = options.page_size
+	font_compression = options.compression
+	planned = resolve_font_plan(Document.normalize(doc), { options: options, doc: doc })?
+	font_selection = planned.fonts
+	font_theme = planned.theme
+	font_sources = planned.authoring.sources
+	normalized = planned.authoring
+	pipeline = match font_selection {
+		Single(font) => KernelFacadePipeline.Plan.build_reporting(normalized, font, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| pipeline_error(error, doc)
+		Styled(styled) => KernelFacadePipeline.Plan.build_styled_reporting(normalized, styled, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| font_pipeline_error(error, { doc: doc, styled: styled, theme: font_theme, sources: font_sources })
+		Ordered(ordered) => KernelFacadePipeline.Plan.build_ordered_reporting(normalized, ordered, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| ordered_pipeline_error(error, ordered.policy, doc)
 	}
 	output = KernelFacadePipeline.Plan.output(pipeline)
 	_text_work = KernelPdfA4.validate_text(claim, KernelFacadeOutput.Plan.text_facts(output)) ? |violation| InvalidDocument(profile_batch(violation, ProfileValidation))
 	plan = KernelFacadeOutput.Plan.structure(output)
 	validate_lowered_plan(claim, xmp, plan)?
-	Ok({ facts: KernelFacadePipeline.Plan.facts(pipeline), normalized, plan: KernelStructure.Plan.with_compression(plan, deflate_level(options.compression)) })
+	Ok({ facts: KernelFacadePipeline.Plan.facts(pipeline), normalized, plan: KernelStructure.Plan.with_compression(plan, deflate_level(font_compression)) })
 }
 
 ## Lowered-plan validation runs on every prepared plan before it is wrapped:
@@ -1219,10 +1187,7 @@ build_reporting_plan = |doc, options| {
 ## and a claimed plan is checked against the full static whitelist.
 validate_lowered_plan : KernelPdfA4.Claim, KernelXmp.Packet, KernelStructure.Plan -> Try({}, Pdf.Error)
 validate_lowered_plan = |claim, packet, plan| {
-	_work = KernelPdfA4.validate_lowered(
-		claim,
-		{ packet, root: KernelStructure.Plan.root(plan), sealed: KernelStructure.Plan.sealed(plan) },
-	) ? |violation| InvalidDocument(profile_batch(violation, LoweredPlanValidation))
+	_work = KernelPdfA4.validate_lowered(claim, { packet, root: KernelStructure.Plan.root(plan), sealed: KernelStructure.Plan.sealed(plan) }) ? |violation| InvalidDocument(profile_batch(violation, LoweredPlanValidation))
 	Ok({})
 }
 
@@ -1245,6 +1210,60 @@ profile_batch = |violation, stage| {
 			},
 		],
 		truncation: Complete,
+	}
+}
+
+## One style-availability rule, with separate authored locations for inline
+## text and drawing labels. Debug inspection supplies explanatory style text.
+font_style_message : KernelFacadeFonts.StyleFailure -> Str
+font_style_message = |{ style, family }| {
+	name = match family {
+		Packaged(Sans) => "Inter family"
+		Packaged(Serif) => "Merriweather family"
+		Packaged(Mono) => "Fira Code family"
+		CallerFace(face) => "caller family (regular face ${face.index().to_str()})"
+	}
+	"The selected ${name} has no genuine ${Str.inspect(style)} face; no face is substituted or synthesised."
+}
+
+## Font intent resolves once, before any shaping or page-reference measurement.
+resolve_font_plan : Document.NormalizedAuthoring, { options : Pdf.Options, doc : Document } -> Try({ authoring : Document.NormalizedAuthoring, fonts : KernelFacadeShape.FontSelection, theme : Theme }, Pdf.Error)
+resolve_font_plan = |authoring, { options, doc }| {
+	match options.theme.font_selection {
+		Policy(_) => {
+			if options.theme.family != FromOptions {
+				return Err(InvalidDocument(located_batch(FeatureUnavailable, "text.family_font_policy", "A named family requires exact style-face selection.", ["theme.family"])))
+			}
+			base = selected_fonts(options)?
+			fonts = enrich_source_fonts(base, options, authoring)?
+			Ok({ authoring, fonts, theme: options.theme })
+		}
+		StyleFaces => {
+			(origin, registry) = match options.fonts {
+				BuiltIn => (Packaged, Font.Registry.empty)
+				Registered(value) => (Caller, value)
+			}
+			resolved = KernelFacadeFonts.resolve(authoring, { origin, registry, theme: options.theme }) ? |error| match error {
+				Resource(resource) => InvalidFontResource(resource)
+				UnknownSourceFace({ group, face }) => InvalidDocument(located_batch(FeatureUnavailable, "source.face", "Source face ${face.index().to_str()} is not present in Pdf.Options.fonts; register it and pass that registry. No face is substituted.", [group_path(authoring.groups, group)]))
+				StyleUnavailable({ block, inline, style, family }) => {
+					message = font_style_message({ style, family })
+					match inline {
+						AtInline(_) => inline_error(doc, block, inline, FeatureUnavailable, "text.style_unavailable", message)
+						NoInline => located_error(doc, FeatureUnavailable, "text.style_unavailable", message, [leaf_path(doc, block)])
+					}
+				}
+				DrawingStyleUnavailable({ owner, label, style, family }) => {
+					path = match owner {
+						FigureOwner(figure) => figure_path(doc, figure)
+						PanelOwner(custom) => custom_path(doc, custom)
+					}
+					message = "Drawing label ${label.to_str()}: ${font_style_message({ style, family })}"
+					located_error(doc, FeatureUnavailable, "text.style_unavailable", message, [path])
+				}
+			}
+			Ok({ authoring: resolved.authoring, fonts: Styled(resolved.fonts), theme: resolved.theme })
+		}
 	}
 }
 
@@ -1275,7 +1294,7 @@ enrich_source_fonts = |base, options, authoring| {
 	}
 	styled = match base {
 		Ordered(_) => return Err(InvalidDocument(located_batch(FeatureUnavailable, "source.font_policy", "A source block requires its explicit registered face. Use style faces instead of an ordered font policy.", [group_path(authoring.groups, source_at(authoring.sources, 0).group)])))
-		Single(font) => { faces: [Theme.body_font(options.theme)], fonts: [font], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
+		Single(font) => { faces: [Theme.body_font(options.theme)], fonts: [font], inline_faces: [], face_indexes: [], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
 		Styled(value) => value
 	}
 	registry = match options.fonts {
@@ -1289,7 +1308,7 @@ enrich_source_fonts = |base, options, authoring| {
 ## Registry identities are dense, so each additional source face is inspected
 ## once in O(registry faces + source blocks), preserving encounter order.
 append_source_fonts : KernelFacadeShape.StyledFaces, Font.Registry, Document.NormalizedAuthoring -> Try(KernelFacadeShape.FontSelection, Pdf.Error)
-append_source_fonts = |{ faces, fonts, roles }, registry, authoring| {
+append_source_fonts = |{ faces, fonts, inline_faces, face_indexes, roles }, registry, authoring| {
 	var $seen = List.repeat(False, registry.store().faces.len())
 	for face in faces {
 		$seen = set_at($seen, face.index(), True)
@@ -1297,7 +1316,11 @@ append_source_fonts = |{ faces, fonts, roles }, registry, authoring| {
 	var $faces = faces
 	var $fonts = fonts
 	for source in authoring.sources {
-		index = source.face.index()
+		face = match source.face {
+			Face(value) => value
+			ThemeCode | BuiltIn(_) => return Err(InvalidDocument(located_batch(FeatureUnavailable, "source.face", "Resolve the source face through style-family selection.", [group_path(authoring.groups, source.group)])))
+		}
+		index = face.index()
 		if index >= $seen.len() {
 			return Err(InvalidDocument(located_batch(FeatureUnavailable, "source.face", "The source block's face is not present in Pdf.Options.fonts; no face is substituted.", [group_path(authoring.groups, source.group)])))
 		}
@@ -1306,13 +1329,69 @@ append_source_fonts = |{ faces, fonts, roles }, registry, authoring| {
 			Err(OutOfBounds) => False
 		}
 		if !seen {
-			font = registry.prepared_face(source.face) ? InvalidFontResource
-			$faces = $faces.append(source.face)
+			font = registry.prepared_face(face) ? InvalidFontResource
+			$faces = $faces.append(face)
 			$fonts = $fonts.append(font)
 			$seen = set_at($seen, index, True)
 		}
 	}
-	Ok(Styled({ faces: $faces, fonts: $fonts, roles }))
+	Ok(Styled({ faces: $faces, fonts: $fonts, inline_faces, face_indexes, roles }))
+}
+
+## Coverage errors retain the exact selected font's validated identity.
+## Names are explanatory only; selection never depends on them.
+font_pipeline_error : KernelFacadePipeline.Error, { doc : Document, styled : KernelFacadeShape.StyledFaces, theme : Theme, sources : List(Document.NormalizedSource) } -> Pdf.Error
+font_pipeline_error = |error, { doc, styled, theme, sources }| match error {
+	Shape(UnsupportedText({ block, inline, reason: Coverage(scalar), scalars })) => {
+		normalized = Document.normalize(doc)
+		face = match inline {
+			AtInline(index) => list_at_face(styled.inline_faces, index)
+			NoInline => match list_at_block(normalized.blocks, block).kind {
+				SourceLine({ source, .. }) | EmptySourceLine({ source, .. }) => match source_at(sources, source).face {
+					Face(value) => value
+					_ => crash "unresolved source escaped font diagnostics"
+				}
+				Title => Theme.title_style(theme).font
+				Heading(level) | DestinationHeading({ level, .. }) => Theme.heading_level_style(
+					theme,
+					match level {
+						1 => H1
+						2 => H2
+						3 => H3
+						4 => H4
+						5 => H5
+						_ => H6
+					},
+				).font
+				_ => Theme.body_font(theme)
+			}
+		}
+		candidate = if (styled.face_indexes.is_empty()) index_of(styled.faces, face) else list_at_u64(styled.face_indexes, face.index())
+		font = match styled.fonts.get(candidate) {
+			Ok(value) => value
+			Err(OutOfBounds) => crash "selected font escaped coverage diagnostics"
+		}
+		name = Str.from_utf8(KernelFont.postscript_name(font)) ?? "selected face ${face.index().to_str()}"
+		at = "scalars ${scalars.start().to_str()} to ${(scalars.start() + scalars.length()).to_str()}"
+		message = "Selected font ${name} (face ${face.index().to_str()}) does not cover U+${scalar_hex(scalar)} at ${at}; no face is substituted."
+		match inline {
+			AtInline(_) => inline_error(doc, block, inline, FontCoverageMissing, "text.coverage_missing", message)
+			NoInline => located_error(doc, FontCoverageMissing, "text.coverage_missing", message, [leaf_path(doc, block)])
+		}
+	}
+	_ => pipeline_error(error, doc)
+}
+
+list_at_block : List(Document.NormalizedBlock), U64 -> Document.NormalizedBlock
+list_at_block = |blocks, index| match blocks.get(index) {
+	Ok(value) => value
+	Err(OutOfBounds) => crash "font diagnostic block escaped normalized input"
+}
+
+list_at_u64 : List(U64), U64 -> U64
+list_at_u64 = |values, index| match values.get(index) {
+	Ok(value) => value
+	Err(OutOfBounds) => crash "font diagnostic index escaped selected faces"
 }
 
 ## Ordered-selection failures surface the exact planner rejections; script
@@ -1336,22 +1415,8 @@ pipeline_error = |error, doc| match error {
 	References(problem) => reference_error(doc, problem)
 	Fragments(Navigation(navigation)) => InvalidNavigation(navigation)
 	Output(Structure(Navigation(navigation))) => InvalidNavigation(navigation)
-	Semantics(ContainerDepthExceeded({ attempted, group, limit })) => InvalidDocument(
-		container_batch(
-			BudgetExceeded,
-			"semantics.container_depth",
-			"A container is nested ${attempted.to_str()} levels deep; the facade accepts at most ${limit.to_str()} nested part, section, and division levels.",
-			group_path(Document.normalize(doc).groups, group),
-		),
-	)
-	Semantics(EmptyContainer({ group })) => InvalidDocument(
-		container_batch(
-			InvalidRelationship,
-			"semantics.empty_container",
-			"A part, section, or division contains no semantic block; it would become an empty grouping element.",
-			group_path(Document.normalize(doc).groups, group),
-		),
-	)
+	Semantics(ContainerDepthExceeded({ attempted, group, limit })) => InvalidDocument(container_batch(BudgetExceeded, "semantics.container_depth", "A container is nested ${attempted.to_str()} levels deep; the facade accepts at most ${limit.to_str()} nested part, section, and division levels.", group_path(Document.normalize(doc).groups, group)))
+	Semantics(EmptyContainer({ group })) => InvalidDocument(container_batch(InvalidRelationship, "semantics.empty_container", "A part, section, or division contains no semantic block; it would become an empty grouping element.", group_path(Document.normalize(doc).groups, group)))
 	Semantics(HeadingSkip({ block, previous })) => located_error(doc, InvalidRelationship, "semantics.heading_skip", "A heading is more than one level deeper than the heading before it; heading levels must not skip a level.", [leaf_path(doc, previous), leaf_path(doc, block)])
 	Semantics(FigureAlternativeEmpty({ block })) => located_error(doc, InvalidRelationship, "document.figure_alternative_empty", "A figure's alternative text is empty; every figure needs alternative text that conveys what it communicates.", [leaf_path(doc, block)])
 	Semantics(FigureCaptionEmpty({ block })) => located_error(doc, InvalidRelationship, "document.figure_caption_empty", "A figure caption is empty; use no_caption for a figure without a visible caption.", [leaf_path(doc, block)])
@@ -1526,8 +1591,8 @@ image_error = |image| match image {
 	LimitExceeded(_) | MarkerLimitExceeded(_) => stage_error(Output(Images(image)))
 	ArithmeticOverflow | NonDenseIdentity(_) => stage_error(Output(Images(image)))
 	_ => {
-		described = describe_failure(Str.inspect(image))
-		InvalidDocument(located_batch(InvalidRelationship, "image.invalid", "An image's data does not match what it declares (${described.path}${described.payload}); no image is repaired, padded, or dropped.", [described.path]))
+		described = KernelFacadeFailure.image(image)
+		InvalidDocument(located_batch(InvalidRelationship, "image.invalid", "An image's data does not match what it declares (${described.path}: ${described.detail}); no image is repaired, padded, or dropped.", [described.path]))
 	}
 }
 
@@ -1540,102 +1605,13 @@ image_error = |image| match image {
 ## package defect reported instead of an unlocated catch-all.
 stage_error : KernelFacadePipeline.Error -> Pdf.Error
 stage_error = |error| {
-	described = describe_failure(Str.inspect(error))
+	described = KernelFacadeFailure.pipeline(error)
 	feature = "pipeline.${described.feature}"
-	if described.limit {
-		InvalidDocument(located_batch(BudgetExceeded, feature, "A preparation limit was crossed (${described.path}${described.payload}); no partial document is accepted.", [described.path]))
-	} else {
-		InvalidDocument(located_batch(InternalInvariant, feature, "A compiler stage rejected an internal precondition (${described.path}${described.payload}). This is a package defect, not an authoring error; please report it with the document.", [described.path]))
+	match described.category {
+		Budget => InvalidDocument(located_batch(BudgetExceeded, feature, "A preparation limit was crossed (${described.path}: ${described.detail}); no partial document is accepted.", [described.path]))
+		Invariant => InvalidDocument(located_batch(InternalInvariant, feature, "A compiler stage rejected an internal precondition (${described.path}: ${described.detail}). This is a package defect, not an authoring error; please report it with the document.", [described.path]))
 	}
 }
-
-## The nested tag path of an inspected failure, its snake-case feature
-## code, whether it is a crossed limit, and a bounded view of the innermost
-## payload. Only the leading tags are read, one byte at a time.
-describe_failure : Str -> { feature : Str, limit : Bool, path : Str, payload : Str }
-describe_failure = |inspected| {
-	bytes = inspected.to_utf8()
-	var $path = []
-	var $feature = []
-	var $last = []
-	var $index = 0
-	var $reading = True
-	while $reading and $index < bytes.len() {
-		## One tag name: an upper-case letter then letters and digits.
-		start = $index
-		var $end = $index
-		while $end < bytes.len() and is_tag_byte(list_at_byte(bytes, $end), $end == start) {
-			$end = $end + 1
-		}
-		if $end == start {
-			$reading = False
-		} else {
-			if !$path.is_empty() {
-				$path = $path.append('.')
-				$feature = $feature.append('.')
-			}
-			$last = []
-			var $cursor = start
-			while $cursor < $end {
-				byte = list_at_byte(bytes, $cursor)
-				$path = $path.append(byte)
-				$last = $last.append(byte)
-				if byte >= 'A' and byte <= 'Z' {
-					if $cursor != start {
-						$feature = $feature.append('_')
-					}
-					$feature = $feature.append(byte + 32)
-				} else {
-					$feature = $feature.append(byte)
-				}
-				$cursor = $cursor + 1
-			}
-			$index = $end
-
-			## A nested tag follows `(`; anything else is the payload.
-			$reading = $index + 1 < bytes.len() and list_at_byte(bytes, $index) == '(' and is_tag_byte(list_at_byte(bytes, $index + 1), True)
-			if $reading {
-				$index = $index + 1
-			}
-		}
-	}
-
-	## The innermost payload up to its matching parenthesis, at most 160
-	## bytes, so a failure carrying a long list never floods the message.
-	payload = if $index < bytes.len() and list_at_byte(bytes, $index) == '(' {
-		limit = U64.min(bytes.len(), $index + 160)
-		var $depth = 0
-		var $end = $index
-		var $open = True
-		while $open and $end < limit {
-			byte = list_at_byte(bytes, $end)
-			if byte == '(' {
-				$depth = $depth + 1
-			} else if byte == ')' {
-				$depth = $depth - 1
-				if $depth == 0 {
-					$open = False
-				}
-			}
-			$end = $end + 1
-		}
-		": ${Str.from_utf8(bytes.sublist({ start: $index, len: $end - $index })) ?? ""}${if ($open) "…" else ""}"
-	} else {
-		""
-	}
-	{
-		feature: Str.from_utf8($feature) ?? "unknown",
-		limit: $last == "LimitExceeded".to_utf8() or $last == "CmapLimitExceeded".to_utf8() or $last == "MarkerLimitExceeded".to_utf8(),
-		path: Str.from_utf8($path) ?? "Unknown",
-		payload,
-	}
-}
-
-is_tag_byte : U8, Bool -> Bool
-is_tag_byte = |byte, first| if (first) byte >= 'A' and byte <= 'Z' else (byte >= 'A' and byte <= 'Z') or (byte >= 'a' and byte <= 'z') or (byte >= '0' and byte <= '9')
-
-list_at_byte : List(U8), U64 -> U8
-list_at_byte = |bytes, index| bytes.get(index) ?? 0
 
 ## Text a shaping path cannot shape, located at its paragraph or rich
 ## inline with the failing cluster's scalars. A script outside the path's
@@ -2369,8 +2345,12 @@ has_role_face = |theme| {
 	differs = |font| match font {
 		Face(face) => face.index() != body
 		Inherited => False
+		Family(_) => True
 	}
-	differs(Theme.inline_font(theme, Code)) or differs(Theme.inline_font(theme, Emphasis)) or differs(Theme.inline_font(theme, Quote)) or differs(Theme.inline_font(theme, Strong))
+	differs(Theme.inline_font(theme, Code)) or differs(Theme.inline_font(theme, Emphasis)) or differs(Theme.inline_font(theme, Quote)) or differs(Theme.inline_font(theme, Strong)) or match theme.inline.strong_emphasis.font {
+		Face(_) | Family(_) => True
+		Inherited => False
+	}
 }
 
 ## Furniture, title, and heading style faces, in that order.
@@ -2404,12 +2384,14 @@ role_faces = |theme| {
 			|font| match font {
 				Face(face) => face != body
 				Inherited => False
+				Family(_) => True
 			},
 		)
 		.map(
 			|font| match font {
 				Face(face) => face
 				Inherited => body
+				Family(_) => crash "family choice escaped font resolution"
 			},
 		)
 }
@@ -2444,8 +2426,9 @@ selected_styled_fonts = |options| {
 	candidate = |role| match Theme.inline_font(options.theme, role) {
 		Face(face) => if (face == body_face) Inherited else Candidate(index_of($faces, face))
 		Inherited => Inherited
+		Family(_) => crash "family choice escaped font resolution"
 	}
-	Ok(Styled({ faces: $faces, fonts: $fonts, roles: { code: candidate(Code), emphasis: candidate(Emphasis), quote: candidate(Quote), strong: candidate(Strong) } }))
+	Ok(Styled({ faces: $faces, fonts: $fonts, inline_faces: [], face_indexes: [], roles: { code: candidate(Code), emphasis: candidate(Emphasis), quote: candidate(Quote), strong: candidate(Strong) } }))
 }
 
 list_first_or : List(a), a -> a
@@ -2491,7 +2474,7 @@ selected_font = |options| match options.fonts {
 
 selected_built_in_font : {} -> Try(KernelFont.Inspection, Pdf.Error)
 selected_built_in_font = |_| {
-	font = KernelFont.inspect(KernelBuiltInFont.bytes, standard_font_limits) ? |_| InternalGenerationFailure
+	font = KernelFont.inspect(KernelBuiltInFonts.sans_regular, standard_font_limits) ? |_| InternalGenerationFailure
 	Ok(font)
 }
 
@@ -2690,7 +2673,7 @@ standard_xmp_bytes : U64
 standard_xmp_bytes = 16384
 
 standard_font_limits : KernelFont.Limits
-standard_font_limits = KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })
+standard_font_limits = KernelFont.Limits.make({ max_bytes: 2000000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })
 
 standard_font_descriptor : KernelPdfFont.Descriptor
 standard_font_descriptor = { flags: 32, italic_angle: 0, stem_v: 80 }
@@ -2963,7 +2946,7 @@ expect {
 # through the public facade; a template that leaves no body line and a page
 # field in body text reject with their stable codes and paths.
 expect {
-	page_of = Pdf.reserved_width(Layout.Unit.points(72), End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+	page_of = Pdf.reserved_width({ width: Layout.Unit.points(72), align: End, contents: [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)] })
 	header = Pdf.region({ center: [], end: [Pdf.furniture_text([page_of])], height: Layout.Unit.points(16), start: [Pdf.furniture_text([Pdf.text("Running head")])] })
 	templates = |lead_height| {
 		continuation: Pdf.page_template({ footer: Pdf.no_region, gap: Layout.Unit.points(12), header }),
@@ -3200,10 +3183,10 @@ expect {
 	document = Pdf.document({
 		contents: [
 			Pdf.title("Navigation"),
-			Pdf.destination_heading("intro", 1, "Introduction"),
+			Pdf.destination_heading({ name: "intro", level: 1, text: "Introduction" }),
 			Pdf.paragraph("Opening body text."),
-			Pdf.link("Visit the project site", "https://example.org/project"),
-			Pdf.internal_link("Back to the introduction", "intro"),
+			Pdf.link({ text: "Visit the project site", uri: "https://example.org/project" }),
+			Pdf.internal_link({ text: "Back to the introduction", destination: "intro" }),
 		],
 		language: "en-AU",
 		title: "Navigation",
@@ -3221,9 +3204,9 @@ expect {
 expect {
 	document = Pdf.document({
 		contents: [
-			Pdf.destination_heading("start", 1, "Start"),
-			Pdf.internal_link("Back to the start", "start"),
-			Pdf.link("Reference", "https://example.org/ref"),
+			Pdf.destination_heading({ name: "start", level: 1, text: "Start" }),
+			Pdf.internal_link({ text: "Back to the start", destination: "start" }),
+			Pdf.link({ text: "Reference", uri: "https://example.org/ref" }),
 		],
 		language: "en-AU",
 		title: "Chunked navigation",
@@ -3241,7 +3224,7 @@ expect {
 # rejection through the facade, and no bytes escape.
 expect {
 	document = Pdf.document({
-		contents: [Pdf.internal_link("Broken", "missing")],
+		contents: [Pdf.internal_link({ text: "Broken", destination: "missing" })],
 		language: "en-AU",
 		title: "Broken",
 	})
@@ -3266,10 +3249,10 @@ archive_twin_document = {
 	})
 	Pdf.document({
 		contents: [
-			Pdf.destination_heading("start", 1, "Archive twins"),
-			Pdf.figure({ drawing: Scene.Drawing.empty.image(image, Layout.rect(0, 0, 120, 120)), alt: "A two by two translucent raster", caption: Pdf.no_caption }),
-			Pdf.link("Specification", "https://example.com/pdfa"),
-			Pdf.internal_link("Back to start", "start"),
+			Pdf.destination_heading({ name: "start", level: 1, text: "Archive twins" }),
+			Pdf.figure({ drawing: Scene.Drawing.empty.image({ image: image, placement: Layout.rect({ x: 0, y: 0, width: 120, height: 120 }) }), alt: "A two by two translucent raster", caption: Pdf.no_caption }),
+			Pdf.link({ text: "Specification", uri: "https://example.com/pdfa" }),
+			Pdf.internal_link({ text: "Back to start", destination: "start" }),
 		],
 		language: "en-AU",
 		title: "Archive twins",
@@ -3506,7 +3489,7 @@ expect {
 					Pdf.text("Revenue rose "),
 					Pdf.strong([Pdf.text("5.0%")]),
 					Pdf.text(" under "),
-					Pdf.expansion("GST", "Goods and Services Tax"),
+					Pdf.expansion({ text: "GST", expanded: "Goods and Services Tax" }),
 					Pdf.text(" at "),
 					Pdf.in_language("fr", [Pdf.text("Atelier Beaulieu")]),
 					Pdf.text("; see "),
@@ -3653,6 +3636,46 @@ expect {
 default_report_budget : Pdf.ReportBudget
 default_report_budget = Pdf.ReportBudget.{}
 
+## Report inspection consumes complete accepted figure facts. Dense figure
+## identity is produced by normalization; pagination supplies one actual scale
+## per figure. A mismatch is a package invariant failure, never an inferred
+## unscaled figure or an omitted alternative-text obligation. This scalar-only
+## pass allocates no storage and retains no earlier compiler plan.
+validate_report_figures : Document.NormalizedAuthoring, [Facts(KernelFacadeReport.Facts), NoFacts] -> Try({}, Pdf.Error)
+validate_report_figures = |normalized, collected| {
+	scales = match collected {
+		NoFacts => {
+			if !normalized.blocks.is_empty() or !normalized.figures.is_empty() {
+				return Err(report_figure_invariant("A nonempty document has no accepted preparation facts."))
+			}
+			return Ok({})
+		}
+		Facts(facts) => facts.layout.scales
+	}
+	if scales.len() != normalized.figures.len() {
+		return Err(report_figure_invariant("Accepted figure scale count ${scales.len().to_str()} differs from authored figure count ${normalized.figures.len().to_str()}."))
+	}
+	var $figure = 0
+	for block in normalized.blocks {
+		match block.kind {
+			Figure(index) => {
+				if index != $figure or index >= normalized.figures.len() {
+					return Err(report_figure_invariant("Figure block index ${index.to_str()} does not name the next authored figure ${$figure.to_str()}."))
+				}
+				$figure = $figure + 1
+			}
+			_ => {}
+		}
+	}
+	if $figure != normalized.figures.len() {
+		return Err(report_figure_invariant("Accepted figure block count ${$figure.to_str()} differs from authored figure count ${normalized.figures.len().to_str()}."))
+	}
+	Ok({})
+}
+
+report_figure_invariant : Str -> Pdf.Error
+report_figure_invariant = |detail| InvalidDocument(located_batch(InternalInvariant, "pipeline.report.figure_facts", "${detail} This is a package defect; no preparation report is accepted.", ["Report.FigureFacts"]))
+
 ## Materialize the preparation report from its compact facts. The entry
 ## count is computed from scalar facts and checked against the budget
 ## before any path or text is materialized, so materialization work is
@@ -3662,6 +3685,7 @@ default_report_budget = Pdf.ReportBudget.{}
 ## one linear pass; each is shared by that leaf's entries.
 build_report : Document.NormalizedAuthoring, [Facts(KernelFacadeReport.Facts), NoFacts], Pdf.ReportBudget -> Try(Pdf.Report, Pdf.Error)
 build_report = |normalized, collected, budget| {
+	validate_report_figures(normalized, collected)?
 	facts = match collected {
 		Facts(value) => value
 		NoFacts => { blocks: [], coverage: [], layout: { references: [], scope_pages: [], callouts: [], panels: [], relaxations: [], repeats: [], scales: [], source_fragments: [], splits: [] }, pages: [1] }
@@ -3732,7 +3756,10 @@ build_report = |normalized, collected, budget| {
 			Figure(figure_index) => match normalized.figures.get(figure_index) {
 				Ok(figure) => {
 					path = path_at($index)
-					scale = facts.layout.scales.get(figure_index) ?? 1000
+					scale = match facts.layout.scales.get(figure_index) {
+						Ok(value) => value
+						Err(OutOfBounds) => return Err(report_figure_invariant("A validated figure scale is missing."))
+					}
 					fit = match figure.fit {
 						ExactFit => Exact
 						ScaleFit(_) => ScaleToFit
@@ -3741,7 +3768,7 @@ build_report = |normalized, collected, budget| {
 					$outcomes = $outcomes.append(FigureScale({ fit, path, scale }))
 					$obligations = $obligations.append({ obligation: AlternativeTextMeaningful, path })
 				}
-				Err(OutOfBounds) => {}
+				Err(OutOfBounds) => return Err(report_figure_invariant("A validated authored figure is missing."))
 			}
 			Link(_) | InternalLink(_) => {
 				$obligations = $obligations.append({ obligation: LinkPurposeMeaningful, path: path_at($index) })
@@ -4074,8 +4101,8 @@ set_at = |items, index, value| match items.set(index, value) {
 # leaf across groups, lists, a legacy bullet list, a table, a captioned
 # figure, flow items, and a custom block.
 expect {
-	mark = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 20, 20), Color.srgb8({ blue: 0, green: 0, red: 0 }))
-	panel = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 200, 60), Color.srgb8({ blue: 0, green: 0, red: 0 }))
+	mark = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 20, height: 20 }), color: Color.srgb8({ blue: 0, green: 0, red: 0 }) })
+	panel = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 200, height: 60 }), color: Color.srgb8({ blue: 0, green: 0, red: 0 }) })
 	doc = Pdf.document({
 		contents: [
 			Pdf.title("Paths"),
@@ -4106,22 +4133,27 @@ expect {
 	leaf_paths(normalized) == $expected
 }
 
-# A crossed stage limit keeps its exact tag path and payload.
+# Facade diagnostics consume typed category and identity, with useful context.
 expect {
-	described = describe_failure("Output(Structure(TaggedObjects(Object(LimitExceeded({ attempted: 8196, dimension: NameBytes, limit: 8192 })))))")
-	described.feature == "output.structure.tagged_objects.object.limit_exceeded" and described.limit and described.path == "Output.Structure.TaggedObjects.Object.LimitExceeded" and described.payload == ": ({ attempted: 8196, dimension: NameBytes, limit: 8192 })"
+	budget = stage_error(Output(Structure(TaggedObjects(Object(LimitExceeded({ attempted: 8196, dimension: NameBytes, limit: 8192 }))))))
+	invariant = stage_error(Text(InvalidRun({ run: 4 })))
+	valid_budget = match budget {
+		InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("pipeline.output.structure.tagged_objects.object.limit_exceeded"), details: ["Output.Structure.TaggedObjects.Object.LimitExceeded"], .. }], .. }) => True
+		_ => False
+	}
+	valid_invariant = match invariant {
+		InvalidDocument({ diagnostics: [{ code: InternalInvariant, feature: Feature("pipeline.text.invalid_run"), details: ["Text.InvalidRun"], .. }], .. }) => True
+		_ => False
+	}
+	valid_budget and valid_invariant
 }
 
-# Any other stage failure is an internal invariant with its tag path.
+# Author-supplied bad image data retains its public authoring diagnostic.
 expect {
-	described = describe_failure("Text(InvalidRun({ run: 4 }))")
-	described.feature == "text.invalid_run" and !described.limit and described.path == "Text.InvalidRun"
-}
-
-# A payload-free tag has no payload view.
-expect {
-	described = describe_failure("Output(Subset(ArithmeticOverflow))")
-	described.feature == "output.subset.arithmetic_overflow" and described.payload == ""
+	match image_error(InvalidDimensions({ height: 0, width: 1, resource: 0 })) {
+		InvalidDocument({ diagnostics: [{ code: InvalidRelationship, feature: Feature("image.invalid"), details: ["InvalidDimensions"], .. }], .. }) => True
+		_ => False
+	}
 }
 
 # A heading level the document model does not have is located at the
@@ -4183,7 +4215,7 @@ source_at = |items, index| match items.get(index) {
 
 page_label_test_document : Document.PageLabelStyle, Str, U64, Layout.Unit -> Document
 page_label_test_document = |style, prefix, start_number, width| {
-	footer = Pdf.region({ height: 16, end: [Pdf.furniture_text([Pdf.reserved_width(width, End, [Pdf.page_label])])] })
+	footer = Pdf.region({ height: 16, end: [Pdf.furniture_text([Pdf.reserved_width({ width: width, align: End, contents: [Pdf.page_label] })])] })
 	Pdf.document({
 		contents: [Pdf.paragraph("Body")],
 		language: "en-AU",
@@ -4223,7 +4255,7 @@ expect match Pdf.to_bytes(Pdf.document({ contents: [Pdf.rich_paragraph([Pdf.page
 # Fixed-width body references resolve from the same committed destination
 # pages used by navigation, and expose located preparation facts.
 expect {
-	doc = Pdf.document({ title: "Public destination references", language: "en", page_labels: [{ prefix: "P-", start_number: 1, start_page: 0, style: DecimalArabic }], contents: [Pdf.rich_paragraph([Pdf.text("Target page "), Pdf.page_reference({ destination: "target", width: 36, numbering: PageLabel })]), Pdf.page_break, Pdf.destination_heading("target", 1, "Target")] })
+	doc = Pdf.document({ title: "Public destination references", language: "en", page_labels: [{ prefix: "P-", start_number: 1, start_page: 0, style: DecimalArabic }], contents: [Pdf.rich_paragraph([Pdf.text("Target page "), Pdf.page_reference({ destination: "target", width: 36, numbering: PageLabel })]), Pdf.page_break, Pdf.destination_heading({ name: "target", level: 1, text: "Target" })] })
 	match Pdf.prepare_with_report(doc, Pdf.Options.default) {
 		Ok(value) => value.report.facts.outcomes.any(
 			|outcome| match outcome {
@@ -4238,10 +4270,57 @@ expect {
 # Unknown targets and final glyphs wider than the declared field reject
 # atomically at the authored reference inline.
 expect {
-	make = |name, width| Pdf.document({ title: "Rejected references", language: "en", contents: [Pdf.rich_paragraph([Pdf.text("See "), Pdf.page_reference({ destination: name, width })]), Pdf.destination_heading("target", 1, "Target")] })
+	make = |name, width| Pdf.document({ title: "Rejected references", language: "en", contents: [Pdf.rich_paragraph([Pdf.text("See "), Pdf.page_reference({ destination: name, width })]), Pdf.destination_heading({ name: "target", level: 1, text: "Target" })] })
 	check = |doc, code| match Pdf.to_bytes(doc) {
 		Err(InvalidDocument(batch)) => batch.diagnostics.any(|diagnostic| diagnostic.feature == Feature(code) and diagnostic.details == ["contents[0].inlines[1]"])
 		_ => False
 	}
 	check(make("missing", 36), "navigation.reference_destination") and check(make("target", 1), "layout.reference_field_overflow")
+}
+
+# Missing, extra, misaligned and orphaned figure facts cannot invent an
+# unscaled outcome or silently omit an authored figure's obligation.
+expect {
+	drawing = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 20, height: 20 }), color: Color.srgb8({ blue: 0, green: 0, red: 0 }) })
+	normalized = Document.normalize(Pdf.document({ contents: [Pdf.figure({ drawing, alt: "First", caption: Pdf.no_caption }), Pdf.figure({ drawing, alt: "Second", caption: Pdf.no_caption, fit: ScaleToFit({ minimum_percent: 50 }) })], language: "en", title: "Report facts" }))
+	facts = { blocks: [], coverage: [], layout: { references: [], scope_pages: [], callouts: [], panels: [], relaxations: [], repeats: [], scales: [1000, 500], source_fragments: [], splits: [] }, pages: [2] }
+	invalid = |authoring, collected| match validate_report_figures(authoring, collected) {
+		Err(InvalidDocument({ diagnostics: [{ code: InternalInvariant, feature: Feature("pipeline.report.figure_facts"), details: ["Report.FigureFacts"], .. }], .. })) => True
+		_ => False
+	}
+	invalid(normalized, NoFacts) and
+		invalid(normalized, Facts({ ..facts, layout: { ..facts.layout, scales: [1000] } })) and
+			invalid(normalized, Facts({ ..facts, layout: { ..facts.layout, scales: [1000, 500, 1000] } })) and
+				invalid(
+					{
+						..normalized,
+						blocks: match normalized.blocks {
+							[first, second] => [second, first]
+							_ => crash "figure report test expected two blocks"
+						},
+					},
+					Facts(facts),
+				) and
+					invalid({ ..normalized, blocks: [] }, Facts(facts)) and
+						invalid({ ..normalized, figures: [] }, Facts({ ..facts, layout: { ..facts.layout, scales: [] } }))
+}
+
+# A successful report uses both accepted scales and retains both obligations.
+expect {
+	drawing = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 20, height: 20 }), color: Color.srgb8({ blue: 0, green: 0, red: 0 }) })
+	normalized = Document.normalize(Pdf.document({ contents: [Pdf.figure({ drawing, alt: "First", caption: Pdf.no_caption }), Pdf.figure({ drawing, alt: "Second", caption: Pdf.no_caption, fit: ScaleToFit({ minimum_percent: 50 }) })], language: "en", title: "Report facts" }))
+	facts = { blocks: [], coverage: [], layout: { references: [], scope_pages: [], callouts: [], panels: [], relaxations: [], repeats: [], scales: [1000, 500], source_fragments: [], splits: [] }, pages: [2] }
+	match build_report(normalized, Facts(facts), default_report_budget) {
+		Ok(report) => report.facts.outcomes == [FigureScale({ fit: Exact, path: "contents[0]", scale: 1000 }), FigureScale({ fit: ScaleToFit, path: "contents[1]", scale: 500 })] and report.obligations.count_if(|entry| entry.obligation == AlternativeTextMeaningful) == 2
+		Err(_) => False
+	}
+}
+
+# The legitimate empty-document NoFacts path keeps its one-page report.
+expect {
+	normalized = Document.normalize(Pdf.document({ contents: [], language: "en", title: "Empty report" }))
+	match build_report(normalized, NoFacts, default_report_budget) {
+		Ok(report) => report.facts.pages == [{ page: 1, fragments: 1 }] and report.facts.blocks.is_empty() and report.facts.outcomes.is_empty() and report.obligations.len() == 2
+		Err(_) => False
+	}
 }

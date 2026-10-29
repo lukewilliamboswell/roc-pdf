@@ -100,15 +100,7 @@ build_plan = |text, fonts, page_size, limits| {
 	var $font_bytes = 0
 	while $font_index < fonts.len() {
 		input = list_at(fonts, $font_index)
-		font_plan = KernelPdfFont.Plan.build(
-			$builder,
-			input.font,
-			input.plan,
-			input.subset,
-			input.descriptor,
-			list_at(mappings, $font_index),
-			limits.font_limits,
-		) ? Font
+		font_plan = KernelPdfFont.Plan.build($builder, input.font, input.plan, input.subset, input.descriptor, list_at(mappings, $font_index), limits.font_limits) ? Font
 		objects = KernelPdfFont.Plan.objects(font_plan)
 		expected_start = base_object_count + $font_index * objects_per_font + 1
 		ensure_object(objects.font_file, object_id(expected_start))?

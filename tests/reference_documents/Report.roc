@@ -56,10 +56,10 @@ Report :: [].{
 		limits = Font.ValidationLimits.make({ max_bytes: 2000000 + guard, max_cmap_mappings: 1200000, max_glyphs: 65535, max_tables: 128 })
 		latin : List(Font.Script)
 		latin = ["Latn"]
-		regular = Font.Registry.empty.register(regular_bytes, { provision: BuiltIn, scripts: latin }, limits) ? |_| RegistrationFailed
-		bold = regular.registry.register(bold_bytes, { provision: BuiltIn, scripts: latin }, limits) ? |_| RegistrationFailed
-		italic = bold.registry.register(italic_bytes, { provision: BuiltIn, scripts: latin }, limits) ? |_| RegistrationFailed
-		code = italic.registry.register(code_bytes, { provision: BuiltIn, scripts: latin }, limits) ? |_| RegistrationFailed
+		regular = Font.Registry.empty.register({ bytes: regular_bytes, registration: { provision: BuiltIn, scripts: latin }, limits: limits }) ? |_| RegistrationFailed
+		bold = regular.registry.register({ bytes: bold_bytes, registration: { provision: BuiltIn, scripts: latin }, limits: limits }) ? |_| RegistrationFailed
+		italic = bold.registry.register({ bytes: italic_bytes, registration: { provision: BuiltIn, scripts: latin }, limits: limits }) ? |_| RegistrationFailed
+		code = italic.registry.register({ bytes: code_bytes, registration: { provision: BuiltIn, scripts: latin }, limits: limits }) ? |_| RegistrationFailed
 		Ok({ bold: bold.face, code: code.face, italic: italic.face, regular: regular.face, registry: code.registry })
 	}
 
@@ -139,7 +139,7 @@ Report :: [].{
 			}
 			$contents = $contents.append(
 				Pdf.section([
-					Pdf.destination_heading(name, 1, "${number} Operations area ${number}"),
+					Pdf.destination_heading({ name: name, level: 1, text: "${number} Operations area ${number}" }),
 					Pdf.paragraph("Area ${number} shipped on time in every week of the quarter. Freight costs per unit fell again as consolidated sailings replaced part-loaded containers across Bass Strait."),
 					Pdf.paragraph("Timber purchasing for area ${number} moved further toward certified sources, and the Moonah kilns dried every delivery to the agreed moisture content before it left the yard."),
 					Pdf.rich_paragraph([Pdf.text("Warranty claims stayed below one percent of units shipped. Continue to "), Pdf.inline_internal_link([Pdf.text("the next operations area")], next), Pdf.text(".")]),
@@ -225,7 +225,7 @@ bold_font = |choice| match choice {
 ## Code is set at 90% of the body size whenever it has its own face.
 code_scale : Theme.InlineFont -> Theme.InlineScale
 code_scale = |font| match font {
-	Face(_) => Percent(90)
+	Face(_) | Family(_) => Percent(90)
 	Inherited => Inherited
 }
 
@@ -235,9 +235,9 @@ code_scale = |font| match font {
 ## 10.437 pt and its three-digit values 15.656 pt.
 page_field : I64 -> Pdf.Inline
 page_field = |width| if width >= 50 {
-	Pdf.reserved_width(Layout.Unit.points(width), End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+	Pdf.reserved_width({ width: Layout.Unit.points(width), align: End, contents: [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)] })
 } else {
-	Pdf.reserved_width(Layout.Unit.points(width), End, [Pdf.page_number(Decimal)])
+	Pdf.reserved_width({ width: Layout.Unit.points(width), align: End, contents: [Pdf.page_number(Decimal)] })
 }
 
 ## The Harbour & Finch mark in reverse, 72 × 24 pt: a brass-winged tile
@@ -245,30 +245,30 @@ page_field = |width| if width >= 50 {
 reverse_mark : Scene.Drawing
 reverse_mark = {
 	wing = Scene.PathBuilder.start
-		.move_to(Layout.point(4, 6))
-		.cubic_to({ control_1: Layout.point(8, 18), control_2: Layout.point(15, 20), end: Layout.point(20, 19) })
-		.cubic_to({ control_1: Layout.point(15, 16), control_2: Layout.point(11, 11), end: Layout.point(4, 6) })
+		.move_to(Layout.point({ x: 4, y: 6 }))
+		.cubic_to({ control_1: Layout.point({ x: 8, y: 18 }), control_2: Layout.point({ x: 15, y: 20 }), end: Layout.point({ x: 20, y: 19 }) })
+		.cubic_to({ control_1: Layout.point({ x: 15, y: 16 }), control_2: Layout.point({ x: 11, y: 11 }), end: Layout.point({ x: 4, y: 6 }) })
 		.close()
 		.finish()
 	Scene.Drawing.empty
-		.rectangle(Layout.rect(0, 0, 24, 24), "#2A4F7A")
-		.path(wing, Scene.solid_fill(brass))
-		.rectangle(Layout.rect(30, 15, 42, 4), white)
-		.rectangle(Layout.rect(30, 9, 32, 3), white)
-		.rectangle(Layout.rect(30, 4, 22, 2), brass)
+		.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 24, height: 24 }), color: "#2A4F7A" })
+		.path({ path: wing, style: Scene.solid_fill(brass) })
+		.rectangle({ bounds: Layout.rect({ x: 30, y: 15, width: 42, height: 4 }), color: white })
+		.rectangle({ bounds: Layout.rect({ x: 30, y: 9, width: 32, height: 3 }), color: white })
+		.rectangle({ bounds: Layout.rect({ x: 30, y: 4, width: 22, height: 2 }), color: brass })
 }
 
 ## The first page's cover band: a navy field over a brass keyline, the
 ## full 483 pt width, with the reversed mark at its end.
 cover_band : Scene.Drawing
 cover_band = Scene.Drawing.empty
-	.rectangle(Layout.rect(0, 4, 483, 32), navy)
-	.rectangle(Layout.rect(0, 0, 483, 2), brass)
-	.group(Layout.point(399, 8), reverse_mark)
+	.rectangle({ bounds: Layout.rect({ x: 0, y: 4, width: 483, height: 32 }), color: navy })
+	.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 483, height: 2 }), color: brass })
+	.group({ offset: Layout.point({ x: 399, y: 8 }), drawing: reverse_mark })
 
 ## A 0.6 pt hairline the full width of the body, `y` points up.
 hairline : I64 -> Scene.Drawing
-hairline = |y| Scene.Drawing.empty.rectangle({ origin: Layout.point(0, y), size: { height: 0.6, width: 483 } }, "#B8C2CE")
+hairline = |y| Scene.Drawing.empty.rectangle({ bounds: { origin: Layout.point({ x: 0, y: y }), size: { height: 0.6, width: 483 } }, color: "#B8C2CE" })
 
 templates : I64 -> { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = |field_width| {
@@ -342,7 +342,7 @@ thousands = |value| if value >= 1000 {
 
 ## A legend key: a swatch and its name.
 key : Scene.Drawing, I64, Color.SourceValue, Str -> Scene.Drawing
-key = |drawing, x, color, name| drawing.rectangle(Layout.rect(x, 205, 10, 8), color).text({ color: ink, origin: Layout.point(x + 14, 206), size: 8.5, text: name })
+key = |drawing, x, color, name| drawing.rectangle({ bounds: Layout.rect({ x: x, y: 205, width: 10, height: 8 }), color: color }).text({ color: ink, origin: Layout.point({ x: x + 14, y: 206 }), size: 8.5, text: name })
 
 ## Figure 1: paired bars per region over a gridded axis in AUD thousands,
 ## each bar labelled with its value, the regions named under their pairs,
@@ -358,12 +358,12 @@ chart_drawing = |labels| {
 	labelled = labels == Labelled
 	var $chart = Scene.Drawing.empty
 	for step in [1, 2, 3, 4] {
-		$chart = $chart.rectangle({ origin: Layout.point(left, base + plotted(step * 1000)), size: { height: 0.5, width: Layout.Unit.points(483 - left) } }, grid)
+		$chart = $chart.rectangle({ bounds: { origin: Layout.point({ x: left, y: base + plotted(step * 1000) }), size: { height: 0.5, width: Layout.Unit.points(483 - left) } }, color: grid })
 	}
 	if labelled {
 		for step in [0, 1, 2, 3, 4] {
 			value = step.to_i64_wrap() * 1000
-			$chart = $chart.text({ align: End, color: ink, origin: Layout.point(left - 6, base - 3 + plotted(value)), size: 8, text: thousands(value) })
+			$chart = $chart.text({ align: End, color: ink, origin: Layout.point({ x: left - 6, y: base - 3 + plotted(value) }), size: 8, text: thousands(value) })
 		}
 	}
 	slot = (483 - left) // 4
@@ -371,23 +371,23 @@ chart_drawing = |labels| {
 	for { region, before, after } in revenue {
 		x = left + $index * slot + (slot - 80) // 2
 		$chart = $chart
-			.rectangle(Layout.rect(x, base, 38, plotted(before)), slate)
-			.rectangle(Layout.rect(x + 42, base, 38, plotted(after)), oak)
+			.rectangle({ bounds: Layout.rect({ x: x, y: base, width: 38, height: plotted(before) }), color: slate })
+			.rectangle({ bounds: Layout.rect({ x: x + 42, y: base, width: 38, height: plotted(after) }), color: oak })
 		if labelled {
 			$chart = $chart
-				.text({ align: Center, color: ink, origin: Layout.point(x + 19, base + plotted(before) + 4), size: 7.5, text: thousands(before) })
-				.text_in(Strong, { align: Center, color: ink, origin: Layout.point(x + 61, base + plotted(after) + 4), size: 7.5, text: thousands(after) })
-				.text({ align: Center, color: ink, origin: Layout.point(x + 40, 12), size: 9, text: region })
+				.text({ align: Center, color: ink, origin: Layout.point({ x: x + 19, y: base + plotted(before) + 4 }), size: 7.5, text: thousands(before) })
+				.text_in({ role: Strong, label: { align: Center, color: ink, origin: Layout.point({ x: x + 61, y: base + plotted(after) + 4 }), size: 7.5, text: thousands(after) } })
+				.text({ align: Center, color: ink, origin: Layout.point({ x: x + 40, y: 12 }), size: 9, text: region })
 		}
 		$index = $index + 1
 	}
-	$chart = $chart.path(Scene.PathBuilder.start.move_to(Layout.point(left, base)).line_to(Layout.point(482, base)).finish(), Scene.solid_stroke(ink, 1))
+	$chart = $chart.path({ path: Scene.PathBuilder.start.move_to(Layout.point({ x: left, y: base })).line_to(Layout.point({ x: 482, y: base })).finish(), style: Scene.solid_stroke(ink, 1) })
 	if labelled {
-		$chart = $chart.text({ color: ink, origin: Layout.point(0, 206), size: 8.5, text: "AUD thousands" })
+		$chart = $chart.text({ color: ink, origin: Layout.point({ x: 0, y: 206 }), size: 8.5, text: "AUD thousands" })
 		$chart = key($chart, 330, slate, "Q1 FY2026")
 		key($chart, 408, oak, "Q1 FY2027")
 	} else {
-		$chart.rectangle(Layout.rect(330, 205, 10, 8), slate).rectangle(Layout.rect(408, 205, 10, 8), oak)
+		$chart.rectangle({ bounds: Layout.rect({ x: 330, y: 205, width: 10, height: 8 }), color: slate }).rectangle({ bounds: Layout.rect({ x: 408, y: 205, width: 10, height: 8 }), color: oak })
 	}
 }
 
@@ -494,11 +494,11 @@ contents = |config| [
 		Pdf.title("Quarterly operations report"),
 		Pdf.rich_paragraph([
 			Pdf.text("Q1 "),
-			Pdf.expansion("FY2027", "financial year 2027"),
+			Pdf.expansion({ text: "FY2027", expanded: "financial year 2027" }),
 			Pdf.text(": July to September 2026 · Prepared by the Operations team, 12 October 2026"),
 		]),
 		Pdf.section([
-			Pdf.destination_heading("summary", 1, "1 Summary"),
+			Pdf.destination_heading({ name: "summary", level: 1, text: "1 Summary" }),
 			Pdf.rich_paragraph([
 				Pdf.text("Revenue rose "),
 				Pdf.strong([Pdf.text("5.0%")]),
@@ -527,10 +527,10 @@ contents = |config| [
 		Pdf.section(
 			[
 				[
-					Pdf.destination_heading("sales", 1, "2 Sales performance"),
+					Pdf.destination_heading({ name: "sales", level: 1, text: "2 Sales performance" }),
 					Pdf.rich_paragraph([
 						Pdf.text("Table 1 compares revenue by region with the same quarter last year. Revenue is reported excluding "),
-						Pdf.expansion("GST", "Goods and Services Tax"),
+						Pdf.expansion({ text: "GST", expanded: "Goods and Services Tax" }),
 						Pdf.text("."),
 					]),
 				],
@@ -541,10 +541,10 @@ contents = |config| [
 			].join(),
 		),
 		Pdf.section([
-			Pdf.destination_heading("supply-chain", 1, "3 Supply chain"),
+			Pdf.destination_heading({ name: "supply-chain", level: 1, text: "3 Supply chain" }),
 			Pdf.paragraph("Freight and timber sourcing both improved this quarter. The two subsections below summarise the changes and the suppliers involved."),
 			Pdf.section([
-				Pdf.destination_heading("freight", config.freight_level, "3.1 Freight"),
+				Pdf.destination_heading({ name: "freight", level: config.freight_level, text: "3.1 Freight" }),
 				Pdf.paragraph("Consolidated sailings across Bass Strait reduced the number of part-loaded containers by a third. Average freight cost per shipped unit fell from AUD 41.20 to AUD 37.85."),
 				Pdf.rich_paragraph([
 					Pdf.text("Pick lists now come directly from the warehouse system "),
@@ -553,7 +553,7 @@ contents = |config| [
 				]),
 			]),
 			Pdf.section([
-				Pdf.destination_heading("timber", 2, "3.2 Timber sourcing"),
+				Pdf.destination_heading({ name: "timber", level: 2, text: "3.2 Timber sourcing" }),
 				Pdf.rich_paragraph(
 					[
 						Pdf.text("Our partner "),
@@ -563,11 +563,11 @@ contents = |config| [
 						Pdf.text(" (“Timber asks for patience.”)"),
 					].concat(config.timber_extra),
 				),
-				Pdf.figure({ drawing: Scene.Drawing.empty.image(Image.Source.jpeg_srgb(drying_photo, RequireDisplayReady), Layout.rect(0, 0, 483, 260)), alt: config.figure2_alternative, caption: Pdf.caption("Figure 2. Air drying at the Moonah yard") }),
+				Pdf.figure({ drawing: Scene.Drawing.empty.image({ image: Image.Source.jpeg_srgb(drying_photo, RequireDisplayReady), placement: Layout.rect({ x: 0, y: 0, width: 483, height: 260 }) }), alt: config.figure2_alternative, caption: Pdf.caption("Figure 2. Air drying at the Moonah yard") }),
 			]),
 		]),
 		Pdf.section([
-			Pdf.destination_heading("outlook", 1, "4 Outlook"),
+			Pdf.destination_heading({ name: "outlook", level: 1, text: "4 Outlook" }),
 			Pdf.rich_paragraph([
 				Pdf.text("Next quarter's priorities follow "),
 				Pdf.inline_link([Pdf.text("our published sustainability commitments")], "https://www.harbourfinch.example/sustainability"),
@@ -589,7 +589,7 @@ contents = |config| [
 			),
 		]),
 		Pdf.section([
-			Pdf.destination_heading("appendix-a", 1, "Appendix A. Supplier register"),
+			Pdf.destination_heading({ name: "appendix-a", level: 1, text: "Appendix A. Supplier register" }),
 			Pdf.paragraph("The register lists every supplier active at the end of the quarter, with spend in the quarter and certification status."),
 			supplier_table,
 		]),

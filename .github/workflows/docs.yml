@@ -19,25 +19,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  render:
+    uses: ./.github/workflows/docs-build.yml
+    with:
+      source_sha: ${{ github.sha }}
+      docs_version: unreleased
   build:
+    needs: render
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
-          persist-credentials: false
-      - uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@a25b5129340b9b2ad1744d20330b8ee4d38a1849
-      - name: Read pinned Roc nightly
-        run: printf 'ROC_NIGHTLY_TAG=%s\n' "$(sed -n '1p' .roc-version)" >> "$GITHUB_ENV"
-      - uses: roc-lang/setup-roc@f5a74bf90aa694b43ab4a7cbfdb19273bc6aa697
-        with:
-          version: nightly-new-compiler
-          nightly-tag: ${{ env.ROC_NIGHTLY_TAG }}
-      - name: Generate and audit public docs
-        run: blueprint run docs
-      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+          name: roc-pdf-docs-${{ github.sha }}
+          path: generated-docs
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9
         with:
           path: generated-docs
-
   deploy:
     if: github.event_name != 'pull_request' && !inputs.nightly_validation
     permissions:
@@ -52,4 +49,4 @@ jobs:
     steps:
       - name: Deploy
         id: deployment
-        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346

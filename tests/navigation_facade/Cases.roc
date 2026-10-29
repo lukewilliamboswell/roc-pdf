@@ -34,9 +34,9 @@ build_document = |guard| {
 	filler = "The survey continues along the ridge line and records each site in order. "
 	var $contents = [
 		Pdf.title("Coastal survey"),
-		Pdf.destination_heading("overview", 1, "Overview"),
+		Pdf.destination_heading({ name: "overview", level: 1, text: "Overview" }),
 		Pdf.paragraph("The overview names each region surveyed in the spring season."),
-		Pdf.link("Atlas of Living Australia", "https://www.ala.org.au/species?q=acacia&page=1"),
+		Pdf.link({ text: "Atlas of Living Australia", uri: "https://www.ala.org.au/species?q=acacia&page=1" }),
 	]
 	var $index = 0
 	while $index < 56 + guard {
@@ -45,10 +45,10 @@ build_document = |guard| {
 	}
 	$contents = $contents
 		.append(Pdf.paragraph("Ridge notes."))
-		.append(Pdf.internal_link("Return to the overview section for the region list and the seasonal notes that introduce the survey method in detail, including the site selection rules, the recording cadence for each habitat class, the calibration steps applied before every visit, and the way regional totals roll up into the published seasonal summary tables", "overview"))
-		.append(Pdf.destination_heading("results", 2, "Results"))
+		.append(Pdf.internal_link({ text: "Return to the overview section for the region list and the seasonal notes that introduce the survey method in detail, including the site selection rules, the recording cadence for each habitat class, the calibration steps applied before every visit, and the way regional totals roll up into the published seasonal summary tables", destination: "overview" }))
+		.append(Pdf.destination_heading({ name: "results", level: 2, text: "Results" }))
 		.append(Pdf.paragraph("Recorded species counts rose in every region."))
-		.append(Pdf.internal_link("See the results", "results"))
+		.append(Pdf.internal_link({ text: "See the results", destination: "results" }))
 	document = Pdf.document({
 		contents: $contents,
 		language: "en-AU",
@@ -103,37 +103,25 @@ run_negatives = |guard| {
 	}
 
 	var $passed = 0
-	$passed = $passed + expect_rejection(
-		document([Pdf.internal_link("Broken", "missing")]),
-		|error| error == UnknownDestinationName({ annotation: 0 }),
-	)
+	$passed = $passed + expect_rejection(document([Pdf.internal_link({ text: "Broken", destination: "missing" })]), |error| error == UnknownDestinationName({ annotation: 0 }))
 	$passed = $passed + expect_rejection(
 		document([
-			Pdf.destination_heading("twice", 1, "One"),
-			Pdf.destination_paragraph("twice", "Two"),
+			Pdf.destination_heading({ name: "twice", level: 1, text: "One" }),
+			Pdf.destination_paragraph({ name: "twice", text: "Two" }),
 		]),
 		|error| error == DuplicateDestinationName({ first: 0, second: 1 }),
 	)
+	$passed = $passed + expect_rejection(document([Pdf.destination_heading({ name: "bad name", level: 1, text: "Spaced" })]), |error| error == DestinationNameInvalidByte({ destination: 0, offset: 3 }))
+	$passed = $passed + expect_rejection(document([Pdf.link({ text: "No scheme", uri: "example.org/plain" })]), |error| error == UriMissingScheme({ annotation: 0 }))
+	$passed = $passed + expect_rejection(document([Pdf.link({ text: "Bad byte", uri: "https://example.org/a b" })]), |error| error == UriInvalidByte({ annotation: 0, offset: 21 }))
 	$passed = $passed + expect_rejection(
-		document([Pdf.destination_heading("bad name", 1, "Spaced")]),
-		|error| error == DestinationNameInvalidByte({ destination: 0, offset: 3 }),
-	)
-	$passed = $passed + expect_rejection(
-		document([Pdf.link("No scheme", "example.org/plain")]),
-		|error| error == UriMissingScheme({ annotation: 0 }),
-	)
-	$passed = $passed + expect_rejection(
-		document([Pdf.link("Bad byte", "https://example.org/a b")]),
-		|error| error == UriInvalidByte({ annotation: 0, offset: 21 }),
-	)
-	$passed = $passed + expect_rejection(
-		document([Pdf.destination_heading("target", 1, "Target")]).with_outline([
+		document([Pdf.destination_heading({ name: "target", level: 1, text: "Target" })]).with_outline([
 			{ depth: 1, destination: "target", open: True, title: "Broken" },
 		]),
 		|error| error == OutlineFirstDepthNonzero({ depth: 1 }),
 	)
 	$passed = $passed + expect_rejection(
-		document([Pdf.destination_heading("target", 1, "Target")]).with_outline([
+		document([Pdf.destination_heading({ name: "target", level: 1, text: "Target" })]).with_outline([
 			{ depth: 0, destination: "elsewhere", open: True, title: "Lost" },
 		]),
 		|error| error == OutlineDestinationUnknown({ entry: 0 }),
@@ -165,8 +153,8 @@ negatives = |context| {
 	carrier = Pdf.document({
 		contents: [
 			Pdf.title("Navigation carrier"),
-			Pdf.destination_heading("start", 1, "Start"),
-			Pdf.internal_link("Back to the start", "start"),
+			Pdf.destination_heading({ name: "start", level: 1, text: "Start" }),
+			Pdf.internal_link({ text: "Back to the start", destination: "start" }),
 		],
 		language: "en-AU",
 		title: carrier_title,

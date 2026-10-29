@@ -438,10 +438,10 @@ position_items = |authoring, pending, measured, literal, final, mapping, rows, a
 							}
 						}
 					}
-					line = { advance: $advance, clusters: Semantics.IndexRange.from_start_and_length(mapped.cluster, $end - $item), source: joined_source(first.source, $last.source)? }
+					line = { advance: $advance, clusters: Semantics.IndexRange.from_start_and_length({ start: mapped.cluster, length: $end - $item }), source: joined_source(first.source, $last.source)? }
 					index = $lines.len()
 					$lines = $lines.append(line)
-					$pieces = $pieces.append({ artifact: row.artifact, line: index, origin, page: Semantics.PageId.from_index(row.page), source_runs: { physical: Semantics.IndexRange.from_start_and_length(mapped.run, 1) } })
+					$pieces = $pieces.append({ artifact: row.artifact, line: index, origin, page: Semantics.PageId.from_index(row.page), source_runs: { physical: Semantics.IndexRange.from_start_and_length({ start: mapped.run, length: 1 }) } })
 					$item = $end
 				}
 				ReferenceAtom(reference) => {
@@ -459,7 +459,7 @@ position_items = |authoring, pending, measured, literal, final, mapping, rows, a
 						index = $lines.len()
 						$lines = $lines.append({ advance, clusters: run.clusters, source: run.source })
 						piece_origin = { ..origin, x: $x }
-						$pieces = $pieces.append({ artifact: row.artifact, line: index, origin: piece_origin, page: Semantics.PageId.from_index(row.page), source_runs: { physical: Semantics.IndexRange.from_start_and_length($physical, 1) } })
+						$pieces = $pieces.append({ artifact: row.artifact, line: index, origin: piece_origin, page: Semantics.PageId.from_index(row.page), source_runs: { physical: Semantics.IndexRange.from_start_and_length({ start: $physical, length: 1 }) } })
 						if !row.artifact {
 							match list_at($anchors, context.occurrence.index()) {
 								At(_) => {}
@@ -512,7 +512,7 @@ joined_source = |first, last| {
 	if scalar_end < first.scalars.start() or byte_end < first.utf8_bytes.start() {
 		return Err(InvalidMapping({ item: first.scalars.start() }))
 	}
-	Ok({ scalars: Semantics.IndexRange.from_start_and_length(first.scalars.start(), scalar_end - first.scalars.start()), utf8_bytes: Semantics.IndexRange.from_start_and_length(first.utf8_bytes.start(), byte_end - first.utf8_bytes.start()) })
+	Ok({ scalars: Semantics.IndexRange.from_start_and_length({ start: first.scalars.start(), length: scalar_end - first.scalars.start() }), utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: first.utf8_bytes.start(), length: byte_end - first.utf8_bytes.start() }) })
 }
 
 add_unit : Layout.Unit, Layout.Unit -> Try(Layout.Unit, KernelFacadeReferences.Error)
@@ -568,7 +568,7 @@ test_limits = {
 }
 
 test_document : List(Document.Inline), List(Document.PageLabelRange) -> Document.NormalizedAuthoring
-test_document = |inlines, labels| Document.normalize(Document.from_blocks({ contents: [Document.rich_paragraph(inlines), Document.page_break, Document.destination_paragraph("end", "Destination")], language: "en", title: "References" }).with_page_labels(labels))
+test_document = |inlines, labels| Document.normalize(Document.from_blocks({ contents: [Document.rich_paragraph(inlines), Document.page_break, Document.destination_paragraph({ name: "end", text: "Destination" })], language: "en", title: "References" }).with_page_labels(labels))
 
 # Public authoring reaches committed geometry, exact semantic Unicode and
 # coalesced final text pieces with a one-way physical-page resolution.
@@ -629,7 +629,7 @@ expect {
 expect {
 	font = test_font({})?
 	faces = [Font.FaceId.from_index(0), Font.FaceId.from_index(1), Font.FaceId.from_index(2)]
-	selection = Styled({ faces, fonts: [font, font, font], roles: { code: Inherited, emphasis: Candidate(2), quote: Inherited, strong: Candidate(1) } })
+	selection = Styled({ faces, fonts: [font, font, font], inline_faces: [], face_indexes: [], roles: { code: Inherited, emphasis: Candidate(2), quote: Inherited, strong: Candidate(1) } })
 	theme : Theme
 	theme = { inline: { strong: { font: Face(list_at(faces, 1)) }, emphasis: { font: Face(list_at(faces, 2)) } } }
 	authoring = test_document([Document.strong([Document.page_reference({ destination: "end", width: 24 })]), Document.emphasis([Document.plain_text("A")])], [])

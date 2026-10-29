@@ -10,6 +10,8 @@ import pdf.KernelFacadeLines
 import pdf.KernelFacadeOutput
 import pdf.KernelFacadePages
 import pdf.KernelFacadePipeline
+import pdf.KernelFacadeFonts
+import pdf.KernelFacadeFailure
 import pdf.KernelFacadeScenes
 import pdf.KernelFacadeSemantics
 import pdf.KernelFacadeShape
@@ -54,9 +56,9 @@ import "../assets/NotoSansMono-Code-Fixture.ttf" as mono_font_bytes : List(U8)
 ## - `ordered`: a rich paragraph through an ordered caller-font policy, with
 ##   a `zh-Hans` span selected onto the Han face and a French span.
 ## - `code_face`: the mixed document with a monospace caller face for
-##   `Code` (`inline.code.font`) beside the packaged face registered
-##   as the body face; code runs, including code nested in `Strong`, paint
-##   in the second output font. Its rejections: a code face under an
+##   ordinary `Code` (`inline.code.font`) beside the registered regular
+##   body face. Its combined Emphasis/Strong/Code owner explicitly takes
+##   genuine Inter Bold Italic. Its rejections: a code face under an
 ##   ordered policy (`text.inline_font_policy`), code text the monospace
 ##   face does not cover (`text.coverage_missing` at the code inline), and
 ##   a code face without a font registry (`InvalidFontResource`).
@@ -77,6 +79,7 @@ import "../assets/NotoSansMono-Code-Fixture.ttf" as mono_font_bytes : List(U8)
 ## - `scaled_code xN`: N rich paragraphs with `Code` runs in the monospace
 ##   face at 85% of the paragraph size (`inline.code.scale`), a
 ##   paragraph that is all code, and a table row whose one cell is all code.
+##   Strong code explicitly selects genuine Fira Code Bold.
 ##   Scaled runs share their line's baseline and leading. Its rejections:
 ##   scales of 49% and 101% (`text.inline_scale` at the theme path); 50%
 ##   and 100% are accepted.
@@ -125,7 +128,7 @@ Fixture :: [].{
 	repeated_segments_ordered : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	repeated_segments_ordered = |count| {
 		registered = Font.Registry.empty.register_built_in(Font.ValidationLimits.default) ? |_| EvidenceFailure
-		cjk = registered.registry.register(cjk_font_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] }, Font.ValidationLimits.default) ? |_| EvidenceFailure
+		cjk = registered.registry.register({ bytes: cjk_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] }, limits: Font.ValidationLimits.default }) ? |_| EvidenceFailure
 		configured = cjk.registry.with_policy([registered.face, cjk.face]) ? |_| EvidenceFailure
 		repeated_segment_evidence(count, Theme.{ font_selection: Policy(configured.policy) }, Policy({ policy: configured.policy, registry: configured.registry }))
 	}
@@ -134,7 +137,9 @@ Fixture :: [].{
 
 	mixed : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	mixed = |context| {
-		theme = Theme.{ inline: { code: { color: Themed(Color.srgb8({ blue: 60, green: 100, red: 20 })) }, emphasis: { color: Themed(Color.srgb8({ blue: 140, green: 70, red: 20 })) }, strong: { color: Themed(Color.srgb8({ blue: 30, green: 30, red: 150 })) } } }
+		# The nested Emphasis/Strong/Code owner explicitly selects genuine
+		# Inter Bold Italic: the default mono family has no italic program.
+		theme = Theme.{ inline: { strong_emphasis: { font: Family(BuiltIn(Sans)) }, code: { color: Themed(Color.srgb8({ blue: 60, green: 100, red: 20 })) }, emphasis: { color: Themed(Color.srgb8({ blue: 140, green: 70, red: 20 })) }, strong: { color: Themed(Color.srgb8({ blue: 30, green: 30, red: 150 })) } } }
 		evidence(mixed_document(context), theme, BuiltInFace)
 	}
 
@@ -305,7 +310,7 @@ identifier_ranges = |authoring, _shape, block, _sources| {
 	var $start = 0
 	while $start + needle.len() <= bytes.len() {
 		if bytes.sublist({ start: $start, len: needle.len() }) == needle {
-			return [Semantics.IndexRange.from_start_and_length($start, needle.len())]
+			return [Semantics.IndexRange.from_start_and_length({ start: $start, length: needle.len() })]
 		}
 		$start = $start + 1
 	}
@@ -343,11 +348,11 @@ run_code_holds = |count| {
 code_faces : U64 -> Try({ body : Font.FaceId, mono : Font.FaceId, registry : Font.Registry }, Fixture.EvidenceError)
 code_faces = |context| {
 	limits = if (context == 0) Font.ValidationLimits.default else Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })
-	body = match Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits) {
+	body = match Font.Registry.empty.register({ bytes: KernelBuiltInFont.bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: limits }) {
 		Err(_) => return Err(EvidenceFailure)
 		Ok(value) => value
 	}
-	mono = match body.registry.register(mono_font_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits) {
+	mono = match body.registry.register({ bytes: mono_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: limits }) {
 		Err(_) => return Err(EvidenceFailure)
 		Ok(value) => value
 	}
@@ -357,18 +362,16 @@ code_faces = |context| {
 run_code_face : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 run_code_face = |context| {
 	faces = code_faces(context)?
-	theme = Theme.{ inline: { code: { color: Themed(Color.srgb8({ blue: 60, green: 100, red: 20 })), font: Face(faces.mono) } } }
+	# Preserve this caller body/title geometry and ordinary custom Code,
+	# while semantic style requests use genuine packaged Sans programs.
+	theme = Theme.{ title: { face: Face(faces.body) }, headings: { all: { face: Face(faces.body) } }, inline: { code: { color: Themed(Color.srgb8({ blue: 60, green: 100, red: 20 })), font: Face(faces.mono) }, strong: { font: Family(BuiltIn(Sans)) }, emphasis: { font: Family(BuiltIn(Sans)) }, strong_emphasis: { font: Family(BuiltIn(Sans)) } } }
 	options = Pdf.Options.{ theme: theme, fonts: Registered(faces.registry) }
 	document = mixed_document(context)
-	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
+	bytes = Pdf.to_bytes_with(document, options) ? |error| crash "Code-face public preparation failed: ${Str.inspect(error)}"
 
-	## The same fonts through the styled pipeline give the shaping and
-	## output work: two used faces, body first. Themed colors change only
-	## paint facts, so work uses the uncolored theme.
-	body_font = faces.registry.prepared_face(faces.body) ? |_| EvidenceFailure
-	mono_font = faces.registry.prepared_face(faces.mono) ? |_| EvidenceFailure
-	styled = { faces: [faces.body, faces.mono], fonts: [body_font, mono_font], roles: { code: Candidate(1), emphasis: Inherited, quote: Inherited, strong: Inherited } }
-	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(document), styled, Theme.{ inline: { code: { font: Face(faces.mono) } } }, page_size, descriptor, NoDocumentFacts, pipeline_limits) ? |_| EvidenceFailure
+	## The same authored font choices through the styled pipeline give the
+	## shaping and output work, including genuine combined-style requests.
+	pipeline = caller_work_plan(document, { registry: faces.registry, theme, limits: pipeline_limits })?
 	flow = KernelFacadePipeline.Plan.work(pipeline)
 
 	## Rejections: each is transactional, with no bytes.
@@ -377,7 +380,10 @@ run_code_face = |context| {
 		Err(_) => return Err(EvidenceFailure)
 		Ok(value) => value
 	}
-	policy_options = Pdf.Options.{ theme: { ..theme, font_selection: Policy(policy.policy) }, fonts: Registered(policy.registry) }
+	# Keep this rejection focused on inline role policy, independently of
+	# the positive fixture's deliberately exact regular block faces.
+	role_only_theme = { ..theme, title: { ..theme.title, face: ThemeFace }, headings: { all: { face: ThemeFace } } }
+	policy_options = Pdf.Options.{ theme: { ..role_only_theme, font_selection: Policy(policy.policy) }, fonts: Registered(policy.registry) }
 	under_policy = match Pdf.to_bytes_with(document, policy_options) {
 		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature("text.inline_font_policy"), .. }], .. })) => 1
 		_ => 0
@@ -387,7 +393,7 @@ run_code_face = |context| {
 		Err(InvalidDocument({ diagnostics: [{ code: FontCoverageMissing, details: ["contents[1].inlines[1].inlines[0]"], feature: Feature("text.coverage_missing"), .. }], .. })) => 1
 		_ => 0
 	}
-	unregistered = match Pdf.to_bytes_with(document, Pdf.Options.{ theme: theme }) {
+	unregistered = match Pdf.to_bytes_with(document, Pdf.Options.{ theme: role_only_theme }) {
 		Err(InvalidFontResource(UnknownFace(face))) => if (face == faces.mono) 1 else 0
 		_ => 0
 	}
@@ -466,13 +472,15 @@ run_shared_source = |count| {
 		return Err(InvalidScale)
 	}
 	faces = code_faces(0)?
-	theme = Theme.{ inline: { strong: { font: Face(faces.mono) } } }
+	# This existing exact face override compares wide mono occurrences
+	# with regular body occurrences; it makes no bold-program claim.
+	theme = Theme.{ headings: { all: { face: Face(faces.body) } }, inline: { strong: { font: Face(faces.mono) } } }
 	options = Pdf.Options.{ theme: theme, fonts: Registered(faces.registry) }
 	document = shared_source_document(count)
 	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
 	body_font = faces.registry.prepared_face(faces.body) ? |_| EvidenceFailure
 	mono_font = faces.registry.prepared_face(faces.mono) ? |_| EvidenceFailure
-	styled = { faces: [faces.body, faces.mono], fonts: [body_font, mono_font], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Candidate(1) } }
+	styled = { faces: [faces.body, faces.mono], fonts: [body_font, mono_font], inline_faces: [], face_indexes: [], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Candidate(1) } }
 	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(document), styled, theme, page_size, descriptor, NoDocumentFacts, shared_source_limits) ? |_| EvidenceFailure
 	flow = KernelFacadePipeline.Plan.work(pipeline)
 
@@ -505,7 +513,7 @@ heading_faces_theme = |body, heading, h1_color| {
 	title: { face: Face(heading) },
 	headings: {
 		h1: Own({ color: h1_color, face: Face(heading), leading: 22, size: 17 }),
-		h2: Own({ leading: 16, size: 12 }),
+		h2: Own({ face: Face(body), leading: 16, size: 12 }),
 	},
 }
 
@@ -536,7 +544,7 @@ run_heading_faces = |count| {
 	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
 	body_font = faces.registry.prepared_face(faces.body) ? |_| EvidenceFailure
 	mono_font = faces.registry.prepared_face(faces.mono) ? |_| EvidenceFailure
-	styled = { faces: [faces.body, faces.mono], fonts: [body_font, mono_font], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
+	styled = { faces: [faces.body, faces.mono], fonts: [body_font, mono_font], inline_faces: [], face_indexes: [], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
 
 	## Colors change only paint facts, so work uses the uncolored theme.
 	uncolored = heading_faces_theme(faces.body, faces.mono, Color.srgb8({ blue: 0, green: 0, red: 0 }))
@@ -605,15 +613,12 @@ run_scaled_code = |count| {
 		return Err(InvalidScale)
 	}
 	faces = code_faces(0)?
-	base = Theme.{ inline: { code: { font: Face(faces.mono) } } }
+	base = Theme.{ headings: { all: { face: Face(faces.body) } }, inline: { code: { font: Face(faces.mono) }, strong: { font: Family(BuiltIn(Mono)) } } }
 	theme = { ..base, inline: { ..base.inline, code: { ..base.inline.code, scale: Percent(85) } } }
 	options = Pdf.Options.{ theme: theme, fonts: Registered(faces.registry) }
 	document = scaled_code_document(count)
 	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
-	body_font = faces.registry.prepared_face(faces.body) ? |_| EvidenceFailure
-	mono_font = faces.registry.prepared_face(faces.mono) ? |_| EvidenceFailure
-	styled = { faces: [faces.body, faces.mono], fonts: [body_font, mono_font], roles: { code: Candidate(1), emphasis: Inherited, quote: Inherited, strong: Inherited } }
-	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(document), styled, theme, page_size, descriptor, NoDocumentFacts, shared_source_limits) ? |_| EvidenceFailure
+	pipeline = caller_work_plan(document, { registry: faces.registry, theme, limits: shared_source_limits })?
 	flow = KernelFacadePipeline.Plan.work(pipeline)
 
 	## The accepted boundaries, then the two rejected neighbours.
@@ -665,7 +670,7 @@ link_style_document = |count| {
 				Pdf.text(" and who signs it off."),
 			]),
 		)
-		$contents = $contents.append(Pdf.link("Status page ${number}", "https://status.example.org/${number}"))
+		$contents = $contents.append(Pdf.link({ text: "Status page ${number}", uri: "https://status.example.org/${number}" }))
 		$index = $index + 1
 	}
 	Pdf.document({ contents: $contents, language: "en-AU", title: "Link style" })
@@ -733,7 +738,7 @@ scoped_colors_document = |count, scoped| {
 	for block in nested {
 		$contents = $contents.append(block)
 	}
-	panel = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 300, 60), Color.srgb8({ blue: 220, green: 240, red: 250 }))
+	panel = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 300, height: 60 }), color: Color.srgb8({ blue: 220, green: 240, red: 250 }) })
 	callout = Pdf.custom_block({ contents: [Pdf.rich_paragraph([Pdf.strong([Pdf.text("Scoped callout.")]), Pdf.text(" Its label takes the scope's amber.")])], inset: 8, name: "Scoped callout", panel, size: { height: 60, width: 300 } })
 	for block in wrap(warning, [callout]) {
 		$contents = $contents.append(block)
@@ -747,7 +752,7 @@ scoped_text_document = |count, scoped| {
 	near_white = Color.srgb8({ blue: 245, green: 242, red: 240 })
 	dark = Theme.Scope.{ text: Themed(near_white), strong: Themed(amber), link: Themed(Color.srgb8({ blue: 250, green: 205, red: 125 })), code: Themed(near_white) }
 	slate = Theme.Scope.{ text: Themed(Color.srgb8({ blue: 105, green: 85, red: 70 })) }
-	panel = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 420, 40), Color.srgb8({ blue: 70, green: 40, red: 20 }))
+	panel = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 420, height: 40 }), color: Color.srgb8({ blue: 70, green: 40, red: 20 }) })
 	var $contents = List.with_capacity(count + 4)
 	for block in wrap(
 		slate,
@@ -844,10 +849,10 @@ mixed_document = |context| {
 	Pdf.document({
 		contents: [
 			Pdf.title("Quarterly summary${suffix}"),
-			Pdf.destination_heading("summary", 1, "1 Summary"),
+			Pdf.destination_heading({ name: "summary", level: 1, text: "1 Summary" }),
 			Pdf.rich_paragraph([
 				Pdf.text("Q1 "),
-				Pdf.expansion("FY2027", "financial year 2027"),
+				Pdf.expansion({ text: "FY2027", expanded: "financial year 2027" }),
 				Pdf.text(": July to September 2026 · Prepared by the finance team."),
 			]),
 			Pdf.rich_paragraph([
@@ -861,14 +866,14 @@ mixed_document = |context| {
 			]),
 			Pdf.rich_paragraph([
 				Pdf.text("Revenue is reported net of "),
-				Pdf.expansion("GST", "Goods and Services Tax"),
+				Pdf.expansion({ text: "GST", expanded: "Goods and Services Tax" }),
 				Pdf.text(". Stock counts come from the warehouse system "),
 				Pdf.code("WMS-7"),
 				Pdf.text(", which records every "),
 				Pdf.in_language("fr", [Pdf.text("Cafetière « Élégance »")]),
 				Pdf.text(" shipment."),
 			]),
-			Pdf.destination_heading("operations", 1, "3 Operations"),
+			Pdf.destination_heading({ name: "operations", level: 1, text: "3 Operations" }),
 			Pdf.rich_paragraph([
 				Pdf.text("Our oak supplier "),
 				Pdf.in_language("fr", [Pdf.text("Atelier Beaulieu")]),
@@ -913,7 +918,7 @@ paragraph_document = |count| {
 				Pdf.text(" growth in "),
 				Pdf.emphasis([Pdf.text("Queensland")]),
 				Pdf.text(" under "),
-				Pdf.expansion("GST", "Goods and Services Tax"),
+				Pdf.expansion({ text: "GST", expanded: "Goods and Services Tax" }),
 				Pdf.text(", supplied by "),
 				Pdf.in_language("fr", [Pdf.text("Atelier Beaulieu")]),
 				Pdf.text(", counted in "),
@@ -949,11 +954,11 @@ ordered_document = |context| {
 register_faces : U64 -> Try({ policy : Font.PolicyId, registry : Font.Registry }, Fixture.EvidenceError)
 register_faces = |context| {
 	limits = if (context == 0) Font.ValidationLimits.default else Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })
-	latin = match Font.Registry.empty.register(caller_font_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits) {
+	latin = match Font.Registry.empty.register({ bytes: caller_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: limits }) {
 		Err(_) => return Err(EvidenceFailure)
 		Ok(value) => value
 	}
-	cjk = match latin.registry.register(cjk_font_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] }, limits) {
+	cjk = match latin.registry.register({ bytes: cjk_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] }, limits: limits }) {
 		Err(_) => return Err(EvidenceFailure)
 		Ok(value) => value
 	}
@@ -975,18 +980,18 @@ evidence_with_limits = |document, theme, faces, limits| {
 		BuiltInFace => Pdf.Options.{ theme: theme }
 		Policy(policy) => Pdf.Options.{ theme: theme, fonts: Registered(policy.registry) }
 	}
-	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
+	bytes = Pdf.to_bytes_with(document, options) ? |error| crash "Rich-inline public preparation failed: ${Str.inspect(error)}"
 	authoring = Document.normalize(document)
 	plan = KernelFacadeSemantics.Plan.build(authoring, semantic_limits) ? |_| EvidenceFailure
 	work = KernelFacadeSemantics.Plan.work(plan)
 	semantic_work = KernelSemantics.Plan.work(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(plan)))
 
-	## Work comes from the default theme: themed inline colors change only
-	## paint facts, never shaping, line, page, or fragment counts.
+	## Work consumes the same selected font facts as the public facade;
+	## themed inline colors change only paint facts.
 	pipeline = match faces {
 		BuiltInFace => {
-			font = KernelFont.inspect(KernelBuiltInFont.bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
-			KernelFacadePipeline.Plan.build(authoring, font, Theme.default, page_size, descriptor, limits) ? |_| EvidenceFailure
+			resolved = KernelFacadeFonts.resolve(authoring, { origin: Packaged, registry: Font.Registry.empty, theme: uncolored_theme(theme) }) ? |error| crash "Rich-inline work font selection failed: ${Str.inspect(error)}"
+			KernelFacadePipeline.Plan.build_styled_with_facts(resolved.authoring, resolved.fonts, resolved.theme, page_size, descriptor, NoDocumentFacts, limits) ? |error| crash "Rich-inline work pipeline failed: ${Str.inspect(KernelFacadeFailure.pipeline(error))}"
 		}
 		Policy(policy) => KernelFacadePipeline.Plan.build_ordered(authoring, policy, theme, page_size, descriptor, limits) ? |_| EvidenceFailure
 	}
@@ -1009,6 +1014,27 @@ evidence_with_limits = |document, theme, faces, limits| {
 			bytes.len(),
 		],
 	})
+}
+
+uncolored_theme : Theme -> Theme
+uncolored_theme = |theme| {
+	if theme.inline.code.color == Inherited and theme.inline.emphasis.color == Inherited and theme.inline.quote.color == Inherited and theme.inline.strong.color == Inherited {
+		return theme
+	}
+	# This geometry/work probe has no document color-intent facts. Project
+	# out paint-only inline colors while preserving every font/style and
+	# metric choice; the public pipeline still uses the authored colors.
+	{ ..theme, inline: { ..theme.inline, code: { ..theme.inline.code, color: Inherited }, emphasis: { ..theme.inline.emphasis, color: Inherited }, quote: { ..theme.inline.quote, color: Inherited }, strong: { ..theme.inline.strong, color: Inherited } } }
+}
+
+## Mirror the authored family/style choices in the work probe. The custom
+## mono face remains an exact regular Code face; Strong and combined requests
+## use the explicitly selected genuine packaged programs.
+caller_work_plan : Document, { registry : Font.Registry, theme : Theme, limits : KernelFacadePipeline.Limits } -> Try(KernelFacadePipeline.Plan, Fixture.EvidenceError)
+caller_work_plan = |document, { registry, theme, limits }| {
+	resolved = KernelFacadeFonts.resolve(Document.normalize(document), { origin: Caller, registry, theme: uncolored_theme(theme) }) ? |error| crash "Caller rich-inline work font selection failed: ${Str.inspect(error)}"
+	plan = KernelFacadePipeline.Plan.build_styled_with_facts(resolved.authoring, resolved.fonts, resolved.theme, page_size, descriptor, NoDocumentFacts, limits) ? |error| crash "Rich-inline work pipeline failed: ${Str.inspect(KernelFacadeFailure.pipeline(error))}"
+	Ok(plan)
 }
 
 page_size : Layout.Size

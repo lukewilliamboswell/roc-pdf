@@ -343,15 +343,7 @@ evidence_page_facade = |repetitions| {
 	text_plan = KernelFacadeSemantics.Plan.preliminary(semantic)
 	source_store = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantic))
 	font = KernelFont.inspect(built_in_font_bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
-	shape = KernelFacadeShape.Plan.build(
-		KernelFacadeSemantics.Plan.authoring(semantic),
-		KernelFacadeSemantics.Plan.block_ownership(semantic),
-		KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(text_plan)),
-		source_store,
-		font,
-		Theme.default,
-		KernelFacadeShape.Limits.make({ max_requests: occurrences, shape: KernelShape.Limits.make({ max_clusters: text_units, max_glyphs: text_units, max_scalars: text_units, max_source_bytes: text_bytes }) }),
-	) ? |_| EvidenceFailure
+	shape = KernelFacadeShape.Plan.build(KernelFacadeSemantics.Plan.authoring(semantic), KernelFacadeSemantics.Plan.block_ownership(semantic), KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(text_plan)), source_store, font, Theme.default, KernelFacadeShape.Limits.make({ max_requests: occurrences, shape: KernelShape.Limits.make({ max_clusters: text_units, max_glyphs: text_units, max_scalars: text_units, max_source_bytes: text_bytes }) })) ? |_| EvidenceFailure
 	page_size = { height: Layout.Unit.from_raw(842000), width: Layout.Unit.from_raw(595000) }
 	line = KernelFacadeLines.Plan.build(
 		KernelFacadeSemantics.Plan.authoring(semantic),
@@ -488,11 +480,11 @@ synthetic_line_input = |scalars| {
 		decision = if ($index > 0 and $index % 2 == 0) Allowed else Prohibited
 		$boundaries = $boundaries.append({ authority: Tailorable, byte_offset: $index, decision, scalar_offset: $index })
 		$clusters = $clusters.append({
-			glyphs: Semantics.IndexRange.from_start_and_length($index, 1),
+			glyphs: Semantics.IndexRange.from_start_and_length({ start: $index, length: 1 }),
 			kind: OneToOne,
 			source: {
-				scalars: Semantics.IndexRange.from_start_and_length($index, 1),
-				utf8_bytes: Semantics.IndexRange.from_start_and_length($index, 1),
+				scalars: Semantics.IndexRange.from_start_and_length({ start: $index, length: 1 }),
+				utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: $index, length: 1 }),
 			},
 		})
 		$graphemes = $graphemes.append({ byte_start: $index, byte_end: $index + 1, scalar_start: $index, scalar_end: $index + 1 })
@@ -523,20 +515,20 @@ synthetic_line_input = |scalars| {
 				runs: [
 					{
 						actual_text: FromOccurrence,
-						clusters: Semantics.IndexRange.from_start_and_length(0, scalars),
+						clusters: Semantics.IndexRange.from_start_and_length({ start: 0, length: scalars }),
 						direction: LeftToRight,
-						glyphs: Semantics.IndexRange.from_start_and_length(0, scalars),
+						glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: scalars }),
 						id: Text.RunId.from_index(0),
 						instance: Font.InstanceId.from_index(0),
 						language: Language("en"),
 						script: Font.Script.from_iso15924("Latn"),
 						size: Layout.Unit.from_raw(1000),
 						source: {
-							scalars: Semantics.IndexRange.from_start_and_length(0, scalars),
-							utf8_bytes: Semantics.IndexRange.from_start_and_length(0, scalars),
+							scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: scalars }),
+							utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: scalars }),
 						},
-						substitutions: Semantics.IndexRange.from_start_and_length(0, 0),
-						transformations: Semantics.IndexRange.from_start_and_length(0, 0),
+						substitutions: Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 }),
+						transformations: Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 }),
 						unicode: OccurrenceText(Semantics.OccurrenceId.from_index(0)),
 						writing_mode: Horizontal,
 					},
@@ -614,10 +606,10 @@ synthetic_page_input = |block_count| {
 		while $local < 6 {
 			$lines = $lines.append({
 				advance: Layout.Unit.from_raw(3000),
-				clusters: Semantics.IndexRange.from_start_and_length(line_start + $local, 1),
+				clusters: Semantics.IndexRange.from_start_and_length({ start: line_start + $local, length: 1 }),
 				source: {
-					scalars: Semantics.IndexRange.from_start_and_length($local, 1),
-					utf8_bytes: Semantics.IndexRange.from_start_and_length($local, 1),
+					scalars: Semantics.IndexRange.from_start_and_length({ start: $local, length: 1 }),
+					utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: $local, length: 1 }),
 				},
 			})
 			$local = $local + 1
@@ -628,7 +620,7 @@ synthetic_page_input = |block_count| {
 			decoration: Layout.Unit.from_raw(0),
 			lead: Layout.Unit.from_raw(0),
 			leading: Layout.Unit.from_raw(1000),
-			lines: Semantics.IndexRange.from_start_and_length(line_start, 6),
+			lines: Semantics.IndexRange.from_start_and_length({ start: line_start, length: 6 }),
 			owner: Content(Semantics.OccurrenceId.from_index($block_index)),
 			policy: {
 				break_before: $block_index > 0 and $block_index % 10 == 0,
@@ -717,16 +709,8 @@ evidence_ordered_facade = |repetitions| {
 	if repetitions == 0 or repetitions > 100000 {
 		return Err(InvalidRepetitions)
 	}
-	caller = Font.Registry.empty.register(
-		caller_font_bytes,
-		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
-		Font.ValidationLimits.default,
-	) ? |_| EvidenceFailure
-	cjk = caller.registry.register(
-		cjk_font_bytes,
-		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] },
-		Font.ValidationLimits.default,
-	) ? |_| EvidenceFailure
+	caller = Font.Registry.empty.register({ bytes: caller_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| EvidenceFailure
+	cjk = caller.registry.register({ bytes: cjk_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] }, limits: Font.ValidationLimits.default }) ? |_| EvidenceFailure
 	configured = cjk.registry.with_policy([caller.face, cjk.face]) ? |_| EvidenceFailure
 	theme = Theme.{ font_selection: Policy(configured.policy) }
 	authoring = Document.normalize(
@@ -834,7 +818,7 @@ build_with_builder : U64 -> Document
 build_with_builder = |repetitions| {
 	var $builder = Document.builder({ language: "en-AU", title: "Report" })
 		.add_title("Report")
-		.add_heading(1, "Summary")
+		.add_heading({ level: 1, text: "Summary" })
 	$builder = $builder.add_paragraphs(List.repeat("Body", repetitions))
 	$builder.add_bullets(["One", "Two"]).finish()
 }

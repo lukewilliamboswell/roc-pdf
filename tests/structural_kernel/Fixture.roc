@@ -134,10 +134,7 @@ Fixture :: [].{
 	generate_blank_with_resource_names : U64 -> { bytes : List(U8), work : List(U64) }
 	generate_blank_with_resource_names = |entry_count| {
 		entries = resource_name_entries(entry_count)
-		plan = match KernelResource.Plan.build(
-			entries,
-			KernelResource.Limits.make({ max_entries: entry_count, max_name_bytes: U64.highest }),
-		) {
+		plan = match KernelResource.Plan.build(entries, KernelResource.Limits.make({ max_entries: entry_count, max_name_bytes: U64.highest })) {
 			Ok(value) => value
 			Err(_) => {
 				crash "structural-kernel resource-name stress plan invariant failed"

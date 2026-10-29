@@ -116,6 +116,7 @@ KernelObject :: [].{
 		ByteString(ByteStringId),
 		Dictionary(Span),
 		Integer(I64),
+		Fixed16(I32),
 		Name(NameId),
 		Null,
 		Real(KernelLex.Decimal),
@@ -395,6 +396,10 @@ KernelObject :: [].{
 
 	add_integer : Builder, I64 -> Try({ builder : Builder, id : ValueId }, Error)
 	add_integer = |builder, value| add_value(builder, Integer(value), 1)
+
+	## Exact signed 16.16 facts are sealed before lexical emission.
+	add_fixed16 : Builder, I32 -> Try({ builder : Builder, id : ValueId }, Error)
+	add_fixed16 = |builder, raw| add_value(builder, Fixed16(raw), 1)
 
 	add_real : Builder, KernelLex.Decimal -> Try({ builder : Builder, id : ValueId }, Error)
 	add_real = |builder, value| add_value(builder, Real(value), 1)

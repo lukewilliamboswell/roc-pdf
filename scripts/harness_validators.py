@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from check_default_fonts import validate_default_fonts_pdf
 from check_contents_entries import validate_contents_entries_pdf
 from check_destination_references import validate_destination_references_pdf
 from check_chapter_templates import validate_chapter_templates_pdf
@@ -143,6 +144,7 @@ def _facade_image(data: bytes, dimensions: dict[str, int], report: Reporter) -> 
 
 
 VALIDATORS: dict[str, Validator] = {
+    "default_fonts": _dimensioned(validate_default_fonts_pdf, "genuine static family/style programs, exact selected glyph outlines and searchable source text"),
     "contents_entries": _dimensioned(validate_contents_entries_pdf, "aligned contents columns, wrapped titles, linked exact page references and decorative leaders"),
     "destination_references": _dimensioned(validate_destination_references_pdf, "printed reference Unicode agrees with emitted destinations and page labels, fixed advances, semantic owners and explicit annotations"),
     "vector_diagrams": _dimensioned(validate_vector_diagrams_pdf, "exact prepared-vector Unicode labels, caption/Alt ownership and cubic/arrowhead paths"),
@@ -232,6 +234,7 @@ PREFLIGHT_CHECKS["contracts"] = PreflightCheck("check_contracts.py", True)
 PREFLIGHT_CHECKS["pdf_structure"] = PreflightCheck("check_pdf_structure.py", True)
 # The font self-test validates the committed font-leaf snapshots' exact
 # descendant dictionaries, which are also in flux during --update-snapshots.
+PREFLIGHT_CHECKS["default_fonts"] = PreflightCheck("check_default_fonts.py", True)
 PREFLIGHT_CHECKS["roc_font"] = PreflightCheck("check_roc_font.py", True)
 PREFLIGHT_CHECKS["fonts"] = PreflightCheck("check_fonts.py", True)
 # The structure-semantics self-test reads committed facade and container

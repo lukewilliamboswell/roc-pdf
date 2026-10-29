@@ -54,7 +54,7 @@ register_fonts : {} -> Try(Faces, [FontRejected(Font.ResourceError)])
 register_fonts = |_| {
 	latin : List(Font.Script)
 	latin = ["Latn"]
-	add = |registry, bytes| registry.register(bytes, { provision: BuiltIn, scripts: latin }, Font.ValidationLimits.default).map_err(|err| FontRejected(err))
+	add = |registry, bytes| registry.register({ bytes: bytes, registration: { provision: BuiltIn, scripts: latin }, limits: Font.ValidationLimits.default }).map_err(|err| FontRejected(err))
 	regular = add(Font.Registry.empty, regular_bytes)?
 	bold = add(regular.registry, bold_bytes)?
 	italic = add(bold.registry, italic_bytes)?
@@ -118,7 +118,7 @@ theme = |faces| {
 ## header with a hairline on every later page. Both carry `Page N of M`.
 
 page_of : Pdf.Inline
-page_of = Pdf.reserved_width(64, End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+page_of = Pdf.reserved_width({ width: 64, align: End, contents: [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)] })
 
 footer : Pdf.Region
 footer = Pdf.region({
@@ -131,34 +131,34 @@ footer = Pdf.region({
 ## mark (three rising bars and a star-like diamond) at its end.
 cover_band : Scene.Drawing
 cover_band = {
-	var $band = Scene.Drawing.empty.rectangle(Layout.rect(0, 6, body_width, 50), navy)
-	$band = $band.rectangle(Layout.rect(0, 0, body_width, 4), teal)
+	var $band = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 6, width: body_width, height: 50 }), color: navy })
+	$band = $band.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: body_width, height: 4 }), color: teal })
 
 	# Faint diagonal hatching across the band's start, for texture.
 	var $x = 4
 	while $x < 220 {
-		$band = $band.path(Scene.PathBuilder.start.move_to(Layout.point($x, 8)).line_to(Layout.point($x + 28, 54)).finish(), Scene.solid_stroke(Color.srgb8({ red: 34, green: 62, blue: 98 }), 2))
+		$band = $band.path({ path: Scene.PathBuilder.start.move_to(Layout.point({ x: $x, y: 8 })).line_to(Layout.point({ x: $x + 28, y: 54 })).finish(), style: Scene.solid_stroke(Color.srgb8({ red: 34, green: 62, blue: 98 }), 2) })
 		$x = $x + 14
 	}
 
 	## The mark is its own drawing, grouped at the band's end.
-	$band.group(Layout.point(body_width - 76, 17), coop_mark)
+	$band.group({ offset: Layout.point({ x: body_width - 76, y: 17 }), drawing: coop_mark })
 }
 
 ## The cooperative's mark: three rising bars and a diamond, from its own
 ## origin.
 coop_mark : Scene.Drawing
 coop_mark = {
-	bar = |x, height| Scene.PathBuilder.start.move_to(Layout.point(x, 0)).line_to(Layout.point(x + 8, 0)).line_to(Layout.point(x + 8, height)).line_to(Layout.point(x, height)).close().finish()
+	bar = |x, height| Scene.PathBuilder.start.move_to(Layout.point({ x: x, y: 0 })).line_to(Layout.point({ x: x + 8, y: 0 })).line_to(Layout.point({ x: x + 8, y: height })).line_to(Layout.point({ x: x, y: height })).close().finish()
 	Scene.Drawing.empty
-		.path(bar(0, 12), Scene.solid_fill(slate))
-		.path(bar(12, 20), Scene.solid_fill(teal))
-		.path(bar(24, 28), Scene.solid_fill(white))
-		.path(Scene.PathBuilder.start.move_to(Layout.point(44, 20)).line_to(Layout.point(50, 28)).line_to(Layout.point(56, 20)).line_to(Layout.point(50, 12)).close().finish(), Scene.solid_fill(amber))
+		.path({ path: bar(0, 12), style: Scene.solid_fill(slate) })
+		.path({ path: bar(12, 20), style: Scene.solid_fill(teal) })
+		.path({ path: bar(24, 28), style: Scene.solid_fill(white) })
+		.path({ path: Scene.PathBuilder.start.move_to(Layout.point({ x: 44, y: 20 })).line_to(Layout.point({ x: 50, y: 28 })).line_to(Layout.point({ x: 56, y: 20 })).line_to(Layout.point({ x: 50, y: 12 })).close().finish(), style: Scene.solid_fill(amber) })
 }
 
 hairline : Scene.Drawing
-hairline = Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: 0.6, width: Layout.Unit.points(body_width) } }, teal)
+hairline = Scene.Drawing.empty.rectangle({ bounds: { origin: Layout.point({ x: 0, y: 0 }), size: { height: 0.6, width: Layout.Unit.points(body_width) } }, color: teal })
 
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
@@ -232,8 +232,8 @@ callout_panel = |size, fill, accent| {
 		.finish()
 	bar = Scene.PathBuilder.start.rectangle({ origin: point(0, r), size: { height: Layout.Unit.from_raw(top - 2 * r), width: 4 } }).finish()
 	Scene.Drawing.empty
-		.path(outline_path, Scene.solid_fill(fill))
-		.path(bar, Scene.solid_fill(accent))
+		.path({ path: outline_path, style: Scene.solid_fill(fill) })
+		.path({ path: bar, style: Scene.solid_fill(accent) })
 }
 
 ## ---------------------------------------------------------------------
@@ -258,8 +258,8 @@ revenue_height = |value| value * 128 // 4000
 key : Scene.Drawing, I64, I64, Scene.Drawing, Str -> Scene.Drawing
 key = |drawing, x, y, swatch, name|
 	drawing
-		.group(Layout.point(x, y), swatch)
-		.text({ align: Start, color: ink, origin: Layout.point(x + 14, y + 1), size: 8, text: name })
+		.group({ offset: Layout.point({ x: x, y: y }), drawing: swatch })
+		.text({ align: Start, color: ink, origin: Layout.point({ x: x + 14, y: y + 1 }), size: 8, text: name })
 
 revenue_chart : Scene.Drawing
 revenue_chart = {
@@ -268,10 +268,10 @@ revenue_chart = {
 	width = body_width - left
 	var $chart = Scene.Drawing.empty
 	for step in [1, 2, 3, 4] {
-		$chart = $chart.rectangle({ origin: Layout.point(left, base + revenue_height(step * 1000)), size: { height: 0.5, width: Layout.Unit.points(width) } }, grid)
+		$chart = $chart.rectangle({ bounds: { origin: Layout.point({ x: left, y: base + revenue_height(step * 1000) }), size: { height: 0.5, width: Layout.Unit.points(width) } }, color: grid })
 	}
 	for step in [0, 1, 2, 3, 4] {
-		$chart = $chart.text({ align: End, color: ink, origin: Layout.point(left - 6, base - 3 + revenue_height(step.to_i64_wrap() * 1000)), size: 8, text: if (step == 0) "0" else "${step.to_i64_wrap().to_str()},000" })
+		$chart = $chart.text({ align: End, color: ink, origin: Layout.point({ x: left - 6, y: base - 3 + revenue_height(step.to_i64_wrap() * 1000) }), size: 8, text: if (step == 0) "0" else "${step.to_i64_wrap().to_str()},000" })
 	}
 	slot = width // 6
 	var $index = 0
@@ -279,29 +279,29 @@ revenue_chart = {
 	for month in monthly {
 		x = left + $index * slot + slot // 2
 		color = if ($index < 3) slate else teal
-		$chart = $chart.rectangle(Layout.rect(x - 22, base, 44, revenue_height(month.revenue)), color)
+		$chart = $chart.rectangle({ bounds: Layout.rect({ x: x - 22, y: base, width: 44, height: revenue_height(month.revenue) }), color: color })
 
 		## The month under its bar and its revenue above it.
-		$chart = $chart.text({ align: Center, color: ink, origin: Layout.point(x, 3), size: 8, text: month.name })
+		$chart = $chart.text({ align: Center, color: ink, origin: Layout.point({ x: x, y: 3 }), size: 8, text: month.name })
 		my = base + revenue_height(month.margin * 50 + 1000)
-		$line = if ($index == 0) $line.move_to(Layout.point(x, my)) else $line.line_to(Layout.point(x, my))
+		$line = if ($index == 0) $line.move_to(Layout.point({ x: x, y: my })) else $line.line_to(Layout.point({ x: x, y: my }))
 		$index = $index + 1
 	}
 	$chart = $chart
-		.path($line.finish(), Scene.solid_stroke(amber, 2))
-		.path(Scene.PathBuilder.start.move_to(Layout.point(left, base)).line_to(Layout.point(body_width, base)).finish(), Scene.solid_stroke(ink, 1))
+		.path({ path: $line.finish(), style: Scene.solid_stroke(amber, 2) })
+		.path({ path: Scene.PathBuilder.start.move_to(Layout.point({ x: left, y: base })).line_to(Layout.point({ x: body_width, y: base })).finish(), style: Scene.solid_stroke(ink, 1) })
 	var $i = 0
 	for month in monthly {
 		x = left + $i * slot + slot // 2
 		my = base + revenue_height(month.margin * 50 + 1000)
-		$chart = $chart.rectangle(Layout.rect(x - 4, my - 4, 8, 8), amber).rectangle(Layout.rect(x - 2, my - 2, 4, 4), white)
+		$chart = $chart.rectangle({ bounds: Layout.rect({ x: x - 4, y: my - 4, width: 8, height: 8 }), color: amber }).rectangle({ bounds: Layout.rect({ x: x - 2, y: my - 2, width: 4, height: 4 }), color: white })
 		$i = $i + 1
 	}
 
 	## The legend, above the plot.
 	legend_y = base + revenue_height(4000) + 14
-	swatch = |color| Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 10, 8), color)
-	margin_key = Scene.Drawing.empty.path(Scene.PathBuilder.start.move_to(Layout.point(0, 4)).line_to(Layout.point(10, 4)).finish(), Scene.solid_stroke(amber, 2)).rectangle(Layout.rect(3, 2, 4, 4), amber)
+	swatch = |color| Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 10, height: 8 }), color: color })
+	margin_key = Scene.Drawing.empty.path({ path: Scene.PathBuilder.start.move_to(Layout.point({ x: 0, y: 4 })).line_to(Layout.point({ x: 10, y: 4 })).finish(), style: Scene.solid_stroke(amber, 2) }).rectangle({ bounds: Layout.rect({ x: 3, y: 2, width: 4, height: 4 }), color: amber })
 	$chart = key($chart, left, legend_y, swatch(slate), "Q1 revenue")
 	$chart = key($chart, left + 90, legend_y, swatch(teal), "Q2 revenue")
 	key($chart, left + 180, legend_y, margin_key, "Gross margin, 31% to 36%")
@@ -327,10 +327,10 @@ progress_chart = {
 		y = 3 * row_height - $row * row_height + 6
 		filled = track * percent.to_i64_wrap() // 100
 		color = if (percent >= 50) teal else amber
-		$chart = $chart.rectangle(Layout.rect(start, y, track, 14), grid).rectangle(Layout.rect(start, y, filled, 14), color)
+		$chart = $chart.rectangle({ bounds: Layout.rect({ x: start, y: y, width: track, height: 14 }), color: grid }).rectangle({ bounds: Layout.rect({ x: start, y: y, width: filled, height: 14 }), color: color })
 		$chart = $chart
-			.text({ align: End, color: ink, origin: Layout.point(start - 8, y + 3), size: 9, text: name })
-			.text_in(Strong, { align: End, color: ink, origin: Layout.point(body_width - 2, y + 3), size: 10, text: "${percent.to_str()}%" })
+			.text({ align: End, color: ink, origin: Layout.point({ x: start - 8, y: y + 3 }), size: 9, text: name })
+			.text_in({ role: Strong, label: { align: End, color: ink, origin: Layout.point({ x: body_width - 2, y: y + 3 }), size: 10, text: "${percent.to_str()}%" } })
 		$row = $row + 1
 	}
 
@@ -338,8 +338,8 @@ progress_chart = {
 	half = start + track // 2
 	top = 4 * row_height + 2
 	$chart
-		.path(Scene.PathBuilder.start.move_to(Layout.point(half, 1)).line_to(Layout.point(half, top)).finish(), Scene.solid_stroke(navy, 1))
-		.text_in(Strong, { align: Center, color: navy, origin: Layout.point(half, top + 4), size: 8, text: "Half year" })
+		.path({ path: Scene.PathBuilder.start.move_to(Layout.point({ x: half, y: 1 })).line_to(Layout.point({ x: half, y: top })).finish(), style: Scene.solid_stroke(navy, 1) })
+		.text_in({ role: Strong, label: { align: Center, color: navy, origin: Layout.point({ x: half, y: top + 4 }), size: 8, text: "Half year" } })
 }
 
 ## ---------------------------------------------------------------------
@@ -501,7 +501,7 @@ contents = |options| Ok([
 		Pdf.text(" · October to December 2026 · Prepared for members by the Board and the Finance team"),
 	]),
 	Pdf.section([
-		Pdf.destination_heading("glance", 1, "At a glance"),
+		Pdf.destination_heading({ name: "glance", level: 1, text: "At a glance" }),
 		Pdf.rich_paragraph([
 			Pdf.text("Northstar finished the half ahead of plan. Revenue rose "),
 			Pdf.strong([Pdf.text("17.3%")]),
@@ -530,7 +530,7 @@ contents = |options| Ok([
 		)?,
 	]),
 	Pdf.section([
-		Pdf.keep_with_next(Required, Pdf.destination_heading("scorecard", 1, "1 Scorecard")),
+		Pdf.keep_with_next(Required, Pdf.destination_heading({ name: "scorecard", level: 1, text: "1 Scorecard" })),
 		Pdf.paragraph("Five of the seven board measures are on track. Status reads On track when the quarter met or beat its target, and Watch when it fell short."),
 		scorecard,
 		Pdf.rich_paragraph([
@@ -554,7 +554,7 @@ contents = |options| Ok([
 	]),
 	Pdf.page_break,
 	Pdf.section([
-		Pdf.destination_heading("trading", 1, "2 Trading performance"),
+		Pdf.destination_heading({ name: "trading", level: 1, text: "2 Trading performance" }),
 		Pdf.rich_paragraph([
 			Pdf.text("Revenue climbed in every month of the quarter, lifted by an early harvest and strong fodder demand after a dry spring. December was the strongest month on record at "),
 			Pdf.strong([Pdf.text("AUD 3.14 m")]),
@@ -563,14 +563,14 @@ contents = |options| Ok([
 		Pdf.figure({ drawing: revenue_chart, alt: "Column chart of monthly revenue from July to December 2026, rising from AUD 2.41 million in July to AUD 3.14 million in December, with the second-quarter months highlighted. An overlaid line shows gross margin rising from 31% to 36%. Values are listed in Table 2.", caption: Pdf.caption("Figure 1. Monthly revenue in AUD thousands, July to December 2026, with gross margin"), fit: ScaleToFit({ minimum_percent: 70 }) }),
 		monthly_table,
 		Pdf.section([
-			Pdf.destination_heading("segments", 2, "2.1 Segment results"),
+			Pdf.destination_heading({ name: "segments", level: 2, text: "2.1 Segment results" }),
 			Pdf.paragraph("Grain and fodder remains our largest segment. Advisory services and the online store are still small, but together they contributed a fifth of the quarter's growth at well above the average margin."),
 			segments,
 		]),
 	]),
 	Pdf.section([
 		Pdf.keep_together([
-			Pdf.destination_heading("targets", 1, "3 Progress against targets"),
+			Pdf.destination_heading({ name: "targets", level: 1, text: "3 Progress against targets" }),
 			Pdf.paragraph("Half of the financial year has elapsed, marked by the navy line. Teal tracks are at or ahead of that pace; amber tracks are behind it."),
 			Pdf.figure({ drawing: progress_chart, alt: "Four progress bars against FY2027 targets: revenue 62%, new members 48%, advisory clients 71%, and emissions reduction 39%. A marker at 50% shows the elapsed half year.", caption: Pdf.caption("Figure 2. Progress toward FY2027 targets") }),
 
@@ -584,7 +584,7 @@ contents = |options| Ok([
 		]),
 	]),
 	Pdf.section([
-		Pdf.destination_heading("priorities", 1, "4 Priorities for Q3"),
+		Pdf.destination_heading({ name: "priorities", level: 1, text: "4 Priorities for Q3" }),
 		Pdf.numbered_list(
 			{},
 			[
@@ -608,12 +608,12 @@ contents = |options| Ok([
 		]),
 	]),
 	Pdf.section([
-		Pdf.destination_heading("position", 1, "5 Financial position"),
+		Pdf.destination_heading({ name: "position", level: 1, text: "5 Financial position" }),
 		Pdf.rich_paragraph([
 			Pdf.text("The balance sheet strengthened over the half. Operating cash flow funded the Dubbo solar array without new borrowing, and the Board has reaffirmed the "),
 			Pdf.strong([Pdf.text("AUD 1.12 m")]),
 			Pdf.text(" member rebate. Figures are unaudited and reported excluding "),
-			Pdf.expansion("GST", "Goods and Services Tax"),
+			Pdf.expansion({ text: "GST", expanded: "Goods and Services Tax" }),
 			Pdf.text("."),
 		]),
 		position_table,

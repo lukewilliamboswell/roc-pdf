@@ -248,15 +248,7 @@ KernelForm :: [].{
 		## the pattern-reachability sweep enforces the opaque, text-free,
 		## non-recursive cell contract over placed forms.
 		build_with_paints : KernelScene.PaintPlan, Stores, [NoTextStore, WithTextStore(Text.Store)], Limits -> Try(Facts, Error)
-		build_with_paints = |paint_plan, stores, text, limits| build_facts(
-			KernelScene.PaintPlan.forms(paint_plan),
-			stores.colors,
-			derive_counts(stores, KernelScene.PaintPlan.shadings(paint_plan), KernelScene.PaintPlan.patterns(paint_plan)),
-			text,
-			limits,
-			KernelScene.PaintPlan.patterns(paint_plan),
-			[],
-		)
+		build_with_paints = |paint_plan, stores, text, limits| build_facts(KernelScene.PaintPlan.forms(paint_plan), stores.colors, derive_counts(stores, KernelScene.PaintPlan.shadings(paint_plan), KernelScene.PaintPlan.patterns(paint_plan)), text, limits, KernelScene.PaintPlan.patterns(paint_plan), [])
 
 		## The navigation-aware variant: annotation appearance references join
 		## both graph runs as closure-only uses so appearance forms prove
@@ -265,15 +257,7 @@ KernelForm :: [].{
 		## semantic text. An empty appearance list is identical to
 		## `build_with_paints`.
 		build_with_navigation : KernelScene.PaintPlan, Stores, [NoTextStore, WithTextStore(Text.Store)], List(AppearanceUse), Limits -> Try(Facts, Error)
-		build_with_navigation = |paint_plan, stores, text, appearances, limits| build_facts(
-			KernelScene.PaintPlan.forms(paint_plan),
-			stores.colors,
-			derive_counts(stores, KernelScene.PaintPlan.shadings(paint_plan), KernelScene.PaintPlan.patterns(paint_plan)),
-			text,
-			limits,
-			KernelScene.PaintPlan.patterns(paint_plan),
-			appearances,
-		)
+		build_with_navigation = |paint_plan, stores, text, appearances, limits| build_facts(KernelScene.PaintPlan.forms(paint_plan), stores.colors, derive_counts(stores, KernelScene.PaintPlan.shadings(paint_plan), KernelScene.PaintPlan.patterns(paint_plan)), text, limits, KernelScene.PaintPlan.patterns(paint_plan), appearances)
 
 		## The authored color-space index of the transparency blending space.
 		blending : Facts -> Blending
@@ -445,16 +429,7 @@ KernelForm :: [].{
 		## supply the recipes and emission facts for the derived function,
 		## shading, and pattern-cell nodes the facts stage declared.
 		build_with_paints : KernelScene.PaintPlan, Facts, Leaves, [NoText, WithText(KernelContent.TextPlan)], KernelTagged.Plan, Limits -> Try(Plan, Error)
-		build_with_paints = |paint_plan, facts, leaves, text, tagged, limits| build_canonical_plan(
-			KernelScene.PaintPlan.forms(paint_plan),
-			KernelScene.PaintPlan.shadings(paint_plan),
-			KernelScene.PaintPlan.patterns(paint_plan),
-			facts,
-			leaves,
-			text,
-			tagged,
-			limits,
-		)
+		build_with_paints = |paint_plan, facts, leaves, text, tagged, limits| build_canonical_plan(KernelScene.PaintPlan.forms(paint_plan), KernelScene.PaintPlan.shadings(paint_plan), KernelScene.PaintPlan.patterns(paint_plan), facts, leaves, text, tagged, limits)
 
 		canonical_function_count : Plan -> U64
 		canonical_function_count = |plan| plan.canonical_function_facts.len()
@@ -1362,11 +1337,7 @@ build_facts = |form_plan, colors, counts, text, limits, pattern_store, appearanc
 		$appearance_scan = $appearance_scan + 1
 	}
 	structure_closure = $structure_closure
-	structure = KernelResourceGraph.Plan.build_with_closure_uses(
-		structure_input(counts, form_count, derivation.states, isolated, $edges, scenes.pages.len(), $root_uses),
-		structure_closure,
-		limits.graph,
-	) ? Graph
+	structure = KernelResourceGraph.Plan.build_with_closure_uses(structure_input(counts, form_count, derivation.states, isolated, $edges, scenes.pages.len(), $root_uses), structure_closure, limits.graph) ? Graph
 	canonical_order = KernelResourceGraph.Plan.order(structure)
 	var $authored_of = List.repeat(0, nodes)
 	var $node = 0
@@ -2679,7 +2650,7 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 			Pattern => {
 				$kinds = list_set($kinds, $canonical_id, { kind: kind_pattern, ordinal: $canonical_pattern_cells.len() })
 				$pattern_ordinal_canonicals = $pattern_ordinal_canonicals.append($canonical_id)
-				$canonical_pattern_cells = $canonical_pattern_cells.append({ bbox: zero_rect, commands: Semantics.IndexRange.from_start_and_length(0, 0), matrix: identity_matrix, representative: U64.highest, x_step: Layout.Unit.from_raw(0), y_step: Layout.Unit.from_raw(0) })
+				$canonical_pattern_cells = $canonical_pattern_cells.append({ bbox: zero_rect, commands: Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 }), matrix: identity_matrix, representative: U64.highest, x_step: Layout.Unit.from_raw(0), y_step: Layout.Unit.from_raw(0) })
 			}
 			Shading => {
 				$kinds = list_set($kinds, $canonical_id, { kind: kind_shading, ordinal: $shading_reps.len() })
@@ -2689,7 +2660,7 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 				$form_ordinals = list_set($form_ordinals, $canonical_id, $canonical_forms.len())
 				$kinds = list_set($kinds, $canonical_id, { kind: kind_form, ordinal: $canonical_forms.len() })
 				$ordinal_canonicals = $ordinal_canonicals.append($canonical_id)
-				$canonical_forms = $canonical_forms.append({ bbox: zero_rect, commands: Semantics.IndexRange.from_start_and_length(0, 0), representative: U64.highest })
+				$canonical_forms = $canonical_forms.append({ bbox: zero_rect, commands: Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 }), representative: U64.highest })
 			}
 		}
 		$canonical_id = $canonical_id + 1
@@ -3621,7 +3592,7 @@ expect {
 				geometry: Axial({ end: point(9000, 0), start: point(1000, 0) }),
 				id: Scene.ShadingId.from_index(0),
 				space: Color.SpaceId.from_index(0),
-				stops: Semantics.IndexRange.from_start_and_length(0, 2),
+				stops: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }),
 			},
 			{
 				extend_end: True,
@@ -3629,7 +3600,7 @@ expect {
 				geometry: Radial({ end_center: point(5000, 0), end_radius: Layout.Unit.from_raw(2000), start_center: point(1000, 0), start_radius: Layout.Unit.from_raw(0) }),
 				id: Scene.ShadingId.from_index(1),
 				space: Color.SpaceId.from_index(0),
-				stops: Semantics.IndexRange.from_start_and_length(2, 4),
+				stops: Semantics.IndexRange.from_start_and_length({ start: 2, length: 4 }),
 			},
 		],
 		stops: [stop(0, 0), stop(65535, 65535), stop(0, 0), stop(16384, 32768), stop(49152, 16384), stop(65535, 65535)],

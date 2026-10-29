@@ -1,0 +1,27 @@
+= roc-pdf user manual
+:doctype: book
+:toc: left
+:toclevels: 3
+:sectnums:
+
+Generate searchable PDF 2.0 reports, invoices and letters using public Roc APIs.
+Start with a complete example, follow the guide for your task, and use the API
+reference for exact types and functions.
+
+include::start-here.adoc[leveloffset=+1]
+
+include::getting-started.adoc[leveloffset=+1]
+
+include::authoring.adoc[leveloffset=+1]
+
+include::roc-font.adoc[leveloffset=+1]
+
+include::manual-composition.adoc[leveloffset=+1]
+
+include::destination-page-references.adoc[leveloffset=+1]
+
+include::migrating-named-arguments.adoc[leveloffset=+1]
+
+include::gallery.adoc[leveloffset=+1]
+
+include::releases.adoc[leveloffset=+1]

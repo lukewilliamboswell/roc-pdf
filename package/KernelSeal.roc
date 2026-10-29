@@ -174,6 +174,7 @@ validate_values = |store| {
 			}
 			Null => {}
 			Real(_) => {}
+			Fixed16(_) => {}
 			Reference(target) => {
 				number = KernelObject.ObjectId.number(target)
 				if number == 0 or number > store.objects.len() {

@@ -28,7 +28,7 @@ Fixture :: [].{
 		if sections != 2 and sections != 20 {
 			return Err(InvalidCase)
 		}
-		registered = Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, Font.ValidationLimits.default) ? |_| FontFailure
+		registered = Font.Registry.empty.register({ bytes: KernelBuiltInFont.bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
 		font = registered.registry.prepared_face(registered.face) ? |_| FontFailure
 		evidence(reference_document(sections), theme, { theme: theme }, Single(font))
 	}
@@ -37,14 +37,17 @@ Fixture :: [].{
 		if context != 0 {
 			return Err(InvalidCase)
 		}
-		body = Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, Font.ValidationLimits.default) ? |_| FontFailure
-		mono = body.registry.register(mono_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, Font.ValidationLimits.default) ? |_| FontFailure
+		body = Font.Registry.empty.register({ bytes: KernelBuiltInFont.bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
+		mono = body.registry.register({ bytes: mono_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
 		body_font = mono.registry.prepared_face(body.face) ? |_| FontFailure
 		mono_font = mono.registry.prepared_face(mono.face) ? |_| FontFailure
+		# This geometry fixture deliberately requests one exact upright mono
+		# face at 75%; Emphasis here tests inherited face/scale facts, not
+		# an italic family-style claim. Keep its headings explicitly regular.
 		styled_theme : Theme
-		styled_theme = { ..theme, face: body.face, inline: { emphasis: { font: Face(mono.face), scale: Percent(75) } } }
-		document = Pdf.document({ title: "Reference inherited face and scale", language: "en", contents: [Pdf.destination_heading("start", 1, "Styled references"), Pdf.rich_paragraph([Pdf.text("Scaled label "), Pdf.emphasis([Pdf.in_language("fr", [Pdf.page_reference({ destination: "end", width: 60, numbering: PageLabel })])]), Pdf.text(" ends here.")]), Pdf.page_break, Pdf.destination_heading("end", 1, "Styled target")], page_labels: [{ start_page: 0, style: DecimalArabic, prefix: "m-", start_number: 8 }] })
-		selection = Styled({ faces: [body.face, mono.face], fonts: [body_font, mono_font], roles: { code: Inherited, emphasis: Candidate(1), quote: Inherited, strong: Inherited } })
+		styled_theme = { ..theme, face: body.face, headings: { all: { face: Face(body.face) } }, inline: { emphasis: { font: Face(mono.face), scale: Percent(75) } } }
+		document = Pdf.document({ title: "Reference inherited face and scale", language: "en", contents: [Pdf.destination_heading({ name: "start", level: 1, text: "Styled references" }), Pdf.rich_paragraph([Pdf.text("Scaled label "), Pdf.emphasis([Pdf.in_language("fr", [Pdf.page_reference({ destination: "end", width: 60, numbering: PageLabel })])]), Pdf.text(" ends here.")]), Pdf.page_break, Pdf.destination_heading({ name: "end", level: 1, text: "Styled target" })], page_labels: [{ start_page: 0, style: DecimalArabic, prefix: "m-", start_number: 8 }] })
+		selection = Styled({ faces: [body.face, mono.face], fonts: [body_font, mono_font], inline_faces: [], face_indexes: [], roles: { code: Inherited, emphasis: Candidate(1), quote: Inherited, strong: Inherited } })
 		evidence(document, styled_theme, { theme: styled_theme, fonts: Registered(mono.registry) }, selection)
 	}
 	ordered : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
@@ -52,12 +55,12 @@ Fixture :: [].{
 		if context != 0 {
 			return Err(InvalidCase)
 		}
-		body = Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, Font.ValidationLimits.default) ? |_| FontFailure
-		cjk = body.registry.register(cjk_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] }, Font.ValidationLimits.default) ? |_| FontFailure
+		body = Font.Registry.empty.register({ bytes: KernelBuiltInFont.bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
+		cjk = body.registry.register({ bytes: cjk_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
 		configured = cjk.registry.with_policy([body.face, cjk.face]) ? |_| FontFailure
 		selected_theme : Theme
 		selected_theme = { ..theme, font_selection: Policy(configured.policy) }
-		document = Pdf.document({ title: "Ordered mixed-face references", language: "en", contents: [Pdf.destination_heading("start", 1, "Ordered references"), Pdf.rich_paragraph([Pdf.text("Ordered label "), Pdf.in_language("zh-Hans", [Pdf.inline_internal_link([reference("end", PageLabel, 60)], "end")]), Pdf.line_break, Pdf.text("Physical "), reference("end", Physical, 24), Pdf.text(".")]), Pdf.page_break, Pdf.destination_heading("end", 1, "Ordered target")], page_labels: [{ start_page: 0, style: NoNumber, prefix: "p中", start_number: 1 }] })
+		document = Pdf.document({ title: "Ordered mixed-face references", language: "en", contents: [Pdf.destination_heading({ name: "start", level: 1, text: "Ordered references" }), Pdf.rich_paragraph([Pdf.text("Ordered label "), Pdf.in_language("zh-Hans", [Pdf.inline_internal_link([reference("end", PageLabel, 60)], "end")]), Pdf.line_break, Pdf.text("Physical "), reference("end", Physical, 24), Pdf.text(".")]), Pdf.page_break, Pdf.destination_heading({ name: "end", level: 1, text: "Ordered target" })], page_labels: [{ start_page: 0, style: NoNumber, prefix: "p中", start_number: 1 }] })
 		evidence(document, selected_theme, { theme: selected_theme, fonts: Registered(configured.registry) }, Ordered({ policy: configured.policy, registry: configured.registry }))
 	}
 	geometry : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
@@ -65,12 +68,14 @@ Fixture :: [].{
 		if context != 0 {
 			return Err(InvalidCase)
 		}
-		body = Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, Font.ValidationLimits.default) ? |_| FontFailure
-		mono = body.registry.register(mono_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, Font.ValidationLimits.default) ? |_| FontFailure
+		body = Font.Registry.empty.register({ bytes: KernelBuiltInFont.bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
+		mono = body.registry.register({ bytes: mono_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
 		body_font = mono.registry.prepared_face(body.face) ? |_| FontFailure
 		mono_font = mono.registry.prepared_face(mono.face) ? |_| FontFailure
 		selected_theme : Theme
-		selected_theme = { ..theme, inline: { code: { font: Face(mono.face), scale: Percent(75) }, emphasis: { font: Face(mono.face), scale: Percent(75) } } }
+		# Exact mono overrides preserve the independently known 600-unit
+		# cell geometry; they do not claim a genuine italic style.
+		selected_theme = { ..theme, headings: { all: { face: Face(body.face) } }, inline: { code: { font: Face(mono.face), scale: Percent(75) }, emphasis: { font: Face(mono.face), scale: Percent(75) } } }
 		small = |inlines| [Pdf.emphasis(inlines)]
 		var $rows = []
 		var $row = 0
@@ -79,8 +84,8 @@ Fixture :: [].{
 			$row = $row + 1
 		}
 		table = Pdf.table({ caption: Pdf.no_caption, columns: [{ width: Fixed(100), align: End }, { width: Fixed(100), align: Center }, { width: Share(1), align: Start }], header_rows: [Pdf.row([Pdf.header_cell(Column, small([Pdf.text("Head ")])), Pdf.header_cell(Column, small([Pdf.text("Header "), reference("target", Physical, 24), Pdf.text(" ")])), Pdf.header_cell(Column, small([reference("target", Physical, 24), Pdf.line_break, Pdf.text("Tail")]))])], body_rows: $rows })
-		document = Pdf.document({ title: "Reference geometry parity", language: "en", contents: [Pdf.rich_paragraph([Pdf.code("Scaled literal.")]), Pdf.rich_paragraph(small([reference("target", Physical, 24)])), Pdf.numbered_list({}, [Pdf.list_item([Pdf.rich_paragraph([Pdf.code("Scaled list.")])])]), table, Pdf.page_break, Pdf.destination_heading("target", 1, "Geometry target")] })
-		selection = Styled({ faces: [body.face, mono.face], fonts: [body_font, mono_font], roles: { code: Candidate(1), emphasis: Candidate(1), quote: Inherited, strong: Inherited } })
+		document = Pdf.document({ title: "Reference geometry parity", language: "en", contents: [Pdf.rich_paragraph([Pdf.code("Scaled literal.")]), Pdf.rich_paragraph(small([reference("target", Physical, 24)])), Pdf.numbered_list({}, [Pdf.list_item([Pdf.rich_paragraph([Pdf.code("Scaled list.")])])]), table, Pdf.page_break, Pdf.destination_heading({ name: "target", level: 1, text: "Geometry target" })] })
+		selection = Styled({ faces: [body.face, mono.face], fonts: [body_font, mono_font], inline_faces: [], face_indexes: [], roles: { code: Candidate(1), emphasis: Candidate(1), quote: Inherited, strong: Inherited } })
 		evidence(document, selected_theme, { theme: selected_theme, fonts: Registered(mono.registry) }, selection)
 	}
 	contents : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
@@ -97,16 +102,10 @@ Fixture :: [].{
 			$blocks = $blocks.append(Pdf.contents_entry({ title, reference: { destination: "target", width: 32 }, indent: Layout.Unit.points(($index % 3).to_i64_wrap() * 18), leader: if ($index % 3 == 0) NoLeader else Dots }))
 			$index = $index + 1
 		}
-		$blocks = $blocks.append(Pdf.page_break).append(Pdf.destination_heading("target", 1, "Contents target"))
-		registered = Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, Font.ValidationLimits.default) ? |_| FontFailure
+		$blocks = $blocks.append(Pdf.page_break).append(Pdf.destination_heading({ name: "target", level: 1, text: "Contents target" }))
+		registered = Font.Registry.empty.register({ bytes: KernelBuiltInFont.bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
 		font = registered.registry.prepared_face(registered.face) ? |_| FontFailure
-		evidence_mode(
-			Pdf.document({ title: "Wrapped contents evidence", language: "en", contents: $blocks }),
-			theme,
-			{ theme: theme },
-			Single(font),
-			True,
-		)
+		evidence_mode(Pdf.document({ title: "Wrapped contents evidence", language: "en", contents: $blocks }), theme, { theme: theme }, Single(font), True)
 	}
 	contents_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
 	contents_negatives = |context| {
@@ -114,7 +113,7 @@ Fixture :: [].{
 			return Err(InvalidCase)
 		}
 		make : Pdf.ContentsEntryProps -> Document
-		make = |props| Pdf.document({ title: "Rejected contents", language: "en", contents: [Pdf.contents_entry(props), Pdf.destination_heading("target", 1, "Target")] })
+		make = |props| Pdf.document({ title: "Rejected contents", language: "en", contents: [Pdf.contents_entry(props), Pdf.destination_heading({ name: "target", level: 1, text: "Target" })] })
 		bad : List(Pdf.ContentsEntryProps)
 		bad = [
 			{ title: [], reference: { destination: "target", width: 32 } },
@@ -159,7 +158,7 @@ reference = |destination, numbering, width| Pdf.page_reference({ destination, nu
 
 reference_document : U64 -> Document
 reference_document = |sections| {
-	var $contents = [Pdf.destination_heading("toc", 1, "Destination reference evidence")]
+	var $contents = [Pdf.destination_heading({ name: "toc", level: 1, text: "Destination reference evidence" })]
 	var $index = 1
 	while $index <= sections {
 		name = "section-${$index.to_str()}"
@@ -182,11 +181,11 @@ reference_document = |sections| {
 	$index = 1
 	while $index <= sections {
 		$contents = $contents.append(Pdf.page_break)
-		$contents = $contents.append(Pdf.destination_heading("section-${$index.to_str()}", 1, "Section ${$index.to_str()}"))
+		$contents = $contents.append(Pdf.destination_heading({ name: "section-${$index.to_str()}", level: 1, text: "Section ${$index.to_str()}" }))
 		$contents = $contents.append(Pdf.rich_paragraph([Pdf.text("Back to "), Pdf.inline_internal_link([reference("toc", PageLabel, 48)], "toc"), Pdf.text("; final "), reference("section-${sections.to_str()}", Physical, 24), Pdf.text(".")]))
 		$index = $index + 1
 	}
-	footer = Pdf.region({ height: 14, center: [Pdf.furniture_text([Pdf.text("Label "), Pdf.reserved_width(80, End, [Pdf.page_label]), Pdf.text(" | "), Pdf.page_number(Decimal)])] })
+	footer = Pdf.region({ height: 14, center: [Pdf.furniture_text([Pdf.text("Label "), Pdf.reserved_width({ width: 80, align: End, contents: [Pdf.page_label] }), Pdf.text(" | "), Pdf.page_number(Decimal)])] })
 	Pdf.document({ title: "Exact destination page references", language: "en", contents: $contents, page_labels: [{ start_page: 0, style: RomanLower, prefix: "pré-", start_number: 1 }, { start_page: 1, style: LettersUpper, prefix: "A-", start_number: 27 }], page_templates: Templates({ first: Pdf.first_page_template({ footer, gap: 6 }), continuation: Pdf.page_template({ footer, gap: 6 }) }) })
 }
 
@@ -216,11 +215,11 @@ run_negatives = |context| {
 	if context != 0 {
 		return Err(InvalidCase)
 	}
-	make = |inlines, labels| Pdf.document({ title: "Reference rejection ${context.to_str()}", language: "en", contents: [Pdf.destination_paragraph("target", "Target."), Pdf.rich_paragraph(inlines)], page_labels: labels })
+	make = |inlines, labels| Pdf.document({ title: "Reference rejection ${context.to_str()}", language: "en", contents: [Pdf.destination_paragraph({ name: "target", text: "Target." }), Pdf.rich_paragraph(inlines)], page_labels: labels })
 	plain = |destination, width| [reference(destination, Physical, width)]
 	label = [reference("target", PageLabel, 60)]
-	too_wide_cell = Pdf.document({ title: "Reference table rejection", language: "en", contents: [Pdf.destination_paragraph("target", "Target."), Pdf.table({ caption: Pdf.no_caption, columns: [{ width: Fixed(40), align: Start }], header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Page")])])], body_rows: [Pdf.row([Pdf.cell(plain("target", 60))])] })] })
-	bad_furniture = Pdf.document({ title: "Reference furniture rejection", language: "en", contents: [Pdf.destination_paragraph("target", "Target.")], page_templates: Templates({ first: Pdf.first_page_template({ header: Pdf.region({ height: 14, start: [Pdf.furniture_text(plain("target", 24))] }) }), continuation: Pdf.page_template({}) }) })
+	too_wide_cell = Pdf.document({ title: "Reference table rejection", language: "en", contents: [Pdf.destination_paragraph({ name: "target", text: "Target." }), Pdf.table({ caption: Pdf.no_caption, columns: [{ width: Fixed(40), align: Start }], header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Page")])])], body_rows: [Pdf.row([Pdf.cell(plain("target", 60))])] })] })
+	bad_furniture = Pdf.document({ title: "Reference furniture rejection", language: "en", contents: [Pdf.destination_paragraph({ name: "target", text: "Target." })], page_templates: Templates({ first: Pdf.first_page_template({ header: Pdf.region({ height: 14, start: [Pdf.furniture_text(plain("target", 24))] }) }), continuation: Pdf.page_template({}) }) })
 	checks = [
 		{ document: make(plain("target", 0), []), feature: "document.page_reference", path: "contents[1].inlines[0]" },
 		{ document: make(plain("target", -1), []), feature: "document.page_reference", path: "contents[1].inlines[0]" },
@@ -243,8 +242,8 @@ run_negatives = |context| {
 			_ => return Err(ExpectedRejection($passed))
 		}
 	}
-	body = Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, Font.ValidationLimits.default) ? |_| FontFailure
-	cjk = body.registry.register(cjk_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] }, Font.ValidationLimits.default) ? |_| FontFailure
+	body = Font.Registry.empty.register({ bytes: KernelBuiltInFont.bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
+	cjk = body.registry.register({ bytes: cjk_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
 	configured = cjk.registry.with_policy([body.face, cjk.face]) ? |_| FontFailure
 	ordered_options : Pdf.Options
 	ordered_options = { theme: { ..theme, font_selection: Policy(configured.policy) }, fonts: Registered(configured.registry) }

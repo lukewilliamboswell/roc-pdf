@@ -264,7 +264,7 @@ test_profile_bytes = {
 }
 
 test_profile : Color.IccProfile
-test_profile = { bytes: test_profile_bytes, components: Three, id: Color.ProfileId.from_index(0), tags: Semantics.IndexRange.from_start_and_length(0, 0), version: IccV4 }
+test_profile = { bytes: test_profile_bytes, components: Three, id: Color.ProfileId.from_index(0), tags: Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 }), version: IccV4 }
 
 test_store : Color.Store
 test_store = {

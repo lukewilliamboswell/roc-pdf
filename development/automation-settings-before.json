@@ -1,0 +1,68 @@
+{
+  "immutable-releases": {
+    "enabled": false,
+    "enforced_by_owner": false
+  },
+  "actions/permissions/workflow": {
+    "default_workflow_permissions": "read",
+    "can_approve_pull_request_reviews": true
+  },
+  "rulesets": [
+    {
+      "id": 23804459,
+      "name": "Guarded main and nightly updates",
+      "target": "branch",
+      "source_type": "Repository",
+      "source": "lukewilliamboswell/roc-pdf",
+      "enforcement": "active",
+      "node_id": "RRS_lACqUmVwb3NpdG9yec5O4wYczgFrOis",
+      "_links": {
+        "self": {
+          "href": "https://api.github.com/repos/lukewilliamboswell/roc-pdf/rulesets/23804459"
+        },
+        "html": {
+          "href": "https://github.com/lukewilliamboswell/roc-pdf/rules/23804459"
+        }
+      },
+      "created_at": "2026-09-22T14:39:07.513+10:00",
+      "updated_at": "2026-10-29T08:29:58.690+11:00"
+    }
+  ],
+  "environments": {
+    "total_count": 1,
+    "environments": [
+      {
+        "id": 20163792095,
+        "node_id": "EN_kwDOTuMGHM8AAAAEsdsM3w",
+        "name": "github-pages",
+        "url": "https://api.github.com/repos/lukewilliamboswell/roc-pdf/environments/github-pages",
+        "html_url": "https://github.com/lukewilliamboswell/roc-pdf/deployments/activity_log?environments_filter=github-pages",
+        "created_at": "2026-08-19T08:28:49Z",
+        "updated_at": "2026-08-19T08:28:49Z",
+        "can_admins_bypass": true,
+        "protection_rules": [
+          {
+            "id": 64698043,
+            "node_id": "GA_kwDOTuMGHM4D2za7",
+            "type": "branch_policy"
+          }
+        ],
+        "deployment_branch_policy": {
+          "protected_branches": false,
+          "custom_branch_policies": true
+        }
+      }
+    ]
+  },
+  "environments/github-pages/deployment-branch-policies": {
+    "total_count": 1,
+    "branch_policies": [
+      {
+        "id": 59178277,
+        "node_id": "MDE2OkdhdGVCcmFuY2hQb2xpY3k1OTE3ODI3Nw==",
+        "name": "main",
+        "type": "branch"
+      }
+    ]
+  }
+}

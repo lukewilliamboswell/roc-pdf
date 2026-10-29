@@ -50,13 +50,13 @@ evidence = |count| {
 	if count == 0 or count > 20 {
 		return Err(InvalidScale)
 	}
-	registered = Font.Registry.empty.register(inter_bytes, { provision: BuiltIn, scripts: ["Latn"] }, Font.ValidationLimits.default) ? |_| FontFailure
+	registered = Font.Registry.empty.register({ bytes: inter_bytes, registration: { provision: BuiltIn, scripts: ["Latn"] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
 	face = registered.face
-	footer = |kind| Pdf.region({ height: 18, end: [Pdf.furniture_text([Pdf.text("${kind} "), Pdf.reserved_width(44, End, [Pdf.page_label]), Pdf.text(" | "), Pdf.page_number(Decimal), Pdf.text("/"), Pdf.total_pages(Decimal)])] })
-	header = Pdf.region({ height: 30, start: [Pdf.furniture_text([Pdf.reserved_width(400, Start, [Pdf.running_label])])] })
+	footer = |kind| Pdf.region({ height: 18, end: [Pdf.furniture_text([Pdf.text("${kind} "), Pdf.reserved_width({ width: 44, align: End, contents: [Pdf.page_label] }), Pdf.text(" | "), Pdf.page_number(Decimal), Pdf.text("/"), Pdf.total_pages(Decimal)])] })
+	header = Pdf.region({ height: 30, start: [Pdf.furniture_text([Pdf.reserved_width({ width: 400, align: Start, contents: [Pdf.running_label] })])] })
 	opening = Pdf.page_template({ footer: footer("OPEN"), gap: 8 })
 	continuation = Pdf.page_template({ footer: footer("CONT"), gap: 8, header })
-	var $contents = [Pdf.destination_heading("contents", 1, "Technical manual contents")]
+	var $contents = [Pdf.destination_heading({ name: "contents", level: 1, text: "Technical manual contents" })]
 	var $outline = [{ depth: 0, destination: "contents", open: True, title: "Contents" }]
 	var $chapter = 0
 	while $chapter < count {
@@ -85,7 +85,7 @@ evidence = |count| {
 			$row = $row + 1
 		}
 		body = [
-			Pdf.destination_heading(name, 1, "Procedure ${number.to_str()}"),
+			Pdf.destination_heading({ name: name, level: 1, text: "Procedure ${number.to_str()}" }),
 			Pdf.rich_paragraph([Pdf.text("Contents physical "), Pdf.page_reference({ destination: "contents", width: 24, numbering: Physical, align: Start }), Pdf.text("; final procedure label "), Pdf.page_reference({ destination: "chapter-${count.to_str()}", width: 44, numbering: PageLabel, align: Center }), Pdf.text("; final physical "), Pdf.page_reference({ destination: "chapter-${count.to_str()}", width: 24, numbering: Physical, align: End }), Pdf.text(".")]),
 			Pdf.callout({
 				name: "Procedure panel ${number.to_str()}",
@@ -97,7 +97,7 @@ evidence = |count| {
 						[
 							Pdf.list_item([
 								Pdf.paragraph("Prepare procedure ${number.to_str()} without losing source whitespace."),
-								Pdf.source_block({ face, text: Str.repeat("  verify = procedure_${number.to_str()}  \n\n", 16), padding: 6, foregrounds: [{ start: 2, end: 8, color: "#8000c0" }] }),
+								Pdf.source_block({ face: Face(face), text: Str.repeat("  verify = procedure_${number.to_str()}  \n\n", 16), padding: 6, foregrounds: [{ start: 2, end: 8, color: "#8000c0" }] }),
 								Pdf.figure({ drawing: PreparedDiagram.drawing({}), alt: "Café: receive an order, check stock or order timber, then dispatch.", caption: Pdf.caption("Prepared procedure diagram ${number.to_str()}"), fit: ScaleToFit({ minimum_percent: 50 }) }),
 								Pdf.callout({
 									name: "Instruction detail ${number.to_str()}",
@@ -121,11 +121,11 @@ evidence = |count| {
 	}
 	document = Pdf.document({ title: "Integrated technical manual", language: "en", contents: $contents, outline: $outline, page_labels: [{ prefix: "M-", start_number: 1, start_page: 0, style: DecimalArabic }], page_templates: Templates({ first: Pdf.first_page_template({ footer: footer("FRONT"), gap: 8 }), continuation: Pdf.page_template({ footer: footer("FRONT"), gap: 8 }) }) })
 	theme : Theme
-	theme = { face, table: { header_color: Themed(Theme.black), row_header_color: Themed(Theme.black), header_fill: Fill("#dbe4e9"), body_fills: { even: Fill("#e3e9ee") }, frame: Rule({ color: Theme.black, width: 0.5 }), column_rule: Rule({ color: Theme.black, width: 0.5 }) } }
+	theme = { face, headings: { all: { face: Face(face) } }, table: { header_color: Themed(Theme.black), row_header_color: Themed(Theme.black), header_fill: Fill("#dbe4e9"), body_fills: { even: Fill("#e3e9ee") }, frame: Rule({ color: Theme.black, width: 0.5 }), column_rule: Rule({ color: Theme.black, width: 0.5 }) } }
 	prepared = Pdf.prepare_with_report(document, { theme, fonts: Registered(registered.registry) }) ? PdfFailure
 	bytes = Pdf.to_bytes_prepared(prepared.prepared) ? PdfFailure
 	font = registered.registry.prepared_face(face) ? |_| FontFailure
-	styled = { faces: [face], fonts: [font], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
+	styled = { faces: [face], fonts: [font], inline_faces: [], face_indexes: [], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
 	plan = KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(document), styled, theme, page_size, descriptor, probe_facts(document)?, pipeline_limits) ? |_| PipelineFailure
 	flow = KernelFacadePipeline.Plan.work(plan)
 	Ok({ bytes, work: [count, count * 40, count * PreparedDiagram.drawing({}).command_count(), flow.shaped_runs, flow.lines, flow.pages, flow.fragments, flow.final_runs, flow.scene_commands, flow.objects, flow.shape_metric_reads, flow.line_candidate_visits, flow.page_candidate_visits, flow.callout_contexts, flow.callout_ancestors, flow.callout_updates, flow.callout_fragments, flow.scope_visits, flow.template_region_visits, flow.reference_passes, flow.field_resolutions, flow.furniture_items, bytes.len()] })
