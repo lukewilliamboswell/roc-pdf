@@ -3,6 +3,9 @@
 A pure [Roc](https://www.roc-lang.org/) package for deterministic PDF 2.0
 generation.
 
+The guides and examples in this checkout describe the upcoming 0.3.0 API.
+Published 0.2.0 users can find matching guides under [Install](#install).
+
 The package offers a stable public authoring path whose default profile is
 `Archive`: `Pdf.to_bytes`, `Pdf.to_bytes_with`, and `Pdf.to_chunks_with` all
 produce deterministic tagged PDF 2.0 output that also claims static PDF/A-4,
@@ -11,7 +14,7 @@ only) remains available through the options' `profile` field
 (`Pdf.to_bytes_with(document, { profile: Standard })`), and the options'
 `compression` field trades generation time for file size: `Balanced` by
 default, `Smallest` for the smallest files, or `Fastest`. The built-in theme supports title, heading,
-paragraph, and bulleted-list constructors, with either the packaged face or
+paragraph, and bulleted-list constructors, with packaged font families or
 caller-registered faces selected through `Theme` — including a finite ordered
 multi-face policy with per-cluster coverage selection. Theme text colors use
 the packaged sRGB profile. Documents can be prepared once into an opaque,
@@ -19,6 +22,10 @@ validated plan and then emitted as buffered bytes or chunks. It does not read,
 edit, or repair PDFs, and unsupported requests return typed errors rather than
 producing blank output, substituting fonts, outlining text, or rasterizing
 content.
+
+Ordinary documents use Inter, code uses Fira Code, and explicit serif typography
+uses Merriweather. See [font families and styles](docs/roc-font.md) for genuine
+emphasis, caller-font mappings, coverage limits and migration guidance.
 
 Running headers and footers can use independent typography while body, list,
 and table text keep their own style:
@@ -65,21 +72,35 @@ text and accept an optional caption. Fixed-page composition and unsupported
 drawing effects return located feature diagnostics. See the
 [authoring support matrix](docs/authoring.md#supported-features).
 
-The [0.1.0 release notes](docs/releases/0.1.0.md) summarize what this
-release supports, its known limits, and how to upgrade from a release
-candidate.
+The [upcoming 0.3.0 changes](docs/releases/0.3.0.md) describe the new defaults,
+diagnostics and migration impact. See the
+[named-argument migration guide](docs/migrating-named-arguments.md) when updating
+an application from 0.2.0.
 
 ## Install
 
 Add the 0.2.0 release bundle to your application header and build with the
-Roc nightly named in the [0.2.0 release notes](docs/releases/0.2.0.md):
+Roc nightly named in the [versioned 0.2.0 release notes](https://github.com/lukewilliamboswell/roc-pdf/blob/0.2.0/docs/releases/0.2.0.md):
 
 ```roc
 pdf: "https://github.com/lukewilliamboswell/roc-pdf/releases/download/0.2.0/2hTpvYoKFHy8C6VeEgiv4FgWkP4oNTVupc1XCN8UwdiZ.tar.zst",
 ```
 
-Then `import pdf.Pdf`. The [authoring guide](docs/authoring.md) starts from
-a complete document.
+Then `import pdf.Pdf` and follow the
+[versioned 0.2.0 authoring guide](https://github.com/lukewilliamboswell/roc-pdf/blob/0.2.0/docs/authoring.md).
+
+To try the unreleased 0.3.0 API, use this checkout with the compiler named in
+[`.roc-version`](.roc-version). For an application placed at the repository
+root, use a local package dependency:
+
+```roc
+pdf: "package/main.roc",
+```
+
+The checked-in examples use `../../package/main.roc`; from the repository root,
+run `roc examples/tax-invoice/main.roc`. The current
+[authoring guide](docs/authoring.md) starts from a complete document. A 0.3.0
+release bundle is not yet published.
 
 ## Start here
 
@@ -144,7 +165,3 @@ implementation contracts, performance evidence and release validation.
 ## License
 
 This project is licensed under the [Universal Permissive License](LICENSE).
-
-Ordinary documents use Inter, code uses Fira Code, and explicit serif typography
-uses Merriweather. See [font families and styles](docs/roc-font.md) for genuine
-emphasis, caller-font mappings, coverage limits and migration guidance.

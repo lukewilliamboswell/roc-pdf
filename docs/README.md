@@ -1,5 +1,10 @@
 # Using roc-pdf
 
+These guides describe the 0.3.0 API. When using the
+published 0.2.0 bundle, follow its
+[versioned authoring guide](https://github.com/lukewilliamboswell/roc-pdf/blob/0.2.0/docs/authoring.md).
+Match the manual's version label to the package version you use.
+
 - [User manual](https://lukewilliamboswell.github.io/roc-pdf/manual/): read the
   connected guides in HTML or download the searchable PDF and chapter Markdown.
 - [Authoring guide](authoring.md): create documents, choose fonts and styles,
@@ -12,8 +17,10 @@
 - [Example gallery](../examples/README.md): complete runnable documents and PDFs.
 - [API reference](https://lukewilliamboswell.github.io/roc-pdf/): public types
   and functions.
-- [0.1.0 release notes](releases/0.1.0.md): what this release supports,
-  its known limits, and how to upgrade from a release candidate.
+- [Named-argument migration](migrating-named-arguments.md): update 0.2.0 calls
+  to the 0.3.0 API.
+- [0.3.0 changes](releases/0.3.0.md): new font defaults, diagnostics
+  and migration impact.
 
 The default `Archive` profile produces tagged PDF 2.0 with static PDF/A-4.
 PDF/UA-2 is not currently claimed. See the
@@ -24,6 +31,7 @@ For repository development and validation records, see the
 
 ## Release notes
 
+- [0.3.0 changes](releases/0.3.0.md): genuine font families, named arguments and located diagnostics
 - [0.2.0](releases/0.2.0.md): aligned contents entries and the Inter/Fira Code preset
 - [0.2.0-rc1](releases/0.2.0-rc1.md): aligned, wrapped contents entries
 - [0.1.1](releases/0.1.1.md): builds on Roc nightlies from 2026-10-24
