@@ -1,13 +1,13 @@
 {
   "node": "v23.9.0",
   "chrome": "Google Chrome 156.0.8078.49",
-  "source_inventory_sha256": "7f881676fcac72a6f5d508c50be23da41fef03bba2de0ae413a0b78fb048825d",
+  "source_inventory_sha256": "0959d3e0e01f0ae224d94289e04c90547852486655d4f613a99023a085e61ee5",
   "chrome_sha256": "8fc0b8ffb31698a1be44f41df5e4adbdfae8720e94fa458e29f9dfd3bf142e1c",
   "records": [
     {
       "page": "authoring.html",
       "viewport": 1280,
-      "html_sha256": "72c0957e9c81c7fee32ba292cc7f2286ba08b3c1d61eccc8e75a8b5faa261bf7",
+      "html_sha256": "3b197895f885e9ab466a3e7cf15fe1ecd2e1ea38aa48d27d58566e61aa65199c",
       "width": 1280,
       "scrollWidth": 1280,
       "title": "Authoring with roc-pdf§",
@@ -46,7 +46,7 @@
     {
       "page": "gallery.html",
       "viewport": 1280,
-      "html_sha256": "9ecab0f1792da8934b62e8cfd90639fed394aeeb82a5c7e62757bfe7da538489",
+      "html_sha256": "c4d5ae54a066c8fac4f652441e658084befd847cc6d59e6910019a7251c7a70c",
       "width": 1280,
       "scrollWidth": 1280,
       "title": "Runnable document gallery§",
@@ -72,7 +72,7 @@
     {
       "page": "getting-started.html",
       "viewport": 1280,
-      "html_sha256": "544d9c24be59aac1a48a4406b921cbc438f303e8d12f86cf624e8ecf3036d7a3",
+      "html_sha256": "682b76d79696e48b27bbc5985353d5941eda1442ad3a31b30d9ef6f23cd88f8e",
       "width": 1280,
       "scrollWidth": 1280,
       "title": "Create your first document§",
@@ -89,7 +89,7 @@
     {
       "page": "index.html",
       "viewport": 1280,
-      "html_sha256": "976df9861cbbfd4902b9b896ca381cfabfaa27b9407aa5217e73b2501294507d",
+      "html_sha256": "859351d192c8aa788026c9c5268dad1db924a88f1aba3769978dc2b0745ce1a8",
       "width": 1280,
       "scrollWidth": 1280,
       "title": "roc-pdf user manual§",
@@ -123,7 +123,7 @@
     {
       "page": "manual-composition.html",
       "viewport": 1280,
-      "html_sha256": "eca638c2668d7c599a4585341e11591488272e9ddb20dd2c71a6f22bc683a71f",
+      "html_sha256": "aca16adaf63d61c90fd2fb7c2e85b34b35accd36442553067ca2dab26b6843b4",
       "width": 1280,
       "scrollWidth": 1280,
       "title": "Composing a technical manual§",
@@ -155,7 +155,7 @@
     {
       "page": "releases.html",
       "viewport": 1280,
-      "html_sha256": "8d993dce2e3c21948989eb8ef3f3dc7dc804a6fa9f47eb55191785628e27d781",
+      "html_sha256": "02fe0c5c2287e3ad44ff944e142fa11cccaa9dbefcf80aaf7dc9c4a5c7f7346a",
       "width": 1280,
       "scrollWidth": 1280,
       "title": "Release notes§",
@@ -172,7 +172,7 @@
     {
       "page": "roc-font.html",
       "viewport": 1280,
-      "html_sha256": "b9feeaccdf3c6aa180858b4e7a1f38e31cf949268dfc683b2c4607f74dc7558a",
+      "html_sha256": "a96c73442b96706fe9d6a3187ff56900641edd6c8b40d5e11288be5874d53d09",
       "width": 1280,
       "scrollWidth": 1280,
       "title": "Choose built-in and caller fonts§",
@@ -191,7 +191,7 @@
     {
       "page": "start-here.html",
       "viewport": 1280,
-      "html_sha256": "f56f25bc981efdc5d73cbdf8683120ddfacced7f95fbea0fa17cfd3eedf8ed47",
+      "html_sha256": "6e2425426a2746f29df6bc1e291b48ff2dbc1c6fd49d8e4eac22ba3f73fc603f",
       "width": 1280,
       "scrollWidth": 1280,
       "title": "Start here§",
@@ -204,7 +204,7 @@
     {
       "page": "authoring.html",
       "viewport": 390,
-      "html_sha256": "72c0957e9c81c7fee32ba292cc7f2286ba08b3c1d61eccc8e75a8b5faa261bf7",
+      "html_sha256": "3b197895f885e9ab466a3e7cf15fe1ecd2e1ea38aa48d27d58566e61aa65199c",
       "width": 390,
       "scrollWidth": 390,
       "title": "Authoring with roc-pdf§",
@@ -243,7 +243,7 @@
     {
       "page": "gallery.html",
       "viewport": 390,
-      "html_sha256": "9ecab0f1792da8934b62e8cfd90639fed394aeeb82a5c7e62757bfe7da538489",
+      "html_sha256": "c4d5ae54a066c8fac4f652441e658084befd847cc6d59e6910019a7251c7a70c",
       "width": 390,
       "scrollWidth": 390,
       "title": "Runnable document gallery§",
@@ -269,7 +269,7 @@
     {
       "page": "getting-started.html",
       "viewport": 390,
-      "html_sha256": "544d9c24be59aac1a48a4406b921cbc438f303e8d12f86cf624e8ecf3036d7a3",
+      "html_sha256": "682b76d79696e48b27bbc5985353d5941eda1442ad3a31b30d9ef6f23cd88f8e",
       "width": 390,
       "scrollWidth": 390,
       "title": "Create your first document§",
@@ -286,7 +286,7 @@
     {
       "page": "index.html",
       "viewport": 390,
-      "html_sha256": "976df9861cbbfd4902b9b896ca381cfabfaa27b9407aa5217e73b2501294507d",
+      "html_sha256": "859351d192c8aa788026c9c5268dad1db924a88f1aba3769978dc2b0745ce1a8",
       "width": 390,
       "scrollWidth": 390,
       "title": "roc-pdf user manual§",
@@ -320,7 +320,7 @@
     {
       "page": "manual-composition.html",
       "viewport": 390,
-      "html_sha256": "eca638c2668d7c599a4585341e11591488272e9ddb20dd2c71a6f22bc683a71f",
+      "html_sha256": "aca16adaf63d61c90fd2fb7c2e85b34b35accd36442553067ca2dab26b6843b4",
       "width": 390,
       "scrollWidth": 390,
       "title": "Composing a technical manual§",
@@ -352,7 +352,7 @@
     {
       "page": "releases.html",
       "viewport": 390,
-      "html_sha256": "8d993dce2e3c21948989eb8ef3f3dc7dc804a6fa9f47eb55191785628e27d781",
+      "html_sha256": "02fe0c5c2287e3ad44ff944e142fa11cccaa9dbefcf80aaf7dc9c4a5c7f7346a",
       "width": 390,
       "scrollWidth": 390,
       "title": "Release notes§",
@@ -369,7 +369,7 @@
     {
       "page": "roc-font.html",
       "viewport": 390,
-      "html_sha256": "b9feeaccdf3c6aa180858b4e7a1f38e31cf949268dfc683b2c4607f74dc7558a",
+      "html_sha256": "a96c73442b96706fe9d6a3187ff56900641edd6c8b40d5e11288be5874d53d09",
       "width": 390,
       "scrollWidth": 390,
       "title": "Choose built-in and caller fonts§",
@@ -388,7 +388,7 @@
     {
       "page": "start-here.html",
       "viewport": 390,
-      "html_sha256": "f56f25bc981efdc5d73cbdf8683120ddfacced7f95fbea0fa17cfd3eedf8ed47",
+      "html_sha256": "6e2425426a2746f29df6bc1e291b48ff2dbc1c6fd49d8e4eac22ba3f73fc603f",
       "width": 390,
       "scrollWidth": 390,
       "title": "Start here§",

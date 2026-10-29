@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "revision": "eaab39b8a350372f5c80dee9d8013181ca542dca",
+  "sources": [
+    {
+      "path": "docs/index.adoc",
+      "sha256": "820944ab0c03621469a7d65f07e19acffea4c75c4565c05aa1154a10ccd2964d"
+    },
+    {
+      "path": "docs/authoring.adoc",
+      "sha256": "46af0f478ce04398f347c5486f87330e4fdbe66c305f833bb115e68ffa17703e"
+    },
+    {
+      "path": "docs/destination-page-references.adoc",
+      "sha256": "0177aa4929685ded0691c1177766e412b7b459a09ee79f18571d2d626d4d3fe6"
+    },
+    {
+      "path": "docs/gallery.adoc",
+      "sha256": "309bd9a347a40053f69e15e1b4db7821e749fb33ec7c16fcac74fc54accfc8cb"
+    },
+    {
+      "path": "docs/getting-started.adoc",
+      "sha256": "2d97d455cbc5a10439fba38748997764ec8e96925a8fc85340d5c820a8281347"
+    },
+    {
+      "path": "docs/manual-composition.adoc",
+      "sha256": "be17f3f95f8addbc309af7f07da6ec732a3c09c68ec5d0c03deec56a8e7681f0"
+    },
+    {
+      "path": "docs/migrating-named-arguments.adoc",
+      "sha256": "cd42a1a0a707d08b106a7d4c05e70609eda6ea69f8c323c96fcb687ce88ce256"
+    },
+    {
+      "path": "docs/releases.adoc",
+      "sha256": "d54c7f2d226eb8072f9529bd92faf2ec070676c24c8b199b1d4631b87f005719"
+    },
+    {
+      "path": "docs/roc-font.adoc",
+      "sha256": "f465d339c5083011b5027411a0b7f5600bb84b9fb5889dc03f39505bde9474ff"
+    },
+    {
+      "path": "docs/start-here.adoc",
+      "sha256": "8027430c177c3b1bd7c6df9c093f77ed180178ef718c1346002b2f087e231846"
+    },
+    {
+      "path": "examples/tax-invoice/preview.png",
+      "sha256": "0547605b72fdbbf47f1bd2a9aedf25a800df5bfd2c4b836cac7186f319c655c3"
+    },
+    {
+      "path": "examples/business-report/preview.png",
+      "sha256": "047d0700238b74d0e021d34007d4dc0bdea77c1817195778120391baad4a50e9"
+    },
+    {
+      "path": "examples/vector-diagrams/preview.png",
+      "sha256": "f0e2124abf0b7dce4c31932809bc7fa3103d807c09e5503814ab8505c98769fa"
+    },
+    {
+      "path": ".roc-version",
+      "sha256": "b7d7aaa496b9682ea8a2cee597e7746682d12d80bf312ebd7414f8495c09f1df"
+    },
+    {
+      "path": "docs/releases/0.3.0.md",
+      "sha256": "831233fc492e58c15c1a4db2839f6167229df79bd53d0c2c613cc2e55faa0ca0"
+    },
+    {
+      "path": "docs/releases/0.2.0.md",
+      "sha256": "0c7902f3cc6664b6e18735a17b6b22b50d17ebe5f3b0c5aab92a67e502968612"
+    },
+    {
+      "path": "docs/releases/0.2.0-rc1.md",
+      "sha256": "11de82764597523b9337e202b06d55d1e86a86ff13bd258ca5e8bff52fd3d2c1"
+    },
+    {
+      "path": "docs/releases/0.1.1.md",
+      "sha256": "4a4067eaf8d16e15742ec003217f6affacd2a183c368018e375c5e851fc6f583"
+    },
+    {
+      "path": "docs/releases/0.1.0.md",
+      "sha256": "82be40be2137015263b5e3859a833f84c433c52ec5a8cd219a02f537a9a44cc8"
+    },
+    {
+      "path": "docs/releases/0.1.0-rc6.md",
+      "sha256": "a3a72f97e0268a65519e80fb377d8b4063b7edc32d83028db5686df712d637b2"
+    },
+    {
+      "path": "docs/releases/0.1.0-rc5.md",
+      "sha256": "21e05b3d020736d3917349945dfd1eb6954f8f1533e466e6432c7e6017da6902"
+    },
+    {
+      "path": "docs/releases/0.1.0-rc4.md",
+      "sha256": "adefe8a9ac2b88172239b0c4dfc59b4574627751d01de8429edc7ff6b03d144c"
+    },
+    {
+      "path": "docs/releases/0.1.0-rc3.md",
+      "sha256": "9d7d87d7b33622882c383f75f7c9d7fc4479435270974a4508e80ea031a55b6e"
+    },
+    {
+      "path": "docs/releases/0.1.0-rc2.md",
+      "sha256": "65d0e99ef7c1011dcf0b916fe098ea584f19674c52b0d6e1926f7638be258ad8"
+    },
+    {
+      "path": "docs/releases/0.1.0-rc1.md",
+      "sha256": "26b6560ce9a79271e3cbac2e595c5e5a87beb93acfb4bdeef56f9d16b0e18e31"
+    }
+  ],
+  "chapters": {
+    "docs/authoring.adoc": "authoring.adoc",
+    "docs/destination-page-references.adoc": "destination-page-references.adoc",
+    "docs/gallery.adoc": "gallery.adoc",
+    "docs/getting-started.adoc": "getting-started.adoc",
+    "docs/manual-composition.adoc": "manual-composition.adoc",
+    "docs/migrating-named-arguments.adoc": "migrating-named-arguments.adoc",
+    "docs/releases.adoc": "releases.adoc",
+    "docs/roc-font.adoc": "roc-font.adoc",
+    "docs/start-here.adoc": "start-here.adoc"
+  },
+  "release_bindings": {
+    "docs/releases/0.3.0.md": {
+      "{package-url}": "https://github.com/lukewilliamboswell/roc-pdf/releases/download/0.3.0/C3YnjBMeN7A9ar7F5seM73coSTkYLSksTD2BNikQEVSP.tar.zst",
+      "{bundle-sha256}": "83e4ca7077ca2bb561d39f944ea23e7bc13ffa3a9c78637ea63e9d68674dfaa4"
+    }
+  }
+}

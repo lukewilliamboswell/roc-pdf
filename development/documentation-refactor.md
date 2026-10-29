@@ -12,9 +12,21 @@ This refactor follows roc-automation's
 [documentation guidance](https://github.com/lukewilliamboswell/roc-automation/blob/1104294f221bb9571901c7a1a4269cea8516f8e5/docs/documentation.adoc)
 at the recorded source revision. The documentation workflow pins that source's
 shared actions. Its `build-docs` action interface is byte-identical to the
-previous reviewed action, and Blueprint still verifies the latest published
-renderer, `tools-0.7.0`. The source tree contains notes for an unreleased renderer
-upgrade; this change does not invent a download or claim those new features.
+previous reviewed action. The initial latest-release query selected
+`tools-0.7.0`, and its successful candidate is retained under
+[tools-0.7.0 history](manual-refactor-review/tools-0.7.0/review.json). A completion
+query then selected published `tools-0.8.0`. The official checksum manifest and
+GitHub asset digests were checked before a focused Blueprint lock update;
+no unpublished download was guessed. All reader and artifact checks were
+repeated for the actual new binary.
+
+The exact declared Blueprint CLI was separately checked against its published
+release before use. A focused `blueprint update roc-docs` changed only the two
+renderer entries, `blueprint check` passed, and the real `blueprint run docs`
+task used the new locked executable through the normal PATH handoff. Source
+Mermaid is supported by this utility, but this manual has no obsolete diagram
+registry to remove. Its three PNGs illustrate checked product examples and
+remain required source figures.
 
 Repository instructions keep contributor workflows, implementation reviews and
 validation history under `development/`. The user manual links those records;
@@ -50,7 +62,7 @@ changing the compiler or weakening the versioned bundle binding.
 ## Validation and artifact binding
 
 The [retained review](documentation-refactor-review.json) binds manual source
-`eaab39b8a350372f5c80dee9d8013181ca542dca` and records every asset hash. The
+`d266e020f8985263fa992450772121db272d9203` and records every asset hash. The
 [sources](manual-refactor-review/sources.json),
 [browser](manual-refactor-review/browser.json),
 [PDF](manual-refactor-review/pdf.json) and original

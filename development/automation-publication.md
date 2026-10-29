@@ -11,21 +11,23 @@ its compiler and documentation renderer do not become package dependencies.
 | Package compiler | `.roc-version`, `nightly-2026-10-28-bad769b`; installed explicitly by CI and checked by the local harness, bundler and API-doc stage |
 | Blueprint | 0.8.0, existing platform URL and lock; Zig 0.16.0 and ripgrep 15.2.0 remain digest-checked recipes |
 | Shared actions | Documentation setup/locator/build use reviewed guidance source `1104294f221bb9571901c7a1a4269cea8516f8e5`; other CI, publisher and released-example compatibility references retain `8acff758d5d73210f1731bed75adb9322f5e773d`. Every reference is a full SHA. |
-| Native manual renderer | `roc-docs` tools-0.7.0, Linux x86-64 and Apple Silicon; exact sizes/digests in `Blueprint.lock`; its build used tooling compiler `nightly-2026-10-21-5349569` |
+| Native manual renderer | `roc-docs` tools-0.8.0, Linux x86-64 and Apple Silicon; exact sizes/digests in `Blueprint.lock`; its build used tooling compiler `nightly-2026-10-28-bad769b` |
 | CI JDK/Python | Temurin 21.0.13+9 and Python 3.14.0 through full-SHA setup actions; explicit provisioning inputs, never production dependencies |
 | Independent PDF tools | PDFBox 3.0.8, qpdf 12.3.2, PDFium Chromium 7988, MuPDF 1.28.2, veraPDF 1.30.2 and corpus artifacts retain their vendored hashes/licenses; Arlington retains its exact container digest |
 | Regeneration tools | Current rc4-font and sRGB checks are offline and read-only in CI. Older font fixture generators retain fontTools 4.61.1 (hash-locked optional install in `requirements-tools.txt`), with the historical CJK generator's separate 4.46.0 requirement. Photo/JPEG regeneration retains its recorded Pillow 10.2.0 provenance. Historical generators are audited inputs, not silently rerun by publication. |
 
 The released renderer digests are
-`3e5ef524aa17eeb81538c639ad4959bf4690b178898930ea0a42a2cd8bf7312d`
-(22,216,616-byte Linux executable) and
-`181817a0673f5036b75d3d29707ef665b45ea7f3ccfe9bbc35362a72639b40fc`
-(17,396,432-byte macOS executable). The release's `roc-docs-LICENSES.txt`
-is 36,294 bytes, SHA-256
-`6e9f95b2305a375527a046fde8e1d447fadffd96a6ae3ffd34b7f63e51bc323e`;
-the executable also provides `--licenses`. Blueprint verifies restored and
-downloaded bytes. The shared build action accepts that verified executable and
-does not install an arbitrary renderer itself.
+`d12aca61080771c86c3507047cdfea46ba24d9aaa5f3257c10bd82afe21c9176`
+(28,738,456-byte Linux executable) and
+`83cbc5a0b3385483788d9ad94a55f5b3e26c0a939f88ab5c9ddd7aaf9befe568`
+(23,723,184-byte macOS executable). The release's `roc-docs-LICENSES.txt`
+is 36,339 bytes, SHA-256
+`0523adf949ca8313f07fed336100acf077e054e29e54876a57e3336b32e035a3`.
+Official checksum and API asset records agree. Blueprint verifies restored and
+downloaded bytes; the actual `docs-path` handoff matched the locked digest. The
+shared build action accepts that verified executable and does not install an
+arbitrary renderer itself. The earlier 0.7 candidate remains retained in the
+[native-refactor history](manual-refactor-review/tools-0.7.0/review.json).
 
 Native documentation rendering needs no compiler or browser. API extraction
 is a separate pinned-compiler stage. The shared publisher at its retained release revision
@@ -55,8 +57,9 @@ archives retain the generated API, manual, Markdown, digest inventory and PDF.
 Contributor workflows/evidence stay under `development/`; root architecture
 and roadmap documents remain authoritative.
 
-The released renderer cannot print U+2318. Descriptive prose therefore names
-the Command symbol and its exact code point, preserving the font-coverage fact.
+The earlier 0.7 renderer could not print U+2318 in this manual. Descriptive
+prose names the Command symbol and its exact code point, preserving the
+font-coverage fact without depending on that earlier presentation limit.
 No font substitution, omitted source text or renderer patch is used. Its PDF
 table column weights remain unimplemented; this manual does not rely on exact
 column-weight fidelity. Row/cell associations, content and tagged ownership

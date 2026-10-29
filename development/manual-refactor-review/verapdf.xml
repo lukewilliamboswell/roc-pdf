@@ -7,19 +7,19 @@
   </buildInformation>
   <jobs>
     <job>
-      <item size="386025">
-        <name>/Users/luke/Documents/GitHub/roc-pdf/.roc-pdf-tmp/docs-native-release/manual/roc-pdf.pdf</name>
+      <item size="415957">
+        <name>/Users/luke/Documents/GitHub/roc-pdf/.roc-pdf-tmp/docs-native-080-release/manual/roc-pdf.pdf</name>
       </item>
       <validationReport jobEndStatus="normal" profileName="PDF/A-4 validation profile" statement="PDF file is compliant with Validation Profile requirements." isCompliant="true">
-        <details passedRules="109" failedRules="0" passedChecks="133845" failedChecks="0"></details>
+        <details passedRules="109" failedRules="0" passedChecks="205567" failedChecks="0"></details>
       </validationReport>
-      <duration start="1793261145263" finish="1793261146706">00:00:01.443</duration>
+      <duration start="1793262730837" finish="1793262732804">00:00:01.967</duration>
     </job>
   </jobs>
   <batchSummary totalJobs="1" failedToParse="0" encrypted="0" outOfMemory="0" veraExceptions="0">
     <validationReports compliant="1" nonCompliant="0" failedJobs="0">1</validationReports>
     <featureReports failedJobs="0">0</featureReports>
     <repairReports failedJobs="0">0</repairReports>
-    <duration start="1793261145199" finish="1793261146727">00:00:01.528</duration>
+    <duration start="1793262730766" finish="1793262732818">00:00:02.052</duration>
   </batchSummary>
 </report>

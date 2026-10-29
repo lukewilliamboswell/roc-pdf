@@ -15,7 +15,7 @@ machine.
 | `roc` | Expected on `PATH`; it must be the nightly named in `.roc-version` |
 | `python3`, `bash`, `tar` | Expected on `PATH` |
 | ripgrep 15.2.0 (`rg`) | Fetched from its GitHub release for the `docs` task, checked against `Blueprint.lock` |
-| roc-docs tools-0.7.0 | Native manual renderer, fetched per system with reviewed release size/SHA-256 in `Blueprint.lock` |
+| roc-docs tools-0.8.0 | Native manual renderer, fetched per system with reviewed release size/SHA-256 in `Blueprint.lock` |
 | Temurin JDK 21.0.13+9 and Python 3.14.0 | Explicit CI setup-action inputs; local independent checks may use an installed compatible JDK/Python and record their identities |
 
 The package compiler is deliberately not fetched by Blueprint. `.roc-version`
