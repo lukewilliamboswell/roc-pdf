@@ -1,10 +1,55 @@
 # Publishing a release
 
-`.github/workflows/release-candidate.yml` builds the package bundle with the
-pinned Roc nightly, smoke-tests the gallery against it, and, when dispatched
-with a `release_tag`, publishes that bundle as the release asset with
-`docs/releases/<tag>.md` as the release body. Tags of the form `X.Y.Z-rcN`
-become prereleases; `X.Y.Z` becomes a full release marked latest.
+A release dispatch records one full commit SHA from `main`, runs the complete
+applicable checks at that SHA, then publishes the tested artifacts once.
+`.roc-version` remains the only package compiler pin. Publishing a version does
+not expand any conformance or Gate 7 claim.
+
+## Prepare and validate
+
+1. Author `docs/releases/<version>.md` with the pinned nightly and literal
+   `{package-url}` and `{bundle-sha256}` placeholders. Describe user-visible
+   behavior and migration; keep the authored placeholders in Git.
+2. The PR checks choose the highest authored notes version and build the
+   package, examples archive, API/manual archive and PDF. They test the actual
+   bundle/archive consumers, render notes with the resulting URL/digest, and
+   run `roc bump --old <latest-final-bundle> --expect <version>` under the
+   pinned compiler. Both old/new APIs must compile; failures are investigated,
+   never skipped or replaced by a guessed compatibility verdict.
+3. Merge only after applicable checks pass. Dispatch the release workflow on
+   `main` with that authored version and `nightly_validation: true` for an
+   end-to-end dry run. This repeats the full Linux/macOS checks, independent
+   profile/object-model checks and documentation/archive checks on the recorded
+   event SHA. It publishes nothing. Compiler-candidate validation also accepts a branch and
+   an omitted tag, deriving the highest authored version; this compatibility
+   mode does not establish publication eligibility or an API version verdict.
+4. Review the same-run `roc-pdf-release-<sha>` artifact: its manifest records
+   the compiler, commit, exact names, lengths and SHA-256 values of all four
+   deliverables. Rendered notes are also hash-bound. No source file is rewritten.
+
+## Publish once
+
+Dispatch `release-candidate.yml` from `main` with the same authored version and
+`nightly_validation: false`. Existing tags/releases reject before publication.
+The protected `release` environment admits `main` alone. A separate job downloads
+its own run's artifacts, verifies their manifest/notes/identity and invokes the
+full-SHA shared publisher. It checks out no project source and rebuilds nothing.
+The publisher creates a draft at the tested SHA, uploads each explicit asset,
+downloads and verifies its bytes, and only then publishes. Candidates remain
+prereleases; final versions become latest. Immutable hosting and tag rules
+prevent modifying a published version.
+
+Assets are the content-addressed package, `roc-pdf-examples-<version>.zip`,
+`roc-pdf-docs-<version>.zip`, `roc-pdf-<version>.pdf` and
+`release-manifest.json`. The docs archive preserves both the original API site
+routes and `/manual/`. Default-branch Pages output says `unreleased`; release
+archives carry their exact version.
+
+If publication fails, inspect the named draft and the uploaded/downloaded
+files. A draft is never automatically adopted. Delete an unpublished failed
+draft before retrying the same run's tested artifacts. Never repair a published
+release, move a tag, replace an asset or reconstruct an expired artifact from a
+moving branch. Publish changed bytes as a new version.
 
 ## How the candidates were published
 
@@ -30,37 +75,3 @@ is byte-identical to the artifact from the bundle job of
 which built the same tree. The bundle
 contains only `package/`, so editing documentation does not change it; any
 change to `package/` or `.roc-version` does.
-
-## Steps
-
-1. Land every change that affects `package/` or `.roc-version`, including the
-   final compiler pin, on `main`. Main CI must pass.
-2. Compute the bundle name and digest, either with
-   `ROC=/abs/path/to/pinned/roc ./scripts/bundle.sh --output-dir dist` and
-   `sha256sum dist/*.tar.zst`, or by dispatching the workflow on `main` with
-   `nightly_validation: true` and downloading its `roc-pdf-release-bundle`
-   artifact.
-3. Replace every `TODO(release)` placeholder in `docs/releases/<tag>.md` and
-   `README.md`: the Roc nightly from `.roc-version`, the bundle URL
-   `https://github.com/lukewilliamboswell/roc-pdf/releases/download/<tag>/<bundle-name>`,
-   and the bundle SHA-256. Merge that documentation change to `main`.
-4. Dispatch the workflow on `main` with `release_tag: <tag>` and
-   `nightly_validation: false`:
-
-   ```sh
-   gh workflow run release-candidate.yml --ref main -f release_tag=0.1.0
-   ```
-
-   The bundle job rejects a missing notes file, a remaining `TODO(release)`
-   placeholder, or notes that do not name the pinned nightly. The publish job
-   rejects notes that do not name the exact bundle URL and SHA-256 it
-   validated, or a tag that already has a release. It rewrites relative links
-   in the notes to links pinned to the dispatched commit, then creates the tag
-   at that commit and the release with the bundle attached.
-5. Consume the published URL from a fresh application outside the repository
-   (see the [rc1 consumer smoke test](0.1.0-rc1-consumer-smoke-test.md)) and
-   confirm it builds and writes a PDF.
-
-Publishing 0.1.0 does not close Gate 7 or change any capability claim in the
-[feature roadmap](../../feature-roadmap.md); the release notes claim only the
-closed capabilities.

@@ -60,6 +60,7 @@ try {
       const facts = await evaluate(`(() => ({
         width: innerWidth, scrollWidth: document.documentElement.scrollWidth,
         title: document.querySelector('h1')?.textContent,
+        version: document.querySelector('#revnumber')?.textContent,
         images: [...document.images].map(image => ({loaded: image.complete && image.naturalWidth > 0, alt: image.alt})),
         colours: [...new Set([...document.querySelectorAll('pre span')].map(span => getComputedStyle(span).color))],
         transparent: [...document.querySelectorAll('pre span')].every(span => getComputedStyle(span).backgroundColor === 'rgba(0, 0, 0, 0)'),
@@ -72,7 +73,8 @@ try {
       if (name === 'authoring.html') {
         assert.ok(facts.colours.length >= 3 && facts.tables >= 1, 'authoring lost highlighting or capability table: ' + JSON.stringify(facts));
       }
-      records.push({ page: name, viewport: width, ...facts });
+      records.push({ page: name, viewport: width,
+        html_sha256: createHash('sha256').update(await fs.readFile(path.join(site, name))).digest('hex'), ...facts });
       if (['index.html', 'authoring.html', 'gallery.html'].includes(name)) {
         const screenshot = await command('Page.captureScreenshot', { format: 'png' });
         await fs.writeFile(path.join(output, `${width}-${name}.png`), Buffer.from(screenshot.data, 'base64'));
@@ -90,6 +92,7 @@ try {
   const screenshot = await command('Page.captureScreenshot', { format: 'png' });
   await fs.writeFile(path.join(output, '390-dark-authoring.png'), Buffer.from(screenshot.data, 'base64'));
   const report = { node: process.version, chrome: execFileSync(chrome, ['--version'], { encoding: 'utf8' }).trim(),
+    source_inventory_sha256: createHash('sha256').update(await fs.readFile(path.join(site, 'source-digests.json'))).digest('hex'),
     chrome_sha256: createHash('sha256').update(await fs.readFile(chrome)).digest('hex'), records };
   await fs.writeFile(path.join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n');
   console.log(`PASS browser: ${pages.length} pages at desktop/mobile widths, figures, source colours, tables and contents; ${output}`);

@@ -155,6 +155,7 @@ def check(site: Path, source: Path, pdf: Path | None, review: Path | None = None
                     removed.add(index)
             body.extend(line for index, line in enumerate(lines) if index not in removed)
         actual = compact("\n".join(body))
+        raw_actual = compact(extracted)
         for code in all_code:
             assert compact(code) in actual, f"independent PDF reader lost source text: {code[:100]!r}"
         for text in ("Runnable document gallery", "Invoice", "Business report", "Supported features"):
@@ -191,7 +192,10 @@ def check(site: Path, source: Path, pdf: Path | None, review: Path | None = None
             actual_table_shapes.append(tuple(rows))
         assert sorted(actual_table_shapes) == sorted(expected_table_shapes), "PDF table rows/cells differ from the authored grids"
         for cell in table_cells:
-            assert compact(cell) in actual, f"PDF lost table cell: {cell}"
+            # Initial headers can also sit at the page edge; their source
+            # text must remain in raw extraction even when repeated headers
+            # are removed to join a continued body cell.
+            assert compact(cell) in actual or compact(cell) in raw_actual, f"PDF lost table cell: {cell}"
         if review:
             review.mkdir(parents=True, exist_ok=True)
             java = subprocess.run(["java", "-version"], text=True, capture_output=True, check=True)

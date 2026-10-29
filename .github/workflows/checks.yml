@@ -256,7 +256,10 @@ jobs:
         run: |
           gh release view --json assets > "$RUNNER_TEMP/previous-release.json"
           old_url=$(python3 -c 'import json,sys; assets=[a["url"] for a in json.load(open(sys.argv[1]))["assets"] if a["name"].endswith(".tar.zst")]; assert len(assets)==1; print(assets[0])' "$RUNNER_TEMP/previous-release.json")
-          roc bump --old "$old_url" --expect "$RELEASE_VERSION" package/main.roc
+          # The pinned compiler's version parser accepts MAJOR.MINOR.PATCH;
+          # candidates promise the compatibility of their eventual base version.
+          version_base="${RELEASE_VERSION%%-rc*}"
+          roc bump --old "$old_url" --expect "$version_base" package/main.roc
       - name: Build and test exact bundle and examples archive
         env:
           RELEASE_VERSION: ${{ steps.version.outputs.version }}

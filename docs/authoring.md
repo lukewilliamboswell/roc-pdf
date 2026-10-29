@@ -84,25 +84,34 @@ Pdf.rich_paragraph([
 `Quote`; `in_language` a `Span` with `/Lang`; `expansion` a `Span` with `/E`;
 and `inline_link` or `inline_internal_link` a `Link` whose annotation covers
 its painted text, one quadrilateral per line. Quotation marks are authored
-text. Inline roles paint like the surrounding text unless the theme's
-`inline` record colors them (`inline: { strong: { color: Themed(navy) } }`)
-or gives them a caller-registered face
-(`inline: { code: { font: Face(mono) } }`, a monospace face for code, say):
-the innermost role with a face decides a run's face, at the paragraph's size
-and leading. The face must be in the options' font registry
-(`InvalidFontResource` otherwise), must cover the role's text
-(`text.coverage_missing`), and applies to style faces only: a theme with an
-ordered font policy reports `text.inline_font_policy`. The package ships one
-regular face and never synthesizes bold or italic. To use the packaged face
-beside a caller face, put it in the registry with
+text. Ordinary documents use Inter: strong requests genuine Bold, emphasis
+requests genuine Italic, and their combination requests Bold Italic in either
+nesting order. Inline code uses Fira Code; quotes inherit the surrounding
+family unless explicitly configured. Unavailable styles reject with
+`text.style_unavailable`; no upright face is silently substituted.
+
+The theme's `inline` record can select colours, scales and exact faces or
+families, such as `inline: { strong: { color: Themed(navy) } }` or
+`inline: { code: { font: Face(mono) } }`. The innermost explicit font choice
+selects the family or exact face; combined strong/emphasis still requires its
+combined style unless an exact combined role override is supplied. Registered
+faces must exist in `Pdf.Options.fonts` (`InvalidFontResource` otherwise) and
+cover the text (`text.coverage_missing`). Explicit role choices apply to
+`StyleFaces`; ordered font policies retain their separate coverage contract and
+reject role overrides with `text.inline_font_policy`.
+
 `Font.Registry.register_built_in(registry, Font.ValidationLimits.default)`
-and select the returned face as the theme's `face`; it validates and embeds
-exactly as the unregistered default does. Titles and headings take any
-registered face through their styles, for example a bold face:
-`title: { face: Face(bold) }` and `headings: { all: { face: Face(bold) } }`
-(every level), or `headings: { h2: Own({ face: Face(bold), size: 13 }) }`
-for one level's own face, size, leading, and color. Under an ordered font
-policy a title or heading face reports `text.block_font_policy`. A role
+registers only the built-in Regular face. Use `RocFont.register` and
+`RocFont.theme` to put complete packaged families beside caller fonts, or declare
+an explicit caller family mapping. The [font guide](roc-font.md) covers the
+available styles, code defaults, missing coverage and migration.
+
+Titles and headings request Bold from their selected family by default. An
+explicit registered face remains available through `title: { face:
+Face(bold) }`, `headings: { all: { face: Face(bold) } }` (every level), or
+`headings: { h2: Own({ face: Face(bold), size: 13 }) }` for one level's face,
+size, leading and colour. Under an ordered font policy an explicit title or
+heading face reports `text.block_font_policy`. A role
 face often looks larger than the body face at the same size;
 `inline: { code: { scale: Percent(85) } }` paints that role at 85% of its
 paragraph size (50 to 100 percent, else `text.inline_scale` at
@@ -469,16 +478,16 @@ each accepted scoped page, with its authored path, label, and
 
 ## Preformatted source blocks
 
-`Pdf.source_block` owns preformatted source layout with a required registered
-face. It retains indentation, trailing spaces, empty lines, and exact logical
-line ranges; it does not change body or inline `Code` styles. Register the
-package face with `register_built_in` beside the chosen caller monospace face,
-and pass that registry through `Pdf.Options.fonts`:
+`Pdf.source_block` preserves indentation, trailing spaces, empty lines and
+exact logical line ranges. Its default face is Fira Code Regular from
+`theme.source_code`; it does not change body or inline `Code` styles. Only
+`text` is required. To use a caller font, register it and pass that registry
+through `Pdf.Options.fonts`, then select `Face(mono.face)` explicitly:
 
 ```roc
 Pdf.source_block({
     text: "deploy:\n    service: billing\n\n    replicas: 3\n",
-    face: mono.face,
+    face: Face(mono.face),
     size: 9,
     leading: 12,
     padding: 8,
@@ -492,7 +501,7 @@ paint tokens without changing source layout:
 ```roc
 Pdf.source_block({
     text: "app [main!] {}\n",
-    face: mono.face,
+    face: Face(mono.face),
     foregrounds: [
         { start: 0, end: 3, color: "#8000c0" },
         { start: 5, end: 10, color: "#0050d0" },
@@ -521,7 +530,8 @@ keeps its existing `P > Code`, canonical `ActualText`, line occurrences and
 reading order. Applications own tokenization and colours; no language name,
 lexer, font change, token background or per-token semantic element is added.
 
-Only `text` and `face` are required. Defaults are 9-point type, 12-point
+Only `text` is required; `face` can select a registered `Face(id)` or an exact
+`BuiltIn({ family, style })`. Defaults are 9-point type, 12-point
 leading, black text, 8-point padding, `NoBackground`, `tabs: ExpandTo(4)`,
 `wrap: Wrap`, and `fragmentation: Lines`. Tabs expand at scalar-column tab
 stops; `RejectTabs` forbids them. CRLF becomes LF and bare CR rejects.
@@ -591,8 +601,9 @@ defaults.
 A style's face is `ThemeFace`, the theme's `face` (the default), or
 `Face(face)`. A heading level is `SameAsAll`, the `headings.all` style (the
 default), or `Own(style)`: `headings: { all: { size: 15 }, h1: Own({ size:
-20, face: Face(bold) }) }`. An inline role's color, face, and scale are
-`Inherited` unless given.
+20, face: Face(bold) }) }`. Inline colours and scales inherit unless given.
+Strong and emphasis request the selected family's genuine styles; code defaults
+to the built-in mono family. Exact role choices can override these selections.
 
 A nested record you write is completed from its own type's defaults, not
 from another theme's values, so derive from an existing theme by spreading

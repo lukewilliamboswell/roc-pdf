@@ -1,0 +1,140 @@
+# Automation and documentation publication
+
+The integration keeps the package compiler, pure Roc runtime, independent
+oracles and exact allocation/byte/work evidence. Shared automation is tooling;
+its compiler and documentation renderer do not become package dependencies.
+
+## Tool identities and provisioning
+
+| Tool | Reviewed identity and boundary |
+| --- | --- |
+| Package compiler | `.roc-version`, `nightly-2026-10-28-bad769b`; installed explicitly by CI and checked by the local harness, bundler and API-doc stage |
+| Blueprint | 0.8.0, existing platform URL and lock; Zig 0.16.0 and ripgrep 15.2.0 remain digest-checked recipes |
+| Shared actions | `tools-0.7.0`, commit `8acff758d5d73210f1731bed75adb9322f5e773d`; setup, renderer locator/build, publisher and released-example compatibility references are full SHAs |
+| Native manual renderer | `roc-docs` tools-0.7.0, Linux x86-64 and Apple Silicon; exact sizes/digests in `Blueprint.lock`; its build used tooling compiler `nightly-2026-10-21-5349569` |
+| CI JDK/Python | Temurin 21.0.13+9 and Python 3.14.0 through full-SHA setup actions; explicit provisioning inputs, never production dependencies |
+| Independent PDF tools | PDFBox 3.0.8, qpdf 12.3.2, PDFium Chromium 7988, MuPDF 1.28.2, veraPDF 1.30.2 and corpus artifacts retain their vendored hashes/licenses; Arlington retains its exact container digest |
+| Regeneration tools | Current rc4-font and sRGB checks are offline and read-only in CI. Older font fixture generators retain fontTools 4.61.1 (hash-locked optional install in `requirements-tools.txt`), with the historical CJK generator's separate 4.46.0 requirement. Photo/JPEG regeneration retains its recorded Pillow 10.2.0 provenance. Historical generators are audited inputs, not silently rerun by publication. |
+
+The released renderer digests are
+`3e5ef524aa17eeb81538c639ad4959bf4690b178898930ea0a42a2cd8bf7312d`
+(22,216,616-byte Linux executable) and
+`181817a0673f5036b75d3d29707ef665b45ea7f3ccfe9bbc35362a72639b40fc`
+(17,396,432-byte macOS executable). The release's `roc-docs-LICENSES.txt`
+is 36,294 bytes, SHA-256
+`6e9f95b2305a375527a046fde8e1d447fadffd96a6ae3ffd34b7f63e51bc323e`;
+the executable also provides `--licenses`. Blueprint verifies restored and
+downloaded bytes. The shared build action accepts that verified executable and
+does not install an arbitrary renderer itself.
+
+Native documentation rendering needs no compiler or browser. API extraction
+is a separate pinned-compiler stage. The shared publisher at this revision
+provisions its own Nix/tooling compiler in its own immutable action checkout;
+the privileged caller job checks out no project source and runs no artifact as
+code. Validator/corpus provisioning consumes retained bytes without a network
+fallback; external compiler/JDK/Blueprint/container provisioning remains an
+explicit online setup stage. No fully offline runner-image claim is made.
+
+## Manual sources, URLs and acceptance
+
+The authored Markdown user guides retain their existing GitHub URLs and
+anchors. `scripts/prepare_manual.py` deterministically prepares their admitted
+headings, links, source listings and tables as top-level AsciiDoc chapters,
+using `docs/index.adoc` as the book entrypoint. It rejects unsupported block
+forms and missing links, copies only known gallery PNGs, and records every
+source/asset digest. Original examples remain in compile/gallery checks;
+rendering a listing does not prove that it compiles. Historical release
+listings retain their historical APIs.
+
+Compiler-generated API routes remain at the site root; the native manual is
+assembled under `/manual/`. The manual links to the existing API and checked
+example sources. Each chapter has HTML/Markdown, canonical namespaced anchors
+and PDF destinations. Default-branch output says `unreleased`; versioned release
+archives retain the generated API, manual, Markdown, digest inventory and PDF.
+Contributor workflows/evidence stay under `development/`; root architecture
+and roadmap documents remain authoritative.
+
+The released renderer cannot print U+2318. Descriptive prose therefore names
+the Command symbol and its exact code point, preserving the font-coverage fact.
+No font substitution, omitted source text or renderer patch is used. Its PDF
+table column weights remain unimplemented; this manual does not rely on exact
+column-weight fidelity. Row/cell associations, content and tagged ownership
+remain checked.
+
+`check_manual.py` checks exact listing whitespace in every chapter HTML,
+local links/anchors, static Markdown discovery, original source/asset digests,
+independent PDFBox source/table extraction, tagged tables and the three exact
+decoded RGB gallery images. Its review mode independently renders contents,
+table and figure pages. `check_manual_browser.mjs` exercises every page at
+1280-pixel desktop and 390-pixel mobile widths, loaded/described images,
+horizontal overflow, source colours/transparent backgrounds, capability-table
+presence, mobile contents controls and dark mode. It retains screenshots and a
+browser binary digest report.
+
+Local acceptance used Node 23.9.0, Google Chrome 156.0.8078.49 (executable
+SHA-256 `8fc0b8ffb31698a1be44f41df5e4adbdfae8720e94fa458e29f9dfd3bf142e1c`),
+PDFBox 3.0.8 and installed Java 17.0.10+11-LTS. This browser/JDK audit describes
+the test host; the native renderer remains the exact locked release. Machine
+reports are retained alongside this record; screenshots are reproducible in
+`.roc-pdf-tmp/manual-review/`. Publication switches only after manual/API checks
+pass, and no website is deployed from this integration branch. The retained
+[PDF report](manual-publication-review/pdf.json) and
+[browser report](manual-publication-review/browser.json) identify the checked
+working-tree manual outputs; final CI repeats them from the recorded commit.
+The migration added an explicit Markdown-to-PSV closing-pipe conversion after
+visual inspection caught shifted table cells; exact HTML cell grids and PDF
+semantic row/cell shapes now guard that boundary.
+
+## Check and publication boundaries
+
+`checks.yml` is called by ordinary CI and release dispatch with one full SHA.
+It includes package tests and exact allocation/byte/work guards, fuzz smoke,
+independent PDF/A-4 package/Standard/corpus validation, Arlington, docs, public
+bundle/gallery/archive consumers and an `always()` aggregate requiring every
+result to be `success`. Release/main runs add the registered macOS target;
+nightly released-example compatibility uses the same Linux/macOS systems.
+The retained `nightly_validation` dispatch inputs still suppress publishing or
+deployment; the current shared released-example workflow itself does not call
+these controllers. Compiler-candidate dispatch may still use a branch and omit
+a tag; it derives the authored version and skips publication eligibility/API
+version checks. Actual publication always requires main, a new version and the
+API gate. No input was removed based on an assumed absence of callers.
+
+The release build tests the actual files and renders authored note placeholders.
+Its manifest records the commit/compiler and each asset's name, size and hash.
+The publisher verifies that manifest, the notes digest and explicit inventory,
+then stages/uploads/downloads/verifies/publishes through the shared action.
+It receives only its own run's artifacts. API compatibility uses the actual
+`roc bump --old ... --expect ...` interface of the pinned compiler.
+
+Bundle consumers still reject repository-only `all.roc`, require exact imported
+data and licences, and compile outside the checkout against the served bundle.
+The initial rc4 consumer preflight measured 104 members and 10,117,080 expanded bytes,
+inside the compiler's default 10 MiB cap; no size flag is raised. Some private
+fixture modules and the older tiny font remain in the archive because retained
+module `expect`s import them. Removing required imported files would break the
+public package boundary, so this audit does not strip them. Release manifests
+also enforce and report the expanded-size bound. The new freshness lane also
+exposed stale sRGB generator spellings after named arguments and Roc formatting;
+its generator strings now reproduce the retained module exactly, without
+changing the ICC payload, package PDF bytes or allocation evidence.
+
+## Repository settings
+
+The before/after read-only snapshots are
+[automation-settings-before.json](automation-settings-before.json) and
+[automation-settings-after.json](automation-settings-after.json). Applied
+changes enable immutable releases, disable workflow PR creation/approval,
+restrict a new `release` environment to the named `main` branch and add active
+all-tag update/deletion protection with no bypass. The audit found one direct
+admin/maintainer, so no second-maintainer reviewer was invented. Existing Pages
+`main` restrictions, read-only default token, signatures/PR/strict-current-check
+rules and absence of app/deploy-key bypass remain effective. An admin-role
+bypass is distinct from an app/deploy-key bypass.
+
+Required branch check names are intentionally preserved until the real PR
+reports the new reusable-workflow contexts successfully. The integration owner
+must record those observed names and update required contexts before closing
+the automation tracker; guessed nested job names are not evidence. A failed or
+skipped check must not count as a successful aggregate. No release has been
+published as part of this work.
