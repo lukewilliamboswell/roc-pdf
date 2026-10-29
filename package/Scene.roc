@@ -105,13 +105,13 @@ Scene :: [].{
 		text = |Drawing.(state), label| Drawing.({ commands: state.commands.append(AuthorText(Box.box({ face: BodyFace, label }))) })
 
 		## Add a text label in the theme's face for an inline role, such as
-		## a chart title in the `Strong` face: `drawing.text_in(Strong,
-		## label)`. The label's face joins the document's output fonts even
+		## a chart title in the `Strong` face: `drawing.text_in({ role: Strong,
+		## label })`. The label's face joins the document's output fonts even
 		## when no body text uses it.
 		text_in : Drawing, { role : [Code, Emphasis, Quote, Strong], label : Label } -> Drawing
 		text_in = |Drawing.(state), { role, label }| Drawing.({ commands: state.commands.append(AuthorText(Box.box({ face: RoleFace(role), label }))) })
 
-		## Append a solid filled rectangle: `Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 40, 2), ink)`.
+		## Append a solid filled rectangle: `Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 40, height: 2 }), color: ink })`.
 		rectangle : Drawing, { bounds : Layout.Rect, color : Color.SourceValue } -> Drawing
 		rectangle = |drawing_value, { bounds, color }| {
 			path_value = PathBuilder.start.rectangle(bounds).finish()

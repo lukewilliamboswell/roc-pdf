@@ -69,7 +69,7 @@ Pdf.rich_paragraph([
     Pdf.text("Revenue rose "),
     Pdf.strong([Pdf.text("5.0%")]),
     Pdf.text(", reported net of "),
-    Pdf.expansion("GST", "Goods and Services Tax"),
+    Pdf.expansion({ text: "GST", expanded: "Goods and Services Tax" }),
     Pdf.text(". Our supplier "),
     Pdf.in_language("fr", [Pdf.text("Atelier Beaulieu")]),
     Pdf.text(" keeps stock code "),
@@ -145,9 +145,7 @@ label paints beside. Every nesting level is indented by the theme's list
 indent (the theme's `bullet_indent`):
 
 ```roc
-Pdf.numbered_list(
-    {},
-    [
+Pdf.numbered_list({}, [
         Pdf.list_item([Pdf.paragraph("Extend the certified timber programme.")]),
         Pdf.list_item([
             Pdf.paragraph("Open the second dispatch dock:"),
@@ -156,8 +154,7 @@ Pdf.numbered_list(
                 Pdf.list_item([Pdf.paragraph("fit the levellers.")]),
             ]),
         ]),
-    ],
-)
+    ])
 ```
 
 `{}` numbers from 1 in `Decimal`; give `start` or `style` to change either.
@@ -278,12 +275,12 @@ separated from the body by its gap, and the first page may also reserve a
 lead region for semantic letterhead content:
 
 ```roc
-page_of = Pdf.reserved_width(72, End, [
+page_of = Pdf.reserved_width({ width: 72, align: End, contents: [
     Pdf.text("Page "),
     Pdf.page_number(Decimal),
     Pdf.text(" of "),
     Pdf.total_pages(Decimal),
-])
+] })
 
 templates = {
     first: Pdf.first_page_template({
@@ -339,7 +336,7 @@ region's blocks are semantic: a `Div` that comes first in reading order.
 `Pdf.page_number` and `Pdf.total_pages` take a number style (`Decimal`,
 `LowerAlpha`, `UpperAlpha`, `LowerRoman`, or `UpperRoman`) and display the
 final page numbers. Header and footer regions have fixed heights, so their
-text never changes the body pagination. Put a field in `Pdf.reserved_width(width, align, inlines)` to keep
+text never changes the body pagination. Put a field in `Pdf.reserved_width({ width, align, contents: inlines })` to keep
 its position fixed; its resolved content must fit the width on every page.
 Page fields are furniture only; in body content they report
 `document.generated_reference`. Rejections name template paths, such as
@@ -625,20 +622,20 @@ image = Image.Source.rgb8({
     pixels: [24, 94, 134, 240, 180, 40, 40, 160, 90, 245, 245, 240],
     row_stride: 6,
 })
-drawing = Scene.Drawing.empty.image(image, Layout.rect(0, 0, 240, 120))
+drawing = Scene.Drawing.empty.image({ image: image, placement: Layout.rect({ x: 0, y: 0, width: 240, height: 120 }) })
 
 figure = Pdf.figure({ drawing, alt: "A four-color information panel", caption: Pdf.caption("Figure 1") })
 
 # A grouped vector chart: each bar pair is a group translated into place.
 bars = Scene.Drawing.empty
-    .rectangle(Layout.rect(0, 0, 36, 120), blue)
-    .rectangle(Layout.rect(40, 0, 36, 150), orange)
+    .rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 36, height: 120 }), color: blue })
+    .rectangle({ bounds: Layout.rect({ x: 40, y: 0, width: 36, height: 150 }), color: orange })
 chart = Scene.Drawing.empty
-    .path(Scene.PathBuilder.start.move_to(Layout.point(24, 20)).line_to(Layout.point(480, 20)).finish(), Scene.solid_stroke(ink, 1))
-    .group(Layout.point(48, 21), bars)
-    .group(Layout.point(156, 21), bars)
+    .path({ path: Scene.PathBuilder.start.move_to(Layout.point({ x: 24, y: 20 })).line_to(Layout.point({ x: 480, y: 20 })).finish(), style: Scene.solid_stroke(ink, 1) })
+    .group({ offset: Layout.point({ x: 48, y: 21 }), drawing: bars })
+    .group({ offset: Layout.point({ x: 156, y: 21 }), drawing: bars })
 plan = Pdf.figure({ drawing: site_plan, alt: "Plan of the yard", caption: Pdf.no_caption, fit: ScaleToFit({ minimum_percent: 50 }) })
-rule = Pdf.decoration({ drawing: Scene.Drawing.empty.rectangle(Layout.rect(0, 6, 483, 1), ink) })
+rule = Pdf.decoration({ drawing: Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 6, width: 483, height: 1 }), color: ink }) })
 ```
 
 Image pixel dimensions and layout placement are independent. Packed planes
@@ -727,7 +724,7 @@ callout = Pdf.custom_block({
     contents: [Pdf.paragraph("Revenue: AUD 9.22 m (+5.0%)"), Pdf.paragraph("On-time delivery: 96.4%")],
     inset: 10,
     name: "Key figures",
-    panel: Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 320, 70), tint),
+    panel: Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 320, height: 70 }), color: tint }),
     size: { height: 70, width: 320 },
 })
 ```

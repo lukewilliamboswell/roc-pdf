@@ -37,13 +37,10 @@ collection, numbering, ancestry and entry selection remain caller decisions.
 contents = [
     Pdf.rich_paragraph([
         Pdf.text("Installation ··· "),
-        Pdf.inline_internal_link(
-            [Pdf.page_reference({ destination: "installation", width: 36 })],
-            "installation",
-        ),
+        Pdf.inline_internal_link([Pdf.page_reference({ destination: "installation", width: 36 })], "installation"),
     ]),
     Pdf.page_break,
-    Pdf.destination_heading("installation", 1, "Installation"),
+    Pdf.destination_heading({ name: "installation", level: 1, text: "Installation" }),
 ]
 
 document = Pdf.document({ title: "Guide", language: "en", contents })
@@ -78,7 +75,7 @@ label, matching `PageLabel` references. It can be placed inside
 footer = Pdf.region({
     height: 16,
     center: [Pdf.furniture_text([
-        Pdf.reserved_width(60, End, [Pdf.page_label]),
+        Pdf.reserved_width({ width: 60, align: End, contents: [Pdf.page_label] }),
     ])],
 })
 ```
