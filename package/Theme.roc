@@ -35,6 +35,10 @@ Theme := {
 	body : BodyStyle ?? {},
 	bullet_indent : Layout.Unit ?? 18,
 	face : Font.FaceId ?? Font.FaceId.from_index(0),
+
+	## FromOptions selects Inter with built-in resources, or `face` with a
+	## caller registry. Explicit families declare their exact supported styles.
+	family : FamilyChoice ?? FromOptions,
 	font_selection : FontSelection ?? StyleFaces,
 	furniture : FurnitureStyle ?? BodyStyle,
 	headings : Headings ?? {},
@@ -42,6 +46,7 @@ Theme := {
 	link : LinkStyle ?? {},
 	page_margin : PageMargin ?? {},
 	paragraph_spacing : Layout.Unit ?? 8,
+	source_code : Font.SourceDefault ?? BuiltIn({ family: Mono, style: Regular }),
 	table : TableStyle ?? {},
 	title : TitleStyle ?? {},
 }.{
@@ -58,6 +63,7 @@ Theme := {
 	## face of the options' font registry, such as a bold face for
 	## headings. It must cover the text it sets.
 	FaceChoice : [Face(Font.FaceId), ThemeFace]
+	FamilyChoice : [FromOptions, BuiltIn(Font.Family), Registered(Font.FamilyFaces)]
 
 	## Body text: paragraphs, list items, and table cells. Furniture inherits
 	## this style unless `furniture` selects its own.
@@ -133,15 +139,19 @@ Theme := {
 	## depends on this presentation.
 	InlineColor : [Inherited, Themed(Color.SourceValue)]
 
-	## The face of an inline semantic role: `Inherited` paints in the face of
-	## the text around it, and `Face` in a caller-registered face (for
-	## example a monospace face for `Code`). The innermost role with a face
-	## decides the face of a text run; its leading stays the paragraph's,
-	## and its size too unless the role has an `InlineScale`. The face must
-	## be registered in the options' font registry; it applies under
-	## `StyleFaces` selection, and a theme with an ordered font policy
-	## rejects it (`text.inline_font_policy`) rather than ignoring it.
-	InlineFont : [Face(Font.FaceId), Inherited]
+	## Exact style-face selection. `Inherited` carries the selected family;
+	## Strong and Emphasis still require that family's genuine Bold/Italic
+	## faces. Both roles together require Bold Italic, in either nesting order.
+	## Code selects its own family (Fira Code by default) before those style
+	## requests apply; Quote otherwise inherits the surrounding family.
+	## `Family` selects a packaged or explicitly mapped caller family. `Face`
+	## overrides that role's requested style with one exact registered face.
+	## A combined request uses `strong_emphasis.font`, not a single-style
+	## override. Missing styles reject; inherited upright is never recovery.
+	## Leading stays the paragraph's and size changes only by `InlineScale`.
+	## Explicit role choices apply under `StyleFaces`; ordered policies reject
+	## them (`text.inline_font_policy`) rather than ignoring them.
+	InlineFont : [Face(Font.FaceId), Family(Font.FamilySelection), Inherited]
 
 	## The size of an inline role's text relative to its paragraph:
 	## `Inherited` keeps the size of the text around it, and `Percent(p)`
@@ -163,12 +173,19 @@ Theme := {
 		is_eq : _
 	}
 
+	## Combined strong/emphasis inherits the ordinary role colours and scales;
+	## only its exact face/family can be overridden independently.
+	StrongEmphasisStyle := { font : InlineFont ?? Inherited }.{
+		is_eq : _
+	}
+
 	## The presentation of each inline role.
 	InlineRoles := {
 		code : InlineStyle ?? {},
 		emphasis : InlineStyle ?? {},
 		quote : InlineStyle ?? {},
 		strong : InlineStyle ?? {},
+		strong_emphasis : StrongEmphasisStyle ?? {},
 	}.{
 		is_eq : _
 	}

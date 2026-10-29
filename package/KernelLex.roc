@@ -108,6 +108,12 @@ KernelLex :: [].{
 	append_billionths : List(U8), I64 -> List(U8)
 	append_billionths = |output, coefficient| append_decimal(output, coefficient, 9)
 
+	## Exact signed OpenType 16.16 degrees. The quotient/remainder split keeps
+	## every intermediate in U64 across the complete I32 domain, including the
+	## negative endpoint. At most sixteen fractional digits are emitted.
+	append_fixed16 : List(U8), I32 -> List(U8)
+	append_fixed16 = |output, raw| append_fixed16_value(output, raw)
+
 	append_name : List(U8), Name -> List(U8)
 	append_name = |output, value| append_name_bytes(output, Name.bytes(value))
 
@@ -557,6 +563,34 @@ append_decimal = |output, coefficient, scale| {
 	}
 }
 
+append_fixed16_value : List(U8), I32 -> List(U8)
+append_fixed16_value = |output, raw| {
+	value = raw.to_i64()
+	magnitude = (if (value < 0) 0 - value else value).to_u64_wrap()
+	whole = U64.div_by(magnitude, 65536)
+	fraction = U64.mod_by(magnitude, 65536)
+	var $out = if (value < 0) output.append(45) else output
+	$out = append_u64($out, whole)
+	if fraction == 0 {
+		return $out
+	}
+	# 5^16 converts the remainder / 2^16 to coefficient / 10^16.
+	var $coefficient = fraction * 152587890625
+	var $digits = 16
+	while U64.mod_by($coefficient, 10) == 0 {
+		$coefficient = U64.div_by($coefficient, 10)
+		$digits = $digits - 1
+	}
+	$out = $out.append(46)
+	var $divisor = power_of_ten($digits - 1)
+	while $divisor > 0 {
+		digit = U64.mod_by(U64.div_by($coefficient, $divisor), 10)
+		$out = $out.append((48 + digit).to_u8_wrap())
+		$divisor = U64.div_by($divisor, 10)
+	}
+	$out
+}
+
 append_fraction : List(U8), U64, U64 -> List(U8)
 append_fraction = |output, normalized, scale| {
 	power = power_of_ten(scale)
@@ -886,3 +920,12 @@ expect KernelLex.compare_utf8("c000001", "c000002") == Less and
 				KernelLex.compare_utf8("c0", "c") == Greater and
 					KernelLex.compare_utf8("", "") == Equal and
 						KernelLex.compare_utf8("z", "é") == Less
+
+# Fractional source angles retain every bit without floating point or rounding.
+expect KernelLex.append_fixed16([], -616038) == Str.to_utf8("-9.399993896484375")
+expect KernelLex.append_fixed16([], -511180) == Str.to_utf8("-7.79998779296875")
+expect KernelLex.append_fixed16([], 98304) == Str.to_utf8("1.5")
+expect KernelLex.append_fixed16([], -1) == Str.to_utf8("-0.0000152587890625")
+expect KernelLex.append_fixed16([], I32.highest) == Str.to_utf8("32767.9999847412109375")
+expect KernelLex.append_fixed16([], I32.lowest) == Str.to_utf8("-32768")
+expect KernelLex.append_fixed16([], 0) == Str.to_utf8("0")

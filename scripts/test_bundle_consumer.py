@@ -38,9 +38,14 @@ PROVENANCE = ROOT / "assets" / "provenance.json"
 # Package-private data the modules byte-import. `roc bundle` includes byte
 # imports (once omitted them, roc-lang/roc#11907); the consumer must see
 # every one, byte-identical to its provenance record.
-PACKAGE_DATA_FILES = ("RocPdfSans-Regular.ttf", "sRGB2014.icc",
-    "fonts/Inter-Regular.ttf", "fonts/Inter-Bold.ttf", "fonts/FiraCode-Regular.ttf",
-    "fonts/Inter-OFL.txt", "fonts/FiraCode-OFL.txt")
+PACKAGE_DATA_FILES = (
+    "RocPdfSans-Regular.ttf", "sRGB2014.icc",
+    "fonts/Inter-Regular.ttf", "fonts/Inter-Bold.ttf", "fonts/Inter-Italic.ttf", "fonts/Inter-BoldItalic.ttf",
+    "fonts/Merriweather-Regular.ttf", "fonts/Merriweather-Bold.ttf", "fonts/Merriweather-Italic.ttf", "fonts/Merriweather-BoldItalic.ttf",
+    "fonts/FiraCode-Regular.ttf", "fonts/FiraCode-Bold.ttf",
+    "fonts/Inter-OFL.txt", "fonts/Merriweather-OFL.txt", "fonts/FiraCode-OFL.txt",
+)
+MAX_PACKAGE_BYTES = 10 * 1024 * 1024
 
 
 class TestFailure(RuntimeError):
@@ -99,7 +104,25 @@ def verify_bundle_members(bundle: Path) -> None:
         raise TestFailure("release bundle contains repository-only package/all.roc")
     if not any(Path(member).name == "main.roc" for member in members):
         raise TestFailure("release bundle does not contain package/main.roc")
+    verify_bundle_size(bundle)
     verify_bundle_data_files(bundle, members)
+
+
+def verify_bundle_size(bundle: Path) -> None:
+    # tar streams concatenated regular-file contents without filesystem writes.
+    # The consumer below also uses Roc's unchanged default package limit.
+    expanded_bytes = 0
+    with subprocess.Popen(["tar", "--zstd", "-xOf", str(bundle)], stdout=subprocess.PIPE, stderr=subprocess.PIPE) as extraction:
+        assert extraction.stdout is not None
+        while chunk := extraction.stdout.read(65536):
+            expanded_bytes += len(chunk)
+            if expanded_bytes > MAX_PACKAGE_BYTES:
+                extraction.terminate()
+                raise TestFailure("release bundle exceeds Roc's default 10 MiB expanded package limit")
+        if extraction.wait() != 0:
+            assert extraction.stderr is not None
+            raise TestFailure(f"could not measure expanded bundle: {extraction.stderr.read().decode(errors='replace')}")
+    print(f"Bundle expanded payload {expanded_bytes} bytes (limit {MAX_PACKAGE_BYTES})")
 
 
 def package_byte_imports() -> set[str]:

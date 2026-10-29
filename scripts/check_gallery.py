@@ -28,6 +28,7 @@ EXAMPLES = (
     "chunked-export",
     "field-guide",
     "furniture-typography",
+    "font-families",
     "operations-handbook",
     "product-brief",
     "quarterly-report",

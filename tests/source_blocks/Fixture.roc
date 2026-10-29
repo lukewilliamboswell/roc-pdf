@@ -146,7 +146,7 @@ evidence = |EvidenceProps.{ text, spacer, scale, negative, defaults, han, source
 	reported = if (highlighted) source_report_counts(report) else report_evidence(report, text, source_only)?
 	body_font = registered.registry.prepared_face(registered.body) ? |_| FontFailure
 	mono_font = registered.registry.prepared_face(registered.mono) ? |_| FontFailure
-	styled = { faces: [registered.body, registered.mono], fonts: [body_font, mono_font], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
+	styled = { faces: [registered.body, registered.mono], fonts: [body_font, mono_font], inline_faces: [], face_indexes: [], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
 	# Color requires a profile at emission. The work probe uses black text
 	# and a black background; geometry and the panel paint work agree.
 	probe_background = if (defaults) NoBackground else Background(Theme.black)
@@ -269,8 +269,8 @@ multiple_evidence = |context| {
 	registered = faces(False)?
 	shared = "same = 1\n\n  keep = same"
 	distinct = "different = 2\n\n    keep = different\n"
-	first = Pdf.source_block({ text: shared, face: registered.mono })
-	second = Pdf.source_block({ text: distinct, face: registered.mono })
+	first = Pdf.source_block({ text: shared, face: Face(registered.mono) })
+	second = Pdf.source_block({ text: distinct, face: Face(registered.mono) })
 	document = Pdf.document({ title: "Independent source placements", language: "en", contents: [first, Pdf.paragraph("Between source blocks."), second, first] })
 	theme : Theme
 	theme = { body: { size: 11, leading: 15 } }
@@ -298,7 +298,7 @@ multiple_evidence = |context| {
 	}
 	body_font = registered.registry.prepared_face(registered.body) ? |_| FontFailure
 	mono_font = registered.registry.prepared_face(registered.mono) ? |_| FontFailure
-	styled = { faces: [registered.body, registered.mono], fonts: [body_font, mono_font], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
+	styled = { faces: [registered.body, registered.mono], fonts: [body_font, mono_font], inline_faces: [], face_indexes: [], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
 	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(document), styled, theme, page_size, descriptor, NoDocumentFacts, pipeline_limits) ? |_| PipelineFailure
 	flow = KernelFacadePipeline.Plan.work(pipeline)
 	Ok({ bytes, work: [shared.count_utf8_bytes() * 2 + distinct.count_utf8_bytes(), flow.shaped_runs, flow.lines, flow.pages, flow.final_runs, flow.fragments, flow.scene_commands, flow.objects, flow.shape_metric_reads, flow.line_candidate_visits, flow.page_candidate_visits, $index, 10, 0, bytes.len()] })

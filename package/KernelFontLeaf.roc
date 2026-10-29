@@ -96,14 +96,14 @@ KernelFontLeaf :: [].{
 	}
 }
 
-## The recipe tag: version 1 of the supported TrueType-flavoured
-## CIDFontType2 bundle shape.
+## Version 2 records the source angle as exact raw signed 16.16. Version 1
+## used integer degrees, so even a zero angle keeps the revised schema explicit.
 font_bundle_recipe_tag : U8
-font_bundle_recipe_tag = 1
+font_bundle_recipe_tag = 2
 
 build_leaf : KernelFontLeaf.Bundle -> Try(KernelFontLeaf.Leaf, KernelFontLeaf.Error)
 build_leaf = |bundle| {
-	if bundle.descriptor.flags < 0 or bundle.descriptor.stem_v <= 0 {
+	if bundle.descriptor.flags < 0 or bundle.descriptor.stem_v <= 0 or bundle.descriptor.italic_angle < -2147483648 or bundle.descriptor.italic_angle > 2147483647 {
 		return Err(DescriptorInvalid)
 	}
 	units_per_em = bundle.font.metrics.units_per_em
@@ -142,7 +142,8 @@ build_leaf = |bundle| {
 	$recipe = append_u64_bytes($recipe, name_bytes)
 	$recipe = append_all($recipe, postscript_name)
 
-	## Descriptor policy facts, exactly as emitted.
+	## Descriptor policy facts, exactly as emitted. The angle is raw signed
+	## 16.16 with a fixed denominator, preserving every fractional source bit.
 	$recipe = append_i64_bytes($recipe, bundle.descriptor.flags)
 	$recipe = append_i64_bytes($recipe, bundle.descriptor.italic_angle)
 	$recipe = append_i64_bytes($recipe, bundle.descriptor.stem_v)
@@ -360,6 +361,7 @@ test_inspection = |_| {
 	digest: List.repeat(7, 32),
 	embedding_rights: Installable,
 	loca_offsets: [],
+	style: { italic_angle: 0, fixed_pitch: 0, fs_selection: 64, mac_style: 0, serif: Unclassified },
 	metrics: {
 		ascent: 800,
 		cap_height: 700,

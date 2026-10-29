@@ -88,6 +88,7 @@ a complete document.
 - [Composing a technical manual](docs/manual-composition.md)
 - [Destination page references](docs/destination-page-references.md)
 - [Generated API documentation](https://lukewilliamboswell.github.io/roc-pdf/)
+- [User manual and PDF](https://lukewilliamboswell.github.io/roc-pdf/manual/)
 - [Release notes](docs/README.md#release-notes)
 
 ## Examples
@@ -144,6 +145,6 @@ implementation contracts, performance evidence and release validation.
 
 This project is licensed under the [Universal Permissive License](LICENSE).
 
-Use the [Inter and Fira Code preset](docs/roc-font.md) to share roc-font's
-sans and monospace assets, including the `⌘` character, with explicit PDF
-instances and reusable font registration.
+Ordinary documents use Inter, code uses Fira Code, and explicit serif typography
+uses Merriweather. See [font families and styles](docs/roc-font.md) for genuine
+emphasis, caller-font mappings, coverage limits and migration guidance.

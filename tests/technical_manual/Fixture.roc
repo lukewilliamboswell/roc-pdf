@@ -97,7 +97,7 @@ evidence = |count| {
 						[
 							Pdf.list_item([
 								Pdf.paragraph("Prepare procedure ${number.to_str()} without losing source whitespace."),
-								Pdf.source_block({ face, text: Str.repeat("  verify = procedure_${number.to_str()}  \n\n", 16), padding: 6, foregrounds: [{ start: 2, end: 8, color: "#8000c0" }] }),
+								Pdf.source_block({ face: Face(face), text: Str.repeat("  verify = procedure_${number.to_str()}  \n\n", 16), padding: 6, foregrounds: [{ start: 2, end: 8, color: "#8000c0" }] }),
 								Pdf.figure({ drawing: PreparedDiagram.drawing({}), alt: "Café: receive an order, check stock or order timber, then dispatch.", caption: Pdf.caption("Prepared procedure diagram ${number.to_str()}"), fit: ScaleToFit({ minimum_percent: 50 }) }),
 								Pdf.callout({
 									name: "Instruction detail ${number.to_str()}",
@@ -125,7 +125,7 @@ evidence = |count| {
 	prepared = Pdf.prepare_with_report(document, { theme, fonts: Registered(registered.registry) }) ? PdfFailure
 	bytes = Pdf.to_bytes_prepared(prepared.prepared) ? PdfFailure
 	font = registered.registry.prepared_face(face) ? |_| FontFailure
-	styled = { faces: [face], fonts: [font], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
+	styled = { faces: [face], fonts: [font], inline_faces: [], face_indexes: [], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
 	plan = KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(document), styled, theme, page_size, descriptor, probe_facts(document)?, pipeline_limits) ? |_| PipelineFailure
 	flow = KernelFacadePipeline.Plan.work(plan)
 	Ok({ bytes, work: [count, count * 40, count * PreparedDiagram.drawing({}).command_count(), flow.shaped_runs, flow.lines, flow.pages, flow.fragments, flow.final_runs, flow.scene_commands, flow.objects, flow.shape_metric_reads, flow.line_candidate_visits, flow.page_candidate_visits, flow.callout_contexts, flow.callout_ancestors, flow.callout_updates, flow.callout_fragments, flow.scope_visits, flow.template_region_visits, flow.reference_passes, flow.field_resolutions, flow.furniture_items, bytes.len()] })

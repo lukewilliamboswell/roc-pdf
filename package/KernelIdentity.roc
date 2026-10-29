@@ -117,6 +117,7 @@ append_value = |facts, value| match value {
 	Integer(integer) => append_i64(facts.append(4), integer)
 	Name(name) => append_u64(facts.append(5), KernelObject.NameId.index(name))
 	Null => facts.append(6)
+	Fixed16(raw) => append_i64(facts.append(11), raw.to_i64())
 	Real(decimal) => append_u64(append_i64(facts.append(7), KernelLex.Decimal.coefficient(decimal)), KernelLex.Decimal.scale(decimal).to_u64())
 	Reference(object) => append_u64(facts.append(8), KernelObject.ObjectId.number(object))
 	Stream(stream) => append_u64(facts.append(9), KernelObject.StreamId.index(stream))

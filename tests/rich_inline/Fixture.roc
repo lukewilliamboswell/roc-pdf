@@ -367,7 +367,7 @@ run_code_face = |context| {
 	## paint facts, so work uses the uncolored theme.
 	body_font = faces.registry.prepared_face(faces.body) ? |_| EvidenceFailure
 	mono_font = faces.registry.prepared_face(faces.mono) ? |_| EvidenceFailure
-	styled = { faces: [faces.body, faces.mono], fonts: [body_font, mono_font], roles: { code: Candidate(1), emphasis: Inherited, quote: Inherited, strong: Inherited } }
+	styled = { faces: [faces.body, faces.mono], fonts: [body_font, mono_font], inline_faces: [], face_indexes: [], roles: { code: Candidate(1), emphasis: Inherited, quote: Inherited, strong: Inherited } }
 	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(document), styled, Theme.{ inline: { code: { font: Face(faces.mono) } } }, page_size, descriptor, NoDocumentFacts, pipeline_limits) ? |_| EvidenceFailure
 	flow = KernelFacadePipeline.Plan.work(pipeline)
 
@@ -472,7 +472,7 @@ run_shared_source = |count| {
 	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
 	body_font = faces.registry.prepared_face(faces.body) ? |_| EvidenceFailure
 	mono_font = faces.registry.prepared_face(faces.mono) ? |_| EvidenceFailure
-	styled = { faces: [faces.body, faces.mono], fonts: [body_font, mono_font], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Candidate(1) } }
+	styled = { faces: [faces.body, faces.mono], fonts: [body_font, mono_font], inline_faces: [], face_indexes: [], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Candidate(1) } }
 	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(document), styled, theme, page_size, descriptor, NoDocumentFacts, shared_source_limits) ? |_| EvidenceFailure
 	flow = KernelFacadePipeline.Plan.work(pipeline)
 
@@ -536,7 +536,7 @@ run_heading_faces = |count| {
 	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
 	body_font = faces.registry.prepared_face(faces.body) ? |_| EvidenceFailure
 	mono_font = faces.registry.prepared_face(faces.mono) ? |_| EvidenceFailure
-	styled = { faces: [faces.body, faces.mono], fonts: [body_font, mono_font], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
+	styled = { faces: [faces.body, faces.mono], fonts: [body_font, mono_font], inline_faces: [], face_indexes: [], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
 
 	## Colors change only paint facts, so work uses the uncolored theme.
 	uncolored = heading_faces_theme(faces.body, faces.mono, Color.srgb8({ blue: 0, green: 0, red: 0 }))
@@ -612,7 +612,7 @@ run_scaled_code = |count| {
 	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
 	body_font = faces.registry.prepared_face(faces.body) ? |_| EvidenceFailure
 	mono_font = faces.registry.prepared_face(faces.mono) ? |_| EvidenceFailure
-	styled = { faces: [faces.body, faces.mono], fonts: [body_font, mono_font], roles: { code: Candidate(1), emphasis: Inherited, quote: Inherited, strong: Inherited } }
+	styled = { faces: [faces.body, faces.mono], fonts: [body_font, mono_font], inline_faces: [], face_indexes: [], roles: { code: Candidate(1), emphasis: Inherited, quote: Inherited, strong: Inherited } }
 	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(document), styled, theme, page_size, descriptor, NoDocumentFacts, shared_source_limits) ? |_| EvidenceFailure
 	flow = KernelFacadePipeline.Plan.work(pipeline)
 

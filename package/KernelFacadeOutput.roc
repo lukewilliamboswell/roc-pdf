@@ -116,6 +116,7 @@ build_plan = |scenes, font, descriptor, facts, navigation, limits| {
 	text_store = KernelTextOwnership.Plan.text(ownership)
 	usages = glyph_usages(text_store.glyphs)
 	font_plan = KernelFontPlan.plan(font, usages, limits.font_plan) ? FontPlan
+	source_descriptor = KernelPdfFont.source_descriptor(font, descriptor)
 	subset = KernelFontSubset.build(font, font_plan) ? Subset
 	images = KernelImage.Plan.build(KernelFacadeScenes.Plan.images(scenes), colors, limits.images) ? Images
 	resource_use = KernelResourceUse.TextPlan.build(scene, colors, images) ? Resources
@@ -124,7 +125,7 @@ build_plan = |scenes, font, descriptor, facts, navigation, limits| {
 	content = KernelContent.Plan.build_with_text(tagged, KernelPdfText.ScenePlan.content(text), limits.content) ? Content
 	objects = KernelObjectPlan.Plan.build_with_text(tagged, colors, images, resource_use, content, limits.objects) ? Objects
 	font_objects = KernelFontObjects.Plan.build(objects, 1, limits.max_objects) ? FontObjects
-	structure = KernelTaggedTextStructure.Plan.build_with_navigation(tagged, colors, images, content, font_objects, text, [{ descriptor, font, plan: font_plan, subset }], facts, navigation, limits.structure) ? Structure
+	structure = KernelTaggedTextStructure.Plan.build_with_navigation(tagged, colors, images, content, font_objects, text, [{ descriptor: source_descriptor, font, plan: font_plan, subset }], facts, navigation, limits.structure) ? Structure
 	content_work = KernelContent.Plan.work(content)
 	resource_work = KernelResourceUse.TextPlan.work(resource_use)
 	text_work = KernelPdfText.ScenePlan.work(text)
@@ -202,11 +203,12 @@ build_multi_plan = |scenes, fonts, descriptor, facts, navigation, limits| {
 	while $font_index < fonts.len() {
 		font = list_at(fonts, $font_index)
 		font_plan = KernelFontPlan.plan(font, list_at($usages_per_font, $font_index), limits.font_plan) ? FontPlan
+		source_descriptor = KernelPdfFont.source_descriptor(font, descriptor)
 		subset = KernelFontSubset.build(font, font_plan) ? Subset
 		$font_entries = $font_entries + font_plan.entries.len()
 		$subset_bytes = $subset_bytes + subset.work.output_bytes
 		$font_plans = $font_plans.append(font_plan)
-		$embedded = $embedded.append({ descriptor, font, plan: font_plan, subset })
+		$embedded = $embedded.append({ descriptor: source_descriptor, font, plan: font_plan, subset })
 		$font_index = $font_index + 1
 	}
 

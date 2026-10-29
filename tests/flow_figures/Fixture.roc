@@ -197,7 +197,7 @@ run_labels = |count| {
 	checks = [
 		rejects(document_of([Pdf.paragraph("Lead"), figure(labelled("A label far wider than its drawing"))]), LayoutConstraintViolated, "layout.drawing_label_bounds", ["contents[1]"]),
 		rejects(document_of([Pdf.paragraph("Lead"), figure(labelled("中"))]), FontCoverageMissing, "text.unsupported_script", ["contents[1]"]),
-		rejects(document_of([Pdf.paragraph("Lead"), figure(labelled("ƀ"))]), FontCoverageMissing, "text.coverage_missing", ["contents[1]"]),
+		rejects(document_of([Pdf.paragraph("Lead"), figure(labelled("Ʞ"))]), FontCoverageMissing, "text.coverage_missing", ["contents[1]"]),
 		rejects(document_of([Pdf.paragraph("Lead"), figure(labelled(""))]), InvalidRelationship, "document.figure_drawing", ["contents[1]"]),
 		rejects(document_of([Pdf.paragraph("Lead"), Pdf.decoration({ drawing: labelled("Mark") }), Pdf.paragraph("Body")]), InvalidRelationship, "layout.decoration_drawing", ["contents[1]"]),
 		rejects(document_of([Pdf.paragraph("Body")]).with_page_templates({ continuation: Pdf.page_template({ gap: 12, header: furniture }), first: Pdf.first_page_template({ gap: 12, header: furniture }) }), InvalidRelationship, "layout.furniture_drawing", ["templates.first.header.start[0]"]),

@@ -717,6 +717,7 @@ emit_value = |output, store, value_id| match list_at(store.values, KernelObject.
 	Name(name) => KernelLex.append_name(output, list_at(store.names, KernelObject.NameId.index(name)))
 	Null => KernelLex.append_null(output)
 	Real(value) => KernelLex.append_real(output, value)
+	Fixed16(raw) => KernelLex.append_fixed16(output, raw)
 	Reference(object) => append_reference(output, object)
 	Stream(_) => {
 		crash "a bounded plan carried a nested stream value"

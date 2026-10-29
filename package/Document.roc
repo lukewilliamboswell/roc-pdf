@@ -3094,9 +3094,9 @@ expect {
 # must fit before its buffer is retained, and later sources are not parsed.
 expect {
 	limits = { max_input_bytes: 32, max_lines: 8, max_output_bytes: 8 }
-	first = append_source_limited(empty_state, { face: Font.FaceId.from_index(0), text: "12345" }, 0, 0, limits)
-	second = append_source_limited(first, { face: Font.FaceId.from_index(0), text: "\t" }, 0, 1, limits)
-	third = append_source_limited(second, { face: Font.FaceId.from_index(0), text: "\r" }, 0, 2, limits)
+	first = append_source_limited(empty_state, { face: Face(Font.FaceId.from_index(0)), text: "12345" }, 0, 0, limits)
+	second = append_source_limited(first, { face: Face(Font.FaceId.from_index(0)), text: "\t" }, 0, 1, limits)
+	third = append_source_limited(second, { face: Face(Font.FaceId.from_index(0)), text: "\r" }, 0, 2, limits)
 	tab = list_at(third.sources, 1)
 	after = list_at(third.sources, 2)
 	bounded = match (tab.validation, after.validation) {
@@ -3109,8 +3109,8 @@ expect {
 # Logical line limits also apply across source blocks, including blank rows.
 expect {
 	limits = { max_input_bytes: 32, max_lines: 3, max_output_bytes: 32 }
-	first = append_source_limited(empty_state, { face: Font.FaceId.from_index(0), text: "a\n" }, 0, 0, limits)
-	second = append_source_limited(first, { face: Font.FaceId.from_index(0), text: "b\n" }, 0, 1, limits)
+	first = append_source_limited(empty_state, { face: Face(Font.FaceId.from_index(0)), text: "a\n" }, 0, 0, limits)
+	second = append_source_limited(first, { face: Face(Font.FaceId.from_index(0)), text: "b\n" }, 0, 1, limits)
 	match list_at(second.sources, 1).validation {
 		InvalidSource(LimitExceeded({ attempted: 4, dimension: Lines, limit: 3 })) => second.source_lines.len() == 2 and second.source_bytes == 2 and list_at(second.sources, 1).text.is_empty()
 		_ => False
@@ -3122,8 +3122,8 @@ expect {
 expect {
 	black = Color.srgb8({ red: 0, green: 0, blue: 0 })
 	state = { ..empty_state, source_foregrounds: List.repeat({ start: 0, end: 1, color: black }, 100000) }
-	first = append_source(state, { face: Font.FaceId.from_index(0), text: "a", foregrounds: [{ start: 0, end: 1, color: black }] }, 0, 0)
-	second = append_source(first, { face: Font.FaceId.from_index(0), text: "\r" }, 0, 1)
+	first = append_source(state, { face: Face(Font.FaceId.from_index(0)), text: "a", foregrounds: [{ start: 0, end: 1, color: black }] }, 0, 0)
+	second = append_source(first, { face: Face(Font.FaceId.from_index(0)), text: "\r" }, 0, 1)
 	match (list_at(second.sources, 0).validation, list_at(second.sources, 1).validation) {
 		(InvalidSource(LimitExceeded({ attempted: 100001, dimension: Foregrounds, limit: 100000 })), InvalidSource(LimitExceeded({ attempted: 100001, dimension: Foregrounds, limit: 100000 }))) => second.source_bytes == 0 and second.source_lines.is_empty() and second.source_foregrounds.len() == 100000 and list_at(second.sources, 0).text.is_empty() and list_at(second.sources, 1).text.is_empty()
 		_ => False

@@ -44,7 +44,7 @@ Fixture :: [].{
 		styled_theme : Theme
 		styled_theme = { ..theme, face: body.face, inline: { emphasis: { font: Face(mono.face), scale: Percent(75) } } }
 		document = Pdf.document({ title: "Reference inherited face and scale", language: "en", contents: [Pdf.destination_heading({ name: "start", level: 1, text: "Styled references" }), Pdf.rich_paragraph([Pdf.text("Scaled label "), Pdf.emphasis([Pdf.in_language("fr", [Pdf.page_reference({ destination: "end", width: 60, numbering: PageLabel })])]), Pdf.text(" ends here.")]), Pdf.page_break, Pdf.destination_heading({ name: "end", level: 1, text: "Styled target" })], page_labels: [{ start_page: 0, style: DecimalArabic, prefix: "m-", start_number: 8 }] })
-		selection = Styled({ faces: [body.face, mono.face], fonts: [body_font, mono_font], roles: { code: Inherited, emphasis: Candidate(1), quote: Inherited, strong: Inherited } })
+		selection = Styled({ faces: [body.face, mono.face], fonts: [body_font, mono_font], inline_faces: [], face_indexes: [], roles: { code: Inherited, emphasis: Candidate(1), quote: Inherited, strong: Inherited } })
 		evidence(document, styled_theme, { theme: styled_theme, fonts: Registered(mono.registry) }, selection)
 	}
 	ordered : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
@@ -80,7 +80,7 @@ Fixture :: [].{
 		}
 		table = Pdf.table({ caption: Pdf.no_caption, columns: [{ width: Fixed(100), align: End }, { width: Fixed(100), align: Center }, { width: Share(1), align: Start }], header_rows: [Pdf.row([Pdf.header_cell(Column, small([Pdf.text("Head ")])), Pdf.header_cell(Column, small([Pdf.text("Header "), reference("target", Physical, 24), Pdf.text(" ")])), Pdf.header_cell(Column, small([reference("target", Physical, 24), Pdf.line_break, Pdf.text("Tail")]))])], body_rows: $rows })
 		document = Pdf.document({ title: "Reference geometry parity", language: "en", contents: [Pdf.rich_paragraph([Pdf.code("Scaled literal.")]), Pdf.rich_paragraph(small([reference("target", Physical, 24)])), Pdf.numbered_list({}, [Pdf.list_item([Pdf.rich_paragraph([Pdf.code("Scaled list.")])])]), table, Pdf.page_break, Pdf.destination_heading({ name: "target", level: 1, text: "Geometry target" })] })
-		selection = Styled({ faces: [body.face, mono.face], fonts: [body_font, mono_font], roles: { code: Candidate(1), emphasis: Candidate(1), quote: Inherited, strong: Inherited } })
+		selection = Styled({ faces: [body.face, mono.face], fonts: [body_font, mono_font], inline_faces: [], face_indexes: [], roles: { code: Candidate(1), emphasis: Candidate(1), quote: Inherited, strong: Inherited } })
 		evidence(document, selected_theme, { theme: selected_theme, fonts: Registered(mono.registry) }, selection)
 	}
 	contents : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)

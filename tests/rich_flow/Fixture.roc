@@ -180,7 +180,7 @@ negative_evidence = |context| {
 		rejected(Pdf.to_bytes_with(make(Pdf.callout({ name: "Spacer", contents: [Pdf.paragraph("Before"), Pdf.spacer(3)] })), options), "semantics.callout_content"),
 		rejected(Pdf.to_bytes_with(make(Pdf.callout({ name: "Page break", contents: [Pdf.paragraph("Before"), Pdf.page_break, Pdf.paragraph("After")] })), options), "semantics.callout_content"),
 		rejected(Pdf.to_bytes_with(make(Pdf.callout({ name: "Whole", contents: [Pdf.paragraph(Str.repeat("Required unsplittable content. ", 400))], fragmentation: Unsplittable })), options), "layout.keep_conflict"),
-		rejected(Pdf.to_bytes_with(make(Pdf.callout({ name: "Source", contents: [Pdf.source_block({ face: registered.face, text: Str.repeat("exact\n", 100), fragmentation: Unsplittable })] })), options), "source.oversize"),
+		rejected(Pdf.to_bytes_with(make(Pdf.callout({ name: "Source", contents: [Pdf.source_block({ face: Face(registered.face), text: Str.repeat("exact\n", 100), fragmentation: Unsplittable })] })), options), "source.oversize"),
 		rejected(Pdf.to_bytes_with(make(Pdf.callout({ name: "Figure", contents: [Pdf.figure({ drawing: Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 450, height: 20 }), color: Theme.black }), alt: "Too wide inside the padding", caption: Pdf.no_caption })] })), options), "document.figure_oversize"),
 		rejected(Pdf.to_bytes_with(make($deep), options), "semantics.container_depth"),
 		rejected(Pdf.to_bytes_with(make($list), options), "semantics.list_depth"),
@@ -241,7 +241,7 @@ callout_evidence = |count| {
 									padding: 8,
 									contents: [
 										Pdf.paragraph("Inner paragraph before the exact source."),
-										Pdf.source_block({ face: registered.face, text: Str.repeat("  exact = source  \n\n", 25), padding: 6 }),
+										Pdf.source_block({ face: Face(registered.face), text: Str.repeat("  exact = source  \n\n", 25), padding: 6 }),
 										Pdf.figure({ drawing: Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 120, height: 35 }), color: Theme.black }), alt: "A bounded procedure diagram", caption: Pdf.caption("Inner diagram") }),
 										Pdf.table({ caption: Pdf.caption("Inner tasks"), columns: [{ width: Fixed(60), align: Start }, { width: Share(1), align: Start }], header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Task")]), Pdf.header_cell(Column, [Pdf.text("Detail")])])], body_rows: $rows, row_split: SplitRows }),
 										Pdf.paragraph("Inner paragraph after the continued table."),
@@ -295,7 +295,7 @@ prepared_evidence_styled = |document, registered, count, theme| {
 	{ prepared, report } = Pdf.prepare_with_report(document, { theme, fonts: Registered(registered.registry) }) ? PdfFailure
 	bytes = Pdf.to_bytes_prepared(prepared) ? PdfFailure
 	font = registered.registry.prepared_face(registered.face) ? |_| FontFailure
-	styled = { faces: [registered.face], fonts: [font], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
+	styled = { faces: [registered.face], fonts: [font], inline_faces: [], face_indexes: [], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
 	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(document), styled, theme, page_size, descriptor, probe_facts(document)?, pipeline_limits) ? |_| PipelineFailure
 	flow = KernelFacadePipeline.Plan.work(pipeline)
 	var $panels = 0
@@ -328,11 +328,11 @@ list_evidence = |count| {
 		$items = $items.append(
 			Pdf.list_item([
 				Pdf.paragraph("Instruction ${($index + 1).to_str()}: prepare the workflow."),
-				Pdf.source_block({ face: registered.face, text: Str.repeat("  keep = exact_source  \n\n", 15), padding: 8, foregrounds: [{ start: 2, end: 6, color: "#8000c0" }] }),
+				Pdf.source_block({ face: Face(registered.face), text: Str.repeat("  keep = exact_source  \n\n", 15), padding: 8, foregrounds: [{ start: 2, end: 6, color: "#8000c0" }] }),
 				Pdf.paragraph("The source and diagram belong to this instruction."),
 				Pdf.figure({ drawing: Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 110, height: 30 }), color: Theme.black }), alt: "A rectangular workflow stage", caption: Pdf.caption("Workflow stage") }),
 				Pdf.table({ caption: Pdf.caption("Instruction parts"), columns: [{ width: Fixed(65), align: Start }, { width: Share(1), align: Start }], header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Part")]), Pdf.header_cell(Column, [Pdf.text("Instruction detail")])])], body_rows: $rows }),
-				Pdf.bullet_list([Pdf.list_item([Pdf.paragraph("Check the nested result."), Pdf.source_block({ face: registered.face, text: "nested = preserved" })])]),
+				Pdf.bullet_list([Pdf.list_item([Pdf.paragraph("Check the nested result."), Pdf.source_block({ face: Face(registered.face), text: "nested = preserved" })])]),
 				Pdf.paragraph("Complete this instruction before the next generated label."),
 			]),
 		)
@@ -344,7 +344,7 @@ list_evidence = |count| {
 	{ prepared, report } = Pdf.prepare_with_report(document, { theme, fonts: Registered(registered.registry) }) ? PdfFailure
 	bytes = Pdf.to_bytes_prepared(prepared) ? PdfFailure
 	font = registered.registry.prepared_face(registered.face) ? |_| FontFailure
-	styled = { faces: [registered.face], fonts: [font], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
+	styled = { faces: [registered.face], fonts: [font], inline_faces: [], face_indexes: [], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
 	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(document), styled, theme, page_size, descriptor, probe_facts(document)?, pipeline_limits) ? |_| PipelineFailure
 	flow = KernelFacadePipeline.Plan.work(pipeline)
 	Ok({ bytes, work: [count, flow.shaped_runs, flow.lines, flow.pages, flow.final_runs, flow.fragments, flow.scene_commands, flow.objects, flow.shape_metric_reads, flow.line_candidate_visits, flow.page_candidate_visits, report.facts.outcomes.len(), flow.callout_contexts, flow.callout_ancestors, flow.callout_updates, flow.callout_fragments, bytes.len()] })

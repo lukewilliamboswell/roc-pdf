@@ -629,7 +629,7 @@ expect {
 expect {
 	font = test_font({})?
 	faces = [Font.FaceId.from_index(0), Font.FaceId.from_index(1), Font.FaceId.from_index(2)]
-	selection = Styled({ faces, fonts: [font, font, font], roles: { code: Inherited, emphasis: Candidate(2), quote: Inherited, strong: Candidate(1) } })
+	selection = Styled({ faces, fonts: [font, font, font], inline_faces: [], face_indexes: [], roles: { code: Inherited, emphasis: Candidate(2), quote: Inherited, strong: Candidate(1) } })
 	theme : Theme
 	theme = { inline: { strong: { font: Face(list_at(faces, 1)) }, emphasis: { font: Face(list_at(faces, 2)) } } }
 	authoring = test_document([Document.strong([Document.page_reference({ destination: "end", width: 24 })]), Document.emphasis([Document.plain_text("A")])], [])

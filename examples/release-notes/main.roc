@@ -87,7 +87,8 @@ measure = 492
 
 ## US Letter with 60 pt side margins. Regular for body text; Bold for the
 ## title, the first two heading levels, and `Pdf.strong`; the monospace
-## face for `Pdf.code`, at 88% of the text around it.
+## face for `Pdf.code`, at 88% of the text around it. Link accents deliberately
+## select genuine Inter Italic; the retained Noto Sans pair has no italic face.
 theme : Faces -> Theme
 theme = |faces| {
 	face: faces.regular,
@@ -100,7 +101,7 @@ theme = |faces| {
 	},
 	inline: {
 		strong: { font: Face(faces.bold) },
-		emphasis: { color: Themed(indigo) },
+		emphasis: { color: Themed(indigo), font: Family(BuiltIn(Sans)) },
 		code: { color: Themed(pink), font: Face(faces.mono), scale: Percent(88) },
 	},
 	page_margin: { top: 48, right: 60, bottom: 46, left: 60 },

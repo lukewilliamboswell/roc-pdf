@@ -3338,7 +3338,7 @@ expect {
 # Source text is interned once; logical line occurrences carry exact ranges,
 # while blank lines have explicit owners and the one Code node owns ActualText.
 expect {
-	authoring = Document.normalize(Document.from_blocks({ contents: [Document.source_block({ text: "a\r\n\t\n\n", face: Font.FaceId.from_index(0) })], language: "en", title: "Source" }))
+	authoring = Document.normalize(Document.from_blocks({ contents: [Document.source_block({ text: "a\r\n\t\n\n", face: Face(Font.FaceId.from_index(0)) })], language: "en", title: "Source" }))
 	limits = KernelFacadeSemantics.Limits.make({ ..test_limits_record, semantics: KernelSemantics.Limits.make({ max_attributes: 4, max_content_spine: 32, max_fragments: 0, max_namespaces: 2, max_nodes: 16, max_occurrences: 12, max_semantic_depth: 8 }) })
 	plan = KernelFacadeSemantics.Plan.build(authoring, limits)?
 	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(plan)))
@@ -3356,7 +3356,7 @@ expect {
 expect {
 	limits = KernelFacadeSemantics.Limits.make({ ..test_limits_record, semantics: KernelSemantics.Limits.make({ max_attributes: 4, max_content_spine: 32, max_fragments: 0, max_namespaces: 2, max_nodes: 16, max_occurrences: 12, max_semantic_depth: 8 }) })
 	check = |text, lines| {
-		authoring = Document.normalize(Document.from_blocks({ contents: [Document.source_block({ text, face: Font.FaceId.from_index(0) })], language: "en", title: "Blank source" }))
+		authoring = Document.normalize(Document.from_blocks({ contents: [Document.source_block({ text, face: Face(Font.FaceId.from_index(0)) })], language: "en", title: "Blank source" }))
 		match KernelFacadeSemantics.Plan.build(authoring, limits) {
 			Err(_) => False
 			Ok(plan) => {
@@ -3371,7 +3371,7 @@ expect {
 # Distinct source placements keep dense adjacent line spans and distinct
 # owners even when their canonical text shares one Unicode source analysis.
 expect {
-	authoring = Document.normalize(Document.from_blocks({ contents: [Document.source_block({ text: "a\nb", face: Font.FaceId.from_index(0) }), Document.source_block({ text: "a\nb", face: Font.FaceId.from_index(1), size: 10, leading: 14 })], language: "en", title: "Repeated source" }))
+	authoring = Document.normalize(Document.from_blocks({ contents: [Document.source_block({ text: "a\nb", face: Face(Font.FaceId.from_index(0)) }), Document.source_block({ text: "a\nb", face: Face(Font.FaceId.from_index(1)), size: 10, leading: 14 })], language: "en", title: "Repeated source" }))
 	limits = KernelFacadeSemantics.Limits.make({ ..test_limits_record, semantics: KernelSemantics.Limits.make({ max_attributes: 4, max_content_spine: 32, max_fragments: 0, max_namespaces: 2, max_nodes: 16, max_occurrences: 12, max_semantic_depth: 8 }) })
 	plan = KernelFacadeSemantics.Plan.build(authoring, limits)?
 	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(plan)))

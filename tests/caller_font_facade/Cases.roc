@@ -395,7 +395,7 @@ roc_fonts = |context| {
 		contents: [
 			Pdf.paragraph("Body ⌘K"),
 			Pdf.rich_paragraph([Pdf.code("Inline ⌘K"), Pdf.strong([Pdf.text(" Bold")])]),
-			Pdf.source_block({ face: faces.source_code, text: "Source ⌘K" }),
+			Pdf.source_block({ face: Face(faces.source_code), text: "Source ⌘K" }),
 		],
 		language: "en-AU",
 		title: "Roc fonts",

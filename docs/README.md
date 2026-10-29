@@ -1,10 +1,12 @@
 # Using roc-pdf
 
+- [User manual](https://lukewilliamboswell.github.io/roc-pdf/manual/): read the
+  connected guides in HTML or download the searchable PDF and chapter Markdown.
 - [Authoring guide](authoring.md): create documents, choose fonts and styles,
   add tables and figures, and handle diagnostics.
 - [Composing a technical manual](manual-composition.md): printed page references,
   chapter headers, numbered instructions, continued callouts and vector diagrams.
-- [Inter and Fira Code](roc-font.md): reusable packaged PDF font instances.
+- [Built-in and caller fonts](roc-font.md): default families, genuine styles, caller mappings and coverage errors.
 - [Destination page references](destination-page-references.md): print
   destination page numbers and configured page labels.
 - [Example gallery](../examples/README.md): complete runnable documents and PDFs.

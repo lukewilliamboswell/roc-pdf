@@ -104,7 +104,9 @@ measure : I64
 measure = 495
 
 ## A4 with 50 pt margins: a 495 pt measure. Regular for body text; Bold
-## for the title, headings, and `Pdf.strong`.
+## for the title, headings, and `Pdf.strong`. Metadata labels deliberately
+## select Inter's genuine Italic from the built-in sans family; the retained
+## Source Code Pro pair supplies no italic face.
 theme : Faces -> Theme
 theme = |faces| {
 	face: faces.regular,
@@ -113,7 +115,7 @@ theme = |faces| {
 	headings: { all: { color: spruce, face: Face(faces.bold), size: 13, leading: 18 } },
 	inline: {
 		strong: { color: Themed(alarm), font: Face(faces.bold) },
-		emphasis: { color: Themed(spruce) },
+		emphasis: { color: Themed(spruce), font: Family(BuiltIn(Sans)) },
 		code: { color: Themed(spruce) },
 	},
 	page_margin: { top: 44, right: 50, bottom: 40, left: 50 },

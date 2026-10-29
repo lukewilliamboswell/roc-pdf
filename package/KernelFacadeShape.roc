@@ -48,7 +48,7 @@ KernelFacadeShape :: [].{
 	## The candidate faces of the style-face path with inline role faces:
 	## `faces` and `fonts` are parallel, candidate 0 is the body face, and a
 	## role's `Candidate(k)` names its face.
-	StyledFaces : { faces : List(Font.FaceId), fonts : List(KernelFont.Inspection), roles : { code : RoleFace, emphasis : RoleFace, quote : RoleFace, strong : RoleFace } }
+	StyledFaces := { faces : List(Font.FaceId), fonts : List(KernelFont.Inspection), inline_faces : List(Font.FaceId) ?? [], face_indexes : List(U64) ?? [], roles : { code : RoleFace, emphasis : RoleFace, quote : RoleFace, strong : RoleFace } }.{}
 	RoleFace : [Candidate(U64), Inherited]
 	Limits :: { max_requests : U64, shape : KernelShape.Limits }.{
 		make : { max_requests : U64, shape : KernelShape.Limits } -> Limits
@@ -163,7 +163,7 @@ KernelFacadeShape :: [].{
 			return 0
 		}
 		match inline {
-			AtInline(index) => role_candidate(authoring.inlines, list_at(authoring.inlines, index).parent, styled)
+			AtInline(index) => inline_candidate(authoring.inlines, index, styled)
 			NoInline => candidate_of(styled, block_style(authoring, block, theme).font)
 		}
 	}
@@ -333,7 +333,7 @@ logical_run_single = |run| { physical: Semantics.IndexRange.from_start_and_lengt
 build_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), KernelFont.Inspection, Theme, KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
 build_plan = |authoring, owners, store, source_store, font, theme, limits| {
 	if !authoring.sources.is_empty() {
-		return build_styled_plan(authoring, owners, store, source_store, { faces: [Theme.body_style(theme).font], fonts: [font], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }, theme, limits)
+		return build_styled_plan(authoring, owners, store, source_store, { faces: [Theme.body_style(theme).font], fonts: [font], inline_faces: [], face_indexes: [], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }, theme, limits)
 	}
 	preparation = prepare_plan(authoring, owners, store, source_store, limits.max_requests, theme, RequireFace(Theme.body_font(theme).index()))?
 
@@ -347,13 +347,16 @@ build_plan = |authoring, owners, store, source_store, font, theme, limits| {
 		KernelShape.shape_selected_batch([font], source_store, { direction: LeftToRight, language: preparation.options.language, writing_mode: Horizontal }, single_face_requests(preparation), limits.shape)
 	}
 	shape = match shaped {
-		Err(_) => return Err(match locate_text_failure(authoring, preparation, store, source_store, [single_face_rules(font)], |_| 0) {
+		Err(_) => return Err(
+			match locate_text_failure(authoring, preparation, store, source_store, [single_face_rules(font)], |_| 0) {
 				Located(located) => located
 				NotLocated => ShapeFailure
-			})
+			},
+		)
 		Ok(value) => value
 	}
-	Ok(KernelFacadeShape.Plan.{
+	Ok(
+		KernelFacadeShape.Plan.{
 			block_runs: preparation.block_runs,
 			origins: request_origins(preparation.ranges),
 			requests: preparation.requests,
@@ -370,7 +373,8 @@ build_plan = |authoring, owners, store, source_store, font, theme, limits| {
 				script_run_visits: shape.work.script_run_visits,
 				source_bytes: shape.work.utf8_bytes,
 			},
-		})
+		},
+	)
 }
 
 build_styled_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), KernelFacadeShape.StyledFaces, Theme, KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
@@ -425,13 +429,16 @@ build_styled_plan = |authoring, owners, store, source_store, styled, theme, limi
 		Ok(value) => value
 		Err(_) => {
 			rules = styled.fonts.map(|font| single_face_rules(font))
-			return Err(match locate_text_failure(authoring, preparation, store, source_store, rules, |request| list_at(candidates, request)) {
+			return Err(
+				match locate_text_failure(authoring, preparation, store, source_store, rules, |request| list_at(candidates, request)) {
 					Located(located) => located
 					NotLocated => ShapeFailure
-				})
+				},
+			)
 		}
 	}
-	Ok(KernelFacadeShape.Plan.{
+	Ok(
+		KernelFacadeShape.Plan.{
 			block_runs: preparation.block_runs,
 			origins: request_origins(preparation.ranges),
 			requests: preparation.requests,
@@ -448,7 +455,8 @@ build_styled_plan = |authoring, owners, store, source_store, styled, theme, limi
 				script_run_visits: shape.work.script_run_visits,
 				source_bytes: shape.work.utf8_bytes,
 			},
-		})
+		},
+	)
 }
 
 ## A source document retains ordinary paragraph preparation while expanding
@@ -528,13 +536,16 @@ build_source_styled = |authoring, preparation, store, sources, styled, candidate
 		Ok(value) => value
 		Err(_) => {
 			rules = styled.fonts.map(|font| single_face_rules(font))
-			return Err(match locate_text_failure(authoring, preparation, store, sources, rules, |request| list_at(candidates, request)) {
+			return Err(
+				match locate_text_failure(authoring, preparation, store, sources, rules, |request| list_at(candidates, request)) {
 					Located(error) => error
 					NotLocated => ShapeFailure
-				})
+				},
+			)
 		}
 	}
-	Ok(KernelFacadeShape.Plan.{
+	Ok(
+		KernelFacadeShape.Plan.{
 			block_runs: $block_runs,
 			origins: Origins($origins),
 			requests: $requests,
@@ -542,7 +553,8 @@ build_source_styled = |authoring, preparation, store, sources, styled, candidate
 			shape,
 			styles: $styles,
 			work: { font_bytes: total_font_bytes(fonts), font_tables: total_font_tables(fonts), glyphs: shape.work.glyph_visits, metric_reads: shape.work.metric_reads, requests: shape.store.runs.len(), scalars: shape.work.scalar_visits, script_run_visits: shape.work.script_run_visits, source_bytes: shape.work.utf8_bytes },
-		})
+		},
+	)
 }
 
 check_limit_requests : U64, U64 -> Try({}, KernelFacadeShape.Error)
@@ -593,7 +605,7 @@ request_candidates = |authoring, preparation, styled, theme| {
 					match record.kind {
 						Text(_) => {
 							request = body.physical.start() + record.first_leaf
-							$candidates = list_set($candidates, request, role_candidate(authoring.inlines, record.parent, styled))
+							$candidates = list_set($candidates, request, inline_candidate(authoring.inlines, $inline, styled))
 						}
 						_ => {}
 					}
@@ -674,6 +686,9 @@ styled_face_indexes = |styled| {
 ## The candidate of a style face that `validate_style_faces` accepted.
 candidate_of : KernelFacadeShape.StyledFaces, Font.FaceId -> U64
 candidate_of = |styled, face| {
+	if !styled.face_indexes.is_empty() {
+		return list_at(styled.face_indexes, face.index())
+	}
 	var $index = 0
 	while $index < styled.faces.len() {
 		if list_at(styled.faces, $index) == face {
@@ -721,6 +736,16 @@ role_candidate = |inlines, parent, styled| {
 		$cursor = record.parent
 	}
 	0
+}
+
+## Family/style resolution provides the exact face for each authored leaf.
+## Older internal single-face fixtures carry no per-inline table.
+inline_candidate : List(Document.NormalizedInline), U64, KernelFacadeShape.StyledFaces -> U64
+inline_candidate = |inlines, index, styled| {
+	if styled.inline_faces.is_empty() {
+		return role_candidate(inlines, list_at(inlines, index).parent, styled)
+	}
+	candidate_of(styled, list_at(styled.inline_faces, index))
 }
 
 ## Range-exact requests over the one resolved face (dense font 0), in
@@ -1573,7 +1598,11 @@ block_style = |authoring, block, theme| {
 	match kind {
 		SourceLine({ source, .. }) | EmptySourceLine({ source, .. }) => {
 			facts = list_at(authoring.sources, source)
-			return { color: facts.color, font: facts.face, leading: facts.leading, size: facts.size }
+			face = match facts.face {
+				Face(value) => value
+				ThemeCode | BuiltIn(_) => crash "source font choice escaped font planning"
+			}
+			return { color: facts.color, font: face, leading: facts.leading, size: facts.size }
 		}
 		_ => {}
 	}
@@ -1731,7 +1760,8 @@ build_ordered_plan = |authoring, owners, store, source_store, ordered, theme, li
 		Err(_) => return Err(ShapeFailure)
 		Ok(value) => value
 	}
-	Ok(KernelFacadeShape.Plan.{
+	Ok(
+		KernelFacadeShape.Plan.{
 			block_runs: $block_runs,
 			origins: physical_origins,
 			requests: physical_requests,
@@ -1748,7 +1778,8 @@ build_ordered_plan = |authoring, owners, store, source_store, ordered, theme, li
 				script_run_visits: shape.work.script_run_visits,
 				source_bytes: shape.work.utf8_bytes,
 			},
-		})
+		},
+	)
 }
 
 ## Segmented grapheme-cluster facts for coverage planning: one cluster per
@@ -2257,9 +2288,11 @@ single_face_rules = |font| {
 ## of the policy.
 policy_rules : List(KernelFont.Inspection) -> TextRules
 policy_rules = |fonts| {
-	covers: |scalar| fonts.any(|font| match KernelFont.glyph_for_scalar(font, scalar) {
+	covers: |scalar| fonts.any(
+		|font| match KernelFont.glyph_for_scalar(font, scalar) {
 			Some(glyph) => glyph != 0
 			None => False
-		}),
+		},
+	),
 	script: |alias| if (declared_script(alias)) Shaped else Undeclared,
 }

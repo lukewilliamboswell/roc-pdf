@@ -585,7 +585,7 @@ emit no bytes.
 
 Packaging and PDF embedding are separate boundaries. The core package ships
 only the small, audited deterministic assets required by its default facade,
-including its deliberately limited built-in font coverage and, when the static
+including its explicitly supported built-in family/style set and, when the static
 profile is available, its default sRGB profile. Broad multilingual fonts,
 specialist typefaces, images, and language-specific data are not accumulated in
 the core package merely to make them selectable. They may be supplied by the
@@ -616,8 +616,12 @@ without supplying a copy of the package's font bytes.
 
 Validated font identity and metrics are source facts. Inspection records exact
 ranges for the selected family, full, and PostScript name strings and the OS/2
-CapHeight. Subsetting prefixes and copies those retained ranges; PDF font
-dictionaries and descriptors consume the same facts. Neither caller metadata
+CapHeight, plus exact signed 16.16 `post.italicAngle`, `post.isFixedPitch`,
+`head.macStyle` and `OS/2.fsSelection` facts. Style-link bits are checked for
+consistency before registration. Subsetting preserves the source angle and
+fixed-pitch header facts, prefixes and copies retained name ranges, and copies
+the validated head/OS/2 style declarations. PDF font dictionaries, canonical
+resource identity and descriptors consume the same facts. Neither caller metadata
 nor a packaged-font constant may rename a subset or replace a validated metric.
 
 Caller-provided means external to the package distribution, not external to the
@@ -1534,7 +1538,9 @@ structure. It informs tests; it is not the architectural source of truth.
 Determinism is part of the public contract:
 
 - Numbers use a canonical, locale-independent finite decimal representation;
-  negative zero is normalized.
+  negative zero is normalized. Source 16.16 facts have their own exact numeric
+  primitive, preserving the complete signed input domain without rounding or
+  widening the ordinary decimal coefficient/scale contract.
 - Pages, semantic nodes, scene nodes, and resources have defined traversal
   orders.
 - Object numbering and resource naming never depend on hash-map iteration.
@@ -1927,10 +1933,25 @@ The defining architectural decision is that accessibility evidence crosses the
 layout boundary as first-class typed data, while PDF syntax remains private and
 downstream.
 
-## Packaged roc-font instances
+## Packaged roc-font families
 
-The optional `RocFont` preset supplies pinned static Inter Regular/Bold and
-Fira Code Regular through the existing caller-resource boundary. Asset
-instancing is a reproducible development operation; production remains pure
-Roc. Measurement and embedding consume identical static bytes, never a
-variable font with unapplied axes. See [the integration record](development/roc-font.md).
+The built-in facade supplies Inter for ordinary body/headings, Merriweather for
+explicit serif typography, and Fira Code for inline/source code. Ten unchanged
+upstream static rc4 faces provide genuine Regular/Bold and, for sans/serif,
+Italic/Bold Italic. No runtime instancing, synthetic styling or automatic
+fallback is permitted. Unsupported glyphs, scripts and requested styles return
+structured located errors before bytes. Explicit caller family/style mappings
+cross the same validated resource boundary and never acquire missing styles
+from another family implicitly.
+
+Font planning resolves named family/style intent once into exact validated face
+IDs before shaping. Only demanded packaged faces are inspected, in canonical
+order; registry reuse consumes retained inspection facts and immutable original
+payloads. Preorder style-state propagation and dense face/candidate indexes bound
+selection work linearly in authored input and registry size. The explicit
+`RocFont.register` adapter may register the complete fixed set for application
+reuse. Measurement and embedding consume identical selected static bytes.
+
+Merriweather lacks U+2318 and Fira Code has no genuine italic faces. Those
+requirements remain excluded and tracked upstream. [The integration record](development/roc-font.md)
+retains exact pins, licences, historical evidence and downstream adoption ownership.
