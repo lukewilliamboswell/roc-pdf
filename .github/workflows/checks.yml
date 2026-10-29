@@ -264,13 +264,19 @@ jobs:
         env:
           RELEASE_VERSION: ${{ steps.version.outputs.version }}
           SOURCE_SHA: ${{ inputs.source_sha }}
+          NIGHTLY_VALIDATION: ${{ inputs.nightly_validation }}
         run: |
           blueprint run bundle
           bundle=$(find dist -maxdepth 1 -name '*.tar.zst' -type f -print -quit)
           ROC=roc python3 scripts/check_gallery.py --bundle-path "$bundle"
           ROC=roc python3 scripts/examples_archive.py --bundle-path "$bundle" --tag "$RELEASE_VERSION" --output-dir dist --test-bundle
           python3 scripts/release_artifacts.py --self-test
-          ROC=roc python3 scripts/release_artifacts.py --tag "$RELEASE_VERSION" --bundle "$bundle" --revision "$SOURCE_SHA"
+          # Compiler candidates change only .roc-version; authored release
+          # notes still describe the published pin. Keep all consumer checks
+          # while reserving note eligibility and publication files for releases.
+          if [[ "$NIGHTLY_VALIDATION" != true ]]; then
+            ROC=roc python3 scripts/release_artifacts.py --tag "$RELEASE_VERSION" --bundle "$bundle" --revision "$SOURCE_SHA"
+          fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: roc-pdf-release-${{ inputs.source_sha }}

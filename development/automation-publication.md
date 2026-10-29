@@ -102,8 +102,16 @@ The retained `nightly_validation` dispatch inputs still suppress publishing or
 deployment; the current shared released-example workflow itself does not call
 these controllers. Compiler-candidate dispatch may still use a branch and omit
 a tag; it derives the authored version and skips publication eligibility/API
-version checks. Actual publication always requires main, a new version and the
-API gate. No input was removed based on an assumed absence of callers.
+version checks. It still builds and tests the actual bundle, gallery, extracted
+examples and docs, but omits publication artifact assembly: authored notes must
+continue to describe the released compiler rather than a candidate pin. Its
+uploaded bundle/examples remain test artifacts, and the publisher cannot run.
+Actual publication always requires main, a new version, eligible authored notes
+and the API gate. No input was removed based on an assumed absence of callers.
+
+The [GitHub runner reference](https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/choose-the-runner-for-a-job)
+lists public `macos-15` as arm64 (checked 2026-10-29), matching Blueprint's
+registered `aarch64-darwin` target; Linux uses `ubuntu-22.04` x86-64.
 
 The release build tests the actual files and renders authored note placeholders.
 Its manifest records the commit/compiler and each asset's name, size and hash.
