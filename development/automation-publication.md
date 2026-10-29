@@ -199,9 +199,17 @@ admin/maintainer, so no second-maintainer reviewer was invented. Existing Pages
 rules and absence of app/deploy-key bypass remain effective. An admin-role
 bypass is distinct from an app/deploy-key bypass.
 
-Required branch check names are intentionally preserved until the real PR
-reports the new reusable-workflow contexts successfully. The integration owner
-must record those observed names and update required contexts before closing
-the automation tracker; guessed nested job names are not evidence. A failed or
-skipped check must not count as a successful aggregate. No release has been
-published as part of this work.
+Required branch checks were updated only after the complete
+[implementation CI run](https://github.com/lukewilliamboswell/roc-pdf/actions/runs/40829868219)
+succeeded at `57666af850682277e4eeab7c824ffc6172793617`. GitHub's check-run
+API reported the exact successful contexts `checks / CI`,
+`checks / Bundle and smoke-test gallery`, and `build`, all from GitHub Actions
+app 15368. These replace the stale unprefixed names. Two fresh policy reads
+preceded the context-only update; all other mutable rules, strict-current-check
+parameters, signatures, review requirements, branch conditions and bypass actors
+were preserved and compared with the actual post-update response.
+
+The after snapshot records the applied settings. Subsequent integration commits
+change development evidence only; strict branch protection still requires all
+three checks on the current commit before merge. A failed or skipped job does
+not satisfy the aggregate. No release or site was published as part of this work.

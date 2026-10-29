@@ -125,6 +125,13 @@ checked 345 snapshots plus 14 public examples: 358 were compliant and the
 placeholder failed exactly its recorded rule. The three repaired rich-inline
 and source-negative PDFs then passed PDF/A-4 and Arlington again.
 
+The full strict native invocation completed successfully on 2026-10-29:
+46 source-validation tasks (including formatting of 315 files), 13 fresh fixture
+builds and all 425 cases passed with allocation/byte/work guards enabled. The
+strict Linux 425-case step and its public bundle consumer also passed at
+`57666af850682277e4eeab7c824ffc6172793617` in the
+[recorded Linux job](https://github.com/lukewilliamboswell/roc-pdf/actions/runs/40829868219/job/123301442361).
+
 Final acceptance is the full strict native invocation
 `./scripts/test.py --allocation-baselines --jobs 3` and the checks bound to the
 latest source revision on [PR #76](https://github.com/lukewilliamboswell/roc-pdf/pull/76).

@@ -90,13 +90,14 @@ The fresh dev run reported document total allocation counts of 1,449 (`report`),
 allocation, byte, work or PDF baseline was accepted or changed by this review.
 The log is `.roc-pdf-tmp/roc-fuzz-045-profile.log`.
 
-Linux CI verification is pending. Native macOS coverage does not establish the
-Linux host ABI or runtime behavior; check the committed upgrade's fuzz-smoke job
-before calling cross-platform validation complete.
+The Linux Ubuntu 22.04 fuzz-smoke job also passed all nine targets at source
+`57666af850682277e4eeab7c824ffc6172793617`: [recorded CI job](https://github.com/lukewilliamboswell/roc-pdf/actions/runs/40829868219/job/123301442342).
+This independently exercises the Linux host ABI and runtime alongside the
+native macOS smoke; it does not enlarge the bounded campaign or input domain.
 
 ## Separate follow-up: 0.5.0 and font coverage
 
-Latest release [0.5.0](https://github.com/lukewilliamboswell/roc-fuzz/releases/tag/0.5.0)
+Release [0.5.0](https://github.com/lukewilliamboswell/roc-fuzz/releases/tag/0.5.0)
 is a deliberate migration, not a URL-only update. It requires declared examples,
 encoder/parser derivations for nominal inputs, named measurements instead of
 the current profiling API, and supervised report/baseline handling. Decoded inputs
