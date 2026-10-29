@@ -135,6 +135,9 @@ def check(site: Path, source: Path, pdf: Path | None, review: Path | None = None
                             str(ROOT / "scripts/ManualTextExtract.java")], check=True)
             command = ["java", "-Djava.awt.headless=true", "-cp", f"{directory}{os.pathsep}{jar}", "ManualTextExtract", str(pdf)]
             if review:
+                review.mkdir(parents=True, exist_ok=True)
+                for previous in review.glob("pdf-page-*.png"):
+                    previous.unlink()
                 command.append(str(review))
             extracted = subprocess.check_output(command, text=True)
         # Remove only known running furniture at the edges of each page;
@@ -204,6 +207,8 @@ def check(site: Path, source: Path, pdf: Path | None, review: Path | None = None
                 "pages": sum(isinstance(document.get(n), dict) and document.get(n).get("Type") == "Page" for n in document.bodies),
                 "exact_source_blocks": len(all_code), "exact_rgb_figures": len(images),
                 "tagged_tables": len(tables), "pdfbox": "3.0.8", "java": java.stderr.strip(),
+                "rendered_review_pages": {path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+                                          for path in sorted(review.glob("pdf-page-*.png"))},
             }, indent=2) + "\n")
     print(f"PASS manual: {len(pages)} pages, {len(all_code)} exact source blocks, links, Markdown, asset digests" + ("; PDFBox source/table text, tagged table and three exact RGB figures" if pdf else ""))
 

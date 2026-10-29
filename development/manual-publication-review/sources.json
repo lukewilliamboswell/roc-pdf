@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "revision": "c057485234c1a39d7514cb506c5bf873e59cb784",
+  "revision": "a3e0a326cdee62af25eac51bb6f3d7a1963573bb",
   "sources": [
     {
       "path": "docs/README.md",
@@ -113,8 +113,8 @@
   },
   "release_bindings": {
     "docs/releases/0.3.0.md": {
-      "{package-url}": "https://github.com/lukewilliamboswell/roc-pdf/releases/download/0.3.0/5eSQZXyRSEJmPFJCDag6Zgmv1mf9tyZHBYd9Td82BUT8.tar.zst",
-      "{bundle-sha256}": "2d59beaf2b72d6537bc3642a212c144dd4f4c8faa7ddba47d4ef376c5dea60d8"
+      "{package-url}": "https://github.com/lukewilliamboswell/roc-pdf/releases/download/0.3.0/418pLV65t6TtiHWPtDmWorrsLCrEjTnEjrWrkNvigeDQ.tar.zst",
+      "{bundle-sha256}": "a43327f74c38caf2af20bf8270bf09317811404728de8dd3392e57b7bf2c4a72"
     }
   }
 }

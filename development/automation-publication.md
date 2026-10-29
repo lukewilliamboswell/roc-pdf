@@ -80,7 +80,12 @@ reports are retained alongside this record; screenshots are reproducible in
 pass, and no website is deployed from this integration branch. The retained
 [PDF report](manual-publication-review/pdf.json) and
 [browser report](manual-publication-review/browser.json) identify the checked
-working-tree manual outputs; final CI repeats them from the recorded commit.
+manual outputs and the source inventory at the recorded gallery commit; final
+CI repeats the checks from its own recorded commit. The final local dry run
+has 21 HTML pages, 49 PDF pages, 39 exact source blocks, three exact RGB
+figures and three tagged tables. Independent PDF screenshots retain their
+hashes in the PDF report; the capability table and all three gallery figure
+pages were visually inspected after rendering.
 The migration added an explicit Markdown-to-PSV closing-pipe conversion after
 visual inspection caught shifted table cells; exact HTML cell grids and PDF
 semantic row/cell shapes now guard that boundary.
@@ -114,7 +119,12 @@ inside the compiler's default 10 MiB cap; no size flag is raised. Some private
 fixture modules and the older tiny font remain in the archive because retained
 module `expect`s import them. Removing required imported files would break the
 public package boundary, so this audit does not strip them. Release manifests
-also enforce and report the expanded-size bound. The new freshness lane also
+also enforce and report the expanded-size bound. The final static-font and
+metadata bundle has 104 members, 3,974,464 compressed bytes and 10,158,511
+expanded bytes; its filename is
+`418pLV65t6TtiHWPtDmWorrsLCrEjTnEjrWrkNvigeDQ.tar.zst` and SHA-256 is
+`a43327f74c38caf2af20bf8270bf09317811404728de8dd3392e57b7bf2c4a72`.
+The new freshness lane also
 exposed stale sRGB generator spellings after named arguments and Roc formatting;
 its generator strings now reproduce the retained module exactly, without
 changing the ICC payload, package PDF bytes or allocation evidence.

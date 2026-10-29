@@ -79,6 +79,13 @@ def build(tag: str, bundle: Path, docs: Path, revision: str, output: Path) -> No
     manual = output / f"roc-pdf-{tag}.pdf"
     shutil.copyfile(docs / "manual/roc-pdf.pdf", manual)
     examples = output / f"roc-pdf-examples-{tag}.zip"
+    with zipfile.ZipFile(examples) as zipped:
+        assert zipped.testzip() is None
+        plan = json.loads(zipped.read(f"roc-pdf-examples-{tag}/spec.json"))
+        assert plan["release"] == tag and plan["dependencies"] == [bindings["{package-url}"]], "examples describe a different release bundle"
+        assert sorted(app["path"] for app in plan["apps"]) == sorted(
+            f"examples/{path.parent.name}/main.roc" for path in (ROOT / "examples").glob("*/main.roc")
+        ), "examples archive omits a public application"
     assets = [bundle, examples, archive, manual]
     expanded = subprocess.check_output(["tar", "--zstd", "-xOf", str(bundle)])
     if len(expanded) > 10 * 1024 * 1024:
