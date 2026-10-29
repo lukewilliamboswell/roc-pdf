@@ -113,6 +113,16 @@ Whole Roc/Zig toolchains, JDK distributions, and container images are too
 large and platform-specific for Git. Hermetic deployments should preload those
 exactly pinned dependencies into an immutable runner image.
 
-The optional `RocFont` preset retains roc-font's pinned Inter/Fira Code source
-files in `vendor/fonts/roc-font/` and materialized static instances and OFL
-notices in `package/fonts/`. See [the recipe](../development/roc-font.md).
+The packaged defaults retain roc-font 0.1.0-rc4's ten unchanged upstream static
+faces: Inter and Merriweather Regular/Bold/Italic/Bold Italic and Fira Code
+Regular/Bold. Exact release, upstream archive, member, face and licence pins
+are in `vendor/fonts/roc-font/upstream-pins.json`. All ten faces and three OFL
+notices ship in `package/fonts/`; Merriweather retains its Reserved Font Name
+because its files are unchanged. `scripts/build_roc_font_instances.py --check`
+verifies them offline. Pass `--bundle PATH` to additionally verify every member
+against the digest-pinned published bundle; `--install --bundle PATH` reproduces
+the files without fontTools or modification.
+
+The rc3 variable inputs, pins and instancing recipe remain under
+`vendor/fonts/roc-font/` as historical evidence. They are not production assets
+and do not enter the package bundle. See [the integration record](../development/roc-font.md).
