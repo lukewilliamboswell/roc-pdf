@@ -1225,7 +1225,7 @@ enrich_source_fonts = |base, options, authoring| {
 	}
 	styled = match base {
 		Ordered(_) => return Err(InvalidDocument(located_batch(FeatureUnavailable, "source.font_policy", "A source block requires its explicit registered face. Use style faces instead of an ordered font policy.", [group_path(authoring.groups, source_at(authoring.sources, 0).group)])))
-		Single(font) => { faces: [Theme.body_font(options.theme)], fonts: [font], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
+		Single(font) => { faces: [Theme.body_font(options.theme)], fonts: [font], inline_faces: [], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
 		Styled(value) => value
 	}
 	registry = match options.fonts {
@@ -2292,7 +2292,7 @@ selected_styled_fonts = |options| {
 		Face(face) => if (face == body_face) Inherited else Candidate(index_of($faces, face))
 		Inherited => Inherited
 	}
-	Ok(Styled({ faces: $faces, fonts: $fonts, roles: { code: candidate(Code), emphasis: candidate(Emphasis), quote: candidate(Quote), strong: candidate(Strong) } }))
+	Ok(Styled({ faces: $faces, fonts: $fonts, inline_faces: [], roles: { code: candidate(Code), emphasis: candidate(Emphasis), quote: candidate(Quote), strong: candidate(Strong) } }))
 }
 
 list_first_or : List(a), a -> a
@@ -3500,6 +3500,46 @@ expect {
 default_report_budget : Pdf.ReportBudget
 default_report_budget = Pdf.ReportBudget.{}
 
+## Report inspection consumes complete accepted figure facts. Dense figure
+## identity is produced by normalization; pagination supplies one actual scale
+## per figure. A mismatch is a package invariant failure, never an inferred
+## unscaled figure or an omitted alternative-text obligation. This scalar-only
+## pass allocates no storage and retains no earlier compiler plan.
+validate_report_figures : Document.NormalizedAuthoring, [Facts(KernelFacadeReport.Facts), NoFacts] -> Try({}, Pdf.Error)
+validate_report_figures = |normalized, collected| {
+	scales = match collected {
+		NoFacts => {
+			if !normalized.blocks.is_empty() or !normalized.figures.is_empty() {
+				return Err(report_figure_invariant("A nonempty document has no accepted preparation facts."))
+			}
+			return Ok({})
+		}
+		Facts(facts) => facts.layout.scales
+	}
+	if scales.len() != normalized.figures.len() {
+		return Err(report_figure_invariant("Accepted figure scale count ${scales.len().to_str()} differs from authored figure count ${normalized.figures.len().to_str()}."))
+	}
+	var $figure = 0
+	for block in normalized.blocks {
+		match block.kind {
+			Figure(index) => {
+				if index != $figure or index >= normalized.figures.len() {
+					return Err(report_figure_invariant("Figure block index ${index.to_str()} does not name the next authored figure ${$figure.to_str()}."))
+				}
+				$figure = $figure + 1
+			}
+			_ => {}
+		}
+	}
+	if $figure != normalized.figures.len() {
+		return Err(report_figure_invariant("Accepted figure block count ${$figure.to_str()} differs from authored figure count ${normalized.figures.len().to_str()}."))
+	}
+	Ok({})
+}
+
+report_figure_invariant : Str -> Pdf.Error
+report_figure_invariant = |detail| InvalidDocument(located_batch(InternalInvariant, "pipeline.report.figure_facts", "${detail} This is a package defect; no preparation report is accepted.", ["Report.FigureFacts"]))
+
 ## Materialize the preparation report from its compact facts. The entry
 ## count is computed from scalar facts and checked against the budget
 ## before any path or text is materialized, so materialization work is
@@ -3509,6 +3549,7 @@ default_report_budget = Pdf.ReportBudget.{}
 ## one linear pass; each is shared by that leaf's entries.
 build_report : Document.NormalizedAuthoring, [Facts(KernelFacadeReport.Facts), NoFacts], Pdf.ReportBudget -> Try(Pdf.Report, Pdf.Error)
 build_report = |normalized, collected, budget| {
+	validate_report_figures(normalized, collected)?
 	facts = match collected {
 		Facts(value) => value
 		NoFacts => { blocks: [], coverage: [], layout: { references: [], scope_pages: [], callouts: [], panels: [], relaxations: [], repeats: [], scales: [], source_fragments: [], splits: [] }, pages: [1] }
@@ -3579,7 +3620,10 @@ build_report = |normalized, collected, budget| {
 			Figure(figure_index) => match normalized.figures.get(figure_index) {
 				Ok(figure) => {
 					path = path_at($index)
-					scale = facts.layout.scales.get(figure_index) ?? 1000
+					scale = match facts.layout.scales.get(figure_index) {
+						Ok(value) => value
+						Err(OutOfBounds) => return Err(report_figure_invariant("A validated figure scale is missing."))
+					}
 					fit = match figure.fit {
 						ExactFit => Exact
 						ScaleFit(_) => ScaleToFit
@@ -3588,7 +3632,7 @@ build_report = |normalized, collected, budget| {
 					$outcomes = $outcomes.append(FigureScale({ fit, path, scale }))
 					$obligations = $obligations.append({ obligation: AlternativeTextMeaningful, path })
 				}
-				Err(OutOfBounds) => {}
+				Err(OutOfBounds) => return Err(report_figure_invariant("A validated authored figure is missing."))
 			}
 			Link(_) | InternalLink(_) => {
 				$obligations = $obligations.append({ obligation: LinkPurposeMeaningful, path: path_at($index) })
@@ -4096,4 +4140,42 @@ expect {
 		_ => False
 	}
 	check(make("missing", 36), "navigation.reference_destination") and check(make("target", 1), "layout.reference_field_overflow")
+}
+
+# Missing, extra, misaligned and orphaned figure facts cannot invent an
+# unscaled outcome or silently omit an authored figure's obligation.
+expect {
+	drawing = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 20, height: 20 }), color: Color.srgb8({ blue: 0, green: 0, red: 0 }) })
+	normalized = Document.normalize(Pdf.document({ contents: [Pdf.figure({ drawing, alt: "First", caption: Pdf.no_caption }), Pdf.figure({ drawing, alt: "Second", caption: Pdf.no_caption, fit: ScaleToFit({ minimum_percent: 50 }) })], language: "en", title: "Report facts" }))
+	facts = { blocks: [], coverage: [], layout: { references: [], scope_pages: [], callouts: [], panels: [], relaxations: [], repeats: [], scales: [1000, 500], source_fragments: [], splits: [] }, pages: [2] }
+	invalid = |authoring, collected| match validate_report_figures(authoring, collected) {
+		Err(InvalidDocument({ diagnostics: [{ code: InternalInvariant, feature: Feature("pipeline.report.figure_facts"), details: ["Report.FigureFacts"], .. }], .. })) => True
+		_ => False
+	}
+	invalid(normalized, NoFacts) and
+		invalid(normalized, Facts({ ..facts, layout: { ..facts.layout, scales: [1000] } })) and
+			invalid(normalized, Facts({ ..facts, layout: { ..facts.layout, scales: [1000, 500, 1000] } })) and
+				invalid({ ..normalized, blocks: normalized.blocks.reverse() }, Facts(facts)) and
+					invalid({ ..normalized, blocks: [] }, Facts(facts)) and
+						invalid({ ..normalized, figures: [] }, Facts({ ..facts, layout: { ..facts.layout, scales: [] } }))
+}
+
+# A successful report uses both accepted scales and retains both obligations.
+expect {
+	drawing = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 20, height: 20 }), color: Color.srgb8({ blue: 0, green: 0, red: 0 }) })
+	normalized = Document.normalize(Pdf.document({ contents: [Pdf.figure({ drawing, alt: "First", caption: Pdf.no_caption }), Pdf.figure({ drawing, alt: "Second", caption: Pdf.no_caption, fit: ScaleToFit({ minimum_percent: 50 }) })], language: "en", title: "Report facts" }))
+	facts = { blocks: [], coverage: [], layout: { references: [], scope_pages: [], callouts: [], panels: [], relaxations: [], repeats: [], scales: [1000, 500], source_fragments: [], splits: [] }, pages: [2] }
+	match build_report(normalized, Facts(facts), default_report_budget) {
+		Ok(report) => report.facts.outcomes == [FigureScale({ fit: Exact, path: "contents[0]", scale: 1000 }), FigureScale({ fit: ScaleToFit, path: "contents[1]", scale: 500 })] and report.obligations.count_if(|entry| entry.obligation == AlternativeTextMeaningful) == 2
+		Err(_) => False
+	}
+}
+
+# The legitimate empty-document NoFacts path keeps its one-page report.
+expect {
+	normalized = Document.normalize(Pdf.document({ contents: [], language: "en", title: "Empty report" }))
+	match build_report(normalized, NoFacts, default_report_budget) {
+		Ok(report) => report.facts.pages == [{ page: 1, fragments: 1 }] and report.facts.blocks.is_empty() and report.facts.outcomes.is_empty() and report.obligations.len() == 2
+		Err(_) => False
+	}
 }
