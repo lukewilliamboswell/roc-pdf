@@ -7,7 +7,7 @@ import Theme
 
 ## Named family/style demand becomes exact validated IDs before shaping.
 KernelFacadeFonts :: [].{
-	Error : [DrawingStyleUnavailable({ owner : KernelFacadeLabels.Owner, label : U64, style : Font.Style, family : FamilyIdentity }), Resource(Font.ResourceError), StyleUnavailable({ block : U64, inline : [AtInline(U64), NoInline], style : Font.Style, family : FamilyIdentity })]
+	Error : [DrawingStyleUnavailable({ owner : KernelFacadeLabels.Owner, label : U64, style : Font.Style, family : FamilyIdentity }), Resource(Font.ResourceError), UnknownSourceFace({ group : U64, face : Font.FaceId }), StyleUnavailable({ block : U64, inline : [AtInline(U64), NoInline], style : Font.Style, family : FamilyIdentity })]
 	Origin : [Packaged, Caller]
 	FamilyIdentity : [Packaged(Font.Family), CallerFace(Font.FaceId)]
 	StyleFailure : { style : Font.Style, family : FamilyIdentity }
@@ -24,7 +24,9 @@ KernelFacadeFonts :: [].{
 		for source in authoring.sources {
 			match source.face {
 				Face(face) => {
-					check_face(face, caller_faces) ? Resource
+					if face.index() >= caller_faces {
+						return Err(UnknownSourceFace({ group: source.group, face }))
+					}
 				}
 				_ => {}
 			}

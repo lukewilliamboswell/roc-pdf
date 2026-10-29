@@ -1245,6 +1245,7 @@ resolve_font_plan = |authoring, { options, doc }| {
 			}
 			resolved = KernelFacadeFonts.resolve(authoring, { origin, registry, theme: options.theme }) ? |error| match error {
 				Resource(resource) => InvalidFontResource(resource)
+				UnknownSourceFace({ group, face }) => InvalidDocument(located_batch(FeatureUnavailable, "source.face", "Source face ${face.index().to_str()} is not present in Pdf.Options.fonts; register it and pass that registry. No face is substituted.", [group_path(authoring.groups, group)]))
 				StyleUnavailable({ block, inline, style, family }) => {
 					message = font_style_message({ style, family })
 					match inline {
