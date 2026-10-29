@@ -97,3 +97,14 @@ claiming a new archive test or recording new output as its own expectation.
 Stale manual revision, wrong bundle and older examples-archive bindings were
 all rejected. No package allocation, work, PDF snapshot or production dependency
 changed, and no release or website was published.
+
+## Independent Linux renderer execution
+
+The verified Linux renderer also built the recorded native-book inputs in
+`alpine@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce`
+with networking disabled, read-only source inputs and a writable output parent
+for atomic staging. The independent checker passed all ten HTML/Markdown pages,
+28 exact code blocks, table associations and three RGB figures against that
+output. Its original PDF passed the pinned veraPDF PDF/A-4 check. The retained
+review records the Linux PDF digest and comparison with the native artifact.
+This checks manual rendering; it does not claim a second API-extraction run.

@@ -117,7 +117,28 @@
         }
       ]
     },
-    "blueprint_handoff": "Actual docs-path executable matched the locked aarch64-darwin renderer digest; blueprint run docs built the recorded output without a renderer override."
+    "blueprint_handoff": "Actual docs-path executable matched the locked aarch64-darwin renderer digest; blueprint run docs built the recorded output without a renderer override.",
+    "linux_renderer": {
+      "result": "pass",
+      "scope": "Native manual rendering only; public API extraction remains covered by the separate API audit.",
+      "system": "x86_64-linux",
+      "renderer_sha256": "d12aca61080771c86c3507047cdfea46ba24d9aaa5f3257c10bd82afe21c9176",
+      "image": "alpine@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce",
+      "source_revision": "d266e020f8985263fa992450772121db272d9203",
+      "network": "disabled",
+      "source_mount": "read-only",
+      "output_parent_mount": "writable for atomic staging",
+      "html_pages": 10,
+      "exact_source_blocks": 28,
+      "tagged_tables": 3,
+      "exact_rgb_figures": 3,
+      "manual_checker": "pass",
+      "pdfa4_version": "1.30.2",
+      "pdfa4": "pass",
+      "pdf_bytes": 415957,
+      "pdf_sha256": "a9026642835db44de4a26e865adde527b450d961ab9249004910661e884682b9",
+      "pdf_identical_to_native": true
+    }
   },
   "manifest": {
     "schema_version": 1,

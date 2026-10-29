@@ -93,10 +93,13 @@ integration fixes all three and adds located figure/panel regressions. Public
 family configuration is nominal; consuming receivers and compiler-required
 comparison signatures retain their established form.
 
-The separate [roc-fuzz review](roc-fuzz-0.4.5.md) adopts compatible 0.4.5
-and preserves corpus interpretation. All nine native smoke targets and all ten
-profiling replays passed. Version 0.5.0 requires a deliberate input/measurement
-migration and is recorded as follow-up rather than an unvalidated URL change.
+The initial [roc-fuzz review](roc-fuzz-0.4.5.md) adopted compatible 0.4.5
+and preserved corpus interpretation. The subsequently requested
+[complete supervised-runner migration](roc-fuzz-0.5.0.md) implements the new
+codecs, declared examples, report guards and explicit per-host baselines. All
+nine native and Linux smokes pass. All ten profiling workloads preserve their
+previous allocation-event totals and PDF fingerprints; 75 retained corpus
+records preserve their interpretation.
 
 ## Final validation
 
@@ -139,3 +142,20 @@ Those checks include the Linux strict suite, fuzz execution, independent
 conformance, manual/API builds and release artifact consumers. A skipped job or
 failed aggregate does not satisfy closure. The PR is kept draft until the
 applicable checks are successful; no release or site publication is performed.
+
+## Documentation and fuzz follow-up
+
+The requested [documentation refactor](documentation-refactor.md) replaces the
+Markdown converter with authored AsciiDoc chapters, keeps existing reader
+routes and source links, and makes evergreen README/guide text release-neutral.
+The verified released renderer builds the native book on both supported hosts;
+the Linux and macOS manual PDFs are byte-identical. Fresh source, browser,
+Markdown, PDF, API and artifact-binding evidence is retained separately from
+the earlier candidates.
+
+The combined refactor passed `./scripts/test.py --allocation-baselines --jobs 2`
+on 2026-10-29: 45 source-validation tasks, 13 fresh fixture executables and all
+425 strict cases. Production package code, the compiler pin and every product
+allocation/byte/work baseline remain unchanged by this follow-up. Independent
+review verified the new report/baseline guards and profiler build identities;
+there are no remaining blocking findings.
