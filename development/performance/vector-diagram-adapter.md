@@ -57,3 +57,19 @@ source Chrome versus independent PDFBox rendering. Visual comparison allows one
 pixel for antialiasing, bounds unmatched dark pixels, and compares integrated
 ink within 10%; a one-pixel stroke straddles pixel centers differently in the two
 engines, so thresholded dark-pixel counts alone are not a stable measure.
+
+## Explicit validation policy and named drawing arguments
+
+`Diagram.options` now accepts `Font.ValidationLimits`; the runnable example
+and every scale case pass the named default. Figure count no longer selects
+font-validation policy. Restrictive byte limits have an atomic `expect` that
+checks the original `LimitExceeded` dimension, attempted bytes and limit;
+registration errors retain `Font.ResourceError` through the adapter.
+
+The named-argument API migration changes only the syntax of the generated
+`PreparedDiagram.roc` call sites. Its witness SHA-256 changes from
+`ea2b4be45996a9f1c3c9e2081cbeba4b404584f253172b1efa02240ad80499ea` to
+`7b753f253c000188f876d6e58d8cc5d7508efcaffc08dfcf3e95c480611b606e`.
+The already-pinned exporter emits these named calls. Resolved geometry,
+original SVG/PNG, labels, font and exporter/test scripts retain their exact
+digests. This witness update does not accept any PDF or work-baseline change.

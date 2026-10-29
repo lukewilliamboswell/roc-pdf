@@ -1,5 +1,6 @@
 import diagram.Diagram
 import diagram.PreparedDiagram
+import pdf.Font
 import pdf.Pdf
 
 ## The vector_diagrams family's typed cases and their dispatch, run by a fixture group app.
@@ -14,7 +15,7 @@ Cases :: [].{
 		if count == 0 or count > 50 {
 			crash "CASE_SCALE_INVALID"
 		}
-		options = match Diagram.options(count) {
+		options = match Diagram.options(Font.ValidationLimits.default) {
 			Ok(value) => value
 			Err(_) => crash "FONT_REJECTED"
 		}

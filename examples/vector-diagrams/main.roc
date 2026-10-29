@@ -4,13 +4,14 @@ app [main!] {
 }
 
 import Diagram
+import pdf.Font
 import pdf.Pdf
 import pf.Path
 import pf.Stdout
 
 ## PDF generation consumes prepared Roc data and exact font bytes only.
 main! = |_args| {
-	options = Diagram.options(1).map_err(|_| FontRejected)?
+	options = Diagram.options(Font.ValidationLimits.default).map_err(|err| FontRejected(err))?
 	bytes = Pdf.to_bytes_with(Diagram.document(1), options).map_err(|err| PdfFailed(err))?
 	output : Path
 	output = "vector-diagrams.pdf"
