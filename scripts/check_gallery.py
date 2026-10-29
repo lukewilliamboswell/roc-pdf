@@ -132,6 +132,11 @@ def main() -> None:
         provenance, count = re.subn(pattern, lambda match: match[1] + str(len(payload)) + match[2] + hashlib.sha256(payload).hexdigest(), provenance, flags=re.S)
         if count != 1:
             raise SystemExit(f"expected exactly one provenance record for {relative}")
+        if path.name == "preview.png":
+            pattern = r'("path"\s*:\s*"' + re.escape(relative) + r'".*?"attribution"\s*:\s*")([^\"]+)(")'
+            provenance, count = re.subn(pattern, lambda match: match[1] + re.sub(r"Poppler [0-9.]+", "Poppler 26.07.0.", match[2]) + match[3], provenance, flags=re.S)
+            if count != 1:
+                raise SystemExit(f"expected exactly one preview attribution for {relative}")
 
     with tempfile.TemporaryDirectory(prefix="gallery-sources-", dir=output) as temporary:
         temporary_path = Path(temporary)

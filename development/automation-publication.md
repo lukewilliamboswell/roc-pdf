@@ -119,6 +119,25 @@ exposed stale sRGB generator spellings after named arguments and Roc formatting;
 its generator strings now reproduce the retained module exactly, without
 changing the ICC payload, package PDF bytes or allocation evidence.
 
+## Gallery font migration review
+
+The retained gallery was regenerated after reviewing the switch to unchanged
+static rc4 fonts, genuine family styles, inspected per-face metadata and
+versioned font recipes. Three caller examples also needed explicit style
+choices: chunked export and release notes select a genuine italic emphasis
+family; source blocks use the built-in Sans family for prose and their own
+registered monospace face for code. The chunked collector now returns directly
+when emission ends, keeping the consumed encoder uniquely owned.
+
+The update checks tagged semantic characters independently of line wrapping,
+retains old artifacts locally, and records before/after hashes and sizes in
+[gallery-rc4-review.json](gallery-rc4-review.json). Poppler 26.07.0 produces the
+same 96 dpi previews as the existing gallery. Changed first-page previews were
+visually inspected: genuine italic labels and links, prose and code faces,
+charts, table rows, source indentation and page furniture remain legible and
+within the page. Allocation and work baselines are reviewed separately; this
+gallery operation does not update them.
+
 ## Repository settings
 
 The before/after read-only snapshots are
