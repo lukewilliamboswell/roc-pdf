@@ -199,4 +199,12 @@ rich pair retains 61 → 301 lines and 2 → 10 pages. Allocated-byte growth
 is 4.188-fold for tenfold ordinary callouts and 3.746-fold for fivefold rich
 callouts. Public PDF bytes and report facts agree with the first collection;
 only the additional work probe's measured setup and stage boundary changed.
-Final Linux comparison and strict integrated acceptance remain pending.
+The same seven focused case checks also passed in the x64musl Alpine 3.22
+container. The native and Linux comparison reports are identical in allocation
+counts, allocated bytes and complete named work vectors. Original PDF lengths
+and SHA-256 digests also agree for all seven cases. Linux results are retained
+locally at `.roc-pdf-tmp/custom-block-selected-font-linux-metrics.json`;
+the corresponding native/Linux logs are
+`test-20261029-172355-58600.log` and `test-20261029-172701-59048.log`.
+Both compare commands intentionally returned an unaccepted baseline-difference
+status. Strict integrated acceptance remains owned by the integration record.
