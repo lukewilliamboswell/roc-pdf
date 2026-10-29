@@ -19911,14 +19911,14 @@
     },
     {
       "name": "static PDF/A-4 facade atomic negatives",
-      "scenario_revision": "static-pdfa4-v1",
+      "scenario_revision": "static-pdfa4-v2-covered-bom",
       "family": "archive",
       "snapshot": "tests/archive/archive_facade_negative.pdf",
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
         "archive_facade_negative": 1,
-        "negatives": 5
+        "negatives": 6
       },
       "work_counters": [
         "negatives_rejected",

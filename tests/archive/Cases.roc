@@ -230,14 +230,12 @@ chunked_twins = |scale, retention| {
 	{ bytes: streamed.bytes, work: [streamed.bytes.len(), streamed.chunks, identical] }
 }
 
-## Atomic public-path negatives for the static PDF/A-4 profile. Each rejection
-## is transactional, keeps its authoring-stage cause (the profile never masks
-## an earlier failure), and never falls back to Standard output. The facade
-## cannot author a construct that only the Archive whitelist rejects: its
-## text-support matrix rejects U+0000, U+FEFF, U+FFFE, and uncovered private-use
-## scalars before profile validation, and it emits only printable links. Those
-## profile rules are exercised by white-box twins in package/Pdf.roc and
-## package/KernelPdfA4.roc.
+## Atomic public-path negatives for the static PDF/A-4 profile. Earlier
+## authoring failures keep their cause. Inter covers U+FEFF, so that witness
+## now reaches the Archive ToUnicode rule; explicitly selected Standard
+## accepts it, while Archive rejects it without emitting bytes or downgrading.
+## U+A7B0 is an uncovered Latin witness for the earlier coverage boundary.
+## White-box twins continue to cover unrepresentable profile constructs.
 rejects_accessible_archive : Str -> Bool
 rejects_accessible_archive = |title| {
 	document = Pdf.document({ contents: [Pdf.paragraph("Body")], language: "en-AU", title })
@@ -265,13 +263,29 @@ keeps_feature_cause = |summary| {
 	}
 }
 
-keeps_content_cause : Str, Str -> Bool
-keeps_content_cause = |text, expected| {
-	document = Pdf.document({ contents: [Pdf.paragraph(text)], language: "en-AU", title: "Archive" })
+keeps_content_cause : Str, { text : Str, expected : Str } -> Bool
+keeps_content_cause = |title, { text, expected }| {
+	document = Pdf.document({ contents: [Pdf.paragraph(text)], language: "en-AU", title })
 	match Pdf.to_bytes_with(document, archive) {
-		Err(InvalidDocument({ diagnostics: [{ code: FontCoverageMissing, details: ["contents[0]"], feature: Feature(feature), .. }], .. })) => feature == expected
-		_ => False
+		Err(InvalidDocument({ diagnostics: [{ code: FontCoverageMissing, details: ["contents[0]"], feature: Feature(feature), stage: AuthoringValidation, .. }], .. })) => feature == expected
+		Err(error) => crash "Archive content witness ${Str.inspect(text)} expected ${expected}, received ${Str.inspect(error)}"
+		Ok(_) => crash "Archive content witness ${Str.inspect(text)} unexpectedly emitted bytes"
 	}
+}
+
+rejects_mapped_bom : Str -> Bool
+rejects_mapped_bom = |title| {
+	document = Pdf.document({ contents: [Pdf.paragraph("Zero\u(FEFF)width")], language: "en-AU", title })
+	standard_accepted = match Pdf.to_bytes_with(document, { ..archive, profile: Standard }) {
+		Ok(bytes) => !bytes.is_empty()
+		Err(error) => crash "Covered BOM Standard control failed: ${Str.inspect(error)}"
+	}
+	archive_rejected = match Pdf.to_bytes_with(document, archive) {
+		Err(InvalidDocument({ diagnostics: [{ code: ProfileRequirementViolated, feature: Feature("profile.archive"), stage: ProfileValidation, location: Document, details: [], requirement_ids: ["ROC-PDF-PDFA4-6-2-10-7-TO-UNICODE"], clause_references: ["ISO 19005-4:2020 6.2.10.7"], .. }], truncation: Complete, .. })) => True
+		Err(error) => crash "Covered BOM Archive witness failed: ${Str.inspect(error)}"
+		Ok(_) => crash "Covered BOM Archive witness unexpectedly emitted bytes"
+	}
+	standard_accepted and archive_rejected
 }
 
 accepted : Document -> List(U8)
@@ -292,8 +306,9 @@ negatives = |context| {
 		rejects_accessible_archive(title),
 		keeps_metadata_cause("en-au"),
 		keeps_feature_cause(title),
-		keeps_content_cause("Zero\u(FEFF)width", "text.coverage_missing"),
-		keeps_content_cause("Private\u(E000)use", "text.unsupported_script"),
+		keeps_content_cause(title, { text: "Missing Latin: \u(A7B0)", expected: "text.coverage_missing" }),
+		keeps_content_cause(title, { text: "Private\u(E000)use", expected: "text.unsupported_script" }),
+		rejects_mapped_bom(title),
 	]
 	var $passed = 0
 	var $index = 0
@@ -307,7 +322,7 @@ negatives = |context| {
 		$index = $index + 1
 	}
 	if $passed != checks.len() {
-		crash "archive facade negative rejected the wrong way"
+		crash "archive facade negative rejected the wrong way: ${Str.inspect(checks)}"
 	}
 	bytes = accepted(Pdf.document({ contents: [Pdf.paragraph(title)], language: "en-AU", title }))
 	{ bytes, work: [$passed, bytes.len()] }
