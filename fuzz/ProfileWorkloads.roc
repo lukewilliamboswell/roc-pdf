@@ -37,7 +37,7 @@ ProfileWorkloads :: [].{
 					fonts: Registered(registered.registry),
 					theme: {
 						face: registered.face,
-						title: { size: 18, leading: 22 },
+						title: { face: Face(registered.face), size: 18, leading: 22 },
 						body: { size: 11, leading: 15 },
 						page_margin: { top: 50, right: 50, bottom: 50, left: 50 },
 						paragraph_spacing: 10,

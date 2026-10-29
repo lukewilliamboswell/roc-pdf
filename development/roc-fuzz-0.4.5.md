@@ -68,8 +68,31 @@ The subset round-trip property additionally checks equality of all validated
 source/subset style facts. A successful subset and a changed-angle negative
 witness exercise that oracle without changing generators or corpus interpretation.
 
-Full native smoke, the profiling aid and Linux CI verification are pending.
-Do not interpret the isolated probe as validation of the complete PDF target set.
+The full native smoke passed all nine targets with the pinned compiler and
+`./scripts/fuzz.py --mode smoke --jobs 1`. The existing 64-run/one-second caps
+remain upper bounds: time-limited targets may complete fewer than 64 mutations.
+The log is `.roc-pdf-tmp/roc-fuzz-045-smoke.log`; no failure artifacts were saved.
+The full test driver's `roc test fuzz/font_inspector_mutation.roc --no-cache`
+passed at 16:50:05 on 2026-10-29, including `FontTargets`' successful round-trip
+and changed-angle negative expects.
+
+`./scripts/profile.py --no-cache` built the tenth platform application and
+successfully replayed all ten document/kernel selectors. Its custom report
+registry contains only Inter Regular. The initial run failed during preparation
+because its implicit title now requests a genuine bold face. Explicitly selecting
+`Face(registered.face)` for that title preserves the workload's single-face
+intent and makes preparation succeed without synthesizing a style or registering
+unrelated fonts. The built-in paragraph workloads retain the default family.
+
+The fresh dev run reported document total allocation counts of 1,449 (`report`),
+3,155 (`report_x10`), 909 (`builtin_paragraphs`) and 1,536
+(`builtin_paragraphs_x10`). These observations are an iteration aid; no production
+allocation, byte, work or PDF baseline was accepted or changed by this review.
+The log is `.roc-pdf-tmp/roc-fuzz-045-profile.log`.
+
+Linux CI verification is pending. Native macOS coverage does not establish the
+Linux host ABI or runtime behavior; check the committed upgrade's fuzz-smoke job
+before calling cross-platform validation complete.
 
 ## Separate follow-up: 0.5.0 and font coverage
 
