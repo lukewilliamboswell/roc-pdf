@@ -40,9 +40,9 @@ spacing remain theme settings.
 [cols="1,1,1,1",options="header"]
 |===
 | Family | Regular/Bold | Italic/Bold Italic | Command symbol U+2318
-| Inter 4.1 | Available | Available | Available in all four faces
-| Merriweather 4.009 | Available | Available | Missing in all four faces
-| Fira Code 6.2 | Available | Unavailable | Available in both faces
+| Inter | Available | Available | Available in all four faces
+| Merriweather | Available | Available | Missing in all four faces
+| Fira Code | Available | Unavailable | Available in both faces
 |===
 
 The unchanged source character maps contain these per-face repertoires; this
@@ -59,12 +59,14 @@ does not extend the single-scalar Latin shaping contract:
 | Fira Code Italic/Bold Italic | Unavailable | Rejected
 |===
 
-The package uses the ten unchanged upstream static TTF files published by
-roc-font 0.1.0-rc4. Measurement and embedding use the same selected bytes, with
+The package ships ten unchanged upstream static font files. Measurement and
+embedding use the same selected bytes, with
 Regular at weight 400 and Bold at 700. No runtime variation axes or font
 instancing are involved. Supported convenience shaping remains single-scalar
 Latin text; glyph coverage does not add script or combining-mark shaping.
-Italic repertoires can differ from upright ones.
+Italic repertoires can differ from upright ones. Source versions, hashes and
+licences are recorded in the
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/vendor/fonts/roc-font/upstream-pins.json[font provenance].
 
 Unavailable styles return located `text.style_unavailable` diagnostics naming
 the selected family and style. Uncovered characters return located

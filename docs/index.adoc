@@ -6,7 +6,7 @@
 
 Generate searchable PDF 2.0 reports, invoices and letters using public Roc APIs.
 Start with a complete example, follow the guide for your task, and use the API
-reference for exact types and functions. This manual describes {docs-version}.
+reference for exact types and functions.
 
 include::start-here.adoc[leveloffset=+1]
 
