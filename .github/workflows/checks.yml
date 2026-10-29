@@ -231,6 +231,13 @@ jobs:
         run: |
           [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad
+        with:
+          distribution: temurin
+          java-version: 21.0.13+9
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548
+        with:
+          python-version: 3.14.0
       - uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@8acff758d5d73210f1731bed75adb9322f5e773d
       - name: Read pinned compiler
         run: printf 'ROC_NIGHTLY_TAG=%s\n' "$(cat .roc-version)" >> "$GITHUB_ENV"
@@ -242,6 +249,10 @@ jobs:
         with:
           name: roc-pdf-docs-${{ inputs.source_sha }}
           path: generated-docs
+      - name: Validate the manual's PDF/A-4 claim on its original bytes
+        run: |
+          python3 scripts/provision_extended_tools.py --target .roc-pdf-tmp/manual-oracles --skip-mupdf --skip-corpus
+          python3 scripts/check_pdfa4.py --verapdf .roc-pdf-tmp/manual-oracles/verapdf/verapdf generated-docs/manual/roc-pdf.pdf
       - id: version
         env:
           REQUESTED_VERSION: ${{ needs.version.outputs.version }}

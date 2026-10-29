@@ -80,7 +80,7 @@ reports are retained alongside this record; screenshots are reproducible in
 pass, and no website is deployed from this integration branch. The retained
 [PDF report](manual-publication-review/pdf.json) and
 [browser report](manual-publication-review/browser.json) identify the checked
-manual outputs and the source inventory at the recorded gallery commit; final
+manual outputs and the source inventory at the recorded documentation commit; final
 CI repeats the checks from its own recorded commit. The final local dry run
 has 21 HTML pages, 49 PDF pages, 39 exact source blocks, three exact RGB
 figures and three tagged tables. Independent PDF screenshots retain their
@@ -119,6 +119,23 @@ The publisher verifies that manifest, the notes digest and explicit inventory,
 then stages/uploads/downloads/verifies/publishes through the shared action.
 It receives only its own run's artifacts. API compatibility uses the actual
 `roc bump --old ... --expect ...` interface of the pinned compiler.
+
+The final [local artifact review](release-artifacts-rc4-review.json) records
+four asset hashes and the notes digest, 14 strict served-bundle gallery checks,
+the isolated public consumer, and all 14 recorded and extracted ZIP apps.
+All 250 package/example/docs inputs and 85 ZIP source/resource members were
+compared with the recorded documentation commit; only the ZIP's explicit
+release dependency URL differs. The corrected manual is bound to that commit
+and the tested bundle. The earlier candidate manifest is retained as history.
+This is a working-tree smoke test; the final clean CI commit is authoritative
+for publication.
+
+The original 49-page manual also passes veraPDF greenfield 1.30.2 with the
+explicit PDF/A-4 flavour, zero failed checks and no parser logs. The bundle
+job provisions the same verified offline validator and checks the downloaded
+manual before assembling publication files, using pinned Java and Python.
+Negative artifact checks reject a stale manual revision, a different bundle,
+and an examples ZIP naming an earlier bundle.
 
 Bundle consumers still reject repository-only `all.roc`, require exact imported
 data and licences, and compile outside the checkout against the served bundle.

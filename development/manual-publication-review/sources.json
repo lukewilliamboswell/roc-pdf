@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "revision": "a3e0a326cdee62af25eac51bb6f3d7a1963573bb",
+  "revision": "6811fdd5be790166ab1d99d502110fa421ec69e1",
   "sources": [
     {
       "path": "docs/README.md",
-      "sha256": "07b931d2d10e243f4c5748e3e79ca26da0388667c9bd42a1ed4a73b3deb21044"
+      "sha256": "37080a8a59391677c9ade16b14d27e19c0f6c66368c9f66d1c0e4a112b2a7dbe"
     },
     {
       "path": "docs/authoring.md",

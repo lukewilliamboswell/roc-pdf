@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "kind": "local_working_tree_release_smoke_test",
+  "published": false,
+  "scope": "Local artifacts from inputs byte-compared with the recorded documentation commit. CI on the final clean recorded commit remains authoritative for publication; this does not assert that the whole final integration commit was tested here.",
+  "source_audit": {
+    "revision": "6811fdd5be790166ab1d99d502110fa421ec69e1",
+    "tracked_package_example_docs_inputs_equal": 250,
+    "zip_source_resource_members_equal": 85,
+    "only_zip_source_change": "Explicit versioned release bundle URL replaces the checkout dependency."
+  },
+  "checks": {
+    "served_gallery": {
+      "result": "pass",
+      "examples": 14,
+      "pdf_comparison": "byte-for-byte against reviewed retained PDFs",
+      "bundle_requested": true
+    },
+    "isolated_public_consumer": {
+      "result": "pass",
+      "roc": "nightly-2026-10-28-bad769b",
+      "zig": "0.16.0",
+      "checks": [
+        "default 10 MiB expanded payload cap",
+        "all ten unchanged static font files and three licences",
+        "ICC and byte-imported package data",
+        "public facade formatting and type checking",
+        "private KernelObject import rejection",
+        "pinned host build and Roc executable build",
+        "emitted original-byte Caf\u00e9 PDF validation"
+      ]
+    },
+    "examples_zip": {
+      "result": "pass",
+      "recorded_apps": 14,
+      "extracted_and_tested_apps": 14,
+      "source_resource_members": 85
+    },
+    "manual": {
+      "result": "pass",
+      "html_pages": 21,
+      "desktop_width": 1280,
+      "mobile_width": 390,
+      "pdf_pages": 49,
+      "exact_source_blocks": 39,
+      "exact_rgb_figures": 3,
+      "tagged_tables": 3,
+      "dark_mode": true,
+      "independent_reader": "PDFBox 3.0.8",
+      "rendered_screenshot_hashes": "manual-publication-review/pdf.json"
+    },
+    "manual_pdfa4": {
+      "result": "pass",
+      "validator": "veraPDF greenfield 1.30.2",
+      "profile": "PDF/A-4",
+      "installer_sha256": "6cc6341cb1af644044054b81f00a6590a7918abb18f762243de115258bcad838",
+      "failed_rules": 0,
+      "failed_checks": 0,
+      "parser_warnings": 0,
+      "pdf_sha256": "8306524e2cb261fd6c59770a37e33565ee41fd5a708febda99997e8eea7c3af9"
+    },
+    "artifact_binding_rejections": {
+      "result": "pass",
+      "rejected": [
+        "stale manual source revision",
+        "different bundle URL or SHA-256",
+        "examples ZIP naming an earlier package bundle"
+      ]
+    },
+    "artifact_manifest": {
+      "result": "pass",
+      "asset_hashes_rechecked": 4,
+      "notes_hash_rechecked": true
+    },
+    "workflow_lint": {
+      "result": "pass",
+      "tool": "actionlint 1.7.12"
+    }
+  },
+  "manifest": {
+    "schema_version": 1,
+    "revision": "6811fdd5be790166ab1d99d502110fa421ec69e1",
+    "version": "0.3.0",
+    "compiler": "Roc compiler version nightly-2026-10-28-bad769b",
+    "bundle_expanded_bytes": 10158511,
+    "notes_sha256": "7005943df4110c3b7fcc6aa821f535df63d4de6b2b5f1f1d7227153170327347",
+    "assets": [
+      {
+        "name": "418pLV65t6TtiHWPtDmWorrsLCrEjTnEjrWrkNvigeDQ.tar.zst",
+        "size": 3974464,
+        "sha256": "a43327f74c38caf2af20bf8270bf09317811404728de8dd3392e57b7bf2c4a72"
+      },
+      {
+        "name": "roc-pdf-examples-0.3.0.zip",
+        "size": 6082432,
+        "sha256": "001c63ee0bde122952a19bf367b0a2ac6e67529c5639d2c041c6f3cef563ab1a"
+      },
+      {
+        "name": "roc-pdf-docs-0.3.0.zip",
+        "size": 1921171,
+        "sha256": "2f1bf6190df29b3100455c59e5b47b418e08719b04a2846fb13edf21d3b183f7"
+      },
+      {
+        "name": "roc-pdf-0.3.0.pdf",
+        "size": 470925,
+        "sha256": "8306524e2cb261fd6c59770a37e33565ee41fd5a708febda99997e8eea7c3af9"
+      }
+    ]
+  },
+  "historical_candidate": {
+    "scope": "Earlier local candidate before the installation/version-matching guide correction. This is retained evidence, not a released artifact or final integration result.",
+    "source_revision": "a3e0a326cdee62af25eac51bb6f3d7a1963573bb",
+    "tracked_inputs_compared": 250,
+    "zip_source_resource_members_compared": 85,
+    "manifest": {
+      "schema_version": 1,
+      "revision": "a3e0a326cdee62af25eac51bb6f3d7a1963573bb",
+      "version": "0.3.0",
+      "compiler": "Roc compiler version nightly-2026-10-28-bad769b",
+      "bundle_expanded_bytes": 10158511,
+      "notes_sha256": "7933ae6ee2e4d8634680da3b0c0ec0e16fde0ddc8f8bb5c83ded3f86fe62305c",
+      "assets": [
+        {
+          "name": "418pLV65t6TtiHWPtDmWorrsLCrEjTnEjrWrkNvigeDQ.tar.zst",
+          "size": 3974464,
+          "sha256": "a43327f74c38caf2af20bf8270bf09317811404728de8dd3392e57b7bf2c4a72"
+        },
+        {
+          "name": "roc-pdf-examples-0.3.0.zip",
+          "size": 6082432,
+          "sha256": "001c63ee0bde122952a19bf367b0a2ac6e67529c5639d2c041c6f3cef563ab1a"
+        },
+        {
+          "name": "roc-pdf-docs-0.3.0.zip",
+          "size": 1919881,
+          "sha256": "8dee726d0d910f83b4dfc39fdd5510bfb8140fae79756ea7bba5eba5d06bdce5"
+        },
+        {
+          "name": "roc-pdf-0.3.0.pdf",
+          "size": 470244,
+          "sha256": "100df108c25e824ecf057175ad331e5017ce050659192e6a2b78b506f5dd4609"
+        }
+      ]
+    }
+  }
+}
