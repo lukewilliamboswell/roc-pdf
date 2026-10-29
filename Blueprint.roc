@@ -16,7 +16,7 @@ config = [
 	Systems(["x86_64-linux", "aarch64-darwin"]),
 	Environment("package", [Expect(["roc", "python3", "bash", "tar"])]),
 	Environment("dev", [Extend("package"), Programs([Fetch("zig", zig)])]),
-	Environment("docs", [Extend("package"), Programs([Fetch("rg", ripgrep), Fetch("roc-docs", Recipes.file("https://github.com/lukewilliamboswell/roc-automation/releases/download/tools-0.7.0/roc-docs-{system}"))]), Expect(["realpath", "sh"])]),
+	Environment("docs", [Extend("package"), Programs([Fetch("rg", ripgrep), Fetch("roc-docs", Recipes.file("https://github.com/lukewilliamboswell/roc-automation/releases/download/tools-0.8.0/roc-docs-{system}"))]), Expect(["realpath", "sh"])]),
 	Shell("default", [Use("dev")]),
 	Task("test", [Use("dev"), Run(["python3", "scripts/test.py"])]),
 	Task("fuzz", [Use("dev"), Run(["python3", "scripts/fuzz.py", "--mode", "smoke"])]),
