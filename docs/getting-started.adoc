@@ -1,0 +1,57 @@
+[#create-your-first-document]
+= Create your first document
+
+Use this tutorial to obtain a working PDF before choosing more layout options.
+You need a Roc compiler and a platform that can write the returned bytes to a
+file; roc-pdf itself performs no file or network operations.
+
+== Install a published package
+
+Open the https://github.com/lukewilliamboswell/roc-pdf/releases[release you want
+to use]. Copy its immutable `pdf` dependency URL into your application's package
+header, and use the compiler named in those release notes. The release's linked
+guides describe its API; guides in a repository checkout describe that checkout.
+Then import `pdf.Pdf` in the module that authors your document.
+
+== Run a complete example
+
+The repository examples supply the application platform and file-writing code.
+From a checkout, use the compiler named in
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/.roc-version[`.roc-version`]
+and run this command at the repository root:
+
+[source,sh]
+----
+roc examples/tax-invoice/main.roc
+----
+
+The application writes `tax-invoice.pdf` in the current directory. Open it to
+inspect a complete invoice with line items, totals and page furniture.
+The xref:gallery.adoc#runnable-document-gallery[gallery] links its checked source
+and other complete examples.
+
+For an application at the repository root, the working-tree dependency is:
+
+[source,roc]
+----
+pdf: "package/main.roc",
+----
+
+Applications under `examples/<name>/` instead use `../../package/main.roc`.
+Use a published release URL when distributing an application independently of
+this checkout.
+
+== Author the content
+
+Build a `Pdf.document` with a metadata title, language and a list of content
+blocks. Pass it to `Pdf.to_bytes`; write the successful byte list with your
+application's platform. The authoring guide shows the constructors and a
+xref:authoring.adoc#authoring-authoring-with-roc-pdf[complete document value].
+
+Keep the `Try` result visible in your application's error handling. Unsupported
+glyphs, styles or layout requests return structured diagnostics before any PDF
+bytes are emitted. Do not retry with a weaker profile or a substitute font.
+
+Next, use xref:authoring.adoc#authoring-themes-and-options[themes and options] to
+change presentation or xref:roc-font.adoc#roc-font-choose-built-in-and-caller-fonts[font choices]
+for exact family and style selection.

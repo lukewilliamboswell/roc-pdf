@@ -21,15 +21,15 @@ if ! command -v rg >/dev/null; then
 fi
 
 if [[ "$manual_built" == false ]]; then
-    binding_args=()
     if [[ "$version" != unreleased ]]; then
         mkdir -p "$root_dir/.roc-pdf-tmp"
         bundle_dir="$(mktemp -d "$root_dir/.roc-pdf-tmp/docs-bundle.XXXXXX")"
         bash "$root_dir/scripts/bundle.sh" --output-dir "$bundle_dir"
         bundle="$(find "$bundle_dir" -maxdepth 1 -name '*.tar.zst' -type f -print -quit)"
-        binding_args=(--release-version "$version" --bundle "$bundle")
+        python3 "$root_dir/scripts/prepare_manual.py" --revision "${DOCS_REVISION:-main}" --release-version "$version" --bundle "$bundle"
+    else
+        python3 "$root_dir/scripts/prepare_manual.py" --revision "${DOCS_REVISION:-main}"
     fi
-    python3 "$root_dir/scripts/prepare_manual.py" --revision "${DOCS_REVISION:-main}" "${binding_args[@]}"
     if [[ -n "${bundle_dir:-}" ]]; then rm -rf "$bundle_dir"; fi
     "$renderer" build --workspace "$root_dir" --docs-directory .roc-pdf-tmp/manual-source \
         --entrypoint index.adoc --output-directory .roc-pdf-tmp/manual-build \

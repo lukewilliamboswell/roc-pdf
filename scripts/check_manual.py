@@ -69,7 +69,7 @@ class Page(HTMLParser):
 
 
 def source_blocks(source: str) -> list[str]:
-    return re.findall(r"^```[^\n]*\n(.*?)^```\s*$", source, re.M | re.S)
+    return re.findall(r"^\[source,[^\n]+\]\n----\n(.*?)^----\s*$", source, re.M | re.S)
 
 
 def compact(text: str) -> str:
@@ -89,31 +89,50 @@ def check(site: Path, source: Path, pdf: Path | None, review: Path | None = None
     for path, prepared in inventory["chapters"].items():
         page = pages[prepared.removesuffix(".adoc") + ".html"]
         authored = (ROOT / path).read_text()
-        for placeholder, value in inventory.get("release_bindings", {}).get(path, {}).items():
-            authored = authored.replace(placeholder, value)
         expected = source_blocks(authored)
+        if path == "docs/releases.adoc":
+            # Independently derive the generated dependency snippet from the
+            # binding record instead of trusting the staged renderer input.
+            for binding in inventory["release_bindings"].values():
+                expected.append(f'pdf: "{binding["{package-url}"]}",\n')
         assert [code.rstrip("\n") for code in page.code] == [code.rstrip("\n") for code in expected], f"source whitespace changed in {path}"
         all_code.extend(expected)
         grids = []
-        rows = []
+        rows = None
         for line in authored.splitlines():
-            if line.startswith("|"):
-                if re.fullmatch(r"\|[ |:-]+\|", line):
+            if line == "|===":
+                if rows is None:
+                    rows = []
                     table_count += 1
                 else:
-                    row = []
-                    for cell in line.strip("|").split("|"):
-                        plain = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", cell).replace("`", "")
-                        table_cells.append(plain)
-                        row.append(compact(plain))
-                    rows.append(row)
-            elif rows:
-                grids.append(rows)
-                rows = []
-        if rows:
-            grids.append(rows)
+                    grids.append(rows)
+                    rows = None
+            elif rows is not None and line.startswith("|"):
+                row = []
+                for cell in line[1:].split("|"):
+                    plain = re.sub(r"(?:xref:)?[^\s\[]+\[([^\]]+)\]", r"\1", cell).replace("`", "")
+                    table_cells.append(plain)
+                    row.append(compact(plain))
+                rows.append(row)
+        assert rows is None, f"unterminated source table in {path}"
         actual_grids = [[[compact(cell) for cell in row] for row in table] for table in page.tables]
         assert actual_grids == grids, f"HTML table row/cell associations changed in {path}"
+        markdown = (site / prepared.replace(".adoc", ".md")).read_text()
+        exported_code = re.findall(r"^```[^\n]*\n(.*?)^```\s*$", markdown, re.M | re.S)
+        assert [code.rstrip("\n") for code in exported_code] == [code.rstrip("\n") for code in expected], f"Markdown source whitespace changed in {path}"
+        markdown_grids = []
+        markdown_rows = []
+        for line in markdown.splitlines():
+            if line.startswith("|"):
+                if not re.fullmatch(r"\|[ |:-]+\|", line):
+                    markdown_rows.append([compact(re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", cell).replace("`", ""))
+                                          for cell in line.strip("|").split("|")])
+            elif markdown_rows:
+                markdown_grids.append(markdown_rows)
+                markdown_rows = []
+        if markdown_rows:
+            markdown_grids.append(markdown_rows)
+        assert markdown_grids == grids, f"Markdown table row/cell associations changed in {path}"
         expected_table_shapes.extend(tuple(len(row) for row in grid) for grid in grids)
     for name, page in pages.items():
         assert (site / name.replace(".html", ".md")).is_file(), f"missing Markdown: {name}"
@@ -128,6 +147,16 @@ def check(site: Path, source: Path, pdf: Path | None, review: Path | None = None
             assert path.exists(), f"missing link target in {name}: {href}"
             if target.fragment and path.suffix == ".html":
                 assert unquote(target.fragment) in pages[path.name].ids, f"missing anchor in {name}: {href}"
+    for path in site.glob("*.md"):
+        for href in re.findall(r"!?\[[^\]]*\]\(([^)]+)\)", path.read_text()):
+            target = urlsplit(href)
+            if target.scheme or target.netloc:
+                continue
+            linked = (site / unquote(target.path)).resolve() if target.path else path.resolve()
+            assert linked.is_relative_to(site.resolve()) and linked.exists(), f"missing Markdown target in {path.name}: {href}"
+            if target.fragment and linked.suffix == ".md":
+                anchors = re.findall(r'<a id="([^"]+)"', linked.read_text())
+                assert unquote(target.fragment) in anchors, f"missing Markdown anchor in {path.name}: {href}"
     if pdf:
         jar = ROOT / "vendor/pdfbox/pdfbox-app-3.0.8.jar"
         with tempfile.TemporaryDirectory() as directory:
@@ -142,7 +171,7 @@ def check(site: Path, source: Path, pdf: Path | None, review: Path | None = None
             extracted = subprocess.check_output(command, text=True)
         # Remove only known running furniture at the edges of each page;
         # leave identical authored body occurrences intact.
-        titles = {(ROOT / path).read_text().splitlines()[0][2:] for path in inventory["chapters"]}
+        titles = {re.search(r"^= (.+)$", (ROOT / path).read_text(), re.M).group(1) for path in inventory["chapters"]}
         titles.update({"roc-pdf user manual", "Release notes", "Runnable document gallery"})
         body = []
         for page in extracted.split("\f"):

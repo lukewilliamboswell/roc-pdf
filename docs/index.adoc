@@ -5,24 +5,23 @@
 :sectnums:
 
 Generate searchable PDF 2.0 reports, invoices and letters using public Roc APIs.
-Start with the authoring guide, then use the task guides for typography,
-technical manuals and navigation. The API reference remains at the existing
-documentation site root. This manual describes {docs-version}.
+Start with a complete example, follow the guide for your task, and use the API
+reference for exact types and functions. This manual describes {docs-version}.
 
 include::start-here.adoc[leveloffset=+1]
 
+include::getting-started.adoc[leveloffset=+1]
+
 include::authoring.adoc[leveloffset=+1]
+
+include::roc-font.adoc[leveloffset=+1]
 
 include::manual-composition.adoc[leveloffset=+1]
 
 include::destination-page-references.adoc[leveloffset=+1]
 
-include::roc-font.adoc[leveloffset=+1]
-
 include::migrating-named-arguments.adoc[leveloffset=+1]
 
 include::gallery.adoc[leveloffset=+1]
-
-include::migrating-to-rc2.adoc[leveloffset=+1]
 
 include::releases.adoc[leveloffset=+1]

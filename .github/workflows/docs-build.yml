@@ -28,14 +28,14 @@ jobs:
       - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548
         with:
           python-version: 3.14.0
-      - uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@8acff758d5d73210f1731bed75adb9322f5e773d
+      - uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@1104294f221bb9571901c7a1a4269cea8516f8e5
       - name: Read pinned compiler
         run: printf 'ROC_NIGHTLY_TAG=%s\n' "$(cat .roc-version)" >> "$GITHUB_ENV"
       - uses: roc-lang/setup-roc@f5a74bf90aa694b43ab4a7cbfdb19273bc6aa697
         with:
           version: nightly-new-compiler
           nightly-tag: ${{ env.ROC_NIGHTLY_TAG }}
-      - name: Prepare source-linked AsciiDoc manual
+      - name: Stage authored AsciiDoc and release metadata
         env:
           DOCS_REVISION: ${{ inputs.source_sha }}
           DOCS_VERSION: ${{ inputs.docs_version }}
@@ -48,11 +48,11 @@ jobs:
           fi
           python3 scripts/prepare_manual.py --revision "$DOCS_REVISION" "${binding_args[@]}"
       - id: renderer
-        uses: lukewilliamboswell/roc-automation/actions/blueprint-tool@8acff758d5d73210f1731bed75adb9322f5e773d
+        uses: lukewilliamboswell/roc-automation/actions/blueprint-tool@1104294f221bb9571901c7a1a4269cea8516f8e5
         with:
           task: docs-path
-          label: roc-docs tools-0.7.0
-      - uses: lukewilliamboswell/roc-automation/actions/build-docs@8acff758d5d73210f1731bed75adb9322f5e773d
+          label: Locked documentation renderer
+      - uses: lukewilliamboswell/roc-automation/actions/build-docs@1104294f221bb9571901c7a1a4269cea8516f8e5
         with:
           renderer-binary: ${{ steps.renderer.outputs.binary }}
           docs-directory: .roc-pdf-tmp/manual-source
