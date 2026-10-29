@@ -1409,6 +1409,11 @@ bytes.
   target through `./scripts/fuzz.py`. Compiling a target is not evidence about
   its property, so the lane executes each one against its seed corpus rather
   than only type-checking it.
+- The reusable applicable-check workflow binds every checkout to one commit
+  SHA and aggregates the full pinned-build suite, allocation/byte/work guards,
+  independent PDF/A-4 and Arlington checks, the user manual/API, and exact
+  bundle/gallery/examples/docs-archive consumers. Release dispatch invokes the
+  same checks with Linux and macOS coverage before artifact-only publication.
 - Before a change is treated as feature evidence, its author runs the complete
   local `./scripts/test.py` suite. This retains Roc unit and typed property
   tests, deterministic fixture and structural checks, independent validators
@@ -1471,9 +1476,21 @@ capabilities if ever justified:
 Some of these conflict with the static package policy and may remain
 permanently unsupported.
 
-## roc-font integration evidence in progress
+## Built-in typography migration
 
-The optional static sans/mono preset and its evidence are recorded in
-[development/roc-font.md](development/roc-font.md). This does not claim runtime
-variable-font instancing, italic assets, serif fallback, or complete issue #69
-acceptance.
+The facade selects Inter for ordinary body/headings, Merriweather for explicit
+serif typography, and Fira Code for inline/source code through exact static
+family/style choices. Sans/serif provide genuine Regular/Bold/Italic/Bold Italic;
+mono provides Regular/Bold. Missing coverage, unavailable styles and unsupported
+shaping reject before bytes, without automatic fallback. This adds no runtime
+variable-font, script-shaping or conformance-profile claim.
+
+[The integration record](development/roc-font.md) preserves rc4 asset provenance,
+selection/ownership design, historical rc3 evidence, migration review and the
+separately owned roc-automation handoff. The [default-family evidence](development/performance/default-fonts.md)
+records independent source/subset glyph and descriptor checks, searchable text,
+located atomic rejection, exact allocations on both registered targets and a
+10/100-section scale pair. [Publication validation](development/automation-publication.md)
+records the shipped gallery and archive consumers. Full integration acceptance
+is tracked in [the integration record](development/integration-roc-font-rc4.md);
+upstream publication alone does not establish consumer closure.

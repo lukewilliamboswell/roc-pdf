@@ -208,3 +208,26 @@ the corresponding native/Linux logs are
 `test-20261029-172355-58600.log` and `test-20261029-172701-59048.log`.
 Both compare commands intentionally returned an unaccepted baseline-difference
 status. Strict integrated acceptance remains owned by the integration record.
+
+## Integrated acceptance
+
+After the typed source-face diagnostic repair and corrected private probes,
+all 425 cases have successful native and Linux measurements. Each target's
+complete result set incorporates fresh 53-case text measurements and all seven
+selected-font custom-block measurements. Both targets produce identical PDF
+bytes, exact allocation counts, allocated bytes and deterministic work vectors.
+The 254 reviewed metric-vector changes are retained, with their previous
+values, in [rc4-baseline-review.json](rc4-baseline-review.json); 171 vectors
+remain unchanged. All existing byte guards retain their 10% ceiling.
+
+The 160 changed PDF snapshots reflect exact static font programs, genuine
+style choices and source-derived subset/descriptor metadata. Independent
+PDF/A-4 validation passed all 206 Archive snapshots; Standard checks accepted
+only their recorded omissions/negative rules. Arlington checked 345 snapshots
+and 14 public examples, with only its exact recorded placeholder exception.
+The three repaired fixture PDFs subsequently passed both validators again.
+No visual or allocation change was accepted merely because it was regenerated.
+
+The [integration record](../integration-roc-font-rc4.md) links the complete
+strict pinned-build and commit-bound CI acceptance checks. This causal review
+records measured behavior; it does not replace those final gates.
