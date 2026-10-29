@@ -100,9 +100,20 @@ Its current renderer explicitly registers four Inter faces, a generated serif
 heading face and Source Code Pro. A dependency URL update alone leaves those
 assets active.
 
+The concrete tested 0.3.0 candidate is recorded in the
+[artifact review](release-artifacts-rc4-review.json): source commit
+`c08a3f81e21a2641bcdb9b786f381c6a5e59398e`, bundle
+`C3YnjBMeN7A9ar7F5seM73coSTkYLSksTD2BNikQEVSP.tar.zst`, SHA-256
+`83e4ca7077ca2bb561d39f944ea23e7bc13ffa3a9c78637ea63e9d68674dfaa4`.
+Its destination is
+`https://github.com/lukewilliamboswell/roc-pdf/releases/download/0.3.0/C3YnjBMeN7A9ar7F5seM73coSTkYLSksTD2BNikQEVSP.tar.zst`;
+that URL becomes available only upon an actual release. The #98 owner must
+verify the published bytes against this tested pin, then apply the registrations,
+notices and layout regression checks below.
+
 The downstream change must pin the tested roc-pdf release bundle and digest,
 replace those local PDF registrations with `RocFont.register` and its family
-mappings, select `faces.serif.bold` explicitly for its existing serif headings,
+mappings, select the `Available` face from `faces.serif.bold` explicitly for its existing serif headings,
 and retain its sizes, colours, margins, spacing and code scaling. Use the new
 source face tags, replace PDF font notices with `RocFont.licenses`, and remove
 superseded PDF-only assets, generation inputs and cache/release packaging entries.

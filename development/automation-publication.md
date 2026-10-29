@@ -122,13 +122,22 @@ It receives only its own run's artifacts. API compatibility uses the actual
 
 The final [local artifact review](release-artifacts-rc4-review.json) records
 four asset hashes and the notes digest, 14 strict served-bundle gallery checks,
-the isolated public consumer, and all 14 recorded and extracted ZIP apps.
+the isolated public consumer, and all 14 reconstructed and extracted ZIP apps.
 All 250 package/example/docs inputs and 85 ZIP source/resource members were
 compared with the recorded documentation commit; only the ZIP's explicit
 release dependency URL differs. The corrected manual is bound to that commit
 and the tested bundle. The earlier candidate manifest is retained as history.
-This is a working-tree smoke test; the final clean CI commit is authoritative
-for publication.
+The source-face diagnostic correction required a new bundle. For that refresh,
+the previously verified ZIP was checked against its recorded SHA-256, all 14
+curated default cases and all 85 current source/resource members. Those files
+also matched the recorded source commit. Its exact expected stdout values were
+reused through a private replacement of `examples_archive.record`; the existing
+archive assembly, spec and `--test-bundle` path then built and ran all 14
+extracted apps against the new package. New staged sources were checked again
+with only the explicit bundle URL changed. This preserves independent expected
+outputs without recording new stdout as its own expectation. The production
+CLI is unchanged. This is a working-tree smoke test; the final clean CI commit
+is authoritative for publication.
 
 The original 49-page manual also passes veraPDF greenfield 1.30.2 with the
 explicit PDF/A-4 flavour, zero failed checks and no parser logs. The bundle
@@ -144,11 +153,15 @@ inside the compiler's default 10 MiB cap; no size flag is raised. Some private
 fixture modules and the older tiny font remain in the archive because retained
 module `expect`s import them. Removing required imported files would break the
 public package boundary, so this audit does not strip them. Release manifests
-also enforce and report the expanded-size bound. The final static-font and
-metadata bundle has 104 members, 3,974,464 compressed bytes and 10,158,511
+also enforce and report the expanded-size bound. The earlier static-font and
+metadata candidate had 104 members, 3,974,464 compressed bytes and 10,158,511
 expanded bytes; its filename is
 `418pLV65t6TtiHWPtDmWorrsLCrEjTnEjrWrkNvigeDQ.tar.zst` and SHA-256 is
 `a43327f74c38caf2af20bf8270bf09317811404728de8dd3392e57b7bf2c4a72`.
+The corrected source-face diagnostic bundle has 104 members, 3,974,692
+compressed bytes and 10,158,917 expanded bytes. Its filename is
+`C3YnjBMeN7A9ar7F5seM73coSTkYLSksTD2BNikQEVSP.tar.zst`, with SHA-256
+`83e4ca7077ca2bb561d39f944ea23e7bc13ffa3a9c78637ea63e9d68674dfaa4`.
 The new freshness lane also
 exposed stale sRGB generator spellings after named arguments and Roc formatting;
 its generator strings now reproduce the retained module exactly, without
