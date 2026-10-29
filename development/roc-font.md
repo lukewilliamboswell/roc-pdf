@@ -51,6 +51,14 @@ asset migration deliberately changes applicable facade measurements, pagination,
 font programs, snapshot bytes and allocations. The integration review records
 these causes before any evidence baseline is updated.
 
+Facade layout-work probes consume the same resolved family/style facts as their
+public outputs. Custom-block evidence measures selected-font line layout and
+pagination; final report facts independently cover fragments and placements.
+It does not substitute the legacy regression face or lower colored panels
+without document intent facts. Replacing its former legacy-face TextReady probe
+changes that fixture's measurement boundary, so both targets must be measured
+again before allocation baselines are accepted.
+
 ## Source metadata and exact angles
 
 Inspection now retains source post angle/fixed-pitch facts and validates
@@ -79,6 +87,10 @@ identities even for upright zero-angle faces. It does not change those faces'
 metrics or the source-digest/glyph-closure subset-tag procedure. Exact style
 metadata and larger inspection records are deliberate migration causes, not
 automatically accepted baseline drift.
+The [existing-fixture review](performance/rc4-existing-fixtures.md) isolates the
+runtime 32-byte subset `post` header allocation and expanded inline inspection
+storage. Its direct subset control does not resolve a descriptor, so the extra
+allocation must not be described as solely a per-face descriptor record.
 
 ## Downstream handoff
 

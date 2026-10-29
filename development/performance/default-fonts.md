@@ -66,14 +66,21 @@ buffers are transferred into inspected resources without copying their input.
 The fixture likewise extracts its theme before consuming options in the
 public pipeline. No resolver request retains a slice of a caller's text.
 
-Two reviewed bounded costs are represented in these initial baselines. Real
-per-face descriptor metadata requires one 24-byte descriptor record per
-emitted face, replacing the previous shared uniform constant. The subsequent
+Two reviewed bounded costs are represented in these initial baselines. The
+source-derived 32-byte subset `post` header now requires a runtime allocation
+(40 requested bytes including its Roc reference count), replacing a previously
+constant header. This allocation is isolated by the direct subset fixture,
+which does not call the descriptor resolver; attributing it solely to a
+descriptor record would be incorrect. Expanded inline inspection facts add
+16 bytes in the registration control and 32 bytes per prepared font in the
+shared/deduplicated font-leaf controls. The subsequent
 owner/context and named-record changes added a constant 112 allocated bytes
 to every positive case, with unchanged allocation counts and PDF bytes. The
 constant is the same for 10 and 100 sections; it introduces no per-inline or
 per-source allocation event. These are initial observations for the new cases,
 not acceptance of unrelated existing-case baseline changes.
+The [existing-fixture migration review](rc4-existing-fixtures.md) retains the
+isolated measurements, compiler-constant inference and scale comparisons.
 
 ## Existing fixture typography migration
 

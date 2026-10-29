@@ -2,21 +2,21 @@ import Callout
 import pdf.Color
 import pdf.Conformance
 import pdf.Document
+import pdf.Font
 import pdf.Image
-import pdf.KernelBuiltInFont
 import pdf.KernelColor
 import pdf.KernelContent
 import pdf.KernelFacadeFragments
+import pdf.KernelFacadeFonts
+import pdf.KernelFacadeFurniture
 import pdf.KernelFacadeLines
 import pdf.KernelFacadeOutput
 import pdf.KernelFacadePages
-import pdf.KernelFacadePipeline
 import pdf.KernelFacadeScenes
 import pdf.KernelFacadeSemantics
 import pdf.KernelFacadeShape
 import pdf.KernelFacadeSources
 import pdf.KernelFacadeText
-import pdf.KernelFont
 import pdf.KernelFontPlan
 import pdf.KernelImage
 import pdf.KernelLineLayout
@@ -65,8 +65,8 @@ import pdf.Theme
 ##   report.
 ##
 ## Bytes come from the prepared document. Work comes from one facade
-## pipeline probe through text materialization over the same normalized
-## authoring (lines and pages; a probe has no document facts, so it can
+## selected-font pipeline probe through pagination over the same normalized
+## authoring (lines and pages; the probe has no document facts, so it can
 ## neither paint a tinted panel nor lower navigation), and from the
 ## report's own counts.
 Fixture :: [].{
@@ -265,7 +265,7 @@ run_rich_callouts = |count| {
 
 ## Prepare once with the report; the prepared bytes must equal the bytes
 ## of the ordinary one-shot path (inspection does not alter output). Work
-## comes from one pipeline probe and from the report's entry counts.
+## comes from one selected-font pagination probe and the report's entry counts.
 evidence : Document, (Pdf.Report -> List(Bool)) -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 evidence = |document, observe| {
 	{ prepared, report } = Pdf.prepare_with_report(document, options) ? |_| EvidenceFailure
@@ -282,10 +282,9 @@ evidence = |document, observe| {
 		}
 		$index = $index + 1
 	}
-	font = KernelFont.inspect(KernelBuiltInFont.bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
 	normalized = Document.normalize(document)
 	customs = normalized.customs.len()
-	flow = KernelFacadePipeline.probe(normalized, font, report_theme, page_size, descriptor, pipeline_limits, TextReady) ? |_| EvidenceFailure
+	flow = selected_layout(normalized)?
 	facts = report.facts
 	Ok({
 		bytes,
@@ -303,6 +302,33 @@ evidence = |document, observe| {
 			bytes.len(),
 		],
 	})
+}
+
+## These counters describe the public output's selected font geometry.
+## Pagination needs no intent-dependent panel paint or PDF lowering. Report
+## facts above independently cover the final fragments and custom placements.
+selected_layout : Document.NormalizedAuthoring -> Try({ lines : U64, pages : U64 }, Fixture.EvidenceError)
+selected_layout = |normalized| {
+	resolved = KernelFacadeFonts.resolve(normalized, { origin: Packaged, registry: Font.Registry.empty, theme: report_theme }) ? |_| EvidenceFailure
+	authoring = resolved.authoring
+	theme = resolved.theme
+	limits = pipeline_limit_fields
+	semantics = KernelFacadeSemantics.Plan.build(authoring, limits.semantics) ? |_| EvidenceFailure
+	preliminary = KernelFacadeSemantics.Plan.preliminary(semantics)
+	source_store = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics))
+	shape = KernelFacadeShape.Plan.build_styled(KernelFacadeSemantics.Plan.authoring(semantics), KernelFacadeSemantics.Plan.block_ownership(semantics), KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary)), source_store, resolved.fonts, theme, limits.shape) ? |_| EvidenceFailure
+	lines = KernelFacadeLines.Plan.build_ordered_authoring(authoring, shape, source_store, page_size, theme, limits.lines) ? |_| EvidenceFailure
+	plain = match authoring.templates {
+		NoTemplates => authoring.page_scopes.is_empty()
+		Templates(_) => False
+	}
+	pages = if plain {
+		KernelFacadePages.Plan.build(authoring, shape, lines, page_size, theme, limits.pages) ? |_| EvidenceFailure
+	} else {
+		static = KernelFacadeFurniture.Static.build(authoring, theme, page_size) ? |_| EvidenceFailure
+		KernelFacadePages.Plan.build_with_scopes(authoring, shape, lines, page_size, theme, KernelFacadeFurniture.Static.flow(static), KernelFacadeFurniture.Static.scope_flows(static), limits.pages) ? |_| EvidenceFailure
+	}
+	Ok({ lines: KernelLineLayout.BatchPlan.lines(KernelFacadeLines.Plan.line(lines)).len(), pages: KernelPageLayout.Plan.pages(KernelFacadePages.Plan.page(pages)).len() })
 }
 
 has_obligation : Pdf.Report, Str, [AlternativeTextMeaningful, ExpansionAccurate, LanguageAccurate, LinkPurposeMeaningful, ReadingOrderMeaningful, TableHeadersMeaningful] -> Bool
@@ -379,9 +405,6 @@ callout_observations = |report, count| {
 page_size : Layout.Size
 page_size = { height: Layout.Unit.from_raw(842000), width: Layout.Unit.from_raw(595000) }
 
-descriptor : KernelPdfFont.Descriptor
-descriptor = { flags: 32, italic_angle: 0, stem_v: 80 }
-
 rejects : Document, Conformance.DiagnosticCode, Str, List(Str) -> U64
 rejects = |document, expected_code, expected_feature, expected_paths| match Pdf.prepare_with_report(document, options) {
 	Err(InvalidDocument({ diagnostics: [{ code, details, feature: Feature(feature), location: Document, stage: AuthoringValidation, .. }], truncation: Complete, .. })) => if (code == expected_code and feature == expected_feature and details == expected_paths) 1 else 0
@@ -443,8 +466,7 @@ run_negatives = |context| {
 }
 
 ## The facade's standard pipeline limits (package/Pdf.roc).
-pipeline_limits : KernelFacadePipeline.Limits
-pipeline_limits = KernelFacadePipeline.Limits.make({
+pipeline_limit_fields = {
 	fragment_semantics: KernelSemantics.Limits.make({ max_attributes: 65536, max_content_spine: 65536 + 65536, max_fragments: 1000000, max_namespaces: 2, max_nodes: 16384, max_occurrences: 16384, max_semantic_depth: 48 }),
 	fragments: KernelFacadeFragments.Limits.make({ max_fragments: 1000000, max_occurrences: 16384, max_pages: 1024 }),
 	navigation: KernelNavigation.standard_limits,
@@ -507,7 +529,7 @@ pipeline_limits = KernelFacadePipeline.Limits.make({
 	}),
 	shape: KernelFacadeShape.Limits.make({ max_requests: 65536, shape: KernelShape.Limits.make({ max_clusters: 1000000, max_glyphs: 1000000, max_scalars: 1000000, max_source_bytes: 1000000 }) }),
 	text: KernelFacadeText.Limits.make({ max_clusters: 1000000, max_glyph_indices: 1000000, max_glyphs: 1000000, max_pages: 1024, max_placements: 1000000, max_runs: 1000000 }),
-})
+}
 
 object_limits : KernelObject.Limits
 object_limits = {
