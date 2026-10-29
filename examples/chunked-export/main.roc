@@ -53,12 +53,9 @@ collect = |encoder| {
 	var $bytes = []
 	var $chunks = 0
 	var $encoder = encoder
-	var $running = True
-	while $running {
+	while True {
 		match Pdf.next_chunk($encoder) {
-			Done => {
-				$running = False
-			}
+			Done => return { bytes: $bytes, chunks: $chunks }
 			Emit(chunk, next) => {
 				for byte in chunk {
 					$bytes = $bytes.append(byte)
@@ -68,7 +65,6 @@ collect = |encoder| {
 			}
 		}
 	}
-	{ bytes: $bytes, chunks: $chunks }
 }
 
 Faces : { regular : Font.FaceId, bold : Font.FaceId, registry : Font.Registry }

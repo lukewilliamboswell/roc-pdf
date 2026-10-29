@@ -63,6 +63,21 @@ Arguments after `--` are passed to the script unchanged. Every task wraps an
 existing script; the scripts still run directly when the tools are already on
 `PATH`.
 
+Gallery checks compare the generated PDFs byte for byte. After reviewing the
+architectural cause of an intentional change, regenerate PDFs and the retained
+96 dpi previews with Poppler 26.07.0:
+
+```sh
+blueprint run gallery -- --update --update-reason 'Reviewed cause of the changed output'
+blueprint run gallery
+```
+
+The update preserves a before/after hash report and the old artifacts under
+`.roc-pdf-tmp/`, checks that tagged semantic characters survive typography and
+wrapping changes, and updates the exact asset provenance. Review changed
+previews and the report before committing them. An update does not change
+test-case allocation, byte, work or snapshot baselines.
+
 `blueprint workflow check` is the local package-check sequence. The reusable
 GitHub checks workflow additionally validates independent profiles/Arlington,
 the native manual/API and the exact bundle/examples/docs archives. The fuzz
