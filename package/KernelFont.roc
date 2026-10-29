@@ -208,7 +208,7 @@ inspect_font = |bytes, limits| {
 	glyph_result = inspect_glyphs(bytes, glyf, loca_offsets, glyph_count, maxp_metrics.max_component_depth)?
 	os2_result = inspect_os2(bytes, os2)?
 	post_result = inspect_post(bytes, post)?
-	if !consistent_style(head_metrics.mac_style, os2_result.fs_selection) {
+	if !has_consistent_style({ mac_style: head_metrics.mac_style, fs_selection: os2_result.fs_selection }) {
 		return Err(InvalidStyle)
 	}
 	names = inspect_names(bytes, name)?
@@ -672,14 +672,14 @@ inspect_os2 = |bytes, table| {
 	if cap_height <= 0 {
 		Err(InvalidOs2)
 	} else {
-		Ok({ cap_height, embedding_rights, fs_selection: read_u16(bytes, table.offset + 62), serif: classify_serif(read_u16(bytes, table.offset + 30).shr_wrap(8).to_u8_wrap(), list_at(bytes, table.offset + 32), list_at(bytes, table.offset + 33)) })
+		Ok({ cap_height, embedding_rights, fs_selection: read_u16(bytes, table.offset + 62), serif: classify_serif({ family_class: read_u16(bytes, table.offset + 30).shr_wrap(8).to_u8_wrap(), panose_family: list_at(bytes, table.offset + 32), panose_serif: list_at(bytes, table.offset + 33) }) })
 	}
 }
 
 ## Only positive source classifications set Serif; unknown/contradictory
 ## declarations remain unclassified. Family names never participate.
-classify_serif : U8, U8, U8 -> KernelFont.SerifClass
-classify_serif = |family_class, panose_family, panose_serif| {
+classify_serif : { family_class : U8, panose_family : U8, panose_serif : U8 } -> KernelFont.SerifClass
+classify_serif = |{ family_class, panose_family, panose_serif }| {
 	ibm = if ((family_class >= 1 and family_class <= 5) or family_class == 7) Serif else if (family_class == 8) NonSerif else Unclassified
 	panose = if (panose_family != 2) Unclassified else if (panose_serif >= 2 and panose_serif <= 10) Serif else if (panose_serif >= 11 and panose_serif <= 15) NonSerif else Unclassified
 	match (ibm, panose) {
@@ -690,12 +690,12 @@ classify_serif = |family_class, panose_family, panose_serif| {
 	}
 }
 
-expect classify_serif(0, 0, 0) == Unclassified
-expect classify_serif(0, 2, 0) == Unclassified
-expect classify_serif(7, 0, 0) == Serif
-expect classify_serif(0, 2, 2) == Serif
-expect classify_serif(0, 2, 11) == NonSerif
-expect classify_serif(8, 2, 2) == Unclassified
+expect classify_serif({ family_class: 0, panose_family: 0, panose_serif: 0 }) == Unclassified
+expect classify_serif({ family_class: 0, panose_family: 2, panose_serif: 0 }) == Unclassified
+expect classify_serif({ family_class: 7, panose_family: 0, panose_serif: 0 }) == Serif
+expect classify_serif({ family_class: 0, panose_family: 2, panose_serif: 2 }) == Serif
+expect classify_serif({ family_class: 0, panose_family: 2, panose_serif: 11 }) == NonSerif
+expect classify_serif({ family_class: 8, panose_family: 2, panose_serif: 2 }) == Unclassified
 
 inspect_post : List(U8), KernelFont.Table -> Try({ italic_angle : I32, fixed_pitch : U32 }, KernelFont.Error)
 inspect_post = |bytes, table| {
@@ -709,19 +709,19 @@ inspect_post = |bytes, table| {
 	Ok({ italic_angle: read_u32(bytes, table.offset + 4).to_i32_wrap(), fixed_pitch: read_u32(bytes, table.offset + 12) })
 }
 
-consistent_style : U16, U16 -> Bool
-consistent_style = |mac_style, fs_selection| {
+has_consistent_style : { mac_style : U16, fs_selection : U16 } -> Bool
+has_consistent_style = |{ mac_style, fs_selection }| {
 	bold = mac_style.bitwise_and(1) != 0
 	italic = mac_style.bitwise_and(2) != 0
 	bold == (fs_selection.bitwise_and(32) != 0) and italic == (fs_selection.bitwise_and(1) != 0) and
 		!(fs_selection.bitwise_and(64) != 0 and (bold or italic))
 }
 
-expect consistent_style(0, 64)
-expect consistent_style(3, 33)
-expect !consistent_style(0, 1)
-expect !consistent_style(1, 32 + 64)
-expect !consistent_style(2, 0)
+expect has_consistent_style({ mac_style: 0, fs_selection: 64 })
+expect has_consistent_style({ mac_style: 3, fs_selection: 33 })
+expect !has_consistent_style({ mac_style: 0, fs_selection: 1 })
+expect !has_consistent_style({ mac_style: 1, fs_selection: 32 + 64 })
+expect !has_consistent_style({ mac_style: 2, fs_selection: 0 })
 
 inspect_names : List(U8), KernelFont.Table -> Try(KernelFont.Names, KernelFont.Error)
 inspect_names = |bytes, table| {

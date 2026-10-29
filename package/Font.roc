@@ -8,7 +8,9 @@ Font :: [].{
 	Family : [Sans, Serif, Mono]
 	Style : [Regular, Bold, Italic, BoldItalic]
 	StyleFace : [Available(FaceId), Unavailable]
-	FamilyFaces : { regular : FaceId, bold : StyleFace, italic : StyleFace, bold_italic : StyleFace }
+	FamilyFaces := { regular : FaceId, bold : StyleFace ?? Unavailable, italic : StyleFace ?? Unavailable, bold_italic : StyleFace ?? Unavailable }.{
+		is_eq : _
+	}
 	FamilySelection : [BuiltIn(Family), Registered(FamilyFaces)]
 	SourceFace : [ThemeCode, Face(FaceId), BuiltIn({ family : Family, style : Style })]
 	SourceDefault : [Face(FaceId), BuiltIn({ family : Family, style : Style })]

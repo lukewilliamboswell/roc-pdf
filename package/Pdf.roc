@@ -1035,14 +1035,14 @@ build_plan = |doc, options| {
 	})
 	font_page_size = options.page_size
 	font_compression = options.compression
-	planned = resolve_font_plan(Document.normalize(doc), options, doc)?
+	planned = resolve_font_plan(Document.normalize(doc), { options: options, doc: doc })?
 	font_selection = planned.fonts
 	font_theme = planned.theme
 	font_sources = planned.authoring.sources
 	normalized = planned.authoring
 	pipeline = match font_selection {
 		Single(font) => KernelFacadePipeline.Plan.build_with_facts(normalized, font, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| pipeline_error(error, doc)
-		Styled(styled) => KernelFacadePipeline.Plan.build_styled_with_facts(normalized, styled, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| font_pipeline_error(error, doc, styled, font_theme, font_sources)
+		Styled(styled) => KernelFacadePipeline.Plan.build_styled_with_facts(normalized, styled, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| font_pipeline_error(error, { doc: doc, styled: styled, theme: font_theme, sources: font_sources })
 		Ordered(ordered) => KernelFacadePipeline.Plan.build_ordered_with_facts(normalized, ordered, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| ordered_pipeline_error(error, ordered.policy, doc)
 	}
 	output = KernelFacadePipeline.Plan.output(pipeline)
@@ -1101,14 +1101,14 @@ measure_content = |options, contents, language, width| {
 		Ok(_) => Err(InternalGenerationFailure)
 	}
 	font_page_size = options.page_size
-	planned = resolve_font_plan(Document.normalize(probe), options, probe)?
+	planned = resolve_font_plan(Document.normalize(probe), { options: options, doc: probe })?
 	font_selection = planned.fonts
 	font_theme = planned.theme
 	font_sources = planned.authoring.sources
 	normalized = planned.authoring
 	match font_selection {
 		Single(single) => measured(KernelFacadePipeline.Plan.build_with_facts(normalized, single, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits), |error| pipeline_error(error, probe))
-		Styled(styled) => measured(KernelFacadePipeline.Plan.build_styled_with_facts(normalized, styled, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits), |error| font_pipeline_error(error, probe, styled, font_theme, font_sources))
+		Styled(styled) => measured(KernelFacadePipeline.Plan.build_styled_with_facts(normalized, styled, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits), |error| font_pipeline_error(error, { doc: probe, styled: styled, theme: font_theme, sources: font_sources }))
 		Ordered(ordered) => measured(KernelFacadePipeline.Plan.build_ordered_with_facts(normalized, ordered, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits), |error| ordered_pipeline_error(error, ordered.policy, probe))
 	}
 }
@@ -1165,14 +1165,14 @@ build_reporting_plan = |doc, options| {
 	})
 	font_page_size = options.page_size
 	font_compression = options.compression
-	planned = resolve_font_plan(Document.normalize(doc), options, doc)?
+	planned = resolve_font_plan(Document.normalize(doc), { options: options, doc: doc })?
 	font_selection = planned.fonts
 	font_theme = planned.theme
 	font_sources = planned.authoring.sources
 	normalized = planned.authoring
 	pipeline = match font_selection {
 		Single(font) => KernelFacadePipeline.Plan.build_reporting(normalized, font, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| pipeline_error(error, doc)
-		Styled(styled) => KernelFacadePipeline.Plan.build_styled_reporting(normalized, styled, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| font_pipeline_error(error, doc, styled, font_theme, font_sources)
+		Styled(styled) => KernelFacadePipeline.Plan.build_styled_reporting(normalized, styled, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| font_pipeline_error(error, { doc: doc, styled: styled, theme: font_theme, sources: font_sources })
 		Ordered(ordered) => KernelFacadePipeline.Plan.build_ordered_reporting(normalized, ordered, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| ordered_pipeline_error(error, ordered.policy, doc)
 	}
 	output = KernelFacadePipeline.Plan.output(pipeline)
@@ -1213,9 +1213,22 @@ profile_batch = |violation, stage| {
 	}
 }
 
+## One style-availability rule, with separate authored locations for inline
+## text and drawing labels. Debug inspection supplies explanatory style text.
+font_style_message : KernelFacadeFonts.StyleFailure -> Str
+font_style_message = |{ style, family }| {
+	name = match family {
+		Packaged(Sans) => "Inter family"
+		Packaged(Serif) => "Merriweather family"
+		Packaged(Mono) => "Fira Code family"
+		CallerFace(face) => "caller family (regular face ${face.index().to_str()})"
+	}
+	"The selected ${name} has no genuine ${Str.inspect(style)} face; no face is substituted or synthesised."
+}
+
 ## Font intent resolves once, before any shaping or page-reference measurement.
-resolve_font_plan : Document.NormalizedAuthoring, Pdf.Options, Document -> Try({ authoring : Document.NormalizedAuthoring, fonts : KernelFacadeShape.FontSelection, theme : Theme }, Pdf.Error)
-resolve_font_plan = |authoring, options, doc| {
+resolve_font_plan : Document.NormalizedAuthoring, { options : Pdf.Options, doc : Document } -> Try({ authoring : Document.NormalizedAuthoring, fonts : KernelFacadeShape.FontSelection, theme : Theme }, Pdf.Error)
+resolve_font_plan = |authoring, { options, doc }| {
 	match options.theme.font_selection {
 		Policy(_) => {
 			if options.theme.family != FromOptions {
@@ -1226,24 +1239,26 @@ resolve_font_plan = |authoring, options, doc| {
 			Ok({ authoring, fonts, theme: options.theme })
 		}
 		StyleFaces => {
-			(caller, registry) = match options.fonts {
-				BuiltIn => (False, Font.Registry.empty)
-				Registered(value) => (True, value)
+			(origin, registry) = match options.fonts {
+				BuiltIn => (Packaged, Font.Registry.empty)
+				Registered(value) => (Caller, value)
 			}
-			resolved = KernelFacadeFonts.resolve(authoring, { caller, registry, theme: options.theme }) ? |error| match error {
+			resolved = KernelFacadeFonts.resolve(authoring, { origin, registry, theme: options.theme }) ? |error| match error {
 				Resource(resource) => InvalidFontResource(resource)
 				StyleUnavailable({ block, inline, style, family }) => {
-					name = match family {
-						Packaged(Sans) => "Inter family"
-						Packaged(Serif) => "Merriweather family"
-						Packaged(Mono) => "Fira Code family"
-						CallerFace(face) => "caller family (regular face ${face.index().to_str()})"
-					}
-					message = "The selected ${name} has no genuine ${Str.inspect(style)} face; no face is substituted or synthesised."
+					message = font_style_message({ style, family })
 					match inline {
 						AtInline(_) => inline_error(doc, block, inline, FeatureUnavailable, "text.style_unavailable", message)
 						NoInline => located_error(doc, FeatureUnavailable, "text.style_unavailable", message, [leaf_path(doc, block)])
 					}
+				}
+				DrawingStyleUnavailable({ owner, label, style, family }) => {
+					path = match owner {
+						FigureOwner(figure) => figure_path(doc, figure)
+						PanelOwner(custom) => custom_path(doc, custom)
+					}
+					message = "Drawing label ${label.to_str()}: ${font_style_message({ style, family })}"
+					located_error(doc, FeatureUnavailable, "text.style_unavailable", message, [path])
 				}
 			}
 			Ok({ authoring: resolved.authoring, fonts: Styled(resolved.fonts), theme: resolved.theme })
@@ -1324,8 +1339,8 @@ append_source_fonts = |{ faces, fonts, inline_faces, face_indexes, roles }, regi
 
 ## Coverage errors retain the exact selected font's validated identity.
 ## Names are explanatory only; selection never depends on them.
-font_pipeline_error : KernelFacadePipeline.Error, Document, KernelFacadeShape.StyledFaces, Theme, List(Document.NormalizedSource) -> Pdf.Error
-font_pipeline_error = |error, doc, styled, theme, sources| match error {
+font_pipeline_error : KernelFacadePipeline.Error, { doc : Document, styled : KernelFacadeShape.StyledFaces, theme : Theme, sources : List(Document.NormalizedSource) } -> Pdf.Error
+font_pipeline_error = |error, { doc, styled, theme, sources }| match error {
 	Shape(UnsupportedText({ block, inline, reason: Coverage(scalar), scalars })) => {
 		normalized = Document.normalize(doc)
 		face = match inline {

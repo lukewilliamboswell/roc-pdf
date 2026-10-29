@@ -569,7 +569,7 @@ append_fixed16_value = |output, raw| {
 	magnitude = (if (value < 0) 0 - value else value).to_u64_wrap()
 	whole = U64.div_by(magnitude, 65536)
 	fraction = U64.mod_by(magnitude, 65536)
-	var $out = if (value < 0) output.append(45) else output
+	var $out = if (value < 0) output.append('-') else output
 	$out = append_u64($out, whole)
 	if fraction == 0 {
 		return $out
@@ -581,11 +581,11 @@ append_fixed16_value = |output, raw| {
 		$coefficient = U64.div_by($coefficient, 10)
 		$digits = $digits - 1
 	}
-	$out = $out.append(46)
+	$out = $out.append('.')
 	var $divisor = power_of_ten($digits - 1)
 	while $divisor > 0 {
 		digit = U64.mod_by(U64.div_by($coefficient, $divisor), 10)
-		$out = $out.append((48 + digit).to_u8_wrap())
+		$out = $out.append('0' + digit.to_u8_wrap())
 		$divisor = U64.div_by($divisor, 10)
 	}
 	$out

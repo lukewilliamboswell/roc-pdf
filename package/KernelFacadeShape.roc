@@ -163,7 +163,7 @@ KernelFacadeShape :: [].{
 			return 0
 		}
 		match inline {
-			AtInline(index) => inline_candidate(authoring.inlines, index, styled)
+			AtInline(index) => inline_candidate(authoring.inlines, { index: index, styled: styled })
 			NoInline => candidate_of(styled, block_style(authoring, block, theme).font)
 		}
 	}
@@ -605,7 +605,7 @@ request_candidates = |authoring, preparation, styled, theme| {
 					match record.kind {
 						Text(_) => {
 							request = body.physical.start() + record.first_leaf
-							$candidates = list_set($candidates, request, inline_candidate(authoring.inlines, $inline, styled))
+							$candidates = list_set($candidates, request, inline_candidate(authoring.inlines, { index: $inline, styled: styled }))
 						}
 						_ => {}
 					}
@@ -740,8 +740,8 @@ role_candidate = |inlines, parent, styled| {
 
 ## Family/style resolution provides the exact face for each authored leaf.
 ## Older internal single-face fixtures carry no per-inline table.
-inline_candidate : List(Document.NormalizedInline), U64, KernelFacadeShape.StyledFaces -> U64
-inline_candidate = |inlines, index, styled| {
+inline_candidate : List(Document.NormalizedInline), { index : U64, styled : KernelFacadeShape.StyledFaces } -> U64
+inline_candidate = |inlines, { index, styled }| {
 	if styled.inline_faces.is_empty() {
 		return role_candidate(inlines, list_at(inlines, index).parent, styled)
 	}

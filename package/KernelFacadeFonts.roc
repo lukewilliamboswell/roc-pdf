@@ -2,23 +2,25 @@ import Document
 import Font
 import KernelBuiltInFonts
 import KernelFacadeShape
+import KernelFacadeLabels
 import Theme
 
 ## Named family/style demand becomes exact validated IDs before shaping.
 KernelFacadeFonts :: [].{
-	Error : [Resource(Font.ResourceError), StyleUnavailable({ block : U64, inline : [AtInline(U64), NoInline], style : Font.Style, family : FamilyIdentity })]
+	Error : [DrawingStyleUnavailable({ owner : KernelFacadeLabels.Owner, label : U64, style : Font.Style, family : FamilyIdentity }), Resource(Font.ResourceError), StyleUnavailable({ block : U64, inline : [AtInline(U64), NoInline], style : Font.Style, family : FamilyIdentity })]
+	Origin : [Packaged, Caller]
 	FamilyIdentity : [Packaged(Font.Family), CallerFace(Font.FaceId)]
 	StyleFailure : { style : Font.Style, family : FamilyIdentity }
 	Work : { packaged_inspections : U64, registered_font_bytes : U64, inline_visits : U64, source_visits : U64, copied_input_bytes : U64 }
 	Resolved : { authoring : Document.NormalizedAuthoring, fonts : KernelFacadeShape.StyledFaces, theme : Theme, work : Work }
 
-	resolve : Document.NormalizedAuthoring, { caller : Bool, registry : Font.Registry, theme : Theme } -> Try(Resolved, Error)
-	resolve = |authoring, { caller, registry, theme }| {
-		if !caller and theme.family == FromOptions and theme.face.index() != 0 {
+	resolve : Document.NormalizedAuthoring, { origin : Origin, registry : Font.Registry, theme : Theme } -> Try(Resolved, Error)
+	resolve = |authoring, { origin, registry, theme }| {
+		if origin == Packaged and theme.family == FromOptions and theme.face.index() != 0 {
 			return Err(Resource(UnknownFace(theme.face)))
 		}
 		caller_faces = registry.store().faces.len()
-		validate_choices(theme, caller_faces, caller) ? Resource
+		validate_choices(theme, { count: caller_faces, origin: origin }) ? Resource
 		for source in authoring.sources {
 			match source.face {
 				Face(face) => {
@@ -28,7 +30,7 @@ KernelFacadeFonts :: [].{
 			}
 		}
 		family = match theme.family {
-			FromOptions => if (caller) Registered(single_family(theme.face)) else BuiltIn(Sans)
+			FromOptions => if (origin == Caller) Registered(single_family(theme.face)) else BuiltIn(Sans)
 			BuiltIn(value) => BuiltIn(value)
 			Registered(value) => Registered(value)
 		}
@@ -36,7 +38,7 @@ KernelFacadeFonts :: [].{
 			ThemeFace => family
 			Face(face) => Registered(single_family(face))
 		}
-		body = choose(body_family, Regular, Inherited) ? |failure| StyleUnavailable({ block: 0, inline: NoInline, style: failure.style, family: failure.family })
+		body = choose(body_family, { style: Regular, override: Inherited }) ? |failure| StyleUnavailable({ block: 0, inline: NoInline, style: failure.style, family: failure.family })
 		var $demand = mark(List.repeat(False, 10), body)
 		var $styles = List.repeat(body, 8)
 		var $inline_choices = List.repeat(body, authoring.inlines.len())
@@ -62,14 +64,14 @@ KernelFacadeFonts :: [].{
 			match list_at(authoring.blocks, $block).kind {
 				Title => {
 					selected = block_choice(theme.title.face, family) ? |failure| StyleUnavailable({ block: $block, inline: NoInline, style: failure.style, family: failure.family })
-					$styles = set_at($styles, 1, selected)
+					$styles = set_at($styles, { index: 1, value: selected })
 					$demand = mark($demand, selected)
 				}
 				Heading(level) | DestinationHeading({ level, .. }) => {
 					# The semantic stage owns invalid heading-level diagnostics.
 					if level >= 1 and level <= 6 {
 						selected = block_choice(heading_style(theme, level).face, family) ? |failure| StyleUnavailable({ block: $block, inline: NoInline, style: failure.style, family: failure.family })
-						$styles = set_at($styles, level.to_u64() + 1, selected)
+						$styles = set_at($styles, { index: level.to_u64() + 1, value: selected })
 						$demand = mark($demand, selected)
 					}
 				}
@@ -80,8 +82,8 @@ KernelFacadeFonts :: [].{
 						record = list_at(authoring.inlines, $inline)
 						match record.kind {
 							Text(_) | PageReference(_) => {
-								selected = leaf_choice(list_at($flags, $inline), body_family, theme) ? |failure| StyleUnavailable({ block: $block, inline: AtInline($inline), style: failure.style, family: failure.family })
-								$inline_choices = set_at($inline_choices, $inline, selected)
+								selected = leaf_choice(list_at($flags, $inline), { body: body_family, theme: theme }) ? |failure| StyleUnavailable({ block: $block, inline: AtInline($inline), style: failure.style, family: failure.family })
+								$inline_choices = set_at($inline_choices, { index: $inline, value: selected })
 								$demand = mark($demand, selected)
 							}
 							_ => {}
@@ -90,27 +92,31 @@ KernelFacadeFonts :: [].{
 					}
 				}
 				Figure(index) => {
-					$labels = drawing_roles($labels, list_at(authoring.figures, index).drawing)
+					$labels = drawing_roles($labels, { drawing: list_at(authoring.figures, index).drawing, owner: FigureOwner(index), first_block: $block })
 				}
 				_ => {}
 			}
 			$block = $block + 1
 		}
+		var $custom = 0
 		for custom in authoring.customs {
-			$labels = drawing_roles($labels, custom.panel)
+			$labels = drawing_roles($labels, { drawing: custom.panel, owner: PanelOwner($custom), first_block: list_at(authoring.groups, custom.group).first_block })
+			$custom = $custom + 1
 		}
-		for decoration in authoring.decorations {
-			$labels = drawing_roles($labels, decoration.drawing)
-		}
+		# Normalization rejects labels in decorations; the semantic stage owns
+		# that rejection. Decorations produce no valid drawing-label demands.
 		var $label = 0
 		while $label < 4 {
-			if list_at($labels, $label) == Requested {
-				role = role_at($label)
-				base = if (role == Code) family_for(theme.inline.code.font, BuiltIn(Mono)) else body_family
-				style = role_style(role)
-				selected = choose(base, style, Theme.inline_font(theme, role)) ? |failure| StyleUnavailable({ block: 0, inline: NoInline, style: failure.style, family: failure.family })
-				$labels = set_at($labels, $label, Selected(selected))
-				$demand = mark($demand, selected)
+			match list_at($labels, $label) {
+				Requested(request) => {
+					role = role_at($label)
+					base = if (role == Code) family_for(theme.inline.code.font, BuiltIn(Mono)) else body_family
+					style = role_style(role)
+					selected = choose(base, { style: style, override: Theme.inline_font(theme, role) }) ? |failure| DrawingStyleUnavailable({ owner: request.owner, label: request.label, style: failure.style, family: failure.family })
+					$labels = set_at($labels, { index: $label, value: Selected(selected) })
+					$demand = mark($demand, selected)
+				}
+				NotRequested | Selected(_) => {}
 			}
 			$label = $label + 1
 		}
@@ -148,7 +154,7 @@ KernelFacadeFonts :: [].{
 						copied = registered.work.copied_input_bytes
 						$registry = registered.registry
 						$copied_bytes = $copied_bytes + copied
-						$handles = set_at($handles, $slot, Available(face))
+						$handles = set_at($handles, { index: $slot, value: Available(face) })
 						$inspections = $inspections + 1
 					}
 					Err(error) => return Err(Resource(error))
@@ -159,20 +165,20 @@ KernelFacadeFonts :: [].{
 		body_face = exact(body, $handles)
 		var $used = List.repeat(False, $registry.store().faces.len())
 		check_face(body_face, $used.len()) ? Resource
-		$used = set_at($used, (body_face).index(), True)
+		$used = set_at($used, { index: (body_face).index(), value: True })
 		var $resolved_styles = List.with_capacity(8)
 		for selected in $styles {
 			face = exact(selected, $handles)
 			$resolved_styles = $resolved_styles.append(face)
 			check_face(face, $used.len()) ? Resource
-			$used = set_at($used, (face).index(), True)
+			$used = set_at($used, { index: (face).index(), value: True })
 		}
 		# Furniture owns an independent exact face only when explicitly selected.
 		match theme.furniture {
 			Own(style) => match style.face {
 				Face(face) => {
 					check_face(face, $used.len()) ? Resource
-					$used = set_at($used, face.index(), True)
+					$used = set_at($used, { index: face.index(), value: True })
 				}
 				ThemeFace => {}
 			}
@@ -183,7 +189,7 @@ KernelFacadeFonts :: [].{
 			face = exact(selected, $handles)
 			$inline_faces = $inline_faces.append(face)
 			check_face(face, $used.len()) ? Resource
-			$used = set_at($used, (face).index(), True)
+			$used = set_at($used, { index: (face).index(), value: True })
 		}
 		var $sources = List.with_capacity(authoring.sources.len())
 		var $source = 0
@@ -191,7 +197,7 @@ KernelFacadeFonts :: [].{
 			face = exact(list_at($source_choices, $source), $handles)
 			$sources = $sources.append({ ..source, face: Face(face) })
 			check_face(face, $used.len()) ? Resource
-			$used = set_at($used, (face).index(), True)
+			$used = set_at($used, { index: (face).index(), value: True })
 			$source = $source + 1
 		}
 		for selected in $labels {
@@ -199,7 +205,7 @@ KernelFacadeFonts :: [].{
 				Selected(choice) => {
 					face = exact(choice, $handles)
 					check_face(face, $used.len()) ? Resource
-					$used = set_at($used, face.index(), True)
+					$used = set_at($used, { index: face.index(), value: True })
 				}
 				_ => {}
 			}
@@ -210,13 +216,13 @@ KernelFacadeFonts :: [].{
 		var $faces = [body_face]
 		var $fonts = [body_inspection]
 		var $indexes = List.repeat(U64.highest, $used.len())
-		$indexes = set_at($indexes, body_face.index(), 0)
+		$indexes = set_at($indexes, { index: body_face.index(), value: 0 })
 		var $index = 0
 		while $index < $used.len() {
 			if list_at($used, $index) and $index != body_face.index() {
 				face = Font.FaceId.from_index($index)
 				font = $registry.prepared_face(face) ? Resource
-				$indexes = set_at($indexes, $index, $faces.len())
+				$indexes = set_at($indexes, { index: $index, value: $faces.len() })
 				$faces = $faces.append(face)
 				$fonts = $fonts.append(font)
 			}
@@ -245,7 +251,9 @@ KernelFacadeFonts :: [].{
 	}
 }
 
-LabelChoice : [NotRequested, Requested, Selected(Font.SourceDefault)]
+LabelRequest : { first_block : U64, owner : KernelFacadeLabels.Owner, label : U64 }
+
+LabelChoice : [NotRequested, Requested(LabelRequest), Selected(Font.SourceDefault)]
 
 single_family : Font.FaceId -> Font.FamilyFaces
 single_family = |face| { regular: face, bold: Unavailable, italic: Unavailable, bold_italic: Unavailable }
@@ -257,8 +265,8 @@ family_for = |choice, inherited| match choice {
 	Family(value) => value
 }
 
-choose : Font.FamilySelection, Font.Style, Theme.InlineFont -> Try(Font.SourceDefault, KernelFacadeFonts.StyleFailure)
-choose = |inherited, style, override| {
+choose : Font.FamilySelection, { style : Font.Style, override : Theme.InlineFont } -> Try(Font.SourceDefault, KernelFacadeFonts.StyleFailure)
+choose = |inherited, { style, override }| {
 	match override {
 		Face(face) => return Ok(Face(face))
 		_ => {}
@@ -276,11 +284,11 @@ choose = |inherited, style, override| {
 block_choice : Theme.FaceChoice, Font.FamilySelection -> Try(Font.SourceDefault, KernelFacadeFonts.StyleFailure)
 block_choice = |choice, family| match choice {
 	Face(face) => Ok(Face(face))
-	ThemeFace => choose(family, Bold, Inherited)
+	ThemeFace => choose(family, { style: Bold, override: Inherited })
 }
 
-leaf_choice : U8, Font.FamilySelection, Theme -> Try(Font.SourceDefault, KernelFacadeFonts.StyleFailure)
-leaf_choice = |flags, body, theme| {
+leaf_choice : U8, { body : Font.FamilySelection, theme : Theme } -> Try(Font.SourceDefault, KernelFacadeFonts.StyleFailure)
+leaf_choice = |flags, { body, theme }| {
 	strong = flags.bitwise_and(1) != 0
 	emphasis = flags.bitwise_and(2) != 0
 	code = flags.bitwise_and(4) != 0
@@ -288,7 +296,7 @@ leaf_choice = |flags, body, theme| {
 	base = if (code) family_for(theme.inline.code.font, BuiltIn(Mono)) else if (quote) family_for(theme.inline.quote.font, body) else body
 	style = if (strong and emphasis) BoldItalic else if (strong) Bold else if (emphasis) Italic else Regular
 	override = if (strong and emphasis) theme.inline.strong_emphasis.font else if (strong) theme.inline.strong.font else if (emphasis) theme.inline.emphasis.font else Inherited
-	choose(base, style, override)
+	choose(base, { style: style, override: override })
 }
 
 slot_of : { family : Font.Family, style : Font.Style } -> U64
@@ -309,7 +317,7 @@ slot_of = |{ family, style }| {
 mark : List(Bool), Font.SourceDefault -> List(Bool)
 mark = |demand, choice| match choice {
 	Face(_) => demand
-	BuiltIn(named) => set_at(demand, slot_of(named), True)
+	BuiltIn(named) => set_at(demand, { index: slot_of(named), value: True })
 }
 
 exact : Font.SourceDefault, List(Font.StyleFace) -> Font.FaceId
@@ -331,10 +339,10 @@ check_face = |face, count| {
 
 ## Validate caller handles before adding packaged resources. A coincident
 ## later packaged index cannot make an invalid caller handle valid.
-validate_choices : Theme, U64, Bool -> Try({}, Font.ResourceError)
-validate_choices = |theme, count, caller| {
+validate_choices : Theme, { count : U64, origin : KernelFacadeFonts.Origin } -> Try({}, Font.ResourceError)
+validate_choices = |theme, { count, origin }| {
 	match theme.family {
-		FromOptions if caller => {
+		FromOptions if origin == Caller => {
 			check_face(theme.face, count)?
 		}
 		Registered(faces) => {
@@ -409,19 +417,34 @@ heading_style = |theme, level| {
 	}
 }
 
-drawing_roles : List(LabelChoice), Document.ValidatedDrawing -> List(LabelChoice)
-drawing_roles = |roles, drawing| {
+## Retain the first authored owner of each finite drawing role. Figures
+## are visited with body blocks and panels afterwards, so compare the explicit
+## normalized first-block fact instead of letting traversal order choose blame.
+drawing_roles : List(LabelChoice), { drawing : Document.ValidatedDrawing, owner : KernelFacadeLabels.Owner, first_block : U64 } -> List(LabelChoice)
+drawing_roles = |roles, { drawing, owner, first_block }| {
 	var $roles = roles
+	var $label = 0
 	match drawing {
 		InvalidDrawing(_) => {}
 		ValidDrawing(value) => {
 			for command in value.commands {
 				match command {
-					FlowText(label) => match Box.unbox(label).face {
-						BodyFace => {}
-						RoleFace(role) => {
-							$roles = set_at($roles, role_index(role), Requested)
+					FlowText(label) => {
+						match Box.unbox(label).face {
+							BodyFace => {}
+							RoleFace(role) => {
+								index = role_index(role)
+								earlier = match list_at($roles, index) {
+									Requested(previous) => previous.first_block <= first_block
+									NotRequested => False
+									Selected(_) => crash "drawing demand collection follows role resolution"
+								}
+								if !earlier {
+									$roles = set_at($roles, { index: index, value: Requested({ owner, first_block, label: $label }) })
+								}
+							}
 						}
+						$label = $label + 1
 					}
 					_ => {}
 				}
@@ -460,8 +483,8 @@ list_at = |items, index| match items.get(index) {
 	Err(OutOfBounds) => crash "font resolution index escaped normalized input"
 }
 
-set_at : List(a), U64, a -> List(a)
-set_at = |items, index, value| match items.set(index, value) {
+set_at : List(a), { index : U64, value : a } -> List(a)
+set_at = |items, { index, value }| match items.set(index, value) {
 	Ok(updated) => updated
 	Err(OutOfBounds) => crash "font resolution index escaped its exact table"
 }
