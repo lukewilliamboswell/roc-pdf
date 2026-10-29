@@ -18,6 +18,7 @@ import KernelXmp
 import Metadata
 import Semantics
 import KernelFacadeFragments
+import KernelFacadeFailure
 import KernelFacadeFurniture
 import KernelFacadeLabels
 import KernelFacadeLines
@@ -1461,8 +1462,8 @@ image_error = |image| match image {
 	LimitExceeded(_) | MarkerLimitExceeded(_) => stage_error(Output(Images(image)))
 	ArithmeticOverflow | NonDenseIdentity(_) => stage_error(Output(Images(image)))
 	_ => {
-		described = describe_failure(Str.inspect(image))
-		InvalidDocument(located_batch(InvalidRelationship, "image.invalid", "An image's data does not match what it declares (${described.path}${described.payload}); no image is repaired, padded, or dropped.", [described.path]))
+		described = KernelFacadeFailure.image(image)
+		InvalidDocument(located_batch(InvalidRelationship, "image.invalid", "An image's data does not match what it declares (${described.path}: ${described.detail}); no image is repaired, padded, or dropped.", [described.path]))
 	}
 }
 
@@ -1475,102 +1476,13 @@ image_error = |image| match image {
 ## package defect reported instead of an unlocated catch-all.
 stage_error : KernelFacadePipeline.Error -> Pdf.Error
 stage_error = |error| {
-	described = describe_failure(Str.inspect(error))
+	described = KernelFacadeFailure.pipeline(error)
 	feature = "pipeline.${described.feature}"
-	if described.limit {
-		InvalidDocument(located_batch(BudgetExceeded, feature, "A preparation limit was crossed (${described.path}${described.payload}); no partial document is accepted.", [described.path]))
-	} else {
-		InvalidDocument(located_batch(InternalInvariant, feature, "A compiler stage rejected an internal precondition (${described.path}${described.payload}). This is a package defect, not an authoring error; please report it with the document.", [described.path]))
+	match described.category {
+		Budget => InvalidDocument(located_batch(BudgetExceeded, feature, "A preparation limit was crossed (${described.path}: ${described.detail}); no partial document is accepted.", [described.path]))
+		Invariant => InvalidDocument(located_batch(InternalInvariant, feature, "A compiler stage rejected an internal precondition (${described.path}: ${described.detail}). This is a package defect, not an authoring error; please report it with the document.", [described.path]))
 	}
 }
-
-## The nested tag path of an inspected failure, its snake-case feature
-## code, whether it is a crossed limit, and a bounded view of the innermost
-## payload. Only the leading tags are read, one byte at a time.
-describe_failure : Str -> { feature : Str, limit : Bool, path : Str, payload : Str }
-describe_failure = |inspected| {
-	bytes = inspected.to_utf8()
-	var $path = []
-	var $feature = []
-	var $last = []
-	var $index = 0
-	var $reading = True
-	while $reading and $index < bytes.len() {
-		## One tag name: an upper-case letter then letters and digits.
-		start = $index
-		var $end = $index
-		while $end < bytes.len() and is_tag_byte(list_at_byte(bytes, $end), $end == start) {
-			$end = $end + 1
-		}
-		if $end == start {
-			$reading = False
-		} else {
-			if !$path.is_empty() {
-				$path = $path.append('.')
-				$feature = $feature.append('.')
-			}
-			$last = []
-			var $cursor = start
-			while $cursor < $end {
-				byte = list_at_byte(bytes, $cursor)
-				$path = $path.append(byte)
-				$last = $last.append(byte)
-				if byte >= 'A' and byte <= 'Z' {
-					if $cursor != start {
-						$feature = $feature.append('_')
-					}
-					$feature = $feature.append(byte + 32)
-				} else {
-					$feature = $feature.append(byte)
-				}
-				$cursor = $cursor + 1
-			}
-			$index = $end
-
-			## A nested tag follows `(`; anything else is the payload.
-			$reading = $index + 1 < bytes.len() and list_at_byte(bytes, $index) == '(' and is_tag_byte(list_at_byte(bytes, $index + 1), True)
-			if $reading {
-				$index = $index + 1
-			}
-		}
-	}
-
-	## The innermost payload up to its matching parenthesis, at most 160
-	## bytes, so a failure carrying a long list never floods the message.
-	payload = if $index < bytes.len() and list_at_byte(bytes, $index) == '(' {
-		limit = U64.min(bytes.len(), $index + 160)
-		var $depth = 0
-		var $end = $index
-		var $open = True
-		while $open and $end < limit {
-			byte = list_at_byte(bytes, $end)
-			if byte == '(' {
-				$depth = $depth + 1
-			} else if byte == ')' {
-				$depth = $depth - 1
-				if $depth == 0 {
-					$open = False
-				}
-			}
-			$end = $end + 1
-		}
-		": ${Str.from_utf8(bytes.sublist({ start: $index, len: $end - $index })) ?? ""}${if ($open) "…" else ""}"
-	} else {
-		""
-	}
-	{
-		feature: Str.from_utf8($feature) ?? "unknown",
-		limit: $last == "LimitExceeded".to_utf8() or $last == "CmapLimitExceeded".to_utf8() or $last == "MarkerLimitExceeded".to_utf8(),
-		path: Str.from_utf8($path) ?? "Unknown",
-		payload,
-	}
-}
-
-is_tag_byte : U8, Bool -> Bool
-is_tag_byte = |byte, first| if (first) byte >= 'A' and byte <= 'Z' else (byte >= 'A' and byte <= 'Z') or (byte >= 'a' and byte <= 'z') or (byte >= '0' and byte <= '9')
-
-list_at_byte : List(U8), U64 -> U8
-list_at_byte = |bytes, index| bytes.get(index) ?? 0
 
 ## Text a shaping path cannot shape, located at its paragraph or rich
 ## inline with the failing cluster's scalars. A script outside the path's
@@ -4041,22 +3953,27 @@ expect {
 	leaf_paths(normalized) == $expected
 }
 
-# A crossed stage limit keeps its exact tag path and payload.
+# Facade diagnostics consume typed category and identity, with useful context.
 expect {
-	described = describe_failure("Output(Structure(TaggedObjects(Object(LimitExceeded({ attempted: 8196, dimension: NameBytes, limit: 8192 })))))")
-	described.feature == "output.structure.tagged_objects.object.limit_exceeded" and described.limit and described.path == "Output.Structure.TaggedObjects.Object.LimitExceeded" and described.payload == ": ({ attempted: 8196, dimension: NameBytes, limit: 8192 })"
+	budget = stage_error(Output(Structure(TaggedObjects(Object(LimitExceeded({ attempted: 8196, dimension: NameBytes, limit: 8192 }))))))
+	invariant = stage_error(Text(InvalidRun({ run: 4 })))
+	valid_budget = match budget {
+		InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("pipeline.output.structure.tagged_objects.object.limit_exceeded"), details: ["Output.Structure.TaggedObjects.Object.LimitExceeded"], .. }], .. }) => True
+		_ => False
+	}
+	valid_invariant = match invariant {
+		InvalidDocument({ diagnostics: [{ code: InternalInvariant, feature: Feature("pipeline.text.invalid_run"), details: ["Text.InvalidRun"], .. }], .. }) => True
+		_ => False
+	}
+	valid_budget and valid_invariant
 }
 
-# Any other stage failure is an internal invariant with its tag path.
+# Author-supplied bad image data retains its public authoring diagnostic.
 expect {
-	described = describe_failure("Text(InvalidRun({ run: 4 }))")
-	described.feature == "text.invalid_run" and !described.limit and described.path == "Text.InvalidRun"
-}
-
-# A payload-free tag has no payload view.
-expect {
-	described = describe_failure("Output(Subset(ArithmeticOverflow))")
-	described.feature == "output.subset.arithmetic_overflow" and described.payload == ""
+	match image_error(InvalidDimensions({ height: 0, width: 1, resource: 0 })) {
+		InvalidDocument({ diagnostics: [{ code: InvalidRelationship, feature: Feature("image.invalid"), details: ["InvalidDimensions"], .. }], .. }) => True
+		_ => False
+	}
 }
 
 # A heading level the document model does not have is located at the
