@@ -85,15 +85,22 @@ campaign remains separate.
 
 ## CI
 
-The check, documentation and fuzz workflows install Blueprint with the shared
-`roc-automation` `actions/setup-blueprint` action at the reviewed `tools-0.7.0`
-commit, `8acff758d5d73210f1731bed75adb9322f5e773d`. It verifies the Blueprint binary against its reviewed digest and reads
+The documentation workflow uses the reviewed roc-automation guidance/action
+revision `1104294f221bb9571901c7a1a4269cea8516f8e5`; check and fuzz workflows
+retain `8acff758d5d73210f1731bed75adb9322f5e773d`. All use the shared
+`actions/setup-blueprint` action. It verifies the Blueprint binary against its reviewed digest and reads
 the release from the platform URL in `Blueprint.roc`, so no workflow names the
 Blueprint version. The reusable test job caches Blueprint's download store
 (`cache-workload: dev`); a cached artifact is rehashed before use.
 Release dispatch runs the same checks at its recorded SHA before an
 artifact-consuming publication job; it never publishes from a branch build
 that tested different bytes. See [publishing](releases/publishing.md).
+
+The native manual is authored in top-level `docs/*.adoc` chapters. Its staging
+step binds source/release metadata and copies exact local assets; source format
+conversion is not part of the documentation build. See the
+[documentation refactor](documentation-refactor.md) for source compatibility and
+independent HTML/Markdown/PDF checks.
 
 ## Maintenance
 

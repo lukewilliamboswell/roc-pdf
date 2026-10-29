@@ -25,6 +25,9 @@ with the [user documentation](../docs/README.md).
   workflow validates and publishes a bundle, and the steps to cut a release.
 - [Automation and documentation publication](automation-publication.md) records
   the shared tooling, URL compatibility, independent review and settings audit.
+- [Native documentation refactor](documentation-refactor.md) records the
+  release-neutral entry pages, canonical source migration, source compatibility
+  and fresh manual/artifact validation.
 - [Release consumer smoke test](releases/0.1.0-rc1-consumer-smoke-test.md)
   records validation of the first release candidate's distribution boundary.
 

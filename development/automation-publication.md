@@ -10,7 +10,7 @@ its compiler and documentation renderer do not become package dependencies.
 | --- | --- |
 | Package compiler | `.roc-version`, `nightly-2026-10-28-bad769b`; installed explicitly by CI and checked by the local harness, bundler and API-doc stage |
 | Blueprint | 0.8.0, existing platform URL and lock; Zig 0.16.0 and ripgrep 15.2.0 remain digest-checked recipes |
-| Shared actions | `tools-0.7.0`, commit `8acff758d5d73210f1731bed75adb9322f5e773d`; setup, renderer locator/build, publisher and released-example compatibility references are full SHAs |
+| Shared actions | Documentation setup/locator/build use reviewed guidance source `1104294f221bb9571901c7a1a4269cea8516f8e5`; other CI, publisher and released-example compatibility references retain `8acff758d5d73210f1731bed75adb9322f5e773d`. Every reference is a full SHA. |
 | Native manual renderer | `roc-docs` tools-0.7.0, Linux x86-64 and Apple Silicon; exact sizes/digests in `Blueprint.lock`; its build used tooling compiler `nightly-2026-10-21-5349569` |
 | CI JDK/Python | Temurin 21.0.13+9 and Python 3.14.0 through full-SHA setup actions; explicit provisioning inputs, never production dependencies |
 | Independent PDF tools | PDFBox 3.0.8, qpdf 12.3.2, PDFium Chromium 7988, MuPDF 1.28.2, veraPDF 1.30.2 and corpus artifacts retain their vendored hashes/licenses; Arlington retains its exact container digest |
@@ -28,7 +28,7 @@ downloaded bytes. The shared build action accepts that verified executable and
 does not install an arbitrary renderer itself.
 
 Native documentation rendering needs no compiler or browser. API extraction
-is a separate pinned-compiler stage. The shared publisher at this revision
+is a separate pinned-compiler stage. The shared publisher at its retained release revision
 provisions its own Nix/tooling compiler in its own immutable action checkout;
 the privileged caller job checks out no project source and runs no artifact as
 code. Validator/corpus provisioning consumes retained bytes without a network
@@ -37,14 +37,15 @@ explicit online setup stage. No fully offline runner-image claim is made.
 
 ## Manual sources, URLs and acceptance
 
-The authored Markdown user guides retain their existing GitHub URLs and
-anchors. `scripts/prepare_manual.py` deterministically prepares their admitted
-headings, links, source listings and tables as top-level AsciiDoc chapters,
-using `docs/index.adoc` as the book entrypoint. It rejects unsupported block
-forms and missing links, copies only known gallery PNGs, and records every
-source/asset digest. Original examples remain in compile/gallery checks;
-rendering a listing does not prove that it compiles. Historical release
-listings retain their historical APIs.
+The canonical user chapters are authored as top-level AsciiDoc and assembled by
+`docs/index.adoc`. `scripts/prepare_manual.py` stages exact authored bytes, known
+gallery PNGs, source-revision links, generated release bindings and an input
+digest inventory. The shared native renderer owns source parsing and all reader
+formats; the Markdown conversion adapter is removed. Existing guide Markdown
+paths remain short landing pages with section links. Historical release notes
+stay in their original source files. See the
+[native documentation refactor](documentation-refactor.md) and its
+[fresh source-bound artifact review](documentation-refactor-review.json).
 
 Compiler-generated API routes remain at the site root; the native manual is
 assembled under `/manual/`. The manual links to the existing API and checked
@@ -61,8 +62,8 @@ table column weights remain unimplemented; this manual does not rely on exact
 column-weight fidelity. Row/cell associations, content and tagged ownership
 remain checked.
 
-`check_manual.py` checks exact listing whitespace in every chapter HTML,
-local links/anchors, static Markdown discovery, original source/asset digests,
+`check_manual.py` checks exact listing whitespace, table cell associations and
+local links/anchors in chapter HTML and Markdown, original source/asset digests,
 independent PDFBox source/table extraction, tagged tables and the three exact
 decoded RGB gallery images. Its review mode independently renders contents,
 table and figure pages. `check_manual_browser.mjs` exercises every page at
@@ -71,7 +72,9 @@ horizontal overflow, source colours/transparent backgrounds, capability-table
 presence, mobile contents controls and dark mode. It retains screenshots and a
 browser binary digest report.
 
-Local acceptance used Node 23.9.0, Google Chrome 156.0.8078.49 (executable
+The following reports describe the earlier Markdown-based c08 candidate and
+remain historical evidence; the current native-book checks are recorded above.
+That local acceptance used Node 23.9.0, Google Chrome 156.0.8078.49 (executable
 SHA-256 `8fc0b8ffb31698a1be44f41df5e4adbdfae8720e94fa458e29f9dfd3bf142e1c`),
 PDFBox 3.0.8 and installed Java 17.0.10+11-LTS. This browser/JDK audit describes
 the test host; the native renderer remains the exact locked release. Machine
@@ -81,14 +84,15 @@ pass, and no website is deployed from this integration branch. The retained
 [PDF report](manual-publication-review/pdf.json) and
 [browser report](manual-publication-review/browser.json) identify the checked
 manual outputs and the source inventory at the recorded documentation commit; final
-CI repeats the checks from its own recorded commit. The final local dry run
+CI repeats the checks from its own recorded commit. That earlier local dry run
 has 21 HTML pages, 49 PDF pages, 39 exact source blocks, three exact RGB
 figures and three tagged tables. Independent PDF screenshots retain their
 hashes in the PDF report; the capability table and all three gallery figure
 pages were visually inspected after rendering.
-The migration added an explicit Markdown-to-PSV closing-pipe conversion after
+That earlier migration added a Markdown-to-PSV closing-pipe conversion after
 visual inspection caught shifted table cells; exact HTML cell grids and PDF
-semantic row/cell shapes now guard that boundary.
+semantic row/cell shapes guarded that boundary. The native refactor removes the
+conversion while retaining independent table association checks in all formats.
 
 ## Check and publication boundaries
 
@@ -120,7 +124,7 @@ then stages/uploads/downloads/verifies/publishes through the shared action.
 It receives only its own run's artifacts. API compatibility uses the actual
 `roc bump --old ... --expect ...` interface of the pinned compiler.
 
-The final [local artifact review](release-artifacts-rc4-review.json) records
+The earlier c08 [local artifact review](release-artifacts-rc4-review.json) records
 four asset hashes and the notes digest, 14 strict served-bundle gallery checks,
 the isolated public consumer, and all 14 reconstructed and extracted ZIP apps.
 All 250 package/example/docs inputs and 85 ZIP source/resource members were

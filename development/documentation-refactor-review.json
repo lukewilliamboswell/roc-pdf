@@ -1,0 +1,132 @@
+{
+  "schema_version": 1,
+  "kind": "native_documentation_refactor_release_smoke",
+  "published": false,
+  "source_revision": "eaab39b8a350372f5c80dee9d8013181ca542dca",
+  "scope": "Authored documentation and public package/example inputs are byte-compared with the recorded source. Subsequent changes to contributor evidence do not change these manual inputs. Final release CI remains authoritative for publication.",
+  "upstream_guidance": {
+    "revision": "1104294f221bb9571901c7a1a4269cea8516f8e5",
+    "documentation": "https://github.com/lukewilliamboswell/roc-automation/blob/1104294f221bb9571901c7a1a4269cea8516f8e5/docs/documentation.adoc",
+    "released_renderer": "tools-0.7.0",
+    "unpublished_next_release_not_used": true,
+    "build_docs_action_interface_unchanged": true
+  },
+  "source_audit": {
+    "tracked_package_example_docs_inputs_equal": 259,
+    "legacy_markdown_section_links_checked": 16,
+    "original_api_files_byte_identical": 18,
+    "authoring_format": "AsciiDoc",
+    "markdown_conversion_adapter_removed": true
+  },
+  "checks": {
+    "manual": {
+      "result": "pass",
+      "html_pages": 10,
+      "pdf_pages": 34,
+      "exact_source_blocks": 28,
+      "tagged_tables": 3,
+      "exact_rgb_figures": 3,
+      "source_whitespace_checked": [
+        "HTML",
+        "Markdown",
+        "PDF"
+      ],
+      "table_cell_associations_checked": [
+        "HTML",
+        "Markdown",
+        "PDF"
+      ],
+      "local_links_and_anchors_checked": [
+        "HTML",
+        "Markdown"
+      ],
+      "browser_viewports": [
+        1280,
+        390
+      ],
+      "dark_mode": true,
+      "independent_heading_destinations": 25
+    },
+    "pdfa4": {
+      "result": "pass",
+      "version": "1.30.2",
+      "failed_rules": 0,
+      "failed_checks": 0,
+      "report": "manual-refactor-review/verapdf.xml"
+    },
+    "manual_guard_mutations": [
+      {
+        "case": "Markdown source byte changed",
+        "rejected": true
+      },
+      {
+        "case": "Markdown table cell changed",
+        "rejected": true
+      },
+      {
+        "case": "Markdown chapter anchor missing",
+        "rejected": true
+      }
+    ],
+    "unchanged_examples": {
+      "source_revision": "eaab39b8a350372f5c80dee9d8013181ca542dca",
+      "reused_examples_sha256": "08caa3937745d65b1c78695d86905da00c1b3a6d2031da529a48333f1d8a91c7",
+      "source_resource_members_equal": 85,
+      "apps": 14,
+      "package_examples_and_compiler_unchanged_from": "c08a3f81e21a2641bcdb9b786f381c6a5e59398e",
+      "negative_guards": [
+        {
+          "case": "old-source",
+          "rejected": true,
+          "reason": "manual source links do not describe the release commit"
+        },
+        {
+          "case": "wrong-bundle",
+          "rejected": true,
+          "reason": "manual does not describe the tested bundle"
+        },
+        {
+          "case": "old-examples",
+          "rejected": true,
+          "reason": "examples describe a different release bundle"
+        }
+      ]
+    }
+  },
+  "manifest": {
+    "schema_version": 1,
+    "revision": "eaab39b8a350372f5c80dee9d8013181ca542dca",
+    "version": "0.3.0",
+    "compiler": "Roc compiler version nightly-2026-10-28-bad769b",
+    "bundle_expanded_bytes": 10158917,
+    "notes_sha256": "19678281cb1717e64f5c9d782651e3e3ce3ed985813ff60eda3590d8c0b95e54",
+    "assets": [
+      {
+        "name": "C3YnjBMeN7A9ar7F5seM73coSTkYLSksTD2BNikQEVSP.tar.zst",
+        "size": 3974692,
+        "sha256": "83e4ca7077ca2bb561d39f944ea23e7bc13ffa3a9c78637ea63e9d68674dfaa4"
+      },
+      {
+        "name": "roc-pdf-examples-0.3.0.zip",
+        "size": 6082465,
+        "sha256": "08caa3937745d65b1c78695d86905da00c1b3a6d2031da529a48333f1d8a91c7"
+      },
+      {
+        "name": "roc-pdf-docs-0.3.0.zip",
+        "size": 1713552,
+        "sha256": "f9ea6549d303a8a8f4448a61d935ca8e41c13065c96a0e5e842d277810a4c7e6"
+      },
+      {
+        "name": "roc-pdf-0.3.0.pdf",
+        "size": 386025,
+        "sha256": "4cde1221af03e5e70241deb6ab79dea47a18e5551ca983c236aed97ea70c0e4d"
+      }
+    ]
+  },
+  "historical_evidence": [
+    "manual-publication-review/sources.json",
+    "manual-publication-review/browser.json",
+    "manual-publication-review/pdf.json",
+    "release-artifacts-rc4-review.json"
+  ]
+}
