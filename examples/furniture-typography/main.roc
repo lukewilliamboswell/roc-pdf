@@ -26,6 +26,6 @@ theme = { body: { size: 11, leading: 15 }, furniture: Own({ size: 8, leading: 10
 
 header = Pdf.region({ height: 10, start: [Pdf.furniture_text([Pdf.text("Operations manual")])] })
 
-footer = Pdf.region({ height: 10, end: [Pdf.furniture_text([Pdf.reserved_width(70, End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])])] })
+footer = Pdf.region({ height: 10, end: [Pdf.furniture_text([Pdf.reserved_width({ width: 70, align: End, contents: [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)] })])] })
 
 document = Pdf.document({ title: "Independent furniture typography", language: "en", contents: [Pdf.paragraph("Body text uses eleven points with fifteen-point leading."), Pdf.page_break, Pdf.paragraph("The running furniture repeats with its own typography.")], page_templates: Templates({ first: Pdf.first_page_template({ header, footer }), continuation: Pdf.page_template({ header, footer }) }) })

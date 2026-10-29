@@ -286,7 +286,7 @@ build_batch = |sources, shape_requests, store, requests, limits| {
 			$templates = $templates.append({
 				cluster_length: run.clusters.length(),
 				cluster_start: run.clusters.start(),
-				lines: Semantics.IndexRange.from_start_and_length(line_start, selected.lines.len()),
+				lines: Semantics.IndexRange.from_start_and_length({ start: line_start, length: selected.lines.len() }),
 			})
 			$boundary_visits = checked_add($boundary_visits, selected.work.boundary_visits)?
 			$candidate_visits = checked_add($candidate_visits, selected.work.candidate_visits)?
@@ -309,7 +309,7 @@ build_batch = |sources, shape_requests, store, requests, limits| {
 		$run_index = $run_index + 1
 	}
 	var $lines = List.with_capacity($total_lines)
-	var $run_lines = List.repeat(Semantics.IndexRange.from_start_and_length(0, 0), requests.len())
+	var $run_lines = List.repeat(Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 }), requests.len())
 	$run_index = 0
 	while $run_index < requests.len() {
 		run = list_at(store.runs, $run_index)
@@ -331,12 +331,12 @@ build_batch = |sources, shape_requests, store, requests, limits| {
 			}
 			$lines = $lines.append({
 				advance: line.advance,
-				clusters: Semantics.IndexRange.from_start_and_length(shifted_start, line.clusters.length()),
+				clusters: Semantics.IndexRange.from_start_and_length({ start: shifted_start, length: line.clusters.length() }),
 				source: line.source,
 			})
 			$template_line = $template_line + 1
 		}
-		$run_lines = match $run_lines.set($run_index, Semantics.IndexRange.from_start_and_length(line_start, template.lines.length())) {
+		$run_lines = match $run_lines.set($run_index, Semantics.IndexRange.from_start_and_length({ start: line_start, length: template.lines.length() })) {
 			Err(OutOfBounds) => return Err(InvalidRun({ run: $run_index }))
 			Ok(updated) => updated
 		}
@@ -474,7 +474,7 @@ build_logical_batch = |sources, store, requests, holds, modes, limits| {
 			$templates = $templates.append({
 				cluster_length: bounds.cluster_end - bounds.cluster_start,
 				cluster_start: bounds.cluster_start,
-				lines: Semantics.IndexRange.from_start_and_length(line_start, selected.lines.len()),
+				lines: Semantics.IndexRange.from_start_and_length({ start: line_start, length: selected.lines.len() }),
 			})
 			$boundary_visits = checked_add($boundary_visits, selected.work.boundary_visits)?
 			$candidate_visits = checked_add($candidate_visits, selected.work.candidate_visits)?
@@ -499,7 +499,7 @@ build_logical_batch = |sources, store, requests, holds, modes, limits| {
 		return Err(InvalidAnalysis)
 	}
 	var $lines = List.with_capacity($total_lines)
-	var $run_lines = List.repeat(Semantics.IndexRange.from_start_and_length(0, 0), requests.len())
+	var $run_lines = List.repeat(Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 }), requests.len())
 	$request_index = 0
 	$run_cursor = 0
 	while $request_index < requests.len() {
@@ -525,12 +525,12 @@ build_logical_batch = |sources, store, requests, holds, modes, limits| {
 			}
 			$lines = $lines.append({
 				advance: line.advance,
-				clusters: Semantics.IndexRange.from_start_and_length(shifted_start, line.clusters.length()),
+				clusters: Semantics.IndexRange.from_start_and_length({ start: shifted_start, length: line.clusters.length() }),
 				source: line.source,
 			})
 			$template_line = $template_line + 1
 		}
-		$run_lines = match $run_lines.set($request_index, Semantics.IndexRange.from_start_and_length(line_start, template.lines.length())) {
+		$run_lines = match $run_lines.set($request_index, Semantics.IndexRange.from_start_and_length({ start: line_start, length: template.lines.length() })) {
 			Err(OutOfBounds) => return Err(InvalidRun({ run: $request_index }))
 			Ok(updated) => updated
 		}
@@ -659,7 +659,7 @@ measure_request = |sources, store, request, holds, limits| {
 		$candidate = $candidate + 1
 	}
 	Ok({
-		measure: { max_content: $max_content, min_content: $min_content, token: Semantics.IndexRange.from_start_and_length($token_start, $token_end - $token_start) },
+		measure: { max_content: $max_content, min_content: $min_content, token: Semantics.IndexRange.from_start_and_length({ start: $token_start, length: $token_end - $token_start }) },
 		work: {
 			boundary_visits: boundary_work.visits,
 			candidate_visits: cluster_end - cluster_start,
@@ -1123,8 +1123,8 @@ source_line = |clusters, prefix, prefix_start, start, end| {
 	byte_end = range_end(last.source.utf8_bytes)?
 	Ok({
 		advance: Layout.Unit.from_raw(list_at(prefix, end - prefix_start) - list_at(prefix, start - prefix_start)),
-		clusters: Semantics.IndexRange.from_start_and_length(start, end - start),
-		source: { scalars: Semantics.IndexRange.from_start_and_length(first.source.scalars.start(), scalar_end - first.source.scalars.start()), utf8_bytes: Semantics.IndexRange.from_start_and_length(first.source.utf8_bytes.start(), byte_end - first.source.utf8_bytes.start()) },
+		clusters: Semantics.IndexRange.from_start_and_length({ start: start, length: end - start }),
+		source: { scalars: Semantics.IndexRange.from_start_and_length({ start: first.source.scalars.start(), length: scalar_end - first.source.scalars.start() }), utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: first.source.utf8_bytes.start(), length: byte_end - first.source.utf8_bytes.start() }) },
 	})
 }
 
@@ -1142,10 +1142,10 @@ append_line = |lines, clusters, prefix, prefix_start, start, end, limit| {
 	Ok(
 		lines.append({
 			advance: Layout.Unit.from_raw(list_at(prefix, end - prefix_start) - list_at(prefix, start - prefix_start)),
-			clusters: Semantics.IndexRange.from_start_and_length(start, end - start),
+			clusters: Semantics.IndexRange.from_start_and_length({ start: start, length: end - start }),
 			source: {
-				scalars: Semantics.IndexRange.from_start_and_length(first.source.scalars.start(), scalar_end - first.source.scalars.start()),
-				utf8_bytes: Semantics.IndexRange.from_start_and_length(first.source.utf8_bytes.start(), byte_end - first.source.utf8_bytes.start()),
+				scalars: Semantics.IndexRange.from_start_and_length({ start: first.source.scalars.start(), length: scalar_end - first.source.scalars.start() }),
+				utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: first.source.utf8_bytes.start(), length: byte_end - first.source.utf8_bytes.start() }),
 			},
 		}),
 	)
@@ -1212,11 +1212,11 @@ test_store = {
 	clusters: List.map(
 		[0, 1, 2, 3, 4, 5],
 		|index| {
-			glyphs: Semantics.IndexRange.from_start_and_length(index, 1),
+			glyphs: Semantics.IndexRange.from_start_and_length({ start: index, length: 1 }),
 			kind: OneToOne,
 			source: {
-				scalars: Semantics.IndexRange.from_start_and_length(index, 1),
-				utf8_bytes: Semantics.IndexRange.from_start_and_length(index, 1),
+				scalars: Semantics.IndexRange.from_start_and_length({ start: index, length: 1 }),
+				utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: index, length: 1 }),
 			},
 		},
 	),
@@ -1268,11 +1268,11 @@ expect {
 # treated as a legal cluster break.
 expect {
 	cluster = {
-		glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
+		glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 		kind: Ligature,
 		source: {
-			scalars: Semantics.IndexRange.from_start_and_length(0, 2),
-			utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 2),
+			scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }),
+			utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }),
 		},
 	}
 	store = { ..test_store, clusters: [cluster], glyph_indices: [0], glyphs: [list_at(test_store.glyphs, 0)] }
@@ -1295,23 +1295,23 @@ expect {
 expect {
 	run = {
 		actual_text: FromOccurrence,
-		clusters: Semantics.IndexRange.from_start_and_length(0, 6),
+		clusters: Semantics.IndexRange.from_start_and_length({ start: 0, length: 6 }),
 		direction: LeftToRight,
-		glyphs: Semantics.IndexRange.from_start_and_length(0, 6),
+		glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 6 }),
 		id: Text.RunId.from_index(0),
 		instance: Font.InstanceId.from_index(0),
 		language: Inherited,
 		script: Font.Script.from_iso15924("Latn"),
 		size: Layout.Unit.from_raw(1000),
-		source: { scalars: Semantics.IndexRange.from_start_and_length(0, 6), utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 6) },
-		substitutions: Semantics.IndexRange.from_start_and_length(0, 0),
-		transformations: Semantics.IndexRange.from_start_and_length(0, 0),
+		source: { scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: 6 }), utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 6 }) },
+		substitutions: Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 }),
+		transformations: Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 }),
 		unicode: OccurrenceText(Semantics.OccurrenceId.from_index(0)),
 		writing_mode: Horizontal,
 	}
 	store = { ..test_store, runs: [run] }
 	sources = [{ analysis: test_analysis, unicode: "abcdef" }]
-	measured = KernelLineLayout.measure_logical(sources, store, { runs: Semantics.IndexRange.from_start_and_length(0, 1), source: Semantics.TextSourceId.from_index(0), width: Layout.Unit.from_raw(1) }, test_limits)?
+	measured = KernelLineLayout.measure_logical(sources, store, { runs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), source: Semantics.TextSourceId.from_index(0), width: Layout.Unit.from_raw(1) }, test_limits)?
 	measured.measure.max_content == 6000 and measured.measure.min_content == 2000 and measured.measure.token.start() == 0 and measured.measure.token.length() == 2
 }
 
@@ -1326,7 +1326,7 @@ expect {
 	plan = build_source_range(analysis, test_store, { cluster_start: 2, cluster_end: 5, glyph_start: 2, glyph_end: 5 }, Layout.Unit.from_raw(2000), Wrap, test_limits)?
 	lines = KernelLineLayout.Plan.lines(plan)
 	work = KernelLineLayout.Plan.work(plan)
-	lines.len() == 2 and list_at(lines, 0).source.scalars == Semantics.IndexRange.from_start_and_length(2, 2) and list_at(lines, 1).source.scalars == Semantics.IndexRange.from_start_and_length(4, 1) and work.cluster_visits == 3 and work.boundary_visits == 3 and work.candidate_visits == 4
+	lines.len() == 2 and list_at(lines, 0).source.scalars == Semantics.IndexRange.from_start_and_length({ start: 2, length: 2 }) and list_at(lines, 1).source.scalars == Semantics.IndexRange.from_start_and_length({ start: 4, length: 1 }) and work.cluster_visits == 3 and work.boundary_visits == 3 and work.candidate_visits == 4
 }
 
 # The same measured token rejects under the no-grapheme-fallback policy.
@@ -1343,5 +1343,5 @@ expect {
 expect {
 	plan = build_source_range(test_analysis, test_store, { cluster_start: 2, cluster_end: 5, glyph_start: 2, glyph_end: 5 }, Layout.Unit.from_raw(2000), RejectOverflow, test_limits)?
 	lines = KernelLineLayout.Plan.lines(plan)
-	lines.len() == 2 and list_at(lines, 0).source.scalars == Semantics.IndexRange.from_start_and_length(2, 2) and list_at(lines, 1).source.scalars == Semantics.IndexRange.from_start_and_length(4, 1)
+	lines.len() == 2 and list_at(lines, 0).source.scalars == Semantics.IndexRange.from_start_and_length({ start: 2, length: 2 }) and list_at(lines, 1).source.scalars == Semantics.IndexRange.from_start_and_length({ start: 4, length: 1 })
 }

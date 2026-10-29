@@ -17,9 +17,9 @@ RocFont :: [].{
 	register : Font.Registry, Font.ValidationLimits -> Try(Faces, Font.ResourceError)
 	register = |registry, limits| {
 		registration = { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }
-		body = registry.register(sans_bytes, registration, limits)?
-		bold = body.registry.register(bold_bytes, registration, limits)?
-		mono = bold.registry.register(mono_bytes, registration, limits)?
+		body = registry.register({ bytes: sans_bytes, registration: registration, limits: limits })?
+		bold = body.registry.register({ bytes: bold_bytes, registration: registration, limits: limits })?
+		mono = bold.registry.register({ bytes: mono_bytes, registration: registration, limits: limits })?
 		Ok({ body: body.face, heading: bold.face, strong: bold.face, inline_code: mono.face, source_code: mono.face, registry: mono.registry })
 	}
 

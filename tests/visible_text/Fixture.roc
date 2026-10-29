@@ -126,21 +126,9 @@ Sample := {
 
 build_sample : {} -> Try(Sample, [AnalysisFailure, ColorFailure, ContentFailure, FontFailure, FontObjectFailure, FontPlanFailure, ImageFailure, ObjectFailure, OwnershipFailure, ResourceFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
 build_sample = |_| {
-	analysis = KernelUnicode.analyze(
-		source,
-		{ max_graphemes: 32, max_line_boundaries: 33, max_scalars: 32, max_script_runs: 8 },
-	) ? |_| AnalysisFailure
-	semantic = KernelTextSemantics.Plan.build(
-		semantics,
-		1,
-		1,
-		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
-		KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 9, max_text_source_scalars: 8, max_text_sources: 1 }),
-	) ? |_| SemanticFailure
-	font = KernelFont.inspect(
-		built_in_font_bytes,
-		KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }),
-	) ? |_| FontFailure
+	analysis = KernelUnicode.analyze(source, { max_graphemes: 32, max_line_boundaries: 33, max_scalars: 32, max_script_runs: 8 }) ? |_| AnalysisFailure
+	semantic = KernelTextSemantics.Plan.build(semantics, 1, 1, KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }), KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 9, max_text_source_scalars: 8, max_text_sources: 1 })) ? |_| SemanticFailure
+	font = KernelFont.inspect(built_in_font_bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| FontFailure
 	shape = KernelShape.shape_simple(
 		font,
 		source,
@@ -156,41 +144,18 @@ build_sample = |_| {
 		},
 		KernelShape.Limits.make({ max_clusters: 32, max_glyphs: 32, max_scalars: 32, max_source_bytes: 128 }),
 	) ? |_| ShapeFailure
-	scene = KernelScene.Plan.build(
-		text_scene,
-		KernelScene.Resources.with_text({ color_spaces: 1, images: 0, text_runs: shape.store.runs.len() }),
-		KernelScene.Limits.make({ max_commands: 2, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1, max_pages: 1, max_path_segments: 0, max_paths: 0 }),
-	) ? |_| SceneFailure
+	scene = KernelScene.Plan.build(text_scene, KernelScene.Resources.with_text({ color_spaces: 1, images: 0, text_runs: shape.store.runs.len() }), KernelScene.Limits.make({ max_commands: 2, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1, max_pages: 1, max_path_segments: 0, max_paths: 0 })) ? |_| SceneFailure
 	ownership = KernelTextOwnership.Plan.build(semantic, scene, shape.store) ? |_| OwnershipFailure
 	usages = glyph_usages(shape.store.glyphs)
 	font_plan = KernelFontPlan.plan(font, usages, KernelFontPlan.Limits.make({ max_retained_glyphs: 64 })) ? |_| FontPlanFailure
 	subset = KernelFontSubset.build(font, font_plan) ? |_| SubsetFailure
 	colors = KernelColor.Plan.build(text_colors, KernelColor.Limits.make({ max_icc_bytes: 0, max_profiles: 0, max_spaces: 1, max_tags: 0 })) ? |_| ColorFailure
-	images = KernelImage.Plan.build(
-		empty_image_sources,
-		colors,
-		KernelImage.Limits.make({ max_decoded_bytes: 0, max_encoded_bytes: 0, max_height: 0, max_markers: 0, max_resources: 0, max_width: 0 }),
-	) ? |_| ImageFailure
+	images = KernelImage.Plan.build(empty_image_sources, colors, KernelImage.Limits.make({ max_decoded_bytes: 0, max_encoded_bytes: 0, max_height: 0, max_markers: 0, max_resources: 0, max_width: 0 })) ? |_| ImageFailure
 	resource_use = KernelResourceUse.TextPlan.build(scene, colors, images) ? |_| ResourceFailure
-	text = KernelPdfText.ScenePlan.build(
-		ownership,
-		[font_plan],
-		KernelPdfText.Limits.make({ max_actual_text_scalars: 64, max_content_bytes: 4096, max_mappings: 64, max_placements: 0, max_source_scalars: 64 }),
-	) ? |_| TextFailure
+	text = KernelPdfText.ScenePlan.build(ownership, [font_plan], KernelPdfText.Limits.make({ max_actual_text_scalars: 64, max_content_bytes: 4096, max_mappings: 64, max_placements: 0, max_source_scalars: 64 })) ? |_| TextFailure
 	tagged = KernelTextOwnership.Plan.tagged(ownership)
-	content = KernelContent.Plan.build_with_text(
-		tagged,
-		KernelPdfText.ScenePlan.content(text),
-		KernelContent.Limits.make({ max_content_bytes: 4096, max_content_streams: 1 }),
-	) ? |_| ContentFailure
-	base_objects = KernelObjectPlan.Plan.build_with_text(
-		tagged,
-		colors,
-		images,
-		resource_use,
-		content,
-		KernelObjectPlan.Limits.make({ max_objects: 32, max_pages: 1 }),
-	) ? |_| ObjectFailure
+	content = KernelContent.Plan.build_with_text(tagged, KernelPdfText.ScenePlan.content(text), KernelContent.Limits.make({ max_content_bytes: 4096, max_content_streams: 1 })) ? |_| ContentFailure
+	base_objects = KernelObjectPlan.Plan.build_with_text(tagged, colors, images, resource_use, content, KernelObjectPlan.Limits.make({ max_objects: 32, max_pages: 1 })) ? |_| ObjectFailure
 	font_objects = KernelFontObjects.Plan.build(base_objects, 1, 32) ? |_| FontObjectFailure
 	structure = KernelTaggedTextStructure.Plan.build(
 		tagged,
@@ -212,7 +177,7 @@ text_scene : Scene.Store
 text_scene = {
 	commands: [
 		Transform({
-			children: Semantics.IndexRange.from_start_and_length(1, 1),
+			children: Semantics.IndexRange.from_start_and_length({ start: 1, length: 1 }),
 			matrix: { a: Layout.Unit.from_raw(1000), b: Layout.Unit.from_raw(0), c: Layout.Unit.from_raw(0), d: Layout.Unit.from_raw(1000), e: Layout.Unit.from_raw(72000), f: Layout.Unit.from_raw(700000) },
 		}),
 		DrawText({
@@ -226,13 +191,13 @@ text_scene = {
 		}),
 	],
 	dash_lengths: [],
-	groups: [{ commands: Semantics.IndexRange.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
+	groups: [{ commands: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
 	page_groups: [Scene.GroupId.from_index(0)],
 	pages: [
 		{
 			boxes: { art: a4_box, bleed: a4_box, crop: a4_box, media: a4_box, trim: a4_box },
 			id: Semantics.PageId.from_index(0),
-			paint_order: Semantics.IndexRange.from_start_and_length(0, 1),
+			paint_order: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 			rotation: Rotate0,
 		},
 	],
@@ -269,12 +234,12 @@ source = "Café PDF"
 
 source_range : Semantics.TextRange
 source_range = {
-	scalars: Semantics.IndexRange.from_start_and_length(0, 8),
-	utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 9),
+	scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: 8 }),
+	utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 9 }),
 }
 
 empty_range : Semantics.IndexRange
-empty_range = Semantics.IndexRange.from_start_and_length(0, 0)
+empty_range = Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 })
 
 semantics : Semantics.Store
 semantics = {
@@ -301,7 +266,7 @@ semantics = {
 	nodes: [
 		{
 			attributes: empty_range,
-			content: Semantics.IndexRange.from_start_and_length(0, 1),
+			content: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 			element_identifier: NoElementIdentifier,
 			id: Semantics.NodeId.from_index(0),
 			language: Language("en-AU"),
@@ -312,7 +277,7 @@ semantics = {
 		},
 		{
 			attributes: empty_range,
-			content: Semantics.IndexRange.from_start_and_length(1, 1),
+			content: Semantics.IndexRange.from_start_and_length({ start: 1, length: 1 }),
 			element_identifier: NoElementIdentifier,
 			id: Semantics.NodeId.from_index(1),
 			language: Language("en-AU"),
@@ -326,7 +291,7 @@ semantics = {
 	occurrence_fragments: [Semantics.FragmentId.from_index(0)],
 	occurrences: [
 		{
-			fragments: Semantics.IndexRange.from_start_and_length(0, 1),
+			fragments: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 			id: Semantics.OccurrenceId.from_index(0),
 			language: Language("en-AU"),
 			source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange(source_range)),
@@ -397,11 +362,7 @@ expect {
 # Scene text lowering prepares every owned run once in local coordinates.
 expect {
 	sample = build_sample({})?
-	plan = KernelPdfText.ScenePlan.build(
-		sample.ownership,
-		[sample.font_plan],
-		KernelPdfText.Limits.make({ max_actual_text_scalars: 64, max_content_bytes: 4096, max_mappings: 64, max_placements: 0, max_source_scalars: 64 }),
-	)?
+	plan = KernelPdfText.ScenePlan.build(sample.ownership, [sample.font_plan], KernelPdfText.Limits.make({ max_actual_text_scalars: 64, max_content_bytes: 4096, max_mappings: 64, max_placements: 0, max_source_scalars: 64 }))?
 	work = KernelPdfText.ScenePlan.work(plan)
 	run = KernelPdfText.ScenePlan.run(plan, Text.RunId.from_index(0))
 	KernelPdfText.ScenePlan.run_count(plan) == 1 and
@@ -417,17 +378,9 @@ expect {
 # The scene plan applies its content-byte bound cumulatively across runs.
 expect {
 	sample = build_sample({})?
-	accepted = KernelPdfText.ScenePlan.build(
-		sample.ownership,
-		[sample.font_plan],
-		KernelPdfText.Limits.make({ max_actual_text_scalars: 64, max_content_bytes: 4096, max_mappings: 64, max_placements: 0, max_source_scalars: 64 }),
-	)?
+	accepted = KernelPdfText.ScenePlan.build(sample.ownership, [sample.font_plan], KernelPdfText.Limits.make({ max_actual_text_scalars: 64, max_content_bytes: 4096, max_mappings: 64, max_placements: 0, max_source_scalars: 64 }))?
 	required = KernelPdfText.ScenePlan.work(accepted).content_bytes
-	match KernelPdfText.ScenePlan.build(
-		sample.ownership,
-		[sample.font_plan],
-		KernelPdfText.Limits.make({ max_actual_text_scalars: 64, max_content_bytes: required - 1, max_mappings: 64, max_placements: 0, max_source_scalars: 64 }),
-	) {
+	match KernelPdfText.ScenePlan.build(sample.ownership, [sample.font_plan], KernelPdfText.Limits.make({ max_actual_text_scalars: 64, max_content_bytes: required - 1, max_mappings: 64, max_placements: 0, max_source_scalars: 64 })) {
 		Err(LimitExceeded({ attempted: _, dimension: ContentBytes, limit: _ })) => True
 		_ => False
 	}
@@ -436,16 +389,8 @@ expect {
 # Tagged content lowering consumes scene placement, typed paint, and prepared glyph operators.
 expect {
 	sample = build_sample({})?
-	text = KernelPdfText.ScenePlan.build(
-		sample.ownership,
-		[sample.font_plan],
-		KernelPdfText.Limits.make({ max_actual_text_scalars: 64, max_content_bytes: 4096, max_mappings: 64, max_placements: 0, max_source_scalars: 64 }),
-	)?
-	content = KernelContent.Plan.build_with_text(
-		KernelTextOwnership.Plan.tagged(sample.ownership),
-		KernelPdfText.ScenePlan.content(text),
-		KernelContent.Limits.make({ max_content_bytes: 4096, max_content_streams: 1 }),
-	)?
+	text = KernelPdfText.ScenePlan.build(sample.ownership, [sample.font_plan], KernelPdfText.Limits.make({ max_actual_text_scalars: 64, max_content_bytes: 4096, max_mappings: 64, max_placements: 0, max_source_scalars: 64 }))?
+	content = KernelContent.Plan.build_with_text(KernelTextOwnership.Plan.tagged(sample.ownership), KernelPdfText.ScenePlan.content(text), KernelContent.Limits.make({ max_content_bytes: 4096, max_content_streams: 1 }))?
 	stream = KernelContent.Plan.stream(content, Semantics.ContentStreamId.from_index(0))
 	work = KernelContent.Plan.work(content)
 	prefix = Str.to_utf8("/P <</MCID 0>> BDC\nq\n1 0 0 1 72 700 cm\n/CS1_0 cs\n0 scn\nBT\n0 Tr\n/F1_0 11 Tf\n")
@@ -474,7 +419,7 @@ expect {
 	wrong_occurrence = { ..sample.shape.store, runs: [{ ..run, unicode: OccurrenceText(Semantics.OccurrenceId.from_index(1)) }] }
 	short_source = {
 		..sample.shape.store,
-		runs: [{ ..run, source: { scalars: Semantics.IndexRange.from_start_and_length(0, 7), utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 8) } }],
+		runs: [{ ..run, source: { scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: 7 }), utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 8 }) } }],
 	}
 	occurrence_rejected = match KernelTextOwnership.Plan.build(sample.semantic, sample.scene, wrong_occurrence) {
 		Err(OccurrenceMismatch({ fragment: 0, run: 0 })) => True
@@ -493,31 +438,23 @@ expect {
 	draw = list_at(text_scene.commands, 1)
 	transform = list_at(text_scene.commands, 0)
 	duplicate_transform = match transform {
-		Transform({ matrix, children: _ }) => Transform({ children: Semantics.IndexRange.from_start_and_length(1, 2), matrix })
+		Transform({ matrix, children: _ }) => Transform({ children: Semantics.IndexRange.from_start_and_length({ start: 1, length: 2 }), matrix })
 		_ => transform
 	}
 	duplicate_store = { ..text_scene, commands: [duplicate_transform, draw, draw] }
-	duplicate_scene = KernelScene.Plan.build(
-		duplicate_store,
-		KernelScene.Resources.with_text({ color_spaces: 1, images: 0, text_runs: 1 }),
-		KernelScene.Limits.make({ max_commands: 3, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1, max_pages: 1, max_path_segments: 0, max_paths: 0 }),
-	)?
+	duplicate_scene = KernelScene.Plan.build(duplicate_store, KernelScene.Resources.with_text({ color_spaces: 1, images: 0, text_runs: 1 }), KernelScene.Limits.make({ max_commands: 3, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1, max_pages: 1, max_path_segments: 0, max_paths: 0 }))?
 	page = list_at(text_scene.pages, 0)
 	artifact_store = {
 		..text_scene,
 		commands: [draw, draw],
 		groups: [
-			{ commands: Semantics.IndexRange.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: PageArtifact(Header) },
-			{ commands: Semantics.IndexRange.from_start_and_length(1, 1), id: Scene.GroupId.from_index(1), owner: Fragment(Semantics.FragmentId.from_index(0)) },
+			{ commands: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), id: Scene.GroupId.from_index(0), owner: PageArtifact(Header) },
+			{ commands: Semantics.IndexRange.from_start_and_length({ start: 1, length: 1 }), id: Scene.GroupId.from_index(1), owner: Fragment(Semantics.FragmentId.from_index(0)) },
 		],
 		page_groups: [Scene.GroupId.from_index(0), Scene.GroupId.from_index(1)],
-		pages: [{ ..page, paint_order: Semantics.IndexRange.from_start_and_length(0, 2) }],
+		pages: [{ ..page, paint_order: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }) }],
 	}
-	artifact_scene = KernelScene.Plan.build(
-		artifact_store,
-		KernelScene.Resources.with_text({ color_spaces: 1, images: 0, text_runs: 1 }),
-		KernelScene.Limits.make({ max_commands: 2, max_dash_lengths: 0, max_graphics_depth: 1, max_groups: 2, max_pages: 1, max_path_segments: 0, max_paths: 0 }),
-	)?
+	artifact_scene = KernelScene.Plan.build(artifact_store, KernelScene.Resources.with_text({ color_spaces: 1, images: 0, text_runs: 1 }), KernelScene.Limits.make({ max_commands: 2, max_dash_lengths: 0, max_graphics_depth: 1, max_groups: 2, max_pages: 1, max_path_segments: 0, max_paths: 0 }))?
 	duplicate_rejected = match KernelTextOwnership.Plan.build(sample.semantic, duplicate_scene, sample.shape.store) {
 		Err(DuplicateRunOwnership({ run: 0 })) => True
 		_ => False

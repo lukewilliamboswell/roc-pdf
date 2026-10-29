@@ -89,7 +89,7 @@ Fixture :: [].{
 	defaults : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	defaults = |_context| {
 		contents = [Pdf.paragraph("Text inside a measured block.")]
-		panel = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 300, 80), sea)
+		panel = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 300, height: 80 }), color: sea })
 		blocks = [
 			Pdf.custom_block({ contents, inset: 8, name: "Default panel", size: { width: 300, height: 80 } }),
 			Pdf.custom_block({ contents, panel, name: "Default inset", size: { width: 300, height: 80 } }),
@@ -145,8 +145,8 @@ key_figures = Callout.key_figures(report_theme, { lines: ["Revenue: AUD 9.22 m (
 
 ## A 600 x 900 pt plan drawing (REP-A6b), scaled to fit.
 site_plan : Scene.Drawing
-site_plan = Scene.Drawing.empty.path(Scene.PathBuilder.start.rectangle(Layout.rect(4, 4, 592, 892)).finish(), Scene.solid_stroke(ink, 4))
-	.path(Scene.PathBuilder.start.rectangle(Layout.rect(60, 40, 480, 820)).finish(), Scene.solid_fill(sea))
+site_plan = Scene.Drawing.empty.path({ path: Scene.PathBuilder.start.rectangle(Layout.rect({ x: 4, y: 4, width: 592, height: 892 })).finish(), style: Scene.solid_stroke(ink, 4) })
+	.path({ path: Scene.PathBuilder.start.rectangle(Layout.rect({ x: 60, y: 40, width: 480, height: 820 })).finish(), style: Scene.solid_fill(sea) })
 
 supplier_row : U64 -> Pdf.Row
 supplier_row = |index| {
@@ -182,9 +182,9 @@ report_document = |context| {
 	title = if (context == 0) "Quarterly operations report" else "Quarterly operations report!"
 	contents = [
 		Pdf.title(title),
-		Pdf.rich_paragraph([Pdf.text("Q1 "), Pdf.expansion("FY2027", "financial year 2027"), Pdf.text(": July to September 2026 · Prepared by the Operations team, 12 October 2026")]),
+		Pdf.rich_paragraph([Pdf.text("Q1 "), Pdf.expansion({ text: "FY2027", expanded: "financial year 2027" }), Pdf.text(": July to September 2026 · Prepared by the Operations team, 12 October 2026")]),
 		Pdf.section([
-			Pdf.destination_heading("summary", 1, "1 Summary"),
+			Pdf.destination_heading({ name: "summary", level: 1, text: "1 Summary" }),
 			Pdf.rich_paragraph([Pdf.text("Revenue rose "), Pdf.strong([Pdf.text("5.0%")]), Pdf.text(" to AUD 9.22 million, led by "), Pdf.emphasis([Pdf.text("Queensland")]), Pdf.text(". Freight costs fell for the second quarter; see "), Pdf.inline_internal_link([Pdf.text("section 3, Supply chain")], "supply-chain"), Pdf.text(".")]),
 			Pdf.bullet_list([
 				Pdf.list_item([Pdf.paragraph("On-time delivery reached 96.4%.")]),
@@ -194,17 +194,17 @@ report_document = |context| {
 			key_figures,
 		]),
 		Pdf.section([
-			Pdf.destination_heading("supply-chain", 1, "3 Supply chain"),
+			Pdf.destination_heading({ name: "supply-chain", level: 1, text: "3 Supply chain" }),
 			Pdf.rich_paragraph([Pdf.text("Our partner "), Pdf.in_language("fr", [Pdf.text("Atelier Beaulieu")]), Pdf.text(" puts it simply: "), Pdf.quote([Pdf.in_language("fr", [Pdf.text("« Le bois demande de la patience. »")])]), Pdf.text(" (“Timber asks for patience.”)")]),
 			Pdf.figure({ drawing: site_plan, alt: "Plan of the Moonah yard: twelve drying bays inside the yard boundary.", caption: Pdf.caption("Figure 3. Moonah yard plan, scaled to fit."), fit: ScaleToFit({ minimum_percent: 50 }) }),
 		]),
 		Pdf.section([
-			Pdf.destination_heading("appendix-a", 1, "Appendix A. Supplier register"),
+			Pdf.destination_heading({ name: "appendix-a", level: 1, text: "Appendix A. Supplier register" }),
 			Pdf.paragraph("Suppliers active at the end of the quarter, with their spend in the quarter."),
 			supplier_table,
 		]),
 	]
-	page_of = Pdf.reserved_width(64, End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+	page_of = Pdf.reserved_width({ width: 64, align: End, contents: [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)] })
 	footer = Pdf.region({ end: [Pdf.furniture_text([page_of])], height: 16 })
 	Pdf.document({
 		contents,
@@ -389,7 +389,7 @@ rejects = |document, expected_code, expected_feature, expected_paths| match Pdf.
 }
 
 budget_rejects : Document, Pdf.ReportBudget -> U64
-budget_rejects = |document, budget| match Pdf.prepare_with_report_budget(document, options, budget) {
+budget_rejects = |document, budget| match Pdf.prepare_with_report_budget(document, { options: options, budget: budget }) {
 	Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, details: [], feature: Feature("report.budget_exceeded"), location: Document, stage: AuthoringValidation, .. }], truncation: Complete, .. })) => 1
 	_ => 0
 }
@@ -405,8 +405,8 @@ run_negatives = |context| {
 	lines = ["Revenue: AUD 9.22 m (+5.0%)", "On-time delivery: 96.4%"]
 	sized = |height, width| Callout.with_height(report_theme, { height: Layout.Unit.points(height + offset), lines, name: "Key figures", width: Layout.Unit.points(width) })
 	custom = |contents, inset, name, panel| Pdf.custom_block({ contents, inset: Layout.Unit.points(inset), name, panel, size: { height: 80, width: 300 } })
-	square = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 300, 80), sea)
-	image = Scene.Drawing.empty.image(Image.Source.rgb8({ alpha: NoAlpha, dimensions: { height: 1, width: 1 }, pixels: [200, 200, 200], row_stride: 3 }), Layout.rect(0, 0, 10, 10))
+	square = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 300, height: 80 }), color: sea })
+	image = Scene.Drawing.empty.image({ image: Image.Source.rgb8({ alpha: NoAlpha, dimensions: { height: 1, width: 1 }, pixels: [200, 200, 200], row_stride: 3 }), placement: Layout.rect({ x: 0, y: 0, width: 10, height: 10 }) })
 	lead_templates = {
 		continuation: Pdf.page_template({ gap: 12 }),
 		first: Pdf.first_page_template({ gap: 12, lead: Pdf.lead_region(120, [Pdf.paragraph("Letterhead"), key_figures]) }),
@@ -426,7 +426,7 @@ run_negatives = |context| {
 		rejects(document([Pdf.paragraph("Lead"), custom([Pdf.paragraph("Body"), Pdf.spacer(4), Pdf.paragraph("More")], 10, "Key figures", square)]), InvalidRelationship, "semantics.custom_block_content", ["contents[1]", "contents[1].contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), custom([Pdf.paragraph("Body")], 10, "", square)]), InvalidRelationship, "semantics.custom_block_name", ["contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), custom([Pdf.paragraph("Body")], 10, "Key figures", image)]), InvalidRelationship, "layout.custom_block_drawing", ["contents[1]"]),
-		rejects(document([Pdf.paragraph("Lead"), custom([Pdf.paragraph("Body")], 10, "Key figures", Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 320, 80), sea))]), InvalidRelationship, "layout.custom_block_drawing", ["contents[1]"]),
+		rejects(document([Pdf.paragraph("Lead"), custom([Pdf.paragraph("Body")], 10, "Key figures", Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 320, height: 80 }), color: sea }))]), InvalidRelationship, "layout.custom_block_drawing", ["contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), custom([], 10, "Key figures", square)]), InvalidRelationship, "semantics.empty_container", ["contents[1]"]),
 		rejects(document([Pdf.paragraph("Body")]).with_page_templates(lead_templates), InvalidRelationship, "semantics.custom_block_content", ["templates.first.lead.contents[1]"]),
 		rejects(document([Pdf.bullet_list([Pdf.list_item([Pdf.paragraph("Item"), valid])])]), InvalidRelationship, "semantics.list_item_content", ["contents[0].items[0].contents[1]"]),

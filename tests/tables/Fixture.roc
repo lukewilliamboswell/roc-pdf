@@ -518,11 +518,11 @@ ordered_document = |context| {
 register_faces : U64 -> Try({ policy : Font.PolicyId, registry : Font.Registry }, Fixture.EvidenceError)
 register_faces = |context| {
 	limits = if (context == 0) Font.ValidationLimits.default else Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })
-	latin = match Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits) {
+	latin = match Font.Registry.empty.register({ bytes: KernelBuiltInFont.bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: limits }) {
 		Err(_) => return Err(EvidenceFailure)
 		Ok(value) => value
 	}
-	cjk = match latin.registry.register(cjk_font_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] }, limits) {
+	cjk = match latin.registry.register({ bytes: cjk_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] }, limits: limits }) {
 		Err(_) => return Err(EvidenceFailure)
 		Ok(value) => value
 	}

@@ -546,10 +546,7 @@ add_page = |builder, names, resources, page_type, tabs_s, page, content, parent_
 	$entries = $entries.append({ key: names.tabs, value: tabs_s })
 	$entries = append_box($entries, names.trim_box, trim.value)
 	$entries = $entries.append({ key: names.type_name, value: page_type })
-	dictionary = KernelObject.add_dictionary(
-		trim.builder,
-		$entries,
-	) ? Object
+	dictionary = KernelObject.add_dictionary(trim.builder, $entries) ? Object
 	page_object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
 	ensure_object(page_object.id, planned.page)?
 	payload = KernelObject.add_payload(page_object.builder, content.bytes, Generated) ? Object

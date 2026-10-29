@@ -50,13 +50,13 @@ evidence = |count| {
 	if count == 0 or count > 20 {
 		return Err(InvalidScale)
 	}
-	registered = Font.Registry.empty.register(inter_bytes, { provision: BuiltIn, scripts: ["Latn"] }, Font.ValidationLimits.default) ? |_| FontFailure
+	registered = Font.Registry.empty.register({ bytes: inter_bytes, registration: { provision: BuiltIn, scripts: ["Latn"] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
 	face = registered.face
-	footer = |kind| Pdf.region({ height: 18, end: [Pdf.furniture_text([Pdf.text("${kind} "), Pdf.reserved_width(44, End, [Pdf.page_label]), Pdf.text(" | "), Pdf.page_number(Decimal), Pdf.text("/"), Pdf.total_pages(Decimal)])] })
-	header = Pdf.region({ height: 30, start: [Pdf.furniture_text([Pdf.reserved_width(400, Start, [Pdf.running_label])])] })
+	footer = |kind| Pdf.region({ height: 18, end: [Pdf.furniture_text([Pdf.text("${kind} "), Pdf.reserved_width({ width: 44, align: End, contents: [Pdf.page_label] }), Pdf.text(" | "), Pdf.page_number(Decimal), Pdf.text("/"), Pdf.total_pages(Decimal)])] })
+	header = Pdf.region({ height: 30, start: [Pdf.furniture_text([Pdf.reserved_width({ width: 400, align: Start, contents: [Pdf.running_label] })])] })
 	opening = Pdf.page_template({ footer: footer("OPEN"), gap: 8 })
 	continuation = Pdf.page_template({ footer: footer("CONT"), gap: 8, header })
-	var $contents = [Pdf.destination_heading("contents", 1, "Technical manual contents")]
+	var $contents = [Pdf.destination_heading({ name: "contents", level: 1, text: "Technical manual contents" })]
 	var $outline = [{ depth: 0, destination: "contents", open: True, title: "Contents" }]
 	var $chapter = 0
 	while $chapter < count {
@@ -85,7 +85,7 @@ evidence = |count| {
 			$row = $row + 1
 		}
 		body = [
-			Pdf.destination_heading(name, 1, "Procedure ${number.to_str()}"),
+			Pdf.destination_heading({ name: name, level: 1, text: "Procedure ${number.to_str()}" }),
 			Pdf.rich_paragraph([Pdf.text("Contents physical "), Pdf.page_reference({ destination: "contents", width: 24, numbering: Physical, align: Start }), Pdf.text("; final procedure label "), Pdf.page_reference({ destination: "chapter-${count.to_str()}", width: 44, numbering: PageLabel, align: Center }), Pdf.text("; final physical "), Pdf.page_reference({ destination: "chapter-${count.to_str()}", width: 24, numbering: Physical, align: End }), Pdf.text(".")]),
 			Pdf.callout({
 				name: "Procedure panel ${number.to_str()}",

@@ -125,7 +125,7 @@ Fixture :: [].{
 	repeated_segments_ordered : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	repeated_segments_ordered = |count| {
 		registered = Font.Registry.empty.register_built_in(Font.ValidationLimits.default) ? |_| EvidenceFailure
-		cjk = registered.registry.register(cjk_font_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] }, Font.ValidationLimits.default) ? |_| EvidenceFailure
+		cjk = registered.registry.register({ bytes: cjk_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] }, limits: Font.ValidationLimits.default }) ? |_| EvidenceFailure
 		configured = cjk.registry.with_policy([registered.face, cjk.face]) ? |_| EvidenceFailure
 		repeated_segment_evidence(count, Theme.{ font_selection: Policy(configured.policy) }, Policy({ policy: configured.policy, registry: configured.registry }))
 	}
@@ -305,7 +305,7 @@ identifier_ranges = |authoring, _shape, block, _sources| {
 	var $start = 0
 	while $start + needle.len() <= bytes.len() {
 		if bytes.sublist({ start: $start, len: needle.len() }) == needle {
-			return [Semantics.IndexRange.from_start_and_length($start, needle.len())]
+			return [Semantics.IndexRange.from_start_and_length({ start: $start, length: needle.len() })]
 		}
 		$start = $start + 1
 	}
@@ -343,11 +343,11 @@ run_code_holds = |count| {
 code_faces : U64 -> Try({ body : Font.FaceId, mono : Font.FaceId, registry : Font.Registry }, Fixture.EvidenceError)
 code_faces = |context| {
 	limits = if (context == 0) Font.ValidationLimits.default else Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })
-	body = match Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits) {
+	body = match Font.Registry.empty.register({ bytes: KernelBuiltInFont.bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: limits }) {
 		Err(_) => return Err(EvidenceFailure)
 		Ok(value) => value
 	}
-	mono = match body.registry.register(mono_font_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits) {
+	mono = match body.registry.register({ bytes: mono_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: limits }) {
 		Err(_) => return Err(EvidenceFailure)
 		Ok(value) => value
 	}
@@ -665,7 +665,7 @@ link_style_document = |count| {
 				Pdf.text(" and who signs it off."),
 			]),
 		)
-		$contents = $contents.append(Pdf.link("Status page ${number}", "https://status.example.org/${number}"))
+		$contents = $contents.append(Pdf.link({ text: "Status page ${number}", uri: "https://status.example.org/${number}" }))
 		$index = $index + 1
 	}
 	Pdf.document({ contents: $contents, language: "en-AU", title: "Link style" })
@@ -733,7 +733,7 @@ scoped_colors_document = |count, scoped| {
 	for block in nested {
 		$contents = $contents.append(block)
 	}
-	panel = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 300, 60), Color.srgb8({ blue: 220, green: 240, red: 250 }))
+	panel = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 300, height: 60 }), color: Color.srgb8({ blue: 220, green: 240, red: 250 }) })
 	callout = Pdf.custom_block({ contents: [Pdf.rich_paragraph([Pdf.strong([Pdf.text("Scoped callout.")]), Pdf.text(" Its label takes the scope's amber.")])], inset: 8, name: "Scoped callout", panel, size: { height: 60, width: 300 } })
 	for block in wrap(warning, [callout]) {
 		$contents = $contents.append(block)
@@ -747,7 +747,7 @@ scoped_text_document = |count, scoped| {
 	near_white = Color.srgb8({ blue: 245, green: 242, red: 240 })
 	dark = Theme.Scope.{ text: Themed(near_white), strong: Themed(amber), link: Themed(Color.srgb8({ blue: 250, green: 205, red: 125 })), code: Themed(near_white) }
 	slate = Theme.Scope.{ text: Themed(Color.srgb8({ blue: 105, green: 85, red: 70 })) }
-	panel = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 420, 40), Color.srgb8({ blue: 70, green: 40, red: 20 }))
+	panel = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 420, height: 40 }), color: Color.srgb8({ blue: 70, green: 40, red: 20 }) })
 	var $contents = List.with_capacity(count + 4)
 	for block in wrap(
 		slate,
@@ -844,10 +844,10 @@ mixed_document = |context| {
 	Pdf.document({
 		contents: [
 			Pdf.title("Quarterly summary${suffix}"),
-			Pdf.destination_heading("summary", 1, "1 Summary"),
+			Pdf.destination_heading({ name: "summary", level: 1, text: "1 Summary" }),
 			Pdf.rich_paragraph([
 				Pdf.text("Q1 "),
-				Pdf.expansion("FY2027", "financial year 2027"),
+				Pdf.expansion({ text: "FY2027", expanded: "financial year 2027" }),
 				Pdf.text(": July to September 2026 · Prepared by the finance team."),
 			]),
 			Pdf.rich_paragraph([
@@ -861,14 +861,14 @@ mixed_document = |context| {
 			]),
 			Pdf.rich_paragraph([
 				Pdf.text("Revenue is reported net of "),
-				Pdf.expansion("GST", "Goods and Services Tax"),
+				Pdf.expansion({ text: "GST", expanded: "Goods and Services Tax" }),
 				Pdf.text(". Stock counts come from the warehouse system "),
 				Pdf.code("WMS-7"),
 				Pdf.text(", which records every "),
 				Pdf.in_language("fr", [Pdf.text("Cafetière « Élégance »")]),
 				Pdf.text(" shipment."),
 			]),
-			Pdf.destination_heading("operations", 1, "3 Operations"),
+			Pdf.destination_heading({ name: "operations", level: 1, text: "3 Operations" }),
 			Pdf.rich_paragraph([
 				Pdf.text("Our oak supplier "),
 				Pdf.in_language("fr", [Pdf.text("Atelier Beaulieu")]),
@@ -913,7 +913,7 @@ paragraph_document = |count| {
 				Pdf.text(" growth in "),
 				Pdf.emphasis([Pdf.text("Queensland")]),
 				Pdf.text(" under "),
-				Pdf.expansion("GST", "Goods and Services Tax"),
+				Pdf.expansion({ text: "GST", expanded: "Goods and Services Tax" }),
 				Pdf.text(", supplied by "),
 				Pdf.in_language("fr", [Pdf.text("Atelier Beaulieu")]),
 				Pdf.text(", counted in "),
@@ -949,11 +949,11 @@ ordered_document = |context| {
 register_faces : U64 -> Try({ policy : Font.PolicyId, registry : Font.Registry }, Fixture.EvidenceError)
 register_faces = |context| {
 	limits = if (context == 0) Font.ValidationLimits.default else Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })
-	latin = match Font.Registry.empty.register(caller_font_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits) {
+	latin = match Font.Registry.empty.register({ bytes: caller_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: limits }) {
 		Err(_) => return Err(EvidenceFailure)
 		Ok(value) => value
 	}
-	cjk = match latin.registry.register(cjk_font_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] }, limits) {
+	cjk = match latin.registry.register({ bytes: cjk_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] }, limits: limits }) {
 		Err(_) => return Err(EvidenceFailure)
 		Ok(value) => value
 	}

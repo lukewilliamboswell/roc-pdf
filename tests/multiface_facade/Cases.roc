@@ -50,19 +50,11 @@ Registered := {
 
 register_faces : U64 -> Registered
 register_faces = |runtime_argument_count| {
-	latin = match Font.Registry.empty.register(
-		caller_font_bytes,
-		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
-		facade_limits(runtime_argument_count),
-	) {
+	latin = match Font.Registry.empty.register({ bytes: caller_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: facade_limits(runtime_argument_count) }) {
 		Err(_) => crash "multiface fixture Latin registration failed"
 		Ok(value) => value
 	}
-	cjk = match latin.registry.register(
-		cjk_font_bytes,
-		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] },
-		facade_limits(runtime_argument_count),
-	) {
+	cjk = match latin.registry.register({ bytes: cjk_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] }, limits: facade_limits(runtime_argument_count) }) {
 		Err(_) => crash "multiface fixture Han registration failed"
 		Ok(value) => value
 	}
@@ -80,19 +72,11 @@ register_faces = |runtime_argument_count| {
 
 register_negative_faces : U64 -> Registered
 register_negative_faces = |runtime_argument_count| {
-	latin = match Font.Registry.empty.register(
-		caller_font_bytes,
-		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
-		facade_limits(runtime_argument_count),
-	) {
+	latin = match Font.Registry.empty.register({ bytes: caller_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: facade_limits(runtime_argument_count) }) {
 		Err(_) => crash "multiface negative Latin registration failed"
 		Ok(value) => value
 	}
-	cjk = match latin.registry.register(
-		cjk_font_bytes,
-		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] },
-		facade_limits(runtime_argument_count),
-	) {
+	cjk = match latin.registry.register({ bytes: cjk_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] }, limits: facade_limits(runtime_argument_count) }) {
 		Err(_) => crash "multiface negative Han registration failed"
 		Ok(value) => value
 	}
@@ -213,19 +197,11 @@ unique_registries = |runtime_argument_count| {
 	first = register_faces(runtime_argument_count)
 	second_caller = copy_bytes(caller_font_bytes)
 	second_cjk = copy_bytes(cjk_font_bytes)
-	second_latin = match Font.Registry.empty.register(
-		second_caller,
-		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
-		facade_limits(runtime_argument_count),
-	) {
+	second_latin = match Font.Registry.empty.register({ bytes: second_caller, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: facade_limits(runtime_argument_count) }) {
 		Err(_) => crash "multiface unique-registry Latin registration failed"
 		Ok(value) => value
 	}
-	second_han = match second_latin.registry.register(
-		second_cjk,
-		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] },
-		facade_limits(runtime_argument_count),
-	) {
+	second_han = match second_latin.registry.register({ bytes: second_cjk, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] }, limits: facade_limits(runtime_argument_count) }) {
 		Err(_) => crash "multiface unique-registry Han registration failed"
 		Ok(value) => value
 	}

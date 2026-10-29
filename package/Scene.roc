@@ -79,20 +79,20 @@ Scene :: [].{
 		empty : Drawing
 		empty = Drawing.({ commands: [] })
 
-		path : Drawing, AuthorPath, AuthorPathStyle -> Drawing
-		path = |Drawing.(state), path_value, style| Drawing.({ commands: state.commands.append(AuthorPath({ path: path_value, style })) })
+		path : Drawing, { path : AuthorPath, style : AuthorPathStyle } -> Drawing
+		path = |Drawing.(state), { path: path_value, style }| Drawing.({ commands: state.commands.append(AuthorPath({ path: path_value, style })) })
 
 		## Place a replayable image source in drawing-local fixed-point geometry.
 		## Pixel dimensions remain independent of this authored display rectangle.
-		image : Drawing, Image.Source, Layout.Rect -> Drawing
-		image = |Drawing.(state), image_value, placement| Drawing.({ commands: state.commands.append(AuthorImage({ image: image_value, placement })) })
+		image : Drawing, { image : Image.Source, placement : Layout.Rect } -> Drawing
+		image = |Drawing.(state), { image: image_value, placement }| Drawing.({ commands: state.commands.append(AuthorImage({ image: image_value, placement })) })
 
 		## Append another drawing's commands as one group translated by
 		## `offset` in this drawing's coordinates. Groups nest; the nesting
 		## stays flat data, and a flow figure or decoration accepts at most
 		## eight nested groups.
-		group : Drawing, Layout.Point, Drawing -> Drawing
-		group = |Drawing.(state), offset, Drawing.(child)| {
+		group : Drawing, { offset : Layout.Point, drawing : Drawing } -> Drawing
+		group = |Drawing.(state), { offset, drawing: Drawing.(child) }| {
 			var $commands = state.commands.append(AuthorTranslate({ commands: child.commands.len(), offset }))
 			for command in child.commands {
 				$commands = $commands.append(command)
@@ -108,14 +108,14 @@ Scene :: [].{
 		## a chart title in the `Strong` face: `drawing.text_in(Strong,
 		## label)`. The label's face joins the document's output fonts even
 		## when no body text uses it.
-		text_in : Drawing, [Code, Emphasis, Quote, Strong], Label -> Drawing
-		text_in = |Drawing.(state), role, label| Drawing.({ commands: state.commands.append(AuthorText(Box.box({ face: RoleFace(role), label }))) })
+		text_in : Drawing, { role : [Code, Emphasis, Quote, Strong], label : Label } -> Drawing
+		text_in = |Drawing.(state), { role, label }| Drawing.({ commands: state.commands.append(AuthorText(Box.box({ face: RoleFace(role), label }))) })
 
 		## Append a solid filled rectangle: `Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 40, 2), ink)`.
-		rectangle : Drawing, Layout.Rect, Color.SourceValue -> Drawing
-		rectangle = |drawing_value, bounds, color| {
+		rectangle : Drawing, { bounds : Layout.Rect, color : Color.SourceValue } -> Drawing
+		rectangle = |drawing_value, { bounds, color }| {
 			path_value = PathBuilder.start.rectangle(bounds).finish()
-			drawing_value.path(path_value, { fill: AuthorSolidFill(color), stroke: AuthorNoStroke })
+			drawing_value.path({ path: path_value, style: { fill: AuthorSolidFill(color), stroke: AuthorNoStroke } })
 		}
 
 		command_count : Drawing -> U64

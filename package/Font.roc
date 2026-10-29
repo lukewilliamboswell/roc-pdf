@@ -221,8 +221,8 @@ Font :: [].{
 		empty : Registry
 		empty = Registry.({ inspections: [], store: empty_store })
 
-		register : Registry, List(U8), Registration, ValidationLimits -> Try({ face : FaceId, instance : InstanceId, policy : PolicyId, registry : Registry, work : RegistrationWork }, ResourceError)
-		register = |registry, bytes, registration, limits| register_font(registry, bytes, registration, limits)
+		register : Registry, { bytes : List(U8), registration : Registration, limits : ValidationLimits } -> Try({ face : FaceId, instance : InstanceId, policy : PolicyId, registry : Registry, work : RegistrationWork }, ResourceError)
+		register = |registry, { bytes, registration, limits }| register_font(registry, bytes, registration, limits)
 
 		## Register the package's built-in face, the face of `Theme.default`,
 		## as an ordinary registered face for the Latin script. Use it to put

@@ -584,7 +584,7 @@ Pdf :: [].{
 	## unless its `fit` is `ScaleToFit`; nothing is clipped or
 	## silently shrunk.
 	figure : FigureProps -> Document.Block
-	figure = |props| Document.fitted_figure(props.drawing, props.alt, props.caption, props.fit)
+	figure = |props| Document.fitted_figure(props.drawing, { alternative: props.alt, caption: props.caption, fit: props.fit })
 
 	## An in-flow decorative drawing, such as a divider rule: a `Decoration`
 	## page artifact outside the logical structure. It occupies its
@@ -708,8 +708,8 @@ Pdf :: [].{
 
 	## An abbreviation with its expansion: a `Span` whose `/E` is the
 	## expansion, such as `Pdf.expansion("GST", "Goods and Services Tax")`.
-	expansion : Str, Str -> Inline
-	expansion = |value, expanded| Document.expansion(value, expanded)
+	expansion : { text : Str, expanded : Str } -> Inline
+	expansion = |{ text: value, expanded }| Document.expansion({ text: value, expanded: expanded })
 
 	## A mandatory line break inside a rich paragraph. It paints nothing and
 	## must separate text: a break at either end of the paragraph or directly
@@ -790,19 +790,19 @@ Pdf :: [].{
 	custom_layout = |summary| Document.unavailable(CustomLayout, summary)
 
 	## A URI link block; the whole text is the link.
-	link : Str, Str -> Document.Block
-	link = |value, uri| Document.link(value, uri)
+	link : { text : Str, uri : Str } -> Document.Block
+	link = |{ text: value, uri }| Document.link({ text: value, uri: uri })
 
 	## An internal link block referencing an authored destination name.
-	internal_link : Str, Str -> Document.Block
-	internal_link = |value, destination| Document.internal_link(value, destination)
+	internal_link : { text : Str, destination : Str } -> Document.Block
+	internal_link = |{ text: value, destination }| Document.internal_link({ text: value, destination: destination })
 
 	## A heading that also declares a named destination.
-	destination_heading : Str, U8, Str -> Document.Block
-	destination_heading = |name, level, value| Document.destination_heading(name, level, value)
+	destination_heading : { name : Str, level : U8, text : Str } -> Document.Block
+	destination_heading = |{ name, level, text: value }| Document.destination_heading({ name: name, level: level, text: value })
 
-	destination_paragraph : Str, Str -> Document.Block
-	destination_paragraph = |name, value| Document.destination_paragraph(name, value)
+	destination_paragraph : { name : Str, text : Str } -> Document.Block
+	destination_paragraph = |{ name, text: value }| Document.destination_paragraph({ name: name, text: value })
 
 	## The first page's template. `lead` is a lead region of semantic blocks
 	## (such as a letterhead) or `no_lead`.
@@ -897,8 +897,8 @@ Pdf :: [].{
 	## Furniture content laid out in an exact width and aligned inside it,
 	## such as `Page N of M` in 64 pt. Each page's resolved content must fit
 	## the width, or preparation reports `layout.field_overflow`.
-	reserved_width : Layout.Unit, Align, List(Inline) -> Inline
-	reserved_width = |width, align, contents| Document.reserved_width(width, align, contents)
+	reserved_width : { width : Layout.Unit, align : Align, contents : List(Inline) } -> Inline
+	reserved_width = |{ width, align, contents }| Document.reserved_width({ width: width, align: align, contents: contents })
 
 	## The default profile is `Archive`: content follows the completed typed
 	## facade pipeline and passes static PDF/A-4 profile and lowered-plan
@@ -932,11 +932,11 @@ Pdf :: [].{
 	## default report budget of 65,536 entries and 4 MiB of text. The
 	## prepared document, and so its bytes, is identical to `prepare`'s.
 	prepare_with_report : Document, Options -> Try({ prepared : Prepared, report : Report }, Error)
-	prepare_with_report = |doc, options| prepare_with_report_budget(doc, options, default_report_budget)
+	prepare_with_report = |doc, options| prepare_with_report_budget(doc, { options, budget: default_report_budget })
 
 	## `prepare_with_report` under an explicit report budget.
-	prepare_with_report_budget : Document, Options, ReportBudget -> Try({ prepared : Prepared, report : Report }, Error)
-	prepare_with_report_budget = |doc, options, budget| {
+	prepare_with_report_budget : Document, { options : Options, budget : ReportBudget } -> Try({ prepared : Prepared, report : Report }, Error)
+	prepare_with_report_budget = |doc, { options, budget }| {
 		match Document.first_unavailable(doc) {
 			Available => {}
 			UnavailableFeature({ feature, summary }) => return Err(InvalidDocument(unavailable_batch(feature, summary)))
@@ -1034,33 +1034,9 @@ build_plan = |doc, options| {
 	base_fonts = selected_fonts(options)?
 	normalized = Document.normalize(doc)
 	pipeline = match enrich_source_fonts(base_fonts, options, normalized)? {
-		Single(font) => KernelFacadePipeline.Plan.build_with_facts(
-			normalized,
-			font,
-			options.theme,
-			layout_page_size(options.page_size),
-			standard_font_descriptor,
-			facts,
-			standard_pipeline_limits,
-		) ? |error| pipeline_error(error, doc)
-		Styled(styled) => KernelFacadePipeline.Plan.build_styled_with_facts(
-			normalized,
-			styled,
-			options.theme,
-			layout_page_size(options.page_size),
-			standard_font_descriptor,
-			facts,
-			standard_pipeline_limits,
-		) ? |error| pipeline_error(error, doc)
-		Ordered(ordered) => KernelFacadePipeline.Plan.build_ordered_with_facts(
-			normalized,
-			ordered,
-			options.theme,
-			layout_page_size(options.page_size),
-			standard_font_descriptor,
-			facts,
-			standard_pipeline_limits,
-		) ? |error| ordered_pipeline_error(error, ordered.policy, doc)
+		Single(font) => KernelFacadePipeline.Plan.build_with_facts(normalized, font, options.theme, layout_page_size(options.page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| pipeline_error(error, doc)
+		Styled(styled) => KernelFacadePipeline.Plan.build_styled_with_facts(normalized, styled, options.theme, layout_page_size(options.page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| pipeline_error(error, doc)
+		Ordered(ordered) => KernelFacadePipeline.Plan.build_ordered_with_facts(normalized, ordered, options.theme, layout_page_size(options.page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| ordered_pipeline_error(error, ordered.policy, doc)
 	}
 	output = KernelFacadePipeline.Plan.output(pipeline)
 	_text_work = KernelPdfA4.validate_text(claim, KernelFacadeOutput.Plan.text_facts(output)) ? |violation| InvalidDocument(profile_batch(violation, ProfileValidation))
@@ -1093,7 +1069,7 @@ measure_content = |options, contents, language, width| {
 	}
 	inset = Layout.Unit.from_raw(1)
 	probe = Pdf.document({
-		contents: [Pdf.custom_block({ contents, fragmentation: Unsplittable, inset, name: "measurement", panel: Scene.Drawing.empty.rectangle({ origin: { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) }, size: { height: Layout.Unit.from_raw(1), width: Layout.Unit.from_raw(1) } }, Color.srgb8({ blue: 0, green: 0, red: 0 })), size: { height: Layout.Unit.from_raw(3), width: Layout.Unit.from_raw(width.raw() + 2) } })],
+		contents: [Pdf.custom_block({ contents, fragmentation: Unsplittable, inset, name: "measurement", panel: Scene.Drawing.empty.rectangle({ bounds: { origin: { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) }, size: { height: Layout.Unit.from_raw(1), width: Layout.Unit.from_raw(1) } }, color: Color.srgb8({ blue: 0, green: 0, red: 0 }) }), size: { height: Layout.Unit.from_raw(3), width: Layout.Unit.from_raw(width.raw() + 2) } })],
 		language,
 		title: "Custom-block measurement",
 	})
@@ -1179,33 +1155,9 @@ build_reporting_plan = |doc, options| {
 	base_fonts = selected_fonts(options)?
 	normalized = Document.normalize(doc)
 	pipeline = match enrich_source_fonts(base_fonts, options, normalized)? {
-		Single(font) => KernelFacadePipeline.Plan.build_reporting(
-			normalized,
-			font,
-			options.theme,
-			layout_page_size(options.page_size),
-			standard_font_descriptor,
-			facts,
-			standard_pipeline_limits,
-		) ? |error| pipeline_error(error, doc)
-		Styled(styled) => KernelFacadePipeline.Plan.build_styled_reporting(
-			normalized,
-			styled,
-			options.theme,
-			layout_page_size(options.page_size),
-			standard_font_descriptor,
-			facts,
-			standard_pipeline_limits,
-		) ? |error| pipeline_error(error, doc)
-		Ordered(ordered) => KernelFacadePipeline.Plan.build_ordered_reporting(
-			normalized,
-			ordered,
-			options.theme,
-			layout_page_size(options.page_size),
-			standard_font_descriptor,
-			facts,
-			standard_pipeline_limits,
-		) ? |error| ordered_pipeline_error(error, ordered.policy, doc)
+		Single(font) => KernelFacadePipeline.Plan.build_reporting(normalized, font, options.theme, layout_page_size(options.page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| pipeline_error(error, doc)
+		Styled(styled) => KernelFacadePipeline.Plan.build_styled_reporting(normalized, styled, options.theme, layout_page_size(options.page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| pipeline_error(error, doc)
+		Ordered(ordered) => KernelFacadePipeline.Plan.build_ordered_reporting(normalized, ordered, options.theme, layout_page_size(options.page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| ordered_pipeline_error(error, ordered.policy, doc)
 	}
 	output = KernelFacadePipeline.Plan.output(pipeline)
 	_text_work = KernelPdfA4.validate_text(claim, KernelFacadeOutput.Plan.text_facts(output)) ? |violation| InvalidDocument(profile_batch(violation, ProfileValidation))
@@ -1219,10 +1171,7 @@ build_reporting_plan = |doc, options| {
 ## and a claimed plan is checked against the full static whitelist.
 validate_lowered_plan : KernelPdfA4.Claim, KernelXmp.Packet, KernelStructure.Plan -> Try({}, Pdf.Error)
 validate_lowered_plan = |claim, packet, plan| {
-	_work = KernelPdfA4.validate_lowered(
-		claim,
-		{ packet, root: KernelStructure.Plan.root(plan), sealed: KernelStructure.Plan.sealed(plan) },
-	) ? |violation| InvalidDocument(profile_batch(violation, LoweredPlanValidation))
+	_work = KernelPdfA4.validate_lowered(claim, { packet, root: KernelStructure.Plan.root(plan), sealed: KernelStructure.Plan.sealed(plan) }) ? |violation| InvalidDocument(profile_batch(violation, LoweredPlanValidation))
 	Ok({})
 }
 
@@ -1336,22 +1285,8 @@ pipeline_error = |error, doc| match error {
 	References(problem) => reference_error(doc, problem)
 	Fragments(Navigation(navigation)) => InvalidNavigation(navigation)
 	Output(Structure(Navigation(navigation))) => InvalidNavigation(navigation)
-	Semantics(ContainerDepthExceeded({ attempted, group, limit })) => InvalidDocument(
-		container_batch(
-			BudgetExceeded,
-			"semantics.container_depth",
-			"A container is nested ${attempted.to_str()} levels deep; the facade accepts at most ${limit.to_str()} nested part, section, and division levels.",
-			group_path(Document.normalize(doc).groups, group),
-		),
-	)
-	Semantics(EmptyContainer({ group })) => InvalidDocument(
-		container_batch(
-			InvalidRelationship,
-			"semantics.empty_container",
-			"A part, section, or division contains no semantic block; it would become an empty grouping element.",
-			group_path(Document.normalize(doc).groups, group),
-		),
-	)
+	Semantics(ContainerDepthExceeded({ attempted, group, limit })) => InvalidDocument(container_batch(BudgetExceeded, "semantics.container_depth", "A container is nested ${attempted.to_str()} levels deep; the facade accepts at most ${limit.to_str()} nested part, section, and division levels.", group_path(Document.normalize(doc).groups, group)))
+	Semantics(EmptyContainer({ group })) => InvalidDocument(container_batch(InvalidRelationship, "semantics.empty_container", "A part, section, or division contains no semantic block; it would become an empty grouping element.", group_path(Document.normalize(doc).groups, group)))
 	Semantics(HeadingSkip({ block, previous })) => located_error(doc, InvalidRelationship, "semantics.heading_skip", "A heading is more than one level deeper than the heading before it; heading levels must not skip a level.", [leaf_path(doc, previous), leaf_path(doc, block)])
 	Semantics(FigureAlternativeEmpty({ block })) => located_error(doc, InvalidRelationship, "document.figure_alternative_empty", "A figure's alternative text is empty; every figure needs alternative text that conveys what it communicates.", [leaf_path(doc, block)])
 	Semantics(FigureCaptionEmpty({ block })) => located_error(doc, InvalidRelationship, "document.figure_caption_empty", "A figure caption is empty; use no_caption for a figure without a visible caption.", [leaf_path(doc, block)])
@@ -2963,7 +2898,7 @@ expect {
 # through the public facade; a template that leaves no body line and a page
 # field in body text reject with their stable codes and paths.
 expect {
-	page_of = Pdf.reserved_width(Layout.Unit.points(72), End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+	page_of = Pdf.reserved_width({ width: Layout.Unit.points(72), align: End, contents: [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)] })
 	header = Pdf.region({ center: [], end: [Pdf.furniture_text([page_of])], height: Layout.Unit.points(16), start: [Pdf.furniture_text([Pdf.text("Running head")])] })
 	templates = |lead_height| {
 		continuation: Pdf.page_template({ footer: Pdf.no_region, gap: Layout.Unit.points(12), header }),
@@ -3200,10 +3135,10 @@ expect {
 	document = Pdf.document({
 		contents: [
 			Pdf.title("Navigation"),
-			Pdf.destination_heading("intro", 1, "Introduction"),
+			Pdf.destination_heading({ name: "intro", level: 1, text: "Introduction" }),
 			Pdf.paragraph("Opening body text."),
-			Pdf.link("Visit the project site", "https://example.org/project"),
-			Pdf.internal_link("Back to the introduction", "intro"),
+			Pdf.link({ text: "Visit the project site", uri: "https://example.org/project" }),
+			Pdf.internal_link({ text: "Back to the introduction", destination: "intro" }),
 		],
 		language: "en-AU",
 		title: "Navigation",
@@ -3221,9 +3156,9 @@ expect {
 expect {
 	document = Pdf.document({
 		contents: [
-			Pdf.destination_heading("start", 1, "Start"),
-			Pdf.internal_link("Back to the start", "start"),
-			Pdf.link("Reference", "https://example.org/ref"),
+			Pdf.destination_heading({ name: "start", level: 1, text: "Start" }),
+			Pdf.internal_link({ text: "Back to the start", destination: "start" }),
+			Pdf.link({ text: "Reference", uri: "https://example.org/ref" }),
 		],
 		language: "en-AU",
 		title: "Chunked navigation",
@@ -3241,7 +3176,7 @@ expect {
 # rejection through the facade, and no bytes escape.
 expect {
 	document = Pdf.document({
-		contents: [Pdf.internal_link("Broken", "missing")],
+		contents: [Pdf.internal_link({ text: "Broken", destination: "missing" })],
 		language: "en-AU",
 		title: "Broken",
 	})
@@ -3266,10 +3201,10 @@ archive_twin_document = {
 	})
 	Pdf.document({
 		contents: [
-			Pdf.destination_heading("start", 1, "Archive twins"),
-			Pdf.figure({ drawing: Scene.Drawing.empty.image(image, Layout.rect(0, 0, 120, 120)), alt: "A two by two translucent raster", caption: Pdf.no_caption }),
-			Pdf.link("Specification", "https://example.com/pdfa"),
-			Pdf.internal_link("Back to start", "start"),
+			Pdf.destination_heading({ name: "start", level: 1, text: "Archive twins" }),
+			Pdf.figure({ drawing: Scene.Drawing.empty.image({ image: image, placement: Layout.rect({ x: 0, y: 0, width: 120, height: 120 }) }), alt: "A two by two translucent raster", caption: Pdf.no_caption }),
+			Pdf.link({ text: "Specification", uri: "https://example.com/pdfa" }),
+			Pdf.internal_link({ text: "Back to start", destination: "start" }),
 		],
 		language: "en-AU",
 		title: "Archive twins",
@@ -3506,7 +3441,7 @@ expect {
 					Pdf.text("Revenue rose "),
 					Pdf.strong([Pdf.text("5.0%")]),
 					Pdf.text(" under "),
-					Pdf.expansion("GST", "Goods and Services Tax"),
+					Pdf.expansion({ text: "GST", expanded: "Goods and Services Tax" }),
 					Pdf.text(" at "),
 					Pdf.in_language("fr", [Pdf.text("Atelier Beaulieu")]),
 					Pdf.text("; see "),
@@ -4074,8 +4009,8 @@ set_at = |items, index, value| match items.set(index, value) {
 # leaf across groups, lists, a legacy bullet list, a table, a captioned
 # figure, flow items, and a custom block.
 expect {
-	mark = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 20, 20), Color.srgb8({ blue: 0, green: 0, red: 0 }))
-	panel = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 200, 60), Color.srgb8({ blue: 0, green: 0, red: 0 }))
+	mark = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 20, height: 20 }), color: Color.srgb8({ blue: 0, green: 0, red: 0 }) })
+	panel = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 200, height: 60 }), color: Color.srgb8({ blue: 0, green: 0, red: 0 }) })
 	doc = Pdf.document({
 		contents: [
 			Pdf.title("Paths"),
@@ -4183,7 +4118,7 @@ source_at = |items, index| match items.get(index) {
 
 page_label_test_document : Document.PageLabelStyle, Str, U64, Layout.Unit -> Document
 page_label_test_document = |style, prefix, start_number, width| {
-	footer = Pdf.region({ height: 16, end: [Pdf.furniture_text([Pdf.reserved_width(width, End, [Pdf.page_label])])] })
+	footer = Pdf.region({ height: 16, end: [Pdf.furniture_text([Pdf.reserved_width({ width: width, align: End, contents: [Pdf.page_label] })])] })
 	Pdf.document({
 		contents: [Pdf.paragraph("Body")],
 		language: "en-AU",
@@ -4223,7 +4158,7 @@ expect match Pdf.to_bytes(Pdf.document({ contents: [Pdf.rich_paragraph([Pdf.page
 # Fixed-width body references resolve from the same committed destination
 # pages used by navigation, and expose located preparation facts.
 expect {
-	doc = Pdf.document({ title: "Public destination references", language: "en", page_labels: [{ prefix: "P-", start_number: 1, start_page: 0, style: DecimalArabic }], contents: [Pdf.rich_paragraph([Pdf.text("Target page "), Pdf.page_reference({ destination: "target", width: 36, numbering: PageLabel })]), Pdf.page_break, Pdf.destination_heading("target", 1, "Target")] })
+	doc = Pdf.document({ title: "Public destination references", language: "en", page_labels: [{ prefix: "P-", start_number: 1, start_page: 0, style: DecimalArabic }], contents: [Pdf.rich_paragraph([Pdf.text("Target page "), Pdf.page_reference({ destination: "target", width: 36, numbering: PageLabel })]), Pdf.page_break, Pdf.destination_heading({ name: "target", level: 1, text: "Target" })] })
 	match Pdf.prepare_with_report(doc, Pdf.Options.default) {
 		Ok(value) => value.report.facts.outcomes.any(
 			|outcome| match outcome {
@@ -4238,7 +4173,7 @@ expect {
 # Unknown targets and final glyphs wider than the declared field reject
 # atomically at the authored reference inline.
 expect {
-	make = |name, width| Pdf.document({ title: "Rejected references", language: "en", contents: [Pdf.rich_paragraph([Pdf.text("See "), Pdf.page_reference({ destination: name, width })]), Pdf.destination_heading("target", 1, "Target")] })
+	make = |name, width| Pdf.document({ title: "Rejected references", language: "en", contents: [Pdf.rich_paragraph([Pdf.text("See "), Pdf.page_reference({ destination: name, width })]), Pdf.destination_heading({ name: "target", level: 1, text: "Target" })] })
 	check = |doc, code| match Pdf.to_bytes(doc) {
 		Err(InvalidDocument(batch)) => batch.diagnostics.any(|diagnostic| diagnostic.feature == Feature(code) and diagnostic.details == ["contents[0].inlines[1]"])
 		_ => False

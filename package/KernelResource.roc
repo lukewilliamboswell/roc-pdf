@@ -275,10 +275,7 @@ expect {
 }
 
 # A kind-order reversal is rejected before a plan can escape.
-expect match KernelResource.Plan.build(
-	[KernelResource.Entry.make(Font, 0), KernelResource.Entry.make(ColorSpace, 0)],
-	KernelResource.Limits.make({ max_entries: 2, max_name_bytes: 8 }),
-) {
+expect match KernelResource.Plan.build([KernelResource.Entry.make(Font, 0), KernelResource.Entry.make(ColorSpace, 0)], KernelResource.Limits.make({ max_entries: 2, max_name_bytes: 8 })) {
 	Err(NonMonotonicKind({ current: ColorSpace, index: 1, previous: Font })) => True
 	_ => False
 }
@@ -286,14 +283,8 @@ expect match KernelResource.Plan.build(
 # Duplicate, skipped, and nonzero-first identities are one dense-order error.
 expect {
 	limits = KernelResource.Limits.make({ max_entries: 2, max_name_bytes: 8 })
-	duplicate = KernelResource.Plan.build(
-		[KernelResource.Entry.make(Font, 0), KernelResource.Entry.make(Font, 0)],
-		limits,
-	)
-	skipped = KernelResource.Plan.build(
-		[KernelResource.Entry.make(Font, 0), KernelResource.Entry.make(Font, 2)],
-		limits,
-	)
+	duplicate = KernelResource.Plan.build([KernelResource.Entry.make(Font, 0), KernelResource.Entry.make(Font, 0)], limits)
+	skipped = KernelResource.Plan.build([KernelResource.Entry.make(Font, 0), KernelResource.Entry.make(Font, 2)], limits)
 	first = KernelResource.Plan.build([KernelResource.Entry.make(Font, 1)], limits)
 
 	match duplicate {

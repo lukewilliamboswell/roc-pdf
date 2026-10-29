@@ -36,10 +36,7 @@ expect {
 # A vector drawing is flow figure content: one tagged `Figure` owning its
 # drawing, with its alternative text.
 expect {
-	drawing = Scene.Drawing.empty.rectangle(
-		Layout.rect(0, 0, 120, 48),
-		Color.srgb8({ red: 20, green: 90, blue: 140 }),
-	)
+	drawing = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 120, height: 48 }), color: Color.srgb8({ red: 20, green: 90, blue: 140 }) })
 	document = Pdf.document({
 		contents: [Pdf.figure({ drawing: drawing, alt: "Blue panel", caption: Pdf.no_caption })],
 		language: "en",
@@ -61,7 +58,7 @@ expect {
 		pixels: [20, 90, 140, 240, 180, 40, 40, 160, 90, 245, 245, 240],
 		row_stride: 6,
 	})
-	drawing = Scene.Drawing.empty.image(image, Layout.rect(0, 0, 160, 90))
+	drawing = Scene.Drawing.empty.image({ image: image, placement: Layout.rect({ x: 0, y: 0, width: 160, height: 90 }) })
 	document = Pdf.document({
 		contents: [Pdf.figure({ drawing: drawing, alt: "Four-color editorial illustration", caption: Pdf.caption("Figure 1 — Palette study") })],
 		language: "en",
@@ -75,7 +72,7 @@ expect {
 # byte value exists; the facade never repairs, pads, or drops the image.
 expect {
 	bad_image = Image.Source.rgb8({ alpha: NoAlpha, dimensions: { height: 2, width: 2 }, pixels: [255, 0, 0], row_stride: 6 })
-	bad_drawing = Scene.Drawing.empty.image(bad_image, Layout.rect(0, 0, 120, 60))
+	bad_drawing = Scene.Drawing.empty.image({ image: bad_image, placement: Layout.rect({ x: 0, y: 0, width: 120, height: 60 }) })
 	bad_document = Pdf.document({ contents: [Pdf.figure({ drawing: bad_drawing, alt: "Malformed raster", caption: Pdf.no_caption })], language: "en", title: "Bad raster" })
 	empty_alt_document = Pdf.document({ contents: [Pdf.figure({ drawing: bad_drawing, alt: "", caption: Pdf.no_caption })], language: "en", title: "Missing alternative" })
 	bad_rejected = match Pdf.to_bytes(bad_document) {
@@ -95,10 +92,10 @@ expect {
 	document = Pdf.document({
 		contents: [
 			Pdf.title("Field guide"),
-			Pdf.destination_heading("habitat", 1, "Habitat"),
+			Pdf.destination_heading({ name: "habitat", level: 1, text: "Habitat" }),
 			Pdf.paragraph("Wetlands and coastal heath."),
-			Pdf.link("Atlas of Living Australia", "https://www.ala.org.au/"),
-			Pdf.internal_link("See the habitat notes", "habitat"),
+			Pdf.link({ text: "Atlas of Living Australia", uri: "https://www.ala.org.au/" }),
+			Pdf.internal_link({ text: "See the habitat notes", destination: "habitat" }),
 		],
 		language: "en-AU",
 		title: "Field guide",

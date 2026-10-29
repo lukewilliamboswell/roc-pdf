@@ -1183,58 +1183,30 @@ sfnt_checksum : U32
 sfnt_checksum = 0xb1b0afba
 
 # Unsupported program signatures are rejected before table parsing.
-expect match KernelFont.inspect(
-	[0x4f, 0x54, 0x54, 0x4f, 0, 0, 0, 0, 0, 0, 0, 0],
-	KernelFont.Limits.make({ max_bytes: 12, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 }),
-) {
+expect match KernelFont.inspect([0x4f, 0x54, 0x54, 0x4f, 0, 0, 0, 0, 0, 0, 0, 0], KernelFont.Limits.make({ max_bytes: 12, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })) {
 	Err(UnsupportedFontProgram(0x4f54544f)) => True
 	_ => False
 }
 
 # The byte budget rejects before inspecting an attacker-controlled header.
-expect match KernelFont.inspect(
-	[0, 1, 0, 0],
-	KernelFont.Limits.make({ max_bytes: 3, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 }),
-) {
+expect match KernelFont.inspect([0, 1, 0, 0], KernelFont.Limits.make({ max_bytes: 3, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })) {
 	Err(LimitExceeded({ attempted: 4, dimension: FontBytes, limit: 3 })) => True
 	_ => False
 }
 
 # A one-point simple glyph whose packed flag omits both coordinates is valid.
-expect validate_simple_glyph(
-	[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x31],
-	0,
-	15,
-	1,
-	0,
-	0,
-) == Ok({})
+expect validate_simple_glyph([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x31], 0, 15, 1, 0, 0) == Ok({})
 
 # Reserved simple-glyph flag bits are rejected within the glyph span.
-expect match validate_simple_glyph(
-	[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x80],
-	0,
-	15,
-	1,
-	7,
-	22,
-) {
+expect match validate_simple_glyph([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x80], 0, 15, 1, 7, 22) {
 	Err(InvalidGlyph({ glyph: 7, offset: 22 })) => True
 	_ => False
 }
 
 # Composite closure is acyclic and its actual depth fits maxp's declaration.
-expect validate_component_graph(
-	[{ child: 0, component_offset: 10, parent: 1 }, { child: 1, component_offset: 20, parent: 2 }],
-	3,
-	2,
-) == Ok({ edge_visits: 2 })
+expect validate_component_graph([{ child: 0, component_offset: 10, parent: 1 }, { child: 1, component_offset: 20, parent: 2 }], 3, 2) == Ok({ edge_visits: 2 })
 
-expect match validate_component_graph(
-	[{ child: 1, component_offset: 10, parent: 0 }, { child: 0, component_offset: 20, parent: 1 }],
-	2,
-	2,
-) {
+expect match validate_component_graph([{ child: 1, component_offset: 10, parent: 0 }, { child: 0, component_offset: 20, parent: 1 }], 2, 2) {
 	Err(CompositeCycle) => True
 	_ => False
 }
@@ -1245,11 +1217,7 @@ expect !valid_utf16be([0xd8, 0x00, 0x00, 0x41], { length: 4, offset: 0 })
 expect valid_postscript_utf16be([0x00, 0x46, 0x00, 0x6f, 0x00, 0x6e, 0x00, 0x74], { length: 8, offset: 0 })
 expect !valid_postscript_utf16be([0x00, 0x46, 0x00, 0x2f, 0x00, 0x31], { length: 6, offset: 0 })
 
-expect match validate_component_graph(
-	[{ child: 0, component_offset: 10, parent: 1 }, { child: 1, component_offset: 20, parent: 2 }],
-	3,
-	1,
-) {
+expect match validate_component_graph([{ child: 0, component_offset: 10, parent: 1 }, { child: 1, component_offset: 20, parent: 2 }], 3, 1) {
 	Err(CompositeDepthMismatch({ actual: 2, declared: 1 })) => True
 	_ => False
 }
@@ -1321,10 +1289,7 @@ append_u16 = |value, bytes| bytes.append((value // 256).to_u8_wrap()).append((va
 # the Windows UTF-16BE records still select the family, full, and
 # PostScript names (IBM Plex and JetBrains Mono ship such records).
 expect {
-	bytes = name_table_fixture(
-		[[1, 0, 0, 1, 3, 0], [3, 1, 0x0409, 1, 2, 3], [3, 1, 0x0409, 4, 2, 3], [3, 1, 0x0409, 6, 2, 3]],
-		['F', 'o', 'o', 0, 'F'],
-	)
+	bytes = name_table_fixture([[1, 0, 0, 1, 3, 0], [3, 1, 0x0409, 1, 2, 3], [3, 1, 0x0409, 4, 2, 3], [3, 1, 0x0409, 6, 2, 3]], ['F', 'o', 'o', 0, 'F'])
 	match inspect_names(bytes, { checksum: 0, length: bytes.len(), offset: 0, tag: tag_name }) {
 		Ok(names) => names.postscript_utf16be == { length: 2, offset: 57 }
 		Err(_) => False
@@ -1333,10 +1298,7 @@ expect {
 
 # A Windows (UTF-16BE) record of odd length is still malformed.
 expect {
-	bytes = name_table_fixture(
-		[[3, 1, 0x0409, 2, 3, 0], [3, 1, 0x0409, 1, 2, 0], [3, 1, 0x0409, 4, 2, 0], [3, 1, 0x0409, 6, 2, 0]],
-		[0, 'F', 0],
-	)
+	bytes = name_table_fixture([[3, 1, 0x0409, 2, 3, 0], [3, 1, 0x0409, 1, 2, 0], [3, 1, 0x0409, 4, 2, 0], [3, 1, 0x0409, 6, 2, 0]], [0, 'F', 0])
 	match inspect_names(bytes, { checksum: 0, length: bytes.len(), offset: 0, tag: tag_name }) {
 		Err(InvalidName) => True
 		_ => False
@@ -1345,10 +1307,7 @@ expect {
 
 # A Unicode-platform record of odd length is malformed.
 expect {
-	bytes = name_table_fixture(
-		[[0, 3, 0, 2, 1, 0], [3, 1, 0x0409, 1, 2, 0], [3, 1, 0x0409, 4, 2, 0], [3, 1, 0x0409, 6, 2, 0]],
-		[0, 'F'],
-	)
+	bytes = name_table_fixture([[0, 3, 0, 2, 1, 0], [3, 1, 0x0409, 1, 2, 0], [3, 1, 0x0409, 4, 2, 0], [3, 1, 0x0409, 6, 2, 0]], [0, 'F'])
 	match inspect_names(bytes, { checksum: 0, length: bytes.len(), offset: 0, tag: tag_name }) {
 		Err(InvalidName) => True
 		_ => False
@@ -1358,10 +1317,7 @@ expect {
 # An odd-length Macintosh record that runs past the string storage is
 # still rejected: the bounds check applies to every platform.
 expect {
-	bytes = name_table_fixture(
-		[[1, 0, 0, 1, 7, 0], [3, 1, 0x0409, 1, 2, 3], [3, 1, 0x0409, 4, 2, 3], [3, 1, 0x0409, 6, 2, 3]],
-		['F', 'o', 'o', 0, 'F'],
-	)
+	bytes = name_table_fixture([[1, 0, 0, 1, 7, 0], [3, 1, 0x0409, 1, 2, 3], [3, 1, 0x0409, 4, 2, 3], [3, 1, 0x0409, 6, 2, 3]], ['F', 'o', 'o', 0, 'F'])
 	match inspect_names(bytes, { checksum: 0, length: bytes.len(), offset: 0, tag: tag_name }) {
 		Err(InvalidName) => True
 		_ => False

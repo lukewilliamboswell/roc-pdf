@@ -14,7 +14,7 @@ import "fonts/SourceCodePro-Regular.ttf" as mono_bytes : List(U8)
 ## keep their own face, size, leading, and spacing throughout the document.
 main! = |_args| {
 	body = Font.Registry.empty.register_built_in(Font.ValidationLimits.default).map_err(|error| FontFailed(error))?
-	mono = body.registry.register(mono_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, Font.ValidationLimits.default).map_err(|error| FontFailed(error))?
+	mono = body.registry.register({ bytes: mono_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }).map_err(|error| FontFailed(error))?
 	options : Pdf.Options
 	options = { fonts: Registered(mono.registry), theme: { face: body.face } }
 	text = Str.join_with(["# Deployment recipe\nservice = billing\n\n    data = /var/lib/harbour/production/billing/exports/archive\n", Str.repeat("    workers = 4\n", 90), "\n# End of recipe\n"], "")

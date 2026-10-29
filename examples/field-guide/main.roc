@@ -52,7 +52,7 @@ register_fonts : {} -> Try(Faces, [FontRejected(Font.ResourceError)])
 register_fonts = |_| {
 	latin : List(Font.Script)
 	latin = ["Latn"]
-	add = |registry, bytes| registry.register(bytes, { provision: BuiltIn, scripts: latin }, Font.ValidationLimits.default).map_err(|err| FontRejected(err))
+	add = |registry, bytes| registry.register({ bytes: bytes, registration: { provision: BuiltIn, scripts: latin }, limits: Font.ValidationLimits.default }).map_err(|err| FontRejected(err))
 	regular = add(Font.Registry.empty, regular_bytes)?
 	bold = add(regular.registry, bold_bytes)?
 	italic = add(bold.registry, italic_bytes)?
@@ -108,23 +108,23 @@ theme = |faces| {
 wave_mark : Scene.Drawing
 wave_mark = {
 	wave = |y| Scene.PathBuilder.start
-		.move_to(Layout.point(1, y))
-		.cubic_to({ control_1: Layout.point(5, y + 5), control_2: Layout.point(9, y + 5), end: Layout.point(13, y) })
-		.cubic_to({ control_1: Layout.point(17, y - 5), control_2: Layout.point(21, y - 5), end: Layout.point(25, y) })
+		.move_to(Layout.point({ x: 1, y: y }))
+		.cubic_to({ control_1: Layout.point({ x: 5, y: y + 5 }), control_2: Layout.point({ x: 9, y: y + 5 }), end: Layout.point({ x: 13, y: y }) })
+		.cubic_to({ control_1: Layout.point({ x: 17, y: y - 5 }), control_2: Layout.point({ x: 21, y: y - 5 }), end: Layout.point({ x: 25, y: y }) })
 		.finish()
 	Scene.Drawing.empty
-		.path(wave(6), Scene.solid_stroke(coastal, 1.5))
-		.path(wave(12), Scene.solid_stroke(rgb(120, 170, 168), 1.5))
+		.path({ path: wave(6), style: Scene.solid_stroke(coastal, 1.5) })
+		.path({ path: wave(12), style: Scene.solid_stroke(rgb(120, 170, 168), 1.5) })
 }
 
 rule : Scene.Drawing
-rule = Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: 0.6, width: Layout.Unit.points(body_width) } }, rgb(120, 170, 168))
+rule = Scene.Drawing.empty.rectangle({ bounds: { origin: Layout.point({ x: 0, y: 0 }), size: { height: 0.6, width: Layout.Unit.points(body_width) } }, color: rgb(120, 170, 168) })
 
 footer : Pdf.Region
 footer = Pdf.region({
 	height: 14,
 	start: [Pdf.furniture_text([Pdf.text("Derwent Estuary Bird Group · 2026 edition")])],
-	end: [Pdf.furniture_text([Pdf.reserved_width(40, End, [Pdf.text("FG-"), Pdf.page_number(Decimal)])])],
+	end: [Pdf.furniture_text([Pdf.reserved_width({ width: 40, align: End, contents: [Pdf.text("FG-"), Pdf.page_number(Decimal)] })])],
 })
 
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
@@ -153,7 +153,7 @@ outline = [
 ## Drawing helpers.
 
 point : I64, I64 -> Layout.Point
-point = |x, y| Layout.point(x, y)
+point = |x, y| Layout.point({ x: x, y: y })
 
 ## An ellipse centred on (cx, cy) as four cubic arcs.
 ellipse : I64, I64, I64, I64 -> Scene.AuthorPath
@@ -180,7 +180,7 @@ line = |x1, y1, x2, y2| Scene.PathBuilder.start.move_to(point(x1, y1)).line_to(p
 habitat_section : Scene.Drawing
 habitat_section = {
 	w = body_width
-	sky = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, w, 190), rgb(226, 240, 244))
+	sky = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: w, height: 190 }), color: rgb(226, 240, 244) })
 	dune = Scene.PathBuilder.start
 		.move_to(point(0, 0))
 		.line_to(point(0, 120))
@@ -197,33 +197,33 @@ habitat_section = {
 		.line_to(point(w, 0))
 		.close()
 		.finish()
-	shallows = Scene.Drawing.empty.rectangle(Layout.rect(300, 0, w - 300, 48), rgb(70, 150, 160))
+	shallows = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 300, y: 0, width: w - 300, height: 48 }), color: rgb(70, 150, 160) })
 	var $scene = sky
-		.path(water, Scene.solid_fill(rgb(150, 205, 210)))
-		.group(point(0, 0), shallows)
-		.path(dune, Scene.solid_fill(sand))
+		.path({ path: water, style: Scene.solid_fill(rgb(150, 205, 210)) })
+		.group({ offset: point(0, 0), drawing: shallows })
+		.path({ path: dune, style: Scene.solid_fill(sand) })
 
 	## Marram grass tufts on the dune crest.
 	for x in [30, 52, 74, 96] {
 		$scene = $scene
-			.path(line(x, 136, x - 5, 152), Scene.solid_stroke(rgb(96, 128, 60), 1))
-			.path(line(x, 136, x, 156), Scene.solid_stroke(rgb(96, 128, 60), 1))
-			.path(line(x, 136, x + 5, 152), Scene.solid_stroke(rgb(96, 128, 60), 1))
+			.path({ path: line(x, 136, x - 5, 152), style: Scene.solid_stroke(rgb(96, 128, 60), 1) })
+			.path({ path: line(x, 136, x, 156), style: Scene.solid_stroke(rgb(96, 128, 60), 1) })
+			.path({ path: line(x, 136, x + 5, 152), style: Scene.solid_stroke(rgb(96, 128, 60), 1) })
 	}
 
 	# The high-tide line (dashed) and the low-tide line.
 	var $x = 184
 	while $x < w - 6 {
-		$scene = $scene.path(line($x, 72, $x + 6, 72), Scene.solid_stroke(coastal, 1))
+		$scene = $scene.path({ path: line($x, 72, $x + 6, 72), style: Scene.solid_stroke(coastal, 1) })
 		$x = $x + 10
 	}
-	$scene = $scene.path(line(300, 48, w - 2, 48), Scene.solid_stroke(rgb(12, 70, 80), 1))
+	$scene = $scene.path({ path: line(300, 48, w - 2, 48), style: Scene.solid_stroke(rgb(12, 70, 80), 1) })
 
 	## Feeding-zone brackets above the flats: oystercatcher (black), plover (rust), curlew (brown).
 	$scene = $scene
-		.group(point(150, 160), zone(rgb(20, 20, 20), 150))
-		.group(point(104, 172), zone(rgb(176, 72, 40), 80))
-		.group(point(240, 148), zone(rgb(120, 84, 50), 200))
+		.group({ offset: point(150, 160), drawing: zone(rgb(20, 20, 20), 150) })
+		.group({ offset: point(104, 172), drawing: zone(rgb(176, 72, 40), 80) })
+		.group({ offset: point(240, 148), drawing: zone(rgb(120, 84, 50), 200) })
 
 	## Zone names above their brackets and the tide lines' names.
 	label = |x, y, align, color, text| { align, color, origin: point(x, y), size: 7, text }
@@ -238,36 +238,36 @@ habitat_section = {
 
 	## Small birds at work on the flats.
 	$scene
-		.group(point(220, 60), oystercatcher_small)
-		.group(point(160, 78), plover_small)
-		.group(point(350, 50), curlew_small)
+		.group({ offset: point(220, 60), drawing: oystercatcher_small })
+		.group({ offset: point(160, 78), drawing: plover_small })
+		.group({ offset: point(350, 50), drawing: curlew_small })
 }
 
 zone : Color.SourceValue, I64 -> Scene.Drawing
 zone = |color, width| Scene.Drawing.empty
-	.path(Scene.PathBuilder.start.move_to(point(1, 0)).line_to(point(1, 6)).line_to(point(width - 1, 6)).line_to(point(width - 1, 0)).finish(), Scene.solid_stroke(color, 1.5))
+	.path({ path: Scene.PathBuilder.start.move_to(point(1, 0)).line_to(point(1, 6)).line_to(point(width - 1, 6)).line_to(point(width - 1, 0)).finish(), style: Scene.solid_stroke(color, 1.5) })
 
 oystercatcher_small : Scene.Drawing
 oystercatcher_small = Scene.Drawing.empty
-	.path(line(10, 1, 10, 10), Scene.solid_stroke(rgb(230, 130, 140), 1))
-	.path(line(14, 1, 14, 10), Scene.solid_stroke(rgb(230, 130, 140), 1))
-	.path(ellipse(12, 14, 9, 5), Scene.solid_fill(rgb(20, 20, 20)))
-	.path(ellipse(22, 19, 3, 3), Scene.solid_fill(rgb(20, 20, 20)))
-	.path(line(24, 19, 32, 16), Scene.solid_stroke(rgb(214, 70, 40), 1.5))
+	.path({ path: line(10, 1, 10, 10), style: Scene.solid_stroke(rgb(230, 130, 140), 1) })
+	.path({ path: line(14, 1, 14, 10), style: Scene.solid_stroke(rgb(230, 130, 140), 1) })
+	.path({ path: ellipse(12, 14, 9, 5), style: Scene.solid_fill(rgb(20, 20, 20)) })
+	.path({ path: ellipse(22, 19, 3, 3), style: Scene.solid_fill(rgb(20, 20, 20)) })
+	.path({ path: line(24, 19, 32, 16), style: Scene.solid_stroke(rgb(214, 70, 40), 1.5) })
 
 plover_small : Scene.Drawing
 plover_small = Scene.Drawing.empty
-	.path(line(7, 1, 7, 5), Scene.solid_stroke(ink, 0.8))
-	.path(ellipse(8, 8, 6, 3), Scene.solid_fill(rgb(200, 180, 150)))
-	.path(ellipse(14, 11, 2, 2), Scene.solid_fill(rgb(176, 72, 40)))
+	.path({ path: line(7, 1, 7, 5), style: Scene.solid_stroke(ink, 0.8) })
+	.path({ path: ellipse(8, 8, 6, 3), style: Scene.solid_fill(rgb(200, 180, 150)) })
+	.path({ path: ellipse(14, 11, 2, 2), style: Scene.solid_fill(rgb(176, 72, 40)) })
 
 curlew_small : Scene.Drawing
 curlew_small = Scene.Drawing.empty
-	.path(line(12, 1, 12, 12), Scene.solid_stroke(ink, 1))
-	.path(line(16, 1, 16, 12), Scene.solid_stroke(ink, 1))
-	.path(ellipse(14, 17, 11, 6), Scene.solid_fill(rgb(150, 112, 72)))
-	.path(ellipse(26, 23, 3, 3), Scene.solid_fill(rgb(150, 112, 72)))
-	.path(Scene.PathBuilder.start.move_to(point(28, 23)).cubic_to({ control_1: point(34, 22), control_2: point(38, 18), end: point(40, 12) }).finish(), Scene.solid_stroke(ink, 1))
+	.path({ path: line(12, 1, 12, 12), style: Scene.solid_stroke(ink, 1) })
+	.path({ path: line(16, 1, 16, 12), style: Scene.solid_stroke(ink, 1) })
+	.path({ path: ellipse(14, 17, 11, 6), style: Scene.solid_fill(rgb(150, 112, 72)) })
+	.path({ path: ellipse(26, 23, 3, 3), style: Scene.solid_fill(rgb(150, 112, 72)) })
+	.path({ path: Scene.PathBuilder.start.move_to(point(28, 23)).cubic_to({ control_1: point(34, 22), control_2: point(38, 18), end: point(40, 12) }).finish(), style: Scene.solid_stroke(ink, 1) })
 
 ## ---------------------------------------------------------------------
 ## Species plates: a large, labelled-by-caption silhouette on a tinted card.
@@ -280,20 +280,20 @@ bird = |{ bill, body, belly, height, leg, length }| {
 	ry = length // 4
 	head = length // 7
 	legs = Scene.Drawing.empty
-		.path(line(cx - 4, 2, cx - 2, cy - ry + 4), Scene.solid_stroke(leg, 2))
-		.path(line(cx + 5, 2, cx + 3, cy - ry + 4), Scene.solid_stroke(leg, 2))
+		.path({ path: line(cx - 4, 2, cx - 2, cy - ry + 4), style: Scene.solid_stroke(leg, 2) })
+		.path({ path: line(cx + 5, 2, cx + 3, cy - ry + 4), style: Scene.solid_stroke(leg, 2) })
 	legs
-		.path(ellipse(cx, cy, rx, ry), Scene.solid_fill(body))
-		.path(ellipse(cx + 2, cy - ry // 3, rx - 6, ry // 2), Scene.solid_fill(belly))
-		.path(ellipse(cx + rx - head // 2, cy + ry, head, head), Scene.solid_fill(body))
-		.path(ellipse(cx + rx - head // 2 + head // 3, cy + ry + head // 4, 2, 2), Scene.solid_fill(rgb(250, 250, 250)))
-		.path(bill, Scene.solid_fill(body))
+		.path({ path: ellipse(cx, cy, rx, ry), style: Scene.solid_fill(body) })
+		.path({ path: ellipse(cx + 2, cy - ry // 3, rx - 6, ry // 2), style: Scene.solid_fill(belly) })
+		.path({ path: ellipse(cx + rx - head // 2, cy + ry, head, head), style: Scene.solid_fill(body) })
+		.path({ path: ellipse(cx + rx - head // 2 + head // 3, cy + ry + head // 4, 2, 2), style: Scene.solid_fill(rgb(250, 250, 250)) })
+		.path({ path: bill, style: Scene.solid_fill(body) })
 }
 
 card : Scene.Drawing, Color.SourceValue, Str -> Scene.Drawing
-card = |figure, tint, name| Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 145, 130), tint)
-	.path(line(10, 18, 135, 18), Scene.solid_stroke(sand, 2))
-	.group(point(18, 16), figure)
+card = |figure, tint, name| Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 145, height: 130 }), color: tint })
+	.path({ path: line(10, 18, 135, 18), style: Scene.solid_stroke(sand, 2) })
+	.group({ offset: point(18, 16), drawing: figure })
 	.text({ align: Center, color: ink, origin: point(72, 5), size: 8, text: name })
 
 oystercatcher_plate : Scene.Drawing
@@ -301,7 +301,7 @@ oystercatcher_plate = {
 	## Body 80 pt long; the bill leaves the head at (95, 76).
 	bill = Scene.PathBuilder.start.move_to(point(88, 78)).line_to(point(116, 74)).line_to(point(88, 72)).close().finish()
 	base = bird({ bill, body: rgb(22, 22, 24), belly: rgb(246, 246, 244), height: 36, leg: rgb(228, 128, 138), length: 80 })
-	base.path(Scene.PathBuilder.start.move_to(point(88, 78)).line_to(point(116, 74)).line_to(point(88, 72)).close().finish(), Scene.solid_fill(rgb(222, 72, 36)))
+	base.path({ path: Scene.PathBuilder.start.move_to(point(88, 78)).line_to(point(116, 74)).line_to(point(88, 72)).close().finish(), style: Scene.solid_fill(rgb(222, 72, 36)) })
 }
 
 plover_plate : Scene.Drawing
@@ -311,8 +311,8 @@ plover_plate = {
 
 	## The rufous cap and the dark shoulder patch.
 	base
-		.path(ellipse(54, 58, 7, 3), Scene.solid_fill(rgb(182, 74, 38)))
-		.path(ellipse(46, 40, 3, 6), Scene.solid_fill(rgb(40, 40, 40)))
+		.path({ path: ellipse(54, 58, 7, 3), style: Scene.solid_fill(rgb(182, 74, 38)) })
+		.path({ path: ellipse(46, 40, 3, 6), style: Scene.solid_fill(rgb(40, 40, 40)) })
 }
 
 curlew_plate : Scene.Drawing
@@ -329,9 +329,9 @@ curlew_plate = {
 
 plates : Scene.Drawing
 plates = Scene.Drawing.empty
-	.group(point(0, 0), card(oystercatcher_plate, rgb(236, 243, 242), "Pied oystercatcher"))
-	.group(point(157, 0), card(plover_plate, rgb(244, 238, 230), "Red-capped plover"))
-	.group(point(314, 0), card(curlew_plate, rgb(240, 236, 228), "Far Eastern curlew"))
+	.group({ offset: point(0, 0), drawing: card(oystercatcher_plate, rgb(236, 243, 242), "Pied oystercatcher") })
+	.group({ offset: point(157, 0), drawing: card(plover_plate, rgb(244, 238, 230), "Red-capped plover") })
+	.group({ offset: point(314, 0), drawing: card(curlew_plate, rgb(240, 236, 228), "Far Eastern curlew") })
 
 ## ---------------------------------------------------------------------
 ## A callout following `tests/custom_block/Callout.roc`: paragraphs that
@@ -380,7 +380,7 @@ callout_panel = |size| {
 		.cubic_to({ control_1: at(left, bottom + r - k), control_2: at(left + r - k, bottom), end: at(left + r, bottom) })
 		.close()
 		.finish()
-	Scene.Drawing.empty.path(outline_path, { fill: AuthorSolidFill(rgb(246, 241, 228)), stroke: AuthorSolidStroke({ color: rgb(200, 170, 110), width: 1 }) })
+	Scene.Drawing.empty.path({ path: outline_path, style: { fill: AuthorSolidFill(rgb(246, 241, 228)), stroke: AuthorSolidStroke({ color: rgb(200, 170, 110), width: 1 }) } })
 }
 
 ## A thin sand-coloured rule with a centred wave, set 6 pt below the
@@ -388,9 +388,9 @@ callout_panel = |size| {
 divider : Document.Block
 divider = Pdf.decoration({
 	drawing: Scene.Drawing.empty
-		.path(line(1, 7, 210, 7), Scene.solid_stroke(sand, 1))
-		.group(point(217, 0), wave_mark)
-		.path(line(249, 7, body_width - 1, 7), Scene.solid_stroke(sand, 1)),
+		.path({ path: line(1, 7, 210, 7), style: Scene.solid_stroke(sand, 1) })
+		.group({ offset: point(217, 0), drawing: wave_mark })
+		.path({ path: line(249, 7, body_width - 1, 7), style: Scene.solid_stroke(sand, 1) }),
 	above: 6,
 })
 
@@ -511,7 +511,7 @@ body = |windows, etiquette| [
 	]),
 	Pdf.figure({ drawing: habitat_section, alt: "Cross-section of the estuary from a grassy dune crest down across sand flats to the channel, with a dashed high-tide line and a solid low-tide line. Brackets above the flats mark where oystercatchers, red-capped plovers, and curlews feed, and a small bird of each species is shown in its zone.", caption: Pdf.caption("Figure 1. From dune to channel: where each species feeds"), fit: ScaleToFit({ minimum_percent: 60 }) }),
 	Pdf.section([
-		Pdf.destination_heading("habitat", 1, "Reading the estuary"),
+		Pdf.destination_heading({ name: "habitat", level: 1, text: "Reading the estuary" }),
 		Pdf.rich_paragraph([
 			Pdf.text("Shorebirds follow the tide. Most feed on the "),
 			Pdf.emphasis([Pdf.text("falling")]),
@@ -527,7 +527,7 @@ body = |windows, etiquette| [
 		windows,
 	]),
 	Pdf.section([
-		Pdf.destination_heading("kit", 1, "Before you go"),
+		Pdf.destination_heading({ name: "kit", level: 1, text: "Before you go" }),
 		Pdf.bullet_list([
 			Pdf.list_item([Pdf.rich_paragraph([Pdf.strong([Pdf.text("Tide table")]), Pdf.text(": the Hobart port times, plus about 20 minutes for the inner flats.")])]),
 			Pdf.list_item([Pdf.rich_paragraph([Pdf.strong([Pdf.text("Optics")]), Pdf.text(": 8 × 42 binoculars for the roost, and a telescope for the far channel edge.")])]),
@@ -538,54 +538,42 @@ body = |windows, etiquette| [
 	]),
 	Pdf.page_break,
 	Pdf.section([
-		Pdf.destination_heading("species", 1, "Species accounts"),
+		Pdf.destination_heading({ name: "species", level: 1, text: "Species accounts" }),
 		Pdf.paragraph("Each plate below is drawn to the same scale, so relative size is a first clue. Compare bill shape next: it tells you how, and where, a bird feeds."),
 		Pdf.figure({ drawing: plates, alt: "Three bird silhouettes on tinted cards, drawn to scale. Left: a black-and-white oystercatcher with a long straight orange-red bill and pink legs. Centre: a small pale plover with a rust cap and a short bill. Right: a large brown curlew with a very long down-curved bill.", caption: Pdf.caption("Figure 2. Plates to scale: pied oystercatcher, red-capped plover, and Far Eastern curlew") }),
 		divider,
 		Pdf.section([
-			Pdf.destination_heading("oystercatcher", 2, "Pied oystercatcher"),
+			Pdf.destination_heading({ name: "oystercatcher", level: 2, text: "Pied oystercatcher" }),
 			Pdf.rich_paragraph([
 				Pdf.text("A bold black-and-white wader that feeds in pairs across the open flats. Its all-black cousin, the sooty oystercatcher, prefers rocky shores. Compare the "),
 				Pdf.inline_internal_link([Pdf.text("curlew")], "curlew"),
 				Pdf.text(", which shares the flats but probes deeper."),
 			]),
-			id_list(
-				[Pdf.text("42 to 50 cm; the largest black-and-white bird on the flats.")],
-				[Pdf.text("long straight "), Pdf.emphasis([Pdf.text("orange-red")]), Pdf.text(" bill, red eye-ring, pink legs.")],
-				[Pdf.text("a loud, piping "), Pdf.quote([Pdf.text("“kleep kleep”")]), Pdf.text(" when disturbed.")],
-			),
+			id_list([Pdf.text("42 to 50 cm; the largest black-and-white bird on the flats.")], [Pdf.text("long straight "), Pdf.emphasis([Pdf.text("orange-red")]), Pdf.text(" bill, red eye-ring, pink legs.")], [Pdf.text("a loud, piping "), Pdf.quote([Pdf.text("“kleep kleep”")]), Pdf.text(" when disturbed.")]),
 		]),
 		divider,
 		Pdf.section([
-			Pdf.destination_heading("plover", 2, "Red-capped plover"),
+			Pdf.destination_heading({ name: "plover", level: 2, text: "Red-capped plover" }),
 			Pdf.rich_paragraph([
 				Pdf.text("A tiny, fast-running plover that nests in a bare scrape on the upper beach. Eggs and chicks are almost invisible against the sand, so follow the "),
 				Pdf.inline_internal_link([Pdf.text("field etiquette")], "survey"),
 				Pdf.text(" closely during the nesting season."),
 			]),
-			id_list(
-				[Pdf.text("14 to 16 cm; smaller than a sparrow.")],
-				[Pdf.text("pale grey-brown above, white below; adult males have a "), Pdf.emphasis([Pdf.text("rufous")]), Pdf.text(" cap and a dark bar across the shoulder.")],
-				[Pdf.text("a thin, sharp "), Pdf.quote([Pdf.text("“tik”")]), Pdf.text(" as it runs ahead of you.")],
-			),
+			id_list([Pdf.text("14 to 16 cm; smaller than a sparrow.")], [Pdf.text("pale grey-brown above, white below; adult males have a "), Pdf.emphasis([Pdf.text("rufous")]), Pdf.text(" cap and a dark bar across the shoulder.")], [Pdf.text("a thin, sharp "), Pdf.quote([Pdf.text("“tik”")]), Pdf.text(" as it runs ahead of you.")]),
 		]),
 		divider,
 		Pdf.section([
-			Pdf.destination_heading("curlew", 2, "Far Eastern curlew"),
+			Pdf.destination_heading({ name: "curlew", level: 2, text: "Far Eastern curlew" }),
 			Pdf.rich_paragraph([
 				Pdf.text("The world's largest shorebird, and an endangered migrant that flies from breeding grounds in Siberia each September. It is wary: record it from a distance and never approach a roost. Unlike the "),
 				Pdf.inline_internal_link([Pdf.text("oystercatcher")], "oystercatcher"),
 				Pdf.text(", it feeds alone."),
 			]),
-			id_list(
-				[Pdf.text("53 to 66 cm; the bill alone can reach 18 cm.")],
-				[Pdf.text("streaked brown all over, with a very long "), Pdf.emphasis([Pdf.text("down-curved")]), Pdf.text(" bill.")],
-				[Pdf.text("a mournful, rising "), Pdf.quote([Pdf.text("“cur-lee”")]), Pdf.text(" carried across the water.")],
-			),
+			id_list([Pdf.text("53 to 66 cm; the bill alone can reach 18 cm.")], [Pdf.text("streaked brown all over, with a very long "), Pdf.emphasis([Pdf.text("down-curved")]), Pdf.text(" bill.")], [Pdf.text("a mournful, rising "), Pdf.quote([Pdf.text("“cur-lee”")]), Pdf.text(" carried across the water.")]),
 		]),
 	]),
 	Pdf.section([
-		Pdf.keep_with_next(Required, Pdf.destination_heading("survey", 1, "Running a survey")),
+		Pdf.keep_with_next(Required, Pdf.destination_heading({ name: "survey", level: 1, text: "Running a survey" })),
 		Pdf.rich_paragraph([
 			Pdf.text("Counts are held on the second Sunday of each month, starting one hour before high tide. Enter your results in the national database with the site code "),
 			Pdf.code("DERW-04"),
@@ -609,7 +597,7 @@ body = |windows, etiquette| [
 		etiquette,
 	]),
 	Pdf.section([
-		Pdf.keep_with_next(Required, Pdf.destination_heading("checklist", 1, "Survey checklist")),
+		Pdf.keep_with_next(Required, Pdf.destination_heading({ name: "checklist", level: 1, text: "Survey checklist" })),
 		Pdf.rich_paragraph([
 			Pdf.text("The species most often recorded on the estuary. Status follows the national threatened species list; see "),
 			Pdf.inline_link([Pdf.text("the Atlas of Living Australia")], "https://www.ala.org.au/"),

@@ -43,10 +43,7 @@ validated_work = |_| {
 
 fixture_font : {} -> Try(KernelFont.Inspection, EvidenceFailure)
 fixture_font = |_| {
-	font = KernelFont.inspect(
-		built_in_font_bytes,
-		KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }),
-	) ? |_| EvidenceFailure
+	font = KernelFont.inspect(built_in_font_bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
 	Ok(font)
 }
 

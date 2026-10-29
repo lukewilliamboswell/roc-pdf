@@ -240,11 +240,7 @@ prepare_deflate = |bytes, level| {
 next_segment : KernelEmit.Encoder -> Try(KernelEmit.Step, KernelEmit.Error)
 next_segment = |encoder| match encoder.phase {
 	Finished => Ok(Done)
-	Header => emit_generated(
-		encoder,
-		append_pdf_header([]),
-		Object(0),
-	)
+	Header => emit_generated(encoder, append_pdf_header([]), Object(0))
 	Object(index) => emit_object(encoder, index)
 	Payload(payload) => {
 		next_plan = match payload.release {
@@ -258,18 +254,10 @@ next_segment = |encoder| match encoder.phase {
 			emit_bytes(next_encoder, payload.bytes, payload.ownership)
 		}
 	}
-	StreamSuffix(next_object) => emit_generated(
-		encoder,
-		append_stream_suffix([]),
-		next_object_phase(encoder.plan, next_object),
-	)
+	StreamSuffix(next_object) => emit_generated(encoder, append_stream_suffix([]), next_object_phase(encoder.plan, next_object))
 	XrefPrefix => emit_xref_prefix(encoder)
 	XrefPayload(state) => emit_bytes(encoder_with_phase(encoder, XrefSuffix(state.xref_offset)), state.bytes, Generated)
-	XrefSuffix(xref_offset) => emit_generated(
-		encoder,
-		append_xref_suffix([], xref_offset),
-		Finished,
-	)
+	XrefSuffix(xref_offset) => emit_generated(encoder, append_xref_suffix([], xref_offset), Finished)
 }
 
 emit_object : KernelEmit.Encoder, U64 -> Try(KernelEmit.Step, KernelEmit.Error)
@@ -1237,10 +1225,7 @@ expect {
 	object_id = KernelObject.ObjectId.from_number(1)?
 	reference = KernelObject.add_reference(text.builder, object_id)?
 	array = KernelObject.add_array(reference.builder, [null.id, boolean.id, integer.id, real.id, name.id, bytes.id, text.id, reference.id])?
-	dictionary = KernelObject.add_dictionary(
-		array.builder,
-		[{ key: a_key.id, value: array.id }, { key: b_key.id, value: text.id }],
-	)?
+	dictionary = KernelObject.add_dictionary(array.builder, [{ key: a_key.id, value: array.id }, { key: b_key.id, value: text.id }])?
 	object = KernelObject.add_object(dictionary.builder, dictionary.id)?
 	sealed = KernelSeal.seal(object.builder)?
 	store = KernelSeal.Plan.store(sealed)
@@ -1305,12 +1290,7 @@ expect {
 	filter = KernelObject.add_name(KernelObject.init(emission_test_limits), Str.to_utf8("Filter"))?
 	null = KernelObject.add_null(filter.builder)?
 	payload = KernelObject.add_payload(null.builder, [], Generated)?
-	stream_object = KernelObject.add_stream_object(
-		payload.builder,
-		[{ key: filter.id, value: null.id }],
-		Unfiltered,
-		payload.id,
-	)?
+	stream_object = KernelObject.add_stream_object(payload.builder, [{ key: filter.id, value: null.id }], Unfiltered, payload.id)?
 	stream = list_at(stream_object.builder.store.streams, 0)
 
 	reserved_stream_key(stream_object.builder.store, stream.dictionary) == Reserved(filter.id)

@@ -325,10 +325,10 @@ KernelFacadeShape :: [].{
 
 ## The placeholder every block's runs start from; each block overwrites it.
 unset_block_runs : KernelFacadeShape.BlockRuns
-unset_block_runs = TextBlock({ body: { physical: Semantics.IndexRange.from_start_and_length(0, 0) }, label: NoLabel, level: 0 })
+unset_block_runs = TextBlock({ body: { physical: Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 }) }, label: NoLabel, level: 0 })
 
 logical_run_single : Text.RunId -> KernelFacadeShape.LogicalRun
-logical_run_single = |run| { physical: Semantics.IndexRange.from_start_and_length(run.index(), 1) }
+logical_run_single = |run| { physical: Semantics.IndexRange.from_start_and_length({ start: run.index(), length: 1 }) }
 
 build_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), KernelFont.Inspection, Theme, KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
 build_plan = |authoring, owners, store, source_store, font, theme, limits| {
@@ -347,16 +347,13 @@ build_plan = |authoring, owners, store, source_store, font, theme, limits| {
 		KernelShape.shape_selected_batch([font], source_store, { direction: LeftToRight, language: preparation.options.language, writing_mode: Horizontal }, single_face_requests(preparation), limits.shape)
 	}
 	shape = match shaped {
-		Err(_) => return Err(
-			match locate_text_failure(authoring, preparation, store, source_store, [single_face_rules(font)], |_| 0) {
+		Err(_) => return Err(match locate_text_failure(authoring, preparation, store, source_store, [single_face_rules(font)], |_| 0) {
 				Located(located) => located
 				NotLocated => ShapeFailure
-			},
-		)
+			})
 		Ok(value) => value
 	}
-	Ok(
-		KernelFacadeShape.Plan.{
+	Ok(KernelFacadeShape.Plan.{
 			block_runs: preparation.block_runs,
 			origins: request_origins(preparation.ranges),
 			requests: preparation.requests,
@@ -373,8 +370,7 @@ build_plan = |authoring, owners, store, source_store, font, theme, limits| {
 				script_run_visits: shape.work.script_run_visits,
 				source_bytes: shape.work.utf8_bytes,
 			},
-		},
-	)
+		})
 }
 
 build_styled_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), KernelFacadeShape.StyledFaces, Theme, KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
@@ -429,16 +425,13 @@ build_styled_plan = |authoring, owners, store, source_store, styled, theme, limi
 		Ok(value) => value
 		Err(_) => {
 			rules = styled.fonts.map(|font| single_face_rules(font))
-			return Err(
-				match locate_text_failure(authoring, preparation, store, source_store, rules, |request| list_at(candidates, request)) {
+			return Err(match locate_text_failure(authoring, preparation, store, source_store, rules, |request| list_at(candidates, request)) {
 					Located(located) => located
 					NotLocated => ShapeFailure
-				},
-			)
+				})
 		}
 	}
-	Ok(
-		KernelFacadeShape.Plan.{
+	Ok(KernelFacadeShape.Plan.{
 			block_runs: preparation.block_runs,
 			origins: request_origins(preparation.ranges),
 			requests: preparation.requests,
@@ -455,8 +448,7 @@ build_styled_plan = |authoring, owners, store, source_store, styled, theme, limi
 				script_run_visits: shape.work.script_run_visits,
 				source_bytes: shape.work.utf8_bytes,
 			},
-		},
-	)
+		})
 }
 
 ## A source document retains ordinary paragraph preparation while expanding
@@ -511,11 +503,11 @@ build_source_styled = |authoring, preparation, store, sources, styled, candidate
 						}
 						alias = if (is_source) list_at(analysis.script_runs, $script).script else "Latn"
 						if stop <= $cursor or (is_source and !declared_script(alias)) {
-							return Err(UnsupportedText({ block: $block, inline: NoInline, reason: Script(alias), scalars: Semantics.IndexRange.from_start_and_length($cursor - range.clusters.start(), if (stop > $cursor) stop - $cursor else 1) }))
+							return Err(UnsupportedText({ block: $block, inline: NoInline, reason: Script(alias), scalars: Semantics.IndexRange.from_start_and_length({ start: $cursor - range.clusters.start(), length: if (stop > $cursor) stop - $cursor else 1 }) }))
 						}
 						check_limit_requests($requests.len() + 1, limits.max_requests)?
 						$requests = $requests.append(original)
-						$selected = $selected.append({ clusters: Semantics.IndexRange.from_start_and_length($cursor, stop - $cursor), instance, language: range.language, occurrence: original.occurrence, script: Font.Script.from_iso15924(alias), size: original.size, source: original.source })
+						$selected = $selected.append({ clusters: Semantics.IndexRange.from_start_and_length({ start: $cursor, length: stop - $cursor }), instance, language: range.language, occurrence: original.occurrence, script: Font.Script.from_iso15924(alias), size: original.size, source: original.source })
 						$styles = $styles.append(style)
 						$origins = $origins.append(range.origin)
 						$cursor = stop
@@ -525,9 +517,9 @@ build_source_styled = |authoring, preparation, store, sources, styled, candidate
 				}
 				new_label = match label {
 					NoLabel => NoLabel
-					Label(_) => Label({ physical: Semantics.IndexRange.from_start_and_length(label_start, $body_start - label_start) })
+					Label(_) => Label({ physical: Semantics.IndexRange.from_start_and_length({ start: label_start, length: $body_start - label_start }) })
 				}
-				$block_runs = $block_runs.append(TextBlock({ body: { physical: Semantics.IndexRange.from_start_and_length($body_start, $requests.len() - $body_start) }, label: new_label, level }))
+				$block_runs = $block_runs.append(TextBlock({ body: { physical: Semantics.IndexRange.from_start_and_length({ start: $body_start, length: $requests.len() - $body_start }) }, label: new_label, level }))
 			}
 		}
 		$block = $block + 1
@@ -536,16 +528,13 @@ build_source_styled = |authoring, preparation, store, sources, styled, candidate
 		Ok(value) => value
 		Err(_) => {
 			rules = styled.fonts.map(|font| single_face_rules(font))
-			return Err(
-				match locate_text_failure(authoring, preparation, store, sources, rules, |request| list_at(candidates, request)) {
+			return Err(match locate_text_failure(authoring, preparation, store, sources, rules, |request| list_at(candidates, request)) {
 					Located(error) => error
 					NotLocated => ShapeFailure
-				},
-			)
+				})
 		}
 	}
-	Ok(
-		KernelFacadeShape.Plan.{
+	Ok(KernelFacadeShape.Plan.{
 			block_runs: $block_runs,
 			origins: Origins($origins),
 			requests: $requests,
@@ -553,8 +542,7 @@ build_source_styled = |authoring, preparation, store, sources, styled, candidate
 			shape,
 			styles: $styles,
 			work: { font_bytes: total_font_bytes(fonts), font_tables: total_font_tables(fonts), glyphs: shape.work.glyph_visits, metric_reads: shape.work.metric_reads, requests: shape.store.runs.len(), scalars: shape.work.scalar_visits, script_run_visits: shape.work.script_run_visits, source_bytes: shape.work.utf8_bytes },
-		},
-	)
+		})
 }
 
 check_limit_requests : U64, U64 -> Try({}, KernelFacadeShape.Error)
@@ -949,7 +937,7 @@ prepare_ranged_plan = |authoring, owners, store, sources, theme, face_check| {
 					NoLabel => NoLabel
 					Label(_) => Label(logical_run_single(Text.RunId.from_index(first_request)))
 				}
-				$block_runs = list_set($block_runs, $block_index, TextBlock({ body: { physical: Semantics.IndexRange.from_start_and_length(body_start, rich.leaves) }, label: label_run, level }))
+				$block_runs = list_set($block_runs, $block_index, TextBlock({ body: { physical: Semantics.IndexRange.from_start_and_length({ start: body_start, length: rich.leaves }) }, label: label_run, level }))
 				match label {
 					NoLabel => {}
 					Label(_) => {
@@ -1052,14 +1040,14 @@ source_cluster_range = |graphemes, start, end, block| {
 	while $index < graphemes.len() and list_at(graphemes, $index).scalar_start < end {
 		cluster = list_at(graphemes, $index)
 		if cluster.scalar_end != cluster.scalar_start + 1 {
-			return Err(UnsupportedText({ block, inline: NoInline, reason: Cluster, scalars: Semantics.IndexRange.from_start_and_length(if (cluster.scalar_start >= start) cluster.scalar_start - start else 0, if (cluster.scalar_end >= cluster.scalar_start) cluster.scalar_end - cluster.scalar_start else 0) }))
+			return Err(UnsupportedText({ block, inline: NoInline, reason: Cluster, scalars: Semantics.IndexRange.from_start_and_length({ start: if (cluster.scalar_start >= start) cluster.scalar_start - start else 0, length: if (cluster.scalar_end >= cluster.scalar_start) cluster.scalar_end - cluster.scalar_start else 0 }) }))
 		}
 		$index = $index + 1
 	}
 	if $index == first or list_at(graphemes, first).scalar_start != start or list_at(graphemes, $index - 1).scalar_end != end {
 		return Err(InvalidOccurrence({ block, occurrence: 0 }))
 	}
-	Ok(Semantics.IndexRange.from_start_and_length(first, $index - first))
+	Ok(Semantics.IndexRange.from_start_and_length({ start: first, length: $index - first }))
 }
 
 ## A plain block in a ranged document: its optional generated label and its
@@ -1210,7 +1198,7 @@ append_rich_requests = |ranges, requests, styles, at, occurrences, rich| {
 				$requests = $requests.append({ occurrence: Semantics.OccurrenceId.from_index(occurrence_index), size: inline_size(at.authoring.inlines, record.parent, at.theme, body.size), source: located.id })
 				$styles = $styles.append({ color: inline_color(at.authoring, at.block, record.parent, at.theme, paragraph_color), leading: body.leading, segment: $segment })
 				$ranges = $ranges.append({
-					clusters: Semantics.IndexRange.from_start_and_length(cluster_start, cluster_end - cluster_start),
+					clusters: Semantics.IndexRange.from_start_and_length({ start: cluster_start, length: cluster_end - cluster_start }),
 					language: occurrence.language,
 					origin: { byte: located.range.utf8_bytes.start(), scalar: scalar_start },
 				})
@@ -1388,7 +1376,7 @@ append_word_holds = |holds, text, run, byte_start, boundaries| {
 		start = scalar_of_byte(boundaries, $offset)
 		finish = scalar_of_byte(boundaries, $offset + word_bytes)
 		if finish > start + 1 and interior_opportunity(boundaries, start, finish) {
-			$holds = $holds.append({ run, scalars: Semantics.IndexRange.from_start_and_length(start, finish - start) })
+			$holds = $holds.append({ run, scalars: Semantics.IndexRange.from_start_and_length({ start: start, length: finish - start }) })
 		}
 		$offset = $offset + word_bytes + 1
 	}
@@ -1428,7 +1416,7 @@ has_rich_block = |owners| {
 
 whole_source_range : List(KernelFacadeSources.Source), Semantics.TextSourceId, Semantics.Language -> KernelFacadeShape.RequestRange
 whole_source_range = |sources, source, language| {
-	clusters: Semantics.IndexRange.from_start_and_length(0, list_at(sources, source.index()).analysis.graphemes.len()),
+	clusters: Semantics.IndexRange.from_start_and_length({ start: 0, length: list_at(sources, source.index()).analysis.graphemes.len() }),
 	language,
 	origin: { byte: 0, scalar: 0 },
 }
@@ -1743,8 +1731,7 @@ build_ordered_plan = |authoring, owners, store, source_store, ordered, theme, li
 		Err(_) => return Err(ShapeFailure)
 		Ok(value) => value
 	}
-	Ok(
-		KernelFacadeShape.Plan.{
+	Ok(KernelFacadeShape.Plan.{
 			block_runs: $block_runs,
 			origins: physical_origins,
 			requests: physical_requests,
@@ -1761,8 +1748,7 @@ build_ordered_plan = |authoring, owners, store, source_store, ordered, theme, li
 				script_run_visits: shape.work.script_run_visits,
 				source_bytes: shape.work.utf8_bytes,
 			},
-		},
-	)
+		})
 }
 
 ## Segmented grapheme-cluster facts for coverage planning: one cluster per
@@ -1789,8 +1775,8 @@ ordered_source_clusters = |source, source_index| {
 				scalars: $scalars,
 				script: script.script,
 				source: {
-					scalars: Semantics.IndexRange.from_start_and_length(grapheme.scalar_start, grapheme.scalar_end - grapheme.scalar_start),
-					utf8_bytes: Semantics.IndexRange.from_start_and_length(grapheme.byte_start, grapheme.byte_end - grapheme.byte_start),
+					scalars: Semantics.IndexRange.from_start_and_length({ start: grapheme.scalar_start, length: grapheme.scalar_end - grapheme.scalar_start }),
+					utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: grapheme.byte_start, length: grapheme.byte_end - grapheme.byte_start }),
 				},
 			})
 			$scalars = []
@@ -1868,7 +1854,7 @@ ordered_segments = |face_ranges, script_runs, used_faces, source_index| {
 				return Err(UndeclaredScript({ script: run.script, source: source_index }))
 			}
 			$segments = $segments.append({
-				clusters: Semantics.IndexRange.from_start_and_length($cursor, segment_end - $cursor),
+				clusters: Semantics.IndexRange.from_start_and_length({ start: $cursor, length: segment_end - $cursor }),
 				font,
 				script: Font.Script.from_iso15924(run.script),
 			})
@@ -1947,7 +1933,7 @@ expand_logical = |logical, preparation, segments_per_source, buffers, max_reques
 		if segments.is_empty() {
 			return Err(OccurrenceCoverage({ actual: 0, expected: 1 }))
 		}
-		range = if (ranged) list_at(preparation.ranges, $request_index) else { clusters: Semantics.IndexRange.from_start_and_length(0, segment_end(list_at(segments, segments.len() - 1))), language: preparation.options.language, origin: { byte: 0, scalar: 0 } }
+		range = if (ranged) list_at(preparation.ranges, $request_index) else { clusters: Semantics.IndexRange.from_start_and_length({ start: 0, length: segment_end(list_at(segments, segments.len() - 1)) }), language: preparation.options.language, origin: { byte: 0, scalar: 0 } }
 		range_start = range.clusters.start()
 		range_end = range_start + range.clusters.length()
 		while $cursor < segments.len() and segment_end(list_at(segments, $cursor)) <= range_start {
@@ -1962,7 +1948,7 @@ expand_logical = |logical, preparation, segments_per_source, buffers, max_reques
 				return Err(LimitExceeded({ attempted: $requests.len() + 1, dimension: Requests, limit: max_requests }))
 			}
 			$selected = $selected.append({
-				clusters: Semantics.IndexRange.from_start_and_length(overlap_start, overlap_end - overlap_start),
+				clusters: Semantics.IndexRange.from_start_and_length({ start: overlap_start, length: overlap_end - overlap_start }),
 				instance: Font.InstanceId.from_index(segment.font),
 				language: range.language,
 				occurrence: request.occurrence,
@@ -1981,7 +1967,7 @@ expand_logical = |logical, preparation, segments_per_source, buffers, max_reques
 	}
 	Ok({
 		buffers: { origins: $origins, requests: $requests, selected: $selected, styles: $styles },
-		run: { physical: Semantics.IndexRange.from_start_and_length(physical_start, $requests.len() - physical_start) },
+		run: { physical: Semantics.IndexRange.from_start_and_length({ start: physical_start, length: $requests.len() - physical_start }) },
 	})
 }
 
@@ -2161,7 +2147,7 @@ request_failure = |preparation, store, failures, request_index| {
 			}
 			if $low < listed.len() and list_at(listed, $low).scalar < end {
 				failure = list_at(listed, $low)
-				Found({ reason: failure.reason, scalars: Semantics.IndexRange.from_start_and_length(failure.scalar - start, failure.cluster) })
+				Found({ reason: failure.reason, scalars: Semantics.IndexRange.from_start_and_length({ start: failure.scalar - start, length: failure.cluster }) })
 			} else {
 				None
 			}
@@ -2271,11 +2257,9 @@ single_face_rules = |font| {
 ## of the policy.
 policy_rules : List(KernelFont.Inspection) -> TextRules
 policy_rules = |fonts| {
-	covers: |scalar| fonts.any(
-		|font| match KernelFont.glyph_for_scalar(font, scalar) {
+	covers: |scalar| fonts.any(|font| match KernelFont.glyph_for_scalar(font, scalar) {
 			Some(glyph) => glyph != 0
 			None => False
-		},
-	),
+		}),
 	script: |alias| if (declared_script(alias)) Shaped else Undeclared,
 }

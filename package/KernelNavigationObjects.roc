@@ -536,11 +536,7 @@ add_name_tree = |builder, names, store, resolved, objects, context| {
 			$order = $order + 1
 		}
 		counts = KernelObject.counts($builder)
-		tree = KernelIndex.ByteTree.build(
-			$entries,
-			NameTree,
-			KernelIndex.Limits.make({ max_entries: store.destinations.len(), max_key_bytes: store.name_bytes.len(), value_count: counts.values }),
-		) ? Index
+		tree = KernelIndex.ByteTree.build($entries, NameTree, KernelIndex.Limits.make({ max_entries: store.destinations.len(), max_key_bytes: store.name_bytes.len(), value_count: counts.values })) ? Index
 		emit_byte_tree($builder, { kids: names.kids, limits: names.limits, names: names.names }, tree, objects.name_nodes)
 	}
 }
@@ -834,11 +830,7 @@ add_label_tree = |builder, names, store, objects| {
 			$index = $index + 1
 		}
 		counts = KernelObject.counts($builder)
-		tree = KernelIndex.NumberTree.build(
-			$entries,
-			NumberTree,
-			KernelIndex.Limits.make({ max_entries: store.label_ranges.len(), max_key_bytes: 0, value_count: counts.values }),
-		) ? Index
+		tree = KernelIndex.NumberTree.build($entries, NumberTree, KernelIndex.Limits.make({ max_entries: store.label_ranges.len(), max_key_bytes: 0, value_count: counts.values })) ? Index
 		emit_number_tree($builder, names, tree, objects.label_nodes)
 	}
 }
@@ -1012,13 +1004,13 @@ expect {
 	store = {
 		annotations: List.repeat(
 			{
-				action: UriAction(Semantics.IndexRange.from_start_and_length(0, 0)),
+				action: UriAction(Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 })),
 				appearance: NoAppearance,
 				description: NoDescription,
 				keyboard_order: 0,
 				page: Semantics.PageId.from_index(0),
 				print: True,
-				quads: Semantics.IndexRange.from_start_and_length(0, 0),
+				quads: Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 }),
 				rect: { origin: { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) }, size: { height: Layout.Unit.from_raw(1), width: Layout.Unit.from_raw(1) } },
 			},
 			2,
@@ -1027,7 +1019,7 @@ expect {
 			{
 				anchor: Semantics.OccurrenceId.from_index(0),
 				id: Semantics.DestinationId.from_index(0),
-				name: Semantics.IndexRange.from_start_and_length(0, 1),
+				name: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 				target: Semantics.NodeId.from_index(0),
 			},
 		],

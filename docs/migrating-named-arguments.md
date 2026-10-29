@@ -1,0 +1,44 @@
+# Migrating to named arguments
+
+Public calls with several argument roles now use named records. Update callers
+before compiling against the new package. Argument names describe the same
+values; this signature migration does not change document output.
+
+```roc
+Pdf.link({ text: "Project", uri: "https://example.com" })
+Pdf.internal_link({ text: "Introduction", destination: "intro" })
+Pdf.destination_heading({ name: "intro", level: 1, text: "Introduction" })
+Pdf.destination_paragraph({ name: "details", text: "Details" })
+Pdf.expansion({ text: "PDF", expanded: "Portable Document Format" })
+Pdf.reserved_width({ width: 64, align: End, contents: [Pdf.page_number(Decimal)] })
+Pdf.prepare_with_report_budget(document, { options, budget })
+```
+
+The equivalent `Document` constructors use the same names. Document builder
+methods retain their consuming receiver and take a record, such as
+`builder.add_heading({ level: 1, text: "Introduction" })`.
+
+Drawing methods also retain the receiver:
+
+```roc
+drawing.path({ path, style })
+drawing.image({ image, placement })
+drawing.group({ offset, drawing: child })
+drawing.text_in({ role: Strong, label })
+drawing.rectangle({ bounds, color })
+```
+
+Fixed-page builders use `place({ block, frame })` and
+`overlay({ kind, drawing })`. Advanced figure constructors take the drawing
+followed by `{ alternative, caption }`; `fitted_figure` additionally names
+`fit` in that record. The high-level `Pdf.figure` already takes named props.
+
+Whole-point geometry constructors are `Layout.point({ x, y })` and
+`Layout.rect({ x, y, width, height })`. Dense ranges use
+`Semantics.IndexRange.from_start_and_length({ start, length })`.
+
+Font registration is now
+`registry.register({ bytes, registration, limits })`. Validation limits remain
+explicit: pass `Font.ValidationLimits.default` for the supported default
+budget. Well-known equality and comparison methods retain their required
+positional signatures.

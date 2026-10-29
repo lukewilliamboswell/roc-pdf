@@ -621,17 +621,17 @@ finalize_symbolic = |KernelFacadeSemantics.Symbolic.{ authoring, block_ownership
 			field = list_at(pending, $pending)
 			source_id = list_at(input_sources, first_reference_input + field.reference)
 			source = list_at(unique_sources, source_id.index())
-			properties = if (field.separator_after) Semantics.IndexRange.from_start_and_length($properties.len(), 1) else Semantics.IndexRange.from_start_and_length(0, 0)
+			properties = if (field.separator_after) Semantics.IndexRange.from_start_and_length({ start: $properties.len(), length: 1 }) else Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 })
 			if field.separator_after {
 				# This explicit authored transformation belongs to the semantic
 				# occurrence; it never changes glyphs, fit, or atom alignment.
 				$properties = $properties.append(ActualText(list_at(labels, field.reference).concat(" ")))
 			}
 			$occurrences = $occurrences.append({
-				fragments: Semantics.IndexRange.from_start_and_length(0, 0),
+				fragments: Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 }),
 				id: field.occurrence,
 				language: Language(field.language),
-				source: Text(source_id, UnicodeRange({ scalars: Semantics.IndexRange.from_start_and_length(0, source.analysis.work.scalar_visits), utf8_bytes: Semantics.IndexRange.from_start_and_length(0, source.unicode.count_utf8_bytes()) })),
+				source: Text(source_id, UnicodeRange({ scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: source.analysis.work.scalar_visits }), utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: source.unicode.count_utf8_bytes() }) })),
 				text_properties: properties,
 			})
 			$pending = $pending + 1
@@ -810,13 +810,7 @@ plan_blocks = |authoring, limits| {
 					## A table plans its whole subtree at once: its rows and
 					## cells are fixed-depth descendants, so the walk resumes
 					## after the table's last group and leaf.
-					planned = plan_table(
-						authoring,
-						$next_group,
-						table_index.to_u64(),
-						{ break_cursor: $break_cursor, cell: $cell_cursor, header_base: $cell_headers.len(), node: $next_node, occurrence: $next_occurrence },
-						limits.max_inline_depth,
-					)?
+					planned = plan_table(authoring, $next_group, table_index.to_u64(), { break_cursor: $break_cursor, cell: $cell_cursor, header_base: $cell_headers.len(), node: $next_node, occurrence: $next_occurrence }, limits.max_inline_depth)?
 					attempted_nodes = checked_add($next_node, planned.nodes)?
 					attempted_occurrences = checked_add($next_occurrence, planned.occurrences)?
 					attempted_content = checked_add($content_count, planned.content)?
@@ -1085,7 +1079,7 @@ plan_blocks = |authoring, limits| {
 					check_at(attempted_occurrences, limits.max_occurrences, Occurrences, $block_index)?
 					check_at(attempted_content, limits.max_content_spine, ContentSpine, $block_index)?
 					check_at(attempted_sources, limits.max_source_inputs, SourceInputs, $block_index)?
-					$links = $links.append({ node: Semantics.NodeId.from_index($next_node + 1), occurrences: Semantics.IndexRange.from_start_and_length($next_occurrence, 1), target: Uri(uri) })
+					$links = $links.append({ node: Semantics.NodeId.from_index($next_node + 1), occurrences: Semantics.IndexRange.from_start_and_length({ start: $next_occurrence, length: 1 }), target: Uri(uri) })
 					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
 					$sources = $sources.append(block.text)
 					$next_node = attempted_nodes
@@ -1102,7 +1096,7 @@ plan_blocks = |authoring, limits| {
 					check_at(attempted_occurrences, limits.max_occurrences, Occurrences, $block_index)?
 					check_at(attempted_content, limits.max_content_spine, ContentSpine, $block_index)?
 					check_at(attempted_sources, limits.max_source_inputs, SourceInputs, $block_index)?
-					$links = $links.append({ node: Semantics.NodeId.from_index($next_node + 1), occurrences: Semantics.IndexRange.from_start_and_length($next_occurrence, 1), target: InternalDestination(destination) })
+					$links = $links.append({ node: Semantics.NodeId.from_index($next_node + 1), occurrences: Semantics.IndexRange.from_start_and_length({ start: $next_occurrence, length: 1 }), target: InternalDestination(destination) })
 					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
 					$sources = $sources.append(block.text)
 					$next_node = attempted_nodes
@@ -1307,7 +1301,7 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 				$attributes = $attributes + 1
 				$relationships = $relationships + count
 			}
-			$ranges = $ranges.append(Semantics.IndexRange.from_start_and_length(start, count))
+			$ranges = $ranges.append(Semantics.IndexRange.from_start_and_length({ start: start, length: count }))
 			$column = $column + record.column_span.to_u64()
 			$index = $index + 1
 		}
@@ -1918,7 +1912,7 @@ append_rich_links = |links, inlines, rich, paragraph_node, first_occurrence| {
 			Linked(value) => {
 				$links = $links.append({
 					node: Semantics.NodeId.from_index(paragraph_node + 1 + record.element),
-					occurrences: Semantics.IndexRange.from_start_and_length(first_occurrence + record.first_leaf, record.leaf_end - record.first_leaf),
+					occurrences: Semantics.IndexRange.from_start_and_length({ start: first_occurrence + record.first_leaf, length: record.leaf_end - record.first_leaf }),
 					target: value,
 				})
 			}
@@ -1978,7 +1972,7 @@ build_components = |authoring, planning, source_plan| {
 	blocks = authoring.blocks
 	groups = authoring.groups
 	figures = authoring.figures
-	empty = Semantics.IndexRange.from_start_and_length(0, 0)
+	empty = Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 })
 	dummy = make_node(0, DocumentRoot, "Document", empty, Language(language))
 	var $nodes = List.repeat(dummy, planning.node_count)
 	var $content = List.with_capacity(planning.content_count)
@@ -1987,21 +1981,21 @@ build_components = |authoring, planning, source_plan| {
 		for entry in planning.top_nodes {
 			$content = $content.append(ChildNode(entry.node))
 		}
-		$nodes = list_set($nodes, 0, make_node(0, DocumentRoot, "Document", Semantics.IndexRange.from_start_and_length(0, planning.top_nodes.len()), Language(language)))
+		$nodes = list_set($nodes, 0, make_node(0, DocumentRoot, "Document", Semantics.IndexRange.from_start_and_length({ start: 0, length: planning.top_nodes.len() }), Language(language)))
 	} else {
 		spans = child_spans(planning.top_nodes, groups.len())
 		for node in spans.ordered {
 			$content = $content.append(ChildNode(node))
 		}
 		root_children = list_at(spans.counts, 0)
-		$nodes = list_set($nodes, 0, make_node(0, DocumentRoot, "Document", Semantics.IndexRange.from_start_and_length(0, root_children), Language(language)))
+		$nodes = list_set($nodes, 0, make_node(0, DocumentRoot, "Document", Semantics.IndexRange.from_start_and_length({ start: 0, length: root_children }), Language(language)))
 		var $span_start = root_children
 		var $group = 0
 		while $group < groups.len() {
 			group = list_at(groups, $group)
 			children = list_at(spans.counts, $group + 1)
 			node_index = list_at(planning.group_nodes, $group)
-			span = Semantics.IndexRange.from_start_and_length($span_start, children)
+			span = Semantics.IndexRange.from_start_and_length({ start: $span_start, length: children })
 			match group.kind {
 				Container(kind) => {
 					if children == 0 {
@@ -2040,7 +2034,7 @@ build_components = |authoring, planning, source_plan| {
 					attribute = $attributes.len()
 					$attributes = $attributes.append(list_numbering(list_at(authoring.lists, list_index.to_u64()).marker))
 					node = make_node(node_index, ParentNode(parent_node(group.parent, planning.group_nodes)), "L", span, Inherited)
-					$nodes = list_set($nodes, node_index, { ..node, attributes: Semantics.IndexRange.from_start_and_length(attribute, 1) })
+					$nodes = list_set($nodes, node_index, { ..node, attributes: Semantics.IndexRange.from_start_and_length({ start: attribute, length: 1 }) })
 				}
 				ListItem(_) => {
 					$nodes = list_set($nodes, node_index, make_node(node_index, ParentNode(Semantics.NodeId.from_index(node_index - 2)), "LBody", span, Inherited))
@@ -2075,7 +2069,7 @@ build_components = |authoring, planning, source_plan| {
 					code = wrapper + 1
 					wrapper_start = $content.len()
 					$content = $content.append(ChildNode(Semantics.NodeId.from_index(code)))
-					$nodes = list_set($nodes, wrapper, make_node(wrapper, ParentNode(parent_node(group.parent, planning.group_nodes)), "P", Semantics.IndexRange.from_start_and_length(wrapper_start, 1), Inherited))
+					$nodes = list_set($nodes, wrapper, make_node(wrapper, ParentNode(parent_node(group.parent, planning.group_nodes)), "P", Semantics.IndexRange.from_start_and_length({ start: wrapper_start, length: 1 }), Inherited))
 					code_start = $content.len()
 					var $line = 0
 					while $line < source.lines.length() {
@@ -2097,8 +2091,8 @@ build_components = |authoring, planning, source_plan| {
 					if !source.text.is_empty() {
 						$properties = $properties.append(ActualText(source.text))
 					}
-					node = make_node(code, ParentNode(Semantics.NodeId.from_index(wrapper)), "Code", Semantics.IndexRange.from_start_and_length(code_start, $content.len() - code_start), Inherited)
-					$nodes = list_set($nodes, code, { ..node, text_properties: Semantics.IndexRange.from_start_and_length(property_start, if (source.text.is_empty()) 0 else 1) })
+					node = make_node(code, ParentNode(Semantics.NodeId.from_index(wrapper)), "Code", Semantics.IndexRange.from_start_and_length({ start: code_start, length: $content.len() - code_start }), Inherited)
+					$nodes = list_set($nodes, code, { ..node, text_properties: Semantics.IndexRange.from_start_and_length({ start: property_start, length: if (source.text.is_empty()) 0 else 1 }) })
 					$next_node = $next_node + 2
 					if !source.text.is_empty() {
 						$source_input = $source_input + 1
@@ -2115,17 +2109,7 @@ build_components = |authoring, planning, source_plan| {
 					## accumulator moves out of it: projecting the fields of a
 					## still-live `placed` record left every document-sized
 					## list shared and copied it once per table.
-					{ attributes: placed_attributes, break_cursor: placed_break_cursor, buffers: { content: placed_content, nodes: placed_nodes, occurrences: placed_occurrences, properties: placed_properties }, identifiers: placed_identifiers, node: placed_node, occurrence: placed_occurrence, ownership: placed_ownership, relationships: placed_relationships, source_input: placed_source_input } = place_table(
-						$attributes,
-						{ content: $content, nodes: $nodes, occurrences: $occurrences, properties: $properties },
-						$identifiers,
-						$ownership,
-						$relationships,
-						authoring,
-						planning,
-						{ break_cursor: $break_cursor, group: $next_group, language, node: $next_node, occurrence: $next_occurrence, source_input: $source_input, table: table_index.to_u64() },
-						source_plan,
-					)?
+					{ attributes: placed_attributes, break_cursor: placed_break_cursor, buffers: { content: placed_content, nodes: placed_nodes, occurrences: placed_occurrences, properties: placed_properties }, identifiers: placed_identifiers, node: placed_node, occurrence: placed_occurrence, ownership: placed_ownership, relationships: placed_relationships, source_input: placed_source_input } = place_table($attributes, { content: $content, nodes: $nodes, occurrences: $occurrences, properties: $properties }, $identifiers, $ownership, $relationships, authoring, planning, { break_cursor: $break_cursor, group: $next_group, language, node: $next_node, occurrence: $next_occurrence, source_input: $source_input, table: table_index.to_u64() }, source_plan)?
 					$attributes = placed_attributes
 					$content = placed_content
 					$nodes = placed_nodes
@@ -2154,13 +2138,13 @@ build_components = |authoring, planning, source_plan| {
 					body_node = checked_add(item_node, 2)?
 					item_content = $content.len()
 					$content = $content.append(ChildNode(Semantics.NodeId.from_index(label_node))).append(ChildNode(Semantics.NodeId.from_index(body_node)))
-					$nodes = list_set($nodes, item_node, make_node(item_node, ParentNode(Semantics.NodeId.from_index(list_at(planning.group_nodes, group.parent - 1))), "LI", Semantics.IndexRange.from_start_and_length(item_content, 2), Inherited))
+					$nodes = list_set($nodes, item_node, make_node(item_node, ParentNode(Semantics.NodeId.from_index(list_at(planning.group_nodes, group.parent - 1))), "LI", Semantics.IndexRange.from_start_and_length({ start: item_content, length: 2 }), Inherited))
 					label_content = $content.len()
 					$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
-					$nodes = list_set($nodes, label_node, make_node(label_node, ParentNode(Semantics.NodeId.from_index(item_node)), "Lbl", Semantics.IndexRange.from_start_and_length(label_content, 1), Inherited))
+					$nodes = list_set($nodes, label_node, make_node(label_node, ParentNode(Semantics.NodeId.from_index(item_node)), "Lbl", Semantics.IndexRange.from_start_and_length({ start: label_content, length: 1 }), Inherited))
 					label_property = $properties.len()
 					$properties = $properties.append(SourceToPresentation({ kind: GeneratedText, presentation: item_label(authoring, group.parent, ordinal), source: source_range($source_input, source_plan) }))
-					$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, Semantics.IndexRange.from_start_and_length(label_property, 1)))
+					$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, Semantics.IndexRange.from_start_and_length({ start: label_property, length: 1 })))
 					$pending_label = Label(Semantics.OccurrenceId.from_index($next_occurrence))
 					$next_occurrence = checked_add($next_occurrence, 1)?
 					$source_input = checked_add($source_input, 1)?
@@ -2182,7 +2166,7 @@ build_components = |authoring, planning, source_plan| {
 					role = heading_role(level, $index)?
 					start = $content.len()
 					$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
-					$nodes = list_set($nodes, $next_node, make_node($next_node, ParentNode(parent_node(block.parent, planning.group_nodes)), role, Semantics.IndexRange.from_start_and_length(start, 1), Inherited))
+					$nodes = list_set($nodes, $next_node, make_node($next_node, ParentNode(parent_node(block.parent, planning.group_nodes)), role, Semantics.IndexRange.from_start_and_length({ start: start, length: 1 }), Inherited))
 					$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
 					$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: NoLabel, level: list_level }))
 					$next_node = checked_add($next_node, 1)?
@@ -2198,7 +2182,7 @@ build_components = |authoring, planning, source_plan| {
 					}
 					start = $content.len()
 					$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
-					$nodes = list_set($nodes, $next_node, make_node($next_node, ParentNode(parent_node(block.parent, planning.group_nodes)), role, Semantics.IndexRange.from_start_and_length(start, 1), Inherited))
+					$nodes = list_set($nodes, $next_node, make_node($next_node, ParentNode(parent_node(block.parent, planning.group_nodes)), role, Semantics.IndexRange.from_start_and_length({ start: start, length: 1 }), Inherited))
 					$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
 					$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: $pending_label, level: list_level }))
 					$pending_label = NoLabel
@@ -2213,8 +2197,8 @@ build_components = |authoring, planning, source_plan| {
 					property_start = $properties.len()
 					$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
 					$properties = $properties.append(AlternativeText(figure.alternative))
-					node = make_node($next_node, ParentNode(parent_node(block.parent, planning.group_nodes)), "Figure", Semantics.IndexRange.from_start_and_length(start, 1), Inherited)
-					$nodes = list_set($nodes, $next_node, { ..node, text_properties: Semantics.IndexRange.from_start_and_length(property_start, 1) })
+					node = make_node($next_node, ParentNode(parent_node(block.parent, planning.group_nodes)), "Figure", Semantics.IndexRange.from_start_and_length({ start: start, length: 1 }), Inherited)
+					$nodes = list_set($nodes, $next_node, { ..node, text_properties: Semantics.IndexRange.from_start_and_length({ start: property_start, length: 1 }) })
 					$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
 					$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: NoLabel, level: list_level }))
 					$next_node = checked_add($next_node, 1)?
@@ -2232,8 +2216,8 @@ build_components = |authoring, planning, source_plan| {
 					$content = $content.append(ChildNode(Semantics.NodeId.from_index(paragraph_node)))
 					paragraph_start = $content.len()
 					$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
-					$nodes = list_set($nodes, caption_node, make_node(caption_node, ParentNode(parent_node(block.parent, planning.group_nodes)), "Caption", Semantics.IndexRange.from_start_and_length(caption_start, 1), Inherited))
-					$nodes = list_set($nodes, paragraph_node, make_node(paragraph_node, ParentNode(Semantics.NodeId.from_index(caption_node)), "P", Semantics.IndexRange.from_start_and_length(paragraph_start, 1), Inherited))
+					$nodes = list_set($nodes, caption_node, make_node(caption_node, ParentNode(parent_node(block.parent, planning.group_nodes)), "Caption", Semantics.IndexRange.from_start_and_length({ start: caption_start, length: 1 }), Inherited))
+					$nodes = list_set($nodes, paragraph_node, make_node(paragraph_node, ParentNode(Semantics.NodeId.from_index(caption_node)), "P", Semantics.IndexRange.from_start_and_length({ start: paragraph_start, length: 1 }), Inherited))
 					$relationships = $relationships.append(CaptionFor({ caption: Semantics.NodeId.from_index(caption_node), target: Semantics.NodeId.from_index(caption_node - 1) }))
 					$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
 					$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: NoLabel, level: list_level }))
@@ -2246,7 +2230,7 @@ build_components = |authoring, planning, source_plan| {
 					role = heading_role(level, $index)?
 					start = $content.len()
 					$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
-					$nodes = list_set($nodes, $next_node, make_node($next_node, ParentNode(parent_node(block.parent, planning.group_nodes)), role, Semantics.IndexRange.from_start_and_length(start, 1), Inherited))
+					$nodes = list_set($nodes, $next_node, make_node($next_node, ParentNode(parent_node(block.parent, planning.group_nodes)), role, Semantics.IndexRange.from_start_and_length({ start: start, length: 1 }), Inherited))
 					$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
 					$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: NoLabel, level: list_level }))
 					$next_node = checked_add($next_node, 1)?
@@ -2265,8 +2249,8 @@ build_components = |authoring, planning, source_plan| {
 					$content = $content.append(ChildNode(Semantics.NodeId.from_index(link_node)))
 					link_start = $content.len()
 					$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
-					$nodes = list_set($nodes, wrapper_node, make_node(wrapper_node, ParentNode(parent_node(block.parent, planning.group_nodes)), "P", Semantics.IndexRange.from_start_and_length(wrapper_start, 1), Inherited))
-					$nodes = list_set($nodes, link_node, make_node(link_node, ParentNode(Semantics.NodeId.from_index(wrapper_node)), "Link", Semantics.IndexRange.from_start_and_length(link_start, 1), Inherited))
+					$nodes = list_set($nodes, wrapper_node, make_node(wrapper_node, ParentNode(parent_node(block.parent, planning.group_nodes)), "P", Semantics.IndexRange.from_start_and_length({ start: wrapper_start, length: 1 }), Inherited))
+					$nodes = list_set($nodes, link_node, make_node(link_node, ParentNode(Semantics.NodeId.from_index(wrapper_node)), "Link", Semantics.IndexRange.from_start_and_length({ start: link_start, length: 1 }), Inherited))
 					$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
 					$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: NoLabel, level: list_level }))
 					$next_node = checked_add(link_node, 1)?
@@ -2277,18 +2261,12 @@ build_components = |authoring, planning, source_plan| {
 				RichParagraph(paragraph) => {
 					rich = list_at(authoring.rich_paragraphs, paragraph)
 					breaks = paragraph_breaks(authoring.line_breaks, $break_cursor, paragraph)
-					placed = place_rich(
-						{ content: $content, nodes: $nodes, occurrences: $occurrences, properties: $properties },
-						authoring,
-						rich,
-						{ attributes: Semantics.IndexRange.from_start_and_length(0, 0), breaks: $break_cursor, element_identifier: NoElementIdentifier, language, node: $next_node, occurrence: $next_occurrence, parent: parent_node(block.parent, planning.group_nodes), paragraph, role: "P", segments: breaks + 1, source_input: $source_input },
-						source_plan,
-					)?
+					placed = place_rich({ content: $content, nodes: $nodes, occurrences: $occurrences, properties: $properties }, authoring, rich, { attributes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 }), breaks: $break_cursor, element_identifier: NoElementIdentifier, language, node: $next_node, occurrence: $next_occurrence, parent: parent_node(block.parent, planning.group_nodes), paragraph, role: "P", segments: breaks + 1, source_input: $source_input }, source_plan)?
 					$content = placed.content
 					$nodes = placed.nodes
 					$occurrences = placed.occurrences
 					$properties = placed.properties
-					$ownership = list_set($ownership, $index, RichTextBlock({ label: $pending_label, level: list_level, occurrences: Semantics.IndexRange.from_start_and_length($next_occurrence, rich.leaves) }))
+					$ownership = list_set($ownership, $index, RichTextBlock({ label: $pending_label, level: list_level, occurrences: Semantics.IndexRange.from_start_and_length({ start: $next_occurrence, length: rich.leaves }) }))
 					$pending_label = NoLabel
 					$next_node = checked_add($next_node, rich.elements + 1)?
 					$next_occurrence = checked_add($next_occurrence, rich.leaves)?
@@ -2317,8 +2295,8 @@ build_components = |authoring, planning, source_plan| {
 					}
 					list_attribute = $attributes.len()
 					$attributes = $attributes.append(list_numbering(Bullet))
-					bullet_list = make_node(list_node, ParentNode(parent_node(block.parent, planning.group_nodes)), "L", Semantics.IndexRange.from_start_and_length(list_content, $group_end - group_start), Inherited)
-					$nodes = list_set($nodes, list_node, { ..bullet_list, attributes: Semantics.IndexRange.from_start_and_length(list_attribute, 1) })
+					bullet_list = make_node(list_node, ParentNode(parent_node(block.parent, planning.group_nodes)), "L", Semantics.IndexRange.from_start_and_length({ start: list_content, length: $group_end - group_start }), Inherited)
+					$nodes = list_set($nodes, list_node, { ..bullet_list, attributes: Semantics.IndexRange.from_start_and_length({ start: list_attribute, length: 1 }) })
 					$item_index = group_start
 					while $item_index < $group_end {
 						item_node = $next_node
@@ -2328,17 +2306,17 @@ build_components = |authoring, planning, source_plan| {
 						body_occurrence = checked_add(label_occurrence, 1)?
 						item_content = $content.len()
 						$content = $content.append(ChildNode(Semantics.NodeId.from_index(label_node))).append(ChildNode(Semantics.NodeId.from_index(body_node)))
-						$nodes = list_set($nodes, item_node, make_node(item_node, ParentNode(Semantics.NodeId.from_index(list_node)), "LI", Semantics.IndexRange.from_start_and_length(item_content, 2), Inherited))
+						$nodes = list_set($nodes, item_node, make_node(item_node, ParentNode(Semantics.NodeId.from_index(list_node)), "LI", Semantics.IndexRange.from_start_and_length({ start: item_content, length: 2 }), Inherited))
 						label_content = $content.len()
 						$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index(label_occurrence)))
-						$nodes = list_set($nodes, label_node, make_node(label_node, ParentNode(Semantics.NodeId.from_index(item_node)), "Lbl", Semantics.IndexRange.from_start_and_length(label_content, 1), Inherited))
+						$nodes = list_set($nodes, label_node, make_node(label_node, ParentNode(Semantics.NodeId.from_index(item_node)), "Lbl", Semantics.IndexRange.from_start_and_length({ start: label_content, length: 1 }), Inherited))
 						label_property = $properties.len()
 						label_range = source_range($source_input, source_plan)
 						$properties = $properties.append(SourceToPresentation({ kind: GeneratedText, presentation: "•", source: label_range }))
-						$occurrences = $occurrences.append(make_occurrence(label_occurrence, $source_input, source_plan, language, Semantics.IndexRange.from_start_and_length(label_property, 1)))
+						$occurrences = $occurrences.append(make_occurrence(label_occurrence, $source_input, source_plan, language, Semantics.IndexRange.from_start_and_length({ start: label_property, length: 1 })))
 						body_content = $content.len()
 						$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index(body_occurrence)))
-						$nodes = list_set($nodes, body_node, make_node(body_node, ParentNode(Semantics.NodeId.from_index(item_node)), "LBody", Semantics.IndexRange.from_start_and_length(body_content, 1), Inherited))
+						$nodes = list_set($nodes, body_node, make_node(body_node, ParentNode(Semantics.NodeId.from_index(item_node)), "LBody", Semantics.IndexRange.from_start_and_length({ start: body_content, length: 1 }), Inherited))
 						body_source_input = checked_add($source_input, 1)?
 						$occurrences = $occurrences.append(make_occurrence(body_occurrence, body_source_input, source_plan, language, empty))
 						$ownership = list_set($ownership, $item_index, TextBlock({ body: Semantics.OccurrenceId.from_index(body_occurrence), label: Label(Semantics.OccurrenceId.from_index(label_occurrence)), level: 1 }))
@@ -2437,7 +2415,7 @@ place_rich = |buffers, authoring, rich, at, source_plan| {
 	# A table cell's attributes and identifier are written with its node
 	# here, so the caller never updates a node list it received through
 	# `?` (development/performance/lowering-uniqueness.md).
-	var $nodes = list_set(buffers.nodes, at.node, { ..make_node(at.node, ParentNode(at.parent), at.role, Semantics.IndexRange.from_start_and_length(base, rich.children), Inherited), attributes: at.attributes, element_identifier: at.element_identifier })
+	var $nodes = list_set(buffers.nodes, at.node, { ..make_node(at.node, ParentNode(at.parent), at.role, Semantics.IndexRange.from_start_and_length({ start: base, length: rich.children }), Inherited), attributes: at.attributes, element_identifier: at.element_identifier })
 	var $occurrences = buffers.occurrences
 	var $properties = buffers.properties
 	input_sources = KernelFacadeSources.Plan.input_sources(source_plan)
@@ -2490,17 +2468,17 @@ place_rich = |buffers, authoring, rich, at, source_plan| {
 				occurrence = at.occurrence + record.first_leaf
 				$content = list_set($content, position, ContentOccurrence(Semantics.OccurrenceId.from_index(occurrence)))
 				$occurrences = $occurrences.append({
-					fragments: Semantics.IndexRange.from_start_and_length(0, 0),
+					fragments: Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 }),
 					id: Semantics.OccurrenceId.from_index(occurrence),
 					language: Language(leaf_language(inlines, record.language, at.language)),
 					source: Text(
 						$source_id,
 						UnicodeRange({
-							scalars: Semantics.IndexRange.from_start_and_length(start.index, finish.index - start.index),
-							utf8_bytes: Semantics.IndexRange.from_start_and_length(byte_start, byte_length),
+							scalars: Semantics.IndexRange.from_start_and_length({ start: start.index, length: finish.index - start.index }),
+							utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: byte_start, length: byte_length }),
 						}),
 					),
-					text_properties: Semantics.IndexRange.from_start_and_length(0, 0),
+					text_properties: Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 }),
 				})
 			}
 			PageReference(_) => {
@@ -2509,12 +2487,12 @@ place_rich = |buffers, authoring, rich, at, source_plan| {
 			kind => {
 				node_index = at.node + 1 + record.element
 				$content = list_set($content, position, ChildNode(Semantics.NodeId.from_index(node_index)))
-				node = make_node(node_index, ParentNode(Semantics.NodeId.from_index(owner_node)), inline_role(kind), Semantics.IndexRange.from_start_and_length(base + record.spine, record.children), inline_language(kind))
+				node = make_node(node_index, ParentNode(Semantics.NodeId.from_index(owner_node)), inline_role(kind), Semantics.IndexRange.from_start_and_length({ start: base + record.spine, length: record.children }), inline_language(kind))
 				match kind {
 					Expansion(expanded) => {
 						property = $properties.len()
 						$properties = $properties.append(ExpandedText(expanded))
-						$nodes = list_set($nodes, node_index, { ..node, text_properties: Semantics.IndexRange.from_start_and_length(property, 1) })
+						$nodes = list_set($nodes, node_index, { ..node, text_properties: Semantics.IndexRange.from_start_and_length({ start: property, length: 1 }) })
 					}
 					_ => {
 						$nodes = list_set($nodes, node_index, node)
@@ -2545,7 +2523,7 @@ place_table : List(Semantics.StructureAttribute), StoreBuffers, List(Semantics.E
 place_table = |attributes, { content, nodes, occurrences, properties }, identifiers, ownership, relationships, authoring, planning, at, source_plan| {
 	group = list_at(authoring.groups, at.group)
 	table = list_at(authoring.tables, at.table)
-	empty = Semantics.IndexRange.from_start_and_length(0, 0)
+	empty = Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 })
 	table_node = at.node
 	caption_nodes = if (table.caption) 2 else 0
 	var $attributes = attributes
@@ -2579,15 +2557,15 @@ place_table = |attributes, { content, nodes, occurrences, properties }, identifi
 	if table.footer_rows > 0 {
 		$content = $content.append(ChildNode(Semantics.NodeId.from_index(foot_node)))
 	}
-	$nodes = list_set($nodes, table_node, make_node(table_node, ParentNode(parent_node(group.parent, planning.group_nodes)), "Table", Semantics.IndexRange.from_start_and_length(table_children, $content.len() - table_children), Inherited))
+	$nodes = list_set($nodes, table_node, make_node(table_node, ParentNode(parent_node(group.parent, planning.group_nodes)), "Table", Semantics.IndexRange.from_start_and_length({ start: table_children, length: $content.len() - table_children }), Inherited))
 	if table.caption {
 		caption_block = group.first_block
 		caption_span = $content.len()
 		$content = $content.append(ChildNode(Semantics.NodeId.from_index(table_node + 2)))
 		paragraph_span = $content.len()
 		$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($occurrence)))
-		$nodes = list_set($nodes, table_node + 1, make_node(table_node + 1, ParentNode(Semantics.NodeId.from_index(table_node)), "Caption", Semantics.IndexRange.from_start_and_length(caption_span, 1), Inherited))
-		$nodes = list_set($nodes, table_node + 2, make_node(table_node + 2, ParentNode(Semantics.NodeId.from_index(table_node + 1)), "P", Semantics.IndexRange.from_start_and_length(paragraph_span, 1), Inherited))
+		$nodes = list_set($nodes, table_node + 1, make_node(table_node + 1, ParentNode(Semantics.NodeId.from_index(table_node)), "Caption", Semantics.IndexRange.from_start_and_length({ start: caption_span, length: 1 }), Inherited))
+		$nodes = list_set($nodes, table_node + 2, make_node(table_node + 2, ParentNode(Semantics.NodeId.from_index(table_node + 1)), "P", Semantics.IndexRange.from_start_and_length({ start: paragraph_span, length: 1 }), Inherited))
 		$occurrences = $occurrences.append(make_occurrence($occurrence, $source_input, source_plan, at.language, empty))
 		$ownership = list_set($ownership, caption_block, TextBlock({ body: Semantics.OccurrenceId.from_index($occurrence), label: NoLabel, level: 0 }))
 		$occurrence = $occurrence + 1
@@ -2604,7 +2582,7 @@ place_table = |attributes, { content, nodes, occurrences, properties }, identifi
 			$content = $content.append(ChildNode(Semantics.NodeId.from_index(list_at(planning.group_nodes, $member))))
 			$member = $member + 1
 		}
-		$nodes = list_set($nodes, section_node, make_node(section_node, ParentNode(Semantics.NodeId.from_index(table_node)), section_role, Semantics.IndexRange.from_start_and_length(section_span, section_end - $row_group), Inherited))
+		$nodes = list_set($nodes, section_node, make_node(section_node, ParentNode(Semantics.NodeId.from_index(table_node)), section_role, Semantics.IndexRange.from_start_and_length({ start: section_span, length: section_end - $row_group }), Inherited))
 		while $row_group < section_end {
 			row = list_at(authoring.groups, $row_group)
 			row_node = list_at(planning.group_nodes, $row_group)
@@ -2616,7 +2594,7 @@ place_table = |attributes, { content, nodes, occurrences, properties }, identifi
 				$cell_node = $cell_node + 1 + cell_elements(authoring, $block)
 				$block = $block + 1
 			}
-			$nodes = list_set($nodes, row_node, make_node(row_node, ParentNode(Semantics.NodeId.from_index(section_node)), "TR", Semantics.IndexRange.from_start_and_length(row_span, row.block_end - row.first_block), Inherited))
+			$nodes = list_set($nodes, row_node, make_node(row_node, ParentNode(Semantics.NodeId.from_index(section_node)), "TR", Semantics.IndexRange.from_start_and_length({ start: row_span, length: row.block_end - row.first_block }), Inherited))
 			$cell_node = row_node + 1
 			$block = row.first_block
 			while $block < row.block_end {
@@ -2648,7 +2626,7 @@ place_table = |attributes, { content, nodes, occurrences, properties }, identifi
 					}
 					DataCell => {}
 				}
-				cell_attributes = Semantics.IndexRange.from_start_and_length(attribute_start, $attributes.len() - attribute_start)
+				cell_attributes = Semantics.IndexRange.from_start_and_length({ start: attribute_start, length: $attributes.len() - attribute_start })
 				$identifiers = $identifiers.append({ id: Semantics.ElementId.from_index(ordinal), value: cell_identifier(ordinal) })
 				match list_at(authoring.blocks, $block).kind {
 
@@ -2659,7 +2637,7 @@ place_table = |attributes, { content, nodes, occurrences, properties }, identifi
 						crash "source leaf escaped its source group"
 					}
 					EmptyCell => {
-						$nodes = list_set($nodes, $cell_node, { ..make_node($cell_node, ParentNode(Semantics.NodeId.from_index(row_node)), role, Semantics.IndexRange.from_start_and_length($content.len(), 0), Inherited), attributes: cell_attributes, element_identifier: HasElementIdentifier(Semantics.ElementId.from_index(ordinal)) })
+						$nodes = list_set($nodes, $cell_node, { ..make_node($cell_node, ParentNode(Semantics.NodeId.from_index(row_node)), role, Semantics.IndexRange.from_start_and_length({ start: $content.len(), length: 0 }), Inherited), attributes: cell_attributes, element_identifier: HasElementIdentifier(Semantics.ElementId.from_index(ordinal)) })
 						$ownership = list_set($ownership, $block, ContentlessCell)
 						$cell_node = $cell_node + 1
 					}
@@ -2689,7 +2667,7 @@ place_table = |attributes, { content, nodes, occurrences, properties }, identifi
 						$nodes = placed.nodes
 						$occurrences = placed.occurrences
 						$properties = placed.properties
-						$ownership = list_set($ownership, $block, RichTextBlock({ label: NoLabel, level: 0, occurrences: Semantics.IndexRange.from_start_and_length($occurrence, rich.leaves) }))
+						$ownership = list_set($ownership, $block, RichTextBlock({ label: NoLabel, level: 0, occurrences: Semantics.IndexRange.from_start_and_length({ start: $occurrence, length: rich.leaves }) }))
 						$occurrence = $occurrence + rich.leaves
 						$source_input = $source_input + rich_source_count(authoring, paragraph, breaks)
 						$break_cursor = $break_cursor + breaks
@@ -2886,7 +2864,7 @@ role_namespace = |role| if (role == "Code" or role == "Quote") Semantics.Namespa
 
 make_node : U64, Semantics.NodeParent, Str, Semantics.IndexRange, Semantics.Language -> Semantics.Node
 make_node = |index, parent, role, content, language| {
-	attributes: Semantics.IndexRange.from_start_and_length(0, 0),
+	attributes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 }),
 	content,
 	element_identifier: NoElementIdentifier,
 	id: Semantics.NodeId.from_index(index),
@@ -2894,14 +2872,14 @@ make_node = |index, parent, role, content, language| {
 	parent,
 	role: { local_name: role, namespace: role_namespace(role) },
 	structure_element: Semantics.StructureElementId.from_index(index),
-	text_properties: Semantics.IndexRange.from_start_and_length(0, 0),
+	text_properties: Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 }),
 }
 
 make_occurrence : U64, U64, KernelFacadeSources.Plan, Str, Semantics.IndexRange -> Semantics.ContentOccurrence
 make_occurrence = |index, source_input, sources, language, properties| {
 	source_id = list_at(KernelFacadeSources.Plan.input_sources(sources), source_input)
 	{
-		fragments: Semantics.IndexRange.from_start_and_length(0, 0),
+		fragments: Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 }),
 		id: Semantics.OccurrenceId.from_index(index),
 		language: Language(language),
 		source: Text(source_id, UnicodeRange(source_range(source_input, sources))),
@@ -2914,8 +2892,8 @@ source_range = |input, plan| {
 	source_id = list_at(KernelFacadeSources.Plan.input_sources(plan), input)
 	source = list_at(KernelFacadeSources.Plan.sources(plan), source_id.index())
 	{
-		scalars: Semantics.IndexRange.from_start_and_length(0, source.analysis.work.scalar_visits),
-		utf8_bytes: Semantics.IndexRange.from_start_and_length(0, source.unicode.count_utf8_bytes()),
+		scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: source.analysis.work.scalar_visits }),
+		utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: source.unicode.count_utf8_bytes() }),
 	}
 }
 
@@ -3293,10 +3271,7 @@ expect {
 	language = KernelFacadeSemantics.Plan.build(rich_authoring([Document.in_language("fr_CA", [Document.plain_text("b")])]), test_limits)
 	uri = KernelFacadeSemantics.Plan.build(rich_authoring([Document.inline_link([Document.plain_text("b")], "no scheme")]), test_limits)
 	blank = KernelFacadeSemantics.Plan.build(rich_authoring([]), test_limits)
-	deep = KernelFacadeSemantics.Plan.build(
-		rich_authoring([Document.emphasis([Document.emphasis([Document.emphasis([Document.emphasis([Document.emphasis([Document.emphasis([Document.emphasis([Document.emphasis([Document.emphasis([Document.plain_text("x")])])])])])])])])])]),
-		test_limits,
-	)
+	deep = KernelFacadeSemantics.Plan.build(rich_authoring([Document.emphasis([Document.emphasis([Document.emphasis([Document.emphasis([Document.emphasis([Document.emphasis([Document.emphasis([Document.emphasis([Document.emphasis([Document.plain_text("x")])])])])])])])])])]), test_limits)
 	match (empty, nested, language, uri, blank, deep) {
 		(Err(EmptyInline({ block: 0, inline: 1 })), Err(NestedLink({ block: 0, inline: 1 })), Err(InvalidInlineLanguage({ block: 0, inline: 0 })), Err(InvalidInlineUri({ block: 0, error: UriMissingScheme(_), inline: 0 })), Err(EmptyRichParagraph({ block: 0 })), Err(InlineDepthExceeded({ attempted: 9, block: 0, inline: 8, limit: 8 }))) => True
 		_ => False

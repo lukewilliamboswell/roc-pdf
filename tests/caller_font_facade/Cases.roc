@@ -50,11 +50,7 @@ positive = |runtime_argument_count| {
 	if runtime_argument_count != 2 {
 		crash "text-layout caller facade argument count is invalid"
 	}
-	registered = match Font.Registry.empty.register(
-		caller_font_bytes,
-		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
-		facade_limits(runtime_argument_count),
-	) {
+	registered = match Font.Registry.empty.register({ bytes: caller_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: facade_limits(runtime_argument_count) }) {
 		Err(_) => crash "caller fixture registration failed"
 		Ok(value) => value
 	}
@@ -105,11 +101,7 @@ unhinted = |runtime_argument_count| {
 	if runtime_argument_count != 2 {
 		crash "text-layout caller facade argument count is invalid"
 	}
-	registered = match Font.Registry.empty.register(
-		unhinted_font_bytes,
-		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
-		facade_limits(runtime_argument_count),
-	) {
+	registered = match Font.Registry.empty.register({ bytes: unhinted_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: facade_limits(runtime_argument_count) }) {
 		Err(_) => crash "unhinted caller fixture registration failed"
 		Ok(value) => value
 	}
@@ -146,11 +138,7 @@ built_in_registry = |runtime_argument_count| {
 		Err(_) => crash "built-in registration failed"
 		Ok(value) => value
 	}
-	mono = match body.registry.register(
-		mono_font_bytes,
-		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
-		facade_limits(runtime_argument_count),
-	) {
+	mono = match body.registry.register({ bytes: mono_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: facade_limits(runtime_argument_count) }) {
 		Err(_) => crash "monospace registration failed"
 		Ok(value) => value
 	}
@@ -200,11 +188,7 @@ shared_registry = |runtime_argument_count| {
 	if runtime_argument_count != 2 {
 		crash "text-layout caller facade shared-registry argument count is invalid"
 	}
-	registered = match Font.Registry.empty.register(
-		caller_font_bytes,
-		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
-		facade_limits(runtime_argument_count),
-	) {
+	registered = match Font.Registry.empty.register({ bytes: caller_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: facade_limits(runtime_argument_count) }) {
 		Err(_) => crash "caller shared-registry registration failed"
 		Ok(value) => value
 	}
@@ -262,19 +246,11 @@ unique_registries = |runtime_argument_count| {
 		crash "text-layout caller facade unique-registries argument count is invalid"
 	}
 	second_input = copy_bytes(caller_font_bytes)
-	first = match Font.Registry.empty.register(
-		caller_font_bytes,
-		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
-		facade_limits(runtime_argument_count),
-	) {
+	first = match Font.Registry.empty.register({ bytes: caller_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: facade_limits(runtime_argument_count) }) {
 		Err(_) => crash "caller unique-registry first registration failed"
 		Ok(value) => value
 	}
-	second = match Font.Registry.empty.register(
-		second_input,
-		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
-		facade_limits(runtime_argument_count),
-	) {
+	second = match Font.Registry.empty.register({ bytes: second_input, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: facade_limits(runtime_argument_count) }) {
 		Err(_) => crash "caller unique-registry second registration failed"
 		Ok(value) => value
 	}
@@ -357,11 +333,7 @@ restricted = |runtime_argument_count| {
 	if runtime_argument_count != 2 {
 		crash "text-layout caller facade argument count is invalid"
 	}
-	match Font.Registry.empty.register(
-		restricted_font_bytes,
-		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
-		facade_limits(runtime_argument_count),
-	) {
+	match Font.Registry.empty.register({ bytes: restricted_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: facade_limits(runtime_argument_count) }) {
 		Err(EmbeddingRightsProhibited(_)) => { bytes: [], work: [1, 0] }
 		_ => crash "restricted caller font was accepted"
 	}
@@ -393,11 +365,7 @@ restricted_negative = |runtime_argument_count| {
 	if runtime_argument_count != 1 {
 		crash "text-layout caller facade negative argument count is invalid"
 	}
-	match Font.Registry.empty.register(
-		restricted_font_bytes,
-		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
-		negative_limits(runtime_argument_count),
-	) {
+	match Font.Registry.empty.register({ bytes: restricted_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: negative_limits(runtime_argument_count) }) {
 		Err(EmbeddingRightsProhibited(_)) => { bytes: [], work: [1, 0] }
 		_ => crash "restricted caller font was accepted"
 	}

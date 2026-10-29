@@ -34,16 +34,9 @@ Fixture :: [].{
 		occurrence = list_at(store.occurrences, label)
 		malformed = {
 			..store,
-			occurrences: list_set(store.occurrences, label, { ..occurrence, text_properties: Semantics.IndexRange.from_start_and_length(0, 0) }),
+			occurrences: list_set(store.occurrences, label, { ..occurrence, text_properties: Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 }) }),
 		}
-		rejected = match KernelFacadeShape.Preparation.build(
-			KernelFacadeSemantics.Plan.authoring(plan),
-			KernelFacadeSemantics.Plan.block_ownership(plan),
-			malformed,
-			KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(plan)),
-			2,
-			Theme.default,
-		) {
+		rejected = match KernelFacadeShape.Preparation.build(KernelFacadeSemantics.Plan.authoring(plan), KernelFacadeSemantics.Plan.block_ownership(plan), malformed, KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(plan)), 2, Theme.default) {
 			Err(GeneratedLabelEvidenceInvalid({ block: 0, occurrence: 0 })) => 1
 			_ => return Err(EvidenceFailure)
 		}

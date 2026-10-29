@@ -113,8 +113,8 @@ long_text = |lines| {
 
 faces : Bool -> Try({ body : Font.FaceId, mono : Font.FaceId, registry : Font.Registry }, Fixture.Error)
 faces = |han| {
-	body = Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, Font.ValidationLimits.default) ? |_| FontFailure
-	mono = body.registry.register(if (han) cjk_bytes else mono_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924(if (han) "Hani" else "Latn")] }, Font.ValidationLimits.default) ? |_| FontFailure
+	body = Font.Registry.empty.register({ bytes: KernelBuiltInFont.bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
+	mono = body.registry.register({ bytes: if (han) cjk_bytes else mono_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924(if (han) "Hani" else "Latn")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
 	Ok({ body: body.face, mono: mono.face, registry: mono.registry })
 }
 

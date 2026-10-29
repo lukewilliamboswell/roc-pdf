@@ -55,7 +55,7 @@ register_fonts : {} -> Try(Faces, [FontRejected(Font.ResourceError)])
 register_fonts = |_| {
 	latin : List(Font.Script)
 	latin = ["Latn"]
-	add = |registry, bytes| registry.register(bytes, { provision: BuiltIn, scripts: latin }, Font.ValidationLimits.default).map_err(|err| FontRejected(err))
+	add = |registry, bytes| registry.register({ bytes: bytes, registration: { provision: BuiltIn, scripts: latin }, limits: Font.ValidationLimits.default }).map_err(|err| FontRejected(err))
 	regular = add(Font.Registry.empty, regular_bytes)?
 	bold = add(regular.registry, bold_bytes)?
 	italic = add(bold.registry, italic_bytes)?
@@ -126,11 +126,11 @@ circle : I64, I64, I64 -> Scene.AuthorPath
 circle = |cx, cy, r| {
 	k = r * 552 // 1000
 	Scene.PathBuilder.start
-		.move_to(Layout.point(cx + r, cy))
-		.cubic_to({ control_1: Layout.point(cx + r, cy + k), control_2: Layout.point(cx + k, cy + r), end: Layout.point(cx, cy + r) })
-		.cubic_to({ control_1: Layout.point(cx - k, cy + r), control_2: Layout.point(cx - r, cy + k), end: Layout.point(cx - r, cy) })
-		.cubic_to({ control_1: Layout.point(cx - r, cy - k), control_2: Layout.point(cx - k, cy - r), end: Layout.point(cx, cy - r) })
-		.cubic_to({ control_1: Layout.point(cx + k, cy - r), control_2: Layout.point(cx + r, cy - k), end: Layout.point(cx + r, cy) })
+		.move_to(Layout.point({ x: cx + r, y: cy }))
+		.cubic_to({ control_1: Layout.point({ x: cx + r, y: cy + k }), control_2: Layout.point({ x: cx + k, y: cy + r }), end: Layout.point({ x: cx, y: cy + r }) })
+		.cubic_to({ control_1: Layout.point({ x: cx - k, y: cy + r }), control_2: Layout.point({ x: cx - r, y: cy + k }), end: Layout.point({ x: cx - r, y: cy }) })
+		.cubic_to({ control_1: Layout.point({ x: cx - r, y: cy - k }), control_2: Layout.point({ x: cx - k, y: cy - r }), end: Layout.point({ x: cx, y: cy - r }) })
+		.cubic_to({ control_1: Layout.point({ x: cx + k, y: cy - r }), control_2: Layout.point({ x: cx + r, y: cy - k }), end: Layout.point({ x: cx + r, y: cy }) })
 		.close()
 		.finish()
 }
@@ -139,29 +139,29 @@ circle = |cx, cy, r| {
 sprout_mark : Scene.Drawing
 sprout_mark = {
 	left_leaf = Scene.PathBuilder.start
-		.move_to(Layout.point(16, 14))
-		.cubic_to({ control_1: Layout.point(10, 26), control_2: Layout.point(2, 26), end: Layout.point(1, 22) })
-		.cubic_to({ control_1: Layout.point(2, 14), control_2: Layout.point(10, 12), end: Layout.point(16, 14) })
+		.move_to(Layout.point({ x: 16, y: 14 }))
+		.cubic_to({ control_1: Layout.point({ x: 10, y: 26 }), control_2: Layout.point({ x: 2, y: 26 }), end: Layout.point({ x: 1, y: 22 }) })
+		.cubic_to({ control_1: Layout.point({ x: 2, y: 14 }), control_2: Layout.point({ x: 10, y: 12 }), end: Layout.point({ x: 16, y: 14 }) })
 		.close()
 		.finish()
 	right_leaf = Scene.PathBuilder.start
-		.move_to(Layout.point(16, 18))
-		.cubic_to({ control_1: Layout.point(20, 30), control_2: Layout.point(28, 32), end: Layout.point(31, 30) })
-		.cubic_to({ control_1: Layout.point(30, 22), control_2: Layout.point(24, 16), end: Layout.point(16, 18) })
+		.move_to(Layout.point({ x: 16, y: 18 }))
+		.cubic_to({ control_1: Layout.point({ x: 20, y: 30 }), control_2: Layout.point({ x: 28, y: 32 }), end: Layout.point({ x: 31, y: 30 }) })
+		.cubic_to({ control_1: Layout.point({ x: 30, y: 22 }), control_2: Layout.point({ x: 24, y: 16 }), end: Layout.point({ x: 16, y: 18 }) })
 		.close()
 		.finish()
-	Scene.Drawing.empty.rectangle(Layout.rect(15, 0, 2, 20), forest)
-		.path(left_leaf, Scene.solid_fill(leaf))
-		.path(right_leaf, Scene.solid_fill(forest))
+	Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 15, y: 0, width: 2, height: 20 }), color: forest })
+		.path({ path: left_leaf, style: Scene.solid_fill(leaf) })
+		.path({ path: right_leaf, style: Scene.solid_fill(forest) })
 }
 
 ## A board card: a white card with a coloured edge, two grey text lines,
 ## and an owner dot.
 card : Color.SourceValue, I64 -> Scene.Drawing
 card = |edge, length| {
-	base = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 136, 38), white).rectangle(Layout.rect(0, 0, 4, 38), edge)
-	lines = base.rectangle(Layout.rect(12, 24, length, 5), stone).rectangle(Layout.rect(12, 14, length * 6 // 10, 5), stone)
-	lines.path(circle(124, 12, 5), Scene.solid_fill(edge))
+	base = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 136, height: 38 }), color: white }).rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 4, height: 38 }), color: edge })
+	lines = base.rectangle({ bounds: Layout.rect({ x: 12, y: 24, width: length, height: 5 }), color: stone }).rectangle({ bounds: Layout.rect({ x: 12, y: 14, width: length * 6 // 10, height: 5 }), color: stone })
+	lines.path({ path: circle(124, 12, 5), style: Scene.solid_fill(edge) })
 }
 
 ## The hero: the Sprout board with Proposed, Deciding, and Decided columns
@@ -169,21 +169,21 @@ card = |edge, length| {
 hero : Scene.Drawing
 hero = {
 	column = |name, cards| {
-		var $drawing = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 152, 150), sage)
+		var $drawing = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 152, height: 150 }), color: sage })
 		var $y = 90
 		for (edge, length) in cards {
-			$drawing = $drawing.group(Layout.point(8, $y), card(edge, length))
+			$drawing = $drawing.group({ offset: Layout.point({ x: 8, y: $y }), drawing: card(edge, length) })
 			$y = $y - 44
 		}
-		$drawing.text({ align: Start, color: forest, origin: Layout.point(10, 136), size: 10, text: name })
+		$drawing.text({ align: Start, color: forest, origin: Layout.point({ x: 10, y: 136 }), size: 10, text: name })
 	}
-	frame = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 504, 190), meadow)
-	progress = frame.rectangle(Layout.rect(16, 14, 380, 8), white).rectangle(Layout.rect(16, 14, 266, 8), leaf)
+	frame = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 504, height: 190 }), color: meadow })
+	progress = frame.rectangle({ bounds: Layout.rect({ x: 16, y: 14, width: 380, height: 8 }), color: white }).rectangle({ bounds: Layout.rect({ x: 16, y: 14, width: 266, height: 8 }), color: leaf })
 	progress
-		.text_in(Strong, { align: End, color: forest, origin: Layout.point(488, 13), size: 8, text: "Decision log 70%" })
-		.group(Layout.point(16, 32), column("Proposed", [(clay, 96), (sun, 80), (clay, 104)]))
-		.group(Layout.point(176, 32), column("Deciding", [(sun, 88), (sun, 110)]))
-		.group(Layout.point(336, 32), column("Decided", [(leaf, 100), (leaf, 76), (leaf, 92)]))
+		.text_in({ role: Strong, label: { align: End, color: forest, origin: Layout.point({ x: 488, y: 13 }), size: 8, text: "Decision log 70%" } })
+		.group({ offset: Layout.point({ x: 16, y: 32 }), drawing: column("Proposed", [(clay, 96), (sun, 80), (clay, 104)]) })
+		.group({ offset: Layout.point({ x: 176, y: 32 }), drawing: column("Deciding", [(sun, 88), (sun, 110)]) })
+		.group({ offset: Layout.point({ x: 336, y: 32 }), drawing: column("Decided", [(leaf, 100), (leaf, 76), (leaf, 92)]) })
 }
 
 ## Median days from proposal to decision over the eight pilot weeks, in
@@ -202,10 +202,10 @@ line_chart = {
 	var $chart = Scene.Drawing.empty
 	for day in [0, 2, 4, 6, 8, 10] {
 		color = if (day == 0) charcoal else stone
-		$chart = $chart.rectangle({ origin: Layout.point(left, y_of(day * 10)), size: { height: Layout.Unit.millipoints(if (day == 0) 1000 else 500), width: 474 } }, color)
-		$chart = $chart.text({ align: End, color: charcoal, origin: Layout.point(left - 6, y_of(day * 10) - 3), size: 8, text: if (day == 10) "10 d" else day.to_str() })
+		$chart = $chart.rectangle({ bounds: { origin: Layout.point({ x: left, y: y_of(day * 10) }), size: { height: Layout.Unit.millipoints(if (day == 0) 1000 else 500), width: 474 } }, color: color })
+		$chart = $chart.text({ align: End, color: charcoal, origin: Layout.point({ x: left - 6, y: y_of(day * 10) - 3 }), size: 8, text: if (day == 10) "10 d" else day.to_str() })
 	}
-	var $area = Scene.PathBuilder.start.move_to(Layout.point(left + 12, base))
+	var $area = Scene.PathBuilder.start.move_to(Layout.point({ x: left + 12, y: base }))
 	var $line = Scene.PathBuilder.start
 	var $x = left + 12
 	var $first = True
@@ -213,30 +213,30 @@ line_chart = {
 	week_one = 1
 	var $week = week_one
 	for tenths in cycle_time {
-		$area = $area.line_to(Layout.point($x, y_of(tenths)))
-		$line = if ($first) $line.move_to(Layout.point($x, y_of(tenths))) else $line.line_to(Layout.point($x, y_of(tenths)))
-		$chart = $chart.text({ align: Center, color: charcoal, origin: Layout.point($x, 4), size: 8, text: "Week ${$week.to_str()}" })
+		$area = $area.line_to(Layout.point({ x: $x, y: y_of(tenths) }))
+		$line = if ($first) $line.move_to(Layout.point({ x: $x, y: y_of(tenths) })) else $line.line_to(Layout.point({ x: $x, y: y_of(tenths) }))
+		$chart = $chart.text({ align: Center, color: charcoal, origin: Layout.point({ x: $x, y: 4 }), size: 8, text: "Week ${$week.to_str()}" })
 		$first = False
 		$x = $x + step
 		$week = $week + 1
 	}
-	$area = $area.line_to(Layout.point($x - step, base)).close()
+	$area = $area.line_to(Layout.point({ x: $x - step, y: base })).close()
 	$chart = $chart
-		.path($area.finish(), Scene.solid_fill(sage))
-		.path($line.finish(), Scene.solid_stroke(forest, 2))
+		.path({ path: $area.finish(), style: Scene.solid_fill(sage) })
+		.path({ path: $line.finish(), style: Scene.solid_stroke(forest, 2) })
 	var $marker_x = left + 12
 	for tenths in cycle_time {
-		$chart = $chart.path(circle($marker_x, y_of(tenths), 4), { fill: AuthorSolidFill(white), stroke: AuthorSolidStroke({ color: forest, width: 1.5 }) })
+		$chart = $chart.path({ path: circle($marker_x, y_of(tenths), 4), style: { fill: AuthorSolidFill(white), stroke: AuthorSolidStroke({ color: forest, width: 1.5 }) } })
 		$marker_x = $marker_x + step
 	}
 
 	# The target of five days, as a dashed clay rule with its label.
 	var $dash = left
 	while $dash < left + 474 {
-		$chart = $chart.rectangle(Layout.rect($dash, y_of(50), 8, 1), clay)
+		$chart = $chart.rectangle({ bounds: Layout.rect({ x: $dash, y: y_of(50), width: 8, height: 1 }), color: clay })
 		$dash = $dash + 14
 	}
-	$chart.text({ align: End, color: clay, origin: Layout.point(left + 474, y_of(50) + 4), size: 8, text: "Target: 5 days" })
+	$chart.text({ align: End, color: clay, origin: Layout.point({ x: left + 474, y: y_of(50) + 4 }), size: 8, text: "Target: 5 days" })
 }
 
 ## ---------------------------------------------------------------------
@@ -296,18 +296,18 @@ rounded_panel = |ground, size| {
 		Meadow => meadow
 		Forest => forest
 	}
-	Scene.Drawing.empty.path(outline_path, { fill: AuthorSolidFill(fill), stroke: AuthorSolidStroke({ color: leaf, width: 1.5 }) })
+	Scene.Drawing.empty.path({ path: outline_path, style: { fill: AuthorSolidFill(fill), stroke: AuthorSolidStroke({ color: leaf, width: 1.5 }) } })
 }
 
 ## ---------------------------------------------------------------------
 ## Furniture and navigation.
 
 page_of : Pdf.Inline
-page_of = Pdf.reserved_width(64, End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+page_of = Pdf.reserved_width({ width: 64, align: End, contents: [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)] })
 
 ## A leaf-green hairline across the measure, under each header.
 green_rule : Scene.Drawing
-green_rule = Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: 1, width: 504 } }, leaf)
+green_rule = Scene.Drawing.empty.rectangle({ bounds: { origin: Layout.point({ x: 0, y: 0 }), size: { height: 1, width: 504 } }, color: leaf })
 
 footer : Pdf.Region
 footer = Pdf.region({
@@ -319,7 +319,7 @@ footer = Pdf.region({
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({
-		header: Pdf.region({ height: 40, start: [Pdf.furniture_image(Scene.Drawing.empty.group(Layout.point(0, 5), sprout_mark))], end: [Pdf.furniture_text([Pdf.text("Product brief · October 2026")])], backdrop: Backdrop(green_rule), slot_inset: 3 }),
+		header: Pdf.region({ height: 40, start: [Pdf.furniture_image(Scene.Drawing.empty.group({ offset: Layout.point({ x: 0, y: 5 }), drawing: sprout_mark }))], end: [Pdf.furniture_text([Pdf.text("Product brief · October 2026")])], backdrop: Backdrop(green_rule), slot_inset: 3 }),
 		footer,
 		gap: 16,
 	}),
@@ -462,7 +462,7 @@ contents = |options| Ok([
 		],
 	)?,
 	Pdf.section([
-		Pdf.destination_heading("problem", 1, "The problem"),
+		Pdf.destination_heading({ name: "problem", level: 1, text: "The problem" }),
 		Pdf.rich_paragraph([
 			Pdf.text("Important decisions disappear across chat threads, tickets, and meeting notes. Weeks later nobody can say "),
 			Pdf.emphasis([Pdf.text("who")]),
@@ -472,7 +472,7 @@ contents = |options| Ok([
 		]),
 	]),
 	Pdf.section([
-		Pdf.destination_heading("new", 1, "What is new in 2.4"),
+		Pdf.destination_heading({ name: "new", level: 1, text: "What is new in 2.4" }),
 		Pdf.bullet_list([
 			feature("Decision log.", [Pdf.text("Every card that reaches Decided is written to an append-only log with its owner, date, and rationale.")]),
 			feature("Typed ownership.", [Pdf.text("Owners are people, not channels; a card without an owner cannot leave Proposed.")]),
@@ -481,18 +481,18 @@ contents = |options| Ok([
 		]),
 	]),
 	Pdf.section([
-		Pdf.destination_heading("pilot", 1, "Pilot results"),
+		Pdf.destination_heading({ name: "pilot", level: 1, text: "Pilot results" }),
 		Pdf.paragraph("Median time to decide halved and crossed the five-day target (dashed) in week 6."),
 		Pdf.figure({ drawing: line_chart, alt: "Line chart of median days from proposal to decision over eight pilot weeks, falling steadily from 9.5 days in week 1 to 4.4 days in week 8 and crossing the five-day target in week 6. Values are listed in Table 1.", caption: Pdf.caption("Figure 1. Median days to decide, weeks 1 to 8"), fit: ScaleToFit({ minimum_percent: 80 }) }),
 		cycle_table,
 	]),
 	Pdf.section([
-		Pdf.destination_heading("plans", 1, "Plans and pricing"),
+		Pdf.destination_heading({ name: "plans", level: 1, text: "Plans and pricing" }),
 		Pdf.paragraph("Every plan includes the board, the decision log, and archival export."),
 		plans_table,
 	]),
 	Pdf.section([
-		Pdf.destination_heading("next", 1, "What comes next"),
+		Pdf.destination_heading({ name: "next", level: 1, text: "What comes next" }),
 		Pdf.numbered_list(
 			{},
 			[
@@ -503,7 +503,7 @@ contents = |options| Ok([
 		),
 	]),
 	Pdf.section([
-		Pdf.destination_heading("rollout", 1, "Rollout and support"),
+		Pdf.destination_heading({ name: "rollout", level: 1, text: "Rollout and support" }),
 		Pdf.paragraph("Sprout 2.4 reaches every workspace in three waves. Existing boards migrate automatically; nothing needs to be exported or re-imported."),
 		rollout_table,
 		Pdf.paragraph("Support stays with your plan through the rollout. Business workspaces get a migration review with their success manager before their wave switches on."),

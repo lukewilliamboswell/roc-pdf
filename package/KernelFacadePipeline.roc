@@ -264,24 +264,8 @@ build_ordered_pipeline = |authoring, multi, theme, page_size, descriptor, facts,
 	source_store = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics))
 	shape = (
 		match multi {
-			Policy(ordered) => KernelFacadeShape.Plan.build_ordered(
-				KernelFacadeSemantics.Plan.authoring(semantics),
-				KernelFacadeSemantics.Plan.block_ownership(semantics),
-				KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary)),
-				source_store,
-				ordered,
-				theme,
-				limits.shape,
-			)
-			Styled(styled) => KernelFacadeShape.Plan.build_styled(
-				KernelFacadeSemantics.Plan.authoring(semantics),
-				KernelFacadeSemantics.Plan.block_ownership(semantics),
-				KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary)),
-				source_store,
-				styled,
-				theme,
-				limits.shape,
-			)
+			Policy(ordered) => KernelFacadeShape.Plan.build_ordered(KernelFacadeSemantics.Plan.authoring(semantics), KernelFacadeSemantics.Plan.block_ownership(semantics), KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary)), source_store, ordered, theme, limits.shape)
+			Styled(styled) => KernelFacadeShape.Plan.build_styled(KernelFacadeSemantics.Plan.authoring(semantics), KernelFacadeSemantics.Plan.block_ownership(semantics), KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary)), source_store, styled, theme, limits.shape)
 		}
 	) ? Shape
 	furniture_selection = match multi {
@@ -568,15 +552,7 @@ probe_early = |authoring, font, theme, page_size, limits, stage| {
 	}
 	preliminary = KernelFacadeSemantics.Plan.preliminary(semantics)
 	source_store = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics))
-	shape = KernelFacadeShape.Plan.build(
-		KernelFacadeSemantics.Plan.authoring(semantics),
-		KernelFacadeSemantics.Plan.block_ownership(semantics),
-		KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary)),
-		source_store,
-		font,
-		theme,
-		limits.shape,
-	) ? Shape
+	shape = KernelFacadeShape.Plan.build(KernelFacadeSemantics.Plan.authoring(semantics), KernelFacadeSemantics.Plan.block_ownership(semantics), KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary)), source_store, font, theme, limits.shape) ? Shape
 	shape_work = { ..work, shaped_runs: KernelFacadeShape.Plan.shape(shape).store.runs.len(), shape_metric_reads: KernelFacadeShape.Plan.shape(shape).work.metric_reads }
 	if stage == ShapeReady {
 		return Ok(shape_work)
@@ -604,15 +580,7 @@ probe_ordered_plan = |authoring, ordered, theme, page_size, limits| {
 	semantics = KernelFacadeSemantics.Plan.build(authoring, limits.semantics) ? Semantics
 	preliminary = KernelFacadeSemantics.Plan.preliminary(semantics)
 	source_store = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics))
-	shape = KernelFacadeShape.Plan.build_ordered(
-		KernelFacadeSemantics.Plan.authoring(semantics),
-		KernelFacadeSemantics.Plan.block_ownership(semantics),
-		KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary)),
-		source_store,
-		ordered,
-		theme,
-		limits.shape,
-	) ? Shape
+	shape = KernelFacadeShape.Plan.build_ordered(KernelFacadeSemantics.Plan.authoring(semantics), KernelFacadeSemantics.Plan.block_ownership(semantics), KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary)), source_store, ordered, theme, limits.shape) ? Shape
 	selection = PolicyFaces({ faces: KernelFacadeShape.Plan.selected_faces(shape), fonts: KernelFacadeShape.Plan.fonts(shape), policy: ordered.policy, registry: ordered.registry })
 	shaped_runs = KernelFacadeShape.Plan.shape(shape).store.runs.len()
 	lines = KernelFacadeLines.Plan.build_ordered_authoring(authoring, shape, source_store, page_size, theme, limits.lines) ? Lines
@@ -656,15 +624,7 @@ build_upstream = |authoring, font, theme, page_size, descriptor, request, limits
 	semantics = KernelFacadeSemantics.Plan.build(authoring, limits.semantics) ? Semantics
 	preliminary = KernelFacadeSemantics.Plan.preliminary(semantics)
 	source_store = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics))
-	shape = KernelFacadeShape.Plan.build(
-		KernelFacadeSemantics.Plan.authoring(semantics),
-		KernelFacadeSemantics.Plan.block_ownership(semantics),
-		KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary)),
-		source_store,
-		font,
-		theme,
-		limits.shape,
-	) ? Shape
+	shape = KernelFacadeShape.Plan.build(KernelFacadeSemantics.Plan.authoring(semantics), KernelFacadeSemantics.Plan.block_ownership(semantics), KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary)), source_store, font, theme, limits.shape) ? Shape
 	lines = KernelFacadeLines.Plan.build_authoring(authoring, shape, source_store, page_size, theme, limits.lines) ? Lines
 
 	## The laid-out record is destructured at once so its plans stay uniquely

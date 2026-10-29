@@ -174,13 +174,13 @@ Layout :: [].{
 	Rect : { origin : Point, size : Size }
 
 	## Construct a point from whole PDF points.
-	point : I64, I64 -> Point
-	point = |x_points, y_points| { x: Unit.points(x_points), y: Unit.points(y_points) }
+	point : { x : I64, y : I64 } -> Point
+	point = |{ x: x_points, y: y_points }| { x: Unit.points(x_points), y: Unit.points(y_points) }
 
 	## Construct a rectangle from whole-point x, y, width, and height values.
-	rect : I64, I64, I64, I64 -> Rect
-	rect = |x_points, y_points, width_points, height_points| {
-		origin: point(x_points, y_points),
+	rect : { x : I64, y : I64, width : I64, height : I64 } -> Rect
+	rect = |{ x: x_points, y: y_points, width: width_points, height: height_points }| {
+		origin: point({ x: x_points, y: y_points }),
 		size: { height: Unit.points(height_points), width: Unit.points(width_points) },
 	}
 

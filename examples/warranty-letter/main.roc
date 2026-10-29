@@ -51,7 +51,7 @@ register_fonts : {} -> Try(Faces, [FontRejected(Font.ResourceError)])
 register_fonts = |_| {
 	latin : List(Font.Script)
 	latin = ["Latn"]
-	add = |registry, bytes| registry.register(bytes, { provision: BuiltIn, scripts: latin }, Font.ValidationLimits.default).map_err(|err| FontRejected(err))
+	add = |registry, bytes| registry.register({ bytes: bytes, registration: { provision: BuiltIn, scripts: latin }, limits: Font.ValidationLimits.default }).map_err(|err| FontRejected(err))
 	regular = add(Font.Registry.empty, regular_bytes)?
 	bold = add(regular.registry, bold_bytes)?
 	italic = add(bold.registry, italic_bytes)?
@@ -130,30 +130,30 @@ theme = |faces| {
 logo : Scene.Drawing
 logo = {
 	wing = Scene.PathBuilder.start
-		.move_to(Layout.point(100, 12))
-		.cubic_to({ control_1: Layout.point(108, 36), control_2: Layout.point(124, 42), end: Layout.point(132, 40) })
-		.cubic_to({ control_1: Layout.point(124, 32), control_2: Layout.point(114, 22), end: Layout.point(100, 12) })
+		.move_to(Layout.point({ x: 100, y: 12 }))
+		.cubic_to({ control_1: Layout.point({ x: 108, y: 36 }), control_2: Layout.point({ x: 124, y: 42 }), end: Layout.point({ x: 132, y: 40 }) })
+		.cubic_to({ control_1: Layout.point({ x: 124, y: 32 }), control_2: Layout.point({ x: 114, y: 22 }), end: Layout.point({ x: 100, y: 12 }) })
 		.close()
 		.finish()
-	tile = Scene.Drawing.empty.rectangle(Layout.rect(92, 0, 48, 48), navy).path(wing, Scene.solid_fill(brass))
-	bars = tile.rectangle(Layout.rect(0, 32, 82, 8), navy).rectangle(Layout.rect(22, 20, 60, 6), navy)
-	bars.rectangle(Layout.rect(42, 10, 40, 4), brass)
+	tile = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 92, y: 0, width: 48, height: 48 }), color: navy }).path({ path: wing, style: Scene.solid_fill(brass) })
+	bars = tile.rectangle({ bounds: Layout.rect({ x: 0, y: 32, width: 82, height: 8 }), color: navy }).rectangle({ bounds: Layout.rect({ x: 22, y: 20, width: 60, height: 6 }), color: navy })
+	bars.rectangle({ bounds: Layout.rect({ x: 42, y: 10, width: 40, height: 4 }), color: brass })
 }
 
 ## The letterhead's rule under the mark: a 2 pt navy band over a 1 pt
 ## brass keyline along the header region's bottom edge, the full 451 pt
 ## width.
 masthead : Scene.Drawing
-masthead = Scene.Drawing.empty.rectangle(Layout.rect(0, 3, 451, 2), navy).rectangle(Layout.rect(0, 0, 451, 1), brass)
+masthead = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 3, width: 451, height: 2 }), color: navy }).rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 451, height: 1 }), color: brass })
 
 ## A 0.6 pt hairline the full width of the body, `y` points up.
 hairline : I64 -> Scene.Drawing
-hairline = |y| Scene.Drawing.empty.rectangle({ origin: Layout.point(0, y), size: { height: 0.6, width: 451 } }, "#B8C2CE")
+hairline = |y| Scene.Drawing.empty.rectangle({ bounds: { origin: Layout.point({ x: 0, y: y }), size: { height: 0.6, width: 451 } }, color: "#B8C2CE" })
 
 ## `Page N of M` end-aligned in 62 pt: in Literata at 10.5 pt the widest
 ## value LET-A2's eleven pages need, `Page 10 of 11`, is 58.7 pt.
 page_of : Pdf.Inline
-page_of = Pdf.reserved_width(62, End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+page_of = Pdf.reserved_width({ width: 62, align: End, contents: [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)] })
 
 ## The letterhead: the sender's name in the Strong face, then the address
 ## and contacts in slate.

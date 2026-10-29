@@ -424,43 +424,7 @@ test_bundle = |_| {
 expect {
 	leaf = KernelFontLeaf.Leaf.build(test_bundle({}))?
 	again = KernelFontLeaf.Leaf.build(test_bundle({}))?
-	expected = append_u64_bytes(
-		append_i64_bytes(
-			append_i64_bytes(
-				append_i64_bytes(
-					append_i64_bytes(
-						append_i64_bytes(
-							append_i64_bytes(
-								append_i64_bytes(
-									append_i64_bytes(
-										append_i64_bytes(
-											append_i64_bytes(
-												append_all(
-													append_u64_bytes(append_all([font_bundle_recipe_tag], [0x41, 0x42, 0x43, 0x44, 0x45, 0x46]), 4),
-													[0x54, 0x65, 0x73, 0x74],
-												),
-												32,
-											),
-											0,
-										),
-										80,
-									),
-									800,
-								),
-								700,
-							),
-							-200,
-						),
-						-50,
-					),
-					-250,
-				),
-				900,
-			),
-			950,
-		),
-		2,
-	)
+	expected = append_u64_bytes(append_i64_bytes(append_i64_bytes(append_i64_bytes(append_i64_bytes(append_i64_bytes(append_i64_bytes(append_i64_bytes(append_i64_bytes(append_i64_bytes(append_i64_bytes(append_all(append_u64_bytes(append_all([font_bundle_recipe_tag], [0x41, 0x42, 0x43, 0x44, 0x45, 0x46]), 4), [0x54, 0x65, 0x73, 0x74]), 32), 0), 80), 800), 700), -200), -50), -250), 900), 950), 2)
 		.concat(append_u64_bytes([], 500).append(0))
 		.concat(append_u64_bytes([], 600).append(1))
 		.concat(append_u64_bytes([], 1))

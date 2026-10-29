@@ -124,18 +124,7 @@ build_plan = |scenes, font, descriptor, facts, navigation, limits| {
 	content = KernelContent.Plan.build_with_text(tagged, KernelPdfText.ScenePlan.content(text), limits.content) ? Content
 	objects = KernelObjectPlan.Plan.build_with_text(tagged, colors, images, resource_use, content, limits.objects) ? Objects
 	font_objects = KernelFontObjects.Plan.build(objects, 1, limits.max_objects) ? FontObjects
-	structure = KernelTaggedTextStructure.Plan.build_with_navigation(
-		tagged,
-		colors,
-		images,
-		content,
-		font_objects,
-		text,
-		[{ descriptor, font, plan: font_plan, subset }],
-		facts,
-		navigation,
-		limits.structure,
-	) ? Structure
+	structure = KernelTaggedTextStructure.Plan.build_with_navigation(tagged, colors, images, content, font_objects, text, [{ descriptor, font, plan: font_plan, subset }], facts, navigation, limits.structure) ? Structure
 	content_work = KernelContent.Plan.work(content)
 	resource_work = KernelResourceUse.TextPlan.work(resource_use)
 	text_work = KernelPdfText.ScenePlan.work(text)
@@ -228,18 +217,7 @@ build_multi_plan = |scenes, fonts, descriptor, facts, navigation, limits| {
 	content = KernelContent.Plan.build_with_text(tagged, KernelPdfText.ScenePlan.content(text), limits.content) ? Content
 	objects = KernelObjectPlan.Plan.build_with_text(tagged, colors, images, resource_use, content, limits.objects) ? Objects
 	font_objects = KernelFontObjects.Plan.build(objects, fonts.len(), limits.max_objects) ? FontObjects
-	structure = KernelTaggedTextStructure.Plan.build_with_navigation(
-		tagged,
-		colors,
-		images,
-		content,
-		font_objects,
-		text,
-		$embedded,
-		facts,
-		navigation,
-		limits.structure,
-	) ? Structure
+	structure = KernelTaggedTextStructure.Plan.build_with_navigation(tagged, colors, images, content, font_objects, text, $embedded, facts, navigation, limits.structure) ? Structure
 	content_work = KernelContent.Plan.work(content)
 	resource_work = KernelResourceUse.TextPlan.work(resource_use)
 	text_work = KernelPdfText.ScenePlan.work(text)

@@ -138,10 +138,10 @@ figure_document = |_| {
 	Pdf.document({
 		contents: [
 			Pdf.title("Archived figures"),
-			Pdf.figure({ drawing: Scene.Drawing.empty.image(opaque, Layout.rect(0, 0, 320, 160)), alt: "Teal diagonal stripes on an opaque raster", caption: Pdf.caption("An opaque packed sRGB raster.") }),
-			Pdf.figure({ drawing: Scene.Drawing.empty.image(translucent, Layout.rect(0, 0, 320, 160)), alt: "The same stripes fading from transparent to opaque", caption: Pdf.caption("A packed raster with an alpha plane.") }),
-			Pdf.figure({ drawing: Scene.Drawing.empty.image(gray, Layout.rect(0, 0, 320, 80)), alt: "A left-to-right gray ramp", caption: Pdf.no_caption }),
-			Pdf.figure({ drawing: Scene.Drawing.empty.image(jpeg, Layout.rect(0, 0, 160, 160)), alt: "A small sRGB JPEG test pattern", caption: Pdf.caption("A baseline sRGB JPEG.") }),
+			Pdf.figure({ drawing: Scene.Drawing.empty.image({ image: opaque, placement: Layout.rect({ x: 0, y: 0, width: 320, height: 160 }) }), alt: "Teal diagonal stripes on an opaque raster", caption: Pdf.caption("An opaque packed sRGB raster.") }),
+			Pdf.figure({ drawing: Scene.Drawing.empty.image({ image: translucent, placement: Layout.rect({ x: 0, y: 0, width: 320, height: 160 }) }), alt: "The same stripes fading from transparent to opaque", caption: Pdf.caption("A packed raster with an alpha plane.") }),
+			Pdf.figure({ drawing: Scene.Drawing.empty.image({ image: gray, placement: Layout.rect({ x: 0, y: 0, width: 320, height: 80 }) }), alt: "A left-to-right gray ramp", caption: Pdf.no_caption }),
+			Pdf.figure({ drawing: Scene.Drawing.empty.image({ image: jpeg, placement: Layout.rect({ x: 0, y: 0, width: 160, height: 160 }) }), alt: "A small sRGB JPEG test pattern", caption: Pdf.caption("A baseline sRGB JPEG.") }),
 		],
 		language: "en-AU",
 		title: "Archived figures",
@@ -152,15 +152,15 @@ navigation_document : U64 -> Document
 navigation_document = |links| {
 	var $contents = List.with_capacity(links + 6)
 	$contents = $contents.append(Pdf.title("Archived navigation"))
-	$contents = $contents.append(Pdf.destination_heading("overview", 1, "Overview"))
+	$contents = $contents.append(Pdf.destination_heading({ name: "overview", level: 1, text: "Overview" }))
 	$contents = $contents.append(Pdf.paragraph("Links, internal destinations, outlines, and page labels remain navigation data in an archival file."))
 	var $index = 0
 	while $index < links {
-		$contents = $contents.append(Pdf.link("Reference ${Str.inspect($index)}", "https://example.com/archive/${Str.inspect($index)}"))
+		$contents = $contents.append(Pdf.link({ text: "Reference ${Str.inspect($index)}", uri: "https://example.com/archive/${Str.inspect($index)}" }))
 		$index = $index + 1
 	}
-	$contents = $contents.append(Pdf.destination_heading("appendix", 1, "Appendix"))
-	$contents = $contents.append(Pdf.internal_link("Return to the overview", "overview"))
+	$contents = $contents.append(Pdf.destination_heading({ name: "appendix", level: 1, text: "Appendix" }))
+	$contents = $contents.append(Pdf.internal_link({ text: "Return to the overview", destination: "overview" }))
 	Pdf.document({
 		contents: $contents,
 		language: "en-AU",
@@ -178,7 +178,7 @@ navigation_document = |links| {
 caller_bytes : U64 -> List(U8)
 caller_bytes = |scale| {
 	limits = if (scale == 0) Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 }) else Font.ValidationLimits.default
-	registered = match Font.Registry.empty.register(caller_font_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits) {
+	registered = match Font.Registry.empty.register({ bytes: caller_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: limits }) {
 		Err(_) => crash "archive caller font registration failed"
 		Ok(value) => value
 	}

@@ -32,14 +32,8 @@ KernelGeometry :: [].{
 
 	transform_point : Scene.Matrix, Layout.Point -> Try(Layout.Point, Error)
 	transform_point = |matrix, point| {
-		x_numerator = checked_add(
-			checked_times(matrix.a.raw(), point.x.raw())?,
-			checked_times(matrix.c.raw(), point.y.raw())?,
-		)?
-		y_numerator = checked_add(
-			checked_times(matrix.b.raw(), point.x.raw())?,
-			checked_times(matrix.d.raw(), point.y.raw())?,
-		)?
+		x_numerator = checked_add(checked_times(matrix.a.raw(), point.x.raw())?, checked_times(matrix.c.raw(), point.y.raw())?)?
+		y_numerator = checked_add(checked_times(matrix.b.raw(), point.x.raw())?, checked_times(matrix.d.raw(), point.y.raw())?)?
 		x = checked_add(round_half_even(x_numerator, 1000)?, matrix.e.raw())?
 		y = checked_add(round_half_even(y_numerator, 1000)?, matrix.f.raw())?
 
@@ -119,7 +113,7 @@ test_page = {
 		trim: page_rect(750, 750, 8500, 8500),
 	},
 	id: Semantics.PageId.from_index(0),
-	paint_order: Semantics.IndexRange.from_start_and_length(0, 0),
+	paint_order: Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 }),
 	rotation: Rotate0,
 }
 

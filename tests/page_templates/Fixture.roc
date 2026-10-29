@@ -190,11 +190,11 @@ gray_mark : Image.Source
 gray_mark = Image.Source.gray8({ alpha: NoAlpha, dimensions: { height: 2, width: 4 }, pixels: [0, 80, 160, 240, 240, 160, 80, 0], row_stride: 4 })
 
 logo : I64, I64 -> Pdf.Furniture
-logo = |width, height| Pdf.furniture_image(Scene.Drawing.empty.image(logo_image, Layout.rect(0, 0, width, height)))
+logo = |width, height| Pdf.furniture_image(Scene.Drawing.empty.image({ image: logo_image, placement: Layout.rect({ x: 0, y: 0, width: width, height: height }) }))
 
 ## `Page N of M`, end-aligned in a reserved width.
 page_of : I64 -> Pdf.Inline
-page_of = |width| Pdf.reserved_width(Layout.Unit.points(width), End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+page_of = |width| Pdf.reserved_width({ width: Layout.Unit.points(width), align: End, contents: [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)] })
 
 sentences : List(Str)
 sentences = [
@@ -299,7 +299,7 @@ letter_document = |paragraphs, field_width| {
 
 ## A full-width 0.5 pt rule as a vector drawing.
 rule : Pdf.Furniture
-rule = Pdf.furniture_image(Scene.Drawing.empty.rectangle({ origin: { x: 0, y: 0 }, size: { height: 0.5, width: 483 } }, Color.srgb8({ blue: 110, green: 90, red: 60 })))
+rule = Pdf.furniture_image(Scene.Drawing.empty.rectangle({ bounds: { origin: { x: 0, y: 0 }, size: { height: 0.5, width: 483 } }, color: Color.srgb8({ blue: 110, green: 90, red: 60 }) }))
 
 report_footer : Pdf.Region
 report_footer = Pdf.region({ end: [Pdf.furniture_text([page_of(64)])], height: 16 })
@@ -369,7 +369,7 @@ numbering_pages = 5
 
 page_labels_document : U64, Layout.Unit, Bool -> Document
 page_labels_document = |pages, width, empty| {
-	footer = Pdf.region({ height: 16, end: [Pdf.furniture_text([Pdf.text("Label "), Pdf.reserved_width(width, End, [Pdf.page_label]), Pdf.text(" · Physical "), Pdf.page_number(Decimal), Pdf.text("/"), Pdf.total_pages(Decimal)])] })
+	footer = Pdf.region({ height: 16, end: [Pdf.furniture_text([Pdf.text("Label "), Pdf.reserved_width({ width: width, align: End, contents: [Pdf.page_label] }), Pdf.text(" · Physical "), Pdf.page_number(Decimal), Pdf.text("/"), Pdf.total_pages(Decimal)])] })
 	var $contents = []
 	var $page = 0
 	while $page < pages {
@@ -391,9 +391,9 @@ image_pages = 3
 
 images_document : U64 -> Document
 images_document = |context| {
-	stroke = Scene.Drawing.empty.path(Scene.PathBuilder.start.move_to(Layout.point(1, 1)).line_to(Layout.point(119, 1)).finish(), Scene.solid_stroke(Color.srgb8({ blue: 40, green: 40, red: 160 }), 1))
-	boxed = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 24, 12), Color.srgb8({ blue: 0, green: 0, red: 0 }))
-	mark = Pdf.furniture_image(Scene.Drawing.empty.image(gray_mark, Layout.rect(0, 0, 16, 8)))
+	stroke = Scene.Drawing.empty.path({ path: Scene.PathBuilder.start.move_to(Layout.point({ x: 1, y: 1 })).line_to(Layout.point({ x: 119, y: 1 })).finish(), style: Scene.solid_stroke(Color.srgb8({ blue: 40, green: 40, red: 160 }), 1) })
+	boxed = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 24, height: 12 }), color: Color.srgb8({ blue: 0, green: 0, red: 0 }) })
+	mark = Pdf.furniture_image(Scene.Drawing.empty.image({ image: gray_mark, placement: Layout.rect({ x: 0, y: 0, width: 16, height: 8 }) }))
 	var $contents = []
 	var $page = 0
 	while $page < image_pages {
@@ -431,11 +431,11 @@ images_document = |context| {
 ordered_faces : U64 -> Try({ policy : Font.PolicyId, registry : Font.Registry }, Fixture.EvidenceError)
 ordered_faces = |sections| {
 	limits = if (sections > 0) Font.ValidationLimits.default else Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })
-	latin = match Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits) {
+	latin = match Font.Registry.empty.register({ bytes: KernelBuiltInFont.bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: limits }) {
 		Err(_) => return Err(EvidenceFailure)
 		Ok(value) => value
 	}
-	cjk = match latin.registry.register(cjk_font_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] }, limits) {
+	cjk = match latin.registry.register({ bytes: cjk_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] }, limits: limits }) {
 		Err(_) => return Err(EvidenceFailure)
 		Ok(value) => value
 	}
@@ -536,7 +536,7 @@ run_negatives = |context| {
 	}
 	two_pages = [Pdf.paragraph("First page."), Pdf.page_break, Pdf.paragraph("Second page.")]
 	ten_pages = List.repeat([Pdf.paragraph("A page."), Pdf.page_break], 9).join().append(Pdf.paragraph("The last page."))
-	one_digit = header([Pdf.furniture_text([Pdf.reserved_width(8, End, [Pdf.page_number(Decimal)])])])
+	one_digit = header([Pdf.furniture_text([Pdf.reserved_width({ width: 8, align: End, contents: [Pdf.page_number(Decimal)] })])])
 	long = Str.repeat("Northstar Cooperative Ltd ", 2 + offset)
 	checks = [
 		rejects(templated(body, lead_of(700, [Pdf.paragraph("Letterhead")])), LayoutConstraintViolated, "layout.template_body_space", ["templates.first"]),
@@ -636,11 +636,11 @@ run_page_sizes = |context| {
 
 run_furniture_groups : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 run_furniture_groups = |context| {
-	square = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 10, 10), Color.srgb8({ blue: 140, green: 70, red: 20 }))
-	mark = square.rectangle(Layout.rect(12, 3, 18, 4), Color.srgb8({ blue: 40, green: 150, red: 230 })).image(gray_mark, Layout.rect(32, 0, 8, 10))
-	row = Scene.Drawing.empty.group(Layout.point(0, 0), mark).group(Layout.point(48, 0), mark).group(Layout.point(96, 0), mark)
-	nested = Scene.Drawing.empty.group(Layout.point(4, 2), Scene.Drawing.empty.group(Layout.point(6, 0), mark))
-	underline = Scene.Drawing.empty.group(Layout.point(0, 0), Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 483, 1), Color.srgb8({ blue: 140, green: 70, red: 20 })))
+	square = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 10, height: 10 }), color: Color.srgb8({ blue: 140, green: 70, red: 20 }) })
+	mark = square.rectangle({ bounds: Layout.rect({ x: 12, y: 3, width: 18, height: 4 }), color: Color.srgb8({ blue: 40, green: 150, red: 230 }) }).image({ image: gray_mark, placement: Layout.rect({ x: 32, y: 0, width: 8, height: 10 }) })
+	row = Scene.Drawing.empty.group({ offset: Layout.point({ x: 0, y: 0 }), drawing: mark }).group({ offset: Layout.point({ x: 48, y: 0 }), drawing: mark }).group({ offset: Layout.point({ x: 96, y: 0 }), drawing: mark })
+	nested = Scene.Drawing.empty.group({ offset: Layout.point({ x: 4, y: 2 }), drawing: Scene.Drawing.empty.group({ offset: Layout.point({ x: 6, y: 0 }), drawing: mark }) })
+	underline = Scene.Drawing.empty.group({ offset: Layout.point({ x: 0, y: 0 }), drawing: Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 483, height: 1 }), color: Color.srgb8({ blue: 140, green: 70, red: 20 }) }) })
 	header = Pdf.region({ end: [Pdf.furniture_text([page_of(80)])], height: 20, start: [Pdf.furniture_image(row)], backdrop: Backdrop(underline) })
 	footer = Pdf.region({ center: [Pdf.furniture_image(nested)], height: 16 })
 	document = Pdf.document({
@@ -656,7 +656,7 @@ run_furniture_groups = |context| {
 	var $deep = mark
 	var $depth = 0
 	while $depth < 9 {
-		$deep = Scene.Drawing.empty.group(Layout.point(1, 0), $deep)
+		$deep = Scene.Drawing.empty.group({ offset: Layout.point({ x: 1, y: 0 }), drawing: $deep })
 		$depth = $depth + 1
 	}
 	deep_header = Pdf.region({ height: 20, start: [Pdf.furniture_image($deep)] })
@@ -679,8 +679,8 @@ run_furniture_groups = |context| {
 
 backdrop_templates : Layout.Unit -> { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 backdrop_templates = |rule_width| {
-	rule_mark = Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: Layout.Unit.from_raw(750), width: rule_width } }, Color.srgb8({ blue: 110, green: 60, red: 20 }))
-	band = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 483, 20), Color.srgb8({ blue: 245, green: 238, red: 232 }))
+	rule_mark = Scene.Drawing.empty.rectangle({ bounds: { origin: Layout.point({ x: 0, y: 0 }), size: { height: Layout.Unit.from_raw(750), width: rule_width } }, color: Color.srgb8({ blue: 110, green: 60, red: 20 }) })
+	band = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 483, height: 20 }), color: Color.srgb8({ blue: 245, green: 238, red: 232 }) })
 	header = Pdf.region({ end: [Pdf.furniture_text([page_of(80)])], height: 20, start: [Pdf.furniture_text([Pdf.text("Quarterly operations report")])], backdrop: Backdrop(rule_mark) })
 	footer = Pdf.region({ center: [Pdf.furniture_text([Pdf.text("Harbour & Finch Pty Ltd · Confidential")])], height: 20, backdrop: Backdrop(band) })
 	{
@@ -721,7 +721,7 @@ run_backdrops = |pages| {
 		continuation: Pdf.page_template({ gap: 12, header: text_header }),
 		first: Pdf.first_page_template({ gap: 12, header: first_header }),
 	}
-	tall = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 100, 30), Color.srgb8({ blue: 0, green: 0, red: 0 }))
+	tall = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 100, height: 30 }), color: Color.srgb8({ blue: 0, green: 0, red: 0 }) })
 	checks = [
 		rejects(templated(simple(Pdf.region({ ..header_props, backdrop: Backdrop(tall) }))), LayoutConstraintViolated, "layout.template_region_overflow", ["templates.first.header.backdrop"]),
 		rejects(templated(backdrop_templates(Layout.Unit.points(452 + (pages % 1).to_i64_wrap()))), LayoutConstraintViolated, "layout.template_region_overflow", ["templates.first.header.backdrop"]),
@@ -738,7 +738,7 @@ run_backdrops = |pages| {
 ## the given slot insets.
 inset_templates : Layout.Unit, Layout.Unit -> { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 inset_templates = |header_inset, footer_inset| {
-	edge_rule = |y| Scene.Drawing.empty.rectangle({ origin: Layout.point(0, y), size: { height: Layout.Unit.from_raw(750), width: 483 } }, Color.srgb8({ blue: 110, green: 60, red: 20 }))
+	edge_rule = |y| Scene.Drawing.empty.rectangle({ bounds: { origin: Layout.point({ x: 0, y: y }), size: { height: Layout.Unit.from_raw(750), width: 483 } }, color: Color.srgb8({ blue: 110, green: 60, red: 20 }) })
 	header = Pdf.region({ end: [Pdf.furniture_text([page_of(80)])], height: 24, start: [Pdf.furniture_text([Pdf.text("Quarterly operations report")])], backdrop: Backdrop(edge_rule(0)), slot_inset: header_inset })
 	footer = Pdf.region({ center: [Pdf.furniture_text([Pdf.text("Harbour & Finch Pty Ltd · Confidential")])], height: 24, backdrop: Backdrop(edge_rule(23)), slot_inset: footer_inset })
 	{
@@ -921,14 +921,14 @@ run_typography = |pages| {
 		return Err(InvalidScale)
 	}
 	limits = Font.ValidationLimits.default
-	body = Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits) ? |_| EvidenceFailure
-	mono = body.registry.register(mono_font_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits) ? |_| EvidenceFailure
+	body = Font.Registry.empty.register({ bytes: KernelBuiltInFont.bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: limits }) ? |_| EvidenceFailure
+	mono = body.registry.register({ bytes: mono_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: limits }) ? |_| EvidenceFailure
 	quiet = Color.srgb8({ red: 80, green: 80, blue: 80 })
 	theme : Theme
 	theme = { body: { size: 11, leading: 15 }, furniture: Own({ face: Face(mono.face), size: 8, leading: 10, color: quiet }) }
 	make = |height, width| {
 		header = Pdf.region({ height, start: [Pdf.furniture_text([Pdf.text("Quiet running header")])] })
-		footer = Pdf.region({ height, end: [Pdf.furniture_text([Pdf.reserved_width(width, End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])])] })
+		footer = Pdf.region({ height, end: [Pdf.furniture_text([Pdf.reserved_width({ width: width, align: End, contents: [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)] })])] })
 		var $contents = []
 		var $page = 0
 		while $page < pages {
@@ -968,7 +968,7 @@ chapter_evidence = |count, mode| {
 		return Err(InvalidScale)
 	}
 	footer = Pdf.region({ height: 18, end: [Pdf.furniture_text([Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])] })
-	header = Pdf.region({ height: 44, start: [Pdf.furniture_text([Pdf.reserved_width(400, Start, [Pdf.running_label])])] })
+	header = Pdf.region({ height: 44, start: [Pdf.furniture_text([Pdf.reserved_width({ width: 400, align: Start, contents: [Pdf.running_label] })])] })
 	opening = Pdf.page_template({ footer, gap: 10 })
 	continuation = Pdf.page_template({ footer, gap: 10, header })
 	var $contents = if (mode == 1) [] else [Pdf.paragraph("Front matter belongs to the document.")]

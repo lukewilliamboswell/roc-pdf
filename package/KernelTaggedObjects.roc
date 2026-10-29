@@ -924,11 +924,7 @@ add_id_tree = |builder, tagged, objects| {
 		}
 		$index = $index + 1
 	}
-	tree = KernelIndex.ByteTree.build(
-		$entries,
-		IDTree,
-		KernelIndex.Limits.make({ max_entries: lowered_count, max_key_bytes: $key_bytes, value_count: KernelObject.counts($builder).values }),
-	) ? IdTreeIndex
+	tree = KernelIndex.ByteTree.build($entries, IDTree, KernelIndex.Limits.make({ max_entries: lowered_count, max_key_bytes: $key_bytes, value_count: KernelObject.counts($builder).values })) ? IdTreeIndex
 	if KernelIndex.ByteTree.node_count(tree) != planned.len() {
 		return Err(IdTreeUnplanned({ identifiers: identifiers.len(), planned: planned.len() }))
 	}

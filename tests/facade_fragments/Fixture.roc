@@ -47,10 +47,7 @@ Fixture :: [].{
 evidence_output_validate : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
 evidence_output_validate = |repetitions| {
 	input = synthetic_input(repetitions)?
-	font = KernelFont.inspect(
-		built_in_font_bytes,
-		KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }),
-	) ? |_| EvidenceFailure
+	font = KernelFont.inspect(built_in_font_bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
 	prepared = { ..input.prepared, text: remap_output_glyphs(input.prepared.text, font) ? |_| EvidenceFailure }
 	arena = KernelFacadeFragments.Arena.build_prepared(input.preliminary, prepared, fragment_limits(prepared)) ? |_| EvidenceFailure
 	fragments = KernelFacadeFragments.Arena.fragments(arena)
@@ -244,7 +241,7 @@ evidence_negative = |repetitions| {
 		_ => return Err(EvidenceFailure)
 	}
 	first_run = list_at(prepared.text.runs, 0)
-	bad_runs = list_set(prepared.text.runs, 0, { ..first_run, source: { scalars: Semantics.IndexRange.from_start_and_length(0, 7), utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 7) } })
+	bad_runs = list_set(prepared.text.runs, 0, { ..first_run, source: { scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: 7 }), utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 7 }) } })
 	bad_source_rejected = match KernelFacadeFragments.Arena.build_prepared(input.preliminary, { ..prepared, text: { ..prepared.text, runs: bad_runs } }, fragment_limits(prepared)) {
 		Err(SourceRangeMismatch(_)) => 1
 		_ => return Err(EvidenceFailure)
@@ -317,7 +314,7 @@ semantic_store = |occurrence_count| {
 		nodes: [
 			{
 				attributes: empty_range,
-				content: Semantics.IndexRange.from_start_and_length(0, 1),
+				content: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 				element_identifier: NoElementIdentifier,
 				id: Semantics.NodeId.from_index(0),
 				language: Language("en"),
@@ -328,7 +325,7 @@ semantic_store = |occurrence_count| {
 			},
 			{
 				attributes: empty_range,
-				content: Semantics.IndexRange.from_start_and_length(1, occurrence_count),
+				content: Semantics.IndexRange.from_start_and_length({ start: 1, length: occurrence_count }),
 				element_identifier: NoElementIdentifier,
 				id: Semantics.NodeId.from_index(1),
 				language: Language("en"),
@@ -368,11 +365,11 @@ prepared_text = |occurrence_count| {
 			while $local < 3 {
 				glyph_index = $glyphs.len()
 				$clusters = $clusters.append({
-					glyphs: Semantics.IndexRange.from_start_and_length($glyph_indices.len(), 1),
+					glyphs: Semantics.IndexRange.from_start_and_length({ start: $glyph_indices.len(), length: 1 }),
 					kind: OneToOne,
 					source: {
-						scalars: Semantics.IndexRange.from_start_and_length(source_start + $local, 1),
-						utf8_bytes: Semantics.IndexRange.from_start_and_length(source_start + $local, 1),
+						scalars: Semantics.IndexRange.from_start_and_length({ start: source_start + $local, length: 1 }),
+						utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: source_start + $local, length: 1 }),
 					},
 				})
 				$glyph_indices = $glyph_indices.append(glyph_index)
@@ -388,17 +385,17 @@ prepared_text = |occurrence_count| {
 			run_id = Text.RunId.from_index(run_index)
 			$runs = $runs.append({
 				actual_text: FromOccurrence,
-				clusters: Semantics.IndexRange.from_start_and_length(glyph_start, 3),
+				clusters: Semantics.IndexRange.from_start_and_length({ start: glyph_start, length: 3 }),
 				direction: LeftToRight,
-				glyphs: Semantics.IndexRange.from_start_and_length(glyph_start, 3),
+				glyphs: Semantics.IndexRange.from_start_and_length({ start: glyph_start, length: 3 }),
 				id: run_id,
 				instance: Font.InstanceId.from_index(0),
 				language: Language("en"),
 				script: Font.Script.from_iso15924("Latn"),
 				size: Layout.Unit.from_raw(1000),
 				source: {
-					scalars: Semantics.IndexRange.from_start_and_length(source_start, 3),
-					utf8_bytes: Semantics.IndexRange.from_start_and_length(source_start, 3),
+					scalars: Semantics.IndexRange.from_start_and_length({ start: source_start, length: 3 }),
+					utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: source_start, length: 3 }),
 				},
 				substitutions: empty_range,
 				transformations: empty_range,
@@ -422,7 +419,7 @@ prepared_text = |occurrence_count| {
 		length = U64.min(64, run_count - $run_start)
 		$pages = $pages.append({
 			id: Semantics.PageId.from_index(page_index),
-			runs: Semantics.IndexRange.from_start_and_length($run_start, length),
+			runs: Semantics.IndexRange.from_start_and_length({ start: $run_start, length: length }),
 		})
 		$run_start = $run_start + length
 	}
@@ -505,12 +502,12 @@ output_object_limits = {
 
 full_source_range : Semantics.TextRange
 full_source_range = {
-	scalars: Semantics.IndexRange.from_start_and_length(0, 6),
-	utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 6),
+	scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: 6 }),
+	utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 6 }),
 }
 
 empty_range : Semantics.IndexRange
-empty_range = Semantics.IndexRange.from_start_and_length(0, 0)
+empty_range = Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 })
 
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {

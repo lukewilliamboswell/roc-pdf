@@ -30,7 +30,7 @@ ProfileWorkloads :: [].{
 	fonts : Workload -> Try(Setup, Font.ResourceError)
 	fonts = |workload| match workload {
 		Report | ReportScaled => {
-			registered = Font.Registry.empty.register(inter, { provision: BuiltIn, scripts: ["Latn"] }, Font.ValidationLimits.default)?
+			registered = Font.Registry.empty.register({ bytes: inter, registration: { provision: BuiltIn, scripts: ["Latn"] }, limits: Font.ValidationLimits.default })?
 			Ok({
 				options: {
 					page_size: Custom({ width: 595, height: 842 }),

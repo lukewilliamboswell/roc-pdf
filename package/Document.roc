@@ -84,7 +84,7 @@ SourceForeground : KernelSourceText.Foreground
 SourceBlockProps := {
 	background : [Background(Color.SourceValue), NoBackground] ?? NoBackground,
 	color : Color.SourceValue ?? Theme.black,
-	face : Font.FaceId,
+	face : Font.SourceFace ?? ThemeCode,
 	fragmentation : [Lines, Unsplittable] ?? Lines,
 	foregrounds : List(SourceForeground) ?? [],
 	leading : Layout.Unit ?? 12,
@@ -101,7 +101,7 @@ SourceBlockProps := {
 NormalizedSource : {
 	background : [Background(Color.SourceValue), NoBackground],
 	color : Color.SourceValue,
-	face : Font.FaceId,
+	face : Font.SourceFace,
 	fragmentation : [Lines, Unsplittable],
 	foregrounds : Semantics.IndexRange,
 	group : U64,
@@ -456,11 +456,11 @@ FixedPageBuilder :: FixedPage.{
 	background : FixedPageBuilder, Scene.Drawing -> FixedPageBuilder
 	background = |FixedPageBuilder.{ artifacts_after, artifacts_before, placements, size }, drawing| FixedPageBuilder.{ artifacts_after, artifacts_before: artifacts_before.append({ drawing, kind: Background }), placements, size }
 
-	place : FixedPageBuilder, DocumentBlock, Layout.Rect -> FixedPageBuilder
-	place = |FixedPageBuilder.{ artifacts_after, artifacts_before, placements, size }, block, frame| FixedPageBuilder.{ artifacts_after, artifacts_before, placements: placements.append({ block, frame }), size }
+	place : FixedPageBuilder, { block : DocumentBlock, frame : Layout.Rect } -> FixedPageBuilder
+	place = |FixedPageBuilder.{ artifacts_after, artifacts_before, placements, size }, { block, frame }| FixedPageBuilder.{ artifacts_after, artifacts_before, placements: placements.append({ block, frame }), size }
 
-	overlay : FixedPageBuilder, PageArtifactKind, Scene.Drawing -> FixedPageBuilder
-	overlay = |FixedPageBuilder.{ artifacts_after, artifacts_before, placements, size }, kind, drawing| FixedPageBuilder.{ artifacts_after: artifacts_after.append({ drawing, kind }), artifacts_before, placements, size }
+	overlay : FixedPageBuilder, { kind : PageArtifactKind, drawing : Scene.Drawing } -> FixedPageBuilder
+	overlay = |FixedPageBuilder.{ artifacts_after, artifacts_before, placements, size }, { kind, drawing }| FixedPageBuilder.{ artifacts_after: artifacts_after.append({ drawing, kind }), artifacts_before, placements, size }
 
 	finish : FixedPageBuilder -> FixedPage
 	finish = |FixedPageBuilder.{ artifacts_after, artifacts_before, placements, size }| { artifacts_after, artifacts_before, placements, size }
@@ -776,8 +776,8 @@ DocumentBuilder :: {
 		}
 	}
 
-	add_heading : DocumentBuilder, U8, Str -> DocumentBuilder
-	add_heading = |DocumentBuilder.{ block_aux, block_tags, block_texts, language, metadata_title, text_sources }, level, text| {
+	add_heading : DocumentBuilder, { level : U8, text : Str } -> DocumentBuilder
+	add_heading = |DocumentBuilder.{ block_aux, block_tags, block_texts, language, metadata_title, text_sources }, { level, text }| {
 		text_id = text_sources.len()
 
 		DocumentBuilder.{
@@ -862,17 +862,17 @@ DocumentBuilder :: {
 
 	## A URI link block: the whole text is the link. The secondary string is
 	## interned beside the text; the aux slot records its index.
-	add_link : DocumentBuilder, Str, Str -> DocumentBuilder
-	add_link = |state, text, uri| append_with_secondary(state, link_tag, text, uri, 1)
+	add_link : DocumentBuilder, { text : Str, uri : Str } -> DocumentBuilder
+	add_link = |state, { text, uri }| append_with_secondary(state, link_tag, text, uri, 1)
 
-	add_internal_link : DocumentBuilder, Str, Str -> DocumentBuilder
-	add_internal_link = |state, text, destination| append_with_secondary(state, internal_link_tag, text, destination, 1)
+	add_internal_link : DocumentBuilder, { text : Str, destination : Str } -> DocumentBuilder
+	add_internal_link = |state, { text, destination }| append_with_secondary(state, internal_link_tag, text, destination, 1)
 
-	add_destination_heading : DocumentBuilder, Str, U8, Str -> DocumentBuilder
-	add_destination_heading = |state, name, level, text| append_with_secondary(state, destination_heading_tag, text, name, 8 * 1 + level.to_u64())
+	add_destination_heading : DocumentBuilder, { name : Str, level : U8, text : Str } -> DocumentBuilder
+	add_destination_heading = |state, { name, level, text }| append_with_secondary(state, destination_heading_tag, text, name, 8 * 1 + level.to_u64())
 
-	add_destination_paragraph : DocumentBuilder, Str, Str -> DocumentBuilder
-	add_destination_paragraph = |state, name, text| append_with_secondary(state, destination_paragraph_tag, text, name, 1)
+	add_destination_paragraph : DocumentBuilder, { name : Str, text : Str } -> DocumentBuilder
+	add_destination_paragraph = |state, { name, text }| append_with_secondary(state, destination_paragraph_tag, text, name, 1)
 
 	stats : DocumentBuilder -> Stats
 	stats = |state| {
@@ -1247,8 +1247,8 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	total_pages : NumberStyle -> DocumentInline
 	total_pages = |style| DocumentInline.TotalPages(page_field_style(style))
 
-	reserved_width : Layout.Unit, ColumnAlign, List(DocumentInline) -> DocumentInline
-	reserved_width = |width, align, contents| DocumentInline.ReservedWidth({ align: reserved_align(align), contents, width })
+	reserved_width : { width : Layout.Unit, align : ColumnAlign, contents : List(DocumentInline) } -> DocumentInline
+	reserved_width = |{ width, align, contents }| DocumentInline.ReservedWidth({ align: reserved_align(align), contents, width })
 
 	title : Str -> DocumentBlock
 	title = |text| DocumentBlock.Title(text)
@@ -1365,16 +1365,16 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	in_language = |tag, contents| DocumentInline.InLanguage({ contents, tag })
 
 	## An abbreviation and its expansion (`Span` with `/E`).
-	expansion : Str, Str -> DocumentInline
-	expansion = |value, expanded| DocumentInline.Expansion({ expanded, text: value })
+	expansion : { text : Str, expanded : Str } -> DocumentInline
+	expansion = |{ text: value, expanded }| DocumentInline.Expansion({ expanded, text: value })
 
 	## Attach meaningful drawing content with required alternative text.
-	figure : Scene.Drawing, Str, Caption -> DocumentBlock
-	figure = |drawing_value, alternative, caption_value| DocumentBlock.Figure({ alternative, caption: caption_value, drawing: drawing_value, fit: ExactFit })
+	figure : Scene.Drawing, { alternative : Str, caption : Caption } -> DocumentBlock
+	figure = |drawing_value, { alternative, caption: caption_value }| DocumentBlock.Figure({ alternative, caption: caption_value, drawing: drawing_value, fit: ExactFit })
 
 	## A figure that meets the flow region by `fit`.
-	fitted_figure : Scene.Drawing, Str, Caption, FigureFit -> DocumentBlock
-	fitted_figure = |drawing_value, alternative, caption_value, fit| DocumentBlock.Figure({ alternative, caption: caption_value, drawing: drawing_value, fit: figure_policy(fit) })
+	fitted_figure : Scene.Drawing, { alternative : Str, caption : Caption, fit : FigureFit } -> DocumentBlock
+	fitted_figure = |drawing_value, { alternative, caption: caption_value, fit }| DocumentBlock.Figure({ alternative, caption: caption_value, drawing: drawing_value, fit: figure_policy(fit) })
 
 	## An in-flow decorative drawing: a `Decoration` page artifact that
 	## occupies its drawing's height, with its own spacing and paint layer,
@@ -1408,21 +1408,21 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 
 	## A URI link block: the whole block text is the link text and the URI is
 	## recorded for the reader; nothing dereferences it.
-	link : Str, Str -> DocumentBlock
-	link = |text, uri| DocumentBlock.Link({ text, uri })
+	link : { text : Str, uri : Str } -> DocumentBlock
+	link = |{ text, uri }| DocumentBlock.Link({ text, uri })
 
 	## An internal link block referencing an authored destination name.
-	internal_link : Str, Str -> DocumentBlock
-	internal_link = |text, destination| DocumentBlock.InternalLink({ destination, text })
+	internal_link : { text : Str, destination : Str } -> DocumentBlock
+	internal_link = |{ text, destination }| DocumentBlock.InternalLink({ destination, text })
 
 	## A heading that also declares a named destination: the heading's
 	## semantic node is the structure target and its content is the layout
 	## anchor.
-	destination_heading : Str, U8, Str -> DocumentBlock
-	destination_heading = |name, level, text| DocumentBlock.DestinationHeading({ level, name, text })
+	destination_heading : { name : Str, level : U8, text : Str } -> DocumentBlock
+	destination_heading = |{ name, level, text }| DocumentBlock.DestinationHeading({ level, name, text })
 
-	destination_paragraph : Str, Str -> DocumentBlock
-	destination_paragraph = |name, text| DocumentBlock.DestinationParagraph({ name, text })
+	destination_paragraph : { name : Str, text : Str } -> DocumentBlock
+	destination_paragraph = |{ name, text }| DocumentBlock.DestinationParagraph({ name, text })
 
 	builder : { language : Str, title : Str } -> DocumentBuilder
 	builder = |metadata| DocumentBuilder.init(metadata)
@@ -1559,7 +1559,7 @@ finish_reference_chunks = |authoring| {
 			$chunks = $chunks.append({ first_leaf: $first_leaf, leaf_end: $leaf_end, paragraph, segment: $segment, source: Literal({ ordinal: $ordinal, text: Str.join_with($texts, "") }) })
 			$ordinal = $ordinal + 1
 		}
-		$paragraphs = $paragraphs.append({ chunks: Semantics.IndexRange.from_start_and_length(first_chunk, $chunks.len() - first_chunk), paragraph, sources: $ordinal })
+		$paragraphs = $paragraphs.append({ chunks: Semantics.IndexRange.from_start_and_length({ start: first_chunk, length: $chunks.len() - first_chunk }), paragraph, sources: $ordinal })
 		while $reference < authoring.page_references.len() and list_at(authoring.page_references, $reference).paragraph == paragraph {
 			$reference = $reference + 1
 		}
@@ -2092,7 +2092,7 @@ append_source_limited = |state, spec, parent, position, limits| {
 	}
 	source = state.sources.len()
 	group = state.groups.len()
-	record = { foregrounds: Semantics.IndexRange.from_start_and_length(state.source_foregrounds.len(), facts.foregrounds.len()), background: spec.background, color: spec.color, face: spec.face, fragmentation: spec.fragmentation, group, leading: spec.leading, lines: Semantics.IndexRange.from_start_and_length(state.source_lines.len(), facts.lines.len()), padding: spec.padding, size: spec.size, text: facts.text, validation: facts.validation, wrap: spec.wrap }
+	record = { foregrounds: Semantics.IndexRange.from_start_and_length({ start: state.source_foregrounds.len(), length: facts.foregrounds.len() }), background: spec.background, color: spec.color, face: spec.face, fragmentation: spec.fragmentation, group, leading: spec.leading, lines: Semantics.IndexRange.from_start_and_length({ start: state.source_lines.len(), length: facts.lines.len() }), padding: spec.padding, size: spec.size, text: facts.text, validation: facts.validation, wrap: spec.wrap }
 	next_bytes = state.source_bytes + facts.bytes
 	var $state = open_group({ ..state, source_bytes: next_bytes, source_exhaustion: facts.exhaustion, sources: state.sources.append(record) }, Source(source), parent, 0, position)
 	for foreground in facts.foregrounds {
@@ -2969,7 +2969,7 @@ list_set = |items, index, value| match items.set(index, value) {
 expect {
 	builder = Document.builder({ language: "en-AU", title: "Report" })
 		.add_title("Report")
-		.add_heading(1, "Summary")
+		.add_heading({ level: 1, text: "Summary" })
 		.add_paragraph("Body")
 		.add_bullets(["One", "Two"])
 		.add_paragraph("Closing")
@@ -2986,7 +2986,7 @@ expect {
 	})
 	compact = Document.builder({ language: "en-AU", title: "Report" })
 		.add_title("Report")
-		.add_heading(2, "Details")
+		.add_heading({ level: 2, text: "Details" })
 		.add_bullets(["One", "Two"])
 		.add_paragraph("Done")
 		.finish()
@@ -3064,8 +3064,8 @@ expect {
 # offsets of its groups, and the extent covers the moved commands.
 expect {
 	black = Color.srgb8({ blue: 0, green: 0, red: 0 })
-	inner = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 10, 5), black)
-	drawing = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 1, 1), black).group(Layout.point(20, 10), Scene.Drawing.empty.group(Layout.point(5, 5), inner))
+	inner = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 10, height: 5 }), color: black })
+	drawing = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 1, height: 1 }), color: black }).group({ offset: Layout.point({ x: 20, y: 10 }), drawing: Scene.Drawing.empty.group({ offset: Layout.point({ x: 5, y: 5 }), drawing: inner }) })
 	match validate_flow_drawing(drawing) {
 		ValidDrawing({ commands: [_, FlowPath({ fill: Fill(_), segments: [Rectangle(rect)], stroke: NoStroke })], height, images: [], width }) => rect.origin.x.raw() == 25000 and rect.origin.y.raw() == 15000 and width == 35000 and height == 20000
 		_ => False
@@ -3076,18 +3076,18 @@ expect {
 # a painting command, and an empty drawing are rejected with a reason.
 expect {
 	black = Color.srgb8({ blue: 0, green: 0, red: 0 })
-	mark = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 4, 4), black)
+	mark = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 4, height: 4 }), color: black })
 	var $deep = mark
 	var $level = 0
 	while $level < 9 {
-		$deep = Scene.Drawing.empty.group(Layout.point(1, 1), $deep)
+		$deep = Scene.Drawing.empty.group({ offset: Layout.point({ x: 1, y: 1 }), drawing: $deep })
 		$level = $level + 1
 	}
 	rejected = |drawing| match validate_flow_drawing(drawing) {
 		InvalidDrawing(_) => True
 		ValidDrawing(_) => False
 	}
-	rejected($deep) and rejected(Scene.Drawing.empty.group(Layout.point(-5, 0), mark)) and rejected(Scene.Drawing.empty.group(Layout.point(1, 1), Scene.Drawing.empty)) and rejected(Scene.Drawing.empty)
+	rejected($deep) and rejected(Scene.Drawing.empty.group({ offset: Layout.point({ x: -5, y: 0 }), drawing: mark })) and rejected(Scene.Drawing.empty.group({ offset: Layout.point({ x: 1, y: 1 }), drawing: Scene.Drawing.empty })) and rejected(Scene.Drawing.empty)
 }
 
 # Two source placements share one aggregate retained-byte budget. Expansion
