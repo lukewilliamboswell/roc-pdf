@@ -48,6 +48,10 @@ every PDF and checks that it equals the committed bytes, and with
 <td><a href="furniture-typography/furniture-typography.pdf"><img src="furniture-typography/preview.png" alt="Independent furniture typography preview"></a><br><a href="furniture-typography/main.roc">Furniture typography source</a></td>
 <td><a href="source-blocks/source-blocks.pdf"><img src="source-blocks/preview.png" alt="Preformatted source block preview"></a><br><a href="source-blocks/main.roc">Source blocks source</a></td>
 </tr>
+<tr>
+<td><a href="font-families/font-families.pdf"><img src="font-families/preview.png" alt="Built-in font families preview"></a><br><a href="font-families/main.roc">Built-in font families source</a></td>
+<td><a href="vector-diagrams/vector-diagrams.pdf"><img src="vector-diagrams/preview.png" alt="Prepared vector diagrams preview"></a><br><a href="vector-diagrams/main.roc">Prepared vector diagrams source</a></td>
+</tr>
 </table>
 
 | Example | Typefaces | What it demonstrates |
