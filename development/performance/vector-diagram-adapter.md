@@ -73,3 +73,15 @@ The named-argument API migration changes only the syntax of the generated
 The already-pinned exporter emits these named calls. Resolved geometry,
 original SVG/PNG, labels, font and exporter/test scripts retain their exact
 digests. This witness update does not accept any PDF or work-baseline change.
+
+The fixture threads registration, preparation and emission through one typed
+fallible `render(count)` helper, then handles failure at its runtime boundary.
+This avoids an unreachable-error-arm warning when matching known-success
+default registration on its own; it does not hide validation limits behind
+figure count. The public group's 637 Roc tests pass. A focused harness replay
+at the rc4 integration retains all three exact PDFs and work vectors. Observed
+allocations are 932 / 2,624 / 9,893 and requested bytes are 2,712,476 /
+4,701,258 / 13,682,646, within the unchanged byte guards. The strict comparison
+reports count deltas +33 / +37 / +39 against that checkout's recorded values;
+those differences require the integration's representation review and are not
+accepted by this fixture refactor alone.
