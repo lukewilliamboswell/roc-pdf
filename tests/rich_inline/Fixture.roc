@@ -11,6 +11,7 @@ import pdf.KernelFacadeOutput
 import pdf.KernelFacadePages
 import pdf.KernelFacadePipeline
 import pdf.KernelFacadeFonts
+import pdf.KernelFacadeFailure
 import pdf.KernelFacadeScenes
 import pdf.KernelFacadeSemantics
 import pdf.KernelFacadeShape
@@ -366,7 +367,7 @@ run_code_face = |context| {
 	theme = Theme.{ title: { face: Face(faces.body) }, headings: { all: { face: Face(faces.body) } }, inline: { code: { color: Themed(Color.srgb8({ blue: 60, green: 100, red: 20 })), font: Face(faces.mono) }, strong: { font: Family(BuiltIn(Sans)) }, emphasis: { font: Family(BuiltIn(Sans)) }, strong_emphasis: { font: Family(BuiltIn(Sans)) } } }
 	options = Pdf.Options.{ theme: theme, fonts: Registered(faces.registry) }
 	document = mixed_document(context)
-	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
+	bytes = Pdf.to_bytes_with(document, options) ? |error| crash "Code-face public preparation failed: ${Str.inspect(error)}"
 
 	## The same authored font choices through the styled pipeline give the
 	## shaping and output work, including genuine combined-style requests.
@@ -979,7 +980,7 @@ evidence_with_limits = |document, theme, faces, limits| {
 		BuiltInFace => Pdf.Options.{ theme: theme }
 		Policy(policy) => Pdf.Options.{ theme: theme, fonts: Registered(policy.registry) }
 	}
-	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
+	bytes = Pdf.to_bytes_with(document, options) ? |error| crash "Rich-inline public preparation failed: ${Str.inspect(error)}"
 	authoring = Document.normalize(document)
 	plan = KernelFacadeSemantics.Plan.build(authoring, semantic_limits) ? |_| EvidenceFailure
 	work = KernelFacadeSemantics.Plan.work(plan)
@@ -989,8 +990,8 @@ evidence_with_limits = |document, theme, faces, limits| {
 	## themed inline colors change only paint facts.
 	pipeline = match faces {
 		BuiltInFace => {
-			resolved = KernelFacadeFonts.resolve(authoring, { origin: Packaged, registry: Font.Registry.empty, theme }) ? |_| EvidenceFailure
-			KernelFacadePipeline.Plan.build_styled_with_facts(resolved.authoring, resolved.fonts, resolved.theme, page_size, descriptor, NoDocumentFacts, limits) ? |_| EvidenceFailure
+			resolved = KernelFacadeFonts.resolve(authoring, { origin: Packaged, registry: Font.Registry.empty, theme: uncolored_theme(theme) }) ? |error| crash "Rich-inline work font selection failed: ${Str.inspect(error)}"
+			KernelFacadePipeline.Plan.build_styled_with_facts(resolved.authoring, resolved.fonts, resolved.theme, page_size, descriptor, NoDocumentFacts, limits) ? |error| crash "Rich-inline work pipeline failed: ${Str.inspect(KernelFacadeFailure.pipeline(error))}"
 		}
 		Policy(policy) => KernelFacadePipeline.Plan.build_ordered(authoring, policy, theme, page_size, descriptor, limits) ? |_| EvidenceFailure
 	}
@@ -1015,13 +1016,24 @@ evidence_with_limits = |document, theme, faces, limits| {
 	})
 }
 
+uncolored_theme : Theme -> Theme
+uncolored_theme = |theme| {
+	if theme.inline.code.color == Inherited and theme.inline.emphasis.color == Inherited and theme.inline.quote.color == Inherited and theme.inline.strong.color == Inherited {
+		return theme
+	}
+	# This geometry/work probe has no document color-intent facts. Project
+	# out paint-only inline colors while preserving every font/style and
+	# metric choice; the public pipeline still uses the authored colors.
+	{ ..theme, inline: { ..theme.inline, code: { ..theme.inline.code, color: Inherited }, emphasis: { ..theme.inline.emphasis, color: Inherited }, quote: { ..theme.inline.quote, color: Inherited }, strong: { ..theme.inline.strong, color: Inherited } } }
+}
+
 ## Mirror the authored family/style choices in the work probe. The custom
 ## mono face remains an exact regular Code face; Strong and combined requests
 ## use the explicitly selected genuine packaged programs.
 caller_work_plan : Document, { registry : Font.Registry, theme : Theme, limits : KernelFacadePipeline.Limits } -> Try(KernelFacadePipeline.Plan, Fixture.EvidenceError)
 caller_work_plan = |document, { registry, theme, limits }| {
-	resolved = KernelFacadeFonts.resolve(Document.normalize(document), { origin: Caller, registry, theme }) ? |_| EvidenceFailure
-	plan = KernelFacadePipeline.Plan.build_styled_with_facts(resolved.authoring, resolved.fonts, resolved.theme, page_size, descriptor, NoDocumentFacts, limits) ? |_| EvidenceFailure
+	resolved = KernelFacadeFonts.resolve(Document.normalize(document), { origin: Caller, registry, theme: uncolored_theme(theme) }) ? |error| crash "Caller rich-inline work font selection failed: ${Str.inspect(error)}"
+	plan = KernelFacadePipeline.Plan.build_styled_with_facts(resolved.authoring, resolved.fonts, resolved.theme, page_size, descriptor, NoDocumentFacts, limits) ? |error| crash "Rich-inline work pipeline failed: ${Str.inspect(KernelFacadeFailure.pipeline(error))}"
 	Ok(plan)
 }
 
