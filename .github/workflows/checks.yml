@@ -1,0 +1,293 @@
+name: Applicable checks
+
+on:
+  workflow_call:
+    inputs:
+      source_sha:
+        required: true
+        type: string
+      release_version:
+        default: ''
+        type: string
+      full_validation:
+        default: false
+        type: boolean
+      nightly_validation:
+        default: false
+        type: boolean
+    outputs:
+      release-version:
+        value: ${{ jobs.bundle.outputs.version }}
+      artifact-name:
+        value: roc-pdf-release-${{ inputs.source_sha }}
+
+permissions:
+  contents: read
+
+# Called workflows use a distinct group from their controller.
+concurrency:
+  group: checks-${{ github.workflow }}-${{ inputs.source_sha }}
+  cancel-in-progress: true
+
+jobs:
+  version:
+    name: Record checked source and authored version
+    runs-on: ubuntu-22.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+      - id: version
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          REQUESTED_VERSION: ${{ inputs.release_version }}
+        run: |
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          version="${REQUESTED_VERSION:-$(python3 scripts/release_artifacts.py --latest-notes)}"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)?$ ]]
+          printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
+  test:
+    needs: version
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    # Ordinary pull requests use Linux; main and release runs also prove the
+    # registered macOS target. Both enforce their pinned allocation evidence.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ inputs.full_validation && fromJSON('["ubuntu-22.04", "macos-15"]') || fromJSON('["ubuntu-22.04"]') }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: 21.0.13+9
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        with:
+          python-version: 3.14.0
+
+      # Blueprint verifies its own binary against the reviewed digest, then
+      # fetches Zig 0.16.0 by the digest in Blueprint.lock for the dev tasks.
+      - name: Install Blueprint
+        uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@8acff758d5d73210f1731bed75adb9322f5e773d
+        with:
+          cache: "true"
+          cache-workload: dev
+
+      - name: Check Blueprint configuration
+        run: blueprint check
+
+      - name: Verify production resource generators without rewriting assets
+        run: |
+          python3 scripts/build_roc_font_instances.py --check
+          python3 scripts/build_srgb_profile.py --check
+
+      - name: Read pinned Roc nightly
+        run: printf 'ROC_NIGHTLY_TAG=%s\n' "$(sed -n '1p' .roc-version)" >> "$GITHUB_ENV"
+
+      - name: Install Roc
+        uses: roc-lang/setup-roc@f5a74bf90aa694b43ab4a7cbfdb19273bc6aa697
+        with:
+          version: nightly-new-compiler
+          nightly-tag: ${{ env.ROC_NIGHTLY_TAG }}
+
+      - name: Run spec-defined e2e evidence
+        run: blueprint run test -- --allocation-baselines
+
+      - name: Verify release bundle consumer boundary
+        run: blueprint run bundle-consumer
+
+      - name: Verify public example gallery
+        if: runner.os == 'Linux'
+        run: blueprint run gallery
+
+  # Each property target builds and replays its seed corpus plus a few
+  # fixed-seed inputs within one second of workload. The test job only
+  # formats, checks, and runs the `expect`s in these sources. This job is
+  # compile-bound (LLVM fuzz builds), so it runs beside the test job and
+  # builds targets in parallel as memory allows. The bounded search is
+  # fuzz.yml, which never runs on a pull request.
+  fuzz-smoke:
+    needs: version
+    name: Fuzz smoke
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+
+      - name: Install Blueprint
+        uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@8acff758d5d73210f1731bed75adb9322f5e773d
+        with:
+          cache: "true"
+          cache-workload: dev
+
+      - name: Read pinned Roc nightly
+        run: printf 'ROC_NIGHTLY_TAG=%s\n' "$(sed -n '1p' .roc-version)" >> "$GITHUB_ENV"
+
+      - name: Install Roc
+        uses: roc-lang/setup-roc@f5a74bf90aa694b43ab4a7cbfdb19273bc6aa697
+        with:
+          version: nightly-new-compiler
+          nightly-tag: ${{ env.ROC_NIGHTLY_TAG }}
+
+      - name: Run property fuzz smoke
+        run: blueprint run fuzz
+
+  # Arlington PDF 2.0 object-model lane over every committed package snapshot
+  # and public example. It runs after the Linux suite has proven the
+  # snapshots are exactly what the package generates. The validator is the
+  # digest-pinned veraPDF Arlington 1.30.2 service; service containers need a
+  # Linux runner.
+  arlington:
+    name: Arlington PDF 2.0 object model
+    needs: test
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: roc-pdf
+    services:
+      arlington:
+        image: verapdf/arlington@sha256:1543368902c393771557e2a1da69e64ad72b69db32e6efebd38a09a7b86eacbc
+        ports:
+          - 18080:8080
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: roc-pdf
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+
+      - name: Check Arlington report contract
+        run: python3 scripts/check_arlington.py --self-test
+
+      - name: Validate snapshots and examples with Arlington
+        run: python3 scripts/check_arlington.py --cases
+
+  conformance:
+    name: Independent PDF/A-4 profiles and corpus
+    needs: test
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad
+        with:
+          distribution: temurin
+          java-version: 21.0.13+9
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548
+        with:
+          python-version: 3.14.0
+      - name: Provision verified offline validator and corpus
+        run: python3 scripts/provision_extended_tools.py --skip-mupdf
+      - name: Validate original emitted bytes and the upstream corpus
+        run: |
+          python3 scripts/check_pdfa4.py --cases
+          python3 scripts/check_pdfa4.py --standard-cases
+          python3 scripts/check_pdfa4.py --corpus
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: failure()
+        with:
+          name: conformance-failure-${{ inputs.source_sha }}
+          path: .roc-pdf-tmp
+          if-no-files-found: ignore
+
+  docs:
+    name: Manual and public API
+    needs: version
+    uses: ./.github/workflows/docs-build.yml
+    with:
+      source_sha: ${{ inputs.source_sha }}
+      docs_version: ${{ needs.version.outputs.version }}
+
+  bundle:
+    name: Bundle and smoke-test gallery
+    needs: [docs, version]
+    runs-on: ubuntu-22.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+      - name: Verify recorded revision
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@8acff758d5d73210f1731bed75adb9322f5e773d
+      - name: Read pinned compiler
+        run: printf 'ROC_NIGHTLY_TAG=%s\n' "$(cat .roc-version)" >> "$GITHUB_ENV"
+      - uses: roc-lang/setup-roc@f5a74bf90aa694b43ab4a7cbfdb19273bc6aa697
+        with:
+          version: nightly-new-compiler
+          nightly-tag: ${{ env.ROC_NIGHTLY_TAG }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: roc-pdf-docs-${{ inputs.source_sha }}
+          path: generated-docs
+      - id: version
+        env:
+          REQUESTED_VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          version="${REQUESTED_VERSION:-$(python3 scripts/release_artifacts.py --latest-notes)}"
+          printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
+      - name: Check API version against the latest final release
+        if: ${{ !inputs.nightly_validation }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release view --json assets > "$RUNNER_TEMP/previous-release.json"
+          old_url=$(python3 -c 'import json,sys; assets=[a["url"] for a in json.load(open(sys.argv[1]))["assets"] if a["name"].endswith(".tar.zst")]; assert len(assets)==1; print(assets[0])' "$RUNNER_TEMP/previous-release.json")
+          roc bump --old "$old_url" --expect "$RELEASE_VERSION" package/main.roc
+      - name: Build and test exact bundle and examples archive
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          blueprint run bundle
+          bundle=$(find dist -maxdepth 1 -name '*.tar.zst' -type f -print -quit)
+          ROC=roc python3 scripts/check_gallery.py --bundle-path "$bundle"
+          ROC=roc python3 scripts/examples_archive.py --bundle-path "$bundle" --tag "$RELEASE_VERSION" --output-dir dist --test-bundle
+          python3 scripts/release_artifacts.py --self-test
+          ROC=roc python3 scripts/release_artifacts.py --tag "$RELEASE_VERSION" --bundle "$bundle" --revision "$SOURCE_SHA"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: roc-pdf-release-${{ inputs.source_sha }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+
+  aggregate:
+    name: CI
+    if: always()
+    needs: [version, test, fuzz-smoke, arlington, conformance, docs, bundle]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Require every applicable check
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PYTHON'
+          import json, os
+          results = json.loads(os.environ['RESULTS'])
+          failed = {name: job['result'] for name, job in results.items() if job['result'] != 'success'}
+          assert not failed, f'Incomplete applicable checks: {failed}'
+          PYTHON

@@ -74,7 +74,7 @@ The check, documentation and fuzz workflows install Blueprint with the shared
 `roc-automation` `actions/setup-blueprint` action at the reviewed `tools-0.7.0`
 commit, `8acff758d5d73210f1731bed75adb9322f5e773d`. It verifies the Blueprint binary against its reviewed digest and reads
 the release from the platform URL in `Blueprint.roc`, so no workflow names the
-Blueprint version. The `ci.yml` test job caches Blueprint's download store
+Blueprint version. The reusable test job caches Blueprint's download store
 (`cache-workload: dev`); a cached artifact is rehashed before use.
 Release dispatch runs the same checks at its recorded SHA before an
 artifact-consuming publication job; it never publishes from a branch build

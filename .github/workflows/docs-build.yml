@@ -1,0 +1,73 @@
+name: Build public documentation
+
+on:
+  workflow_call:
+    inputs:
+      source_sha:
+        required: true
+        type: string
+      docs_version:
+        default: unreleased
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad
+        with:
+          distribution: temurin
+          java-version: 21.0.13+9
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548
+        with:
+          python-version: 3.14.0
+      - uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@8acff758d5d73210f1731bed75adb9322f5e773d
+      - name: Read pinned compiler
+        run: printf 'ROC_NIGHTLY_TAG=%s\n' "$(cat .roc-version)" >> "$GITHUB_ENV"
+      - uses: roc-lang/setup-roc@f5a74bf90aa694b43ab4a7cbfdb19273bc6aa697
+        with:
+          version: nightly-new-compiler
+          nightly-tag: ${{ env.ROC_NIGHTLY_TAG }}
+      - name: Prepare source-linked AsciiDoc manual
+        env:
+          DOCS_REVISION: ${{ inputs.source_sha }}
+          DOCS_VERSION: ${{ inputs.docs_version }}
+        run: |
+          binding_args=()
+          if [[ "$DOCS_VERSION" != unreleased ]]; then
+            ROC=roc bash scripts/bundle.sh --output-dir .roc-pdf-tmp/docs-bundle
+            bundle=$(find .roc-pdf-tmp/docs-bundle -maxdepth 1 -name '*.tar.zst' -type f -print -quit)
+            binding_args=(--release-version "$DOCS_VERSION" --bundle "$bundle")
+          fi
+          python3 scripts/prepare_manual.py --revision "$DOCS_REVISION" "${binding_args[@]}"
+      - id: renderer
+        uses: lukewilliamboswell/roc-automation/actions/blueprint-tool@8acff758d5d73210f1731bed75adb9322f5e773d
+        with:
+          task: docs-path
+          label: roc-docs tools-0.7.0
+      - uses: lukewilliamboswell/roc-automation/actions/build-docs@8acff758d5d73210f1731bed75adb9322f5e773d
+        with:
+          renderer-binary: ${{ steps.renderer.outputs.binary }}
+          docs-directory: .roc-pdf-tmp/manual-source
+          entrypoint: index.adoc
+          output-directory: .roc-pdf-tmp/manual-build
+          pdf-filename: roc-pdf.pdf
+          docs-version: ${{ inputs.docs_version }}
+          site-url: https://lukewilliamboswell.github.io/roc-pdf/manual/
+      - name: Generate separate API, audit private types and verify manual
+        env:
+          DOCS_VERSION: ${{ inputs.docs_version }}
+        run: blueprint run docs -- --manual-built
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: roc-pdf-docs-${{ inputs.source_sha }}
+          path: generated-docs/
+          if-no-files-found: error
+          retention-days: 30

@@ -26,7 +26,7 @@ config = [
 	Task("bundle-consumer", [Use("dev"), Run(["python3", "scripts/test_bundle_consumer.py"])]),
 	Task("docs", [Use("docs"), Run(["bash", "scripts/docs.sh"])]),
 	Task("docs-path", [Use("docs"), Run(["sh", "-c", "realpath \"$(command -v roc-docs)\""])]),
-	# What a pull request runs, in CI order. The fuzz campaign is not part of it.
+	# Local package checks; GitHub adds docs, independent oracles and archives.
 	Workflow("check", [RunTask("test", []), RunTask("fuzz", []), RunTask("bundle-consumer", []), RunTask("gallery", [])]),
 ]
 
