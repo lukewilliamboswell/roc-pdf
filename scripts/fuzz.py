@@ -105,6 +105,17 @@ class LaneFailure(Exception):
     pass
 
 
+def validate_platform_header(source: str) -> None:
+    declared = re.findall(r'\bfuzz\s*:\s*platform\s*"([^"]+)"', source)
+    if declared != [PLATFORM_URL]:
+        raise LaneFailure("application platform header differs from the verified release")
+
+
+def validate_build_identity(recorded: dict, expected: dict, binary_sha256: str) -> None:
+    if recorded != {**expected, "binary_sha256": binary_sha256}:
+        raise LaneFailure("recorded executable is stale or modified; rebuild before measuring, checking or accepting")
+
+
 def run(command: list[str], *, cwd: Path = ROOT, deadline: float | None = None, log_path: Path | None = None) -> None:
     printable = " ".join(str(part) for part in command)
     try:
@@ -219,8 +230,7 @@ def source_digest(target: Target) -> str:
 
 def build_target(target: Target, host: str, compiler: str, no_build: bool, *, log_dir: Path) -> Path:
     source = ROOT / "fuzz" / f"{target.name}.roc"
-    if PLATFORM_URL not in source.read_text():
-        raise LaneFailure(f"{target.name}: platform header differs from verified release")
+    validate_platform_header(source.read_text())
     directory = WORK / host
     directory.mkdir(parents=True, exist_ok=True)
     binary = directory / target.name
@@ -230,9 +240,7 @@ def build_target(target: Target, host: str, compiler: str, no_build: bool, *, lo
     if no_build:
         if not binary.is_file() or not stamp.is_file():
             raise LaneFailure(f"{target.name}: --no-build needs a prior recorded build")
-        expected = {**identity, "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest()}
-        if json.loads(stamp.read_text()) != expected:
-            raise LaneFailure(f"{target.name}: recorded executable is stale; rebuild before checking or accepting")
+        validate_build_identity(json.loads(stamp.read_text()), identity, hashlib.sha256(binary.read_bytes()).hexdigest())
     else:
         print(f"BUILD {target.name} ({host})", flush=True)
         run([ROC, "build", "--fuzz", str(source.relative_to(ROOT)), f"--target={host}", f"--output={binary}"], log_path=log_dir / f"{target.name}.build.log")
@@ -374,7 +382,29 @@ def self_test() -> None:
             pass
         else:
             raise SystemExit(f"report self-test failed to reject {key}")
-    print("PASS fuzz report policy self-test", flush=True)
+    validate_platform_header('app [target] { fuzz: platform "' + PLATFORM_URL + '" }')
+    for source in ('app [target] { fuzz: platform "other" }',
+                   '# fuzz: platform "' + PLATFORM_URL + '"\napp [target] { fuzz: platform "other" }',
+                   'app [target] {}'):
+        try:
+            validate_platform_header(source)
+        except LaneFailure:
+            pass
+        else:
+            raise SystemExit("platform binding self-test accepted an unverified header")
+    build = {"source_sha256": "source", "compiler": "compiler", "target": "arm64mac",
+             "platform_sha256": PLATFORM_SHA256, "profile": PROFILE}
+    recorded = {**build, "binary_sha256": "binary"}
+    validate_build_identity(recorded, build, "binary")
+    for key in (*build, "binary_sha256"):
+        broken = {**recorded, key: "different"}
+        try:
+            validate_build_identity(broken, build, "binary")
+        except LaneFailure:
+            pass
+        else:
+            raise SystemExit(f"build identity self-test failed to reject {key}")
+    print("PASS fuzz report/build identity policy self-test", flush=True)
 
 
 def default_build_jobs() -> int:

@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import hashlib
 import os
 import re
 import subprocess
@@ -134,18 +135,37 @@ def main() -> None:
     args = parser.parse_args()
 
     WORK.mkdir(parents=True, exist_ok=True)
+    try:
+        fuzz_lane.validate_platform_header(SOURCE.read_text())
+    except fuzz_lane.LaneFailure as error:
+        raise SystemExit(f"Profiler {error}") from error
     host = fuzz_lane.host_target(args.linux_x64_container)
     binary = WORK / f"allocation_profile-{host}-{args.opt}-roc-fuzz-{fuzz_lane.PLATFORM_RELEASE}"
+    stamp = binary.with_name(binary.name + ".build.json")
+    profile_target = fuzz_lane.Target("allocation_profile", 1)
+    compiler = subprocess.check_output([ROC, "version"], text=True).strip()
+    build_identity = {"source_sha256": fuzz_lane.source_digest(profile_target), "compiler": compiler,
+                      "target": host, "platform_sha256": fuzz_lane.PLATFORM_SHA256, "profile": args.opt}
     if not args.no_build:
         build(binary, args.opt, not args.no_cache, host)
+        if fuzz_lane.source_digest(profile_target) != build_identity["source_sha256"]:
+            raise SystemExit("Profiler source changed during compilation; rebuild before measuring")
+        stamp.write_text(json.dumps({**build_identity, "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest()}, indent=2) + "\n")
+    if not binary.is_file() or not stamp.is_file():
+        raise SystemExit("--no-build requires a prior recorded profiler build")
+    recorded_build = json.loads(stamp.read_text())
+    try:
+        fuzz_lane.validate_build_identity(recorded_build, build_identity, hashlib.sha256(binary.read_bytes()).hexdigest())
+    except fuzz_lane.LaneFailure as error:
+        raise SystemExit(f"Profiler {error}") from error
     report_root = WORK / f"measure-{host}-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')}-{os.getpid()}"
     report_root.mkdir()
     current = measure(binary, report_root, args.linux_x64_container)
     identity = {"format": "roc-pdf-profile/1", "metric_version": "roc-fuzz-allocations/1",
                 "platform_release": fuzz_lane.PLATFORM_RELEASE, "platform_sha256": fuzz_lane.PLATFORM_SHA256,
                 "allocation_count": "roc_alloc+roc_realloc",
-                "compiler": subprocess.check_output([ROC, "version"], text=True).strip(), "host": host, "backend": args.opt}
-    record = {**identity, "workloads": current}
+                "compiler": recorded_build["compiler"], "host": host, "backend": args.opt}
+    record = {**identity, "build": recorded_build, "workloads": current}
     last = WORK / f"last-{host}-{args.opt}-roc-fuzz-{fuzz_lane.PLATFORM_RELEASE}.json"
     reference = args.compare or last
     previous_record = json.loads(reference.read_text()) if reference.is_file() else None
