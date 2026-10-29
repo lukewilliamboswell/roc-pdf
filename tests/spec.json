@@ -62,7 +62,8 @@
     "destination_references",
     "table_paint_frames",
     "contents_entries",
-    "roc_font"
+    "roc_font",
+    "default_fonts"
   ],
   "post_update_checks": [
     "contracts",
@@ -84,7 +85,8 @@
     "destination_references",
     "table_paint_frames",
     "contents_entries",
-    "roc_font"
+    "roc_font",
+    "default_fonts"
   ],
   "validation": {
     "sources": [
@@ -137,6 +139,9 @@
   "groups": [
     {
       "name": "core"
+    },
+    {
+      "name": "default_fonts"
     },
     {
       "name": "documents"
@@ -377,6 +382,10 @@
     {
       "name": "generated_label",
       "group": "core"
+    },
+    {
+      "name": "default_fonts",
+      "group": "default_fonts"
     }
   ],
   "cases": [
@@ -32864,6 +32873,409 @@
       "validators": [
         "pdfa4"
       ]
+    },
+    {
+      "name": "default font families sans",
+      "scenario_revision": "default-families-rc4-v1",
+      "family": "default_fonts",
+      "snapshot": "tests/default_fonts/sans.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "normalized_plan_identity": 1,
+        "default_font_sans": 1
+      },
+      "work_counters": [
+        "packaged_inspections",
+        "registered_font_bytes",
+        "inline_visits",
+        "source_visits",
+        "copied_input_bytes",
+        "blocks",
+        "inlines",
+        "sources",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 2076,
+          "allocated_bytes": 11410378,
+          "work": {
+            "packaged_inspections": 6,
+            "registered_font_bytes": 2283744,
+            "inline_visits": 45,
+            "source_visits": 3,
+            "copied_input_bytes": 0,
+            "blocks": 10,
+            "inlines": 15,
+            "sources": 1,
+            "output_bytes": 36834
+          }
+        },
+        "x64musl": {
+          "allocations": 2076,
+          "allocated_bytes": 11410378,
+          "work": {
+            "packaged_inspections": 6,
+            "registered_font_bytes": 2283744,
+            "inline_visits": 45,
+            "source_visits": 3,
+            "copied_input_bytes": 0,
+            "blocks": 10,
+            "inlines": 15,
+            "sources": 1,
+            "output_bytes": 36834
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "default_fonts",
+        "pdfa4"
+      ]
+    },
+    {
+      "name": "default font families serif",
+      "scenario_revision": "default-families-rc4-v1",
+      "family": "default_fonts",
+      "snapshot": "tests/default_fonts/serif.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "normalized_plan_identity": 1,
+        "default_font_serif": 1
+      },
+      "work_counters": [
+        "packaged_inspections",
+        "registered_font_bytes",
+        "inline_visits",
+        "source_visits",
+        "copied_input_bytes",
+        "blocks",
+        "inlines",
+        "sources",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 2040,
+          "allocated_bytes": 9927571,
+          "work": {
+            "packaged_inspections": 6,
+            "registered_font_bytes": 5395756,
+            "inline_visits": 45,
+            "source_visits": 3,
+            "copied_input_bytes": 0,
+            "blocks": 10,
+            "inlines": 15,
+            "sources": 1,
+            "output_bytes": 36627
+          }
+        },
+        "x64musl": {
+          "allocations": 2040,
+          "allocated_bytes": 9927571,
+          "work": {
+            "packaged_inspections": 6,
+            "registered_font_bytes": 5395756,
+            "inline_visits": 45,
+            "source_visits": 3,
+            "copied_input_bytes": 0,
+            "blocks": 10,
+            "inlines": 15,
+            "sources": 1,
+            "output_bytes": 36627
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "default_fonts",
+        "pdfa4"
+      ]
+    },
+    {
+      "name": "default font families mono",
+      "scenario_revision": "default-families-rc4-v1",
+      "family": "default_fonts",
+      "snapshot": "tests/default_fonts/mono.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "normalized_plan_identity": 1,
+        "default_font_mono": 1
+      },
+      "work_counters": [
+        "packaged_inspections",
+        "registered_font_bytes",
+        "inline_visits",
+        "source_visits",
+        "copied_input_bytes",
+        "blocks",
+        "inlines",
+        "sources",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1124,
+          "allocated_bytes": 4114710,
+          "work": {
+            "packaged_inspections": 2,
+            "registered_font_bytes": 608992,
+            "inline_visits": 21,
+            "source_visits": 3,
+            "copied_input_bytes": 0,
+            "blocks": 7,
+            "inlines": 7,
+            "sources": 1,
+            "output_bytes": 16822
+          }
+        },
+        "x64musl": {
+          "allocations": 1124,
+          "allocated_bytes": 4114710,
+          "work": {
+            "packaged_inspections": 2,
+            "registered_font_bytes": 608992,
+            "inline_visits": 21,
+            "source_visits": 3,
+            "copied_input_bytes": 0,
+            "blocks": 7,
+            "inlines": 7,
+            "sources": 1,
+            "output_bytes": 16822
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "default_fonts",
+        "pdfa4"
+      ]
+    },
+    {
+      "name": "default font exact style overrides",
+      "scenario_revision": "default-families-rc4-v1",
+      "family": "default_fonts",
+      "snapshot": "tests/default_fonts/override.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "normalized_plan_identity": 1,
+        "default_font_override": 1
+      },
+      "work_counters": [
+        "packaged_inspections",
+        "registered_font_bytes",
+        "inline_visits",
+        "source_visits",
+        "copied_input_bytes",
+        "blocks",
+        "inlines",
+        "sources",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1482,
+          "allocated_bytes": 8237601,
+          "work": {
+            "packaged_inspections": 1,
+            "registered_font_bytes": 289624,
+            "inline_visits": 27,
+            "source_visits": 0,
+            "copied_input_bytes": 0,
+            "blocks": 4,
+            "inlines": 9,
+            "sources": 0,
+            "output_bytes": 20558
+          }
+        },
+        "x64musl": {
+          "allocations": 1482,
+          "allocated_bytes": 8237601,
+          "work": {
+            "packaged_inspections": 1,
+            "registered_font_bytes": 289624,
+            "inline_visits": 27,
+            "source_visits": 0,
+            "copied_input_bytes": 0,
+            "blocks": 4,
+            "inlines": 9,
+            "sources": 0,
+            "output_bytes": 20558
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "default_fonts",
+        "pdfa4"
+      ]
+    },
+    {
+      "name": "default font resolution scale x10",
+      "scenario_revision": "default-families-rc4-v1",
+      "family": "default_fonts",
+      "snapshot": "tests/default_fonts/scale_10.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "normalized_plan_identity": 1,
+        "font_resolution_sections": 10
+      },
+      "work_counters": [
+        "packaged_inspections",
+        "registered_font_bytes",
+        "inline_visits",
+        "source_visits",
+        "copied_input_bytes",
+        "blocks",
+        "inlines",
+        "sources",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 2066,
+          "allocated_bytes": 10787402,
+          "work": {
+            "packaged_inspections": 5,
+            "registered_font_bytes": 1964376,
+            "inline_visits": 300,
+            "source_visits": 30,
+            "copied_input_bytes": 0,
+            "blocks": 20,
+            "inlines": 100,
+            "sources": 10,
+            "output_bytes": 28848
+          }
+        },
+        "x64musl": {
+          "allocations": 2066,
+          "allocated_bytes": 10787402,
+          "work": {
+            "packaged_inspections": 5,
+            "registered_font_bytes": 1964376,
+            "inline_visits": 300,
+            "source_visits": 30,
+            "copied_input_bytes": 0,
+            "blocks": 20,
+            "inlines": 100,
+            "sources": 10,
+            "output_bytes": 28848
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "default_fonts",
+        "pdfa4"
+      ]
+    },
+    {
+      "name": "default font resolution scale x100",
+      "scenario_revision": "default-families-rc4-v1",
+      "family": "default_fonts",
+      "snapshot": "tests/default_fonts/scale_100.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 9,
+        "normalized_plan_identity": 1,
+        "font_resolution_sections": 100
+      },
+      "work_counters": [
+        "packaged_inspections",
+        "registered_font_bytes",
+        "inline_visits",
+        "source_visits",
+        "copied_input_bytes",
+        "blocks",
+        "inlines",
+        "sources",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 5909,
+          "allocated_bytes": 24611441,
+          "work": {
+            "packaged_inspections": 5,
+            "registered_font_bytes": 1964376,
+            "inline_visits": 3000,
+            "source_visits": 300,
+            "copied_input_bytes": 0,
+            "blocks": 200,
+            "inlines": 1000,
+            "sources": 100,
+            "output_bytes": 45696
+          }
+        },
+        "x64musl": {
+          "allocations": 5909,
+          "allocated_bytes": 24611441,
+          "work": {
+            "packaged_inspections": 5,
+            "registered_font_bytes": 1964376,
+            "inline_visits": 3000,
+            "source_visits": 300,
+            "copied_input_bytes": 0,
+            "blocks": 200,
+            "inlines": 1000,
+            "sources": 100,
+            "output_bytes": 45696
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "default_fonts",
+        "pdfa4"
+      ]
+    },
+    {
+      "name": "default font atomic negatives",
+      "scenario_revision": "default-families-rc4-v1",
+      "family": "default_fonts",
+      "snapshot": "tests/default_fonts/negatives.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "rejections": 10,
+        "path_rejections": 8,
+        "document_rejections": 2,
+        "emitted_pdf_bytes": 0
+      },
+      "work_counters": [
+        "rejections",
+        "path_rejections",
+        "document_rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 635,
+          "allocated_bytes": 426955,
+          "work": {
+            "rejections": 10,
+            "path_rejections": 8,
+            "document_rejections": 2,
+            "output_bytes": 0
+          }
+        },
+        "x64musl": {
+          "allocations": 635,
+          "allocated_bytes": 426955,
+          "work": {
+            "rejections": 10,
+            "path_rejections": 8,
+            "document_rejections": 2,
+            "output_bytes": 0
+          }
+        }
+      },
+      "retention": null,
+      "validators": []
     }
   ]
 }
