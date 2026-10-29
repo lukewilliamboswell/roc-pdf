@@ -21,6 +21,7 @@ config = [
 	Task("test", [Use("dev"), Run(["python3", "scripts/test.py"])]),
 	Task("fuzz", [Use("dev"), Run(["python3", "scripts/fuzz.py", "--mode", "smoke"])]),
 	Task("fuzz-campaign", [Use("dev"), Run(["python3", "scripts/fuzz.py", "--mode", "campaign"])]),
+	Task("fuzz-accept", [Use("dev"), Run(["python3", "scripts/fuzz.py", "--accept-baselines"])]),
 	Task("gallery", [Use("package"), Run(["python3", "scripts/check_gallery.py"])]),
 	Task("bundle", [Use("package"), Run(["bash", "scripts/bundle.sh"])]),
 	Task("bundle-consumer", [Use("dev"), Run(["python3", "scripts/test_bundle_consumer.py"])]),

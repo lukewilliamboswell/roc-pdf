@@ -27,6 +27,9 @@ import os
 import re
 import subprocess
 import sys
+from datetime import datetime, timezone
+
+import fuzz as fuzz_lane
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -50,8 +53,8 @@ WORKLOADS = (
 LINE = re.compile(r'PROFILE (\S+) (\S+) (\d+)')
 
 
-def build(binary: Path, opt: str, cache: bool) -> None:
-    command = [ROC, "build", f"--opt={opt}", str(SOURCE.relative_to(ROOT)), f"--output={binary}"]
+def build(binary: Path, opt: str, cache: bool, host: str) -> None:
+    command = [ROC, "build", f"--opt={opt}", f"--target={host}", str(SOURCE.relative_to(ROOT)), f"--output={binary}"]
     if not cache:
         command.append("--no-cache")
     result = subprocess.run(command, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
@@ -60,16 +63,38 @@ def build(binary: Path, opt: str, cache: bool) -> None:
         raise SystemExit(f"build failed ({result.returncode})")
 
 
-def measure(binary: Path) -> dict[str, dict[str, int]]:
+def measure(binary: Path, report_root: Path, container: str | None) -> dict[str, dict[str, int]]:
     results: dict[str, dict[str, int]] = {}
     for index, name in enumerate(WORKLOADS):
-        selector = WORK / f"select-{index}"
+        selector = report_root / f"select-{index}"
         selector.write_bytes(bytes([index]))
-        result = subprocess.run([str(binary), "replay", str(selector)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-        stages = {stage: int(value) for workload, stage, value in LINE.findall(result.stdout) if workload == name}
-        if result.returncode != 0 or "total" not in stages:
-            sys.stdout.write(result.stdout)
-            raise SystemExit(f"{name}: replay failed ({result.returncode})")
+        report_dir = report_root / name
+        command = fuzz_lane.invocation(binary, ["measure", str(selector), f"--report-dir={report_dir}"], container)
+        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=60)
+        if result.returncode != 0:
+            sys.stdout.write(result.stdout + result.stderr)
+            raise SystemExit(f"{name}: supervised measurement failed ({result.returncode})")
+        observations = json.loads(result.stdout)
+        report = json.loads((report_dir / "report.json").read_text())
+        if report.get("outcome") != "passed" or report.get("metric_version") != "roc-fuzz-allocations/1":
+            raise SystemExit(f"{name}: incomplete or failed supervisor report")
+        named = {region["name"]: region["stats"]["allocs"] + region["stats"]["reallocs"] for region in observations if region["name"] != "$property"}
+        if index < 4:
+            expected = {"fonts", "author", "prepare", "emit"}
+            if set(named) != expected:
+                raise SystemExit(f"{name}: expected named phase observations, got {sorted(named)}")
+            stages = {**named, "total": sum(named.values())}
+        else:
+            if set(named) != {name}:
+                raise SystemExit(f"{name}: missing named kernel observation")
+            stages = {"total": named[name]}
+        # The debug protocol supplies output metadata only. Allocation evidence
+        # comes directly from the supervisor's typed named observations.
+        metadata = (report_dir / "run.log").read_text()
+        stages.update({stage: int(value) for workload, stage, value in LINE.findall(metadata)
+                       if workload == name and stage in {"pdf_bytes", "pdf_fnv", "output"}})
+        if index < 4 and not {"pdf_bytes", "pdf_fnv"} <= stages.keys():
+            raise SystemExit(f"{name}: missing PDF output metadata")
         results[name] = stages
     return results
 
@@ -101,6 +126,7 @@ def table(current: dict[str, dict[str, int]], previous: dict[str, dict[str, int]
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--opt", default="dev", choices=("dev", "speed", "size"))
+    parser.add_argument("--linux-x64-container", metavar="IMAGE", help="cross-build and measure the Linux x64musl profile")
     parser.add_argument("--no-cache", action="store_true", help="build without the compiler cache")
     parser.add_argument("--no-build", action="store_true", help="measure the existing binary")
     parser.add_argument("--compare", type=Path, help="compare against this saved run instead of the last one")
@@ -108,20 +134,30 @@ def main() -> None:
     args = parser.parse_args()
 
     WORK.mkdir(parents=True, exist_ok=True)
-    binary = WORK / f"allocation_profile-{args.opt}"
+    host = fuzz_lane.host_target(args.linux_x64_container)
+    binary = WORK / f"allocation_profile-{host}-{args.opt}-roc-fuzz-{fuzz_lane.PLATFORM_RELEASE}"
     if not args.no_build:
-        build(binary, args.opt, not args.no_cache)
-    current = measure(binary)
-
-    last = WORK / f"last-{args.opt}.json"
+        build(binary, args.opt, not args.no_cache, host)
+    report_root = WORK / f"measure-{host}-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')}-{os.getpid()}"
+    report_root.mkdir()
+    current = measure(binary, report_root, args.linux_x64_container)
+    identity = {"format": "roc-pdf-profile/1", "metric_version": "roc-fuzz-allocations/1",
+                "platform_release": fuzz_lane.PLATFORM_RELEASE, "platform_sha256": fuzz_lane.PLATFORM_SHA256,
+                "allocation_count": "roc_alloc+roc_realloc",
+                "compiler": subprocess.check_output([ROC, "version"], text=True).strip(), "host": host, "backend": args.opt}
+    record = {**identity, "workloads": current}
+    last = WORK / f"last-{host}-{args.opt}-roc-fuzz-{fuzz_lane.PLATFORM_RELEASE}.json"
     reference = args.compare or last
-    previous = json.loads(reference.read_text()) if reference.is_file() else None
+    previous_record = json.loads(reference.read_text()) if reference.is_file() else None
+    if previous_record is not None and {k: previous_record.get(k) for k in identity} != identity:
+        raise SystemExit("Profile instrumentation identity differs; keep the old evidence and make a fresh profile reference")
+    previous = previous_record["workloads"] if previous_record is not None else None
     print(table(current, previous))
     if previous is not None:
         print(f"(compared with {reference.relative_to(ROOT) if reference.is_relative_to(ROOT) else reference})")
-    last.write_text(json.dumps(current, indent=1, sort_keys=True) + "\n")
+    last.write_text(json.dumps(record, indent=1, sort_keys=True) + "\n")
     if args.save:
-        (WORK / f"{args.save}.json").write_text(json.dumps(current, indent=1, sort_keys=True) + "\n")
+        (WORK / f"{args.save}.json").write_text(json.dumps(record, indent=1, sort_keys=True) + "\n")
 
 
 if __name__ == "__main__":

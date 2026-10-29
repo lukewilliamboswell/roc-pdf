@@ -1,9 +1,10 @@
 app [target] {
-	fuzz: platform "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.4.5/D4YgxZeGd6MqK1wA17xERBocQHnVff3c8UNmDcvGeF7J.tar.zst",
+	fuzz: platform "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.5.0/9WT86CuwM7ZJBSs8iTd1jLyrUFTTiGp5hcJE63TwswGE.tar.zst",
 	pdf: "../package/all.roc",
 }
 
 import fuzz.Fuzz
+import InputBounds
 import NavigationTargets
 
 ## Nearly every generated field is a small code chosen from a boundary pool
@@ -37,6 +38,9 @@ Input := {
 	sections : List({ kind : U8, name : U8, uri : U8, words : Str }),
 	text : Str,
 }.{
+	parser_for : _
+	encoder_for : _
+
 	generator_for : Fuzz.FuzzEncoding -> Fuzz.Generator(Input)
 	generator_for = |_| {
 		{
@@ -79,6 +83,9 @@ Input := {
 ## while the single-fault table is the one entitled to name a variant.
 test : Input -> Fuzz.Outcome
 test = |Input.(input)| {
+	if input.arm > 34 or input.bulk > 15 or input.labels.len() > 6 or input.outline.len() > 8 or input.sections.len() > 8 or input.labels.any(|label| label.start_number > 3) or !InputBounds.navigation({ text: input.text, sections: input.sections }) {
+		return Fuzz.reject
+	}
 	if !NavigationTargets.deterministic_navigation(input) {
 		crash "authored navigation was not a deterministic, transactional function of the document"
 	}
@@ -90,6 +97,11 @@ test = |Input.(input)| {
 
 target = Fuzz.target({
 	name: "roc-pdf-navigation-property",
+	examples: [
+		Fuzz.example({ name: "named-destination-and-link", revision: "1", make: || Input.{ arm: 0, bulk: 0, labels: [], outline: [], sections: [{ kind: 0, name: 0, uri: 0, words: "Destination text." }], text: "Navigation" } }),
+		Fuzz.example({ name: "single-unknown-destination", revision: "1", make: || Input.{ arm: 6, bulk: 0, labels: [], outline: [], sections: [], text: "Unknown destination" } }),
+	],
+
 	test,
 	show: |input| Str.inspect(input),
 })

@@ -1,10 +1,11 @@
 app [target] {
 	deflate: "https://github.com/lukewilliamboswell/roc-deflate/releases/download/0.4.0-rc4/FoGWbhCP9K1Qk7HA9wcSxHYTpiwTHmCpfNUZx7rAGSSk.tar.zst",
-	fuzz: platform "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.4.5/D4YgxZeGd6MqK1wA17xERBocQHnVff3c8UNmDcvGeF7J.tar.zst",
+	fuzz: platform "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.5.0/9WT86CuwM7ZJBSs8iTd1jLyrUFTTiGp5hcJE63TwswGE.tar.zst",
 	pdf: "../package/all.roc",
 }
 
 import fuzz.Fuzz
+import InputBounds
 import pdf.Document
 import pdf.Pdf
 import StructureOracle
@@ -18,6 +19,9 @@ Input := {
 	language : U8,
 	title : Str,
 }.{
+	parser_for : _
+	encoder_for : _
+
 	generator_for : Fuzz.FuzzEncoding -> Fuzz.Generator(Input)
 	generator_for = |_| {
 		{
@@ -48,6 +52,9 @@ Input := {
 ## held to the structure.
 test : Input -> Fuzz.Outcome
 test = |Input.(input)| {
+	if !InputBounds.document({ blocks: input.blocks, title: input.title }) {
+		return Fuzz.reject
+	}
 	document = Pdf.document({
 		contents: input.blocks.map(block_for),
 		language: language_for(input.language),
@@ -64,6 +71,10 @@ test = |Input.(input)| {
 
 target = Fuzz.target({
 	name: "roc-pdf-facade-structure",
+	examples: [
+		Fuzz.example({ name: "heading-and-body", revision: "1", make: || Input.{ blocks: [{ items: [], kind: 1, level: 0, text: "Introduction" }, { items: [], kind: 2, level: 0, text: "Searchable body text." }], language: 0, title: "Structural report" } }),
+	],
+
 	test,
 	show: |input| Str.inspect(input),
 })

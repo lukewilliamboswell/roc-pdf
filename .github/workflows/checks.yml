@@ -145,6 +145,15 @@ jobs:
       - name: Run property fuzz smoke
         run: blueprint run fuzz
 
+      - name: Preserve property and allocation evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: fuzz-evidence-${{ inputs.source_sha }}
+          path: .roc-pdf-tmp/fuzz-artifacts/
+          if-no-files-found: error
+          retention-days: 14
+
   # Arlington PDF 2.0 object-model lane over every committed package snapshot
   # and public example. It runs after the Linux suite has proven the
   # snapshots are exactly what the package generates. The validator is the

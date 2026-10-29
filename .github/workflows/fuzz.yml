@@ -62,11 +62,11 @@ jobs:
         env:
           RUNS: ${{ inputs.runs || '2000' }}
 
-      - name: Upload reproducers
-        if: failure()
+      - name: Preserve supervised fuzz evidence
+        if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: fuzz-reproducers
+          name: fuzz-evidence
           path: .roc-pdf-tmp/fuzz-artifacts/
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
