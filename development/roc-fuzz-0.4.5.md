@@ -1,5 +1,9 @@
 # roc-fuzz compatibility review and upgrade
 
+This records the compatible intermediate upgrade. The subsequent complete
+[platform/API migration](roc-fuzz-0.5.0.md) supersedes its platform choice;
+its measured results and original decisions remain historical evidence.
+
 ## Decision and immutable inputs
 
 Move the ten evidence-only application headers from roc-fuzz 0.4.3 to
@@ -96,6 +100,9 @@ This independently exercises the Linux host ABI and runtime alongside the
 native macOS smoke; it does not enlarge the bounded campaign or input domain.
 
 ## Separate follow-up: 0.5.0 and font coverage
+
+The API/runner migration is now completed in the [subsequent upgrade record](roc-fuzz-0.5.0.md).
+The optional broader font-corpus discussion below remains a separate scope.
 
 Release [0.5.0](https://github.com/lukewilliamboswell/roc-fuzz/releases/tag/0.5.0)
 is a deliberate migration, not a URL-only update. It requires declared examples,

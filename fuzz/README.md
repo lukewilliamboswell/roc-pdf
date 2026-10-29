@@ -11,9 +11,11 @@ Run all targets with the repository's pinned Roc compiler:
 ```
 
 The smoke lane checks every declared example in a fresh supervised process,
-compares its exact accepted allocation observations, then runs a fixed-seed
-coverage campaign capped at 64 executions and one second per target. A campaign
-may finish fewer executions within that time cap. Campaigns default to 2,000
+compares its exact accepted allocation observations, then requests fixed-seed
+coverage exploration with a 64-run cap and a one second exploration budget.
+An input already executing may finish later under its invocation deadline;
+the separate whole-target deadline remains enforced. A campaign may finish
+fewer executions within its budget. Campaigns default to 2,000
 executions; select targets and bounds explicitly for a longer search:
 
 ```sh
@@ -107,3 +109,6 @@ is replay/measurement tooling, not a coverage campaign or an acceptance gate.
 
 Saved profile comparisons require the same compiler, backend, host, platform
 and counting definition. Previous instrumentation records remain separate.
+
+See the [upgrade evidence](../development/roc-fuzz-0.5.0.md) for immutable inputs,
+API migration, reviewed initial example observations and validation results.

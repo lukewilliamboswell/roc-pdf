@@ -1,0 +1,170 @@
+{
+  "format": "roc-fuzz-baseline/1",
+  "target": "roc-pdf-font-subset-roundtrip",
+  "entries": [
+    {
+      "host_target": "arm64mac",
+      "profile": "llvm-fuzz",
+      "metric_version": "roc-fuzz-allocations/1",
+      "examples": [
+        {
+          "name": "regular-glyph-closure",
+          "revision": "1",
+          "input_sha256": "3591fd72d91424cd622f23aa5be231ff926fd7778fb079eea00418d32377b1e2",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 82,
+                "reallocs": 25,
+                "deallocs": 83,
+                "requested_bytes": 292426,
+                "entry_live_allocs": 1,
+                "entry_live_bytes": 48,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 111760
+              }
+            }
+          ]
+        },
+        {
+          "name": "cjk-glyph-closure",
+          "revision": "1",
+          "input_sha256": "706b37cdf44a85ce692530a0c934261e2d38b11d5089f976c712ed812d6d58a7",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 72,
+                "reallocs": 8,
+                "deallocs": 73,
+                "requested_bytes": 8028,
+                "entry_live_allocs": 1,
+                "entry_live_bytes": 16,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 4054
+              }
+            }
+          ]
+        },
+        {
+          "name": "bounded-plan-rejection",
+          "revision": "1",
+          "input_sha256": "a5af838da43968f1d4df94d2cd173d38b75426ba87be0f5fafcf3dd262a0ada4",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 18,
+                "reallocs": 21,
+                "deallocs": 19,
+                "requested_bytes": 219984,
+                "entry_live_allocs": 1,
+                "entry_live_bytes": 24,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 111736
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "host_target": "x64musl",
+      "profile": "llvm-fuzz",
+      "metric_version": "roc-fuzz-allocations/1",
+      "examples": [
+        {
+          "name": "regular-glyph-closure",
+          "revision": "1",
+          "input_sha256": "3591fd72d91424cd622f23aa5be231ff926fd7778fb079eea00418d32377b1e2",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 82,
+                "reallocs": 25,
+                "deallocs": 83,
+                "requested_bytes": 292426,
+                "entry_live_allocs": 1,
+                "entry_live_bytes": 48,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 111760
+              }
+            }
+          ]
+        },
+        {
+          "name": "cjk-glyph-closure",
+          "revision": "1",
+          "input_sha256": "706b37cdf44a85ce692530a0c934261e2d38b11d5089f976c712ed812d6d58a7",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 72,
+                "reallocs": 8,
+                "deallocs": 73,
+                "requested_bytes": 8028,
+                "entry_live_allocs": 1,
+                "entry_live_bytes": 16,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 4054
+              }
+            }
+          ]
+        },
+        {
+          "name": "bounded-plan-rejection",
+          "revision": "1",
+          "input_sha256": "a5af838da43968f1d4df94d2cd173d38b75426ba87be0f5fafcf3dd262a0ada4",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 18,
+                "reallocs": 21,
+                "deallocs": 19,
+                "requested_bytes": 219984,
+                "entry_live_allocs": 1,
+                "entry_live_bytes": 24,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 111736
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

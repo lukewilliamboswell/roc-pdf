@@ -1,0 +1,120 @@
+{
+  "format": "roc-fuzz-baseline/1",
+  "target": "roc-pdf-registry-property",
+  "entries": [
+    {
+      "host_target": "arm64mac",
+      "profile": "llvm-fuzz",
+      "metric_version": "roc-fuzz-allocations/1",
+      "examples": [
+        {
+          "name": "ordered-latin-and-han",
+          "revision": "1",
+          "input_sha256": "172b3a0bd7aec19007051b215f89874f994e0c2744aaf3a0ed37a9ddc0301a9d",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 96,
+                "reallocs": 22,
+                "deallocs": 105,
+                "requested_bytes": 16606,
+                "entry_live_allocs": 9,
+                "entry_live_bytes": 287,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 8096
+              }
+            }
+          ]
+        },
+        {
+          "name": "common-script-regression",
+          "revision": "1",
+          "input_sha256": "cc6fe5e1ee16c44c667e8cfc9565dc55be898ac3421a8347d7b5cdc5d50fd59d",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 40,
+                "reallocs": 27,
+                "deallocs": 44,
+                "requested_bytes": 199199,
+                "entry_live_allocs": 4,
+                "entry_live_bytes": 146,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 111922
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "host_target": "x64musl",
+      "profile": "llvm-fuzz",
+      "metric_version": "roc-fuzz-allocations/1",
+      "examples": [
+        {
+          "name": "ordered-latin-and-han",
+          "revision": "1",
+          "input_sha256": "172b3a0bd7aec19007051b215f89874f994e0c2744aaf3a0ed37a9ddc0301a9d",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 96,
+                "reallocs": 22,
+                "deallocs": 105,
+                "requested_bytes": 16606,
+                "entry_live_allocs": 9,
+                "entry_live_bytes": 287,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 8096
+              }
+            }
+          ]
+        },
+        {
+          "name": "common-script-regression",
+          "revision": "1",
+          "input_sha256": "cc6fe5e1ee16c44c667e8cfc9565dc55be898ac3421a8347d7b5cdc5d50fd59d",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 40,
+                "reallocs": 27,
+                "deallocs": 44,
+                "requested_bytes": 199199,
+                "entry_live_allocs": 4,
+                "entry_live_bytes": 146,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 111922
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
