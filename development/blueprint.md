@@ -15,6 +15,8 @@ machine.
 | `roc` | Expected on `PATH`; it must be the nightly named in `.roc-version` |
 | `python3`, `bash`, `tar` | Expected on `PATH` |
 | ripgrep 15.2.0 (`rg`) | Fetched from its GitHub release for the `docs` task, checked against `Blueprint.lock` |
+| roc-docs tools-0.7.0 | Native manual renderer, fetched per system with reviewed release size/SHA-256 in `Blueprint.lock` |
+| Temurin JDK 21.0.13+9 and Python 3.14.0 | Explicit CI setup-action inputs; local independent checks may use an installed compatible JDK/Python and record their identities |
 
 The package compiler is deliberately not fetched by Blueprint. `.roc-version`
 stays its single pin, because the allocation baselines are exact for one build
@@ -28,9 +30,12 @@ audit for private `Kernel` types needs it and the Ubuntu runners do not ship
 it; `scripts/docs.sh` now refuses to run without it. Inside a task the fetched Zig comes
 first on `PATH`, so `ZIG` no longer needs to be set.
 
-The renderer oracles (PDFium, MuPDF, veraPDF, PDFBox) and the Arlington service
-are not declared. They are manual or service-container evidence and keep their
-existing provisioning (`scripts/provision_extended_tools.py`, `vendor/`).
+PDFBox 3.0.8 and veraPDF 1.30.2 remain independent vendored test oracles.
+CI provisions veraPDF and its corpus from verified bytes without a network
+fallback. Arlington runs in its digest-pinned service container. PDFium and
+MuPDF extended reader lanes retain their existing provisioning; see the
+[tool and publication audit](automation-publication.md). These are test tools,
+never production dependencies.
 
 ## Tasks
 
@@ -48,7 +53,8 @@ blueprint run fuzz-campaign         # bounded fuzz campaign (scheduled in CI)
 blueprint run gallery               # scripts/check_gallery.py
 blueprint run bundle                # scripts/bundle.sh
 blueprint run bundle-consumer       # scripts/test_bundle_consumer.py
-blueprint run docs                  # scripts/docs.sh
+blueprint run docs                  # native user manual, separate API and checks
+blueprint run docs-path             # verified persistent renderer path
 blueprint workflow check            # test, fuzz smoke, bundle consumer, gallery
 blueprint shell                     # a shell with the dev tools on PATH
 ```
@@ -57,18 +63,22 @@ Arguments after `--` are passed to the script unchanged. Every task wraps an
 existing script; the scripts still run directly when the tools are already on
 `PATH`.
 
-`blueprint workflow check` is what a pull request runs on Linux. The fuzz
-campaign is not part of it.
+`blueprint workflow check` is the local package-check sequence. The reusable
+GitHub checks workflow additionally validates independent profiles/Arlington,
+the native manual/API and the exact bundle/examples/docs archives. The fuzz
+campaign remains separate.
 
 ## CI
 
-`ci.yml`, `docs.yml` and `fuzz.yml` install Blueprint with the shared
-`roc-automation` `actions/setup-blueprint` action at the reviewed `tools-0.4.0`
-commit. It verifies the Blueprint binary against its reviewed digest and reads
+The check, documentation and fuzz workflows install Blueprint with the shared
+`roc-automation` `actions/setup-blueprint` action at the reviewed `tools-0.7.0`
+commit, `8acff758d5d73210f1731bed75adb9322f5e773d`. It verifies the Blueprint binary against its reviewed digest and reads
 the release from the platform URL in `Blueprint.roc`, so no workflow names the
 Blueprint version. The `ci.yml` test job caches Blueprint's download store
 (`cache-workload: dev`); a cached artifact is rehashed before use.
-`release-candidate.yml` is unchanged.
+Release dispatch runs the same checks at its recorded SHA before an
+artifact-consuming publication job; it never publishes from a branch build
+that tested different bytes. See [publishing](releases/publishing.md).
 
 ## Maintenance
 

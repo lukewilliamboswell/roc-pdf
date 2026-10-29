@@ -8,6 +8,7 @@
 app [config] { pf: platform "https://github.com/lukewilliamboswell/roc-blueprint/releases/download/0.8.0/FbJymjYdCxx9vqMcau7r4tQfeAbnVGqqJoYrLGqPCqKu.tar.zst" }
 
 import pf.Config
+import pf.Recipes
 import pf.System
 
 config = [
@@ -15,7 +16,7 @@ config = [
 	Systems(["x86_64-linux", "aarch64-darwin"]),
 	Environment("package", [Expect(["roc", "python3", "bash", "tar"])]),
 	Environment("dev", [Extend("package"), Programs([Fetch("zig", zig)])]),
-	Environment("docs", [Extend("package"), Programs([Fetch("rg", ripgrep)])]),
+	Environment("docs", [Extend("package"), Programs([Fetch("rg", ripgrep), Fetch("roc-docs", Recipes.file("https://github.com/lukewilliamboswell/roc-automation/releases/download/tools-0.7.0/roc-docs-{system}"))]), Expect(["realpath", "sh"])]),
 	Shell("default", [Use("dev")]),
 	Task("test", [Use("dev"), Run(["python3", "scripts/test.py"])]),
 	Task("fuzz", [Use("dev"), Run(["python3", "scripts/fuzz.py", "--mode", "smoke"])]),
@@ -24,6 +25,7 @@ config = [
 	Task("bundle", [Use("package"), Run(["bash", "scripts/bundle.sh"])]),
 	Task("bundle-consumer", [Use("dev"), Run(["python3", "scripts/test_bundle_consumer.py"])]),
 	Task("docs", [Use("docs"), Run(["bash", "scripts/docs.sh"])]),
+	Task("docs-path", [Use("docs"), Run(["sh", "-c", "realpath \"$(command -v roc-docs)\""])]),
 	# What a pull request runs, in CI order. The fuzz campaign is not part of it.
 	Workflow("check", [RunTask("test", []), RunTask("fuzz", []), RunTask("bundle-consumer", []), RunTask("gallery", [])]),
 ]
