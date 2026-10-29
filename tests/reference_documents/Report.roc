@@ -225,7 +225,7 @@ bold_font = |choice| match choice {
 ## Code is set at 90% of the body size whenever it has its own face.
 code_scale : Theme.InlineFont -> Theme.InlineScale
 code_scale = |font| match font {
-	Face(_) => Percent(90)
+	Face(_) | Family(_) => Percent(90)
 	Inherited => Inherited
 }
 

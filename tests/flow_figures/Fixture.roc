@@ -229,7 +229,7 @@ label_face_options = |context| {
 	body = Font.Registry.empty.register_built_in(limits) ? |_| EvidenceFailure
 	strong = body.registry.register({ bytes: caller_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: limits }) ? |_| EvidenceFailure
 	code = strong.registry.register({ bytes: mono_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: limits }) ? |_| EvidenceFailure
-	theme = { ..report_theme, face: body.face, inline: { ..report_theme.inline, code: { ..report_theme.inline.code, font: Face(code.face) }, strong: { ..report_theme.inline.strong, font: Face(strong.face) } } }
+	theme = { ..report_theme, face: body.face, title: { ..report_theme.title, face: Face(body.face) }, inline: { ..report_theme.inline, code: { ..report_theme.inline.code, font: Face(code.face) }, strong: { ..report_theme.inline.strong, font: Face(strong.face) } } }
 	Ok(Pdf.Options.{ theme: theme, fonts: Registered(code.registry) })
 }
 

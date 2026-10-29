@@ -28,6 +28,7 @@ import pdf.Document
 import pdf.Font
 import pdf.KernelBuiltInFont
 import pdf.KernelFacadePipeline
+import pdf.KernelFacadeFonts
 import pdf.KernelPdfFont
 import pdf.Layout
 import pdf.Pdf
@@ -92,7 +93,7 @@ scoped_table_evidence = |count, mode| {
 	}
 	$contents = $contents.append(Pdf.destination_heading({ name: "end", level: 1, text: "End target" }))
 	theme : Theme
-	theme = { face: registered.face, body: { size: 10, leading: 14 }, table: { header_color: Themed(Theme.black), row_header_color: Themed(Theme.black), row_gap: 6, header_fill: if (mode == 0 or mode == 5) Fill("#cbd9e4") else NoFill, body_fills: { odd: if (mode == 0 or mode == 5) Fill("#eef2f5") else NoFill, even: if (mode == 0 or mode == 5) Fill("#e1e8ef") else NoFill }, column_rule: if (mode == 0 or mode == 2 or mode == 4 or mode == 5) Rule({ color: Theme.black, width: 0.5 }) else NoRule, frame: if (mode == 0 or mode == 5) Rule({ color: Theme.black, width: 0.5 }) else NoRule, rule: if (mode == 3) Rule({ color: Theme.black, width: 0.5 }) else NoRule, body_rule: if (mode == 3) Rule({ color: Theme.black, width: 0.5 }) else NoRule } }
+	theme = { face: registered.face, headings: { all: { face: Face(registered.face) } }, body: { size: 10, leading: 14 }, table: { header_color: Themed(Theme.black), row_header_color: Themed(Theme.black), row_gap: 6, header_fill: if (mode == 0 or mode == 5) Fill("#cbd9e4") else NoFill, body_fills: { odd: if (mode == 0 or mode == 5) Fill("#eef2f5") else NoFill, even: if (mode == 0 or mode == 5) Fill("#e1e8ef") else NoFill }, column_rule: if (mode == 0 or mode == 2 or mode == 4 or mode == 5) Rule({ color: Theme.black, width: 0.5 }) else NoRule, frame: if (mode == 0 or mode == 5) Rule({ color: Theme.black, width: 0.5 }) else NoRule, rule: if (mode == 3) Rule({ color: Theme.black, width: 0.5 }) else NoRule, body_rule: if (mode == 3) Rule({ color: Theme.black, width: 0.5 }) else NoRule } }
 	prepared_evidence_styled(Pdf.document({ title: "Scoped table paint footprints", language: "en", contents: $contents }), { face: registered.face, registry: registered.registry }, count, theme)
 }
 
@@ -141,7 +142,7 @@ negative_evidence = |context| {
 	}
 	registered = Font.Registry.empty.register({ bytes: KernelBuiltInFont.bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
 	options : Pdf.Options
-	options = { fonts: Registered(registered.registry) }
+	options = { theme: { headings: { all: { face: Face(registered.face) } } }, fonts: Registered(registered.registry) }
 	make = |block| Pdf.document({ title: "Rich flow diagnostic contracts", language: "en", contents: [block] })
 	valid = [Pdf.paragraph("A valid note.")]
 	var $deep = Pdf.paragraph("Too deep")
@@ -286,7 +287,9 @@ probe_facts = |document| {
 prepared_evidence : Document, { registry : Font.Registry, face : Font.FaceId }, U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Error)
 prepared_evidence = |document, registered, count| {
 	theme : Theme
-	theme = { face: registered.face, table: { header_color: Themed(Theme.black), row_header_color: Themed(Theme.black) } }
+	# Strong children use genuine Inter Bold beside the retained regular
+	# fixture body. This is an explicit mixed-family authoring choice.
+	theme = { face: registered.face, inline: { strong: { font: Family(BuiltIn(Sans)) } }, table: { header_color: Themed(Theme.black), row_header_color: Themed(Theme.black) } }
 	prepared_evidence_styled(document, registered, count, theme)
 }
 
@@ -294,9 +297,8 @@ prepared_evidence_styled : Document, { registry : Font.Registry, face : Font.Fac
 prepared_evidence_styled = |document, registered, count, theme| {
 	{ prepared, report } = Pdf.prepare_with_report(document, { theme, fonts: Registered(registered.registry) }) ? PdfFailure
 	bytes = Pdf.to_bytes_prepared(prepared) ? PdfFailure
-	font = registered.registry.prepared_face(registered.face) ? |_| FontFailure
-	styled = { faces: [registered.face], fonts: [font], inline_faces: [], face_indexes: [], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
-	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(document), styled, theme, page_size, descriptor, probe_facts(document)?, pipeline_limits) ? |_| PipelineFailure
+	resolved = KernelFacadeFonts.resolve(Document.normalize(document), { origin: Caller, registry: registered.registry, theme }) ? |_| FontFailure
+	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(resolved.authoring, resolved.fonts, resolved.theme, page_size, descriptor, probe_facts(document)?, pipeline_limits) ? |_| PipelineFailure
 	flow = KernelFacadePipeline.Plan.work(pipeline)
 	var $panels = 0
 	for outcome in report.facts.outcomes {

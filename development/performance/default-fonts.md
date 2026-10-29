@@ -75,6 +75,30 @@ constant is the same for 10 and 100 sections; it introduces no per-inline or
 per-source allocation event. These are initial observations for the new cases,
 not acceptance of unrelated existing-case baseline changes.
 
+## Existing fixture typography migration
+
+Caller-registry geometry fixtures now name their original regular title or
+heading face explicitly where their workload deliberately uses one exact
+face. Existing explicit mono face choices in reference geometry and shared
+source comparisons remain deliberate exact-face tests; they make no genuine
+italic or bold program claim. Their text, nesting and known cell metrics stay
+authored as before.
+
+Implicit semantic Strong requests in rich callout fixtures explicitly select
+genuine packaged Sans styles beside the retained regular fixture body. The
+mixed inline fixture keeps its Emphasis → Strong → Code nesting and explicitly
+selects genuine Inter Bold Italic for that combined request. Its ordinary Code
+owner keeps the custom mono face. The independent oracle follows the combined
+owner's MCID to its selected font and validates its source style metadata,
+descriptor and glyph program. Scaled code requests genuine Fira Code Bold for
+Strong while preserving the exact custom regular Code face.
+
+The affected work probes now consume the same resolved font facts as the
+public facade. Their measured window includes that additional resolver pass;
+new inspection/registration allocations are fixture setup costs, bounded by
+the demanded face set. Updated fixture baselines require review of those
+causes and the existing scale pairs before acceptance.
+
 ## Independent byte evidence
 
 `scripts/check_default_fonts.py` inspects the original emitted bytes through

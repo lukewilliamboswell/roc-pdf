@@ -41,8 +41,11 @@ Fixture :: [].{
 		mono = body.registry.register({ bytes: mono_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
 		body_font = mono.registry.prepared_face(body.face) ? |_| FontFailure
 		mono_font = mono.registry.prepared_face(mono.face) ? |_| FontFailure
+		# This geometry fixture deliberately requests one exact upright mono
+		# face at 75%; Emphasis here tests inherited face/scale facts, not
+		# an italic family-style claim. Keep its headings explicitly regular.
 		styled_theme : Theme
-		styled_theme = { ..theme, face: body.face, inline: { emphasis: { font: Face(mono.face), scale: Percent(75) } } }
+		styled_theme = { ..theme, face: body.face, headings: { all: { face: Face(body.face) } }, inline: { emphasis: { font: Face(mono.face), scale: Percent(75) } } }
 		document = Pdf.document({ title: "Reference inherited face and scale", language: "en", contents: [Pdf.destination_heading({ name: "start", level: 1, text: "Styled references" }), Pdf.rich_paragraph([Pdf.text("Scaled label "), Pdf.emphasis([Pdf.in_language("fr", [Pdf.page_reference({ destination: "end", width: 60, numbering: PageLabel })])]), Pdf.text(" ends here.")]), Pdf.page_break, Pdf.destination_heading({ name: "end", level: 1, text: "Styled target" })], page_labels: [{ start_page: 0, style: DecimalArabic, prefix: "m-", start_number: 8 }] })
 		selection = Styled({ faces: [body.face, mono.face], fonts: [body_font, mono_font], inline_faces: [], face_indexes: [], roles: { code: Inherited, emphasis: Candidate(1), quote: Inherited, strong: Inherited } })
 		evidence(document, styled_theme, { theme: styled_theme, fonts: Registered(mono.registry) }, selection)
@@ -70,7 +73,9 @@ Fixture :: [].{
 		body_font = mono.registry.prepared_face(body.face) ? |_| FontFailure
 		mono_font = mono.registry.prepared_face(mono.face) ? |_| FontFailure
 		selected_theme : Theme
-		selected_theme = { ..theme, inline: { code: { font: Face(mono.face), scale: Percent(75) }, emphasis: { font: Face(mono.face), scale: Percent(75) } } }
+		# Exact mono overrides preserve the independently known 600-unit
+		# cell geometry; they do not claim a genuine italic style.
+		selected_theme = { ..theme, headings: { all: { face: Face(body.face) } }, inline: { code: { font: Face(mono.face), scale: Percent(75) }, emphasis: { font: Face(mono.face), scale: Percent(75) } } }
 		small = |inlines| [Pdf.emphasis(inlines)]
 		var $rows = []
 		var $row = 0

@@ -121,7 +121,7 @@ evidence = |count| {
 	}
 	document = Pdf.document({ title: "Integrated technical manual", language: "en", contents: $contents, outline: $outline, page_labels: [{ prefix: "M-", start_number: 1, start_page: 0, style: DecimalArabic }], page_templates: Templates({ first: Pdf.first_page_template({ footer: footer("FRONT"), gap: 8 }), continuation: Pdf.page_template({ footer: footer("FRONT"), gap: 8 }) }) })
 	theme : Theme
-	theme = { face, table: { header_color: Themed(Theme.black), row_header_color: Themed(Theme.black), header_fill: Fill("#dbe4e9"), body_fills: { even: Fill("#e3e9ee") }, frame: Rule({ color: Theme.black, width: 0.5 }), column_rule: Rule({ color: Theme.black, width: 0.5 }) } }
+	theme = { face, headings: { all: { face: Face(face) } }, table: { header_color: Themed(Theme.black), row_header_color: Themed(Theme.black), header_fill: Fill("#dbe4e9"), body_fills: { even: Fill("#e3e9ee") }, frame: Rule({ color: Theme.black, width: 0.5 }), column_rule: Rule({ color: Theme.black, width: 0.5 }) } }
 	prepared = Pdf.prepare_with_report(document, { theme, fonts: Registered(registered.registry) }) ? PdfFailure
 	bytes = Pdf.to_bytes_prepared(prepared.prepared) ? PdfFailure
 	font = registered.registry.prepared_face(face) ? |_| FontFailure

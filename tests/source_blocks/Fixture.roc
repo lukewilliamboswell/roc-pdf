@@ -127,7 +127,7 @@ evidence = |EvidenceProps.{ text, spacer, scale, negative, defaults, han, source
 	}
 	registered = faces(han)?
 	props : Pdf.SourceBlockProps
-	props = if (defaults) { text, face: if (source_body) registered.body else registered.mono, foregrounds } else { text, face: if (source_body) registered.body else registered.mono, foregrounds, size: 9, leading: 12, color: Color.srgb8({ red: 20, green: 40, blue: 80 }), padding: 8, background: Background(Color.srgb8({ red: 240, green: 242, blue: 245 })) }
+	props = if (defaults) { text, face: Face(if (source_body) registered.body else registered.mono), foregrounds } else { text, face: Face(if (source_body) registered.body else registered.mono), foregrounds, size: 9, leading: 12, color: Color.srgb8({ red: 20, green: 40, blue: 80 }), padding: 8, background: Background(Color.srgb8({ red: 240, green: 242, blue: 245 })) }
 	header = Pdf.region({ height: 10, start: [Pdf.furniture_text([Pdf.text("Quiet running header")])] })
 	templates = Templates({ first: Pdf.first_page_template({ header: header }), continuation: Pdf.page_template({ header: header }) })
 	make = |block| Pdf.document({
