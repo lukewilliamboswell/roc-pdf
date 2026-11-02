@@ -996,39 +996,46 @@ kernel_reference_layout_error = |error| match error {
 	Unbreakable(_) => leaf({ category: Invariant, feature: "unbreakable", path: "Unbreakable", inspected: Str.inspect(error) })
 }
 
-# Nested limits preserve the exact public feature and stage context.
+## Nested limits preserve the exact public feature and stage context.
 expect {
 	failure = KernelFacadeFailure.pipeline(Output(Structure(TaggedObjects(Object(LimitExceeded({ attempted: 8196, dimension: NameBytes, limit: 8192 }))))))
-	failure.category == Budget and failure.feature == "output.structure.tagged_objects.object.limit_exceeded" and failure.path == "Output.Structure.TaggedObjects.Object.LimitExceeded" and failure.detail.contains("8196")
+	actual = { category: failure.category, feature: failure.feature, path: failure.path, has_attempted: failure.detail.contains("8196") }
+	actual == { category: Budget, feature: "output.structure.tagged_objects.object.limit_exceeded", path: "Output.Structure.TaggedObjects.Object.LimitExceeded", has_attempted: True }
 }
 
-# Debug-like string payloads do not select category or feature.
+## Debug-like string payloads do not select category or feature.
 expect {
 	first = KernelFacadeFailure.pipeline(Labels(Shape(UnsupportedScript({ actual: "LimitExceeded({ attempted: 99, limit: 1 })", expected: "Latn", run: 0 }))))
 	second = KernelFacadeFailure.pipeline(Labels(Shape(UnsupportedScript({ actual: "a different debug representation", expected: "Latn", run: 0 }))))
-	first.category == Invariant and second.category == Invariant and first.feature == "labels.shape.unsupported_script" and first.feature == second.feature and first.path == second.path
+	actual = { first_category: first.category, second_category: second.category, feature: first.feature, same_feature: first.feature == second.feature, same_path: first.path == second.path }
+	actual == { first_category: Invariant, second_category: Invariant, feature: "labels.shape.unsupported_script", same_feature: True, same_path: True }
 }
 
-# Both payload-bearing and payload-free invariant failures retain identity.
+## Both payload-bearing and payload-free invariant failures retain identity.
 expect {
 	run = KernelFacadeFailure.pipeline(Text(InvalidRun({ run: 4 })))
 	subset = KernelFacadeFailure.pipeline(Output(Subset(ArithmeticOverflow)))
-	run.category == Invariant and run.feature == "text.invalid_run" and run.path == "Text.InvalidRun" and subset.category == Invariant and subset.feature == "output.subset.arithmetic_overflow"
+	actual = { run: { category: run.category, feature: run.feature, path: run.path }, subset: { category: subset.category, feature: subset.feature, path: subset.path } }
+	actual == { run: { category: Invariant, feature: "text.invalid_run", path: "Text.InvalidRun" }, subset: { category: Invariant, feature: "output.subset.arithmetic_overflow", path: "Output.Subset.ArithmeticOverflow" } }
 }
 
-# A record-held cause supplies its category while its stable feature remains.
+## A record-held cause supplies its category while its stable feature remains.
 expect {
 	failure = KernelFacadeFailure.pipeline(Pages(TableLayout({ error: LimitExceeded({ attempted: 2, dimension: Pages, limit: 1 }), groups: [], units: [] })))
-	failure.category == Budget and failure.feature == "pages.table_layout" and failure.path == "Pages.TableLayout"
+	actual = { category: failure.category, feature: failure.feature, path: failure.path }
+	actual == { category: Budget, feature: "pages.table_layout", path: "Pages.TableLayout" }
 }
 
+## Image marker budgets retain their category and stable feature identity.
 expect {
 	failure = KernelFacadeFailure.pipeline(Output(Images(MarkerLimitExceeded({ attempted: 9, limit: 8, resource: 0 }))))
-	failure.category == Budget and failure.feature == "output.images.marker_limit_exceeded" and failure.path == "Output.Images.MarkerLimitExceeded"
+	actual = { category: failure.category, feature: failure.feature, path: failure.path }
+	actual == { category: Budget, feature: "output.images.marker_limit_exceeded", path: "Output.Images.MarkerLimitExceeded" }
 }
 
-# A long inspected payload stays explanatory and bounded.
+## A long inspected payload stays explanatory and bounded.
 expect {
 	failure = KernelFacadeFailure.pipeline(Labels(Shape(UnsupportedScript({ actual: "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz", expected: "Latn", run: 0 }))))
-	failure.category == Invariant and failure.feature == "labels.shape.unsupported_script" and failure.detail.to_utf8().len() <= 163
+	actual = { category: failure.category, feature: failure.feature, is_bounded: failure.detail.to_utf8().len() <= 163 }
+	actual == { category: Invariant, feature: "labels.shape.unsupported_script", is_bounded: True }
 }

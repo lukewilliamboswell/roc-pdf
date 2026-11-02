@@ -1954,4 +1954,5 @@ reuse. Measurement and embedding consume identical selected static bytes.
 
 Merriweather lacks U+2318 and Fira Code has no genuine italic faces. Those
 requirements remain excluded and tracked upstream. [The integration record](development/roc-font.md)
-retains exact pins, licences, historical evidence and downstream adoption ownership.
+retains exact pins, licences, historical evidence and the consumer integration
+boundary. Package acceptance does not imply downstream adoption.

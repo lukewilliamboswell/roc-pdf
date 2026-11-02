@@ -709,7 +709,7 @@ Pdf :: [].{
 	in_language = |tag, contents| Document.in_language(tag, contents)
 
 	## An abbreviation with its expansion: a `Span` whose `/E` is the
-	## expansion, such as `Pdf.expansion("GST", "Goods and Services Tax")`.
+	## expansion, such as `Pdf.expansion({ text: "GST", expanded: "Goods and Services Tax" })`.
 	expansion : { text : Str, expanded : Str } -> Inline
 	expansion = |{ text: value, expanded }| Document.expansion({ text: value, expanded: expanded })
 

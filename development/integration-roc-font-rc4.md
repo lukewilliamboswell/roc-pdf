@@ -159,3 +159,44 @@ on 2026-10-29: 45 source-validation tasks, 13 fresh fixture executables and all
 allocation/byte/work baseline remain unchanged by this follow-up. Independent
 review verified the new report/baseline guards and profiler build identities;
 there are no remaining blocking findings.
+
+## 2026-11-02 triage follow-up
+
+The final style review fixes the obsolete positional `Pdf.expansion` example
+and gives all six typed-failure regressions `##` names and labelled comparisons.
+`KernelBuiltInFonts` now owns the packaged face count, canonical family/style
+mapping, opaque bounded slots and byte selection. The resolver consumes those
+facts instead of maintaining its own numeric mapping. Structural family/style
+input keeps the asset module independent of its `Font` caller. Numeric indexes
+remain private dense-storage facts; the opaque slot adds no payload ownership,
+resource acquisition or per-content allocation. A unit witness checks all ten
+selections against exact source bytes and canonical dense replay. Existing
+unavailable-style fixtures still reject before slot construction.
+
+The downstream scope is corrected against roc-automation #98's current
+2026-11-02 description: it owns the inline-code Command-symbol defect and
+explicitly excludes a general migration project. Local #69 closure covers
+style-role support, not downstream adoption. The earlier candidate bundle,
+source/digest pins and migration checks remain in the
+[retained proposal](roc-font.md#retained-migration-proposal) as historical evidence.
+Architecture and roadmap wording reflect this boundary.
+
+Validation on Linux x86-64 used Roc `nightly-2026-10-28-bad769b`, the dev backend
+and Zig 0.16.0 ReleaseFast test hosts:
+
+- `./scripts/test.py --allocation-baselines --jobs 3` passed all 46 source
+  validation tasks, including 686 package expects and all public examples,
+  all 13 fresh fixture builds and all 425 cases.
+- Exact comparison of every case's logged measurements with the `x64musl`
+  expectations found zero allocation-count, allocated-byte or work-vector
+  differences. Every PDF snapshot matched; no baseline, snapshot or guard
+  was changed.
+- `python3 scripts/test_bundle_consumer.py` passed with the isolated served
+  bundle, private-import rejection and independent facade-output checks.
+- `bash scripts/docs.sh` passed using the locked tools-0.8.0 renderer and
+  pinned API compiler. The unreleased manual has 10 pages and 27 exact source
+  blocks; links, Markdown, source/asset digests, PDFBox extraction, tagged
+  tables, exact RGB figures and the private-type audit passed.
+
+The required CI checks rerun against the pushed commit. This follow-up makes
+no new font, shaping or conformance claim.

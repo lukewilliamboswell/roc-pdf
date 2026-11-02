@@ -41,7 +41,7 @@ KernelFacadeFonts :: [].{
 			Face(face) => Registered(single_family(face))
 		}
 		body = choose(body_family, { style: Regular, override: Inherited }) ? |failure| StyleUnavailable({ block: 0, inline: NoInline, style: failure.style, family: failure.family })
-		var $demand = mark(List.repeat(False, 10), body)
+		var $demand = mark(List.repeat(False, KernelBuiltInFonts.count), body)
 		var $styles = List.repeat(body, 8)
 		var $inline_choices = List.repeat(body, authoring.inlines.len())
 		var $labels = List.repeat(NotRequested, 4)
@@ -141,14 +141,14 @@ KernelFacadeFonts :: [].{
 		# Consumption-shaped registration: every path replaces the consumed registry
 		# or returns immediately. Scalar handles are extracted before the next append.
 		var $registry = registry
-		var $handles = List.repeat(Unavailable, 10)
+		var $handles = List.repeat(Unavailable, KernelBuiltInFonts.count)
 		var $inspections = 0
 		var $font_bytes = 0
 		var $copied_bytes = 0
 		var $slot = 0
-		while $slot < 10 {
+		while $slot < KernelBuiltInFonts.count {
 			if list_at($demand, $slot) {
-				bytes = KernelBuiltInFonts.bytes($slot)
+				bytes = KernelBuiltInFonts.Slot.from_index($slot).bytes()
 				$font_bytes = $font_bytes + bytes.len()
 				match $registry.register({ bytes, registration: { provision: BuiltIn, scripts: ["Latn"] }, limits: Font.ValidationLimits.default }) {
 					Ok(registered) => {
@@ -301,31 +301,16 @@ leaf_choice = |flags, { body, theme }| {
 	choose(base, { style: style, override: override })
 }
 
-slot_of : { family : Font.Family, style : Font.Style } -> U64
-slot_of = |{ family, style }| {
-	base = match family {
-		Sans => 0
-		Serif => 4
-		Mono => 8
-	}
-	base + match style {
-		Regular => 0
-		Bold => 1
-		Italic => 2
-		BoldItalic => 3
-	}
-}
-
 mark : List(Bool), Font.SourceDefault -> List(Bool)
 mark = |demand, choice| match choice {
 	Face(_) => demand
-	BuiltIn(named) => set_at(demand, { index: slot_of(named), value: True })
+	BuiltIn(named) => set_at(demand, { index: KernelBuiltInFonts.Slot.from_selection(named).index(), value: True })
 }
 
 exact : Font.SourceDefault, List(Font.StyleFace) -> Font.FaceId
 exact = |choice, handles| match choice {
 	Face(face) => face
-	BuiltIn(named) => match list_at(handles, slot_of(named)) {
+	BuiltIn(named) => match list_at(handles, KernelBuiltInFonts.Slot.from_selection(named).index()) {
 		Available(face) => face
 		Unavailable => crash "named font escaped the explicit demand set"
 	}

@@ -1487,7 +1487,9 @@ variable-font, script-shaping or conformance-profile claim.
 
 [The integration record](development/roc-font.md) preserves rc4 asset provenance,
 selection/ownership design, historical rc3 evidence, migration review and the
-separately owned roc-automation handoff. The [default-family evidence](development/performance/default-fonts.md)
+consumer integration boundary. Local style-role closure does not claim
+roc-automation adoption; its separately tracked inline-code glyph defect remains
+a renderer concern. The [default-family evidence](development/performance/default-fonts.md)
 records independent source/subset glyph and descriptor checks, searchable text,
 located atomic rejection, exact allocations on both registered targets and a
 10/100-section scale pair. [Publication validation](development/automation-publication.md)

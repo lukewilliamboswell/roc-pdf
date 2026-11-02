@@ -92,13 +92,29 @@ runtime 32-byte subset `post` header allocation and expanded inline inspection
 storage. Its direct subset control does not resolve a descriptor, so the extra
 allocation must not be described as solely a per-face descriptor record.
 
-## Downstream handoff
+## Downstream symptom and integration boundary
 
-Adoption in roc-automation remains separately owned by
-[roc-automation #98](https://github.com/lukewilliamboswell/roc-automation/issues/98).
-Its current renderer explicitly registers four Inter faces, a generated serif
-heading face and Source Code Pro. A dependency URL update alone leaves those
-assets active.
+The 2026-11-02 scope review of
+[roc-automation #98](https://github.com/lukewilliamboswell/roc-automation/issues/98)
+narrows that issue to exact Command-K rendering and extraction in inline code,
+with a body-text control. Its released tools-0.8.0 witness fails because the
+explicitly selected Source Code Pro face lacks U+2318. That is a renderer font
+selection issue; the roc-pdf family fixtures already verify Inter and Fira Code
+coverage and strict rejection for an unsupported selected face.
+
+Issue #98 explicitly excludes a general downstream migration project. Closing
+roc-pdf #69 covers the genuine local style-role support delivered by #76; it
+does not claim that roc-automation adopted these fonts or assign adoption to
+#98. HTML font selection remains independent. Any future consumer migration
+requires its own explicit scope and evidence.
+
+### Retained migration proposal
+
+The following candidate and migration checks preserve the earlier proposal as
+design history. They are not current requirements for #98 or closure conditions
+for #69. The surveyed renderer registered four Inter faces, a generated serif
+heading face and Source Code Pro; a dependency URL update alone would leave
+those assets active.
 
 The concrete tested 0.3.0 candidate is recorded in the
 [artifact review](release-artifacts-rc4-review.json): source commit
@@ -107,27 +123,26 @@ The concrete tested 0.3.0 candidate is recorded in the
 `83e4ca7077ca2bb561d39f944ea23e7bc13ffa3a9c78637ea63e9d68674dfaa4`.
 Its destination is
 `https://github.com/lukewilliamboswell/roc-pdf/releases/download/0.3.0/C3YnjBMeN7A9ar7F5seM73coSTkYLSksTD2BNikQEVSP.tar.zst`;
-that URL becomes available only upon an actual release. The #98 owner must
-verify the published bytes against this tested pin, then apply the registrations,
-notices and layout regression checks below.
+that URL becomes available only upon an actual release. A future migration
+would verify published bytes against its tested pin and review the registrations,
+notices and layout regressions below.
 
-The downstream change must pin the tested roc-pdf release bundle and digest,
+The earlier proposal would pin the tested roc-pdf release bundle and digest,
 replace those local PDF registrations with `RocFont.register` and its family
 mappings, select the `Available` face from `faces.serif.bold` explicitly for its existing serif headings,
 and retain its sizes, colours, margins, spacing and code scaling. Use the new
 source face tags, replace PDF font notices with `RocFont.licenses`, and remove
 superseded PDF-only assets, generation inputs and cache/release packaging entries.
-HTML font selection stays independent. The release handoff must include the
-actual published roc-pdf package URL/digest; this PR does not publish a release
-or claim downstream adoption.
+An actual migration would use the published roc-pdf package URL/digest; the
+retained candidate is not a published release or evidence of downstream adoption.
 
-Downstream regression acceptance covers exact body/inline/source Command-K
+The proposed migration checks cover exact body/inline/source Command-K
 extraction and visible geometry, genuine emphasis/combined styles, unchanged
 atomic missing-character/style failures, original PDF bytes in conformance
 oracles, and deterministic output from repeated builds. Run the renderer's
 preparation/HTML expects and `tools/roc-docs/tests/test_cli.py` suite against the
-pinned bundle, retaining the raw extraction/render reports. This is an explicit
-consumer work item; current roc-pdf package evidence does not close it by proxy.
+pinned bundle, retaining the raw extraction/render reports. These checks preserve
+the earlier proposal; no consumer migration is assigned or claimed by this PR.
 
 ## Historical rc3 preset evidence
 
