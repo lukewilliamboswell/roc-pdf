@@ -14,7 +14,7 @@ at the recorded source revision. The documentation workflow pins that source's
 shared actions. Its `build-docs` action interface is byte-identical to the
 previous reviewed action. The initial latest-release query selected
 `tools-0.7.0`, and its successful candidate is retained under
-[tools-0.7.0 history](manual-refactor-review/tools-0.7.0/review.json). A completion
+[tools-0.7.0 history](https://github.com/lukewilliamboswell/roc-pdf/blob/8eae0ed56d077a67cc8c9b0a74e24f4a5461e055/development/manual-refactor-review/tools-0.7.0/review.json). A completion
 query then selected published `tools-0.8.0`. The official checksum manifest and
 GitHub asset digests were checked before a focused Blueprint lock update;
 no unpublished download was guessed. All reader and artifact checks were
@@ -61,12 +61,12 @@ changing the compiler or weakening the versioned bundle binding.
 
 ## Validation and artifact binding
 
-The [retained review](documentation-refactor-review.json) binds manual source
+The [retained review](https://github.com/lukewilliamboswell/roc-pdf/blob/8eae0ed56d077a67cc8c9b0a74e24f4a5461e055/development/documentation-refactor-review.json) binds manual source
 `d266e020f8985263fa992450772121db272d9203` and records every asset hash. The
-[sources](manual-refactor-review/sources.json),
-[browser](manual-refactor-review/browser.json),
-[PDF](manual-refactor-review/pdf.json) and original
-[veraPDF report](manual-refactor-review/verapdf.xml) are independent evidence.
+[sources](https://github.com/lukewilliamboswell/roc-pdf/blob/8eae0ed56d077a67cc8c9b0a74e24f4a5461e055/development/manual-refactor-review/sources.json),
+[browser](https://github.com/lukewilliamboswell/roc-pdf/blob/8eae0ed56d077a67cc8c9b0a74e24f4a5461e055/development/manual-refactor-review/browser.json),
+[PDF](https://github.com/lukewilliamboswell/roc-pdf/blob/8eae0ed56d077a67cc8c9b0a74e24f4a5461e055/development/manual-refactor-review/pdf.json) and original
+[veraPDF report](https://github.com/lukewilliamboswell/roc-pdf/blob/8eae0ed56d077a67cc8c9b0a74e24f4a5461e055/development/manual-refactor-review/verapdf.xml) are independent evidence.
 Earlier 49-page/c08 records remain historical evidence and are not presented as
 validation of the new source.
 

@@ -217,7 +217,7 @@ complete result set incorporates fresh 53-case text measurements and all seven
 selected-font custom-block measurements. Both targets produce identical PDF
 bytes, exact allocation counts, allocated bytes and deterministic work vectors.
 The 254 reviewed metric-vector changes are retained, with their previous
-values, in [rc4-baseline-review.json](rc4-baseline-review.json); 171 vectors
+values, in [rc4-baseline-review.json](https://github.com/lukewilliamboswell/roc-pdf/blob/8eae0ed56d077a67cc8c9b0a74e24f4a5461e055/development/performance/rc4-baseline-review.json); 171 vectors
 remain unchanged. All existing byte guards retain their 10% ceiling.
 
 The 160 changed PDF snapshots reflect exact static font programs, genuine

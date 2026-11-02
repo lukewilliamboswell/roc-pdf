@@ -135,7 +135,7 @@ manifest and Docker rejected it before any target ran. Reusing the already
 verified executables with the correct manifest resolved that infrastructure
 failure; no compiler, property, timeout, memory or baseline policy was weakened.
 
-The [retained observation review](roc-fuzz-0.5.0-observations.json) binds exact
+The [retained observation review](https://github.com/lukewilliamboswell/roc-pdf/blob/8eae0ed56d077a67cc8c9b0a74e24f4a5461e055/development/roc-fuzz-0.5.0-observations.json) binds exact
 per-host baselines, build fingerprints, actual campaign counts and execution
 controls, the 75 legacy corpus comparisons, and all ten native/Linux profiling
 results. The profile results also match the prior platform's saved observations,
