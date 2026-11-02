@@ -52,9 +52,7 @@ bytes. The ordinary 4,096-page fixture now records 134,274 allocations. One
 fixed event remains attributable to the final-use fact's copy-on-write
 transition for the payload store; later SHA-256 schedule reuse removed two
 unrelated digest events. Deterministic object, edge, reference, and byte work
-is unchanged. The compiler-caused increases from the original 194 and 113,793
-counts are reviewed in `roc-nightly-2026-August-05-24f0b47.md`; copied-byte and
-retention facts did not change.
+is unchanged. Current accepted allocation metrics are in `tests/spec.json`.
 
 The same pointer, capacity, reference-count, allocation-count, work, hash, and
 independent structural assertions run on x64musl CI. qpdf checks the original

@@ -24,26 +24,13 @@ and ordered retained original glyph IDs. It is deterministic input to the
 later document-level resource planner, which remains responsible for proving
 name uniqueness across all subsets in one output.
 
-## Historical optimized-backend evidence (superseded)
+## Validation
 
-The speed-backend table remains as historical evidence for rejecting the
-adjacency-copy representation. It is not a current allocation baseline; the
-matching exact dev-backend expectation is in
-[`tests/spec.json`](../../tests/spec.json) and its reviewed mode transition is
-recorded in [the dev-backend rebaseline](dev-backend-allocation-rebaseline-2026-08-09.md).
+The focused fixture plans repeated `A` and `é` use, retains glyph zero and the
+required composite dependencies, and visits only the selected closure after
+indexing the component edges. The flat index must preserve linear work without
+allocating a node per component.
 
-The retained built-in face is planned for `A`, `é`, and a duplicate `A` use.
-The plan retains five glyphs including glyph zero and two composite
-dependencies. It scans all component edges once to build scalar offsets and
-visits only the two edges in the selected closure.
-
-| Target | Optimization | Font glyphs | Component edges indexed | Closure edges | Retained glyphs | Exact allocations |
-| --- | --- | ---: | ---: | ---: | ---: | ---: |
-| arm64mac | speed | 1,376 | 1,713 | 2 | 5 | 75 |
-| x64musl | speed | 1,376 | 1,713 | 2 | 5 | 75 |
-
-An earlier adjacency-copy implementation measured 1,791 allocations for this
-case. It was rejected rather than pinned: indexing the existing flat component
-store reduced the accepted plan to 75 allocations while preserving linear
-work. The current slice does not yet claim sanitized subset-table emission,
-PDF font objects, text extraction, or text-layout closure.
+Current exact allocation and work expectations live in the matching scenarios
+in [`tests/spec.json`](../../tests/spec.json). Review changes with the
+[allocation baseline protocol](../testing.md#allocation-baselines).

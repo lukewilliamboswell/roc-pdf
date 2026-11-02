@@ -87,126 +87,14 @@ identities even for upright zero-angle faces. It does not change those faces'
 metrics or the source-digest/glyph-closure subset-tag procedure. Exact style
 metadata and larger inspection records are deliberate migration causes, not
 automatically accepted baseline drift.
-The [existing-fixture review](performance/rc4-existing-fixtures.md) isolates the
-runtime 32-byte subset `post` header allocation and expanded inline inspection
-storage. Its direct subset control does not resolve a descriptor, so the extra
-allocation must not be described as solely a per-face descriptor record.
+The direct subset control isolates the runtime 32-byte subset `post` header
+allocation from descriptor resolution. Review that control and the expanded
+inline inspection storage with the [allocation baseline protocol](testing.md#allocation-baselines).
 
-## Downstream symptom and integration boundary
+## Legacy fixture fonts
 
-The 2026-11-02 scope review of
-[roc-automation #98](https://github.com/lukewilliamboswell/roc-automation/issues/98)
-narrows that issue to exact Command-K rendering and extraction in inline code,
-with a body-text control. Its released tools-0.8.0 witness fails because the
-explicitly selected Source Code Pro face lacks U+2318. That is a renderer font
-selection issue; the roc-pdf family fixtures already verify Inter and Fira Code
-coverage and strict rejection for an unsupported selected face.
-
-Issue #98 explicitly excludes a general downstream migration project. Closing
-roc-pdf #69 covers the genuine local style-role support delivered by #76; it
-does not claim that roc-automation adopted these fonts or assign adoption to
-#98. HTML font selection remains independent. Any future consumer migration
-requires its own explicit scope and evidence.
-
-### Retained migration proposal
-
-The following candidate and migration checks preserve the earlier proposal as
-design history. They are not current requirements for #98 or closure conditions
-for #69. The surveyed renderer registered four Inter faces, a generated serif
-heading face and Source Code Pro; a dependency URL update alone would leave
-those assets active.
-
-The concrete tested 0.3.0 candidate is recorded in the
-[artifact review](https://github.com/lukewilliamboswell/roc-pdf/blob/8eae0ed56d077a67cc8c9b0a74e24f4a5461e055/development/release-artifacts-rc4-review.json): source commit
-`c08a3f81e21a2641bcdb9b786f381c6a5e59398e`, bundle
-`C3YnjBMeN7A9ar7F5seM73coSTkYLSksTD2BNikQEVSP.tar.zst`, SHA-256
-`83e4ca7077ca2bb561d39f944ea23e7bc13ffa3a9c78637ea63e9d68674dfaa4`.
-Its destination is
-`https://github.com/lukewilliamboswell/roc-pdf/releases/download/0.3.0/C3YnjBMeN7A9ar7F5seM73coSTkYLSksTD2BNikQEVSP.tar.zst`;
-that URL becomes available only upon an actual release. A future migration
-would verify published bytes against its tested pin and review the registrations,
-notices and layout regressions below.
-
-The earlier proposal would pin the tested roc-pdf release bundle and digest,
-replace those local PDF registrations with `RocFont.register` and its family
-mappings, select the `Available` face from `faces.serif.bold` explicitly for its existing serif headings,
-and retain its sizes, colours, margins, spacing and code scaling. Use the new
-source face tags, replace PDF font notices with `RocFont.licenses`, and remove
-superseded PDF-only assets, generation inputs and cache/release packaging entries.
-An actual migration would use the published roc-pdf package URL/digest; the
-retained candidate is not a published release or evidence of downstream adoption.
-
-The proposed migration checks cover exact body/inline/source Command-K
-extraction and visible geometry, genuine emphasis/combined styles, unchanged
-atomic missing-character/style failures, original PDF bytes in conformance
-oracles, and deterministic output from repeated builds. Run the renderer's
-preparation/HTML expects and `tools/roc-docs/tests/test_cli.py` suite against the
-pinned bundle, retaining the raw extraction/render reports. These checks preserve
-the earlier proposal; no consumer migration is assigned or claimed by this PR.
-
-## Historical rc3 preset evidence
-
-The following record describes the earlier 0.2.0 preset and its original
-compiler/run evidence. Its source bytes, pins and generation recipe remain
-retained; the numbers below are historical, not rc4 baselines.
-
-Source selection is roc-font commit `8befe25ddd8cc65adadea77631704fe78b3e2b20`
-(0.1.0-rc3). Exact upstream archive/member/digest and license pins are retained
-in `vendor/fonts/roc-font/rc3-upstream-pins.json`. Only the Inter and Fira Code
-source assets are retained. Both permit modified font redistribution under
-OFL-1.1 without Reserved Font Names; licenses ship in `package/fonts/`.
-
-`vendor/fonts/roc-font/build_rc3_instances.py` with fontTools 4.61.1 materializes every
-axis: Inter opsz=14,wght=400/700 and Fira Code wght=400. `--check` regenerates
-and compares exact bytes. These are full coverage static instances, not runtime
-variable-font support. roc-font PR #11 is not a prerequisite: PDF facts and
-variable outlines alone do not provide a static sfnt byte export.
-
-The adapter uses the existing validated caller-resource boundary. Each face is
-inspected once at registration; subsequent preparation consumes those retained
-facts. Resource bytes are immutable byte imports, not copied by the adapter.
-Three fixed registrations have bounded work proportional to total input size,
-with no document-size-dependent registry growth or captured resource closures.
-The registry accumulator is consumed sequentially. No new growing-list loops
-or fallback policies are introduced. Applications should reuse the registry.
-
-The default remains unchanged in this slice, avoiding an incidental rewrite of
-existing layout and allocation evidence. Replacing it is permitted by the user
-but requires deliberate default-registry and source-face API work and a reviewed
-snapshot migration; the preset provides the integration independently.
-
-The caller-font facade fixture checks body, inline and source `⌘K`, bold, and
-atomic missing-glyph rejection. The existing scalable font/planning/subsetting cases remain the scale evidence
-for this fixed three-registration adapter; no new scalable algorithm is added.
-
-## Reviewed initial evidence
-
-Pinned nightly-2026-10-27-de79a0f dev backend, x64musl, Zig 0.16.0
-ReleaseFast platform: 1,076 Roc allocations, 4,737,468 allocated bytes;
-resources/faces/instances each 3. This is a new fixture baseline, encompassing
-three full static face inspections, successful three-face PDF generation and
-an atomic negative preparation with the retained registry. No existing baseline
-or snapshot is changed. The arm64 baseline uses the repository's shared expected
-counts; execution here verifies x64musl only.
-
-The 10,526-byte fixture passes PDF/A validation. PDFBox 3.0.8 and Poppler extract
-exact `Body ⌘K`, `Inline ⌘K Bold`, and `Source ⌘K`; PDFBox rendering paints three
-visible rows at page geometry. `scripts/check_roc_font.py` is registered with the
-harness preflight and post-update checks. The bundle consumer verifies all three
-static byte payloads and both upstream license digests, then compiles and runs
-the public facade from the served bundle. The instance recipe regenerates exact
-bytes. All 52 Roc validation tasks pass.
-
-Final verification: `ROC=/tmp/roc-pdf-pinned
-ZIG=/tmp/zig-x86_64-linux-0.16.0/zig ./scripts/test.py --allocation-baselines`
-completed successfully on 2026-10-29: 418 evidence cases, all exact allocation
-and deterministic work checks passing. Existing snapshots and baselines remain
-unchanged. `scripts/test_bundle_consumer.py` passes with the pinned Roc and Zig
-0.16.0 on PATH, and `scripts/build_roc_font_instances.py --check` passes.
-
-Release verification on nightly-2026-10-28-bad769b repeats the focused case
-with identical PDF bytes, 1,076 allocations and unchanged work/byte counts.
-
-The harness requires the retained PDFBox extraction/rendering oracle.
-`python3 scripts/check_roc_font.py --poppler` additionally checks Poppler
-extraction when that separately installed tool is explicitly requested.
+Older regression fixtures use the source pins in
+`vendor/fonts/roc-font/rc3-upstream-pins.json` and the recipe
+`vendor/fonts/roc-font/build_rc3_instances.py`. Keep their recorded source bytes,
+licenses and generator requirements together; updating the default families does
+not silently regenerate those independent fixtures.

@@ -34,20 +34,8 @@ bounded. Arithmetic and invalid label/run/range relationships are typed
 failures. The two bullet labels in the scaled fixture remain two explicit row
 attachments at every scale.
 
-## Historical optimized-backend evidence (superseded)
+## Allocation validation
 
-This table is retained as historical pagination representation evidence. It is
-not a current baseline; the matching exact dev-backend scenario in
-[`tests/spec.json`](../../tests/spec.json) is authoritative.
-
-| Paragraphs | Blocks/rows | Label rows | Planned pages | Fragments/placements | Exact allocations |
-| ---: | ---: | ---: | ---: | ---: | ---: |
-| 1,000 | 1,004 | 2 | 32 | 1,004 | 357 |
-| 10,000 | 10,004 | 2 | 313 | 10,004 | 408 |
-
-Every block, visual row, keep policy, fragment, and placement is visited or
-written exactly once by the pagination phase. A tenfold input adds 51
-allocations while page count and all row-shaped work scale linearly. Both cases
-retain the same shared shaped/source/font stores from earlier stages and emit
-the deterministic 667-byte evidence PDF; page scenes and final facade bytes
-remain later text-layout slices.
+Current exact allocation and work expectations live in the matching scenarios
+in [`tests/spec.json`](../../tests/spec.json). Review changes with the
+[allocation baseline protocol](../testing.md#allocation-baselines).

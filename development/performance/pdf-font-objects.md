@@ -5,9 +5,6 @@ sealed PDF object graph. It assigns seven consecutive indirect objects for the
 embedded FlateDecode `FontFile2` stream, the FlateDecode `ToUnicode` CMap,
 font descriptor, CIDFontType2 descendant, and Type 0 parent. Stream length
 objects are assigned by the shared object kernel and validated by sealing.
-(Until the output-size work in [output-size.md](output-size.md) the bundle had
-nine objects: both streams were unfiltered and the identity CID map was an
-explicit `CIDToGIDMap` stream.)
 
 The lowering consumes the dense subset plan directly: CID equals the subset
 glyph ID, which is validated for every retained glyph so the descendant can
@@ -25,28 +22,13 @@ Its exact byte count is checked against the configured limit before allocation.
 Context-dependent mappings and `ActualText` remain facts supplied by later text
 lowering; this module does not infer them from glyph identity.
 
-## Direct evidence and historical optimized-backend record (superseded)
+## Validation
 
-The direct structural inspection remains current. The allocation table below
-is retained only as the former speed-backend representation review, not a
-current baseline or command. The matching exact dev-backend expectation is in
-[`tests/spec.json`](../../tests/spec.json) and the change of measurement mode is
-reviewed in [the dev-backend rebaseline](dev-backend-allocation-rebaseline-2026-08-09.md).
+The focused fixture covers repeated glyph use, ToUnicode entries, object
+identity, stream closure and atomic rejection of incomplete Unicode mappings.
+The structural carrier isolates font-object lowering; reader extraction and
+visible page output are checked by the integrated text fixtures.
 
-The focused fixture subsets the built-in face for `A`, `é`, and repeated `A`.
-Direct inspection proves the exact ten-byte CID map, the `U+0041` and `U+00E9`
-ToUnicode entries, object identities 1 through 9, three streams, three payloads,
-and successful closure sealing. A negative twin omits CID 3's mapping and proves
-atomic `IncompleteUnicodeMapping` rejection.
-
-| Target | Optimization | Subset bytes | CID map bytes | ToUnicode bytes | Objects/streams | Exact allocations |
-| --- | --- | ---: | ---: | ---: | ---: | ---: |
-| arm64mac | speed | 5,864 | 10 | 352 | 9 / 3 | 271 |
-| x64musl | speed | 5,864 | 10 | 352 | 9 / 3 | 271 |
-
-The x64musl row is the accepted same-compiler expectation exercised by the
-configured cross-target job. The fixture returns the common blank PDF only as
-the scenario-protocol carrier; these object facts are inspected before that
-independent carrier is emitted. Therefore this slice does not claim visible PDF
-text, extraction through a reader, page-resource integration, `ActualText`, the
-public font/theme API, layout, or text-layout closure.
+Current exact allocation and work expectations live in the matching scenarios
+in [`tests/spec.json`](../../tests/spec.json). Review changes with the
+[allocation baseline protocol](../testing.md#allocation-baselines).

@@ -108,7 +108,5 @@ isolate each workload. This app deliberately declares no baseline examples and
 is replay/measurement tooling, not a coverage campaign or an acceptance gate.
 
 Saved profile comparisons require the same compiler, backend, host, platform
-and counting definition. Previous instrumentation records remain separate.
-
-See the [upgrade evidence](../development/roc-fuzz-0.5.0.md) for immutable inputs,
-API migration, reviewed initial example observations and validation results.
+and counting definition. Keep generated observations in ignored output or CI
+artifacts; the current accepted observations live in `fuzz/baselines/`.

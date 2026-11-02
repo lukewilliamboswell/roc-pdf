@@ -29,44 +29,18 @@ ranges or infer semantic ownership.
 
 ## Ownership and allocation review
 
-Three drafts were rejected under the original compiler before pinning evidence:
-
-- Reopening `Scalar.iter` and validating source facts for every request measured
-  4,298 allocations at 1,000 paragraphs and 40,335 at 10,000.
-- Caching unique-source glyph templates removed one allocation per repeated
-  paragraph but still measured 3,304 and 30,341 because preparation retained
-  append-built temporary selection buffers.
-- Direct compact preparation reduced that to 2,271 and 20,308, revealing that
-  the two final append-built request/style buffers still lost uniqueness across
-  the fallible traversal.
-
 The current design derives exact request cardinality from the validated semantic
 occurrence store, checks the bound before allocation, reserves that exact
 capacity, and appends requests and styles in occurrence order. The final lengths
 must equal the validated cardinality. Block-to-run storage retains indexed
 writes because block positions are its explicit key.
 
-The original compiler favored initialized buffers and indexed writes. The
-September 26 compiler copied those whole buffers across the fallible writes,
-so this upgrade restores consuming appends with exact capacity. The old
-compiler still produces its original counts with this source. See the
-[compiler allocation review](roc-nightly-2026-09-26-d6267b4.md) for the copy-site
-measurements and the accepted linear scaling evidence.
+Keep the exact-capacity consuming append path and verify its linear scaling
+with the current compiler; initialized buffers can lose uniqueness across
+fallible indexed writes.
 
-## Historical optimized-backend evidence (superseded)
+## Allocation validation
 
-These former backend values are historical representation evidence only.
-Current exact allocation validation uses the matching dev-backend scenario in
-[`tests/spec.json`](../../tests/spec.json).
-
-| Paragraphs | Requests/runs | Scalars/clusters/glyphs | Unique sources | Source bytes | Exact allocations |
-| ---: | ---: | ---: | ---: | ---: | ---: |
-| 1,000 | 1,006 | 4,021 | 6 | 4,025 | 283 |
-| 10,000 | 10,006 | 40,021 | 6 | 40,025 | 320 |
-
-Both cases inspect the 166,300-byte built-in font with 17 tables, retain exact
-global run/cluster/glyph-index/glyph cardinalities, perform 24 metric reads and
-six script-run visits across the six unique sources, and emit the same 667-byte
-deterministic evidence PDF. A tenfold scale adds 37 allocations while repeated
-source cache work stays constant and occurrence/glyph work increases by its
-declared linear bounds.
+Current exact allocation and work expectations live in the matching scenarios
+in [`tests/spec.json`](../../tests/spec.json). Review changes with the
+[allocation baseline protocol](../testing.md#allocation-baselines).

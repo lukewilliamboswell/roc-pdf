@@ -99,52 +99,8 @@ treated as a cross-renderer conformance vote.
 | PDFBox 3.0.8 | `(72, 133, 120, 142)` | 241 | 100 | 29,490 |
 | PDFium Chromium 7988 | `(72, 133, 120, 142)` | 313 | 109 | 31,149 |
 
-## Historical optimized-backend evidence (superseded)
+## Allocation validation
 
-The table records the former speed-backend whole-pipeline review and is kept
-to explain the stage ownership decision. It is not a current allocation
-baseline. The matching exact dev-backend scenario is authoritative in
-[`tests/spec.json`](../../tests/spec.json); its reviewed mode transition is in
-[the dev-backend rebaseline](dev-backend-allocation-rebaseline-2026-08-09.md).
-
-| Target | Optimization | Glyphs/mappings | Subset bytes | Content bytes | PDF bytes | Exact allocations |
-| --- | --- | ---: | ---: | ---: | ---: | ---: |
-| arm64mac | speed | 8 / 8 | 6,776 | 317 | 10,000 | 318 |
-| x64musl | speed | 8 / 8 | 6,776 | 317 | 10,000 | 318 |
-
-The exact work vector records, in order: 166,300 source-font bytes, one run,
-eight shaped glyphs; two scene-command visits, one scene color reference, one
-scene text placement, and graphics depth two. Semantic work records zero
-attributes, two content items, one fragment count and validation, depth two,
-one namespace, two nodes, one occurrence, one prefix step, one reverse write,
-zero text-property bytes and visits, nine source bytes, eight source scalars,
-and one source. Tagged work records zero artifact groups, one fragment group,
-two `/K` items, two node ranges, one occurrence-owner edge, one paint edge, one
-ParentTree prefix step, and one ParentTree write. The remaining counters are
-followed by ownership work: two command visits, one group, one run, one fragment
-prefix step, one fragment write, one range check, and one text fragment.
-Resource work records two commands, one color space, and one text-color
-reference. Content work records two commands, one text placement, and 317
-stream bytes. The remaining counters are eleven font-plan entries, 6,776 subset
-bytes, eight source scalars, one text run, zero parallel placements, eight
-emitted glyphs, eight mappings, 245 prepared text bytes, one font, nine font
-objects, twenty total objects, 7,093 uncompressed font/content payload bytes,
-and 10,000 emitted bytes.
-
-The first four added allocations remain the reviewed dense scene arenas. The
-next 25 are bounded scalar-offset/source-fact arrays, semantic ownership and
-reverse-index arrays, and tagged MCID/ParentTree/`/K` planning arrays. The
-ownership join adds five bounded arrays: run owners, fragment counts, fragment
-starts/cursors, fragment-run reverse entries, and the dense run-to-fragment map.
-The migration from 221 to 318 allocations executes the previously absent
-calibrated-color, empty-image, text-resource-use, prepared-run, scene-content,
-tagged-visual object-family, page/resource dictionary, text-layout font-identity, and sealed
-tagged-structure plans. These are bounded stage outputs or builder arenas; the
-166,300-byte source font and 6,776-byte subset remain single payloads, and no
-placement retains or reparses either.
-
-This is pipeline evidence, not text-layout closure. The public caller-font/theme path
-is covered by the subsequent caller-font text slice. Paragraph layout and
-pagination, theme-driven text color, the rest of the multilingual script matrix,
-facade output, caller
-source-refcount evidence, and multi-placement parse reuse remain open.
+Current exact allocation and work expectations live in the matching scenarios
+in [`tests/spec.json`](../../tests/spec.json). Review changes with the
+[allocation baseline protocol](../testing.md#allocation-baselines).

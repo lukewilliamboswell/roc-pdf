@@ -4,7 +4,7 @@ This slice introduces the pure Roc inspection boundary for static
 TrueType-flavoured OpenType fonts. It accepts only the `0x00010000` sfnt
 signature and rejects CFF/OTTO and other font programs explicitly.
 
-The initial production face is a deterministic OFL-1.1 derivative of Inter
+The independent inspection fixture uses a deterministic OFL-1.1 derivative of Inter
 4.1 Regular. `scripts/build_builtin_font.py` pins the 411,640-byte upstream
 source digest, fontTools 4.61.1, exact Unicode selection, layout-table policy,
 and renamed family/PostScript identities. Roc imports the retained `.ttf`
@@ -58,28 +58,12 @@ pin it: an odd Macintosh record beside valid Windows records is accepted,
 odd Windows and Unicode records are rejected, and an odd Macintosh record
 that overruns the string storage is still rejected.
 
-## Historical optimized-backend evidence (superseded)
+## Allocation validation
 
-The speed-backend table is retained only as the representation-review record
-for this slice. It is not a current baseline or validation command; the exact
-dev-backend expectation is the matching scenario in
-[`tests/spec.json`](../../tests/spec.json), reviewed by
-[the dev-backend rebaseline](dev-backend-allocation-rebaseline-2026-08-09.md).
+Measurement resets before the inspection fixture enters Roc. The fixture
+resolves a scalar and its advance from an imported face; offset and component
+edge buffers must retain the source without copying its payload.
 
-Measurement resets before the fixture enters Roc. It inspects the imported
-166,300-byte `Roc PDF Sans Regular` face, resolves `U+0041`, reads its advance,
-and emits the unchanged structural snapshot for the shared fixture protocol.
-
-| Target | Optimization | Font bytes | Tables | Glyphs | Cmap mappings | Loca entries | Composite edges | Exact allocations |
-| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| arm64mac | speed | 166,300 | 17 | 1,376 | 468 | 1,377 | 1,713 | 65 |
-| x64musl | speed | 166,300 | 17 | 1,376 | 468 | 1,377 | 1,713 | 65 |
-
-The two-allocation increase from the preceding inspection slice retains the
-flat `loca` offsets and component edges needed by later subset planning; it is
-not a copy of the font or an allocation per glyph/component.
-
-The x64musl value is the accepted same-compiler expectation and remains to be
-executed by the configured cross-target job. The current slice does not yet
-claim shaping, subset emission, PDF font objects, or text-layout closure; those
-remain dependent slices.
+Current exact allocation and work expectations live in the matching scenarios
+in [`tests/spec.json`](../../tests/spec.json). Review changes with the
+[allocation baseline protocol](../testing.md#allocation-baselines).

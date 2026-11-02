@@ -7,7 +7,7 @@ while `/ActualText` preserves the unchanged logical source.
 
 ## Dependency boundary
 
-`roc-lang/unicode` 4.0.0 (`unicode-4.0.0-adoption.md`) supplies `Case`,
+The pinned `roc-lang/unicode` dependency supplies `Case`,
 whose result carries the transformed text plus one ordered mapping fact per
 input scalar (input range, output range, shape, contextual flag).
 `package/KernelCaseTransform.roc` owns no case data. It requests
