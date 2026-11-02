@@ -4,10 +4,15 @@
   runnable usage, limits, diagnostics, and migration steps. Introduce features
   by the task they solve, not by issue numbers, delivery gates, or compiler work.
 - Put contributor workflows, design reviews, implementation history, performance
-  baselines, validator reports, and integration/closure records in `development/`.
+  baselines, validator summaries, and integration/closure records in `development/`.
   Keep capability planning in `feature-roadmap.md` and enduring decisions in
   `architecture.md`. Preserve evidence and repair links when moving records;
   do not remove required evidence to simplify user documentation.
+- Keep generated run reports, before/after dumps, review screenshots, and one-off
+  review JSON/XML in ignored `.roc-pdf-tmp/` directories or CI artifacts.
+  Commit executable baselines, provenance, lockfiles, and curated evidence
+  summaries; link historical raw evidence by immutable commit when needed.
+  Do not commit generated receipts merely to record that validation ran.
 - Public release notes describe user-visible changes and migration impact.
   Keep branch names, agent coordination, commit-by-commit narratives, and gate
   checklists out of user guides and release notes. Technical details belong in

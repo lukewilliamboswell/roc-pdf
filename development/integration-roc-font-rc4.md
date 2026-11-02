@@ -116,7 +116,7 @@ with identical PDFs, allocations, allocated bytes and work vectors. The
 [existing-fixture causal review](performance/rc4-existing-fixtures.md) records
 metadata controls, all 96 complete scale groups, runtime inspection costs,
 sharing/retention and corrected work-probe boundaries. Its
-[retained before/after record](performance/rc4-baseline-review.json) accounts
+[retained before/after record](https://github.com/lukewilliamboswell/roc-pdf/blob/8eae0ed56d077a67cc8c9b0a74e24f4a5461e055/development/performance/rc4-baseline-review.json) accounts
 for 254 changed metric vectors and 171 unchanged vectors. Generated provenance
 pins all 160 deliberately changed PDF snapshots; byte guards remain at 10%.
 

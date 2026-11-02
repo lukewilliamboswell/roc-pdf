@@ -31,6 +31,13 @@ with the [user documentation](../docs/README.md).
 - [Release consumer smoke test](releases/0.1.0-rc1-consumer-smoke-test.md)
   records validation of the first release candidate's distribution boundary.
 
+Commit maintained check inputs (baselines, provenance and tool locks) and
+concise evidence summaries. Generated JSON/XML reports, before/after settings
+dumps, review screenshots and local review output belong in ignored `.roc-pdf-tmp/`
+directories or CI artifacts. Historical raw reports from the font/manual
+migration remain accessible through immutable links to the merged snapshot;
+they are not inputs to current checks.
+
 Evidence records describe the source, compiler and supported subset measured
 at the time. Preserve those facts when recording later results; historical
 measurements are not current API instructions. Link current capability claims

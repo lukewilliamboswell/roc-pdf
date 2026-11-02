@@ -29,3 +29,10 @@ tests/platform/targets/*/libhost.a
 tests/platform/targets/*/libretention_host.a
 tests/retention_platform/targets/
 .blueprint/
+
+# One-off validation receipts belong in .roc-pdf-tmp/ or CI artifacts.
+development/automation-settings-*.json
+development/*-review.json
+development/*-observations.json
+development/manual-*-review/
+development/performance/*-baseline-review.json

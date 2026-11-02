@@ -27,7 +27,7 @@ Official checksum and API asset records agree. Blueprint verifies restored and
 downloaded bytes; the actual `docs-path` handoff matched the locked digest. The
 shared build action accepts that verified executable and does not install an
 arbitrary renderer itself. The earlier 0.7 candidate remains retained in the
-[native-refactor history](manual-refactor-review/tools-0.7.0/review.json).
+[native-refactor history](https://github.com/lukewilliamboswell/roc-pdf/blob/8eae0ed56d077a67cc8c9b0a74e24f4a5461e055/development/manual-refactor-review/tools-0.7.0/review.json).
 
 Native documentation rendering needs no compiler or browser. API extraction
 is a separate pinned-compiler stage. The shared publisher at its retained release revision
@@ -47,7 +47,7 @@ formats; the Markdown conversion adapter is removed. Existing guide Markdown
 paths remain short landing pages with section links. Historical release notes
 stay in their original source files. See the
 [native documentation refactor](documentation-refactor.md) and its
-[fresh source-bound artifact review](documentation-refactor-review.json).
+[fresh source-bound artifact review](https://github.com/lukewilliamboswell/roc-pdf/blob/8eae0ed56d077a67cc8c9b0a74e24f4a5461e055/development/documentation-refactor-review.json).
 
 Compiler-generated API routes remain at the site root; the native manual is
 assembled under `/manual/`. The manual links to the existing API and checked
@@ -84,8 +84,8 @@ the test host; the native renderer remains the exact locked release. Machine
 reports are retained alongside this record; screenshots are reproducible in
 `.roc-pdf-tmp/manual-review/`. Publication switches only after manual/API checks
 pass, and no website is deployed from this integration branch. The retained
-[PDF report](manual-publication-review/pdf.json) and
-[browser report](manual-publication-review/browser.json) identify the checked
+[PDF report](https://github.com/lukewilliamboswell/roc-pdf/blob/8eae0ed56d077a67cc8c9b0a74e24f4a5461e055/development/manual-publication-review/pdf.json) and
+[browser report](https://github.com/lukewilliamboswell/roc-pdf/blob/8eae0ed56d077a67cc8c9b0a74e24f4a5461e055/development/manual-publication-review/browser.json) identify the checked
 manual outputs and the source inventory at the recorded documentation commit; final
 CI repeats the checks from its own recorded commit. That earlier local dry run
 has 21 HTML pages, 49 PDF pages, 39 exact source blocks, three exact RGB
@@ -127,7 +127,7 @@ then stages/uploads/downloads/verifies/publishes through the shared action.
 It receives only its own run's artifacts. API compatibility uses the actual
 `roc bump --old ... --expect ...` interface of the pinned compiler.
 
-The earlier c08 [local artifact review](release-artifacts-rc4-review.json) records
+The earlier c08 [local artifact review](https://github.com/lukewilliamboswell/roc-pdf/blob/8eae0ed56d077a67cc8c9b0a74e24f4a5461e055/development/release-artifacts-rc4-review.json) records
 four asset hashes and the notes digest, 14 strict served-bundle gallery checks,
 the isolated public consumer, and all 14 reconstructed and extracted ZIP apps.
 All 250 package/example/docs inputs and 85 ZIP source/resource members were
@@ -186,7 +186,7 @@ when emission ends, keeping the consumed encoder uniquely owned.
 
 The update checks tagged semantic characters independently of line wrapping,
 retains old artifacts locally, and records before/after hashes and sizes in
-[gallery-rc4-review.json](gallery-rc4-review.json). Poppler 26.07.0 produces the
+[gallery-rc4-review.json](https://github.com/lukewilliamboswell/roc-pdf/blob/8eae0ed56d077a67cc8c9b0a74e24f4a5461e055/development/gallery-rc4-review.json). Poppler 26.07.0 produces the
 same 96 dpi previews as the existing gallery. Changed first-page previews were
 visually inspected: genuine italic labels and links, prose and code faces,
 charts, table rows, source indentation and page furniture remain legible and
@@ -196,8 +196,8 @@ gallery operation does not update them.
 ## Repository settings
 
 The before/after read-only snapshots are
-[automation-settings-before.json](automation-settings-before.json) and
-[automation-settings-after.json](automation-settings-after.json). Applied
+[automation-settings-before.json](https://github.com/lukewilliamboswell/roc-pdf/blob/8eae0ed56d077a67cc8c9b0a74e24f4a5461e055/development/automation-settings-before.json) and
+[automation-settings-after.json](https://github.com/lukewilliamboswell/roc-pdf/blob/8eae0ed56d077a67cc8c9b0a74e24f4a5461e055/development/automation-settings-after.json). Applied
 changes enable immutable releases, disable workflow PR creation/approval,
 restrict a new `release` environment to the named `main` branch and add active
 all-tag update/deletion protection with no bypass. The audit found one direct

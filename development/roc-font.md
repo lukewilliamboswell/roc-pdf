@@ -117,7 +117,7 @@ heading face and Source Code Pro; a dependency URL update alone would leave
 those assets active.
 
 The concrete tested 0.3.0 candidate is recorded in the
-[artifact review](release-artifacts-rc4-review.json): source commit
+[artifact review](https://github.com/lukewilliamboswell/roc-pdf/blob/8eae0ed56d077a67cc8c9b0a74e24f4a5461e055/development/release-artifacts-rc4-review.json): source commit
 `c08a3f81e21a2641bcdb9b786f381c6a5e59398e`, bundle
 `C3YnjBMeN7A9ar7F5seM73coSTkYLSksTD2BNikQEVSP.tar.zst`, SHA-256
 `83e4ca7077ca2bb561d39f944ea23e7bc13ffa3a9c78637ea63e9d68674dfaa4`.

@@ -1715,6 +1715,15 @@ are minimized to a semantic scenario, and are decided against the pinned
 standard and errata. Known tool defects live in a version-scoped exception
 ledger; majority behavior does not define correctness.
 
+Committed machine-readable files are maintained inputs to checks: allocation
+and work baselines, provenance, tool locks, conformance ledgers and deterministic
+scenarios. Generated run reports, settings before/after dumps, review screenshots and
+one-off review receipts belong in ignored `.roc-pdf-tmp/` directories or CI
+artifacts. Curated evidence summaries record the measured source/tool identities,
+commands, outcomes and evidence locations. Historical raw reports may remain
+available through immutable Git links without occupying the current source tree;
+this does not relax independent validation or baseline review.
+
 The test suite maintains a machine-readable conformance ledger. Each internal
 requirement records the relevant standard clauses, applicable capabilities,
 machine and human verification status, positive and negative scenarios, and
