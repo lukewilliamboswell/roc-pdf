@@ -117,7 +117,7 @@ jobs:
               output.write('\n'.join('dist/' + item['name'] for item in assets))
               output.write('\ndist/release-manifest.json\nASSETS\n')
           PYTHON
-      - uses: lukewilliamboswell/roc-automation/actions/publish-release@8acff758d5d73210f1731bed75adb9322f5e773d
+      - uses: lukewilliamboswell/roc-automation/actions/publish-release@8454f8ed9acc026c85e31e87b132dfeeaf9f1b81
         with:
           version: ${{ needs.validate.outputs.version }}
           prerelease: ${{ needs.validate.outputs.prerelease }}
