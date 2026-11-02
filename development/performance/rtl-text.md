@@ -9,7 +9,7 @@ source.
 
 ## Dependency boundary
 
-`roc-lang/unicode` 4.0.0 (`unicode-4.0.0-adoption.md`) supplies
+The pinned `roc-lang/unicode` dependency supplies
 `Bidi`. `package/KernelBidiBoundary.roc` owns no bidi rules: it calls
 `Bidi.analyze_paragraph` once per source, projects the per-scalar resolution
 into flat project-typed facts (resolved level, matched bracket, mirroring

@@ -15,12 +15,12 @@ machine.
 | `roc` | Expected on `PATH`; it must be the nightly named in `.roc-version` |
 | `python3`, `bash`, `tar` | Expected on `PATH` |
 | ripgrep 15.2.0 (`rg`) | Fetched from its GitHub release for the `docs` task, checked against `Blueprint.lock` |
-| roc-docs tools-0.8.0 | Native manual renderer, fetched per system with reviewed release size/SHA-256 in `Blueprint.lock` |
+| `roc-docs` | Native manual renderer, fetched per system with reviewed release size/SHA-256 in `Blueprint.lock` |
 | Temurin JDK 21.0.13+9 and Python 3.14.0 | Explicit CI setup-action inputs; local independent checks may use an installed compatible JDK/Python and record their identities |
 
 The package compiler is deliberately not fetched by Blueprint. `.roc-version`
 stays its single pin, because the allocation baselines are exact for one build
-and compiler-pin updates (`.github/ROC_NIGHTLY.md`) change only that file.
+and compiler changes require the baseline review described in `testing.md`.
 CI installs the pinned nightly with `roc-lang/setup-roc`; locally, put it on
 `PATH` (or set `ROC`). The scripts refuse any other compiler.
 
@@ -85,13 +85,9 @@ campaign remains separate.
 
 ## CI
 
-The documentation workflow uses the reviewed roc-automation guidance/action
-revision `1104294f221bb9571901c7a1a4269cea8516f8e5`; check and fuzz workflows
-retain `8acff758d5d73210f1731bed75adb9322f5e773d`. All use the shared
-`actions/setup-blueprint` action. It verifies the Blueprint binary against its reviewed digest and reads
-the release from the platform URL in `Blueprint.roc`, so no workflow names the
-Blueprint version. The reusable test job caches Blueprint's download store
-(`cache-workload: dev`); a cached artifact is rehashed before use.
+Workflow action references are full commit SHAs in `.github/workflows/`.
+The shared `setup-blueprint` action reads the Blueprint release from its platform
+URL and verifies the executable digest. Cached downloads are rehashed before use.
 Release dispatch runs the same checks at its recorded SHA before an
 artifact-consuming publication job; it never publishes from a branch build
 that tested different bytes. See [publishing](releases/publishing.md).
@@ -99,7 +95,7 @@ that tested different bytes. See [publishing](releases/publishing.md).
 The native manual is authored in top-level `docs/*.adoc` chapters. Its staging
 step binds source/release metadata and copies exact local assets; source format
 conversion is not part of the documentation build. See the
-[documentation refactor](documentation-refactor.md) for source compatibility and
+[documentation publication guide](automation-publication.md) for source boundaries and
 independent HTML/Markdown/PDF checks.
 
 ## Maintenance

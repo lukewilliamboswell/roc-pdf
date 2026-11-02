@@ -70,33 +70,12 @@ Evidence:
   snapshot bytes: a hinted face still emits the same fourteen tables and
   directory constants.
 
-## Historical optimized-backend evidence (superseded)
+## Allocation validation
 
-The speed-backend table is retained for its historical subset-representation
-review only. It is not a current allocation baseline; use the matching exact
-dev-backend scenario in [`tests/spec.json`](../../tests/spec.json), whose mode
-transition is reviewed in [the dev-backend rebaseline](dev-backend-allocation-rebaseline-2026-08-09.md).
+The focused subset fixture covers duplicate glyph use and composite closure.
+Inspect the emitted font with the independent fontTools checksum check and the
+Roc font inspector before accepting changes.
 
-The built-in face is planned for `A`, `é`, and a duplicate `A` use. Composite
-closure produces five glyphs and rewrites two component references. The fresh
-5,864-byte font has SHA-256
-`356a2888232437badd8417cc4f4043aed7d6214fb54010171e33d0f25aa3a409`.
-
-| Target | Optimization | Retained glyphs | Source glyph bytes | Composite rewrites | Cmap mappings | Subset bytes | Exact allocations |
-| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| arm64mac | speed | 5 | 992 | 2 | 2 | 5,864 | 104 |
-| x64musl | speed | 5 | 992 | 2 | 2 | 5,864 | 104 |
-
-The x64musl row is the accepted same-compiler expectation and is exercised by
-the configured cross-target job.
-
-The raw font-program fixture was also checked independently with fontTools
-4.61.1 in checksum-verifying mode. It reports the expected five-glyph closure,
-`U+0041` and `U+00E9` mappings, metrics, `loca` offsets, subset-prefixed names,
-and no checksum failures. The raw bytes were also independently reinspected by
-the Roc font inspector under five-glyph, 16-table, and bounded-cmap limits.
-
-This slice did not yet claim arbitrary unhinted TrueType input (now supported;
-see "Unhinted fonts"), shaping, PDF
-Type 0/CID font objects, extraction mappings, or text-layout closure. Those remain
-dependent slices.
+Current exact allocation and work expectations live in the matching scenarios
+in [`tests/spec.json`](../../tests/spec.json). Review changes with the
+[allocation baseline protocol](../testing.md#allocation-baselines).

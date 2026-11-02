@@ -62,8 +62,7 @@ page-only fixture. Of those, 4,096 are the evidence caller's four-byte key
 lists. The remaining fixed 15 cover the two dense input entry lists and four
 compact shapes; there is no allocation per output node or second allocation
 per retained key. CI applies the same exact count and work vector on arm64mac
-and x64musl. The shared compiler-caused increase from the original 117,904
-count is reviewed in `roc-nightly-2026-August-05-24f0b47.md`.
+and x64musl. Current accepted counts are in `tests/spec.json`.
 
 This slice seals reusable index topology and ordering facts. It does not claim
 the separate outline hierarchy builder or optional feature-specific object

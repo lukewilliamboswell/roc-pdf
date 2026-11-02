@@ -34,9 +34,7 @@ The pinned optimized 4,096-page whole-pipeline fixture remains byte-identical:
 `bef875d56c7b93c4120aaea9e9f19bc90b3f4857e507a8bdb6aff6a8e07e5756`.
 Its current exact baseline is 134,274 allocations. All page, node, object,
 value, edge, reference, and emitted-byte counters remain unchanged. The
-20,481-allocation compiler-wide shift from the slice's original 113,793 count
-is reviewed in `roc-nightly-2026-August-05-24f0b47.md`; it is not caused by the
-opaque accessor boundary.
+exact allocation baseline is recorded in `tests/spec.json`.
 
 This slice establishes only the reusable topology and its page-tree use. Name,
 number, ID, and ParentTree rules and evidence are recorded separately in

@@ -4,14 +4,13 @@ This slice pins `roc-lang/unicode` release `4.0.0`, whose tag resolves to commit
 `b689986172679aa9fbdcd7890e3031a48b1c582f`. Its immutable GitHub release
 asset is `3DGC3M4b2pxaRLg4i8cmxWkm2E2WbCPCLntQzf2mkbUV.tar.zst` (228,087 bytes,
 SHA-256 `4343719be2d54e73dc1f138a4527d828220acb1f21b9f79d8a319a611fbc7930`).
-The release and this repository both use Roc
-`nightly-2026-08-08-195c9e7`. The dependency reports Unicode 17.0.0,
-UAX #14 revision 55, UAX #29 revision 47, and the independently versioned
-`ConservativeScxV1` script-itemization policy. Updating the release URL,
-resolved source revision, archive digest, or pinned Unicode semantics requires
-a reviewed change with affected correctness and performance evidence; the
-3.0.0 to 4.0.0 adoption record is
-[`unicode-4.0.0-adoption.md`](unicode-4.0.0-adoption.md).
+The dependency reports Unicode 17.0.0, UAX #14 revision 55, UAX #29 revision
+47, and the independently versioned `ConservativeScxV1` script-itemization
+policy. Updating its release URL, source revision, archive digest or Unicode
+semantics requires review of affected correctness and performance evidence.
+The current normative pins live in
+[`conformance/normative-baseline.json`](../../conformance/normative-baseline.json);
+`.roc-version` selects the product compiler independently.
 
 ## Representation and ownership
 

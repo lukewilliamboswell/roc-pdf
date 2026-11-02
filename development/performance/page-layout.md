@@ -24,29 +24,12 @@ earlier page candidate. Spacing after a completed block is bounded at the page
 edge; checked overflow remains an error rather than being treated as a page
 break.
 
-## Historical optimized-backend evidence (superseded)
+## Allocation validation
 
-The table is preserved for the original pagination representation review. The
-current exact allocation baseline is the matching dev-backend scenario in
-[`tests/spec.json`](../../tests/spec.json).
+The stress pattern combines widow/orphan minima, keep-together, keep-with-next,
+and explicit break-before. Check scaled cases for linear work across all input
+lines and fragments, including the complete keep-policy planning boundary.
 
-The stress pattern has six lines per block, a ten-line content box,
-widow/orphan minima of two, keep-together on every fifth block,
-keep-with-next on selected kept blocks, and explicit break-before on every
-tenth block.
-
-| Blocks | Input/placed lines | Fragments | Pages | Exact allocations |
-| ---: | ---: | ---: | ---: | ---: |
-| 1,000 | 6,000 | 1,400 | 600 | 106 |
-| 10,000 | 60,000 | 14,000 | 6,000 | 118 |
-
-All declared work grows by exactly ten times. The tenfold scale adds twelve
-allocations under the pinned `release-fast-24f0b476` compiler. The allocation
-boundary includes construction of the synthetic line/block inputs, keep-policy
-planning, final fragment/page/placement materialization, and deterministic
-emission of the 667-byte structural carrier.
-
-This is pagination and fragment-materialization evidence, not useful-facade
-completion. The normalized facade still needs to create semantic occurrences,
-select styles/fonts, run Unicode analysis and shaping per text source, and lower
-the accepted fragments to page scenes and final tagged PDF bytes.
+Current exact allocation and work expectations live in the matching scenarios
+in [`tests/spec.json`](../../tests/spec.json). Review changes with the
+[allocation baseline protocol](../testing.md#allocation-baselines).

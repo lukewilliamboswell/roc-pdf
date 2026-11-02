@@ -50,8 +50,6 @@ allocation per item or relationship. It emits the same 1,084,927-byte PDF with
 SHA-256
 `bef875d56c7b93c4120aaea9e9f19bc90b3f4857e507a8bdb6aff6a8e07e5756`.
 CI applies the exact allocation count and work vector on arm64mac and x64musl.
-The compiler-caused increase from the original 113,797 count is reviewed in
-`roc-nightly-2026-August-05-24f0b47.md`.
 
 This slice seals the outline hierarchy. Feature-specific outline object
 lowering and public destination/action construction remain at their roadmap

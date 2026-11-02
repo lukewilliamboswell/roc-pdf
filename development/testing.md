@@ -60,10 +60,9 @@ expects in ...)`, `PLAN check <root>`, `PLAN <root>: checked by its fixture
 build`). A failing `expect` names its own file and line, and the driver adds
 the test root and every module that root covers. A new expect-bearing module
 needs no registration, but it is only run if some root imports it: a module
-that no root reaches is not tested. (`tests/shaping/GsubFixture.roc` was such
-a module until the shaping family's package made it part of the `core` group's
-closure.) See `development/performance/test-suite-speed.md` for the
-measurements.
+that no root reaches is not tested. See [fixture planning](performance/test-suite-speed.md) for the validation strategy.
+
+## Allocation baselines
 
 Integration cases use the dev backend and require exact PDF snapshots,
 dimensions, allocation baselines, deterministic work counters, retention

@@ -51,9 +51,8 @@ references, and 1,084,927 emitted-byte visits. Its exact output hash is
 The independent checker validates all 4,096 pages and every xref offset. This
 fixture exposed dynamic-shift code generation that corrupted runtime `U64`
 byte emission; fixed-position shifts now make both offsets and identifier facts
-correct for non-constant large plans. The compiler-caused increase from the
-original 113,793 allocation count is reviewed in
-`roc-nightly-2026-August-05-24f0b47.md`.
+correct for non-constant large plans. Current accepted counts are in
+`tests/spec.json`.
 
 The same allocation count, hash, counters, and independent structure checks run
 on x64musl CI. Name, ID, number, and ParentTree plans are recorded separately in

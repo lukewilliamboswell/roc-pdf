@@ -741,8 +741,7 @@ and [HarfBuzz boundary facts](https://harfbuzz.github.io/harfbuzz-hb-buffer.html
 
 Gate 3 is closed. The capability, negative, extraction, rendering, retention,
 cache, and adversarial-bound aggregation is recorded in
-`development/performance/text-layout-closure.md`, and the row-by-row assessment behind it
-in `development/performance/text-layout-closure-readiness-audit.md`. This closes the
+`development/performance/text-layout-closure.md`. This closes the
 public single- and multi-face authoring boundary described above; it does not
 make Gate 4 graphics, the `Archive` or `AccessibleArchive` profiles, automatic
 hyphenation, or shaping beyond the declared boundary available. Those continue
@@ -1080,17 +1079,6 @@ headings keep with their next block, `semantics.heading_skip` is returned,
 and table semantics no longer copy the document's node lists once per table.
 Closing Gate 6 makes no PDF/UA-2 or combined-profile claim.
 
-The compiler pin is the published `nightly-2026-10-23-18478ff`. It keeps
-every snapshot byte-identical and every work vector unchanged, and removes one
-list copy per post-loop drawing append in 13 cases, recorded in the
-[October 23 compiler review](development/performance/roc-nightly-2026-10-23-18478ff.md).
-The earlier October 18 upgrade and allocation sweep cut recorded Roc
-allocation events by 85.4%, recorded in the
-[October 18 compiler review](development/performance/roc-nightly-2026-10-18-1df370f.md);
-the preceding [October 14 compiler review](development/performance/roc-nightly-2026-10-14-38a3029.md)
-retired the compiler-provisioning blocker. None of them changes Gate 6's
-capability or conformance claims.
-
 The following public authoring is executable under the default `Archive`
 profile, with exact allocation, work, and allocated-byte ceilings, scale
 pairs, zero-failure veraPDF PDF/A-4 and Arlington evidence, and an
@@ -1164,18 +1152,6 @@ independent structure checker. Each record lists its own open issues:
   `examples/warranty-letter/main.roc`, the `tests/reference_documents` family, the
   structure-extraction and reference-document checkers, and the closure
   review: `development/performance/business-authoring-closure.md`.
-
-The September compiler reviews record the earlier `roc check` crash
-(Roc #11777), the September 28 LLVM fuzz-build crashes, and the temporary
-local September 30 pin:
-[September 28](development/performance/roc-nightly-2026-09-28-9927ba8.md),
-[September 30](development/performance/roc-nightly-2026-09-30-df1f747.md).
-The current published October 14 pin passes both formerly crashing fuzz
-targets and the complete bounded workspace fuzz lane. Its review retains the
-cache constraints, records the October 4 comparison compiler's transparency
-failure, and uses the working October 1 release for the full old/new
-allocation comparison on both targets. The reviewed upgrade changes no PDF
-snapshot or deterministic work vector.
 
 ## Gate 7: business-document production release and combined closure
 
@@ -1476,7 +1452,7 @@ capabilities if ever justified:
 Some of these conflict with the static package policy and may remain
 permanently unsupported.
 
-## Built-in typography migration
+## Built-in typography
 
 The facade selects Inter for ordinary body/headings, Merriweather for explicit
 serif typography, and Fira Code for inline/source code through exact static
@@ -1485,14 +1461,8 @@ mono provides Regular/Bold. Missing coverage, unavailable styles and unsupported
 shaping reject before bytes, without automatic fallback. This adds no runtime
 variable-font, script-shaping or conformance-profile claim.
 
-[The integration record](development/roc-font.md) preserves rc4 asset provenance,
-selection/ownership design, historical rc3 evidence, migration review and the
-consumer integration boundary. Local style-role closure does not claim
-roc-automation adoption; its separately tracked inline-code glyph defect remains
-a renderer concern. The [default-family evidence](development/performance/default-fonts.md)
-records independent source/subset glyph and descriptor checks, searchable text,
-located atomic rejection, exact allocations on both registered targets and a
-10/100-section scale pair. [Publication validation](development/automation-publication.md)
-records the shipped gallery and archive consumers. Full integration acceptance
-is tracked in [the integration record](development/integration-roc-font-rc4.md);
-upstream publication alone does not establish consumer closure.
+[Packaged-font contracts](development/roc-font.md) define asset provenance,
+selection and ownership. [Default-family fixtures](development/performance/default-fonts.md)
+cover independent source/subset metadata, searchable text, atomic rejection and
+scaling. Use the current allocation baselines and publication checks rather than
+an earlier integration run to assess a change.

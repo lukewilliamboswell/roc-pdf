@@ -1,50 +1,30 @@
 # Contributor documentation
 
-This directory holds repository workflows, implementation contracts and
-validation evidence. For supported APIs, examples and migration help, start
-with the [user documentation](../docs/README.md).
+Use these guides to change, test and release roc-pdf. For supported APIs and
+examples, start with the [user manual](../docs/README.md).
 
-- [Architecture](../architecture.md) defines enduring package boundaries,
-  compiler-stage contracts, ownership and conformance decisions.
-- [Feature roadmap](../feature-roadmap.md) defines capability status and the
-  evidence needed to claim support.
-- [Implementation contracts](implementation-contracts.md) records binding
-  representation and harness details.
-- [Testing and fixture development](testing.md) explains the pinned toolchain,
-  focused tests, snapshot review, exact allocation/work baselines and validators.
-- [Contributor tooling with Blueprint](blueprint.md) lists the declared
-  tools and the named tasks that wrap the test, fuzz, gallery, bundle and docs
-  scripts.
-- [Reference-document contract](reference-documents.md) specifies the invoice,
-  report and letter fixtures, adverse variants and acceptance obligations.
-- [Performance and implementation records](performance/) preserves design
-  reviews, scale measurements, compiler investigations and feature validation.
-- [PDF comparison trial](benchmarks/pdf-comparison/README.md) separates Python
-  and Roc source-to-PDF scripting from Roc/Go executable build and run costs.
-- [Publishing a release](releases/publishing.md) explains how the release
-  workflow validates and publishes a bundle, and the steps to cut a release.
-- [Automation and documentation publication](automation-publication.md) records
-  the shared tooling, URL compatibility, independent review and settings audit.
-- [Native documentation refactor](documentation-refactor.md) records the
-  release-neutral entry pages, canonical source migration, source compatibility
-  and fresh manual/artifact validation.
-- [Release consumer smoke test](releases/0.1.0-rc1-consumer-smoke-test.md)
-  records validation of the first release candidate's distribution boundary.
+- [Architecture](../architecture.md): enduring package and compiler-stage contracts.
+- [Feature roadmap](../feature-roadmap.md): capability boundaries and acceptance requirements.
+- [Implementation contracts](implementation-contracts.md): binding representation and harness details.
+- [Testing](testing.md): focused tests, snapshot review, exact allocation/work baselines and validators.
+- [Blueprint setup](blueprint.md): declared tools and test, fuzz, gallery, bundle and docs tasks.
+- [Property fuzzing](../fuzz/README.md): bounded searches, reports, witnesses and explicit baseline review.
+- [Reference documents](reference-documents.md): invoice, report and letter fixture contracts.
+- [Packaged fonts](roc-font.md): source provenance, selection and ownership.
+- [Engineering contracts](performance/): subsystem invariants, resource bounds and fixture rationale.
+- [PDF comparison](benchmarks/pdf-comparison/README.md): reproducible Roc/Go/Python workloads.
+- [Publishing](releases/publishing.md): release validation and publication steps.
+- [Automation and documentation](automation-publication.md): source/artifact boundaries and manual checks.
 
-Commit maintained check inputs (baselines, provenance and tool locks) and
-concise evidence summaries. Generated JSON/XML reports, before/after settings
-dumps, review screenshots and local review output belong in ignored `.roc-pdf-tmp/`
-directories or CI artifacts. Historical raw reports from the font/manual
-migration remain accessible through immutable links to the merged snapshot;
-they are not inputs to current checks.
+## Write documentation
 
-Evidence records describe the source, compiler and supported subset measured
-at the time. Preserve those facts when recording later results; historical
-measurements are not current API instructions. Link current capability claims
-to the roadmap and user guides.
+Every paragraph must help a current user or contributor task. Follow the
+[shared documentation guidance](https://lukewilliamboswell.github.io/roc-automation/documentation.html#write-project-documentation).
+Delete superseded guidance; preserve required anchors without narrating their
+history. Implementation history belongs in Git, pending work in issues and
+release changes in the release record.
 
-Write user-facing explanations in `docs/`: show what an author can do, how to
-do it, and what limits or diagnostics apply. Keep issue tracking, gate closure,
-agent coordination, branch names and implementation diaries here or in the
-roadmap. Moving a record must preserve its evidence and update repository,
-conformance-ledger and provenance references.
+Commit executable baselines, provenance, locks and current engineering contracts.
+Keep generated reports, benchmark transcripts, before/after dumps and screenshots
+under ignored `.roc-pdf-tmp/` or CI artifacts. A test result is evidence for its
+recorded source and toolchain, not an evergreen product instruction.

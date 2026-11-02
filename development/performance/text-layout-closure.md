@@ -36,7 +36,7 @@ fixtures.
 | Case-transformation output with source-range facts | `KernelCaseTransform`, `case-transformation.md` |
 | Soft and discretionary hyphen extraction | `KernelDiscretionaryHyphen`, `soft-hyphen.md` |
 | Generated list labels | `generated-labels.md` |
-| Pinned UAX #9/#14/#29 data and project boundary vectors | `conformance/normative-baseline.json`, `uax-boundary-vectors.md`, `rtl-text.md`, `unicode-4.0.0-adoption.md` |
+| Pinned UAX #9/#14/#29 data and project boundary vectors | `conformance/normative-baseline.json`, `uax-boundary-vectors.md`, `rtl-text.md` |
 | One-import authoring, built-in theme, pagination, `Standard` default | `Pdf`, `KernelFacadePipeline`, `public-pdf-facade.md`, `facade-output-oracles.md` |
 | Byte-identical buffered and chunked delivery for authored documents | `Pdf.to_chunks_with`, `KernelEmit`, `chunked-facade-output.md` |
 | Public caller-resource path: registration, opaque faces, `Theme` selection, ordered policy | `Font.Registry`, `Theme.with_font`, `Theme.with_font_policy`, `caller-font-facade.md`, `multiface-public-facade.md` |
