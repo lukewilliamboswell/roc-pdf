@@ -1,0 +1,17 @@
+{
+  "pdf_sha256": "a9026642835db44de4a26e865adde527b450d961ab9249004910661e884682b9",
+  "pages": 34,
+  "exact_source_blocks": 28,
+  "exact_rgb_figures": 3,
+  "tagged_tables": 3,
+  "pdfbox": "3.0.8",
+  "java": "java version \"17.0.10\" 2024-01-16 LTS\nJava(TM) SE Runtime Environment (build 17.0.10+11-LTS-240)\nJava HotSpot(TM) 64-Bit Server VM (build 17.0.10+11-LTS-240, mixed mode, sharing)",
+  "rendered_review_pages": {
+    "pdf-page-001.png": "83619e57a4e53e2132edb863e7e9e3894773b0b6d1f1d37d5c79a653e860d171",
+    "pdf-page-020.png": "3a10ae45d611bef063bbf8f49523e83f4c2d063d9dae69134f4c70d1eb56b4f3",
+    "pdf-page-021.png": "4c1601d452b3cad9e942d5e614abe52dbba1b140aa8623aa3abe91263dfde3a7",
+    "pdf-page-030.png": "10cd0fd85637ade283438e6786b86678d946162d3889a844377ace97348117eb",
+    "pdf-page-031.png": "8542a28267dd62440d01a609baa6f0e343a04cdd42d06c42ec1685fa02ec74f0",
+    "pdf-page-032.png": "739b746355ef236ca907b480a65fc9928d71041fa6ebff531e23ad096b410308"
+  }
+}

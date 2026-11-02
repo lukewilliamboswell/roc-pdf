@@ -186,14 +186,20 @@ ever produces it. The white-box twins in `package/Pdf.roc` and
 `package/KernelPdfA4.roc` prove this by injecting each construct into an
 otherwise valid claimed plan.
 
-The facade's text-support matrix rejects U+0000, U+FEFF, U+FFFE, and uncovered
-private-use scalars before profile validation. Its links always print. The
-facade-level set of constructs that only Archive rejects is therefore
-honestly empty:
+With the original restricted built-in font, the facade rejected U+FEFF at
+the earlier coverage boundary. The rc4 Inter program covers it, so the
+public facade now reaches the Archive ToUnicode-value rule. The
+`tests/archive/Cases.roc` atomic fixture separately proves that explicitly
+selected Standard accepts that covered input and Archive rejects it at
+`ProfileValidation`, with `profile.archive`, requirement
+`ROC-PDF-PDFA4-6-2-10-7-TO-UNICODE` and clause 6.2.10.7. Archive emits no bytes.
 
-- `tests/archive/archive_facade_negative.roc` proves that selecting Archive
-  never masks an earlier authoring-stage cause;
-- the profile rules themselves are proven by the white-box twins.
+An uncovered Latin U+A7B0 witness retains the earlier `text.coverage_missing`
+cause, and an uncovered private-use witness retains `text.unsupported_script`.
+The fixture has six rejection checks after this migration; its historical
+five-check measurements below describe the earlier fixture. The white-box
+twins continue to prove profile rules for constructs the authoring API cannot
+express, and facade links always print.
 
 ## Evidence
 

@@ -1,9 +1,10 @@
 app [target] {
-	fuzz: platform "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.4.3/41NK5FShyGC9Z8HNpUdUeXMWwLmLNfFxsfmLvdPL4Fxb.tar.zst",
+	fuzz: platform "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.5.0/9WT86CuwM7ZJBSs8iTd1jLyrUFTTiGp5hcJE63TwswGE.tar.zst",
 	pdf: "../package/all.roc",
 }
 
 import fuzz.Fuzz
+import InputBounds
 import ThemeTargets
 
 ## Every theme knob is one unconstrained `U8`. The property maps each byte onto
@@ -36,6 +37,9 @@ Input := {
 	blocks : List({ items : List(Str), kind : U8, level : U8, text : Str }),
 	title : Str,
 }.{
+	parser_for : _
+	encoder_for : _
+
 	generator_for : Fuzz.FuzzEncoding -> Fuzz.Generator(Input)
 	generator_for = |_| {
 		{
@@ -69,11 +73,46 @@ Input := {
 
 test : Input -> Fuzz.Outcome
 test = |Input.(input)| {
+	if !InputBounds.document({ blocks: input.blocks, title: input.title }) {
+		return Fuzz.reject
+	}
 	if (ThemeTargets.theme_output(input)) Fuzz.keep else crash "theme output contracts disagreed"
 }
 
 target = Fuzz.target({
 	name: "roc-pdf-theme-options",
+	examples: [
+		Fuzz.example({ name: "ordinary-theme", revision: "1", make: || ordinary_input }),
+		Fuzz.example({
+			name: "negative-half-range-margins",
+			revision: "1",
+			make: || {
+				Input.(base) = ordinary_input
+				Input.{ ..base, blocks: [], margin_left: 15, margin_right: 15, title: "" }
+			},
+		}),
+	],
+
 	test,
 	show: |input| Str.inspect(input),
 })
+
+ordinary_input : Input
+ordinary_input = Input.{
+	body_leading: 7,
+	body_size: 6,
+	bullet_indent: 8,
+	heading_leading: 8,
+	heading_size: 9,
+	margin_bottom: 10,
+	margin_left: 10,
+	margin_right: 10,
+	margin_top: 10,
+	page_size: 0,
+	paragraph_spacing: 5,
+	profile: 0,
+	title_leading: 9,
+	title_size: 9,
+	blocks: [{ items: [], kind: 0, level: 0, text: "Theme report" }, { items: [], kind: 2, level: 0, text: "Body text to lay out." }],
+	title: "Theme report",
+}

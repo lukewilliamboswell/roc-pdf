@@ -1,0 +1,120 @@
+{
+  "format": "roc-fuzz-baseline/1",
+  "target": "roc-pdf-font-inspector-repair",
+  "entries": [
+    {
+      "host_target": "arm64mac",
+      "profile": "llvm-fuzz",
+      "metric_version": "roc-fuzz-allocations/1",
+      "examples": [
+        {
+          "name": "checksum-preserving-regular",
+          "revision": "1",
+          "input_sha256": "9ca476b5c997b2cc0c8b8e8f771dc375c31d86efdd37add4843d9e8134aa6bfd",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 14,
+                "reallocs": 21,
+                "deallocs": 14,
+                "requested_bytes": 361476,
+                "entry_live_allocs": 0,
+                "entry_live_bytes": 0,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 278020
+              }
+            }
+          ]
+        },
+        {
+          "name": "mutated-name-table",
+          "revision": "1",
+          "input_sha256": "e03056d61b1a2887fae2aef47606908a2431e729f7f524964083831d77428d66",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 14,
+                "reallocs": 6,
+                "deallocs": 15,
+                "requested_bytes": 11088,
+                "entry_live_allocs": 1,
+                "entry_live_bytes": 24,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 9520
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "host_target": "x64musl",
+      "profile": "llvm-fuzz",
+      "metric_version": "roc-fuzz-allocations/1",
+      "examples": [
+        {
+          "name": "checksum-preserving-regular",
+          "revision": "1",
+          "input_sha256": "9ca476b5c997b2cc0c8b8e8f771dc375c31d86efdd37add4843d9e8134aa6bfd",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 14,
+                "reallocs": 21,
+                "deallocs": 14,
+                "requested_bytes": 361476,
+                "entry_live_allocs": 0,
+                "entry_live_bytes": 0,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 278020
+              }
+            }
+          ]
+        },
+        {
+          "name": "mutated-name-table",
+          "revision": "1",
+          "input_sha256": "e03056d61b1a2887fae2aef47606908a2431e729f7f524964083831d77428d66",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 14,
+                "reallocs": 6,
+                "deallocs": 15,
+                "requested_bytes": 11088,
+                "entry_live_allocs": 1,
+                "entry_live_bytes": 24,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 9520
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -172,11 +172,7 @@ KernelStructure :: [].{
 	build_deflate_stream_probe : List(U8), U64 -> Try(Plan, Error)
 	build_deflate_stream_probe = |bytes, max_input_bytes| {
 		bound = KernelDeflate.output_bound(bytes.len()) ? Deflate
-		_ = KernelDeflate.Plan.prepare(
-			bytes,
-			KernelDeflate.Level.balanced,
-			KernelDeflate.Limits.make({ max_input_bytes, max_output_bytes: bound }),
-		) ? Deflate
+		_ = KernelDeflate.Plan.prepare(bytes, KernelDeflate.Level.balanced, KernelDeflate.Limits.make({ max_input_bytes, max_output_bytes: bound })) ? Deflate
 		build_nonempty(1, A4, Deflated(bytes), NoBlankFacts)
 	}
 }
@@ -316,10 +312,7 @@ build_nonempty = |page_count, page_size, content_plan, facts| {
 	{ width, height } = page_dimensions(page_size)
 	width_value = KernelObject.add_integer(zero_y.builder, width) ? Object
 	height_value = KernelObject.add_integer(width_value.builder, height) ? Object
-	media_box = KernelObject.add_array(
-		height_value.builder,
-		[zero_x.id, zero_y.id, width_value.id, height_value.id],
-	) ? Object
+	media_box = KernelObject.add_array(height_value.builder, [zero_x.id, zero_y.id, width_value.id, height_value.id]) ? Object
 	resources = KernelObject.add_dictionary(media_box.builder, []) ? Object
 	shape_leaves = KernelBalanced.Shape.level_node_count(shape, KernelBalanced.Shape.leaf_level(shape))
 	parent_values = value_range(KernelObject.counts(resources.builder).values, shape_leaves)
@@ -434,10 +427,7 @@ facts_limit_budget = |facts| match facts {
 		values: 0,
 	})
 	WithBlankFacts(data) => {
-		text_bytes = checked_add(
-			checked_add(Str.to_utf8(data.language).len(), Str.to_utf8(data.condition_identifier).len())?,
-			Str.to_utf8(data.registry_name).len(),
-		)?
+		text_bytes = checked_add(checked_add(Str.to_utf8(data.language).len(), Str.to_utf8(data.condition_identifier).len())?, Str.to_utf8(data.registry_name).len())?
 		payload_bytes = checked_add(data.xmp.len(), data.profile_bytes.len())?
 		Ok({
 			array_items: 2,
@@ -462,10 +452,7 @@ facts_output_bound : DocumentFacts -> Try(U64, KernelStructure.Error)
 facts_output_bound = |facts| match facts {
 	NoBlankFacts => Ok(0)
 	WithBlankFacts(data) => {
-		text_bytes = checked_add(
-			checked_add(Str.to_utf8(data.language).len(), Str.to_utf8(data.condition_identifier).len())?,
-			Str.to_utf8(data.registry_name).len(),
-		)?
+		text_bytes = checked_add(checked_add(Str.to_utf8(data.language).len(), Str.to_utf8(data.condition_identifier).len())?, Str.to_utf8(data.registry_name).len())?
 		profile_bound = if data.profile_bytes.is_empty() {
 			8
 		} else {
@@ -530,12 +517,7 @@ add_fact_streams = |builder, type_name, context| {
 	ensure_object_number(stream.length_object, KernelObject.ObjectId.number(context.metadata_id) + 1)?
 	n_value = KernelObject.add_integer(stream.builder, context.data.profile_components) ? Object
 	icc_payload = KernelObject.add_payload(n_value.builder, context.data.profile_bytes, Generated) ? Object
-	icc_stream = KernelObject.add_stream_object(
-		icc_payload.builder,
-		[{ key: context.names.n, value: n_value.id }],
-		Deflate,
-		icc_payload.id,
-	) ? Object
+	icc_stream = KernelObject.add_stream_object(icc_payload.builder, [{ key: context.names.n, value: n_value.id }], Deflate, icc_payload.id) ? Object
 	ensure_object_number(icc_stream.id, KernelObject.ObjectId.number(context.profile_id))?
 	ensure_object_number(icc_stream.length_object, KernelObject.ObjectId.number(context.profile_id) + 1)?
 	Ok(icc_stream.builder)

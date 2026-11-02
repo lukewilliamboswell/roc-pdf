@@ -333,12 +333,12 @@ build_static = |authoring, theme, page_size| {
 			$items = $items.append({ ..item, content })
 		}
 		for region in plan.regions {
-			$regions = $regions.append({ ..region, items: Semantics.IndexRange.from_start_and_length(region.items.start() + item_base, region.items.length()), template: region.template + $plan_id * 2 })
+			$regions = $regions.append({ ..region, items: Semantics.IndexRange.from_start_and_length({ start: region.items.start() + item_base, length: region.items.length() }), template: region.template + $plan_id * 2 })
 		}
 		var $template_id = 0
 		while $template_id < 2 {
 			region_span = regions_for(plan, $template_id)
-			$spans = $spans.append(Semantics.IndexRange.from_start_and_length(region_span.start() + region_base, region_span.length()))
+			$spans = $spans.append(Semantics.IndexRange.from_start_and_length({ start: region_span.start() + region_base, length: region_span.length() }))
 			$template_id = $template_id + 1
 		}
 		$plan_id = $plan_id + 1
@@ -527,7 +527,7 @@ add_region = |state, region, at, style| match region {
 		$state = add_slot($state, start, StartSlot, "${at.path}.start", { band: at.band, height: region_height_value, inset: slot_inset, top: at.top }, style)?
 		$state = add_slot($state, center, CenterSlot, "${at.path}.center", { band: at.band, height: region_height_value, inset: slot_inset, top: at.top }, style)?
 		$state = add_slot($state, end, EndSlot, "${at.path}.end", { band: at.band, height: region_height_value, inset: slot_inset, top: at.top }, style)?
-		region_record = { band: at.band, height: region_height_value, items: Semantics.IndexRange.from_start_and_length(first_item, $state.items.len() - first_item), kind: at.kind, path: at.path, template: at.template, top: at.top }
+		region_record = { band: at.band, height: region_height_value, items: Semantics.IndexRange.from_start_and_length({ start: first_item, length: $state.items.len() - first_item }), kind: at.kind, path: at.path, template: at.template, top: at.top }
 		Ok({ ..$state, regions: $state.regions.append(region_record) })
 	}
 }
@@ -1485,12 +1485,12 @@ page_context = |static, pages, cursor, page| {
 ## the single face, where source `k` is run `k`.
 pending_runs : List(Semantics.IndexRange), List(Semantics.TextSourceId), [Input(U64), NoText] -> Semantics.IndexRange
 pending_runs = |source_runs, input_sources, input| match input {
-	NoText => Semantics.IndexRange.from_start_and_length(0, 0)
+	NoText => Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 })
 	Input(index) => runs_of(source_runs, list_at(input_sources, index).index())
 }
 
 runs_of : List(Semantics.IndexRange), U64 -> Semantics.IndexRange
-runs_of = |source_runs, source| if (source_runs.is_empty()) Semantics.IndexRange.from_start_and_length(source, 1) else list_at(source_runs, source)
+runs_of = |source_runs, source| if (source_runs.is_empty()) Semantics.IndexRange.from_start_and_length({ start: source, length: 1 }) else list_at(source_runs, source)
 
 ## The advance width of a scalar range across the runs of one source.
 runs_width : Text.Store, Semantics.IndexRange, Semantics.IndexRange -> U64
@@ -1534,7 +1534,7 @@ run_clusters = |store, run, scalars| {
 	if $count == 0 {
 		Uncovered
 	} else {
-		Covered({ clusters: Semantics.IndexRange.from_start_and_length($first, $count), source: { scalars: span($scalar_start, $scalar_end), utf8_bytes: span($byte_start, $byte_end) } })
+		Covered({ clusters: Semantics.IndexRange.from_start_and_length({ start: $first, length: $count }), source: { scalars: span($scalar_start, $scalar_end), utf8_bytes: span($byte_start, $byte_end) } })
 	}
 }
 
@@ -1659,7 +1659,7 @@ cluster_range = |store, run, scalars| {
 	if $count == 0 or $covered != scalars.length() {
 		Err(ArithmeticOverflow)
 	} else {
-		Ok(Semantics.IndexRange.from_start_and_length($first, $count))
+		Ok(Semantics.IndexRange.from_start_and_length({ start: $first, length: $count }))
 	}
 }
 
@@ -1675,7 +1675,7 @@ scalar_count = |text| {
 }
 
 span : U64, U64 -> Semantics.IndexRange
-span = |start, end| Semantics.IndexRange.from_start_and_length(start, end - start)
+span = |start, end| Semantics.IndexRange.from_start_and_length({ start: start, length: end - start })
 
 point : U64, U64 -> Layout.Point
 point = |x, y| { x: Layout.Unit.from_raw(x.to_i64_wrap()), y: Layout.Unit.from_raw(y.to_i64_wrap()) }

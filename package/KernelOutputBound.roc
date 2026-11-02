@@ -117,6 +117,7 @@ value_bound = |store, value_id| match list_at(store.values, KernelObject.ValueId
 	Name(name) => Ok({ bytes: name_bound(list_at(store.names, KernelObject.NameId.index(name)))?, visits: 1 })
 	Null => Ok({ bytes: 4, visits: 1 })
 	Real(_) => Ok({ bytes: 21, visits: 1 })
+	Fixed16(_) => Ok({ bytes: 23, visits: 1 })
 	Reference(object) => Ok({ bytes: checked_add(decimal_length(KernelObject.ObjectId.number(object)), 4)?, visits: 1 })
 	Stream(_) => Err(NestedStreamValue(value_id))
 	TextString(string) => Ok({ bytes: checked_add(checked_times(KernelLex.Text.bytes(list_at(store.text_strings, KernelObject.TextStringId.index(string))).len(), 4)?, 6)?, visits: 1 })

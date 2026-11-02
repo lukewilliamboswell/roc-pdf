@@ -25,14 +25,14 @@ contract_report = {
 
 	first_range : Semantics.TextRange
 	first_range = {
-		scalars: Semantics.IndexRange.from_start_and_length(0, 4),
-		utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 4),
+		scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: 4 }),
+		utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 4 }),
 	}
 
 	second_range : Semantics.TextRange
 	second_range = {
-		scalars: Semantics.IndexRange.from_start_and_length(4, 4),
-		utf8_bytes: Semantics.IndexRange.from_start_and_length(4, 4),
+		scalars: Semantics.IndexRange.from_start_and_length({ start: 4, length: 4 }),
+		utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 4, length: 4 }),
 	}
 
 	first_fragment : Semantics.LayoutFragment

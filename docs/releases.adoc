@@ -1,0 +1,10 @@
+[#release-notes]
+= Release notes
+
+Use a release's notes to obtain its immutable package URL, compiler requirement
+and migration instructions. The
+https://github.com/lukewilliamboswell/roc-pdf/releases[published releases]
+are the download source. The records below describe the source tree used to
+build this manual; an authored release may not yet have been published.
+
+include::releases/list.adoc[]

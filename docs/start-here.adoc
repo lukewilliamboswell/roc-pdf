@@ -1,0 +1,31 @@
+[#start-here-using-roc-pdf]
+= Start here
+
+Generate reports, invoices and business letters from application-owned content.
+You provide business facts, semantic structure and presentation choices. roc-pdf
+paginates the document, embeds its resources and returns deterministic PDF bytes.
+It does not read or repair existing PDFs.
+
+== Choose a guide
+
+* New to the package? Follow xref:getting-started.adoc#create-your-first-document[Create your first document].
+* Adding text, tables or figures? Use xref:authoring.adoc#authoring-authoring-with-roc-pdf[Authoring with roc-pdf].
+* Choosing fonts or handling missing coverage? Use xref:roc-font.adoc#roc-font-choose-built-in-and-caller-fonts[Choose built-in and caller fonts].
+* Building a technical manual? Use xref:manual-composition.adoc#manual-composition-composing-a-technical-manual[Composing a technical manual].
+* Printing page numbers beside links? Use xref:destination-page-references.adoc#destination-page-references-destination-page-references[Destination page references].
+* Updating positional calls? Use xref:migrating-named-arguments.adoc#migrating-named-arguments-migrating-to-named-arguments[Migrating to named arguments].
+* Looking up a type or function? Open the https://lukewilliamboswell.github.io/roc-pdf/[API reference].
+* Contributing or preparing a release? Start with https://github.com/lukewilliamboswell/roc-pdf/blob/main/development/README.md[contributor documentation].
+
+The xref:gallery.adoc#runnable-document-gallery[example gallery] contains complete
+applications and their PDF output. Read xref:releases.adoc#release-notes[release notes]
+for installation pins and upgrade impact.
+
+== Supported output
+
+The default `Archive` profile produces tagged PDF 2.0 with static PDF/A-4.
+`Standard` produces PDF 2.0 without that archival claim. Unsupported content
+returns a structured diagnostic before bytes; it never triggers font substitution,
+synthetic styling or a profile downgrade. PDF/UA-2 is not currently claimed.
+See xref:authoring.adoc#authoring-supported-features[supported features] for the
+bounded text, layout and conformance contract.

@@ -48,6 +48,10 @@ every PDF and checks that it equals the committed bytes, and with
 <td><a href="furniture-typography/furniture-typography.pdf"><img src="furniture-typography/preview.png" alt="Independent furniture typography preview"></a><br><a href="furniture-typography/main.roc">Furniture typography source</a></td>
 <td><a href="source-blocks/source-blocks.pdf"><img src="source-blocks/preview.png" alt="Preformatted source block preview"></a><br><a href="source-blocks/main.roc">Source blocks source</a></td>
 </tr>
+<tr>
+<td><a href="font-families/font-families.pdf"><img src="font-families/preview.png" alt="Built-in font families preview"></a><br><a href="font-families/main.roc">Built-in font families source</a></td>
+<td><a href="vector-diagrams/vector-diagrams.pdf"><img src="vector-diagrams/preview.png" alt="Prepared vector diagrams preview"></a><br><a href="vector-diagrams/main.roc">Prepared vector diagrams source</a></td>
+</tr>
 </table>
 
 | Example | Typefaces | What it demonstrates |
@@ -55,6 +59,7 @@ every PDF and checks that it equals the committed bytes, and with
 | [Quarterly report](quarterly-report/main.roc) | Noto Serif | a members' report for a regional cooperative: a cover band in the first-page header with its mark placed as a group, a navy key-figures callout in white text and a tinted diary callout, both measured by the package, a striped KPI scorecard with tinted status cells, a monthly revenue table beside its chart, and a segment table with a shaded totals footer, two labelled vector charts built from `Scene` groups (the targets chart kept with its notes), and running headers inset above a hairline backdrop with `Page N of M` |
 | [Brand brief](brand-brief/main.roc) | Public Sans, Source Code Pro | brand guidelines: headers inset above a region backdrop rule beside the mark and edition line, a palette strip and section bands as spaced decorations, measured "At a glance" callouts on a Mist panel and in white on Indigo, vector figures of named colour swatches and logo placements, tables with shaded headers, hairline body rules, and shaded spanning group rows, rich inline content, lists, links, and an outline over named destinations |
 | [Field guide](field-guide/main.roc) | Literata | a pocket guide to estuary shorebirds: a labelled vector habitat cross-section and named bird plates, species accounts that are outline destinations and cross-reference one another, identification lists, a survey sheet kept whole on one page (a details table and a checklist, ruled between columns and framed, whose blank cells are empty `TD`s for the surveyor), measured callouts whose lines wrap, spaced dividers, page labels, and running furniture inset above a ruled backdrop |
+| [Built-in font families](font-families/main.roc) | Inter, Merriweather, Fira Code | all ten packaged static faces through explicit family choices, genuine bold/italic/combined emphasis, a four-style serif quotation, exact Command-K in sans/mono roles and default-source typography without file loading or registry setup |
 | [Furniture typography](furniture-typography/main.roc) | Packaged face | a two-page document with an 11/15 pt body, independent 8/10 pt gray running text, and current/total-page fields in a reserved footer width |
 | [Prepared vector diagrams](vector-diagrams/main.roc) | Inter | an authoring-time Mermaid/SVG adapter producing public drawing commands, curved connectors, arrowheads, multiline searchable labels, exact registered font bytes and explicit Figure alternative text/caption |
 | [Source blocks](source-blocks/main.roc) | Packaged face, Source Code Pro | a deployment recipe with local 9/12 pt source typography, indentation and empty lines, and a padded background continuing at visual-line boundaries across pages |
@@ -69,7 +74,8 @@ every PDF and checks that it equals the committed bytes, and with
 The applications vary information architecture, lifecycle, navigation, page
 format, and visual theme. Use the business report, business letter and tax
 invoice as complete starting points for those document types.
-Every example registers its fonts through the public font
+The font-families example uses named packaged choices without registration.
+Other examples register their fonts through the public font
 registry (`Font.Registry.register`) and selects a Bold, Italic, or monospace
 face per inline role through the theme's `inline` record, a Bold face for
 the title and headings through `title` and `headings` (level-1 and level-2

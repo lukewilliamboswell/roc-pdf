@@ -1,0 +1,120 @@
+{
+  "format": "roc-fuzz-baseline/1",
+  "target": "roc-pdf-navigation-property",
+  "entries": [
+    {
+      "host_target": "arm64mac",
+      "profile": "llvm-fuzz",
+      "metric_version": "roc-fuzz-allocations/1",
+      "examples": [
+        {
+          "name": "named-destination-and-link",
+          "revision": "1",
+          "input_sha256": "c7215dd082a19d1339505b2509fdbda6f228aa0571b6a63fd7ac27bca6edad6e",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 1095,
+                "reallocs": 382,
+                "deallocs": 1097,
+                "requested_bytes": 7697488,
+                "entry_live_allocs": 2,
+                "entry_live_bytes": 289,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 403705
+              }
+            }
+          ]
+        },
+        {
+          "name": "single-unknown-destination",
+          "revision": "1",
+          "input_sha256": "502ebaf506f2e07e8504913f1afd2fe96aef6e4b80ee5bcb77cf746cb91b6b77",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 1266,
+                "reallocs": 467,
+                "deallocs": 1267,
+                "requested_bytes": 8641363,
+                "entry_live_allocs": 1,
+                "entry_live_bytes": 161,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 394321
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "host_target": "x64musl",
+      "profile": "llvm-fuzz",
+      "metric_version": "roc-fuzz-allocations/1",
+      "examples": [
+        {
+          "name": "named-destination-and-link",
+          "revision": "1",
+          "input_sha256": "c7215dd082a19d1339505b2509fdbda6f228aa0571b6a63fd7ac27bca6edad6e",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 1095,
+                "reallocs": 382,
+                "deallocs": 1097,
+                "requested_bytes": 7697488,
+                "entry_live_allocs": 2,
+                "entry_live_bytes": 289,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 403705
+              }
+            }
+          ]
+        },
+        {
+          "name": "single-unknown-destination",
+          "revision": "1",
+          "input_sha256": "502ebaf506f2e07e8504913f1afd2fe96aef6e4b80ee5bcb77cf746cb91b6b77",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 1266,
+                "reallocs": 467,
+                "deallocs": 1267,
+                "requested_bytes": 8641363,
+                "entry_live_allocs": 1,
+                "entry_live_bytes": 161,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 394321
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

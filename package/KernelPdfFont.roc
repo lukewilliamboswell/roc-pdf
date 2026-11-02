@@ -19,8 +19,17 @@ KernelPdfFont :: [].{
 
 	Descriptor : {
 		flags : I64,
+
+		## Signed raw OpenType 16.16 degrees, not rounded integer degrees.
 		italic_angle : I64,
 		stem_v : I64,
+	}
+
+	## Resolve style policy from validated source facts before canonical resource
+	## identity and object lowering. Other explicit descriptor flags stay intact.
+	source_descriptor : KernelFont.Inspection, Descriptor -> Descriptor
+	source_descriptor = |font, base| {
+		{ ..base, flags: base.flags.bitwise_and(-68).bitwise_or(source_style_flags(font.style)), italic_angle: font.style.italic_angle.to_i64() }
 	}
 
 	UnicodeMapping : {
@@ -85,6 +94,20 @@ KernelPdfFont :: [].{
 	}
 }
 
+## Oblique is a source style fact independently of traditional italic linking.
+source_style_flags : KernelFont.StyleFacts -> I64
+source_style_flags = |style| {
+	pitch : I64
+	pitch = if (style.fixed_pitch != 0) 1 else 0
+	italic : I64
+	italic = if (style.fs_selection.bitwise_and(0x0201) != 0) 64 else 0
+	pitch.bitwise_or(italic).bitwise_or(if (style.serif == Serif) 2 else 0)
+}
+
+expect source_style_flags({ italic_angle: -1, fixed_pitch: 1, fs_selection: 512, mac_style: 0, serif: Unclassified }) == 65
+expect source_style_flags({ italic_angle: 0, fixed_pitch: 0, fs_selection: 64, mac_style: 0, serif: Unclassified }) == 0
+expect source_style_flags({ italic_angle: 0, fixed_pitch: 0, fs_selection: 64, mac_style: 0, serif: Serif }) == 2
+
 Names := {
 	ascent : KernelObject.NameId,
 	base_font : KernelObject.NameId,
@@ -119,7 +142,7 @@ Names := {
 
 build_plan : KernelObject.Builder, KernelFont.Inspection, KernelFontPlan.Plan, KernelFontSubset.Subset, KernelPdfFont.Descriptor, List(KernelPdfFont.UnicodeMapping), KernelPdfFont.Limits -> Try(KernelPdfFont.Plan, KernelPdfFont.Error)
 build_plan = |builder, font, font_plan, subset, descriptor, mappings, limits| {
-	if descriptor.flags < 0 or descriptor.stem_v <= 0 {
+	if descriptor.flags < 0 or descriptor.stem_v <= 0 or descriptor.italic_angle < -2147483648 or descriptor.italic_angle > 2147483647 {
 		return Err(InvalidDescriptor)
 	}
 	postscript_name = KernelFont.postscript_name(font)
@@ -263,7 +286,11 @@ add_descriptor = |builder, names, base_font, font_file, font, descriptor| {
 	bbox = KernelObject.add_array(y_max.builder, [x_min.id, y_min.id, x_max.id, y_max.id]) ? Object
 	file_reference = KernelObject.add_reference(bbox.builder, font_file) ? Object
 	font_name = KernelObject.add_name_value(file_reference.builder, base_font) ? Object
-	italic_angle = KernelObject.add_integer(font_name.builder, descriptor.italic_angle) ? Object
+	italic_angle = if descriptor.italic_angle % 65536 == 0 {
+		KernelObject.add_integer(font_name.builder, descriptor.italic_angle / 65536) ? Object
+	} else {
+		KernelObject.add_fixed16(font_name.builder, descriptor.italic_angle.to_i32_wrap()) ? Object
+	}
 	stem_v = KernelObject.add_integer(italic_angle.builder, descriptor.stem_v) ? Object
 	type_value = KernelObject.add_name_value(stem_v.builder, names.font_descriptor) ? Object
 	dictionary = KernelObject.add_dictionary(

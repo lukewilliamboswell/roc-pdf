@@ -1,0 +1,1485 @@
+{
+  "format": "roc-pdf-fuzz-migration/1",
+  "platform_release": "0.5.0",
+  "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f",
+  "consumer_compiler": "nightly-2026-10-28-bad769b",
+  "implementation_commit": "74f3fb46e19b85eb035d75c7297dacaf8f7da6d7",
+  "reuse_guard_commit": "c3064980d989cd5c82a95e2c38e39a6ad4809588",
+  "linux_container": {
+    "manifest": "alpine@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce",
+    "image_id": "sha256:b66e0ce64844f5c6435b0c4bfd965558199ab0f53270846861c979cb1ac29365",
+    "platform": "linux/amd64"
+  },
+  "targets": [
+    {
+      "target": "facade_output_equivalence",
+      "declared_target": "roc-pdf-facade-output-equivalence",
+      "baseline": "fuzz/baselines/facade_output_equivalence.json",
+      "baseline_sha256": "cca14c20179868477f8a8ef6a9773ee05fc183f1c0e709187a8a75586b8cf4c9",
+      "profile": "llvm-fuzz",
+      "examples": [
+        {
+          "name": "paragraph-and-bullets",
+          "revision": "1",
+          "input_sha256": "fb22ad93cad9351fd9c96af21e97dd1399260b11b95c0124c0be51a09ec3ed5f",
+          "allocation_events": 3441,
+          "requested_bytes": 15006903,
+          "complete_observations_equal_on_both_hosts": true
+        },
+        {
+          "name": "atomic-text-rejection",
+          "revision": "1",
+          "input_sha256": "af010d0d77831fae4e8387caac726cce89f94799b51ec668e9d48b30e6d5f808",
+          "allocation_events": 424,
+          "requested_bytes": 1541436,
+          "complete_observations_equal_on_both_hosts": true
+        }
+      ],
+      "verification": {
+        "arm64mac": {
+          "outcome": "passed",
+          "baseline_status": "matched",
+          "metric_version": "roc-fuzz-allocations/1",
+          "attempted": 64,
+          "accepted": 59,
+          "rejected": 5,
+          "provenance": {
+            "source_revision": "c3064980d989cd5c82a95e2c38e39a6ad4809588-dirty",
+            "roc_version": "Roc compiler version nightly-2026-10-28-bad769b",
+            "platform_release": "0.5.0",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f"
+          },
+          "configuration": {
+            "invocation_deadline_ms": 10000,
+            "campaign_deadline_ms": 16000,
+            "leak_detection": true,
+            "detailed_capture": false,
+            "corpus": "/Users/luke/Documents/GitHub/roc-pdf/.roc-pdf-tmp/fuzz-corpus/facade_output_equivalence",
+            "exploration_options": [
+              "-timeout=10",
+              "-runs=64",
+              "-max_total_time=1",
+              "-max_len=4096",
+              "-rss_limit_mb=2048",
+              "-seed=1",
+              "-timeout=10"
+            ]
+          },
+          "build": {
+            "source_sha256": "e8c27be3660368e873db12311835cd4b7a049985f67725455c507184edcfd22b",
+            "compiler": "Roc compiler version nightly-2026-10-28-bad769b",
+            "target": "arm64mac",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f",
+            "profile": "llvm-fuzz",
+            "binary_sha256": "bc8c8dde7c9bf2ef246009814fc264bc707691dcb93f2ddc04493794017d3df2"
+          }
+        },
+        "x64musl": {
+          "outcome": "passed",
+          "baseline_status": "matched",
+          "metric_version": "roc-fuzz-allocations/1",
+          "attempted": 64,
+          "accepted": 64,
+          "rejected": 0,
+          "provenance": {
+            "source_revision": "c3064980d989cd5c82a95e2c38e39a6ad4809588-dirty",
+            "roc_version": "Roc compiler version nightly-2026-10-28-bad769b",
+            "platform_release": "0.5.0",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f"
+          },
+          "configuration": {
+            "invocation_deadline_ms": 10000,
+            "campaign_deadline_ms": 16000,
+            "leak_detection": true,
+            "detailed_capture": false,
+            "corpus": "/Users/luke/Documents/GitHub/roc-pdf/.roc-pdf-tmp/fuzz-corpus/facade_output_equivalence",
+            "exploration_options": [
+              "-timeout=10",
+              "-runs=64",
+              "-max_total_time=1",
+              "-max_len=4096",
+              "-rss_limit_mb=2048",
+              "-seed=1",
+              "-timeout=10"
+            ]
+          },
+          "build": {
+            "source_sha256": "e8c27be3660368e873db12311835cd4b7a049985f67725455c507184edcfd22b",
+            "compiler": "Roc compiler version nightly-2026-10-28-bad769b",
+            "target": "x64musl",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f",
+            "profile": "llvm-fuzz",
+            "binary_sha256": "9020dd41822b761412ea27aae8a500c6ff779fe913b4301ad95dc9e7e0485474"
+          }
+        }
+      }
+    },
+    {
+      "target": "facade_structure",
+      "declared_target": "roc-pdf-facade-structure",
+      "baseline": "fuzz/baselines/facade_structure.json",
+      "baseline_sha256": "d9d10b75d08451b8d4d1666bdc8248a4d792993667450390c34e40ca2e19ac59",
+      "profile": "llvm-fuzz",
+      "examples": [
+        {
+          "name": "heading-and-body",
+          "revision": "1",
+          "input_sha256": "b82edbbcb80ebde83646a62ac02862a5b8cc787a560a24915d6d59b980869ce5",
+          "allocation_events": 956,
+          "requested_bytes": 3948238,
+          "complete_observations_equal_on_both_hosts": true
+        }
+      ],
+      "verification": {
+        "arm64mac": {
+          "outcome": "passed",
+          "baseline_status": "matched",
+          "metric_version": "roc-fuzz-allocations/1",
+          "attempted": 64,
+          "accepted": 64,
+          "rejected": 0,
+          "provenance": {
+            "source_revision": "c3064980d989cd5c82a95e2c38e39a6ad4809588-dirty",
+            "roc_version": "Roc compiler version nightly-2026-10-28-bad769b",
+            "platform_release": "0.5.0",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f"
+          },
+          "configuration": {
+            "invocation_deadline_ms": 10000,
+            "campaign_deadline_ms": 16000,
+            "leak_detection": true,
+            "detailed_capture": false,
+            "corpus": "/Users/luke/Documents/GitHub/roc-pdf/.roc-pdf-tmp/fuzz-corpus/facade_structure",
+            "exploration_options": [
+              "-timeout=10",
+              "-runs=64",
+              "-max_total_time=1",
+              "-max_len=4096",
+              "-rss_limit_mb=2048",
+              "-seed=1",
+              "-timeout=10"
+            ]
+          },
+          "build": {
+            "source_sha256": "a001a103d496c4299b502feff2f67b67f74b9b0a3457236d81b47d09edcd305f",
+            "compiler": "Roc compiler version nightly-2026-10-28-bad769b",
+            "target": "arm64mac",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f",
+            "profile": "llvm-fuzz",
+            "binary_sha256": "474b64228e5dd0b28a6dc2fb12103ee34a53e716ea516450424d5c106b1eadea"
+          }
+        },
+        "x64musl": {
+          "outcome": "passed",
+          "baseline_status": "matched",
+          "metric_version": "roc-fuzz-allocations/1",
+          "attempted": 64,
+          "accepted": 64,
+          "rejected": 0,
+          "provenance": {
+            "source_revision": "c3064980d989cd5c82a95e2c38e39a6ad4809588-dirty",
+            "roc_version": "Roc compiler version nightly-2026-10-28-bad769b",
+            "platform_release": "0.5.0",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f"
+          },
+          "configuration": {
+            "invocation_deadline_ms": 10000,
+            "campaign_deadline_ms": 16000,
+            "leak_detection": true,
+            "detailed_capture": false,
+            "corpus": "/Users/luke/Documents/GitHub/roc-pdf/.roc-pdf-tmp/fuzz-corpus/facade_structure",
+            "exploration_options": [
+              "-timeout=10",
+              "-runs=64",
+              "-max_total_time=1",
+              "-max_len=4096",
+              "-rss_limit_mb=2048",
+              "-seed=1",
+              "-timeout=10"
+            ]
+          },
+          "build": {
+            "source_sha256": "a001a103d496c4299b502feff2f67b67f74b9b0a3457236d81b47d09edcd305f",
+            "compiler": "Roc compiler version nightly-2026-10-28-bad769b",
+            "target": "x64musl",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f",
+            "profile": "llvm-fuzz",
+            "binary_sha256": "9fad610e4309301b8778612aee4514a9dd99dee05711a75437602befbe233284"
+          }
+        }
+      }
+    },
+    {
+      "target": "font_inspector_mutation",
+      "declared_target": "roc-pdf-font-inspector-mutation",
+      "baseline": "fuzz/baselines/font_inspector_mutation.json",
+      "baseline_sha256": "bbaff8a883bc42d47b0946804604068b3a516ee936077770db6dfe3c10073749",
+      "profile": "llvm-fuzz",
+      "examples": [
+        {
+          "name": "valid-source",
+          "revision": "1",
+          "input_sha256": "ee0c414a79c5deaf862e22485ac633b2f3af2ad46457566318da787308cf0bd6",
+          "allocation_events": 34,
+          "requested_bytes": 195168,
+          "complete_observations_equal_on_both_hosts": true
+        },
+        {
+          "name": "empty-source",
+          "revision": "1",
+          "input_sha256": "a4e91a2ce50339525784decce7a96a5de4360647b7c183a98677c5da104e5666",
+          "allocation_events": 0,
+          "requested_bytes": 0,
+          "complete_observations_equal_on_both_hosts": true
+        }
+      ],
+      "verification": {
+        "arm64mac": {
+          "outcome": "passed",
+          "baseline_status": "matched",
+          "metric_version": "roc-fuzz-allocations/1",
+          "attempted": 64,
+          "accepted": 59,
+          "rejected": 5,
+          "provenance": {
+            "source_revision": "c3064980d989cd5c82a95e2c38e39a6ad4809588-dirty",
+            "roc_version": "Roc compiler version nightly-2026-10-28-bad769b",
+            "platform_release": "0.5.0",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f"
+          },
+          "configuration": {
+            "invocation_deadline_ms": 10000,
+            "campaign_deadline_ms": 16000,
+            "leak_detection": true,
+            "detailed_capture": false,
+            "corpus": "/Users/luke/Documents/GitHub/roc-pdf/.roc-pdf-tmp/fuzz-corpus/fonts",
+            "exploration_options": [
+              "-timeout=10",
+              "-runs=64",
+              "-max_total_time=1",
+              "-max_len=524288",
+              "-rss_limit_mb=2048",
+              "-seed=1",
+              "-timeout=10"
+            ]
+          },
+          "build": {
+            "source_sha256": "b9762c93f48a5932b69ad4fa228847e2de14ddff9e7ec84aa3c769039cb2a7fc",
+            "compiler": "Roc compiler version nightly-2026-10-28-bad769b",
+            "target": "arm64mac",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f",
+            "profile": "llvm-fuzz",
+            "binary_sha256": "5eca8d740ddbff2a2135a85a2696b8f161801a1911ee858af4fcd2ad0d3ed480"
+          }
+        },
+        "x64musl": {
+          "outcome": "passed",
+          "baseline_status": "matched",
+          "metric_version": "roc-fuzz-allocations/1",
+          "attempted": 64,
+          "accepted": 59,
+          "rejected": 5,
+          "provenance": {
+            "source_revision": "c3064980d989cd5c82a95e2c38e39a6ad4809588-dirty",
+            "roc_version": "Roc compiler version nightly-2026-10-28-bad769b",
+            "platform_release": "0.5.0",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f"
+          },
+          "configuration": {
+            "invocation_deadline_ms": 10000,
+            "campaign_deadline_ms": 16000,
+            "leak_detection": true,
+            "detailed_capture": false,
+            "corpus": "/Users/luke/Documents/GitHub/roc-pdf/.roc-pdf-tmp/fuzz-corpus/fonts",
+            "exploration_options": [
+              "-timeout=10",
+              "-runs=64",
+              "-max_total_time=1",
+              "-max_len=524288",
+              "-rss_limit_mb=2048",
+              "-seed=1",
+              "-timeout=10"
+            ]
+          },
+          "build": {
+            "source_sha256": "b9762c93f48a5932b69ad4fa228847e2de14ddff9e7ec84aa3c769039cb2a7fc",
+            "compiler": "Roc compiler version nightly-2026-10-28-bad769b",
+            "target": "x64musl",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f",
+            "profile": "llvm-fuzz",
+            "binary_sha256": "169d8ad4941bdbc4f9f022c15d3ea2cd755bbc58e1dcd02cfe133bce22862303"
+          }
+        }
+      }
+    },
+    {
+      "target": "font_inspector_repair",
+      "declared_target": "roc-pdf-font-inspector-repair",
+      "baseline": "fuzz/baselines/font_inspector_repair.json",
+      "baseline_sha256": "b32dbf459d34cee7652a041bd4ab31c6dee5a7363609c6e1d5eebe886b09e29c",
+      "profile": "llvm-fuzz",
+      "examples": [
+        {
+          "name": "checksum-preserving-regular",
+          "revision": "1",
+          "input_sha256": "9ca476b5c997b2cc0c8b8e8f771dc375c31d86efdd37add4843d9e8134aa6bfd",
+          "allocation_events": 35,
+          "requested_bytes": 361476,
+          "complete_observations_equal_on_both_hosts": true
+        },
+        {
+          "name": "mutated-name-table",
+          "revision": "1",
+          "input_sha256": "e03056d61b1a2887fae2aef47606908a2431e729f7f524964083831d77428d66",
+          "allocation_events": 20,
+          "requested_bytes": 11088,
+          "complete_observations_equal_on_both_hosts": true
+        }
+      ],
+      "verification": {
+        "arm64mac": {
+          "outcome": "passed",
+          "baseline_status": "matched",
+          "metric_version": "roc-fuzz-allocations/1",
+          "attempted": 64,
+          "accepted": 64,
+          "rejected": 0,
+          "provenance": {
+            "source_revision": "c3064980d989cd5c82a95e2c38e39a6ad4809588-dirty",
+            "roc_version": "Roc compiler version nightly-2026-10-28-bad769b",
+            "platform_release": "0.5.0",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f"
+          },
+          "configuration": {
+            "invocation_deadline_ms": 10000,
+            "campaign_deadline_ms": 16000,
+            "leak_detection": true,
+            "detailed_capture": false,
+            "corpus": "/Users/luke/Documents/GitHub/roc-pdf/.roc-pdf-tmp/fuzz-corpus/font_inspector_repair",
+            "exploration_options": [
+              "-timeout=10",
+              "-runs=64",
+              "-max_total_time=1",
+              "-max_len=512",
+              "-rss_limit_mb=2048",
+              "-seed=1",
+              "-timeout=10"
+            ]
+          },
+          "build": {
+            "source_sha256": "debddd392ff5d57678b8f00bb31970bdaf4fa7ca26cc6c7ab64f7e1504113cc9",
+            "compiler": "Roc compiler version nightly-2026-10-28-bad769b",
+            "target": "arm64mac",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f",
+            "profile": "llvm-fuzz",
+            "binary_sha256": "c5aa9bd74ac520581f2371d07e47f175c69c812c9d0326c30ab4d1aa6d7a8c14"
+          }
+        },
+        "x64musl": {
+          "outcome": "passed",
+          "baseline_status": "matched",
+          "metric_version": "roc-fuzz-allocations/1",
+          "attempted": 64,
+          "accepted": 64,
+          "rejected": 0,
+          "provenance": {
+            "source_revision": "c3064980d989cd5c82a95e2c38e39a6ad4809588-dirty",
+            "roc_version": "Roc compiler version nightly-2026-10-28-bad769b",
+            "platform_release": "0.5.0",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f"
+          },
+          "configuration": {
+            "invocation_deadline_ms": 10000,
+            "campaign_deadline_ms": 16000,
+            "leak_detection": true,
+            "detailed_capture": false,
+            "corpus": "/Users/luke/Documents/GitHub/roc-pdf/.roc-pdf-tmp/fuzz-corpus/font_inspector_repair",
+            "exploration_options": [
+              "-timeout=10",
+              "-runs=64",
+              "-max_total_time=1",
+              "-max_len=512",
+              "-rss_limit_mb=2048",
+              "-seed=1",
+              "-timeout=10"
+            ]
+          },
+          "build": {
+            "source_sha256": "debddd392ff5d57678b8f00bb31970bdaf4fa7ca26cc6c7ab64f7e1504113cc9",
+            "compiler": "Roc compiler version nightly-2026-10-28-bad769b",
+            "target": "x64musl",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f",
+            "profile": "llvm-fuzz",
+            "binary_sha256": "9ea36be1c63167cbb0d239a11a1a1502ee3e3c2d8b9d8f64e3df52e4210b787e"
+          }
+        }
+      }
+    },
+    {
+      "target": "font_subset_roundtrip",
+      "declared_target": "roc-pdf-font-subset-roundtrip",
+      "baseline": "fuzz/baselines/font_subset_roundtrip.json",
+      "baseline_sha256": "c537324ebd799efc4c469d8074ed09a8fb20ef0cef999cbdddf77c4ec52112b3",
+      "profile": "llvm-fuzz",
+      "examples": [
+        {
+          "name": "regular-glyph-closure",
+          "revision": "1",
+          "input_sha256": "3591fd72d91424cd622f23aa5be231ff926fd7778fb079eea00418d32377b1e2",
+          "allocation_events": 107,
+          "requested_bytes": 292426,
+          "complete_observations_equal_on_both_hosts": true
+        },
+        {
+          "name": "cjk-glyph-closure",
+          "revision": "1",
+          "input_sha256": "706b37cdf44a85ce692530a0c934261e2d38b11d5089f976c712ed812d6d58a7",
+          "allocation_events": 80,
+          "requested_bytes": 8028,
+          "complete_observations_equal_on_both_hosts": true
+        },
+        {
+          "name": "bounded-plan-rejection",
+          "revision": "1",
+          "input_sha256": "a5af838da43968f1d4df94d2cd173d38b75426ba87be0f5fafcf3dd262a0ada4",
+          "allocation_events": 39,
+          "requested_bytes": 219984,
+          "complete_observations_equal_on_both_hosts": true
+        }
+      ],
+      "verification": {
+        "arm64mac": {
+          "outcome": "passed",
+          "baseline_status": "matched",
+          "metric_version": "roc-fuzz-allocations/1",
+          "attempted": 64,
+          "accepted": 64,
+          "rejected": 0,
+          "provenance": {
+            "source_revision": "c3064980d989cd5c82a95e2c38e39a6ad4809588-dirty",
+            "roc_version": "Roc compiler version nightly-2026-10-28-bad769b",
+            "platform_release": "0.5.0",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f"
+          },
+          "configuration": {
+            "invocation_deadline_ms": 10000,
+            "campaign_deadline_ms": 16000,
+            "leak_detection": true,
+            "detailed_capture": false,
+            "corpus": "/Users/luke/Documents/GitHub/roc-pdf/.roc-pdf-tmp/fuzz-corpus/font_subset_roundtrip",
+            "exploration_options": [
+              "-timeout=10",
+              "-runs=64",
+              "-max_total_time=1",
+              "-max_len=2048",
+              "-rss_limit_mb=2048",
+              "-seed=1",
+              "-timeout=10"
+            ]
+          },
+          "build": {
+            "source_sha256": "e354b07a9b9c8627d0be2e75ed011fe03a64b3bf826ec1fb6e00a05269a149f4",
+            "compiler": "Roc compiler version nightly-2026-10-28-bad769b",
+            "target": "arm64mac",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f",
+            "profile": "llvm-fuzz",
+            "binary_sha256": "353b795dcde6f32e0fca209a049af83ff7b4a10a23a7f24752a111bdedc23dd5"
+          }
+        },
+        "x64musl": {
+          "outcome": "passed",
+          "baseline_status": "matched",
+          "metric_version": "roc-fuzz-allocations/1",
+          "attempted": 64,
+          "accepted": 64,
+          "rejected": 0,
+          "provenance": {
+            "source_revision": "c3064980d989cd5c82a95e2c38e39a6ad4809588-dirty",
+            "roc_version": "Roc compiler version nightly-2026-10-28-bad769b",
+            "platform_release": "0.5.0",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f"
+          },
+          "configuration": {
+            "invocation_deadline_ms": 10000,
+            "campaign_deadline_ms": 16000,
+            "leak_detection": true,
+            "detailed_capture": false,
+            "corpus": "/Users/luke/Documents/GitHub/roc-pdf/.roc-pdf-tmp/fuzz-corpus/font_subset_roundtrip",
+            "exploration_options": [
+              "-timeout=10",
+              "-runs=64",
+              "-max_total_time=1",
+              "-max_len=2048",
+              "-rss_limit_mb=2048",
+              "-seed=1",
+              "-timeout=10"
+            ]
+          },
+          "build": {
+            "source_sha256": "e354b07a9b9c8627d0be2e75ed011fe03a64b3bf826ec1fb6e00a05269a149f4",
+            "compiler": "Roc compiler version nightly-2026-10-28-bad769b",
+            "target": "x64musl",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f",
+            "profile": "llvm-fuzz",
+            "binary_sha256": "4060755d645b31279d063a2792e9a1fa9e7ce36796a94efb547f0e2ee2884c9f"
+          }
+        }
+      }
+    },
+    {
+      "target": "jpeg_inspector_mutation",
+      "declared_target": "roc-pdf-jpeg-inspector-mutation",
+      "baseline": "fuzz/baselines/jpeg_inspector_mutation.json",
+      "baseline_sha256": "fb11a38814e9c0b0f8fcbf7a8298ba01ecd6665d23a4845f2e7f373c1e212287",
+      "profile": "llvm-fuzz",
+      "examples": [
+        {
+          "name": "valid-source",
+          "revision": "1",
+          "input_sha256": "6d36bd807333578b80d6f4025dcbf21d405f22bd5b2c4445df6f326727c9917e",
+          "allocation_events": 23,
+          "requested_bytes": 7288,
+          "complete_observations_equal_on_both_hosts": true
+        },
+        {
+          "name": "empty-source",
+          "revision": "1",
+          "input_sha256": "a4e91a2ce50339525784decce7a96a5de4360647b7c183a98677c5da104e5666",
+          "allocation_events": 6,
+          "requested_bytes": 448,
+          "complete_observations_equal_on_both_hosts": true
+        }
+      ],
+      "verification": {
+        "arm64mac": {
+          "outcome": "passed",
+          "baseline_status": "matched",
+          "metric_version": "roc-fuzz-allocations/1",
+          "attempted": 64,
+          "accepted": 60,
+          "rejected": 4,
+          "provenance": {
+            "source_revision": "c3064980d989cd5c82a95e2c38e39a6ad4809588-dirty",
+            "roc_version": "Roc compiler version nightly-2026-10-28-bad769b",
+            "platform_release": "0.5.0",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f"
+          },
+          "configuration": {
+            "invocation_deadline_ms": 10000,
+            "campaign_deadline_ms": 16000,
+            "leak_detection": true,
+            "detailed_capture": false,
+            "corpus": "/Users/luke/Documents/GitHub/roc-pdf/.roc-pdf-tmp/fuzz-corpus/jpeg_inspector_mutation",
+            "exploration_options": [
+              "-timeout=10",
+              "-runs=64",
+              "-max_total_time=1",
+              "-max_len=65536",
+              "-rss_limit_mb=2048",
+              "-seed=1",
+              "-timeout=10"
+            ]
+          },
+          "build": {
+            "source_sha256": "c9cbfc776726bca700e04fb723a9d99fd9d7b5902dea9d886fec0ef4e3ce4d64",
+            "compiler": "Roc compiler version nightly-2026-10-28-bad769b",
+            "target": "arm64mac",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f",
+            "profile": "llvm-fuzz",
+            "binary_sha256": "ebd8de4dfc766cd131b1c6348f8001f56cab28c90bd5e3d99f4df29944a4f33e"
+          }
+        },
+        "x64musl": {
+          "outcome": "passed",
+          "baseline_status": "matched",
+          "metric_version": "roc-fuzz-allocations/1",
+          "attempted": 64,
+          "accepted": 64,
+          "rejected": 0,
+          "provenance": {
+            "source_revision": "c3064980d989cd5c82a95e2c38e39a6ad4809588-dirty",
+            "roc_version": "Roc compiler version nightly-2026-10-28-bad769b",
+            "platform_release": "0.5.0",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f"
+          },
+          "configuration": {
+            "invocation_deadline_ms": 10000,
+            "campaign_deadline_ms": 16000,
+            "leak_detection": true,
+            "detailed_capture": false,
+            "corpus": "/Users/luke/Documents/GitHub/roc-pdf/.roc-pdf-tmp/fuzz-corpus/jpeg_inspector_mutation",
+            "exploration_options": [
+              "-timeout=10",
+              "-runs=64",
+              "-max_total_time=1",
+              "-max_len=65536",
+              "-rss_limit_mb=2048",
+              "-seed=1",
+              "-timeout=10"
+            ]
+          },
+          "build": {
+            "source_sha256": "c9cbfc776726bca700e04fb723a9d99fd9d7b5902dea9d886fec0ef4e3ce4d64",
+            "compiler": "Roc compiler version nightly-2026-10-28-bad769b",
+            "target": "x64musl",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f",
+            "profile": "llvm-fuzz",
+            "binary_sha256": "2f5301c3d77114c534840eed9774a7b7e4c3d046ded31a8678ef945067b77708"
+          }
+        }
+      }
+    },
+    {
+      "target": "navigation_property",
+      "declared_target": "roc-pdf-navigation-property",
+      "baseline": "fuzz/baselines/navigation_property.json",
+      "baseline_sha256": "c2f18538c1efe14558cde119426cbd1aad34cf0edeb877ca874732c2fee3c741",
+      "profile": "llvm-fuzz",
+      "examples": [
+        {
+          "name": "named-destination-and-link",
+          "revision": "1",
+          "input_sha256": "c7215dd082a19d1339505b2509fdbda6f228aa0571b6a63fd7ac27bca6edad6e",
+          "allocation_events": 1477,
+          "requested_bytes": 7697488,
+          "complete_observations_equal_on_both_hosts": true
+        },
+        {
+          "name": "single-unknown-destination",
+          "revision": "1",
+          "input_sha256": "502ebaf506f2e07e8504913f1afd2fe96aef6e4b80ee5bcb77cf746cb91b6b77",
+          "allocation_events": 1733,
+          "requested_bytes": 8641363,
+          "complete_observations_equal_on_both_hosts": true
+        }
+      ],
+      "verification": {
+        "arm64mac": {
+          "outcome": "passed",
+          "baseline_status": "matched",
+          "metric_version": "roc-fuzz-allocations/1",
+          "attempted": 26,
+          "accepted": 26,
+          "rejected": 0,
+          "provenance": {
+            "source_revision": "c3064980d989cd5c82a95e2c38e39a6ad4809588-dirty",
+            "roc_version": "Roc compiler version nightly-2026-10-28-bad769b",
+            "platform_release": "0.5.0",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f"
+          },
+          "configuration": {
+            "invocation_deadline_ms": 10000,
+            "campaign_deadline_ms": 16000,
+            "leak_detection": true,
+            "detailed_capture": false,
+            "corpus": "/Users/luke/Documents/GitHub/roc-pdf/.roc-pdf-tmp/fuzz-corpus/navigation_property",
+            "exploration_options": [
+              "-timeout=10",
+              "-runs=64",
+              "-max_total_time=1",
+              "-max_len=4096",
+              "-rss_limit_mb=2048",
+              "-seed=1",
+              "-timeout=10"
+            ]
+          },
+          "build": {
+            "source_sha256": "955e68352597129f491be66e1aee3ab322e3ba2fbbdcbc02761be004d05d5a6d",
+            "compiler": "Roc compiler version nightly-2026-10-28-bad769b",
+            "target": "arm64mac",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f",
+            "profile": "llvm-fuzz",
+            "binary_sha256": "206280df43597b12afc0914ef748d15ac459a787d07a3ce302a90c6b5b4283e4"
+          }
+        },
+        "x64musl": {
+          "outcome": "passed",
+          "baseline_status": "matched",
+          "metric_version": "roc-fuzz-allocations/1",
+          "attempted": 18,
+          "accepted": 18,
+          "rejected": 0,
+          "provenance": {
+            "source_revision": "c3064980d989cd5c82a95e2c38e39a6ad4809588-dirty",
+            "roc_version": "Roc compiler version nightly-2026-10-28-bad769b",
+            "platform_release": "0.5.0",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f"
+          },
+          "configuration": {
+            "invocation_deadline_ms": 10000,
+            "campaign_deadline_ms": 16000,
+            "leak_detection": true,
+            "detailed_capture": false,
+            "corpus": "/Users/luke/Documents/GitHub/roc-pdf/.roc-pdf-tmp/fuzz-corpus/navigation_property",
+            "exploration_options": [
+              "-timeout=10",
+              "-runs=64",
+              "-max_total_time=1",
+              "-max_len=4096",
+              "-rss_limit_mb=2048",
+              "-seed=1",
+              "-timeout=10"
+            ]
+          },
+          "build": {
+            "source_sha256": "955e68352597129f491be66e1aee3ab322e3ba2fbbdcbc02761be004d05d5a6d",
+            "compiler": "Roc compiler version nightly-2026-10-28-bad769b",
+            "target": "x64musl",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f",
+            "profile": "llvm-fuzz",
+            "binary_sha256": "0b14cd86535630331f3b0e7634ec73b65160825aa1ca991d0b4768cce00aa7f3"
+          }
+        }
+      }
+    },
+    {
+      "target": "registry_property",
+      "declared_target": "roc-pdf-registry-property",
+      "baseline": "fuzz/baselines/registry_property.json",
+      "baseline_sha256": "82a23871774bf3a6f171dfab30cc91fd61c7f62f4ceea8e70a8be30c0108d837",
+      "profile": "llvm-fuzz",
+      "examples": [
+        {
+          "name": "ordered-latin-and-han",
+          "revision": "1",
+          "input_sha256": "172b3a0bd7aec19007051b215f89874f994e0c2744aaf3a0ed37a9ddc0301a9d",
+          "allocation_events": 118,
+          "requested_bytes": 16606,
+          "complete_observations_equal_on_both_hosts": true
+        },
+        {
+          "name": "common-script-regression",
+          "revision": "1",
+          "input_sha256": "cc6fe5e1ee16c44c667e8cfc9565dc55be898ac3421a8347d7b5cdc5d50fd59d",
+          "allocation_events": 67,
+          "requested_bytes": 199199,
+          "complete_observations_equal_on_both_hosts": true
+        }
+      ],
+      "verification": {
+        "arm64mac": {
+          "outcome": "passed",
+          "baseline_status": "matched",
+          "metric_version": "roc-fuzz-allocations/1",
+          "attempted": 64,
+          "accepted": 64,
+          "rejected": 0,
+          "provenance": {
+            "source_revision": "c3064980d989cd5c82a95e2c38e39a6ad4809588-dirty",
+            "roc_version": "Roc compiler version nightly-2026-10-28-bad769b",
+            "platform_release": "0.5.0",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f"
+          },
+          "configuration": {
+            "invocation_deadline_ms": 10000,
+            "campaign_deadline_ms": 16000,
+            "leak_detection": true,
+            "detailed_capture": false,
+            "corpus": "/Users/luke/Documents/GitHub/roc-pdf/.roc-pdf-tmp/fuzz-corpus/registry_property",
+            "exploration_options": [
+              "-timeout=10",
+              "-runs=64",
+              "-max_total_time=1",
+              "-max_len=4096",
+              "-rss_limit_mb=2048",
+              "-seed=1",
+              "-timeout=10"
+            ]
+          },
+          "build": {
+            "source_sha256": "74e30eaa47dba73121696be6189c01ca3db16ce34a85ec2906de97e78cb1680c",
+            "compiler": "Roc compiler version nightly-2026-10-28-bad769b",
+            "target": "arm64mac",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f",
+            "profile": "llvm-fuzz",
+            "binary_sha256": "8b9d76b3f070bc15f19780d35aad3eb69dc7cdf6b38258537e0200c1781e1d9a"
+          }
+        },
+        "x64musl": {
+          "outcome": "passed",
+          "baseline_status": "matched",
+          "metric_version": "roc-fuzz-allocations/1",
+          "attempted": 64,
+          "accepted": 64,
+          "rejected": 0,
+          "provenance": {
+            "source_revision": "c3064980d989cd5c82a95e2c38e39a6ad4809588-dirty",
+            "roc_version": "Roc compiler version nightly-2026-10-28-bad769b",
+            "platform_release": "0.5.0",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f"
+          },
+          "configuration": {
+            "invocation_deadline_ms": 10000,
+            "campaign_deadline_ms": 16000,
+            "leak_detection": true,
+            "detailed_capture": false,
+            "corpus": "/Users/luke/Documents/GitHub/roc-pdf/.roc-pdf-tmp/fuzz-corpus/registry_property",
+            "exploration_options": [
+              "-timeout=10",
+              "-runs=64",
+              "-max_total_time=1",
+              "-max_len=4096",
+              "-rss_limit_mb=2048",
+              "-seed=1",
+              "-timeout=10"
+            ]
+          },
+          "build": {
+            "source_sha256": "74e30eaa47dba73121696be6189c01ca3db16ce34a85ec2906de97e78cb1680c",
+            "compiler": "Roc compiler version nightly-2026-10-28-bad769b",
+            "target": "x64musl",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f",
+            "profile": "llvm-fuzz",
+            "binary_sha256": "d3dfb950d70fa63948d5703bbb0895e097bcd9b116c38d253fa15fff82e69414"
+          }
+        }
+      }
+    },
+    {
+      "target": "theme_options",
+      "declared_target": "roc-pdf-theme-options",
+      "baseline": "fuzz/baselines/theme_options.json",
+      "baseline_sha256": "b126f1db6abbd8630474153bbccd915d2cfb5a6adca70e319a03647c2240aaf6",
+      "profile": "llvm-fuzz",
+      "examples": [
+        {
+          "name": "ordinary-theme",
+          "revision": "1",
+          "input_sha256": "c3505eca728363c96c589b21454e9a98670da3147397836c4cc085f5a0ac975b",
+          "allocation_events": 34,
+          "requested_bytes": 7238,
+          "complete_observations_equal_on_both_hosts": true
+        },
+        {
+          "name": "negative-half-range-margins",
+          "revision": "1",
+          "input_sha256": "9d20897fc57fa1b0f60dff1a5bf7bd70b63679461bdfb45775ab9c39a88d7a3b",
+          "allocation_events": 0,
+          "requested_bytes": 0,
+          "complete_observations_equal_on_both_hosts": true
+        }
+      ],
+      "verification": {
+        "arm64mac": {
+          "outcome": "passed",
+          "baseline_status": "matched",
+          "metric_version": "roc-fuzz-allocations/1",
+          "attempted": 64,
+          "accepted": 59,
+          "rejected": 5,
+          "provenance": {
+            "source_revision": "c3064980d989cd5c82a95e2c38e39a6ad4809588-dirty",
+            "roc_version": "Roc compiler version nightly-2026-10-28-bad769b",
+            "platform_release": "0.5.0",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f"
+          },
+          "configuration": {
+            "invocation_deadline_ms": 10000,
+            "campaign_deadline_ms": 16000,
+            "leak_detection": true,
+            "detailed_capture": false,
+            "corpus": "/Users/luke/Documents/GitHub/roc-pdf/.roc-pdf-tmp/fuzz-corpus/theme_options",
+            "exploration_options": [
+              "-timeout=10",
+              "-runs=64",
+              "-max_total_time=1",
+              "-max_len=4096",
+              "-rss_limit_mb=2048",
+              "-seed=1",
+              "-timeout=10"
+            ]
+          },
+          "build": {
+            "source_sha256": "25c9225982a393a9cda016a80d9cb6f161735520214e6d514ef2ca636a9c0c1f",
+            "compiler": "Roc compiler version nightly-2026-10-28-bad769b",
+            "target": "arm64mac",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f",
+            "profile": "llvm-fuzz",
+            "binary_sha256": "81faa6d57b670a6d41c6e20c3003384865738f3f7bc8b509f9ce00756b6bde40"
+          }
+        },
+        "x64musl": {
+          "outcome": "passed",
+          "baseline_status": "matched",
+          "metric_version": "roc-fuzz-allocations/1",
+          "attempted": 64,
+          "accepted": 64,
+          "rejected": 0,
+          "provenance": {
+            "source_revision": "c3064980d989cd5c82a95e2c38e39a6ad4809588-dirty",
+            "roc_version": "Roc compiler version nightly-2026-10-28-bad769b",
+            "platform_release": "0.5.0",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f"
+          },
+          "configuration": {
+            "invocation_deadline_ms": 10000,
+            "campaign_deadline_ms": 16000,
+            "leak_detection": true,
+            "detailed_capture": false,
+            "corpus": "/Users/luke/Documents/GitHub/roc-pdf/.roc-pdf-tmp/fuzz-corpus/theme_options",
+            "exploration_options": [
+              "-timeout=10",
+              "-runs=64",
+              "-max_total_time=1",
+              "-max_len=4096",
+              "-rss_limit_mb=2048",
+              "-seed=1",
+              "-timeout=10"
+            ]
+          },
+          "build": {
+            "source_sha256": "25c9225982a393a9cda016a80d9cb6f161735520214e6d514ef2ca636a9c0c1f",
+            "compiler": "Roc compiler version nightly-2026-10-28-bad769b",
+            "target": "x64musl",
+            "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f",
+            "profile": "llvm-fuzz",
+            "binary_sha256": "90bd8a65916fd61fd26fe3094e29098c73ef2e9955702c5310d939826081144c"
+          }
+        }
+      }
+    }
+  ],
+  "profiling": {
+    "allocation_count": "roc_alloc+roc_realloc",
+    "native_and_linux_equal_prior_profile": true,
+    "workloads": {
+      "builtin_paragraphs": {
+        "author": 0,
+        "emit": 188,
+        "fonts": 0,
+        "pdf_bytes": 18983,
+        "pdf_fnv": 14651145075952840660,
+        "prepare": 721,
+        "total": 909
+      },
+      "builtin_paragraphs_x10": {
+        "author": 0,
+        "emit": 230,
+        "fonts": 0,
+        "pdf_bytes": 24324,
+        "pdf_fnv": 6264245414101039426,
+        "prepare": 1306,
+        "total": 1536
+      },
+      "deflate_content": {
+        "output": 253,
+        "total": 16
+      },
+      "deflate_content_fastest": {
+        "output": 262,
+        "total": 14
+      },
+      "deflate_content_smallest": {
+        "output": 248,
+        "total": 31
+      },
+      "deflate_icc": {
+        "output": 2560,
+        "total": 16
+      },
+      "register_inter": {
+        "output": 411640,
+        "total": 61
+      },
+      "report": {
+        "author": 0,
+        "emit": 154,
+        "fonts": 61,
+        "pdf_bytes": 15369,
+        "pdf_fnv": 4756097534983892272,
+        "prepare": 1234,
+        "total": 1449
+      },
+      "report_x10": {
+        "author": 0,
+        "emit": 221,
+        "fonts": 61,
+        "pdf_bytes": 26482,
+        "pdf_fnv": 13459498394539310580,
+        "prepare": 2873,
+        "total": 3155
+      },
+      "sha256_content": {
+        "output": 32,
+        "total": 1
+      }
+    },
+    "empty_input_complete_regions": 23,
+    "invalid_selector_outcome": "rejected",
+    "native_build": {
+      "binary_sha256": "b44cc04b6e14ce9167da2d239e4b7b13f9ef6d3c1d36cce2a40e50b6c44e398c",
+      "compiler": "Roc compiler version nightly-2026-10-28-bad769b",
+      "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f",
+      "profile": "dev",
+      "source_sha256": "a463898e0da8d8b8bc82ae96131d52fd7193dddc43b85a3e1b7e35c0d9cd6a25",
+      "target": "arm64mac"
+    },
+    "linux_build": {
+      "binary_sha256": "67f7466f978db59cbe71db9d06d454a125f366653502eb2a63723b647bb80cd2",
+      "compiler": "Roc compiler version nightly-2026-10-28-bad769b",
+      "platform_sha256": "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f",
+      "profile": "dev",
+      "source_sha256": "a463898e0da8d8b8bc82ae96131d52fd7193dddc43b85a3e1b7e35c0d9cd6a25",
+      "target": "x64musl"
+    },
+    "stale_source_rejected": true,
+    "stale_compiler_rejected": true,
+    "modified_binary_rejected": true
+  },
+  "legacy_corpus": {
+    "scope": "75 pre-upgrade structured entropy inputs; no RFZ reserved prefix; old/new show stdout identical",
+    "arbitrary_source_sha256": "f285acbe9b4ac9ef0e7c4d52ef5cdaee7fdbc9d8cd3e3a4bbeedcf6667b21ab2",
+    "results": [
+      {
+        "target": "facade_output_equivalence",
+        "input_sha256": "293e8ee144d23514b28afe052522e477ba5b5df207d3f5081d73a88b44c93475",
+        "shown_sha256": "4c4f9eb7dd8b936e9bdac6a47784c181dbfba3eef1b8f139839cf84718ff6ed3",
+        "input_bytes": 2
+      },
+      {
+        "target": "facade_output_equivalence",
+        "input_sha256": "47dc540c94ceb704a23875c11273e16bb0b8a87aed84de911f2133568115f254",
+        "shown_sha256": "7f2ff1c560a65e74d4bd47b1e2563921e12c6e79d14768e53ed845eadd03b18a",
+        "input_bytes": 2
+      },
+      {
+        "target": "facade_output_equivalence",
+        "input_sha256": "67586e98fad27da0b9968bc039a1ef34c939b9b8e523a8bef89d478608c5ecf6",
+        "shown_sha256": "d3a4400ec56f29420690304a1a9b97a9926c1630f2b992c78f3d0cb99517ab70",
+        "input_bytes": 1
+      },
+      {
+        "target": "facade_output_equivalence",
+        "input_sha256": "08e4180269446a5d35b617c623c20253719671f14484fa07422d7493bb585322",
+        "shown_sha256": "a016696d82ddf6fcecb99ced5d941ad293bdb7b5d9b67c4aa669be27f75603b7",
+        "input_bytes": 2
+      },
+      {
+        "target": "facade_output_equivalence",
+        "input_sha256": "7326660c6c277e3ca0ebca43f4e1d797066027a76bc2e9a0c9e4d66959c3c990",
+        "shown_sha256": "95c91eaba29440580a8f9919221b8c5a0719bc61158e84e8a52b2ada25a30907",
+        "input_bytes": 3
+      },
+      {
+        "target": "facade_output_equivalence",
+        "input_sha256": "0ec340770368c71658c82f8fafd2f2830e26d4a54fd692736a053c116fa89bae",
+        "shown_sha256": "86720219dfa7586fd1609a2ffd749a883ceaa33719048d3ae690ff91b27e408b",
+        "input_bytes": 2
+      },
+      {
+        "target": "facade_output_equivalence",
+        "input_sha256": "c555eab45d08845ae9f10d452a99bfcb06f74a50b988fe7e48dd323789b88ee3",
+        "shown_sha256": "b04f66405b3b92383f1a89f5939d0f4846c7c4e75a68d39f4985016a78458ca8",
+        "input_bytes": 1
+      },
+      {
+        "target": "facade_output_equivalence",
+        "input_sha256": "d2da8f4f11eb0416978cc898f043d6ae8ae8990229927e98042a50ed88e1d54f",
+        "shown_sha256": "812d701a8d8449cda27b8d12818e2e7c481f09368b66db2df453a20b2b1a73f0",
+        "input_bytes": 2
+      },
+      {
+        "target": "facade_output_equivalence",
+        "input_sha256": "a8100ae6aa1940d0b663bb31cd466142ebbdbd5187131b92d93818987832eb89",
+        "shown_sha256": "e35f0670446500fdd59e03244e5ff8816043ac82f2fd7a5ed33413c1a1d80860",
+        "input_bytes": 1
+      },
+      {
+        "target": "facade_output_equivalence",
+        "input_sha256": "9024aff747b0bc718ae5b9713641967e80a0bf1bba6b31c23ea501a27630705a",
+        "shown_sha256": "a639dc0617987474ed3bc71761ff22314dcbd7f2dcecc0c31bd3b8c7cd1903b7",
+        "input_bytes": 2
+      },
+      {
+        "target": "facade_output_equivalence",
+        "input_sha256": "fd9528b920d6d3956e9e16114523e1889c751e8c1e040182116d4c906b43f558",
+        "shown_sha256": "d8de9dc6a2f27b8d66a422c55bfe8b7251449dde14278b52ecfbd462288ac46c",
+        "input_bytes": 1
+      },
+      {
+        "target": "facade_output_equivalence",
+        "input_sha256": "dbc1b4c900ffe48d575b5da5c638040125f65db0fe3e24494b76ea986457d986",
+        "shown_sha256": "09d48089bb21082c477aa63e5ed977ec85028ff5f886d338cf72d837b74e26d2",
+        "input_bytes": 1
+      },
+      {
+        "target": "facade_output_equivalence",
+        "input_sha256": "7d9fb48f16a7cc8d55210f5dd68394f9087e6057ca5a9e36e754906c168dc019",
+        "shown_sha256": "86720219dfa7586fd1609a2ffd749a883ceaa33719048d3ae690ff91b27e408b",
+        "input_bytes": 4
+      },
+      {
+        "target": "facade_output_equivalence",
+        "input_sha256": "50cff72c8e550546d661ec235431888fb2f9f7bada40c17020d47f6ccc117aae",
+        "shown_sha256": "09af5595d337f70151bcc0149c6d8ac75fb70447f51ba81a023f3c532f3867ec",
+        "input_bytes": 2
+      },
+      {
+        "target": "facade_output_equivalence",
+        "input_sha256": "2394bd1e827a5a191a595480ba32c6a2f1342f67fb292d40cd23c3fb8e161322",
+        "shown_sha256": "82b0f78cca54086391e06d685dc483a7cfa1830098879d51093e4a5be7fc3549",
+        "input_bytes": 4
+      },
+      {
+        "target": "facade_structure",
+        "input_sha256": "293e8ee144d23514b28afe052522e477ba5b5df207d3f5081d73a88b44c93475",
+        "shown_sha256": "616253f8718be965c6226d24dc1d534b38d6062bb03c34e3e5e33350d8c79d76",
+        "input_bytes": 2
+      },
+      {
+        "target": "facade_structure",
+        "input_sha256": "a4928af56da11b153f238bd154d7de073a3ea7679414e33d672dafe0eeeee1eb",
+        "shown_sha256": "924788f88e7cceb21fb16f8481af5d799c343c1ca8fc166f5dc9b86eabcfc53f",
+        "input_bytes": 4
+      },
+      {
+        "target": "facade_structure",
+        "input_sha256": "67586e98fad27da0b9968bc039a1ef34c939b9b8e523a8bef89d478608c5ecf6",
+        "shown_sha256": "6e720efc3ca2028485cf9be69695cdb5330dcb220069cc0bc68725bf530699b3",
+        "input_bytes": 1
+      },
+      {
+        "target": "facade_structure",
+        "input_sha256": "08e4180269446a5d35b617c623c20253719671f14484fa07422d7493bb585322",
+        "shown_sha256": "a42fe5fbad2d8433531b60c683ccc37b352d33ce14d6b46c511d6bee405694f4",
+        "input_bytes": 2
+      },
+      {
+        "target": "facade_structure",
+        "input_sha256": "3ec5c0018773cdeaed4fdbd122863afd3609b71996547bbcf21821ae4b96aa85",
+        "shown_sha256": "924788f88e7cceb21fb16f8481af5d799c343c1ca8fc166f5dc9b86eabcfc53f",
+        "input_bytes": 4
+      },
+      {
+        "target": "facade_structure",
+        "input_sha256": "268761b4c87ac24930cf86ef877c79afe9448d79783469ec94b4735195c0ef12",
+        "shown_sha256": "09358e30194d428934897e2371fcf935dfd631a65cd5d5338b422dfcb636898d",
+        "input_bytes": 3
+      },
+      {
+        "target": "facade_structure",
+        "input_sha256": "c555eab45d08845ae9f10d452a99bfcb06f74a50b988fe7e48dd323789b88ee3",
+        "shown_sha256": "2e7e9cffd72cab04fe23e042bdb712795ba4f26a2b529242fbf5efe1f1b5bea0",
+        "input_bytes": 1
+      },
+      {
+        "target": "facade_structure",
+        "input_sha256": "3cd5d70024fab47da4d651d840d3e647282cb2569b02876d1e21019c4ebbbb48",
+        "shown_sha256": "924788f88e7cceb21fb16f8481af5d799c343c1ca8fc166f5dc9b86eabcfc53f",
+        "input_bytes": 2
+      },
+      {
+        "target": "facade_structure",
+        "input_sha256": "a8100ae6aa1940d0b663bb31cd466142ebbdbd5187131b92d93818987832eb89",
+        "shown_sha256": "d0fba6cf76e60b189d2fa7799ab9f4e3b90865c7ca747471ca9d712dd7e5455d",
+        "input_bytes": 1
+      },
+      {
+        "target": "facade_structure",
+        "input_sha256": "153e10d2185e2b1c6687ffe0b7c4e39b3f65be9bab96be1373d96ebf38ec8d97",
+        "shown_sha256": "aac5d778adb5232786e50e5efdb3e13a1b533cb5f3acdb33fbaebe185c764b46",
+        "input_bytes": 2
+      },
+      {
+        "target": "facade_structure",
+        "input_sha256": "9024aff747b0bc718ae5b9713641967e80a0bf1bba6b31c23ea501a27630705a",
+        "shown_sha256": "84bbd6ebed0713e8eb14d9afc6c8928c894e5f29bb8e6587f9fb2be1c6e1d033",
+        "input_bytes": 2
+      },
+      {
+        "target": "facade_structure",
+        "input_sha256": "fe635fa25f9a4a1935afd679cbefeed42745d0cf3fac27abaceefe22bf391cf7",
+        "shown_sha256": "0d69edbed372664e906604152ff2fe6c1094cbf5ccb576b7f8c14f64638db79f",
+        "input_bytes": 4
+      },
+      {
+        "target": "facade_structure",
+        "input_sha256": "fd9528b920d6d3956e9e16114523e1889c751e8c1e040182116d4c906b43f558",
+        "shown_sha256": "f93904436eff0672a10f8e97c8189d7f52567a5a583b51935655ba69b1164f46",
+        "input_bytes": 1
+      },
+      {
+        "target": "facade_structure",
+        "input_sha256": "dbc1b4c900ffe48d575b5da5c638040125f65db0fe3e24494b76ea986457d986",
+        "shown_sha256": "9ba6c30b338cda82c62f4ac58de23926baa0de7e5b1fdc6c1597ffd6e3346e28",
+        "input_bytes": 1
+      },
+      {
+        "target": "facade_structure",
+        "input_sha256": "50cff72c8e550546d661ec235431888fb2f9f7bada40c17020d47f6ccc117aae",
+        "shown_sha256": "0d865fa7de6d7aaa697787911aa413cd5d4ebf4e6a9693c92896334be6a316af",
+        "input_bytes": 2
+      },
+      {
+        "target": "facade_structure",
+        "input_sha256": "2394bd1e827a5a191a595480ba32c6a2f1342f67fb292d40cd23c3fb8e161322",
+        "shown_sha256": "e708b5b4897dfdcc790bf336d991e470aa442b35202ccfb9ef09812e57151a6a",
+        "input_bytes": 4
+      },
+      {
+        "target": "font_inspector_repair",
+        "input_sha256": "cdb4ee2aea69cc6a83331bbe96dc2caa9a299d21329efb0336fc02a82e1839a8",
+        "shown_sha256": "1a3f4eaf258b1b030655f18bc6bdc2d4ca911c17fd37c6ea7901fd80587513b7",
+        "input_bytes": 1
+      },
+      {
+        "target": "font_inspector_repair",
+        "input_sha256": "545c38b0922de19734fbffde62792c37c2aef6a3216cfa472449173165220f7d",
+        "shown_sha256": "b393f75a1294b2551a120d35977520186f1fca4deb476bfe78b5fec06c18c450",
+        "input_bytes": 4
+      },
+      {
+        "target": "font_inspector_repair",
+        "input_sha256": "579dcf4b2884b4d6212e2ab4db770ebd5884415869e907457694ddd221973fdf",
+        "shown_sha256": "7986bc048b3d73018c283bb5a17f92163882c8e126d9e298e367c546fcbbae6c",
+        "input_bytes": 2
+      },
+      {
+        "target": "font_inspector_repair",
+        "input_sha256": "75a11da44c802486bc6f65640aa48a730f0f684c5c07a42ba3cd1735eb3fb070",
+        "shown_sha256": "7438421830c82320c46053d20578bb323cfed2f35f2d2f3791a13fb5d40372c2",
+        "input_bytes": 2
+      },
+      {
+        "target": "font_inspector_repair",
+        "input_sha256": "a8100ae6aa1940d0b663bb31cd466142ebbdbd5187131b92d93818987832eb89",
+        "shown_sha256": "1f76e56191051fe31c59fda024f135670addf8352bb2afb9a1700cedf2a1ec05",
+        "input_bytes": 1
+      },
+      {
+        "target": "font_inspector_repair",
+        "input_sha256": "beead77994cf573341ec17b58bbf7eb34d2711c993c1d976b128b3188dc1829a",
+        "shown_sha256": "4c8059ae86c97f944aec4ee501b48a692086e82e4e236c4c73e54fa8fb988372",
+        "input_bytes": 1
+      },
+      {
+        "target": "font_inspector_repair",
+        "input_sha256": "084fed08b978af4d7d196a7446a86b58009e636b611db16211b65a9aadff29c5",
+        "shown_sha256": "54097f87b73b278c1d55b0b27df6fa3d433cb68f1a6036fd2b329459d58f95c4",
+        "input_bytes": 1
+      },
+      {
+        "target": "font_inspector_repair",
+        "input_sha256": "99be5efb88ca2013bd8e4eb035fd42d5245468fe9afa70d8ba9c1c419a48c4e8",
+        "shown_sha256": "bf9b1278d508fee9d6e7417136543f5d74d26913e6c3d7de9dc40c3f9d6d68bb",
+        "input_bytes": 2
+      },
+      {
+        "target": "font_inspector_repair",
+        "input_sha256": "9024aff747b0bc718ae5b9713641967e80a0bf1bba6b31c23ea501a27630705a",
+        "shown_sha256": "19cd91bd122d770dc4ede87e886e8c41c2a37120ba216b8be89ed4bb92dc8478",
+        "input_bytes": 2
+      },
+      {
+        "target": "font_inspector_repair",
+        "input_sha256": "dbc1b4c900ffe48d575b5da5c638040125f65db0fe3e24494b76ea986457d986",
+        "shown_sha256": "df51ec7276dc14b1c82af9438f4d152d598a68f35abf3a22ed0b1fc0ab44ad19",
+        "input_bytes": 1
+      },
+      {
+        "target": "font_inspector_repair",
+        "input_sha256": "04b8d34e20e604cadb04b9db8f6778c35f45a2d2a3335ea517dafe8c9cd9b06e",
+        "shown_sha256": "fac0609429339f18c0d8b1c96672ab3f8f7a8c1717f047ed264014e145fea2c8",
+        "input_bytes": 1
+      },
+      {
+        "target": "font_inspector_repair",
+        "input_sha256": "fccd3fc3a842462b0780899802ff46b89f06dcfc63dc6f8f1f7ff4a30cb60c56",
+        "shown_sha256": "77b83c64755ad5a0cd35d4e1771a10ba17944f600c5ab1416594d35983b593e9",
+        "input_bytes": 3
+      },
+      {
+        "target": "font_inspector_repair",
+        "input_sha256": "2ed9501947094c9d2a680b28c39b612fa7fa1b19509667f1d24756c5b81fd513",
+        "shown_sha256": "a2ec40f926c908aa6469183fdf727a983e885b661c2900c49402121bdfef2b4e",
+        "input_bytes": 2
+      },
+      {
+        "target": "font_subset_roundtrip",
+        "input_sha256": "9e8e8c37a53bac77a653d590b783b2508e8ed2fed040a278bf4f4703bbd5d82d",
+        "shown_sha256": "52b7ef1b24ac58ae6991326f3632f69d1920ae473b7749df9eec64ad63f683a8",
+        "input_bytes": 1
+      },
+      {
+        "target": "font_subset_roundtrip",
+        "input_sha256": "ed97c114e2eaba1d148339c32ac3b0cd293656837433e5c4d60c9fd451425ea8",
+        "shown_sha256": "ab13b03e2bfd60d34e29c4600dae92abf293d95442f545ac794be14713b2a1cb",
+        "input_bytes": 4
+      },
+      {
+        "target": "font_subset_roundtrip",
+        "input_sha256": "a92601b739f2d178c159cec4385ee6b840356e7dea19f70dfb43ba62cb68da94",
+        "shown_sha256": "233ef784446c4f241d61215170464cbb7b307b805b1a7db227f8032ad50bd0ea",
+        "input_bytes": 2
+      },
+      {
+        "target": "font_subset_roundtrip",
+        "input_sha256": "0b57459772db2f3f6986a135824545af8690c536a865454c3c664767dc2b73f0",
+        "shown_sha256": "45d7f4e8df34a871642f34b3901f3aed0d6e54e203eb883cfe4e4fb551db12e3",
+        "input_bytes": 2
+      },
+      {
+        "target": "font_subset_roundtrip",
+        "input_sha256": "cdb4ee2aea69cc6a83331bbe96dc2caa9a299d21329efb0336fc02a82e1839a8",
+        "shown_sha256": "16835f370aa33ed435f3278436205616121511a1cb9c1c9b6a454e2478f73bc1",
+        "input_bytes": 1
+      },
+      {
+        "target": "font_subset_roundtrip",
+        "input_sha256": "72998900774f767729b765e3fb22fcd7e0005f78c81121b0bd9b57d3a9dd0200",
+        "shown_sha256": "01e699876e7b153cf599478dd7a333a184877ddae8ffff3fa4c4cc58417b2ceb",
+        "input_bytes": 2
+      },
+      {
+        "target": "font_subset_roundtrip",
+        "input_sha256": "beead77994cf573341ec17b58bbf7eb34d2711c993c1d976b128b3188dc1829a",
+        "shown_sha256": "6d1b6502ee53f77867aabdf562c9ea2e3976ac4476eea4eea9206bce6674d21e",
+        "input_bytes": 1
+      },
+      {
+        "target": "font_subset_roundtrip",
+        "input_sha256": "effb0378ba00520084719b61148c9115ebd95092dfb7a3a9d2ccc7214f8c7813",
+        "shown_sha256": "38fcf2e8ff3312fe889c7e10ac3b2c2907c850c6eb24f3a011c01997167ee08c",
+        "input_bytes": 2
+      },
+      {
+        "target": "font_subset_roundtrip",
+        "input_sha256": "9dafa1b42936ece642a8a7680f3a754f1466ca415e6af9944256addf1817a3ad",
+        "shown_sha256": "e5c2ed1bd7a9808326dd61e7d519ae89604bef4155bb4a1170d39e0bb7907541",
+        "input_bytes": 2
+      },
+      {
+        "target": "font_subset_roundtrip",
+        "input_sha256": "dbc1b4c900ffe48d575b5da5c638040125f65db0fe3e24494b76ea986457d986",
+        "shown_sha256": "30b9e9bdfab8bb1e54a10e8246edecd59d62c4d13cd40401dfba48ce3ef7a319",
+        "input_bytes": 1
+      },
+      {
+        "target": "font_subset_roundtrip",
+        "input_sha256": "ad95131bc0b799c0b1af477fb14fcf26a6a9f76079e48bf090acb7e8367bfd0e",
+        "shown_sha256": "32729d51049a4b7720271aad67cfe123fbb8edd1aac7f5fba0f51c90d9cceda8",
+        "input_bytes": 4
+      },
+      {
+        "target": "font_subset_roundtrip",
+        "input_sha256": "f5816477c4248b34d057eaf403d5af03aa1b6e4031b2d13affe34cbb1f406e15",
+        "shown_sha256": "dbd710be25cbe880c32f5a2609b14fede5827e171f4c69d640a7d86ac6fd1463",
+        "input_bytes": 3
+      },
+      {
+        "target": "font_subset_roundtrip",
+        "input_sha256": "0f7f9346726c5611b4faaac41c4097239ffaa976c74870226a1b637dffcfb6ab",
+        "shown_sha256": "a249d81e19a4a31a4666dde054d09b1370a221a40987a2a5a0e3685c3accbc82",
+        "input_bytes": 3
+      },
+      {
+        "target": "navigation_property",
+        "input_sha256": "9d1e0e2d9459d06523ad13e28a4093c2316baafe7aec5b25f30eba2e113599c4",
+        "shown_sha256": "607b7ce3c905ebe7798988972f77e3b52f062aeb479c62771eb0272e0b681189",
+        "input_bytes": 1
+      },
+      {
+        "target": "navigation_property",
+        "input_sha256": "af193a8cdcd0e3fb39e71147e59efa5cad40763d2611f5beff34a274f514362f",
+        "shown_sha256": "d8832eb2e332a2c26241a06ab2d026a81bc5a34d414b2d68a7684496336852d9",
+        "input_bytes": 1
+      },
+      {
+        "target": "navigation_property",
+        "input_sha256": "cdb4ee2aea69cc6a83331bbe96dc2caa9a299d21329efb0336fc02a82e1839a8",
+        "shown_sha256": "77dd7e07b6a9afd68c4bfd65f708b77b1037aa8417183a97522073d89902a22d",
+        "input_bytes": 1
+      },
+      {
+        "target": "navigation_property",
+        "input_sha256": "8a5edab282632443219e051e4ade2d1d5bbc671c781051bf1437897cbdfea0f1",
+        "shown_sha256": "617badcb8cd55d5478a62294241ebae025b851ae4aaf864cf18821896643a775",
+        "input_bytes": 1
+      },
+      {
+        "target": "navigation_property",
+        "input_sha256": "72998900774f767729b765e3fb22fcd7e0005f78c81121b0bd9b57d3a9dd0200",
+        "shown_sha256": "257a9f3320922e2dca5cbb9695c0ae3581d346364110fd6776bf003f716c165d",
+        "input_bytes": 2
+      },
+      {
+        "target": "navigation_property",
+        "input_sha256": "beead77994cf573341ec17b58bbf7eb34d2711c993c1d976b128b3188dc1829a",
+        "shown_sha256": "6681fe420c70497d593d05d3922fabc264ca3d8685f6eb1f601375be50b94b92",
+        "input_bytes": 1
+      },
+      {
+        "target": "navigation_property",
+        "input_sha256": "dbc1b4c900ffe48d575b5da5c638040125f65db0fe3e24494b76ea986457d986",
+        "shown_sha256": "957af59772dfdb92aae88fa71108fca8015d6219d006baf907201d110adc1b85",
+        "input_bytes": 1
+      },
+      {
+        "target": "navigation_property",
+        "input_sha256": "dc0e9c3658a1a3ed1ec94274d8b19925c93e1abb7ddba294923ad9bde30f8cb8",
+        "shown_sha256": "6fa9d49a389bcd81af6118fbad7ee57fd7b6f9f0b4958f8cfc081dd9ab0b25aa",
+        "input_bytes": 1
+      },
+      {
+        "target": "registry_property",
+        "input_sha256": "df03c25899f4f468e532b3ecaffe927efacefbb3703dfae5018828d2a80659f3",
+        "shown_sha256": "ed2d0fb82f1318db080b613642296e04055587718a16e25224cf1d1e0c22f6a0",
+        "input_bytes": 3
+      },
+      {
+        "target": "registry_property",
+        "input_sha256": "c00e7f889cfc9216ec818bf2e1682fc6af0d89939c91776669478caf27c9727c",
+        "shown_sha256": "3cba05cd6b5c3a52f3a834f0aa376b43149986b262b358c7c69123a84dd2ffc1",
+        "input_bytes": 1
+      },
+      {
+        "target": "registry_property",
+        "input_sha256": "aaa8e61e7faf37dd77cc5f907b38146741994b27d5b1978679af68b43f55e7c5",
+        "shown_sha256": "d9f87dbc31c8a661411c475b775711d0340c3dd3ea1d0d12de451ab04892bcbf",
+        "input_bytes": 1
+      },
+      {
+        "target": "registry_property",
+        "input_sha256": "3ebe1b59762a1c8020c1efe3747dd07f0e30617ed60b4e6a5bee16b6ea421dd0",
+        "shown_sha256": "3fedfa2e5c454f3646bd99aebab8d9625968bb2ad7d220245b37cbe90b489683",
+        "input_bytes": 1
+      },
+      {
+        "target": "registry_property",
+        "input_sha256": "605d2681e700bb43ab05350d1fcc1a7a01db3ad074c5c9257dcc61dfaca4d71a",
+        "shown_sha256": "e2a78481cf10b752718009843c050b875753c611f59fcc8051d1d7b6777dbef1",
+        "input_bytes": 4
+      },
+      {
+        "target": "registry_property",
+        "input_sha256": "a904529e1b089420ec3656cc6483691fb43d23dd29a47f2fb7602832df5f2489",
+        "shown_sha256": "7325d623f9ad6925fdc735fe9ecf8b6beaf01bf73bc9bf0795f1bda453315db1",
+        "input_bytes": 2
+      },
+      {
+        "target": "registry_property",
+        "input_sha256": "168e53d0516602e980b076d7aab3f27e5280b6ca1e285a2fa29f2b7001684033",
+        "shown_sha256": "811adf0a5adf7b242aec38c69da6559b32fb478fa61dfecb9e4f6a4f3047e5f7",
+        "input_bytes": 4
+      },
+      {
+        "target": "theme_options",
+        "input_sha256": "08b5ee24954accc4e19536451cfcbb3aade791c400207c195916305436e30cb0",
+        "shown_sha256": "491d760dee392b9c837e0570a539d149e8325d2b269b9159cf3a8f680d30e4b1",
+        "input_bytes": 3
+      },
+      {
+        "target": "theme_options",
+        "input_sha256": "75a11da44c802486bc6f65640aa48a730f0f684c5c07a42ba3cd1735eb3fb070",
+        "shown_sha256": "5d4b0f9a8515bf8adaaaf0f8c3448ee1ea327d4bd2d612fbba06101fe8460813",
+        "input_bytes": 2
+      },
+      {
+        "target": "theme_options",
+        "input_sha256": "137c318f4cc3d3a1dba5cbc8cab57c1e2ba6caba0f22493568a738323b8e2233",
+        "shown_sha256": "0b7cb457c87f04dc781c30ef76a6f699e706eda196594a5f48d1024fb835d982",
+        "input_bytes": 4
+      }
+    ]
+  }
+}

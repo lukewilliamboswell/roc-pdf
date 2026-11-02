@@ -310,10 +310,10 @@ list_set = |items, index, value| match items.set(index, value) {
 }
 
 empty_range : Semantics.IndexRange
-empty_range = Semantics.IndexRange.from_start_and_length(0, 0)
+empty_range = Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 })
 
 full_range : Semantics.TextRange
-full_range = { scalars: Semantics.IndexRange.from_start_and_length(0, 2), utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 3) }
+full_range = { scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }), utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 3 }) }
 
 test_store : Semantics.Store
 test_store = {
@@ -329,12 +329,12 @@ test_store = {
 	mathml_subtrees: [],
 	namespaces: [{ id: Semantics.NamespaceId.from_index(0), kind: Pdf20, uri: "http://iso.org/pdf2/ssn" }],
 	nodes: [
-		{ attributes: empty_range, content: Semantics.IndexRange.from_start_and_length(0, 1), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(0), language: Inherited, parent: DocumentRoot, role: { local_name: "Document", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(0), text_properties: empty_range },
-		{ attributes: empty_range, content: Semantics.IndexRange.from_start_and_length(1, 1), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(1), language: Inherited, parent: ParentNode(Semantics.NodeId.from_index(0)), role: { local_name: "P", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(1), text_properties: empty_range },
+		{ attributes: empty_range, content: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(0), language: Inherited, parent: DocumentRoot, role: { local_name: "Document", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(0), text_properties: empty_range },
+		{ attributes: empty_range, content: Semantics.IndexRange.from_start_and_length({ start: 1, length: 1 }), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(1), language: Inherited, parent: ParentNode(Semantics.NodeId.from_index(0)), role: { local_name: "P", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(1), text_properties: empty_range },
 	],
 	non_text_sources: [],
 	occurrence_fragments: [],
-	occurrences: [{ fragments: empty_range, id: Semantics.OccurrenceId.from_index(0), language: Inherited, source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange(full_range)), text_properties: Semantics.IndexRange.from_start_and_length(0, 1) }],
+	occurrences: [{ fragments: empty_range, id: Semantics.OccurrenceId.from_index(0), language: Inherited, source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange(full_range)), text_properties: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }) }],
 	relationships: [],
 	role_mappings: [],
 	text_properties: [ActualText("é")],
@@ -364,7 +364,7 @@ expect match KernelSemantics.Plan.build(test_store, 1, 1, semantic_limits) {
 # Scalar and UTF-8 occurrence coordinates must name the same boundaries.
 expect {
 	occurrence = list_at(test_store.occurrences, 0)
-	bad_range = { ..full_range, utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 2) }
+	bad_range = { ..full_range, utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }) }
 	bad = { ..test_store, occurrences: [{ ..occurrence, source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange(bad_range)) }] }
 	match KernelTextSemantics.Plan.build(bad, 1, 1, semantic_limits, text_limits) {
 		Err(Semantic(UnsupportedTextOccurrence({ occurrence: 0 }))) => True
@@ -375,7 +375,7 @@ expect {
 # Fragment text coordinates are validated against their occurrence and source.
 expect {
 	fragment = list_at(test_store.fragments, 0)
-	bad_range = { scalars: Semantics.IndexRange.from_start_and_length(0, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 1) }
+	bad_range = { scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }) }
 	bad = { ..test_store, fragments: [{ ..fragment, source_range: UnicodeRange(bad_range) }] }
 	match KernelTextSemantics.Plan.build(bad, 1, 1, semantic_limits, text_limits) {
 		Err(Semantic(FragmentRangeOutsideOccurrence({ fragment: 0 }))) => True
@@ -386,7 +386,7 @@ expect {
 # Text-property ownership stays unique across nodes and occurrences.
 expect {
 	node = list_at(test_store.nodes, 0)
-	bad = { ..test_store, nodes: list_set(test_store.nodes, 0, { ..node, text_properties: Semantics.IndexRange.from_start_and_length(0, 1) }) }
+	bad = { ..test_store, nodes: list_set(test_store.nodes, 0, { ..node, text_properties: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }) }) }
 	match KernelTextSemantics.Plan.build(bad, 1, 1, semantic_limits, text_limits) {
 		Err(DuplicateTextPropertyOwnership({ property: 0 })) => True
 		_ => False
@@ -406,7 +406,7 @@ expect {
 # per-owner marking result.
 expect {
 	node = list_at(test_store.nodes, 0)
-	bad = { ..test_store, nodes: list_set(test_store.nodes, 0, { ..node, text_properties: Semantics.IndexRange.from_start_and_length(2, 0) }) }
+	bad = { ..test_store, nodes: list_set(test_store.nodes, 0, { ..node, text_properties: Semantics.IndexRange.from_start_and_length({ start: 2, length: 0 }) }) }
 	match KernelTextSemantics.Plan.build(bad, 1, 1, semantic_limits, text_limits) {
 		Err(TextPropertySpanOutOfRange({ available: 1, length: 0, owner: 0, start: 2 })) => True
 		_ => False

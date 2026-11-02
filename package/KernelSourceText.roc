@@ -73,8 +73,8 @@ prepare_source = |text, tabs, limits, foregrounds| {
 			check_limit($lines.len() + 2, limits.max_lines, Lines)?
 			check_limit($bytes.len() + 1, limits.max_output_bytes, OutputBytes)?
 			line = {
-				scalars: Semantics.IndexRange.from_start_and_length($line_scalar, $scalars - $line_scalar),
-				utf8_bytes: Semantics.IndexRange.from_start_and_length($line_byte, $bytes.len() - $line_byte),
+				scalars: Semantics.IndexRange.from_start_and_length({ start: $line_scalar, length: $scalars - $line_scalar }),
+				utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: $line_byte, length: $bytes.len() - $line_byte }),
 			}
 			$lines = $lines.append(line)
 			$bytes = $bytes.append(10)
@@ -115,8 +115,8 @@ prepare_source = |text, tabs, limits, foregrounds| {
 		}
 	}
 	$lines = $lines.append({
-		scalars: Semantics.IndexRange.from_start_and_length($line_scalar, $scalars - $line_scalar),
-		utf8_bytes: Semantics.IndexRange.from_start_and_length($line_byte, $bytes.len() - $line_byte),
+		scalars: Semantics.IndexRange.from_start_and_length({ start: $line_scalar, length: $scalars - $line_scalar }),
+		utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: $line_byte, length: $bytes.len() - $line_byte }),
 	})
 	output_bytes = $bytes.len()
 	canonical = match Str.from_utf8($bytes) {

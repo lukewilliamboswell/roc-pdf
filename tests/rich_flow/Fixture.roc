@@ -28,6 +28,7 @@ import pdf.Document
 import pdf.Font
 import pdf.KernelBuiltInFont
 import pdf.KernelFacadePipeline
+import pdf.KernelFacadeFonts
 import pdf.KernelPdfFont
 import pdf.Layout
 import pdf.Pdf
@@ -61,7 +62,7 @@ scoped_table_evidence = |count, mode| {
 	if count == 0 or count > 20 or mode > 5 {
 		return Err(InvalidCase)
 	}
-	registered = Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, Font.ValidationLimits.default) ? |_| FontFailure
+	registered = Font.Registry.empty.register({ bytes: KernelBuiltInFont.bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
 	region = |height, label| Pdf.region({ height, start: [Pdf.furniture_text([Pdf.text(label)])] })
 	var $contents = List.with_capacity(count + 1)
 	var $index = 0
@@ -90,9 +91,9 @@ scoped_table_evidence = |count, mode| {
 		$contents = $contents.append(Pdf.page_scope({ page_templates: Templates({ opening, continuation }) }, [Pdf.table({ caption: Pdf.no_caption, columns: [{ width: Fixed(100), align: Start }, { width: Share(1), align: Start }], header_rows: [Pdf.row(header)], body_rows: $rows })]))
 		$index = $index + 1
 	}
-	$contents = $contents.append(Pdf.destination_heading("end", 1, "End target"))
+	$contents = $contents.append(Pdf.destination_heading({ name: "end", level: 1, text: "End target" }))
 	theme : Theme
-	theme = { face: registered.face, body: { size: 10, leading: 14 }, table: { header_color: Themed(Theme.black), row_header_color: Themed(Theme.black), row_gap: 6, header_fill: if (mode == 0 or mode == 5) Fill("#cbd9e4") else NoFill, body_fills: { odd: if (mode == 0 or mode == 5) Fill("#eef2f5") else NoFill, even: if (mode == 0 or mode == 5) Fill("#e1e8ef") else NoFill }, column_rule: if (mode == 0 or mode == 2 or mode == 4 or mode == 5) Rule({ color: Theme.black, width: 0.5 }) else NoRule, frame: if (mode == 0 or mode == 5) Rule({ color: Theme.black, width: 0.5 }) else NoRule, rule: if (mode == 3) Rule({ color: Theme.black, width: 0.5 }) else NoRule, body_rule: if (mode == 3) Rule({ color: Theme.black, width: 0.5 }) else NoRule } }
+	theme = { face: registered.face, headings: { all: { face: Face(registered.face) } }, body: { size: 10, leading: 14 }, table: { header_color: Themed(Theme.black), row_header_color: Themed(Theme.black), row_gap: 6, header_fill: if (mode == 0 or mode == 5) Fill("#cbd9e4") else NoFill, body_fills: { odd: if (mode == 0 or mode == 5) Fill("#eef2f5") else NoFill, even: if (mode == 0 or mode == 5) Fill("#e1e8ef") else NoFill }, column_rule: if (mode == 0 or mode == 2 or mode == 4 or mode == 5) Rule({ color: Theme.black, width: 0.5 }) else NoRule, frame: if (mode == 0 or mode == 5) Rule({ color: Theme.black, width: 0.5 }) else NoRule, rule: if (mode == 3) Rule({ color: Theme.black, width: 0.5 }) else NoRule, body_rule: if (mode == 3) Rule({ color: Theme.black, width: 0.5 }) else NoRule } }
 	prepared_evidence_styled(Pdf.document({ title: "Scoped table paint footprints", language: "en", contents: $contents }), { face: registered.face, registry: registered.registry }, count, theme)
 }
 
@@ -101,7 +102,7 @@ ownership_evidence = |count, shared| {
 	if count == 0 or count > 100 {
 		return Err(InvalidCase)
 	}
-	registered = Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, Font.ValidationLimits.default) ? |_| FontFailure
+	registered = Font.Registry.empty.register({ bytes: KernelBuiltInFont.bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
 	make = |number| Pdf.callout({ name: "Reusable note ${number.to_str()}", contents: [Pdf.rich_paragraph([Pdf.strong([Pdf.text("Reusable. ")]), Pdf.text("Shared authoring must preserve independent semantic occurrences.")])] })
 	retained = make(0)
 	var $contents = List.with_capacity(count)
@@ -123,7 +124,7 @@ zero_padding_evidence = |context| {
 	if context != 0 {
 		return Err(InvalidCase)
 	}
-	registered = Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, Font.ValidationLimits.default) ? |_| FontFailure
+	registered = Font.Registry.empty.register({ bytes: KernelBuiltInFont.bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
 	var $rows = List.with_capacity(80)
 	var $row = (0).to_u64()
 	while $row < 80 {
@@ -139,9 +140,9 @@ negative_evidence = |context| {
 	if context != 0 {
 		return Err(InvalidCase)
 	}
-	registered = Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, Font.ValidationLimits.default) ? |_| FontFailure
+	registered = Font.Registry.empty.register({ bytes: KernelBuiltInFont.bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
 	options : Pdf.Options
-	options = { fonts: Registered(registered.registry) }
+	options = { theme: { headings: { all: { face: Face(registered.face) } } }, fonts: Registered(registered.registry) }
 	make = |block| Pdf.document({ title: "Rich flow diagnostic contracts", language: "en", contents: [block] })
 	valid = [Pdf.paragraph("A valid note.")]
 	var $deep = Pdf.paragraph("Too deep")
@@ -159,7 +160,7 @@ negative_evidence = |context| {
 	report_document = make(Pdf.callout({ name: "Budgeted note", contents: valid }))
 	report = (Pdf.prepare_with_report(report_document, options) ? PdfFailure).report
 	entries = report.facts.pages.len() + report.facts.blocks.len() + report.facts.alternatives.len() + report.facts.outcomes.len() + report.facts.coverage.len() + report.obligations.len()
-	report_budget_rejected = match Pdf.prepare_with_report_budget(report_document, options, { max_entries: entries - 1 }) {
+	report_budget_rejected = match Pdf.prepare_with_report_budget(report_document, { options: options, budget: { max_entries: entries - 1 } }) {
 		Err(InvalidDocument(batch)) => batch.diagnostics.any(|diagnostic| diagnostic.feature == Feature("report.budget_exceeded"))
 		_ => False
 	}
@@ -180,8 +181,8 @@ negative_evidence = |context| {
 		rejected(Pdf.to_bytes_with(make(Pdf.callout({ name: "Spacer", contents: [Pdf.paragraph("Before"), Pdf.spacer(3)] })), options), "semantics.callout_content"),
 		rejected(Pdf.to_bytes_with(make(Pdf.callout({ name: "Page break", contents: [Pdf.paragraph("Before"), Pdf.page_break, Pdf.paragraph("After")] })), options), "semantics.callout_content"),
 		rejected(Pdf.to_bytes_with(make(Pdf.callout({ name: "Whole", contents: [Pdf.paragraph(Str.repeat("Required unsplittable content. ", 400))], fragmentation: Unsplittable })), options), "layout.keep_conflict"),
-		rejected(Pdf.to_bytes_with(make(Pdf.callout({ name: "Source", contents: [Pdf.source_block({ face: registered.face, text: Str.repeat("exact\n", 100), fragmentation: Unsplittable })] })), options), "source.oversize"),
-		rejected(Pdf.to_bytes_with(make(Pdf.callout({ name: "Figure", contents: [Pdf.figure({ drawing: Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 450, 20), Theme.black), alt: "Too wide inside the padding", caption: Pdf.no_caption })] })), options), "document.figure_oversize"),
+		rejected(Pdf.to_bytes_with(make(Pdf.callout({ name: "Source", contents: [Pdf.source_block({ face: Face(registered.face), text: Str.repeat("exact\n", 100), fragmentation: Unsplittable })] })), options), "source.oversize"),
+		rejected(Pdf.to_bytes_with(make(Pdf.callout({ name: "Figure", contents: [Pdf.figure({ drawing: Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 450, height: 20 }), color: Theme.black }), alt: "Too wide inside the padding", caption: Pdf.no_caption })] })), options), "document.figure_oversize"),
 		rejected(Pdf.to_bytes_with(make($deep), options), "semantics.container_depth"),
 		rejected(Pdf.to_bytes_with(make($list), options), "semantics.list_depth"),
 		rejected(Pdf.to_bytes_with(make(Pdf.callout({ name: "No fresh-page unit", contents: valid, padding: 80 })), { ..options, page_size: Custom({ width: 595, height: 200 }) }), "layout.oversize_block"),
@@ -215,7 +216,7 @@ callout_evidence = |count| {
 	if count == 0 or count > 100 {
 		return Err(InvalidCase)
 	}
-	registered = Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, Font.ValidationLimits.default) ? |_| FontFailure
+	registered = Font.Registry.empty.register({ bytes: KernelBuiltInFont.bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
 	var $contents = List.with_capacity(count)
 	var $index = 0
 	while $index < count {
@@ -241,8 +242,8 @@ callout_evidence = |count| {
 									padding: 8,
 									contents: [
 										Pdf.paragraph("Inner paragraph before the exact source."),
-										Pdf.source_block({ face: registered.face, text: Str.repeat("  exact = source  \n\n", 25), padding: 6 }),
-										Pdf.figure({ drawing: Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 120, 35), Theme.black), alt: "A bounded procedure diagram", caption: Pdf.caption("Inner diagram") }),
+										Pdf.source_block({ face: Face(registered.face), text: Str.repeat("  exact = source  \n\n", 25), padding: 6 }),
+										Pdf.figure({ drawing: Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 120, height: 35 }), color: Theme.black }), alt: "A bounded procedure diagram", caption: Pdf.caption("Inner diagram") }),
 										Pdf.table({ caption: Pdf.caption("Inner tasks"), columns: [{ width: Fixed(60), align: Start }, { width: Share(1), align: Start }], header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Task")]), Pdf.header_cell(Column, [Pdf.text("Detail")])])], body_rows: $rows, row_split: SplitRows }),
 										Pdf.paragraph("Inner paragraph after the continued table."),
 									],
@@ -266,7 +267,7 @@ paragraph_evidence = |count| {
 	if count == 0 or count > 500 {
 		return Err(InvalidCase)
 	}
-	registered = Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, Font.ValidationLimits.default) ? |_| FontFailure
+	registered = Font.Registry.empty.register({ bytes: KernelBuiltInFont.bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
 	var $contents = List.with_capacity(count)
 	var $index = 0
 	while $index < count {
@@ -286,7 +287,9 @@ probe_facts = |document| {
 prepared_evidence : Document, { registry : Font.Registry, face : Font.FaceId }, U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Error)
 prepared_evidence = |document, registered, count| {
 	theme : Theme
-	theme = { face: registered.face, table: { header_color: Themed(Theme.black), row_header_color: Themed(Theme.black) } }
+	# Strong children use genuine Inter Bold beside the retained regular
+	# fixture body. This is an explicit mixed-family authoring choice.
+	theme = { face: registered.face, inline: { strong: { font: Family(BuiltIn(Sans)) } }, table: { header_color: Themed(Theme.black), row_header_color: Themed(Theme.black) } }
 	prepared_evidence_styled(document, registered, count, theme)
 }
 
@@ -294,9 +297,8 @@ prepared_evidence_styled : Document, { registry : Font.Registry, face : Font.Fac
 prepared_evidence_styled = |document, registered, count, theme| {
 	{ prepared, report } = Pdf.prepare_with_report(document, { theme, fonts: Registered(registered.registry) }) ? PdfFailure
 	bytes = Pdf.to_bytes_prepared(prepared) ? PdfFailure
-	font = registered.registry.prepared_face(registered.face) ? |_| FontFailure
-	styled = { faces: [registered.face], fonts: [font], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
-	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(document), styled, theme, page_size, descriptor, probe_facts(document)?, pipeline_limits) ? |_| PipelineFailure
+	resolved = KernelFacadeFonts.resolve(Document.normalize(document), { origin: Caller, registry: registered.registry, theme }) ? |_| FontFailure
+	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(resolved.authoring, resolved.fonts, resolved.theme, page_size, descriptor, probe_facts(document)?, pipeline_limits) ? |_| PipelineFailure
 	flow = KernelFacadePipeline.Plan.work(pipeline)
 	var $panels = 0
 	for outcome in report.facts.outcomes {
@@ -315,7 +317,7 @@ list_evidence = |count| {
 	if count == 0 or count > 100 {
 		return Err(InvalidCase)
 	}
-	registered = Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, Font.ValidationLimits.default) ? |_| FontFailure
+	registered = Font.Registry.empty.register({ bytes: KernelBuiltInFont.bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
 	var $items = List.with_capacity(count)
 	var $index = 0
 	while $index < count {
@@ -328,11 +330,11 @@ list_evidence = |count| {
 		$items = $items.append(
 			Pdf.list_item([
 				Pdf.paragraph("Instruction ${($index + 1).to_str()}: prepare the workflow."),
-				Pdf.source_block({ face: registered.face, text: Str.repeat("  keep = exact_source  \n\n", 15), padding: 8, foregrounds: [{ start: 2, end: 6, color: "#8000c0" }] }),
+				Pdf.source_block({ face: Face(registered.face), text: Str.repeat("  keep = exact_source  \n\n", 15), padding: 8, foregrounds: [{ start: 2, end: 6, color: "#8000c0" }] }),
 				Pdf.paragraph("The source and diagram belong to this instruction."),
-				Pdf.figure({ drawing: Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 110, 30), Theme.black), alt: "A rectangular workflow stage", caption: Pdf.caption("Workflow stage") }),
+				Pdf.figure({ drawing: Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 110, height: 30 }), color: Theme.black }), alt: "A rectangular workflow stage", caption: Pdf.caption("Workflow stage") }),
 				Pdf.table({ caption: Pdf.caption("Instruction parts"), columns: [{ width: Fixed(65), align: Start }, { width: Share(1), align: Start }], header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Part")]), Pdf.header_cell(Column, [Pdf.text("Instruction detail")])])], body_rows: $rows }),
-				Pdf.bullet_list([Pdf.list_item([Pdf.paragraph("Check the nested result."), Pdf.source_block({ face: registered.face, text: "nested = preserved" })])]),
+				Pdf.bullet_list([Pdf.list_item([Pdf.paragraph("Check the nested result."), Pdf.source_block({ face: Face(registered.face), text: "nested = preserved" })])]),
 				Pdf.paragraph("Complete this instruction before the next generated label."),
 			]),
 		)
@@ -344,7 +346,7 @@ list_evidence = |count| {
 	{ prepared, report } = Pdf.prepare_with_report(document, { theme, fonts: Registered(registered.registry) }) ? PdfFailure
 	bytes = Pdf.to_bytes_prepared(prepared) ? PdfFailure
 	font = registered.registry.prepared_face(registered.face) ? |_| FontFailure
-	styled = { faces: [registered.face], fonts: [font], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
+	styled = { faces: [registered.face], fonts: [font], inline_faces: [], face_indexes: [], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
 	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(document), styled, theme, page_size, descriptor, probe_facts(document)?, pipeline_limits) ? |_| PipelineFailure
 	flow = KernelFacadePipeline.Plan.work(pipeline)
 	Ok({ bytes, work: [count, flow.shaped_runs, flow.lines, flow.pages, flow.final_runs, flow.fragments, flow.scene_commands, flow.objects, flow.shape_metric_reads, flow.line_candidate_visits, flow.page_candidate_visits, report.facts.outcomes.len(), flow.callout_contexts, flow.callout_ancestors, flow.callout_updates, flow.callout_fragments, bytes.len()] })

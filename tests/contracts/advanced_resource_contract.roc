@@ -25,11 +25,7 @@ expect {
 # A registered caller face is selected by Theme and reaches the one-import
 # facade without exposing a resource ID or any PDF object detail.
 expect {
-	registered = Font.Registry.empty.register(
-		caller_font_bytes,
-		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
-		Font.ValidationLimits.default,
-	)?
+	registered = Font.Registry.empty.register({ bytes: caller_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default })?
 	theme = Theme.{ face: registered.face }
 	options = Pdf.Options.{ theme: theme, fonts: Registered(registered.registry) }
 	document = Pdf.document({
@@ -63,11 +59,7 @@ expect {
 # handles, attached to options, and selected through Theme without a font name
 # or caller-assigned resource ID.
 expect {
-	registered = Font.Registry.empty.register(
-		caller_font_bytes,
-		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
-		Font.ValidationLimits.default,
-	)?
+	registered = Font.Registry.empty.register({ bytes: caller_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default })?
 	store = registered.registry.store()
 	theme = Theme.{ face: registered.face }
 	registered.face.index() == 0 and
@@ -96,7 +88,7 @@ expect {
 		bytes: [0, 0, 0, 12],
 		components: Three,
 		id: Color.ProfileId.from_index(0),
-		tags: Semantics.IndexRange.from_start_and_length(0, 1),
+		tags: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 		version: IccV4,
 	}
 

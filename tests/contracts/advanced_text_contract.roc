@@ -12,8 +12,8 @@ import pdf.Text
 
 source_range : Semantics.TextRange
 source_range = {
-	scalars: Semantics.IndexRange.from_start_and_length(0, 2),
-	utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 3),
+	scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }),
+	utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 3 }),
 }
 
 # Font planning assigns complete grapheme clusters to exact static instances.
@@ -22,7 +22,7 @@ expect {
 	plan = Complete({
 		face_ranges: [
 			{
-				clusters: Semantics.IndexRange.from_start_and_length(0, 1),
+				clusters: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 				instance: Font.InstanceId.from_index(2),
 			},
 		],
@@ -43,7 +43,7 @@ expect {
 expect {
 	cluster : Text.Cluster
 	cluster = {
-		glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
+		glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 		kind: ManyToOne,
 		source: source_range,
 	}
@@ -56,17 +56,17 @@ expect {
 	run : Text.Run
 	run = {
 		actual_text: FromOccurrence,
-		clusters: Semantics.IndexRange.from_start_and_length(0, 1),
+		clusters: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 		direction: LeftToRight,
-		glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
+		glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 		id: Text.RunId.from_index(0),
 		instance: Font.InstanceId.from_index(2),
 		language: Language("en-AU"),
 		script: Font.Script.from_iso15924("Latn"),
 		size: Layout.Unit.from_raw(11000),
 		source: source_range,
-		substitutions: Semantics.IndexRange.from_start_and_length(0, 0),
-		transformations: Semantics.IndexRange.from_start_and_length(0, 0),
+		substitutions: Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 }),
+		transformations: Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 }),
 		unicode: OccurrenceText(Semantics.OccurrenceId.from_index(4)),
 		writing_mode: Horizontal,
 	}

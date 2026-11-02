@@ -174,8 +174,8 @@ project_range = |range| {
 	scalars = TextRange.scalar_range(range)
 	bytes = TextRange.byte_range(range)
 	{
-		scalars: Semantics.IndexRange.from_start_and_length(ScalarRange.start(scalars), ScalarRange.len(scalars)),
-		utf8_bytes: Semantics.IndexRange.from_start_and_length(ByteRange.start(bytes), ByteRange.len(bytes)),
+		scalars: Semantics.IndexRange.from_start_and_length({ start: ScalarRange.start(scalars), length: ScalarRange.len(scalars) }),
+		utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: ByteRange.start(bytes), length: ByteRange.len(bytes) }),
 	}
 }
 

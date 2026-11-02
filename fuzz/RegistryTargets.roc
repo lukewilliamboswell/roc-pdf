@@ -99,7 +99,7 @@ register_all = |specs| {
 		if $index == 0 and !empty_store(before) {
 			return Err(Violation)
 		}
-		match $registry.register(bytes, registration, Font.ValidationLimits.make(limits)) {
+		match $registry.register({ bytes: bytes, registration: registration, limits: Font.ValidationLimits.make(limits) }) {
 			Err(error) => {
 				# A rejection leaves the caller holding the registry it already
 				# had, so the loop simply continues with it. What the property
@@ -725,11 +725,7 @@ registers_after_policy = |configured| {
 	if configured.policies <= configured.faces.len() {
 		return True
 	}
-	match configured.registry.register(
-		cjk_font,
-		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] },
-		Font.ValidationLimits.default,
-	) {
+	match configured.registry.register({ bytes: cjk_font, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] }, limits: Font.ValidationLimits.default }) {
 		Err(_) => False
 		Ok(added) => {
 			if added.face.index() != configured.faces.len() or added.policy.index() != configured.policies {
@@ -1020,8 +1016,8 @@ clusters_for = |specs| {
 			scalars: $scalars,
 			script: script_for(spec.script),
 			source: {
-				scalars: Semantics.IndexRange.from_start_and_length($index, spec.scalars.len()),
-				utf8_bytes: Semantics.IndexRange.from_start_and_length($index * 4, spec.scalars.len() * 4),
+				scalars: Semantics.IndexRange.from_start_and_length({ start: $index, length: spec.scalars.len() }),
+				utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: $index * 4, length: spec.scalars.len() * 4 }),
 			},
 		})
 		$index = $index + 1

@@ -35,7 +35,7 @@ jobs:
           persist-credentials: false
 
       - name: Install Blueprint
-        uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@a25b5129340b9b2ad1744d20330b8ee4d38a1849
+        uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@8acff758d5d73210f1731bed75adb9322f5e773d
 
       - name: Read pinned Roc nightly
         run: printf 'ROC_NIGHTLY_TAG=%s\n' "$(sed -n '1p' .roc-version)" >> "$GITHUB_ENV"
@@ -62,11 +62,11 @@ jobs:
         env:
           RUNS: ${{ inputs.runs || '2000' }}
 
-      - name: Upload reproducers
-        if: failure()
+      - name: Preserve supervised fuzz evidence
+        if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: fuzz-reproducers
+          name: fuzz-evidence
           path: .roc-pdf-tmp/fuzz-artifacts/
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14

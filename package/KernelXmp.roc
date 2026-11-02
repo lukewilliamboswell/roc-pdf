@@ -285,11 +285,7 @@ expect {
 	packet = KernelXmp.Packet.build(sample_facts, 4096)?
 	expected = Str.to_utf8("<?xpacket begin=\"")
 		.concat([239, 187, 191])
-		.concat(
-			Str.to_utf8(
-				"\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>\n<x:xmpmeta xmlns:x=\"adobe:ns:meta/\">\n\t<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n\t\t<rdf:Description rdf:about=\"\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\">\n\t\t\t<dc:language>\n\t\t\t\t<rdf:Bag>\n\t\t\t\t\t<rdf:li>en-AU</rdf:li>\n\t\t\t\t</rdf:Bag>\n\t\t\t</dc:language>\n\t\t\t<dc:title>\n\t\t\t\t<rdf:Alt>\n\t\t\t\t\t<rdf:li xml:lang=\"x-default\">Report</rdf:li>\n\t\t\t\t</rdf:Alt>\n\t\t\t</dc:title>\n\t\t</rdf:Description>\n\t</rdf:RDF>\n</x:xmpmeta>\n<?xpacket end=\"w\"?>",
-			),
-		)
+		.concat(Str.to_utf8("\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>\n<x:xmpmeta xmlns:x=\"adobe:ns:meta/\">\n\t<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n\t\t<rdf:Description rdf:about=\"\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\">\n\t\t\t<dc:language>\n\t\t\t\t<rdf:Bag>\n\t\t\t\t\t<rdf:li>en-AU</rdf:li>\n\t\t\t\t</rdf:Bag>\n\t\t\t</dc:language>\n\t\t\t<dc:title>\n\t\t\t\t<rdf:Alt>\n\t\t\t\t\t<rdf:li xml:lang=\"x-default\">Report</rdf:li>\n\t\t\t\t</rdf:Alt>\n\t\t\t</dc:title>\n\t\t</rdf:Description>\n\t</rdf:RDF>\n</x:xmpmeta>\n<?xpacket end=\"w\"?>"))
 
 	KernelXmp.Packet.bytes(packet) == expected and KernelXmp.Packet.work(packet) == { packet_bytes: expected.len(), properties: 2, title_escapes: 0 }
 }
@@ -379,11 +375,7 @@ expect {
 	identified = KernelXmp.Packet.build_identified(sample_facts, PdfA4Identification, 4096)?
 	expected = Str.to_utf8("<?xpacket begin=\"")
 		.concat([239, 187, 191])
-		.concat(
-			Str.to_utf8(
-				"\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>\n<x:xmpmeta xmlns:x=\"adobe:ns:meta/\">\n\t<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n\t\t<rdf:Description rdf:about=\"\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:pdfaid=\"http://www.aiim.org/pdfa/ns/id/\">\n\t\t\t<dc:language>\n\t\t\t\t<rdf:Bag>\n\t\t\t\t\t<rdf:li>en-AU</rdf:li>\n\t\t\t\t</rdf:Bag>\n\t\t\t</dc:language>\n\t\t\t<dc:title>\n\t\t\t\t<rdf:Alt>\n\t\t\t\t\t<rdf:li xml:lang=\"x-default\">Report</rdf:li>\n\t\t\t\t</rdf:Alt>\n\t\t\t</dc:title>\n\t\t\t<pdfaid:part>4</pdfaid:part>\n\t\t\t<pdfaid:rev>2020</pdfaid:rev>\n\t\t</rdf:Description>\n\t</rdf:RDF>\n</x:xmpmeta>\n<?xpacket end=\"w\"?>",
-			),
-		)
+		.concat(Str.to_utf8("\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>\n<x:xmpmeta xmlns:x=\"adobe:ns:meta/\">\n\t<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n\t\t<rdf:Description rdf:about=\"\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:pdfaid=\"http://www.aiim.org/pdfa/ns/id/\">\n\t\t\t<dc:language>\n\t\t\t\t<rdf:Bag>\n\t\t\t\t\t<rdf:li>en-AU</rdf:li>\n\t\t\t\t</rdf:Bag>\n\t\t\t</dc:language>\n\t\t\t<dc:title>\n\t\t\t\t<rdf:Alt>\n\t\t\t\t\t<rdf:li xml:lang=\"x-default\">Report</rdf:li>\n\t\t\t\t</rdf:Alt>\n\t\t\t</dc:title>\n\t\t\t<pdfaid:part>4</pdfaid:part>\n\t\t\t<pdfaid:rev>2020</pdfaid:rev>\n\t\t</rdf:Description>\n\t</rdf:RDF>\n</x:xmpmeta>\n<?xpacket end=\"w\"?>"))
 
 	KernelXmp.Packet.bytes(identified) == expected
 		and KernelXmp.Packet.work(identified) == { packet_bytes: expected.len(), properties: 4, title_escapes: 0 }

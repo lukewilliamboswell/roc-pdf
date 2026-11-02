@@ -61,7 +61,7 @@ sha256 = |input| match KernelSha256.digest(input) {
 }
 
 register : List(U8) -> U64
-register = |bytes| match Font.Registry.empty.register(bytes, { provision: BuiltIn, scripts: ["Latn"] }, Font.ValidationLimits.default) {
+register = |bytes| match Font.Registry.empty.register({ bytes: bytes, registration: { provision: BuiltIn, scripts: ["Latn"] }, limits: Font.ValidationLimits.default }) {
 	Err(_) => crash "registration failed"
 	Ok(_) => bytes.len()
 }

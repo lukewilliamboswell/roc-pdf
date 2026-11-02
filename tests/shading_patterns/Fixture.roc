@@ -79,10 +79,10 @@ rect : I64, I64, I64, I64 -> Layout.Rect
 rect = |x, y, width, height| { origin: { x: unit(x), y: unit(y) }, size: { height: unit(height), width: unit(width) } }
 
 empty_range : Semantics.IndexRange
-empty_range = Semantics.IndexRange.from_start_and_length(0, 0)
+empty_range = Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 })
 
 span : U64, U64 -> Semantics.IndexRange
-span = |start, length| Semantics.IndexRange.from_start_and_length(start, length)
+span = |start, length| Semantics.IndexRange.from_start_and_length({ start: start, length: length })
 
 page_box : Layout.Rect
 page_box = rect(0, 0, 100000, 100000)
@@ -343,12 +343,7 @@ paint_resources = |input| KernelScene.Resources.with_paints({
 
 run_pipeline : Scenario -> Try(Built, BuildFailure)
 run_pipeline = |input| {
-	semantic = KernelSemantics.Plan.build(
-		input.semantics,
-		1,
-		1,
-		semantic_limits(input.semantics.nodes.len(), input.semantics.content_spine.len(), input.semantics.fragments.len()),
-	) ? SemanticFailure
+	semantic = KernelSemantics.Plan.build(input.semantics, 1, 1, semantic_limits(input.semantics.nodes.len(), input.semantics.content_spine.len(), input.semantics.fragments.len())) ? SemanticFailure
 	paint_scene = KernelScene.PaintPlan.build(input.scene, input.form_store, input.shadings, input.patterns, paint_resources(input), scene_limits, form_scene_limits, paint_limits) ? PaintSceneFailure
 	colors = KernelColor.Plan.build(input.colors, input.color_limits) ? ColorFailure
 	images = KernelImage.Plan.build(input.images, colors, input.image_limits) ? ImageFailure
@@ -358,15 +353,7 @@ run_pipeline = |input| {
 	content = KernelContent.Plan.build_with_forms(tagged, paint_context(form_plan, input.form_store, input.patterns), content_limits) ? ContentFailure
 	resource_use = KernelResourceUse.TextPlan.build_with_paints(paint_scene, colors, images, KernelForm.Facts.blending(facts)) ? ResourceUseFailure
 	leaf_counts = KernelForm.Plan.canonical_leaf_counts(form_plan)
-	base = KernelObjectPlan.Plan.build_canonical(
-		tagged,
-		colors,
-		images,
-		resource_use,
-		content,
-		{ color_spaces: leaf_counts.color_spaces, image_alpha: KernelForm.Plan.canonical_image_alpha(form_plan), profiles: leaf_counts.profiles },
-		KernelObjectPlan.Limits.make({ max_objects: 8192, max_pages: 1 }),
-	) ? ObjectFailure
+	base = KernelObjectPlan.Plan.build_canonical(tagged, colors, images, resource_use, content, { color_spaces: leaf_counts.color_spaces, image_alpha: KernelForm.Plan.canonical_image_alpha(form_plan), profiles: leaf_counts.profiles }, KernelObjectPlan.Limits.make({ max_objects: 8192, max_pages: 1 })) ? ObjectFailure
 	objects = KernelFormObjects.Plan.build_with_paints(
 		base,
 		KernelForm.Plan.canonical_form_count(form_plan),
@@ -1388,16 +1375,7 @@ check_negatives = |context| {
 			],
 		},
 	}
-	text_cell_rejected = match KernelScene.PaintPlan.build(
-		text_cell.scene,
-		text_cell.form_store,
-		text_cell.shadings,
-		text_cell.patterns,
-		KernelScene.Resources.with_paints({ color_spaces: 1, forms: 0, images: 0, patterns: 1, shadings: 0, text_runs: 1 }),
-		scene_limits,
-		form_scene_limits,
-		paint_limits,
-	) {
+	text_cell_rejected = match KernelScene.PaintPlan.build(text_cell.scene, text_cell.form_store, text_cell.shadings, text_cell.patterns, KernelScene.Resources.with_paints({ color_spaces: 1, forms: 0, images: 0, patterns: 1, shadings: 0, text_runs: 1 }), scene_limits, form_scene_limits, paint_limits) {
 		Err(TextInPatternCell({ command: 0 })) => True
 		_ => False
 	}
@@ -1459,16 +1437,7 @@ check_negatives = |context| {
 			commands: [PlaceForm({ form: Scene.FormId.from_index(0), transform: translate(0, 0) })],
 		},
 	}
-	text_form_scene = KernelScene.PaintPlan.build(
-		text_form_pattern.scene,
-		text_form_pattern.form_store,
-		text_form_pattern.shadings,
-		text_form_pattern.patterns,
-		KernelScene.Resources.with_paints({ color_spaces: 1, forms: 1, images: 0, patterns: 1, shadings: 0, text_runs: 1 }),
-		scene_limits,
-		form_scene_limits,
-		paint_limits,
-	) ? |_| MissingRejection(22)
+	text_form_scene = KernelScene.PaintPlan.build(text_form_pattern.scene, text_form_pattern.form_store, text_form_pattern.shadings, text_form_pattern.patterns, KernelScene.Resources.with_paints({ color_spaces: 1, forms: 1, images: 0, patterns: 1, shadings: 0, text_runs: 1 }), scene_limits, form_scene_limits, paint_limits) ? |_| MissingRejection(22)
 	text_form_colors = KernelColor.Plan.build(text_form_pattern.colors, text_form_pattern.color_limits) ? |_| MissingRejection(22)
 	text_form_images = KernelImage.Plan.build(text_form_pattern.images, text_form_colors, text_form_pattern.image_limits) ? |_| MissingRejection(22)
 	text_form_rejected = match KernelForm.Facts.build_with_paints(text_form_scene, { colors: text_form_colors, font_count: 1, images: text_form_images }, WithTextStore(minimal_text_store), form_limits) {

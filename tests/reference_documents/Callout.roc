@@ -111,6 +111,6 @@ panel = |style, size| {
 		.finish()
 	bar = Scene.PathBuilder.start.rectangle({ origin: point(left, bottom + r), size: { height: Layout.Unit.from_raw(top - bottom - 2 * r), width: 4 } }).finish()
 	Scene.Drawing.empty
-		.path(outline, { fill: AuthorSolidFill(style.fill), stroke: AuthorSolidStroke({ color: style.stroke, width: 1 }) })
-		.path(bar, Scene.solid_fill(style.accent))
+		.path({ path: outline, style: { fill: AuthorSolidFill(style.fill), stroke: AuthorSolidStroke({ color: style.stroke, width: 1 }) } })
+		.path({ path: bar, style: Scene.solid_fill(style.accent) })
 }

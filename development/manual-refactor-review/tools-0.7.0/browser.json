@@ -1,0 +1,402 @@
+{
+  "node": "v23.9.0",
+  "chrome": "Google Chrome 156.0.8078.49",
+  "source_inventory_sha256": "7f881676fcac72a6f5d508c50be23da41fef03bba2de0ae413a0b78fb048825d",
+  "chrome_sha256": "8fc0b8ffb31698a1be44f41df5e4adbdfae8720e94fa458e29f9dfd3bf142e1c",
+  "records": [
+    {
+      "page": "authoring.html",
+      "viewport": 1280,
+      "html_sha256": "72c0957e9c81c7fee32ba292cc7f2286ba08b3c1d61eccc8e75a8b5faa261bf7",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "Authoring with roc-pdf§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(0, 90, 133)",
+        "rgb(36, 99, 51)",
+        "rgb(156, 61, 16)",
+        "rgb(82, 101, 115)"
+      ],
+      "transparent": true,
+      "tables": 1
+    },
+    {
+      "page": "destination-page-references.html",
+      "viewport": 1280,
+      "html_sha256": "e0f9dbd4964af560a4bdd173cc45ee6f1d9550c497b2433e6ad7d1e3e4ae6a75",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "Destination page references§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(0, 90, 133)",
+        "rgb(70, 83, 105)",
+        "rgb(52, 84, 164)",
+        "rgb(36, 99, 51)",
+        "rgb(156, 61, 16)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "gallery.html",
+      "viewport": 1280,
+      "html_sha256": "9ecab0f1792da8934b62e8cfd90639fed394aeeb82a5c7e62757bfe7da538489",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "Runnable document gallery§",
+      "version": "0.3.0",
+      "images": [
+        {
+          "loaded": true,
+          "alt": "Tax invoice preview"
+        },
+        {
+          "loaded": true,
+          "alt": "Business report preview"
+        },
+        {
+          "loaded": true,
+          "alt": "Prepared vector diagram preview"
+        }
+      ],
+      "colours": [],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "getting-started.html",
+      "viewport": 1280,
+      "html_sha256": "544d9c24be59aac1a48a4406b921cbc438f303e8d12f86cf624e8ecf3036d7a3",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "Create your first document§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(36, 99, 51)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "index.html",
+      "viewport": 1280,
+      "html_sha256": "976df9861cbbfd4902b9b896ca381cfabfaa27b9407aa5217e73b2501294507d",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "roc-pdf user manual§",
+      "version": "0.3.0",
+      "images": [
+        {
+          "loaded": true,
+          "alt": "Tax invoice preview"
+        },
+        {
+          "loaded": true,
+          "alt": "Business report preview"
+        },
+        {
+          "loaded": true,
+          "alt": "Prepared vector diagram preview"
+        }
+      ],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(36, 99, 51)",
+        "rgb(0, 90, 133)",
+        "rgb(156, 61, 16)",
+        "rgb(82, 101, 115)",
+        "rgb(118, 57, 165)"
+      ],
+      "transparent": true,
+      "tables": 3
+    },
+    {
+      "page": "manual-composition.html",
+      "viewport": 1280,
+      "html_sha256": "eca638c2668d7c599a4585341e11591488272e9ddb20dd2c71a6f22bc683a71f",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "Composing a technical manual§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "migrating-named-arguments.html",
+      "viewport": 1280,
+      "html_sha256": "b7c7340eb2c25f580b6321dca93582578b2c06cb32d564d5f14511eebe4b1160",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "Migrating to named arguments§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(0, 90, 133)",
+        "rgb(70, 83, 105)",
+        "rgb(52, 84, 164)",
+        "rgb(36, 99, 51)",
+        "rgb(156, 61, 16)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "releases.html",
+      "viewport": 1280,
+      "html_sha256": "8d993dce2e3c21948989eb8ef3f3dc7dc804a6fa9f47eb55191785628e27d781",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "Release notes§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(36, 99, 51)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "roc-font.html",
+      "viewport": 1280,
+      "html_sha256": "b9feeaccdf3c6aa180858b4e7a1f38e31cf949268dfc683b2c4607f74dc7558a",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "Choose built-in and caller fonts§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(118, 57, 165)",
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(0, 90, 133)",
+        "rgb(36, 99, 51)"
+      ],
+      "transparent": true,
+      "tables": 2
+    },
+    {
+      "page": "start-here.html",
+      "viewport": 1280,
+      "html_sha256": "f56f25bc981efdc5d73cbdf8683120ddfacced7f95fbea0fa17cfd3eedf8ed47",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "title": "Start here§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "authoring.html",
+      "viewport": 390,
+      "html_sha256": "72c0957e9c81c7fee32ba292cc7f2286ba08b3c1d61eccc8e75a8b5faa261bf7",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "Authoring with roc-pdf§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(0, 90, 133)",
+        "rgb(36, 99, 51)",
+        "rgb(156, 61, 16)",
+        "rgb(82, 101, 115)"
+      ],
+      "transparent": true,
+      "tables": 1
+    },
+    {
+      "page": "destination-page-references.html",
+      "viewport": 390,
+      "html_sha256": "e0f9dbd4964af560a4bdd173cc45ee6f1d9550c497b2433e6ad7d1e3e4ae6a75",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "Destination page references§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(0, 90, 133)",
+        "rgb(70, 83, 105)",
+        "rgb(52, 84, 164)",
+        "rgb(36, 99, 51)",
+        "rgb(156, 61, 16)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "gallery.html",
+      "viewport": 390,
+      "html_sha256": "9ecab0f1792da8934b62e8cfd90639fed394aeeb82a5c7e62757bfe7da538489",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "Runnable document gallery§",
+      "version": "0.3.0",
+      "images": [
+        {
+          "loaded": true,
+          "alt": "Tax invoice preview"
+        },
+        {
+          "loaded": true,
+          "alt": "Business report preview"
+        },
+        {
+          "loaded": true,
+          "alt": "Prepared vector diagram preview"
+        }
+      ],
+      "colours": [],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "getting-started.html",
+      "viewport": 390,
+      "html_sha256": "544d9c24be59aac1a48a4406b921cbc438f303e8d12f86cf624e8ecf3036d7a3",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "Create your first document§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(36, 99, 51)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "index.html",
+      "viewport": 390,
+      "html_sha256": "976df9861cbbfd4902b9b896ca381cfabfaa27b9407aa5217e73b2501294507d",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "roc-pdf user manual§",
+      "version": "0.3.0",
+      "images": [
+        {
+          "loaded": true,
+          "alt": "Tax invoice preview"
+        },
+        {
+          "loaded": true,
+          "alt": "Business report preview"
+        },
+        {
+          "loaded": true,
+          "alt": "Prepared vector diagram preview"
+        }
+      ],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(36, 99, 51)",
+        "rgb(0, 90, 133)",
+        "rgb(156, 61, 16)",
+        "rgb(82, 101, 115)",
+        "rgb(118, 57, 165)"
+      ],
+      "transparent": true,
+      "tables": 3
+    },
+    {
+      "page": "manual-composition.html",
+      "viewport": 390,
+      "html_sha256": "eca638c2668d7c599a4585341e11591488272e9ddb20dd2c71a6f22bc683a71f",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "Composing a technical manual§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "migrating-named-arguments.html",
+      "viewport": 390,
+      "html_sha256": "b7c7340eb2c25f580b6321dca93582578b2c06cb32d564d5f14511eebe4b1160",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "Migrating to named arguments§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(0, 90, 133)",
+        "rgb(70, 83, 105)",
+        "rgb(52, 84, 164)",
+        "rgb(36, 99, 51)",
+        "rgb(156, 61, 16)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "releases.html",
+      "viewport": 390,
+      "html_sha256": "8d993dce2e3c21948989eb8ef3f3dc7dc804a6fa9f47eb55191785628e27d781",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "Release notes§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(36, 99, 51)"
+      ],
+      "transparent": true,
+      "tables": 0
+    },
+    {
+      "page": "roc-font.html",
+      "viewport": 390,
+      "html_sha256": "b9feeaccdf3c6aa180858b4e7a1f38e31cf949268dfc683b2c4607f74dc7558a",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "Choose built-in and caller fonts§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [
+        "rgb(118, 57, 165)",
+        "rgb(52, 84, 164)",
+        "rgb(70, 83, 105)",
+        "rgb(0, 90, 133)",
+        "rgb(36, 99, 51)"
+      ],
+      "transparent": true,
+      "tables": 2
+    },
+    {
+      "page": "start-here.html",
+      "viewport": 390,
+      "html_sha256": "f56f25bc981efdc5d73cbdf8683120ddfacced7f95fbea0fa17cfd3eedf8ed47",
+      "width": 390,
+      "scrollWidth": 390,
+      "title": "Start here§",
+      "version": "0.3.0",
+      "images": [],
+      "colours": [],
+      "transparent": true,
+      "tables": 0
+    }
+  ]
+}

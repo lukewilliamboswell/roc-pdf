@@ -62,25 +62,14 @@ sample_font_objects = |runtime_guard| {
 	font = inspect_font({})?
 	plan = sample_font_plan(font)?
 	subset = KernelFontSubset.build(font, plan) ? |_| EvidenceFailure
-	pdf_font = KernelPdfFont.Plan.build(
-		KernelObject.init(object_limits),
-		font,
-		plan,
-		subset,
-		descriptor,
-		unicode_mappings,
-		KernelPdfFont.Limits.make({ max_to_unicode_bytes: 4096, max_unicode_mappings: 8, max_unicode_scalars: 16 }),
-	) ? |_| EvidenceFailure
+	pdf_font = KernelPdfFont.Plan.build(KernelObject.init(object_limits), font, plan, subset, descriptor, unicode_mappings, KernelPdfFont.Limits.make({ max_to_unicode_bytes: 4096, max_unicode_mappings: 8, max_unicode_scalars: 16 })) ? |_| EvidenceFailure
 	sealed = KernelSeal.seal(KernelPdfFont.Plan.builder(pdf_font)) ? |_| EvidenceFailure
 	Ok({ font, pdf_font, sealed, subset })
 }
 
 inspect_font : {} -> Try(KernelFont.Inspection, [EvidenceFailure, InvalidRuntimeGuard])
 inspect_font = |_| {
-	font = KernelFont.inspect(
-		built_in_font_bytes,
-		KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }),
-	) ? |_| EvidenceFailure
+	font = KernelFont.inspect(built_in_font_bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
 	Ok(font)
 }
 
@@ -88,11 +77,7 @@ sample_font_plan : KernelFont.Inspection -> Try(KernelFontPlan.Plan, [EvidenceFa
 sample_font_plan = |font| {
 	glyph_a = required_glyph(font, 0x41)?
 	glyph_e_acute = required_glyph(font, 0x00e9)?
-	result = KernelFontPlan.plan(
-		font,
-		[{ glyph: glyph_a }, { glyph: glyph_e_acute }, { glyph: glyph_a }],
-		KernelFontPlan.Limits.make({ max_retained_glyphs: 64 }),
-	) ? |_| EvidenceFailure
+	result = KernelFontPlan.plan(font, [{ glyph: glyph_a }, { glyph: glyph_e_acute }, { glyph: glyph_a }], KernelFontPlan.Limits.make({ max_retained_glyphs: 64 })) ? |_| EvidenceFailure
 	Ok(result)
 }
 
@@ -169,15 +154,7 @@ expect {
 	font = inspect_font({})?
 	plan = sample_font_plan(font)?
 	subset = KernelFontSubset.build(font, plan)?
-	result = KernelPdfFont.Plan.build(
-		KernelObject.init(object_limits),
-		font,
-		plan,
-		subset,
-		descriptor,
-		[{ cid: 1, scalars: [0x41] }],
-		KernelPdfFont.Limits.make({ max_to_unicode_bytes: 4096, max_unicode_mappings: 8, max_unicode_scalars: 16 }),
-	)
+	result = KernelPdfFont.Plan.build(KernelObject.init(object_limits), font, plan, subset, descriptor, [{ cid: 1, scalars: [0x41] }], KernelPdfFont.Limits.make({ max_to_unicode_bytes: 4096, max_unicode_mappings: 8, max_unicode_scalars: 16 }))
 	match result {
 		Err(IncompleteUnicodeMapping({ cid: 3 })) => True
 		_ => False

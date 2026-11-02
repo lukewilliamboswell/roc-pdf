@@ -80,7 +80,7 @@ rect : I64, I64, I64, I64 -> Layout.Rect
 rect = |x, y, width, height| { origin: { x: unit(x), y: unit(y) }, size: { height: unit(height), width: unit(width) } }
 
 empty_range : Semantics.IndexRange
-empty_range = Semantics.IndexRange.from_start_and_length(0, 0)
+empty_range = Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 })
 
 page_box : Layout.Rect
 page_box = rect(0, 0, 100000, 100000)
@@ -205,7 +205,7 @@ build_semantics = |fragment_count, logical_order| {
 	var $nodes = List.with_capacity(fragment_count + 1)
 	$nodes = $nodes.append({
 		attributes: empty_range,
-		content: Semantics.IndexRange.from_start_and_length(0, fragment_count),
+		content: Semantics.IndexRange.from_start_and_length({ start: 0, length: fragment_count }),
 		element_identifier: NoElementIdentifier,
 		id: Semantics.NodeId.from_index(0),
 		language: Inherited,
@@ -222,7 +222,7 @@ build_semantics = |fragment_count, logical_order| {
 	while $paragraph < fragment_count {
 		$content_spine = $content_spine.append(ContentOccurrence(Semantics.OccurrenceId.from_index($paragraph)))
 		$occurrences = $occurrences.append({
-			fragments: Semantics.IndexRange.from_start_and_length($paragraph, 1),
+			fragments: Semantics.IndexRange.from_start_and_length({ start: $paragraph, length: 1 }),
 			id: Semantics.OccurrenceId.from_index($paragraph),
 			language: Inherited,
 			source: NonText(Semantics.NonTextSourceId.from_index(0), ByteRange(empty_range)),
@@ -239,7 +239,7 @@ build_semantics = |fragment_count, logical_order| {
 		})
 		$nodes = $nodes.append({
 			attributes: empty_range,
-			content: Semantics.IndexRange.from_start_and_length(fragment_count + $paragraph, 1),
+			content: Semantics.IndexRange.from_start_and_length({ start: fragment_count + $paragraph, length: 1 }),
 			element_identifier: NoElementIdentifier,
 			id: Semantics.NodeId.from_index($paragraph + 1),
 			language: Inherited,
@@ -313,11 +313,7 @@ BuildFailure := [
 
 no_images : KernelColor.Plan -> Try(KernelImage.Plan, BuildFailure)
 no_images = |colors| {
-	plan = KernelImage.Plan.build(
-		{ resources: [] },
-		colors,
-		KernelImage.Limits.make({ max_decoded_bytes: 0, max_encoded_bytes: 0, max_height: 0, max_markers: 0, max_resources: 0, max_width: 0 }),
-	) ? ImageFailure
+	plan = KernelImage.Plan.build({ resources: [] }, colors, KernelImage.Limits.make({ max_decoded_bytes: 0, max_encoded_bytes: 0, max_height: 0, max_markers: 0, max_resources: 0, max_width: 0 })) ? ImageFailure
 	Ok(plan)
 }
 
@@ -328,17 +324,8 @@ run_pipeline : Scenario -> Try(Built, BuildFailure)
 run_pipeline = |input| {
 	validated = KernelMetadata.validate(input.metadata, metadata_limits) ? MetadataFailure
 	packet = KernelXmp.Packet.build(validated.facts, max_xmp_bytes) ? PacketFailure
-	intent_work = KernelMetadata.validate_intent(
-		{ profile: input.intent_profile, registry_name: KernelMetadata.icc_registry_name },
-		KernelMetadata.srgb_condition_identifier,
-		input.colors,
-	) ? IntentFailure
-	semantic = KernelSemantics.Plan.build(
-		input.semantics,
-		1,
-		1,
-		semantic_limits(input.semantics.nodes.len(), input.semantics.content_spine.len(), input.semantics.fragments.len()),
-	) ? SemanticFailure
+	intent_work = KernelMetadata.validate_intent({ profile: input.intent_profile, registry_name: KernelMetadata.icc_registry_name }, KernelMetadata.srgb_condition_identifier, input.colors) ? IntentFailure
+	semantic = KernelSemantics.Plan.build(input.semantics, 1, 1, semantic_limits(input.semantics.nodes.len(), input.semantics.content_spine.len(), input.semantics.fragments.len())) ? SemanticFailure
 	resources = KernelScene.Resources.with_forms({
 		color_spaces: input.colors.spaces.len(),
 		forms: 0,
@@ -354,15 +341,7 @@ run_pipeline = |input| {
 	content = KernelContent.Plan.build_with_forms(tagged, form_context(form_plan), content_limits) ? ContentFailure
 	resource_use = KernelResourceUse.TextPlan.build_with_forms(form_scene, colors, images) ? ResourceUseFailure
 	leaf_counts = KernelForm.Plan.canonical_leaf_counts(form_plan)
-	base = KernelObjectPlan.Plan.build_canonical(
-		tagged,
-		colors,
-		images,
-		resource_use,
-		content,
-		{ color_spaces: leaf_counts.color_spaces, image_alpha: KernelForm.Plan.canonical_image_alpha(form_plan), profiles: leaf_counts.profiles },
-		KernelObjectPlan.Limits.make({ max_objects: 8192, max_pages: 1 }),
-	) ? ObjectFailure
+	base = KernelObjectPlan.Plan.build_canonical(tagged, colors, images, resource_use, content, { color_spaces: leaf_counts.color_spaces, image_alpha: KernelForm.Plan.canonical_image_alpha(form_plan), profiles: leaf_counts.profiles }, KernelObjectPlan.Limits.make({ max_objects: 8192, max_pages: 1 })) ? ObjectFailure
 	objects = KernelFormObjects.Plan.build_with_states(base, KernelForm.Plan.canonical_form_count(form_plan), KernelForm.Plan.canonical_state_count(form_plan), 0, 8192) ? FormObjectFailure
 	plan_facts = WithDocumentFacts({
 		condition_identifier: KernelMetadata.srgb_condition_identifier,
@@ -371,18 +350,7 @@ run_pipeline = |input| {
 		language: validated.facts.language,
 		xmp: KernelXmp.Packet.bytes(packet),
 	})
-	structure = KernelFormStructure.Plan.build_with_facts(
-		tagged,
-		colors,
-		images,
-		content,
-		form_plan,
-		objects,
-		NoTextObjects,
-		Scene.no_shadings,
-		plan_facts,
-		structure_limits,
-	) ? StructureFailure
+	structure = KernelFormStructure.Plan.build_with_facts(tagged, colors, images, content, form_plan, objects, NoTextObjects, Scene.no_shadings, plan_facts, structure_limits) ? StructureFailure
 	bytes = KernelEmit.to_bytes(KernelFormStructure.Plan.structure(structure)) ? |_| EmitFailure
 	Ok({ bytes, colors, form_plan, intent_work, metadata_work: validated.work, packet, structure })
 }
@@ -460,16 +428,16 @@ showcase_scenario = |direction| {
 		],
 		dash_lengths: [],
 		groups: [
-			{ commands: Semantics.IndexRange.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: PageArtifact(Background) },
-			{ commands: Semantics.IndexRange.from_start_and_length(1, 1), id: Scene.GroupId.from_index(1), owner: Fragment(Semantics.FragmentId.from_index(0)) },
-			{ commands: Semantics.IndexRange.from_start_and_length(2, 1), id: Scene.GroupId.from_index(2), owner: Fragment(Semantics.FragmentId.from_index(1)) },
+			{ commands: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), id: Scene.GroupId.from_index(0), owner: PageArtifact(Background) },
+			{ commands: Semantics.IndexRange.from_start_and_length({ start: 1, length: 1 }), id: Scene.GroupId.from_index(1), owner: Fragment(Semantics.FragmentId.from_index(0)) },
+			{ commands: Semantics.IndexRange.from_start_and_length({ start: 2, length: 1 }), id: Scene.GroupId.from_index(2), owner: Fragment(Semantics.FragmentId.from_index(1)) },
 		],
 		page_groups: [Scene.GroupId.from_index(0), Scene.GroupId.from_index(1), Scene.GroupId.from_index(2)],
 		pages: [
 			{
 				boxes: { art: page_box, bleed: page_box, crop: page_box, media: page_box, trim: page_box },
 				id: Semantics.PageId.from_index(0),
-				paint_order: Semantics.IndexRange.from_start_and_length(0, 3),
+				paint_order: Semantics.IndexRange.from_start_and_length({ start: 0, length: 3 }),
 				rotation: Rotate0,
 			},
 		],
@@ -479,9 +447,9 @@ showcase_scenario = |direction| {
 			Rectangle(rect(10000, 15000, 80000, 30000)),
 		],
 		paths: [
-			{ id: Scene.PathId.from_index(0), segments: Semantics.IndexRange.from_start_and_length(0, 1) },
-			{ id: Scene.PathId.from_index(1), segments: Semantics.IndexRange.from_start_and_length(1, 1) },
-			{ id: Scene.PathId.from_index(2), segments: Semantics.IndexRange.from_start_and_length(2, 1) },
+			{ id: Scene.PathId.from_index(0), segments: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }) },
+			{ id: Scene.PathId.from_index(1), segments: Semantics.IndexRange.from_start_and_length({ start: 1, length: 1 }) },
+			{ id: Scene.PathId.from_index(2), segments: Semantics.IndexRange.from_start_and_length({ start: 2, length: 1 }) },
 		],
 	}
 	{
@@ -518,9 +486,9 @@ share_scenario = |scale| {
 		column = U64.mod_by($index, 8) * 12000
 		row = U64.mod_by(U64.div_by($index, 8), 8) * 12000
 		$segments = $segments.append(Rectangle(rect(column.to_i64_wrap(), row.to_i64_wrap(), 10000, 10000)))
-		$paths = $paths.append({ id: Scene.PathId.from_index($index), segments: Semantics.IndexRange.from_start_and_length($index, 1) })
+		$paths = $paths.append({ id: Scene.PathId.from_index($index), segments: Semantics.IndexRange.from_start_and_length({ start: $index, length: 1 }) })
 		$commands = $commands.append(DrawPath({ path: Scene.PathId.from_index($index), style: fill_with(rgb_value(65535, 32896, 8224, $index)) }))
-		$groups = $groups.append({ commands: Semantics.IndexRange.from_start_and_length($index, 1), id: Scene.GroupId.from_index($index), owner: Fragment(Semantics.FragmentId.from_index($index)) })
+		$groups = $groups.append({ commands: Semantics.IndexRange.from_start_and_length({ start: $index, length: 1 }), id: Scene.GroupId.from_index($index), owner: Fragment(Semantics.FragmentId.from_index($index)) })
 		$page_groups = $page_groups.append(Scene.GroupId.from_index($index))
 		$order = $order.append($index)
 		$index = $index + 1
@@ -550,7 +518,7 @@ share_scenario = |scale| {
 				{
 					boxes: { art: page_box, bleed: page_box, crop: page_box, media: page_box, trim: page_box },
 					id: Semantics.PageId.from_index(0),
-					paint_order: Semantics.IndexRange.from_start_and_length(0, scale),
+					paint_order: Semantics.IndexRange.from_start_and_length({ start: 0, length: scale }),
 					rotation: Rotate0,
 				},
 			],
@@ -732,27 +700,9 @@ run_negatives = |runtime_context| {
 	## 12-16: output-intent configuration rejections against the showcase
 	## color store.
 	store = showcase_scenario(Forward)
-	expect_intent_rejection(
-		12,
-		{ profile: Color.ProfileId.from_index(0), registry_name: "https://example.com/registry" },
-		KernelMetadata.srgb_condition_identifier,
-		store.colors,
-		|error| error == UnsupportedIntentRegistry,
-	)?
-	expect_intent_rejection(
-		13,
-		{ profile: Color.ProfileId.from_index(0), registry_name: KernelMetadata.icc_registry_name },
-		"AdobeRGB1998",
-		store.colors,
-		|error| error == UnsupportedConditionIdentifier,
-	)?
-	expect_intent_rejection(
-		14,
-		{ profile: Color.ProfileId.from_index(7), registry_name: KernelMetadata.icc_registry_name },
-		KernelMetadata.srgb_condition_identifier,
-		store.colors,
-		|error| error == IntentProfileOutOfRange({ attempted: 7, profiles: 2 }),
-	)?
+	expect_intent_rejection(12, { profile: Color.ProfileId.from_index(0), registry_name: "https://example.com/registry" }, KernelMetadata.srgb_condition_identifier, store.colors, |error| error == UnsupportedIntentRegistry)?
+	expect_intent_rejection(13, { profile: Color.ProfileId.from_index(0), registry_name: KernelMetadata.icc_registry_name }, "AdobeRGB1998", store.colors, |error| error == UnsupportedConditionIdentifier)?
+	expect_intent_rejection(14, { profile: Color.ProfileId.from_index(7), registry_name: KernelMetadata.icc_registry_name }, KernelMetadata.srgb_condition_identifier, store.colors, |error| error == IntentProfileOutOfRange({ attempted: 7, profiles: 2 }))?
 	altered_bytes = match KernelSrgbProfile.bytes.set(200 + guard, 7) {
 		Ok(bytes) => bytes
 		Err(OutOfBounds) => {
@@ -760,29 +710,11 @@ run_negatives = |runtime_context| {
 		}
 	}
 	altered_store = { ..store.colors, profiles: [{ ..KernelSrgbProfile.profile(0, 0), bytes: altered_bytes }] }
-	expect_intent_rejection(
-		15,
-		{ profile: Color.ProfileId.from_index(0), registry_name: KernelMetadata.icc_registry_name },
-		KernelMetadata.srgb_condition_identifier,
-		altered_store,
-		|error| error == IntentProfileMismatch({ bytes_compared: 201, profile: 0 }),
-	)?
+	expect_intent_rejection(15, { profile: Color.ProfileId.from_index(0), registry_name: KernelMetadata.icc_registry_name }, KernelMetadata.srgb_condition_identifier, altered_store, |error| error == IntentProfileMismatch({ bytes_compared: 201, profile: 0 }))?
 	truncated_store = { ..store.colors, profiles: [{ ..KernelSrgbProfile.profile(0, 0), bytes: KernelSrgbProfile.bytes.sublist({ start: 0, len: 2000 }) }] }
-	expect_intent_rejection(
-		16,
-		{ profile: Color.ProfileId.from_index(0), registry_name: KernelMetadata.icc_registry_name },
-		KernelMetadata.srgb_condition_identifier,
-		truncated_store,
-		|error| error == IntentProfileMismatch({ bytes_compared: 0, profile: 0 }),
-	)?
+	expect_intent_rejection(16, { profile: Color.ProfileId.from_index(0), registry_name: KernelMetadata.icc_registry_name }, KernelMetadata.srgb_condition_identifier, truncated_store, |error| error == IntentProfileMismatch({ bytes_compared: 0, profile: 0 }))?
 	gray_store = { ..store.colors, profiles: [{ ..KernelSrgbProfile.profile(0, 0), components: One }] }
-	expect_intent_rejection(
-		17,
-		{ profile: Color.ProfileId.from_index(0), registry_name: KernelMetadata.icc_registry_name },
-		KernelMetadata.srgb_condition_identifier,
-		gray_store,
-		|error| error == IntentComponentMismatch({ expected: 3, profile: 0 }),
-	)?
+	expect_intent_rejection(17, { profile: Color.ProfileId.from_index(0), registry_name: KernelMetadata.icc_registry_name }, KernelMetadata.srgb_condition_identifier, gray_store, |error| error == IntentComponentMismatch({ expected: 3, profile: 0 }))?
 
 	## 18: the public facade rejects invalid metadata atomically with no
 	## bytes; the typed error carries the exact validation fact.

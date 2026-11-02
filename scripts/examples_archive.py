@@ -19,17 +19,19 @@ import tempfile
 import zipfile
 from pathlib import Path
 
-from check_gallery import EXAMPLES, GALLERY, ROC, BundleServer, bundled_example
+from check_gallery import GALLERY, ROC, BundleServer, bundled_example
 
 
 REPOSITORY = "lukewilliamboswell/roc-pdf"
 FIXED_TIME = (2026, 1, 1, 0, 0, 0)
+# Archive every public application, including examples without gallery images.
+EXAMPLES = tuple(sorted(path.parent.name for path in GALLERY.glob("*/main.roc")))
 
 
 def readme(tag: str, url: str) -> str:
     return (
         f"# roc-pdf {tag} examples\n\n"
-        f"These gallery examples depend on the published package bundle\n{url}\n\n"
+        f"These runnable examples depend on the published package bundle\n{url}\n\n"
         "Run one from its directory, for example:\n\n"
         "    cd examples/tax-invoice && roc main.roc\n\n"
         "Each example writes its PDF to the current directory. `spec.json` records\n"
@@ -90,6 +92,7 @@ def record(staged: Path, url: str, bundle: Path) -> dict[str, str]:
     stdout = {}
     with BundleServer(bundle) as server:
         for name in EXAMPLES:
+            print(f"Recording release example {name}", flush=True)
             result = run(staged / name / "main.roc", url, server.url, [], "")
             if result.returncode != 0:
                 raise SystemExit(f"{name}: exit {result.returncode}\n{result.stderr.decode()}")

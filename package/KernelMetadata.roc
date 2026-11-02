@@ -695,10 +695,7 @@ expect {
 
 # Canonical UTC timestamps validate, including a leap-year day.
 expect {
-	result = KernelMetadata.validate(
-		{ ..valid_input, created: Explicit("2024-02-29T23:59:59Z"), modified: Explicit("2026-08-18T09:30:00Z") },
-		test_limits,
-	)?
+	result = KernelMetadata.validate({ ..valid_input, created: Explicit("2024-02-29T23:59:59Z"), modified: Explicit("2026-08-18T09:30:00Z") }, test_limits)?
 
 	result.work.timestamp_bytes == 40
 }
@@ -739,11 +736,7 @@ expect {
 		spaces: [],
 		tags: KernelSrgbProfile.tags,
 	}
-	work = KernelMetadata.validate_intent(
-		{ profile: Color.ProfileId.from_index(0), registry_name: KernelMetadata.icc_registry_name },
-		KernelMetadata.srgb_condition_identifier,
-		store,
-	)?
+	work = KernelMetadata.validate_intent({ profile: Color.ProfileId.from_index(0), registry_name: KernelMetadata.icc_registry_name }, KernelMetadata.srgb_condition_identifier, store)?
 
 	work.intent_bytes_compared == KernelSrgbProfile.byte_count
 }
@@ -763,11 +756,7 @@ expect {
 		spaces: [],
 		tags: KernelSrgbProfile.tags,
 	}
-	match KernelMetadata.validate_intent(
-		{ profile: Color.ProfileId.from_index(0), registry_name: KernelMetadata.icc_registry_name },
-		KernelMetadata.srgb_condition_identifier,
-		store,
-	) {
+	match KernelMetadata.validate_intent({ profile: Color.ProfileId.from_index(0), registry_name: KernelMetadata.icc_registry_name }, KernelMetadata.srgb_condition_identifier, store) {
 		Err(IntentProfileMismatch({ bytes_compared: 101, profile: 0 })) => True
 		_ => False
 	}
@@ -783,11 +772,7 @@ expect {
 		spaces: [],
 		tags: KernelSrgbProfile.tags,
 	}
-	match KernelMetadata.validate_intent(
-		{ profile: Color.ProfileId.from_index(0), registry_name: KernelMetadata.icc_registry_name },
-		KernelMetadata.srgb_condition_identifier,
-		store,
-	) {
+	match KernelMetadata.validate_intent({ profile: Color.ProfileId.from_index(0), registry_name: KernelMetadata.icc_registry_name }, KernelMetadata.srgb_condition_identifier, store) {
 		Err(IntentProfileMismatch({ bytes_compared: 0, profile: 0 })) => True
 		_ => False
 	}
@@ -797,21 +782,9 @@ expect {
 expect {
 	store : Color.Store
 	store = { profiles: [KernelSrgbProfile.profile(0, 0)], spaces: [], tags: KernelSrgbProfile.tags }
-	registry = KernelMetadata.validate_intent(
-		{ profile: Color.ProfileId.from_index(0), registry_name: "http://example.com" },
-		KernelMetadata.srgb_condition_identifier,
-		store,
-	)
-	identifier = KernelMetadata.validate_intent(
-		{ profile: Color.ProfileId.from_index(0), registry_name: KernelMetadata.icc_registry_name },
-		"AdobeRGB",
-		store,
-	)
-	range = KernelMetadata.validate_intent(
-		{ profile: Color.ProfileId.from_index(1), registry_name: KernelMetadata.icc_registry_name },
-		KernelMetadata.srgb_condition_identifier,
-		store,
-	)
+	registry = KernelMetadata.validate_intent({ profile: Color.ProfileId.from_index(0), registry_name: "http://example.com" }, KernelMetadata.srgb_condition_identifier, store)
+	identifier = KernelMetadata.validate_intent({ profile: Color.ProfileId.from_index(0), registry_name: KernelMetadata.icc_registry_name }, "AdobeRGB", store)
+	range = KernelMetadata.validate_intent({ profile: Color.ProfileId.from_index(1), registry_name: KernelMetadata.icc_registry_name }, KernelMetadata.srgb_condition_identifier, store)
 	registry_ok = match registry {
 		Err(UnsupportedIntentRegistry) => True
 		_ => False
@@ -835,11 +808,7 @@ expect {
 		spaces: [],
 		tags: KernelSrgbProfile.tags,
 	}
-	match KernelMetadata.validate_intent(
-		{ profile: Color.ProfileId.from_index(0), registry_name: KernelMetadata.icc_registry_name },
-		KernelMetadata.srgb_condition_identifier,
-		store,
-	) {
+	match KernelMetadata.validate_intent({ profile: Color.ProfileId.from_index(0), registry_name: KernelMetadata.icc_registry_name }, KernelMetadata.srgb_condition_identifier, store) {
 		Err(IntentComponentMismatch({ expected: 3, profile: 0 })) => True
 		_ => False
 	}

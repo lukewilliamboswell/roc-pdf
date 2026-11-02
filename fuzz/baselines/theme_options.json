@@ -1,0 +1,120 @@
+{
+  "format": "roc-fuzz-baseline/1",
+  "target": "roc-pdf-theme-options",
+  "entries": [
+    {
+      "host_target": "arm64mac",
+      "profile": "llvm-fuzz",
+      "metric_version": "roc-fuzz-allocations/1",
+      "examples": [
+        {
+          "name": "ordinary-theme",
+          "revision": "1",
+          "input_sha256": "c3505eca728363c96c589b21454e9a98670da3147397836c4cc085f5a0ac975b",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 19,
+                "reallocs": 15,
+                "deallocs": 21,
+                "requested_bytes": 7238,
+                "entry_live_allocs": 2,
+                "entry_live_bytes": 705,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 1951
+              }
+            }
+          ]
+        },
+        {
+          "name": "negative-half-range-margins",
+          "revision": "1",
+          "input_sha256": "9d20897fc57fa1b0f60dff1a5bf7bd70b63679461bdfb45775ab9c39a88d7a3b",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 0,
+                "reallocs": 0,
+                "deallocs": 0,
+                "requested_bytes": 0,
+                "entry_live_allocs": 0,
+                "entry_live_bytes": 0,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "host_target": "x64musl",
+      "profile": "llvm-fuzz",
+      "metric_version": "roc-fuzz-allocations/1",
+      "examples": [
+        {
+          "name": "ordinary-theme",
+          "revision": "1",
+          "input_sha256": "c3505eca728363c96c589b21454e9a98670da3147397836c4cc085f5a0ac975b",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 19,
+                "reallocs": 15,
+                "deallocs": 21,
+                "requested_bytes": 7238,
+                "entry_live_allocs": 2,
+                "entry_live_bytes": 705,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 1951
+              }
+            }
+          ]
+        },
+        {
+          "name": "negative-half-range-margins",
+          "revision": "1",
+          "input_sha256": "9d20897fc57fa1b0f60dff1a5bf7bd70b63679461bdfb45775ab9c39a88d7a3b",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 0,
+                "reallocs": 0,
+                "deallocs": 0,
+                "requested_bytes": 0,
+                "entry_live_allocs": 0,
+                "entry_live_bytes": 0,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 0
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

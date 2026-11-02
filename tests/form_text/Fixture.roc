@@ -140,12 +140,12 @@ source = "Café PDF"
 
 source_range : Semantics.TextRange
 source_range = {
-	scalars: Semantics.IndexRange.from_start_and_length(0, 8),
-	utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 9),
+	scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: 8 }),
+	utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 9 }),
 }
 
 empty_range : Semantics.IndexRange
-empty_range = Semantics.IndexRange.from_start_and_length(0, 0)
+empty_range = Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 })
 
 text_colors : Color.Store
 text_colors = {
@@ -162,11 +162,7 @@ empty_image_sources = { resources: [] }
 build_text_stores : {} -> Try({ colors : KernelColor.Plan, images : KernelImage.Plan }, BuildFailure)
 build_text_stores = |_| {
 	colors = KernelColor.Plan.build(text_colors, KernelColor.Limits.make({ max_icc_bytes: 0, max_profiles: 0, max_spaces: 1, max_tags: 0 })) ? |_| ColorFailure
-	images = KernelImage.Plan.build(
-		empty_image_sources,
-		colors,
-		KernelImage.Limits.make({ max_decoded_bytes: 0, max_encoded_bytes: 0, max_height: 0, max_markers: 0, max_resources: 0, max_width: 0 }),
-	) ? |_| ImageFailure
+	images = KernelImage.Plan.build(empty_image_sources, colors, KernelImage.Limits.make({ max_decoded_bytes: 0, max_encoded_bytes: 0, max_height: 0, max_markers: 0, max_resources: 0, max_width: 0 })) ? |_| ImageFailure
 	Ok({ colors, images })
 }
 
@@ -201,7 +197,7 @@ semantics = {
 	nodes: [
 		{
 			attributes: empty_range,
-			content: Semantics.IndexRange.from_start_and_length(0, 1),
+			content: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 			element_identifier: NoElementIdentifier,
 			id: Semantics.NodeId.from_index(0),
 			language: Language("en-AU"),
@@ -212,7 +208,7 @@ semantics = {
 		},
 		{
 			attributes: empty_range,
-			content: Semantics.IndexRange.from_start_and_length(1, 1),
+			content: Semantics.IndexRange.from_start_and_length({ start: 1, length: 1 }),
 			element_identifier: NoElementIdentifier,
 			id: Semantics.NodeId.from_index(1),
 			language: Language("en-AU"),
@@ -226,7 +222,7 @@ semantics = {
 	occurrence_fragments: [Semantics.FragmentId.from_index(0)],
 	occurrences: [
 		{
-			fragments: Semantics.IndexRange.from_start_and_length(0, 1),
+			fragments: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 			id: Semantics.OccurrenceId.from_index(0),
 			language: Language("en-AU"),
 			source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange(source_range)),
@@ -252,20 +248,20 @@ text_paint = {
 text_form_store : Scene.FormStore
 text_form_store = {
 	commands: [DrawText({ paint: text_paint, run: Text.RunId.from_index(0) })],
-	forms: [{ bbox: rect(0, -3000, 60000, 17000), commands: Semantics.IndexRange.from_start_and_length(0, 1), group: NoGroup, id: Scene.FormId.from_index(0) }],
+	forms: [{ bbox: rect(0, -3000, 60000, 17000), commands: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), group: NoGroup, id: Scene.FormId.from_index(0) }],
 }
 
 single_placement_scene : {} -> Scene.Store
 single_placement_scene = |_| {
 	commands: [PlaceForm({ form: Scene.FormId.from_index(0), transform: translate(72000, 700000) })],
 	dash_lengths: [],
-	groups: [{ commands: Semantics.IndexRange.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
+	groups: [{ commands: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
 	page_groups: [Scene.GroupId.from_index(0)],
 	pages: [
 		{
 			boxes: { art: a4_box, bleed: a4_box, crop: a4_box, media: a4_box, trim: a4_box },
 			id: Semantics.PageId.from_index(0),
-			paint_order: Semantics.IndexRange.from_start_and_length(0, 1),
+			paint_order: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 			rotation: Rotate0,
 		},
 	],
@@ -341,14 +337,8 @@ Prelude := { analysis : KernelUnicode.UnicodeAnalysis, font : KernelFont.Inspect
 ## former pinned compiler, from the roc-lang/roc#10697 family.)
 build_prelude : {} -> Try(Prelude, BuildFailure)
 build_prelude = |_| {
-	analysis = KernelUnicode.analyze(
-		source,
-		{ max_graphemes: 32, max_line_boundaries: 33, max_scalars: 32, max_script_runs: 8 },
-	) ? |_| AnalysisFailure
-	font = KernelFont.inspect(
-		font_bytes({}),
-		KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }),
-	) ? |_| FontFailure
+	analysis = KernelUnicode.analyze(source, { max_graphemes: 32, max_line_boundaries: 33, max_scalars: 32, max_script_runs: 8 }) ? |_| AnalysisFailure
+	font = KernelFont.inspect(font_bytes({}), KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| FontFailure
 	shape = KernelShape.shape_simple(
 		font,
 		source,
@@ -371,13 +361,7 @@ build_sample : Prelude, Scene.Store -> Try(Sample, BuildFailure)
 build_sample = |prelude, scene_store| {
 	font = prelude.font
 	shape = prelude.shape
-	semantic = KernelTextSemantics.Plan.build(
-		semantics,
-		1,
-		1,
-		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
-		KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 9, max_text_source_scalars: 8, max_text_sources: 1 }),
-	) ? |_| SemanticFailure
+	semantic = KernelTextSemantics.Plan.build(semantics, 1, 1, KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }), KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 9, max_text_source_scalars: 8, max_text_sources: 1 })) ? |_| SemanticFailure
 	resources = KernelScene.Resources.with_forms({ color_spaces: 1, forms: 1, images: 0, text_runs: shape.store.runs.len() })
 	form_scene = KernelScene.FormPlan.build(scene_store, text_form_store, resources, scene_limits, form_scene_limits) ? FormSceneFailure
 	stores = build_text_stores({})?
@@ -386,11 +370,7 @@ build_sample = |prelude, scene_store| {
 	usages = glyph_usages(shape.store.glyphs)
 	font_plan = KernelFontPlan.plan(font, usages, KernelFontPlan.Limits.make({ max_retained_glyphs: 64 })) ? |_| FontPlanFailure
 	subset = KernelFontSubset.build(font, font_plan) ? |_| SubsetFailure
-	text = KernelPdfText.ScenePlan.build(
-		ownership,
-		[font_plan],
-		KernelPdfText.Limits.make({ max_actual_text_scalars: 64, max_content_bytes: 4096, max_mappings: 64, max_placements: 0, max_source_scalars: 64 }),
-	) ? |_| TextFailure
+	text = KernelPdfText.ScenePlan.build(ownership, [font_plan], KernelPdfText.Limits.make({ max_actual_text_scalars: 64, max_content_bytes: 4096, max_mappings: 64, max_placements: 0, max_source_scalars: 64 })) ? |_| TextFailure
 	tagged = KernelTextOwnership.Plan.tagged(ownership)
 
 	## The canonical font-leaf recipe derives once from the validated bundle
@@ -405,34 +385,12 @@ build_sample = |prelude, scene_store| {
 	}) ? FontLeafFailure
 	font_leaf = { descriptor: KernelFontLeaf.Leaf.descriptor(leaf), payload: KernelFontLeaf.Leaf.recipe(leaf) }
 	form_plan = KernelForm.Plan.build(form_scene, facts, { colors: stores.colors, fonts: [font_leaf], images: stores.images }, WithText(KernelPdfText.ScenePlan.content(text)), tagged, form_limits) ? FormPlanFailure
-	content = KernelContent.Plan.build_with_forms_and_text(
-		tagged,
-		KernelPdfText.ScenePlan.content(text),
-		form_context(form_plan),
-		KernelContent.Limits.make({ max_content_bytes: 8192, max_content_streams: 1 }),
-	) ? |_| ContentFailure
+	content = KernelContent.Plan.build_with_forms_and_text(tagged, KernelPdfText.ScenePlan.content(text), form_context(form_plan), KernelContent.Limits.make({ max_content_bytes: 8192, max_content_streams: 1 })) ? |_| ContentFailure
 	resource_use = KernelResourceUse.TextPlan.build_with_forms(form_scene, stores.colors, stores.images) ? |_| ResourceUseFailure
 	leaf_counts = KernelForm.Plan.canonical_leaf_counts(form_plan)
-	base = KernelObjectPlan.Plan.build_canonical(
-		tagged,
-		stores.colors,
-		stores.images,
-		resource_use,
-		content,
-		{ color_spaces: leaf_counts.color_spaces, image_alpha: KernelForm.Plan.canonical_image_alpha(form_plan), profiles: leaf_counts.profiles },
-		KernelObjectPlan.Limits.make({ max_objects: 32, max_pages: 1 }),
-	) ? |_| ObjectFailure
+	base = KernelObjectPlan.Plan.build_canonical(tagged, stores.colors, stores.images, resource_use, content, { color_spaces: leaf_counts.color_spaces, image_alpha: KernelForm.Plan.canonical_image_alpha(form_plan), profiles: leaf_counts.profiles }, KernelObjectPlan.Limits.make({ max_objects: 32, max_pages: 1 })) ? |_| ObjectFailure
 	objects = KernelFormObjects.Plan.build_with_states(base, KernelForm.Plan.canonical_form_count(form_plan), KernelForm.Plan.canonical_state_count(form_plan), KernelForm.Plan.canonical_font_count(form_plan), 32) ? |_| FormObjectFailure
-	structure = KernelFormStructure.Plan.build(
-		tagged,
-		stores.colors,
-		stores.images,
-		content,
-		form_plan,
-		objects,
-		WithTextObjects({ fonts: [{ descriptor: font_descriptor, font, plan: font_plan, subset }], text }),
-		structure_limits,
-	) ? StructureFailure
+	structure = KernelFormStructure.Plan.build(tagged, stores.colors, stores.images, content, form_plan, objects, WithTextObjects({ fonts: [{ descriptor: font_descriptor, font, plan: font_plan, subset }], text }), structure_limits) ? StructureFailure
 	bytes = KernelEmit.to_bytes(KernelFormStructure.Plan.structure(structure)) ? |_| EmitFailure
 	Ok({ bytes, content, facts, form_plan, ownership, structure, text })
 }
@@ -486,7 +444,7 @@ check_text_negatives = |prelude| {
 			PlaceForm({ form: Scene.FormId.from_index(0), transform: translate(72000, 700000) }),
 			PlaceForm({ form: Scene.FormId.from_index(0), transform: translate(72000, 650000) }),
 		],
-		groups: [{ commands: Semantics.IndexRange.from_start_and_length(0, 2), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
+		groups: [{ commands: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
 	}
 	twice_rejected = match build_facts_for(prelude, twice) {
 		Err(TextFormMultiplyPlaced({ form: 0, instances: 2 })) => True
@@ -499,7 +457,7 @@ check_text_negatives = |prelude| {
 	## 2: a text-bearing form reachable only under an artifact owner.
 	artifact = {
 		..base_scene,
-		groups: [{ commands: Semantics.IndexRange.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: PageArtifact(Header) }],
+		groups: [{ commands: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), id: Scene.GroupId.from_index(0), owner: PageArtifact(Header) }],
 	}
 	artifact_rejected = match build_facts_for(prelude, artifact) {
 		Err(ArtifactTextInForm({ form: 0 })) => True

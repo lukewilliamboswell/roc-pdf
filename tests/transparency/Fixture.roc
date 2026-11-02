@@ -77,10 +77,10 @@ rect : I64, I64, I64, I64 -> Layout.Rect
 rect = |x, y, width, height| { origin: { x: unit(x), y: unit(y) }, size: { height: unit(height), width: unit(width) } }
 
 empty_range : Semantics.IndexRange
-empty_range = Semantics.IndexRange.from_start_and_length(0, 0)
+empty_range = Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 })
 
 span : U64, U64 -> Semantics.IndexRange
-span = |start, length| Semantics.IndexRange.from_start_and_length(start, length)
+span = |start, length| Semantics.IndexRange.from_start_and_length({ start: start, length: length })
 
 page_box : Layout.Rect
 page_box = rect(0, 0, 100000, 100000)
@@ -307,12 +307,7 @@ BuildFailure := [
 
 run_pipeline : Scenario -> Try(Built, BuildFailure)
 run_pipeline = |input| {
-	semantic = KernelSemantics.Plan.build(
-		input.semantics,
-		1,
-		1,
-		semantic_limits(input.semantics.nodes.len(), input.semantics.content_spine.len(), input.semantics.fragments.len()),
-	) ? SemanticFailure
+	semantic = KernelSemantics.Plan.build(input.semantics, 1, 1, semantic_limits(input.semantics.nodes.len(), input.semantics.content_spine.len(), input.semantics.fragments.len())) ? SemanticFailure
 	resources = KernelScene.Resources.with_forms({
 		color_spaces: input.colors.spaces.len(),
 		forms: input.form_store.forms.len(),
@@ -328,15 +323,7 @@ run_pipeline = |input| {
 	content = KernelContent.Plan.build_with_forms(tagged, form_context(form_plan, input.form_store), content_limits) ? ContentFailure
 	resource_use = KernelResourceUse.TextPlan.build_with_forms_and_blending(form_scene, colors, images, KernelForm.Facts.blending(facts)) ? ResourceUseFailure
 	leaf_counts = KernelForm.Plan.canonical_leaf_counts(form_plan)
-	base = KernelObjectPlan.Plan.build_canonical(
-		tagged,
-		colors,
-		images,
-		resource_use,
-		content,
-		{ color_spaces: leaf_counts.color_spaces, image_alpha: KernelForm.Plan.canonical_image_alpha(form_plan), profiles: leaf_counts.profiles },
-		KernelObjectPlan.Limits.make({ max_objects: 8192, max_pages: 1 }),
-	) ? ObjectFailure
+	base = KernelObjectPlan.Plan.build_canonical(tagged, colors, images, resource_use, content, { color_spaces: leaf_counts.color_spaces, image_alpha: KernelForm.Plan.canonical_image_alpha(form_plan), profiles: leaf_counts.profiles }, KernelObjectPlan.Limits.make({ max_objects: 8192, max_pages: 1 })) ? ObjectFailure
 	objects = KernelFormObjects.Plan.build_with_states(base, KernelForm.Plan.canonical_form_count(form_plan), KernelForm.Plan.canonical_state_count(form_plan), 0, 8192) ? FormObjectFailure
 	structure = KernelFormStructure.Plan.build(tagged, colors, images, content, form_plan, objects, NoTextObjects, structure_limits) ? StructureFailure
 	bytes = KernelEmit.to_bytes(KernelFormStructure.Plan.structure(structure)) ? |_| EmitFailure
@@ -891,12 +878,7 @@ expect_plan_rejection = |ordinal, input, limits, matches| {
 
 build_plan_with_limits : Scenario, KernelForm.Limits -> Try(KernelForm.Plan, BuildFailure)
 build_plan_with_limits = |input, limits| {
-	semantic = KernelSemantics.Plan.build(
-		input.semantics,
-		1,
-		1,
-		semantic_limits(input.semantics.nodes.len(), input.semantics.content_spine.len(), input.semantics.fragments.len()),
-	) ? SemanticFailure
+	semantic = KernelSemantics.Plan.build(input.semantics, 1, 1, semantic_limits(input.semantics.nodes.len(), input.semantics.content_spine.len(), input.semantics.fragments.len())) ? SemanticFailure
 	resources = KernelScene.Resources.with_forms({
 		color_spaces: input.colors.spaces.len(),
 		forms: input.form_store.forms.len(),
@@ -1013,11 +995,7 @@ check_negatives = |context| {
 
 	## 5: an isolated-group form alone makes its page a transparency page,
 	## so it needs the blending space even with fully opaque content.
-	plain_isolated = ambient_form_scenario(
-		[DrawPath({ path: Scene.PathId.from_index(1), style: fill_with(gray_value(24672, 0)) })],
-		span(0, 1),
-		IsolatedGroup,
-	)
+	plain_isolated = ambient_form_scenario([DrawPath({ path: Scene.PathId.from_index(1), style: fill_with(gray_value(24672, 0)) })], span(0, 1), IsolatedGroup)
 	plain_scene = {
 		..plain_isolated.scene,
 		commands: [
@@ -1055,11 +1033,7 @@ check_negatives = |context| {
 
 	## 7: the same conflict through nesting: an opacity-bearing child form
 	## placed by a plain parent that executes under page opacity.
-	nested_parent = ambient_form_scenario(
-		[PlaceForm({ form: Scene.FormId.from_index(1), transform: identity_transform })],
-		span(0, 1),
-		NoGroup,
-	)
+	nested_parent = ambient_form_scenario([PlaceForm({ form: Scene.FormId.from_index(1), transform: identity_transform })], span(0, 1), NoGroup)
 	nested_scenario = {
 		..nested_parent,
 		form_store: {

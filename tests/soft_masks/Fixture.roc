@@ -74,10 +74,10 @@ rect : I64, I64, I64, I64 -> Layout.Rect
 rect = |x, y, width, height| { origin: { x: unit(x), y: unit(y) }, size: { height: unit(height), width: unit(width) } }
 
 empty_range : Semantics.IndexRange
-empty_range = Semantics.IndexRange.from_start_and_length(0, 0)
+empty_range = Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 })
 
 span : U64, U64 -> Semantics.IndexRange
-span = |start, length| Semantics.IndexRange.from_start_and_length(start, length)
+span = |start, length| Semantics.IndexRange.from_start_and_length({ start: start, length: length })
 
 page_box : Layout.Rect
 page_box = rect(0, 0, 100000, 100000)
@@ -298,12 +298,7 @@ BuildFailure := [
 
 run_pipeline : Scenario -> Try(Built, BuildFailure)
 run_pipeline = |input| {
-	semantic = KernelSemantics.Plan.build(
-		input.semantics,
-		1,
-		1,
-		semantic_limits(input.semantics.nodes.len(), input.semantics.content_spine.len(), input.semantics.fragments.len()),
-	) ? SemanticFailure
+	semantic = KernelSemantics.Plan.build(input.semantics, 1, 1, semantic_limits(input.semantics.nodes.len(), input.semantics.content_spine.len(), input.semantics.fragments.len())) ? SemanticFailure
 	resources = KernelScene.Resources.with_forms({
 		color_spaces: input.colors.spaces.len(),
 		forms: input.form_store.forms.len(),
@@ -319,15 +314,7 @@ run_pipeline = |input| {
 	content = KernelContent.Plan.build_with_forms(tagged, form_context(form_plan, input.form_store), content_limits) ? ContentFailure
 	resource_use = KernelResourceUse.TextPlan.build_with_forms_and_blending(form_scene, colors, images, KernelForm.Facts.blending(facts)) ? ResourceUseFailure
 	leaf_counts = KernelForm.Plan.canonical_leaf_counts(form_plan)
-	base = KernelObjectPlan.Plan.build_canonical(
-		tagged,
-		colors,
-		images,
-		resource_use,
-		content,
-		{ color_spaces: leaf_counts.color_spaces, image_alpha: KernelForm.Plan.canonical_image_alpha(form_plan), profiles: leaf_counts.profiles },
-		KernelObjectPlan.Limits.make({ max_objects: 8192, max_pages: 1 }),
-	) ? ObjectFailure
+	base = KernelObjectPlan.Plan.build_canonical(tagged, colors, images, resource_use, content, { color_spaces: leaf_counts.color_spaces, image_alpha: KernelForm.Plan.canonical_image_alpha(form_plan), profiles: leaf_counts.profiles }, KernelObjectPlan.Limits.make({ max_objects: 8192, max_pages: 1 })) ? ObjectFailure
 	objects = KernelFormObjects.Plan.build_with_states(base, KernelForm.Plan.canonical_form_count(form_plan), KernelForm.Plan.canonical_state_count(form_plan), 0, 8192) ? FormObjectFailure
 	structure = KernelFormStructure.Plan.build(tagged, colors, images, content, form_plan, objects, NoTextObjects, structure_limits) ? StructureFailure
 	bytes = KernelEmit.to_bytes(KernelFormStructure.Plan.structure(structure)) ? |_| EmitFailure
@@ -869,13 +856,7 @@ check_negatives = |context| {
 			],
 		},
 	}
-	scene_rejected = match KernelScene.FormPlan.build(
-		out_of_range.scene,
-		out_of_range.form_store,
-		KernelScene.Resources.with_forms({ color_spaces: 2, forms: 1, images: 0, text_runs: 0 }),
-		scene_limits,
-		form_scene_limits,
-	) {
+	scene_rejected = match KernelScene.FormPlan.build(out_of_range.scene, out_of_range.form_store, KernelScene.Resources.with_forms({ color_spaces: 2, forms: 1, images: 0, text_runs: 0 }), scene_limits, form_scene_limits) {
 		Err(IndexOutOfRange({ available: 1, index, kind: FormIndex })) => index == context + 6
 		_ => False
 	}

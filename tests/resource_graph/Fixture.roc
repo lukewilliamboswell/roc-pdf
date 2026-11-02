@@ -576,96 +576,18 @@ check_negatives = |context| {
 	rejected(1, KernelResourceGraph.Plan.build(negative_input([{ source: outside, target: 0 }], 1, root_zero, [], two, DomainSeparatedSha256), negative_limits), EdgeSource)?
 	rejected(2, KernelResourceGraph.Plan.build(negative_input([{ source: 0, target: outside }], 1, root_zero, [], two, DomainSeparatedSha256), negative_limits), EdgeTarget)?
 	rejected(3, KernelResourceGraph.Plan.build(negative_input([{ source: 0, target: 0 }], 1, root_zero, [], one, DomainSeparatedSha256), negative_limits), SelfCycle)?
-	rejected(
-		4,
-		KernelResourceGraph.Plan.build(
-			negative_input([{ source: 0, target: 1 }, { source: 1, target: 0 }], 1, root_zero, [], two, DomainSeparatedSha256),
-			negative_limits,
-		),
-		Cycle,
-	)?
-	rejected(
-		5,
-		KernelResourceGraph.Plan.build(
-			negative_input(
-				[{ source: 0, target: 1 }, { source: 1, target: 2 }, { source: 2, target: 0 }],
-				1,
-				root_zero,
-				[],
-				three,
-				DomainSeparatedSha256,
-			),
-			negative_limits,
-		),
-		Cycle,
-	)?
+	rejected(4, KernelResourceGraph.Plan.build(negative_input([{ source: 0, target: 1 }, { source: 1, target: 0 }], 1, root_zero, [], two, DomainSeparatedSha256), negative_limits), Cycle)?
+	rejected(5, KernelResourceGraph.Plan.build(negative_input([{ source: 0, target: 1 }, { source: 1, target: 2 }, { source: 2, target: 0 }], 1, root_zero, [], three, DomainSeparatedSha256), negative_limits), Cycle)?
 	rejected(6, KernelResourceGraph.Plan.build(negative_input([], 1, root_zero, [], two, DomainSeparatedSha256), negative_limits), Unreachable)?
-	rejected(
-		7,
-		KernelResourceGraph.Plan.build(
-			negative_input([{ source: 0, target: 1 }, { source: 0, target: 1 }], 1, root_zero, [], two, DomainSeparatedSha256),
-			negative_limits,
-		),
-		DuplicateEdge,
-	)?
-	rejected(
-		8,
-		KernelResourceGraph.Plan.build(
-			negative_input([], 1, [{ resource: 0, root: 0 }, { resource: 0, root: 0 }], [], one, DomainSeparatedSha256),
-			negative_limits,
-		),
-		DuplicateRootUse,
-	)?
-	rejected(
-		9,
-		KernelResourceGraph.Plan.build(negative_input([], 1, root_zero, [], two, DomainSeparatedSha256), { ..negative_limits, max_resources: 1 }),
-		ResourceLimit,
-	)?
-	rejected(
-		10,
-		KernelResourceGraph.Plan.build(
-			negative_input([{ source: 0, target: 1 }], 1, root_zero, [], two, DomainSeparatedSha256),
-			{ ..negative_limits, max_edges: 0 },
-		),
-		EdgeLimit,
-	)?
-	rejected(
-		11,
-		KernelResourceGraph.Plan.build(negative_input([], 1, root_zero, [], two, DomainSeparatedSha256), { ..negative_limits, max_hash_bytes: 8 }),
-		HashBytes,
-	)?
-	rejected(
-		12,
-		KernelResourceGraph.Plan.build(
-			negative_input([], 1, [{ resource: 0, root: 0 }, { resource: 1, root: 0 }], [], two, TruncatedTestDigest(1)),
-			{ ..negative_limits, max_collision_entries: 1 },
-		),
-		CollisionEntries,
-	)?
-	rejected(
-		13,
-		KernelResourceGraph.Plan.build(
-			negative_input([], 1, [{ resource: 0, root: 0 }, { resource: 1, root: 0 }], [], two, TruncatedTestDigest(1)),
-			{ ..negative_limits, max_ordering_work: 0 },
-		),
-		OrderingWork,
-	)?
-	rejected(
-		14,
-		KernelResourceGraph.Plan.build(
-			negative_input([], 1, [{ resource: 0, root: 0 }, { resource: 1, root: 0 }], [], two, TruncatedTestDigest(1)),
-			{ ..negative_limits, max_equality_bytes: 0 },
-		),
-		EqualityBytes,
-	)?
-	rejected(
-		15,
-		KernelResourceGraph.Plan.build(
-			negative_input([{ source: 0, target: 1 }], 1, root_zero, [], two, DomainSeparatedSha256),
-			{ ..negative_limits, max_topological_work: 0 },
-		),
-		TopologicalWork,
-	)?
+	rejected(7, KernelResourceGraph.Plan.build(negative_input([{ source: 0, target: 1 }, { source: 0, target: 1 }], 1, root_zero, [], two, DomainSeparatedSha256), negative_limits), DuplicateEdge)?
+	rejected(8, KernelResourceGraph.Plan.build(negative_input([], 1, [{ resource: 0, root: 0 }, { resource: 0, root: 0 }], [], one, DomainSeparatedSha256), negative_limits), DuplicateRootUse)?
+	rejected(9, KernelResourceGraph.Plan.build(negative_input([], 1, root_zero, [], two, DomainSeparatedSha256), { ..negative_limits, max_resources: 1 }), ResourceLimit)?
+	rejected(10, KernelResourceGraph.Plan.build(negative_input([{ source: 0, target: 1 }], 1, root_zero, [], two, DomainSeparatedSha256), { ..negative_limits, max_edges: 0 }), EdgeLimit)?
+	rejected(11, KernelResourceGraph.Plan.build(negative_input([], 1, root_zero, [], two, DomainSeparatedSha256), { ..negative_limits, max_hash_bytes: 8 }), HashBytes)?
+	rejected(12, KernelResourceGraph.Plan.build(negative_input([], 1, [{ resource: 0, root: 0 }, { resource: 1, root: 0 }], [], two, TruncatedTestDigest(1)), { ..negative_limits, max_collision_entries: 1 }), CollisionEntries)?
+	rejected(13, KernelResourceGraph.Plan.build(negative_input([], 1, [{ resource: 0, root: 0 }, { resource: 1, root: 0 }], [], two, TruncatedTestDigest(1)), { ..negative_limits, max_ordering_work: 0 }), OrderingWork)?
+	rejected(14, KernelResourceGraph.Plan.build(negative_input([], 1, [{ resource: 0, root: 0 }, { resource: 1, root: 0 }], [], two, TruncatedTestDigest(1)), { ..negative_limits, max_equality_bytes: 0 }), EqualityBytes)?
+	rejected(15, KernelResourceGraph.Plan.build(negative_input([{ source: 0, target: 1 }], 1, root_zero, [], two, DomainSeparatedSha256), { ..negative_limits, max_topological_work: 0 }), TopologicalWork)?
 	rejected(
 		16,
 		KernelResourceGraph.Plan.build(
@@ -682,29 +604,8 @@ check_negatives = |context| {
 		),
 		PayloadRange,
 	)?
-	rejected(
-		17,
-		KernelResourceGraph.Plan.build(
-			negative_input(
-				[],
-				1,
-				root_zero,
-				[{ ownership: Semantic({ fragment: Semantics.FragmentId.from_index(0), mcid: 0 }), resource: 0, reuse: Reusable }],
-				one,
-				DomainSeparatedSha256,
-			),
-			negative_limits,
-		),
-		SemanticMerge,
-	)?
-	rejected(
-		18,
-		KernelResourceGraph.Plan.build(
-			negative_input([], 1, root_zero, [{ ownership: Artifact(Background), resource: outside, reuse: Reusable }], one, DomainSeparatedSha256),
-			negative_limits,
-		),
-		PlacementRange,
-	)?
+	rejected(17, KernelResourceGraph.Plan.build(negative_input([], 1, root_zero, [{ ownership: Semantic({ fragment: Semantics.FragmentId.from_index(0), mcid: 0 }), resource: 0, reuse: Reusable }], one, DomainSeparatedSha256), negative_limits), SemanticMerge)?
+	rejected(18, KernelResourceGraph.Plan.build(negative_input([], 1, root_zero, [{ ownership: Artifact(Background), resource: outside, reuse: Reusable }], one, DomainSeparatedSha256), negative_limits), PlacementRange)?
 	Ok(context * 18)
 }
 

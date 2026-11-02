@@ -1,15 +1,15 @@
 {
-  "about": "The three default fonts shipped in package/fonts/, each byte-for-byte as its upstream released it. Every file is pinned by SHA-256 and size, and its provenance by a release archive (or a file at a tag) and the archive's own SHA-256. verify.py checks the committed files against these pins and, with --fetch, downloads each upstream again to prove where the bytes came from. Changing any entry changes measurements: it is a breaking change of the package. See docs/default-fonts.adoc.",
+  "about": "Three default families, ten unchanged upstream static faces. Prepared fonts and bytes match directly. Variable fonts are caller supplied. Changing a default is a breaking change.",
   "schema": 1,
   "faces": [
     {
       "id": "sans",
       "family": "Inter",
-      "file": "package/fonts/Inter-Variable.ttf",
-      "sha256": "4989b125924991b90d05b2d16e0e388c48f7d5bb8b30539bbf9c755278d0ccaf",
-      "size": 879708,
+      "file": "package/fonts/Inter-Regular.ttf",
+      "sha256": "40d692fce188e4471e2b3cba937be967878f631ad3ebbbdcd587687c7ebe0c82",
+      "size": 411640,
       "version": "Version 4.001;git-9221beed3",
-      "font_revision": "4.001",
+      "font_revision": "4.001007080078125",
       "upstream": {
         "repository": "https://github.com/rsms/inter",
         "release": "v4.1",
@@ -18,9 +18,8 @@
           "url": "https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip",
           "sha256": "9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e",
           "size": 33707794,
-          "member": "InterVariable.ttf"
-        },
-        "file_url": "https://raw.githubusercontent.com/rsms/inter/e3a3d4c57d5ecc01453a575621882a384c1995a3/docs/font-files/InterVariable.ttf"
+          "member": "extras/ttf/Inter-Regular.ttf"
+        }
       },
       "licence": {
         "file": "package/fonts/Inter-OFL.txt",
@@ -28,30 +27,127 @@
         "size": 4380,
         "spdx": "OFL-1.1",
         "url": "https://raw.githubusercontent.com/rsms/inter/e3a3d4c57d5ecc01453a575621882a384c1995a3/LICENSE.txt",
-        "archive_member": "LICENSE.txt",
         "copyright": "Copyright (c) 2016 The Inter Project Authors (https://github.com/rsms/inter)",
         "reserved_font_names": []
-      }
+      },
+      "style": "Regular",
+      "weight": 400,
+      "code_points": 2852
+    },
+    {
+      "id": "sans_bold",
+      "family": "Inter",
+      "file": "package/fonts/Inter-Bold.ttf",
+      "sha256": "288316099b1e0a47a4716d159098005eef7c0066921f34e3200393dbdb01947f",
+      "size": 420428,
+      "version": "Version 4.001;git-9221beed3",
+      "font_revision": "4.001007080078125",
+      "upstream": {
+        "repository": "https://github.com/rsms/inter",
+        "release": "v4.1",
+        "commit": "e3a3d4c57d5ecc01453a575621882a384c1995a3",
+        "archive": {
+          "url": "https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip",
+          "sha256": "9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e",
+          "size": 33707794,
+          "member": "extras/ttf/Inter-Bold.ttf"
+        }
+      },
+      "licence": {
+        "file": "package/fonts/Inter-OFL.txt",
+        "sha256": "262481e844521b326f5ecd053e59b98c8b2da78c8ee1bdbb6e8174305e54935a",
+        "size": 4380,
+        "spdx": "OFL-1.1",
+        "url": "https://raw.githubusercontent.com/rsms/inter/e3a3d4c57d5ecc01453a575621882a384c1995a3/LICENSE.txt",
+        "copyright": "Copyright (c) 2016 The Inter Project Authors (https://github.com/rsms/inter)",
+        "reserved_font_names": []
+      },
+      "style": "Bold",
+      "weight": 700,
+      "code_points": 2852
+    },
+    {
+      "id": "sans_italic",
+      "family": "Inter",
+      "file": "package/fonts/Inter-Italic.ttf",
+      "sha256": "bbc051dd204b5019a1aa0bc0ae2aa8a05ab13e7a3f979fa357631dc7feb6833a",
+      "size": 417388,
+      "version": "Version 4.001;git-9221beed3",
+      "font_revision": "4.001007080078125",
+      "upstream": {
+        "repository": "https://github.com/rsms/inter",
+        "release": "v4.1",
+        "commit": "e3a3d4c57d5ecc01453a575621882a384c1995a3",
+        "archive": {
+          "url": "https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip",
+          "sha256": "9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e",
+          "size": 33707794,
+          "member": "extras/ttf/Inter-Italic.ttf"
+        }
+      },
+      "licence": {
+        "file": "package/fonts/Inter-OFL.txt",
+        "sha256": "262481e844521b326f5ecd053e59b98c8b2da78c8ee1bdbb6e8174305e54935a",
+        "size": 4380,
+        "spdx": "OFL-1.1",
+        "url": "https://raw.githubusercontent.com/rsms/inter/e3a3d4c57d5ecc01453a575621882a384c1995a3/LICENSE.txt",
+        "copyright": "Copyright (c) 2016 The Inter Project Authors (https://github.com/rsms/inter)",
+        "reserved_font_names": []
+      },
+      "style": "Italic",
+      "weight": 400,
+      "code_points": 2816
+    },
+    {
+      "id": "sans_bold_italic",
+      "family": "Inter",
+      "file": "package/fonts/Inter-BoldItalic.ttf",
+      "sha256": "948405a16cdc62701da5f4005ed068ca5f4d27061d98f7974ccfc37831d9581d",
+      "size": 425296,
+      "version": "Version 4.001;git-9221beed3",
+      "font_revision": "4.001007080078125",
+      "upstream": {
+        "repository": "https://github.com/rsms/inter",
+        "release": "v4.1",
+        "commit": "e3a3d4c57d5ecc01453a575621882a384c1995a3",
+        "archive": {
+          "url": "https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip",
+          "sha256": "9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e",
+          "size": 33707794,
+          "member": "extras/ttf/Inter-BoldItalic.ttf"
+        }
+      },
+      "licence": {
+        "file": "package/fonts/Inter-OFL.txt",
+        "sha256": "262481e844521b326f5ecd053e59b98c8b2da78c8ee1bdbb6e8174305e54935a",
+        "size": 4380,
+        "spdx": "OFL-1.1",
+        "url": "https://raw.githubusercontent.com/rsms/inter/e3a3d4c57d5ecc01453a575621882a384c1995a3/LICENSE.txt",
+        "copyright": "Copyright (c) 2016 The Inter Project Authors (https://github.com/rsms/inter)",
+        "reserved_font_names": []
+      },
+      "style": "BoldItalic",
+      "weight": 700,
+      "code_points": 2816
     },
     {
       "id": "serif",
       "family": "Merriweather",
-      "file": "package/fonts/Merriweather-Variable.ttf",
-      "sha256": "22e924e4ea00ef19a5b30dd2c5c32674009badb39bb4611336960eb32ad7a422",
-      "size": 4628080,
+      "file": "package/fonts/Merriweather-Regular.ttf",
+      "sha256": "0b59b4e18ba0b6b59aaf40753e2c839a9fcda43261006e3f08eef1ec03d99b39",
+      "size": 1195344,
       "version": "Version 2.100",
-      "font_revision": "2.100",
+      "font_revision": "2.0999908447265625",
       "upstream": {
         "repository": "https://github.com/EbenSorkin/Merriweather4",
         "release": "4.009",
         "commit": "e586023aa0fe1dba9a7d4ec80fa8b9e546cb7ecf",
         "archive": {
-          "url": "https://github.com/EbenSorkin/Merriweather4/releases/download/4.009/Merriweather4-4.009.zip",
-          "sha256": "526473e3bc1c98fc962207eaaed92487f126c3ac4238d50e279462a43b22da40",
-          "size": 12880085,
-          "member": "Merriweather4-4.009/fonts/variable/Merriweather[opsz,wdth,wght].ttf"
-        },
-        "notes": "The release archive is the authority. The copy committed in the repository at the same commit is a different build (also named Version 2.100), and the copy in google/fonts differs only in head.modified."
+          "url": "https://github.com/EbenSorkin/Merriweather4/releases/download/4.009/Meriweather.Static.fonts.TTF.flavor.zip",
+          "sha256": "ff04978b1265cfa9f6d4079a56ed20bf84d38cb7c98ac01d3f927d8cd0e0a825",
+          "size": 347937512,
+          "member": "TTF/Merriweather-Regular.ttf"
+        }
       },
       "licence": {
         "file": "package/fonts/Merriweather-OFL.txt",
@@ -59,19 +155,125 @@
         "size": 4438,
         "spdx": "OFL-1.1",
         "url": "https://raw.githubusercontent.com/EbenSorkin/Merriweather4/e586023aa0fe1dba9a7d4ec80fa8b9e546cb7ecf/OFL.txt",
-        "archive_member": "Merriweather4-4.009/OFL.txt",
         "copyright": "Copyright 2020 The Merriweather Project Authors (https://github.com/EbenSorkin/Merriweather4) with Reserved Font Name \"Merriweather\".",
-        "reserved_font_names": ["Merriweather"]
-      }
+        "reserved_font_names": [
+          "Merriweather"
+        ]
+      },
+      "style": "Regular",
+      "weight": 400,
+      "code_points": 1423
+    },
+    {
+      "id": "serif_bold",
+      "family": "Merriweather",
+      "file": "package/fonts/Merriweather-Bold.ttf",
+      "sha256": "0fc19159c0884ae7798e829db374c3c3e6089088add6d4dcf7b1cd3f2be025b0",
+      "size": 1195184,
+      "version": "Version 2.100",
+      "font_revision": "2.0999908447265625",
+      "upstream": {
+        "repository": "https://github.com/EbenSorkin/Merriweather4",
+        "release": "4.009",
+        "commit": "e586023aa0fe1dba9a7d4ec80fa8b9e546cb7ecf",
+        "archive": {
+          "url": "https://github.com/EbenSorkin/Merriweather4/releases/download/4.009/Meriweather.Static.fonts.TTF.flavor.zip",
+          "sha256": "ff04978b1265cfa9f6d4079a56ed20bf84d38cb7c98ac01d3f927d8cd0e0a825",
+          "size": 347937512,
+          "member": "TTF/Merriweather-Bold.ttf"
+        }
+      },
+      "licence": {
+        "file": "package/fonts/Merriweather-OFL.txt",
+        "sha256": "715bd349bfa6116f99e351e1548321dcfa25b91df65502d22ca8d624557697d2",
+        "size": 4438,
+        "spdx": "OFL-1.1",
+        "url": "https://raw.githubusercontent.com/EbenSorkin/Merriweather4/e586023aa0fe1dba9a7d4ec80fa8b9e546cb7ecf/OFL.txt",
+        "copyright": "Copyright 2020 The Merriweather Project Authors (https://github.com/EbenSorkin/Merriweather4) with Reserved Font Name \"Merriweather\".",
+        "reserved_font_names": [
+          "Merriweather"
+        ]
+      },
+      "style": "Bold",
+      "weight": 700,
+      "code_points": 1423
+    },
+    {
+      "id": "serif_italic",
+      "family": "Merriweather",
+      "file": "package/fonts/Merriweather-Italic.ttf",
+      "sha256": "5aeeb670ae1a9a700c07facb560255762575c7d53bb298e39e4269a369fdd69f",
+      "size": 1197668,
+      "version": "Version 2.101",
+      "font_revision": "2.1009979248046875",
+      "upstream": {
+        "repository": "https://github.com/EbenSorkin/Merriweather4",
+        "release": "4.009",
+        "commit": "e586023aa0fe1dba9a7d4ec80fa8b9e546cb7ecf",
+        "archive": {
+          "url": "https://github.com/EbenSorkin/Merriweather4/releases/download/4.009/Meriweather.Static.fonts.TTF.flavor.zip",
+          "sha256": "ff04978b1265cfa9f6d4079a56ed20bf84d38cb7c98ac01d3f927d8cd0e0a825",
+          "size": 347937512,
+          "member": "TTF/Merriweather-Italic.ttf"
+        }
+      },
+      "licence": {
+        "file": "package/fonts/Merriweather-OFL.txt",
+        "sha256": "715bd349bfa6116f99e351e1548321dcfa25b91df65502d22ca8d624557697d2",
+        "size": 4438,
+        "spdx": "OFL-1.1",
+        "url": "https://raw.githubusercontent.com/EbenSorkin/Merriweather4/e586023aa0fe1dba9a7d4ec80fa8b9e546cb7ecf/OFL.txt",
+        "copyright": "Copyright 2020 The Merriweather Project Authors (https://github.com/EbenSorkin/Merriweather4) with Reserved Font Name \"Merriweather\".",
+        "reserved_font_names": [
+          "Merriweather"
+        ]
+      },
+      "style": "Italic",
+      "weight": 400,
+      "code_points": 1422
+    },
+    {
+      "id": "serif_bold_italic",
+      "family": "Merriweather",
+      "file": "package/fonts/Merriweather-BoldItalic.ttf",
+      "sha256": "6f1afa9f6ed1e72f5cf68caeb12b020cff33b9d90a187107d43d2f833e8bcbdd",
+      "size": 1198568,
+      "version": "Version 2.101",
+      "font_revision": "2.1009979248046875",
+      "upstream": {
+        "repository": "https://github.com/EbenSorkin/Merriweather4",
+        "release": "4.009",
+        "commit": "e586023aa0fe1dba9a7d4ec80fa8b9e546cb7ecf",
+        "archive": {
+          "url": "https://github.com/EbenSorkin/Merriweather4/releases/download/4.009/Meriweather.Static.fonts.TTF.flavor.zip",
+          "sha256": "ff04978b1265cfa9f6d4079a56ed20bf84d38cb7c98ac01d3f927d8cd0e0a825",
+          "size": 347937512,
+          "member": "TTF/Merriweather-BoldItalic.ttf"
+        }
+      },
+      "licence": {
+        "file": "package/fonts/Merriweather-OFL.txt",
+        "sha256": "715bd349bfa6116f99e351e1548321dcfa25b91df65502d22ca8d624557697d2",
+        "size": 4438,
+        "spdx": "OFL-1.1",
+        "url": "https://raw.githubusercontent.com/EbenSorkin/Merriweather4/e586023aa0fe1dba9a7d4ec80fa8b9e546cb7ecf/OFL.txt",
+        "copyright": "Copyright 2020 The Merriweather Project Authors (https://github.com/EbenSorkin/Merriweather4) with Reserved Font Name \"Merriweather\".",
+        "reserved_font_names": [
+          "Merriweather"
+        ]
+      },
+      "style": "BoldItalic",
+      "weight": 700,
+      "code_points": 1422
     },
     {
       "id": "mono",
       "family": "Fira Code",
-      "file": "package/fonts/FiraCode-Variable.ttf",
-      "sha256": "04149681350f161aca538858b88d17443c586cacca83c165939a13423fe91a26",
-      "size": 286320,
+      "file": "package/fonts/FiraCode-Regular.ttf",
+      "sha256": "5992ab9640e2df491b2f609467b1de60e8bc39b2c28db184342a0592d98f6117",
+      "size": 289624,
       "version": "Version 6.002",
-      "font_revision": "6.002",
+      "font_revision": "6.0019989013671875",
       "upstream": {
         "repository": "https://github.com/tonsky/FiraCode",
         "release": "6.2",
@@ -80,9 +282,8 @@
           "url": "https://github.com/tonsky/FiraCode/releases/download/6.2/Fira_Code_v6.2.zip",
           "sha256": "0949915ba8eb24d89fd93d10a7ff623f42830d7c5ffc3ecbf960e4ecad3e3e79",
           "size": 2462987,
-          "member": "variable_ttf/FiraCode-VF.ttf"
-        },
-        "notes": "The release archive carries no licence file; the licence is the repository's LICENSE at the release commit. The built fonts are not committed in the repository."
+          "member": "ttf/FiraCode-Regular.ttf"
+        }
       },
       "licence": {
         "file": "package/fonts/FiraCode-OFL.txt",
@@ -92,7 +293,49 @@
         "url": "https://raw.githubusercontent.com/tonsky/FiraCode/eee6db993696aba61ff4eef03698e2987d79910c/LICENSE",
         "copyright": "Copyright (c) 2014, The Fira Code Project Authors (https://github.com/tonsky/FiraCode)",
         "reserved_font_names": []
-      }
+      },
+      "style": "Regular",
+      "weight": 400,
+      "code_points": 1586
+    },
+    {
+      "id": "mono_bold",
+      "family": "Fira Code",
+      "file": "package/fonts/FiraCode-Bold.ttf",
+      "sha256": "41f6554e845e2f5b70adad3950122334b866aac436793b7742ade600067701be",
+      "size": 319368,
+      "version": "Version 6.002",
+      "font_revision": "6.0019989013671875",
+      "upstream": {
+        "repository": "https://github.com/tonsky/FiraCode",
+        "release": "6.2",
+        "commit": "eee6db993696aba61ff4eef03698e2987d79910c",
+        "archive": {
+          "url": "https://github.com/tonsky/FiraCode/releases/download/6.2/Fira_Code_v6.2.zip",
+          "sha256": "0949915ba8eb24d89fd93d10a7ff623f42830d7c5ffc3ecbf960e4ecad3e3e79",
+          "size": 2462987,
+          "member": "ttf/FiraCode-Bold.ttf"
+        }
+      },
+      "licence": {
+        "file": "package/fonts/FiraCode-OFL.txt",
+        "sha256": "1d41e10031ab125302780a05ec4c91d218e47db0c7e37cf315cce5e608cdc25c",
+        "size": 4389,
+        "spdx": "OFL-1.1",
+        "url": "https://raw.githubusercontent.com/tonsky/FiraCode/eee6db993696aba61ff4eef03698e2987d79910c/LICENSE",
+        "copyright": "Copyright (c) 2014, The Fira Code Project Authors (https://github.com/tonsky/FiraCode)",
+        "reserved_font_names": []
+      },
+      "style": "Bold",
+      "weight": 700,
+      "code_points": 1586
     }
-  ]
+  ],
+  "roc_font_release": {
+    "version": "0.1.0-rc4",
+    "commit": "c42033e",
+    "bundle": "https://github.com/lukewilliamboswell/roc-font/releases/download/0.1.0-rc4/3Es9Gca6KTySYDqcDPHwVqpAqJk6KwT9G4xkcLoYaSsx.tar.zst",
+    "sha256": "0b2705f8c4ebff64ffe2fd79ef0b335fc84561693e121fa48d1e88ae2407350c",
+    "size": 3497284
+  }
 }

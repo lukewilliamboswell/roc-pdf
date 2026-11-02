@@ -47,7 +47,7 @@ nested_document = |_| Pdf.document({
 		Pdf.paragraph("This handbook groups its procedures into parts, sections, and divisions."),
 		Pdf.part([
 			Pdf.section([
-				Pdf.destination_heading("receiving", 1, "1 Receiving"),
+				Pdf.destination_heading({ name: "receiving", level: 1, text: "1 Receiving" }),
 				Pdf.paragraph("Deliveries are received at the Moonah yard between 7 am and 3 pm."),
 				Pdf.division([
 					Pdf.section([
@@ -56,7 +56,7 @@ nested_document = |_| Pdf.document({
 						Pdf.bullets(["Count the cartons", "Check each seal", "Record damage"]),
 					]),
 				]),
-				Pdf.internal_link("Return to Receiving", "receiving"),
+				Pdf.internal_link({ text: "Return to Receiving", destination: "receiving" }),
 			]),
 			Pdf.section([Pdf.heading(1, "2 Dispatch"), Pdf.paragraph("Orders leave in the order they were confirmed.")]),
 		]),
@@ -160,7 +160,7 @@ run_negatives = |context| {
 		rejects(document([Pdf.paragraph("Lead"), nest(Pdf.section([Pdf.paragraph("Kept"), Pdf.division([])]), offset)]), InvalidRelationship, "semantics.empty_container", "contents[1].contents[1]"),
 		rejects(document([nest(Pdf.section([]), offset), Pdf.paragraph("Body")]), InvalidRelationship, "semantics.empty_container", "contents[0]"),
 		rejects(document([nest(Pdf.section([Pdf.heading(1, "Tables"), Pdf.complex_table("A nested table placeholder.")]), offset)]), FeatureUnavailable, "table.complex", ""),
-		rejects(document([nest(Pdf.part([Pdf.division([Pdf.figure({ drawing: Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 10, 10), Color.gray8(0)), alt: "A square", caption: Pdf.no_caption, fit: ScaleToFit({ minimum_percent: 101 }) })])]), offset)]), InvalidRelationship, "document.figure_fit", "contents[0].contents[0].contents[0]"),
+		rejects(document([nest(Pdf.part([Pdf.division([Pdf.figure({ drawing: Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 10, height: 10 }), color: Color.gray8(0) }), alt: "A square", caption: Pdf.no_caption, fit: ScaleToFit({ minimum_percent: 101 }) })])]), offset)]), InvalidRelationship, "document.figure_fit", "contents[0].contents[0].contents[0]"),
 	]
 	passed = checks.sum()
 	if passed != checks.len() {

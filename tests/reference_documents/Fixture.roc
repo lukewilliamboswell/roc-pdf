@@ -223,9 +223,9 @@ tall_figure = |floor| {
 	ink = Color.srgb8({ red: 40, green: 40, blue: 40 })
 	slate = Color.srgb8({ red: 128, green: 146, blue: 166 })
 	plan = Scene.Drawing.empty
-		.path(Scene.PathBuilder.start.rectangle(Layout.rect(2, 2, 596, 896)).finish(), Scene.solid_stroke(ink, 4))
+		.path({ path: Scene.PathBuilder.start.rectangle(Layout.rect({ x: 2, y: 2, width: 596, height: 896 })).finish(), style: Scene.solid_stroke(ink, 4) })
 	Pdf.figure({
-		drawing: plan.rectangle(Layout.rect(60, 60, 480, 780), slate),
+		drawing: plan.rectangle({ bounds: Layout.rect({ x: 60, y: 60, width: 480, height: 780 }), color: slate }),
 		alt: "Bar chart of revenue by region, drawn at poster size.",
 		caption: Pdf.caption("Figure 1. Revenue by region, AUD thousands"),
 		fit: if (floor == 0) Exact else ScaleToFit({ minimum_percent: floor }),
@@ -237,8 +237,8 @@ tall_figure = |floor| {
 register_faces : U64 -> Try({ latin : Font.FaceId, policy : Font.PolicyId, registry : Font.Registry }, [RegistrationFailed])
 register_faces = |guard| {
 	limits = Font.ValidationLimits.make({ max_bytes: 2000000 + guard, max_cmap_mappings: 1200000, max_glyphs: 65535, max_tables: 128 })
-	latin = Font.Registry.empty.register(Report.regular_face_bytes, { provision: BuiltIn, scripts: ["Latn"] }, limits) ? |_| RegistrationFailed
-	cjk = latin.registry.register(cjk_font_bytes, { provision: BuiltIn, scripts: ["Hani"] }, limits) ? |_| RegistrationFailed
+	latin = Font.Registry.empty.register({ bytes: Report.regular_face_bytes, registration: { provision: BuiltIn, scripts: ["Latn"] }, limits: limits }) ? |_| RegistrationFailed
+	cjk = latin.registry.register({ bytes: cjk_font_bytes, registration: { provision: BuiltIn, scripts: ["Hani"] }, limits: limits }) ? |_| RegistrationFailed
 	configured = cjk.registry.with_policy([latin.face, cjk.face]) ? |_| RegistrationFailed
 	Ok({ latin: latin.face, policy: configured.policy, registry: configured.registry })
 }

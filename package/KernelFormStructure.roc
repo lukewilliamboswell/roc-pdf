@@ -286,12 +286,7 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 	navigation_plan = match navigation {
 		NoNavigation => NoNavigationPlan
 		WithNavigation(input) => {
-			resolved = KernelNavigation.resolve(
-				input.store,
-				KernelTagged.Plan.semantics(tagged),
-				KernelTagged.Plan.occurrence_owners(tagged),
-				input.anchor_rects,
-			) ? Navigation
+			resolved = KernelNavigation.resolve(input.store, KernelTagged.Plan.semantics(tagged), KernelTagged.Plan.occurrence_owners(tagged), input.anchor_rects) ? Navigation
 			planned = KernelNavigationObjects.plan(checked_add(base_object_count, metadata_object_count)?, input.store) ? NavigationObjects
 			var $annotation_pages = List.with_capacity(input.store.annotations.len())
 			var $annotation_scan = 0
@@ -627,15 +622,7 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 			while $font_ordinal < font_representatives.len() {
 				representative = list_at(font_representatives, $font_ordinal)
 				font_input = list_at(input.fonts, representative)
-				match KernelPdfFont.Plan.build(
-					$font_builder,
-					font_input.font,
-					font_input.plan,
-					font_input.subset,
-					font_input.descriptor,
-					list_at(mappings, representative),
-					limits.font_limits,
-				) {
+				match KernelPdfFont.Plan.build($font_builder, font_input.font, font_input.plan, font_input.subset, font_input.descriptor, list_at(mappings, representative), limits.font_limits) {
 					Err(error) => {
 						return Err(Font(error))
 					}
@@ -1239,12 +1226,7 @@ add_form_object = |builder, names, resource_names, dictionary, bbox, bytes, base
 			{ key: names.type_name, value: type_value.id },
 		]
 	}
-	stream = KernelObject.add_stream_object(
-		payload.builder,
-		entries,
-		Deflate,
-		payload.id,
-	) ? Object
+	stream = KernelObject.add_stream_object(payload.builder, entries, Deflate, payload.id) ? Object
 	ensure_object(stream.id, planned.stream)?
 	ensure_object(stream.length_object, planned.length)?
 	Ok({ builder: stream.builder, references: resources.references })

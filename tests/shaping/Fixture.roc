@@ -28,10 +28,7 @@ Fixture :: [].{
 				max_script_runs: 8,
 			},
 		) ? |_| EvidenceFailure
-		font = KernelFont.inspect(
-			built_in_font_bytes,
-			KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }),
-		) ? |_| EvidenceFailure
+		font = KernelFont.inspect(built_in_font_bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
 		shape = KernelShape.shape_simple(
 			font,
 			source,
@@ -99,11 +96,11 @@ advanced_store : Text.Store
 advanced_store = {
 	clusters: [
 		{
-			glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
+			glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 			kind: Ligature,
 			source: {
-				scalars: Semantics.IndexRange.from_start_and_length(0, 2),
-				utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 3),
+				scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }),
+				utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 3 }),
 			},
 		},
 	],
@@ -120,20 +117,20 @@ advanced_store = {
 	runs: [
 		{
 			actual_text: FromOccurrence,
-			clusters: Semantics.IndexRange.from_start_and_length(0, 1),
+			clusters: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 			direction: LeftToRight,
-			glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
+			glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 			id: Text.RunId.from_index(0),
 			instance: Font.InstanceId.from_index(0),
 			language: Language("en-AU"),
 			script: Font.Script.from_iso15924("Latn"),
 			size: Layout.Unit.from_raw(11000),
 			source: {
-				scalars: Semantics.IndexRange.from_start_and_length(0, 2),
-				utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 3),
+				scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }),
+				utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 3 }),
 			},
-			substitutions: Semantics.IndexRange.from_start_and_length(0, 1),
-			transformations: Semantics.IndexRange.from_start_and_length(0, 0),
+			substitutions: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
+			transformations: Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 }),
 			unicode: OccurrenceText(Semantics.OccurrenceId.from_index(1)),
 			writing_mode: Horizontal,
 		},
@@ -141,10 +138,10 @@ advanced_store = {
 	substitutions: [
 		{
 			feature: Text.FeatureTag.from_raw(0x63636d70),
-			glyphs: Semantics.IndexRange.from_start_and_length(0, 1),
+			glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 			source: {
-				scalars: Semantics.IndexRange.from_start_and_length(0, 2),
-				utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 3),
+				scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }),
+				utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 3 }),
 			},
 		},
 	],
@@ -170,10 +167,7 @@ expect {
 # glyph ID alone. Its GSUB fact proves the selected `ccmp` lookup and is then
 # consumed against the exact cluster, feature, and painted glyph.
 expect {
-	font = KernelFont.inspect(
-		built_in_font_bytes,
-		KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }),
-	)?
+	font = KernelFont.inspect(built_in_font_bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }))?
 	base = match KernelFont.glyph_for_scalar(font, 0x0041) {
 		Some(glyph) => glyph
 		None => crash "built-in GSUB fixture lost A"
@@ -182,29 +176,15 @@ expect {
 		Some(glyph) => glyph
 		None => crash "built-in GSUB fixture lost combining grave"
 	}
-	fact = KernelGsub.validate_ligature(
-		font,
-		{ feature: 0x63636d70, input: [base, grave], language: Default, output: 5, script: 0x6c61746e },
-		KernelGsub.Limits.make({ max_feature_lookups: 8, max_ligature_components: 8, max_ligatures: 128, max_subtables: 16 }),
-	)?.fact
-	validated = KernelShape.validate_advanced_with_ligature_fact(
-		font,
-		"À",
-		advanced_store,
-		{ instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(1) },
-		fact,
-		KernelShape.AdvancedLimits.make({ max_clusters: 8, max_glyph_indices: 8, max_glyphs: 8, max_runs: 4, max_scalars: 8, max_source_bytes: 32, max_substitutions: 4, max_transformations: 4 }),
-	)?
+	fact = KernelGsub.validate_ligature(font, { feature: 0x63636d70, input: [base, grave], language: Default, output: 5, script: 0x6c61746e }, KernelGsub.Limits.make({ max_feature_lookups: 8, max_ligature_components: 8, max_ligatures: 128, max_subtables: 16 }))?.fact
+	validated = KernelShape.validate_advanced_with_ligature_fact(font, "À", advanced_store, { instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(1) }, fact, KernelShape.AdvancedLimits.make({ max_clusters: 8, max_glyph_indices: 8, max_glyphs: 8, max_runs: 4, max_scalars: 8, max_source_bytes: 32, max_substitutions: 4, max_transformations: 4 }))?
 	validated.store.glyphs.len() == 1
 }
 
 # The same otherwise-valid cluster is rejected when the retained GSUB fact
 # names a different painted output glyph.
 expect {
-	font = KernelFont.inspect(
-		built_in_font_bytes,
-		KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }),
-	)?
+	font = KernelFont.inspect(built_in_font_bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }))?
 	base = match KernelFont.glyph_for_scalar(font, 0x0041) {
 		Some(glyph) => glyph
 		None => crash "built-in GSUB fixture lost A"
@@ -213,34 +193,20 @@ expect {
 		Some(glyph) => glyph
 		None => crash "built-in GSUB fixture lost combining grave"
 	}
-	fact = KernelGsub.validate_ligature(
-		font,
-		{ feature: 0x63636d70, input: [base, grave], language: Default, output: 5, script: 0x6c61746e },
-		KernelGsub.Limits.make({ max_feature_lookups: 8, max_ligature_components: 8, max_ligatures: 128, max_subtables: 16 }),
-	)?.fact
-	match KernelShape.validate_advanced_with_ligature_fact(
-		font,
-		"À",
-		advanced_store,
-		{ instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(1) },
-		{ ..fact, output: 6 },
-		KernelShape.AdvancedLimits.make({ max_clusters: 8, max_glyph_indices: 8, max_glyphs: 8, max_runs: 4, max_scalars: 8, max_source_bytes: 32, max_substitutions: 4, max_transformations: 4 }),
-	) {
+	fact = KernelGsub.validate_ligature(font, { feature: 0x63636d70, input: [base, grave], language: Default, output: 5, script: 0x6c61746e }, KernelGsub.Limits.make({ max_feature_lookups: 8, max_ligature_components: 8, max_ligatures: 128, max_subtables: 16 }))?.fact
+	match KernelShape.validate_advanced_with_ligature_fact(font, "À", advanced_store, { instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(1) }, { ..fact, output: 6 }, KernelShape.AdvancedLimits.make({ max_clusters: 8, max_glyph_indices: 8, max_glyphs: 8, max_runs: 4, max_scalars: 8, max_source_bytes: 32, max_substitutions: 4, max_transformations: 4 })) {
 		Err(AdvancedRunInvalid({ reason: AuxiliaryRange, run: 0 })) => True
 		_ => False
 	}
 }
 
 expect {
-	font = KernelFont.inspect(
-		built_in_font_bytes,
-		KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }),
-	)?
+	font = KernelFont.inspect(built_in_font_bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }))?
 	base_cluster = list_at(advanced_store.clusters, 0)
 	base_glyph = list_at(advanced_store.glyphs, 0)
 	duplicate_store = {
 		..advanced_store,
-		clusters: [{ ..base_cluster, glyphs: Semantics.IndexRange.from_start_and_length(0, 2), kind: ManyToMany }],
+		clusters: [{ ..base_cluster, glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }), kind: ManyToMany }],
 		glyph_indices: [0, 0],
 	}
 	notdef_store = { ..advanced_store, glyphs: [{ ..base_glyph, id: Text.GlyphId.from_raw(0) }] }
@@ -252,8 +218,8 @@ expect {
 			{
 				..base_cluster,
 				source: {
-					scalars: Semantics.IndexRange.from_start_and_length(0, 2),
-					utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 2),
+					scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }),
+					utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }),
 				},
 			},
 		],
@@ -291,10 +257,7 @@ expect {
 # Batch shaping writes dense global ranges and glyph indices without a
 # temporary Text.Store per source.
 expect {
-	font = KernelFont.inspect(
-		built_in_font_bytes,
-		KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }),
-	)?
+	font = KernelFont.inspect(built_in_font_bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }))?
 	analysis_ab = KernelUnicode.analyze("AB", { max_graphemes: 2, max_line_boundaries: 3, max_scalars: 2, max_script_runs: 1 })?
 	analysis_c = KernelUnicode.analyze("C", { max_graphemes: 1, max_line_boundaries: 2, max_scalars: 1, max_script_runs: 1 })?
 	analysis_bullet = KernelUnicode.analyze("•", { max_graphemes: 1, max_line_boundaries: 2, max_scalars: 1, max_script_runs: 1 })?
@@ -321,13 +284,7 @@ expect {
 	second = list_at(batch.store.runs, 1)
 	third = list_at(batch.store.runs, 2)
 	fourth = list_at(batch.store.runs, 3)
-	second_lines = KernelLineLayout.Plan.build_run(
-		analysis_c,
-		batch.store,
-		Text.RunId.from_index(1),
-		Layout.Unit.from_raw(20000),
-		KernelLineLayout.Limits.make({ max_boundaries: 2, max_candidates: 1, max_clusters: 1, max_glyph_indices: 1, max_glyphs: 1, max_lines: 1 }),
-	)?
+	second_lines = KernelLineLayout.Plan.build_run(analysis_c, batch.store, Text.RunId.from_index(1), Layout.Unit.from_raw(20000), KernelLineLayout.Limits.make({ max_boundaries: 2, max_candidates: 1, max_clusters: 1, max_glyph_indices: 1, max_glyphs: 1, max_lines: 1 }))?
 	second_line = list_at(KernelLineLayout.Plan.lines(second_lines), 0)
 	line_limits = KernelLineLayout.Limits.make({ max_boundaries: 3, max_candidates: 2, max_clusters: 2, max_glyph_indices: 2, max_glyphs: 2, max_lines: 1 })
 	line_requests = [
@@ -336,13 +293,7 @@ expect {
 		{ source: Semantics.TextSourceId.from_index(2), width: Layout.Unit.from_raw(20000) },
 		{ source: Semantics.TextSourceId.from_index(1), width: Layout.Unit.from_raw(20000) },
 	]
-	line_batch = KernelLineLayout.BatchPlan.build(
-		sources,
-		requests,
-		batch.store,
-		line_requests,
-		KernelLineLayout.BatchLimits.make({ line: line_limits, max_key_probes: 16, max_lines: 4, max_runs: 4, max_table_slots: 8, max_templates: 3 }),
-	)?
+	line_batch = KernelLineLayout.BatchPlan.build(sources, requests, batch.store, line_requests, KernelLineLayout.BatchLimits.make({ line: line_limits, max_key_probes: 16, max_lines: 4, max_runs: 4, max_table_slots: 8, max_templates: 3 }))?
 	line_work = KernelLineLayout.BatchPlan.work(line_batch)
 	line_ranges = KernelLineLayout.BatchPlan.run_lines(line_batch)
 	lines = KernelLineLayout.BatchPlan.lines(line_batch)
@@ -352,13 +303,7 @@ expect {
 		Err(LimitExceeded({ attempted: 3, dimension: Scalars, limit: 2 })) => True
 		_ => False
 	}
-	probe_bounded = match KernelLineLayout.BatchPlan.build(
-		sources,
-		requests,
-		batch.store,
-		line_requests,
-		KernelLineLayout.BatchLimits.make({ line: line_limits, max_key_probes: 0, max_lines: 4, max_runs: 4, max_table_slots: 8, max_templates: 3 }),
-	) {
+	probe_bounded = match KernelLineLayout.BatchPlan.build(sources, requests, batch.store, line_requests, KernelLineLayout.BatchLimits.make({ line: line_limits, max_key_probes: 0, max_lines: 4, max_runs: 4, max_table_slots: 8, max_templates: 3 })) {
 		Err(LimitExceeded({ attempted: 1, dimension: KeyProbes, limit: 0 })) => True
 		_ => False
 	}

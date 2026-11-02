@@ -1,0 +1,23 @@
+[#runnable-document-gallery]
+= Runnable document gallery
+
+These complete applications use public Roc APIs. Run one from a checkout to
+inspect its PDF and then adapt its source to your own content.
+
+== Invoice
+
+image::images/tax-invoice.png[Tax invoice preview]
+
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/tax-invoice/main.roc[Runnable invoice source] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/tax-invoice/tax-invoice.pdf[PDF output]
+
+== Business report
+
+image::images/business-report.png[Business report preview]
+
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/business-report/main.roc[Runnable report source] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/business-report/business-report.pdf[PDF output]
+
+== Prepared vector diagrams
+
+image::images/vector-diagrams.png[Prepared vector diagram preview]
+
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/vector-diagrams/main.roc[Runnable vector-diagram source] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/vector-diagrams/vector-diagrams.pdf[PDF output]

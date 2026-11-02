@@ -44,10 +44,7 @@ Fixture :: [].{
 			title: "text-layout facade output",
 		})
 		authoring = Document.normalize(document)
-		font = KernelFont.inspect(
-			built_in_font_bytes,
-			KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }),
-		) ? |_| EvidenceFailure
+		font = KernelFont.inspect(built_in_font_bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
 		bad_limits = pipeline_limits_for(0)
 		rejected = match KernelFacadePipeline.Plan.build(authoring, font, Theme.default, page_size, descriptor, bad_limits) {
 			Err(Lines(LimitExceeded({ attempted: 1, dimension: Runs, limit: 0 }))) => 1
@@ -77,10 +74,7 @@ Fixture :: [].{
 			title: "text-layout facade output",
 		})
 		authoring = Document.normalize(document)
-		font = KernelFont.inspect(
-			built_in_font_bytes,
-			KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }),
-		) ? |_| EvidenceFailure
+		font = KernelFont.inspect(built_in_font_bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
 		work = KernelFacadePipeline.probe(authoring, font, Theme.default, page_size, descriptor, pipeline_limits, stage) ? |_| EvidenceFailure
 		blank = KernelStructure.build_blank(1, A4) ? |_| EvidenceFailure
 		bytes = KernelEmit.to_bytes(blank) ? |_| EvidenceFailure
@@ -98,18 +92,8 @@ Fixture :: [].{
 			title: "text-layout facade output",
 		})
 		authoring = Document.normalize(document)
-		font = KernelFont.inspect(
-			built_in_font_bytes,
-			KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }),
-		) ? |_| EvidenceFailure
-		pipeline = KernelFacadePipeline.Plan.build(
-			authoring,
-			font,
-			Theme.default,
-			page_size,
-			descriptor,
-			pipeline_limits,
-		) ? |_| EvidenceFailure
+		font = KernelFont.inspect(built_in_font_bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
+		pipeline = KernelFacadePipeline.Plan.build(authoring, font, Theme.default, page_size, descriptor, pipeline_limits) ? |_| EvidenceFailure
 		bytes = KernelEmit.to_bytes(KernelFacadePipeline.Plan.structure(pipeline)) ? |_| EvidenceFailure
 		work = KernelFacadePipeline.Plan.work(pipeline)
 		output_work = KernelFacadeOutput.Plan.work(KernelFacadePipeline.Plan.output(pipeline))

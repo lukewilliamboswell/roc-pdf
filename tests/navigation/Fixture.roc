@@ -75,7 +75,7 @@ rect : I64, I64, I64, I64 -> Layout.Rect
 rect = |x, y, width, height| { origin: { x: unit(x), y: unit(y) }, size: { height: unit(height), width: unit(width) } }
 
 empty_range : Semantics.IndexRange
-empty_range = Semantics.IndexRange.from_start_and_length(0, 0)
+empty_range = Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 })
 
 page_box : Layout.Rect
 page_box = rect(0, 0, 100000, 100000)
@@ -289,9 +289,9 @@ build_stores = |page_count, specs| {
 			slot = $next_fragment
 			geometry = fragment_rect(slot)
 			$segments = $segments.append(Rectangle(geometry))
-			$paths = $paths.append({ id: Scene.PathId.from_index(slot), segments: Semantics.IndexRange.from_start_and_length(slot, 1) })
+			$paths = $paths.append({ id: Scene.PathId.from_index(slot), segments: Semantics.IndexRange.from_start_and_length({ start: slot, length: 1 }) })
 			$commands = $commands.append(DrawPath({ path: Scene.PathId.from_index(slot), style: fill_with(gray_value(24672)) }))
-			$groups = $groups.append({ commands: Semantics.IndexRange.from_start_and_length(slot, 1), id: Scene.GroupId.from_index(slot), owner: Fragment(Semantics.FragmentId.from_index(slot)) })
+			$groups = $groups.append({ commands: Semantics.IndexRange.from_start_and_length({ start: slot, length: 1 }), id: Scene.GroupId.from_index(slot), owner: Fragment(Semantics.FragmentId.from_index(slot)) })
 			$page_group_lists = list_set($page_group_lists, page, list_at($page_group_lists, page).append(Scene.GroupId.from_index(slot)))
 			$fragments = $fragments.append({
 				content_stream: Semantics.ContentStreamId.from_index(page),
@@ -318,7 +318,7 @@ build_stores = |page_count, specs| {
 				node = $next_node
 				start = $spine.len()
 				$spine = $spine.append(ContentOccurrence(Semantics.OccurrenceId.from_index(occurrence)))
-				$nodes = $nodes.append(make_node(node, ParentNode(Semantics.NodeId.from_index(0)), "P", Semantics.IndexRange.from_start_and_length(start, 1)))
+				$nodes = $nodes.append(make_node(node, ParentNode(Semantics.NodeId.from_index(0)), "P", Semantics.IndexRange.from_start_and_length({ start: start, length: 1 })))
 				$block_nodes = $block_nodes.append(Semantics.NodeId.from_index(node))
 				$next_node = $next_node + 1
 			}
@@ -341,8 +341,8 @@ build_stores = |page_count, specs| {
 					$logical = $logical + 1
 					$slot = $slot + 1
 				}
-				$nodes = $nodes.append(make_node(wrapper, ParentNode(Semantics.NodeId.from_index(0)), "P", Semantics.IndexRange.from_start_and_length(wrapper_start, 1)))
-				$nodes = $nodes.append(make_node(link_node, ParentNode(Semantics.NodeId.from_index(wrapper)), "Link", Semantics.IndexRange.from_start_and_length(link_start, 1 + annotations)))
+				$nodes = $nodes.append(make_node(wrapper, ParentNode(Semantics.NodeId.from_index(0)), "P", Semantics.IndexRange.from_start_and_length({ start: wrapper_start, length: 1 })))
+				$nodes = $nodes.append(make_node(link_node, ParentNode(Semantics.NodeId.from_index(wrapper)), "Link", Semantics.IndexRange.from_start_and_length({ start: link_start, length: 1 + annotations })))
 				$block_nodes = $block_nodes.append(Semantics.NodeId.from_index(link_node))
 				$next_node = $next_node + 2
 			}
@@ -360,13 +360,13 @@ build_stores = |page_count, specs| {
 		$pages = $pages.append({
 			boxes: { art: page_box, bleed: page_box, crop: page_box, media: page_box, trim: page_box },
 			id: Semantics.PageId.from_index($page_index),
-			paint_order: Semantics.IndexRange.from_start_and_length(start, $page_groups.len() - start),
+			paint_order: Semantics.IndexRange.from_start_and_length({ start: start, length: $page_groups.len() - start }),
 			rotation: Rotate0,
 		})
 		$page_index = $page_index + 1
 	}
 
-	root = make_node(0, DocumentRoot, "Document", Semantics.IndexRange.from_start_and_length(0, specs.len()))
+	root = make_node(0, DocumentRoot, "Document", Semantics.IndexRange.from_start_and_length({ start: 0, length: specs.len() }))
 	all_nodes = [root].concat($nodes)
 	{
 		anchor_rects: $anchor_rects,
@@ -490,11 +490,7 @@ evidence_colors = {
 
 no_images : KernelColor.Plan -> Try(KernelImage.Plan, BuildFailure)
 no_images = |colors| {
-	plan = KernelImage.Plan.build(
-		{ resources: [] },
-		colors,
-		KernelImage.Limits.make({ max_decoded_bytes: 0, max_encoded_bytes: 0, max_height: 0, max_markers: 0, max_resources: 0, max_width: 0 }),
-	) ? ImageFailure
+	plan = KernelImage.Plan.build({ resources: [] }, colors, KernelImage.Limits.make({ max_decoded_bytes: 0, max_encoded_bytes: 0, max_height: 0, max_markers: 0, max_resources: 0, max_width: 0 })) ? ImageFailure
 	Ok(plan)
 }
 
@@ -505,12 +501,7 @@ no_images = |colors| {
 run_pipeline : Scenario, U64 -> Try(Built, BuildFailure)
 run_pipeline = |input, guard| {
 	stores = input.stores
-	semantic = KernelSemantics.Plan.build_navigation(
-		stores.semantics,
-		stores.scene.pages.len(),
-		stores.scene.pages.len(),
-		semantic_limits(stores.semantics),
-	) ? SemanticFailure
+	semantic = KernelSemantics.Plan.build_navigation(stores.semantics, stores.scene.pages.len(), stores.scene.pages.len(), semantic_limits(stores.semantics)) ? SemanticFailure
 	navigation = KernelNavigation.validate(
 		input.navigation,
 		{
@@ -550,29 +541,9 @@ run_pipeline = |input, guard| {
 	content = KernelContent.Plan.build_with_forms(tagged, form_context(form_plan, input.forms), content_limits) ? ContentFailure
 	resource_use = KernelResourceUse.TextPlan.build_with_forms(form_scene, colors, images) ? ResourceUseFailure
 	leaf_counts = KernelForm.Plan.canonical_leaf_counts(form_plan)
-	base = KernelObjectPlan.Plan.build_canonical(
-		tagged,
-		colors,
-		images,
-		resource_use,
-		content,
-		{ color_spaces: leaf_counts.color_spaces, image_alpha: KernelForm.Plan.canonical_image_alpha(form_plan), profiles: leaf_counts.profiles },
-		KernelObjectPlan.Limits.make({ max_objects: 8192, max_pages: 128 }),
-	) ? ObjectFailure
+	base = KernelObjectPlan.Plan.build_canonical(tagged, colors, images, resource_use, content, { color_spaces: leaf_counts.color_spaces, image_alpha: KernelForm.Plan.canonical_image_alpha(form_plan), profiles: leaf_counts.profiles }, KernelObjectPlan.Limits.make({ max_objects: 8192, max_pages: 128 })) ? ObjectFailure
 	objects = KernelFormObjects.Plan.build_with_states(base, KernelForm.Plan.canonical_form_count(form_plan), KernelForm.Plan.canonical_state_count(form_plan), 0, 8192) ? FormObjectFailure
-	structure = KernelFormStructure.Plan.build_with_navigation(
-		tagged,
-		colors,
-		images,
-		content,
-		form_plan,
-		objects,
-		NoTextObjects,
-		Scene.no_shadings,
-		NoDocumentFacts,
-		WithNavigation({ anchor_rects: stores.anchor_rects, max_outline_depth: 32, store: navigation.store }),
-		structure_limits,
-	) ? StructureFailure
+	structure = KernelFormStructure.Plan.build_with_navigation(tagged, colors, images, content, form_plan, objects, NoTextObjects, Scene.no_shadings, NoDocumentFacts, WithNavigation({ anchor_rects: stores.anchor_rects, max_outline_depth: 32, store: navigation.store }), structure_limits) ? StructureFailure
 	bytes = KernelEmit.to_bytes(KernelFormStructure.Plan.structure(structure)) ? |_| EmitFailure
 	Ok({ bytes, form_plan, navigation_work: navigation.work, store: navigation.store, structure })
 }
@@ -729,7 +700,7 @@ with_appearance_path = |stores, target| {
 			scene: {
 				..scene,
 				path_segments: scene.path_segments.append(Rectangle(inset)),
-				paths: scene.paths.append({ id: Scene.PathId.from_index(path_index), segments: Semantics.IndexRange.from_start_and_length(segment_index, 1) }),
+				paths: scene.paths.append({ id: Scene.PathId.from_index(path_index), segments: Semantics.IndexRange.from_start_and_length({ start: segment_index, length: 1 }) }),
 			},
 			semantics: stores.semantics,
 		},
@@ -742,7 +713,7 @@ appearance_form_store = |path, target| {
 	forms: [
 		{
 			bbox: rect(0, 0, target.size.width.raw(), target.size.height.raw()),
-			commands: Semantics.IndexRange.from_start_and_length(0, 1),
+			commands: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 			group: NoGroup,
 			id: Scene.FormId.from_index(0),
 		},
@@ -1225,7 +1196,7 @@ run_negatives = |runtime_context| {
 			forms: [
 				{
 					bbox: rect(0, 0, 12345, 10000),
-					commands: Semantics.IndexRange.from_start_and_length(0, 1),
+					commands: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }),
 					group: NoGroup,
 					id: Scene.FormId.from_index(0),
 				},
@@ -1290,7 +1261,7 @@ run_negatives = |runtime_context| {
 	## 32: the facade rejects an unknown internal destination atomically with
 	## the exact typed error and no bytes.
 	facade_title = if (guard == 0) "Navigation negative" else "guarded"
-	facade_document = Pdf.document({ contents: [Pdf.internal_link("Broken", "missing")], language: "en-AU", title: facade_title })
+	facade_document = Pdf.document({ contents: [Pdf.internal_link({ text: "Broken", destination: "missing" })], language: "en-AU", title: facade_title })
 	match Pdf.to_bytes(facade_document) {
 		Err(InvalidNavigation(UnknownDestinationName({ annotation: 0 }))) => {}
 		_ => return Err(MissingRejection(32))

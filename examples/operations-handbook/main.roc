@@ -54,7 +54,7 @@ register_fonts : {} -> Try(Faces, [FontRejected(Font.ResourceError)])
 register_fonts = |_| {
 	latin : List(Font.Script)
 	latin = ["Latn"]
-	add = |registry, bytes| registry.register(bytes, { provision: BuiltIn, scripts: latin }, Font.ValidationLimits.default).map_err(|err| FontRejected(err))
+	add = |registry, bytes| registry.register({ bytes: bytes, registration: { provision: BuiltIn, scripts: latin }, limits: Font.ValidationLimits.default }).map_err(|err| FontRejected(err))
 	regular = add(Font.Registry.empty, regular_bytes)?
 	bold = add(regular.registry, bold_bytes)?
 	italic = add(bold.registry, italic_bytes)?
@@ -121,7 +121,7 @@ theme = |faces| {
 ## continuation pages.
 
 page_of : Pdf.Inline
-page_of = Pdf.reserved_width(72, End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+page_of = Pdf.reserved_width({ width: 72, align: End, contents: [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)] })
 
 footer : Pdf.Region
 footer = Pdf.region({
@@ -133,7 +133,7 @@ footer = Pdf.region({
 ## The continuation header's backdrop: a teal accent over its start edge
 ## and a hairline along its foot, beneath the slots' text.
 header_rule : Scene.Drawing
-header_rule = Scene.Drawing.empty.rectangle(Layout.rect(0, 20, 40, 2), teal).rectangle({ origin: Layout.point(0, 0), size: { height: 0.6, width: Layout.Unit.points(measure) } }, mist)
+header_rule = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 20, width: 40, height: 2 }), color: teal }).rectangle({ bounds: { origin: Layout.point({ x: 0, y: 0 }), size: { height: 0.6, width: Layout.Unit.points(measure) } }, color: mist })
 
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
@@ -270,8 +270,8 @@ callout_panel = |style, size| {
 		.close()
 		.finish()
 	Scene.Drawing.empty
-		.path(outline_path, { fill: AuthorSolidFill(style.fill), stroke: AuthorSolidStroke({ color: style.stroke, width: 1 }) })
-		.path(bar, Scene.solid_fill(style.accent))
+		.path({ path: outline_path, style: { fill: AuthorSolidFill(style.fill), stroke: AuthorSolidStroke({ color: style.stroke, width: 1 }) } })
+		.path({ path: bar, style: Scene.solid_fill(style.accent) })
 }
 
 ## ---------------------------------------------------------------------
@@ -309,29 +309,29 @@ rounded = |x, y, w, h, r| {
 tier : Scene.Drawing, { x : I64, y : I64, w : I64, h : I64, n : U64, name : Str, color : Color.SourceValue, tint : Color.SourceValue } -> Scene.Drawing
 tier = |drawing, { x, y, w, h, n, name, color, tint }| {
 	base = drawing
-		.path(rounded(x, y, w, h, 6), { fill: AuthorSolidFill(tint), stroke: AuthorSolidStroke({ color, width: 1 }) })
-		.path(rounded(x + 8, y + h - 34, 26, 26, 13), Scene.solid_fill(color))
-		.text_in(Strong, { align: Center, color: white, origin: Layout.point(x + 21, y + h - 25), size: 11, text: n.to_str() })
-	base.rectangle(Layout.rect(x + 42, y + h - 18, w - 52, 4), color)
-		.text({ align: Center, color: charcoal, origin: Layout.point(x + w // 2, y + 9), size: 8, text: name })
+		.path({ path: rounded(x, y, w, h, 6), style: { fill: AuthorSolidFill(tint), stroke: AuthorSolidStroke({ color, width: 1 }) } })
+		.path({ path: rounded(x + 8, y + h - 34, 26, 26, 13), style: Scene.solid_fill(color) })
+		.text_in({ role: Strong, label: { align: Center, color: white, origin: Layout.point({ x: x + 21, y: y + h - 25 }), size: 11, text: n.to_str() } })
+	base.rectangle({ bounds: Layout.rect({ x: x + 42, y: y + h - 18, width: w - 52, height: 4 }), color: color })
+		.text({ align: Center, color: charcoal, origin: Layout.point({ x: x + w // 2, y: y + 9 }), size: 8, text: name })
 }
 
 ## A horizontal arrow from x1 to x2 at height y, with a filled head.
 arrow_right : Scene.Drawing, I64, I64, I64 -> Scene.Drawing
 arrow_right = |drawing, x1, x2, y| {
-	head = Scene.PathBuilder.start.move_to(Layout.point(x2, y)).line_to(Layout.point(x2 - 7, y + 4)).line_to(Layout.point(x2 - 7, y - 4)).close().finish()
+	head = Scene.PathBuilder.start.move_to(Layout.point({ x: x2, y: y })).line_to(Layout.point({ x: x2 - 7, y: y + 4 })).line_to(Layout.point({ x: x2 - 7, y: y - 4 })).close().finish()
 	drawing
-		.path(Scene.PathBuilder.start.move_to(Layout.point(x1, y)).line_to(Layout.point(x2 - 6, y)).finish(), Scene.solid_stroke(charcoal, 1.2))
-		.path(head, Scene.solid_fill(charcoal))
+		.path({ path: Scene.PathBuilder.start.move_to(Layout.point({ x: x1, y: y })).line_to(Layout.point({ x: x2 - 6, y: y })).finish(), style: Scene.solid_stroke(charcoal, 1.2) })
+		.path({ path: head, style: Scene.solid_fill(charcoal) })
 }
 
 ## A vertical arrow from y1 down to y2 at x.
 arrow_down : Scene.Drawing, I64, I64, I64 -> Scene.Drawing
 arrow_down = |drawing, x, y1, y2| {
-	head = Scene.PathBuilder.start.move_to(Layout.point(x, y2)).line_to(Layout.point(x - 4, y2 + 7)).line_to(Layout.point(x + 4, y2 + 7)).close().finish()
+	head = Scene.PathBuilder.start.move_to(Layout.point({ x: x, y: y2 })).line_to(Layout.point({ x: x - 4, y: y2 + 7 })).line_to(Layout.point({ x: x + 4, y: y2 + 7 })).close().finish()
 	drawing
-		.path(Scene.PathBuilder.start.move_to(Layout.point(x, y1)).line_to(Layout.point(x, y2 + 6)).finish(), Scene.solid_stroke(charcoal, 1.2))
-		.path(head, Scene.solid_fill(charcoal))
+		.path({ path: Scene.PathBuilder.start.move_to(Layout.point({ x: x, y: y1 })).line_to(Layout.point({ x: x, y: y2 + 6 })).finish(), style: Scene.solid_stroke(charcoal, 1.2) })
+		.path({ path: head, style: Scene.solid_fill(charcoal) })
 }
 
 topology : Scene.Drawing
@@ -345,7 +345,7 @@ topology = {
 
 	# The production zone behind the application tiers, dashed by short bars.
 	var $d = Scene.Drawing.empty
-		.path(rounded(128, 2, 358, 172, 8), { fill: AuthorSolidFill(zone), stroke: AuthorSolidStroke({ color: mist, width: 0.8 }) })
+		.path({ path: rounded(128, 2, 358, 172, 8), style: { fill: AuthorSolidFill(zone), stroke: AuthorSolidStroke({ color: mist, width: 0.8 }) } })
 	$d = tier($d, { x: 4, y: 106, w: 100, h: 58, n: 1, name: "Edge load balancer", color: edge, tint: edge_tint })
 	$d = tier($d, { x: 144, y: 106, w: 100, h: 58, n: 2, name: "API gateway", color: edge, tint: edge_tint })
 	$d = tier($d, { x: 268, y: 106, w: 100, h: 58, n: 3, name: "Payments API", color: teal, tint: app_tint })
@@ -361,19 +361,19 @@ topology = {
 	$d = arrow_down($d, 430, 106, 70)
 
 	## The payments API writes to the ledger: down, left, and down again.
-	ledger_head = Scene.PathBuilder.start.move_to(Layout.point(194, 70)).line_to(Layout.point(190, 77)).line_to(Layout.point(198, 77)).close().finish()
+	ledger_head = Scene.PathBuilder.start.move_to(Layout.point({ x: 194, y: 70 })).line_to(Layout.point({ x: 190, y: 77 })).line_to(Layout.point({ x: 198, y: 77 })).close().finish()
 	$d = $d
-		.path(Scene.PathBuilder.start.move_to(Layout.point(296, 106)).line_to(Layout.point(296, 88)).line_to(Layout.point(194, 88)).line_to(Layout.point(194, 76)).finish(), Scene.solid_stroke(charcoal, 1.2))
-		.path(ledger_head, Scene.solid_fill(charcoal))
+		.path({ path: Scene.PathBuilder.start.move_to(Layout.point({ x: 296, y: 106 })).line_to(Layout.point({ x: 296, y: 88 })).line_to(Layout.point({ x: 194, y: 88 })).line_to(Layout.point({ x: 194, y: 76 })).finish(), style: Scene.solid_stroke(charcoal, 1.2) })
+		.path({ path: ledger_head, style: Scene.solid_fill(charcoal) })
 
 	## The settlement worker drains the queue and reconciles against the
 	## ledger: arrows into it from both sides.
-	left_head = |x| Scene.PathBuilder.start.move_to(Layout.point(x, 41)).line_to(Layout.point(x + 7, 45)).line_to(Layout.point(x + 7, 37)).close().finish()
+	left_head = |x| Scene.PathBuilder.start.move_to(Layout.point({ x: x, y: 41 })).line_to(Layout.point({ x: x + 7, y: 45 })).line_to(Layout.point({ x: x + 7, y: 37 })).close().finish()
 	$d
-		.path(Scene.PathBuilder.start.move_to(Layout.point(382, 41)).line_to(Layout.point(374, 41)).finish(), Scene.solid_stroke(charcoal, 1.2))
-		.path(left_head(368), Scene.solid_fill(charcoal))
-		.path(Scene.PathBuilder.start.move_to(Layout.point(268, 41)).line_to(Layout.point(250, 41)).finish(), Scene.solid_stroke(charcoal, 1.2))
-		.path(left_head(244), Scene.solid_fill(charcoal))
+		.path({ path: Scene.PathBuilder.start.move_to(Layout.point({ x: 382, y: 41 })).line_to(Layout.point({ x: 374, y: 41 })).finish(), style: Scene.solid_stroke(charcoal, 1.2) })
+		.path({ path: left_head(368), style: Scene.solid_fill(charcoal) })
+		.path({ path: Scene.PathBuilder.start.move_to(Layout.point({ x: 268, y: 41 })).line_to(Layout.point({ x: 250, y: 41 })).finish(), style: Scene.solid_stroke(charcoal, 1.2) })
+		.path({ path: left_head(244), style: Scene.solid_fill(charcoal) })
 }
 
 ## ---------------------------------------------------------------------
@@ -541,7 +541,7 @@ rich_step = |inlines| Pdf.list_item([Pdf.rich_paragraph(inlines)])
 
 accent_band : Document.Block
 accent_band = Pdf.decoration({
-	drawing: Scene.Drawing.empty.rectangle(Layout.rect(0, 10, 56, 6), teal).rectangle(Layout.rect(60, 10, 18, 6), rust).rectangle({ origin: Layout.point(0, 0), size: { height: 0.6, width: Layout.Unit.points(measure) } }, mist),
+	drawing: Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 10, width: 56, height: 6 }), color: teal }).rectangle({ bounds: Layout.rect({ x: 60, y: 10, width: 18, height: 6 }), color: rust }).rectangle({ bounds: { origin: Layout.point({ x: 0, y: 0 }), size: { height: 0.6, width: Layout.Unit.points(measure) } }, color: mist }),
 })
 
 contents : Pdf.Options -> Try(List(Document.Block), Pdf.Error)
@@ -562,7 +562,7 @@ contents = |options| Ok([
 		],
 	)?,
 	Pdf.section([
-		Pdf.destination_heading("scope", 1, "1 Scope and on-call duties"),
+		Pdf.destination_heading({ name: "scope", level: 1, text: "1 Scope and on-call duties" }),
 		Pdf.rich_paragraph([
 			Pdf.text("This runbook covers the card, wallet, and bank-transfer paths of the payments platform in both production regions. It tells the on-call engineer "),
 			Pdf.strong([Pdf.text("what to check, in what order, and when to escalate")]),
@@ -573,7 +573,7 @@ contents = |options| Ok([
 		Pdf.bullet_list([
 			Pdf.list_item([Pdf.paragraph("Acknowledge every page within five minutes, day or night.")]),
 			Pdf.list_item([
-				Pdf.rich_paragraph([Pdf.text("Keep a laptop with a working "), Pdf.expansion("VPN", "virtual private network"), Pdf.text(" and hardware key within reach.")]),
+				Pdf.rich_paragraph([Pdf.text("Keep a laptop with a working "), Pdf.expansion({ text: "VPN", expanded: "virtual private network" }), Pdf.text(" and hardware key within reach.")]),
 			]),
 			Pdf.list_item([
 				Pdf.paragraph("Hand over at 09:00 local time with a written summary:"),
@@ -585,7 +585,7 @@ contents = |options| Ok([
 		]),
 	]),
 	Pdf.section([
-		Pdf.destination_heading("topology", 1, "2 Service topology"),
+		Pdf.destination_heading({ name: "topology", level: 1, text: "2 Service topology" }),
 		Pdf.paragraph("Every payment enters through the edge, is authorised by the payments API, and is written to the ledger before any acquirer is told to capture funds. Figure 1 shows the tiers you will meet during an incident."),
 		Pdf.figure({ drawing: topology, alt: "Diagram of the payments request path. Traffic flows left to right from the edge load balancer (1) through the API gateway (2) and payments API (3) to the acquirer adapters (4). The payments API writes to the ledger database (5), and the adapters publish to the settlement queue (6), which the settlement worker (7) consumes before reconciling against the ledger.", caption: Pdf.caption("Figure 1. Request path through the production zone (shaded)") }),
 		Pdf.numbered_list(
@@ -602,15 +602,15 @@ contents = |options| Ok([
 		),
 	]),
 	Pdf.section([
-		Pdf.destination_heading("severity", 1, "3 Severity levels"),
+		Pdf.destination_heading({ name: "severity", level: 1, text: "3 Severity levels" }),
 		Pdf.paragraph("Declare the severity as soon as the impact is understood, and change it as soon as the impact changes. Response targets run from the moment the page fires, not from acknowledgement."),
 		severity_table,
 	]),
 	Pdf.section([
-		Pdf.destination_heading("response", 1, "4 Incident response procedure"),
+		Pdf.destination_heading({ name: "response", level: 1, text: "4 Incident response procedure" }),
 		Pdf.paragraph("Work through the steps in order. Record every action, with the time, in the incident channel as you take it: the timeline is written from those messages."),
 		Pdf.section([
-			Pdf.destination_heading("triage", 2, "4.1 Triage"),
+			Pdf.destination_heading({ name: "triage", level: 2, text: "4.1 Triage" }),
 			Pdf.numbered_list(
 				{},
 				[
@@ -640,7 +640,7 @@ contents = |options| Ok([
 			)?,
 		]),
 		Pdf.section([
-			Pdf.destination_heading("rollback", 2, "4.2 Rolling back a release"),
+			Pdf.destination_heading({ name: "rollback", level: 2, text: "4.2 Rolling back a release" }),
 			Pdf.rich_paragraph([
 				Pdf.text("Most incidents start within an hour of a deploy. If the timing fits, "),
 				Pdf.strong([Pdf.text("roll back first and investigate afterwards")]),
@@ -666,7 +666,7 @@ contents = |options| Ok([
 			)?,
 		]),
 		Pdf.section([
-			Pdf.destination_heading("failover", 2, "4.3 Database failover"),
+			Pdf.destination_heading({ name: "failover", level: 2, text: "4.3 Database failover" }),
 			Pdf.paragraph("Fail the ledger over only when the primary is unreachable for more than two minutes and the incident commander agrees. Failover is automatic in most cases; these steps are for when it is not."),
 			Pdf.numbered_list(
 				{},
@@ -696,12 +696,12 @@ contents = |options| Ok([
 		]),
 	]),
 	Pdf.section([
-		Pdf.destination_heading("escalation", 1, "5 Escalation"),
+		Pdf.destination_heading({ name: "escalation", level: 1, text: "5 Escalation" }),
 		Pdf.paragraph("Escalate on the clock, not on a feeling. If an incident is still open at the time shown, page the next role even if you believe a fix is close."),
 		escalation_table,
 	]),
 	Pdf.section([
-		Pdf.destination_heading("review", 1, "6 After the incident"),
+		Pdf.destination_heading({ name: "review", level: 1, text: "6 After the incident" }),
 		Pdf.paragraph("Close the incident only when the metrics have been healthy for thirty minutes. Within two business days:"),
 		Pdf.bullet_list([
 			Pdf.list_item([Pdf.paragraph("write the timeline from the incident channel;")]),
@@ -712,12 +712,12 @@ contents = |options| Ok([
 		Pdf.rich_paragraph([Pdf.text("Suggest changes to this runbook in "), Pdf.code("#payments-reliability"), Pdf.text(".")]),
 	]),
 	Pdf.section([
-		Pdf.destination_heading("commands", 1, "Appendix A. Command reference"),
+		Pdf.destination_heading({ name: "commands", level: 1, text: "Appendix A. Command reference" }),
 		Pdf.keep_with_next(Required, Pdf.paragraph("Every command below is read-only unless it is marked as a write. Run writes only while the incident is open and announced in the channel.")),
 		command_table,
 	]),
 	Pdf.section([
-		Pdf.destination_heading("drills", 1, "Appendix B. Procedure drills"),
+		Pdf.destination_heading({ name: "drills", level: 1, text: "Appendix B. Procedure drills" }),
 		Pdf.paragraph("Each procedure is rehearsed in the staging region on the schedule below. A procedure with no drill date has not been rehearsed since it was added; run it with its owner before you rely on it."),
 		drill_table,
 	]),

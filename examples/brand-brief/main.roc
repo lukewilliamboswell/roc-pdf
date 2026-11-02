@@ -56,7 +56,7 @@ register_fonts : {} -> Try(Faces, [FontRejected(Font.ResourceError)])
 register_fonts = |_| {
 	latin : List(Font.Script)
 	latin = ["Latn"]
-	add = |registry, bytes| registry.register(bytes, { provision: BuiltIn, scripts: latin }, Font.ValidationLimits.default).map_err(|err| FontRejected(err))
+	add = |registry, bytes| registry.register({ bytes: bytes, registration: { provision: BuiltIn, scripts: latin }, limits: Font.ValidationLimits.default }).map_err(|err| FontRejected(err))
 	regular = add(Font.Registry.empty, regular_bytes)?
 	bold = add(regular.registry, bold_bytes)?
 	italic = add(bold.registry, italic_bytes)?
@@ -148,11 +148,11 @@ circle : I64, I64, I64 -> Scene.AuthorPath
 circle = |cx, cy, r| {
 	k = r * 552 // 1000
 	Scene.PathBuilder.start
-		.move_to(Layout.point(cx + r, cy))
-		.cubic_to({ control_1: Layout.point(cx + r, cy + k), control_2: Layout.point(cx + k, cy + r), end: Layout.point(cx, cy + r) })
-		.cubic_to({ control_1: Layout.point(cx - k, cy + r), control_2: Layout.point(cx - r, cy + k), end: Layout.point(cx - r, cy) })
-		.cubic_to({ control_1: Layout.point(cx - r, cy - k), control_2: Layout.point(cx - k, cy - r), end: Layout.point(cx, cy - r) })
-		.cubic_to({ control_1: Layout.point(cx + k, cy - r), control_2: Layout.point(cx + r, cy - k), end: Layout.point(cx + r, cy) })
+		.move_to(Layout.point({ x: cx + r, y: cy }))
+		.cubic_to({ control_1: Layout.point({ x: cx + r, y: cy + k }), control_2: Layout.point({ x: cx + k, y: cy + r }), end: Layout.point({ x: cx, y: cy + r }) })
+		.cubic_to({ control_1: Layout.point({ x: cx - k, y: cy + r }), control_2: Layout.point({ x: cx - r, y: cy + k }), end: Layout.point({ x: cx - r, y: cy }) })
+		.cubic_to({ control_1: Layout.point({ x: cx - r, y: cy - k }), control_2: Layout.point({ x: cx - k, y: cy - r }), end: Layout.point({ x: cx, y: cy - r }) })
+		.cubic_to({ control_1: Layout.point({ x: cx + k, y: cy - r }), control_2: Layout.point({ x: cx + r, y: cy - k }), end: Layout.point({ x: cx + r, y: cy }) })
 		.close()
 		.finish()
 }
@@ -163,9 +163,9 @@ mark : I64, Color.SourceValue, Color.SourceValue -> Scene.Drawing
 mark = |size, disc, light| {
 	half = size // 2
 	Scene.Drawing.empty
-		.path(circle(half, half, half), Scene.solid_fill(disc))
-		.path(circle(size * 64 // 100, size * 64 // 100, size * 18 // 100), Scene.solid_fill(light))
-		.path(Scene.PathBuilder.start.rectangle(Layout.rect(size * 18 // 100, size * 30 // 100, size * 64 // 100, size * 6 // 100)).finish(), Scene.solid_fill(light))
+		.path({ path: circle(half, half, half), style: Scene.solid_fill(disc) })
+		.path({ path: circle(size * 64 // 100, size * 64 // 100, size * 18 // 100), style: Scene.solid_fill(light) })
+		.path({ path: Scene.PathBuilder.start.rectangle(Layout.rect({ x: size * 18 // 100, y: size * 30 // 100, width: size * 64 // 100, height: size * 6 // 100 })).finish(), style: Scene.solid_fill(light) })
 }
 
 ## A 483 × 8 pt strip of the five palette colours, kept 12 pt above the
@@ -176,7 +176,7 @@ palette_strip = {
 	var $drawing = Scene.Drawing.empty
 	var $x = 0
 	for (color, width) in widths {
-		$drawing = $drawing.rectangle(Layout.rect($x, 0, width, 8), color)
+		$drawing = $drawing.rectangle({ bounds: Layout.rect({ x: $x, y: 0, width: width, height: 8 }), color: color })
 		$x = $x + width
 	}
 	$drawing
@@ -188,17 +188,17 @@ teal_source = Color.srgb8(teal_rgb)
 ## A section band: a short coral bar over a hairline across the measure,
 ## with 6 pt above it and 6 pt between it and the heading it introduces.
 band : Document.Block
-band = Pdf.decoration({ drawing: Scene.Drawing.empty.rectangle(Layout.rect(0, 2, 483, 1), tint(indigo_rgb, 80)).rectangle(Layout.rect(0, 0, 36, 5), coral), above: 6, below: 6 })
+band = Pdf.decoration({ drawing: Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 2, width: 483, height: 1 }), color: tint(indigo_rgb, 80) }).rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 36, height: 5 }), color: coral }), above: 6, below: 6 })
 
 ## One swatch card: the solid colour, named in bold with its hex value in
 ## the code face, above three tints (75, 50, 25 percent toward white).
 swatch : Rgb, Str, Str, Color.SourceValue -> Scene.Drawing
 swatch = |rgb, name, hex, label| {
-	solid = Scene.Drawing.empty.rectangle(Layout.rect(0, 39, 88, 52), Color.srgb8(rgb))
-		.text_in(Strong, { align: Start, color: label, origin: Layout.point(6, 77), size: 8, text: name })
-		.text_in(Code, { align: Start, color: label, origin: Layout.point(6, 45), size: 7, text: hex })
-	light = solid.rectangle(Layout.rect(0, 26, 88, 12), tint(rgb, 25)).rectangle(Layout.rect(0, 13, 88, 12), tint(rgb, 50))
-	light.rectangle(Layout.rect(0, 0, 88, 12), tint(rgb, 75))
+	solid = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 39, width: 88, height: 52 }), color: Color.srgb8(rgb) })
+		.text_in({ role: Strong, label: { align: Start, color: label, origin: Layout.point({ x: 6, y: 77 }), size: 8, text: name } })
+		.text_in({ role: Code, label: { align: Start, color: label, origin: Layout.point({ x: 6, y: 45 }), size: 7, text: hex } })
+	light = solid.rectangle({ bounds: Layout.rect({ x: 0, y: 26, width: 88, height: 12 }), color: tint(rgb, 25) }).rectangle({ bounds: Layout.rect({ x: 0, y: 13, width: 88, height: 12 }), color: tint(rgb, 50) })
+	light.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 88, height: 12 }), color: tint(rgb, 75) })
 }
 
 swatches : Scene.Drawing
@@ -206,7 +206,7 @@ swatches = {
 	var $drawing = Scene.Drawing.empty
 	var $x = 0
 	for (rgb, name, hex, label) in [(indigo_rgb, "Lumen Indigo", "#2B2D6E", white), (teal_rgb, "Harbour Teal", "#167872", white), (coral_rgb, "Signal Coral", "#F2665A", ink), (amber_rgb, "Dawn Amber", "#F5B83D", ink), (ink_rgb, "Ink", "#1E2230", white)] {
-		$drawing = $drawing.group(Layout.point($x, 0), swatch(rgb, name, hex, label))
+		$drawing = $drawing.group({ offset: Layout.point({ x: $x, y: 0 }), drawing: swatch(rgb, name, hex, label) })
 		$x = $x + 98
 	}
 	$drawing
@@ -219,23 +219,23 @@ placements = {
 	panel = |ground, disc, light, guides, name, label| {
 		## A 44 pt mark, its clear space of one sixth of its width on every
 		## side (the tinted square), and the coral boundary around both.
-		base = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 155, 86), ground)
+		base = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 155, height: 86 }), color: ground })
 		framed = if guides {
-			square = Scene.PathBuilder.start.rectangle(Layout.rect(48, 9, 59, 59)).finish()
+			square = Scene.PathBuilder.start.rectangle(Layout.rect({ x: 48, y: 9, width: 59, height: 59 })).finish()
 			base
-				.path(Scene.PathBuilder.start.rectangle(Layout.rect(41, 2, 73, 73)).finish(), Scene.solid_stroke(coral, 0.75))
-				.path(square, Scene.solid_stroke(tint(coral_rgb, 40), 0.5))
+				.path({ path: Scene.PathBuilder.start.rectangle(Layout.rect({ x: 41, y: 2, width: 73, height: 73 })).finish(), style: Scene.solid_stroke(coral, 0.75) })
+				.path({ path: square, style: Scene.solid_stroke(tint(coral_rgb, 40), 0.5) })
 		} else {
 			base
 		}
 		framed
-			.group(Layout.point(56, 16), mark(44, disc, light))
-			.text({ align: Center, color: label, origin: Layout.point(77, 78), size: 7, text: name })
+			.group({ offset: Layout.point({ x: 56, y: 16 }), drawing: mark(44, disc, light) })
+			.text({ align: Center, color: label, origin: Layout.point({ x: 77, y: 78 }), size: 7, text: name })
 	}
 	Scene.Drawing.empty
-		.group(Layout.point(0, 0), panel(mist, indigo, amber, True, "Clear space", indigo))
-		.group(Layout.point(164, 0), panel(indigo, white, amber, False, "Reversed on Indigo", white))
-		.group(Layout.point(328, 0), panel(amber, indigo, white, False, "On Dawn Amber", indigo))
+		.group({ offset: Layout.point({ x: 0, y: 0 }), drawing: panel(mist, indigo, amber, True, "Clear space", indigo) })
+		.group({ offset: Layout.point({ x: 164, y: 0 }), drawing: panel(indigo, white, amber, False, "Reversed on Indigo", white) })
+		.group({ offset: Layout.point({ x: 328, y: 0 }), drawing: panel(amber, indigo, white, False, "On Dawn Amber", indigo) })
 }
 
 ## ---------------------------------------------------------------------
@@ -258,11 +258,11 @@ at_a_glance = |options, ground, name, lines| {
 	paragraphs = lines.map(|line| Pdf.rich_paragraph(line))
 	content = Pdf.measure_custom_content(options, { contents: paragraphs, language: "en", width: Layout.Unit.from_raw(width.raw() - 2 * callout_inset.raw()) })?
 	size = { height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width }
-	box = { origin: Layout.point(0, 0), size }
-	edge = { origin: Layout.point(0, 0), size: { height: size.height, width: 4 } }
+	box = { origin: Layout.point({ x: 0, y: 0 }), size }
+	edge = { origin: Layout.point({ x: 0, y: 0 }), size: { height: size.height, width: 4 } }
 	panel = match ground {
-		Light => Scene.Drawing.empty.rectangle(box, mist).rectangle(edge, coral)
-		Dark => Scene.Drawing.empty.rectangle(box, indigo).rectangle(edge, amber)
+		Light => Scene.Drawing.empty.rectangle({ bounds: box, color: mist }).rectangle({ bounds: edge, color: coral })
+		Dark => Scene.Drawing.empty.rectangle({ bounds: box, color: indigo }).rectangle({ bounds: edge, color: amber })
 	}
 	block = Pdf.custom_block({ contents: paragraphs, inset: callout_inset, name, panel, size })
 
@@ -279,7 +279,7 @@ at_a_glance = |options, ground, name, lines| {
 ## Page furniture.
 
 page_of : Pdf.Inline
-page_of = Pdf.reserved_width(64, End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+page_of = Pdf.reserved_width({ width: 64, align: End, contents: [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)] })
 
 footer : Pdf.Region
 footer = Pdf.region({
@@ -291,12 +291,12 @@ footer = Pdf.region({
 ## A hairline under each header, as the region's backdrop, beside the
 ## slots' furniture.
 hairline : Scene.Drawing
-hairline = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 483, 1), tint(indigo_rgb, 70))
+hairline = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 483, height: 1 }), color: tint(indigo_rgb, 70) })
 
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({
-		header: Pdf.region({ height: 44, start: [Pdf.furniture_image(Scene.Drawing.empty.group(Layout.point(0, 5), mark(36, indigo, amber)))], end: [Pdf.furniture_text([Pdf.text("Brand guidelines · Edition 3 · September 2026")])], backdrop: Backdrop(hairline), slot_inset: 3 }),
+		header: Pdf.region({ height: 44, start: [Pdf.furniture_image(Scene.Drawing.empty.group({ offset: Layout.point({ x: 0, y: 5 }), drawing: mark(36, indigo, amber) }))], end: [Pdf.furniture_text([Pdf.text("Brand guidelines · Edition 3 · September 2026")])], backdrop: Backdrop(hairline), slot_inset: 3 }),
 		footer,
 		gap: 14,
 	}),
@@ -430,7 +430,7 @@ body = |glance, studio| [
 	glance,
 	Pdf.section([
 		band,
-		Pdf.destination_heading("idea", 1, "1 The idea"),
+		Pdf.destination_heading({ name: "idea", level: 1, text: "1 The idea" }),
 		Pdf.rich_paragraph([
 			Pdf.text("Lumen started as a planning tool for teams who were tired of noise. The identity keeps that promise: "),
 			Pdf.quote([Pdf.text("“a small light that makes the next step obvious”")]),
@@ -444,7 +444,7 @@ body = |glance, studio| [
 	]),
 	Pdf.section([
 		band,
-		Pdf.destination_heading("colour", 1, "2 Colour"),
+		Pdf.destination_heading({ name: "colour", level: 1, text: "2 Colour" }),
 		Pdf.rich_paragraph([
 			Pdf.text("The palette pairs a deep indigo with a warm dawn light. Indigo, Teal, and Ink carry text and interface; Coral and Amber are "),
 			Pdf.emphasis([Pdf.text("accents")]),
@@ -455,7 +455,7 @@ body = |glance, studio| [
 	]),
 	Pdf.section([
 		band,
-		Pdf.destination_heading("type", 1, "3 Typography"),
+		Pdf.destination_heading({ name: "type", level: 1, text: "3 Typography" }),
 		Pdf.rich_paragraph([
 			Pdf.text("Public Sans is our only typeface for reading. Hierarchy comes from size and colour; bold marks a key term and italics a stressed word, never a whole sentence. Code, colour values, and keyboard input use Source Code Pro, as in "),
 			Pdf.code("--lumen-indigo: #2B2D6E"),
@@ -467,7 +467,7 @@ body = |glance, studio| [
 	]),
 	Pdf.section([
 		band,
-		Pdf.destination_heading("mark", 1, "4 The mark"),
+		Pdf.destination_heading({ name: "mark", level: 1, text: "4 The mark" }),
 		Pdf.paragraph("The mark is a disc with a smaller light rising from its upper right over a horizon line. It always appears whole, upright, and on one of three approved grounds. Keep a clear space of one sixth of its width on every side."),
 		Pdf.figure({ drawing: placements, alt: "The Lumen mark on three approved grounds: indigo on a pale mist ground with its clear-space boundary outlined in coral, white on indigo, and indigo on amber.", caption: Pdf.caption("Figure 2. The three approved grounds"), fit: ScaleToFit({ minimum_percent: 80 }) }),
 		Pdf.keep_together([
@@ -483,13 +483,13 @@ body = |glance, studio| [
 	]),
 	Pdf.section([
 		band,
-		Pdf.destination_heading("voice", 1, "5 Voice"),
+		Pdf.destination_heading({ name: "voice", level: 1, text: "5 Voice" }),
 		Pdf.paragraph("We write the way a thoughtful colleague speaks: specific, brief, and kind. We name the thing, give the number, and say what happens next."),
 		voice_table,
 	]),
 	Pdf.section([
 		band,
-		Pdf.destination_heading("checklist", 1, "6 Before you publish"),
+		Pdf.destination_heading({ name: "checklist", level: 1, text: "6 Before you publish" }),
 		Pdf.paragraph("Run through this list for anything that carries the Lumen name, from a release note to a conference banner."),
 		Pdf.bullet_list([
 			Pdf.list_item([Pdf.rich_paragraph([Pdf.text("Colours come from the tokens in "), Pdf.inline_internal_link([Pdf.text("Table 1")], "colour"), Pdf.text(", never from a picker.")])]),

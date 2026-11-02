@@ -173,8 +173,8 @@ analyze = |source, analysis, base, limits| {
 		base_level: Bidi.paragraph_level(resolved),
 		entries: $facts,
 		logical_source: {
-			scalars: Semantics.IndexRange.from_start_and_length(0, $scalar_visits),
-			utf8_bytes: Semantics.IndexRange.from_start_and_length(0, $last_byte_end),
+			scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: $scalar_visits }),
+			utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: $last_byte_end }),
 		},
 		work: { cluster_visits: 0, mirror_visits: $mirror_visits, scalar_visits: $scalar_visits, visual_writes: 0 },
 	})
@@ -323,7 +323,7 @@ resolve = |paragraph, line, clusters, limits| {
 				RightToLeft => RightToLeft
 			},
 			level: run.level,
-			logical_scalars: Semantics.IndexRange.from_start_and_length(run_start, run_length),
+			logical_scalars: Semantics.IndexRange.from_start_and_length({ start: run_start, length: run_length }),
 		})
 		$run_index = $run_index + 1
 	}

@@ -85,14 +85,8 @@ NavigationTargets :: [].{
 		## A byte above 0x7E is as invalid as a byte below 0x21; the first
 		## lead byte of this name's U+00E1 is 0xC3.
 		3 => rejected(with_name("alphá"), |error| error == DestinationNameInvalidByte({ destination: 0, offset: 4 }))
-		4 => rejected(
-			with_name(name_over_limit),
-			|error| error == DestinationNameTooLong({ attempted: max_name_bytes + 1, destination: 0, limit: max_name_bytes }),
-		)
-		5 => rejected(
-			authored({ ..base_authoring, extra: [Pdf.destination_paragraph("alpha", "A second alpha")] }),
-			|error| error == DuplicateDestinationName({ first: 0, second: 1 }),
-		)
+		4 => rejected(with_name(name_over_limit), |error| error == DestinationNameTooLong({ attempted: max_name_bytes + 1, destination: 0, limit: max_name_bytes }))
+		5 => rejected(authored({ ..base_authoring, extra: [Pdf.destination_paragraph({ name: "alpha", text: "A second alpha" })] }), |error| error == DuplicateDestinationName({ first: 0, second: 1 }))
 
 		## Only the internal link moves off the defined name, so the outline
 		## entry still resolves and the annotation stage is the one that rejects.
@@ -108,19 +102,13 @@ NavigationTargets :: [].{
 		## with non-hex digits are distinct paths to the same variant.
 		10 => rejected(with_uri("https://example.org/%2"), |error| error == UriInvalidPercentEncoding({ annotation: 1, offset: 20 }))
 		11 => rejected(with_uri("https://example.org/%zz"), |error| error == UriInvalidPercentEncoding({ annotation: 1, offset: 20 }))
-		12 => rejected(
-			with_uri(uri_over_limit),
-			|error| error == UriTooLong({ annotation: 1, attempted: max_uri_bytes + 1, limit: max_uri_bytes }),
-		)
+		12 => rejected(with_uri(uri_over_limit), |error| error == UriTooLong({ annotation: 1, attempted: max_uri_bytes + 1, limit: max_uri_bytes }))
 
 		## Outline shape. The authored preorder is the emitted sibling order, so
 		## the first entry roots the tree and a deeper entry may only descend one
 		## level at a time; a descent of any size is legal and is exercised by
 		## the accepted ladder case below.
-		13 => rejected(
-			with_outline_entries([{ depth: 1, destination: "alpha", open: True, title: "Alpha" }]),
-			|error| error == OutlineFirstDepthNonzero({ depth: 1 }),
-		)
+		13 => rejected(with_outline_entries([{ depth: 1, destination: "alpha", open: True, title: "Alpha" }]), |error| error == OutlineFirstDepthNonzero({ depth: 1 }))
 		14 => rejected(
 			with_outline_entries([
 				{ depth: 0, destination: "alpha", open: True, title: "Alpha" },
@@ -132,54 +120,24 @@ NavigationTargets :: [].{
 		## The depth check is `depth >= max_outline_depth`, so climbing one level
 		## per entry reaches the first rejected depth exactly at entry
 		## `max_outline_depth`.
-		15 => rejected(
-			with_outline_entries(ladder(max_outline_depth)),
-			|error| error == OutlineDepthLimitExceeded({ attempted: max_outline_depth, entry: max_outline_depth, limit: max_outline_depth }),
-		)
-		16 => rejected(
-			with_outline_entries([{ depth: 0, destination: "alpha", open: True, title: "" }]),
-			|error| error == OutlineTitleEmpty({ entry: 0 }),
-		)
-		17 => rejected(
-			with_outline_entries([{ depth: 0, destination: "alpha", open: True, title: title_over_limit }]),
-			|error| error == OutlineTitleTooLong({ attempted: max_outline_title_bytes + 1, entry: 0, limit: max_outline_title_bytes }),
-		)
-		18 => rejected(
-			with_outline_entries([{ depth: 0, destination: "missing", open: True, title: "Alpha" }]),
-			|error| error == OutlineDestinationUnknown({ entry: 0 }),
-		)
+		15 => rejected(with_outline_entries(ladder(max_outline_depth)), |error| error == OutlineDepthLimitExceeded({ attempted: max_outline_depth, entry: max_outline_depth, limit: max_outline_depth }))
+		16 => rejected(with_outline_entries([{ depth: 0, destination: "alpha", open: True, title: "" }]), |error| error == OutlineTitleEmpty({ entry: 0 }))
+		17 => rejected(with_outline_entries([{ depth: 0, destination: "alpha", open: True, title: title_over_limit }]), |error| error == OutlineTitleTooLong({ attempted: max_outline_title_bytes + 1, entry: 0, limit: max_outline_title_bytes }))
+		18 => rejected(with_outline_entries([{ depth: 0, destination: "missing", open: True, title: "Alpha" }]), |error| error == OutlineDestinationUnknown({ entry: 0 }))
 
 		## The entry-count check precedes every per-entry check, so a list of
 		## otherwise valid entries is the cheapest way to reach this variant.
-		19 => rejected(
-			with_outline_entries(List.repeat(valid_outline_entry, max_outline_entries + 1)),
-			|error| error == OutlineEntryLimitExceeded({ attempted: max_outline_entries + 1, limit: max_outline_entries }),
-		)
+		19 => rejected(with_outline_entries(List.repeat(valid_outline_entry, max_outline_entries + 1)), |error| error == OutlineEntryLimitExceeded({ attempted: max_outline_entries + 1, limit: max_outline_entries }))
 
 		## Page labels. Ranges start at physical page zero and ascend strictly.
-		20 => rejected(
-			with_labels([{ prefix: "", start_number: 1, start_page: 1, style: DecimalArabic }]),
-			|error| error == LabelStartPageNotZero({ start: 1 }),
-		)
-		21 => rejected(
-			with_labels([valid_label_range, valid_label_range]),
-			|error| error == LabelRangeNotAscending({ range: 1 }),
-		)
+		20 => rejected(with_labels([{ prefix: "", start_number: 1, start_page: 1, style: DecimalArabic }]), |error| error == LabelStartPageNotZero({ start: 1 }))
+		21 => rejected(with_labels([valid_label_range, valid_label_range]), |error| error == LabelRangeNotAscending({ range: 1 }))
 
 		## Every style numbers from one; zero has no representation in any of
 		## them, including the prefix-only style.
-		22 => rejected(
-			with_labels([{ prefix: "", start_number: 0, start_page: 0, style: RomanUpper }]),
-			|error| error == LabelStartNumberZero({ range: 0 }),
-		)
-		23 => rejected(
-			with_labels([{ prefix: "part-", start_number: 2, start_page: 0, style: NoNumber }]),
-			|error| error == LabelNumberWithoutStyle({ range: 0 }),
-		)
-		24 => rejected(
-			with_labels([{ prefix: prefix_over_limit, start_number: 1, start_page: 0, style: DecimalArabic }]),
-			|error| error == LabelPrefixTooLong({ attempted: max_label_prefix_bytes + 1, limit: max_label_prefix_bytes, range: 0 }),
-		)
+		22 => rejected(with_labels([{ prefix: "", start_number: 0, start_page: 0, style: RomanUpper }]), |error| error == LabelStartNumberZero({ range: 0 }))
+		23 => rejected(with_labels([{ prefix: "part-", start_number: 2, start_page: 0, style: NoNumber }]), |error| error == LabelNumberWithoutStyle({ range: 0 }))
+		24 => rejected(with_labels([{ prefix: prefix_over_limit, start_number: 1, start_page: 0, style: DecimalArabic }]), |error| error == LabelPrefixTooLong({ attempted: max_label_prefix_bytes + 1, limit: max_label_prefix_bytes, range: 0 }))
 
 		## The page count is a layout outcome rather than an authored fact, so
 		## this case starts a range beyond any page count the facade can produce
@@ -191,10 +149,7 @@ NavigationTargets :: [].{
 				_ => False
 			},
 		)
-		26 => rejected(
-			with_labels(List.repeat(valid_label_range, max_label_ranges + 1)),
-			|error| error == LabelLimitExceeded({ attempted: max_label_ranges + 1, limit: max_label_ranges }),
-		)
+		26 => rejected(with_labels(List.repeat(valid_label_range, max_label_ranges + 1)), |error| error == LabelLimitExceeded({ attempted: max_label_ranges + 1, limit: max_label_ranges }))
 
 		## Accepted boundaries. Each of the six label styles must survive
 		## validation and emission, not merely validation, so these seal a whole
@@ -290,10 +245,10 @@ authored : Authoring -> Document
 authored = |authoring| {
 	contents = [
 		Pdf.title("Navigation fuzz"),
-		Pdf.destination_heading(authoring.name, 1, "Alpha section"),
+		Pdf.destination_heading({ name: authoring.name, level: 1, text: "Alpha section" }),
 		Pdf.paragraph("Body text carrying the destination anchor for this document."),
-		Pdf.internal_link("Jump to alpha", authoring.target),
-		Pdf.link("Home page", authoring.uri),
+		Pdf.internal_link({ text: "Jump to alpha", destination: authoring.target }),
+		Pdf.link({ text: "Home page", uri: authoring.uri }),
 	]
 	document = Pdf.document({
 		contents: contents.concat(authoring.extra),
@@ -395,10 +350,10 @@ blocks_for = |input| {
 			match section.kind % 6 {
 				0 => Pdf.paragraph(text)
 				1 => Pdf.heading(section.uri % 6 + 1, text)
-				2 => Pdf.destination_heading(name, section.uri % 6 + 1, text)
-				3 => Pdf.destination_paragraph(name, text)
-				4 => Pdf.internal_link(text, name)
-				_ => Pdf.link(text, uri_for(section.uri, input.text))
+				2 => Pdf.destination_heading({ name: name, level: section.uri % 6 + 1, text: text })
+				3 => Pdf.destination_paragraph({ name: name, text: text })
+				4 => Pdf.internal_link({ text: text, destination: name })
+				_ => Pdf.link({ text: text, uri: uri_for(section.uri, input.text) })
 			},
 		)
 		$index = $index + 1

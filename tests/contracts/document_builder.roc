@@ -10,7 +10,7 @@ expect {
 	builder : Document.Builder
 	builder = Document.builder({ language: "en-AU", title: "Quarterly report" })
 		.add_title("Quarterly report")
-		.add_heading(1, "Summary")
+		.add_heading({ level: 1, text: "Summary" })
 		.add_paragraph("Typed contract")
 		.add_bullets(["Dense block descriptors", "Single-owned text"])
 

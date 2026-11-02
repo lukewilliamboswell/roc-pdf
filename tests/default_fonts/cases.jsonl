@@ -1,0 +1,7 @@
+{"name":"default font families sans","schema_version":1,"case":{"Sans":{"context":0}}}
+{"name":"default font families serif","schema_version":1,"case":{"Serif":{"context":0}}}
+{"name":"default font families mono","schema_version":1,"case":{"Mono":{"context":0}}}
+{"name":"default font exact style overrides","schema_version":1,"case":{"Override":{"context":0}}}
+{"name":"default font resolution scale x10","schema_version":1,"case":{"Scale":{"count":10}}}
+{"name":"default font resolution scale x100","schema_version":1,"case":{"Scale":{"count":100}}}
+{"name":"default font atomic negatives","schema_version":1,"case":{"Negatives":{"context":0}}}

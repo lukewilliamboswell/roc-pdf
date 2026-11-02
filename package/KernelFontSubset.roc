@@ -84,7 +84,7 @@ build_subset = |font, plan| {
 	hhea = set_u16(source.hhea, 34, plan.entries.len().to_u16_wrap())
 	maxp = set_u16(source.maxp, 4, plan.entries.len().to_u16_wrap())
 	name = build_name(font, plan.prefix)
-	post = build_post({})
+	post = build_post(font.style)
 	tables : SfntTables
 	tables = {
 		cmap: cmap_result.bytes,
@@ -300,14 +300,14 @@ build_name = |font, prefix| {
 	append_range($bytes, font.bytes, postscript.offset, postscript.length)
 }
 
-build_post : {} -> List(U8)
-build_post = |_| {
+build_post : KernelFont.StyleFacts -> List(U8)
+build_post = |style| {
 	var $bytes = List.with_capacity(32)
 	$bytes = append_u32($bytes, 0x00030000)
-	$bytes = append_u32($bytes, 0)
+	$bytes = append_u32($bytes, style.italic_angle.to_u32_wrap())
 	$bytes = append_u16($bytes, 0)
 	$bytes = append_u16($bytes, 0)
-	$bytes = append_u32($bytes, 0)
+	$bytes = append_u32($bytes, style.fixed_pitch)
 	$bytes = append_u32($bytes, 0)
 	$bytes = append_u32($bytes, 0)
 	$bytes = append_u32($bytes, 0)

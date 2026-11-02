@@ -452,10 +452,7 @@ list_at = |items, index| match items.get(index) {
 
 # Object families receive stable contiguous identities, including alpha masks.
 expect {
-	plan = build_counts(
-		{ color_spaces: 1, contextual_artifacts: 1, element_identifiers: 0, image_alpha: [False, True], namespaces: 1, pages: 1, profiles: 1, structure_elements: 2 },
-		KernelObjectPlan.Limits.make({ max_objects: 20, max_pages: 1 }),
-	)?
+	plan = build_counts({ color_spaces: 1, contextual_artifacts: 1, element_identifiers: 0, image_alpha: [False, True], namespaces: 1, pages: 1, profiles: 1, structure_elements: 2 }, KernelObjectPlan.Limits.make({ max_objects: 20, max_pages: 1 }))?
 	first_page = list_at(plan.pages, 0)
 	profile = list_at(plan.profiles, 0)
 	first_image = list_at(plan.images, 0)
@@ -485,28 +482,19 @@ expect {
 
 # Object work separates stored objects from the generated xref object.
 expect {
-	plan = build_counts(
-		{ color_spaces: 1, contextual_artifacts: 1, element_identifiers: 0, image_alpha: [False, True], namespaces: 1, pages: 1, profiles: 1, structure_elements: 2 },
-		KernelObjectPlan.Limits.make({ max_objects: 20, max_pages: 1 }),
-	)?
+	plan = build_counts({ color_spaces: 1, contextual_artifacts: 1, element_identifiers: 0, image_alpha: [False, True], namespaces: 1, pages: 1, profiles: 1, structure_elements: 2 }, KernelObjectPlan.Limits.make({ max_objects: 20, max_pages: 1 }))?
 	work = KernelObjectPlan.Plan.work(plan)
 	work.object_identities == 20 and work.page_objects == 3 and work.page_tree_objects == 1 and work.profile_objects == 2 and work.image_objects == 4 and work.soft_mask_objects == 2 and work.structure_objects == 2 and work.contextual_artifact_objects == 1
 }
 
 # Object limits reject the whole plan before any builder mutation.
-expect match build_counts(
-	{ color_spaces: 1, contextual_artifacts: 1, element_identifiers: 0, image_alpha: [False, True], namespaces: 1, pages: 1, profiles: 1, structure_elements: 2 },
-	KernelObjectPlan.Limits.make({ max_objects: 19, max_pages: 1 }),
-) {
+expect match build_counts({ color_spaces: 1, contextual_artifacts: 1, element_identifiers: 0, image_alpha: [False, True], namespaces: 1, pages: 1, profiles: 1, structure_elements: 2 }, KernelObjectPlan.Limits.make({ max_objects: 19, max_pages: 1 })) {
 	Err(LimitExceeded({ attempted: 20, dimension: Objects, limit: 19 })) => True
 	_ => False
 }
 
 # A PDF object plan cannot omit the page-tree root.
-expect match build_counts(
-	{ color_spaces: 0, contextual_artifacts: 0, element_identifiers: 0, image_alpha: [], namespaces: 1, pages: 0, profiles: 0, structure_elements: 1 },
-	KernelObjectPlan.Limits.make({ max_objects: 8, max_pages: 1 }),
-) {
+expect match build_counts({ color_spaces: 0, contextual_artifacts: 0, element_identifiers: 0, image_alpha: [], namespaces: 1, pages: 0, profiles: 0, structure_elements: 1 }, KernelObjectPlan.Limits.make({ max_objects: 8, max_pages: 1 })) {
 	Err(PageCountZero) => True
 	_ => False
 }
@@ -515,10 +503,7 @@ expect match build_counts(
 # tree only when element identifiers exist: 33 identifiers need a root and
 # two leaves at the fixed fanout of 32.
 expect {
-	plan = build_counts(
-		{ color_spaces: 0, contextual_artifacts: 1, element_identifiers: 33, image_alpha: [], namespaces: 1, pages: 1, profiles: 0, structure_elements: 2 },
-		KernelObjectPlan.Limits.make({ max_objects: 20, max_pages: 1 }),
-	)?
+	plan = build_counts({ color_spaces: 0, contextual_artifacts: 1, element_identifiers: 33, image_alpha: [], namespaces: 1, pages: 1, profiles: 0, structure_elements: 2 }, KernelObjectPlan.Limits.make({ max_objects: 20, max_pages: 1 }))?
 	numbers = plan.id_tree.map(|id| KernelObject.ObjectId.number(id))
 	numbers == [8, 9, 10] and KernelObject.ObjectId.number(list_at(plan.page_tree, 0)) == 11 and KernelObjectPlan.Plan.work(plan).id_tree_objects == 3
 }

@@ -20,6 +20,8 @@ KernelFont :: [].{
 		InvalidMaxp,
 		InvalidName,
 		InvalidOs2,
+		InvalidPost,
+		InvalidStyle,
 		InvalidTableRange({ length : U64, offset : U64, tag : U32 }),
 		LimitExceeded({ attempted : U64, dimension : Dimension, limit : U64 }),
 		MissingTable(U32),
@@ -63,6 +65,11 @@ KernelFont :: [].{
 		y_max : I64,
 		y_min : I64,
 	}
+
+	## Exact source header facts. No later stage infers style from a name,
+	## glyph shape or requested semantic role. Angle is signed raw 16.16.
+	SerifClass : [Serif, NonSerif, Unclassified]
+	StyleFacts : { italic_angle : I32, fixed_pitch : U32, fs_selection : U16, mac_style : U16, serif : SerifClass }
 	Work : {
 		checksum_bytes : U64,
 		cmap_mapping_visits : U64,
@@ -81,6 +88,7 @@ KernelFont :: [].{
 		embedding_rights : EmbeddingRights,
 		loca_offsets : List(U64),
 		metrics : Metrics,
+		style : StyleFacts,
 		names : Names,
 		tables : List(Table),
 		work : Work,
@@ -187,7 +195,7 @@ inspect_font = |bytes, limits| {
 	_ = required_table($tables, tag_glyf)?
 	name = required_table($tables, tag_name)?
 	os2 = required_table($tables, tag_os2)?
-	_ = required_table($tables, tag_post)?
+	post = required_table($tables, tag_post)?
 	cmap_table = required_table($tables, tag_cmap)?
 
 	head_metrics = inspect_head(bytes, head)?
@@ -199,6 +207,10 @@ inspect_font = |bytes, limits| {
 	loca_offsets = inspect_loca(bytes, loca, glyf, glyph_count, head_metrics.index_to_loc_format)?
 	glyph_result = inspect_glyphs(bytes, glyf, loca_offsets, glyph_count, maxp_metrics.max_component_depth)?
 	os2_result = inspect_os2(bytes, os2)?
+	post_result = inspect_post(bytes, post)?
+	if !has_consistent_style({ mac_style: head_metrics.mac_style, fs_selection: os2_result.fs_selection }) {
+		return Err(InvalidStyle)
+	}
 	names = inspect_names(bytes, name)?
 	cmap_result = inspect_cmap(bytes, cmap_table, glyph_count, limits.max_cmap_mappings)?
 	digest = KernelSha256.digest(bytes) ? |_| ArithmeticOverflow
@@ -226,6 +238,7 @@ inspect_font = |bytes, limits| {
 			y_min: head_metrics.y_min,
 		},
 		names,
+		style: { italic_angle: post_result.italic_angle, fixed_pitch: post_result.fixed_pitch, fs_selection: os2_result.fs_selection, mac_style: head_metrics.mac_style, serif: os2_result.serif },
 		tables: $tables,
 		work: {
 			checksum_bytes: bytes.len() + $tables.fold(0, |total, table| total + padded_length(table.length)),
@@ -296,7 +309,7 @@ required_table = |tables, wanted| {
 	Err(MissingTable(wanted))
 }
 
-inspect_head : List(U8), KernelFont.Table -> Try({ index_to_loc_format : U8, units_per_em : U16, x_max : I64, x_min : I64, y_max : I64, y_min : I64 }, KernelFont.Error)
+inspect_head : List(U8), KernelFont.Table -> Try({ mac_style : U16, index_to_loc_format : U8, units_per_em : U16, x_max : I64, x_min : I64, y_max : I64, y_min : I64 }, KernelFont.Error)
 inspect_head = |bytes, table| {
 	if table.length < 54 or read_u32(bytes, table.offset) != 0x00010000 or read_u32(bytes, table.offset + 12) != 0x5f0f3cf5 {
 		return Err(InvalidHead)
@@ -307,6 +320,7 @@ inspect_head = |bytes, table| {
 		return Err(InvalidHead)
 	}
 	Ok({
+		mac_style: read_u16(bytes, table.offset + 44),
 		index_to_loc_format: loc_format.to_u8_wrap(),
 		units_per_em,
 		x_min: signed_i16(read_u16(bytes, table.offset + 36)),
@@ -637,7 +651,7 @@ validate_component_graph = |edges, glyph_count, declared_depth| {
 	}
 }
 
-inspect_os2 : List(U8), KernelFont.Table -> Try({ cap_height : I64, embedding_rights : KernelFont.EmbeddingRights }, KernelFont.Error)
+inspect_os2 : List(U8), KernelFont.Table -> Try({ cap_height : I64, embedding_rights : KernelFont.EmbeddingRights, fs_selection : U16, serif : KernelFont.SerifClass }, KernelFont.Error)
 inspect_os2 = |bytes, table| {
 	if table.length < 90 or read_u16(bytes, table.offset) < 2 {
 		return Err(InvalidOs2)
@@ -658,9 +672,56 @@ inspect_os2 = |bytes, table| {
 	if cap_height <= 0 {
 		Err(InvalidOs2)
 	} else {
-		Ok({ cap_height, embedding_rights })
+		Ok({ cap_height, embedding_rights, fs_selection: read_u16(bytes, table.offset + 62), serif: classify_serif({ family_class: read_u16(bytes, table.offset + 30).shr_wrap(8).to_u8_wrap(), panose_family: list_at(bytes, table.offset + 32), panose_serif: list_at(bytes, table.offset + 33) }) })
 	}
 }
+
+## Only positive source classifications set Serif; unknown/contradictory
+## declarations remain unclassified. Family names never participate.
+classify_serif : { family_class : U8, panose_family : U8, panose_serif : U8 } -> KernelFont.SerifClass
+classify_serif = |{ family_class, panose_family, panose_serif }| {
+	ibm = if ((family_class >= 1 and family_class <= 5) or family_class == 7) Serif else if (family_class == 8) NonSerif else Unclassified
+	panose = if (panose_family != 2) Unclassified else if (panose_serif >= 2 and panose_serif <= 10) Serif else if (panose_serif >= 11 and panose_serif <= 15) NonSerif else Unclassified
+	match (ibm, panose) {
+		(Serif, NonSerif) | (NonSerif, Serif) => Unclassified
+		(Serif, _) | (_, Serif) => Serif
+		(NonSerif, _) | (_, NonSerif) => NonSerif
+		_ => Unclassified
+	}
+}
+
+expect classify_serif({ family_class: 0, panose_family: 0, panose_serif: 0 }) == Unclassified
+expect classify_serif({ family_class: 0, panose_family: 2, panose_serif: 0 }) == Unclassified
+expect classify_serif({ family_class: 7, panose_family: 0, panose_serif: 0 }) == Serif
+expect classify_serif({ family_class: 0, panose_family: 2, panose_serif: 2 }) == Serif
+expect classify_serif({ family_class: 0, panose_family: 2, panose_serif: 11 }) == NonSerif
+expect classify_serif({ family_class: 8, panose_family: 2, panose_serif: 2 }) == Unclassified
+
+inspect_post : List(U8), KernelFont.Table -> Try({ italic_angle : I32, fixed_pitch : U32 }, KernelFont.Error)
+inspect_post = |bytes, table| {
+	if table.length < 32 {
+		return Err(InvalidPost)
+	}
+	version = read_u32(bytes, table.offset)
+	if version != 0x00010000 and version != 0x00020000 and version != 0x00025000 and version != 0x00030000 {
+		return Err(InvalidPost)
+	}
+	Ok({ italic_angle: read_u32(bytes, table.offset + 4).to_i32_wrap(), fixed_pitch: read_u32(bytes, table.offset + 12) })
+}
+
+has_consistent_style : { mac_style : U16, fs_selection : U16 } -> Bool
+has_consistent_style = |{ mac_style, fs_selection }| {
+	bold = mac_style.bitwise_and(1) != 0
+	italic = mac_style.bitwise_and(2) != 0
+	bold == (fs_selection.bitwise_and(32) != 0) and italic == (fs_selection.bitwise_and(1) != 0) and
+		!(fs_selection.bitwise_and(64) != 0 and (bold or italic))
+}
+
+expect has_consistent_style({ mac_style: 0, fs_selection: 64 })
+expect has_consistent_style({ mac_style: 3, fs_selection: 33 })
+expect !has_consistent_style({ mac_style: 0, fs_selection: 1 })
+expect !has_consistent_style({ mac_style: 1, fs_selection: 32 + 64 })
+expect !has_consistent_style({ mac_style: 2, fs_selection: 0 })
 
 inspect_names : List(U8), KernelFont.Table -> Try(KernelFont.Names, KernelFont.Error)
 inspect_names = |bytes, table| {
@@ -1183,58 +1244,30 @@ sfnt_checksum : U32
 sfnt_checksum = 0xb1b0afba
 
 # Unsupported program signatures are rejected before table parsing.
-expect match KernelFont.inspect(
-	[0x4f, 0x54, 0x54, 0x4f, 0, 0, 0, 0, 0, 0, 0, 0],
-	KernelFont.Limits.make({ max_bytes: 12, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 }),
-) {
+expect match KernelFont.inspect([0x4f, 0x54, 0x54, 0x4f, 0, 0, 0, 0, 0, 0, 0, 0], KernelFont.Limits.make({ max_bytes: 12, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })) {
 	Err(UnsupportedFontProgram(0x4f54544f)) => True
 	_ => False
 }
 
 # The byte budget rejects before inspecting an attacker-controlled header.
-expect match KernelFont.inspect(
-	[0, 1, 0, 0],
-	KernelFont.Limits.make({ max_bytes: 3, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 }),
-) {
+expect match KernelFont.inspect([0, 1, 0, 0], KernelFont.Limits.make({ max_bytes: 3, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })) {
 	Err(LimitExceeded({ attempted: 4, dimension: FontBytes, limit: 3 })) => True
 	_ => False
 }
 
 # A one-point simple glyph whose packed flag omits both coordinates is valid.
-expect validate_simple_glyph(
-	[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x31],
-	0,
-	15,
-	1,
-	0,
-	0,
-) == Ok({})
+expect validate_simple_glyph([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x31], 0, 15, 1, 0, 0) == Ok({})
 
 # Reserved simple-glyph flag bits are rejected within the glyph span.
-expect match validate_simple_glyph(
-	[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x80],
-	0,
-	15,
-	1,
-	7,
-	22,
-) {
+expect match validate_simple_glyph([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x80], 0, 15, 1, 7, 22) {
 	Err(InvalidGlyph({ glyph: 7, offset: 22 })) => True
 	_ => False
 }
 
 # Composite closure is acyclic and its actual depth fits maxp's declaration.
-expect validate_component_graph(
-	[{ child: 0, component_offset: 10, parent: 1 }, { child: 1, component_offset: 20, parent: 2 }],
-	3,
-	2,
-) == Ok({ edge_visits: 2 })
+expect validate_component_graph([{ child: 0, component_offset: 10, parent: 1 }, { child: 1, component_offset: 20, parent: 2 }], 3, 2) == Ok({ edge_visits: 2 })
 
-expect match validate_component_graph(
-	[{ child: 1, component_offset: 10, parent: 0 }, { child: 0, component_offset: 20, parent: 1 }],
-	2,
-	2,
-) {
+expect match validate_component_graph([{ child: 1, component_offset: 10, parent: 0 }, { child: 0, component_offset: 20, parent: 1 }], 2, 2) {
 	Err(CompositeCycle) => True
 	_ => False
 }
@@ -1245,11 +1278,7 @@ expect !valid_utf16be([0xd8, 0x00, 0x00, 0x41], { length: 4, offset: 0 })
 expect valid_postscript_utf16be([0x00, 0x46, 0x00, 0x6f, 0x00, 0x6e, 0x00, 0x74], { length: 8, offset: 0 })
 expect !valid_postscript_utf16be([0x00, 0x46, 0x00, 0x2f, 0x00, 0x31], { length: 6, offset: 0 })
 
-expect match validate_component_graph(
-	[{ child: 0, component_offset: 10, parent: 1 }, { child: 1, component_offset: 20, parent: 2 }],
-	3,
-	1,
-) {
+expect match validate_component_graph([{ child: 0, component_offset: 10, parent: 1 }, { child: 1, component_offset: 20, parent: 2 }], 3, 1) {
 	Err(CompositeDepthMismatch({ actual: 2, declared: 1 })) => True
 	_ => False
 }
@@ -1321,10 +1350,7 @@ append_u16 = |value, bytes| bytes.append((value // 256).to_u8_wrap()).append((va
 # the Windows UTF-16BE records still select the family, full, and
 # PostScript names (IBM Plex and JetBrains Mono ship such records).
 expect {
-	bytes = name_table_fixture(
-		[[1, 0, 0, 1, 3, 0], [3, 1, 0x0409, 1, 2, 3], [3, 1, 0x0409, 4, 2, 3], [3, 1, 0x0409, 6, 2, 3]],
-		['F', 'o', 'o', 0, 'F'],
-	)
+	bytes = name_table_fixture([[1, 0, 0, 1, 3, 0], [3, 1, 0x0409, 1, 2, 3], [3, 1, 0x0409, 4, 2, 3], [3, 1, 0x0409, 6, 2, 3]], ['F', 'o', 'o', 0, 'F'])
 	match inspect_names(bytes, { checksum: 0, length: bytes.len(), offset: 0, tag: tag_name }) {
 		Ok(names) => names.postscript_utf16be == { length: 2, offset: 57 }
 		Err(_) => False
@@ -1333,10 +1359,7 @@ expect {
 
 # A Windows (UTF-16BE) record of odd length is still malformed.
 expect {
-	bytes = name_table_fixture(
-		[[3, 1, 0x0409, 2, 3, 0], [3, 1, 0x0409, 1, 2, 0], [3, 1, 0x0409, 4, 2, 0], [3, 1, 0x0409, 6, 2, 0]],
-		[0, 'F', 0],
-	)
+	bytes = name_table_fixture([[3, 1, 0x0409, 2, 3, 0], [3, 1, 0x0409, 1, 2, 0], [3, 1, 0x0409, 4, 2, 0], [3, 1, 0x0409, 6, 2, 0]], [0, 'F', 0])
 	match inspect_names(bytes, { checksum: 0, length: bytes.len(), offset: 0, tag: tag_name }) {
 		Err(InvalidName) => True
 		_ => False
@@ -1345,10 +1368,7 @@ expect {
 
 # A Unicode-platform record of odd length is malformed.
 expect {
-	bytes = name_table_fixture(
-		[[0, 3, 0, 2, 1, 0], [3, 1, 0x0409, 1, 2, 0], [3, 1, 0x0409, 4, 2, 0], [3, 1, 0x0409, 6, 2, 0]],
-		[0, 'F'],
-	)
+	bytes = name_table_fixture([[0, 3, 0, 2, 1, 0], [3, 1, 0x0409, 1, 2, 0], [3, 1, 0x0409, 4, 2, 0], [3, 1, 0x0409, 6, 2, 0]], [0, 'F'])
 	match inspect_names(bytes, { checksum: 0, length: bytes.len(), offset: 0, tag: tag_name }) {
 		Err(InvalidName) => True
 		_ => False
@@ -1358,10 +1378,7 @@ expect {
 # An odd-length Macintosh record that runs past the string storage is
 # still rejected: the bounds check applies to every platform.
 expect {
-	bytes = name_table_fixture(
-		[[1, 0, 0, 1, 7, 0], [3, 1, 0x0409, 1, 2, 3], [3, 1, 0x0409, 4, 2, 3], [3, 1, 0x0409, 6, 2, 3]],
-		['F', 'o', 'o', 0, 'F'],
-	)
+	bytes = name_table_fixture([[1, 0, 0, 1, 7, 0], [3, 1, 0x0409, 1, 2, 3], [3, 1, 0x0409, 4, 2, 3], [3, 1, 0x0409, 6, 2, 3]], ['F', 'o', 'o', 0, 'F'])
 	match inspect_names(bytes, { checksum: 0, length: bytes.len(), offset: 0, tag: tag_name }) {
 		Err(InvalidName) => True
 		_ => False

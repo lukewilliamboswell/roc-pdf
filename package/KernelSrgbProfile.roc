@@ -24,22 +24,22 @@ KernelSrgbProfile :: [].{
 	## with ranges into `bytes`.
 	tags : List(Color.IccTag)
 	tags = [
-		{ bytes: Semantics.IndexRange.from_start_and_length(324, 99), signature: Color.TagSignature.from_raw(1684370275) },
-		{ bytes: Semantics.IndexRange.from_start_and_length(424, 20), signature: Color.TagSignature.from_raw(1649957210) },
-		{ bytes: Semantics.IndexRange.from_start_and_length(444, 2060), signature: Color.TagSignature.from_raw(1649693251) },
-		{ bytes: Semantics.IndexRange.from_start_and_length(444, 2060), signature: Color.TagSignature.from_raw(1733579331) },
-		{ bytes: Semantics.IndexRange.from_start_and_length(444, 2060), signature: Color.TagSignature.from_raw(1918128707) },
-		{ bytes: Semantics.IndexRange.from_start_and_length(2504, 136), signature: Color.TagSignature.from_raw(1684890724) },
-		{ bytes: Semantics.IndexRange.from_start_and_length(2640, 20), signature: Color.TagSignature.from_raw(1733843290) },
-		{ bytes: Semantics.IndexRange.from_start_and_length(2660, 20), signature: Color.TagSignature.from_raw(1819635049) },
-		{ bytes: Semantics.IndexRange.from_start_and_length(2680, 36), signature: Color.TagSignature.from_raw(1835360627) },
-		{ bytes: Semantics.IndexRange.from_start_and_length(2716, 20), signature: Color.TagSignature.from_raw(1651208308) },
-		{ bytes: Semantics.IndexRange.from_start_and_length(2736, 20), signature: Color.TagSignature.from_raw(1918392666) },
-		{ bytes: Semantics.IndexRange.from_start_and_length(2756, 12), signature: Color.TagSignature.from_raw(1952801640) },
-		{ bytes: Semantics.IndexRange.from_start_and_length(2768, 135), signature: Color.TagSignature.from_raw(1987405156) },
-		{ bytes: Semantics.IndexRange.from_start_and_length(2904, 20), signature: Color.TagSignature.from_raw(2004119668) },
-		{ bytes: Semantics.IndexRange.from_start_and_length(2924, 55), signature: Color.TagSignature.from_raw(1668313716) },
-		{ bytes: Semantics.IndexRange.from_start_and_length(2980, 44), signature: Color.TagSignature.from_raw(1667785060) },
+		{ bytes: Semantics.IndexRange.from_start_and_length({ start: 324, length: 99 }), signature: Color.TagSignature.from_raw(1684370275) },
+		{ bytes: Semantics.IndexRange.from_start_and_length({ start: 424, length: 20 }), signature: Color.TagSignature.from_raw(1649957210) },
+		{ bytes: Semantics.IndexRange.from_start_and_length({ start: 444, length: 2060 }), signature: Color.TagSignature.from_raw(1649693251) },
+		{ bytes: Semantics.IndexRange.from_start_and_length({ start: 444, length: 2060 }), signature: Color.TagSignature.from_raw(1733579331) },
+		{ bytes: Semantics.IndexRange.from_start_and_length({ start: 444, length: 2060 }), signature: Color.TagSignature.from_raw(1918128707) },
+		{ bytes: Semantics.IndexRange.from_start_and_length({ start: 2504, length: 136 }), signature: Color.TagSignature.from_raw(1684890724) },
+		{ bytes: Semantics.IndexRange.from_start_and_length({ start: 2640, length: 20 }), signature: Color.TagSignature.from_raw(1733843290) },
+		{ bytes: Semantics.IndexRange.from_start_and_length({ start: 2660, length: 20 }), signature: Color.TagSignature.from_raw(1819635049) },
+		{ bytes: Semantics.IndexRange.from_start_and_length({ start: 2680, length: 36 }), signature: Color.TagSignature.from_raw(1835360627) },
+		{ bytes: Semantics.IndexRange.from_start_and_length({ start: 2716, length: 20 }), signature: Color.TagSignature.from_raw(1651208308) },
+		{ bytes: Semantics.IndexRange.from_start_and_length({ start: 2736, length: 20 }), signature: Color.TagSignature.from_raw(1918392666) },
+		{ bytes: Semantics.IndexRange.from_start_and_length({ start: 2756, length: 12 }), signature: Color.TagSignature.from_raw(1952801640) },
+		{ bytes: Semantics.IndexRange.from_start_and_length({ start: 2768, length: 135 }), signature: Color.TagSignature.from_raw(1987405156) },
+		{ bytes: Semantics.IndexRange.from_start_and_length({ start: 2904, length: 20 }), signature: Color.TagSignature.from_raw(2004119668) },
+		{ bytes: Semantics.IndexRange.from_start_and_length({ start: 2924, length: 55 }), signature: Color.TagSignature.from_raw(1668313716) },
+		{ bytes: Semantics.IndexRange.from_start_and_length({ start: 2980, length: 44 }), signature: Color.TagSignature.from_raw(1667785060) },
 	]
 
 	## A profile record for one dense profile slot whose tag records
@@ -49,7 +49,7 @@ KernelSrgbProfile :: [].{
 		bytes,
 		components: Three,
 		id: Color.ProfileId.from_index(index),
-		tags: Semantics.IndexRange.from_start_and_length(tag_start, tag_count),
+		tags: Semantics.IndexRange.from_start_and_length({ start: tag_start, length: tag_count }),
 		version: IccV2,
 	}
 

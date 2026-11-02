@@ -49,8 +49,8 @@ Invoice :: [].{
 		limits = Font.ValidationLimits.make({ max_bytes: 2000000 + guard, max_cmap_mappings: 1200000, max_glyphs: 65535, max_tables: 128 })
 		latin : List(Font.Script)
 		latin = ["Latn"]
-		regular = Font.Registry.empty.register(regular_bytes, { provision: BuiltIn, scripts: latin }, limits) ? |_| RegistrationFailed
-		bold = regular.registry.register(bold_bytes, { provision: BuiltIn, scripts: latin }, limits) ? |_| RegistrationFailed
+		regular = Font.Registry.empty.register({ bytes: regular_bytes, registration: { provision: BuiltIn, scripts: latin }, limits: limits }) ? |_| RegistrationFailed
+		bold = regular.registry.register({ bytes: bold_bytes, registration: { provision: BuiltIn, scripts: latin }, limits: limits }) ? |_| RegistrationFailed
 		Ok({ bold: bold.face, regular: regular.face, registry: bold.registry })
 	}
 
@@ -154,30 +154,30 @@ invoice_theme = |faces| {
 logo : Scene.Drawing
 logo = {
 	wing = Scene.PathBuilder.start
-		.move_to(Layout.point(8, 12))
-		.cubic_to({ control_1: Layout.point(16, 34), control_2: Layout.point(30, 38), end: Layout.point(38, 36) })
-		.cubic_to({ control_1: Layout.point(30, 30), control_2: Layout.point(22, 20), end: Layout.point(8, 12) })
+		.move_to(Layout.point({ x: 8, y: 12 }))
+		.cubic_to({ control_1: Layout.point({ x: 16, y: 34 }), control_2: Layout.point({ x: 30, y: 38 }), end: Layout.point({ x: 38, y: 36 }) })
+		.cubic_to({ control_1: Layout.point({ x: 30, y: 30 }), control_2: Layout.point({ x: 22, y: 20 }), end: Layout.point({ x: 8, y: 12 }) })
 		.close()
 		.finish()
-	tile = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 44, 44), navy).path(wing, Scene.solid_fill(brass))
-	bars = tile.rectangle(Layout.rect(54, 28, 78, 8), navy).rectangle(Layout.rect(54, 16, 60, 6), navy)
-	bars.rectangle(Layout.rect(54, 6, 40, 4), brass)
+	tile = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 44, height: 44 }), color: navy }).path({ path: wing, style: Scene.solid_fill(brass) })
+	bars = tile.rectangle({ bounds: Layout.rect({ x: 54, y: 28, width: 78, height: 8 }), color: navy }).rectangle({ bounds: Layout.rect({ x: 54, y: 16, width: 60, height: 6 }), color: navy })
+	bars.rectangle({ bounds: Layout.rect({ x: 54, y: 6, width: 40, height: 4 }), color: brass })
 }
 
 ## The first page's header rule: a 2 pt navy band over a 1 pt brass
 ## keyline, the full 483 pt width, along the region's bottom edge.
 masthead_rule : Scene.Drawing
-masthead_rule = Scene.Drawing.empty.rectangle(Layout.rect(0, 3, 483, 2), navy).rectangle(Layout.rect(0, 0, 483, 1), brass)
+masthead_rule = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 3, width: 483, height: 2 }), color: navy }).rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 483, height: 1 }), color: brass })
 
 ## A 0.6 pt hairline the full width of the body, `y` points up.
 hairline : I64 -> Scene.Drawing
-hairline = |y| Scene.Drawing.empty.rectangle({ origin: Layout.point(0, y), size: { height: 0.6, width: 483 } }, "#B8C2CE")
+hairline = |y| Scene.Drawing.empty.rectangle({ bounds: { origin: Layout.point({ x: 0, y: y }), size: { height: 0.6, width: 483 } }, color: "#B8C2CE" })
 
 ## `Page N of M` end-aligned in `width` points: in Source Sans 3 at
 ## 10.5 pt, 50 pt holds one-digit totals (`Page 9 of 9` is 47.229 pt) and
 ## 60 pt two-digit ones (`Page 24 of 24` is 57.666 pt).
 page_of : I64 -> Pdf.Inline
-page_of = |width| Pdf.reserved_width(Layout.Unit.points(width), End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+page_of = |width| Pdf.reserved_width({ width: Layout.Unit.points(width), align: End, contents: [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)] })
 
 ## The footer hangs 4 pt below a hairline at its top edge.
 footer : I64 -> Pdf.Region

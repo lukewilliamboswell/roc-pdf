@@ -218,10 +218,10 @@ rejection_facts = |_| {
 		_ => False
 	}
 	oversized = {
-		clusters: Semantics.IndexRange.from_start_and_length(0, clusters.len()),
+		clusters: Semantics.IndexRange.from_start_and_length({ start: 0, length: clusters.len() }),
 		source: {
-			scalars: Semantics.IndexRange.from_start_and_length(0, analysis.work.scalar_visits + 1),
-			utf8_bytes: Semantics.IndexRange.from_start_and_length(0, bracket_source.count_utf8_bytes()),
+			scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: analysis.work.scalar_visits + 1 }),
+			utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: bracket_source.count_utf8_bytes() }),
 		},
 	}
 	range_rejected = match KernelBidiBoundary.resolve_line(paragraph, oversized, clusters, vector_limits) {
@@ -254,10 +254,10 @@ unicode_analysis = |source| {
 whole_line : KernelUnicode.UnicodeAnalysis, Str -> KernelBidiBoundary.LineSelection
 whole_line = |analysis, source| {
 	{
-		clusters: Semantics.IndexRange.from_start_and_length(0, analysis.graphemes.len()),
+		clusters: Semantics.IndexRange.from_start_and_length({ start: 0, length: analysis.graphemes.len() }),
 		source: {
-			scalars: Semantics.IndexRange.from_start_and_length(0, analysis.work.scalar_visits),
-			utf8_bytes: Semantics.IndexRange.from_start_and_length(0, source.count_utf8_bytes()),
+			scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: analysis.work.scalar_visits }),
+			utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: source.count_utf8_bytes() }),
 		},
 	}
 }
@@ -269,10 +269,10 @@ line_selection = |clusters, start, end| {
 	scalar_end = last.source.scalars.start() + last.source.scalars.length()
 	byte_end = last.source.utf8_bytes.start() + last.source.utf8_bytes.length()
 	{
-		clusters: Semantics.IndexRange.from_start_and_length(start, end - start),
+		clusters: Semantics.IndexRange.from_start_and_length({ start: start, length: end - start }),
 		source: {
-			scalars: Semantics.IndexRange.from_start_and_length(first.source.scalars.start(), scalar_end - first.source.scalars.start()),
-			utf8_bytes: Semantics.IndexRange.from_start_and_length(first.source.utf8_bytes.start(), byte_end - first.source.utf8_bytes.start()),
+			scalars: Semantics.IndexRange.from_start_and_length({ start: first.source.scalars.start(), length: scalar_end - first.source.scalars.start() }),
+			utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: first.source.utf8_bytes.start(), length: byte_end - first.source.utf8_bytes.start() }),
 		},
 	}
 }
@@ -284,11 +284,11 @@ clusters_from_analysis = |analysis| {
 	while $index < analysis.graphemes.len() {
 		grapheme = list_at(analysis.graphemes, $index)
 		$items = $items.append({
-			glyphs: Semantics.IndexRange.from_start_and_length($index, 1),
+			glyphs: Semantics.IndexRange.from_start_and_length({ start: $index, length: 1 }),
 			kind: Reordered,
 			source: {
-				scalars: Semantics.IndexRange.from_start_and_length(grapheme.scalar_start, grapheme.scalar_end - grapheme.scalar_start),
-				utf8_bytes: Semantics.IndexRange.from_start_and_length(grapheme.byte_start, grapheme.byte_end - grapheme.byte_start),
+				scalars: Semantics.IndexRange.from_start_and_length({ start: grapheme.scalar_start, length: grapheme.scalar_end - grapheme.scalar_start }),
+				utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: grapheme.byte_start, length: grapheme.byte_end - grapheme.byte_start }),
 			},
 		})
 		$index = $index + 1

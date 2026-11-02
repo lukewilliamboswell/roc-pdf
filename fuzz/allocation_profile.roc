@@ -1,5 +1,5 @@
 app [target] {
-	fuzz: platform "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.4.3/41NK5FShyGC9Z8HNpUdUeXMWwLmLNfFxsfmLvdPL4Fxb.tar.zst",
+	fuzz: platform "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.5.0/9WT86CuwM7ZJBSs8iTd1jLyrUFTTiGp5hcJE63TwswGE.tar.zst",
 	pdf: "../package/all.roc",
 }
 
@@ -10,12 +10,13 @@ import ProfileWorkloads
 
 ## Allocation profiling, not a property campaign. The first input byte selects
 ## one workload: a document (`ProfileWorkloads`), each of whose stages is
-## measured with `Fuzz.measure_allocs!`, or, past the documents, a single
+## measured with named `Fuzz.measure!` regions, or, past the documents, a single
 ## kernel (`ProfileKernels`). An empty input runs every workload. `./scripts/profile.py` replays one input
 ## per workload and tabulates the printed `PROFILE` lines, so a change to one
 ## stage can be checked in isolation without the end-to-end suite.
 target = Fuzz.from_bytes!({
 	name: "roc-pdf-allocation-profile",
+	examples: [],
 	test!: |bytes| {
 		match bytes.first() {
 			Ok(selector) => {
@@ -25,7 +26,7 @@ target = Fuzz.from_bytes!({
 				} else {
 					match ProfileKernels.all.get(selector.to_u64() - documents) {
 						Ok(kernel) => run_kernel!(kernel)
-						Err(OutOfBounds) => 0
+						Err(OutOfBounds) => 1
 					}
 				}
 			}
@@ -45,24 +46,28 @@ target = Fuzz.from_bytes!({
 run! : ProfileWorkloads.Workload => U8
 run! = |workload| {
 	name = ProfileWorkloads.name(workload)
-	fonts = Fuzz.measure_allocs!(|{}| ProfileWorkloads.fonts(workload))
-	report!(name, "fonts", fonts.allocations)
+	fonts = Fuzz.measure!("fonts", || ProfileWorkloads.fonts(workload))
+	font_allocs = (fonts.stats.allocs + fonts.stats.reallocs)
+	report!(name, "fonts", font_allocs)
 	match fonts.value {
 		Err(_) => crash "${name}: font registration failed"
 		Ok(setup) => {
-			document = Fuzz.measure_allocs!(|{}| ProfileWorkloads.document(workload, setup))
-			report!(name, "author", document.allocations)
-			prepared = Fuzz.measure_allocs!(|{}| Pdf.prepare(document.value, setup.options))
-			report!(name, "prepare", prepared.allocations)
+			document = Fuzz.measure!("author", || ProfileWorkloads.document(workload, setup))
+			author_allocs = (document.stats.allocs + document.stats.reallocs)
+			report!(name, "author", author_allocs)
+			prepared = Fuzz.measure!("prepare", || Pdf.prepare(document.value, setup.options))
+			prepare_allocs = (prepared.stats.allocs + prepared.stats.reallocs)
+			report!(name, "prepare", prepare_allocs)
 			match prepared.value {
 				Err(_) => crash "${name}: prepare failed"
 				Ok(ready) => {
-					emitted = Fuzz.measure_allocs!(|{}| Pdf.to_bytes_prepared(ready))
-					report!(name, "emit", emitted.allocations)
+					emitted = Fuzz.measure!("emit", || Pdf.to_bytes_prepared(ready))
+					emit_allocs = (emitted.stats.allocs + emitted.stats.reallocs)
+					report!(name, "emit", emit_allocs)
 					match emitted.value {
 						Err(_) => crash "${name}: emission failed"
 						Ok(output) => {
-							total = fonts.allocations + document.allocations + prepared.allocations + emitted.allocations
+							total = font_allocs + author_allocs + prepare_allocs + emit_allocs
 							report!(name, "total", total)
 							report!(name, "pdf_bytes", output.len())
 							report!(name, "pdf_fnv", fnv(output))
@@ -78,8 +83,8 @@ run! = |workload| {
 run_kernel! : ProfileKernels.Kernel => U8
 run_kernel! = |kernel| {
 	input = (kernel.input)(1)
-	measured = Fuzz.measure_allocs!(|{}| (kernel.run)(input))
-	report!(kernel.name, "total", measured.allocations)
+	measured = Fuzz.measure!(kernel.name, || (kernel.run)(input))
+	report!(kernel.name, "total", (measured.stats.allocs + measured.stats.reallocs))
 	report!(kernel.name, "output", measured.value)
 	0
 }

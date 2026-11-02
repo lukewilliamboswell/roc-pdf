@@ -79,11 +79,12 @@ recipe, bijective with the emitted bundle**, produced by the new
 relevant-byte authority, because it serializes every emitted fact in its
 exact emitted form *and* embeds the exact sanitized subset-program bytes:
 
-1. recipe tag (1) — the bundle shape version;
+1. recipe tag (2) — the bundle shape version; schema 1 is historical;
 2. the six-byte deterministic subset tag, then the length-prefixed
    validated PostScript name (together the emitted BaseFont);
-3. descriptor policy facts: flags, italic angle, StemV (exact emitted
-   integers);
+3. descriptor policy facts: flags, exact raw signed 16.16 italic angle, and
+   StemV. Angle bits have one fixed denominator and map bijectively to the
+   exact emitted finite decimal; flags and StemV remain emitted integers;
 4. scaled metrics exactly as emitted: Ascent, CapHeight, Descent, and the
    FontBBox corners, produced by the same shared scaling helpers the object
    lowering uses (`KernelPdfFont.scaled_signed_metric`);
@@ -131,7 +132,7 @@ descriptor policy, subset-tag charset, PostScript-name charset, dense
 CID/subset-glyph agreement, recorded subset length versus actual bytes,
 width scaling overflow, and the mappings-versus-content-flags agreement
 (missing, unexpected, unordered, empty, or invalid-scalar mappings) are all
-typed rejections before any digest exists. The unchanged `KernelPdfFont`
+typed rejections before any digest exists. The `KernelPdfFont`
 lowering re-validates the same facts at emission, so a plan and its emitted
 bundle cannot disagree.
 

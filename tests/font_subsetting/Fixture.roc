@@ -50,17 +50,10 @@ sample_subset = |runtime_guard| {
 	if runtime_guard != 0 {
 		return Err(InvalidRuntimeGuard)
 	}
-	font = KernelFont.inspect(
-		built_in_font_bytes,
-		KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }),
-	) ? |_| EvidenceFailure
+	font = KernelFont.inspect(built_in_font_bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
 	glyph_a = required_glyph(font, 0x41)?
 	glyph_e_acute = required_glyph(font, 0x00e9)?
-	plan = KernelFontPlan.plan(
-		font,
-		[{ glyph: glyph_a }, { glyph: glyph_e_acute }, { glyph: glyph_a }],
-		KernelFontPlan.Limits.make({ max_retained_glyphs: 64 }),
-	) ? |_| EvidenceFailure
+	plan = KernelFontPlan.plan(font, [{ glyph: glyph_a }, { glyph: glyph_e_acute }, { glyph: glyph_a }], KernelFontPlan.Limits.make({ max_retained_glyphs: 64 })) ? |_| EvidenceFailure
 	subset = KernelFontSubset.build(font, plan) ? |_| EvidenceFailure
 	Ok({ font, plan, subset })
 }

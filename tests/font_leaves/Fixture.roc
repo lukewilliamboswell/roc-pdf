@@ -79,10 +79,10 @@ translate : I64, I64 -> Scene.Matrix
 translate = |x, y| { a: unit(1000), b: unit(0), c: unit(0), d: unit(1000), e: unit(x), f: unit(y) }
 
 empty_range : Semantics.IndexRange
-empty_range = Semantics.IndexRange.from_start_and_length(0, 0)
+empty_range = Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 })
 
 span : U64, U64 -> Semantics.IndexRange
-span = |start, length| Semantics.IndexRange.from_start_and_length(start, length)
+span = |start, length| Semantics.IndexRange.from_start_and_length({ start: start, length: length })
 
 page_box : Layout.Rect
 page_box = rect(0, 0, 100000, 100000)
@@ -622,13 +622,7 @@ run_pipeline = |spec, guard| {
 	text_store = build_text_store(spec, prepared)?
 	semantics = build_semantics(spec, text_store.source_bytes)?
 	built_scene = build_scene(spec)
-	semantic = KernelTextSemantics.Plan.build(
-		semantics,
-		spec.pages,
-		spec.pages,
-		semantic_limits(semantics.nodes.len(), semantics.content_spine.len(), semantics.fragments.len()),
-		text_semantic_limits(text_store.source_bytes.len(), text_store.store.clusters.len() + 8),
-	) ? |_| SemanticFailure
+	semantic = KernelTextSemantics.Plan.build(semantics, spec.pages, spec.pages, semantic_limits(semantics.nodes.len(), semantics.content_spine.len(), semantics.fragments.len()), text_semantic_limits(text_store.source_bytes.len(), text_store.store.clusters.len() + 8)) ? |_| SemanticFailure
 	resources = KernelScene.Resources.with_forms({
 		color_spaces: 1,
 		forms: built_scene.form_store.forms.len(),
@@ -675,30 +669,11 @@ run_pipeline = |spec, guard| {
 	}
 	tagged = KernelTextOwnership.Plan.tagged(ownership)
 	form_plan = KernelForm.Plan.build(form_scene, facts, { colors, fonts: $leaves, images }, WithText(KernelPdfText.ScenePlan.content(text)), tagged, form_limits) ? FormPlanFailure
-	content = KernelContent.Plan.build_with_forms_and_text(
-		tagged,
-		KernelPdfText.ScenePlan.content(text),
-		form_context(form_plan, built_scene.form_store),
-		content_limits,
-	) ? ContentFailure
+	content = KernelContent.Plan.build_with_forms_and_text(tagged, KernelPdfText.ScenePlan.content(text), form_context(form_plan, built_scene.form_store), content_limits) ? ContentFailure
 	resource_use = KernelResourceUse.TextPlan.build_with_forms(form_scene, colors, images) ? ResourceUseFailure
 	leaf_counts = KernelForm.Plan.canonical_leaf_counts(form_plan)
-	base = KernelObjectPlan.Plan.build_canonical(
-		tagged,
-		colors,
-		images,
-		resource_use,
-		content,
-		{ color_spaces: leaf_counts.color_spaces, image_alpha: KernelForm.Plan.canonical_image_alpha(form_plan), profiles: leaf_counts.profiles },
-		KernelObjectPlan.Limits.make({ max_objects: 8192, max_pages: 4 }),
-	) ? ObjectFailure
-	objects = KernelFormObjects.Plan.build_with_states(
-		base,
-		KernelForm.Plan.canonical_form_count(form_plan),
-		KernelForm.Plan.canonical_state_count(form_plan),
-		KernelForm.Plan.canonical_font_count(form_plan),
-		8192,
-	) ? FormObjectFailure
+	base = KernelObjectPlan.Plan.build_canonical(tagged, colors, images, resource_use, content, { color_spaces: leaf_counts.color_spaces, image_alpha: KernelForm.Plan.canonical_image_alpha(form_plan), profiles: leaf_counts.profiles }, KernelObjectPlan.Limits.make({ max_objects: 8192, max_pages: 4 })) ? ObjectFailure
+	objects = KernelFormObjects.Plan.build_with_states(base, KernelForm.Plan.canonical_form_count(form_plan), KernelForm.Plan.canonical_state_count(form_plan), KernelForm.Plan.canonical_font_count(form_plan), 8192) ? FormObjectFailure
 	var $bundles = List.with_capacity(prepared.len())
 	var $bundle_index = 0
 	while $bundle_index < prepared.len() {
@@ -706,16 +681,7 @@ run_pipeline = |spec, guard| {
 		$bundles = $bundles.append({ descriptor: font.policy, font: font.font, plan: font.plan, subset: font.subset })
 		$bundle_index = $bundle_index + 1
 	}
-	structure = KernelFormStructure.Plan.build(
-		tagged,
-		colors,
-		images,
-		content,
-		form_plan,
-		objects,
-		WithTextObjects({ fonts: $bundles, text }),
-		structure_limits,
-	) ? StructureFailure
+	structure = KernelFormStructure.Plan.build(tagged, colors, images, content, form_plan, objects, WithTextObjects({ fonts: $bundles, text }), structure_limits) ? StructureFailure
 	bytes = KernelEmit.to_bytes(KernelFormStructure.Plan.structure(structure)) ? |_| EmitFailure
 	Ok({ bytes, content, facts, form_plan, ownership, structure, text })
 }
@@ -1228,14 +1194,7 @@ check_negatives = |guard| {
 	## 8: a supplied leaf list disagreeing with the declared font count.
 	valid_leaf = KernelFontLeaf.Leaf.build(base_bundle) ? |_| MissingRejection(8)
 	pipeline = build_pipeline_prefix(share_spec(1), guard) ? |_| MissingRejection(8)
-	short_result = KernelForm.Plan.build(
-		pipeline.form_scene,
-		pipeline.facts,
-		{ colors: pipeline.colors, fonts: [], images: pipeline.images },
-		WithText(KernelPdfText.ScenePlan.content(pipeline.text)),
-		pipeline.tagged,
-		form_limits,
-	)
+	short_result = KernelForm.Plan.build(pipeline.form_scene, pipeline.facts, { colors: pipeline.colors, fonts: [], images: pipeline.images }, WithText(KernelPdfText.ScenePlan.content(pipeline.text)), pipeline.tagged, form_limits)
 	match short_result {
 		Err(LeafCountMismatch({ declared: 1, supplied: 0 })) => {}
 		_ => return Err(MissingRejection(8))
@@ -1258,14 +1217,7 @@ check_negatives = |guard| {
 	## 10: the graph payload budget bounds recipe bytes transactionally.
 	tiny_graph = { ..graph_limits, max_payload_bytes: 64 }
 	tiny_limits = KernelForm.Limits.make({ graph: tiny_graph, max_mask_depth: 4, max_opacity_depth: 64, max_recipe_bytes: 4194304 })
-	budget_result = KernelForm.Plan.build(
-		pipeline.form_scene,
-		pipeline.facts,
-		{ colors: pipeline.colors, fonts: [{ descriptor: KernelFontLeaf.Leaf.descriptor(valid_leaf), payload: KernelFontLeaf.Leaf.recipe(valid_leaf) }], images: pipeline.images },
-		WithText(KernelPdfText.ScenePlan.content(pipeline.text)),
-		pipeline.tagged,
-		tiny_limits,
-	)
+	budget_result = KernelForm.Plan.build(pipeline.form_scene, pipeline.facts, { colors: pipeline.colors, fonts: [{ descriptor: KernelFontLeaf.Leaf.descriptor(valid_leaf), payload: KernelFontLeaf.Leaf.recipe(valid_leaf) }], images: pipeline.images }, WithText(KernelPdfText.ScenePlan.content(pipeline.text)), pipeline.tagged, tiny_limits)
 	match budget_result {
 		Err(Graph(PayloadByteLimitExceeded(_))) => {}
 		_ => return Err(MissingRejection(10))
@@ -1273,16 +1225,7 @@ check_negatives = |guard| {
 
 	## 11: an authored bundle list disagreeing with the plan at assembly.
 	full = complete_pipeline(pipeline, valid_leaf) ? |_| MissingRejection(11)
-	mismatch_result = KernelFormStructure.Plan.build(
-		pipeline.tagged,
-		pipeline.colors,
-		pipeline.images,
-		full.content,
-		full.form_plan,
-		full.objects,
-		WithTextObjects({ fonts: [], text: pipeline.text }),
-		structure_limits,
-	)
+	mismatch_result = KernelFormStructure.Plan.build(pipeline.tagged, pipeline.colors, pipeline.images, full.content, full.form_plan, full.objects, WithTextObjects({ fonts: [], text: pipeline.text }), structure_limits)
 	match mismatch_result {
 		Err(FontCountMismatch(_)) => {}
 		_ => return Err(MissingRejection(11))
@@ -1309,13 +1252,7 @@ build_pipeline_prefix = |spec, guard| {
 	text_store = build_text_store(spec, prepared)?
 	semantics = build_semantics(spec, text_store.source_bytes)?
 	built_scene = build_scene(spec)
-	semantic = KernelTextSemantics.Plan.build(
-		semantics,
-		spec.pages,
-		spec.pages,
-		semantic_limits(semantics.nodes.len(), semantics.content_spine.len(), semantics.fragments.len()),
-		text_semantic_limits(text_store.source_bytes.len(), text_store.store.clusters.len() + 8),
-	) ? |_| SemanticFailure
+	semantic = KernelTextSemantics.Plan.build(semantics, spec.pages, spec.pages, semantic_limits(semantics.nodes.len(), semantics.content_spine.len(), semantics.fragments.len()), text_semantic_limits(text_store.source_bytes.len(), text_store.store.clusters.len() + 8)) ? |_| SemanticFailure
 	resources = KernelScene.Resources.with_forms({
 		color_spaces: 1,
 		forms: built_scene.form_store.forms.len(),
@@ -1351,38 +1288,12 @@ build_pipeline_prefix = |spec, guard| {
 ## the assembly-boundary negative.
 complete_pipeline : PipelinePrefix, KernelFontLeaf.Leaf -> Try({ content : KernelContent.Plan, form_plan : KernelForm.Plan, objects : KernelFormObjects.Plan }, BuildFailure)
 complete_pipeline = |pipeline, leaf| {
-	form_plan = KernelForm.Plan.build(
-		pipeline.form_scene,
-		pipeline.facts,
-		{ colors: pipeline.colors, fonts: [{ descriptor: KernelFontLeaf.Leaf.descriptor(leaf), payload: KernelFontLeaf.Leaf.recipe(leaf) }], images: pipeline.images },
-		WithText(KernelPdfText.ScenePlan.content(pipeline.text)),
-		pipeline.tagged,
-		form_limits,
-	) ? FormPlanFailure
-	content = KernelContent.Plan.build_with_forms_and_text(
-		pipeline.tagged,
-		KernelPdfText.ScenePlan.content(pipeline.text),
-		form_context(form_plan, pipeline.form_store),
-		content_limits,
-	) ? ContentFailure
+	form_plan = KernelForm.Plan.build(pipeline.form_scene, pipeline.facts, { colors: pipeline.colors, fonts: [{ descriptor: KernelFontLeaf.Leaf.descriptor(leaf), payload: KernelFontLeaf.Leaf.recipe(leaf) }], images: pipeline.images }, WithText(KernelPdfText.ScenePlan.content(pipeline.text)), pipeline.tagged, form_limits) ? FormPlanFailure
+	content = KernelContent.Plan.build_with_forms_and_text(pipeline.tagged, KernelPdfText.ScenePlan.content(pipeline.text), form_context(form_plan, pipeline.form_store), content_limits) ? ContentFailure
 	resource_use = KernelResourceUse.TextPlan.build_with_forms(pipeline.form_scene, pipeline.colors, pipeline.images) ? ResourceUseFailure
 	leaf_counts = KernelForm.Plan.canonical_leaf_counts(form_plan)
-	base = KernelObjectPlan.Plan.build_canonical(
-		pipeline.tagged,
-		pipeline.colors,
-		pipeline.images,
-		resource_use,
-		content,
-		{ color_spaces: leaf_counts.color_spaces, image_alpha: KernelForm.Plan.canonical_image_alpha(form_plan), profiles: leaf_counts.profiles },
-		KernelObjectPlan.Limits.make({ max_objects: 8192, max_pages: 4 }),
-	) ? ObjectFailure
-	objects = KernelFormObjects.Plan.build_with_states(
-		base,
-		KernelForm.Plan.canonical_form_count(form_plan),
-		KernelForm.Plan.canonical_state_count(form_plan),
-		KernelForm.Plan.canonical_font_count(form_plan),
-		8192,
-	) ? FormObjectFailure
+	base = KernelObjectPlan.Plan.build_canonical(pipeline.tagged, pipeline.colors, pipeline.images, resource_use, content, { color_spaces: leaf_counts.color_spaces, image_alpha: KernelForm.Plan.canonical_image_alpha(form_plan), profiles: leaf_counts.profiles }, KernelObjectPlan.Limits.make({ max_objects: 8192, max_pages: 4 })) ? ObjectFailure
+	objects = KernelFormObjects.Plan.build_with_states(base, KernelForm.Plan.canonical_form_count(form_plan), KernelForm.Plan.canonical_state_count(form_plan), KernelForm.Plan.canonical_font_count(form_plan), 8192) ? FormObjectFailure
 	Ok({ content, form_plan, objects })
 }
 

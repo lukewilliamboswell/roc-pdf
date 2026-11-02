@@ -425,7 +425,7 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths, pr
 					$line_requests,
 					label_request,
 					{
-						runs: Semantics.IndexRange.from_start_and_length(body_start, segment_length(styles, body_start, body_start + body.physical.length())),
+						runs: Semantics.IndexRange.from_start_and_length({ start: body_start, length: segment_length(styles, body_start, body_start + body.physical.length()) }),
 						source: list_at(shape_requests, body_start).source,
 						width: Layout.Unit.from_raw(width.to_i64_wrap()),
 					},
@@ -440,7 +440,7 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths, pr
 						$modes = $modes.append(mode)
 					}
 					$line_requests = $line_requests.append({
-						runs: Semantics.IndexRange.from_start_and_length($segment_start, length),
+						runs: Semantics.IndexRange.from_start_and_length({ start: $segment_start, length: length }),
 						source: list_at(shape_requests, $segment_start).source,
 						width: Layout.Unit.from_raw(width.to_i64_wrap()),
 					})
@@ -472,7 +472,7 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths, pr
 				segments = segment_count(styles, body.physical.start(), body.physical.start() + body.physical.length())
 				first_lines = list_at(run_lines, first_request)
 				last_lines = list_at(run_lines, first_request + segments - 1)
-				body_lines = if (segments == 1) first_lines else Semantics.IndexRange.from_start_and_length(first_lines.start(), last_lines.start() + last_lines.length() - first_lines.start())
+				body_lines = if (segments == 1) first_lines else Semantics.IndexRange.from_start_and_length({ start: first_lines.start(), length: last_lines.start() + last_lines.length() - first_lines.start() })
 				label_lines = match label {
 					NoLabel => NoLabel
 					Label(label_run) => Label({ lines: list_at(run_lines, list_at($logical_index_of_label, $block_index)), offset: Layout.Unit.from_raw(geometry.label_offset.to_i64_wrap()), runs: label_run })
@@ -517,7 +517,7 @@ source_layout_error = |authoring, logical, geometries, store, error| match error
 				SourceLine({ source, line }) if list_at(logical, $block) == request => {
 					first = list_at(store.clusters, cluster_start).source.scalars
 					last = list_at(store.clusters, cluster_end - 1).source.scalars
-					return SourceTokenTooWide({ available: list_at(geometries, $block).body_width, source, line, scalars: Semantics.IndexRange.from_start_and_length(first.start(), last.start() + last.length() - first.start()) })
+					return SourceTokenTooWide({ available: list_at(geometries, $block).body_width, source, line, scalars: Semantics.IndexRange.from_start_and_length({ start: first.start(), length: last.start() + last.length() - first.start() }) })
 				}
 				_ => {}
 			}
@@ -869,23 +869,17 @@ list_set = |items, index, value| match items.set(index, value) {
 	Ok(updated) => updated
 }
 
-expect match calculate_content_width(
-	{ height: Layout.Unit.from_raw(1000), width: Layout.Unit.from_raw(1000) },
-	{ bottom: Layout.Unit.from_raw(0), left: Layout.Unit.from_raw(500), right: Layout.Unit.from_raw(500), top: Layout.Unit.from_raw(0) },
-) {
+expect match calculate_content_width({ height: Layout.Unit.from_raw(1000), width: Layout.Unit.from_raw(1000) }, { bottom: Layout.Unit.from_raw(0), left: Layout.Unit.from_raw(500), right: Layout.Unit.from_raw(500), top: Layout.Unit.from_raw(0) }) {
 	Err(InvalidGeometry) => True
 	_ => False
 }
 
-expect match single_run_index({ physical: Semantics.IndexRange.from_start_and_length(4, 2) }, 7) {
+expect match single_run_index({ physical: Semantics.IndexRange.from_start_and_length({ start: 4, length: 2 }) }, 7) {
 	Err(InvalidRun({ block: 7, run: 4 })) => True
 	_ => False
 }
 
-expect match calculate_content_width(
-	{ height: Layout.Unit.from_raw(0), width: Layout.Unit.from_raw(1000) },
-	{ bottom: Layout.Unit.from_raw(0), left: Layout.Unit.from_raw(0), right: Layout.Unit.from_raw(0), top: Layout.Unit.from_raw(0) },
-) {
+expect match calculate_content_width({ height: Layout.Unit.from_raw(0), width: Layout.Unit.from_raw(1000) }, { bottom: Layout.Unit.from_raw(0), left: Layout.Unit.from_raw(0), right: Layout.Unit.from_raw(0), top: Layout.Unit.from_raw(0) }) {
 	Err(InvalidGeometry) => True
 	_ => False
 }
@@ -928,7 +922,7 @@ expect {
 expect {
 	table = Document.table({ body_rows: [Document.row([Document.cell([Document.plain_text("Cell")])])], caption: NoCaption, columns: [{ align: Start, width: Share(1) }], footer_rows: [], header_rows: [], row_split: KeepRows })
 	authoring = Document.normalize(Document.from_blocks({ contents: [table], language: "en", title: "Deferred table frames" }))
-	range = Semantics.IndexRange.from_start_and_length(0, 1)
+	range = Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 })
 	logical = { physical: range }
 	plain = [TextBlock({ body: logical, label: NoLabel, level: 0 })]
 	labelled = [TextBlock({ body: logical, label: Label(logical), level: 1 })]

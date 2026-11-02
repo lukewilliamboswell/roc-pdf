@@ -1,0 +1,120 @@
+{
+  "format": "roc-fuzz-baseline/1",
+  "target": "roc-pdf-font-inspector-mutation",
+  "entries": [
+    {
+      "host_target": "arm64mac",
+      "profile": "llvm-fuzz",
+      "metric_version": "roc-fuzz-allocations/1",
+      "examples": [
+        {
+          "name": "valid-source",
+          "revision": "1",
+          "input_sha256": "ee0c414a79c5deaf862e22485ac633b2f3af2ad46457566318da787308cf0bd6",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 13,
+                "reallocs": 21,
+                "deallocs": 14,
+                "requested_bytes": 195168,
+                "entry_live_allocs": 1,
+                "entry_live_bytes": 166308,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 278020
+              }
+            }
+          ]
+        },
+        {
+          "name": "empty-source",
+          "revision": "1",
+          "input_sha256": "a4e91a2ce50339525784decce7a96a5de4360647b7c183a98677c5da104e5666",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 0,
+                "reallocs": 0,
+                "deallocs": 0,
+                "requested_bytes": 0,
+                "entry_live_allocs": 0,
+                "entry_live_bytes": 0,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "host_target": "x64musl",
+      "profile": "llvm-fuzz",
+      "metric_version": "roc-fuzz-allocations/1",
+      "examples": [
+        {
+          "name": "valid-source",
+          "revision": "1",
+          "input_sha256": "ee0c414a79c5deaf862e22485ac633b2f3af2ad46457566318da787308cf0bd6",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 13,
+                "reallocs": 21,
+                "deallocs": 14,
+                "requested_bytes": 195168,
+                "entry_live_allocs": 1,
+                "entry_live_bytes": 166308,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 278020
+              }
+            }
+          ]
+        },
+        {
+          "name": "empty-source",
+          "revision": "1",
+          "input_sha256": "a4e91a2ce50339525784decce7a96a5de4360647b7c183a98677c5da104e5666",
+          "observations": [
+            {
+              "id": 1,
+              "parent_id": 0,
+              "name": "$property",
+              "occurrence": 1,
+              "complete": true,
+              "stats": {
+                "allocs": 0,
+                "reallocs": 0,
+                "deallocs": 0,
+                "requested_bytes": 0,
+                "entry_live_allocs": 0,
+                "entry_live_bytes": 0,
+                "exit_live_allocs": 0,
+                "exit_live_bytes": 0,
+                "peak_live_bytes": 0
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

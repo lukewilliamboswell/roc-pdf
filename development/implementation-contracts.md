@@ -102,6 +102,38 @@ supplies a fresh bounded buffer to the transition. A high-level chunk
 entrypoint may expose the validated encoder, while one-shot byte sources that
 cannot be replayed or fully validated are not accepted as resources.
 
+## Exact source font style facts
+
+Font inspection retains signed `post.italicAngle` bits (`I32`), the unchanged
+`post.isFixedPitch` (`U32`), `head.macStyle` and `OS/2.fsSelection` (`U16`), and
+a bounded Serif/NonSerif/Unclassified value from positive OS/2 family-class or
+Latin-text PANOSE declarations. Unknown or conflicting classifications stay
+unclassified and never consult a name. A
+short or unsupported post header rejects as `InvalidPost`; inconsistent
+head/OS2 Bold/Italic links reject as `InvalidStyle`. These facts are produced
+once from validated source bytes, never inferred from a name or a semantic role.
+The subset's format-3 post header preserves the exact angle and fixed-pitch
+value; its name removal and other sanitization rules remain unchanged.
+
+The facade resolves descriptor FixedPitch/Serif/Italic flags and angle before font
+resource identity. The private `KernelPdfFont.Descriptor.italic_angle` now means
+signed raw 16.16 bits carried in `I64`, validated to the complete `I32` range.
+Integer degree values emit as PDF integers; fractional values become the private
+`KernelObject.Fixed16(I32)` primitive. Its plan-identity discriminator is 11 and
+its lexical bound is 23 bytes. The lexer splits integer/remainder magnitudes,
+multiplies only the remainder by `5^16`, and emits at most sixteen decimal
+places without floating point or rounding. All intermediate magnitudes fit
+`U64`, including both signed endpoints. The ordinary `KernelLex.Decimal`
+coefficient remains `I64` with scale at most nine.
+
+Font-leaf recipe schema 2 stores the angle as signed raw 16.16 at the same
+eight-byte field width. Schema 1 described integer degree values and cannot
+silently acquire a different interpretation just because historical callers
+used zero. The version change deliberately changes canonical font resource
+identities and affected PDF plan identities, including unchanged upright fonts;
+the tag itself adds no recipe bytes, allocations or traversal work. The
+subset-tag policy remains based on the source digest and glyph closure.
+
 ## Repository fixture protocol
 
 Repository file and directory names must not collide under case-insensitive

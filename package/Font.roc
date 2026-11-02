@@ -1,8 +1,29 @@
 import Semantics
-import KernelBuiltInFont
+import KernelBuiltInFonts
 import KernelFont
 
 Font :: [].{
+
+	## Packaged families are exact selections, never fallback preferences.
+	Family : [Sans, Serif, Mono]
+	Style : [Regular, Bold, Italic, BoldItalic]
+	StyleFace : [Available(FaceId), Unavailable]
+	FamilyFaces := { regular : FaceId, bold : StyleFace ?? Unavailable, italic : StyleFace ?? Unavailable, bold_italic : StyleFace ?? Unavailable }.{
+		is_eq : _
+	}
+	FamilySelection : [BuiltIn(Family), Registered(FamilyFaces)]
+	SourceFace : [ThemeCode, Face(FaceId), BuiltIn({ family : Family, style : Style })]
+	SourceDefault : [Face(FaceId), BuiltIn({ family : Family, style : Style })]
+
+	## An unavailable requested style never selects the regular face.
+	style_face : FamilyFaces, Style -> StyleFace
+	style_face = |faces, style| match style {
+		Regular => Available(faces.regular)
+		Bold => faces.bold
+		Italic => faces.italic
+		BoldItalic => faces.bold_italic
+	}
+
 	ResourceId :: U64.{
 		is_eq : _
 		to_hash : _
@@ -221,8 +242,8 @@ Font :: [].{
 		empty : Registry
 		empty = Registry.({ inspections: [], store: empty_store })
 
-		register : Registry, List(U8), Registration, ValidationLimits -> Try({ face : FaceId, instance : InstanceId, policy : PolicyId, registry : Registry, work : RegistrationWork }, ResourceError)
-		register = |registry, bytes, registration, limits| register_font(registry, bytes, registration, limits)
+		register : Registry, { bytes : List(U8), registration : Registration, limits : ValidationLimits } -> Try({ face : FaceId, instance : InstanceId, policy : PolicyId, registry : Registry, work : RegistrationWork }, ResourceError)
+		register = |registry, { bytes, registration, limits }| register_font(registry, bytes, registration, limits)
 
 		## Register the package's built-in face, the face of `Theme.default`,
 		## as an ordinary registered face for the Latin script. Use it to put
@@ -233,7 +254,7 @@ Font :: [].{
 		## subset as the unregistered default. `limits` apply as in
 		## `register`; `ValidationLimits.default` accepts the built-in face.
 		register_built_in : Registry, ValidationLimits -> Try({ face : FaceId, instance : InstanceId, policy : PolicyId, registry : Registry, work : RegistrationWork }, ResourceError)
-		register_built_in = |registry, limits| register_font(registry, KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Script.from_iso15924("Latn")] }, limits)
+		register_built_in = |registry, limits| register_font(registry, KernelBuiltInFonts.sans_regular, { provision: BuiltIn, scripts: [Script.from_iso15924("Latn")] }, limits)
 
 		store : Registry -> Store
 		store = |Registry.(state)| state.store
@@ -313,14 +334,14 @@ register_font = |Font.Registry.(state), bytes, registration, Font.ValidationLimi
 	store = {
 		coverage_spans: $coverage,
 		faces: state.store.faces.append({
-			coverage: Semantics.IndexRange.from_start_and_length(coverage_start, inspection.coverage.len()),
+			coverage: Semantics.IndexRange.from_start_and_length({ start: coverage_start, length: inspection.coverage.len() }),
 			embedding_rights: font_rights,
 			format: OpenTypeTrueType,
 			id: face,
 			postscript_name: KernelFont.postscript_name(inspection),
 			provision: registration.provision,
 			resource,
-			scripts: Semantics.IndexRange.from_start_and_length(script_start, registration.scripts.len()),
+			scripts: Semantics.IndexRange.from_start_and_length({ start: script_start, length: registration.scripts.len() }),
 		}),
 		instances: state.store.instances.append({ face, id: instance, kind: Static }),
 		policies: state.store.policies.append({ id: policy, instances: [instance] }),
@@ -537,17 +558,17 @@ cluster_coverage = |store, face, scalars, prior_visits| {
 append_face_range : List(Font.FaceRange), Font.InstanceId, U64 -> List(Font.FaceRange)
 append_face_range = |ranges, instance, cluster| {
 	if ranges.is_empty() {
-		return [{ clusters: Semantics.IndexRange.from_start_and_length(cluster, 1), instance }]
+		return [{ clusters: Semantics.IndexRange.from_start_and_length({ start: cluster, length: 1 }), instance }]
 	}
 	last_index = ranges.len() - 1
 	last = list_at(ranges, last_index)
 	if last.instance == instance and last.clusters.start() + last.clusters.length() == cluster {
-		match ranges.set(last_index, { clusters: Semantics.IndexRange.from_start_and_length(last.clusters.start(), last.clusters.length() + 1), instance }) {
+		match ranges.set(last_index, { clusters: Semantics.IndexRange.from_start_and_length({ start: last.clusters.start(), length: last.clusters.length() + 1 }), instance }) {
 			Ok(updated) => updated
 			Err(OutOfBounds) => crash "validated font plan range update escaped"
 		}
 	} else {
-		ranges.append({ clusters: Semantics.IndexRange.from_start_and_length(cluster, 1), instance })
+		ranges.append({ clusters: Semantics.IndexRange.from_start_and_length({ start: cluster, length: 1 }), instance })
 	}
 }
 

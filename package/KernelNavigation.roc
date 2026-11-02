@@ -457,7 +457,7 @@ validate_destinations = |inputs, context, limits| {
 		$destinations = $destinations.append({
 			anchor: input.anchor,
 			id: Semantics.DestinationId.from_index($index),
-			name: Semantics.IndexRange.from_start_and_length(start, length),
+			name: Semantics.IndexRange.from_start_and_length({ start: start, length: length }),
 			target: input.target,
 		})
 		$index = $index + 1
@@ -685,7 +685,7 @@ validate_annotations = |inputs, destinations, name_order, context, limits| {
 				start = $uri_bytes.len()
 				$uri_bytes = append_all($uri_bytes, uri_bytes)
 				$uri_bytes_checked = $uri_bytes_checked + uri_bytes.len()
-				UriAction(Semantics.IndexRange.from_start_and_length(start, uri_bytes.len()))
+				UriAction(Semantics.IndexRange.from_start_and_length({ start: start, length: uri_bytes.len() }))
 			}
 			GoToName(name) => {
 				probe = Str.to_utf8(name)
@@ -724,7 +724,7 @@ validate_annotations = |inputs, destinations, name_order, context, limits| {
 			keyboard_order: input.keyboard_order,
 			page: input.page,
 			print: input.print,
-			quads: Semantics.IndexRange.from_start_and_length(quad_start, quad_count),
+			quads: Semantics.IndexRange.from_start_and_length({ start: quad_start, length: quad_count }),
 			rect: input.rect,
 		})
 		$index = $index + 1
@@ -1492,7 +1492,7 @@ expect {
 }
 
 empty_semantic_range : Semantics.IndexRange
-empty_semantic_range = Semantics.IndexRange.from_start_and_length(0, 0)
+empty_semantic_range = Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 })
 
 resolve_node : U64, Str -> Semantics.Node
 resolve_node = |index, role| {
@@ -1519,7 +1519,7 @@ resolve_fragment = |index, occurrence, page| {
 
 resolve_occurrence : U64, U64 -> Semantics.ContentOccurrence
 resolve_occurrence = |index, fragment_start| {
-	fragments: Semantics.IndexRange.from_start_and_length(fragment_start, 1),
+	fragments: Semantics.IndexRange.from_start_and_length({ start: fragment_start, length: 1 }),
 	id: Semantics.OccurrenceId.from_index(index),
 	language: Inherited,
 	source: NonText(Semantics.NonTextSourceId.from_index(index), ByteRange(empty_semantic_range)),

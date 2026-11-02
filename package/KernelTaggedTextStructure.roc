@@ -153,12 +153,7 @@ build_plan = |tagged, colors, images, content, font_plan, text, fonts, facts, na
 	navigation_plan = match navigation {
 		NoNavigation => NoNavigationPlan
 		WithNavigation(input) => {
-			resolved = KernelNavigation.resolve(
-				input.store,
-				KernelTagged.Plan.semantics(tagged),
-				KernelTagged.Plan.occurrence_owners(tagged),
-				input.anchor_rects,
-			) ? Navigation
+			resolved = KernelNavigation.resolve(input.store, KernelTagged.Plan.semantics(tagged), KernelTagged.Plan.occurrence_owners(tagged), input.anchor_rects) ? Navigation
 			planned = KernelNavigationObjects.plan(checked_add(base_count, metadata_object_count)?, input.store) ? NavigationObjects
 			var $annotation_pages = List.with_capacity(input.store.annotations.len())
 			var $annotation_scan = 0
@@ -216,15 +211,7 @@ build_plan = |tagged, colors, images, content, font_plan, text, fonts, facts, na
 	var $font_index = 0
 	while $font_index < fonts.len() {
 		input = list_at(fonts, $font_index)
-		font = KernelPdfFont.Plan.build(
-			$builder,
-			input.font,
-			input.plan,
-			input.subset,
-			input.descriptor,
-			list_at(mappings, $font_index),
-			limits.font_limits,
-		) ? Font
+		font = KernelPdfFont.Plan.build($builder, input.font, input.plan, input.subset, input.descriptor, list_at(mappings, $font_index), limits.font_limits) ? Font
 		emitted = KernelPdfFont.Plan.objects(font)
 		planned = list_at(planned_fonts, $font_index)
 		ensure_object(emitted.font_file, planned.first)?

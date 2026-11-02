@@ -73,29 +73,13 @@ KernelResourceUse :: [].{
 		## arenas, so a resource used only inside form content is not an
 		## orphan.
 		build_with_forms : KernelScene.FormPlan, KernelColor.Plan, KernelImage.Plan -> Try(TextPlan, Error)
-		build_with_forms = |form_plan, colors, images| build_text_plan(
-			KernelScene.FormPlan.page(form_plan),
-			KernelScene.FormPlan.forms(form_plan).commands,
-			[],
-			NoShadings,
-			colors,
-			images,
-			NoBlending,
-		)
+		build_with_forms = |form_plan, colors, images| build_text_plan(KernelScene.FormPlan.page(form_plan), KernelScene.FormPlan.forms(form_plan).commands, [], NoShadings, colors, images, NoBlending)
 
 		## The transparency-aware variant: the page transparency group's
 		## `/CS` reference is a genuine use of the blending space, so a space
 		## referenced only by transparency groups is not an orphan.
 		build_with_forms_and_blending : KernelScene.FormPlan, KernelColor.Plan, KernelImage.Plan, [Blending(U64), NoBlending] -> Try(TextPlan, Error)
-		build_with_forms_and_blending = |form_plan, colors, images, blending| build_text_plan(
-			KernelScene.FormPlan.page(form_plan),
-			KernelScene.FormPlan.forms(form_plan).commands,
-			[],
-			NoShadings,
-			colors,
-			images,
-			blending,
-		)
+		build_with_forms_and_blending = |form_plan, colors, images, blending| build_text_plan(KernelScene.FormPlan.page(form_plan), KernelScene.FormPlan.forms(form_plan).commands, [], NoShadings, colors, images, blending)
 
 		## The paint-aware variant: pattern-cell commands count direct use
 		## like page and form content, and every shading credits its color
@@ -103,15 +87,7 @@ KernelResourceUse :: [].{
 		## space's arity — so a space referenced only through gradient stops
 		## is not an orphan.
 		build_with_paints : KernelScene.PaintPlan, KernelColor.Plan, KernelImage.Plan, [Blending(U64), NoBlending] -> Try(TextPlan, Error)
-		build_with_paints = |paint_plan, colors, images, blending| build_text_plan(
-			KernelScene.FormPlan.page(KernelScene.PaintPlan.forms(paint_plan)),
-			KernelScene.FormPlan.forms(KernelScene.PaintPlan.forms(paint_plan)).commands,
-			KernelScene.PaintPlan.patterns(paint_plan).commands,
-			WithShadings(KernelScene.PaintPlan.shadings(paint_plan)),
-			colors,
-			images,
-			blending,
-		)
+		build_with_paints = |paint_plan, colors, images, blending| build_text_plan(KernelScene.FormPlan.page(KernelScene.PaintPlan.forms(paint_plan)), KernelScene.FormPlan.forms(KernelScene.PaintPlan.forms(paint_plan)).commands, KernelScene.PaintPlan.patterns(paint_plan).commands, WithShadings(KernelScene.PaintPlan.shadings(paint_plan)), colors, images, blending)
 
 		work : TextPlan -> TextWork
 		work = |plan| plan.work
@@ -501,11 +477,11 @@ test_scene = |color, image_count| {
 	{
 		commands,
 		dash_lengths: [],
-		groups: [{ commands: Semantics.IndexRange.from_start_and_length(0, commands.len()), id: Scene.GroupId.from_index(0), owner: PageArtifact(Background) }],
+		groups: [{ commands: Semantics.IndexRange.from_start_and_length({ start: 0, length: commands.len() }), id: Scene.GroupId.from_index(0), owner: PageArtifact(Background) }],
 		page_groups: [Scene.GroupId.from_index(0)],
-		pages: [{ boxes: { art: rect(0, 0, 10000, 10000), bleed: rect(0, 0, 10000, 10000), crop: rect(0, 0, 10000, 10000), media: rect(0, 0, 10000, 10000), trim: rect(0, 0, 10000, 10000) }, id: Semantics.PageId.from_index(0), paint_order: Semantics.IndexRange.from_start_and_length(0, 1), rotation: Rotate0 }],
+		pages: [{ boxes: { art: rect(0, 0, 10000, 10000), bleed: rect(0, 0, 10000, 10000), crop: rect(0, 0, 10000, 10000), media: rect(0, 0, 10000, 10000), trim: rect(0, 0, 10000, 10000) }, id: Semantics.PageId.from_index(0), paint_order: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), rotation: Rotate0 }],
 		path_segments: [Rectangle(rect(0, 0, 1000, 1000))],
-		paths: [{ id: Scene.PathId.from_index(0), segments: Semantics.IndexRange.from_start_and_length(0, 1) }],
+		paths: [{ id: Scene.PathId.from_index(0), segments: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }) }],
 	}
 }
 

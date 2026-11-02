@@ -208,14 +208,7 @@ attach_plan = |preliminary, arena, text, navigation, proofs, semantic_limits, na
 					}
 				}
 			) ? Navigation
-			semantics = KernelTextSemantics.Plan.attach_fragments_navigation(
-				preliminary,
-				{ annotations: patch.annotations, content_spine: patch.content_spine, nodes: patch.nodes },
-				arena.fragments,
-				page_count,
-				page_count,
-				semantic_limits,
-			) ? TextSemantics
+			semantics = KernelTextSemantics.Plan.attach_fragments_navigation(preliminary, { annotations: patch.annotations, content_spine: patch.content_spine, nodes: patch.nodes }, arena.fragments, page_count, page_count, semantic_limits) ? TextSemantics
 			Ok(KernelFacadeFragments.Plan.{ anchor_rects: geometry.rects, arena, navigation: WithNavigationStore(validated.store), semantics, text: underlined })
 		}
 	}
@@ -613,7 +606,7 @@ patch_spine = |store, links, per_link| {
 				$slot = $slot + 1
 			}
 		}
-		$nodes = list_set($nodes, $node_index, { ..node, content: Semantics.IndexRange.from_start_and_length(new_start, $spine.len() - new_start) })
+		$nodes = list_set($nodes, $node_index, { ..node, content: Semantics.IndexRange.from_start_and_length({ start: new_start, length: $spine.len() - new_start }) })
 		$node_index = $node_index + 1
 	}
 	Ok({ annotations: $annotations, content_spine: $spine, nodes: $nodes })
@@ -708,8 +701,8 @@ build_arena = |preliminary, prepared, artifact_runs, limits| {
 				return Err(SourceRangeMismatch({ run: $run_index }))
 			}
 			fragment_range = {
-				scalars: Semantics.IndexRange.from_start_and_length(checked_add(occurrence_range.scalars.start(), run.source.scalars.start())?, run.source.scalars.length()),
-				utf8_bytes: Semantics.IndexRange.from_start_and_length(checked_add(occurrence_range.utf8_bytes.start(), run.source.utf8_bytes.start())?, run.source.utf8_bytes.length()),
+				scalars: Semantics.IndexRange.from_start_and_length({ start: checked_add(occurrence_range.scalars.start(), run.source.scalars.start())?, length: run.source.scalars.length() }),
+				utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: checked_add(occurrence_range.utf8_bytes.start(), run.source.utf8_bytes.start())?, length: run.source.utf8_bytes.length() }),
 			}
 			continuation = list_at($continuations, occurrence_index)
 			$continuations = list_set($continuations, occurrence_index, checked_add(continuation, 1)?)
@@ -816,14 +809,14 @@ verify_committed_anchors = |proof, fragments, rects, occurrences| {
 expect {
 	registry = KernelNavigation.Registry.build([{ anchor: Semantics.OccurrenceId.from_index(0), name: "chapter", target: Semantics.NodeId.from_index(0) }], { forms: 0, nodes: 1, occurrences: 1, pages: 1, semantic_annotations: 0 }, KernelNavigation.standard_limits)?
 	labels = KernelNavigation.LabelPlan.build([], 1, KernelNavigation.standard_limits)?
-	rect = Layout.rect(10, 20, 1, 14)
+	rect = Layout.rect({ x: 10, y: 20, width: 1, height: 14 })
 	proof = { registry, labels, anchors: [At({ page: Semantics.PageId.from_index(0), rect })] }
-	fragment = { content_stream: Semantics.ContentStreamId.from_index(0), continuation_index: 0, id: Semantics.FragmentId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0), page: Semantics.PageId.from_index(0), source_range: UnicodeRange({ scalars: Semantics.IndexRange.from_start_and_length(0, 1), utf8_bytes: Semantics.IndexRange.from_start_and_length(0, 1) }) }
-	accepted = match verify_committed_anchors(proof, [fragment], [AnchorAt(Layout.rect(10, 20, 100, 14))], 1) {
+	fragment = { content_stream: Semantics.ContentStreamId.from_index(0), continuation_index: 0, id: Semantics.FragmentId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0), page: Semantics.PageId.from_index(0), source_range: UnicodeRange({ scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }) }) }
+	accepted = match verify_committed_anchors(proof, [fragment], [AnchorAt(Layout.rect({ x: 10, y: 20, width: 100, height: 14 }))], 1) {
 		Ok(_) => True
 		Err(_) => False
 	}
-	rejected = match verify_committed_anchors(proof, [fragment], [AnchorAt(Layout.rect(10, 19, 100, 14))], 1) {
+	rejected = match verify_committed_anchors(proof, [fragment], [AnchorAt(Layout.rect({ x: 10, y: 19, width: 100, height: 14 }))], 1) {
 		Err(InvalidAnchorGeometry({ destination: 0 })) => True
 		_ => False
 	}

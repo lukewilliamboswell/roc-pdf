@@ -113,8 +113,8 @@ long_text = |lines| {
 
 faces : Bool -> Try({ body : Font.FaceId, mono : Font.FaceId, registry : Font.Registry }, Fixture.Error)
 faces = |han| {
-	body = Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, Font.ValidationLimits.default) ? |_| FontFailure
-	mono = body.registry.register(if (han) cjk_bytes else mono_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924(if (han) "Hani" else "Latn")] }, Font.ValidationLimits.default) ? |_| FontFailure
+	body = Font.Registry.empty.register({ bytes: KernelBuiltInFont.bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
+	mono = body.registry.register({ bytes: if (han) cjk_bytes else mono_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924(if (han) "Hani" else "Latn")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
 	Ok({ body: body.face, mono: mono.face, registry: mono.registry })
 }
 
@@ -127,7 +127,7 @@ evidence = |EvidenceProps.{ text, spacer, scale, negative, defaults, han, source
 	}
 	registered = faces(han)?
 	props : Pdf.SourceBlockProps
-	props = if (defaults) { text, face: if (source_body) registered.body else registered.mono, foregrounds } else { text, face: if (source_body) registered.body else registered.mono, foregrounds, size: 9, leading: 12, color: Color.srgb8({ red: 20, green: 40, blue: 80 }), padding: 8, background: Background(Color.srgb8({ red: 240, green: 242, blue: 245 })) }
+	props = if (defaults) { text, face: Face(if (source_body) registered.body else registered.mono), foregrounds } else { text, face: Face(if (source_body) registered.body else registered.mono), foregrounds, size: 9, leading: 12, color: Color.srgb8({ red: 20, green: 40, blue: 80 }), padding: 8, background: Background(Color.srgb8({ red: 240, green: 242, blue: 245 })) }
 	header = Pdf.region({ height: 10, start: [Pdf.furniture_text([Pdf.text("Quiet running header")])] })
 	templates = Templates({ first: Pdf.first_page_template({ header: header }), continuation: Pdf.page_template({ header: header }) })
 	make = |block| Pdf.document({
@@ -146,7 +146,7 @@ evidence = |EvidenceProps.{ text, spacer, scale, negative, defaults, han, source
 	reported = if (highlighted) source_report_counts(report) else report_evidence(report, text, source_only)?
 	body_font = registered.registry.prepared_face(registered.body) ? |_| FontFailure
 	mono_font = registered.registry.prepared_face(registered.mono) ? |_| FontFailure
-	styled = { faces: [registered.body, registered.mono], fonts: [body_font, mono_font], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
+	styled = { faces: [registered.body, registered.mono], fonts: [body_font, mono_font], inline_faces: [], face_indexes: [], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
 	# Color requires a profile at emission. The work probe uses black text
 	# and a black background; geometry and the panel paint work agree.
 	probe_background = if (defaults) NoBackground else Background(Theme.black)
@@ -269,8 +269,8 @@ multiple_evidence = |context| {
 	registered = faces(False)?
 	shared = "same = 1\n\n  keep = same"
 	distinct = "different = 2\n\n    keep = different\n"
-	first = Pdf.source_block({ text: shared, face: registered.mono })
-	second = Pdf.source_block({ text: distinct, face: registered.mono })
+	first = Pdf.source_block({ text: shared, face: Face(registered.mono) })
+	second = Pdf.source_block({ text: distinct, face: Face(registered.mono) })
 	document = Pdf.document({ title: "Independent source placements", language: "en", contents: [first, Pdf.paragraph("Between source blocks."), second, first] })
 	theme : Theme
 	theme = { body: { size: 11, leading: 15 } }
@@ -298,7 +298,7 @@ multiple_evidence = |context| {
 	}
 	body_font = registered.registry.prepared_face(registered.body) ? |_| FontFailure
 	mono_font = registered.registry.prepared_face(registered.mono) ? |_| FontFailure
-	styled = { faces: [registered.body, registered.mono], fonts: [body_font, mono_font], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
+	styled = { faces: [registered.body, registered.mono], fonts: [body_font, mono_font], inline_faces: [], face_indexes: [], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
 	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(document), styled, theme, page_size, descriptor, NoDocumentFacts, pipeline_limits) ? |_| PipelineFailure
 	flow = KernelFacadePipeline.Plan.work(pipeline)
 	Ok({ bytes, work: [shared.count_utf8_bytes() * 2 + distinct.count_utf8_bytes(), flow.shaped_runs, flow.lines, flow.pages, flow.final_runs, flow.fragments, flow.scene_commands, flow.objects, flow.shape_metric_reads, flow.line_candidate_visits, flow.page_candidate_visits, $index, 10, 0, bytes.len()] })

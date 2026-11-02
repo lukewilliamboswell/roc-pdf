@@ -69,7 +69,7 @@ def to_unicode(document: Document, font: int) -> dict[int, str]:
     return mappings
 
 
-def page_marked_text(document: Document, page: int, by_font: dict[str, list[str]] | None = None, artifacts: bool = False, shown_positions: list[tuple[float, str]] | None = None) -> list[tuple[int, str]]:
+def page_marked_text(document: Document, page: int, by_font: dict[str, list[str]] | None = None, artifacts: bool = False, shown_positions: list[tuple[float, str]] | None = None, by_mcid_fonts: dict[int, set[str]] | None = None) -> list[tuple[int, str]]:
     """(MCID, decoded text) for each MCID-bearing marked-content sequence in stream order.
 
     With ``by_font``, the decoded logical text is also collected per font
@@ -156,6 +156,8 @@ def page_marked_text(document: Document, page: int, by_font: dict[str, list[str]
                     require(len(string) % 2 == 0, "Identity-H string has an odd byte length")
                     if by_font is not None and (owner is ARTIFACT) == artifacts:
                         by_font.setdefault(current_font, []).append("".join(current.get(int.from_bytes(string[i : i + 2], "big"), "") for i in range(0, len(string), 2)))
+                    if by_mcid_fonts is not None and owner is not ARTIFACT:
+                        by_mcid_fonts.setdefault(owner, set()).add(current_font)
                     if shown_positions is not None and owner is not ARTIFACT:
                         shown_positions.append((baseline, "".join(current.get(int.from_bytes(string[i : i + 2], "big"), "") for i in range(0, len(string), 2))))
                     for index in range(0, len(string), 2):
@@ -252,6 +254,8 @@ def render(pdf: bytes, dimensions: dict[str, int] | None = None) -> list[str]:
 
 def validate_rich_inline_pdf(pdf: bytes, dimensions: dict[str, int]) -> None:
     render(pdf, dimensions)
+    if dimensions.get("code_role_fonts"):
+        validate_combined_code_font(pdf)
     repeated = dimensions.get("repeated_segments")
     if repeated is not None:
         document = Document(pdf)
@@ -366,6 +370,69 @@ def code_font_text(pdf: bytes) -> str:
     return font_text(pdf, "NotoMonoCodeFixture-Regular")
 
 
+def validate_combined_code_font(pdf: bytes) -> None:
+    """The nested Code owner uses the genuine explicitly chosen bold italic."""
+    # Imported lazily because the default-family oracle reuses this module's
+    # independent marked-content decoder.
+    import struct
+    from fractions import Fraction
+    from check_fonts import FontFacts
+    from check_default_fonts import glyph_fingerprint, source_glyph, tables
+
+    document = Document(pdf)
+    pages: list[int] = []
+    page_order(document, int(document.get(document.root)["Pages"]), pages)
+    selected: dict[tuple[int, int], set[str]] = {}
+    for page in pages:
+        per_page: dict[int, set[str]] = {}
+        page_marked_text(document, page, by_mcid_fonts=per_page)
+        selected.update({(page, mcid): names for mcid, names in per_page.items()})
+    owners = []
+
+    def walk(number: int, ancestors: tuple[str, ...]) -> None:
+        element = document.get(number)
+        role = str(element["S"])
+        children = element_children(document, element)
+        if role == "Code" and "Em" in ancestors and "Strong" in ancestors:
+            marks = [child for child in children if isinstance(child, dict) and child.get("Type") == "MCR"]
+            require(marks, "combined Code has no marked-content owner")
+            for mark in marks:
+                require(selected.get((int(mark["Pg"]), int(mark["MCID"]))) == {"Inter-BoldItalic"},
+                        "combined Code owner did not select the exact genuine bold-italic program")
+            owners.append(number)
+        for child in children:
+            if isinstance(child, Ref):
+                walk(int(child), (*ancestors, role))
+
+    tree = document.get(int(document.get(document.root)["StructTreeRoot"]))
+    walk(int(tree["K"]), ())
+    require(len(owners) == 1, "expected one nested emphasis/strong Code owner")
+    facts = FontFacts(pdf, len(pages))
+    matched = [font for font in facts.bundles if font.postscript_name == "Inter-BoldItalic"]
+    require(len(matched) == 1, "missing unique genuine combined-style program")
+    font = matched[0]
+    source = tables((ROOT / "package/fonts/Inter-BoldItalic.ttf").read_bytes())
+    actual = font.subset.tables
+    require(actual[b"OS/2"] == source[b"OS/2"] and struct.unpack_from(">H", actual[b"OS/2"], 4)[0] == 700,
+            "combined Code lost genuine source weight/style facts")
+    require(struct.unpack_from(">H", actual[b"head"], 44)[0] & 3 == 3,
+            "combined Code font is not genuine bold italic")
+    descriptor = facts.bodies[font.descriptor]
+    flags = re.search(rb"/Flags ([0-9]+)", descriptor)
+    angle = re.search(rb"/ItalicAngle (-?[0-9]+(?:\.[0-9]+)?)", descriptor)
+    source_angle = struct.unpack_from(">i", source[b"post"], 4)[0]
+    require(flags is not None and int(flags[1]) & 64 and angle is not None and
+            Fraction(angle[1].decode()) == Fraction(source_angle, 65536),
+            "combined Code descriptor lost the exact genuine italic facts")
+    source_memo: dict[int, bytes] = {}
+    subset_memo: dict[int, bytes] = {}
+    for cid, text in font.mappings.items():
+        require(len(text) == 1 and glyph_fingerprint(actual, cid, subset_memo) ==
+                glyph_fingerprint(source, source_glyph(source, ord(text)), source_memo),
+                "combined Code subset differs from the exact selected source program")
+    require(code_font_text(pdf) == "WMS-7", "ordinary Code did not retain its exact custom mono face")
+
+
 def self_test() -> None:
     mixed = MIXED.read_bytes()
     require(render(mixed) == MIXED_EXPECTED, f"mixed rich-inline rendering changed: {render(mixed)!r}")
@@ -373,7 +440,7 @@ def self_test() -> None:
     render(PARAGRAPHS.read_bytes())
     code_face = CODE_FACE.read_bytes()
     require(render(code_face) == render(mixed), "the code-face snapshot's logical text differs from the mixed snapshot's")
-    require(code_font_text(code_face) == "WMS-7code", f"the monospace face shows {code_font_text(code_face)!r}, not exactly the Code text")
+    validate_combined_code_font(code_face)
     furniture = ORDERED_FURNITURE.read_bytes()
     han = font_text(furniture, "NotoSCCJKFixture-Regular", artifacts=True)
     require(han == "中" * 6, f"the ordered-policy furniture shows {han!r} in the Han face, not one 中 per continuation page")

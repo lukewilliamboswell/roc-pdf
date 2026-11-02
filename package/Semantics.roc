@@ -181,8 +181,8 @@ Semantics :: [].{
 		is_eq : _
 		to_hash : _
 
-		from_start_and_length : U64, U64 -> IndexRange
-		from_start_and_length = |start, length| IndexRange.{ start, length }
+		from_start_and_length : { start : U64, length : U64 } -> IndexRange
+		from_start_and_length = |{ start, length }| IndexRange.{ start, length }
 
 		length : IndexRange -> U64
 		length = |range| range.length
@@ -394,13 +394,13 @@ expect Semantics.StructureElementId.from_index(19).index() == 19
 expect Semantics.ElementId.from_index(23).index() == 23
 
 # Ranges preserve their exact start offset.
-expect Semantics.IndexRange.from_start_and_length(5, 8).start() == 5
+expect Semantics.IndexRange.from_start_and_length({ start: 5, length: 8 }).start() == 5
 
 # Ranges preserve their exact length.
-expect Semantics.IndexRange.from_start_and_length(5, 8).length() == 8
+expect Semantics.IndexRange.from_start_and_length({ start: 5, length: 8 }).length() == 8
 
 # Nested public type modules construct opaque node IDs directly.
 expect Semantics.NodeId.from_index(17).index() == 17
 
 # Nested public type modules construct exact ranges directly.
-expect Semantics.IndexRange.from_start_and_length(2, 3).length() == 3
+expect Semantics.IndexRange.from_start_and_length({ start: 2, length: 3 }).length() == 3
