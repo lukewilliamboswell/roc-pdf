@@ -10,6 +10,7 @@ __pycache__/
 *.roc-format-failed*
 
 generated-docs/
+dist/
 .roc-pdf-tmp/
 .roc-fuzz/
 facade_output_equivalence
