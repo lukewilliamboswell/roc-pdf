@@ -47,6 +47,7 @@ jobs:
         run: |
           [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          python3 scripts/check_release_version.py --self-test
           version="${REQUESTED_VERSION:-$(python3 scripts/release_artifacts.py --latest-notes)}"
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)?$ ]]
           printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
@@ -274,7 +275,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          python3 scripts/check_release_version.py --self-test
           gh release view --json assets,tagName > "$RUNNER_TEMP/previous-release.json"
           old_url=$(python3 -c 'import json,sys; assets=[a["url"] for a in json.load(open(sys.argv[1]))["assets"] if a["name"].endswith(".tar.zst")]; assert len(assets)==1; print(assets[0])' "$RUNNER_TEMP/previous-release.json")
           previous=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["tagName"])' "$RUNNER_TEMP/previous-release.json")
