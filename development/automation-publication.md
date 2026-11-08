@@ -50,6 +50,17 @@ consumers and gallery/archive checks. Its aggregate requires every declared
 result to succeed. Compiler-candidate dispatch suppresses publication and
 deployment; it remains a diagnostic build rather than a release.
 
+Release version checks reject malformed metadata, component overflow and
+non-forward versions before invoking a compiler. A higher major, or a higher
+minor while both versions are pre-1.0, already satisfies the largest possible
+API-change requirement. This proof permits a compiler transition when the
+immutable old bundle no longer compiles; it does not establish source
+compatibility. Within the same breaking boundary, `roc bump` must compile and
+compare both APIs and any failure blocks release. Prereleases use the
+compatibility promise of their final base version. The version check's
+self-tests cover both proof paths and rejected transitions. All candidate,
+archive and conformance tests remain required in either case.
+
 Publication requires `main`, a new version and eligible authored notes. The
 release manifest binds the recorded commit/compiler, asset names, lengths,
 digests and notes. The publisher consumes its own run's tested artifacts,

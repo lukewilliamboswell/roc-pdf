@@ -274,12 +274,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          gh release view --json assets > "$RUNNER_TEMP/previous-release.json"
+          python3 scripts/check_release_version.py --self-test
+          gh release view --json assets,tagName > "$RUNNER_TEMP/previous-release.json"
           old_url=$(python3 -c 'import json,sys; assets=[a["url"] for a in json.load(open(sys.argv[1]))["assets"] if a["name"].endswith(".tar.zst")]; assert len(assets)==1; print(assets[0])' "$RUNNER_TEMP/previous-release.json")
-          # The pinned compiler's version parser accepts MAJOR.MINOR.PATCH;
-          # candidates promise the compatibility of their eventual base version.
-          version_base="${RELEASE_VERSION%%-rc*}"
-          roc bump --old "$old_url" --expect "$version_base" package/main.roc
+          previous=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["tagName"])' "$RUNNER_TEMP/previous-release.json")
+          python3 scripts/check_release_version.py --requested "$RELEASE_VERSION" --previous "$previous" --previous-url "$old_url"
       - name: Build and test exact bundle and examples archive
         env:
           RELEASE_VERSION: ${{ steps.version.outputs.version }}
