@@ -127,6 +127,12 @@ each differing case's expected and observed metrics as JSON for review. It
 never edits `tests/spec.json`: accepting a delta remains a deliberate, recorded
 change with an identified cause.
 
+CI runs this complete comparison and retains the report and detailed logs for
+each target, including failed runs. It still fails when any allocation or work
+baseline differs, and functional, byte and structural checks remain mandatory.
+Collecting the complete set of differences makes a compiler transition
+reviewable without repeatedly rerunning the suite for its next mismatch.
+
 ## Static PDF/A-4 lanes
 
 Every `Archive` snapshot declares the `pdfa4` validator
