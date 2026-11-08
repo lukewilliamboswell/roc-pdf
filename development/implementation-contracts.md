@@ -160,6 +160,13 @@ in its group, alone (`--isolate`) and beside another group (`--group-mode
 perturb`), from an empty cache. Only the retention probe, which needs its own
 platform, remains a standalone application.
 
+The blank-document fixture deliberately exercises compile-time generation,
+with no runtime input and zero measured runtime allocations. Its document is
+an explicit module value so that the contract does not depend on the dev
+backend inlining and folding a closed function call. Runtime generation and
+its resource costs remain covered by the other document fixtures; this
+constant case does not establish a zero-allocation runtime generation claim.
+
 Case manifests declare their ordered structural validators explicitly by
 stable allowlisted ID. Numeric dimensions are evidence inputs, not implicit
 validator selectors, and source paths or directory names never choose semantic
