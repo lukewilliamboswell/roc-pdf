@@ -72,6 +72,14 @@ contracts, and explicit structural validators. Review allocation changes with:
 ./scripts/test.py --compare-baselines
 ```
 
+The [fixture equivalence contract](performance/fixture-grouping.md#equivalence-evidence)
+retains compile-time generation for structural blank and the static PDF/A-4
+blank/fixed-figure cases, including the Standard twin. Their emitted bytes and
+work records are explicit module values; the payload-less case inputs and
+scenario identities remain unchanged. Report, navigation, caller-font and
+chunked fixtures continue to measure runtime work. A separate runtime variant
+needs its own input and scenario identity rather than replacing static coverage.
+
 After reviewing an intentional PDF change, update snapshots with:
 
 ```sh

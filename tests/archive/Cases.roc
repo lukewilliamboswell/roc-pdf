@@ -9,6 +9,8 @@ import "../assets/CallerFont-Regular.ttf" as caller_font_bytes : List(U8)
 import "../assets/jpeg-fuzz-corpus/rgb-8x8.jpg" as jpeg_bytes : List(U8)
 
 ## The archive family's typed cases and their dispatch, run by a fixture group app.
+## Blank and fixed figures intentionally exercise compile-time generation;
+## their explicit evidence values preserve that scope across dev inlining policies.
 Cases :: [].{
 	Case : [
 		Blank({}),
@@ -27,18 +29,12 @@ Cases :: [].{
 	run : Case -> { bytes : List(U8), work : List(U64) }
 	run = |case| {
 		match case {
-			Blank({}) => {
-				bytes = generate(Pdf.document({ contents: [], language: "en-AU", title: "Archived blank" }), archive)
-				{ bytes, work: [bytes.len()] }
-			}
+			Blank({}) => blank_evidence
 			Report({ scale }) => {
 				bytes = generate(report_document(scale), archive)
 				{ bytes, work: [bytes.len()] }
 			}
-			Figures({}) => {
-				bytes = generate(figure_document({}), archive)
-				{ bytes, work: [bytes.len()] }
-			}
+			Figures({}) => figures_evidence
 			Navigation({ scale }) => {
 				bytes = generate(navigation_document(scale), archive)
 				{ bytes, work: [bytes.len()] }
@@ -53,8 +49,7 @@ Cases :: [].{
 				## Standard twins of single-page Archive documents; the renderer
 				## matrix requires Archive and Standard to rasterize identically
 				## because the identification is metadata only.
-				bytes = generate(figure_document({}), standard)
-				{ bytes, work: [bytes.len()] }
+				figures_standard_evidence
 			}
 			NavigationStandard({ scale }) => {
 				bytes = generate(navigation_document(scale), standard)
@@ -85,6 +80,21 @@ archive = Pdf.Options.{ profile: Pdf.Profile.Archive }
 
 standard : Pdf.Options
 standard = Pdf.Options.{ profile: Pdf.Profile.Standard }
+
+blank_evidence = {
+	bytes = generate(Pdf.document({ contents: [], language: "en-AU", title: "Archived blank" }), archive)
+	{ bytes, work: [bytes.len()] }
+}
+
+figures_evidence = {
+	bytes = generate(figure_document({}), archive)
+	{ bytes, work: [bytes.len()] }
+}
+
+figures_standard_evidence = {
+	bytes = generate(figure_document({}), standard)
+	{ bytes, work: [bytes.len()] }
+}
 
 report_document : U64 -> Document
 report_document = |paragraphs| {
