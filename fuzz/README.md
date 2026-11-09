@@ -56,12 +56,18 @@ replace the dev-backend PDF allocation, byte, work or retention contracts in
 
 Use `--linux-x64-container IMAGE` to cross-build and exercise the Linux host in
 a local container. Reports retain the actual compiler/platform/source identity.
-For published CI use, the ordinary workflow executes on a native Linux runner.
+For published CI use, the ordinary workflow executes on a native Linux runner;
+full validation also executes the same lane on native Apple Silicon macOS.
+CI relocates only the pinned setup-roc installation outside the checkout and
+requires every tracked and untracked source path to be clean before measurement.
+Its source receipt records the original status, tracked diffs and file digests,
+and the compiler's original/current path, version and executable digest.
 
 ## Read reports and retain witnesses
 
 Each invocation prints a fresh directory under `.roc-pdf-tmp/fuzz-artifacts/`.
-It contains an invocation record, build logs, each supervisor's `report.json`,
+It contains an invocation record, build logs and the actual build argv/source
+digest/executable stamp, each supervisor's `report.json`,
 summary and combined child log, original example inputs, observations and any
 failure artifacts. CI uploads this evidence on success and failure. The report
 keeps outcome, baseline matching, metric validity, trace results and capture

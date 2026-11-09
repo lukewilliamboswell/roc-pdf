@@ -247,10 +247,18 @@ def build_target(target: Target, host: str, compiler: str, no_build: bool, *, lo
         validate_build_identity(json.loads(stamp.read_text()), identity, hashlib.sha256(binary.read_bytes()).hexdigest())
     else:
         print(f"BUILD {target.name} ({host})", flush=True)
-        run([ROC, "build", *BUILD_FLAGS, str(source.relative_to(ROOT)), f"--target={host}", f"--output={binary}"], log_path=log_dir / f"{target.name}.build.log")
+        command = [shutil.which(ROC) or ROC, "build", *BUILD_FLAGS, str(source.relative_to(ROOT)),
+                   f"--target={host}", f"--output={binary}"]
+        receipt_path = log_dir / f"{target.name}.build.json"
+        receipt = {"argv": command, "working_directory": str(ROOT), "outcome": "started"}
+        receipt_path.write_text(json.dumps(receipt, indent=2) + "\n")
+        run(command, log_path=log_dir / f"{target.name}.build.log")
         if source_digest(target) != identity["source_sha256"]:
             raise LaneFailure(f"{target.name}: source changed during compilation; rebuild before checking or accepting")
-        stamp.write_text(json.dumps({**identity, "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest()}, indent=2) + "\n")
+        recorded = {**identity, "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest()}
+        stamp.write_text(json.dumps(recorded, indent=2) + "\n")
+        receipt.update(outcome="passed", stamp=recorded)
+        receipt_path.write_text(json.dumps(receipt, indent=2) + "\n")
     return binary
 
 

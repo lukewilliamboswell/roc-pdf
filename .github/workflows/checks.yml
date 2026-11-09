@@ -101,6 +101,13 @@ jobs:
           version: nightly
           nightly-tag: ${{ env.ROC_NIGHTLY_TAG }}
 
+      - name: Bind clean measured source
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          python3 scripts/test_prepare_ci_source.py
+          python3 scripts/prepare_ci_source.py
+
       - name: Run spec-defined e2e evidence
         run: blueprint run test -- --compare-baselines --baseline-report .roc-pdf-tmp/ci-baselines.json
 
@@ -110,6 +117,7 @@ jobs:
         with:
           name: dev-evidence-${{ inputs.source_sha }}-${{ matrix.os }}
           path: |
+            .roc-pdf-tmp/ci-source.json
             .roc-pdf-tmp/ci-baselines.json
             .roc-pdf-tmp/logs/
           if-no-files-found: warn
@@ -158,6 +166,13 @@ jobs:
           version: nightly
           nightly-tag: ${{ env.ROC_NIGHTLY_TAG }}
 
+      - name: Bind clean measured source
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          python3 scripts/test_prepare_ci_source.py
+          python3 scripts/prepare_ci_source.py
+
       - name: Run property fuzz smoke
         run: blueprint run fuzz
 
@@ -166,7 +181,9 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: fuzz-evidence-${{ inputs.source_sha }}-${{ matrix.os }}
-          path: .roc-pdf-tmp/fuzz-artifacts/
+          path: |
+            .roc-pdf-tmp/ci-source.json
+            .roc-pdf-tmp/fuzz-artifacts/
           if-no-files-found: error
           retention-days: 14
 
