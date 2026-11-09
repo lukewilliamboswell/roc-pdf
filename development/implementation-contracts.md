@@ -167,6 +167,16 @@ backend inlining and folding a closed function call. Runtime generation and
 its resource costs remain covered by the other document fixtures; this
 constant case does not establish a zero-allocation runtime generation claim.
 
+Negative cases may return a separate successful PDF solely as a structural
+carrier for their rejection evidence. Such an input-independent carrier is an
+explicit module value. Runtime guards, rejection calls, atomicity assertions
+and valid controls within the operation remain in the measured window. In the
+November 7 dev-backend review, isolating the carriers removed exactly 159
+allocations/897668 requested bytes from chunk rejection, 553/2564274 from
+contents rejection, and 750/3813606 from drawing-bound diagnostics, preserving
+every PDF byte and work counter. These are carrier costs, not permission to
+exclude actual positive generation or negative-path work from measurement.
+
 Case manifests declare their ordered structural validators explicitly by
 stable allowlisted ID. Numeric dimensions are evidence inputs, not implicit
 validator selectors, and source paths or directory names never choose semantic
