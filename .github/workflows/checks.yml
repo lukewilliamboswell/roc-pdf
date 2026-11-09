@@ -79,7 +79,7 @@ jobs:
       # Blueprint verifies its own binary against the reviewed digest, then
       # fetches Zig 0.16.0 by the digest in Blueprint.lock for the dev tasks.
       - name: Install Blueprint
-        uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@0ad737abd3cad3d14d7e409e91161cd42c05142c
+        uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@e12512e2605608588782edb044dd766137e34869
         with:
           cache: "true"
           cache-workload: dev
@@ -96,8 +96,9 @@ jobs:
         run: printf 'ROC_NIGHTLY_TAG=%s\n' "$(sed -n '1p' .roc-version)" >> "$GITHUB_ENV"
 
       - name: Install Roc
-        uses: roc-lang/setup-roc@dd81390553b0a1236aedb61cdd4c0ed7cf7eaec4
+        uses: roc-lang/setup-roc@30af91a173612e462a5df47f3b697c53c211f48c
         with:
+          download-method: asset-api
           version: nightly
           nightly-tag: ${{ env.ROC_NIGHTLY_TAG }}
 
@@ -152,7 +153,7 @@ jobs:
           persist-credentials: false
 
       - name: Install Blueprint
-        uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@0ad737abd3cad3d14d7e409e91161cd42c05142c
+        uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@e12512e2605608588782edb044dd766137e34869
         with:
           cache: "true"
           cache-workload: dev
@@ -161,8 +162,9 @@ jobs:
         run: printf 'ROC_NIGHTLY_TAG=%s\n' "$(sed -n '1p' .roc-version)" >> "$GITHUB_ENV"
 
       - name: Install Roc
-        uses: roc-lang/setup-roc@dd81390553b0a1236aedb61cdd4c0ed7cf7eaec4
+        uses: roc-lang/setup-roc@30af91a173612e462a5df47f3b697c53c211f48c
         with:
+          download-method: asset-api
           version: nightly
           nightly-tag: ${{ env.ROC_NIGHTLY_TAG }}
 
@@ -280,11 +282,12 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
           python-version: 3.14.0
-      - uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@0ad737abd3cad3d14d7e409e91161cd42c05142c
+      - uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@e12512e2605608588782edb044dd766137e34869
       - name: Read pinned compiler
         run: printf 'ROC_NIGHTLY_TAG=%s\n' "$(cat .roc-version)" >> "$GITHUB_ENV"
-      - uses: roc-lang/setup-roc@dd81390553b0a1236aedb61cdd4c0ed7cf7eaec4
+      - uses: roc-lang/setup-roc@30af91a173612e462a5df47f3b697c53c211f48c
         with:
+          download-method: asset-api
           version: nightly
           nightly-tag: ${{ env.ROC_NIGHTLY_TAG }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
