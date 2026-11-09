@@ -2,7 +2,7 @@
 
 `Blueprint.roc` and `Blueprint.lock` at the repository root declare the tools
 the contributor checks need and name those checks as tasks. They use
-[Blueprint](https://github.com/lukewilliamboswell/roc-blueprint) 0.8.0 with no
+[Blueprint](https://github.com/lukewilliamboswell/roc-blueprint) 0.12.0 with no
 package provider: no Nix and no flake. Downloads are checked against the
 digests committed in `Blueprint.lock`, and everything else is expected from the
 machine.
@@ -39,8 +39,8 @@ never production dependencies.
 
 ## Tasks
 
-Install the `blueprint` 0.8.0 binary for your system from the
-[release](https://github.com/lukewilliamboswell/roc-blueprint/releases/tag/0.8.0)
+Install the `blueprint` 0.12.0 binary for your system from the
+[release](https://github.com/lukewilliamboswell/roc-blueprint/releases/tag/0.12.0)
 and check its SHA-256 against `blueprint.sha256` there. Then:
 
 ```sh

@@ -35,7 +35,7 @@ jobs:
           persist-credentials: false
 
       - name: Install Blueprint
-        uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@8454f8ed9acc026c85e31e87b132dfeeaf9f1b81
+        uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@0ad737abd3cad3d14d7e409e91161cd42c05142c
 
       - name: Read pinned Roc nightly
         run: printf 'ROC_NIGHTLY_TAG=%s\n' "$(sed -n '1p' .roc-version)" >> "$GITHUB_ENV"

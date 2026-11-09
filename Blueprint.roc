@@ -5,7 +5,7 @@
 # as `roc`, and the scripts refuse any other compiler. Zig is fetched by digest
 # because the test platform hosts need exactly 0.16.0, and ripgrep because the
 # docs audit needs it and the CI runners do not ship it.
-app [config] { pf: platform "https://github.com/lukewilliamboswell/roc-blueprint/releases/download/0.8.0/FbJymjYdCxx9vqMcau7r4tQfeAbnVGqqJoYrLGqPCqKu.tar.zst" }
+app [config] { pf: platform "https://github.com/lukewilliamboswell/roc-blueprint/releases/download/0.12.0/GSb71LxYHqLohZz8jMfawWEwQcyev9ZdVC26sfsDwfq8.tar.zst" }
 
 import pf.Config
 import pf.Recipes
@@ -16,7 +16,7 @@ config = [
 	Systems(["x86_64-linux", "aarch64-darwin"]),
 	Environment("package", [Expect(["roc", "python3", "bash", "tar"])]),
 	Environment("dev", [Extend("package"), Programs([Fetch("zig", zig)])]),
-	Environment("docs", [Extend("package"), Programs([Fetch("rg", ripgrep), Fetch("roc-docs", Recipes.file("https://github.com/lukewilliamboswell/roc-automation/releases/download/tools-0.9.0/roc-docs-{system}"))]), Expect(["realpath", "sh"])]),
+	Environment("docs", [Extend("package"), Programs([Fetch("rg", ripgrep), Fetch("roc-docs", Recipes.file("https://github.com/lukewilliamboswell/roc-automation/releases/download/tools-0.10.1/roc-docs-{system}"))]), Expect(["realpath", "sh"])]),
 	Shell("default", [Use("dev")]),
 	Task("test", [Use("dev"), Run(["python3", "scripts/test.py"])]),
 	Task("fuzz", [Use("dev"), Run(["python3", "scripts/fuzz.py", "--mode", "smoke"])]),
