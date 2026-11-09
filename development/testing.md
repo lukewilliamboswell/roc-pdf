@@ -141,6 +141,9 @@ baseline differs, and functional, byte and structural checks remain mandatory.
 Collecting the complete set of differences makes a compiler transition
 reviewable without repeatedly rerunning the suite for its next mismatch.
 
+The [accepted compiler/dependency profile](performance/toolchain-profile.md)
+records current native provenance, controlled comparisons and reviewed outliers.
+
 ## Static PDF/A-4 lanes
 
 Every `Archive` snapshot declares the `pdfa4` validator

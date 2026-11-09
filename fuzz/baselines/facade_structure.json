@@ -19,15 +19,15 @@
               "occurrence": 1,
               "complete": true,
               "stats": {
-                "allocs": 713,
+                "allocs": 712,
                 "reallocs": 243,
-                "deallocs": 715,
-                "requested_bytes": 3948238,
+                "deallocs": 714,
+                "requested_bytes": 3957006,
                 "entry_live_allocs": 2,
                 "entry_live_bytes": 425,
                 "exit_live_allocs": 0,
                 "exit_live_bytes": 0,
-                "peak_live_bytes": 387692
+                "peak_live_bytes": 390276
               }
             }
           ]
@@ -51,15 +51,15 @@
               "occurrence": 1,
               "complete": true,
               "stats": {
-                "allocs": 713,
+                "allocs": 712,
                 "reallocs": 243,
-                "deallocs": 715,
-                "requested_bytes": 3948238,
+                "deallocs": 714,
+                "requested_bytes": 3957006,
                 "entry_live_allocs": 2,
                 "entry_live_bytes": 425,
                 "exit_live_allocs": 0,
                 "exit_live_bytes": 0,
-                "peak_live_bytes": 387692
+                "peak_live_bytes": 390276
               }
             }
           ]
