@@ -48,6 +48,7 @@ jobs:
           [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           python3 scripts/check_release_version.py --self-test
+          python3 scripts/test_check_ci_release.py
           version="${REQUESTED_VERSION:-$(python3 scripts/release_artifacts.py --latest-notes)}"
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)?$ ]]
           printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
@@ -304,32 +305,43 @@ jobs:
         run: |
           version="${REQUESTED_VERSION:-$(python3 scripts/release_artifacts.py --latest-notes)}"
           printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
-      - name: Check API version against the latest final release
+      - name: Build fresh candidate package
+        id: candidate
+        run: |
+          test ! -e dist && test ! -L dist
+          blueprint run bundle
+          python3 - <<'PYTHON'
+          import os
+          from pathlib import Path
+          bundles = list(Path('dist').glob('*.tar.zst'))
+          assert len(bundles) == 1 and bundles[0].is_file() and not bundles[0].is_symlink(), 'require one fresh regular package'
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'bundle={bundles[0]}\n')
+          PYTHON
+      - name: Check release version or exact published package identity
         if: ${{ !inputs.nightly_validation }}
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ steps.version.outputs.version }}
+          EXPLICIT_RELEASE: ${{ inputs.release_version }}
+          CANDIDATE_BUNDLE: ${{ steps.candidate.outputs.bundle }}
         run: |
-          gh release view --json assets,tagName > "$RUNNER_TEMP/previous-release.json"
-          old_url=$(python3 -c 'import json,sys; assets=[a["url"] for a in json.load(open(sys.argv[1]))["assets"] if a["name"].endswith(".tar.zst")]; assert len(assets)==1; print(assets[0])' "$RUNNER_TEMP/previous-release.json")
-          previous=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["tagName"])' "$RUNNER_TEMP/previous-release.json")
-          python3 scripts/check_release_version.py --requested "$RELEASE_VERSION" --previous "$previous" --previous-url "$old_url"
-      - name: Build and test exact bundle and examples archive
+          python3 scripts/check_ci_release.py --requested "$RELEASE_VERSION" --explicit-release "$EXPLICIT_RELEASE" --bundle "$CANDIDATE_BUNDLE"
+      - name: Test exact bundle and examples archive
         env:
           RELEASE_VERSION: ${{ steps.version.outputs.version }}
+          CANDIDATE_BUNDLE: ${{ steps.candidate.outputs.bundle }}
           SOURCE_SHA: ${{ inputs.source_sha }}
           NIGHTLY_VALIDATION: ${{ inputs.nightly_validation }}
         run: |
-          blueprint run bundle
-          bundle=$(find dist -maxdepth 1 -name '*.tar.zst' -type f -print -quit)
-          ROC=roc python3 scripts/check_gallery.py --bundle-path "$bundle"
-          ROC=roc python3 scripts/examples_archive.py --bundle-path "$bundle" --tag "$RELEASE_VERSION" --output-dir dist --test-bundle
+          ROC=roc python3 scripts/check_gallery.py --bundle-path "$CANDIDATE_BUNDLE"
+          ROC=roc python3 scripts/examples_archive.py --bundle-path "$CANDIDATE_BUNDLE" --tag "$RELEASE_VERSION" --output-dir dist --test-bundle
           python3 scripts/release_artifacts.py --self-test
           # Compiler candidates change only .roc-version; authored release
           # notes still describe the published pin. Keep all consumer checks
           # while reserving note eligibility and publication files for releases.
           if [[ "$NIGHTLY_VALIDATION" != true ]]; then
-            ROC=roc python3 scripts/release_artifacts.py --tag "$RELEASE_VERSION" --bundle "$bundle" --revision "$SOURCE_SHA"
+            ROC=roc python3 scripts/release_artifacts.py --tag "$RELEASE_VERSION" --bundle "$CANDIDATE_BUNDLE" --revision "$SOURCE_SHA"
           fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
