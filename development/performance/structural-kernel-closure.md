@@ -17,7 +17,7 @@ PDF/UA-2 behavior assigned to later capabilities.
 | Canonical lexical forms and flat object/value/edge storage | `KernelLex`, `KernelObject`, `lexical-kernel.md`, `object-store.md` |
 | Sealing, stable allocation, stream lengths, and checked bounds | `KernelSeal`, `sealed-plan.md`, `output-bounds.md` |
 | Catalog, page trees, pages, resources, streams, and trailer | `KernelStructure`, `structure-lowering.md`, `balanced-shape.md` |
-| Xref stream, identifiers, `startxref`, and EOF | `KernelEmit`, `identifiers.md`, `structural-emission.md` |
+| Xref stream, identifiers, `startxref`, and EOF | `KernelEmit`, `identifiers.md`, `output-size.md` |
 | Stateful bounded DEFLATE | `KernelDeflate`, `deflate.md`; independent zlib decoding of exact emitted streams |
 | Stable resource names | `KernelResource`, `resource-names.md` |
 | Page, name, number, ID, and ParentTree builders | `KernelTree`, `balanced-indexes.md` |

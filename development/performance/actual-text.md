@@ -57,41 +57,8 @@ advanced shaping boundary. It also accepts an occurrence-owned semantic
 override of seven scalars and rejects the same request at a six-scalar limit
 before any PDF is returned.
 
-## Historical optimized-backend evidence (superseded)
+## Allocation validation
 
-This table preserves the earlier speed-backend representation review. It is not
-a current allocation baseline and must not be rerun or accepted as one. The
-current exact dev-backend expectation is the matching scenario in
-[`tests/spec.json`](../../tests/spec.json), with the mode transition reviewed in
-[the dev-backend rebaseline](dev-backend-allocation-rebaseline-2026-08-09.md).
-
-| Target | Optimization | Glyphs/mappings | Subset bytes | Content bytes | PDF bytes | Exact allocations |
-| --- | --- | ---: | ---: | ---: | ---: | ---: |
-| arm64mac | speed | 2 / 2 | 5,956 | 179 | 9,035 | 306 |
-| x64musl | speed | 2 / 2 | 5,956 | 179 | 9,035 | 306 |
-
-The exact work vector begins with 7,816 caller-font bytes, one run, two
-clusters, two glyphs, and two glyph-index visits. It then records the same scene,
-semantic, tagged, ownership, resource, and content traversals as the ordinary
-tagged text fixture: two scene commands, one text placement, one fragment and
-occurrence, one ownership range check, one calibrated color reference, and a
-179-byte final content stream. The remaining counters record a three-entry font
-plan, 5,956 subset bytes, two cached source scalars, one prepared run, zero
-parallel placements, two text glyphs, one ActualText run, two ActualText
-scalars, zero resolved mapping conflicts, two Unicode mappings, 103 prepared
-text bytes, one font, nine font objects, twenty objects, 6,135 font/content
-payload bytes, and 9,035 emitted bytes.
-
-The whole fixture uses 306 Roc allocations, an increase of 132 over the earlier
-protocol carrier. The increase is reviewed as the bounded semantic/source
-arrays, scene and ownership arenas, tagged MCID/ParentTree/structure plans,
-calibrated color and resource plans, prepared-run carrier, tagged content/page
-objects, reserved font identities, and final sealed tagged structure. The
-7,816-byte source and 5,956-byte subset remain single payloads rather than being
-copied per placement.
-
-This is a text-layout feature slice, not text-layout closure. The remaining evidence
-matrix still includes combining marks, ligatures, supplementary-plane text,
-right-to-left scripts, CJK subsets, discretionary and soft hyphens, generated
-text and case transformations, plus public layout, pagination, paint,
-ownership, reuse, and facade integration.
+Current exact allocation and work expectations live in the matching scenarios
+in [`tests/spec.json`](../../tests/spec.json). Review changes with the
+[allocation baseline protocol](../testing.md#allocation-baselines).

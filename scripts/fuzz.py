@@ -53,6 +53,9 @@ PLATFORM_RELEASE = "0.5.0"
 PLATFORM_SHA256 = "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f"
 PLATFORM_URL = "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.5.0/9WT86CuwM7ZJBSs8iTd1jLyrUFTTiGp5hcJE63TwswGE.tar.zst"
 PROFILE = "llvm-fuzz"
+# Cache-enabled builds can reuse procedures with different allocation behavior.
+# Keep the measured build policy in the executable identity as well as the command.
+BUILD_FLAGS = ("--fuzz", "--no-cache")
 
 
 # Smoke runs replay the seed corpus and then a handful of generated inputs
@@ -236,17 +239,26 @@ def build_target(target: Target, host: str, compiler: str, no_build: bool, *, lo
     binary = directory / target.name
     stamp = directory / f"{target.name}.build.json"
     identity = {"source_sha256": source_digest(target), "compiler": compiler, "target": host,
-                "platform_sha256": PLATFORM_SHA256, "profile": PROFILE}
+                "platform_sha256": PLATFORM_SHA256, "profile": PROFILE,
+                "build_flags": list(BUILD_FLAGS)}
     if no_build:
         if not binary.is_file() or not stamp.is_file():
             raise LaneFailure(f"{target.name}: --no-build needs a prior recorded build")
         validate_build_identity(json.loads(stamp.read_text()), identity, hashlib.sha256(binary.read_bytes()).hexdigest())
     else:
         print(f"BUILD {target.name} ({host})", flush=True)
-        run([ROC, "build", "--fuzz", str(source.relative_to(ROOT)), f"--target={host}", f"--output={binary}"], log_path=log_dir / f"{target.name}.build.log")
+        command = [shutil.which(ROC) or ROC, "build", *BUILD_FLAGS, str(source.relative_to(ROOT)),
+                   f"--target={host}", f"--output={binary}"]
+        receipt_path = log_dir / f"{target.name}.build.json"
+        receipt = {"argv": command, "working_directory": str(ROOT), "outcome": "started"}
+        receipt_path.write_text(json.dumps(receipt, indent=2) + "\n")
+        run(command, log_path=log_dir / f"{target.name}.build.log")
         if source_digest(target) != identity["source_sha256"]:
             raise LaneFailure(f"{target.name}: source changed during compilation; rebuild before checking or accepting")
-        stamp.write_text(json.dumps({**identity, "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest()}, indent=2) + "\n")
+        recorded = {**identity, "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest()}
+        stamp.write_text(json.dumps(recorded, indent=2) + "\n")
+        receipt.update(outcome="passed", stamp=recorded)
+        receipt_path.write_text(json.dumps(receipt, indent=2) + "\n")
     return binary
 
 
@@ -393,7 +405,8 @@ def self_test() -> None:
         else:
             raise SystemExit("platform binding self-test accepted an unverified header")
     build = {"source_sha256": "source", "compiler": "compiler", "target": "arm64mac",
-             "platform_sha256": PLATFORM_SHA256, "profile": PROFILE}
+             "platform_sha256": PLATFORM_SHA256, "profile": PROFILE,
+             "build_flags": list(BUILD_FLAGS)}
     recorded = {**build, "binary_sha256": "binary"}
     validate_build_identity(recorded, build, "binary")
     for key in (*build, "binary_sha256"):
@@ -404,6 +417,14 @@ def self_test() -> None:
             pass
         else:
             raise SystemExit(f"build identity self-test failed to reject {key}")
+    for legacy in ({key: value for key, value in recorded.items() if key != "build_flags"},
+                   {**recorded, "build_flags": ["--fuzz"]}):
+        try:
+            validate_build_identity(legacy, build, "binary")
+        except LaneFailure:
+            pass
+        else:
+            raise SystemExit("build identity accepted a legacy cache-enabled executable")
     print("PASS fuzz report/build identity policy self-test", flush=True)
 
 

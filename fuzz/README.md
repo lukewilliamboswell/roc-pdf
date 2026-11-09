@@ -41,7 +41,13 @@ are reviewed before explicit acceptance; verification never accepts changes:
 ```
 
 `--no-build` requires a matching source/asset closure, compiler, host and binary
-digest from the recorded build. It refuses stale executables. The optional
+digest from the recorded build, including its `--fuzz --no-cache` policy. It
+refuses stale executables and older cache-enabled build records. All targets
+build without the compiler cache: the same source/compiler can otherwise
+produce different allocation observations depending on earlier cached programs.
+Two independent uncached November 7 builds and repeated named-example runs
+matched exactly; cache-enabled builds did not. This policy preserves the
+measurement, not any particular accepted value. The optional
 `fuzz-accept` Blueprint task performs the same explicit maintenance action.
 Accepted files under `fuzz/baselines/` contain separate host entries for the
 `llvm-fuzz` profile; reductions also require review. These observations do not
@@ -50,12 +56,18 @@ replace the dev-backend PDF allocation, byte, work or retention contracts in
 
 Use `--linux-x64-container IMAGE` to cross-build and exercise the Linux host in
 a local container. Reports retain the actual compiler/platform/source identity.
-For published CI use, the ordinary workflow executes on a native Linux runner.
+For published CI use, the ordinary workflow executes on a native Linux runner;
+full validation also executes the same lane on native Apple Silicon macOS.
+CI relocates only the pinned setup-roc installation outside the checkout and
+requires every tracked and untracked source path to be clean before measurement.
+Its source receipt records the original status, tracked diffs and file digests,
+and the compiler's original/current path, version and executable digest.
 
 ## Read reports and retain witnesses
 
 Each invocation prints a fresh directory under `.roc-pdf-tmp/fuzz-artifacts/`.
-It contains an invocation record, build logs, each supervisor's `report.json`,
+It contains an invocation record, build logs and the actual build argv/source
+digest/executable stamp, each supervisor's `report.json`,
 summary and combined child log, original example inputs, observations and any
 failure artifacts. CI uploads this evidence on success and failure. The report
 keeps outcome, baseline matching, metric validity, trace results and capture
@@ -108,7 +120,5 @@ isolate each workload. This app deliberately declares no baseline examples and
 is replay/measurement tooling, not a coverage campaign or an acceptance gate.
 
 Saved profile comparisons require the same compiler, backend, host, platform
-and counting definition. Previous instrumentation records remain separate.
-
-See the [upgrade evidence](../development/roc-fuzz-0.5.0.md) for immutable inputs,
-API migration, reviewed initial example observations and validation results.
+and counting definition. Keep generated observations in ignored output or CI
+artifacts; the current accepted observations live in `fuzz/baselines/`.

@@ -27,23 +27,8 @@ validation, cluster measurement, and line writes are linear. Candidate visits
 are explicitly limited; the evidence pattern exercises the restart after every
 selected break and records exactly `2 * clusters - 2` candidate visits.
 
-## Historical optimized-backend evidence (superseded)
+## Allocation validation
 
-This earlier table remains only as a representation-review record. Current
-validation uses the matching exact dev-backend scenario in
-[`tests/spec.json`](../../tests/spec.json), not this historical backend.
-
-| Paragraph units | Scalars/clusters/glyphs | Lines | Candidate visits | Exact allocations |
-| ---: | ---: | ---: | ---: | ---: |
-| 1,000 | 6,000 | 3,000 | 11,998 | 97 |
-| 10,000 | 60,000 | 30,000 | 119,998 | 105 |
-
-The tenfold scale adds eight allocations under the pinned
-`release-fast-24f0b476` compiler. The allocation boundary includes construction
-of all synthetic prior-stage facts, planning, and deterministic emission of the
-667-byte structural carrier. Exact work also records all 6,001/60,001 Unicode
-boundaries, every cluster and glyph-index reference, and every written line.
-
-This is line-selection evidence, not useful-facade completion. Pagination,
-widow/orphan and keep policy, final semantic fragment mapping, scene
-materialization, and `Pdf.to_bytes` integration remain later text-layout slices.
+Current exact allocation and work expectations live in the matching scenarios
+in [`tests/spec.json`](../../tests/spec.json). Review changes with the
+[allocation baseline protocol](../testing.md#allocation-baselines).

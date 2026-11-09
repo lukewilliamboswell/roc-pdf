@@ -479,6 +479,16 @@ sections_document = |count| {
 	Pdf.document({ contents: $contents, language: "en-AU", title: "Regional figures" })
 }
 
+## This closed valid document is the diagnostic case's structural carrier.
+## All diagnostic calls, including the accepted grouped-curve control, remain
+## in run_bound_diagnostics and inside its measured runtime window.
+bound_diagnostic_bytes = {
+	solid = Scene.solid_fill(oak)
+	mark = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 20, height: 20 }), color: oak })
+	curve = mark.path({ path: Scene.PathBuilder.start.move_to(Layout.point({ x: 0, y: 0 })).cubic_to({ control_1: Layout.point({ x: -4, y: 5 }), control_2: Layout.point({ x: -4, y: 15 }), end: Layout.point({ x: 0, y: 20 }) }).close().finish(), style: solid })
+	Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.title("Drawing bounds"), Pdf.figure({ drawing: Scene.Drawing.empty.group({ offset: Layout.point({ x: 4, y: 0 }), drawing: curve }), alt: "A curved mark moved inside the origin", caption: Pdf.no_caption })], language: "en-AU", title: "Drawing bounds" }), Pdf.Options.{ theme: report_theme })
+}
+
 run_bound_diagnostics : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 run_bound_diagnostics = |context| {
 	offset = (context % 1).to_i64_wrap()
@@ -522,7 +532,7 @@ run_bound_diagnostics = |context| {
 	if passed != checks.len() {
 		return Err(MissingRejection(passed))
 	}
-	bytes = Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.title("Drawing bounds"), Pdf.figure({ drawing: Scene.Drawing.empty.group({ offset: Layout.point({ x: 4, y: 0 }), drawing: curve }), alt: "A curved mark moved inside the origin", caption: Pdf.no_caption })], language: "en-AU", title: "Drawing bounds" }), options) ? |_| EvidenceFailure
+	bytes = bound_diagnostic_bytes ? |_| EvidenceFailure
 	Ok({ bytes, work: [passed, bytes.len()] })
 }
 

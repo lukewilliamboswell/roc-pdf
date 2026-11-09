@@ -29,24 +29,14 @@ cluster payloads. Negative twins reject a duplicate glyph reference, `.notdef`,
 a non-positive size, and an inconsistent Unicode byte range without returning a
 partially validated store.
 
-## Historical optimized-backend evidence (superseded)
+## Validation
 
-The speed-backend values preserve the original shaping representation review;
-they are not current allocation baselines. Current exact dev-backend values
-are the matching scenario in [`tests/spec.json`](../../tests/spec.json), with
-the transition reviewed in [the dev-backend rebaseline](dev-backend-allocation-rebaseline-2026-08-09.md).
+The convenience fixture shapes `Café PDF` into one-to-one clusters. The
+advanced fixture validates `A` plus combining grave mapping through `ccmp` to
+the font’s `Agrave` glyph while retaining the two-scalar source range. These
+checks cover the declared shaping boundary; they do not establish a built-in
+OpenType GSUB/GPOS engine or bidirectional resolution.
 
-The convenience path shapes `Café PDF` at 11 points into eight glyphs and eight
-one-to-one clusters. The advanced path validates a real composition relationship
-for `A` plus combining grave mapping through `ccmp` to the font's `Agrave`
-glyph, retaining the two-scalar source range and one-glyph presentation.
-
-| Target | Optimization | Simple scalars/glyphs | Advanced scalars/glyphs | Simple advance | Exact allocations |
-| --- | --- | ---: | ---: | ---: | ---: |
-| arm64mac | speed | 8 / 8 | 2 / 1 | 49,247 | 89 |
-| x64musl | speed | 8 / 8 | 2 / 1 | 49,247 | 89 |
-
-The x64musl row is the accepted same-compiler expectation and is exercised by
-the configured cross-target job. This slice does not yet claim a built-in
-OpenType GSUB/GPOS engine, bidirectional resolution, PDF text-object lowering,
-or text-layout closure.
+Current exact allocation and work expectations live in the matching scenarios
+in [`tests/spec.json`](../../tests/spec.json). Review changes with the
+[allocation baseline protocol](../testing.md#allocation-baselines).

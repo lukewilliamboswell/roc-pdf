@@ -60,10 +60,9 @@ expects in ...)`, `PLAN check <root>`, `PLAN <root>: checked by its fixture
 build`). A failing `expect` names its own file and line, and the driver adds
 the test root and every module that root covers. A new expect-bearing module
 needs no registration, but it is only run if some root imports it: a module
-that no root reaches is not tested. (`tests/shaping/GsubFixture.roc` was such
-a module until the shaping family's package made it part of the `core` group's
-closure.) See `development/performance/test-suite-speed.md` for the
-measurements.
+that no root reaches is not tested. See [fixture planning](performance/test-suite-speed.md) for the validation strategy.
+
+## Allocation baselines
 
 Integration cases use the dev backend and require exact PDF snapshots,
 dimensions, allocation baselines, deterministic work counters, retention
@@ -72,6 +71,14 @@ contracts, and explicit structural validators. Review allocation changes with:
 ```sh
 ./scripts/test.py --compare-baselines
 ```
+
+The [fixture equivalence contract](performance/fixture-grouping.md#equivalence-evidence)
+retains compile-time generation for structural blank and the static PDF/A-4
+blank/fixed-figure cases, including the Standard twin. Their emitted bytes and
+work records are explicit module values; the payload-less case inputs and
+scenario identities remain unchanged. Report, navigation, caller-font and
+chunked fixtures continue to measure runtime work. A separate runtime variant
+needs its own input and scenario identity rather than replacing static coverage.
 
 After reviewing an intentional PDF change, update snapshots with:
 
@@ -128,6 +135,15 @@ each differing case's expected and observed metrics as JSON for review. It
 never edits `tests/spec.json`: accepting a delta remains a deliberate, recorded
 change with an identified cause.
 
+CI runs this complete comparison and retains the report and detailed logs for
+each target, including failed runs. It still fails when any allocation or work
+baseline differs, and functional, byte and structural checks remain mandatory.
+Collecting the complete set of differences makes a compiler transition
+reviewable without repeatedly rerunning the suite for its next mismatch.
+
+The [accepted compiler/dependency profile](performance/toolchain-profile.md)
+records current native provenance, controlled comparisons and reviewed outliers.
+
 ## Static PDF/A-4 lanes
 
 Every `Archive` snapshot declares the `pdfa4` validator
@@ -165,7 +181,7 @@ The smoke mode is the default and is what every pull request runs:
 ./scripts/fuzz.py            # or: blueprint run fuzz
 ```
 
-It builds every target with `roc build --fuzz` for libFuzzer coverage
+It builds every target with `roc build --fuzz --no-cache` for libFuzzer coverage
 instrumentation, then replays the target's seed corpus and 64 further inputs
 from a fixed seed, with `--time=1` capping the workload at one second per
 target. Targets build in parallel (`--jobs`, by default as many 6 GB builds as

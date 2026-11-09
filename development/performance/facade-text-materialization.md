@@ -44,13 +44,6 @@ whole stage. The plan does not retain the speculative line list, page plan, or
 original shaped store. Callers that retain those immutable inputs may increase
 live memory and ARC work, but do not change the result.
 
-An initial helper-shaped implementation returned all six lists through a
-fallible function once per line. Under the pinned optimizer this caused nine
-allocations per final line despite exact capacity reservation: the matched
-x1000 case used 18,080 allocations and x10000 used 180,085. Flattening the hot
-transfer into one dense loop reduced the materialization delta to eight fixed
-allocations at both scales. The rejected measurements are not baselines.
-
 ## Bounds and work evidence
 
 For `P` pages, `L` visual line placements, `R` final runs, `C` clusters, `I`
@@ -70,21 +63,11 @@ The focused phase scenario constructs a flat typed prepared boundary with six
 clusters per shaped source run and two final lines per run. A matched control
 constructs and observes exactly the same prepared input without materializing
 it. This isolates the stage's allocation delta while keeping the harness's
-ordinary reset immediately before fixture main. The table preserves the former
-speed-backend representation review and is not a current baseline or a command
-to rerun. Current validation uses the pinned dev backend and the exact matching
-scenarios in [`tests/spec.json`](../../tests/spec.json); their mode transition
-is reviewed in [the dev-backend rebaseline](dev-backend-allocation-rebaseline-2026-08-09.md).
+ordinary reset immediately before fixture main.
 
-| Scenario | Control allocations | Materialized allocations | Stage delta | Planned pages | Visual rows/final runs | Clusters/glyphs |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| x1000 | 72 | 80 | 8 | 32 | 2,000 | 6,000 |
-| x10000 | 77 | 85 | 8 | 313 | 20,000 | 60,000 |
-
-The current dev-backend control/materialization pairs are 54/62 allocations at
-x1000 and 59/67 at x10000. Their unchanged eight-allocation stage delta and
-deterministic work vectors, rather than the historical absolute counts above,
-are the accepted evidence.
+Current exact allocation and work expectations live in the matching scenarios
+in [`tests/spec.json`](../../tests/spec.json). Review changes with the
+[allocation baseline protocol](../testing.md#allocation-baselines).
 
 The generated blank structural snapshot remains byte-identical in the control
 and materialized cases. Every line, cluster, glyph reference, and glyph counter

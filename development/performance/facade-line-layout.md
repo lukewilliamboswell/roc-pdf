@@ -24,10 +24,7 @@ value. A representative template is measured once and its local source ranges
 are reused while global cluster ranges are shifted to each occurrence's
 validated dense run range.
 
-An initial implementation retained unique keys in a list and searched them
-linearly after the adjacent-key fast path. It passed repeated-paragraph cases
-but was rejected because adversarial unique keys had quadratic comparison
-work. The accepted implementation uses an exact power-of-two open-addressed
+The cache uses an exact power-of-two open-addressed
 table sized from the request count. Table slots and every probe are explicit,
 bounded work. Exhaustion or a probe limit crossing is a typed error, never
 permission to approximate or skip layout.
@@ -41,25 +38,10 @@ Unicode sources, and font inspection stay shared. No per-occurrence
 Ordered multi-face preparation validates each block's optional label and body
 before consuming its growing logical-request list once. A helper appends the
 label before the body, preserving semantic order while avoiding an earlier
-list version remaining live across fallible branches. The
-[September 26 compiler review](roc-nightly-2026-09-26-d6267b4.md) records the
-allocation-traffic evidence for this ownership choice.
+list version remaining live across fallible branches.
 
-## Historical optimized-backend evidence (superseded)
+## Allocation validation
 
-The table is retained only as historical representation evidence. Current
-exact allocation validation uses the matching dev-backend scenario in
-[`tests/spec.json`](../../tests/spec.json).
-
-| Paragraphs | Blocks | Runs/lines | Templates | Cache hits | Key probes | Table slots | Exact allocations |
-| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 1,000 | 1,004 | 1,006 | 6 | 1,000 | 1,012 | 2,048 | 319 |
-| 10,000 | 10,004 | 10,006 | 6 | 10,000 | 10,012 | 32,768 | 356 |
-
-Both cases derive a 451,000-unit A4 content width, visit the six unique line
-templates' 30 UAX #14 boundaries and 24 clusters/glyphs once, and materialize
-one accepted line per run. A tenfold scale adds 37 allocations. Template work
-stays constant; block/run mapping, cache hits, probes, and final line writes
-grow linearly. The current accepted values are the matching pinned dev-backend
-expectations in [`tests/spec.json`](../../tests/spec.json), not an optimized
-no-cache measurement.
+Current exact allocation and work expectations live in the matching scenarios
+in [`tests/spec.json`](../../tests/spec.json). Review changes with the
+[allocation baseline protocol](../testing.md#allocation-baselines).

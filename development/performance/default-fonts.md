@@ -79,8 +79,8 @@ to every positive case, with unchanged allocation counts and PDF bytes. The
 constant is the same for 10 and 100 sections; it introduces no per-inline or
 per-source allocation event. These are initial observations for the new cases,
 not acceptance of unrelated existing-case baseline changes.
-The [existing-fixture migration review](rc4-existing-fixtures.md) retains the
-isolated measurements, compiler-constant inference and scale comparisons.
+Review isolated measurements and scale comparisons with the
+[allocation baseline protocol](../testing.md#allocation-baselines).
 
 ## Existing fixture typography migration
 

@@ -60,8 +60,6 @@ bytes. Both runs record exactly 134,278 whole-fixture allocations, only four
 above the unchanged 4,096-page path. Doubling tokens, source bytes, emitted
 bytes, and byte visits therefore adds no allocation. The byte checksums are
 1,416,541,943,808 and 5,666,285,907,968 respectively.
-The compiler-caused increase from the original 113,797 count is reviewed in
-`roc-nightly-2026-August-05-24f0b47.md`.
 
 The all-value integration check stores and seals null, boolean, integer, real,
 name, byte string, text string, reference, array, and dictionary values, then

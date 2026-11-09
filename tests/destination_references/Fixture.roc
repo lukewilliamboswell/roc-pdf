@@ -140,12 +140,17 @@ Fixture :: [].{
 				_ => return Err(ExpectedRejection($passed))
 			}
 		}
-		bytes = Pdf.to_bytes(Pdf.document({ title: "Contents rejection evidence", language: "en", contents: [Pdf.paragraph("Invalid contents inputs fail before emission.")] })) ? PdfFailure
+		bytes = contents_rejection_bytes ? PdfFailure
 		Ok({ bytes, work: [$passed] })
 	}
 	negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
 	negatives = |context| run_negatives(context)
 }
+
+## This successful PDF only carries the negative case's structural evidence.
+## The context guard and every rejected contents entry remain measured at run
+## time; generating this input-independent carrier does not belong to them.
+contents_rejection_bytes = Pdf.to_bytes(Pdf.document({ title: "Contents rejection evidence", language: "en", contents: [Pdf.paragraph("Invalid contents inputs fail before emission.")] }))
 
 theme : Theme
 theme = { body: { size: 10, leading: 13 }, paragraph_spacing: 3, page_margin: { top: 40, bottom: 40, left: 50, right: 50 } }

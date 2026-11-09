@@ -3,11 +3,10 @@
 - Keep `docs/` and the root README user-facing: explain supported behavior,
   runnable usage, limits, diagnostics, and migration steps. Introduce features
   by the task they solve, not by issue numbers, delivery gates, or compiler work.
-- Put contributor workflows, design reviews, implementation history, performance
-  baselines, validator summaries, and integration/closure records in `development/`.
-  Keep capability planning in `feature-roadmap.md` and enduring decisions in
-  `architecture.md`. Preserve evidence and repair links when moving records;
-  do not remove required evidence to simplify user documentation.
+- Put contributor workflows and enduring implementation contracts in `development/`.
+  Keep current capability requirements in `feature-roadmap.md` and enduring
+  decisions in `architecture.md`. Preserve executable baselines, provenance,
+  licenses and normative controls; retire completed integration journals to Git.
 - Keep generated run reports, before/after dumps, review screenshots, and one-off
   review JSON/XML in ignored `.roc-pdf-tmp/` directories or CI artifacts.
   Commit executable baselines, provenance, lockfiles, and curated evidence
@@ -70,3 +69,11 @@
 - If a proposed change alters an enduring architectural decision or roadmap
   capability boundary, update the corresponding document in the same change.
   Do not use an implementation workaround to avoid resolving the conflict.
+
+## Documentation
+
+Documentation serves current users and contributors. Every paragraph must help a
+current task; delete obsolete or duplicated material. Keep implementation history
+in Git, unfinished work in issues, and release changes in release records. Preserve
+required public anchors without explaining their history. Follow the
+[shared documentation guidance](https://lukewilliamboswell.github.io/roc-automation/documentation.html#write-project-documentation).

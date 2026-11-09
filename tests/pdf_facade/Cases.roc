@@ -34,6 +34,11 @@ facade_document = Pdf.document({
 	title: "text-layout public facade output",
 })
 
+## The successful structural carrier is independent of the rejected document.
+## Keep its generation outside the measured negative operation; the runtime
+## guard and Pdf.to_chunks rejection below remain inside that operation.
+chunk_rejection_bytes = Pdf.to_bytes(Pdf.document({ contents: [], language: "en-AU", title: "Blank" })) ?? []
+
 # This is the public one-import positive boundary. Its emitted bytes are
 # checked structurally by scripts/check_facade_output.py.
 expect {
@@ -311,8 +316,7 @@ chunks_negative = |context| {
 	if rejected != 1 {
 		crash "text-layout chunked facade negative was accepted"
 	}
-	blank = Pdf.document({ contents: [], language: "en-AU", title: "Blank" })
-	bytes = Pdf.to_bytes(blank) ?? []
+	bytes = chunk_rejection_bytes
 
 	{ bytes, work: [rejected, bytes.len()] }
 }

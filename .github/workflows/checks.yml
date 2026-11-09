@@ -47,6 +47,7 @@ jobs:
         run: |
           [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          python3 scripts/check_release_version.py --self-test
           version="${REQUESTED_VERSION:-$(python3 scripts/release_artifacts.py --latest-notes)}"
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)?$ ]]
           printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
@@ -78,7 +79,7 @@ jobs:
       # Blueprint verifies its own binary against the reviewed digest, then
       # fetches Zig 0.16.0 by the digest in Blueprint.lock for the dev tasks.
       - name: Install Blueprint
-        uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@8acff758d5d73210f1731bed75adb9322f5e773d
+        uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@0ad737abd3cad3d14d7e409e91161cd42c05142c
         with:
           cache: "true"
           cache-workload: dev
@@ -95,13 +96,32 @@ jobs:
         run: printf 'ROC_NIGHTLY_TAG=%s\n' "$(sed -n '1p' .roc-version)" >> "$GITHUB_ENV"
 
       - name: Install Roc
-        uses: roc-lang/setup-roc@f5a74bf90aa694b43ab4a7cbfdb19273bc6aa697
+        uses: roc-lang/setup-roc@dd81390553b0a1236aedb61cdd4c0ed7cf7eaec4
         with:
-          version: nightly-new-compiler
+          version: nightly
           nightly-tag: ${{ env.ROC_NIGHTLY_TAG }}
 
+      - name: Bind clean measured source
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          python3 scripts/test_prepare_ci_source.py
+          python3 scripts/prepare_ci_source.py
+
       - name: Run spec-defined e2e evidence
-        run: blueprint run test -- --allocation-baselines
+        run: blueprint run test -- --compare-baselines --baseline-report .roc-pdf-tmp/ci-baselines.json
+
+      - name: Preserve exact allocation and functional diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: dev-evidence-${{ inputs.source_sha }}-${{ matrix.os }}
+          path: |
+            .roc-pdf-tmp/ci-source.json
+            .roc-pdf-tmp/ci-baselines.json
+            .roc-pdf-tmp/logs/
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Verify release bundle consumer boundary
         run: blueprint run bundle-consumer
@@ -118,8 +138,12 @@ jobs:
   # fuzz.yml, which never runs on a pull request.
   fuzz-smoke:
     needs: version
-    name: Fuzz smoke
-    runs-on: ubuntu-22.04
+    name: Fuzz smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ inputs.full_validation && fromJSON('["ubuntu-22.04", "macos-15"]') || fromJSON('["ubuntu-22.04"]') }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -128,7 +152,7 @@ jobs:
           persist-credentials: false
 
       - name: Install Blueprint
-        uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@8acff758d5d73210f1731bed75adb9322f5e773d
+        uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@0ad737abd3cad3d14d7e409e91161cd42c05142c
         with:
           cache: "true"
           cache-workload: dev
@@ -137,10 +161,17 @@ jobs:
         run: printf 'ROC_NIGHTLY_TAG=%s\n' "$(sed -n '1p' .roc-version)" >> "$GITHUB_ENV"
 
       - name: Install Roc
-        uses: roc-lang/setup-roc@f5a74bf90aa694b43ab4a7cbfdb19273bc6aa697
+        uses: roc-lang/setup-roc@dd81390553b0a1236aedb61cdd4c0ed7cf7eaec4
         with:
-          version: nightly-new-compiler
+          version: nightly
           nightly-tag: ${{ env.ROC_NIGHTLY_TAG }}
+
+      - name: Bind clean measured source
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          python3 scripts/test_prepare_ci_source.py
+          python3 scripts/prepare_ci_source.py
 
       - name: Run property fuzz smoke
         run: blueprint run fuzz
@@ -149,8 +180,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: fuzz-evidence-${{ inputs.source_sha }}
-          path: .roc-pdf-tmp/fuzz-artifacts/
+          name: fuzz-evidence-${{ inputs.source_sha }}-${{ matrix.os }}
+          path: |
+            .roc-pdf-tmp/ci-source.json
+            .roc-pdf-tmp/fuzz-artifacts/
           if-no-files-found: error
           retention-days: 14
 
@@ -247,12 +280,12 @@ jobs:
       - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548
         with:
           python-version: 3.14.0
-      - uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@8acff758d5d73210f1731bed75adb9322f5e773d
+      - uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@0ad737abd3cad3d14d7e409e91161cd42c05142c
       - name: Read pinned compiler
         run: printf 'ROC_NIGHTLY_TAG=%s\n' "$(cat .roc-version)" >> "$GITHUB_ENV"
-      - uses: roc-lang/setup-roc@f5a74bf90aa694b43ab4a7cbfdb19273bc6aa697
+      - uses: roc-lang/setup-roc@dd81390553b0a1236aedb61cdd4c0ed7cf7eaec4
         with:
-          version: nightly-new-compiler
+          version: nightly
           nightly-tag: ${{ env.ROC_NIGHTLY_TAG }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
@@ -274,12 +307,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          gh release view --json assets > "$RUNNER_TEMP/previous-release.json"
+          gh release view --json assets,tagName > "$RUNNER_TEMP/previous-release.json"
           old_url=$(python3 -c 'import json,sys; assets=[a["url"] for a in json.load(open(sys.argv[1]))["assets"] if a["name"].endswith(".tar.zst")]; assert len(assets)==1; print(assets[0])' "$RUNNER_TEMP/previous-release.json")
-          # The pinned compiler's version parser accepts MAJOR.MINOR.PATCH;
-          # candidates promise the compatibility of their eventual base version.
-          version_base="${RELEASE_VERSION%%-rc*}"
-          roc bump --old "$old_url" --expect "$version_base" package/main.roc
+          previous=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["tagName"])' "$RUNNER_TEMP/previous-release.json")
+          python3 scripts/check_release_version.py --requested "$RELEASE_VERSION" --previous "$previous" --previous-url "$old_url"
       - name: Build and test exact bundle and examples archive
         env:
           RELEASE_VERSION: ${{ steps.version.outputs.version }}
