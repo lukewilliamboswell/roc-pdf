@@ -41,7 +41,13 @@ are reviewed before explicit acceptance; verification never accepts changes:
 ```
 
 `--no-build` requires a matching source/asset closure, compiler, host and binary
-digest from the recorded build. It refuses stale executables. The optional
+digest from the recorded build, including its `--fuzz --no-cache` policy. It
+refuses stale executables and older cache-enabled build records. All targets
+build without the compiler cache: the same source/compiler can otherwise
+produce different allocation observations depending on earlier cached programs.
+Two independent uncached November 7 builds and repeated named-example runs
+matched exactly; cache-enabled builds did not. This policy preserves the
+measurement, not any particular accepted value. The optional
 `fuzz-accept` Blueprint task performs the same explicit maintenance action.
 Accepted files under `fuzz/baselines/` contain separate host entries for the
 `llvm-fuzz` profile; reductions also require review. These observations do not
