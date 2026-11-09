@@ -61,6 +61,20 @@ compatibility promise of their final base version. The version check's
 self-tests cover both proof paths and rejected transitions. All candidate,
 archive and conformance tests remain required in either case.
 
+Ordinary CI may retain the latest final version only when a freshly built
+complete package matches the uniquely selected immutable published asset by
+name, length, SHA-256 and complete downloaded bytes. The same admitted file
+then runs through the gallery and archived-example consumers. This establishes
+package identity, not a new API-compatibility or release-eligibility claim.
+Changed or unverifiable packages fail. Every explicit release request and every
+new-version comparison still uses the strict forward-version/API check above;
+an already published version cannot become a new release through this path.
+Official API requests have bounded metadata, package and diagnostic output,
+an absolute deadline and one process-group cleanup with bounded reaping.
+Metadata is limited to 1 MiB and package files to 16 MiB before reading; errors
+or incomplete cleanup fail the gate. Identity still relies on GitHub's immutable
+release hosting; it does not establish compiler provenance.
+
 Publication requires `main`, a new version and eligible authored notes. The
 release manifest binds the recorded commit/compiler, asset names, lengths,
 digests and notes. The publisher consumes its own run's tested artifacts,
