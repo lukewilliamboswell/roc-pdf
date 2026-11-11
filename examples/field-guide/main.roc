@@ -226,7 +226,7 @@ habitat_section = {
 		.group({ offset: point(240, 148), drawing: zone(rgb(120, 84, 50), 200) })
 
 	## Zone names above their brackets and the tide lines' names.
-	label = |x, y, align, color, text| Scene.Label.{ align, color, origin: point(x, y), size: 7, text }
+	label = |x, y, align, color, text| { align, color, origin: point(x, y), size: 7, text }
 	$scene = $scene
 		.text(label(225, 171, Center, rgb(20, 20, 20), "Oystercatcher"))
 		.text(label(104, 182, Start, rgb(176, 72, 40), "Plover"))
