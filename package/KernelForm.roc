@@ -583,7 +583,7 @@ KernelForm :: [].{
 	}
 }
 
-TextInput := [NoTextStore, WithTextStore(Text.Store)]
+TextInput : [NoTextStore, WithTextStore(Text.Store)]
 
 UseState := {
 	command_visits : U64,
@@ -2197,7 +2197,7 @@ resolve_transitive_text = |counts, form_count, order, direct_text, nested_offset
 	Ok($transitive)
 }
 
-TextRecipes := [NoText, WithText(KernelContent.TextPlan)]
+TextRecipes : [NoText, WithText(KernelContent.TextPlan)]
 
 ## The leaf-recipe kind tags. Descriptor facts already separate resource
 ## kinds; these bytes separate variants within one kind so, for example, a
