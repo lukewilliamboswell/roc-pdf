@@ -212,12 +212,16 @@ build_cmap = |font, plan| {
 	var $group_start = zero_u32
 	var $group_end = zero_u32
 	var $group_glyph = zero_u32
+	# Coverage spans and cmap records are both strictly ascending, so one
+	# forward walk over the records serves every covered scalar.
+	var $cmap_index = 0
 	var $span_index = 0
 	while $span_index < font.coverage.len() {
 		span = list_at(font.coverage, $span_index)
 		var $scalar = span.first
 		while $scalar <= span.last {
-			match KernelFont.glyph_for_scalar(font, $scalar) {
+			$cmap_index = KernelFont.cmap_index_from(font, $cmap_index, $scalar)
+			match KernelFont.glyph_at_cmap_index(font, $cmap_index, $scalar) {
 				None => {}
 				Some(original) => {
 					mapped = list_at(plan.original_to_subset, original.to_u64())
@@ -481,7 +485,7 @@ checksum_bytes = |bytes| {
 		var $byte_index = 0
 		while $byte_index < 4 {
 			position = $index + $byte_index
-			byte = if (position < bytes.len()) list_at(bytes, position) else 0
+			byte = if (position < bytes.len()) byte_at(bytes, position) else 0
 			$word = $word.bitwise_or(byte.to_u32().shl_wrap((3 - $byte_index).to_u8_wrap() * 8))
 			$byte_index = $byte_index + 1
 		}
@@ -530,7 +534,7 @@ append_range = |target, source, offset, length| {
 	var $result = target
 	var $index = 0
 	while $index < length {
-		$result = $result.append(list_at(source, offset + $index))
+		$result = $result.append(byte_at(source, offset + $index))
 		$index = $index + 1
 	}
 	$result
@@ -570,6 +574,16 @@ checked_times : U64, U64 -> Try(U64, KernelFontSubset.Error)
 checked_times = |left, right| match U64.times_try(left, right) {
 	Err(Overflow) => Err(ArithmeticOverflow)
 	Ok(value) => Ok(value)
+}
+
+## `list_at` for bytes. Its closed item type makes the `get` call a direct
+## call of the integer list worker, which `list_at`'s generic call never is.
+byte_at : List(U8), U64 -> U8
+byte_at = |bytes, index| match bytes.get(index) {
+	Err(OutOfBounds) => {
+		crash "validated font-subset index escaped"
+	}
+	Ok(value) => value
 }
 
 list_at : List(a), U64 -> a

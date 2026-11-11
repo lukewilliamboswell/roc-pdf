@@ -9,6 +9,7 @@ package
 		KernelBalanced,
 		KernelBidiBoundary,
 		KernelBuiltInFont,
+		KernelBuiltInFontInspections,
 		KernelBuiltInFonts,
 		KernelCaseTransform,
 		KernelColor,
