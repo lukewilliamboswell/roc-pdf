@@ -2889,19 +2889,24 @@ expect {
 }
 
 # Every compression choice is sealed into the prepared plan: buffered,
-# chunked, prepared, and one-shot output agree for each choice, `Balanced` is
-# the default, the choices write distinct files ordered by size as their
-# names promise, and the plan identity (and so the file identifier) does not
-# depend on the choice.
+# chunked, prepared, and one-shot output agree for each choice.
+expect compressed_output(fastest_prepared, Fastest) != []
+
+expect compressed_output(balanced_prepared, Balanced) != []
+
+expect compressed_output(smallest_prepared, Smallest) != []
+
+# `Balanced` is the default, the choices write distinct files ordered by size
+# as their names promise, and the plan identity (and so the file identifier)
+# does not depend on the choice.
 expect {
-	document = Pdf.document({ contents: [Pdf.title("Compression"), Pdf.paragraph("Smaller files or faster generation, with identical content.")], language: "en-AU", title: "Compression" })
-	fastest = compressed_output(document, Fastest)
-	balanced = compressed_output(document, Balanced)
-	smallest = compressed_output(document, Smallest)
-	default = Pdf.to_bytes(document)?
-	fastest_plan = build_plan(document, Pdf.Options.{ compression: Fastest })?
-	smallest_plan = build_plan(document, Pdf.Options.{ compression: Smallest })?
-	default_plan = build_plan(document, Pdf.Options.default)?
+	Pdf.Prepared.(fastest_plan) = fastest_prepared?
+	Pdf.Prepared.(smallest_plan) = smallest_prepared?
+	Pdf.Prepared.(default_plan) = default_prepared?
+	fastest = Pdf.to_bytes_prepared(fastest_prepared?)?
+	balanced = Pdf.to_bytes_prepared(balanced_prepared?)?
+	smallest = Pdf.to_bytes_prepared(smallest_prepared?)?
+	default = Pdf.to_bytes(compression_document)?
 	smallest != [] and
 		balanced == default and
 			fastest != balanced and
@@ -2942,30 +2947,40 @@ expect {
 	}
 }
 
-# Page templates: furniture, a lead region, and page fields prepare
-# through the public facade; a template that leaves no body line and a page
-# field in body text reject with their stable codes and paths.
-expect {
+template_header : Document.Region
+template_header = {
 	page_of = Pdf.reserved_width({ width: Layout.Unit.points(72), align: End, contents: [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)] })
-	header = Pdf.region({ center: [], end: [Pdf.furniture_text([page_of])], height: Layout.Unit.points(16), start: [Pdf.furniture_text([Pdf.text("Running head")])] })
-	templates = |lead_height| {
-		continuation: Pdf.page_template({ footer: Pdf.no_region, gap: Layout.Unit.points(12), header }),
-		first: Pdf.first_page_template({ footer: Pdf.no_region, gap: Layout.Unit.points(12), header, lead: Pdf.lead_region(Layout.Unit.points(lead_height), [Pdf.paragraph("Letterhead")]) }),
-	}
-	document = |contents, lead_height| Pdf.document({ contents, language: "en-AU", title: "Templates", page_templates: Templates(templates(lead_height)) })
-	accepted = match Pdf.to_bytes(document([Pdf.paragraph("First"), Pdf.page_break, Pdf.paragraph("Second")], 40)) {
-		Ok(bytes) => bytes.len() > 1000
-		Err(_) => False
-	}
-	body_space = match Pdf.to_bytes(document([Pdf.paragraph("Body")], 690)) {
-		Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: ["templates.first"], feature: Feature(feature), .. }], .. })) => feature == "layout.template_body_space"
-		_ => False
-	}
-	body_field = match Pdf.to_bytes(Pdf.document({ contents: [Pdf.paragraph("Lead"), Pdf.rich_paragraph([Pdf.text("Page "), Pdf.page_number(Decimal)])], language: "en-AU", title: "Field" })) {
-		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, details: ["contents[1].inlines[1]"], feature: Feature(feature), .. }], .. })) => feature == "document.generated_reference"
-		_ => False
-	}
-	accepted and body_space and body_field
+	Pdf.region({ center: [], end: [Pdf.furniture_text([page_of])], height: Layout.Unit.points(16), start: [Pdf.furniture_text([Pdf.text("Running head")])] })
+}
+
+template_document : List(Document.Block), Layout.Unit -> Document
+template_document = |contents, lead_height| Pdf.document({
+	contents,
+	language: "en-AU",
+	title: "Templates",
+	page_templates: Templates({
+		continuation: Pdf.page_template({ footer: Pdf.no_region, gap: Layout.Unit.points(12), header: template_header }),
+		first: Pdf.first_page_template({ footer: Pdf.no_region, gap: Layout.Unit.points(12), header: template_header, lead: Pdf.lead_region(lead_height, [Pdf.paragraph("Letterhead")]) }),
+	}),
+})
+
+# Page templates: furniture, a lead region, and page fields prepare
+# through the public facade.
+expect match Pdf.to_bytes(template_document([Pdf.paragraph("First"), Pdf.page_break, Pdf.paragraph("Second")], Layout.Unit.points(40))) {
+	Ok(bytes) => bytes.len() > 1000
+	Err(_) => False
+}
+
+# A template that leaves no body line rejects with its stable code and path.
+expect match Pdf.to_bytes(template_document([Pdf.paragraph("Body")], Layout.Unit.points(690))) {
+	Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: ["templates.first"], feature: Feature(feature), .. }], .. })) => feature == "layout.template_body_space"
+	_ => False
+}
+
+# A page field in body text rejects with its stable code and path.
+expect match Pdf.to_bytes(Pdf.document({ contents: [Pdf.paragraph("Lead"), Pdf.rich_paragraph([Pdf.text("Page "), Pdf.page_number(Decimal)])], language: "en-AU", title: "Field" })) {
+	Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, details: ["contents[1].inlines[1]"], feature: Feature(feature), .. }], .. })) => feature == "document.generated_reference"
+	_ => False
 }
 
 # Empty default documents emit one structural PDF 2.0 page.
@@ -3000,15 +3015,35 @@ expect {
 	implicit == explicit and implicit == archive and contains_bytes(implicit, Str.to_utf8("<pdfaid:part>4</pdfaid:part>"))
 }
 
-# Archive emits the same document with exactly the PDF/A identification
-# added to its canonical metadata; Standard never declares it.
-expect {
-	document = Pdf.document({ contents: [Pdf.paragraph("Archive")], language: "en-AU", title: "Archive" })
-	archive = Pdf.to_bytes_with(document, Pdf.Options.{ profile: Pdf.Profile.Archive })?
-	standard = Pdf.to_bytes_with(document, Pdf.Options.{ profile: Pdf.Profile.Standard })?
-	marker = Str.to_utf8("<pdfaid:part>4</pdfaid:part>")
+profile_document : Document
+profile_document = Pdf.document({ contents: [Pdf.paragraph("Archive")], language: "en-AU", title: "Archive" })
 
-	archive.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and contains_bytes(archive, marker) and !contains_bytes(standard, marker)
+profile_marker : List(U8)
+profile_marker = Str.to_utf8("<pdfaid:part>4</pdfaid:part>")
+
+chunk_report_document : Document
+chunk_report_document = Pdf.document({
+	contents: [Pdf.title("Report"), Pdf.paragraph("Body")],
+	language: "en-AU",
+	title: "Report",
+})
+
+chunk_report_bytes : Try(List(U8), Pdf.Error)
+chunk_report_bytes = Pdf.to_bytes(chunk_report_document)
+
+# Archive emits the same document with exactly the PDF/A identification
+# added to its canonical metadata.
+expect {
+	archive = Pdf.to_bytes_with(profile_document, Pdf.Options.{ profile: Pdf.Profile.Archive })?
+
+	archive.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and contains_bytes(archive, profile_marker)
+}
+
+# Standard never declares the PDF/A identification.
+expect {
+	standard = Pdf.to_bytes_with(profile_document, Pdf.Options.{ profile: Pdf.Profile.Standard })?
+
+	!contains_bytes(standard, profile_marker)
 }
 
 # A blank Archive document is validated on the same lowered-plan path.
@@ -3055,13 +3090,8 @@ expect {
 # Authored chunked output is byte-identical to buffered output and arrives
 # in more than one plan-derived chunk.
 expect {
-	document = Pdf.document({
-		contents: [Pdf.title("Report"), Pdf.paragraph("Body")],
-		language: "en-AU",
-		title: "Report",
-	})
-	expected = Pdf.to_bytes(document)?
-	collected = collect_chunks(Pdf.to_chunks(document)?)
+	expected = chunk_report_bytes?
+	collected = collect_chunks(Pdf.to_chunks(chunk_report_document)?)
 
 	collected.chunks >= 2 and collected.bytes == expected
 }
@@ -3082,24 +3112,34 @@ expect {
 
 # The owned-chunk retention mode concatenates to the identical authored bytes.
 expect {
-	document = Pdf.document({
-		contents: [Pdf.title("Report"), Pdf.paragraph("Body")],
-		language: "en-AU",
-		title: "Report",
-	})
-	expected = Pdf.to_bytes(document)?
+	expected = chunk_report_bytes?
 	options = Pdf.Options.{ chunk_retention: Pdf.ChunkRetention.OwnChunks }
-	collected = collect_chunks(Pdf.to_chunks_with(document, options)?)
+	collected = collect_chunks(Pdf.to_chunks_with(chunk_report_document, options)?)
 
 	collected.bytes == expected
 }
 
+compression_document : Document
+compression_document = Pdf.document({ contents: [Pdf.title("Compression"), Pdf.paragraph("Smaller files or faster generation, with identical content.")], language: "en-AU", title: "Compression" })
+
+fastest_prepared : Try(Pdf.Prepared, Pdf.Error)
+fastest_prepared = Pdf.prepare(compression_document, Pdf.Options.{ compression: Fastest })
+
+balanced_prepared : Try(Pdf.Prepared, Pdf.Error)
+balanced_prepared = Pdf.prepare(compression_document, Pdf.Options.{ compression: Balanced })
+
+smallest_prepared : Try(Pdf.Prepared, Pdf.Error)
+smallest_prepared = Pdf.prepare(compression_document, Pdf.Options.{ compression: Smallest })
+
+default_prepared : Try(Pdf.Prepared, Pdf.Error)
+default_prepared = Pdf.prepare(compression_document, Pdf.Options.default)
+
 ## The document's bytes under one compression choice, or `[]` when any of
 ## the buffered, chunked, prepared, and one-shot paths disagree.
-compressed_output : Document, Pdf.Compression -> List(U8)
-compressed_output = |document, compression| {
+compressed_output : Try(Pdf.Prepared, Pdf.Error), Pdf.Compression -> List(U8)
+compressed_output = |prepared_result, compression| {
 	options = Pdf.Options.{ compression: compression }
-	match Pdf.prepare(document, options) {
+	match prepared_result {
 		Err(_) => []
 		Ok(prepared) => {
 			buffered = Pdf.to_bytes_prepared(prepared) ?? []
@@ -3107,11 +3147,11 @@ compressed_output = |document, compression| {
 				Err(_) => []
 				Ok(encoder) => collect_chunks(encoder).bytes
 			}
-			owned = match Pdf.to_chunks_with(document, Pdf.Options.{ compression: compression, chunk_retention: OwnChunks }) {
+			owned = match Pdf.to_chunks_with(compression_document, Pdf.Options.{ compression: compression, chunk_retention: OwnChunks }) {
 				Err(_) => []
 				Ok(encoder) => collect_chunks(encoder).bytes
 			}
-			one_shot = Pdf.to_bytes_with(document, options) ?? []
+			one_shot = Pdf.to_bytes_with(compression_document, options) ?? []
 			if buffered == shared and buffered == owned and buffered == one_shot {
 				buffered
 			} else {
@@ -3277,9 +3317,9 @@ archive_twin_packet = |title| match KernelMetadata.validate({ created: Omitted, 
 	}
 }
 
-archive_twin_pipeline : Pdf.Options -> KernelFacadeOutput.Plan
-archive_twin_pipeline = |options| {
-	font = match selected_font(options) {
+archive_twin_pipeline : KernelFacadeOutput.Plan
+archive_twin_pipeline = {
+	font = match selected_font(archive_twin_options) {
 		Ok(value) => value
 		Err(_) => {
 			crash "archive twin font failed"
@@ -3292,7 +3332,7 @@ archive_twin_pipeline = |options| {
 		language: "en-AU",
 		xmp: KernelXmp.Packet.bytes(archive_twin_packet("Archive twins")),
 	})
-	match KernelFacadePipeline.Plan.build_with_facts(Document.normalize(archive_twin_document), font, options.theme, layout_page_size(A4), standard_font_descriptor, facts, standard_pipeline_limits) {
+	match KernelFacadePipeline.Plan.build_with_facts(Document.normalize(archive_twin_document), font, archive_twin_options.theme, layout_page_size(A4), standard_font_descriptor, facts, standard_pipeline_limits) {
 		Ok(pipeline) => KernelFacadePipeline.Plan.output(pipeline)
 		Err(_) => {
 			crash "archive twin pipeline failed"
@@ -3305,7 +3345,7 @@ ArchiveTwinOutcome : [Accepted, Rejected(KernelPdfA4.Requirement)]
 ## Validate one white-box store mutation of the claimed twin plan.
 archive_twin_lowered : (KernelObject.Store -> KernelObject.Store) -> ArchiveTwinOutcome
 archive_twin_lowered = |mutate| {
-	plan = KernelFacadeOutput.Plan.structure(archive_twin_pipeline(archive_twin_options))
+	plan = KernelFacadeOutput.Plan.structure(archive_twin_pipeline)
 	store = mutate(KernelSeal.Plan.store(KernelStructure.Plan.sealed(plan)))
 	builder = KernelObject.init(archive_twin_store_limits)
 	sealed = match KernelSeal.seal({ ..builder, store }) {
@@ -3386,40 +3426,53 @@ expect archive_twin_lowered(|store| store) == Accepted
 
 # Annotation flags: a hidden or unprintable link is rejected.
 expect archive_twin_lowered(archive_twin_rewrite("F", Integer(0))) == Rejected(AnnotationFlags)
-	and archive_twin_lowered(archive_twin_rewrite("F", Integer(6))) == Rejected(AnnotationFlags)
-	and archive_twin_lowered(archive_twin_rewrite("F", Integer(4 + 32))) == Rejected(AnnotationFlags)
+
+expect archive_twin_lowered(archive_twin_rewrite("F", Integer(6))) == Rejected(AnnotationFlags)
+
+expect archive_twin_lowered(archive_twin_rewrite("F", Integer(4 + 32))) == Rejected(AnnotationFlags)
 
 # Actions: a non-whitelisted action type, and a URI action retyped as a
 # non-link annotation.
 expect archive_twin_lowered(archive_twin_rename("URI", "Launch")) == Rejected(Actions)
-	and archive_twin_lowered(archive_twin_rename("Link", "Widget")) == Rejected(AnnotationTypes)
+
+expect archive_twin_lowered(archive_twin_rename("Link", "Widget")) == Rejected(AnnotationTypes)
 
 # Images: interpolation, an unsupported bit depth, and OPI data.
 expect archive_twin_lowered(archive_twin_rewrite("BitsPerComponent", Integer(3))) == Rejected(ImageDictionary)
-	and archive_twin_lowered(archive_twin_rename("BitsPerComponent", "Interpolate")) == Rejected(ImageDictionary)
-	and archive_twin_lowered(archive_twin_rename("Width", "OPI")) == Rejected(ImageDictionary)
+
+expect archive_twin_lowered(archive_twin_rename("BitsPerComponent", "Interpolate")) == Rejected(ImageDictionary)
+
+expect archive_twin_lowered(archive_twin_rename("Width", "OPI")) == Rejected(ImageDictionary)
 
 # Fonts: a simple font subtype, a non-FontFile2 program, and a CIDFont
 # without CIDToGIDMap.
 expect archive_twin_lowered(archive_twin_rename("Type0", "TrueType")) == Rejected(FontDictionary)
-	and archive_twin_lowered(archive_twin_rename("FontFile2", "FontFile3")) == Rejected(FontEmbedding)
-	and archive_twin_lowered(archive_twin_rename("CIDToGIDMap", "CIDToGIDMapz")) == Rejected(CompositeFont)
+
+expect archive_twin_lowered(archive_twin_rename("FontFile2", "FontFile3")) == Rejected(FontEmbedding)
+
+expect archive_twin_lowered(archive_twin_rename("CIDToGIDMap", "CIDToGIDMapz")) == Rejected(CompositeFont)
 
 # Package exclusions reachable as keys anywhere in the plan.
 expect archive_twin_lowered(archive_twin_rename("Lang", "JS")) == Rejected(Actions)
-	and archive_twin_lowered(archive_twin_rename("Lang", "OC")) == Rejected(OptionalContent)
-	and archive_twin_lowered(archive_twin_rename("Lang", "AF")) == Rejected(EmbeddedFiles)
-	and archive_twin_lowered(archive_twin_rename("Lang", "PresSteps")) == Rejected(Presentations)
-	and archive_twin_lowered(archive_twin_rename("Lang", "Ref")) == Rejected(ReferenceXObject)
-	and archive_twin_lowered(archive_twin_rename("Lang", "TR")) == Rejected(GraphicsState)
-	and archive_twin_lowered(archive_twin_rename("Lang", "NeedsRendering")) == Rejected(InteractiveForms)
+
+expect archive_twin_lowered(archive_twin_rename("Lang", "OC")) == Rejected(OptionalContent)
+
+expect archive_twin_lowered(archive_twin_rename("Lang", "AF")) == Rejected(EmbeddedFiles)
+
+expect archive_twin_lowered(archive_twin_rename("Lang", "PresSteps")) == Rejected(Presentations)
+
+expect archive_twin_lowered(archive_twin_rename("Lang", "Ref")) == Rejected(ReferenceXObject)
+
+expect archive_twin_lowered(archive_twin_rename("Lang", "TR")) == Rejected(GraphicsState)
+
+expect archive_twin_lowered(archive_twin_rename("Lang", "NeedsRendering")) == Rejected(InteractiveForms)
 
 # Stream dictionaries must not reference external file data.
 expect archive_twin_lowered(archive_twin_rename("Length1", "FFilter")) == Rejected(StreamExternal)
 
 # Profile-stage twins over the prepared text facts of the same plan.
 expect {
-	facts = KernelFacadeOutput.Plan.text_facts(archive_twin_pipeline(archive_twin_options))
+	facts = KernelFacadeOutput.Plan.text_facts(archive_twin_pipeline)
 	clean = KernelPdfA4.validate_text(StaticPdfA4Claim, facts)
 	bom = KernelPdfA4.validate_text(StaticPdfA4Claim, { ..facts, mappings: facts.mappings.append([{ cid: 1, scalars: [0xFEFF] }]) })
 	private = KernelPdfA4.validate_text(StaticPdfA4Claim, { ..facts, actual_text: PrivateUseInRun(0) })

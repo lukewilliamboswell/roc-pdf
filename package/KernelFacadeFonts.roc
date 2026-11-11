@@ -148,9 +148,9 @@ KernelFacadeFonts :: [].{
 		var $slot = 0
 		while $slot < KernelBuiltInFonts.count {
 			if list_at($demand, $slot) {
-				bytes = KernelBuiltInFonts.Slot.from_index($slot).bytes()
-				$font_bytes = $font_bytes + bytes.len()
-				match $registry.register({ bytes, registration: { provision: BuiltIn, scripts: ["Latn"] }, limits: Font.ValidationLimits.default }) {
+				slot = KernelBuiltInFonts.Slot.from_index($slot)
+				$font_bytes = $font_bytes + slot.bytes().len()
+				match $registry.register_packaged(slot, { provision: BuiltIn, scripts: ["Latn"] }) {
 					Ok(registered) => {
 						face = registered.face
 						copied = registered.work.copied_input_bytes

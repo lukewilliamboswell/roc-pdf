@@ -100,6 +100,17 @@ KernelFont :: [].{
 	glyph_for_scalar : Inspection, U32 -> [None, Some(U32)]
 	glyph_for_scalar = |font, scalar| glyph_for_cmap(font.bytes, font.cmap, font.metrics.glyph_count, scalar)
 
+	## The index of the first cmap record at or after `from` whose range ends at
+	## or beyond `scalar`. Cmap records are strictly ascending, so a caller
+	## visiting ascending scalars passes the previous result as `from` and walks
+	## the records once instead of rescanning them for every scalar.
+	cmap_index_from : Inspection, U64, U32 -> U64
+	cmap_index_from = |font, from, scalar| cmap_record_index(font.cmap, from, scalar)
+
+	## The glyph for `scalar`, given the index `cmap_index_from` found for it.
+	glyph_at_cmap_index : Inspection, U64, U32 -> [None, Some(U32)]
+	glyph_at_cmap_index = |font, index, scalar| glyph_at_cmap_record(font.bytes, font.cmap, font.metrics.glyph_count, index, scalar)
+
 	advance_width : Inspection, U32 -> Try(U16, Error)
 	advance_width = |font, glyph| {
 		metric = horizontal_metric_for(font, glyph)?
@@ -472,7 +483,7 @@ validate_simple_glyph = |bytes, start, end, contour_count, glyph, relative_offse
 		if $cursor >= end {
 			return Err(InvalidGlyph({ glyph, offset: relative_offset }))
 		}
-		flag = list_at(bytes, $cursor)
+		flag = byte_at(bytes, $cursor)
 		$cursor = $cursor + 1
 		if flag.bitwise_and(0x80) != 0 {
 			return Err(InvalidGlyph({ glyph, offset: relative_offset }))
@@ -481,7 +492,7 @@ validate_simple_glyph = |bytes, start, end, contour_count, glyph, relative_offse
 			1
 		} else {
 			if ($cursor >= end) return Err(InvalidGlyph({ glyph, offset: relative_offset }))
-			count = list_at(bytes, $cursor).to_u64() + 1
+			count = byte_at(bytes, $cursor).to_u64() + 1
 			$cursor = $cursor + 1
 			count
 		}
@@ -672,7 +683,7 @@ inspect_os2 = |bytes, table| {
 	if cap_height <= 0 {
 		Err(InvalidOs2)
 	} else {
-		Ok({ cap_height, embedding_rights, fs_selection: read_u16(bytes, table.offset + 62), serif: classify_serif({ family_class: read_u16(bytes, table.offset + 30).shr_wrap(8).to_u8_wrap(), panose_family: list_at(bytes, table.offset + 32), panose_serif: list_at(bytes, table.offset + 33) }) })
+		Ok({ cap_height, embedding_rights, fs_selection: read_u16(bytes, table.offset + 62), serif: classify_serif({ family_class: read_u16(bytes, table.offset + 30).shr_wrap(8).to_u8_wrap(), panose_family: byte_at(bytes, table.offset + 32), panose_serif: byte_at(bytes, table.offset + 33) }) })
 	}
 }
 
@@ -845,7 +856,7 @@ postscript_name_bytes = |font| {
 	var $result = List.with_capacity(range.length / 2)
 	var $index = 0
 	while $index < range.length {
-		$result = $result.append(list_at(font.bytes, range.offset + $index + 1))
+		$result = $result.append(byte_at(font.bytes, range.offset + $index + 1))
 		$index = $index + 2
 	}
 	$result
@@ -1054,39 +1065,77 @@ valid_cmap4_search = |bytes, offset, count| {
 }
 
 glyph_for_cmap : List(U8), KernelFont.Cmap, U64, U32 -> [None, Some(U32)]
-glyph_for_cmap = |bytes, cmap, glyph_count, scalar| match cmap {
+glyph_for_cmap = |bytes, cmap, glyph_count, scalar| glyph_at_cmap_record(bytes, cmap, glyph_count, cmap_record_index(cmap, 0, scalar), scalar)
+
+cmap_record_index : KernelFont.Cmap, U64, U32 -> U64
+cmap_record_index = |cmap, from, scalar| match cmap {
 	Format12({ groups }) => {
-		var $index = 0
-		while $index < groups.len() {
-			group = list_at(groups, $index)
-			if scalar < group.start {
-				return None
-			}
-			if scalar <= group.end {
-				glyph = group.start_glyph + (scalar - group.start)
-				return if (glyph == 0 or glyph.to_u64() >= glyph_count) None else Some(glyph)
-			}
+		var $index = from
+		while $index < groups.len() and list_at(groups, $index).end < scalar {
 			$index = $index + 1
 		}
-		None
+		$index
+	}
+	Format4({ segments, .. }) => {
+		var $index = from
+		while $index < segments.len() and list_at(segments, $index).end < scalar {
+			$index = $index + 1
+		}
+		$index
+	}
+}
+
+glyph_at_cmap_record : List(U8), KernelFont.Cmap, U64, U64, U32 -> [None, Some(U32)]
+glyph_at_cmap_record = |bytes, cmap, glyph_count, index, scalar| match cmap {
+	Format12({ groups }) => {
+		if index >= groups.len() {
+			return None
+		}
+		group = list_at(groups, index)
+		if scalar < group.start {
+			return None
+		}
+		glyph = group.start_glyph + (scalar - group.start)
+		if (glyph == 0 or glyph.to_u64() >= glyph_count) None else Some(glyph)
 	}
 	Format4({ length, offset, segments }) => {
-		var $index = 0
-		while $index < segments.len() {
-			segment = list_at(segments, $index)
-			if scalar < segment.start {
-				return None
-			}
-			if scalar <= segment.end {
-				return match glyph_for_segment(bytes, segment, offset + length, scalar) {
-					Mapped(glyph) => if (glyph.to_u64() < glyph_count) Some(glyph) else None
-					_ => None
-				}
-			}
-			$index = $index + 1
+		if index >= segments.len() {
+			return None
 		}
-		None
+		segment = list_at(segments, index)
+		if scalar < segment.start {
+			return None
+		}
+		match glyph_for_segment(bytes, segment, offset + length, scalar) {
+			Mapped(glyph) => if (glyph.to_u64() < glyph_count) Some(glyph) else None
+			_ => None
+		}
 	}
+}
+
+# One forward walk over ascending scalars resolves gaps, record boundaries, and
+# scalars past the last record exactly as a scan from the first record does.
+expect {
+	walk : KernelFont.Cmap, List(U32) -> List([None, Some(U32)])
+	walk = |cmap, scalars| {
+		var $index = 0
+		var $glyphs = []
+		for scalar in scalars {
+			$index = cmap_record_index(cmap, $index, scalar)
+			$glyphs = $glyphs.append(glyph_at_cmap_record([], cmap, 16, $index, scalar))
+		}
+		$glyphs
+	}
+	format12 : KernelFont.Cmap
+	format12 = Format12({ groups: [{ start: 0x41, end: 0x43, start_glyph: 1 }, { start: 0x61, end: 0x62, start_glyph: 4 }] })
+	format12_scalars = [0x40, 0x41, 0x43, 0x44, 0x61, 0x62, 0x63]
+	format4 : KernelFont.Cmap
+	format4 = Format4({ length: 0, offset: 0, segments: [{ start: 0x41, end: 0x42, delta: -0x40, range_offset: 0, range_offset_location: 0 }, { start: 0xffff, end: 0xffff, delta: 1, range_offset: 0, range_offset_location: 0 }] })
+	format4_scalars = [0x40, 0x41, 0x42, 0x43]
+	walk(format12, format12_scalars) == [None, Some(1), Some(3), None, Some(4), Some(5), None] and
+		walk(format12, format12_scalars) == format12_scalars.map(|scalar| glyph_for_cmap([], format12, 16, scalar)) and
+			walk(format4, format4_scalars) == [None, Some(1), Some(2), None] and
+				walk(format4, format4_scalars) == format4_scalars.map(|scalar| glyph_for_cmap([], format4, 16, scalar))
 }
 
 glyph_for_segment : List(U8), KernelFont.CmapSegment, U64, U32 -> [InvalidGlyph, Mapped(U32), NoGlyph]
@@ -1140,7 +1189,7 @@ checksum_range = |bytes, offset, length, zero_adjustment| {
 			byte = if position >= length or (zero_adjustment and position >= 8 and position < 12) {
 				0
 			} else {
-				list_at(bytes, offset + position)
+				byte_at(bytes, offset + position)
 			}
 			$word = $word.bitwise_or(byte.to_u32().shl_wrap((3 - $byte_index).to_u8_wrap() * 8))
 			$byte_index = $byte_index + 1
@@ -1155,14 +1204,14 @@ padded_length : U64 -> U64
 padded_length = |length| if (length % 4 == 0) length else length + (4 - length % 4)
 
 read_u16 : List(U8), U64 -> U16
-read_u16 = |bytes, index| list_at(bytes, index).to_u16().shl_wrap(8).bitwise_or(list_at(bytes, index + 1).to_u16())
+read_u16 = |bytes, index| byte_at(bytes, index).to_u16().shl_wrap(8).bitwise_or(byte_at(bytes, index + 1).to_u16())
 
 read_u32 : List(U8), U64 -> U32
 read_u32 = |bytes, index| {
-	list_at(bytes, index).to_u32().shl_wrap(24)
-		.bitwise_or(list_at(bytes, index + 1).to_u32().shl_wrap(16))
-		.bitwise_or(list_at(bytes, index + 2).to_u32().shl_wrap(8))
-		.bitwise_or(list_at(bytes, index + 3).to_u32())
+	byte_at(bytes, index).to_u32().shl_wrap(24)
+		.bitwise_or(byte_at(bytes, index + 1).to_u32().shl_wrap(16))
+		.bitwise_or(byte_at(bytes, index + 2).to_u32().shl_wrap(8))
+		.bitwise_or(byte_at(bytes, index + 3).to_u32())
 }
 
 signed_i16 : U16 -> I64
@@ -1181,6 +1230,16 @@ checked_times : U64, U64 -> Try(U64, KernelFont.Error)
 checked_times = |left, right| match U64.times_try(left, right) {
 	Err(Overflow) => Err(ArithmeticOverflow)
 	Ok(value) => Ok(value)
+}
+
+## `list_at` for bytes. Its closed item type makes the `get` call a direct
+## call of the integer list worker, which `list_at`'s generic call never is.
+byte_at : List(U8), U64 -> U8
+byte_at = |bytes, index| match bytes.get(index) {
+	Ok(value) => value
+	Err(OutOfBounds) => {
+		crash "validated font index escaped"
+	}
 }
 
 list_at : List(a), U64 -> a
