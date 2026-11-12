@@ -79,7 +79,7 @@ evidence = |count| {
 		number = $chapter + 1
 		name = "chapter-${number.to_str()}"
 		var $rows = List.with_capacity(40)
-		var $row = (0).to_u64()
+		var $row = 0.U64
 		while $row < 40 {
 			$rows = $rows.append(Pdf.row([Pdf.header_cell(Row, [Pdf.text("Step ${($row + 1).to_str()}")]), Pdf.cell([Pdf.text("Retain the procedure, its boxed instructions and the measured table columns.")])]))
 			$row = $row + 1

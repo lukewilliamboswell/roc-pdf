@@ -565,7 +565,7 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 											}
 											Ok(span) => {
 												var $content_index = span.start
-												var $limited_seen = 0
+												var $limited_seen = 0.U64
 												var $child_position = 0
 												var $pending_caption = NoPendingCaption
 												while $content_index < span.end {
@@ -740,7 +740,7 @@ validate_node_facts = |store, node, node_index, is_root, text_allowed, language_
 validate_node_properties : Semantics.Store, Semantics.Node, U64 -> Try({}, KernelSemantics.Error)
 validate_node_properties = |store, node, node_index| {
 	span = validate_span(node.text_properties, store.text_properties.len(), TextPropertyIndex, node_index)?
-	var $seen = 0
+	var $seen = 0.U64
 	var $index = span.start
 	while $index < span.end {
 		bit = match list_at(store.text_properties, $index) {
@@ -836,7 +836,7 @@ validate_attributes = |store| {
 		end = start + node.attributes.length()
 		if end > start {
 			role = role_index(node.role.local_name)
-			var $seen = 0
+			var $seen = 0.U64
 			var $attribute = start
 			while $attribute < end {
 				bit = match check_attribute(list_at(store.attributes, $attribute), role) {
