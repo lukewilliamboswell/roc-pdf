@@ -346,7 +346,7 @@ collect_source_tables = |font| {
 	var $maxp = []
 	var $os2 = []
 	var $prep = Absent
-	var $found = 0
+	var $found = 0.U64
 	var $index = 0
 	while $index < font.tables.len() {
 		table = list_at(font.tables, $index)

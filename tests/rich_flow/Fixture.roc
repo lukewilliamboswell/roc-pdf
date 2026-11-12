@@ -69,7 +69,7 @@ scoped_table_evidence = |count, mode| {
 	while $index < count {
 		number = ($index + 1).to_str()
 		var $rows = List.with_capacity(80)
-		var $row = (0).to_u64()
+		var $row = 0.U64
 		while $row < 80 {
 			label = "S${number} row ${($row + 1).to_str()}"
 			$row = $row + 1
@@ -126,7 +126,7 @@ zero_padding_evidence = |context| {
 	}
 	registered = Font.Registry.empty.register({ bytes: KernelBuiltInFont.bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
 	var $rows = List.with_capacity(80)
-	var $row = (0).to_u64()
+	var $row = 0.U64
 	while $row < 80 {
 		$rows = $rows.append(Pdf.row([Pdf.header_cell(Row, [Pdf.text("Row ${($row + 1).to_str()}")]), Pdf.cell([Pdf.text("The table frame stays inside the filled panel on every continued page.")])]))
 		$row = $row + 1
@@ -221,7 +221,7 @@ callout_evidence = |count| {
 	var $index = 0
 	while $index < count {
 		var $rows = []
-		var $row = (0).to_u64()
+		var $row = 0.U64
 		while $row < 25 {
 			$rows = $rows.append(Pdf.row([Pdf.header_cell(Row, [Pdf.text("Task ${($row + 1).to_str()}")]), Pdf.cell([Pdf.text("This cell remains inside both panels and its numbered instruction.")])]))
 			$row = $row + 1
@@ -322,7 +322,7 @@ list_evidence = |count| {
 	var $index = 0
 	while $index < count {
 		var $rows = List.with_capacity(8)
-		var $row = (0).to_u64()
+		var $row = 0.U64
 		while $row < 8 {
 			$rows = $rows.append(Pdf.row([Pdf.header_cell(Row, [Pdf.text("Part ${($row + 1).to_str()}")]), Pdf.cell([Pdf.text("Measured inside this numbered instruction.")])]))
 			$row = $row + 1
