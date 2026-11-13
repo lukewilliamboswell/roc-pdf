@@ -245,7 +245,9 @@ BuildFailure := [
 	StructureFailure(KernelFormStructure.Error),
 	TextFailure(KernelPdfText.Error),
 	UncoveredScalar(U32),
-]
+].{
+	is_eq : _
+}
 
 Built := {
 	bytes : List(U8),
