@@ -185,11 +185,6 @@ KernelFacadeText :: [].{
 	}
 }
 
-## The request remains attached to the logical run range selected before line
-## breaking. The current materializer rejects a range wider than one physical
-## run explicitly; it no longer relies on a bare run ID to hide that boundary.
-PaintRequest := { artifact : Bool, line : U64, origin : Layout.Point, page : Semantics.PageId, source_runs : KernelFacadeShape.LogicalRun }
-
 build_plan : KernelFacadeShape.Plan, KernelFacadeLines.Plan, KernelFacadePages.Plan, KernelFacadeText.Limits -> Try(KernelFacadeText.Plan, KernelFacadeText.Error)
 build_plan = |shape_plan, line_plan, page_plan, limits| {
 	pagination = KernelFacadePages.Plan.page(page_plan)
@@ -527,7 +522,7 @@ PaintAccumulator : {
 ## cluster is rebased to its occurrence (a rich paragraph's occurrences begin
 ## inside their shared source), the text store's occurrence-relative
 ## contract.
-paint_split_logical : PaintAccumulator, Text.Store, List(KernelFacadeShape.RunStyle), List(KernelLineLayout.Line), KernelFacadeShape.Origins, PaintRequest, KernelFacadeText.Limits -> Try(PaintAccumulator, KernelFacadeText.Error)
+paint_split_logical : PaintAccumulator, Text.Store, List(KernelFacadeShape.RunStyle), List(KernelLineLayout.Line), KernelFacadeShape.Origins, KernelFacadeText.PositionedPiece, KernelFacadeText.Limits -> Try(PaintAccumulator, KernelFacadeText.Error)
 paint_split_logical = |accumulator, shape, styles, lines, origins, request, limits| {
 	var $clusters = accumulator.clusters
 	var $glyph_indices = accumulator.glyph_indices
