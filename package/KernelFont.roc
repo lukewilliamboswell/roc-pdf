@@ -100,6 +100,14 @@ KernelFont :: [].{
 	glyph_for_scalar : Inspection, U32 -> [None, Some(U32)]
 	glyph_for_scalar = |font, scalar| glyph_for_cmap(font.bytes, font.cmap, font.metrics.glyph_count, scalar)
 
+	MappingWork : { ranges : U64, scalars : U64, mappings : U64 }
+
+	## Visit the validated Unicode coverage in scalar order, including aliases.
+	## The inspection has already validated each range and glyph reference.
+	## Consumers traversing the whole map must not repeat random-access searches.
+	fold_mappings : Inspection, state, (state, U32, U32 -> state) -> { value : state, work : MappingWork }
+	fold_mappings = |font, initial, visit| fold_cmap_mappings(font.bytes, font.cmap, initial, visit)
+
 	advance_width : Inspection, U32 -> Try(U16, Error)
 	advance_width = |font, glyph| {
 		metric = horizontal_metric_for(font, glyph)?
@@ -1053,6 +1061,52 @@ valid_cmap4_search = |bytes, offset, count| {
 			read_u16(bytes, offset + 12).to_u64() == count * 2 - $power * 2
 }
 
+fold_cmap_mappings : List(U8), KernelFont.Cmap, state, (state, U32, U32 -> state) -> { value : state, work : KernelFont.MappingWork }
+fold_cmap_mappings = |bytes, cmap, initial, visit| {
+	var $value = initial
+	var $ranges = 0.U64
+	var $scalars = 0.U64
+	var $mappings = 0.U64
+	match cmap {
+		Format12({ groups }) => {
+			for group in groups {
+				$ranges = $ranges + 1
+				var $scalar = group.start
+				while $scalar <= group.end {
+					$scalars = $scalars + 1
+					glyph = group.start_glyph + ($scalar - group.start)
+					if glyph != 0 {
+						$value = visit($value, $scalar, glyph)
+						$mappings = $mappings + 1
+					}
+					$scalar = $scalar + 1
+				}
+			}
+		}
+		Format4({ length, offset, segments }) => {
+			for segment in segments {
+				$ranges = $ranges + 1
+				var $scalar = segment.start
+				while $scalar <= segment.end {
+					$scalars = $scalars + 1
+					if !is_surrogate($scalar) {
+						match glyph_for_segment(bytes, segment, offset + length, $scalar) {
+							Mapped(glyph) => {
+								$value = visit($value, $scalar, glyph)
+								$mappings = $mappings + 1
+							}
+							NoGlyph => {}
+							InvalidGlyph => crash "validated cmap range escaped"
+						}
+					}
+					$scalar = $scalar + 1
+				}
+			}
+		}
+	}
+	{ value: $value, work: { ranges: $ranges, scalars: $scalars, mappings: $mappings } }
+}
+
 glyph_for_cmap : List(U8), KernelFont.Cmap, U64, U32 -> [None, Some(U32)]
 glyph_for_cmap = |bytes, cmap, glyph_count, scalar| match cmap {
 	Format12({ groups }) => {
@@ -1384,3 +1438,74 @@ expect {
 		_ => False
 	}
 }
+
+# Format 12 keeps aliases and supplementary-plane boundaries, but not glyph zero.
+expect {
+	cmap : KernelFont.Cmap
+	cmap = Format12({
+		groups: [
+			{ start: 0, end: 2, start_glyph: 0 },
+			{ start: 10, end: 11, start_glyph: 1 },
+			{ start: 0x10ffff, end: 0x10ffff, start_glyph: 3 },
+		],
+	})
+	folded = fold_cmap_mappings([], cmap, [], |items, scalar, glyph| items.append((scalar, glyph)))
+	folded.value == [(1, 1), (2, 2), (10, 1), (11, 2), (0x10ffff, 3)]
+		and folded.work == { ranges: 3, scalars: 6, mappings: 5 }
+}
+
+# Format 4 preserves direct deltas, glyph-array deltas and holes. Surrogates
+# and the conventional terminal glyph-zero segment are not coverage.
+expect {
+	cmap : KernelFont.Cmap
+	cmap = Format4({
+		offset: 0,
+		length: 8,
+		segments: [
+			{ start: 0x41, end: 0x42, delta: -64, range_offset: 0, range_offset_location: 0 },
+			{ start: 0x61, end: 0x63, delta: 1, range_offset: 2, range_offset_location: 0 },
+			{ start: 0xd800, end: 0xd800, delta: 0, range_offset: 0, range_offset_location: 0 },
+			{ start: 0xffff, end: 0xffff, delta: 1, range_offset: 0, range_offset_location: 0 },
+		],
+	})
+	bytes : List(U8)
+	bytes = [0, 0, 0, 1, 0, 0, 0, 2]
+	folded = fold_cmap_mappings(bytes, cmap, [], |items, scalar, glyph| items.append((scalar, glyph)))
+	folded.value == [(0x41, 1), (0x42, 2), (0x61, 2), (0x63, 3)]
+		and folded.work == { ranges: 4, scalars: 7, mappings: 4 }
+}
+
+# Lookup and ordered traversal agree for every point of a format-4 glyph
+# array, including a nonzero array entry whose signed delta wraps to zero.
+expect {
+	cmap : KernelFont.Cmap
+	cmap = Format4({
+		offset: 0,
+		length: 10,
+		segments: [
+			{ start: 10, end: 13, delta: -2, range_offset: 2, range_offset_location: 0 },
+		],
+	})
+	bytes : List(U8)
+	bytes = [0, 0, 0, 2, 0, 0, 0, 4, 0xff, 0xff]
+	folded = fold_cmap_mappings(bytes, cmap, [], |items, scalar, glyph| items.append((scalar, glyph)))
+	folded.value == [(10, 0), (12, 2), (13, 65533)]
+		and folded.value.all(|(scalar, glyph)| glyph_for_cmap(bytes, cmap, 65536, scalar) == Some(glyph))
+}
+
+mapping_scale_work : U64 -> KernelFont.MappingWork
+mapping_scale_work = |count| {
+	var $groups = List.with_capacity(count)
+	var $index = 0
+	while $index < count {
+		start = ($index * 4).to_u32_wrap()
+		$groups = $groups.append({ start, end: start + 1, start_glyph: 1 })
+		$index = $index + 1
+	}
+	fold_cmap_mappings([], Format12({ groups: $groups }), 0.U64, |total, _, _| total + 1).work
+}
+
+# Doubling disjoint ranges doubles traversal work; no lookup restarts at zero.
+expect mapping_scale_work(64) == { ranges: 64, scalars: 128, mappings: 128 }
+expect mapping_scale_work(128) == { ranges: 128, scalars: 256, mappings: 256 }
+expect fold_cmap_mappings([], Format12({ groups: [] }), 7.U64, |total, _, _| total + 1) == { value: 7, work: { ranges: 0, scalars: 0, mappings: 0 } }
