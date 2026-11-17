@@ -1132,21 +1132,22 @@ checksum_range : List(U8), U64, U64, Bool -> U32
 checksum_range = |bytes, offset, length, zero_adjustment| {
 	var $sum = 0
 	var $index = 0
-	while $index < padded_length(length) {
+	while length - $index >= 4 {
+		word = if (zero_adjustment and $index == 8) 0 else read_u32(bytes, offset + $index)
+		$sum = U32.plus_wrap($sum, word)
+		$index = $index + 4
+	}
+	# sfnt checksums pad only the final partial word. Bytes after the table
+	# are not part of that padding, even when the font allocation holds them.
+	if $index < length and !(zero_adjustment and $index == 8) {
 		var $word = 0
 		var $byte_index = 0
-		while $byte_index < 4 {
-			position = $index + $byte_index
-			byte = if position >= length or (zero_adjustment and position >= 8 and position < 12) {
-				0
-			} else {
-				list_at(bytes, offset + position)
-			}
+		while $byte_index < length - $index {
+			byte = list_at(bytes, offset + $index + $byte_index)
 			$word = $word.bitwise_or(byte.to_u32().shl_wrap((3 - $byte_index).to_u8_wrap() * 8))
 			$byte_index = $byte_index + 1
 		}
 		$sum = U32.plus_wrap($sum, $word)
-		$index = $index + 4
 	}
 	$sum
 }
@@ -1159,10 +1160,11 @@ read_u16 = |bytes, index| list_at(bytes, index).to_u16().shl_wrap(8).bitwise_or(
 
 read_u32 : List(U8), U64 -> U32
 read_u32 = |bytes, index| {
-	list_at(bytes, index).to_u32().shl_wrap(24)
-		.bitwise_or(list_at(bytes, index + 1).to_u32().shl_wrap(16))
-		.bitwise_or(list_at(bytes, index + 2).to_u32().shl_wrap(8))
-		.bitwise_or(list_at(bytes, index + 3).to_u32())
+	word = U32.from_le_bytes(bytes, index) ?? crash "validated font index escaped"
+	word.shl_wrap(24)
+		.bitwise_or(word.bitwise_and(0xff00).shl_wrap(8))
+		.bitwise_or(word.shr_wrap(8).bitwise_and(0xff00))
+		.bitwise_or(word.shr_wrap(24))
 }
 
 signed_i16 : U16 -> I64
@@ -1384,3 +1386,41 @@ expect {
 		_ => False
 	}
 }
+
+# A byte-at-a-time oracle pins sfnt padding and the table-relative adjustment.
+checksum_reference : List(U8), U64, U64, Bool -> U32
+checksum_reference = |bytes, offset, length, zero_adjustment| {
+	var $sum = 0.U32
+	var $index = 0.U64
+	while $index < length {
+		if !(zero_adjustment and $index >= 8 and $index < 12) {
+			byte = list_at(bytes, offset + $index)
+			$sum = $sum.plus_wrap(byte.to_u32().shl_wrap((3 - $index % 4).to_u8_wrap() * 8))
+		}
+		$index = $index + 1
+	}
+	$sum
+}
+
+expect {
+	bytes : List(U8)
+	bytes = [0xff, 0x80, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 1, 2, 3]
+	var $offset = 0
+	var $valid = True
+	while $offset <= bytes.len() {
+		var $length = 0
+		while $length <= bytes.len() - $offset {
+			$valid = $valid
+				and checksum_range(bytes, $offset, $length, False) == checksum_reference(bytes, $offset, $length, False)
+				and checksum_range(bytes, $offset, $length, True) == checksum_reference(bytes, $offset, $length, True)
+			$length = $length + 1
+		}
+		$offset = $offset + 1
+	}
+	$valid
+}
+
+expect checksum_range([1, 2, 3, 0xff], 0, 3, False) == 0x01020300
+expect checksum_range([0xff, 0xff, 0xff, 0xff, 0, 0, 0, 1], 0, 8, False) == 0
+expect checksum_range([0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff], 0, 11, True) == 0
+expect read_u32([0xff, 0x12, 0x34, 0x56, 0x78, 0xff], 1) == 0x12345678
