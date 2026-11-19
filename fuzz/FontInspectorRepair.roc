@@ -1,8 +1,3 @@
-app [target] {
-	fuzz: platform "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.5.0/9WT86CuwM7ZJBSs8iTd1jLyrUFTTiGp5hcJE63TwswGE.tar.zst",
-	pdf: "../package/all.roc",
-}
-
 import fuzz.Fuzz
 import FontTargets
 
@@ -27,13 +22,15 @@ test = |Input.(input)| {
 	if (FontTargets.inspect_repaired(input)) Fuzz.keep else crash "repaired font inspection violated retained facts"
 }
 
-target = Fuzz.target({
-	name: "roc-pdf-font-inspector-repair",
-	examples: [
-		Fuzz.example({ name: "checksum-preserving-regular", revision: "1", make: || Input.{ edits: [], font: 0 } }),
-		Fuzz.example({ name: "mutated-name-table", revision: "1", make: || Input.{ edits: [{ byte: 0, table: 5, value: 255 }], font: 1 } }),
-	],
+FontInspectorRepair :: [].{
+	target = Fuzz.target({
+		name: "roc-pdf-font-inspector-repair",
+		examples: [
+			Fuzz.example({ name: "checksum-preserving-regular", revision: "1", make: || Input.{ edits: [], font: 0 } }),
+			Fuzz.example({ name: "mutated-name-table", revision: "1", make: || Input.{ edits: [{ byte: 0, table: 5, value: 255 }], font: 1 } }),
+		],
 
-	test,
-	show: |input| Str.inspect(input),
-})
+		test,
+		show: |input| Str.inspect(input),
+	})
+}

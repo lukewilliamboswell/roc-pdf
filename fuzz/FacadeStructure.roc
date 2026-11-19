@@ -1,9 +1,3 @@
-app [target] {
-	deflate: "https://github.com/lukewilliamboswell/roc-deflate/releases/download/0.4.0-rc4/FoGWbhCP9K1Qk7HA9wcSxHYTpiwTHmCpfNUZx7rAGSSk.tar.zst",
-	fuzz: platform "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.5.0/9WT86CuwM7ZJBSs8iTd1jLyrUFTTiGp5hcJE63TwswGE.tar.zst",
-	pdf: "../package/all.roc",
-}
-
 import fuzz.Fuzz
 import InputBounds
 import pdf.Document
@@ -69,30 +63,32 @@ test = |Input.(input)| {
 	}
 }
 
-target = Fuzz.target({
-	name: "roc-pdf-facade-structure",
-	examples: [
-		Fuzz.example({ name: "heading-and-body", revision: "1", make: || Input.{ blocks: [{ items: [], kind: 1, level: 0, text: "Introduction" }, { items: [], kind: 2, level: 0, text: "Searchable body text." }], language: 0, title: "Structural report" } }),
-	],
+FacadeStructure :: [].{
+	target = Fuzz.target({
+		name: "roc-pdf-facade-structure",
+		examples: [
+			Fuzz.example({ name: "heading-and-body", revision: "1", make: || Input.{ blocks: [{ items: [], kind: 1, level: 0, text: "Introduction" }, { items: [], kind: 2, level: 0, text: "Searchable body text." }], language: 0, title: "Structural report" } }),
+		],
 
-	test,
-	show: |input| Str.inspect(input),
-})
+		test,
+		show: |input| Str.inspect(input),
+	})
 
-block_for : { items : List(Str), kind : U8, level : U8, text : Str } -> Document.Block
-block_for = |block| match block.kind % 4 {
-	0 => Pdf.title(block.text)
-	1 => Pdf.heading(block.level % 6 + 1, block.text)
-	2 => Pdf.paragraph(block.text)
-	_ => Pdf.bullets(block.items)
-}
+	block_for : { items : List(Str), kind : U8, level : U8, text : Str } -> Document.Block
+	block_for = |block| match block.kind % 4 {
+		0 => Pdf.title(block.text)
+		1 => Pdf.heading(block.level % 6 + 1, block.text)
+		2 => Pdf.paragraph(block.text)
+		_ => Pdf.bullets(block.items)
+	}
 
-## A closed set of valid tags keeps most generated documents past metadata
-## validation, which is what gets the generator to the emitter at all.
-language_for : U8 -> Str
-language_for = |choice| match choice % 4 {
-	0 => "en-AU"
-	1 => "en-GB"
-	2 => "de-DE"
-	_ => "ja-JP"
+	## A closed set of valid tags keeps most generated documents past metadata
+	## validation, which is what gets the generator to the emitter at all.
+	language_for : U8 -> Str
+	language_for = |choice| match choice % 4 {
+		0 => "en-AU"
+		1 => "en-GB"
+		2 => "de-DE"
+		_ => "ja-JP"
+	}
 }

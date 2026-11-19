@@ -1,8 +1,3 @@
-app [target] {
-	fuzz: platform "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.5.0/9WT86CuwM7ZJBSs8iTd1jLyrUFTTiGp5hcJE63TwswGE.tar.zst",
-	pdf: "../package/all.roc",
-}
-
 import fuzz.Fuzz
 import FontTargets
 
@@ -31,14 +26,16 @@ test = |Input.(input)| {
 	if (FontTargets.subset_roundtrip(input)) Fuzz.keep else crash "font subset round trip violated its plan"
 }
 
-target = Fuzz.target({
-	name: "roc-pdf-font-subset-roundtrip",
-	examples: [
-		Fuzz.example({ name: "regular-glyph-closure", revision: "1", make: || Input.{ font: 0, glyphs: [32, 65, 127, 512, 1375], retained_limit: 1536 } }),
-		Fuzz.example({ name: "cjk-glyph-closure", revision: "1", make: || Input.{ font: 2, glyphs: [1], retained_limit: 1536 } }),
-		Fuzz.example({ name: "bounded-plan-rejection", revision: "1", make: || Input.{ font: 0, glyphs: [65, 66], retained_limit: 0 } }),
-	],
+FontSubsetRoundtrip :: [].{
+	target = Fuzz.target({
+		name: "roc-pdf-font-subset-roundtrip",
+		examples: [
+			Fuzz.example({ name: "regular-glyph-closure", revision: "1", make: || Input.{ font: 0, glyphs: [32, 65, 127, 512, 1375], retained_limit: 1536 } }),
+			Fuzz.example({ name: "cjk-glyph-closure", revision: "1", make: || Input.{ font: 2, glyphs: [1], retained_limit: 1536 } }),
+			Fuzz.example({ name: "bounded-plan-rejection", revision: "1", make: || Input.{ font: 0, glyphs: [65, 66], retained_limit: 0 } }),
+		],
 
-	test,
-	show: |input| Str.inspect(input),
-})
+		test,
+		show: |input| Str.inspect(input),
+	})
+}

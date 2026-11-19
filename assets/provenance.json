@@ -1891,7 +1891,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "fuzz/font_inspector_mutation.roc"
+        "generator": "fuzz/FontInspectorMutation.roc"
       }
     },
     {

@@ -136,7 +136,8 @@ jobs:
   # fixed-seed inputs within one second of workload. The test job only
   # formats, checks, and runs the `expect`s in these sources. This job is
   # compile-bound (LLVM fuzz builds), so it runs beside the test job and
-  # builds targets in parallel as memory allows. The bounded search is
+  # builds two shared suites in parallel as memory allows, then supervises
+  # each property with its own corpus, limits and baseline. The bounded search is
   # fuzz.yml, which never runs on a pull request.
   fuzz-smoke:
     needs: version

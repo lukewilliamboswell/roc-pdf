@@ -181,10 +181,11 @@ The smoke mode is the default and is what every pull request runs:
 ./scripts/fuzz.py            # or: blueprint run fuzz
 ```
 
-It builds every target with `roc build --fuzz --no-cache` for libFuzzer coverage
-instrumentation, then replays the target's seed corpus and 64 further inputs
+It builds two shared suites with `roc build --fuzz --no-cache` for libFuzzer
+coverage instrumentation, then invokes each property independently through
+`--target`. It replays the target's seed corpus and up to 64 further inputs
 from a fixed seed, with `--time=1` capping the workload at one second per
-target. Targets build in parallel (`--jobs`, by default as many 6 GB builds as
+target. Suites build in parallel (`--jobs`, by default as many 6 GB builds as
 memory allows) and run one at a time. Its purpose is that every target keeps building and its property keeps
 executing between campaigns; it makes no claim about search coverage.
 

@@ -9,8 +9,9 @@ error handling, and invariant preservation; they do not make a security claim.
 to every `fuzz/*.roc` source, which runs the `expect`s a target retains but
 never executes the property against generated input. This lane does that.
 
-Each target is built with `--fuzz` for libFuzzer coverage instrumentation and
-run against its seed corpus. A crash, a per-input timeout, a memory-limit
+Properties share two suites built with `--fuzz` for libFuzzer coverage
+instrumentation. Each property runs separately against its seed corpus.
+A crash, a per-input timeout, a memory-limit
 breach, or a run that outlives its hard deadline fails the lane; every target
 still runs, and failing inputs are saved under `.roc-pdf-tmp/fuzz-artifacts/`.
 
@@ -49,9 +50,9 @@ WORK = ROOT / ".roc-pdf-tmp" / "fuzz"
 SEEDS = ROOT / ".roc-pdf-tmp" / "fuzz-corpus"
 ARTIFACTS = ROOT / ".roc-pdf-tmp" / "fuzz-artifacts"
 BASELINES = ROOT / "fuzz" / "baselines"
-PLATFORM_RELEASE = "0.5.0"
-PLATFORM_SHA256 = "aed4032105af1cc910604949f43636b7bff6aec4a82184631213153b8e2dd23f"
-PLATFORM_URL = "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.5.0/9WT86CuwM7ZJBSs8iTd1jLyrUFTTiGp5hcJE63TwswGE.tar.zst"
+PLATFORM_RELEASE = "0.7.0"
+PLATFORM_SHA256 = "94130c93aa2abb204beb21f06338ecc39c5808e1358d905f219769ecf260e5f2"
+PLATFORM_URL = "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.7.0/HBigHQhVZWEF2EkLxpYK35u8P6UNsAmPYxpNFTxXK1Br.tar.zst"
 PROFILE = "llvm-fuzz"
 # Cache-enabled builds can reuse procedures with different allocation behavior.
 # Keep the measured build policy in the executable identity as well as the command.
@@ -79,12 +80,17 @@ FONT_SEED_SOURCES = (
 
 @dataclass(frozen=True)
 class Target:
-    """One fuzz application root and the bounds its smoke run uses."""
+    """One independently supervised property in a shared executable."""
 
     name: str
     max_input_size: int
+    suite: str
     corpus: str | None = None
     seed_fonts: bool = False
+
+    @property
+    def declared_name(self) -> str:
+        return "roc-pdf-" + self.name.replace("_", "-")
 
 
 # `max_input_size` is per target because the generators differ: the raw-byte
@@ -92,20 +98,26 @@ class Target:
 # image, while the structured generators encode a typed value from far fewer
 # bytes and only waste time on a larger bound.
 TARGETS = (
-    Target("font_inspector_mutation", 524288, seed_fonts=True),
-    Target("font_inspector_repair", 512),
-    Target("font_subset_roundtrip", 2048),
-    Target("jpeg_inspector_mutation", 65536, corpus="tests/assets/jpeg-fuzz-corpus"),
-    Target("facade_output_equivalence", 4096),
-    Target("facade_structure", 4096),
-    Target("navigation_property", 4096),
-    Target("registry_property", 4096),
-    Target("theme_options", 4096),
+    Target("font_inspector_mutation", 524288, "font_suite", seed_fonts=True),
+    Target("font_inspector_repair", 512, "font_suite"),
+    Target("font_subset_roundtrip", 2048, "font_suite"),
+    Target("jpeg_inspector_mutation", 65536, "document_suite", corpus="tests/assets/jpeg-fuzz-corpus"),
+    Target("facade_output_equivalence", 4096, "document_suite"),
+    Target("facade_structure", 4096, "document_suite"),
+    Target("navigation_property", 4096, "document_suite"),
+    Target("registry_property", 4096, "document_suite"),
+    Target("theme_options", 4096, "document_suite"),
 )
 
 
 class LaneFailure(Exception):
     pass
+
+
+def validate_suite_inventory(suite: str, names: list[str]) -> None:
+    expected = sorted(target.declared_name for target in TARGETS if target.suite == suite)
+    if sorted(names) != expected:
+        raise LaneFailure(f"{suite}: executable inventory differs: expected {expected}, got {names}")
 
 
 def validate_platform_header(source: str) -> None:
@@ -208,7 +220,7 @@ def host_target(container: str | None) -> str:
 def source_digest(target: Target) -> str:
     """Include the package and the target's actual local source/asset closure."""
     paths = set((ROOT / "package").rglob("*.roc"))
-    pending = [ROOT / "fuzz" / f"{target.name}.roc", *paths]
+    pending = [ROOT / "fuzz" / f"{target.suite}.roc", *paths]
     paths = {ROOT / ".roc-version"}
     while pending:
         path = pending.pop().resolve()
@@ -232,12 +244,12 @@ def source_digest(target: Target) -> str:
 
 
 def build_target(target: Target, host: str, compiler: str, no_build: bool, *, log_dir: Path) -> Path:
-    source = ROOT / "fuzz" / f"{target.name}.roc"
+    source = ROOT / "fuzz" / f"{target.suite}.roc"
     validate_platform_header(source.read_text())
     directory = WORK / host
     directory.mkdir(parents=True, exist_ok=True)
-    binary = directory / target.name
-    stamp = directory / f"{target.name}.build.json"
+    binary = directory / target.suite
+    stamp = directory / f"{target.suite}.build.json"
     identity = {"source_sha256": source_digest(target), "compiler": compiler, "target": host,
                 "platform_sha256": PLATFORM_SHA256, "profile": PROFILE,
                 "build_flags": list(BUILD_FLAGS)}
@@ -246,13 +258,13 @@ def build_target(target: Target, host: str, compiler: str, no_build: bool, *, lo
             raise LaneFailure(f"{target.name}: --no-build needs a prior recorded build")
         validate_build_identity(json.loads(stamp.read_text()), identity, hashlib.sha256(binary.read_bytes()).hexdigest())
     else:
-        print(f"BUILD {target.name} ({host})", flush=True)
+        print(f"BUILD {target.suite} ({host})", flush=True)
         command = [shutil.which(ROC) or ROC, "build", *BUILD_FLAGS, str(source.relative_to(ROOT)),
                    f"--target={host}", f"--output={binary}"]
-        receipt_path = log_dir / f"{target.name}.build.json"
+        receipt_path = log_dir / f"{target.suite}.build.json"
         receipt = {"argv": command, "working_directory": str(ROOT), "outcome": "started"}
         receipt_path.write_text(json.dumps(receipt, indent=2) + "\n")
-        run(command, log_path=log_dir / f"{target.name}.build.log")
+        run(command, log_path=log_dir / f"{target.suite}.build.log")
         if source_digest(target) != identity["source_sha256"]:
             raise LaneFailure(f"{target.name}: source changed during compilation; rebuild before checking or accepting")
         recorded = {**identity, "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest()}
@@ -273,7 +285,7 @@ def invocation(binary: Path, arguments: list[str], container: str | None) -> lis
 def validate_report(report: dict, target: Target, host: str, command: str, *, provenance: dict, configuration: dict, baseline: str) -> None:
     """Project policy supplements the supervisor: an unbaselined check cannot pass."""
     expected = {"format": "roc-fuzz-quality/1", "metric_version": "roc-fuzz-allocations/1",
-                "target": "roc-pdf-" + target.name.replace("_", "-"), "host_target": host,
+                "target": target.declared_name, "host_target": host,
                 "profile": PROFILE, "command": command, "outcome": "passed",
                 "baseline_status": "accepted" if command == "accept" else "matched"}
     for key, value in expected.items():
@@ -305,7 +317,7 @@ def fuzz_target(target: Target, binary: Path, budget: Budget, timeout: int, memo
                 *, host: str, container: str | None, command: str, report_root: Path,
                 compiler: str, revision: str) -> float:
     report_dir = report_root / target.name
-    arguments = [command, f"--report-dir={report_dir}", f"--baseline={BASELINES / (target.name + '.json')}",
+    arguments = [command, f"--target={target.declared_name}", f"--report-dir={report_dir}", f"--baseline={BASELINES / (target.name + '.json')}",
                  f"--profile={PROFILE}", f"--timeout={timeout}", f"--source-revision={revision}",
                  f"--roc-version={compiler}", f"--platform-release={PLATFORM_RELEASE}",
                  f"--platform-sha256={PLATFORM_SHA256}"]
@@ -347,6 +359,16 @@ def fuzz_target(target: Target, binary: Path, budget: Budget, timeout: int, memo
 
 
 def self_test() -> None:
+    for suite in {target.suite for target in TARGETS}:
+        names = [target.declared_name for target in TARGETS if target.suite == suite]
+        validate_suite_inventory(suite, names)
+        for broken in (names[:-1], names + names[:1], names + ["unknown-property"]):
+            try:
+                validate_suite_inventory(suite, broken)
+            except LaneFailure:
+                pass
+            else:
+                raise SystemExit("suite inventory accepted a missing, duplicate or unknown property")
     target = TARGETS[0]
     passed = {"format": "roc-fuzz-quality/1", "metric_version": "roc-fuzz-allocations/1",
               "target": "roc-pdf-font-inspector-mutation", "host_target": "arm64mac", "profile": PROFILE,
@@ -520,7 +542,8 @@ def main() -> None:
     jobs = default_build_jobs() if args.jobs is None else args.jobs
     if jobs < 1:
         raise SystemExit("--jobs must be positive")
-    print(f"Building {len(selected)} targets with {jobs} parallel builds", flush=True)
+    suites = {target.suite: target for target in selected}
+    print(f"Building {len(suites)} suites for {len(selected)} targets with {jobs} parallel builds", flush=True)
     (report_root / "invocation.json").write_text(json.dumps({
         "format": "roc-pdf-fuzz-lane/1", "source_revision": revision, "compiler": compiler,
         "platform_release": PLATFORM_RELEASE, "platform_sha256": PLATFORM_SHA256, "profile": PROFILE,
@@ -532,24 +555,29 @@ def main() -> None:
     failures: list[str] = []
     binaries: dict[str, Path] = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
-        futures = {executor.submit(build_target, target, host, compiler, args.no_build, log_dir=report_root): target for target in selected}
+        futures = {executor.submit(build_target, target, host, compiler, args.no_build, log_dir=report_root): target for target in suites.values()}
         for future in concurrent.futures.as_completed(futures):
             target = futures[future]
             try:
-                binaries[target.name] = future.result()
+                binaries[target.suite] = future.result()
             except LaneFailure as error:
-                print(f"FAIL {target.name}: build {error}", flush=True)
-                failures.append(target.name)
+                print(f"FAIL {target.suite}: build {error}", flush=True)
+                failures.extend(member.name for member in selected if member.suite == target.suite)
     # Runs are sequential so that each target's workload and memory limit are
     # its own.
     for target in selected:
-        if target.name not in binaries:
+        if target.suite not in binaries:
             continue
         try:
-            elapsed = fuzz_target(target, binaries[target.name], budget, args.timeout, args.memory_limit,
+            inventory = subprocess.check_output(
+                invocation(binaries[target.suite], ["--list-targets"], args.linux_x64_container),
+                text=True, timeout=10,
+            ).splitlines()
+            validate_suite_inventory(target.suite, inventory)
+            elapsed = fuzz_target(target, binaries[target.suite], budget, args.timeout, args.memory_limit,
                                   host=host, container=args.linux_x64_container, command=command,
                                   report_root=report_root, compiler=compiler, revision=revision)
-        except LaneFailure as error:
+        except (LaneFailure, subprocess.SubprocessError, OSError) as error:
             print(f"FAIL {target.name}: {error}", flush=True)
             failures.append(target.name)
         else:

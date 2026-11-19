@@ -142,7 +142,7 @@ def main() -> None:
     host = fuzz_lane.host_target(args.linux_x64_container)
     binary = WORK / f"allocation_profile-{host}-{args.opt}-roc-fuzz-{fuzz_lane.PLATFORM_RELEASE}"
     stamp = binary.with_name(binary.name + ".build.json")
-    profile_target = fuzz_lane.Target("allocation_profile", 1)
+    profile_target = fuzz_lane.Target("allocation_profile", 1, "allocation_profile")
     compiler = subprocess.check_output([ROC, "version"], text=True).strip()
     build_identity = {"source_sha256": fuzz_lane.source_digest(profile_target), "compiler": compiler,
                       "target": host, "platform_sha256": fuzz_lane.PLATFORM_SHA256, "profile": args.opt}

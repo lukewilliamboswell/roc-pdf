@@ -1,8 +1,3 @@
-app [target] {
-	fuzz: platform "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.5.0/9WT86CuwM7ZJBSs8iTd1jLyrUFTTiGp5hcJE63TwswGE.tar.zst",
-	pdf: "../package/all.roc",
-}
-
 import fuzz.Fuzz
 import InputBounds
 import NavigationTargets
@@ -95,13 +90,15 @@ test = |Input.(input)| {
 	Fuzz.keep
 }
 
-target = Fuzz.target({
-	name: "roc-pdf-navigation-property",
-	examples: [
-		Fuzz.example({ name: "named-destination-and-link", revision: "1", make: || Input.{ arm: 0, bulk: 0, labels: [], outline: [], sections: [{ kind: 0, name: 0, uri: 0, words: "Destination text." }], text: "Navigation" } }),
-		Fuzz.example({ name: "single-unknown-destination", revision: "1", make: || Input.{ arm: 6, bulk: 0, labels: [], outline: [], sections: [], text: "Unknown destination" } }),
-	],
+NavigationProperty :: [].{
+	target = Fuzz.target({
+		name: "roc-pdf-navigation-property",
+		examples: [
+			Fuzz.example({ name: "named-destination-and-link", revision: "1", make: || Input.{ arm: 0, bulk: 0, labels: [], outline: [], sections: [{ kind: 0, name: 0, uri: 0, words: "Destination text." }], text: "Navigation" } }),
+			Fuzz.example({ name: "single-unknown-destination", revision: "1", make: || Input.{ arm: 6, bulk: 0, labels: [], outline: [], sections: [], text: "Unknown destination" } }),
+		],
 
-	test,
-	show: |input| Str.inspect(input),
-})
+		test,
+		show: |input| Str.inspect(input),
+	})
+}
