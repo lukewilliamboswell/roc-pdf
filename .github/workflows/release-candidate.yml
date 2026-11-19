@@ -70,6 +70,7 @@ jobs:
       release_version: ${{ needs.validate.outputs.version }}
       full_validation: true
       nightly_validation: ${{ inputs.nightly_validation }}
+      release_payload: ${{ inputs.release_tag != '' }}
 
   publish:
     name: Publish tested release artifacts

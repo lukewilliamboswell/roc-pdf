@@ -24,7 +24,8 @@ not expand any conformance or Gate 7 claim.
    `main` with that authored version and `nightly_validation: true` for an
    end-to-end dry run. This repeats the full Linux/macOS checks, independent
    profile/object-model checks and documentation/archive checks on the recorded
-   event SHA. It publishes nothing. Compiler-candidate validation also accepts a branch and
+   event SHA and builds the complete publication payload for the explicit
+   version. It publishes nothing. Compiler-candidate validation also accepts a branch and
    an omitted tag, deriving the highest authored version; this compatibility
    mode does not establish publication eligibility or an API version verdict.
 4. Review the same-run `roc-pdf-release-<sha>` artifact: its manifest records
