@@ -64,6 +64,16 @@ Validated cmap subsetting now traverses ordered mappings once rather than
 restarting a glyph lookup for each covered scalar. Its fold carries one
 uniquely owned output builder and preserves coverage validation and retained
 glyph filters.
+A complete same-source ablation restores only `KernelSha256.roc` from
+`6a91b96`, replacing the public or advanced package root through
+`--replace-dep`. All 425 cases retain their PDFs and deterministic work.
+SHA changes 335 cases; the remaining implementation/compiler changes affect
+256 cases, all with lower requested bytes than the prior accepted profile.
+The sets overlap in 242 cases: their union is exactly the 349 changed native
+rows. The 93 SHA-only rows reconcile to the temporary digest cost; the other
+14 non-overlapping rows are reductions. There is no unexplained positive
+allocated-byte residual outside the SHA change.
+
 The [LLVM suite review](fuzz-suites.md) records independent suite/isolated,
 previous-SHA and previous-compiler controls.
 
