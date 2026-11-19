@@ -158,24 +158,24 @@ KernelFacadeFurniture :: [].{
 		## face exactly as body text does. A selected face the body did not
 		## use becomes an extra output font after the body's fonts.
 		resolve : Static, U64, [PolicyFaces(PolicyFonts), SingleFace(KernelFont.Inspection), StyledFace({ font : KernelFont.Inspection, instance : U64, extra : Bool })], Semantics.Language, U64, Limits -> Try(Plan, Error)
-		resolve = |static, pages, font, language, source_base, limits| {
+		resolve = |static, pages, font, language, input_source_base, limits| {
 			labels = KernelNavigation.LabelPlan.build(static.labels, pages, KernelNavigation.standard_limits) ? PageLabels
-			resolve_plan(static, labels, [], font, language, source_base, limits)
+			resolve_plan(static, labels, [], font, language, input_source_base, limits)
 		}
 
 		## Production pipelines pass the label proof shared with navigation
 		## and destination references, avoiding a second range validation.
 		resolve_with_labels : Static, KernelNavigation.LabelPlan, [PolicyFaces(PolicyFonts), SingleFace(KernelFont.Inspection), StyledFace({ font : KernelFont.Inspection, instance : U64, extra : Bool })], Semantics.Language, U64, Limits -> Try(Plan, Error)
-		resolve_with_labels = |static, labels, font, language, source_base, limits| resolve_plan(static, labels, [], font, language, source_base, limits)
+		resolve_with_labels = |static, labels, font, language, input_source_base, limits| resolve_plan(static, labels, [], font, language, input_source_base, limits)
 
 		resolve_scoped : Static, U64, List(KernelPageLayout.ScopePage), [PolicyFaces(PolicyFonts), SingleFace(KernelFont.Inspection), StyledFace({ font : KernelFont.Inspection, instance : U64, extra : Bool })], Semantics.Language, U64, Limits -> Try(Plan, Error)
-		resolve_scoped = |static, pages, scopes, font, language, source_base, limits| {
+		resolve_scoped = |static, pages, scopes, font, language, input_source_base, limits| {
 			labels = KernelNavigation.LabelPlan.build(static.labels, pages, KernelNavigation.standard_limits) ? PageLabels
-			resolve_plan(static, labels, scopes, font, language, source_base, limits)
+			resolve_plan(static, labels, scopes, font, language, input_source_base, limits)
 		}
 
 		resolve_scoped_with_labels : Static, KernelNavigation.LabelPlan, List(KernelPageLayout.ScopePage), [PolicyFaces(PolicyFonts), SingleFace(KernelFont.Inspection), StyledFace({ font : KernelFont.Inspection, instance : U64, extra : Bool })], Semantics.Language, U64, Limits -> Try(Plan, Error)
-		resolve_scoped_with_labels = |static, labels, scopes, font, language, source_base, limits| resolve_plan(static, labels, scopes, font, language, source_base, limits)
+		resolve_scoped_with_labels = |static, labels, scopes, font, language, input_source_base, limits| resolve_plan(static, labels, scopes, font, language, input_source_base, limits)
 
 		drawing_paints : Plan -> List(DrawingPaint)
 		drawing_paints = |plan| plan.drawing_paints

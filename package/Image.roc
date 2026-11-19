@@ -6,10 +6,10 @@ Image :: [].{
 		to_hash : _
 
 		from_index : U64 -> Id
-		from_index = |index| Id.(index)
+		from_index = |input_index| Id.(input_index)
 
 		index : Id -> U64
-		index = |Id.(index)| index
+		index = |Id.(input_index)| input_index
 	}
 
 	Dimensions : { height : U32, width : U32 }

@@ -93,10 +93,10 @@ KernelSemantics :: [].{
 
 	Plan :: { content_stream_count : U64, page_count : U64, store : Semantics.Store, work : Work }.{
 		build : Semantics.Store, U64, U64, Limits -> Try(Plan, Error)
-		build = |store, page_count, content_stream_count, limits| build_plan(store, page_count, content_stream_count, limits, False)
+		build = |input_store, input_page_count, input_content_stream_count, limits| build_plan(input_store, input_page_count, input_content_stream_count, limits, False)
 
 		build_text_validated : Semantics.Store, List(TextSourceFact), U64, U64, Limits -> Try(Plan, Error)
-		build_text_validated = |store, text_source_facts, page_count, content_stream_count, limits| build_text_plan(store, text_source_facts, page_count, content_stream_count, limits, False)
+		build_text_validated = |input_store, text_source_facts, input_page_count, input_content_stream_count, limits| build_text_plan(input_store, text_source_facts, input_page_count, input_content_stream_count, limits, False)
 
 		## The navigation-enabled variants additionally accept the annotation
 		## store and `AnnotationOccurrence` spine items: every annotation must
@@ -105,10 +105,10 @@ KernelSemantics :: [].{
 		## spine's annotation occurrences. A path that cannot lower annotation
 		## objects keeps the plain variants and their rejections.
 		build_navigation : Semantics.Store, U64, U64, Limits -> Try(Plan, Error)
-		build_navigation = |store, page_count, content_stream_count, limits| build_plan(store, page_count, content_stream_count, limits, True)
+		build_navigation = |input_store, input_page_count, input_content_stream_count, limits| build_plan(input_store, input_page_count, input_content_stream_count, limits, True)
 
 		build_text_navigation : Semantics.Store, List(TextSourceFact), U64, U64, Limits -> Try(Plan, Error)
-		build_text_navigation = |store, text_source_facts, page_count, content_stream_count, limits| build_text_plan(store, text_source_facts, page_count, content_stream_count, limits, True)
+		build_text_navigation = |input_store, text_source_facts, input_page_count, input_content_stream_count, limits| build_text_plan(input_store, text_source_facts, input_page_count, input_content_stream_count, limits, True)
 
 		content_stream_count : Plan -> U64
 		content_stream_count = |plan| plan.content_stream_count

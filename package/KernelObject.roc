@@ -6,10 +6,10 @@ KernelObject :: [].{
 		to_hash : _
 
 		from_index : U64 -> ValueId
-		from_index = |index| ValueId.(index)
+		from_index = |input_index| ValueId.(input_index)
 
 		index : ValueId -> U64
-		index = |ValueId.(index)| index
+		index = |ValueId.(input_index)| input_index
 
 	}
 
@@ -18,10 +18,10 @@ KernelObject :: [].{
 		to_hash : _
 
 		from_index : U64 -> NameId
-		from_index = |index| NameId.(index)
+		from_index = |input_index| NameId.(input_index)
 
 		index : NameId -> U64
-		index = |NameId.(index)| index
+		index = |NameId.(input_index)| input_index
 
 	}
 
@@ -30,10 +30,10 @@ KernelObject :: [].{
 		to_hash : _
 
 		from_index : U64 -> ByteStringId
-		from_index = |index| ByteStringId.(index)
+		from_index = |input_index| ByteStringId.(input_index)
 
 		index : ByteStringId -> U64
-		index = |ByteStringId.(index)| index
+		index = |ByteStringId.(input_index)| input_index
 
 	}
 
@@ -42,10 +42,10 @@ KernelObject :: [].{
 		to_hash : _
 
 		from_index : U64 -> TextStringId
-		from_index = |index| TextStringId.(index)
+		from_index = |input_index| TextStringId.(input_index)
 
 		index : TextStringId -> U64
-		index = |TextStringId.(index)| index
+		index = |TextStringId.(input_index)| input_index
 
 	}
 
@@ -54,10 +54,10 @@ KernelObject :: [].{
 		to_hash : _
 
 		from_index : U64 -> PayloadId
-		from_index = |index| PayloadId.(index)
+		from_index = |input_index| PayloadId.(input_index)
 
 		index : PayloadId -> U64
-		index = |PayloadId.(index)| index
+		index = |PayloadId.(input_index)| input_index
 
 	}
 
@@ -66,10 +66,10 @@ KernelObject :: [].{
 		to_hash : _
 
 		from_index : U64 -> StreamId
-		from_index = |index| StreamId.(index)
+		from_index = |input_index| StreamId.(input_index)
 
 		index : StreamId -> U64
-		index = |StreamId.(index)| index
+		index = |StreamId.(input_index)| input_index
 
 	}
 
@@ -78,11 +78,11 @@ KernelObject :: [].{
 		to_hash : _
 
 		from_number : U64 -> Try(ObjectId, Error)
-		from_number = |number|
-			if (number == 0) Err(ObjectNumberZero) else Ok(ObjectId.(number))
+		from_number = |input_number|
+			if (input_number == 0) Err(ObjectNumberZero) else Ok(ObjectId.(input_number))
 
 		number : ObjectId -> U64
-		number = |ObjectId.(number)| number
+		number = |ObjectId.(input_number)| input_number
 
 	}
 

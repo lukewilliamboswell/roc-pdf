@@ -196,16 +196,16 @@ KernelFacadePages :: [].{
 		source_fragments = |plan| plan.source_fragments
 
 		build : Document.NormalizedAuthoring, KernelFacadeShape.Plan, KernelFacadeLines.Plan, Layout.Size, Theme, Limits -> Try(Plan, Error)
-		build = |authoring, shape, lines, page, theme, limits| build_plan(authoring, shape, lines, page, theme, NoFlowTemplate, limits)
+		build = |authoring, shape, lines, input_page, theme, limits| build_plan(authoring, shape, lines, input_page, theme, NoFlowTemplate, limits)
 
 		## Pagination under page templates: per-page flow frames and the
 		## first page's lead region. The frames come from the templates'
 		## fixed region heights alone, never from painted furniture.
 		build_with_template : Document.NormalizedAuthoring, KernelFacadeShape.Plan, KernelFacadeLines.Plan, Layout.Size, Theme, FlowTemplate, Limits -> Try(Plan, Error)
-		build_with_template = |authoring, shape, lines, page, theme, template, limits| build_plan(authoring, shape, lines, page, theme, WithFlowTemplate(template), limits)
+		build_with_template = |authoring, shape, lines, input_page, theme, template, limits| build_plan(authoring, shape, lines, input_page, theme, WithFlowTemplate(template), limits)
 
 		build_with_scopes : Document.NormalizedAuthoring, KernelFacadeShape.Plan, KernelFacadeLines.Plan, Layout.Size, Theme, FlowTemplate, List(FlowScope), Limits -> Try(Plan, Error)
-		build_with_scopes = |authoring, shape, lines, page, theme, template, scopes, limits| build_plan(authoring, shape, lines, page, theme, WithScopedFlow({ template, scopes }), limits)
+		build_with_scopes = |authoring, shape, lines, input_page, theme, template, scopes, limits| build_plan(authoring, shape, lines, input_page, theme, WithScopedFlow({ template, scopes }), limits)
 
 		page : Plan -> KernelPageLayout.Plan
 		page = |plan| plan.page

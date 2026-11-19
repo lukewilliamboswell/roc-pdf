@@ -109,7 +109,7 @@ KernelFacadeText :: [].{
 		with_source_foregrounds = |plan, authoring, owners, limits| paint_source_foregrounds(plan, authoring, owners, limits)
 
 		build : KernelFacadeShape.Plan, KernelFacadeLines.Plan, KernelFacadePages.Plan, Limits -> Try(Plan, Error)
-		build = |shape, lines, pages, limits| build_plan(shape, lines, pages, limits)
+		build = |shape, lines, input_pages, limits| build_plan(shape, lines, input_pages, limits)
 
 		## Focused phase evidence may supply the same flat typed boundary directly.
 		## The production facade uses `build`, which extracts it from validated
@@ -120,7 +120,7 @@ KernelFacadeText :: [].{
 		## Exact Unicode runs placed against previously committed geometry.
 		## Every piece names real final clusters; this entry never wraps text.
 		build_positioned : Positioned, List(KernelFacadePages.Rule), KernelFacadePages.FlowPaints, Limits -> Try(Plan, Error)
-		build_positioned = |positioned, rules, flow, limits| build_positioned_plan(positioned, rules, flow, limits)
+		build_positioned = |positioned, input_rules, input_flow, limits| build_positioned_plan(positioned, input_rules, input_flow, limits)
 
 		## Apply earlier semantic authored-break facts after physical run
 		## splitting. Each byte interval is explicit, and the final interval
@@ -133,7 +133,7 @@ KernelFacadeText :: [].{
 		## furniture runs follow them. Body runs keep their clusters and
 		## glyphs; furniture clusters and glyphs are appended.
 		with_furniture : Plan, KernelFacadeFurniture.Plan, Limits -> Try(Plan, Error)
-		with_furniture = |plan, furniture, limits| interleave_furniture(plan, furniture, limits)
+		with_furniture = |plan, input_furniture, limits| interleave_furniture(plan, input_furniture, limits)
 
 		## Append drawing-label runs as `Decoration` artifact runs: on every
 		## page, after the page's other runs, in piece order. `store` holds

@@ -49,7 +49,7 @@ KernelXmp :: [].{
 		build = |facts, max_bytes| build_packet(facts, NoIdentification, max_bytes)
 
 		build_identified : KernelMetadata.Facts, Identification, U64 -> Try(Packet, Error)
-		build_identified = |facts, identification, max_bytes| build_packet(facts, identification, max_bytes)
+		build_identified = |facts, input_identification, max_bytes| build_packet(facts, input_identification, max_bytes)
 
 		bytes : Packet -> List(U8)
 		bytes = |packet| packet.bytes

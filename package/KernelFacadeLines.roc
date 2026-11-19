@@ -105,8 +105,8 @@ KernelFacadeLines :: [].{
 
 		frame : Plan, U64 -> { offset : U64, width : U64 }
 		frame = |plan, block| {
-			frame = list_at(plan.frames, block)
-			{ offset: frame.body_offset, width: frame.body_width }
+			block_frame = list_at(plan.frames, block)
+			{ offset: block_frame.body_offset, width: block_frame.body_width }
 		}
 
 		group_frame : Plan, U64 -> { offset : U64, width : U64 }

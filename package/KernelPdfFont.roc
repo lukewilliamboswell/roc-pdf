@@ -81,7 +81,7 @@ KernelPdfFont :: [].{
 
 	Plan :: { builder : KernelObject.Builder, objects : Objects, work : Work }.{
 		build : KernelObject.Builder, KernelFont.Inspection, KernelFontPlan.Plan, KernelFontSubset.Subset, Descriptor, List(UnicodeMapping), Limits -> Try(Plan, Error)
-		build = |builder, font, font_plan, subset, descriptor, mappings, limits| build_plan(builder, font, font_plan, subset, descriptor, mappings, limits)
+		build = |input_builder, font, font_plan, subset, descriptor, mappings, limits| build_plan(input_builder, font, font_plan, subset, descriptor, mappings, limits)
 
 		builder : Plan -> KernelObject.Builder
 		builder = |plan| plan.builder

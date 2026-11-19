@@ -12,9 +12,9 @@ KernelReferenceLayout :: [].{
 	ItemId :: U64.{
 		is_eq : _
 		from_index : U64 -> ItemId
-		from_index = |index| ItemId.(index)
+		from_index = |input_index| ItemId.(input_index)
 		index : ItemId -> U64
-		index = |ItemId.(index)| index
+		index = |ItemId.(input_index)| input_index
 	}
 	Boundary : [Allowed, Mandatory, Prohibited]
 	Item : {
@@ -45,12 +45,12 @@ KernelReferenceLayout :: [].{
 		## Holds use source-scalar coordinates and withhold only tailorable
 		## opportunities strictly inside their ranges, just as Code does.
 		run : Builder, Text.Store, Text.RunId, KernelUnicode.UnicodeAnalysis, Holds -> Builder
-		run = |builder, store, run, analysis, holds| append_run(builder, store, run, analysis, holds)
+		run = |builder, store, input_run, analysis, holds| append_run(builder, store, input_run, analysis, holds)
 
 		## An atom is isolated from surrounding shaping and has one fixed
 		## width-bearing item; its resolved text can never split that item.
 		reference : Builder, U64, Layout.Unit -> Builder
-		reference = |builder, reference, width| append_reference(builder, reference, width)
+		reference = |builder, input_reference, width| append_reference(builder, input_reference, width)
 
 		## Only an authored mandatory break ends a paragraph segment. A
 		## literal chunk ending at an atom does not invent a line break.

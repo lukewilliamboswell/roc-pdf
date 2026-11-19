@@ -8,10 +8,10 @@ Text :: [].{
 		to_hash : _
 
 		from_index : U64 -> RunId
-		from_index = |index| RunId.(index)
+		from_index = |input_index| RunId.(input_index)
 
 		index : RunId -> U64
-		index = |RunId.(index)| index
+		index = |RunId.(input_index)| input_index
 	}
 
 	## The baseline segment origin and accepted prefix advance before a
@@ -24,10 +24,10 @@ Text :: [].{
 		to_hash : _
 
 		from_raw : U32 -> GlyphId
-		from_raw = |raw| GlyphId.(raw)
+		from_raw = |input_raw| GlyphId.(input_raw)
 
 		raw : GlyphId -> U32
-		raw = |GlyphId.(raw)| raw
+		raw = |GlyphId.(input_raw)| input_raw
 	}
 
 	FeatureTag :: U32.{
@@ -35,10 +35,10 @@ Text :: [].{
 		to_hash : _
 
 		from_raw : U32 -> FeatureTag
-		from_raw = |raw| FeatureTag.(raw)
+		from_raw = |input_raw| FeatureTag.(input_raw)
 
 		raw : FeatureTag -> U32
-		raw = |FeatureTag.(raw)| raw
+		raw = |FeatureTag.(input_raw)| input_raw
 	}
 
 	FeaturePolicyId :: U64.{
@@ -46,10 +46,10 @@ Text :: [].{
 		to_hash : _
 
 		from_index : U64 -> FeaturePolicyId
-		from_index = |index| FeaturePolicyId.(index)
+		from_index = |input_index| FeaturePolicyId.(input_index)
 
 		index : FeaturePolicyId -> U64
-		index = |FeaturePolicyId.(index)| index
+		index = |FeaturePolicyId.(input_index)| input_index
 	}
 
 	Direction : [LeftToRight, RightToLeft]

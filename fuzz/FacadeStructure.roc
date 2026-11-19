@@ -74,21 +74,22 @@ FacadeStructure :: [].{
 		show: |input| Str.inspect(input),
 	})
 
-	block_for : { items : List(Str), kind : U8, level : U8, text : Str } -> Document.Block
-	block_for = |block| match block.kind % 4 {
-		0 => Pdf.title(block.text)
-		1 => Pdf.heading(block.level % 6 + 1, block.text)
-		2 => Pdf.paragraph(block.text)
-		_ => Pdf.bullets(block.items)
-	}
+}
 
-	## A closed set of valid tags keeps most generated documents past metadata
-	## validation, which is what gets the generator to the emitter at all.
-	language_for : U8 -> Str
-	language_for = |choice| match choice % 4 {
-		0 => "en-AU"
-		1 => "en-GB"
-		2 => "de-DE"
-		_ => "ja-JP"
-	}
+block_for : { items : List(Str), kind : U8, level : U8, text : Str } -> Document.Block
+block_for = |block| match block.kind % 4 {
+	0 => Pdf.title(block.text)
+	1 => Pdf.heading(block.level % 6 + 1, block.text)
+	2 => Pdf.paragraph(block.text)
+	_ => Pdf.bullets(block.items)
+}
+
+## A closed set of valid tags keeps most generated documents past metadata
+## validation, which is what gets the generator to the emitter at all.
+language_for : U8 -> Str
+language_for = |choice| match choice % 4 {
+	0 => "en-AU"
+	1 => "en-GB"
+	2 => "de-DE"
+	_ => "ja-JP"
 }

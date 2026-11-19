@@ -62,7 +62,7 @@ Layout :: [].{
 		units_per_point = 1000
 
 		from_raw : I64 -> Unit
-		from_raw = |raw| Unit.(raw)
+		from_raw = |input_raw| Unit.(input_raw)
 
 		## Convert whole PDF points to the package's fixed-point unit.
 		points : I64 -> Unit
@@ -73,7 +73,7 @@ Layout :: [].{
 		millipoints = |value| Unit.(value)
 
 		raw : Unit -> I64
-		raw = |Unit.(raw)| raw
+		raw = |Unit.(input_raw)| input_raw
 
 		## Units are ordered by their raw value, so `<`, `<=`, `>`, and `>=`
 		## compare two units (or a unit and a literal in points, such as
@@ -97,10 +97,10 @@ Layout :: [].{
 		to_hash : _
 
 		from_index : U64 -> ComponentId
-		from_index = |index| ComponentId.(index)
+		from_index = |input_index| ComponentId.(input_index)
 
 		index : ComponentId -> U64
-		index = |ComponentId.(index)| index
+		index = |ComponentId.(input_index)| input_index
 	}
 
 	SourceId :: U64.{
@@ -108,10 +108,10 @@ Layout :: [].{
 		to_hash : _
 
 		from_index : U64 -> SourceId
-		from_index = |index| SourceId.(index)
+		from_index = |input_index| SourceId.(input_index)
 
 		index : SourceId -> U64
-		index = |SourceId.(index)| index
+		index = |SourceId.(input_index)| input_index
 	}
 
 	ReferenceStateId :: U64.{
@@ -119,10 +119,10 @@ Layout :: [].{
 		to_hash : _
 
 		from_index : U64 -> ReferenceStateId
-		from_index = |index| ReferenceStateId.(index)
+		from_index = |input_index| ReferenceStateId.(input_index)
 
 		index : ReferenceStateId -> U64
-		index = |ReferenceStateId.(index)| index
+		index = |ReferenceStateId.(input_index)| input_index
 	}
 
 	StyleId :: U64.{
@@ -130,10 +130,10 @@ Layout :: [].{
 		to_hash : _
 
 		from_index : U64 -> StyleId
-		from_index = |index| StyleId.(index)
+		from_index = |input_index| StyleId.(input_index)
 
 		index : StyleId -> U64
-		index = |StyleId.(index)| index
+		index = |StyleId.(input_index)| input_index
 	}
 
 	ResourceStateId :: U64.{
@@ -141,10 +141,10 @@ Layout :: [].{
 		to_hash : _
 
 		from_index : U64 -> ResourceStateId
-		from_index = |index| ResourceStateId.(index)
+		from_index = |input_index| ResourceStateId.(input_index)
 
 		index : ResourceStateId -> U64
-		index = |ResourceStateId.(index)| index
+		index = |ResourceStateId.(input_index)| input_index
 	}
 
 	HyphenationDataId :: U64.{
@@ -152,10 +152,10 @@ Layout :: [].{
 		to_hash : _
 
 		from_index : U64 -> HyphenationDataId
-		from_index = |index| HyphenationDataId.(index)
+		from_index = |input_index| HyphenationDataId.(input_index)
 
 		index : HyphenationDataId -> U64
-		index = |HyphenationDataId.(index)| index
+		index = |HyphenationDataId.(input_index)| input_index
 	}
 
 	ReferenceId :: U64.{
@@ -163,10 +163,10 @@ Layout :: [].{
 		to_hash : _
 
 		from_index : U64 -> ReferenceId
-		from_index = |index| ReferenceId.(index)
+		from_index = |input_index| ReferenceId.(input_index)
 
 		index : ReferenceId -> U64
-		index = |ReferenceId.(index)| index
+		index = |ReferenceId.(input_index)| input_index
 	}
 
 	Point : { x : Unit, y : Unit }

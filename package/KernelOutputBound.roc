@@ -178,7 +178,7 @@ stream_payload_bound = |store, stream_id| {
 		Deflate => if payload.bytes.is_empty() {
 			Ok(8)
 		} else {
-			match KernelDeflate.output_bound(payload.bytes.len()) {
+			match KernelDeflate.bound_for_input(payload.bytes.len()) {
 				Ok(bound) => Ok(bound)
 				Err(error) => Err(Deflate(error))
 			}
@@ -196,7 +196,7 @@ member_overhead_bound = 43
 ## a dictionary of at most three 20-digit numbers, and the stream keywords).
 object_stream_bound : U64 -> Try(U64, KernelOutputBound.Error)
 object_stream_bound = |batch| {
-	compressed = KernelDeflate.output_bound(checked_add(batch, 1)?) ? Deflate
+	compressed = KernelDeflate.bound_for_input(checked_add(batch, 1)?) ? Deflate
 	checked_add(compressed, 256)
 }
 
@@ -207,7 +207,7 @@ xref_bound : U64, U64 -> Try(U64, KernelOutputBound.Error)
 xref_bound = |xref_number, xref_offset_bound| {
 	size = checked_add(xref_number, 1)?
 	rows = checked_times(size, 12)?
-	compressed = KernelDeflate.output_bound(rows) ? Deflate
+	compressed = KernelDeflate.bound_for_input(rows) ? Deflate
 	header = decimal_length(xref_number) + 7
 	dictionary = 512
 	suffix = 35 + decimal_length(xref_offset_bound)

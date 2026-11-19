@@ -68,17 +68,17 @@ KernelObjectPlan :: [].{
 		xref : KernelObject.ObjectId,
 	}.{
 		build : KernelTagged.Plan, KernelColor.Plan, KernelImage.Plan, KernelResourceUse.Plan, KernelContent.Plan, Limits -> Try(Plan, Error)
-		build = |tagged, colors, images, resource_use, content, limits| build_plan(tagged, colors, images, resource_use, content, limits)
+		build = |tagged, colors, input_images, resource_use, content, limits| build_plan(tagged, colors, input_images, resource_use, content, limits)
 
 		build_with_text : KernelTagged.Plan, KernelColor.Plan, KernelImage.Plan, KernelResourceUse.TextPlan, KernelContent.Plan, Limits -> Try(Plan, Error)
-		build_with_text = |tagged, colors, images, resource_use, content, limits| build_text_plan(tagged, colors, images, resource_use, content, limits)
+		build_with_text = |tagged, colors, input_images, resource_use, content, limits| build_text_plan(tagged, colors, input_images, resource_use, content, limits)
 
 		## The production-visual leaf-deduplicated variant: authored stores are still
 		## cross-checked against the derived use counts, but object identities
 		## are planned for the canonical leaf counts, so each deduplicated
 		## profile, color space, and image receives exactly one object.
 		build_canonical : KernelTagged.Plan, KernelColor.Plan, KernelImage.Plan, KernelResourceUse.TextPlan, KernelContent.Plan, LeafObjectCounts, Limits -> Try(Plan, Error)
-		build_canonical = |tagged, colors, images, resource_use, content, leaves, limits| build_canonical_plan(tagged, colors, images, resource_use, content, leaves, limits)
+		build_canonical = |tagged, colors, input_images, resource_use, content, leaves, limits| build_canonical_plan(tagged, colors, input_images, resource_use, content, leaves, limits)
 
 		catalog : Plan -> KernelObject.ObjectId
 		catalog = |plan| plan.catalog

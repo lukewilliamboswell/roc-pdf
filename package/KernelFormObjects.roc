@@ -31,20 +31,20 @@ KernelFormObjects :: [].{
 		xref : KernelObject.ObjectId,
 	}.{
 		build : KernelObjectPlan.Plan, U64, U64, U64 -> Try(Plan, Error)
-		build = |base, canonical_forms, font_count, max_objects| build_plan(base, canonical_forms, 0, no_paints, font_count, max_objects)
+		build = |input_base, canonical_forms, font_count, max_objects| build_plan(input_base, canonical_forms, 0, no_paints, font_count, max_objects)
 
 		## The transparency-aware variant: canonical graphics-state objects
 		## are planned between the form streams and the font objects. With a
 		## zero state count the plan is identical to `build`.
 		build_with_states : KernelObjectPlan.Plan, U64, U64, U64, U64 -> Try(Plan, Error)
-		build_with_states = |base, canonical_forms, canonical_states, font_count, max_objects| build_plan(base, canonical_forms, canonical_states, no_paints, font_count, max_objects)
+		build_with_states = |input_base, canonical_forms, canonical_states, font_count, max_objects| build_plan(input_base, canonical_forms, canonical_states, no_paints, font_count, max_objects)
 
 		## The paint-aware variant: shading dictionaries, function
 		## dictionaries, and pattern stream pairs are planned between the
 		## graphics states and the font objects. Zero paint counts leave
 		## every existing plan identical.
 		build_with_paints : KernelObjectPlan.Plan, U64, U64, PaintCounts, U64, U64 -> Try(Plan, Error)
-		build_with_paints = |base, canonical_forms, canonical_states, paints, font_count, max_objects| build_plan(base, canonical_forms, canonical_states, paints, font_count, max_objects)
+		build_with_paints = |input_base, canonical_forms, canonical_states, paints, font_count, max_objects| build_plan(input_base, canonical_forms, canonical_states, paints, font_count, max_objects)
 
 		functions : Plan -> List(KernelObject.ObjectId)
 		functions = |plan| plan.functions

@@ -4,10 +4,10 @@ Semantics :: [].{
 		to_hash : _
 
 		from_index : U64 -> NodeId
-		from_index = |index| NodeId.(index)
+		from_index = |input_index| NodeId.(input_index)
 
 		index : NodeId -> U64
-		index = |NodeId.(index)| index
+		index = |NodeId.(input_index)| input_index
 	}
 
 	OccurrenceId :: U64.{
@@ -15,10 +15,10 @@ Semantics :: [].{
 		to_hash : _
 
 		from_index : U64 -> OccurrenceId
-		from_index = |index| OccurrenceId.(index)
+		from_index = |input_index| OccurrenceId.(input_index)
 
 		index : OccurrenceId -> U64
-		index = |OccurrenceId.(index)| index
+		index = |OccurrenceId.(input_index)| input_index
 	}
 
 	FragmentId :: U64.{
@@ -26,10 +26,10 @@ Semantics :: [].{
 		to_hash : _
 
 		from_index : U64 -> FragmentId
-		from_index = |index| FragmentId.(index)
+		from_index = |input_index| FragmentId.(input_index)
 
 		index : FragmentId -> U64
-		index = |FragmentId.(index)| index
+		index = |FragmentId.(input_index)| input_index
 	}
 
 	NamespaceId :: U64.{
@@ -37,10 +37,10 @@ Semantics :: [].{
 		to_hash : _
 
 		from_index : U64 -> NamespaceId
-		from_index = |index| NamespaceId.(index)
+		from_index = |input_index| NamespaceId.(input_index)
 
 		index : NamespaceId -> U64
-		index = |NamespaceId.(index)| index
+		index = |NamespaceId.(input_index)| input_index
 	}
 
 	StructureElementId :: U64.{
@@ -48,10 +48,10 @@ Semantics :: [].{
 		to_hash : _
 
 		from_index : U64 -> StructureElementId
-		from_index = |index| StructureElementId.(index)
+		from_index = |input_index| StructureElementId.(input_index)
 
 		index : StructureElementId -> U64
-		index = |StructureElementId.(index)| index
+		index = |StructureElementId.(input_index)| input_index
 	}
 
 	ElementId :: U64.{
@@ -59,10 +59,10 @@ Semantics :: [].{
 		to_hash : _
 
 		from_index : U64 -> ElementId
-		from_index = |index| ElementId.(index)
+		from_index = |input_index| ElementId.(input_index)
 
 		index : ElementId -> U64
-		index = |ElementId.(index)| index
+		index = |ElementId.(input_index)| input_index
 	}
 
 	DestinationId :: U64.{
@@ -70,10 +70,10 @@ Semantics :: [].{
 		to_hash : _
 
 		from_index : U64 -> DestinationId
-		from_index = |index| DestinationId.(index)
+		from_index = |input_index| DestinationId.(input_index)
 
 		index : DestinationId -> U64
-		index = |DestinationId.(index)| index
+		index = |DestinationId.(input_index)| input_index
 	}
 
 	MathMlSubtreeId :: U64.{
@@ -81,10 +81,10 @@ Semantics :: [].{
 		to_hash : _
 
 		from_index : U64 -> MathMlSubtreeId
-		from_index = |index| MathMlSubtreeId.(index)
+		from_index = |input_index| MathMlSubtreeId.(input_index)
 
 		index : MathMlSubtreeId -> U64
-		index = |MathMlSubtreeId.(index)| index
+		index = |MathMlSubtreeId.(input_index)| input_index
 	}
 
 	AssertionId :: U64.{
@@ -92,10 +92,10 @@ Semantics :: [].{
 		to_hash : _
 
 		from_index : U64 -> AssertionId
-		from_index = |index| AssertionId.(index)
+		from_index = |input_index| AssertionId.(input_index)
 
 		index : AssertionId -> U64
-		index = |AssertionId.(index)| index
+		index = |AssertionId.(input_index)| input_index
 	}
 
 	AnnotationId :: U64.{
@@ -103,10 +103,10 @@ Semantics :: [].{
 		to_hash : _
 
 		from_index : U64 -> AnnotationId
-		from_index = |index| AnnotationId.(index)
+		from_index = |input_index| AnnotationId.(input_index)
 
 		index : AnnotationId -> U64
-		index = |AnnotationId.(index)| index
+		index = |AnnotationId.(input_index)| input_index
 	}
 
 	ContextualArtifactId :: U64.{
@@ -114,10 +114,10 @@ Semantics :: [].{
 		to_hash : _
 
 		from_index : U64 -> ContextualArtifactId
-		from_index = |index| ContextualArtifactId.(index)
+		from_index = |input_index| ContextualArtifactId.(input_index)
 
 		index : ContextualArtifactId -> U64
-		index = |ContextualArtifactId.(index)| index
+		index = |ContextualArtifactId.(input_index)| input_index
 	}
 
 	TextSourceId :: U64.{
@@ -125,10 +125,10 @@ Semantics :: [].{
 		to_hash : _
 
 		from_index : U64 -> TextSourceId
-		from_index = |index| TextSourceId.(index)
+		from_index = |input_index| TextSourceId.(input_index)
 
 		index : TextSourceId -> U64
-		index = |TextSourceId.(index)| index
+		index = |TextSourceId.(input_index)| input_index
 	}
 
 	TextPropertyId :: U64.{
@@ -136,10 +136,10 @@ Semantics :: [].{
 		to_hash : _
 
 		from_index : U64 -> TextPropertyId
-		from_index = |index| TextPropertyId.(index)
+		from_index = |input_index| TextPropertyId.(input_index)
 
 		index : TextPropertyId -> U64
-		index = |TextPropertyId.(index)| index
+		index = |TextPropertyId.(input_index)| input_index
 	}
 
 	NonTextSourceId :: U64.{
@@ -147,10 +147,10 @@ Semantics :: [].{
 		to_hash : _
 
 		from_index : U64 -> NonTextSourceId
-		from_index = |index| NonTextSourceId.(index)
+		from_index = |input_index| NonTextSourceId.(input_index)
 
 		index : NonTextSourceId -> U64
-		index = |NonTextSourceId.(index)| index
+		index = |NonTextSourceId.(input_index)| input_index
 	}
 
 	PageId :: U64.{
@@ -158,10 +158,10 @@ Semantics :: [].{
 		to_hash : _
 
 		from_index : U64 -> PageId
-		from_index = |index| PageId.(index)
+		from_index = |input_index| PageId.(input_index)
 
 		index : PageId -> U64
-		index = |PageId.(index)| index
+		index = |PageId.(input_index)| input_index
 	}
 
 	ContentStreamId :: U64.{
@@ -169,10 +169,10 @@ Semantics :: [].{
 		to_hash : _
 
 		from_index : U64 -> ContentStreamId
-		from_index = |index| ContentStreamId.(index)
+		from_index = |input_index| ContentStreamId.(input_index)
 
 		index : ContentStreamId -> U64
-		index = |ContentStreamId.(index)| index
+		index = |ContentStreamId.(input_index)| input_index
 	}
 
 	## A contiguous run of `length` indices beginning at `start`, into one of
@@ -182,7 +182,7 @@ Semantics :: [].{
 		to_hash : _
 
 		from_start_and_length : { start : U64, length : U64 } -> IndexRange
-		from_start_and_length = |{ start, length }| IndexRange.{ start, length }
+		from_start_and_length = |{ start: input_start, length: input_length }| IndexRange.{ start: input_start, length: input_length }
 
 		length : IndexRange -> U64
 		length = |range| range.length

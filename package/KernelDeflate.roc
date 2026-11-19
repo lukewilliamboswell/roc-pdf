@@ -100,7 +100,7 @@ KernelDeflate :: [].{
 		output_bound : U64,
 	}.{
 		prepare : List(U8), Level, Limits -> Try(Plan, Error)
-		prepare = |input, level, limits| prepare_plan(input, level, limits)
+		prepare = |input, input_level, limits| prepare_plan(input, input_level, limits)
 
 		input_bytes : Plan -> U64
 		input_bytes = |plan| plan.input.len()
@@ -114,8 +114,8 @@ KernelDeflate :: [].{
 
 	## The checked upper bound of one zlib stream over `input_bytes` bytes at
 	## every level: the stored-block bound does not depend on the level.
-	output_bound : U64 -> Try(U64, Error)
-	output_bound = |input_bytes| compressed_output_bound(input_bytes)
+	bound_for_input : U64 -> Try(U64, Error)
+	bound_for_input = |input_bytes| compressed_output_bound(input_bytes)
 
 	## Compresses a prepared plan into one complete zlib stream.
 	to_bytes : Plan -> Try({ bytes : List(U8), work : Work }, Error)
@@ -310,7 +310,7 @@ expect {
 # Incompressible input stays inside the stored-block bound.
 expect {
 	input = List.repeat(0, 12000).map_with_index(|_, index| ((index * 2654435761).shr_wrap(13)).to_u8_wrap())
-	bound = KernelDeflate.output_bound(input.len())?
+	bound = KernelDeflate.bound_for_input(input.len())?
 	plan = KernelDeflate.Plan.prepare(input, KernelDeflate.Level.balanced, KernelDeflate.Limits.make({ max_input_bytes: input.len(), max_output_bytes: bound }))?
 	result = KernelDeflate.to_bytes(plan)?
 	result.bytes.len() <= bound and inflate(result.bytes) == input
@@ -319,7 +319,7 @@ expect {
 # Compression is deterministic: equal input gives equal bytes.
 expect {
 	input = Str.to_utf8("BT /F1 12 Tf [<0001> -3 <0002>] TJ ET\nBT /F1 12 Tf [<0001> -3 <0002>] TJ ET\n")
-	bound = KernelDeflate.output_bound(input.len())?
+	bound = KernelDeflate.bound_for_input(input.len())?
 	limits = KernelDeflate.Limits.make({ max_input_bytes: input.len(), max_output_bytes: bound })
 	first = KernelDeflate.to_bytes(KernelDeflate.Plan.prepare(input, KernelDeflate.Level.balanced, limits)?)?
 	second = KernelDeflate.to_bytes(KernelDeflate.Plan.prepare(List.concat([], input), KernelDeflate.Level.balanced, limits)?)?
@@ -331,7 +331,7 @@ expect adler32(Str.to_utf8("Wikipedia")) == 0x11E60398
 
 framed : List(U8), KernelDeflate.Level, U8 -> Bool
 framed = |input, level, flag| {
-	bound = match KernelDeflate.output_bound(input.len()) {
+	bound = match KernelDeflate.bound_for_input(input.len()) {
 		Ok(value) => value
 		Err(_) => 0
 	}

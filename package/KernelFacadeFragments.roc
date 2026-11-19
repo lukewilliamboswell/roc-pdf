@@ -83,7 +83,7 @@ KernelFacadeFragments :: [].{
 	}
 	Plan :: { anchor_rects : List(KernelNavigation.AnchorRect), arena : Arena, navigation : [NoNavigationStore, WithNavigationStore(KernelNavigation.Store)], semantics : KernelTextSemantics.Plan, text : KernelFacadeText.Plan }.{
 		build : KernelTextSemantics.Plan, KernelFacadeText.Plan, Limits, KernelSemantics.Limits -> Try(Plan, Error)
-		build = |preliminary, text, limits, semantic_limits| build_plan(preliminary, text, NoNavigationAuthoring, NoProof, limits, semantic_limits, no_navigation_limits)
+		build = |preliminary, input_text, limits, semantic_limits| build_plan(preliminary, input_text, NoNavigationAuthoring, NoProof, limits, semantic_limits, no_navigation_limits)
 
 		## The navigation-aware build: after pagination, every link lowers to
 		## one annotation per page its line runs land on — each page's
@@ -94,10 +94,10 @@ KernelFacadeFragments :: [].{
 		## navigation store validates once. `NoNavigationAuthoring` is
 		## identical to `build`.
 		build_with_navigation : KernelTextSemantics.Plan, KernelFacadeText.Plan, NavigationAuthoring, Limits, KernelSemantics.Limits, KernelNavigation.Limits -> Try(Plan, Error)
-		build_with_navigation = |preliminary, text, navigation, limits, semantic_limits, navigation_limits| build_plan(preliminary, text, navigation, NoProof, limits, semantic_limits, navigation_limits)
+		build_with_navigation = |preliminary, input_text, input_navigation, limits, semantic_limits, navigation_limits| build_plan(preliminary, input_text, input_navigation, NoProof, limits, semantic_limits, navigation_limits)
 
 		build_with_planned_navigation : KernelTextSemantics.Plan, KernelFacadeText.Plan, NavigationAuthoring, NavigationProof, Limits, KernelSemantics.Limits, KernelNavigation.Limits -> Try(Plan, Error)
-		build_with_planned_navigation = |preliminary, text, navigation, proof, limits, semantic_limits, navigation_limits| build_plan(preliminary, text, navigation, Proof(proof), limits, semantic_limits, navigation_limits)
+		build_with_planned_navigation = |preliminary, input_text, input_navigation, proof, limits, semantic_limits, navigation_limits| build_plan(preliminary, input_text, input_navigation, Proof(proof), limits, semantic_limits, navigation_limits)
 
 		anchor_rects : Plan -> List(KernelNavigation.AnchorRect)
 		anchor_rects = |plan| plan.anchor_rects

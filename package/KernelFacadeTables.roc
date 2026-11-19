@@ -51,19 +51,19 @@ KernelFacadeTables :: [].{
 	## `tables` by table index.
 	Plan :: { cells : List(CellGeometry), sources : List(KernelFacadeSources.Source), tables : List(TableGeometry), work : Work }.{
 		build : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), U64, Theme, KernelLineLayout.Limits -> Try(Plan, Error)
-		build = |authoring, shape, sources, available, theme, limits| build_plan(authoring, shape, sources, available, [], theme, limits)
+		build = |authoring, shape, input_sources, available, theme, limits| build_plan(authoring, shape, input_sources, available, [], theme, limits)
 
 		build_framed : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), U64, List({ offset : U64, width : U64 }), Theme, KernelLineLayout.Limits -> Try(Plan, Error)
-		build_framed = |authoring, shape, sources, available, frames, theme, limits| build_plan(authoring, shape, sources, available, frames, theme, limits)
+		build_framed = |authoring, shape, input_sources, available, frames, theme, limits| build_plan(authoring, shape, input_sources, available, frames, theme, limits)
 
 		## Resolve the same column algorithm from source-free intrinsic
 		## widths. Item-token diagnostics retain their explicit domain.
 		build_measured : Document.NormalizedAuthoring, List(KernelFacadeSources.Source), List(MeasuredWidth), U64, List({ offset : U64, width : U64 }), Theme -> Try(Plan, Error)
-		build_measured = |authoring, sources, measures, available, frames, theme| {
+		build_measured = |authoring, input_sources, measures, available, frames, theme| {
 			if measures.len() != authoring.cells.len() {
 				return Err(InvalidCell({ block: 0 }))
 			}
-			resolve_geometry(authoring, sources, measures, available, frames, theme, measures.len(), 0)
+			resolve_geometry(authoring, input_sources, measures, available, frames, theme, measures.len(), 0)
 		}
 
 		cells : Plan -> List(CellGeometry)

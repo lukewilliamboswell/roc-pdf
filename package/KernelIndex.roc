@@ -29,7 +29,7 @@ KernelIndex :: [].{
 		key = |entry| entry.key
 
 		make : List(U8), KernelObject.ValueId -> ByteEntry
-		make = |key_bytes, value| ByteEntry.{ key: key_bytes, value }
+		make = |key_bytes, input_value| ByteEntry.{ key: key_bytes, value: input_value }
 
 		value : ByteEntry -> KernelObject.ValueId
 		value = |entry| entry.value
@@ -40,7 +40,7 @@ KernelIndex :: [].{
 		key = |entry| entry.key
 
 		make : I64, KernelObject.ValueId -> NumberEntry
-		make = |number, value| NumberEntry.{ key: number, value }
+		make = |number, input_value| NumberEntry.{ key: number, value: input_value }
 
 		value : NumberEntry -> KernelObject.ValueId
 		value = |entry| entry.value
@@ -87,18 +87,18 @@ KernelIndex :: [].{
 		work : Work,
 	}.{
 		build : List(ByteEntry), ByteKind, Limits -> Try(ByteTree, Error)
-		build = |entries, kind, limits| {
-			entry_count = entries.len()
-			validate_entry_count(entry_count, limits.max_entries)?
+		build = |entries, input_kind, limits| {
+			local_entry_count = entries.len()
+			validate_entry_count(local_entry_count, limits.max_entries)?
 			validated = validate_byte_entries(entries, limits.max_key_bytes, limits.value_count)?
-			shape = KernelBalanced.Shape.build(entry_count, limits.max_entries) ? Shape
-			work = Work.{
+			shape = KernelBalanced.Shape.build(local_entry_count, limits.max_entries) ? Shape
+			local_work = Work.{
 				entries_checked: validated.entries_checked,
 				key_bytes_checked: validated.key_bytes_checked,
 				node_count: KernelBalanced.Shape.node_count(shape),
 				ordering_steps: validated.ordering_steps,
 			}
-			Ok(ByteTree.{ entries, kind, shape, work })
+			Ok(ByteTree.{ entries, kind: input_kind, shape, work: local_work })
 		}
 
 		entry : ByteTree, U64 -> ByteEntry
@@ -133,18 +133,18 @@ KernelIndex :: [].{
 		work : Work,
 	}.{
 		build : List(NumberEntry), NumberKind, Limits -> Try(NumberTree, Error)
-		build = |entries, kind, limits| {
-			entry_count = entries.len()
-			validate_entry_count(entry_count, limits.max_entries)?
-			validated = validate_number_entries(entries, kind, limits.value_count)?
-			shape = KernelBalanced.Shape.build(entry_count, limits.max_entries) ? Shape
-			work = Work.{
+		build = |entries, input_kind, limits| {
+			local_entry_count = entries.len()
+			validate_entry_count(local_entry_count, limits.max_entries)?
+			validated = validate_number_entries(entries, input_kind, limits.value_count)?
+			shape = KernelBalanced.Shape.build(local_entry_count, limits.max_entries) ? Shape
+			local_work = Work.{
 				entries_checked: validated.entries_checked,
 				key_bytes_checked: 0,
 				node_count: KernelBalanced.Shape.node_count(shape),
 				ordering_steps: validated.ordering_steps,
 			}
-			Ok(NumberTree.{ entries, kind, shape, work })
+			Ok(NumberTree.{ entries, kind: input_kind, shape, work: local_work })
 		}
 
 		entry : NumberTree, U64 -> NumberEntry

@@ -30,7 +30,7 @@ KernelColor :: [].{
 
 	Plan :: { components : List(Color.ComponentCount), store : Color.Store, work : Work }.{
 		build : Color.Store, Limits -> Try(Plan, Error)
-		build = |store, limits| build_plan(store, limits)
+		build = |input_store, limits| build_plan(input_store, limits)
 
 		components : Plan, Color.SpaceId -> Color.ComponentCount
 		components = |plan, space| list_at(plan.components, space.index())

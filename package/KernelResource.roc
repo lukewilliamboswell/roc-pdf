@@ -17,7 +17,7 @@ KernelResource :: [].{
 		to_hash : _
 
 		index : NameId -> U64
-		index = |NameId.(index)| index
+		index = |NameId.(input_index)| input_index
 	}
 
 	Entry :: { identity : U64, kind : Kind }.{

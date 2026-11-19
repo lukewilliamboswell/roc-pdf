@@ -21,7 +21,7 @@ import "../tests/color_images/color_images.pdf" as image_document : List(U8)
 ## construction on exactly the number formatting, object numbering, and offset
 ## arithmetic where a defect would live, which is the same reason
 ## `fuzz/FontTargets.roc` reimplements TrueType checksum arithmetic instead of
-## reusing `KernelFont`. The fuzz root `fuzz/facade_structure.roc` is the only
+## reusing `KernelFont`. The fuzz root `fuzz/FacadeStructure.roc` is the only
 ## file in this pair that touches `pdf.Pdf` and `pdf.Document`, and it uses them
 ## only to produce bytes.
 ##
@@ -1149,7 +1149,7 @@ corrupted = |bytes, index| {
 # whose content stream is deflated, and a document carrying a JPEG image and an
 # unfiltered ICC profile. Committed snapshots are used rather than documents
 # generated here so no part of the emitter runs at compile time;
-# `fuzz/facade_structure.roc` generates documents at run time.
+# `fuzz/FacadeStructure.roc` generates documents at run time.
 expect StructureOracle.check(blank_document) == Ok({})
 expect StructureOracle.check(deflate_document) == Ok({})
 expect StructureOracle.check(image_document) == Ok({})

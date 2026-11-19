@@ -129,12 +129,12 @@ KernelFacadePipeline :: [].{
 		## store and flow to structure planning; `NoDocumentFacts` keeps the
 		## plan byte-identical to `build`.
 		build_with_facts : Document.NormalizedAuthoring, KernelFont.Inspection, Theme, Layout.Size, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, Limits -> Try(Plan, Error)
-		build_with_facts = |authoring, font, theme, page_size, descriptor, facts, limits| build_plan(authoring, font, theme, page_size, descriptor, facts, NoCollect, limits)
+		build_with_facts = |authoring, font, theme, page_size, descriptor, input_facts, limits| build_plan(authoring, font, theme, page_size, descriptor, input_facts, NoCollect, limits)
 
 		## `build_with_facts` that also collects the preparation report's
 		## compact facts (`facts`). The prepared output is identical.
 		build_reporting : Document.NormalizedAuthoring, KernelFont.Inspection, Theme, Layout.Size, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, Limits -> Try(Plan, Error)
-		build_reporting = |authoring, font, theme, page_size, descriptor, facts, limits| build_plan(authoring, font, theme, page_size, descriptor, facts, Collect, limits)
+		build_reporting = |authoring, font, theme, page_size, descriptor, input_facts, limits| build_plan(authoring, font, theme, page_size, descriptor, input_facts, Collect, limits)
 
 		## The ordered multi-face pipeline. Selection, shaping, logical line
 		## layout, boundary-splitting text materialization, and per-font
@@ -144,20 +144,20 @@ KernelFacadePipeline :: [].{
 		build_ordered = |authoring, ordered, theme, page_size, descriptor, limits| build_ordered_pipeline(authoring, Policy(ordered), theme, page_size, descriptor, NoDocumentFacts, NoCollect, limits)
 
 		build_ordered_with_facts : Document.NormalizedAuthoring, { policy : Font.PolicyId, registry : Font.Registry }, Theme, Layout.Size, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, Limits -> Try(Plan, Error)
-		build_ordered_with_facts = |authoring, ordered, theme, page_size, descriptor, facts, limits| build_ordered_pipeline(authoring, Policy(ordered), theme, page_size, descriptor, facts, NoCollect, limits)
+		build_ordered_with_facts = |authoring, ordered, theme, page_size, descriptor, input_facts, limits| build_ordered_pipeline(authoring, Policy(ordered), theme, page_size, descriptor, input_facts, NoCollect, limits)
 
 		build_ordered_reporting : Document.NormalizedAuthoring, { policy : Font.PolicyId, registry : Font.Registry }, Theme, Layout.Size, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, Limits -> Try(Plan, Error)
-		build_ordered_reporting = |authoring, ordered, theme, page_size, descriptor, facts, limits| build_ordered_pipeline(authoring, Policy(ordered), theme, page_size, descriptor, facts, Collect, limits)
+		build_ordered_reporting = |authoring, ordered, theme, page_size, descriptor, input_facts, limits| build_ordered_pipeline(authoring, Policy(ordered), theme, page_size, descriptor, input_facts, Collect, limits)
 
 		## The style-face path with inline role faces: every run shapes in its
 		## style's or innermost role's face, and the used faces become the
 		## output fonts through the same multi-font stages as an ordered
 		## policy. Furniture shapes in the body face, output font 0.
 		build_styled_with_facts : Document.NormalizedAuthoring, KernelFacadeShape.StyledFaces, Theme, Layout.Size, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, Limits -> Try(Plan, Error)
-		build_styled_with_facts = |authoring, styled, theme, page_size, descriptor, facts, limits| build_ordered_pipeline(authoring, Styled(styled), theme, page_size, descriptor, facts, NoCollect, limits)
+		build_styled_with_facts = |authoring, styled, theme, page_size, descriptor, input_facts, limits| build_ordered_pipeline(authoring, Styled(styled), theme, page_size, descriptor, input_facts, NoCollect, limits)
 
 		build_styled_reporting : Document.NormalizedAuthoring, KernelFacadeShape.StyledFaces, Theme, Layout.Size, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, Limits -> Try(Plan, Error)
-		build_styled_reporting = |authoring, styled, theme, page_size, descriptor, facts, limits| build_ordered_pipeline(authoring, Styled(styled), theme, page_size, descriptor, facts, Collect, limits)
+		build_styled_reporting = |authoring, styled, theme, page_size, descriptor, input_facts, limits| build_ordered_pipeline(authoring, Styled(styled), theme, page_size, descriptor, input_facts, Collect, limits)
 
 		output : Plan -> KernelFacadeOutput.Plan
 		output = |plan| plan.output

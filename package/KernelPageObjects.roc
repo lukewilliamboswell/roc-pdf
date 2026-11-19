@@ -45,7 +45,7 @@ KernelPageObjects :: [].{
 		## consumes those values instead of one shared dictionary. The caller
 		## reports how many direct references those dictionaries hold.
 		build_with_page_resources : KernelObject.Builder, KernelTagged.Plan, KernelContent.Plan, KernelObjectPlan.Plan, List(KernelObject.ValueId), U64 -> Try(Plan, Error)
-		build_with_page_resources = |builder, tagged, content, objects, resource_values, resource_references| build_page_resource_plan(builder, tagged, content, objects, resource_values, resource_references, NoGroups, NoAnnotations)
+		build_with_page_resources = |input_builder, tagged, content, objects, resource_values, resource_references| build_page_resource_plan(input_builder, tagged, content, objects, resource_values, resource_references, NoGroups, NoAnnotations)
 
 		## The transparency-aware production-visual variant: pages whose content
 		## (transitively) contains transparency additionally receive the
@@ -53,7 +53,7 @@ KernelPageObjects :: [].{
 		## planned before the pages, so one shared group value serves every
 		## transparency page.
 		build_with_page_groups : KernelObject.Builder, KernelTagged.Plan, KernelContent.Plan, KernelObjectPlan.Plan, List(KernelObject.ValueId), U64, List(PageGroup) -> Try(Plan, Error)
-		build_with_page_groups = |builder, tagged, content, objects, resource_values, resource_references, groups| build_page_resource_plan(builder, tagged, content, objects, resource_values, resource_references, PerPageGroups(groups), NoAnnotations)
+		build_with_page_groups = |input_builder, tagged, content, objects, resource_values, resource_references, groups| build_page_resource_plan(input_builder, tagged, content, objects, resource_values, resource_references, PerPageGroups(groups), NoAnnotations)
 
 		## The navigation-aware production-visual variant: pages carrying link
 		## annotations additionally receive their caller-built `/Annots`
@@ -61,7 +61,7 @@ KernelPageObjects :: [].{
 		## and plans without navigation emit no key and keep their exact name
 		## table and identity.
 		build_with_page_navigation : KernelObject.Builder, KernelTagged.Plan, KernelContent.Plan, KernelObjectPlan.Plan, List(KernelObject.ValueId), U64, List(PageGroup), List(PageAnnots) -> Try(Plan, Error)
-		build_with_page_navigation = |builder, tagged, content, objects, resource_values, resource_references, groups, annots| build_page_resource_plan(builder, tagged, content, objects, resource_values, resource_references, PerPageGroups(groups), PerPageAnnotations(annots))
+		build_with_page_navigation = |input_builder, tagged, content, objects, resource_values, resource_references, groups, annots| build_page_resource_plan(input_builder, tagged, content, objects, resource_values, resource_references, PerPageGroups(groups), PerPageAnnotations(annots))
 
 		builder : Plan -> KernelObject.Builder
 		builder = |plan| plan.builder

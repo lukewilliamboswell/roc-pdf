@@ -67,7 +67,7 @@ KernelTagged :: [].{
 		work : Work,
 	}.{
 		build : KernelSemantics.Plan, KernelScene.Plan -> Try(Plan, Error)
-		build = |semantics, scenes| build_plan(semantics, scenes)
+		build = |input_semantics, input_scenes| build_plan(input_semantics, input_scenes)
 
 		## Each annotation's owning structure element, dense by annotation
 		## identity. ParentTree lowering reads `/StructParent` values through

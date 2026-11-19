@@ -408,12 +408,12 @@ Pdf :: [].{
 					Truncated => "${$text}, truncated):"
 				}
 				for diagnostic in batch.diagnostics {
-					code = match diagnostic.feature {
+					local_code = match diagnostic.feature {
 						Feature(name) => name
 						NoFeature => Str.inspect(diagnostic.code)
 					}
 					at = if (diagnostic.details.is_empty()) "" else " at ${Str.join_with(diagnostic.details, ", ")}"
-					$text = "${$text}\n  ${code}${at}: ${diagnostic.message}"
+					$text = "${$text}\n  ${local_code}${at}: ${diagnostic.message}"
 				}
 				$text
 			}
@@ -477,7 +477,7 @@ Pdf :: [].{
 	## Build an automatically paginated document from semantic blocks, with
 	## the navigation, page templates, and timestamps its props name.
 	document : DocumentProps -> Document
-	document = |DocumentProps.{ contents, created, language, modified, outline, page_labels, page_templates, title }| Document.from_props({ contents, created, language, modified, outline, page_labels, templates: page_templates, title })
+	document = |DocumentProps.{ contents, created, language, modified, outline, page_labels, page_templates, title: input_title }| Document.from_props({ contents, created, language, modified, outline, page_labels, templates: page_templates, title: input_title })
 
 	## Build an explicitly framed document. The stable shape is available now;
 	## preparation reports `layout.custom` until its lowering closes.
