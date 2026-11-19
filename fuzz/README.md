@@ -49,8 +49,8 @@ are reviewed before explicit acceptance; verification never accepts changes:
 ```
 
 `--no-build` requires a matching source/asset closure, compiler, host and binary
-digest from the recorded build, including its `--fuzz --specialize=yes --no-cache` policy. It
-refuses stale executables and older cache-enabled build records. All targets
+digest from the recorded build, including its
+`--fuzz --specialize=yes --no-cache` policy. It refuses stale executables and older cache-enabled build records. All targets
 build without the compiler cache: the same source/compiler can otherwise
 produce different allocation observations depending on earlier cached programs.
 Independent uncached builds and repeated named-example runs are used to
@@ -58,8 +58,9 @@ verify determinism before baseline acceptance. This policy preserves the
 measurement, not any particular accepted value. The optional
 `fuzz-accept` Blueprint task performs the same explicit maintenance action.
 Accepted files under `fuzz/baselines/` contain separate host entries for the
-`llvm-fuzz` profile; reductions also require review. The [suite allocation review](../development/performance/fuzz-suites.md) records
-the causes and independent native controls. These observations do not replace
+`llvm-fuzz` profile; reductions also require review. The
+[suite allocation review](../development/performance/fuzz-suites.md) records the
+causes and independent native controls. These observations do not replace
 the dev-backend PDF allocation, byte, work or retention contracts in
 `tests/spec.json`.
 
