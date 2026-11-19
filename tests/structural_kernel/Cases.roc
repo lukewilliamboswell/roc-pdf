@@ -12,18 +12,12 @@ Cases :: [].{
 	]
 
 	run : Case -> { bytes : List(U8), work : List(U64) }
-	run = |case| {
-		result = match case {
-			Pages({ count }) => Ok(Fixture.generate_blank(count))
-			Indexes({ count }) => Ok(Fixture.generate_blank_with_indexes(count))
-			Outlines({ count }) => Ok(Fixture.generate_blank_with_outline(count))
-			Resources({ count }) => Ok(Fixture.generate_blank_with_resource_names(count))
-			Lexical({ count }) => Ok(Fixture.generate_blank_with_lexical_values(count))
-			Deflate({ input_bytes }) => Ok(Fixture.generate_deflate_stream(input_bytes))
-		}
-		match result {
-			Ok(value) => value
-			Err(_) => crash "CASE_EXECUTION_FAILED: structural_kernel fixture rejected the typed case"
-		}
+	run = |case| match case {
+		Pages({ count }) => Fixture.generate_blank(count)
+		Indexes({ count }) => Fixture.generate_blank_with_indexes(count)
+		Outlines({ count }) => Fixture.generate_blank_with_outline(count)
+		Resources({ count }) => Fixture.generate_blank_with_resource_names(count)
+		Lexical({ count }) => Fixture.generate_blank_with_lexical_values(count)
+		Deflate({ input_bytes }) => Fixture.generate_deflate_stream(input_bytes)
 	}
 }

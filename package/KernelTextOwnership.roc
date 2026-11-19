@@ -34,21 +34,21 @@ KernelTextOwnership :: [].{
 
 	Plan :: { run_fragments : List(Semantics.FragmentId), tagged : KernelTagged.Plan, text : Text.Store, work : Work }.{
 		build : KernelTextSemantics.Plan, KernelScene.Plan, Text.Store -> Try(Plan, Error)
-		build = |semantics, scene, text| build_plan(semantics, scene, text, [], RejectArtifactText)
+		build = |semantics, scene, input_text| build_plan(semantics, scene, input_text, [], RejectArtifactText)
 
 		## production-visual scenes additionally assign runs painted inside Form XObjects.
 		## Each such run arrives as an explicit resolved fact (the fragment
 		## owning the form's unique placement chain); ownership rules are
 		## unchanged: every run is owned exactly once, and only by a fragment.
 		build_with_forms : KernelTextSemantics.Plan, KernelScene.Plan, Text.Store, List({ fragment : Semantics.FragmentId, run : U64 }) -> Try(Plan, Error)
-		build_with_forms = |semantics, scene, text, form_runs| build_plan(semantics, scene, text, form_runs, RejectArtifactText)
+		build_with_forms = |semantics, scene, input_text, form_runs| build_plan(semantics, scene, input_text, form_runs, RejectArtifactText)
 
 		## Text painted by a page-artifact group (a continued table's
 		## repainted header rows) is owned by that artifact and by no layout
 		## fragment. Every run is still owned exactly once; `run_fragments`
 		## names the fragment count for an artifact-owned run.
 		build_with_artifact_text : KernelTextSemantics.Plan, KernelScene.Plan, Text.Store -> Try(Plan, Error)
-		build_with_artifact_text = |semantics, scene, text| build_plan(semantics, scene, text, [], AcceptArtifactText)
+		build_with_artifact_text = |semantics, scene, input_text| build_plan(semantics, scene, input_text, [], AcceptArtifactText)
 
 		run_fragments : Plan -> List(Semantics.FragmentId)
 		run_fragments = |plan| plan.run_fragments

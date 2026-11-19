@@ -55,7 +55,7 @@ LINE = re.compile(r'PROFILE (\S+) (\S+) (\d+)')
 
 
 def build(binary: Path, opt: str, cache: bool, host: str) -> None:
-    command = [ROC, "build", f"--opt={opt}", f"--target={host}", str(SOURCE.relative_to(ROOT)), f"--output={binary}"]
+    command = [ROC, "build", f"--opt={opt}", "--specialize=yes", f"--target={host}", str(SOURCE.relative_to(ROOT)), f"--output={binary}"]
     if not cache:
         command.append("--no-cache")
     result = subprocess.run(command, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
@@ -142,10 +142,11 @@ def main() -> None:
     host = fuzz_lane.host_target(args.linux_x64_container)
     binary = WORK / f"allocation_profile-{host}-{args.opt}-roc-fuzz-{fuzz_lane.PLATFORM_RELEASE}"
     stamp = binary.with_name(binary.name + ".build.json")
-    profile_target = fuzz_lane.Target("allocation_profile", 1)
+    profile_target = fuzz_lane.Target("allocation_profile", 1, "allocation_profile")
     compiler = subprocess.check_output([ROC, "version"], text=True).strip()
     build_identity = {"source_sha256": fuzz_lane.source_digest(profile_target), "compiler": compiler,
-                      "target": host, "platform_sha256": fuzz_lane.PLATFORM_SHA256, "profile": args.opt}
+                      "target": host, "platform_sha256": fuzz_lane.PLATFORM_SHA256, "profile": args.opt,
+                      "specialization": "yes"}
     if not args.no_build:
         build(binary, args.opt, not args.no_cache, host)
         if fuzz_lane.source_digest(profile_target) != build_identity["source_sha256"]:
@@ -164,7 +165,8 @@ def main() -> None:
     identity = {"format": "roc-pdf-profile/1", "metric_version": "roc-fuzz-allocations/1",
                 "platform_release": fuzz_lane.PLATFORM_RELEASE, "platform_sha256": fuzz_lane.PLATFORM_SHA256,
                 "allocation_count": "roc_alloc+roc_realloc",
-                "compiler": recorded_build["compiler"], "host": host, "backend": args.opt}
+                "compiler": recorded_build["compiler"], "host": host, "backend": args.opt,
+                "specialization": "yes"}
     record = {**identity, "build": recorded_build, "workloads": current}
     last = WORK / f"last-{host}-{args.opt}-roc-fuzz-{fuzz_lane.PLATFORM_RELEASE}.json"
     reference = args.compare or last

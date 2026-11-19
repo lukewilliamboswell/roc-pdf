@@ -19,15 +19,15 @@
               "occurrence": 1,
               "complete": true,
               "stats": {
-                "allocs": 2540,
-                "reallocs": 894,
-                "deallocs": 2542,
-                "requested_bytes": 15802336,
+                "allocs": 3122,
+                "reallocs": 624,
+                "deallocs": 3124,
+                "requested_bytes": 11808168,
                 "entry_live_allocs": 2,
                 "entry_live_bytes": 289,
                 "exit_live_allocs": 0,
                 "exit_live_bytes": 0,
-                "peak_live_bytes": 469851
+                "peak_live_bytes": 436842
               }
             }
           ]
@@ -44,15 +44,15 @@
               "occurrence": 1,
               "complete": true,
               "stats": {
-                "allocs": 1264,
-                "reallocs": 467,
-                "deallocs": 1265,
-                "requested_bytes": 8657555,
+                "allocs": 1473,
+                "reallocs": 268,
+                "deallocs": 1474,
+                "requested_bytes": 5666407,
                 "entry_live_allocs": 1,
                 "entry_live_bytes": 161,
                 "exit_live_allocs": 0,
                 "exit_live_bytes": 0,
-                "peak_live_bytes": 396905
+                "peak_live_bytes": 396617
               }
             }
           ]
@@ -76,15 +76,15 @@
               "occurrence": 1,
               "complete": true,
               "stats": {
-                "allocs": 2540,
-                "reallocs": 894,
-                "deallocs": 2542,
-                "requested_bytes": 15802336,
+                "allocs": 3122,
+                "reallocs": 624,
+                "deallocs": 3124,
+                "requested_bytes": 11808168,
                 "entry_live_allocs": 2,
                 "entry_live_bytes": 289,
                 "exit_live_allocs": 0,
                 "exit_live_bytes": 0,
-                "peak_live_bytes": 469851
+                "peak_live_bytes": 436842
               }
             }
           ]
@@ -101,15 +101,15 @@
               "occurrence": 1,
               "complete": true,
               "stats": {
-                "allocs": 1264,
-                "reallocs": 467,
-                "deallocs": 1265,
-                "requested_bytes": 8657555,
+                "allocs": 1473,
+                "reallocs": 268,
+                "deallocs": 1474,
+                "requested_bytes": 5666407,
                 "entry_live_allocs": 1,
                 "entry_live_bytes": 161,
                 "exit_live_allocs": 0,
                 "exit_live_bytes": 0,
-                "peak_live_bytes": 396905
+                "peak_live_bytes": 396617
               }
             }
           ]

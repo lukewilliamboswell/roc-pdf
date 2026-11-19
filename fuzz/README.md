@@ -10,6 +10,14 @@ Run all targets with the repository's pinned Roc compiler:
 ./scripts/fuzz.py --jobs 1
 ```
 
+The nine properties share two executables: `font_suite.roc` contains font
+inspection, repair and subsetting; `document_suite.roc` contains JPEG inspection,
+facade output and structure, navigation, registry and theme properties. Each
+suite builds once, including when several selected properties share it.
+`--targets` still selects individual properties. The harness verifies the
+executable's inventory and invokes each property with its own `--target`,
+baseline, corpus, input-size limit and report directory.
+
 The smoke lane checks every declared example in a fresh supervised process,
 compares its exact accepted allocation observations, then requests fixed-seed
 coverage exploration with a 64-run cap and a one second exploration budget.
@@ -41,17 +49,19 @@ are reviewed before explicit acceptance; verification never accepts changes:
 ```
 
 `--no-build` requires a matching source/asset closure, compiler, host and binary
-digest from the recorded build, including its `--fuzz --no-cache` policy. It
-refuses stale executables and older cache-enabled build records. All targets
+digest from the recorded build, including its
+`--fuzz --specialize=yes --no-cache` policy. It refuses stale executables and older cache-enabled build records. All targets
 build without the compiler cache: the same source/compiler can otherwise
 produce different allocation observations depending on earlier cached programs.
-Two independent uncached November 7 builds and repeated named-example runs
-matched exactly; cache-enabled builds did not. This policy preserves the
+Independent uncached builds and repeated named-example runs are used to
+verify determinism before baseline acceptance. This policy preserves the
 measurement, not any particular accepted value. The optional
 `fuzz-accept` Blueprint task performs the same explicit maintenance action.
 Accepted files under `fuzz/baselines/` contain separate host entries for the
-`llvm-fuzz` profile; reductions also require review. These observations do not
-replace the dev-backend PDF allocation, byte, work or retention contracts in
+`llvm-fuzz` profile; reductions also require review. The
+[suite allocation review](../development/performance/fuzz-suites.md) records the
+causes and independent native controls. These observations do not replace
+the dev-backend PDF allocation, byte, work or retention contracts in
 `tests/spec.json`.
 
 Use `--linux-x64-container IMAGE` to cross-build and exercise the Linux host in

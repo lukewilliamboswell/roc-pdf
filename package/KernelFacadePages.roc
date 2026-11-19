@@ -196,16 +196,16 @@ KernelFacadePages :: [].{
 		source_fragments = |plan| plan.source_fragments
 
 		build : Document.NormalizedAuthoring, KernelFacadeShape.Plan, KernelFacadeLines.Plan, Layout.Size, Theme, Limits -> Try(Plan, Error)
-		build = |authoring, shape, lines, page, theme, limits| build_plan(authoring, shape, lines, page, theme, NoFlowTemplate, limits)
+		build = |authoring, shape, lines, input_page, theme, limits| build_plan(authoring, shape, lines, input_page, theme, NoFlowTemplate, limits)
 
 		## Pagination under page templates: per-page flow frames and the
 		## first page's lead region. The frames come from the templates'
 		## fixed region heights alone, never from painted furniture.
 		build_with_template : Document.NormalizedAuthoring, KernelFacadeShape.Plan, KernelFacadeLines.Plan, Layout.Size, Theme, FlowTemplate, Limits -> Try(Plan, Error)
-		build_with_template = |authoring, shape, lines, page, theme, template, limits| build_plan(authoring, shape, lines, page, theme, WithFlowTemplate(template), limits)
+		build_with_template = |authoring, shape, lines, input_page, theme, template, limits| build_plan(authoring, shape, lines, input_page, theme, WithFlowTemplate(template), limits)
 
 		build_with_scopes : Document.NormalizedAuthoring, KernelFacadeShape.Plan, KernelFacadeLines.Plan, Layout.Size, Theme, FlowTemplate, List(FlowScope), Limits -> Try(Plan, Error)
-		build_with_scopes = |authoring, shape, lines, page, theme, template, scopes, limits| build_plan(authoring, shape, lines, page, theme, WithScopedFlow({ template, scopes }), limits)
+		build_with_scopes = |authoring, shape, lines, input_page, theme, template, scopes, limits| build_plan(authoring, shape, lines, input_page, theme, WithScopedFlow({ template, scopes }), limits)
 
 		page : Plan -> KernelPageLayout.Plan
 		page = |plan| plan.page
@@ -461,6 +461,13 @@ callout_rules = |authoring, fragments| {
 	$rules
 }
 
+## The layout constraints for a page of this size under the theme's margins.
+page_constraints : Theme, Layout.Size -> KernelPageLayout.Constraints
+page_constraints = |theme, page_size| {
+	margins = theme.page_margin
+	{ margins: { bottom: margins.bottom, left: margins.left, right: margins.right, top: margins.top }, page: page_size }
+}
+
 build_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, KernelFacadeLines.Plan, Layout.Size, Theme, FlowSelection, KernelFacadePages.Limits -> Try(KernelFacadePages.Plan, KernelFacadePages.Error)
 build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 	match KernelFacadeLines.Plan.geometry(line_plan) {
@@ -609,7 +616,7 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 	}
 	$page_blocks = apply_customs(authoring, $page_blocks, [])?
 	keep_groups = together_groups(authoring)
-	constraints = { margins: theme.page_margin, page: page_size }
+	constraints = page_constraints(theme, page_size)
 	containers = callout_containers(authoring, |group| KernelFacadeLines.Plan.group_frame(line_plan, group), [], theme)?
 	page = if !containers.is_empty() {
 		selection = match flow {
@@ -1065,7 +1072,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 	## footer groups join them in preorder.
 	$page_blocks = apply_customs(authoring, $page_blocks, $unit_of_block)?
 	merged = merge_groups(unit_groups(authoring, $unit_of_block), $footer_groups, $footer_sources)
-	constraints = { margins: theme.page_margin, page: page_size }
+	constraints = page_constraints(theme, page_size)
 	containers = callout_containers(authoring, |group| KernelFacadeLines.Plan.group_frame(line_plan, group), $unit_of_block, theme)?
 	page = if !containers.is_empty() {
 		selection = match flow {
@@ -2752,7 +2759,7 @@ build_measured = |authoring, input, page_size, theme, flow, limits| {
 		WithFlowTemplate(template) | WithScopedFlow({ template, scopes: _ }) => WithTemplate(layout_template(template, lead))
 	}
 	$blocks = scope_policies(lead_policies($blocks, lead), flow, $unit_of_block)
-	choice = KernelPageLayout.Choice.build($blocks, flow_groups(merged.groups, lead), $grid_rows.len(), { margins: theme.page_margin, page: page_size }, selection, layout_scopes(flow, $unit_of_block), containers, limits.page) ? |error| TableLayout({ error, groups: merged.sources, units: $units })
+	choice = KernelPageLayout.Choice.build($blocks, flow_groups(merged.groups, lead), $grid_rows.len(), page_constraints(theme, page_size), selection, layout_scopes(flow, $unit_of_block), containers, limits.page) ? |error| TableLayout({ error, groups: merged.sources, units: $units })
 	continuation_top = match flow {
 		NoFlowTemplate => Layout.Unit.from_raw(0)
 		WithFlowTemplate(template) | WithScopedFlow({ template, scopes: _ }) => template.continuation.top

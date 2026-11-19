@@ -96,13 +96,13 @@ KernelEmit :: [].{
 		offsets : List(U64),
 		position : U64,
 	}.{
-		start : U64 -> CountingSink
-		start = |position| CountingSink.{ offsets: [], position }
+		at_offset : U64 -> CountingSink
+		at_offset = |input_position| CountingSink.{ offsets: [], position: input_position }
 
 		mark_object : CountingSink -> CountingSink
 		mark_object = |sink| {
-			{ offsets, position } = sink
-			CountingSink.{ offsets: offsets.append(position), position }
+			{ offsets, position: local_position } = sink
+			CountingSink.{ offsets: offsets.append(local_position), position: local_position }
 		}
 
 		position : CountingSink -> U64
@@ -233,7 +233,7 @@ validate_emittable = |plan| {
 ## chooses a level of its own.
 prepare_deflate : List(U8), KernelDeflate.Level -> Try(KernelDeflate.Plan, KernelDeflate.Error)
 prepare_deflate = |bytes, level| {
-	bound = KernelDeflate.output_bound(bytes.len())?
+	bound = KernelDeflate.bound_for_input(bytes.len())?
 	KernelDeflate.Plan.prepare(bytes, level, KernelDeflate.Limits.make({ max_input_bytes: bytes.len(), max_output_bytes: bound }))
 }
 
@@ -1320,7 +1320,7 @@ expect {
 expect {
 	input = Str.to_utf8("q 0 0 100 100 re f Q\nq 0 0 100 100 re f Q\n")
 	plan = KernelStructure.build_deflate_stream_probe(input, input.len())?
-	deflate_bound = KernelDeflate.output_bound(input.len())?
+	deflate_bound = KernelDeflate.bound_for_input(input.len())?
 	deflate_plan = KernelDeflate.Plan.prepare(input, KernelStructure.Plan.compression(plan), KernelDeflate.Limits.make({ max_input_bytes: input.len(), max_output_bytes: deflate_bound }))?
 	expected = KernelDeflate.to_bytes(deflate_plan)?
 	var $encoder = KernelEmit.start(plan, ShareResourceChunks)?
@@ -1374,7 +1374,7 @@ expect {
 
 # The counting sink preserves fixed-width offsets beyond four GiB.
 expect {
-	sink = KernelEmit.CountingSink.start(4294967312)
+	sink = KernelEmit.CountingSink.at_offset(4294967312)
 	marked = KernelEmit.CountingSink.mark_object(sink)
 	written = KernelEmit.CountingSink.write(marked, 8192)?
 
@@ -1390,7 +1390,7 @@ expect {
 }
 
 # The counting sink reports overflow before accepting a segment length.
-expect match KernelEmit.CountingSink.write(KernelEmit.CountingSink.start(18446744073709551615), 1) {
+expect match KernelEmit.CountingSink.write(KernelEmit.CountingSink.at_offset(18446744073709551615), 1) {
 	Err(ArithmeticOverflow) => True
 	_ => False
 }
@@ -1491,7 +1491,7 @@ expect {
 emitted_at_level : KernelStructure.Plan, List(U8), KernelDeflate.Level -> List(U8)
 emitted_at_level = |base, input, level| {
 	plan = KernelStructure.Plan.with_compression(base, level)
-	expected = match KernelDeflate.output_bound(input.len()) {
+	expected = match KernelDeflate.bound_for_input(input.len()) {
 		Err(_) => []
 		Ok(bound) => match KernelDeflate.Plan.prepare(input, level, KernelDeflate.Limits.make({ max_input_bytes: input.len(), max_output_bytes: bound })) {
 			Err(_) => []

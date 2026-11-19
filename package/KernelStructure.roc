@@ -171,7 +171,7 @@ KernelStructure :: [].{
 
 	build_deflate_stream_probe : List(U8), U64 -> Try(Plan, Error)
 	build_deflate_stream_probe = |bytes, max_input_bytes| {
-		bound = KernelDeflate.output_bound(bytes.len()) ? Deflate
+		bound = KernelDeflate.bound_for_input(bytes.len()) ? Deflate
 		_ = KernelDeflate.Plan.prepare(bytes, KernelDeflate.Level.balanced, KernelDeflate.Limits.make({ max_input_bytes, max_output_bytes: bound })) ? Deflate
 		build_nonempty(1, A4, Deflated(bytes), NoBlankFacts)
 	}
@@ -456,7 +456,7 @@ facts_output_bound = |facts| match facts {
 		profile_bound = if data.profile_bytes.is_empty() {
 			8
 		} else {
-			KernelDeflate.output_bound(data.profile_bytes.len()) ? Deflate
+			KernelDeflate.bound_for_input(data.profile_bytes.len()) ? Deflate
 		}
 		payload_bytes = checked_add(data.xmp.len(), profile_bound)?
 		checked_add(checked_add(payload_bytes, checked_times(text_bytes, 4)?)?, 1024)
@@ -788,7 +788,7 @@ content_plan_output_bound = |content_plan| match content_plan {
 	Deflated(bytes) => if bytes.is_empty() {
 		Ok(0)
 	} else {
-		match KernelDeflate.output_bound(bytes.len()) {
+		match KernelDeflate.bound_for_input(bytes.len()) {
 			Err(error) => Err(Deflate(error))
 			Ok(bound) => Ok(bound)
 		}
@@ -846,7 +846,7 @@ expect {
 	store = KernelSeal.Plan.store(KernelStructure.Plan.sealed(plan))
 	payload = list_at(store.payloads, 0)
 	stream = list_at(store.streams, 0)
-	compressed_bound = KernelDeflate.output_bound(bytes.len())?
+	compressed_bound = KernelDeflate.bound_for_input(bytes.len())?
 
 	layout_bound = KernelOutputBound.calculate(KernelStructure.Plan.sealed(plan), KernelStructure.Plan.xref_object(plan))?
 	KernelStructure.Plan.output_bound(plan) == KernelOutputBound.Bound.bytes(layout_bound) and

@@ -22,12 +22,12 @@
                 "allocs": 9,
                 "reallocs": 14,
                 "deallocs": 10,
-                "requested_bytes": 7288,
+                "requested_bytes": 7240,
                 "entry_live_allocs": 1,
                 "entry_live_bytes": 681,
                 "exit_live_allocs": 0,
                 "exit_live_bytes": 0,
-                "peak_live_bytes": 5305
+                "peak_live_bytes": 5257
               }
             }
           ]
@@ -79,12 +79,12 @@
                 "allocs": 9,
                 "reallocs": 14,
                 "deallocs": 10,
-                "requested_bytes": 7288,
+                "requested_bytes": 7240,
                 "entry_live_allocs": 1,
                 "entry_live_bytes": 681,
                 "exit_live_allocs": 0,
                 "exit_live_bytes": 0,
-                "peak_live_bytes": 5305
+                "peak_live_bytes": 5257
               }
             }
           ]

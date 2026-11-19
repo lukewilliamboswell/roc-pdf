@@ -1,6 +1,6 @@
 # Example gallery
 
-Each example is a complete [basic-cli 0.26.0-rc2](https://github.com/roc-lang/basic-cli/releases/tag/0.26.0-rc2)
+Each example is a complete [basic-cli](https://github.com/roc-lang/basic-cli)
 application that imports the local package. Every example has its own
 directory:
 

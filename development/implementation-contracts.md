@@ -186,7 +186,9 @@ allowing manifest data to import or execute arbitrary code.
 
 Exact allocation baselines and allocated-bytes ceilings are measured from a
 cold Roc cache, in the full harness order that CI runs, with fixture
-executables built by `roc build --no-cache`. The pinned compiler produces
+executables built by `roc build --opt=dev --specialize=yes --no-cache`.
+The test manifest records optimization and specialization separately: compiler
+defaults must not change the measured lowering policy. The pinned compiler produces
 different code for identical source when it reuses procedures cached by other
 programs: a program built against procedures compiled for another fixture can
 copy a list that the same program built alone updates in place, even though

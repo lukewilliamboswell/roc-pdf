@@ -93,7 +93,7 @@ KernelFacadeReferences :: [].{
 		build : Document.NormalizedAuthoring, KernelFacadeShape.FontSelection, Theme, Layout.Size, KernelFacadePages.FlowSelection, Limits -> Try(Plan, Error)
 		build = |authoring, selection, theme, page_size, flow, limits| build_plan(authoring, selection, theme, page_size, flow, limits)
 		view : Plan -> View
-		view = |Plan.(view)| view
+		view = |Plan.(input_view)| input_view
 	}
 }
 

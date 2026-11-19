@@ -12,10 +12,10 @@ KernelDiscretionaryHyphen :: [].{
 		to_hash : _
 
 		from_index : U64 -> OpportunityId
-		from_index = |index| OpportunityId.(index)
+		from_index = |input_index| OpportunityId.(input_index)
 
 		index : OpportunityId -> U64
-		index = |OpportunityId.(index)| index
+		index = |OpportunityId.(input_index)| input_index
 	}
 
 	OpportunityKind : [ExplicitSoftHyphen, ExternalHyphenation]

@@ -31,8 +31,9 @@ To iterate on one group or case without the preflight and validation phases:
 
 The Zig build installs the ordinary host into `tests/platform/targets/`
 and the retention host into `tests/retention_platform/targets/`. It also
-copies the pinned Linux startup object and libc archive into the retention
-platform's generated target directory. Each platform's `inputs_dir` stays
+builds the static PIE startup object from the pinned Zig distribution's musl
+sources and installs it into both Linux target directories, alongside the
+retained libc archive. Each platform's `inputs_dir` stays
 inside its own directory, as required by the pinned compiler.
 
 Every `roc check`, `roc test`, or `roc build` re-checks the whole package
@@ -64,7 +65,8 @@ that no root reaches is not tested. See [fixture planning](performance/test-suit
 
 ## Allocation baselines
 
-Integration cases use the dev backend and require exact PDF snapshots,
+Integration cases use the dev backend with explicit lambda-set specialization
+(`toolchain.roc_specialization: "yes"`) and require exact PDF snapshots,
 dimensions, allocation baselines, deterministic work counters, retention
 contracts, and explicit structural validators. Review allocation changes with:
 
@@ -112,13 +114,14 @@ ceiling is checked wherever allocation baselines are (`--allocation-baselines`,
 work differ exactly, so a rebaseline can also lower ceilings that did not
 fail.
 
-Fixture executables are built with `roc build --no-cache`. With the cache, the
+Fixture executables are built with
+`roc build --opt=dev --specialize=yes --no-cache`. With the cache, the
 pinned compiler reused package procedures compiled for an earlier fixture
 program in later ones, and a later program could then copy lists that it
 updates in place when built alone: a case's allocation count and allocated
 bytes depended on which fixtures were built before it and on the local cache
 (`development/performance/lowering-uniqueness.md`). Without the cache each fixture
-compiles exactly as a standalone `roc build --no-cache --opt=dev` does, so a
+compiles exactly as a standalone `roc build --no-cache --opt=dev --specialize=yes` does, so a
 case can be reproduced outside the harness. The flag works around
 roc-lang/roc#11826 and should be removed once that is fixed. Validation (`roc
 check`, `roc test`) still uses the cache. Still measure a delta you intend to review from a
@@ -181,10 +184,11 @@ The smoke mode is the default and is what every pull request runs:
 ./scripts/fuzz.py            # or: blueprint run fuzz
 ```
 
-It builds every target with `roc build --fuzz --no-cache` for libFuzzer coverage
-instrumentation, then replays the target's seed corpus and 64 further inputs
+It builds two shared suites with `roc build --fuzz --specialize=yes --no-cache` for libFuzzer
+coverage instrumentation, then invokes each property independently through
+`--target`. It replays the target's seed corpus and up to 64 further inputs
 from a fixed seed, with `--time=1` capping the workload at one second per
-target. Targets build in parallel (`--jobs`, by default as many 6 GB builds as
+target. Suites build in parallel (`--jobs`, by default as many 6 GB builds as
 memory allows) and run one at a time. Its purpose is that every target keeps building and its property keeps
 executing between campaigns; it makes no claim about search coverage.
 
@@ -268,7 +272,7 @@ To add a family:
 3. Run `./scripts/test.py --write-groups`.
 4. Keep each group's build under 7 GB peak RSS. Facade families cost 5 to
    6 GB alone and kernel families 2.5 to 3 GB. Check with
-   `/usr/bin/time -v roc build tests/groups/<group>.roc --opt=dev --no-cache`.
+   `/usr/bin/time -v roc build tests/groups/<group>.roc --opt=dev --specialize=yes --no-cache`.
 
 Before landing a change to group membership, run the equivalence modes on
 the affected groups from an empty `XDG_CACHE_HOME`. Each must report no

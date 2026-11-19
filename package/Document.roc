@@ -900,7 +900,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 
 	## A normalized cell's own fill color.
 	cell_fill : NormalizedCell -> CellFill
-	cell_fill = |cell| if (cell.fill == 0) NoCellFill else CellFill(unpack_color(cell.fill))
+	cell_fill = |input_cell| if (input_cell.fill == 0) NoCellFill else CellFill(unpack_color(input_cell.fill))
 
 	CellKind : CellKind
 	ColumnAlign : ColumnAlign
@@ -961,19 +961,19 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	NormalizedReferenceParagraph : NormalizedReferenceParagraph
 	ReferenceChunkSource : ReferenceChunkSource
 	reference_paragraph : NormalizedAuthoring, U64 -> [HasReferences(NormalizedReferenceParagraph), NoReferences]
-	reference_paragraph = |authoring, paragraph| {
+	reference_paragraph = |authoring, input_paragraph| {
 		var $low = 0
 		var $high = authoring.reference_paragraphs.len()
 		while $low < $high {
 			middle = $low + ($high - $low) // 2
 			record = list_at(authoring.reference_paragraphs, middle)
-			if record.paragraph < paragraph {
+			if record.paragraph < input_paragraph {
 				$low = middle + 1
 			} else {
 				$high = middle
 			}
 		}
-		if ($low < authoring.reference_paragraphs.len() and list_at(authoring.reference_paragraphs, $low).paragraph == paragraph) HasReferences(list_at(authoring.reference_paragraphs, $low)) else NoReferences
+		if ($low < authoring.reference_paragraphs.len() and list_at(authoring.reference_paragraphs, $low).paragraph == input_paragraph) HasReferences(list_at(authoring.reference_paragraphs, $low)) else NoReferences
 	}
 
 	PageFieldStyle : PageFieldStyle
@@ -1087,9 +1087,9 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	}
 
 	from_blocks : { contents : List(DocumentBlock), language : Str, title : Str } -> Document
-	from_blocks = |{ contents, language, title: document_title }|
+	from_blocks = |{ contents, language: input_language, title: document_title }|
 		Document.{
-			authoring: Simple({ contents, language, metadata_title: document_title }),
+			authoring: Simple({ contents, language: input_language, metadata_title: document_title }),
 			created: Omitted,
 			modified: Omitted,
 			outline: [],
@@ -1100,22 +1100,22 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	## A paginated document with its navigation, templates, and timestamps
 	## set at once (`Pdf.document`'s props).
 	from_props : { contents : List(DocumentBlock), created : Metadata.TimestampInput, language : Str, modified : Metadata.TimestampInput, outline : List(OutlineEntry), page_labels : List(PageLabelRange), templates : DocumentTemplates, title : Str } -> Document
-	from_props = |{ contents, created, language, modified, outline, page_labels, templates, title: document_title }|
+	from_props = |{ contents, created: input_created, language: input_language, modified: input_modified, outline: input_outline, page_labels: input_page_labels, templates, title: document_title }|
 		Document.{
-			authoring: Simple({ contents, language, metadata_title: document_title }),
-			created,
-			modified,
-			outline,
-			page_labels,
+			authoring: Simple({ contents, language: input_language, metadata_title: document_title }),
+			created: input_created,
+			modified: input_modified,
+			outline: input_outline,
+			page_labels: input_page_labels,
 			templates,
 		}
 
 	## Construct an explicitly framed document. Preparation rejects it with the
 	## `layout.custom` feature until fixed-layout lowering is executable.
 	from_fixed_pages : { language : Str, pages : List(FixedPage), title : Str } -> Document
-	from_fixed_pages = |{ language, pages, title: document_title }|
+	from_fixed_pages = |{ language: input_language, pages, title: document_title }|
 		Document.{
-			authoring: Fixed({ language, metadata_title: document_title, pages }),
+			authoring: Fixed({ language: input_language, metadata_title: document_title, pages }),
 			created: Omitted,
 			modified: Omitted,
 			outline: [],

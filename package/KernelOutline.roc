@@ -22,10 +22,10 @@ KernelOutline :: [].{
 		to_hash : _
 
 		from_index : U64 -> ItemId
-		from_index = |index| ItemId.(index)
+		from_index = |input_index| ItemId.(input_index)
 
 		index : ItemId -> U64
-		index = |ItemId.(index)| index
+		index = |ItemId.(input_index)| input_index
 
 	}
 

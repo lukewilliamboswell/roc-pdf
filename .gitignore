@@ -13,21 +13,15 @@ generated-docs/
 dist/
 .roc-pdf-tmp/
 .roc-fuzz/
-facade_output_equivalence
-facade_structure
-font_inspector_mutation
-font_inspector_repair
-font_subset_roundtrip
-jpeg_inspector_mutation
-navigation_property
-registry_property
-theme_options
+document_suite
+font_suite
 .DS_Store
 
 tests/platform/.zig-cache/
 tests/platform/zig-out/
 tests/platform/targets/*/libhost.a
 tests/platform/targets/*/libretention_host.a
+tests/platform/targets/*/rcrt1.o
 tests/retention_platform/targets/
 .blueprint/
 

@@ -1,4 +1,5 @@
 import Semantics
+import KernelBuiltInFontInspections
 import KernelBuiltInFonts
 import KernelFont
 
@@ -29,10 +30,10 @@ Font :: [].{
 		to_hash : _
 
 		from_index : U64 -> ResourceId
-		from_index = |index| ResourceId.(index)
+		from_index = |input_index| ResourceId.(input_index)
 
 		index : ResourceId -> U64
-		index = |ResourceId.(index)| index
+		index = |ResourceId.(input_index)| input_index
 	}
 
 	FaceId :: U64.{
@@ -40,10 +41,10 @@ Font :: [].{
 		to_hash : _
 
 		from_index : U64 -> FaceId
-		from_index = |index| FaceId.(index)
+		from_index = |input_index| FaceId.(input_index)
 
 		index : FaceId -> U64
-		index = |FaceId.(index)| index
+		index = |FaceId.(input_index)| input_index
 	}
 
 	InstanceId :: U64.{
@@ -51,10 +52,10 @@ Font :: [].{
 		to_hash : _
 
 		from_index : U64 -> InstanceId
-		from_index = |index| InstanceId.(index)
+		from_index = |input_index| InstanceId.(input_index)
 
 		index : InstanceId -> U64
-		index = |InstanceId.(index)| index
+		index = |InstanceId.(input_index)| input_index
 	}
 
 	PolicyId :: U64.{
@@ -62,10 +63,10 @@ Font :: [].{
 		to_hash : _
 
 		from_index : U64 -> PolicyId
-		from_index = |index| PolicyId.(index)
+		from_index = |input_index| PolicyId.(input_index)
 
 		index : PolicyId -> U64
-		index = |PolicyId.(index)| index
+		index = |PolicyId.(input_index)| input_index
 	}
 
 	Script :: Str.{
@@ -212,7 +213,7 @@ Font :: [].{
 	]
 	ValidationLimits :: { max_bytes : U64, max_cmap_mappings : U64, max_glyphs : U64, max_tables : U64 }.{
 		default : ValidationLimits
-		default = ValidationLimits.{ max_bytes: 2000000, max_cmap_mappings: 1200000, max_glyphs: 65535, max_tables: 128 }
+		default = ValidationLimits.(KernelBuiltInFontInspections.validation_limits)
 
 		make : { max_bytes : U64, max_cmap_mappings : U64, max_glyphs : U64, max_tables : U64 } -> ValidationLimits
 		make = |limits| ValidationLimits.(limits)
@@ -256,6 +257,16 @@ Font :: [].{
 		register_built_in : Registry, ValidationLimits -> Try({ face : FaceId, instance : InstanceId, policy : PolicyId, registry : Registry, work : RegistrationWork }, ResourceError)
 		register_built_in = |registry, limits| register_font(registry, KernelBuiltInFonts.sans_regular, { provision: BuiltIn, scripts: [Script.from_iso15924("Latn")] }, limits)
 
+		## Register one packaged face from the validation facts computed at
+		## compile time, under the `ValidationLimits.default` limits it was
+		## inspected with.
+		register_packaged : Registry, KernelBuiltInFonts.Slot, Registration -> Try({ face : FaceId, instance : InstanceId, policy : PolicyId, registry : Registry, work : RegistrationWork }, ResourceError)
+		register_packaged = |registry, slot, registration| {
+			validate_scripts(registration.scripts)?
+			inspection = KernelBuiltInFontInspections.inspection(slot) ? map_font_error
+			add_inspected_font(registry, slot.bytes(), registration, inspection)
+		}
+
 		store : Registry -> Store
 		store = |Registry.(state)| state.store
 
@@ -289,9 +300,14 @@ empty_store : Font.Store
 empty_store = { coverage_spans: [], faces: [], instances: [], policies: [], resources: [], scripts: [] }
 
 register_font : Font.Registry, List(U8), Font.Registration, Font.ValidationLimits -> Try({ face : Font.FaceId, instance : Font.InstanceId, policy : Font.PolicyId, registry : Font.Registry, work : Font.RegistrationWork }, Font.ResourceError)
-register_font = |Font.Registry.(state), bytes, registration, Font.ValidationLimits.(limits)| {
+register_font = |registry, bytes, registration, Font.ValidationLimits.(limits)| {
 	validate_scripts(registration.scripts)?
 	inspection = KernelFont.inspect(bytes, KernelFont.Limits.make(limits)) ? map_font_error
+	add_inspected_font(registry, bytes, registration, inspection)
+}
+
+add_inspected_font : Font.Registry, List(U8), Font.Registration, KernelFont.Inspection -> Try({ face : Font.FaceId, instance : Font.InstanceId, policy : Font.PolicyId, registry : Font.Registry, work : Font.RegistrationWork }, Font.ResourceError)
+add_inspected_font = |Font.Registry.(state), bytes, registration, inspection| {
 	resource_index = state.store.resources.len()
 	face_index = state.store.faces.len()
 	instance_index = state.store.instances.len()

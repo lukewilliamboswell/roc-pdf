@@ -20,13 +20,13 @@ KernelBalanced :: [].{
 		nodes : U64,
 	}.{
 		build : U64, U64 -> Try(Shape, Error)
-		build = |item_count, item_limit| {
-			if item_count == 0 {
+		build = |input_item_count, item_limit| {
+			if input_item_count == 0 {
 				Err(ItemCountZero)
-			} else if item_count > item_limit {
-				Err(ItemLimitExceeded({ attempted: item_count, limit: item_limit }))
+			} else if input_item_count > item_limit {
+				Err(ItemLimitExceeded({ attempted: input_item_count, limit: item_limit }))
 			} else {
-				build_nonempty_shape(item_count)
+				build_nonempty_shape(input_item_count)
 			}
 		}
 

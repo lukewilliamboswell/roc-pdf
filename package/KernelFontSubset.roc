@@ -203,59 +203,38 @@ build_glyph_tables_from = |font, plan| {
 	})
 }
 
+CmapBuilder : { groups : List(U8), mapping_count : U64, group_count : U64, has_group : Bool, group_start : U32, group_end : U32, group_glyph : U32 }
+
+append_cmap_mapping : CmapBuilder, U32, U32, KernelFontPlan.Plan -> CmapBuilder
+append_cmap_mapping = |builder, scalar, original, plan| {
+	mapped = list_at(plan.original_to_subset, original.to_u64())
+	if mapped == unmapped_glyph or list_at(plan.retained, original.to_u64()) != content_marker {
+		return builder
+	}
+	{ groups, mapping_count, group_count, has_group, group_start, group_end, group_glyph } = builder
+	if !has_group {
+		return { groups, mapping_count: mapping_count + 1, group_count, has_group: True, group_start: scalar, group_end: scalar, group_glyph: mapped }
+	}
+	if scalar == group_end + 1 and mapped == group_glyph + (group_end - group_start) + 1 {
+		return { groups, mapping_count: mapping_count + 1, group_count, has_group, group_start, group_end: scalar, group_glyph }
+	}
+	var $groups = append_u32(groups, group_start)
+	$groups = append_u32($groups, group_end)
+	$groups = append_u32($groups, group_glyph)
+	{ groups: $groups, mapping_count: mapping_count + 1, group_count: group_count + 1, has_group, group_start: scalar, group_end: scalar, group_glyph: mapped }
+}
+
 build_cmap : KernelFont.Inspection, KernelFontPlan.Plan -> Try({ bytes : List(U8), mappings : U64 }, KernelFontSubset.Error)
 build_cmap = |font, plan| {
-	var $groups = List.with_capacity(checked_times(font.work.cmap_mapping_visits, 12)?)
-	var $mapping_count = 0
-	var $group_count = zero_u64
-	var $has_group = false_bool
-	var $group_start = zero_u32
-	var $group_end = zero_u32
-	var $group_glyph = zero_u32
-	var $span_index = 0
-	while $span_index < font.coverage.len() {
-		span = list_at(font.coverage, $span_index)
-		var $scalar = span.first
-		while $scalar <= span.last {
-			match KernelFont.glyph_for_scalar(font, $scalar) {
-				None => {}
-				Some(original) => {
-					mapped = list_at(plan.original_to_subset, original.to_u64())
-					if mapped != unmapped_glyph and list_at(plan.retained, original.to_u64()) == content_marker {
-						if !$has_group {
-							$group_start = $scalar
-							$group_end = $scalar
-							$group_glyph = mapped
-							$has_group = True
-						} else {
-							expected_glyph = $group_glyph + ($group_end - $group_start) + 1
-							if $scalar == $group_end + 1 and mapped == expected_glyph {
-								$group_end = $scalar
-							} else {
-								$groups = append_u32($groups, $group_start)
-								$groups = append_u32($groups, $group_end)
-								$groups = append_u32($groups, $group_glyph)
-								$group_count = $group_count + 1
-								$group_start = $scalar
-								$group_end = $scalar
-								$group_glyph = mapped
-							}
-						}
-						$mapping_count = $mapping_count + 1
-					}
-				}
-			}
-			if $scalar == 0x10ffff {
-				break
-			}
-			$scalar = $scalar + 1
-		}
-		$span_index = $span_index + 1
-	}
-	if $has_group {
-		$groups = append_u32($groups, $group_start)
-		$groups = append_u32($groups, $group_end)
-		$groups = append_u32($groups, $group_glyph)
+	initial : CmapBuilder
+	initial = { groups: List.with_capacity(checked_times(font.work.cmap_mapping_visits, 12)?), mapping_count: 0, group_count: 0, has_group: False, group_start: 0, group_end: 0, group_glyph: 0 }
+	{ value: { groups, mapping_count, group_count, has_group, group_start, group_end, group_glyph }, work: _ } = KernelFont.fold_mappings(font, initial, |builder, scalar, original| append_cmap_mapping(builder, scalar, original, plan))
+	var $groups = groups
+	var $group_count = group_count
+	if has_group {
+		$groups = append_u32($groups, group_start)
+		$groups = append_u32($groups, group_end)
+		$groups = append_u32($groups, group_glyph)
 		$group_count = $group_count + 1
 	}
 	if $groups.len() > u32_max - 16 {
@@ -272,7 +251,7 @@ build_cmap = |font, plan| {
 	$bytes = append_u32($bytes, (16 + $groups.len()).to_u32_wrap())
 	$bytes = append_u32($bytes, 0)
 	$bytes = append_u32($bytes, $group_count.to_u32_wrap())
-	Ok({ bytes: concat_bytes($bytes, $groups), mappings: $mapping_count })
+	Ok({ bytes: concat_bytes($bytes, $groups), mappings: mapping_count })
 }
 
 build_name : KernelFont.Inspection, List(U8) -> List(U8)
@@ -346,7 +325,7 @@ collect_source_tables = |font| {
 	var $maxp = []
 	var $os2 = []
 	var $prep = Absent
-	var $found = 0
+	var $found = 0.U64
 	var $index = 0
 	while $index < font.tables.len() {
 		table = list_at(font.tables, $index)
@@ -481,7 +460,7 @@ checksum_bytes = |bytes| {
 		var $byte_index = 0
 		while $byte_index < 4 {
 			position = $index + $byte_index
-			byte = if (position < bytes.len()) list_at(bytes, position) else 0
+			byte = if (position < bytes.len()) byte_at(bytes, position) else 0
 			$word = $word.bitwise_or(byte.to_u32().shl_wrap((3 - $byte_index).to_u8_wrap() * 8))
 			$byte_index = $byte_index + 1
 		}
@@ -530,7 +509,7 @@ append_range = |target, source, offset, length| {
 	var $result = target
 	var $index = 0
 	while $index < length {
-		$result = $result.append(list_at(source, offset + $index))
+		$result = $result.append(byte_at(source, offset + $index))
 		$index = $index + 1
 	}
 	$result
@@ -570,6 +549,16 @@ checked_times : U64, U64 -> Try(U64, KernelFontSubset.Error)
 checked_times = |left, right| match U64.times_try(left, right) {
 	Err(Overflow) => Err(ArithmeticOverflow)
 	Ok(value) => Ok(value)
+}
+
+## `list_at` for bytes. Its closed item type makes the `get` call a direct
+## call of the integer list worker, which `list_at`'s generic call never is.
+byte_at : List(U8), U64 -> U8
+byte_at = |bytes, index| match bytes.get(index) {
+	Err(OutOfBounds) => {
+		crash "validated font-subset index escaped"
+	}
+	Ok(value) => value
 }
 
 list_at : List(a), U64 -> a
