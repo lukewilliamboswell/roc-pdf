@@ -41,6 +41,25 @@ through subsetting and emission; the source is not copied by the inspection
 stage. The retained component edges are an earlier-stage fact consumed by
 subset closure rather than rediscovered from incidental glyph bytes.
 
+## Hashes and checksums
+
+SHA-256 identity uses Roc's `Crypto.SHA256` builtin, without an external native
+dependency. Prefix/range identities stream their two inputs rather than copying
+them into one payload. The package retains its input-length limit and exact
+32-byte digest contract. Digest append keeps the destination uniquely owned and
+grows it geometrically.
+
+The builtin owns its digest bytes, so append temporarily owns that 32-byte result;
+prefix/range hashing also owns incremental hasher state. These are bounded costs
+per hash, not copies of the growing identity accumulator.
+
+The sfnt checksum remains a wrapping sum of big-endian 32-bit words. Complete
+words use bounded fixed-width reads; only the final partial word is padded.
+Padding never reads bytes beyond the table, and zeroing `checkSumAdjustment` is
+relative to the `head` table, not the containing allocation. Independent bytewise
+oracle tests cover every short length and unaligned offset, wrapping sums, and
+partial adjustment fields.
+
 ## Name records
 
 The `name` table is validated record by record: every record's string range
