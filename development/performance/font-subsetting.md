@@ -26,6 +26,20 @@ result before emission, and appends every payload once. The original font byte
 resource remains shared through glyph copying; inspection does not duplicate
 it.
 
+## Ordered Unicode mappings
+
+Subset mapping consumes the inspection layer's ordered traversal of the selected
+cmap. It preserves all source aliases of retained content glyphs, not only the
+scalars seen in the document. Format-4 decoding remains owned by inspection;
+subsetting does not reinterpret font bytes or restart a random-access search for
+each scalar.
+
+Traversal work is linear in source ranges plus their scalar spans. The traversal
+reports exact range, scalar and yielded-mapping counts; small/large unit cases
+pin that growth. Its fold threads the caller's accumulator without allocating
+an intermediate mapping list. The subset's existing mapping count still counts
+emitted mappings, and the output order and grouping rules are unchanged.
+
 ## Unhinted fonts
 
 TrueType instructions are optional in OpenType: `cvt `, `fpgm`, and `prep`
