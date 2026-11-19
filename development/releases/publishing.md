@@ -17,8 +17,8 @@ not expand any conformance or Gate 7 claim.
    pinned compiler. Both old/new APIs must compile; failures are investigated,
    never skipped or replaced by a guessed compatibility verdict.
    When the previous release cannot compile under a newly required compiler,
-   treat that requirement change as a source-compatibility boundary: document the compiler
-   migration and author a breaking version. The existing breaking-version rule
+   treat that requirement change as a source-compatibility boundary: document
+   the compiler migration and author a breaking version. The existing breaking-version rule
    then applies; a patch release cannot claim an unproved API comparison.
 3. Merge only after applicable checks pass. Dispatch the release workflow on
    `main` with that authored version and `nightly_validation: true` for an

@@ -64,7 +64,8 @@ that no root reaches is not tested. See [fixture planning](performance/test-suit
 
 ## Allocation baselines
 
-Integration cases use the dev backend and require exact PDF snapshots,
+Integration cases use the dev backend with explicit lambda-set specialization
+(`toolchain.roc_specialization: "yes"`) and require exact PDF snapshots,
 dimensions, allocation baselines, deterministic work counters, retention
 contracts, and explicit structural validators. Review allocation changes with:
 
@@ -118,7 +119,7 @@ program in later ones, and a later program could then copy lists that it
 updates in place when built alone: a case's allocation count and allocated
 bytes depended on which fixtures were built before it and on the local cache
 (`development/performance/lowering-uniqueness.md`). Without the cache each fixture
-compiles exactly as a standalone `roc build --no-cache --opt=dev` does, so a
+compiles exactly as a standalone `roc build --no-cache --opt=dev --specialize=yes` does, so a
 case can be reproduced outside the harness. The flag works around
 roc-lang/roc#11826 and should be removed once that is fixed. Validation (`roc
 check`, `roc test`) still uses the cache. Still measure a delta you intend to review from a
@@ -181,7 +182,7 @@ The smoke mode is the default and is what every pull request runs:
 ./scripts/fuzz.py            # or: blueprint run fuzz
 ```
 
-It builds two shared suites with `roc build --fuzz --no-cache` for libFuzzer
+It builds two shared suites with `roc build --fuzz --specialize=yes --no-cache` for libFuzzer
 coverage instrumentation, then invokes each property independently through
 `--target`. It replays the target's seed corpus and up to 64 further inputs
 from a fixed seed, with `--time=1` capping the workload at one second per

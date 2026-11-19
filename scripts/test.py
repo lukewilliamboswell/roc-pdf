@@ -81,6 +81,7 @@ class Retention:
 @dataclass(frozen=True)
 class Toolchain:
     roc_optimization: str
+    roc_specialization: str
     zig_version: str
     zig_optimization: str
     max_build_workers: int
@@ -344,8 +345,8 @@ def load_suite() -> TestSuite:
         "cases",
     }:
         raise SystemExit(f"{SPEC_PATH}: unexpected top-level schema")
-    if data["schema_version"] != 7 or data["protocol_version"] != 2:
-        raise SystemExit(f"{SPEC_PATH}: schema_version must be 7 and protocol_version must be 2")
+    if data["schema_version"] != 8 or data["protocol_version"] != 2:
+        raise SystemExit(f"{SPEC_PATH}: schema_version must be 8 and protocol_version must be 2")
 
     preflight_checks = string_list(data["preflight_checks"], "preflight_checks")
     validate_preflight_ids(preflight_checks, f"{SPEC_PATH}: preflight_checks")
@@ -475,6 +476,7 @@ def load_suite() -> TestSuite:
     raw_toolchain = data["toolchain"]
     toolchain_fields = {
         "roc_optimization",
+        "roc_specialization",
         "zig_version",
         "zig_optimization",
         "max_build_workers",
@@ -485,6 +487,9 @@ def load_suite() -> TestSuite:
         roc_optimization=non_empty_string(
             raw_toolchain["roc_optimization"], "toolchain.roc_optimization"
         ),
+        roc_specialization=non_empty_string(
+            raw_toolchain["roc_specialization"], "toolchain.roc_specialization"
+        ),
         zig_version=non_empty_string(raw_toolchain["zig_version"], "toolchain.zig_version"),
         zig_optimization=non_empty_string(
             raw_toolchain["zig_optimization"], "toolchain.zig_optimization"
@@ -493,6 +498,8 @@ def load_suite() -> TestSuite:
     )
     if toolchain.roc_optimization != "dev":
         raise SystemExit(f"{SPEC_PATH}: Roc allocation baselines require the dev backend")
+    if toolchain.roc_specialization != "yes":
+        raise SystemExit(f"{SPEC_PATH}: Roc allocation baselines require lambda-set specialization")
     if toolchain.zig_optimization not in {"ReleaseFast", "ReleaseSafe", "ReleaseSmall"}:
         raise SystemExit(f"{SPEC_PATH}: Zig host baselines require an optimized build")
     if type(toolchain.max_build_workers) is not int or toolchain.max_build_workers < 1:
@@ -797,7 +804,7 @@ def case_build_units(suite: TestSuite, build_dir: Path, mode: str) -> dict[str, 
 
 
 def fixture_build_command(
-    source: Path, roc_optimization: str, target: str, executable: Path
+    source: Path, toolchain: Toolchain, target: str, executable: Path
 ) -> list[str]:
     """Every flag an evidence executable is built with, in one place."""
     # Evidence executables never reuse compiled procedures from the
@@ -822,7 +829,8 @@ def fixture_build_command(
         ROC,
         "build",
         source.relative_to(ROOT).as_posix() if source.is_relative_to(ROOT) else str(source),
-        f"--opt={roc_optimization}",
+        f"--opt={toolchain.roc_optimization}",
+        f"--specialize={toolchain.roc_specialization}",
         f"--target={target}",
         "--no-cache",
         f"--output={executable}",
@@ -1156,7 +1164,7 @@ def build_case_units(
     units: list[BuildUnit],
     build_dir: Path,
     target: str,
-    roc_optimization: str,
+    toolchain: Toolchain,
     jobs: int,
 ) -> None:
     def build_unit(unit: BuildUnit) -> tuple[BuildUnit, float]:
@@ -1165,7 +1173,7 @@ def build_case_units(
         if unit.generated is not None:
             unit.source.write_text(unit.generated, encoding="utf-8")
         detail(f"START BUILD {unit_label(unit)}")
-        build = fixture_build_command(unit.source, roc_optimization, target, executable)
+        build = fixture_build_command(unit.source, toolchain, target, executable)
         command(build[0], *build[1:])
         return unit, time.monotonic() - started
 
@@ -1862,7 +1870,7 @@ def run_suite(
             units,
             build_dir,
             target,
-            suite.toolchain.roc_optimization if check_allocations else "dev",
+            suite.toolchain,
             build_jobs,
         )
         phase(f"Executing {len(suite.cases)} evidence cases with {args.jobs} workers")

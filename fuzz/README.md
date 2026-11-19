@@ -49,7 +49,7 @@ are reviewed before explicit acceptance; verification never accepts changes:
 ```
 
 `--no-build` requires a matching source/asset closure, compiler, host and binary
-digest from the recorded build, including its `--fuzz --no-cache` policy. It
+digest from the recorded build, including its `--fuzz --specialize=yes --no-cache` policy. It
 refuses stale executables and older cache-enabled build records. All targets
 build without the compiler cache: the same source/compiler can otherwise
 produce different allocation observations depending on earlier cached programs.

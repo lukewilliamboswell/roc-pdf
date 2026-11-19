@@ -1,5 +1,5 @@
 {
-  "schema_version": 7,
+  "schema_version": 8,
   "protocol_version": 2,
   "preflight_checks": [
     "contracts",
@@ -132,6 +132,7 @@
   },
   "toolchain": {
     "roc_optimization": "dev",
+    "roc_specialization": "yes",
     "zig_version": "0.16.0",
     "zig_optimization": "ReleaseFast",
     "max_build_workers": 4

@@ -56,7 +56,7 @@ PLATFORM_URL = "https://github.com/lukewilliamboswell/roc-fuzz/releases/download
 PROFILE = "llvm-fuzz"
 # Cache-enabled builds can reuse procedures with different allocation behavior.
 # Keep the measured build policy in the executable identity as well as the command.
-BUILD_FLAGS = ("--fuzz", "--no-cache")
+BUILD_FLAGS = ("--fuzz", "--specialize=yes", "--no-cache")
 
 
 # Smoke runs replay the seed corpus and then a handful of generated inputs
