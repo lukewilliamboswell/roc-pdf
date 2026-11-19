@@ -16,6 +16,10 @@ not expand any conformance or Gate 7 claim.
    run `roc bump --old <latest-final-bundle> --expect <version>` under the
    pinned compiler. Both old/new APIs must compile; failures are investigated,
    never skipped or replaced by a guessed compatibility verdict.
+   A changed compiler requirement that prevents the old and new releases from
+   sharing a compiler is a source-compatibility boundary: document the compiler
+   migration and author a breaking version. The existing breaking-version rule
+   then applies; a patch release cannot claim an unproved API comparison.
 3. Merge only after applicable checks pass. Dispatch the release workflow on
    `main` with that authored version and `nightly_validation: true` for an
    end-to-end dry run. This repeats the full Linux/macOS checks, independent
