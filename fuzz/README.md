@@ -58,8 +58,9 @@ verify determinism before baseline acceptance. This policy preserves the
 measurement, not any particular accepted value. The optional
 `fuzz-accept` Blueprint task performs the same explicit maintenance action.
 Accepted files under `fuzz/baselines/` contain separate host entries for the
-`llvm-fuzz` profile; reductions also require review. These observations do not
-replace the dev-backend PDF allocation, byte, work or retention contracts in
+`llvm-fuzz` profile; reductions also require review. The [suite allocation review](../development/performance/fuzz-suites.md) records
+the causes and independent native controls. These observations do not replace
+the dev-backend PDF allocation, byte, work or retention contracts in
 `tests/spec.json`.
 
 Use `--linux-x64-container IMAGE` to cross-build and exercise the Linux host in

@@ -63,14 +63,46 @@ pub fn build(b: *std.Build) void {
         );
 
         if (roc_target == .x64musl) {
-            for ([_][]const u8{ "crt1.o", "libc.a" }) |input| {
-                copy_hosts.addCopyFileToSource(
-                    b.path(b.pathJoin(&.{ "targets", roc_target.directory(), input })),
-                    b.pathJoin(&.{ "../retention_platform/targets", roc_target.directory(), input }),
-                );
-            }
+            const startup = muslStaticPieStartup(b, b.resolveTargetQuery(roc_target.query()));
+            copy_hosts.addCopyFileToSource(startup, "targets/x64musl/rcrt1.o");
+            copy_hosts.addCopyFileToSource(startup, "../retention_platform/targets/x64musl/rcrt1.o");
+            copy_hosts.addCopyFileToSource(
+                b.path("targets/x64musl/libc.a"),
+                "../retention_platform/targets/x64musl/libc.a",
+            );
         }
     }
 
     b.getInstallStep().dependOn(&copy_hosts.step);
+}
+
+// Roc's static PIE executables need musl's self-relocating startup. Compile
+// the pinned Zig distribution's musl sources instead of retaining a second
+// architecture-specific startup binary.
+fn muslStaticPieStartup(b: *std.Build, target: std.Build.ResolvedTarget) std.Build.LazyPath {
+    const obj = b.addObject(.{
+        .name = "rcrt1_x86_64",
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = .ReleaseSmall,
+            .pic = true,
+            .link_libc = true,
+            .stack_protector = false,
+        }),
+    });
+    obj.root_module.addCSourceFile(.{
+        .file = zigLibPath(b, "libc/musl/crt/rcrt1.c"),
+        .flags = &.{ "-std=c99", "-D_GNU_SOURCE", "-ffreestanding", "-fno-builtin", "-fvisibility=hidden" },
+    });
+    for ([_][]const u8{
+        "libc/musl/arch/x86_64",
+        "libc/musl/arch/generic",
+        "libc/musl/src/internal",
+        "libc/musl/src/include",
+    }) |path| obj.root_module.addIncludePath(zigLibPath(b, path));
+    return obj.getEmittedBin();
+}
+
+fn zigLibPath(b: *std.Build, sub_path: []const u8) std.Build.LazyPath {
+    return .{ .cwd_relative = b.graph.zig_lib_directory.join(b.allocator, &.{sub_path}) catch @panic("OOM") };
 }

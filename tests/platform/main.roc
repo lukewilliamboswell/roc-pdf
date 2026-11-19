@@ -11,7 +11,7 @@ platform ""
 	targets: {
 		inputs_dir: "targets/",
 		arm64mac: { inputs: ["libhost.a", app] },
-		x64musl: { inputs: ["crt1.o", "libhost.a", app, "libc.a"] },
+	x64musl: { inputs: ["rcrt1.o", "libhost.a", app, "libc.a"] },
 	}
 
 import Metrics

@@ -31,8 +31,9 @@ To iterate on one group or case without the preflight and validation phases:
 
 The Zig build installs the ordinary host into `tests/platform/targets/`
 and the retention host into `tests/retention_platform/targets/`. It also
-copies the pinned Linux startup object and libc archive into the retention
-platform's generated target directory. Each platform's `inputs_dir` stays
+builds the static PIE startup object from the pinned Zig distribution's musl
+sources and installs it into both Linux target directories, alongside the
+retained libc archive. Each platform's `inputs_dir` stays
 inside its own directory, as required by the pinned compiler.
 
 Every `roc check`, `roc test`, or `roc build` re-checks the whole package
@@ -113,7 +114,8 @@ ceiling is checked wherever allocation baselines are (`--allocation-baselines`,
 work differ exactly, so a rebaseline can also lower ceilings that did not
 fail.
 
-Fixture executables are built with `roc build --no-cache`. With the cache, the
+Fixture executables are built with
+`roc build --opt=dev --specialize=yes --no-cache`. With the cache, the
 pinned compiler reused package procedures compiled for an earlier fixture
 program in later ones, and a later program could then copy lists that it
 updates in place when built alone: a case's allocation count and allocated
@@ -270,7 +272,7 @@ To add a family:
 3. Run `./scripts/test.py --write-groups`.
 4. Keep each group's build under 7 GB peak RSS. Facade families cost 5 to
    6 GB alone and kernel families 2.5 to 3 GB. Check with
-   `/usr/bin/time -v roc build tests/groups/<group>.roc --opt=dev --no-cache`.
+   `/usr/bin/time -v roc build tests/groups/<group>.roc --opt=dev --specialize=yes --no-cache`.
 
 Before landing a change to group membership, run the equivalence modes on
 the affected groups from an empty `XDG_CACHE_HOME`. Each must report no

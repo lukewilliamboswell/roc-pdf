@@ -21,6 +21,7 @@ tests/platform/.zig-cache/
 tests/platform/zig-out/
 tests/platform/targets/*/libhost.a
 tests/platform/targets/*/libretention_host.a
+tests/platform/targets/*/rcrt1.o
 tests/retention_platform/targets/
 .blueprint/
 

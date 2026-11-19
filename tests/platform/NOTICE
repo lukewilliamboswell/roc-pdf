@@ -2,9 +2,14 @@ Portions derived from roc-platform-template-zig at revision
 d4db636a2f606edf5ae4803f84588f7a5207d53a:
 https://github.com/lukewilliamboswell/roc-platform-template-zig/tree/d4db636a2f606edf5ae4803f84588f7a5207d53a
 
-The x64musl crt1.o and libc.a test link artifacts are byte-identical to the
-files at that revision. Their retained digests and source URLs are recorded in
+The retained x64musl libc.a test link artifact is byte-identical to the file
+at that revision. Its digest and source URL are recorded in
 assets/provenance.json.
+
+The generated x64musl rcrt1.o is built from musl sources bundled with Zig
+0.16.0, whose distribution digests are pinned in Blueprint.lock. It supplies
+self-relocation for static PIE executables. The musl license and contributor
+notices are retained in musl-COPYRIGHT.
 
 Copyright © 2024 Luke Boswell and subsequent authors
 
