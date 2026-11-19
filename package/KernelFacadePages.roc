@@ -461,6 +461,10 @@ callout_rules = |authoring, fragments| {
 	$rules
 }
 
+## The theme's page margins as the plain record page layout takes.
+layout_margins : Theme.PageMargin -> KernelPageLayout.Margins
+layout_margins = |margin| { bottom: margin.bottom, left: margin.left, right: margin.right, top: margin.top }
+
 build_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, KernelFacadeLines.Plan, Layout.Size, Theme, FlowSelection, KernelFacadePages.Limits -> Try(KernelFacadePages.Plan, KernelFacadePages.Error)
 build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 	match KernelFacadeLines.Plan.geometry(line_plan) {
@@ -609,7 +613,7 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 	}
 	$page_blocks = apply_customs(authoring, $page_blocks, [])?
 	keep_groups = together_groups(authoring)
-	constraints = { margins: theme.page_margin, page: page_size }
+	constraints = { margins: layout_margins(theme.page_margin), page: page_size }
 	containers = callout_containers(authoring, |group| KernelFacadeLines.Plan.group_frame(line_plan, group), [], theme)?
 	page = if !containers.is_empty() {
 		selection = match flow {
@@ -1065,7 +1069,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 	## footer groups join them in preorder.
 	$page_blocks = apply_customs(authoring, $page_blocks, $unit_of_block)?
 	merged = merge_groups(unit_groups(authoring, $unit_of_block), $footer_groups, $footer_sources)
-	constraints = { margins: theme.page_margin, page: page_size }
+	constraints = { margins: layout_margins(theme.page_margin), page: page_size }
 	containers = callout_containers(authoring, |group| KernelFacadeLines.Plan.group_frame(line_plan, group), $unit_of_block, theme)?
 	page = if !containers.is_empty() {
 		selection = match flow {
@@ -2752,7 +2756,7 @@ build_measured = |authoring, input, page_size, theme, flow, limits| {
 		WithFlowTemplate(template) | WithScopedFlow({ template, scopes: _ }) => WithTemplate(layout_template(template, lead))
 	}
 	$blocks = scope_policies(lead_policies($blocks, lead), flow, $unit_of_block)
-	choice = KernelPageLayout.Choice.build($blocks, flow_groups(merged.groups, lead), $grid_rows.len(), { margins: theme.page_margin, page: page_size }, selection, layout_scopes(flow, $unit_of_block), containers, limits.page) ? |error| TableLayout({ error, groups: merged.sources, units: $units })
+	choice = KernelPageLayout.Choice.build($blocks, flow_groups(merged.groups, lead), $grid_rows.len(), { margins: layout_margins(theme.page_margin), page: page_size }, selection, layout_scopes(flow, $unit_of_block), containers, limits.page) ? |error| TableLayout({ error, groups: merged.sources, units: $units })
 	continuation_top = match flow {
 		NoFlowTemplate => Layout.Unit.from_raw(0)
 		WithFlowTemplate(template) | WithScopedFlow({ template, scopes: _ }) => template.continuation.top

@@ -188,7 +188,7 @@ KernelFacadeText :: [].{
 ## The request remains attached to the logical run range selected before line
 ## breaking. The current materializer rejects a range wider than one physical
 ## run explicitly; it no longer relies on a bare run ID to hide that boundary.
-PaintRequest := { artifact : Bool, line : U64, origin : Layout.Point, page : Semantics.PageId, source_runs : KernelFacadeShape.LogicalRun }
+PaintRequest : { artifact : Bool, line : U64, origin : Layout.Point, page : Semantics.PageId, source_runs : KernelFacadeShape.LogicalRun }
 
 build_plan : KernelFacadeShape.Plan, KernelFacadeLines.Plan, KernelFacadePages.Plan, KernelFacadeText.Limits -> Try(KernelFacadeText.Plan, KernelFacadeText.Error)
 build_plan = |shape_plan, line_plan, page_plan, limits| {
