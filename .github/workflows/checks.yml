@@ -84,7 +84,7 @@ jobs:
       # Blueprint verifies its own binary against the reviewed digest, then
       # fetches Zig 0.16.0 by the digest in Blueprint.lock for the dev tasks.
       - name: Install Blueprint
-        uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@6c796f299012707d2e9bad23fd6449ed93f1f475
+        uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@dd30a5dd576973b6e224db70d96e3e12c96bcc95
         with:
           cache: "true"
           cache-workload: dev
@@ -101,15 +101,15 @@ jobs:
         run: printf 'ROC_NIGHTLY_TAG=%s\n' "$(sed -n '1p' .roc-version)" >> "$GITHUB_ENV"
 
       - name: Install Roc
-        uses: roc-lang/setup-roc@30af91a173612e462a5df47f3b697c53c211f48c
+        id: roc
+        uses: lukewilliamboswell/roc-automation/actions/setup-roc-nightly@dd30a5dd576973b6e224db70d96e3e12c96bcc95
         with:
-          download-method: asset-api
-          version: nightly
           nightly-tag: ${{ env.ROC_NIGHTLY_TAG }}
 
       - name: Bind clean measured source
         env:
           SOURCE_SHA: ${{ inputs.source_sha }}
+          INSTALLED_ROC: ${{ steps.roc.outputs.roc }}
         run: |
           python3 scripts/test_prepare_ci_source.py
           python3 scripts/prepare_ci_source.py
@@ -159,7 +159,7 @@ jobs:
           persist-credentials: false
 
       - name: Install Blueprint
-        uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@6c796f299012707d2e9bad23fd6449ed93f1f475
+        uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@dd30a5dd576973b6e224db70d96e3e12c96bcc95
         with:
           cache: "true"
           cache-workload: dev
@@ -168,15 +168,15 @@ jobs:
         run: printf 'ROC_NIGHTLY_TAG=%s\n' "$(sed -n '1p' .roc-version)" >> "$GITHUB_ENV"
 
       - name: Install Roc
-        uses: roc-lang/setup-roc@30af91a173612e462a5df47f3b697c53c211f48c
+        id: roc
+        uses: lukewilliamboswell/roc-automation/actions/setup-roc-nightly@dd30a5dd576973b6e224db70d96e3e12c96bcc95
         with:
-          download-method: asset-api
-          version: nightly
           nightly-tag: ${{ env.ROC_NIGHTLY_TAG }}
 
       - name: Bind clean measured source
         env:
           SOURCE_SHA: ${{ inputs.source_sha }}
+          INSTALLED_ROC: ${{ steps.roc.outputs.roc }}
         run: |
           python3 scripts/test_prepare_ci_source.py
           python3 scripts/prepare_ci_source.py
@@ -288,13 +288,11 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
           python-version: 3.14.0
-      - uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@6c796f299012707d2e9bad23fd6449ed93f1f475
+      - uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@dd30a5dd576973b6e224db70d96e3e12c96bcc95
       - name: Read pinned compiler
         run: printf 'ROC_NIGHTLY_TAG=%s\n' "$(cat .roc-version)" >> "$GITHUB_ENV"
-      - uses: roc-lang/setup-roc@30af91a173612e462a5df47f3b697c53c211f48c
+      - uses: lukewilliamboswell/roc-automation/actions/setup-roc-nightly@dd30a5dd576973b6e224db70d96e3e12c96bcc95
         with:
-          download-method: asset-api
-          version: nightly
           nightly-tag: ${{ env.ROC_NIGHTLY_TAG }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
