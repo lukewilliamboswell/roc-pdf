@@ -13,7 +13,7 @@ check daily at 13:17 UTC. It tests the latest final release's
 one tracking issue. The release workflow builds that archive with
 `scripts/examples_archive.py`.
 
-The caller workflows pin shared code to `dd30a5dd576973b6e224db70d96e3e12c96bcc95`.
+The nightly caller pins shared code to `dd30a5dd576973b6e224db70d96e3e12c96bcc95`.
 Dependabot proposes reviewed updates to Actions/workflow references.
 
 Follow the shared [repository settings](https://github.com/lukewilliamboswell/roc-automation/blob/dd30a5dd576973b6e224db70d96e3e12c96bcc95/docs/settings.adoc)
