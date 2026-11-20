@@ -29,7 +29,7 @@ class SourceGateTests(unittest.TestCase):
         self.sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=self.root, text=True).strip()
         import platform
         system = {"Linux": "linux_x86_64", "Darwin": "macos_apple_silicon"}[platform.system()]
-        self.compiler = self.root / f"roc_nightly-{system}-2026-11-07-ad3a5d2" / "roc"
+        self.compiler = self.runner_temp / f"roc_nightly-{system}-2026-11-07-ad3a5d2" / "roc"
         self.compiler.parent.mkdir()
         self.compiler.write_text("#!/bin/sh\necho 'Roc compiler version nightly-2026-11-07-ad3a5d2'\n")
         self.compiler.chmod(0o755)
@@ -39,13 +39,14 @@ class SourceGateTests(unittest.TestCase):
         prepare(self.root, compiler or self.compiler, self.runner_temp, sha or self.sha, receipt)
         return receipt
 
-    def test_relocates_only_compiler_and_records_clean_source(self):
+    def test_records_verified_compiler_and_clean_source(self):
         original = self.compiler.read_bytes()
         receipt = self.run_gate()
-        self.assertFalse(self.compiler.exists())
-        self.assertEqual(Path(receipt["compiler"]["path"]).read_bytes(), original)
+        self.assertEqual(Path(receipt["compiler"]["path"]), self.compiler.resolve())
+        self.assertEqual(self.compiler.read_bytes(), original)
         self.assertEqual(receipt["compiler"]["sha256"], hashlib.sha256(original).hexdigest())
         self.assertEqual(receipt["source_revision"], self.sha)
+        self.assertEqual(receipt["status_before"], [])
         self.assertEqual(receipt["status_after"], [])
         self.assertEqual(receipt["tracked_diff_after"], "")
         self.assertEqual(receipt["tracked_sha256"]["source.roc"],
@@ -67,11 +68,20 @@ class SourceGateTests(unittest.TestCase):
         self.assertTrue(self.compiler.exists())
 
     def test_refuses_unrelated_install_directory(self):
-        unrelated = self.root / "unrelated" / "roc"
+        unrelated = self.runner_temp / "unrelated" / "roc"
         self.compiler.parent.rename(unrelated.parent)
         with self.assertRaisesRegex(ValueError, "exact pinned"):
             self.run_gate(compiler=unrelated)
         self.assertTrue(unrelated.exists())
+
+    def test_refuses_install_inside_checkout_or_outside_runner_temp(self):
+        for parent in (self.root, self.base):
+            with self.subTest(parent=parent):
+                unrelated = parent / self.compiler.parent.name / "roc"
+                self.compiler.parent.rename(unrelated.parent)
+                with self.assertRaisesRegex(ValueError, "exact pinned"):
+                    self.run_gate(compiler=unrelated)
+                unrelated.parent.rename(self.compiler.parent)
 
     def test_refuses_wrong_revision(self):
         with self.assertRaisesRegex(ValueError, "requested source revision"):

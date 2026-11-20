@@ -21,8 +21,15 @@ machine.
 The package compiler is deliberately not fetched by Blueprint. `.roc-version`
 stays its single pin, because the allocation baselines are exact for one build
 and compiler changes require the baseline review described in `testing.md`.
-CI installs the pinned nightly with `roc-lang/setup-roc`; locally, put it on
-`PATH` (or set `ROC`). The scripts refuse any other compiler.
+CI installs that nightly with the shared verified installer. A matching
+archive in the Actions cache skips the release download. The installer
+checks the archive size and SHA-256 and extracts it outside the checkout.
+Locally, put the pinned compiler on `PATH` or set `ROC`.
+
+The GitHub checks reuse Blueprint's verified download artifacts for the
+`dev` workload, including Zig. The docs workflow uses the separate `docs`
+workload for ripgrep and the locked renderer. Both caches are keyed by
+workflow, target, installer and lock. Each tool is verified before use.
 
 Zig is fetched because the test platform hosts need exactly 0.16.0, and a newer
 Zig on `PATH` is rejected by the harness. ripgrep is fetched because the docs

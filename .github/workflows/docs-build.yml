@@ -28,13 +28,14 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
           python-version: 3.14.0
-      - uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@6c796f299012707d2e9bad23fd6449ed93f1f475
+      - uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@dd30a5dd576973b6e224db70d96e3e12c96bcc95
+        with:
+          cache: 'true'
+          cache-workload: docs
       - name: Read pinned compiler
         run: printf 'ROC_NIGHTLY_TAG=%s\n' "$(cat .roc-version)" >> "$GITHUB_ENV"
-      - uses: roc-lang/setup-roc@30af91a173612e462a5df47f3b697c53c211f48c
+      - uses: lukewilliamboswell/roc-automation/actions/setup-roc-nightly@dd30a5dd576973b6e224db70d96e3e12c96bcc95
         with:
-          download-method: asset-api
-          version: nightly
           nightly-tag: ${{ env.ROC_NIGHTLY_TAG }}
       - name: Stage authored AsciiDoc and release metadata
         env:
@@ -49,11 +50,11 @@ jobs:
           fi
           python3 scripts/prepare_manual.py --revision "$DOCS_REVISION" "${binding_args[@]}"
       - id: renderer
-        uses: lukewilliamboswell/roc-automation/actions/blueprint-tool@6c796f299012707d2e9bad23fd6449ed93f1f475
+        uses: lukewilliamboswell/roc-automation/actions/blueprint-tool@dd30a5dd576973b6e224db70d96e3e12c96bcc95
         with:
           task: docs-path
           label: Locked documentation renderer
-      - uses: lukewilliamboswell/roc-automation/actions/build-docs@6c796f299012707d2e9bad23fd6449ed93f1f475
+      - uses: lukewilliamboswell/roc-automation/actions/build-docs@dd30a5dd576973b6e224db70d96e3e12c96bcc95
         with:
           renderer-binary: ${{ steps.renderer.outputs.binary }}
           docs-directory: .roc-pdf-tmp/manual-source

@@ -1,7 +1,7 @@
 # Contributor tooling for roc-pdf. See development/blueprint.md.
 #
 # The package compiler is not fetched here. `.roc-version` stays its only pin:
-# CI installs that nightly with roc-lang/setup-roc, contributors put it on PATH
+# CI installs that nightly with the shared verified installer, contributors put it on PATH
 # as `roc`, and the scripts refuse any other compiler. Zig is fetched by digest
 # because the test platform hosts need exactly 0.16.0, and ripgrep because the
 # docs audit needs it and the CI runners do not ship it.
@@ -16,7 +16,7 @@ config = [
 	Systems(["x86_64-linux", "aarch64-darwin"]),
 	Environment("package", [Expect(["roc", "python3", "bash", "tar"])]),
 	Environment("dev", [Extend("package"), Programs([Fetch("zig", zig)])]),
-	Environment("docs", [Extend("package"), Programs([Fetch("rg", ripgrep), Fetch("roc-docs", Recipes.file("https://github.com/lukewilliamboswell/roc-automation/releases/download/tools-0.11.1/roc-docs-{system}"))]), Expect(["realpath", "sh"])]),
+	Environment("docs", [Extend("package"), Programs([Fetch("rg", ripgrep), Fetch("roc-docs", Recipes.file("https://github.com/lukewilliamboswell/roc-automation/releases/download/tools-0.12.0/roc-docs-{system}"))]), Expect(["realpath", "sh"])]),
 	Shell("default", [Use("dev")]),
 	Task("test", [Use("dev"), Run(["python3", "scripts/test.py"])]),
 	Task("fuzz", [Use("dev"), Run(["python3", "scripts/fuzz.py", "--mode", "smoke"])]),

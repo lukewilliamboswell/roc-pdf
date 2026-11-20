@@ -68,10 +68,11 @@ Use `--linux-x64-container IMAGE` to cross-build and exercise the Linux host in
 a local container. Reports retain the actual compiler/platform/source identity.
 For published CI use, the ordinary workflow executes on a native Linux runner;
 full validation also executes the same lane on native Apple Silicon macOS.
-CI relocates only the pinned setup-roc installation outside the checkout and
-requires every tracked and untracked source path to be clean before measurement.
-Its source receipt records the original status, tracked diffs and file digests,
-and the compiler's original/current path, version and executable digest.
+CI verifies that the pinned installer placed the compiler outside the
+checkout and that every tracked and untracked source path is clean before
+measurement. The source receipt records checkout status before and after the
+check together with tracked file digests and the compiler's path, version and
+executable digest.
 
 ## Read reports and retain witnesses
 
