@@ -5,7 +5,7 @@
 # as `roc`, and the scripts refuse any other compiler. Zig is fetched by digest
 # because the test platform hosts need exactly 0.16.0, and ripgrep because the
 # docs audit needs it and the CI runners do not ship it.
-app [config] { pf: platform "https://github.com/lukewilliamboswell/roc-blueprint/releases/download/0.12.0/GSb71LxYHqLohZz8jMfawWEwQcyev9ZdVC26sfsDwfq8.tar.zst" }
+app [config] { pf: platform "https://github.com/lukewilliamboswell/roc-blueprint/releases/download/0.14.0/Erv2CTy8LJML6JuhvQ3WcmFpXSA6FnGPcfDTi1iFX9B8.tar.zst" }
 
 import pf.Config
 import pf.Recipes

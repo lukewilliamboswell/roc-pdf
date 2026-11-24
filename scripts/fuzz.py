@@ -50,9 +50,9 @@ WORK = ROOT / ".roc-pdf-tmp" / "fuzz"
 SEEDS = ROOT / ".roc-pdf-tmp" / "fuzz-corpus"
 ARTIFACTS = ROOT / ".roc-pdf-tmp" / "fuzz-artifacts"
 BASELINES = ROOT / "fuzz" / "baselines"
-PLATFORM_RELEASE = "0.7.0"
-PLATFORM_SHA256 = "94130c93aa2abb204beb21f06338ecc39c5808e1358d905f219769ecf260e5f2"
-PLATFORM_URL = "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.7.0/HBigHQhVZWEF2EkLxpYK35u8P6UNsAmPYxpNFTxXK1Br.tar.zst"
+PLATFORM_RELEASE = "0.8.0"
+PLATFORM_SHA256 = "8d7a2df0c33658e33968e774f9b62669a290fbbf05d477982458a382b89fa664"
+PLATFORM_URL = "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.8.0/BUNcJDHxCd7xLVSe3WBioyXqR6tm1MqXwzwGgtnmqK43.tar.zst"
 PROFILE = "llvm-fuzz"
 # Cache-enabled builds can reuse procedures with different allocation behavior.
 # Keep the measured build policy in the executable identity as well as the command.
@@ -284,7 +284,7 @@ def invocation(binary: Path, arguments: list[str], container: str | None) -> lis
 
 def validate_report(report: dict, target: Target, host: str, command: str, *, provenance: dict, configuration: dict, baseline: str) -> None:
     """Project policy supplements the supervisor: an unbaselined check cannot pass."""
-    expected = {"format": "roc-fuzz-quality/1", "metric_version": "roc-fuzz-allocations/1",
+    expected = {"format": "roc-fuzz-quality/2", "metric_version": "roc-fuzz-allocations/1",
                 "target": target.declared_name, "host_target": host,
                 "profile": PROFILE, "command": command, "outcome": "passed",
                 "baseline_status": "accepted" if command == "accept" else "matched"}
@@ -370,7 +370,7 @@ def self_test() -> None:
             else:
                 raise SystemExit("suite inventory accepted a missing, duplicate or unknown property")
     target = TARGETS[0]
-    passed = {"format": "roc-fuzz-quality/1", "metric_version": "roc-fuzz-allocations/1",
+    passed = {"format": "roc-fuzz-quality/2", "metric_version": "roc-fuzz-allocations/1",
               "target": "roc-pdf-font-inspector-mutation", "host_target": "arm64mac", "profile": PROFILE,
               "command": "run", "outcome": "passed", "baseline_status": "matched",
               "preparation": {"status": "passed"}, "configuration": {"leak_detection": True},

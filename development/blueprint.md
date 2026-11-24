@@ -2,7 +2,7 @@
 
 `Blueprint.roc` and `Blueprint.lock` at the repository root declare the tools
 the contributor checks need and name those checks as tasks. They use
-[Blueprint](https://github.com/lukewilliamboswell/roc-blueprint) 0.12.0 with no
+[Blueprint](https://github.com/lukewilliamboswell/roc-blueprint) with no
 package provider: no Nix and no flake. Downloads are checked against the
 digests committed in `Blueprint.lock`, and everything else is expected from the
 machine.
@@ -46,9 +46,9 @@ never production dependencies.
 
 ## Tasks
 
-Install the `blueprint` 0.12.0 binary for your system from the
-[release](https://github.com/lukewilliamboswell/roc-blueprint/releases/tag/0.12.0)
-and check its SHA-256 against `blueprint.sha256` there. Then:
+Install the `blueprint` binary for your system from the release named in
+`Blueprint.roc` and check its SHA-256 against the release’s `blueprint.sha256`.
+Then run:
 
 ```sh
 blueprint check                     # validate Blueprint.roc
@@ -112,8 +112,8 @@ independent HTML/Markdown/PDF checks.
   `Blueprint.lock` (compare Zig against
   <https://ziglang.org/download/index.json> and ripgrep against the digests on
   its GitHub release), and commit both files.
-- To upgrade Blueprint, follow roc-automation's "Upgrade Blueprint" steps: move
-  the `setup-blueprint` revision to one that records the release, change the
-  platform URL in `Blueprint.roc`, and regenerate the lock if the lock format
-  changed.
+- To upgrade Blueprint, change the platform URL in `Blueprint.roc` and use a
+  `setup-blueprint` revision that records the release or supply its reviewed
+  executable SHA-256 values to the action. Regenerate the lock if the lock
+  format changed.
 - `.blueprint/` is generated state and is ignored.

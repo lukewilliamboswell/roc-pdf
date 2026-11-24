@@ -37,6 +37,7 @@ jobs:
       - name: Install Blueprint
         uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@dd30a5dd576973b6e224db70d96e3e12c96bcc95
         with:
+          sha256-x86_64-linux: 75c0bafa081773da2a6210b5238ab6da0eef87ece8d4acecf7ad497e03adf796
           cache: 'true'
           cache-workload: dev
 
