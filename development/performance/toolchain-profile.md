@@ -1,12 +1,15 @@
-# Accepted compiler and allocation profile
+# Compiler and allocation baseline evidence
 
-The dev allocation expectations use Roc `nightly-2026-11-18-a520eed`,
-Unicode 4.3.3 and Zig 0.16.0 ReleaseFast hosts. Fixtures build with
+The dev allocation checks use the compiler in [`.roc-version`](../../.roc-version)
+and Zig 0.16.0 ReleaseFast hosts. Fixtures build with
 `--opt=dev --specialize=yes --no-cache`. The specialization setting is part
-of the required schema-8 toolchain identity. The LLVM property profile uses
-roc-fuzz 0.7.0 and `--fuzz --specialize=yes --no-cache`; its executable stamps
-bind the compiler, platform, flags, local source/asset closure and binary.
-These are official prebuilt compilers, without a claim about their own build mode.
+of the required schema-8 toolchain identity. The [LLVM fuzz profile](fuzz-suites.md)
+documents its separate build and measurement settings.
+
+## November 18 compiler and Unicode transition
+
+The following measurements used Roc `nightly-2026-11-18-a520eed` and Unicode
+4.3.3. The compiler was the official prebuilt release.
 
 The prior accepted profile and its controls remain available at the
 [previous profile](https://github.com/lukewilliamboswell/roc-pdf/blob/6a91b96/development/performance/toolchain-profile.md).

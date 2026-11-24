@@ -13,14 +13,16 @@ and input preparation stay outside the measured `$property` region. Neither
 combining members nor selecting a subset changes a property's input encoding
 or measurement boundary.
 
-Builds use `--fuzz --specialize=yes --no-cache`. The executable stamp binds the
+Builds use `--fuzz --specialize=yes --no-cache`, the compiler in
+[`.roc-version`](../../.roc-version), and the platform pinned by
+[`scripts/fuzz.py`](../../scripts/fuzz.py). The executable stamp binds the
 complete local source/asset closure, compiler, target, platform SHA-256, flags
 and executable digest. `--no-build` rejects a changed identity. The suite's
 source closure includes every member, even when only one member is selected.
 
 ## Reviewed allocation observations
 
-The profile uses Roc `nightly-2026-11-18-a520eed` and roc-fuzz 0.7.0, archive
+This baseline review used Roc `nightly-2026-11-18-a520eed` and roc-fuzz 0.7.0, archive
 SHA-256 `94130c93aa2abb204beb21f06338ecc39c5808e1358d905f219769ecf260e5f2`.
 Clean native Linux and macOS producers at
 [`f98ea23`](https://github.com/lukewilliamboswell/roc-pdf/commit/f98ea231e023aeca1025d85a3001cab584b2fcf8)
