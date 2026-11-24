@@ -863,16 +863,16 @@ DocumentBuilder :: {
 	## A URI link block: the whole text is the link. The secondary string is
 	## interned beside the text; the aux slot records its index.
 	add_link : DocumentBuilder, { text : Str, uri : Str } -> DocumentBuilder
-	add_link = |state, { text, uri }| append_with_secondary(state, link_tag, text, uri, 1)
+	add_link = |state, { text, uri }| append_with_secondary(state, link_tag, text, uri, 0)
 
 	add_internal_link : DocumentBuilder, { text : Str, destination : Str } -> DocumentBuilder
-	add_internal_link = |state, { text, destination }| append_with_secondary(state, internal_link_tag, text, destination, 1)
+	add_internal_link = |state, { text, destination }| append_with_secondary(state, internal_link_tag, text, destination, 0)
 
 	add_destination_heading : DocumentBuilder, { name : Str, level : U8, text : Str } -> DocumentBuilder
-	add_destination_heading = |state, { name, level, text }| append_with_secondary(state, destination_heading_tag, text, name, 8 * 1 + level.to_u64())
+	add_destination_heading = |state, { name, level, text }| append_with_secondary(state, destination_heading_tag, text, name, level)
 
 	add_destination_paragraph : DocumentBuilder, { name : Str, text : Str } -> DocumentBuilder
-	add_destination_paragraph = |state, { name, text }| append_with_secondary(state, destination_paragraph_tag, text, name, 1)
+	add_destination_paragraph = |state, { name, text }| append_with_secondary(state, destination_paragraph_tag, text, name, 0)
 
 	stats : DocumentBuilder -> Stats
 	stats = |state| {
@@ -1771,7 +1771,9 @@ normalize_compact = |compact, initial| {
 		} else if tag == internal_link_tag {
 			$blocks = $blocks.append({ kind: InternalLink({ destination: list_at(compact.text_sources, aux) }), parent: 0, text: list_at(compact.text_sources, text) })
 		} else if tag == destination_heading_tag {
-			$blocks = $blocks.append({ kind: DestinationHeading({ level: (aux % 8).to_u8_wrap(), name: list_at(compact.text_sources, aux // 8) }), parent: 0, text: list_at(compact.text_sources, text) })
+			# The name follows the heading text. The aux slot retains the
+			# full authored level for the semantic stage to validate.
+			$blocks = $blocks.append({ kind: DestinationHeading({ level: aux.to_u8_wrap(), name: list_at(compact.text_sources, text + 1) }), parent: 0, text: list_at(compact.text_sources, text) })
 		} else if tag == destination_paragraph_tag {
 			$blocks = $blocks.append({ kind: DestinationParagraph({ name: list_at(compact.text_sources, aux) }), parent: 0, text: list_at(compact.text_sources, text) })
 		} else {
@@ -2880,14 +2882,13 @@ segment_texts = |inlines, base, line_breaks, first_break| {
 ## the entry after the block text; the aux slot carries the secondary
 ## offset relative to the text index — for destination headings multiplied
 ## by eight with the heading level packed into the low three bits.
-append_with_secondary : DocumentBuilder, U8, Str, Str, U64 -> DocumentBuilder
-append_with_secondary = |DocumentBuilder.{ block_aux, block_tags, block_texts, language, metadata_title, text_sources }, tag, text, secondary, aux_pattern| {
+append_with_secondary : DocumentBuilder, U8, Str, Str, U8 -> DocumentBuilder
+append_with_secondary = |DocumentBuilder.{ block_aux, block_tags, block_texts, language, metadata_title, text_sources }, tag, text, secondary, heading_level| {
 	text_id = text_sources.len()
-	secondary_id = text_id + 1
 	aux = if tag == destination_heading_tag {
-		secondary_id * 8 + aux_pattern % 8
+		heading_level.to_u64()
 	} else {
-		secondary_id
+		text_id + 1
 	}
 
 	DocumentBuilder.{
