@@ -58,16 +58,26 @@ KernelFileLayout :: [].{
 	## stream: a file offset for a top-level object, or this marker with the
 	## object stream ordinal and member index for a compressed one.
 	compressed_entry : U64, U64 -> U64
-	compressed_entry = |stream, member| compressed_marker.bitwise_or(stream.shl_wrap(16)).bitwise_or(member)
+	compressed_entry = |stream, member| CompressedSlot.pack(stream, member)
 
 	is_compressed_entry : U64 -> Bool
-	is_compressed_entry = |entry| entry.bitwise_and(compressed_marker) != 0
+	is_compressed_entry = |entry| CompressedSlot.marker_bits(entry) != 0
 
 	compressed_stream : U64 -> U64
-	compressed_stream = |entry| entry.bitwise_and(compressed_marker - 1).shr_wrap(16)
+	compressed_stream = |entry| CompressedSlot.stream(entry)
 
 	compressed_member : U64 -> U64
-	compressed_member = |entry| entry.bitwise_and(0xFFFF)
+	compressed_member = |entry| CompressedSlot.member(entry)
+
+	## The high bit tags compressed slots. The next 47 bits hold the stream
+	## ordinal, and the low 16 bits hold the member index. These expressions
+	## are shared by the concrete operations and the arithmetic proofs.
+	CompressedSlot :: [].{
+		pack = |stream_index, member_index| stream_index.shl_wrap(16).bitwise_or(0x8000000000000000).bitwise_or(member_index)
+		marker_bits = |entry| entry.bitwise_and(0x8000000000000000)
+		stream = |entry| entry.bitwise_and(0x7FFFFFFFFFFFFFFF).shr_wrap(16)
+		member = |entry| entry.bitwise_and(0xFFFF)
+	}
 
 	## Bytes needed to write `value` big-endian, at least one.
 	byte_width : U64 -> U64
@@ -81,9 +91,6 @@ KernelFileLayout :: [].{
 		$width
 	}
 }
-
-compressed_marker : U64
-compressed_marker = 0x8000000000000000
 
 expect KernelFileLayout.stream_count(0) == 0 and
 	KernelFileLayout.stream_count(1) == 1 and

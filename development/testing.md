@@ -169,6 +169,28 @@ reference. The ledger must map every rule of the pinned profile
 (`conformance/verapdf-pdfa4-rules.json`, extracted from the vendored
 installer) exactly once; `scripts/check_contracts.py` enforces this.
 
+## State models and arithmetic proofs
+
+`./scripts/test.py` runs the roc-fuzz Model and Solve checks as ordinary
+`roc test` expectations. Run either check directly with the pinned compiler:
+
+```sh
+roc test fuzz/document_builder_model.roc --no-cache
+roc test fuzz/output_arithmetic.roc --no-cache
+```
+
+The builder model checks every sequence of up to three appends from its
+13 authored operations. It compares normalized leaves, metadata and builder
+counts with an independent list model after each operation. Its goals cover
+mixed batches, empty and populated lists, and links with destination headings.
+The facade regression checks that heading level 9 produces the same located
+diagnostic through both authoring paths.
+
+The xref proof uses the same packing and extraction expressions as the
+emitter. It proves the 47-bit stream ordinal and 16-bit member index round-trip
+and distinguishes compressed slots from offsets below the high-bit marker.
+A concrete maximum-value check exercises the emitter's U64 helpers.
+
 ## Property fuzz targets
 
 The bounded property targets in `fuzz/` are evidence-only applications on the
