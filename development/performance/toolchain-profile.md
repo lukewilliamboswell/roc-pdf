@@ -6,6 +6,30 @@ and Zig 0.16.0 ReleaseFast hosts. Fixtures build with
 of the required schema-8 toolchain identity. The [LLVM fuzz profile](fuzz-suites.md)
 documents its separate build and measurement settings.
 
+## November 23 compiler transition
+
+The new compiler can evaluate the constant form, color-image, transparency,
+soft-mask and shading-pattern scenarios before the host resets the allocation
+counters. The JSON case now selects the authored order at runtime. The
+showcases still compare both orders, the unique cases consume one input, and
+the retained cases use the same input twice. These 15 cases match their prior
+allocations, allocated bytes, work and snapshots with runtime evaluation restored.
+
+Allocator traces of identical fixture sources under the November 18 and 23
+nightlies account for the six remaining reductions. The traces contain
+removed allocation calls and no new allocation or reallocation calls in the
+size inventory for these cases.
+
+| Cases | Allocation events removed per case | Requested bytes removed per case | Allocation sites |
+| --- | ---: | ---: | --- |
+| UAX 9 vectors | 9 | 1,624 | Unicode `Bidi` run-index list updates |
+| Resolved RTL and mismatched bidi fact | 1 | 232 | Same run-index list update |
+| Authored facade output and atomic negative | 1 | 88 | Normalized paragraph append |
+| Rich-flow atomic negatives | 8 | 12,736 | Constant callout construction, normalization and repeated probe text |
+
+All six retain their work counters and PDFs. The rich-flow page-limit probe
+still executes against the prepared font and checks its page-stage rejection.
+
 ## November 18 compiler and Unicode transition
 
 The following measurements used Roc `nightly-2026-11-18-a520eed` and Unicode

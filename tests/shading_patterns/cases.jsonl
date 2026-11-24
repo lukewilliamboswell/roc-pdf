@@ -1,6 +1,6 @@
-{"name":"production-visual shading-pattern showcase with adversarial authoring","schema_version":1,"case":"Showcase"}
-{"name":"production-visual shading-pattern unique-input ownership","schema_version":1,"case":"Unique"}
-{"name":"production-visual shading-pattern retained-input ownership","schema_version":1,"case":"Shared"}
+{"name":"production-visual shading-pattern showcase with adversarial authoring","schema_version":1,"case":{"Showcase":{"context":0}}}
+{"name":"production-visual shading-pattern unique-input ownership","schema_version":1,"case":{"Unique":{"context":0}}}
+{"name":"production-visual shading-pattern retained-input ownership","schema_version":1,"case":{"Shared":{"context":0}}}
 {"name":"production-visual shared shading x100","schema_version":1,"case":{"Share":{"scale":100}}}
 {"name":"production-visual shared shading x1000","schema_version":1,"case":{"Share":{"scale":1000}}}
 {"name":"production-visual distinct shadings x8","schema_version":1,"case":{"Distinct":{"scale":8}}}

@@ -683,19 +683,21 @@ mask_chain = |depth| {
 
 run_scenario : Str, U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 run_scenario = |mode, scale| {
+	# Select the authored order from the runtime case so allocation checks run the pipeline.
+	first_order = if scale == 0 Forward else Reversed
 	if mode == "showcase" {
-		forward = run_pipeline(showcase_scenario(Forward)) ? |_| EvidenceFailure
-		reversed = run_pipeline(showcase_scenario(Reversed)) ? |_| EvidenceFailure
+		forward = run_pipeline(showcase_scenario(first_order)) ? |_| EvidenceFailure
+		reversed = run_pipeline(showcase_scenario(if scale == 0 Reversed else Forward)) ? |_| EvidenceFailure
 		if forward.bytes != reversed.bytes {
 			return Err(AdversarialOrderDiverged)
 		}
 		check_showcase_sharing(forward)?
 		Ok({ bytes: forward.bytes, work: work_vector(forward) })
 	} else if mode == "unique" {
-		built = run_pipeline(showcase_scenario(Forward)) ? |_| EvidenceFailure
+		built = run_pipeline(showcase_scenario(first_order)) ? |_| EvidenceFailure
 		Ok({ bytes: built.bytes, work: work_vector(built) })
 	} else if mode == "shared" {
-		scenario_input = showcase_scenario(Forward)
+		scenario_input = showcase_scenario(first_order)
 		first = run_pipeline(scenario_input) ? |_| EvidenceFailure
 		second = run_pipeline(scenario_input) ? |_| EvidenceFailure
 		if first.bytes != second.bytes {

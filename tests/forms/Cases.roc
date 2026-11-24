@@ -3,9 +3,9 @@ import Fixture
 ## The forms family's typed cases and their dispatch, run by a fixture group app.
 Cases :: [].{
 	Case : [
-		Showcase,
-		Unique,
-		Shared,
+		Showcase({ context : U64 }),
+		Unique({ context : U64 }),
+		Shared({ context : U64 }),
 		Repeat({ scale : U64 }),
 		Dag({ scale : U64 }),
 		Deep({ scale : U64 }),
@@ -15,9 +15,9 @@ Cases :: [].{
 	run : Case -> { bytes : List(U8), work : List(U64) }
 	run = |case| {
 		result = match case {
-			Showcase => Fixture.scenario("showcase", 0)
-			Unique => Fixture.scenario("unique", 0)
-			Shared => Fixture.scenario("shared", 0)
+			Showcase({ context }) => Fixture.scenario("showcase", context)
+			Unique({ context }) => Fixture.scenario("unique", context)
+			Shared({ context }) => Fixture.scenario("shared", context)
 			Repeat({ scale }) => if scale > 0 {
 				Fixture.scenario("repeat", scale)
 			} else {
