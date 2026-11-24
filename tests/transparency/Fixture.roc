@@ -735,10 +735,10 @@ form_grid = |scale| {
 run_scenario : Str, U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 run_scenario = |mode, scale| {
 	# Select the authored order from the runtime case so allocation checks run the pipeline.
-	first_order = if scale == 0 Forward else Reversed
+	first_order = if (scale == 0) Forward else Reversed
 	if mode == "showcase" {
 		forward = run_pipeline(showcase_scenario(first_order)) ? |_| EvidenceFailure
-		reversed = run_pipeline(showcase_scenario(if scale == 0 Reversed else Forward)) ? |_| EvidenceFailure
+		reversed = run_pipeline(showcase_scenario(if (scale == 0) Reversed else Forward)) ? |_| EvidenceFailure
 		if forward.bytes != reversed.bytes {
 			return Err(AdversarialOrderDiverged)
 		}
