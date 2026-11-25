@@ -10,7 +10,7 @@ that:
 - every annotation dictionary carries the sorted required entries: a closed
   `/A` action, the zero-width `/BS` border style, `/F` restricted to 0 or 4,
   `/QuadPoints` with eight numbers per quadrilateral in the pinned
-  top-left/top-right/bottom-left/bottom-right order, every quadrilateral
+  bottom-left/bottom-right/top-right/top-left order, every quadrilateral
   axis-aligned and inside the normalized `/Rect`, a unique `/StructParent`
   key, `/Subtype /Link`, and `/Type /Annot`;
 - every internal GoTo action carries BOTH `/SD` and `/D`: `/D` is
@@ -198,11 +198,11 @@ def check_annotation(bodies, pages, structure_elements, number: int, page: int):
     require(len(quads) >= 8 and len(quads) % 8 == 0, "quadpoints not a multiple of 8")
     for index in range(0, len(quads), 8):
         x1, y1, x2, y2, x3, y3, x4, y4 = quads[index : index + 8]
-        require(x1 == x3 and x2 == x4, "quad is not axis-aligned horizontally")
+        require(x1 == x4 and x2 == x3, "quad is not axis-aligned horizontally")
         require(y1 == y2 and y3 == y4, "quad is not axis-aligned vertically")
-        require(x1 < x2 and y3 < y1, "quad order is not TL TR BL BR")
+        require(x1 < x2 and y1 < y3, "quad order is not BL BR TR TL")
         require(
-            rect[0] <= x1 and x2 <= rect[2] and rect[1] <= y3 and y1 <= rect[3],
+            rect[0] <= x1 and x2 <= rect[2] and rect[1] <= y1 and y3 <= rect[3],
             "quad escapes the annotation rect",
         )
     action_match = re.search(rb"/A << (.*?) >> /(?:AP|BS)", body, re.S)
@@ -532,7 +532,10 @@ def self_test() -> None:
     mutations = [
         ("forbidden action type", replace_once(showcase, b"/S /GoTo", b"/S /GoUo")),
         ("SD-only pairing break", replace_once(showcase, b"/SD [", b"/XD [")),
-        ("quad escaping its rect", replace_once(showcase, b"/QuadPoints [10 66", b"/QuadPoints [10 99")),
+        ("quad escaping its rect", replace_once(showcase, b"/QuadPoints [10 56 70 56 70 66 10 66",
+                                                 b"/QuadPoints [10 56 70 56 70 99 10 99")),
+        ("wrong quad vertex order", replace_once(showcase, b"/QuadPoints [10 56 70 56 70 66 10 66",
+                                                  b"/QuadPoints [10 66 70 66 10 56 70 56")),
         ("unsupported annotation flags", replace_once(showcase, b"/F 4", b"/F 9")),
         ("StructParent key drift", replace_once(showcase, b"/StructParent 2", b"/StructParent 9")),
         ("outline count drift", replace_once(showcase, b"/Count 3 /First", b"/Count 9 /First")),
@@ -568,7 +571,7 @@ def self_test() -> None:
         "PASS production-visual navigation structural checker self-test: paired /SD + /D "
         "actions, keyboard-ordered /Annots, OBJR/ParentTree linkage, the "
         "named-destination registry, outline preorder counts, page labels, "
-        "and appearance geometry verified on all sixteen snapshots; ten "
+        "and appearance geometry verified on all sixteen snapshots; eleven "
         "mutation twins rejected",
         flush=True,
     )

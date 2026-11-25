@@ -54,10 +54,11 @@ Implemented:
   `/PageLabels` number tree through the same balanced machinery.
 - **Link annotations** carrying: the semantic owner and per-page
   annotation-occurrence identity; page association; normalized `/Rect`;
-  fragmented-link `/QuadPoints` in the pinned
-  top-left/top-right/bottom-left/bottom-right order, every quadrilateral
-  axis-aligned and inside the rect; the typed print flag (`/F 4` or
-  `/F 0`); the zero-width border style; optional `/Contents` description;
+  fragmented-link `/QuadPoints` in
+  bottom-left/bottom-right/top-right/top-left order (ISO 32000-2 Table 176).
+  Every quadrilateral is axis-aligned and inside the rect. Annotations also
+  carry a typed print flag (`/F 4` or `/F 0`), the zero-width border style,
+  an optional `/Contents` description,
   logical order (spine rank) and keyboard order (dense per-page
   permutation) as independent explicit data; `/StructParent` keys
   continuing the ParentTree after the content-stream rows; and OBJR kids
@@ -282,8 +283,8 @@ proves, for all sixteen snapshots: keyboard-ordered `/Annots` arrays
 referencing every emitted link exactly once; sorted annotation
 dictionaries with the closed action union; **both `/SD` and `/D` on every
 GoTo with identical coordinates**, `/D` referencing a real page and `/SD` a
-real structure element; the pinned QuadPoints order with every
-quadrilateral axis-aligned inside the normalized rect; unique
+real structure element; counterclockwise QuadPoints starting at the bottom-left
+corner, with every quadrilateral axis-aligned inside the normalized rect; unique
 `/StructParent` keys continuing the ParentTree, scalar rows mapping to the
 owning structure element, and that element's OBJR referencing exactly that
 annotation with the correct `/Pg`; strictly ascending name-tree keys with
@@ -291,11 +292,23 @@ exact non-root `/Limits` and paired `/D`+`/SD` values; outline link
 consistency with independently recomputed visible-descendant counts and
 registry-resolved `/Dest` names; ascending zero-based page-label keys over
 the closed vocabulary; and appearance forms with the exact `[0 0 w h]`
-bounding box and identity matrix. Ten length-preserving mutation twins (a
-forbidden action type, an `/SD`-only pairing break, an escaping quad,
-unsupported flags, StructParent drift, outline count drift, name-order
-break, zero-key loss, OBJR target drift, and a duplicated `/Annots` entry)
+bounding box and identity matrix. Eleven length-preserving mutation twins (a
+forbidden action type, an `/SD`-only pairing break, an escaping quad, a quad
+with the old vertex order, unsupported flags, StructParent drift, outline
+count drift, name-order break, zero-key loss, OBJR target drift, and a duplicated `/Annots` entry)
 must each be rejected; the self-test joins `./scripts/test.py`.
+
+The Table 176 vertex-order correction was checked against all 54 affected
+case PDFs and eight gallery PDFs. An xref-aware comparison matched each of
+the 1,390 changed quadrilaterals to its previous four vertices and verified
+all other logical objects byte for byte after decoding the object streams. The 55 affected case executions retained
+their exact allocation counts and traversal counters on x64musl. The output
+length changed with compressed object streams, which changed total requested
+allocation bytes by between −226 and +93 without changing the allocation
+ceilings. In the measured navigation fuzz example, two copies of a 5-byte
+shorter linked document account for the exact 10-byte reduction in requested
+allocations on x64musl. The arm64mac pin applies the same derived document
+length change. Native arm64mac execution remains unverified for this update.
 
 `scripts/check_navigation_renderers.py` runs the pinned matrix live.
 PDFBox 3.0.8 (`scripts/PdfBoxNavigate.java`) navigates **through the

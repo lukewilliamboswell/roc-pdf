@@ -296,28 +296,32 @@
     },
     {
       "id": "ROC-PDF-PDF20-INLINE-SEMANTICS",
-      "summary": "Rich paragraph inlines lower in authored order to Em, Strong, Link, and Span structure elements of the PDF 2.0 namespace and Code and Quote elements of the PDF 1.7 standard namespace, declared only when used, inside one P; language spans carry /Lang, abbreviations carry /E, links never nest, and every inline link owns one OBJR-referenced link annotation per page its text is painted on, with one quadrilateral per painted line. Fixed-width destination-page references resolve to exact Unicode after accepted pagination, inherit their authored inline ownership, language and style, and create no link unless enclosed by an authored Link; reference-only paragraphs, cells, mandatory segments and links retain real occurrences, and authored-break separators remain occurrence-owned ActualText on semantic paint only.",
+      "summary": "Rich paragraph inlines lower in authored order to Em, Strong, Link, and Span structure elements of the PDF 2.0 namespace and Code and Quote elements of the PDF 1.7 standard namespace, declared only when used, inside one P; language spans carry /Lang, abbreviations carry /E, links never nest, and every inline link owns one OBJR-referenced link annotation per page its text is painted on, with active quadrilaterals covering its painted runs. Fixed-width destination-page references resolve to exact Unicode after accepted pagination, inherit their authored inline ownership, language and style, and create no link unless enclosed by an authored Link; reference-only paragraphs, cells, mandatory segments and links retain real occurrences, and authored-break separators remain occurrence-owned ActualText on semantic paint only.",
       "source_ids": [
-        "iso-32000-2-2020-ec3"
+        "iso-32000-2-2020-ec3",
+        "pdf-issues-ec3"
       ],
       "references": [
-        "ISO 32000-2:2020 12.5.6.5",
+        "ISO 32000-2:2020 12.5.6.5 Table 176",
         "ISO 32000-2:2020 14.8.4.7.2",
         "ISO 32000-2:2020 14.8.6",
         "ISO 32000-2:2020 14.9.2",
         "ISO 32000-2:2020 14.9.5",
+        "ISO 32000-2:2020+EC3 14.8.4.7.3",
         "development/performance/destination-page-references.md",
         "development/performance/rich-inline.md",
-        "development/performance/technical-manual.md"
+        "development/performance/technical-manual.md",
+        "pdf-issues#133"
       ],
       "capabilities": [
         "Pdf20"
       ],
       "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "roc_facade_and_kernel_expects; rich_inline_harness_family_with_pinned_normalized_structure; independent_checker_decodes_ToUnicode_logical_text_and_requires_structure_order_equal_to_paint_order; E_only_on_Span_and_OBJR_owning_Link_mutation_twins; atomic_inline_negatives_emit_no_bytes; symbolic_reference_occurrence_and_exact_final_cluster_mapping_expects; destination_reference_independent_values_targets_font_baseline_alignment_link_quad_and_actualtext_checks; seven_reference_mutation_twins; atomic_unknown_destination_empty_label_format_font_and_reserved_width_negatives_emit_no_bytes",
+      "machine_verification": "roc_facade_and_kernel_expects; bounded_authored_link_region_model_and_independent_counterclockwise_geometry_and_objr_checks; rich_inline_harness_family_with_pinned_normalized_structure; independent_checker_decodes_ToUnicode_logical_text_and_requires_structure_order_equal_to_paint_order; E_only_on_Span_and_OBJR_owning_Link_mutation_twins; atomic_inline_negatives_emit_no_bytes; symbolic_reference_occurrence_and_exact_final_cluster_mapping_expects; destination_reference_independent_values_targets_font_baseline_alignment_link_quad_and_actualtext_checks; seven_reference_mutation_twins; atomic_unknown_destination_empty_label_format_font_and_reserved_width_negatives_emit_no_bytes",
       "human_verification": "not_required",
       "positive_scenarios": [
+        "fuzz/LinkRegionModel.roc",
         "package/Pdf.roc",
         "tests/destination_references/Cases.roc",
         "tests/rich_inline/Cases.roc",

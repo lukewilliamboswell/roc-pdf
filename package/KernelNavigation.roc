@@ -36,8 +36,9 @@ KernelNavigation :: [].{
 	AuthoredAction : [GoToName(Str), Uri(Str)]
 
 	## One axis-aligned quadrilateral in layout units. The emission order of
-	## the eight `/QuadPoints` numbers is pinned by the lowering policy:
-	## top-left, top-right, bottom-left, bottom-right.
+	## the eight `/QuadPoints` numbers follows ISO 32000-2 Table 176.
+	## Vertices are counterclockwise, starting with the left and right ends
+	## of the bottom edge.
 	Quad : {
 		x_left : Layout.Unit,
 		x_right : Layout.Unit,

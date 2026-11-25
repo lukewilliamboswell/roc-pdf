@@ -291,8 +291,8 @@ def validate_destination_references_pdf(pdf: bytes, dimensions: dict[str, int]) 
         top = max(glyph[2] + glyph[3] for mark in node.marks for glyph in mark.glyphs)
         close(F(rectangle[3]), top, 'reference link top edge')
         close(F(rectangle[1]), top - 13, 'reference link bottom edge')
-        require(annotation['QuadPoints'] == [rectangle[0], rectangle[3], rectangle[2], rectangle[3],
-                                             rectangle[0], rectangle[1], rectangle[2], rectangle[1]],
+        require(annotation['QuadPoints'] == [rectangle[0], rectangle[1], rectangle[2], rectangle[1],
+                                             rectangle[2], rectangle[3], rectangle[0], rectangle[3]],
                 'reference link quad differs from its actual glyph line')
     footer = {}
     for page, kind, block, _ in artifacts:

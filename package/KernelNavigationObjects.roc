@@ -464,8 +464,8 @@ add_destination_array = |builder, names, target_object, target| {
 	Ok(added)
 }
 
-## QuadPoints in the pinned per-quad number order: top-left, top-right,
-## bottom-left, bottom-right.
+## ISO 32000-2 Table 176 defines a counterclockwise path from the bottom
+## edge: bottom-left, bottom-right, top-right, top-left.
 add_quad_points : KernelObject.Builder, KernelNavigation.Store, Semantics.IndexRange -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelNavigationObjects.Error)
 add_quad_points = |builder, store, range| {
 	var $builder = builder
@@ -483,14 +483,14 @@ add_quad_points = |builder, store, range| {
 		y_bottom_right = add_thousandths(x_right_bottom.builder, quad.y_bottom)?
 		$builder = y_bottom_right.builder
 		$values = $values
-			.append(x_left.id)
-			.append(y_top.id)
-			.append(x_right.id)
-			.append(y_top_right.id)
 			.append(x_left_bottom.id)
 			.append(y_bottom.id)
 			.append(x_right_bottom.id)
 			.append(y_bottom_right.id)
+			.append(x_right.id)
+			.append(y_top_right.id)
+			.append(x_left.id)
+			.append(y_top.id)
 		$index = $index + 1
 	}
 	added = KernelObject.add_array($builder, $values) ? Object

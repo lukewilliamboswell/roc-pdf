@@ -1378,6 +1378,14 @@ Annotations are first-class structured values carrying:
 - Description and other accessibility properties when required.
 - Profile eligibility.
 
+A facade Link owns one annotation per painted page. Its active regions follow
+the painted lines, and the annotation rectangle encloses the union of those
+regions. A same-page wrap keeps one OBJR for the annotation and uses
+`QuadPoints` for the separate active areas. Each quadrilateral starts on its
+bottom edge and lists its vertices counterclockwise. [ISO 32000-2
+§12.5.6.5 and Table 176](https://pdf-issues.pdfa.org/32000-2-2020/clause12.html#H12.5.6.5),
+[§14.8.4.7.3 and correction #133](https://pdf-issues.pdfa.org/32000-2-2020/clause14.html#H14.8.4.7.3).
+
 Annotation appearances are subject to the same font, color, graphics, and
 content-ownership rules as ordinary page content. Arbitrary actions and raw
 annotation dictionaries are unavailable.
