@@ -1,6 +1,7 @@
 import Color
 import Image
 import KernelGeometry
+import KernelSpan
 import Layout
 import Scene
 import Semantics
@@ -1119,10 +1120,9 @@ validate_span : Semantics.IndexRange, U64, KernelScene.IndexKind, U64 -> Try({ e
 validate_span = |range, available, kind, owner| {
 	start = range.start()
 	length = range.length()
-	if start > available or length > available - start {
-		Err(SpanOutOfRange({ available, kind, length, owner, start }))
-	} else {
-		Ok({ end: start + length, start })
+	match KernelSpan.end_within(start, length, available) {
+		Ok(ending) => Ok({ end: ending, start })
+		Err(Outside) => Err(SpanOutOfRange({ available, kind, length, owner, start }))
 	}
 }
 

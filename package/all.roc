@@ -79,6 +79,7 @@ package
 		KernelSha256,
 		KernelShape,
 		KernelSourceText,
+		KernelSpan,
 		KernelSrgbProfile,
 		KernelStabilization,
 		KernelStructure,

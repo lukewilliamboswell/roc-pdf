@@ -1,4 +1,5 @@
 import KernelLex
+import KernelSpan
 import Semantics
 
 KernelSemantics :: [].{
@@ -1449,10 +1450,9 @@ validate_span : Semantics.IndexRange, U64, KernelSemantics.IndexKind, U64 -> Try
 validate_span = |range, available, kind, owner| {
 	start = range.start()
 	length = range.length()
-	if start > available or length > available - start {
-		Err(SpanOutOfRange({ available, kind, length, owner, start }))
-	} else {
-		Ok({ end: start + length, start })
+	match KernelSpan.end_within(start, length, available) {
+		Ok(ending) => Ok({ end: ending, start })
+		Err(Outside) => Err(SpanOutOfRange({ available, kind, length, owner, start }))
 	}
 }
 
