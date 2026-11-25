@@ -31298,14 +31298,14 @@
     },
     {
       "name": "technical manual chapters x2",
-      "scenario_revision": "technical-manual-v1",
+      "scenario_revision": "technical-manual-v2",
       "family": "technical_manual",
       "snapshot": "tests/technical_manual/manual_2.pdf",
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 9,
         "chapters": 2,
-        "structure_elements": 302
+        "structure_elements": 307
       },
       "work_counters": [
         "authored_chapters",
@@ -31334,21 +31334,21 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 17227,
+          "allocations": 17235,
           "allocated_bytes": 33638994,
           "work": {
             "authored_chapters": 2,
             "authored_table_rows": 80,
             "prepared_vector_commands": 36,
-            "shaped_runs": 245,
+            "shaped_runs": 241,
             "lines": 305,
             "pages": 9,
-            "fragments": 331,
-            "final_runs": 386,
-            "scene_commands": 1018,
-            "objects": 359,
-            "metric_reads": 17114,
-            "line_candidates": 9199,
+            "fragments": 327,
+            "final_runs": 382,
+            "scene_commands": 1010,
+            "objects": 366,
+            "metric_reads": 17036,
+            "line_candidates": 9155,
             "page_candidates": 256,
             "callout_contexts": 109,
             "callout_ancestors": 12,
@@ -31359,25 +31359,25 @@
             "reference_passes": 1,
             "field_resolutions": 33,
             "furniture_items": 15,
-            "output_bytes": 32944
+            "output_bytes": 33113
           }
         },
         "x64musl": {
-          "allocations": 17227,
+          "allocations": 17235,
           "allocated_bytes": 33638994,
           "work": {
             "authored_chapters": 2,
             "authored_table_rows": 80,
             "prepared_vector_commands": 36,
-            "shaped_runs": 245,
+            "shaped_runs": 241,
             "lines": 305,
             "pages": 9,
-            "fragments": 331,
-            "final_runs": 386,
-            "scene_commands": 1018,
-            "objects": 359,
-            "metric_reads": 17114,
-            "line_candidates": 9199,
+            "fragments": 327,
+            "final_runs": 382,
+            "scene_commands": 1010,
+            "objects": 366,
+            "metric_reads": 17036,
+            "line_candidates": 9155,
             "page_candidates": 256,
             "callout_contexts": 109,
             "callout_ancestors": 12,
@@ -31388,7 +31388,7 @@
             "reference_passes": 1,
             "field_resolutions": 33,
             "furniture_items": 15,
-            "output_bytes": 32944
+            "output_bytes": 33113
           }
         }
       },
@@ -31396,19 +31396,20 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "technical_manual"
+        "technical_manual",
+        "pdfua2"
       ]
     },
     {
       "name": "technical manual chapters x20",
-      "scenario_revision": "technical-manual-v1",
+      "scenario_revision": "technical-manual-v2",
       "family": "technical_manual",
       "snapshot": "tests/technical_manual/manual_20.pdf",
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 81,
         "chapters": 20,
-        "structure_elements": 3002
+        "structure_elements": 3043
       },
       "work_counters": [
         "authored_chapters",
@@ -31437,21 +31438,21 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 136139,
+          "allocations": 136078,
           "allocated_bytes": 307535000,
           "work": {
             "authored_chapters": 20,
             "authored_table_rows": 800,
             "prepared_vector_commands": 360,
-            "shaped_runs": 2441,
+            "shaped_runs": 2401,
             "lines": 3041,
             "pages": 81,
-            "fragments": 3301,
-            "final_runs": 3824,
-            "scene_commands": 10108,
-            "objects": 3337,
-            "metric_reads": 171250,
-            "line_candidates": 92007,
+            "fragments": 3261,
+            "final_runs": 3784,
+            "scene_commands": 10028,
+            "objects": 3398,
+            "metric_reads": 170452,
+            "line_candidates": 91567,
             "page_candidates": 2560,
             "callout_contexts": 1081,
             "callout_ancestors": 120,
@@ -31462,25 +31463,25 @@
             "reference_passes": 1,
             "field_resolutions": 303,
             "furniture_items": 141,
-            "output_bytes": 197917
+            "output_bytes": 199037
           }
         },
         "x64musl": {
-          "allocations": 136139,
+          "allocations": 136078,
           "allocated_bytes": 307535000,
           "work": {
             "authored_chapters": 20,
             "authored_table_rows": 800,
             "prepared_vector_commands": 360,
-            "shaped_runs": 2441,
+            "shaped_runs": 2401,
             "lines": 3041,
             "pages": 81,
-            "fragments": 3301,
-            "final_runs": 3824,
-            "scene_commands": 10108,
-            "objects": 3337,
-            "metric_reads": 171250,
-            "line_candidates": 92007,
+            "fragments": 3261,
+            "final_runs": 3784,
+            "scene_commands": 10028,
+            "objects": 3398,
+            "metric_reads": 170452,
+            "line_candidates": 91567,
             "page_candidates": 2560,
             "callout_contexts": 1081,
             "callout_ancestors": 120,
@@ -31491,7 +31492,7 @@
             "reference_passes": 1,
             "field_resolutions": 303,
             "furniture_items": 141,
-            "output_bytes": 197917
+            "output_bytes": 199037
           }
         }
       },
@@ -31499,7 +31500,8 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "technical_manual"
+        "technical_manual",
+        "pdfua2"
       ]
     },
     {

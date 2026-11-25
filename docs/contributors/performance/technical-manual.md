@@ -1,83 +1,49 @@
-# Combined technical manual evidence
+# Technical manual evidence
 
-The `tests/technical_manual` 2/20-chapter pair exercises issues #49–#53
-through public facade preparation and byte emission. Both original PDFs
-pass the independent combined oracle and veraPDF 1.30.2 PDF/A-4 validation
-with zero failed checks. PDFBox 3.0.8 and MuPDF 1.28.2 extract and render
-both whole files: 180 page renders, including purple source foregrounds,
-prepared vector ink and exact printed/furniture text. MuPDF's glyph lane
-uses `ignore-actualtext`; semantic ActualText is checked independently.
+The [2- and 20-chapter fixtures](../../../tests/technical_manual/Fixture.roc)
+exercise the bounded chapter templates, lists, callouts, tables, source blocks,
+and vector drawings through public preparation and byte emission. Both files
+are registered for explicit `4` and `ua2` checks on the same emitted bytes.
 
-Each manual has a printed TOC with forward physical/label references,
-repeated references to the last chapter, named structured destinations and
-an outline. Explicit full-page scopes declare different opening and
-continuation frames, short running labels and page-label/physical/total
-furniture. Every chapter contains an outer callout and a numbered item with
-exact LF/final-LF source and purple foreground, a scaled prepared vector
-figure, and an inner callout containing a 40-row filled/framed table. Its
-repeated header contains a configured-page-label reference. Inter is the
-same explicitly registered face used to prepare the diagram.
+The manual authors its contents with `Pdf.contents_entry`. Each title and
+terminal page label links to a chapter. The corresponding `TOCI` references
+the same semantic heading. The running footer prints the configured page
+label and the physical ordinal separately. Body references exercise both
+numbering choices inside fixed-width fields and the repeated table header
+uses the configured label. This preserves an authored distinction between a
+page label and its index when the two are displayed together.
 
-The fixture deliberately prepares the public document and an identical
-private pipeline work probe. Allocation measurements include both; the
-work vector records one pipeline's actual stage counters. The test-only
-`examples/vector-diagrams/all.roc` entry gives the prepared diagram the
-same package identity as that probe. Instantiating `package/main.roc` and
-`package/all.roc` together triggered a pinned compiler compile-time font
-inspection failure in an existing package self-check. Production examples
-continue to use the ordinary public entry.
+Each chapter declares opening and continuation frames. An outer callout
+contains a numbered instruction with exact source text and a purple
+foreground range, a scaled prepared vector figure, and an inner callout with
+a 40-row filled and framed table. Inter is the explicitly registered face
+used to prepare the diagram.
 
-| Chapters | Pages | Exact Roc allocations | Allocated bytes | PDF bytes |
-| ---: | ---: | ---: | ---: | ---: |
-| 2 | 9 | 125,868 | 70,509,264 | 31,510 |
-| 20 | 81 | 1,181,381 | 670,031,777 | 183,074 |
+[`check_technical_manual.py`](../../../scripts/check_technical_manual.py)
+derives heading pages and semantic identities from the emitted content and
+structure. Its independent expectations cover the contents references,
+configured page labels, visible page fields, outline, semantic child order,
+source replacement text, frame bounds, and nested artifact ownership.
+Single-edit controls change the printed contents label, its structure
+reference, a structured destination, the page-label prefix, a running
+header's artifact subtype, and the callout border. The same script's
+`--readers` mode checks complete-file extraction and rendering through
+PDFBox and can also exercise MuPDF. The two fixtures cover 90 PDFBox
+rendered and extracted pages. Both pass Arlington and explicit veraPDF
+PDF/A-4 and PDF/UA-2 validation.
 
-| Actual stage work | 2 chapters | 20 chapters |
-| --- | ---: | ---: |
-| Shaped runs | 245 | 2,441 |
-| Measured rows | 305 | 3,041 |
-| Shape metric reads, measurement and final shaping | 17,114 | 171,250 |
-| Wrapped-item visits | 9,199 | 92,007 |
-| Page candidates | 256 | 2,560 |
-| Container contexts / ancestors | 109 / 12 | 1,081 / 120 |
-| Container updates / fragments | 274 / 14 | 2,740 / 140 |
-| Scope visits | 12 | 120 |
-| Template region visits | 30 | 282 |
-| Committed reference resolution phases | 1 | 1 |
-| Furniture field resolutions / shaped items | 33 / 15 | 303 / 141 |
+The fixture prepares both the public document and a private measurement
+probe of the same pipeline. Allocations include both passes, and the work
+vector records one pipeline's counters. The test-only vector diagram entry
+uses the same package identity as the probe. The production example imports
+the public package entry.
 
-The tenfold authoring increase grows allocations 9.39 times and requested
-bytes 9.50 times. Candidate visits and bounded ancestor work grow exactly
-tenfold; fixed overhead accounts for the smaller page/allocation factors.
-No repeated reflow or reference stabilization loop is used for these body
-references. Each chapter reuses one prepared vector's source commands;
-the public preparation stages still assign every semantic occurrence and
-source slice separately. No shared append buffer escapes through a `Try`.
-
-The independent byte oracle derives each chapter page from its heading's
-actual MCR, checks exact printed TOC/body values, physical and structured
-GoTo/name-tree targets, and outline titles/targets, and verifies declared
-fixed-width alignment. It checks the exact semantic child tree and source
-ActualText, live parent widths, scoped body frames, nested artifact panel
-padding, table decoration bounds, repeated reference/header artifacts and
-prepared vector labels/path ownership. It reads no report or new pager or
-reference facts. Four reserialized mutation twins reject a changed printed
-label, a wrong structured destination owner, misclassified running header,
-and expanded callout border.
-
-Pinned native `arm64mac` and strict Linux `x64musl` runs verify the target
-expectations and generate byte-identical manual PDFs. The native comparison,
-strict affected replay, strict 409-case Linux integration, pinned Arlington and
-external PDF/A-4 evidence are collected in
-[manual composition](manual-composition.md#final-integration-closure). This
-closes the combined bounded manual subset; no PDF/UA-2 or human reader/AT review
-is claimed.
-
-The final numeric-field review removed a needless Unicode scalar-count
-allocation for each ASCII page-number/total field. These formatters already
-produce an exact ASCII length; configured labels still count their Unicode
-scalars. Under this fixture's two-pipeline boundary, the reviewed fix removes
-exactly four allocations per accepted page: 36 / 324 at 9 / 81 pages. The
-observed baselines above include that improvement; work and PDF snapshots
-remain exact. Requested bytes fall by 324 / 3,222, matching the removed
-UTF-8 list header and numeric payload storage.
+`tests/spec.json` records the pinned allocations and deterministic work.
+The replacement of the front-matter physical field with the terminal
+configured label removes two shaped runs, final runs, and fragments per
+chapter. The table-of-contents wrappers and label link add three objects per
+chapter and one shared TOC object. The pinned macOS arm64 and Linux x64musl builds both measure 17,235 and
+136,078 allocations. The 2/20-chapter pair keeps its 9/81 pages,
+linear work growth, and one reference resolution phase. The physical
+references within chapter bodies still exercise the exact fixed-width
+measurement contract.

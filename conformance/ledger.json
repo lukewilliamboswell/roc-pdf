@@ -2404,16 +2404,18 @@
         "PdfUa2",
         "WtpdfAccessibility"
       ],
-      "implementation": "partial",
+      "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "Existing label and furniture fixtures check authored labels. Close evidence for disagreement between visible numbering policy and PDF labels under the accessible profile.",
+      "machine_verification": "The public technical manuals reconcile the authored running footer, contents links, semantic headings, outline, and configured PageLabels against independent expectations on both scales. A one-edit PageLabels prefix mutation disagrees with the visible footer and fails the check.",
       "human_verification": "Confirm outline usefulness, intended numbering and that labels match the numbers understood by readers.",
       "positive_scenarios": [
         "scripts/check_chapter_templates.py",
-        "scripts/check_page_labels.py"
+        "scripts/check_page_labels.py",
+        "scripts/check_technical_manual.py"
       ],
       "negative_scenarios": [
-        "scripts/check_page_labels.py"
+        "scripts/check_page_labels.py",
+        "scripts/check_technical_manual.py"
       ],
       "external_rule_ids": []
     },

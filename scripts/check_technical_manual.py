@@ -131,9 +131,12 @@ def read_manual(pdf: bytes):
 def contract(chapters: int, starts: dict[int, int]) -> Expected:
     final = starts[chapters]
     contents = [e('H1', text='Technical manual contents')]
+    toc = []
     for number in range(1, chapters + 1):
-        page = starts[number]
-        contents.append(e('P', e('Link', text=f'Procedure {number}'), text=f'Procedure {number} — label M-{page}; physical {page}'))
+        title = f'Procedure {number}'
+        label = f'M-{starts[number]}'
+        toc.append(e('TOCI', e('P', e('Link', text=title), e('Link', text=label), text=f'{title} {label}')))
+    contents.append(e('TOC', *toc))
     for number in range(1, chapters + 1):
         table = e('Table', e('Caption', paragraph(f'Procedure {number} checklist')),
             e('THead', e('TR', e('TH', text='Step'), e('TH', text='Contents label M-1'))),
@@ -188,7 +191,7 @@ def destinations(document: Document, pages: list[int], root: Node, nodes: dict[i
             key = (int(page), F(x.decode()), F(y.decode()))
             require(key in targets and targets[key] == int(owner) and x == sx and y == sy, 'manual GoTo physical and structured destination disagree')
             count += 1
-    require(count == 2 * len(nodes) + 1, 'manual link/name-tree destination occurrence set changed')
+    require(count == 3 * len(nodes) + 1, 'manual link/name-tree destination occurrence set changed')
     outline_root = int(catalog['Outlines'])
     outline = document.get(outline_root)
     require('Count' not in outline, 'manual outline of leaves carries a root Count')
@@ -306,18 +309,16 @@ def source_and_headers(root: Node, repeat) -> None:
         require(sum(n for (p, x), n in observed.items() if p == page and abs(x-left) <= TOL) == count, 'manual missing/duplicated table header artifact')
 
 
-def fixed_reference_widths(root: Node, chapters: int, starts: dict[int, int]) -> None:
-    # The fixture puts a literal before each symbolic field. These independent
-    # glyph advances prove the reservation and the requested End alignment.
-    for number in range(1, chapters+1):
-        node = root.children[number]
-        marks = node.marks
-        label = next(mark for mark in marks if mark.text == f'M-{starts[number]}')
-        before = next(mark for mark in marks if mark.text == ' — label ')
-        require(abs(label.bounds[2] - before.bounds[2] - 44) <= TOL, 'manual TOC label field lost fixed width or End alignment')
-        physical = marks[-1]
-        literal = next(mark for mark in marks if mark.text == '; physical ')
-        require(physical.text == str(starts[number]) and abs(physical.bounds[2] - literal.bounds[2] - 24) <= TOL, 'manual TOC physical field lost fixed width or End alignment')
+def fixed_reference_widths(root: Node, chapters: int, starts: dict[int, int], headings: dict[int, Node]) -> None:
+    # The linked label occupies the authored end-aligned 44 pt column.
+    items = root.children[1].children
+    for number, item in enumerate(items, start=1):
+        require(item.value.get('Ref') == [headings[number].number], 'manual TOCI /Ref targets the wrong procedure')
+        title, label = item.children[0].children
+        require(label.text == f'M-{starts[number]}', 'manual TOC label differs from the configured page label')
+        require(abs(label.marks[-1].bounds[2] - 523) <= TOL, 'manual TOC label lost its common right edge')
+        require(title.marks[-1].bounds[2] <= 523 - 44 - 6, 'manual TOC title exceeds its reserved field')
+    require(len(items) == chapters, 'manual lost an authored contents entry')
 
 
 def validate_technical_manual_pdf(pdf: bytes, dimensions: dict[str, int]) -> None:
@@ -331,7 +332,7 @@ def validate_technical_manual_pdf(pdf: bytes, dimensions: dict[str, int]) -> Non
     bounds, repeat = furniture(document, pages, artifacts, starts)
     panel_geometry(root, artifacts, bounds)
     source_and_headers(root, repeat)
-    fixed_reference_widths(root, chapters, starts)
+    fixed_reference_widths(root, chapters, starts, headings)
 
 
 def replace_digit(document: Document, page: int, block: bytes, old: str, new: str) -> bytes:
@@ -358,11 +359,13 @@ def self_test():
     pdf = (ROOT/sample['snapshot']).read_bytes()
     document, pages, root, artifacts = read_manual(pdf)
     starts, nodes = heading_pages(root, 2)
-    label = next(mark for mark in root.children[1].marks if mark.text == f'M-{starts[1]}')
+    label = next(mark for mark in root.children[1].children[0].marks if mark.text == f'M-{starts[1]}')
     wrong_label = replace_digit(document, pages[label.page], label.block, str(starts[1])[-1], '9')
     mutations = [
         (label.block, wrong_label),
+        (f'/Ref [{nodes[1].number} 0 R]'.encode(), f'/Ref [{nodes[2].number} 0 R]'.encode()),
         (f'/SD [{nodes[1].number} 0 R /XYZ'.encode(), f'/SD [{nodes[2].number} 0 R /XYZ'.encode()),
+        (b'/P (M-)', b'/P (X-)'),
         (b'/Subtype /Header', b'/Subtype /Footer'),
         (b'451 1 re\nf', b'452 1 re\nf'),
     ]
@@ -374,7 +377,7 @@ def self_test():
             pass
         else:
             raise ValidationError(f'manual oracle accepted mutation {old[:60]!r}')
-    print('PASS combined manual destination/printed values, scoped furniture, rich LI/callout source/diagram/table semantics and geometry, and four mutation twins')
+    print('PASS combined manual destination/printed values, scoped furniture, rich LI/callout source/diagram/table semantics and geometry, and six mutation twins')
 
 
 def reader_check(mutool: Path | None):

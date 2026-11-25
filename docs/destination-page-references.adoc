@@ -76,7 +76,9 @@ list items and callouts. Table intrinsic measurement includes the reserved
 width, and a reference atom never splits across lines.
 
 Use `Pdf.page_label` in furniture to display each current page's configured
-label, matching `PageLabel` references. It can be placed inside
+label, matching `PageLabel` references. If you also print the physical page
+ordinal, label it separately so readers can distinguish the two values. The
+current-page field can be placed inside
 `Pdf.reserved_width` like other page fields:
 
 [source,roc]
