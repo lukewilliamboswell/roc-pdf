@@ -424,19 +424,28 @@ def check_page_labels(bodies, root):
         return 0
     labels_root = dictionary_ref(catalog, b"PageLabels")
 
-    def walk(node, depth=0):
+    label_entry = re.compile(rb"([0-9]+) (<<(?:[^<>()]|" + STRING + rb")*?>>)(?: |$)")
+    label_dictionary = re.compile(
+        rb"<<(?: /P " + STRING + rb")?"
+        rb"(?: /S /(?P<style>[DRrAa]))?(?: /St (?P<start>[+-]?[0-9]+))? >>"
+    )
+
+    def walk(node):
         body = bodies[node]
         entries = []
-        if b"/Kids" in body:
+        if body.startswith(b"<< /Kids ["):
             for kid in parse_ref_array(body, b"Kids"):
-                entries.extend(walk(kid, depth + 1))
+                entries.extend(walk(kid))
         else:
             nums = re.search(rb"/Nums \[(.*)\] >>", body, re.S)
             require(nums is not None, "label node missing /Nums")
-            entries.extend(
-                (int(k), v)
-                for k, v in re.findall(rb"(\d+) (<<(?:[^<>]+|<[0-9A-F]*>)*>>)", nums.group(1))
-            )
+            values = nums.group(1)
+            position = 0
+            while position < len(values):
+                entry = label_entry.match(values, position)
+                require(entry is not None, "malformed page-label number tree entry")
+                entries.append((int(entry.group(1)), entry.group(2)))
+                position = entry.end()
         return entries
 
     entries = walk(labels_root)
@@ -444,12 +453,16 @@ def check_page_labels(bodies, root):
     require(keys == sorted(keys) and len(set(keys)) == len(keys), "label keys not ascending")
     require(keys and keys[0] == 0, "page labels must start at page zero")
     for _, value in entries:
-        for key in re.findall(rb"/([A-Za-z]+)", value):
-            require(key in (b"S", b"P", b"St", b"D", b"R", b"r", b"A", b"a"), "unsupported label key")
-        style = re.search(rb"/S /([DRrAa])", value)
-        st = re.search(rb"/St (\d+)", value)
-        if st is not None:
-            require(int(st.group(1)) >= 2, "explicit /St below two is not canonical")
+        label = label_dictionary.fullmatch(value)
+        require(label is not None, "invalid page-label dictionary")
+        start = label.group("start")
+        if start is not None:
+            require(label.group("style") is not None, "explicit /St requires /S")
+            number = int(start)
+            require(
+                str(number).encode() == start and 2 <= number <= 2**63 - 1,
+                "explicit /St must be a canonical integer from 2 through 9223372036854775807",
+            )
     return len(entries)
 
 
@@ -536,6 +549,21 @@ def self_test() -> None:
         except Exception:
             continue
         raise SystemExit(f"navigation checker accepted {label}")
+    # Test decoded number-tree objects, including a two-byte negative mutation.
+    # The fixture dictionaries live in compressed object streams.
+    catalog = b"<< /PageLabels 2 0 R >>"
+    labels = b"<< /Nums [0 << /S /D /St 10 >>] >>"
+    label_objects = {1: catalog, 2: labels}
+    check_page_labels(label_objects, 1)
+    check_page_labels({1: catalog, 2: b"<< /Nums [0 << >>] >>"}, 1)
+    check_page_labels({1: catalog, 2: labels.replace(b"10", b"9223372036854775807")}, 1)
+    check_page_labels({1: catalog, 2: b"<< /Nums [0 << /P (/Kids [/St 2]) >>] >>"}, 1)
+    for token in (b"-1", b"+2", b"02", b"0", b"1", b"2.0", b"/D", b"9223372036854775808"):
+        try:
+            check_page_labels({1: catalog, 2: labels.replace(b"10", token)}, 1)
+        except ValidationError:
+            continue
+        raise SystemExit(f"page-label checker accepted /St {token!r}")
     print(
         "PASS production-visual navigation structural checker self-test: paired /SD + /D "
         "actions, keyboard-ordered /Annots, OBJR/ParentTree linkage, the "

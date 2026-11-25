@@ -224,7 +224,7 @@ KernelNavigation :: [].{
 
 	LabelRange : {
 		prefix : Str,
-		start_number : U64,
+		start_number : I64,
 		start_page : U64,
 		style : Document.PageLabelStyle,
 	}
@@ -930,9 +930,15 @@ validate_labels = |inputs, context, limits| {
 			}
 			DecimalArabic | LettersLower | LettersUpper | RomanLower | RomanUpper => {}
 		}
+		# /St is a positive PDF integer. Keep the checked value in the
+		# object writer's signed representation across the stage boundary.
+		limit = I64.highest.to_u64_wrap()
+		if input.start_number > limit {
+			return Err(LabelStartNumberOutOfRange({ attempted: input.start_number, limit, range: $index }))
+		}
 		$ranges = $ranges.append({
 			prefix: input.prefix,
-			start_number: input.start_number,
+			start_number: input.start_number.to_i64_wrap(),
 			start_page: input.start_page,
 			style: input.style,
 		})

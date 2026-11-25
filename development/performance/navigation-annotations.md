@@ -267,6 +267,16 @@ families through `Pdf.to_bytes`.
 
 ## Independent evidence
 
+ISO 32000-2:2020+EC3 §12.4.2 and Table 161 define zero-based range keys,
+style names, a text-string prefix, and a positive `/St` with default 1.
+§7.3.3 defines signed decimal integer syntax and allows representation
+limits. The validated label plan carries the start as a signed 64-bit
+integer to match this writer's representation. The writer omits `/St` at 1.
+The formatter computes the visible sequential number separately, with its
+own byte budget and empty-label policy. `fuzz/PageLabelModel.roc` checks
+bounded range selection and literal numbering examples, and the PDF
+checker rejects invalid or noncanonical explicit `/St` tokens.
+
 `scripts/check_navigation.py` parses the emitted bytes directly and
 proves, for all sixteen snapshots: keyboard-ordered `/Annots` arrays
 referencing every emitted link exactly once; sorted annotation

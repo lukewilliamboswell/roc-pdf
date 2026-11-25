@@ -374,6 +374,7 @@ document_navigation_error = |error| match error {
 	LabelNumberWithoutStyle(_) => leaf({ category: Invariant, feature: "label_number_without_style", path: "LabelNumberWithoutStyle", inspected: Str.inspect(error) })
 	LabelPrefixTooLong(_) => leaf({ category: Invariant, feature: "label_prefix_too_long", path: "LabelPrefixTooLong", inspected: Str.inspect(error) })
 	LabelRangeNotAscending(_) => leaf({ category: Invariant, feature: "label_range_not_ascending", path: "LabelRangeNotAscending", inspected: Str.inspect(error) })
+	LabelStartNumberOutOfRange(_) => leaf({ category: Invariant, feature: "label_start_number_out_of_range", path: "LabelStartNumberOutOfRange", inspected: Str.inspect(error) })
 	LabelStartNumberZero(_) => leaf({ category: Invariant, feature: "label_start_number_zero", path: "LabelStartNumberZero", inspected: Str.inspect(error) })
 	LabelStartPageNotZero(_) => leaf({ category: Invariant, feature: "label_start_page_not_zero", path: "LabelStartPageNotZero", inspected: Str.inspect(error) })
 	LabelStartPageOutOfRange(_) => leaf({ category: Invariant, feature: "label_start_page_out_of_range", path: "LabelStartPageOutOfRange", inspected: Str.inspect(error) })

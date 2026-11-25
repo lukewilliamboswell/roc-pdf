@@ -233,7 +233,7 @@ run_negatives = |context| {
 		{ document: make(plain("target", 0.001), []), feature: "layout.reference_field_overflow", path: "contents[1].inlines[0]" },
 		{ document: make(plain("target", 1000), []), feature: "layout.reference_items", path: "contents[1]" },
 		{ document: make(label, [{ start_page: 0, style: NoNumber, prefix: "", start_number: 1 }]), feature: "layout.reference_label", path: "contents[1].inlines[0]" },
-		{ document: make(label, [{ start_page: 0, style: LettersUpper, prefix: "", start_number: U64.highest }]), feature: "layout.reference_label", path: "contents[1].inlines[0]" },
+		{ document: make(label, [{ start_page: 0, style: LettersUpper, prefix: "", start_number: I64.highest.to_u64_wrap() }]), feature: "layout.reference_label", path: "contents[1].inlines[0]" },
 		{ document: make(label, [{ start_page: 0, style: NoNumber, prefix: "p中", start_number: 1 }]), feature: "text.coverage_missing", path: "contents[1].inlines[0]" },
 		{ document: too_wide_cell, feature: "layout.unbreakable_reference_items", path: "contents[1].table.body_rows[0].cells[0]" },
 		{ document: bad_furniture, feature: "layout.furniture_inline", path: "templates.first.header.start[0].inlines[0]" },

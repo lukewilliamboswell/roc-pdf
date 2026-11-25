@@ -680,6 +680,8 @@ PageLabelStyle : [DecimalArabic, LettersLower, LettersUpper, NoNumber, RomanLowe
 
 ## One authored page-label range starting at a physical page index. The
 ## first range must start at page zero and range starts ascend strictly.
+## Numbered ranges start at 1 through 9223372036854775807, inclusive.
+## A prefix-only range uses NoNumber and a start_number of 1.
 PageLabelRange : { prefix : Str, start_number : U64, start_page : U64, style : PageLabelStyle }
 
 ## Stable author-facing navigation rejections: destinations, link
@@ -716,6 +718,7 @@ NavigationError : [
 	LabelNumberWithoutStyle({ range : U64 }),
 	LabelPrefixTooLong({ attempted : U64, limit : U64, range : U64 }),
 	LabelRangeNotAscending({ range : U64 }),
+	LabelStartNumberOutOfRange({ attempted : U64, limit : U64, range : U64 }),
 	LabelStartNumberZero({ range : U64 }),
 	LabelStartPageNotZero({ start : U64 }),
 	LabelStartPageOutOfRange({ attempted : U64, pages : U64, range : U64 }),

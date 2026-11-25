@@ -4281,6 +4281,31 @@ page_label_test_document = |style, prefix, start_number, width| {
 	})
 }
 
+# Public emission rejects an unrepresentable start even without visible
+# label fields. The maximum accepted start reaches the sealed /St integer.
+expect {
+	doc = Pdf.document({ contents: [Pdf.paragraph("Body")], language: "en-AU", title: "Page label start boundary" })
+	label = { prefix: "", start_page: 0, style: DecimalArabic, start_number: U64.highest }
+	limit = I64.highest.to_u64_wrap()
+	invalid = doc.with_page_labels([label])
+	rejected = match Pdf.to_bytes_with(invalid, { profile: Standard }) {
+		Err(InvalidNavigation(LabelStartNumberOutOfRange({ attempted, limit: reported, range: 0 }))) => attempted == U64.highest and reported == limit
+		_ => False
+	}
+	Pdf.Prepared.(plan) = Pdf.prepare(doc.with_page_labels([{ ..label, start_number: limit }]), { profile: Standard })?
+	store = KernelSeal.Plan.store(KernelStructure.Plan.sealed(plan))
+	starts = store.dictionary_entries.keep_if(
+		|entry| {
+			key = store.names.get(entry.key.index()) ?? crash "missing sealed object name"
+			KernelLex.Name.bytes(key) == Str.to_utf8("St")
+		},
+	).map(|entry| store.values.get(entry.value.index()))
+	rejected and match starts {
+		[Ok(Integer(value))] => value == I64.highest
+		_ => False
+	}
+}
+
 # An intentionally unnumbered empty PDF label produces no artifact text
 # source or glyph; its reserved furniture width is still checked.
 expect match Pdf.to_bytes(page_label_test_document(NoNumber, "", 1, 40)) {
@@ -4295,7 +4320,7 @@ expect match Pdf.to_bytes(page_label_test_document(LettersUpper, "A-", 27, 1)) {
 
 # /St can be large even though its visible alphabetic expansion is huge.
 # The formatter rejects its byte budget before allocating that expansion.
-expect match Pdf.to_bytes(page_label_test_document(LettersUpper, "", U64.highest, 40)) {
+expect match Pdf.to_bytes(page_label_test_document(LettersUpper, "", I64.highest.to_u64_wrap(), 40)) {
 	Err(InvalidDocument({ diagnostics: [{ feature: Feature("layout.page_label_text"), .. }], .. })) => True
 	_ => False
 }

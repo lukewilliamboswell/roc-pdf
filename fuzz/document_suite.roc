@@ -20,6 +20,7 @@ import DocumentBuilderModel
 import GroupingContainmentModel
 import LinkRegionModel
 import PageBreakModel
+import PageLabelModel
 import PageTreeProof
 import ReferenceWrapModel
 import ResourceGraphModel

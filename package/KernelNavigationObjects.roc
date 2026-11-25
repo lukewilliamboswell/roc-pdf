@@ -815,7 +815,7 @@ add_label_tree = |builder, names, store, objects| {
 			numbered = if range.start_number == 1 {
 				{ builder: styled.builder, value: NoValue }
 			} else {
-				added = KernelObject.add_integer(styled.builder, range.start_number.to_i64_wrap()) ? Object
+				added = KernelObject.add_integer(styled.builder, range.start_number) ? Object
 				{ builder: added.builder, value: WithValue(added.id) }
 			}
 			match numbered.value {
