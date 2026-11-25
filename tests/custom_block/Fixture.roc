@@ -131,7 +131,7 @@ report_theme : Theme
 report_theme = Theme.{ page_margin: { bottom: 48, left: 56, right: 56, top: 48 } }
 
 options : Pdf.Options
-options = Pdf.Options.{ theme: report_theme }
+options = Pdf.Options.{ profile: Archive, theme: report_theme }
 
 ink : Color.SourceValue
 ink = Color.srgb8({ blue: 40, green: 40, red: 40 })

@@ -53,7 +53,7 @@ facade_document = |title| {
 expect {
 	document = Pdf.document({ contents: [Pdf.paragraph("Body")], language: "en-au", title: "Case" })
 
-	match Pdf.to_bytes(document) {
+	match Pdf.to_bytes_with(document, { profile: Archive }) {
 		Err(InvalidMetadata(LanguageNotCanonicalCase({ offset: 3 }))) => True
 		_ => False
 	}
@@ -63,14 +63,14 @@ facade : U64, Bool -> { bytes : List(U8), work : List(U64) }
 facade = |context, twice| {
 	title = if (context != 0) "unused" else facade_title
 	document = facade_document(title)
-	bytes = match Pdf.to_bytes(document) {
+	bytes = match Pdf.to_bytes_with(document, { profile: Archive }) {
 		Ok(value) => value
 		Err(_) => {
 			crash "production-visual facade metadata generation failed"
 		}
 	}
 	if twice {
-		second = match Pdf.to_bytes(facade_document(title)) {
+		second = match Pdf.to_bytes_with(facade_document(title), { profile: Archive }) {
 			Ok(value) => value
 			Err(_) => {
 				crash "production-visual facade metadata regeneration failed"
@@ -91,7 +91,7 @@ make : Str, Str -> Document
 make = |language, title| Pdf.document({ contents: [Pdf.paragraph("Body")], language, title })
 
 rejected : Document, (Pdf.Error -> Bool) -> U64
-rejected = |document, matches| match Pdf.to_bytes(document) {
+rejected = |document, matches| match Pdf.to_bytes_with(document, { profile: Archive }) {
 	Err(error) => if (matches(error)) 1 else 0
 	Ok(_) => 0
 }
@@ -166,13 +166,13 @@ negatives = |context| {
 	)
 
 	## The chunked path rejects identically before any chunk exists.
-	chunk_rejected = match Pdf.to_chunks(make("en-au", valid_title)) {
+	chunk_rejected = match Pdf.to_chunks_with(make("en-au", valid_title), { profile: Archive }) {
 		Err(InvalidMetadata(LanguageNotCanonicalCase({ offset: 3 }))) => 1
 		_ => 0
 	}
 	$rejections = $rejections + chunk_rejected
 
-	carrier = match Pdf.to_bytes(make("en-AU", valid_title)) {
+	carrier = match Pdf.to_bytes_with(make("en-AU", valid_title), { profile: Archive }) {
 		Ok(value) => value
 		Err(_) => {
 			crash "production-visual facade metadata carrier generation failed"

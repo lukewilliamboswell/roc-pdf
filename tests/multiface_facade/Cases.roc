@@ -276,7 +276,7 @@ rejected = |runtime_argument_count, text, expected| {
 	}
 	registered = register_negative_faces(runtime_argument_count)
 	theme = Theme.{ font_selection: Policy(registered.policy) }
-	options = Pdf.Options.{ theme: theme, fonts: Registered(registered.registry) }
+	options = Pdf.Options.{ profile: Archive, theme: theme, fonts: Registered(registered.registry) }
 	document = Pdf.document({
 		contents: [Pdf.paragraph(text)],
 		language: "en-AU",
@@ -300,7 +300,7 @@ unknown_policy = |runtime_argument_count| {
 	}
 	registered = register_negative_faces(runtime_argument_count)
 	theme = Theme.{ font_selection: Policy(Font.PolicyId.from_index(99)) }
-	options = Pdf.Options.{ theme: theme, fonts: Registered(registered.registry) }
+	options = Pdf.Options.{ profile: Archive, theme: theme, fonts: Registered(registered.registry) }
 	matched = match Pdf.to_bytes_with(mixed_document({}), options) {
 		Err(InvalidFontSelection([InvalidPolicy(policy)])) => if (policy.index() == 99) 1 else 0
 		_ => 0
@@ -323,7 +323,7 @@ builtin_policy = |runtime_argument_count| {
 	## so this is a real runtime request rather than a constant the compiler
 	## could fold away.
 	theme = Theme.{ font_selection: Policy(Font.PolicyId.from_index(runtime_argument_count - 2)) }
-	options = Pdf.Options.{ theme: theme }
+	options = Pdf.Options.{ profile: Archive, theme: theme }
 	matched = match Pdf.to_bytes_with(mixed_document({}), options) {
 		Err(InvalidFontSelection([InvalidPolicy(policy)])) => if (policy.index() == 0) 1 else 0
 		_ => 0

@@ -110,7 +110,7 @@ Fixture :: [].{
 		}
 		document = styled_document(rows)
 		thick = { ..styled_theme, table: { ..styled_theme.table, body_rule: Rule({ color: rule_gray, width: 5 }) } }
-		rejected = match Pdf.to_bytes_with(document, Pdf.Options.{ theme: thick }) {
+		rejected = match Pdf.to_bytes_with(document, Pdf.Options.{ profile: Archive, theme: thick }) {
 			Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: [], feature: Feature("layout.table_rule"), message, .. }], truncation: Complete, .. })) => if (message.contains("table body rule")) 1 else 0
 			_ => 0
 		}
@@ -137,7 +137,7 @@ Fixture :: [].{
 		wide_column = { ..ruled_theme, table: { ..ruled_theme.table, column_rule: Rule({ color: rule_gray, width: 9 }) } }
 		wide_frame = { ..ruled_theme, table: { ..ruled_theme.table, frame: Rule({ color: rule_gray, width: 3 }) } }
 		rejected = [(wide_column, "table column rule"), (wide_frame, "table frame")].map(
-			|(theme, name)| match Pdf.to_bytes_with(document, Pdf.Options.{ theme: theme }) {
+			|(theme, name)| match Pdf.to_bytes_with(document, Pdf.Options.{ profile: Archive, theme: theme }) {
 				Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: [], feature: Feature("layout.table_rule"), message, .. }], truncation: Complete, .. })) => if (message.contains(name)) 1 else 0
 				_ => 0
 			},
@@ -151,7 +151,7 @@ Fixture :: [].{
 	kept_whole : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	kept_whole = |context| {
 		document = kept_document(context)
-		prepared = Pdf.prepare_with_report(document, Pdf.Options.default) ? |_| EvidenceFailure
+		prepared = Pdf.prepare_with_report(document, Pdf.Options.{ profile: Archive }) ? |_| EvidenceFailure
 		table_leaves = prepared.report.facts.blocks.keep_if(|block| block.path.starts_with("contents[26]"))
 		on_second = table_leaves.keep_if(|block| block.first_page == 2 and block.last_page == 2).len()
 		if table_leaves.len() != 27 or on_second != table_leaves.len() {
@@ -544,8 +544,8 @@ evidence = |document, theme, faces| evidence_with(document, theme, faces, NoPain
 evidence_with : Document, Theme, Faces, [EmptyCellPaints, NoPaints, Paints] -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 evidence_with = |document, theme, faces, paints| {
 	options = match faces {
-		BuiltInFace => Pdf.Options.{ theme: theme }
-		Policy(policy) => Pdf.Options.{ theme: theme, fonts: Registered(policy.registry) }
+		BuiltInFace => Pdf.Options.{ profile: Archive, theme: theme }
+		Policy(policy) => Pdf.Options.{ profile: Archive, theme: theme, fonts: Registered(policy.registry) }
 	}
 	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
 	authoring = Document.normalize(document)
@@ -646,7 +646,7 @@ page_size : Layout.Size
 page_size = { height: Layout.Unit.from_raw(842000), width: Layout.Unit.from_raw(595000) }
 
 rejects : Document, Conformance.DiagnosticCode, Str, List(Str) -> U64
-rejects = |document, expected_code, expected_feature, expected_paths| match Pdf.to_bytes(document) {
+rejects = |document, expected_code, expected_feature, expected_paths| match Pdf.to_bytes_with(document, { profile: Archive }) {
 	Err(InvalidDocument({ diagnostics: [{ code, details, feature: Feature(feature), location: Document, stage: AuthoringValidation, .. }], truncation: Complete, .. })) => if (code == expected_code and feature == expected_feature and details == expected_paths) 1 else 0
 	_ => 0
 }
@@ -693,7 +693,7 @@ run_negatives = |context| {
 	if bounded != 1 {
 		return Err(MissingRejection(passed))
 	}
-	carrier = Pdf.to_bytes(document([Pdf.title("Table carrier"), table([body("A valid row.")], KeepRows)])) ? |_| EvidenceFailure
+	carrier = Pdf.to_bytes_with(document([Pdf.title("Table carrier"), table([body("A valid row.")], KeepRows)]), { profile: Archive }) ? |_| EvidenceFailure
 	Ok({ bytes: carrier, work: [passed + bounded, carrier.len()] })
 }
 

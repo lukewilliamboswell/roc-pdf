@@ -450,7 +450,7 @@ run_ordered : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Evidenc
 run_ordered = |sections| {
 	ordered = ordered_faces(sections)?
 	theme = { ..report_theme, font_selection: Policy(ordered.policy) }
-	options = Pdf.Options.{ theme: theme, fonts: Registered(ordered.registry) }
+	options = Pdf.Options.{ profile: Archive, theme: theme, fonts: Registered(ordered.registry) }
 	document = report_with_header(sections, "Quarterly operations report · Q1 FY2027 · Office中")
 	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
 	flow = KernelFacadePipeline.probe_ordered(Document.normalize(document), ordered, theme, page_size, pipeline_limits) ? |_| EvidenceFailure
@@ -505,7 +505,7 @@ descriptor : KernelPdfFont.Descriptor
 descriptor = { flags: 32, italic_angle: 0, stem_v: 80 }
 
 rejects : Document, Conformance.DiagnosticCode, Str, List(Str) -> U64
-rejects = |document, expected_code, expected_feature, expected_paths| match Pdf.to_bytes_with(document, Pdf.Options.{ theme: letter_theme }) {
+rejects = |document, expected_code, expected_feature, expected_paths| match Pdf.to_bytes_with(document, Pdf.Options.{ profile: Archive, theme: letter_theme }) {
 	Err(InvalidDocument({ diagnostics: [{ code, details, feature: Feature(feature), location: Document, stage: AuthoringValidation, .. }], truncation: Complete, .. })) => if (code == expected_code and feature == expected_feature and details == expected_paths) 1 else 0
 	_ => 0
 }
@@ -557,7 +557,7 @@ run_negatives = |context| {
 	if passed != checks.len() {
 		return Err(MissingRejection(passed))
 	}
-	carrier = Pdf.to_bytes_with(templated([Pdf.title("Template carrier"), Pdf.paragraph("A valid templated page.")], simple(text_header, text_header)), Pdf.Options.{ theme: letter_theme }) ? |_| EvidenceFailure
+	carrier = Pdf.to_bytes_with(templated([Pdf.title("Template carrier"), Pdf.paragraph("A valid templated page.")], simple(text_header, text_header)), Pdf.Options.{ profile: Archive, theme: letter_theme }) ? |_| EvidenceFailure
 	Ok({ bytes: carrier, work: [passed, carrier.len()] })
 }
 
@@ -567,7 +567,7 @@ run_page_sizes : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Evid
 run_page_sizes = |context| {
 	title = if (context == 0) "Landscape ledger" else "guarded"
 	landscape = { height: Layout.Unit.from_raw(595000), width: Layout.Unit.from_raw(842000) }
-	options = |size| Pdf.Options.{ theme: report_theme, page_size: size }
+	options = |size| Pdf.Options.{ profile: Archive, theme: report_theme, page_size: size }
 	heading_cell = |value| Pdf.header_cell(Column, [Pdf.text(value)])
 	var $rows = []
 	var $index = 0
@@ -940,7 +940,7 @@ run_typography = |pages| {
 		}
 		Pdf.document({ contents: $contents, language: "en-AU", title: "Independent furniture typography", page_templates: Templates({ first: Pdf.first_page_template({ header, footer }), continuation: Pdf.page_template({ header, footer }) }) })
 	}
-	options = Pdf.Options.{ theme, fonts: Registered(mono.registry) }
+	options = Pdf.Options.{ profile: Archive, theme, fonts: Registered(mono.registry) }
 	document = make(10, 70)
 	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
 	body_font = mono.registry.prepared_face(body.face) ? |_| EvidenceFailure
@@ -987,7 +987,7 @@ chapter_evidence = |count, mode| {
 	}
 	$contents = $contents.append(Pdf.paragraph("Unscoped ending resets the chapter label."))
 	doc = Pdf.document({ contents: $contents, language: "en-AU", title: "Chapter scope evidence", page_templates: if (mode == 1) NoTemplates else Templates({ first: Pdf.first_page_template({ footer, gap: 10, lead: Pdf.lead_region(40, [Pdf.paragraph("Semantic document lead")]) }), continuation: Pdf.page_template({ footer, gap: 10, header }) }) })
-	reported = Pdf.prepare_with_report(doc, Pdf.Options.{ theme: report_theme }) ? |error| crash Str.inspect(error)
+	reported = Pdf.prepare_with_report(doc, Pdf.Options.{ profile: Archive, theme: report_theme }) ? |error| crash Str.inspect(error)
 	var $scopes = 0
 	var $openings = 0
 	for outcome in reported.report.facts.outcomes {

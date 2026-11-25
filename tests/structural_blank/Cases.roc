@@ -22,7 +22,7 @@ Cases :: [].{
 blank : { bytes : List(U8), work : List(U64) }
 blank = {
 	document = Pdf.document({ contents: [], language: "en-AU", title: "Blank" })
-	bytes = Pdf.to_bytes(document) ?? []
+	bytes = Pdf.to_bytes_with(document, { profile: Archive }) ?? []
 
 	{ bytes, work: [1, bytes.len()] }
 }

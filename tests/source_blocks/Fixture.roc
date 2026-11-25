@@ -189,7 +189,7 @@ evidence = |EvidenceProps.{ text, profile, spacer, scale, negative, defaults, ha
 			reject({ ..props, tabs: ExpandTo(0) }, "source.tab_width"),
 			reject({ ..props, text: wrap_text, wrap: RejectLongToken }, "layout.unbreakable_token"),
 			reject({ ..props, text: long_text(100), fragmentation: Unsplittable }, "source.oversize"),
-			source_rejected(Pdf.to_bytes_with(document, { theme: theme }), "source.face"),
+			source_rejected(Pdf.to_bytes_with(document, { profile: Archive, theme: theme }), "source.face"),
 			source_rejected(Pdf.to_bytes_with(document, policy_options), "source.font_policy"),
 			reject({ ..props, leading: 8 }, "source.style"),
 			reject({ ..props, padding: -1 }, "source.style"),
@@ -274,7 +274,7 @@ multiple_evidence = |context| {
 	document = Pdf.document({ title: "Independent source placements", language: "en", contents: [first, Pdf.paragraph("Between source blocks."), second, first] })
 	theme : Theme
 	theme = { body: { size: 11, leading: 15 } }
-	{ prepared, report } = Pdf.prepare_with_report(document, { theme, fonts: Registered(registered.registry) }) ? PdfFailure
+	{ prepared, report } = Pdf.prepare_with_report(document, { profile: Archive, theme, fonts: Registered(registered.registry) }) ? PdfFailure
 	bytes = Pdf.to_bytes_prepared(prepared) ? PdfFailure
 	expected = [{ path: "contents[0]", count: 3 }, { path: "contents[2]", count: 4 }, { path: "contents[3]", count: 3 }]
 	var $index = 0

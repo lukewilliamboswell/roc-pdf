@@ -14,7 +14,7 @@ facade_document = Pdf.document({
 # This is the public one-import positive boundary. Its emitted bytes are
 # checked structurally by scripts/check_facade_output.py.
 expect {
-	bytes = Pdf.to_bytes(facade_document)?
+	bytes = Pdf.to_bytes_with(facade_document, { profile: Archive })?
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 667
 }
 
@@ -28,7 +28,7 @@ expect {
 		title: "Atomic negative",
 	})
 
-	match Pdf.to_bytes(document) {
+	match Pdf.to_bytes_with(document, { profile: Archive }) {
 		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, .. }], .. })) => True
 		_ => False
 	}
@@ -46,7 +46,7 @@ main! = |args| {
 		language: "en-AU",
 		title,
 	})
-	bytes = Pdf.to_bytes(document) ?? []
+	bytes = Pdf.to_bytes_with(document, { profile: Archive }) ?? []
 
 	{ bytes, work: [bytes.len()] }
 }

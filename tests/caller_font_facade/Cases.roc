@@ -55,7 +55,7 @@ positive = |runtime_argument_count| {
 		Ok(value) => value
 	}
 	theme = Theme.{ face: registered.face }
-	options = Pdf.Options.{ theme: theme, fonts: Registered(registered.registry) }
+	options = Pdf.Options.{ profile: Archive, theme: theme, fonts: Registered(registered.registry) }
 	selected = match registered.registry.prepared_face(registered.face) {
 		Err(_) => crash "caller fixture selected face is unavailable"
 		Ok(value) => value
@@ -106,7 +106,7 @@ unhinted = |runtime_argument_count| {
 		Ok(value) => value
 	}
 	theme = Theme.{ face: registered.face }
-	options = Pdf.Options.{ theme: theme, fonts: Registered(registered.registry) }
+	options = Pdf.Options.{ profile: Archive, theme: theme, fonts: Registered(registered.registry) }
 	document = caller_document({})
 	bytes = match Pdf.to_bytes_with(document, options) {
 		Err(_) => crash "unhinted caller facade output failed"
@@ -142,8 +142,8 @@ built_in_registry = |runtime_argument_count| {
 		Err(_) => crash "monospace registration failed"
 		Ok(value) => value
 	}
-	registered_options = Pdf.Options.{ theme: Theme.{ face: body.face }, fonts: Registered(body.registry) }
-	default_options = if (runtime_argument_count == 2) Pdf.Options.default else registered_options
+	registered_options = Pdf.Options.{ profile: Archive, theme: Theme.{ face: body.face }, fonts: Registered(body.registry) }
+	default_options = if (runtime_argument_count == 2) Pdf.Options.{ profile: Archive } else registered_options
 	default_bytes = match Pdf.to_bytes_with(caller_document({}), default_options) {
 		Err(_) => crash "default output failed"
 		Ok(value) => value
@@ -156,7 +156,7 @@ built_in_registry = |runtime_argument_count| {
 		crash "the registered built-in face changed the default output"
 	}
 	theme = Theme.{ face: body.face, inline: { code: { font: Face(mono.face) } } }
-	options = Pdf.Options.{ theme: theme, fonts: Registered(mono.registry) }
+	options = Pdf.Options.{ profile: Archive, theme: theme, fonts: Registered(mono.registry) }
 	document = Pdf.document({
 		contents: [Pdf.rich_paragraph([Pdf.text("Run "), Pdf.code("roc build"), Pdf.text(" before the release.")])],
 		language: "en-AU",
@@ -193,8 +193,8 @@ shared_registry = |runtime_argument_count| {
 		Ok(value) => value
 	}
 	theme = Theme.{ face: registered.face }
-	first_options = Pdf.Options.{ theme: theme, fonts: Registered(registered.registry) }
-	second_options = Pdf.Options.{ theme: theme, fonts: Registered(registered.registry) }
+	first_options = Pdf.Options.{ profile: Archive, theme: theme, fonts: Registered(registered.registry) }
+	second_options = Pdf.Options.{ profile: Archive, theme: theme, fonts: Registered(registered.registry) }
 	first_document = caller_document({})
 	second_document = caller_document({})
 	first_bytes = match Pdf.to_bytes_with(first_document, first_options) {
@@ -256,8 +256,8 @@ unique_registries = |runtime_argument_count| {
 	}
 	first_theme = Theme.{ face: first.face }
 	second_theme = Theme.{ face: second.face }
-	first_options = Pdf.Options.{ theme: first_theme, fonts: Registered(first.registry) }
-	second_options = Pdf.Options.{ theme: second_theme, fonts: Registered(second.registry) }
+	first_options = Pdf.Options.{ profile: Archive, theme: first_theme, fonts: Registered(first.registry) }
+	second_options = Pdf.Options.{ profile: Archive, theme: second_theme, fonts: Registered(second.registry) }
 	first_bytes = match Pdf.to_bytes_with(caller_document({}), first_options) {
 		Err(_) => crash "caller unique-registry first output failed"
 		Ok(value) => value
@@ -390,7 +390,7 @@ roc_fonts = |context| {
 		Err(_) => crash "roc-font registration failed"
 	}
 	options : Pdf.Options
-	options = { fonts: Registered(faces.registry), theme: RocFont.theme(faces, {}) }
+	options = { profile: Archive, fonts: Registered(faces.registry), theme: RocFont.theme(faces, {}) }
 	document = Pdf.document({
 		contents: [
 			Pdf.paragraph("Body ⌘K"),

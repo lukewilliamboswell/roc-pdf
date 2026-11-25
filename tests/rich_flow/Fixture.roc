@@ -142,7 +142,7 @@ negative_evidence = |context| {
 	}
 	registered = Font.Registry.empty.register({ bytes: KernelBuiltInFont.bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
 	options : Pdf.Options
-	options = { theme: { headings: { all: { face: Face(registered.face) } } }, fonts: Registered(registered.registry) }
+	options = { profile: Archive, theme: { headings: { all: { face: Face(registered.face) } } }, fonts: Registered(registered.registry) }
 	make = |block| Pdf.document({ title: "Rich flow diagnostic contracts", language: "en", contents: [block] })
 	valid = [Pdf.paragraph("A valid note.")]
 	var $deep = Pdf.paragraph("Too deep")
@@ -343,7 +343,7 @@ list_evidence = |count| {
 	document = Pdf.document({ title: "Rich numbered procedures", language: "en", contents: [Pdf.numbered_list({ start: 100 }, $items)] })
 	theme : Theme
 	theme = { face: registered.face, table: { header_color: Themed(Theme.black), row_header_color: Themed(Theme.black) } }
-	{ prepared, report } = Pdf.prepare_with_report(document, { theme, fonts: Registered(registered.registry) }) ? PdfFailure
+	{ prepared, report } = Pdf.prepare_with_report(document, { profile: Archive, theme, fonts: Registered(registered.registry) }) ? PdfFailure
 	bytes = Pdf.to_bytes_prepared(prepared) ? PdfFailure
 	font = registered.registry.prepared_face(registered.face) ? |_| FontFailure
 	styled = { faces: [registered.face], fonts: [font], inline_faces: [], face_indexes: [], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }

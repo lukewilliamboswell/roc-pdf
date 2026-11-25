@@ -720,7 +720,7 @@ run_negatives = |runtime_context| {
 	## bytes; the typed error carries the exact validation fact.
 	facade_title = if (guard == 0) "Facade negative" else "guarded"
 	facade_document = Pdf.document({ contents: [Pdf.paragraph("Facade negative")], language: "en-au", title: facade_title })
-	match Pdf.to_bytes(facade_document) {
+	match Pdf.to_bytes_with(facade_document, { profile: Archive }) {
 		Err(InvalidMetadata(LanguageNotCanonicalCase({ offset: 3 }))) => {}
 		_ => return Err(MissingRejection(18))
 	}

@@ -30,7 +30,7 @@ Fixture :: [].{
 		}
 		registered = Font.Registry.empty.register({ bytes: KernelBuiltInFont.bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
 		font = registered.registry.prepared_face(registered.face) ? |_| FontFailure
-		evidence(reference_document(sections), theme, { theme: theme }, Single(font))
+		evidence(reference_document(sections), theme, { profile: Archive, theme: theme }, Single(font))
 	}
 	styled : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
 	styled = |context| {
@@ -86,7 +86,7 @@ Fixture :: [].{
 		table = Pdf.table({ caption: Pdf.no_caption, columns: [{ width: Fixed(100), align: End }, { width: Fixed(100), align: Center }, { width: Share(1), align: Start }], header_rows: [Pdf.row([Pdf.header_cell(Column, small([Pdf.text("Head ")])), Pdf.header_cell(Column, small([Pdf.text("Header "), reference("target", Physical, 24), Pdf.text(" ")])), Pdf.header_cell(Column, small([reference("target", Physical, 24), Pdf.line_break, Pdf.text("Tail")]))])], body_rows: $rows })
 		document = Pdf.document({ title: "Reference geometry parity", language: "en", contents: [Pdf.rich_paragraph([Pdf.code("Scaled literal.")]), Pdf.rich_paragraph(small([reference("target", Physical, 24)])), Pdf.numbered_list({}, [Pdf.list_item([Pdf.rich_paragraph([Pdf.code("Scaled list.")])])]), table, Pdf.page_break, Pdf.destination_heading({ name: "target", level: 1, text: "Geometry target" })] })
 		selection = Styled({ faces: [body.face, mono.face], fonts: [body_font, mono_font], inline_faces: [], face_indexes: [], roles: { code: Candidate(1), emphasis: Candidate(1), quote: Inherited, strong: Inherited } })
-		evidence(document, selected_theme, { theme: selected_theme, fonts: Registered(mono.registry) }, selection)
+		evidence(document, selected_theme, { profile: Archive, theme: selected_theme, fonts: Registered(mono.registry) }, selection)
 	}
 	contents : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
 	contents = |entries| {
@@ -133,7 +133,7 @@ Fixture :: [].{
 		var $passed = 0
 		for props in bad {
 			expected = features.get($passed) ?? ""
-			match Pdf.to_bytes_with(make(props), { theme: theme }) {
+			match Pdf.to_bytes_with(make(props), { profile: Archive, theme: theme }) {
 				Err(InvalidDocument({ diagnostics: [{ feature: Feature(found), .. }], truncation: Complete, .. })) if found == expected => {
 					$passed = $passed + 1
 				}
@@ -150,7 +150,7 @@ Fixture :: [].{
 ## This successful PDF only carries the negative case's structural evidence.
 ## The context guard and every rejected contents entry remain measured at run
 ## time; generating this input-independent carrier does not belong to them.
-contents_rejection_bytes = Pdf.to_bytes(Pdf.document({ title: "Contents rejection evidence", language: "en", contents: [Pdf.paragraph("Invalid contents inputs fail before emission.")] }))
+contents_rejection_bytes = Pdf.to_bytes_with(Pdf.document({ title: "Contents rejection evidence", language: "en", contents: [Pdf.paragraph("Invalid contents inputs fail before emission.")] }), { profile: Archive })
 
 theme : Theme
 theme = { body: { size: 10, leading: 13 }, paragraph_spacing: 3, page_margin: { top: 40, bottom: 40, left: 50, right: 50 } }
@@ -240,7 +240,7 @@ run_negatives = |context| {
 	]
 	var $passed = 0
 	for check in checks {
-		match Pdf.to_bytes_with(check.document, { theme: theme }) {
+		match Pdf.to_bytes_with(check.document, { profile: Archive, theme: theme }) {
 			Err(InvalidDocument({ diagnostics: [{ feature: Feature(found), details, .. }], truncation: Complete, .. })) if found == check.feature and details.any(|detail| detail == check.path) => {
 				$passed = $passed + 1
 			}
@@ -251,7 +251,7 @@ run_negatives = |context| {
 	cjk = body.registry.register({ bytes: cjk_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
 	configured = cjk.registry.with_policy([body.face, cjk.face]) ? |_| FontFailure
 	ordered_options : Pdf.Options
-	ordered_options = { theme: { ..theme, font_selection: Policy(configured.policy) }, fonts: Registered(configured.registry) }
+	ordered_options = { profile: Archive, theme: { ..theme, font_selection: Policy(configured.policy) }, fonts: Registered(configured.registry) }
 	for check in [
 		{ document: make(label, [{ start_page: 0, style: NoNumber, prefix: "中-", start_number: 1 }]), feature: "text.coverage_missing" },
 		{ document: make(label, [{ start_page: 0, style: DecimalArabic, prefix: "ا", start_number: 1 }]), feature: "text.unsupported_script" },
@@ -263,7 +263,7 @@ run_negatives = |context| {
 			_ => return Err(ExpectedRejection($passed))
 		}
 	}
-	bytes = Pdf.to_bytes(Pdf.document({ title: "Destination reference rejections ${$passed.to_str()}", language: "en", contents: [Pdf.paragraph("Invalid destination-reference inputs fail before emission.")] })) ? PdfFailure
+	bytes = Pdf.to_bytes_with(Pdf.document({ title: "Destination reference rejections ${$passed.to_str()}", language: "en", contents: [Pdf.paragraph("Invalid destination-reference inputs fail before emission.")] }), { profile: Archive }) ? PdfFailure
 	Ok({ bytes, work: [$passed] })
 }
 

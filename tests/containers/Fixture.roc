@@ -142,7 +142,7 @@ nest = |block, depth| {
 }
 
 rejects : Document, Conformance.DiagnosticCode, Str, Str -> U64
-rejects = |document, expected_code, expected_feature, expected_path| match Pdf.to_bytes(document) {
+rejects = |document, expected_code, expected_feature, expected_path| match Pdf.to_bytes_with(document, { profile: Archive }) {
 	Err(InvalidDocument({ diagnostics: [{ code, details, feature: Feature(feature), location: Document, stage: AuthoringValidation, .. }], truncation: Complete, .. })) => if (code == expected_code and feature == expected_feature and details == (if (expected_path.is_empty()) [] else [expected_path])) 1 else 0
 	_ => 0
 }
@@ -169,7 +169,7 @@ run_negatives = |context| {
 	}
 
 	## The deepest accepted nesting is the facade bound itself.
-	boundary = Pdf.to_bytes(document([Pdf.title("Boundary"), nest(Pdf.paragraph("Leaf"), 16 + offset)])) ? |_| EvidenceFailure
-	carrier = Pdf.to_bytes(document([Pdf.title("Container carrier"), Pdf.section([Pdf.heading(1, "Carrier"), Pdf.paragraph("A valid grouped document.")])])) ? |_| EvidenceFailure
+	boundary = Pdf.to_bytes_with(document([Pdf.title("Boundary"), nest(Pdf.paragraph("Leaf"), 16 + offset)]), { profile: Archive }) ? |_| EvidenceFailure
+	carrier = Pdf.to_bytes_with(document([Pdf.title("Container carrier"), Pdf.section([Pdf.heading(1, "Carrier"), Pdf.paragraph("A valid grouped document.")])]), { profile: Archive }) ? |_| EvidenceFailure
 	Ok({ bytes: carrier, work: [passed, boundary.len(), carrier.len()] })
 }

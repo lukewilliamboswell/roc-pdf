@@ -36,13 +36,13 @@ facade_document = Pdf.document({
 
 ## The successful structural carrier is independent of the rejected document.
 ## Keep its generation outside the measured negative operation; the runtime
-## guard and Pdf.to_chunks rejection below remain inside that operation.
-chunk_rejection_bytes = Pdf.to_bytes(Pdf.document({ contents: [], language: "en-AU", title: "Blank" })) ?? []
+## guard and chunk export rejection below remain inside that operation.
+chunk_rejection_bytes = Pdf.to_bytes_with(Pdf.document({ contents: [], language: "en-AU", title: "Blank" }), { profile: Archive }) ?? []
 
 # This is the public one-import positive boundary. Its emitted bytes are
 # checked structurally by scripts/check_facade_output.py.
 expect {
-	bytes = Pdf.to_bytes(facade_document)?
+	bytes = Pdf.to_bytes_with(facade_document, { profile: Archive })?
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 667
 }
 
@@ -56,7 +56,7 @@ expect {
 		title: "Atomic negative",
 	})
 
-	match Pdf.to_bytes(document) {
+	match Pdf.to_bytes_with(document, { profile: Archive }) {
 		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, .. }], .. })) => True
 		_ => False
 	}
@@ -74,7 +74,7 @@ facade_output = |context| {
 		language: "en-AU",
 		title,
 	})
-	bytes = Pdf.to_bytes(document) ?? []
+	bytes = Pdf.to_bytes_with(document, { profile: Archive }) ?? []
 
 	{ bytes, work: [bytes.len()] }
 }
@@ -199,7 +199,7 @@ figure_document = {
 }
 
 expect {
-	bytes = Pdf.to_bytes(figure_document)?
+	bytes = Pdf.to_bytes_with(figure_document, { profile: Archive })?
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 1000
 }
 
@@ -212,7 +212,7 @@ image_output = |context| {
 	} else {
 		crash "image-figure facade argument invalid"
 	}
-	bytes = Pdf.to_bytes(document) ?? []
+	bytes = Pdf.to_bytes_with(document, { profile: Archive }) ?? []
 	{ bytes, work: [image_pixels.len(), bytes.len()] }
 }
 
@@ -240,7 +240,7 @@ chunked_output = |retention_choice, compression_choice| {
 		language: "en-AU",
 		title: "text-layout public facade output",
 	})
-	options = Pdf.Options.{ chunk_retention: retention, compression }
+	options = Pdf.Options.{ profile: Archive, chunk_retention: retention, compression }
 	buffered = Pdf.to_bytes_with(document, options) ?? []
 	prepared = match Pdf.prepare(document, options) {
 		Err(_) => crash "text-layout chunked facade preparation failed"
@@ -309,7 +309,7 @@ chunks_negative = |context| {
 		language: "en-AU",
 		title,
 	})
-	rejected = match Pdf.to_chunks(document) {
+	rejected = match Pdf.to_chunks_with(document, { profile: Archive }) {
 		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, .. }], .. })) => 1
 		_ => 0
 	}
