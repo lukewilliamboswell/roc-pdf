@@ -5,8 +5,6 @@
 import KernelLex
 import KernelObject
 import KernelSeal
-import unicode.ByteRange
-import unicode.Scalar
 
 KernelPdfUa2 :: [].{
 	Requirement : [DisplayTitle, DocumentLanguage, Marked, PageTabs, StructureRoot]
@@ -82,15 +80,40 @@ KernelPdfUa2 :: [].{
 	## a scalar list and report the original byte offset of the first one.
 	private_use_offset : Str -> [NoPrivateUse, PrivateUse(U64)]
 	private_use_offset = |value| {
-		for located in Scalar.iter(value) {
-			scalar = Scalar.to_u32(located.scalar)
-			if (scalar >= 0xE000 and scalar <= 0xF8FF) or (scalar >= 0xF0000 and scalar <= 0xFFFFD) or (scalar >= 0x100000 and scalar <= 0x10FFFD) {
-				return PrivateUse(ByteRange.start(located.byte_range))
+		## Str guarantees valid UTF-8. PUA scalars have three or four
+		## bytes, with lead bytes EE, EF, F3 or F4. Skip all other scalars
+		## and decode only candidates, without making a List(U8) for
+		## inline strings such as outline titles.
+		var $offset = 0
+		var $start = 0
+		var $remaining = 0
+		initial : U32
+		initial = 0
+		var $scalar = initial
+		for byte in Str.iter_utf8(value) {
+			if $remaining > 0 {
+				$scalar = $scalar.shl_wrap(6) + byte.bitwise_and(0x3F).to_u32()
+				$remaining = $remaining - 1
+				if $remaining == 0 and is_private_scalar($scalar) {
+					return PrivateUse($start)
+				}
+			} else if byte == 0xEE or byte == 0xEF {
+				$start = $offset
+				$remaining = 2
+				$scalar = byte.bitwise_and(0x0F).to_u32()
+			} else if byte == 0xF3 or byte == 0xF4 {
+				$start = $offset
+				$remaining = 3
+				$scalar = byte.bitwise_and(0x07).to_u32()
 			}
+			$offset = $offset + 1
 		}
 		NoPrivateUse
 	}
 }
+
+is_private_scalar : U32 -> Bool
+is_private_scalar = |scalar| (scalar >= 0xE000 and scalar <= 0xF8FF) or (scalar >= 0xF0000 and scalar <= 0xFFFFD) or (scalar >= 0x100000 and scalar <= 0x10FFFD)
 
 object_value : KernelObject.Store, KernelObject.ObjectId -> KernelObject.Value
 object_value = |store, id| stored_value(store, list_at(store.objects, KernelObject.ObjectId.number(id) - 1).content)
@@ -195,3 +218,14 @@ tabs_key = Str.to_utf8("Tabs")
 
 standard_namespace : List(U8)
 standard_namespace = Str.to_utf8("http://iso.org/pdf2/ssn")
+
+# Each range's edges, adjacent non-PUA values and original UTF-8 offsets.
+expect {
+	KernelPdfUa2.private_use_offset("e\u(D7FF)\u(F900)\u(E000)") == PrivateUse(7)
+		and KernelPdfUa2.private_use_offset("\u(F8FF)") == PrivateUse(0)
+		and KernelPdfUa2.private_use_offset("\u(EFFFF)\u(F0000)") == PrivateUse(4)
+		and KernelPdfUa2.private_use_offset("\u(FFFFD)") == PrivateUse(0)
+		and KernelPdfUa2.private_use_offset("\u(FFFFE)\u(100000)") == PrivateUse(4)
+		and KernelPdfUa2.private_use_offset("\u(10FFFD)") == PrivateUse(0)
+		and KernelPdfUa2.private_use_offset("\u(10FFFE) text") == NoPrivateUse
+}
