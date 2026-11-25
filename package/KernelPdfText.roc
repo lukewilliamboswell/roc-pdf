@@ -753,8 +753,8 @@ pow10 = |digits| {
 ## nearest 1/`adjustment_scale` thousandth of text space (halves round up).
 ## The pen is tracked exactly in units of 1/(1000 * `adjustment_scale`)
 ## layout units, so each glyph's rounding error is at most half an
-## adjustment step, 0.0005 em at scale 1, and never accumulates along the
-## segment. All arithmetic is checked `I64` integer arithmetic.
+## adjustment step (0.00005 em at the current scale) and never accumulates.
+## All arithmetic is checked `I64` integer arithmetic.
 emit_run_glyphs : List(U8), Text.Store, Text.Run, Layout.Point, KernelFontPlan.Plan, U64 -> Try({ bytes : List(U8), glyphs : U64 }, KernelPdfText.Error)
 emit_run_glyphs = |bytes, text, run, origin, font, limit| emit_run_glyphs_phase(bytes, text, run, origin, font, FirstPiece, limit)
 
@@ -1049,6 +1049,25 @@ expect round_half_up(5, 10) == Ok(1) and
 			round_half_up(14, 10) == Ok(1) and
 				round_half_up(-15, 10) == Ok(-1) and
 					round_half_up(0, 7) == Ok(0)
+
+# Check the postcondition directly without dividing or using another
+# rounding function. Subtracting the returned number of size steps must
+# leave a position between -1/2 (included) and +1/2 (excluded).
+expect {
+	var $within_half_step = True
+	var $size = 1.I64
+	while $within_half_step and $size <= 64 {
+		var $distance = -256.I64
+		while $within_half_step and $distance <= 256 {
+			steps = round_half_up($distance, $size)?
+			twice_error = ($distance - steps * $size) * 2
+			$within_half_step = twice_error >= -$size and twice_error < $size
+			$distance = $distance + 1
+		}
+		$size = $size + 1
+	}
+	$within_half_step
+}
 
 # One-digit adjustments print as canonical decimals.
 expect append_adjustment([], -3, 16) == Ok(Str.to_utf8("-0.3")) and

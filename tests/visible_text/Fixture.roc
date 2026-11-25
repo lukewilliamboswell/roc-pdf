@@ -386,6 +386,76 @@ expect {
 	}
 }
 
+# With a 12 pt font one TJ adjustment step moves the pen 1.2 raw layout
+# units. The first three glyphs hit both signs of a half-step adjustment.
+# The next glyph exposes failure to carry the rounded pen forward. Both
+# vertical transitions restart at the exact signed baseline.
+#
+# Authored x coordinates in raw units are 1, 8002, 16012, 18199, 24500,
+# 27003, 34505, 42008. Choose the closest point to each x on the grid
+# anchored at that baseline's first glyph, taking the lower point at a
+# tie. ISO 32000-2 Table 107 and §9.4.4 then require each TJ number to
+# equal the difference from the reader's pen divided by 12 raw units.
+# The first four plain glyphs must land at 1, 8001.4, 16011.4, 18199.
+# With the continued phase they land at 0.4, 8002, 16012, 18198.4.
+expect {
+	sample = build_sample({})?
+	run = list_at(sample.shape.store.runs, 0)
+	size = Layout.Unit.from_raw(12000)
+	runs = [{ ..run, size }]
+	positions = [
+		{ advance: 8000, x: 1, y: -2 },
+		{ advance: 8000, x: 2, y: -2 },
+		{ advance: 2200, x: 12, y: -2 },
+		{ advance: 6300, x: -1, y: -2 },
+		{ advance: 2500, x: 0, y: 3 },
+		{ advance: 7500, x: 3, y: 3 },
+		{ advance: 7500, x: 5, y: -2 },
+		{ advance: 0, x: 8, y: -2 },
+	]
+	glyphs = positions.map_with_index(
+		|position, index| {
+			glyph = list_at(sample.shape.store.glyphs, index)
+			{ ..glyph, advance_x: Layout.Unit.from_raw(position.advance), offset_x: Layout.Unit.from_raw(position.x), offset_y: Layout.Unit.from_raw(position.y) }
+		},
+	)
+	store = { ..sample.shape.store, glyphs, runs }
+	ownership = KernelTextOwnership.Plan.build(sample.semantic, sample.scene, store)?
+	limits = KernelPdfText.Limits.make({ max_actual_text_scalars: 64, max_content_bytes: 4096, max_mappings: 64, max_placements: 0, max_source_scalars: 64 })
+	plain = KernelPdfText.ScenePlan.build(ownership, [sample.font_plan], limits)?
+	# A prefix advance of 14pt places the original segment origin 2 raw
+	# units left of this piece and the first glyph 3 raw units from that
+	# origin. The negative tie lands 2.4 raw units to the right of the origin.
+	phase = { run: run.id, advance: Layout.Unit.from_raw(14000), origin: { x: Layout.Unit.from_raw(13998), y: Layout.Unit.from_raw(-2) } }
+	continued = KernelPdfText.ScenePlan.build_with_phases(ownership, [sample.font_plan], [phase], limits)?
+	expected_plain = Str.join_with(
+		[
+			"0.001 -0.002 Td",
+			"[<0001> 63.3 <0005> -105.5 <0008> 187.7 <0007>] TJ",
+			"24.499 0.005 Td",
+			"[<000A> 72.4 <0004>] TJ",
+			"10.005 -0.005 Td",
+			"[<0002> 96.8 <0003>] TJ",
+			"",
+		],
+		"\n",
+	)
+	expected_continued = Str.join_with(
+		[
+			"-0.002 -0.002 Td",
+			"[-0.2 <0001> 63.2 <0005> -105.5 <0008> 187.8 <0007>] TJ",
+			"24.502 0.005 Td",
+			"[<000A> 72.4 <0004>] TJ",
+			"10.005 -0.005 Td",
+			"[<0002> 96.8 <0003>] TJ",
+			"",
+		],
+		"\n",
+	)
+	KernelPdfText.ScenePlan.run(plain, run.id).body == Str.to_utf8(expected_plain) and
+		KernelPdfText.ScenePlan.run(continued, run.id).body == Str.to_utf8(expected_continued)
+}
+
 # Tagged content lowering consumes scene placement, typed paint, and prepared glyph operators.
 expect {
 	sample = build_sample({})?
