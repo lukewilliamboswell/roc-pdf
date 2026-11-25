@@ -28737,7 +28737,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 2910,
-          "allocated_bytes": 5422955,
+          "allocated_bytes": 5423266,
           "work": {
             "input_bytes": 1080,
             "shaped_runs": 63,
@@ -28753,7 +28753,7 @@
             "reported_fragments": 2,
             "reported_visual_lines": 61,
             "rejections": 0,
-            "output_bytes": 16530,
+            "output_bytes": 16649,
             "foreground_ranges": 0,
             "paint_clusters": 0,
             "paint_range_advances": 0
@@ -28761,7 +28761,7 @@
         },
         "x64musl": {
           "allocations": 2910,
-          "allocated_bytes": 5422955,
+          "allocated_bytes": 5423266,
           "work": {
             "input_bytes": 1080,
             "shaped_runs": 63,
@@ -28777,7 +28777,7 @@
             "reported_fragments": 2,
             "reported_visual_lines": 61,
             "rejections": 0,
-            "output_bytes": 16530,
+            "output_bytes": 16649,
             "foreground_ranges": 0,
             "paint_clusters": 0,
             "paint_range_advances": 0
@@ -28787,6 +28787,7 @@
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics",
         "source_foregrounds"
       ]
@@ -28826,7 +28827,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 4304,
-          "allocated_bytes": 8204264,
+          "allocated_bytes": 8204574,
           "work": {
             "input_bytes": 1080,
             "shaped_runs": 63,
@@ -28842,7 +28843,7 @@
             "reported_fragments": 2,
             "reported_visual_lines": 61,
             "rejections": 0,
-            "output_bytes": 19413,
+            "output_bytes": 19531,
             "foreground_ranges": 180,
             "paint_clusters": 1020,
             "paint_range_advances": 180
@@ -28850,7 +28851,7 @@
         },
         "x64musl": {
           "allocations": 4304,
-          "allocated_bytes": 8204264,
+          "allocated_bytes": 8204574,
           "work": {
             "input_bytes": 1080,
             "shaped_runs": 63,
@@ -28866,7 +28867,7 @@
             "reported_fragments": 2,
             "reported_visual_lines": 61,
             "rejections": 0,
-            "output_bytes": 19413,
+            "output_bytes": 19531,
             "foreground_ranges": 180,
             "paint_clusters": 1020,
             "paint_range_advances": 180
@@ -28876,6 +28877,7 @@
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics",
         "source_foregrounds"
       ]
@@ -28915,7 +28917,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 13808,
-          "allocated_bytes": 26433298,
+          "allocated_bytes": 26433609,
           "work": {
             "input_bytes": 10800,
             "shaped_runs": 603,
@@ -28931,7 +28933,7 @@
             "reported_fragments": 11,
             "reported_visual_lines": 601,
             "rejections": 0,
-            "output_bytes": 24059,
+            "output_bytes": 24178,
             "foreground_ranges": 0,
             "paint_clusters": 0,
             "paint_range_advances": 0
@@ -28939,7 +28941,7 @@
         },
         "x64musl": {
           "allocations": 13808,
-          "allocated_bytes": 26433298,
+          "allocated_bytes": 26433609,
           "work": {
             "input_bytes": 10800,
             "shaped_runs": 603,
@@ -28955,7 +28957,7 @@
             "reported_fragments": 11,
             "reported_visual_lines": 601,
             "rejections": 0,
-            "output_bytes": 24059,
+            "output_bytes": 24178,
             "foreground_ranges": 0,
             "paint_clusters": 0,
             "paint_range_advances": 0
@@ -28965,6 +28967,7 @@
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics",
         "source_foregrounds"
       ]
@@ -29004,7 +29007,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 31537,
-          "allocated_bytes": 63738508,
+          "allocated_bytes": 63738818,
           "work": {
             "input_bytes": 10800,
             "shaped_runs": 603,
@@ -29020,7 +29023,7 @@
             "reported_fragments": 11,
             "reported_visual_lines": 601,
             "rejections": 0,
-            "output_bytes": 51268,
+            "output_bytes": 51386,
             "foreground_ranges": 1800,
             "paint_clusters": 10200,
             "paint_range_advances": 1800
@@ -29028,7 +29031,7 @@
         },
         "x64musl": {
           "allocations": 31537,
-          "allocated_bytes": 63738508,
+          "allocated_bytes": 63738818,
           "work": {
             "input_bytes": 10800,
             "shaped_runs": 603,
@@ -29044,7 +29047,7 @@
             "reported_fragments": 11,
             "reported_visual_lines": 601,
             "rejections": 0,
-            "output_bytes": 51268,
+            "output_bytes": 51386,
             "foreground_ranges": 1800,
             "paint_clusters": 10200,
             "paint_range_advances": 1800
@@ -29054,6 +29057,7 @@
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics",
         "source_foregrounds"
       ]

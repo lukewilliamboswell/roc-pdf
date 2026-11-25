@@ -118,10 +118,10 @@ faces = |han| {
 	Ok({ body: body.face, mono: mono.face, registry: mono.registry })
 }
 
-EvidenceProps :: { text : Str, spacer : I64 ?? 0, scale : U64 ?? 0, negative : Bool ?? False, defaults : Bool ?? False, han : Bool ?? False, source_only : Bool ?? False, same_body : Bool ?? False, foregrounds : List(Pdf.SourceForeground) ?? [], foreground_negative : Bool ?? False, highlighted : Bool ?? False, repeat_source : Bool ?? False, source_body : Bool ?? False }
+EvidenceProps :: { text : Str, profile : Pdf.Profile ?? Archive, spacer : I64 ?? 0, scale : U64 ?? 0, negative : Bool ?? False, defaults : Bool ?? False, han : Bool ?? False, source_only : Bool ?? False, same_body : Bool ?? False, foregrounds : List(Pdf.SourceForeground) ?? [], foreground_negative : Bool ?? False, highlighted : Bool ?? False, repeat_source : Bool ?? False, source_body : Bool ?? False }
 
 evidence : EvidenceProps -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Error)
-evidence = |EvidenceProps.{ text, spacer, scale, negative, defaults, han, source_only, same_body, foregrounds, foreground_negative, highlighted, repeat_source, source_body }| {
+evidence = |EvidenceProps.{ text, profile, spacer, scale, negative, defaults, han, source_only, same_body, foregrounds, foreground_negative, highlighted, repeat_source, source_body }| {
 	if scale > 1000 {
 		return Err(InvalidCase)
 	}
@@ -140,7 +140,7 @@ evidence = |EvidenceProps.{ text, spacer, scale, negative, defaults, han, source
 	theme : Theme
 	theme = { face: if (same_body) registered.mono else registered.body, body: { size: 11, leading: 15 }, furniture: Own({ size: 8, leading: 10 }), paragraph_spacing: 8 }
 	options : Pdf.Options
-	options = { theme, fonts: Registered(registered.registry) }
+	options = { theme, fonts: Registered(registered.registry), profile }
 	{ prepared, report } = Pdf.prepare_with_report(document, options) ? PdfFailure
 	bytes = Pdf.to_bytes_prepared(prepared) ? PdfFailure
 	reported = if (highlighted) source_report_counts(report) else report_evidence(report, text, source_only)?
@@ -449,7 +449,7 @@ foreground_evidence = |kind, lines, colored| {
 			Ok(value) => value
 			Err(_) => crash "foreground fixture UTF8"
 		}
-		return evidence({ text, scale: lines, highlighted: True, foregrounds: $ranges })
+		return evidence({ text, scale: lines, highlighted: True, foregrounds: $ranges, profile: AccessibleArchive })
 	}
 	Err(InvalidCase)
 }
