@@ -287,6 +287,8 @@ def run_validators(
         wtpdf = "wtpdf_accessibility" in validator_ids
         validate_claims(data, wtpdf=wtpdf)
         report("independent XML inspection of PDF/UA-2 identification and WTPDF Accessibility declaration")
+        if "structure_semantics" not in validator_ids:
+            VALIDATORS["structure_semantics"](data, dimensions, report)
     for validator_id in validator_ids:
         if validator_id not in PROFILE_VALIDATORS:
             VALIDATORS[validator_id](data, dimensions, report)

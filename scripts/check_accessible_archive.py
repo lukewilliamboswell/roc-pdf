@@ -22,7 +22,7 @@ from check_pdfa4 import (
 )
 from check_pdfa4_structure import check_metadata, dictionary_part, skeleton
 from extract_verapdf_rules import ACCESSIBILITY_PROFILES
-from pdf_layout import LayoutError, mutate, planned_bodies, trailer_facts
+from pdf_layout import LayoutError, is_stream_body, mutate, planned_bodies, trailer_facts
 
 RDF = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
 UAID = "http://www.aiim.org/pdfua/ns/id/"
@@ -120,6 +120,15 @@ CONTROLS = (
     ua_control("internal-structure-destination", "report", "objects", re.compile(rb"(?<=/S /GoTo) /SD \[[^\]]+\]"), b"", "8.8-2"),
     ua_control("invisible-link", "invoice", "objects", b" /F 4 /QuadPoints", b" /F 5 /QuadPoints", "8.9.2.2-1"),
     ua_control("link-tab-order", "invoice", "objects", re.compile(rb"(/Annots \[[^\]]+\][^\n]+?) /Tabs /S(?= /Type /Page)"), rb"\g<1>", "8.9.3.3-1"),
+    ua_control("unclassified-artifact", "letter", "streams", re.compile(rb"/Artifact <</Type /Pagination /Subtype /Header>> BDC\n(.*?)EMC\n", re.S), rb"\g<1>", "8.2.2-1"),
+    ua_control("table-row-span", "letter", "objects", b"/O /Table /Scope /Column", b"/O /Table /RowSpan 2 /Scope /Column", "8.2.5.26-2"),
+    ua_control("table-caption-position", "letter", "objects", re.compile(rb"(/K \[)([0-9]+ 0 R) ([0-9]+ 0 R) ([0-9]+ 0 R)(\] /NS [0-9]+ 0 R /P [0-9]+ 0 R /S /Table >>)"), rb"\g<1>\g<3> \g<2> \g<4>\g<5>", "8.2.5.27-1"),
+    ua_control("glyph-width", "letter", "objects", re.compile(rb"(/W \[0 \[[0-9]+) [0-9]+"), rb"\g<1> 7000", "8.4.5.6-1"),
+    ua_control("unicode-mapping-bom", "report", "streams", re.compile(rb"(?<=beginbfchar\n)<0001> <0020>"), b"<0001> <FEFF>", "8.4.5.8-2"),
+    ua_control("real-text-pua", "report", "streams", re.compile(rb"(?<=beginbfchar\n)<0001> <0020>"), b"<0001> <E000>", "8.4.3-1"),
+    ua_control("notdef-glyph", "letter", "streams", re.compile(rb"(\n\[<)[0-9A-F]{4}(?=[0-9A-F]+>)"), rb"\g<1>0000", "8.4.5.8-1", "8.4.5.9-1"),
+    ua_control("outline-title-pua", "report", "objects", re.compile(rb" /Title " + STRING + rb"(?= >>)"), b" /Title <FEFFE000>", "8.6-1"),
+    ua_control("no-view-link", "invoice", "objects", b" /F 4 /QuadPoints", b" /F 36 /QuadPoints", "8.9.2.2-2"),
     Control("wtpdf-identifier", "", "payloads", ACCESSIBILITY.encode(), b"http://pdfa.org/declarations/example", frozenset({"6.1.3-1"}), "wt1a"),
 )
 
@@ -130,11 +139,21 @@ def reworked_control(data: bytes, control: Control) -> bytes:
         return mutate(data, control.old, control.new, occurrences=None, scope=control.scope, first_only=True)
     parsed, bodies = planned_bodies(data)
     if control.scope == "objects":
-        for body in bodies.values():
+        for number in sorted(bodies):
+            body = bodies[number]
             if not control.old.search(body):
                 continue
             changed = control.old.sub(control.new, body, count=1)
             return mutate(data, body, changed, scope="objects")
+    elif control.scope == "streams":
+        for number in sorted(bodies):
+            body = bodies[number]
+            if not is_stream_body(body) or b"/Filter /DCTDecode" in dictionary_part(body):
+                continue
+            _, payload = decode_stream(bodies, number)
+            match = control.old.search(payload)
+            if match:
+                return mutate(data, match.group(0), match.expand(control.new), scope="payloads", first_only=True, occurrences=None)
     else:
         root, _id = trailer_facts(parsed)
         _dict, packet = decode_stream(bodies, dictionary_ref(bodies[int(root)], b"Metadata"))

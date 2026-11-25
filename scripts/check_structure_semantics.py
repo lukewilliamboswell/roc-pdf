@@ -421,7 +421,8 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
         visited.add(number)
         element = document.get(number)
         require(element.get("Type", "StructElem") == "StructElem" and "S" in element, f"object {number} is not a StructElem")
-        require(int(element["P"]) == parent, f"structure element {number} /P does not name its parent")
+        parent_ref = element.get("P")
+        require(isinstance(parent_ref, Ref) and int(parent_ref) == parent, f"structure element {number} /P does not name its parent")
         require(int(element["NS"]) in namespaces, "structure element namespace is not declared")
         role = str(element["S"])
         expected_namespace = PDF17_NAMESPACE if role in PDF17_ROLES else PDF20_NAMESPACE
@@ -973,6 +974,20 @@ def self_test() -> None:
         except (ValidationError, KeyError, ValueError, TypeError, AttributeError, IndexError):
             continue
         raise SystemExit(f"structure-semantics checker accepted {label}")
+    document = Document(nested)
+    catalog = document.get(document.root)
+    tree_root = int(catalog["StructTreeRoot"])
+    root = int(document.get(tree_root)["K"])
+    parent_entry = f" /P {tree_root} 0 R".encode("ascii")
+    root_body = document.bodies[root]
+    require(root_body.count(parent_entry) == 1, "Document parent control source changed")
+    without_parent = layout_twin(nested, root_body, root_body.replace(parent_entry, b""), exactly_once=True)
+    try:
+        check_structure_semantics(without_parent)
+    except ValidationError as error:
+        require(str(error) == f"structure element {root} /P does not name its parent", "missing parent twin failed for the wrong reason")
+    else:
+        raise ValidationError("structure-semantics checker accepted an element with no /P")
     navigation = SNAPSHOTS["navigation"].read_bytes()
     document = Document(navigation)
     mcr_pattern = re.compile(rb"<< /MCID [0-9]+ /Pg ([0-9]+) 0 R /Type /MCR >>")
