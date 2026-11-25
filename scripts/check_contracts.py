@@ -19,6 +19,11 @@ LEDGER_PATH = CONFORMANCE / "ledger.json"
 RULE_CATALOG_PATH = CONFORMANCE / "verapdf-pdfa4-rules.json"
 PDFA4_VALIDATOR_PATH = ROOT / "package" / "KernelPdfA4.roc"
 VERAPDF_PDFA4_PREFIX = "verapdf-pdfa4:"
+VERAPDF_ACCESSIBILITY = {
+    "verapdf-pdfua2:": ("verapdf-pdfua2-rules.json", "ISO_14289_2", "PdfUa2"),
+    "verapdf-wtpdf-accessibility:": ("verapdf-wtpdf-accessibility-rules.json", "WTPDF_1_0", "WtpdfAccessibility"),
+}
+VERAPDF_ISO32005_TABLE = "verapdf-iso32005:Table 5"
 APPLICABILITY = {"applicable", "package_excluded", "pending_iso_confirmation", "rejected_by_profile"}
 LEDGER_SCHEMA_VERSION = 2
 ASSET_MANIFEST_PATH = ROOT / "assets" / "provenance.json"
@@ -72,6 +77,7 @@ REQUIRED_SOURCES = {
     "jpeg-10918-1-1994",
     "mathml-core-2025-06-24",
     "opentype-1-9-1",
+    "pdf-declarations-2019",
     "pdf-issues-ec3",
     "uax14-r55",
     "uax29-r47",
@@ -319,6 +325,7 @@ def validate_ledger(
     if ids != sorted(set(ids)):
         fail("ledger.requirements", "requirement ids must be sorted and unique")
     requirements_by_id = {requirement["id"]: requirement for requirement in raw_requirements}
+    validate_accessibility_rules(raw_requirements)
 
     # Every rule of the pinned veraPDF PDF/A-4 profile maps to exactly one
     # StaticPdfA4 requirement, and every Roc requirement code is a ledger id.
@@ -485,6 +492,59 @@ def catalog_rule_ids() -> set[str]:
     return {require_string(rule.get("id"), "verapdf-pdfa4-rules.rules[].id") for rule in catalog["rules"]}
 
 
+def validate_accessibility_rules(requirements: list[dict[str, object]]) -> None:
+    """Require a unique ledger mapping for every rule in the pinned profiles."""
+    claimed: dict[str, str] = {}
+    capability_for_rule = {VERAPDF_ISO32005_TABLE: {"PdfUa2", "WtpdfAccessibility"}}
+    containment: dict[str, dict[str, tuple[str, str]]] = {}
+    for prefix, (catalog_name, specification, capability) in VERAPDF_ACCESSIBILITY.items():
+        catalog = require_object(
+            load(CONFORMANCE / catalog_name), catalog_name, {"schema_version", "validator", "rules"}
+        )
+        require_version(catalog, catalog_name)
+        if not isinstance(catalog["rules"], list) or not catalog["rules"]:
+            fail(catalog_name, "rules must be a nonempty list")
+        containment[prefix] = {}
+        for raw_rule in catalog["rules"]:
+            rule = require_object(
+                raw_rule, catalog_name, {"description", "id", "object", "specification"}
+            )
+            identifier = require_string(rule["id"], catalog_name)
+            if rule["specification"] == specification:
+                key = prefix + identifier
+                if key in capability_for_rule:
+                    fail(catalog_name, f"duplicate rule {identifier}")
+                capability_for_rule[key] = {capability}
+            elif rule["specification"] == "ISO_32005" and identifier.startswith("Table 5. "):
+                if identifier in containment[prefix]:
+                    fail(catalog_name, f"duplicate Table 5 rule {identifier}")
+                containment[prefix][identifier] = (
+                    require_string(rule["object"], catalog_name),
+                    require_string(rule["description"], catalog_name),
+                )
+            else:
+                fail(catalog_name, f"unexpected rule {identifier} for {rule['specification']}")
+    ua_table, wt_table = containment.values()
+    if not ua_table or ua_table != wt_table:
+        fail("veraPDF ISO/TS 32005", "both explicit profiles must contain the same Table 5 rules")
+
+    for requirement in requirements:
+        for rule in requirement["external_rule_ids"]:
+            if not rule.startswith((*VERAPDF_ACCESSIBILITY, "verapdf-iso32005:")):
+                continue
+            if rule not in capability_for_rule:
+                fail(requirement["id"], f"unknown pinned accessibility rule {rule}")
+            if not capability_for_rule[rule].issubset(requirement["capabilities"]):
+                fail(requirement["id"], f"unexpected capabilities for accessibility rule {rule}")
+            if rule in claimed:
+                fail(requirement["id"], f"accessibility rule {rule} is already mapped by {claimed[rule]}")
+            claimed[rule] = requirement["id"]
+
+    unmapped = set(capability_for_rule) - set(claimed)
+    if unmapped:
+        fail("ledger.requirements", f"unmapped pinned accessibility rules: {sorted(unmapped)}")
+
+
 def validate_documents(baseline: object, matrix: object, ledger: object) -> None:
     source_ids = validate_baseline(baseline)
     validate_matrix(matrix)
@@ -528,6 +588,20 @@ def expect_rejected(baseline: object, matrix: object, ledger: object, mutate: st
     elif mutate == "unknown-rule":
         rules = [requirement for requirement in test_ledger["requirements"] if requirement["external_rule_ids"] and requirement["external_rule_ids"][0].startswith(VERAPDF_PDFA4_PREFIX)]
         rules[0]["external_rule_ids"] = sorted(rules[0]["external_rule_ids"] + [VERAPDF_PDFA4_PREFIX + "9.9-9"])
+    elif mutate == "accessibility-rule":
+        requirement = next(
+            requirement
+            for requirement in test_ledger["requirements"]
+            if requirement["id"] == "ROC-PDF-PDFUA2-5-IDENTIFICATION"
+        )
+        requirement["external_rule_ids"].remove("verapdf-pdfua2:5-1")
+    elif mutate == "accessibility-table":
+        requirement = next(
+            requirement
+            for requirement in test_ledger["requirements"]
+            if requirement["id"] == "ROC-PDF-PDFUA2-TABLE5-CONTAINMENT"
+        )
+        requirement["external_rule_ids"].remove(VERAPDF_ISO32005_TABLE)
     elif mutate == "roc-code":
         test_ledger["requirements"] = [requirement for requirement in test_ledger["requirements"] if requirement["id"] != "ROC-PDF-PDFA4-6-7-3-IDENTIFICATION"]
     elif mutate == "pending":
@@ -573,6 +647,7 @@ def self_test() -> None:
     for mutation in (
         "digest", "profile", "availability", "source", "issue", "applicability",
         "duplicate-rule", "unmapped-rule", "unknown-rule", "roc-code", "pending",
+        "accessibility-rule", "accessibility-table",
     ):
         expect_rejected(baseline, matrix, ledger, mutation)
     assets = load(ASSET_MANIFEST_PATH)

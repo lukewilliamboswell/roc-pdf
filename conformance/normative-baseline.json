@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "reviewed_on": "2026-08-05",
+  "reviewed_on": "2026-11-26",
   "sources": [
     {
       "id": "bcp47-rfc5646",
@@ -89,6 +89,14 @@
       "url": "https://learn.microsoft.com/typography/opentype/spec/",
       "retrieved_on": "2026-08-05",
       "pin": { "kind": "publication_identifier", "value": "OpenType 1.9.1" }
+    },
+    {
+      "id": "pdf-declarations-2019",
+      "title": "PDF Declarations",
+      "revision": "PDF Association, 2019-09-05",
+      "url": "https://pdfa.org/download-area/specifications/PDF-Declarations.pdf",
+      "retrieved_on": "2026-11-26",
+      "pin": { "kind": "publication_identifier", "value": "PDF Declarations, 2019-09-05" }
     },
     {
       "id": "pdf-issues-ec3",

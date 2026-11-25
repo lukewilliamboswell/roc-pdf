@@ -10,6 +10,7 @@ These references document the repository's fixtures, tools and stage contracts.
 - [Testing](testing.md) covers correctness oracles, focused tests, snapshot review, exact allocation and work baselines, and validators.
 - [Blueprint setup](blueprint.md): declared tools and test, fuzz, gallery, bundle and docs tasks.
 - [Property fuzzing](../../fuzz/README.md): bounded searches, reports, witnesses and explicit baseline review.
+- [Accessibility review](accessibility-review.md) covers author obligations, clause applicability and the independent profile checks.
 - [Reference documents](reference-documents.md): invoice, report and letter fixture contracts.
 - [Packaged fonts](roc-font.md): source provenance, selection and ownership.
 - [Engineering contracts](performance/README.md): subsystem invariants, resource bounds and fixture rationale.
