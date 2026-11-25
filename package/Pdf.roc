@@ -4305,7 +4305,7 @@ leaf_paths = |normalized| {
 			_ => False
 		}
 		if !lead {
-			$closed = $closed.append({ end: group.block_end, parent: group.parent, width: authored_group_width(group) })
+			$closed = $closed.append({ end: group.block_end, group: $group_index })
 		}
 		$group_index = $group_index + 1
 	}
@@ -4321,8 +4321,8 @@ leaf_paths = |normalized| {
 	var $block = 0
 	for record in normalized.blocks {
 		while $group_cursor < ends.len() and at(ends, $group_cursor).end <= $block {
-			group = at(ends, $group_cursor)
-			$siblings = set_at($siblings, group.parent, at($siblings, group.parent) + group.width)
+			group = at(groups, at(ends, $group_cursor).group)
+			$siblings = set_at($siblings, group.parent, at($siblings, group.parent) + authored_group_width(group))
 			$group_cursor = $group_cursor + 1
 		}
 		while $break_cursor < normalized.page_breaks.len() and at(normalized.page_breaks, $break_cursor).block <= $block {

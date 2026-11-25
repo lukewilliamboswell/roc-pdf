@@ -74,7 +74,9 @@ def validate_contents_entries_pdf(pdf: bytes, dimensions: dict[str, int]) -> Non
                     'continued contents link lost page annotation ownership')
             for kid in objects:
                 annotation = document.get(int(kid['Obj']))
-                require(int(annotation['A']['D'][0]) == pages[target_page], 'contents link targets the wrong page')
+                action = annotation['A']
+                require(int(action['D'][0]) == pages[target_page], 'contents link targets the wrong page')
+                require(int(action['SD'][0]) == structure_target, 'contents link and item Ref name different structure elements')
         if tall:
             require(len({mark.page for mark in first.marks}) > 1, 'tall entry did not continue across pages')
     dots = []
@@ -121,13 +123,19 @@ def self_test() -> None:
             raise ValidationError('contents oracle accepted a displaced page-number column')
         actual_target, = first_item.value['Ref']
         ref_entry = f'/Ref [{actual_target} 0 R]'.encode()
-        missing_ref = twin(pdf, ref_entry, b'/Ree' + ref_entry[4:], exactly_once=False)
-        try:
-            validate_contents_entries_pdf(missing_ref, case['dimensions'])
-        except ValidationError as error:
-            require('wrong structure element' in str(error), 'missing Ref control failed for a different reason')
-        else:
-            raise ValidationError('contents oracle accepted an item with no Ref')
+        wrong_target = first_item.children[0].number
+        mutations = (
+            ('missing Ref', b'/Ree' + ref_entry[4:]),
+            ('Ref to another valid structure element', f'/Ref [{wrong_target} 0 R]'.encode()),
+        )
+        for name, replacement in mutations:
+            mutated = twin(pdf, ref_entry, replacement, exactly_once=False)
+            try:
+                validate_contents_entries_pdf(mutated, case['dimensions'])
+            except ValidationError as error:
+                require('wrong structure element' in str(error), f'{name} control failed for a different reason')
+            else:
+                raise ValidationError(f'contents oracle accepted {name}')
     print('PASS contents alignment, wrapping, references, link ownership, artifact leaders and mutation twins')
 
 
