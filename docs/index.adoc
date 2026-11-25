@@ -1,3 +1,4 @@
+[#roc-pdf-user-manual]
 = roc-pdf manual
 :doctype: book
 :toc: left
