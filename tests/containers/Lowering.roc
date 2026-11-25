@@ -66,9 +66,12 @@ Sample := {
 }
 
 build_sample : {} -> Try(Sample, [AnalysisFailure, ColorFailure, ContentFailure, FontFailure, FontObjectFailure, FontPlanFailure, ImageFailure, ObjectFailure, OwnershipFailure, ResourceFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
-build_sample = |_| {
+build_sample = |_| build_sample_with(semantics, object_limits)
+
+build_sample_with : Semantics.Store, KernelObject.Limits -> Try(Sample, [AnalysisFailure, ColorFailure, ContentFailure, FontFailure, FontObjectFailure, FontPlanFailure, ImageFailure, ObjectFailure, OwnershipFailure, ResourceFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
+build_sample_with = |store, limits| {
 	analysis = KernelUnicode.analyze(source, { max_graphemes: 32, max_line_boundaries: 33, max_scalars: 32, max_script_runs: 8 }) ? |_| AnalysisFailure
-	semantic = KernelTextSemantics.Plan.build(semantics, 1, 1, KernelSemantics.Limits.make({ max_attributes: 4, max_content_spine: 6, max_fragments: 1, max_namespaces: 1, max_nodes: 6, max_occurrences: 1, max_semantic_depth: 5 }), KernelTextSemantics.Limits.make({ max_text_properties: 3, max_text_property_bytes: 64, max_text_source_bytes: 9, max_text_source_scalars: 8, max_text_sources: 1 })) ? |_| SemanticFailure
+	semantic = KernelTextSemantics.Plan.build(store, 1, 1, KernelSemantics.Limits.make({ max_attributes: 4, max_content_spine: store.content_spine.len(), max_fragments: 1, max_namespaces: 1, max_nodes: store.nodes.len(), max_occurrences: 1, max_semantic_depth: 5 }), KernelTextSemantics.Limits.make({ max_text_properties: 3, max_text_property_bytes: 64, max_text_source_bytes: 9, max_text_source_scalars: 8, max_text_sources: 1 })) ? |_| SemanticFailure
 	font = KernelFont.inspect(built_in_font_bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| FontFailure
 	shape = KernelShape.shape_simple(
 		font,
@@ -96,8 +99,8 @@ build_sample = |_| {
 	text = KernelPdfText.ScenePlan.build(ownership, [font_plan], KernelPdfText.Limits.make({ max_actual_text_scalars: 64, max_content_bytes: 4096, max_mappings: 64, max_placements: 0, max_source_scalars: 64 })) ? |_| TextFailure
 	tagged = KernelTextOwnership.Plan.tagged(ownership)
 	content = KernelContent.Plan.build_with_text(tagged, KernelPdfText.ScenePlan.content(text), KernelContent.Limits.make({ max_content_bytes: 4096, max_content_streams: 1 })) ? |_| ContentFailure
-	base_objects = KernelObjectPlan.Plan.build_with_text(tagged, colors, images, resource_use, content, KernelObjectPlan.Limits.make({ max_objects: 40, max_pages: 1 })) ? |_| ObjectFailure
-	font_objects = KernelFontObjects.Plan.build(base_objects, 1, 40) ? |_| FontObjectFailure
+	base_objects = KernelObjectPlan.Plan.build_with_text(tagged, colors, images, resource_use, content, KernelObjectPlan.Limits.make({ max_objects: limits.max_objects, max_pages: 1 })) ? |_| ObjectFailure
+	font_objects = KernelFontObjects.Plan.build(base_objects, 1, limits.max_objects) ? |_| FontObjectFailure
 	structure = KernelTaggedTextStructure.Plan.build(
 		tagged,
 		colors,
@@ -108,7 +111,7 @@ build_sample = |_| {
 		[{ descriptor: { flags: 32, italic_angle: 0, stem_v: 80 }, font, plan: font_plan, subset }],
 		KernelTaggedTextStructure.Limits.make({
 			font_limits: KernelPdfFont.Limits.make({ max_to_unicode_bytes: 8192, max_unicode_mappings: 64, max_unicode_scalars: 128 }),
-			object_limits: object_limits,
+			object_limits: limits,
 		}),
 	) ? |_| StructureFailure
 	Ok({ semantic, structure })
@@ -257,4 +260,101 @@ object_limits = {
 	max_text_string_bytes: 512,
 	max_text_strings: 16,
 	max_values: 384,
+}
+
+# Thirty-one ASCII identifiers fill the left leaf up to the prefix key.
+# The TD identifier is not referenced, so it cannot move the emitted cut.
+identifier_case : Str -> Semantics.Store
+identifier_case = |header_key| {
+	ascii_ids = List.repeat({}, 31).map_with_index(|_, index| index)
+	ascii_keys = ascii_ids.map(
+		|index| {
+			digit = if (index < 10) "0" else ""
+			"a${digit}${index.to_str()}"
+		},
+	)
+	keys = ascii_keys.concat(["cell-value", "hdr", header_key, "é"])
+	paragraph_ids = ascii_ids.concat([32, 34])
+	paragraphs = paragraph_ids.map_with_index(
+		|identifier, offset| node({
+			attributes: range(0, 0),
+			content: range(0, 0),
+			element: HasElementIdentifier(Semantics.ElementId.from_index(identifier)),
+			index: 6 + offset,
+			language: Inherited,
+			parent: 0,
+			properties: range(0, 0),
+			role: "P",
+		}),
+	)
+	children = paragraphs.map(|paragraph| ChildNode(paragraph.id))
+	nodes = semantics.nodes.map_with_index(
+		|original, index| {
+			if index == 0 {
+				{ ..original, content: range(0, 1 + children.len()) }
+			} else {
+				element = match index {
+					3 => HasElementIdentifier(Semantics.ElementId.from_index(33))
+					4 => HasElementIdentifier(Semantics.ElementId.from_index(31))
+					_ => NoElementIdentifier
+				}
+				{ ..original, content: range(original.content.start() + children.len(), original.content.length()), element_identifier: element }
+			}
+		},
+	)
+	headers = semantics.attributes.get(2) ?? crash "missing TD header attribute"
+	{
+		..semantics,
+		attributes: semantics.attributes.take_first(2).append({ ..headers, value: Names([header_key]) }),
+		content_spine: [ChildNode(Semantics.NodeId.from_index(1))].concat(children).concat(semantics.content_spine.drop_first(1)),
+		element_identifiers: keys.map_with_index(|value, index| { id: Semantics.ElementId.from_index(index), value }),
+		nodes: nodes.concat(paragraphs),
+		relationships: [HeaderFor({ cell: Semantics.ElementId.from_index(31), header: Semantics.ElementId.from_index(33) })],
+	}
+}
+
+# Find the object's number in the rendered indirect object syntax.
+object_number : List(Str), Str -> Try(Str, [ObjectNotUnique])
+object_number = |objects, fragment| match objects.keep_if(|object| object.contains(fragment)) {
+	[object] => match object.split_on(" 0 obj\n").first() {
+		Ok(number) => Ok(number)
+		Err(_) => Err(ObjectNotUnique)
+	}
+	_ => Err(ObjectNotUnique)
+}
+
+identifier_limits : KernelObject.Limits
+identifier_limits = {
+	..object_limits,
+	max_array_items: 320,
+	max_byte_string_bytes: 512,
+	max_byte_strings: 80,
+	max_dictionary_entries: 512,
+	max_names: 256,
+	max_objects: 180,
+	max_values: 1024,
+}
+
+expect {
+	sample = build_sample_with(identifier_case("hdr-é"), identifier_limits)?
+	plan = KernelTaggedTextStructure.Plan.structure(sample.structure)
+	text = Str.from_utf8(KernelEmit.object_text(plan)?)?
+	objects = text.split_on("\nendobj\n")
+	headers = objects.keep_if(|object| object.contains(" /S /TH >>"))
+	header = object_number(headers, "/ID <6864722DC3A9>")?
+	prefix = object_number(objects, "/ID (hdr)")?
+	high = object_number(objects, "/ID <C3A9>")?
+	left_entries = "/Limits [(a00) (hdr)] /Names ["
+	left = object_number(objects, left_entries)?
+	left_fills_leaf = match objects.keep_if(|object| object.contains(left_entries)) {
+		[leaf] => leaf.split_on(" 0 R").len() == 33 and leaf.contains("(hdr) ${prefix} 0 R] >>")
+		_ => False
+	}
+	right = object_number(objects, "/Limits [<6864722DC3A9> <C3A9>] /Names [<6864722DC3A9> ${header} 0 R <C3A9> ${high} 0 R]")?
+	tree = object_number(objects, "/Kids [${left} 0 R ${right} 0 R] >>")?
+	has_headers = match objects.keep_if(|object| object.contains(" /S /TD >>")) {
+		[cell] => cell.contains("/Headers [<6864722DC3A9>] /O /Table")
+		_ => False
+	}
+	text.contains("/IDTree ${tree} 0 R") and left_fills_leaf and has_headers and !text.contains("cell-value")
 }
