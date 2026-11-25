@@ -1236,6 +1236,9 @@ the ambiguity unless the affected run has explicit `ActualText`; in that case
 it retains the first mapping in deterministic traversal order and records the
 resolved conflict as work evidence. Exact logical extraction still comes from
 `ActualText`, not from that necessarily lossy per-CID fallback.
+The selected mapping must fit in 512 UTF-16BE bytes before hexadecimal
+serialization. The separate logical `ActualText` value follows its own
+budget. [ISO 32000-2 §9.10.3](https://pdf-issues.pdfa.org/32000-2-2020/clause09.html#H9.10.3)
 
 Presentation evidence explicitly covers inserted discretionary hyphens,
 suppressed soft hyphens, generated labels and counters, ligature replacement

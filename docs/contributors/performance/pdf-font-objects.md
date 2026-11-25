@@ -16,9 +16,10 @@ delimiters, non-ASCII bytes, `#`, and the subset separator are rejected.
 
 Every content CID must have exactly one ordered Unicode mapping before any
 object is added. Empty, missing, unexpected, duplicate, surrogate, and
-out-of-range mappings are typed errors. The CMap writes at most 100 `bfchar`
-entries per block and emits supplementary scalars as UTF-16 surrogate pairs.
-Its exact byte count is checked against the configured limit before allocation.
+out-of-range mappings are typed errors. A destination over 512 UTF-16BE bytes
+is rejected before CMap construction. The CMap writes at most 100 entries per
+block and emits supplementary scalars as UTF-16 surrogate pairs. Its exact
+serialized byte count is checked against the configured limit before allocation.
 Context-dependent mappings and `ActualText` remain facts supplied by later text
 lowering; this module does not infer them from glyph identity.
 
@@ -26,8 +27,10 @@ lowering; this module does not infer them from glyph identity.
 
 The focused fixture covers repeated glyph use, ToUnicode entries, object
 identity, stream closure and atomic rejection of incomplete Unicode mappings.
-The structural carrier isolates font-object lowering; reader extraction and
-visible page output are checked by the integrated text fixtures.
+It inspects BMP and supplementary destinations of exactly 512 decoded bytes
+in a sealed stream and rejects 514- and 516-byte destinations. The advanced
+text fixture also rejects a shaped cluster that would assign an oversized
+mapping to a CID. Integrated fixtures cover reader extraction and page output.
 
 Current exact allocation and work expectations live in the matching scenarios
 in [`tests/spec.json`](../../../tests/spec.json). Review changes with the
