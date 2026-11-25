@@ -61,6 +61,7 @@ def sequences(content: bytes) -> list[Sequence]:
         if event[1] is not None:
             sequence = Sequence(event[1], event[2], event.start(), event.end())
             if stack:
+                require(sequence.role != b'Artifact' and stack[-1].role != b'Artifact', 'manual artifact must be an independent marked-content sequence')
                 stack[-1].children.append(sequence)
             stack.append(sequence)
             found.append(sequence)
@@ -109,22 +110,27 @@ def read_manual(pdf: bytes):
             marks[key] = mark
             physical.append(key)
         require(not document.get(page).get('Resources', {}).get('XObject'), 'manual vector acquired a raster/form fallback')
-    visited, logical = set(), []
+    visited, figure_text, logical = set(), set(), []
     def node(number: int) -> Node:
         require(number not in visited, 'manual aliases semantic occurrences')
         visited.add(number)
         value, children, owned, text = document.get(number), [], [], []
-        for child in element_children(document, value):
+        for index, child in enumerate(element_children(document, value)):
             if isinstance(child, Ref):
                 nested = node(int(child))
                 children.append(nested); owned.extend(nested.marks); text.append(nested.text)
             elif isinstance(child, dict) and child.get('Type') == 'MCR':
                 key = (int(child['Pg']), int(child['MCID']))
                 require(key in marks, 'manual MCR has no paint')
-                logical.append(key); owned.append(marks[key]); text.append(marks[key].text)
+                if value['S'] == 'Figure' and index > 0:
+                    figure_text.add(key)
+                else:
+                    logical.append(key)
+                owned.append(marks[key])
+                text.append(marks[key].text)
         return Node(number, value, children, owned, ''.join(text))
     root = node(int(document.get(int(document.get(document.root)['StructTreeRoot']))['K']))
-    require(logical == physical, 'manual semantic and physical reading order disagree')
+    require(logical == [key for key in physical if key not in figure_text], 'manual semantic and physical reading order disagree')
     return document, pages, root, artifacts
 
 
@@ -146,7 +152,7 @@ def contract(chapters: int, starts: dict[int, int]) -> Expected:
         item = e('LI', e('Lbl', text='100.'), e('LBody',
             paragraph(f'Prepare procedure {number} without losing source whitespace.'),
             source(f'  verify = procedure_{number}  \n\n' * 16, 6),
-            e('Sect', e('Figure', text=' ', alt=ALT), e('Caption', paragraph(f'Prepared procedure diagram {number}'))),
+            e('Sect', e('Figure', text=' ' + ''.join(LABELS), alt=ALT), e('Caption', paragraph(f'Prepared procedure diagram {number}'))),
             inner, paragraph(f'Complete procedure {number} before the next chapter begins.')))
         contents.extend([e('H1', text=f'Procedure {number}'),
             paragraph(f'Contents physical 1; final procedure label M-{final}; final physical {final}.'),
@@ -212,7 +218,7 @@ def chapter_for(page: int, starts: dict[int, int]) -> int:
 
 
 def furniture(document: Document, pages: list[int], artifacts, starts: dict[int, int]):
-    footer, header, repeat, labels = defaultdict(list), defaultdict(list), defaultdict(list), Counter()
+    footer, header, repeat = defaultdict(list), defaultdict(list), defaultdict(list)
     for page, kind, block, order in artifacts:
         if not FONT.search(block):
             continue
@@ -224,9 +230,7 @@ def furniture(document: Document, pages: list[int], artifacts, starts: dict[int,
         elif kind == b'<</Type /Pagination>>':
             repeat[page].append(mark)
         else:
-            require(kind == b'<</Type /Layout>>' and mark.text in LABELS, 'manual unexpected text artifact')
-            labels[mark.text] += 1
-    require(labels == Counter({label: len(starts) for label in LABELS}), 'manual prepared vector labels changed or leaked ownership')
+            raise ValidationError(f'manual unexpected text artifact {mark.text!r}')
     bounds = {}
     for page in range(len(pages)):
         chapter = chapter_for(page, starts)
@@ -276,6 +280,20 @@ def panel_geometry(root: Node, artifacts, bounds) -> None:
                     if (rh < 1 or rw < 1 or color(block) in {(219, 228, 233), (227, 233, 238)}) and y <= ry <= y+height:
                         require(rx >= x+padding-TOL and rx+rw <= x+width-padding+TOL and ry >= y+padding and ry+rh <= y+height-padding, 'manual continued table decoration escaped its actual panel frame')
     require(all(panel.used for panel in panels), 'manual empty/duplicate panel')
+
+
+def figure_labels(root: Node) -> None:
+    for node in root.descendants():
+        if node.role != 'Figure':
+            continue
+        drawing, *labels = node.marks
+        require(drawing.text == ' ' and not drawing.glyphs, 'manual Figure lost its drawing anchor')
+        require(tuple(label.text for label in labels) == LABELS, 'manual Figure label ownership or order changed')
+        left, bottom, right, top = drawing.bounds
+        for label in labels:
+            x0, y0, x1, y1 = label.bounds
+            require(label.page == drawing.page and drawing.order < label.order, 'manual Figure label lost its drawing page or paint order')
+            require(left <= x0 <= x1 <= right and bottom <= y0 <= y1 <= top, 'manual Figure label escaped its drawing')
 
 
 def source_and_headers(root: Node, repeat) -> None:
@@ -331,6 +349,7 @@ def validate_technical_manual_pdf(pdf: bytes, dimensions: dict[str, int]) -> Non
     frames(root)
     bounds, repeat = furniture(document, pages, artifacts, starts)
     panel_geometry(root, artifacts, bounds)
+    figure_labels(root)
     source_and_headers(root, repeat)
     fixed_reference_widths(root, chapters, starts, headings)
 
@@ -361,6 +380,19 @@ def self_test():
     starts, nodes = heading_pages(root, 2)
     label = next(mark for mark in root.children[1].children[0].marks if mark.text == f'M-{starts[1]}')
     wrong_label = replace_digit(document, pages[label.page], label.block, str(starts[1])[-1], '9')
+    nested = None
+    for page in pages:
+        stream = document.stream(int(document.get(page)['Contents']))
+        marks = sequences(stream)
+        for artifact, mark in zip(marks, marks[1:]):
+            if artifact.role == b'Artifact' and mark.role != b'Artifact' and artifact.end == mark.start:
+                old = stream[artifact.start:mark.end]
+                new = stream[artifact.start:artifact.body_end] + stream[mark.start:mark.end] + b'EMC\n'
+                nested = (old, new)
+                break
+        if nested is not None:
+            break
+    require(nested is not None, 'manual has no adjoining artifact and semantic mark for nesting control')
     mutations = [
         (label.block, wrong_label),
         (f'/Ref [{nodes[1].number} 0 R]'.encode(), f'/Ref [{nodes[2].number} 0 R]'.encode()),
@@ -377,7 +409,13 @@ def self_test():
             pass
         else:
             raise ValidationError(f'manual oracle accepted mutation {old[:60]!r}')
-    print('PASS combined manual destination/printed values, scoped furniture, rich LI/callout source/diagram/table semantics and geometry, and six mutation twins')
+    try:
+        validate_technical_manual_pdf(twin(pdf, *nested), sample['dimensions'])
+    except ValidationError as error:
+        require(str(error) == 'manual artifact must be an independent marked-content sequence', f'manual nesting control failed for {error}')
+    else:
+        raise ValidationError('manual oracle accepted tagged content nested in a page artifact')
+    print('PASS combined manual destination/printed values, scoped furniture, rich LI/callout source/diagram/table semantics and geometry, and seven mutation twins')
 
 
 def reader_check(mutool: Path | None):

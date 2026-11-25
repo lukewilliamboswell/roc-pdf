@@ -55,3 +55,11 @@ Label preparation and placement visit the drawing commands and label text
 linearly. Label pieces are sorted once by page and authored index, then
 merged into the page text runs. The focused cases pin deterministic work
 and allocation evidence in `tests/spec.json`.
+
+The ordinary report and its heading, caption, and table-break variants
+each record 20 additional semantic fragments for their authored chart labels.
+The preparation report groups those runs into nine coverage records by owner,
+face and script. The ordered-face and unlabelled scaled-figure variants retain
+their exact work. The public technical-manual pair composes labelled figures
+with symbolic page references and tests the drawing bounds, label order,
+structure destinations, and repeated furniture together.

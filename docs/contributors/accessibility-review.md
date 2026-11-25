@@ -61,10 +61,15 @@ borders, spacing and source highlighting provide presentation in the
 combined facade. Express the full meaning of a styled distinction through
 authored text, semantic roles or alternatives. For example, put a visible
 `Warning.` label inside a tinted callout and use a heading or list to
-identify its logical content. Fixed figure appearance belongs to the
-Figure and its description. A visual property with independent semantic
+identify its logical content. A visual property with independent semantic
 meaning requires an applicable Layout attribute and is outside the
 supported authoring scope.
+
+Page furniture provides page context. Repeated headers
+repaint an already tagged table header, and contents-entry leaders supply visual
+spacing between tagged labels. A figure's intrinsic vector paint and labels
+belong to the Figure. The bounded facade has no constructor for separate
+contextual artifacts, such as numbered lines referenced elsewhere.
 
 An optional human or assistive-technology review records the exact source and
 PDF digest, tool and version, operating system, tasks, expected result,
@@ -97,6 +102,7 @@ the complete normative Table 5 remains open pending access to the sponsored
 ISO copies. The pinned errata and the WTPDF accessibility provisions were
 checked separately. See the ledger's
 `ROC-PDF-PDFUA2-ISO-TEXT-RECONCILIATION` for this open confirmation.
+[Sponsored PDF/UA standards bundle](https://www.pdfa-inc.org/product/pdf-ua-bundle/) ·
 [PDF/UA-2](https://pdfa.org/iso-14289-2-pdfua-2/) ·
 [ISO/TS 32005](https://pdfa.org/resource/iso-32005/) ·
 [ISO/TS 32005 preview](https://cdn.standards.iteh.ai/samples/45878/b574c2cc0cc94e7986f66b148550bd7d/ISO-TS-32005-2023.pdf) ·

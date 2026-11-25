@@ -2530,9 +2530,9 @@
         "PdfUa2",
         "WtpdfAccessibility"
       ],
-      "implementation": "partial",
+      "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "Current structure checker checks parent chains, fragments, table-repeat and furniture artifacts. Close contextual artifact and artifact nesting/order evidence for the accepted scenes. Pinned veraPDF controls: structure-root. Removing artifact classification from a complete footer or header content sequence triggers 8.2.2-1 without changing its paint.",
+      "machine_verification": "The bounded facade emits page artifacts for decoration and furniture, repeated table headers and contents leaders. Authored real content, including intrinsic drawing labels, has a semantic owner with stable logical order and continuation identity. Separate contextual artifact authoring is unavailable. The independent manual oracle checks artifact type and isolation, and rejects tagged content nested in a page artifact. Removing a running header classification also fails the pinned veraPDF rule.",
       "human_verification": "Confirm authored roles, real versus artifact classification, logical order, artifact grouping and order, and semantic reading across fragments.",
       "positive_scenarios": [
         "scripts/check_accessible_archive.py",
@@ -2540,12 +2540,14 @@
         "scripts/check_drawing_labels.py",
         "scripts/check_source_blocks.py",
         "scripts/check_structure_semantics.py",
+        "scripts/check_technical_manual.py",
         "scripts/check_vector_diagrams.py",
         "tests/rich_flow/Cases.roc"
       ],
       "negative_scenarios": [
         "scripts/check_accessible_archive.py",
-        "scripts/check_structure_semantics.py"
+        "scripts/check_structure_semantics.py",
+        "scripts/check_technical_manual.py"
       ],
       "external_rule_ids": [
         "verapdf-pdfua2:8.2.2-1",
@@ -2953,19 +2955,25 @@
         "PdfUa2",
         "WtpdfAccessibility"
       ],
-      "implementation": "partial",
+      "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "The figure checker checks caption relation, alt and geometry, and rejects a missing-alt twin. Audit internal backgrounds and drawing-label marking against the figure relationship. Pinned veraPDF controls: figure-alternative. The existing captioned unit is a Sect containing only Figure and Caption, with Caption last. The association is validated against the authored figure and the emitted nesting. Distinct controls exercise alternate description and caption edge order.",
+      "machine_verification": "Labelled drawings place the graphic mark, including its background, and every Unicode label mark under one Figure in source label order. The independent Figure, vector and manual checks compare the marks, their source text and caption ownership. Separate controls remove Alt, change caption placement, swap label ownership with the caption while keeping paint identical, or reverse label order.",
       "human_verification": "Confirm that every meaningful illustration or labelled drawing has appropriate alternative or replacement text and the associated caption.",
       "positive_scenarios": [
         "scripts/check_accessible_archive.py",
+        "scripts/check_drawing_labels.py",
         "scripts/check_structure_semantics.py",
+        "scripts/check_technical_manual.py",
+        "scripts/check_vector_diagrams.py",
         "tests/flow_figures/Fixture.roc"
       ],
       "negative_scenarios": [
         "package/Pdf.roc",
         "scripts/check_accessible_archive.py",
-        "scripts/check_structure_semantics.py"
+        "scripts/check_drawing_labels.py",
+        "scripts/check_structure_semantics.py",
+        "scripts/check_technical_manual.py",
+        "scripts/check_vector_diagrams.py"
       ],
       "external_rule_ids": [
         "verapdf-pdfua2:8.2.5.28.2-1",

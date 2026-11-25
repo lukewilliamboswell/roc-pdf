@@ -23,10 +23,13 @@ used to prepare the diagram.
 derives heading pages and semantic identities from the emitted content and
 structure. Its independent expectations cover the contents references,
 configured page labels, visible page fields, outline, semantic child order,
-source replacement text, frame bounds, and nested artifact ownership.
+source replacement text, frame bounds, and independent page-artifact marking.
+Each prepared vector Figure owns its drawing and the five authored labels
+in order. The checker decodes the labels and verifies their scaled bounds.
 Single-edit controls change the printed contents label, its structure
 reference, a structured destination, the page-label prefix, a running
-header's artifact subtype, and the callout border. The same script's
+header's artifact subtype, the callout border, and the nesting of a tagged
+sequence into a page artifact. The same script's
 `--readers` mode checks complete-file extraction and rendering through
 PDFBox and can also exercise MuPDF. The two fixtures cover 90 PDFBox
 rendered and extracted pages. Both pass Arlington and explicit veraPDF
@@ -42,8 +45,9 @@ the public package entry.
 The replacement of the front-matter physical field with the terminal
 configured label removes two shaped runs, final runs, and fragments per
 chapter. The table-of-contents wrappers and label link add three objects per
-chapter and one shared TOC object. The pinned macOS arm64 and Linux x64musl builds both measure 17,235 and
-136,078 allocations. The 2/20-chapter pair keeps its 9/81 pages,
+chapter and one shared TOC object. Each diagram contributes five semantic
+label fragments and five corresponding drawing-text marks. The pinned
+counts are 17,249 and 136,140 allocations. The 2/20-chapter pair keeps its 9/81 pages,
 linear work growth, and one reference resolution phase. The physical
 references within chapter bodies still exercise the exact fixed-width
 measurement contract.

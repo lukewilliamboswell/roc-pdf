@@ -184,14 +184,13 @@ def render(pdf: bytes, dimensions: dict[str, int] | None = None) -> list[str]:
     pages: list[int] = []
     page_order(document, int(catalog["Pages"]), pages)
     marked: dict[tuple[int, int], str] = {}
-    paint_order: list[str] = []
     for page in pages:
         for mcid, text in page_marked_text(document, page):
             require(text, f"MCID {mcid} on page {pages.index(page)} shows no text")
             marked[(page, mcid)] = text
-            paint_order.append(text)
     counts = Inline()
     logical_order: list[str] = []
+    figure_labels: set[tuple[int, int]] = set()
     blocks: list[str] = []
 
     def walk(number: int) -> str:
@@ -208,13 +207,18 @@ def render(pdf: bytes, dimensions: dict[str, int] | None = None) -> list[str]:
         children = element_children(document, element)
         pieces: list[str] = []
         annotations: list[str] = []
-        for child in children:
+        for index, child in enumerate(children):
             if isinstance(child, Ref):
                 pieces.append(walk(int(child)))
             elif isinstance(child, dict) and child.get("Type") == "MCR":
                 key = (int(child["Pg"]), int(child["MCID"]))
                 require(key in marked, "a structure MCR names an MCID with no shown text")
-                logical_order.append(marked[key])
+                if role == "Figure" and index > 0:
+                    # Intrinsic label paint is placed independently from the
+                    # reading order of the owning Figure and nearby text.
+                    figure_labels.add(key)
+                else:
+                    logical_order.append(marked[key])
                 pieces.append(marked[key])
             elif isinstance(child, dict) and child.get("Type") == "OBJR":
                 annotation = document.get(int(child["Obj"]))
@@ -242,6 +246,7 @@ def render(pdf: bytes, dimensions: dict[str, int] | None = None) -> list[str]:
 
     tree_root = document.get(int(catalog["StructTreeRoot"]))
     walk(int(tree_root["K"]))
+    paint_order = (text for key, text in marked.items() if key not in figure_labels)
     require("".join(logical_order) == "".join(paint_order), "structure order and paint order disagree on the shown text")
     expected_inline = dimensions.get("inline_elements")
     if expected_inline is not None:
