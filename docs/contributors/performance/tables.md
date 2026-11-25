@@ -84,12 +84,22 @@ same preorder, reusing `place_rich` for cell content with the cell role
 
 **Associations.** A cell's `Headers` include the `Column`- or
 `Both`-scoped headers in earlier rows that overlap its spanned columns.
-The per-column lists merge and deduplicate only for spanning cells. Data
-cells also name all `Row`- or `Both`-scoped headers of their row, while
-header cells use a forward row cursor to name preceding row headers.
+A spanning target takes headers covering its first column and headers
+starting in its later columns. These sets are disjoint. Data cells also
+name all `Row`- or `Both`-scoped headers of their row, while header cells
+use a forward row cursor to name preceding row headers.
 Header-to-header references thus always point to earlier cells. Every cell
 carries a generated identifier in table order. Each `Headers` entry has
 one `HeaderFor` relationship in the same order.
+
+The symbolic pass charges the document’s existing combined attribute and
+relationship budget before writing a cell’s association entries. A spanning
+cell counts each qualifying header once from the disjoint column lists,
+then merges those same entries in authored order. The builder only keeps
+separate column-start lists after a column header spans multiple columns.
+It reports `document.content_limit` at the authored table when the budget
+would be exceeded. Package tests pin the exact boundary for dense column
+headers and for a spanning header and target across two consecutive tables.
 
 ISO 32000-2:2020+EC3 §14.8.4.8.3 and Table 371 allow mixed header and data
 cells in a row and describe optional processor lookup when a cell omits

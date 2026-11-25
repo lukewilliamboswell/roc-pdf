@@ -10,7 +10,7 @@ import Semantics
 import Text
 
 KernelFacadeSemantics :: [].{
-	Dimension : [ContentSpine, Nodes, Occurrences, Properties, SourceInputs]
+	Dimension : [Attributes, ContentSpine, Nodes, Occurrences, Properties, SourceInputs]
 	Error : [
 		CalloutStyle({ group : U64 }),
 		CalloutContent({ group : U64 }),
@@ -863,7 +863,8 @@ plan_blocks = |authoring, limits| {
 					## A table plans its whole subtree at once: its rows and
 					## cells are fixed-depth descendants, so the walk resumes
 					## after the table's last group and leaf.
-					planned = plan_table(authoring, $next_group, table_index.to_u64(), { break_cursor: $break_cursor, cell: $cell_cursor, header_base: $cell_headers.len(), node: $next_node, occurrence: $next_occurrence }, limits.max_inline_depth)?
+					attribute_base = checked_add($attribute_count, $relationship_count)?
+					planned = plan_table(authoring, $next_group, table_index.to_u64(), { attribute_base, break_cursor: $break_cursor, cell: $cell_cursor, header_base: $cell_headers.len(), node: $next_node, occurrence: $next_occurrence }, { max_attributes: KernelSemantics.Limits.attribute_limit(limits.semantics), max_depth: limits.max_inline_depth })?
 					attempted_nodes = checked_add($next_node, planned.nodes)?
 					attempted_occurrences = checked_add($next_occurrence, planned.occurrences)?
 					attempted_content = checked_add($content_count, planned.content)?
@@ -1216,7 +1217,7 @@ plan_blocks = |authoring, limits| {
 	Ok({ attribute_count: $attribute_count, cell_headers: $cell_headers, content_count: $content_count, destinations: $destinations, empty_cells: $empty_cells, figure_label_owners: $figure_label_owners, figure_label_texts: $figure_label_texts, group_nodes: $group_nodes, header_ranges: $header_ranges, inline_elements: $inline_elements, inline_leaves: $inline_leaves, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, relationship_count: $relationship_count, source_inputs: $sources, table_count: $table_count, top_nodes: $top_nodes })
 }
 
-TableCursor : { break_cursor : U64, cell : U64, header_base : U64, node : U64, occurrence : U64 }
+TableCursor : { attribute_base : U64, break_cursor : U64, cell : U64, header_base : U64, node : U64, occurrence : U64 }
 
 TableBuffers : { group_nodes : List(U64), headers : List(U64), links : List(KernelFacadeSemantics.LinkRecord), ranges : List(Semantics.IndexRange), sources : List(Str) }
 
@@ -1233,8 +1234,8 @@ TablePlan : { attributes : U64, breaks : U64, buffers : TableBuffers, cells : U6
 ## its `Row`- or `Both`-scoped row headers. For header cells, only preceding
 ## cells can act as row headers, so header-to-header edges follow preorder
 ## without cycles. The flattened ranges follow authored cell order.
-plan_table : Document.NormalizedAuthoring, U64, U64, TableCursor, U64 -> Try(TablePlan, KernelFacadeSemantics.Error)
-plan_table = |authoring, group_index, table_index, at, max_depth| {
+plan_table : Document.NormalizedAuthoring, U64, U64, TableCursor, { max_attributes : U64, max_depth : U64 } -> Try(TablePlan, KernelFacadeSemantics.Error)
+plan_table = |authoring, group_index, table_index, at, { max_attributes, max_depth }| {
 	group = list_at(authoring.groups, group_index)
 	table = list_at(authoring.tables, table_index)
 	columns = table.columns.len()
@@ -1265,6 +1266,8 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 		$occurrences = 1
 	}
 	var $column_headers = List.repeat([], columns)
+	# Starting and covering agree until a column header spans columns.
+	var $starting_headers = []
 	var $row_headers = []
 	var $has_header = False
 	var $cell = at.cell
@@ -1341,6 +1344,7 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 				}
 				DataCell => {}
 			}
+			check_at(at.attribute_base + $attributes + $relationships, max_attributes, Attributes, $block)?
 			$cell = $cell + 1
 			$block = $block + 1
 		}
@@ -1357,10 +1361,21 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 			record = list_at(authoring.cells, $index)
 			local_start = $headers.len()
 			start = at.header_base + local_start
-			$headers = if record.column_span == 1 {
-				append_all($headers, list_at($column_headers, $column))
+			span = record.column_span.to_u64()
+			starting = if ($starting_headers.is_empty()) $column_headers else $starting_headers
+			covering_first = list_at($column_headers, $column)
+			column_count = spanned_header_count(covering_first.len(), starting, $column, span)
+			row_count = if (record.kind == DataCell) $row_headers.len() else $preceding_row_headers
+			association_count = column_count + row_count
+			if association_count > 0 {
+				# Account for the Headers attribute and all its unique edges before
+				# growing either the result or the temporary span union.
+				check_at(at.attribute_base + $attributes + $relationships + 1 + association_count, max_attributes, Attributes, row.first_block + ($index - first_cell))?
+			}
+			$headers = if span == 1 {
+				append_all($headers, covering_first)
 			} else {
-				append_spanned_headers($headers, $column_headers, $column, record.column_span.to_u64())
+				append_spanned_headers($headers, covering_first, starting, $column, span)
 			}
 			match record.kind {
 				DataCell => {
@@ -1392,6 +1407,12 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 			record = list_at(authoring.cells, $index)
 			match record.kind {
 				HeaderCell(scope) => if scope != Row {
+					if record.column_span > 1 and $starting_headers.is_empty() {
+						$starting_headers = $column_headers
+					}
+					if !$starting_headers.is_empty() {
+						$starting_headers = list_set($starting_headers, $column, list_at($starting_headers, $column).append($index))
+					}
 					var $spanned_column = $column
 					while $spanned_column < $column + record.column_span.to_u64() {
 						$column_headers = list_set($column_headers, $spanned_column, list_at($column_headers, $spanned_column).append($index))
@@ -1431,27 +1452,30 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 	})
 }
 
-## The union of the column headers of a spanning cell's columns, in
-## ascending cell order and without repeats (a spanning header cell heads
-## every column it spans).
-append_spanned_headers : List(U64), List(List(U64)), U64, U64 -> List(U64)
-append_spanned_headers = |headers, column_headers, column, span| {
-	var $merged = []
-	var $index = column
+## Every overlapping header covers the first column of the target or
+## starts in a later column of the target. The two sets are disjoint.
+spanned_header_count : U64, List(List(U64)), U64, U64 -> U64
+spanned_header_count = |first_count, starting, column, span| {
+	var $count = first_count
+	var $index = column + 1
 	while $index < column + span {
-		$merged = append_all($merged, list_at(column_headers, $index))
+		$count = $count + list_at(starting, $index).len()
+		$index = $index + 1
+	}
+	$count
+}
+
+## Merge exactly the unique, budgeted headers in ascending cell order.
+append_spanned_headers : List(U64), List(U64), List(List(U64)), U64, U64 -> List(U64)
+append_spanned_headers = |headers, covering_first, starting, column, span| {
+	var $merged = append_all([], covering_first)
+	var $index = column + 1
+	while $index < column + span {
+		$merged = append_all($merged, list_at(starting, $index))
 		$index = $index + 1
 	}
 	sorted = $merged.sort_with(|left, right| if (left < right) Before else if (left > right) After else Same)
-	var $headers = headers
-	var $previous = U64.highest
-	for value in sorted {
-		if value != $previous {
-			$headers = $headers.append(value)
-			$previous = value
-		}
-	}
-	$headers
+	append_all(headers, sorted)
 }
 
 ## Lists nest at most four deep. With 16 containers, a list level's
@@ -3448,6 +3472,51 @@ expect {
 		and headers == [Names(["c000001"]), Names(["c000001"]), Names(["c000002", "c000003"]), Names(["c000001", "c000002"])]
 		and store.relationships.len() == 6
 		and work.tables == 1 and work.table_cells == 5 and work.header_association_edges == 6
+}
+
+# Three Column headers in one column need five attributes and three edges.
+# The third cell crosses the aggregate at seven without storing its edges.
+expect {
+	header = Document.row([Document.header_cell(Column, [Document.plain_text("Header")])])
+	table = Document.table({ body_rows: [header, header, header], caption: NoCaption, columns: [{ align: Start, width: Content }], footer_rows: [], header_rows: [], row_split: KeepRows })
+	authored = Document.normalize(Document.from_blocks({ contents: [table], language: "en-AU", title: "Bounded header edges" }))
+	limits = |max_attributes| KernelFacadeSemantics.Limits.make({
+		..test_limits_record,
+		semantics: KernelSemantics.Limits.make({ max_attributes, max_content_spine: 32, max_fragments: 0, max_namespaces: 1, max_nodes: 16, max_occurrences: 12, max_semantic_depth: 8 }),
+	})
+	accepts = match KernelFacadeSemantics.Plan.build(authored, limits(8)) {
+		Ok(plan) => KernelFacadeSemantics.Plan.work(plan).header_association_edges == 3
+		_ => False
+	}
+	rejects = match KernelFacadeSemantics.Plan.build(authored, limits(7)) {
+		Err(BlockLimitExceeded({ attempted: 8, block: 2, dimension: Attributes, limit: 7 })) => True
+		_ => False
+	}
+	accepts and rejects
+}
+
+# A header that covers three columns spends a single edge on a spanning
+# cell. The first table’s attributes count against the following table.
+expect {
+	heading = Document.header_cell(Column, [Document.plain_text("Header")]).spanning(3)
+	target = Document.cell([Document.plain_text("Body")]).spanning(3)
+	table = Document.table({ body_rows: [Document.row([target])], caption: NoCaption, columns: List.repeat({ align: Start, width: Content }, 3), footer_rows: [], header_rows: [Document.row([heading])], row_split: KeepRows })
+	authored = Document.normalize(Document.from_blocks({ contents: [table, table], language: "en-AU", title: "Bounded spanning headers" }))
+	limits = |max_attributes| KernelFacadeSemantics.Limits.make({
+		..test_limits_record,
+		max_nodes: 32,
+		max_content_spine: 64,
+		semantics: KernelSemantics.Limits.make({ max_attributes, max_content_spine: 64, max_fragments: 0, max_namespaces: 1, max_nodes: 32, max_occurrences: 12, max_semantic_depth: 8 }),
+	})
+	accepts = match KernelFacadeSemantics.Plan.build(authored, limits(10)) {
+		Ok(plan) => KernelFacadeSemantics.Plan.work(plan).header_association_edges == 2
+		_ => False
+	}
+	rejects = match KernelFacadeSemantics.Plan.build(authored, limits(9)) {
+		Err(BlockLimitExceeded({ attempted: 10, block: 3, dimension: Attributes, limit: 9 })) => True
+		_ => False
+	}
+	accepts and rejects
 }
 
 # Table rejections name the table, the row, or the cell.

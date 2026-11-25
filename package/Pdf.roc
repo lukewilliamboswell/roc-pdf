@@ -1885,6 +1885,7 @@ furniture_error = |error| {
 
 dimension_name : KernelFacadeSemantics.Dimension -> Str
 dimension_name = |dimension| match dimension {
+	Attributes => "typed attributes and relationships"
 	ContentSpine => "content-spine items"
 	Nodes => "structure elements"
 	Occurrences => "content occurrences"

@@ -78,6 +78,9 @@ KernelSemantics :: [].{
 			max_semantic_depth : U64,
 		} -> Limits
 		make = |limits| Limits.(limits)
+
+		attribute_limit : Limits -> U64
+		attribute_limit = |Limits.(limits)| limits.max_attributes
 	}
 
 	Work : {
