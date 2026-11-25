@@ -11,8 +11,8 @@ recorded; tool warnings are failures, not advice.
 Modes:
 
 ``--cases``
-    Every tests/spec.json case with the ``pdfa4`` validator (the Archive
-    snapshots) must be compliant with zero failed rules and checks.
+    Every tests/spec.json case with the ``pdfa4`` validator (Archive or
+    AccessibleArchive snapshots) must pass with zero failed rules or checks.
 ``--standard-cases``
     Every other snapshot is Standard (``Pdf20``) output. It must never declare
     PDF/A identification, and veraPDF may fail only the metadata and
@@ -346,7 +346,7 @@ def main() -> None:
         archive, standard = spec_snapshots()
         if args.cases:
             check_archive(run_verapdf(args.verapdf, archive))
-            print(f"PASS veraPDF {VERSION} PDF/A-4: {len(archive)} Archive snapshots compliant with zero failed checks")
+            print(f"PASS veraPDF {VERSION} PDF/A-4: {len(archive)} registered archival snapshots compliant with zero failed checks")
             ran = True
         if args.standard_cases:
             tally = check_standard(run_verapdf(args.verapdf, standard), standard)

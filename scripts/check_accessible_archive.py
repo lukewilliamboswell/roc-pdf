@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Verify declared accessibility claims on the original emitted PDF bytes.
 
-The harness first regenerates its registered snapshots and checks byte
-identity. This lane runs the pinned validator separately with explicit
-4, ua2 and wt1a profiles on those same paths. Atomic negative twins generated
+The fixture harness and gallery check regenerate their registered PDFs and
+check byte identity. This lane runs the pinned validator separately with
+explicit 4, ua2 and wt1a profiles on those same paths. Atomic negative twins generated
 under .roc-pdf-tmp check the validator response to isolated object changes.
 """
 from __future__ import annotations
@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from check_fonts import Bundle
+from check_gallery import EXAMPLES, GALLERY
 from check_navigation import GOTO_LINK_ACTION, SNAPSHOTS as NAVIGATION_SNAPSHOTS, split_link_actions
 from check_pdf_structure import STRING, ValidationError, decode_stream, dictionary_ref, require as require_structure
 from check_pdfa4 import (
@@ -82,6 +83,10 @@ def case_paths() -> tuple[list[Path], list[Path]]:
         require(not ua or "pdfa4" in validators, f"{path}: PDF/UA-2 requires the PDF/A-4 checker")
         require(not wt or ua, f"{path}: WTPDF accessibility requires the PDF/UA-2 checker")
         require(flags.setdefault(path, (ua, wt)) == (ua, wt), f"{path}: cases sharing a snapshot disagree on declared profiles")
+    for name in EXAMPLES:
+        path = GALLERY / name / f"{name}.pdf"
+        ua, wt = True, name == "vector-diagrams"
+        require(flags.setdefault(path, (ua, wt)) == (ua, wt), f"{path}: fixture and gallery profiles disagree")
     combined = sorted(path for path, (ua, _) in flags.items() if ua)
     wtpdf = sorted(path for path, (_, wt) in flags.items() if wt)
     return combined, wtpdf

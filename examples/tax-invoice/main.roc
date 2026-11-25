@@ -25,7 +25,7 @@ import "fonts/SourceSans3-Bold.ttf" as bold_bytes : List(U8)
 main! = |_args| {
 	fonts = register_fonts({})?
 	options : Pdf.Options
-	options = { profile: AccessibleArchive, theme: theme(fonts), fonts: Registered(fonts.registry) }
+	options = { theme: theme(fonts), fonts: Registered(fonts.registry) }
 	document = Pdf.document({
 		contents: [supplier_block, Pdf.title("Tax invoice"), details_table, bill_to_section, items_section, payment_section],
 		language: "en-AU",
