@@ -41,6 +41,9 @@ https://pdf-issues.pdfa.org/32000-2-2020/clause07.html#H7.9.6[ISO 32000-2 §7.9.
   the rule were broken. For an outline, a checker can reconstruct visible
   counts from the emitted open flags. The authored flags supply the
   independent expectation needed to detect a branch opened by mistake.
+  A schema check can accept a valid list numbering family while the writer
+  emits a different family from the authored one. Compare the decoded
+  declaration with the authored marker, even when the painted text matches.
   Check which input shapes existing fixtures exercise. A Form placement
   with equal off-diagonal matrix entries leaves an operand swap invisible.
   Include an asymmetric matrix and enclosing transforms whose order matters.
@@ -67,6 +70,10 @@ https://pdf-issues.pdfa.org/32000-2-2020/clause07.html#H7.9.6[ISO 32000-2 §7.9.
   to see which failure the new oracle detects. Discard the mutation after
   the check. When a check reveals a real defect, keep its minimized case
   as a regression test.
+  When a drawing command should be independent of earlier graphics state,
+  vary the earlier command and keep the observed command identical. A
+  distant path's dash pattern should leave the pixels of a later stroked
+  text run unchanged.
 . *Stop when the contract has enough independent evidence.* State the
   explored domain and anything that depends on other evidence, such as
   continuation geometry, caller validation or external conformance. When
