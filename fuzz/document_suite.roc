@@ -13,6 +13,7 @@ import RegistryProperty
 import ThemeOptions
 
 # roc test also runs the bounded models and proofs in this suite.
+import AppearanceTransparencyModel
 import ContentScopeModel
 import ContinuationPaginationModel
 import DenseSpanProof

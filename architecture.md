@@ -1328,6 +1328,10 @@ patterns are added only through explicitly bounded subsets. CMYK, Separation,
 DeviceN, spot color, overprint, luminosity masks, non-Normal blend modes, and
 complex nested mask/group combinations are separate capabilities.
 
+Pages with transparency require an explicit blending space. Transparency
+planning includes an annotation's normal appearance and its nested form
+and image uses. [ISO 32000-2 Annex Q](https://pdf-issues.pdfa.org/32000-2-2020/clauseAnnexQ.html)
+
 ## Resources and annotations
 
 Resource identity describes reusable visual data, never semantic ownership or

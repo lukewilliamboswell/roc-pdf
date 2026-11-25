@@ -280,7 +280,8 @@ KernelForm :: [].{
 	## closure-only graph uses — the form stays reachable through the
 	## annotation's `/AP` reference without entering any content stream's
 	## resource dictionary — and an appearance form may not contain semantic
-	## text, because an appearance stream has no fragment ownership.
+	## text, because an appearance stream has no fragment ownership. Its
+	## transparency contributes to its annotation's page (Annex Q.2–Q.4).
 	AppearanceUse : { form : U64, page : U64 }
 
 	Leaf : { descriptor : KernelResourceGraph.Descriptor, payload : List(U8) }
@@ -1447,6 +1448,23 @@ build_facts = |form_plan, colors, counts, text, limits, pattern_store, appearanc
 		}
 		$placement_scan = $placement_scan + 1
 	}
+	# Appearances execute from /AP rather than a page content stream, but
+	# Annex Q still includes their entire Form XObject in the page result.
+	# Keep the existing text diagnostic after blending and pattern checks.
+	var $appearance_text_form = U64.highest
+	$appearance_scan = 0
+	while $appearance_scan < appearances.len() {
+		use = list_at(appearances, $appearance_scan)
+		if use.form < form_count {
+			if list_at(isolated, use.form) or list_at(transparency.transitive, use.form) {
+				$page_transparency = list_set($page_transparency, use.page, True)
+			}
+			if $appearance_text_form == U64.highest and list_at(transitive_text, use.form) {
+				$appearance_text_form = use.form
+			}
+		}
+		$appearance_scan = $appearance_scan + 1
+	}
 	var $transparency_pages = 0
 	var $closure_uses = 0
 	var $missing_blending = NoFailure
@@ -1497,13 +1515,8 @@ build_facts = |form_plan, colors, counts, text, limits, pattern_store, appearanc
 		$pattern_form = $pattern_form + 1
 	}
 
-	$appearance_scan = 0
-	while $appearance_scan < appearances.len() {
-		appearance_form = list_at(appearances, $appearance_scan).form
-		if appearance_form < form_count and list_at(transitive_text, appearance_form) {
-			return Err(AppearanceTextUnsupported({ form: appearance_form }))
-		}
-		$appearance_scan = $appearance_scan + 1
+	if $appearance_text_form != U64.highest {
+		return Err(AppearanceTextUnsupported({ form: $appearance_text_form }))
 	}
 
 	var $text_forms = 0
