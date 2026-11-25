@@ -2421,14 +2421,16 @@
     },
     {
       "id": "ROC-PDF-PDFUA2-8-13-ACTIONS",
-      "summary": "The navigation API never emits scripted actions or URI actions with coordinate-dependent IsMap.",
+      "summary": "The facade admits static URI and GoTo actions. Script actions and coordinate-mapped URI actions are package exclusions.",
       "source_ids": [
         "iso-14289-2-2024",
+        "iso-32000-2-2020-ec3",
         "wtpdf-1-0-0"
       ],
       "references": [
         "ISO 14289-2:2024 8.13.2",
         "ISO 14289-2:2024 8.13.3",
+        "ISO 32000-2:2020 12.6.4.8",
         "WTPDF 1.0 8.13.2",
         "WTPDF 1.0 8.13.3"
       ],
@@ -2436,24 +2438,40 @@
         "PdfUa2",
         "WtpdfAccessibility"
       ],
-      "implementation": "defined_only",
+      "implementation": "implemented",
       "applicability": "package_excluded",
-      "machine_verification": "Only static URI and GoTo actions are admitted by the typed navigation stage.",
+      "machine_verification": "The authored and validated action unions carry a URI or an internal destination. URI dictionaries omit IsMap, so the condition requiring equivalent functionality elsewhere in real content does not arise. The independent navigation checker rejects a URI twin with IsMap set to true. The static lowered-plan checks reject script keys and unsupported action kinds.",
       "human_verification": "not_required",
-      "positive_scenarios": [],
-      "negative_scenarios": [],
+      "positive_scenarios": [
+        "scripts/check_navigation.py",
+        "tests/archive/Cases.roc",
+        "tests/navigation_facade/Cases.roc"
+      ],
+      "negative_scenarios": [
+        "package/KernelPdfA4.roc",
+        "package/Pdf.roc",
+        "scripts/check_navigation.py",
+        "scripts/check_pdfa4_structure.py"
+      ],
       "external_rule_ids": []
     },
     {
       "id": "ROC-PDF-PDFUA2-8-14-EMBEDDED-FILES",
-      "summary": "Files, attachments and associated files are outside the static combined subset.",
+      "summary": "Embedded files, associated files and file-attachment annotations are package exclusions in the static combined subset.",
       "source_ids": [
         "iso-14289-2-2024",
+        "iso-32000-2-2020-ec3",
         "wtpdf-1-0-0"
       ],
       "references": [
+        "ISO 14289-2:2024 6.2",
+        "ISO 14289-2:2024 7.2.2",
         "ISO 14289-2:2024 8.14.1",
         "ISO 14289-2:2024 8.14.2",
+        "ISO 32000-2:2020 14.13.2",
+        "ISO 32000-2:2020 14.13.6",
+        "ISO 32000-2:2020 Tables 43 and 44",
+        "WTPDF 1.0 6.2",
         "WTPDF 1.0 8.14.1",
         "WTPDF 1.0 8.14.2"
       ],
@@ -2461,12 +2479,19 @@
         "PdfUa2",
         "WtpdfAccessibility"
       ],
-      "implementation": "defined_only",
+      "implementation": "implemented",
       "applicability": "package_excluded",
-      "machine_verification": "StaticPdfA4 excludes attachment machinery. No alternative or supplemental embedded files are generated.",
+      "machine_verification": "The facade has no file-attachment or associated-file input. Static lowering rejects EmbeddedFiles and AF keys, with independent structural checks on accepted output and an injected AF twin. Consequently the clauses on meaningful EmbeddedFiles descriptions, alternative and supplementary file associations and metadata, and accessibility of embedded material essential to understanding have no triggering input in this subset.",
       "human_verification": "not_required",
-      "positive_scenarios": [],
-      "negative_scenarios": [],
+      "positive_scenarios": [
+        "scripts/check_pdfa4_structure.py",
+        "tests/archive/Cases.roc"
+      ],
+      "negative_scenarios": [
+        "package/KernelPdfA4.roc",
+        "package/Pdf.roc",
+        "scripts/check_pdfa4_structure.py"
+      ],
       "external_rule_ids": [
         "verapdf-pdfua2:8.14.1-1",
         "verapdf-wtpdf-accessibility:8.14.1-1"
