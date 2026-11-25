@@ -96,6 +96,9 @@ ALL_ROLES = {
     "TBody", "TFoot", "TR", "TH", "TD",
 }
 DOCUMENT_CHILDREN = {"Document", "DocumentFragment", "Part", "Sect", "Div", "Title", "H", "Hn", "P", "L", "Figure", "Link", "Code", "Table"}
+GROUPING_WRAPPERS = {"Part", "Div"}
+# ISO/TS 32005 Table 5 lists these supported children in the Part row.
+PART_CHILDREN = DOCUMENT_CHILDREN | {"Caption", "Lbl"}
 CELL_CHILDREN = {"Sect", "Div", "H", "Hn", "P", "L", "Table"} | INLINE
 MAY_CONTAIN: dict[str, set[str]] = {
     "Document": DOCUMENT_CHILDREN,
@@ -348,6 +351,16 @@ def mcids_in(content: bytes) -> list[tuple[str, int]]:
     return found
 
 
+def containment_scope(ancestors: tuple[str, ...]) -> tuple[str, bool]:
+    """Walk through enclosing Div and Part to the effective role."""
+    through_part = False
+    for role in reversed(ancestors):
+        if role not in GROUPING_WRAPPERS:
+            return role, through_part
+        through_part |= role == "Part"
+    raise ValidationError("a structure grouping has no containing role")
+
+
 def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = None) -> list[str]:
     dimensions = dimensions or {}
     document = Document(pdf)
@@ -390,8 +403,8 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
     visited: set[int] = set()
     labelled_items: set[int] = set()
 
-    def walk(number: int, parent: int, inherited: str | None, parent_role: str | None, inherited_containment: str | None, depth: int) -> str:
-        require(depth <= 64, "structure tree too deep")
+    def walk(number: int, parent: int, inherited: str | None, ancestors: tuple[str, ...]) -> str:
+        require(len(ancestors) < 64, "structure tree too deep")
         require(number not in visited, f"structure element {number} is reachable twice")
         visited.add(number)
         element = document.get(number)
@@ -403,11 +416,12 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
         require(namespace_uris[int(element["NS"])] == expected_namespace, f"/{role} is not in the namespace that defines it ({expected_namespace})")
         row = table_role(role)
         require(row in MAY_CONTAIN, f"unsupported structure role /{role}")
-        if parent_role is None:
+        if not ancestors:
             require(role == "Document", "the structure root is not Document")
         else:
-            require(inherited_containment is not None, "a Part has no containing structure role")
-            require(row in MAY_CONTAIN[table_role(inherited_containment)], f"/{parent_role} may not contain /{role} under /{inherited_containment}")
+            containment, through_part = containment_scope(ancestors)
+            allowed = row in MAY_CONTAIN[table_role(containment)]
+            require(allowed and (not through_part or row in PART_CHILDREN), f"/{ancestors[-1]} may not contain /{role} under /{containment}")
             require(role != "Document", "Document is nested")
         facts: list[str] = []
         language = inherited
@@ -433,8 +447,8 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
         if "Pg" in element:
             require(int(element["Pg"]) in page_index, "structure element /Pg is not a page")
         children = element_children(document, element)
-        containment = inherited_containment if role == "Part" else role
-        require(containment is not None, "a Part has no containing structure role")
+        path = (*ancestors, role)
+        containment, _ = containment_scope(path)
         leaves: list[str] = []
         limited_seen: set[str] = set()
         child_roles: list[str] = []
@@ -449,9 +463,9 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
                     require(child_row not in limited_seen, f"/{role} contains more than one /{child_role}")
                     limited_seen.add(child_row)
                 child_roles.append(child_role)
-                leaves.append(walk(int(child), number, language, role, containment, depth + 1))
+                leaves.append(walk(int(child), number, language, path))
             elif isinstance(child, dict) and child.get("Type") == "MCR":
-                require(role != "Part" and role not in NO_CONTENT_ITEMS, f"/{role} owns a content item")
+                require(role not in GROUPING_WRAPPERS and role not in NO_CONTENT_ITEMS, f"/{role} owns a content item")
                 page = int(child["Pg"])
                 require(page in page_index, "MCR /Pg is not a page")
                 key = (page, int(child["MCID"]))
@@ -459,7 +473,7 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
                 mcr_owner[key] = number
                 leaves.append(f"mcid p{page_index[page]}:{key[1]}")
             elif isinstance(child, dict) and child.get("Type") == "OBJR":
-                require(role != "Part", "/Part owns a content item")
+                require(role not in GROUPING_WRAPPERS, f"/{role} owns a content item")
                 annotation = int(child["Obj"])
                 require(annotation not in objr_owner, "an annotation is referenced by two OBJRs")
                 objr_owner[annotation] = number
@@ -482,7 +496,7 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
         label = " ".join([role] + facts)
         return label + ("" if not leaves else " [" + ", ".join(leaves) + "]")
 
-    lines.append(walk(int(root_element), tree_root_number, catalog_language, None, None, 1))
+    lines.append(walk(int(root_element), tree_root_number, catalog_language, ()))
 
     # ParentTree <-> MCR/OBJR, exactly once in both directions.
     parent_tree = document.get(int(tree_root["ParentTree"]))
@@ -945,16 +959,20 @@ def self_test() -> None:
         except (ValidationError, KeyError, ValueError, TypeError, AttributeError, IndexError, zlib.error):
             continue
         raise SystemExit(f"structure-semantics checker accepted {label}")
-    # Two Parts between Document and Span must not hide the illegal edge.
-    nested_part = replace_once(nested, b"/P 8 0 R /S /Sect", b"/P 8 0 R /S /Part")
-    check_structure_semantics(nested_part)
-    part_span = replace_once(nested_part, b"/P 9 0 R /Pg 34 0 R /S /H1 >>", b"/P 9 0 R /Pg 34 0 R/S /Span>>")
-    try:
-        check_structure_semantics(part_span)
-    except ValidationError as error:
-        require(str(error) == "/Part may not contain /Span under /Document", "nested Part twin failed for the wrong reason")
-    else:
-        raise ValidationError("structure-semantics checker accepted Span under two Parts")
+    # Wrappers between Document and Span still expose the illegal edge.
+    grouping_twins = (("Part", "Part"), ("Div", "Div"), ("Part", "Div"), ("Div", "Part"))
+    for outer, inner in grouping_twins:
+        grouped = replace_once(nested, b"/P 8 0 R /S /Sect", f"/P 8 0 R /S /{inner:4}".encode("ascii"))
+        if outer == "Div":
+            grouped = replace_once(grouped, b"/S /Part ", b"/S /Div  ")
+        check_structure_semantics(grouped)
+        span = replace_once(grouped, b"/P 9 0 R /Pg 34 0 R /S /H1 >>", b"/P 9 0 R /Pg 34 0 R/S /Span>>")
+        try:
+            check_structure_semantics(span)
+        except ValidationError as error:
+            require(str(error) == f"/{inner} may not contain /Span under /Document", "nested grouping twin failed for the wrong reason")
+        else:
+            raise ValidationError(f"structure-semantics checker accepted Span inside {outer} and {inner}")
 
     # Custom-block twins: a callout's Div rewritten as another role, and
     # in-flow decorations (painted after their page's text) presented as
@@ -1005,7 +1023,7 @@ def self_test() -> None:
     print(
         "PASS structure-semantics checker self-test: normalized trees, ParentTree/MCID/OBJR "
         "exactly-once, IDTree/ID, language, attributes, DisplayDocTitle, MarkInfo, Tabs, "
-        f"Table 5 containment, page furniture, figure captions and scales, and custom-block Divs and underlays verified on {len(SNAPSHOTS)} snapshots; {len(mutations) + 1} "
+        f"Table 5 containment, page furniture, figure captions and scales, and custom-block Divs and underlays verified on {len(SNAPSHOTS)} snapshots; {len(mutations) + len(grouping_twins)} "
         f"length-preserving mutation twins, {len(furniture_twins)} furniture twins, and {len(callout_twins)} custom-block twins rejected; {cross_check}",
         flush=True,
     )

@@ -141,7 +141,8 @@ KernelSemantics :: [].{
 ## `language_owner` is the nearest ancestor with an explicit language, or
 ## `U64.highest` when the node inherits only the document default.
 ## Both role codes fit in one byte, including the unknown-role sentinel.
-NodeFrame := { containment_role : U8, depth : U64, language_owner : U64, node : Semantics.NodeId, role : U8 }
+## A Part also limits the effective row across later Div wrappers.
+NodeFrame := { containment_role : U8, depth : U64, language_owner : U64, node : Semantics.NodeId, role : U8, through_part : Bool }
 
 PendingCaption := [NoPendingCaption, PendingCaption(U64)]
 
@@ -522,7 +523,7 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 		var $identifier_owners = List.repeat(0, store.element_identifiers.len())
 		root = list_at(store.nodes, store.document_root.index())
 		root_role = role_index(root.role.local_name).to_u8_wrap()
-		var $frames = [NodeFrame.{ containment_role: root_role, depth: 1, language_owner: U64.highest, node: store.document_root, role: root_role }]
+		var $frames = [NodeFrame.{ containment_role: root_role, depth: 1, language_owner: U64.highest, node: store.document_root, role: root_role, through_part: False }]
 		var $frame_index = 0
 		var $content_visits = 0
 		var $attribute_visits = 0
@@ -533,6 +534,7 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 			frame = list_at($frames, $frame_index)
 			role = frame.role.to_u64()
 			containment_role = frame.containment_role.to_u64()
+			allowed_roles = containment_row(containment_role).bitwise_and(if (frame.through_part) part_children else U64.highest)
 			node_index = frame.node.index()
 			if frame.depth > max_depth {
 				return Err(LimitExceeded({ attempted: frame.depth, dimension: SemanticDepth, limit: max_depth }))
@@ -582,7 +584,7 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 														match item {
 															AnnotationOccurrence(annotation_id) => if !navigation {
 																return Err(UnsupportedAnnotation({ content: $content_index }))
-															} else if role == role_part {
+															} else if role == role_part or role == role_div {
 																return Err(IllegalContentItem({ content: $content_index, node: node_index }))
 															} else {
 																annotation_index = annotation_id.index()
@@ -614,7 +616,7 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 																			child_role = role_index(child_node.role.local_name)
 																			child_bit = role_bit(child_role)
 																			$containment_edges = $containment_edges + 1
-																			if child_role != unknown_role and !may_contain(containment_role, child_role) {
+																			if child_role != unknown_role and allowed_roles.bitwise_and(child_bit) == 0 {
 																				return Err(IllegalContainment({ child: child_index, parent: node_index }))
 																			} else if $limited_seen.bitwise_and(child_bit) != 0 {
 																				return Err(DuplicateChildRole({ child: child_index, parent: node_index }))
@@ -634,10 +636,12 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 																							Language(_) => node_index
 																							Inherited => frame.language_owner
 																						}
-																						# A Part inherits the child-role containment of the nearest non-Part ancestor (ISO 32000-2 Table 365).
+																						# Part and Div inherit the containing element’s rules (ISO 32000-2 Table 365).
 																						compact_role = child_role.to_u8_wrap()
-																						child_containment = if (child_role == role_part) frame.containment_role else compact_role
-																						$frames = $frames.append(NodeFrame.{ containment_role: child_containment, depth, language_owner, node: child, role: compact_role })
+																						inherits = child_role == role_part or child_role == role_div
+																						child_containment = if (inherits) frame.containment_role else compact_role
+																						through_part = child_role == role_part or (inherits and frame.through_part)
+																						$frames = $frames.append(NodeFrame.{ containment_role: child_containment, depth, language_owner, node: child, role: compact_role, through_part })
 																					}
 																				}
 																			}
@@ -647,7 +651,7 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 															}
 															ContentOccurrence(occurrence) => {
 																occurrence_index = occurrence.index()
-																if role == role_part or forbids_content_items(role) {
+																if role == role_part or role == role_div or forbids_content_items(role) {
 																	return Err(IllegalContentItem({ content: $content_index, node: node_index }))
 																} else if occurrence_index >= $occurrence_owners.len() {
 																	return Err(IndexOutOfRange({ available: $occurrence_owners.len(), index: occurrence_index, kind: OccurrenceIndex }))
@@ -1172,7 +1176,7 @@ role_index = |name| {
 	} else if name == "Sect" {
 		3
 	} else if name == "Div" {
-		4
+		role_div
 	} else if name == "Part" {
 		role_part
 	} else if name == "Title" {
@@ -1250,6 +1254,16 @@ role_td = 27
 role_part : U64
 role_part = 2
 
+role_div : U64
+role_div = 4
+
+## Annex L.2 and ISO/TS 32005 Table 5 list the child roles whose rules a
+## Part can inherit. For the supported subset these are Document,
+## DocumentFragment, Part, Div, Sect, Title, H, Hn, P, L, Lbl, Figure,
+## Caption, Link, Code, and Table.
+part_children : U64
+part_children = 2681855
+
 unknown_role : U64
 unknown_role = 63
 
@@ -1294,13 +1308,14 @@ containment_row = |parent| match parent {
 	## DocumentFragment: same as Document
 	1 => 2663423
 
-	## Part: every role
+	## Part and Div use contextual rows in validate_graph. These are
+	## the static rows of the pinned veraPDF pairwise profile.
 	2 => 268435455
 
 	## Sect: DocumentFragment, Part, Sect, Div, Title, H, Hn, P, L, Lbl, Figure, Caption, Link, Code, Table
 	3 => 2681854
 
-	## Div: every role
+	## Div: all supported roles are listed conditionally in Table 5.
 	4 => 268435455
 
 	## Title: Part, Div, P, L, Lbl, Figure, Caption, Link, Span, Em, Strong, Code, Quote, Table
@@ -1702,17 +1717,19 @@ expect {
 	KernelSemantics.Plan.work(plan).annotation_visits == 2 and rejected
 }
 
-# Annex L also excludes object reference content items directly in Part.
-expect {
-	node = list_at(navigation_store.nodes, 1)
-	nodes = list_set(navigation_store.nodes, 1, { ..node, role: { ..node.role, local_name: "Part" } })
-	content_spine = [ChildNode(Semantics.NodeId.from_index(1)), ContextualArtifact(Semantics.ContextualArtifactId.from_index(0)), AnnotationOccurrence(Semantics.AnnotationId.from_index(0)), ContentOccurrence(Semantics.OccurrenceId.from_index(0)), ContentOccurrence(Semantics.OccurrenceId.from_index(1))]
-	bad = { ..navigation_store, nodes, content_spine }
-	match KernelSemantics.Plan.build_text_navigation(bad, [], 1, 1, navigation_limits) {
-		Err(IllegalContentItem({ content: 2, node: 1 })) => True
-		_ => False
-	}
-}
+# Annex L also excludes object reference content items directly in Part and Div.
+expect ["Part", "Div"].all(
+	|local_name| {
+		node = list_at(navigation_store.nodes, 1)
+		nodes = list_set(navigation_store.nodes, 1, { ..node, role: { ..node.role, local_name } })
+		content_spine = [ChildNode(Semantics.NodeId.from_index(1)), ContextualArtifact(Semantics.ContextualArtifactId.from_index(0)), AnnotationOccurrence(Semantics.AnnotationId.from_index(0)), ContentOccurrence(Semantics.OccurrenceId.from_index(0)), ContentOccurrence(Semantics.OccurrenceId.from_index(1))]
+		bad = { ..navigation_store, nodes, content_spine }
+		match KernelSemantics.Plan.build_text_navigation(bad, [], 1, 1, navigation_limits) {
+			Err(IllegalContentItem({ content: 2, node: 1 })) => True
+			_ => False
+		}
+	},
+)
 
 # The Link role is accepted only when navigation is enabled.
 expect {
@@ -1950,11 +1967,10 @@ expect {
 	}
 }
 
-# Document, Part, Sect, L, LI, Table, and row groups cannot own content items.
+# Document, Part, Div, Sect, L, LI, Table, and row groups cannot own content items.
 expect {
 	sect = shaped_store([{ parent: 0, role: "Document" }, { parent: 0, role: "Sect" }], 1)
 	item = shaped_store([{ parent: 0, role: "Document" }, { parent: 0, role: "L" }, { parent: 1, role: "LI" }], 2)
-	part = shaped_store([{ parent: 0, role: "Document" }, { parent: 0, role: "Part" }], 1)
 	sect_rejected = match build_shaped(sect) {
 		Err(IllegalContentItem({ content: 1, node: 1 })) => True
 		_ => False
@@ -1963,11 +1979,16 @@ expect {
 		Err(IllegalContentItem({ content: 2, node: 2 })) => True
 		_ => False
 	}
-	part_rejected = match build_shaped(part) {
-		Err(IllegalContentItem({ content: 1, node: 1 })) => True
-		_ => False
-	}
-	sect_rejected and item_rejected and part_rejected
+	groupings_rejected = ["Part", "Div"].all(
+		|role| {
+			grouping = shaped_store([{ parent: 0, role: "Document" }, { parent: 0, role }], 1)
+			match build_shaped(grouping) {
+				Err(IllegalContentItem({ content: 1, node: 1 })) => True
+				_ => False
+			}
+		},
+	)
+	sect_rejected and item_rejected and groupings_rejected
 }
 
 # At-most-one child rules and the first-or-last Caption rule.
@@ -2187,9 +2208,9 @@ expect {
 	missing and orphan
 }
 
-# A Part inherits the effective parent's cardinality for its direct children.
+# A mixed grouping chain inherits the ancestor's direct-child cardinality.
 expect {
-	single = [{ parent: 0, role: "Document" }, { parent: 0, role: "Part" }, { parent: 1, role: "Part" }, { parent: 2, role: "H" }]
+	single = [{ parent: 0, role: "Document" }, { parent: 0, role: "Part" }, { parent: 1, role: "Div" }, { parent: 2, role: "H" }]
 	plan = build_shaped(shaped_store(single, 3))?
 	KernelSemantics.Plan.work(plan).containment_edges == 3 and
 		match build_shaped(shaped_store(single.append({ parent: 2, role: "H" }), 3)) {

@@ -17,9 +17,9 @@ import ContentScopeModel
 import ContinuationPaginationModel
 import DenseSpanProof
 import DocumentBuilderModel
+import GroupingContainmentModel
 import PageBreakModel
 import PageTreeProof
-import PartContainmentModel
 import ReferenceWrapModel
 import ResourceGraphModel
 import StreamSealModel
