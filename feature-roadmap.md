@@ -196,9 +196,9 @@ closed its declared text/facade subset; Gate 4 closed the `Standard` visual
 compiler with narrower public authoring. Gate 5 closed static PDF/A-4 and made
 `Archive` the default facade profile, with `Standard` as an explicit opt-out;
 its ISO-text confirmation remains pending as recorded below. Gate 6 closed
-business authoring and the core PDF/UA-2 vocabulary without a PDF/UA-2
-claim. The remaining business-release requirements are pending work in
-Gate 7, and each future slice records the readiness dimensions above.
+business authoring and the core PDF/UA-2 vocabulary. Gate 7 validates the
+combined business-document profile and makes it the facade default. Each
+future slice records the readiness dimensions above.
 
 ## Work following the Gate 4 milestone
 
@@ -1213,9 +1213,29 @@ independent structure checker. Each record lists its own open issues:
   blow-up or unreviewed allocation/work change blocks the production release;
   there are no numeric timing, memory, or throughput targets.
 
-At this gate the package may produce conforming PDF/UA-2 for its supported
-feature subset. It does not need to accept every PDF feature, annotation type,
-or structure role; unsupported inputs remain errors.
+### Closure status
+
+Gate 7 is **closed** for the supported business-document subset.
+`AccessibleArchive` is the facade default. `Archive` and `Standard` remain
+explicit selections. WTPDF accessibility is an independent opt-in on the
+combined profile. Unsupported features and missing author facts return
+diagnostics before emission.
+
+The [accessibility clause inventory](docs/contributors/accessibility-review.md)
+records the full PDF/UA-2 and ISO/TS 32005 review, the pinned errata, and the
+authored judgments covered by preparation reports. The combined validator
+lane accepts the same 64 originals under explicit PDF/A-4 and PDF/UA-2,
+accepts five explicit WTPDF accessibility declarations, and rejects 44
+isolated negative controls under their expected rules. The reference
+invoice, report and warranty letter, including the untitled body of the
+letter, are runnable through the public facade. Independent object, text,
+render and navigation checks cover their declared scenarios and scale pairs.
+The default migration preserves exact output bytes, allocation counts and
+deterministic work for the explicit-profile fixtures on both pinned targets.
+
+The static archival evidence follows Gate 5. Direct review of the remaining
+full ISO 19005-4 text is tracked by `ROC-PDF-PDFA4-ISO-TEXT-CONFIRMATION` for
+follow-up after purchase.
 
 ## Gate 8: advanced document composition
 
