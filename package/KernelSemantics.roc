@@ -38,6 +38,11 @@ KernelSemantics :: [].{
 		InvalidPdf20Namespace,
 		InvalidRelationship({ relationship : U64 }),
 		LimitExceeded({ attempted : U64, dimension : Dimension, limit : U64 }),
+
+		## The heading conflicts with the family already used in its nearest
+		## Document or DocumentFragment. Both indexes identify semantic nodes.
+		MixedHeadingFamilies({ node : U64, scope : U64 }),
+
 		NonDenseIdentity({ actual : U64, expected : U64, kind : IndexKind }),
 		Orphaned({ index : U64, kind : IndexKind }),
 		SpanOutOfRange({ available : U64, kind : IndexKind, length : U64, owner : U64, start : U64 }),
@@ -140,9 +145,10 @@ KernelSemantics :: [].{
 
 ## `language_owner` is the nearest ancestor with an explicit language, or
 ## `U64.highest` when the node inherits only the document default.
+## The heading scope is the nearest Document or DocumentFragment.
 ## Both role codes fit in one byte, including the unknown-role sentinel.
 ## A Part also limits the effective row across later Div wrappers.
-NodeFrame := { containment_role : U8, depth : U64, language_owner : U64, node : Semantics.NodeId, role : U8, through_part : Bool }
+NodeFrame := { containment_role : U8, heading_scope : Semantics.NodeId, language_owner : U64, node : Semantics.NodeId, role : U8, through_part : Bool }
 
 PendingCaption := [NoPendingCaption, PendingCaption(U64)]
 
@@ -503,10 +509,11 @@ GraphWork : {
 	relationship_visits : U64,
 }
 
-## One breadth-first walk proves reachability, single ownership, depth, role
-## enablement, and every parent/child edge against the ISO/TS 32005 table in
-## O(1) per edge. Element identifiers, typed attributes, and relationships
-## are validated after the walk, once each, in dense-store order.
+## One breadth-first walk proves reachability, single ownership, depth,
+## role enablement, and heading families. It checks each parent/child edge
+## against the ISO/TS 32005 table in O(1). Element identifiers, typed
+## attributes, and relationships are validated after the walk, once each,
+## in dense-store order.
 validate_graph : Semantics.Store, U64, Bool, Bool -> Try(GraphWork, KernelSemantics.Error)
 validate_graph = |store, max_depth, text_allowed, navigation| {
 	if store.nodes.len() == 0 or store.document_root.index() >= store.nodes.len() {
@@ -523,21 +530,28 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 		var $identifier_owners = List.repeat(0, store.element_identifiers.len())
 		root = list_at(store.nodes, store.document_root.index())
 		root_role = role_index(root.role.local_name).to_u8_wrap()
-		var $frames = [NodeFrame.{ containment_role: root_role, depth: 1, language_owner: U64.highest, node: store.document_root, role: root_role, through_part: False }]
+		var $frames = [NodeFrame.{ containment_role: root_role, heading_scope: store.document_root, language_owner: U64.highest, node: store.document_root, role: root_role, through_part: False }]
 		var $frame_index = 0
 		var $content_visits = 0
 		var $attribute_visits = 0
 		var $containment_edges = 0
 		var $node_visits = 0
-		var $maximum_depth = 0
+		var $depth = 1
+		var $next_layer_start = 1
 		while $frame_index < $frames.len() {
+			# All children of the current layer are queued when its first
+			# successor is reached. They share a depth without storing it per frame.
+			if $frame_index == $next_layer_start {
+				$depth = U64.plus_try($depth, 1) ? |_| ArithmeticOverflow
+				$next_layer_start = $frames.len()
+			}
 			frame = list_at($frames, $frame_index)
 			role = frame.role.to_u64()
 			containment_role = frame.containment_role.to_u64()
 			allowed_roles = containment_row(containment_role).bitwise_and(if (frame.through_part) part_children else U64.highest)
 			node_index = frame.node.index()
-			if frame.depth > max_depth {
-				return Err(LimitExceeded({ attempted: frame.depth, dimension: SemanticDepth, limit: max_depth }))
+			if $depth > max_depth {
+				return Err(LimitExceeded({ attempted: $depth, dimension: SemanticDepth, limit: max_depth }))
 			} else {
 				if list_at($node_owners, node_index) != 0 {
 					return Err(DuplicateOwnership({ index: node_index, kind: NodeIndex }))
@@ -552,7 +566,19 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 					} else if is_root and node.parent != DocumentRoot {
 						return Err(InvalidDocumentRoot({ node: node_index }))
 					} else {
-						$maximum_depth = U64.max($maximum_depth, frame.depth)
+						# ISO 32000-2 14.8.4.3 requires one heading family per scope.
+						# Each scope is already owned before its descendants enter the queue.
+						# Extra bits in its ownership byte record the first family.
+						if role == role_h or role == role_hn {
+							scope = frame.heading_scope.index()
+							state = list_at($node_owners, scope)
+							family = if (role == role_h) 3 else 5
+							if state == 1 {
+								$node_owners = list_set($node_owners, scope, family)
+							} else if state != family {
+								return Err(MixedHeadingFamilies({ node: node_index, scope }))
+							}
+						}
 						match validate_node_facts(store, node, node_index, is_root, text_allowed, frame.language_owner, $identifier_owners) {
 							Err(error) => {
 								return Err(error)
@@ -631,7 +657,6 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 																							$pending_caption = PendingCaption(child_index)
 																						}
 																						$child_position = $child_position + 1
-																						depth = U64.plus_try(frame.depth, 1) ? |_| ArithmeticOverflow
 																						language_owner = match node.language {
 																							Language(_) => node_index
 																							Inherited => frame.language_owner
@@ -641,7 +666,8 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 																						inherits = child_role == role_part or child_role == role_div
 																						child_containment = if (inherits) frame.containment_role else compact_role
 																						through_part = child_role == role_part or (inherits and frame.through_part)
-																						$frames = $frames.append(NodeFrame.{ containment_role: child_containment, depth, language_owner, node: child, role: compact_role, through_part })
+																						heading_scope = if (child_role == role_document_fragment) child else frame.heading_scope
+																						$frames = $frames.append(NodeFrame.{ containment_role: child_containment, heading_scope, language_owner, node: child, role: compact_role, through_part })
 																					}
 																				}
 																			}
@@ -720,7 +746,7 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 			containment_edges: $containment_edges,
 			content_visits: $content_visits,
 			identifier_visits: store.element_identifiers.len(),
-			max_depth: $maximum_depth,
+			max_depth: $depth,
 			node_visits: $node_visits,
 			relationship_visits,
 		})
@@ -1279,9 +1305,9 @@ role_index = |name| {
 	} else if name == "TFoot" {
 		24
 	} else if name == "DocumentFragment" {
-		1
+		role_document_fragment
 	} else if name == "H" {
-		6
+		role_h
 	} else {
 		unknown_role
 	}
@@ -1289,6 +1315,9 @@ role_index = |name| {
 
 role_document : U64
 role_document = 0
+
+role_document_fragment : U64
+role_document_fragment = 1
 
 role_code : U64
 role_code = 19
@@ -1300,6 +1329,9 @@ role_quote = 20
 ## standard types (namespace 1); every other accepted role is PDF 2.0.
 role_namespace : U64 -> U64
 role_namespace = |role| if (role == role_code or role == role_quote) 1 else 0
+
+role_h : U64
+role_h = 6
 
 role_hn : U64
 role_hn = 7

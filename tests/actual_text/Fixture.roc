@@ -14,11 +14,13 @@ import pdf.KernelObjectPlan
 import pdf.KernelFontObjects
 import pdf.KernelTaggedTextStructure
 import pdf.KernelImage
+import pdf.KernelLex
 import pdf.KernelObject
 import pdf.KernelPdfFont
 import pdf.KernelPdfText
 import pdf.KernelResourceUse
 import pdf.KernelScene
+import pdf.KernelSeal
 import pdf.KernelSemantics
 import pdf.KernelShape
 import pdf.KernelStructure
@@ -2191,4 +2193,67 @@ expect {
 		Err(UnicodeDestinationTooLong({ attempted: 514, cid, font: 0, limit: 512, run: 0 })) => cid == expected_cid
 		_ => False
 	}
+}
+
+heading_scope_store : Str -> Semantics.Store
+heading_scope_store = |second_scope| {
+	root = list_at(semantics.nodes, 0)
+	template = list_at(semantics.nodes, 1)
+	role_and_parent = [("Sect", 0), (second_scope, 0), ("H1", 1), ("H", 2)]
+	children = role_and_parent.map_with_index(
+		|(name, parent), offset| {
+			index = offset + 1
+			{
+				..template,
+				content: Semantics.IndexRange.from_start_and_length({ start: index + 1, length: if (index == 4) 0 else 1 }),
+				id: Semantics.NodeId.from_index(index),
+				parent: ParentNode(Semantics.NodeId.from_index(parent)),
+				role: { ..template.role, local_name: name },
+				structure_element: Semantics.StructureElementId.from_index(index),
+			}
+		},
+	)
+	{
+		..semantics,
+		nodes: [{ ..root, content: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }) }].concat(children),
+		content_spine: [
+			ChildNode(Semantics.NodeId.from_index(1)),
+			ChildNode(Semantics.NodeId.from_index(2)),
+			ChildNode(Semantics.NodeId.from_index(3)),
+			ChildNode(Semantics.NodeId.from_index(4)),
+			ContentOccurrence(Semantics.OccurrenceId.from_index(0)),
+		],
+	}
+}
+
+heading_scope_semantic : Semantics.Store -> Try(KernelTextSemantics.Plan, KernelTextSemantics.Error)
+heading_scope_semantic = |store| KernelTextSemantics.Plan.build(
+	store,
+	1,
+	1,
+	KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 5, max_fragments: 1, max_namespaces: 2, max_nodes: 5, max_occurrences: 1, max_semantic_depth: 3 }),
+	KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 2, max_text_source_scalars: 2, max_text_sources: 1 }),
+)
+
+expect match heading_scope_semantic(heading_scope_store("Sect")) {
+	Err(Semantic(MixedHeadingFamilies({ node: 4, scope: 0 }))) => True
+	_ => False
+}
+
+expect {
+	base = build_sample({})?
+	validated = heading_scope_semantic(heading_scope_store("DocumentFragment"))?
+	sample = build_sample_from(base.font, validated, source, base.shape.store)?
+	structure = KernelTaggedTextStructure.Plan.structure(sample.structure)
+	objects = KernelSeal.Plan.store(KernelStructure.Plan.sealed(structure))
+	roles = objects.dictionary_entries.keep_if(
+		|entry| KernelLex.Name.bytes(list_at(objects.names, KernelObject.NameId.index(entry.key))) == Str.to_utf8("S"),
+	).map(
+		|entry| match list_at(objects.values, KernelObject.ValueId.index(entry.value)) {
+			Name(role) => KernelLex.Name.bytes(list_at(objects.names, KernelObject.NameId.index(role)))
+			_ => []
+		},
+	)
+	bytes = KernelEmit.to_bytes(structure)?
+	!bytes.is_empty() and roles.contains(Str.to_utf8("DocumentFragment")) and roles.contains(Str.to_utf8("H")) and roles.contains(Str.to_utf8("H1"))
 }

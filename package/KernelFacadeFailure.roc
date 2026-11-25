@@ -701,6 +701,7 @@ kernel_semantics_error = |error| match error {
 	InvalidPdf20Namespace => leaf({ category: Invariant, feature: "invalid_pdf20_namespace", path: "InvalidPdf20Namespace", inspected: Str.inspect(error) })
 	InvalidRelationship(_) => leaf({ category: Invariant, feature: "invalid_relationship", path: "InvalidRelationship", inspected: Str.inspect(error) })
 	LimitExceeded(_) => leaf({ category: Budget, feature: "limit_exceeded", path: "LimitExceeded", inspected: Str.inspect(error) })
+	MixedHeadingFamilies(_) => leaf({ category: Invariant, feature: "mixed_heading_families", path: "MixedHeadingFamilies", inspected: Str.inspect(error) })
 	NonDenseIdentity(_) => leaf({ category: Invariant, feature: "non_dense_identity", path: "NonDenseIdentity", inspected: Str.inspect(error) })
 	Orphaned(_) => leaf({ category: Invariant, feature: "orphaned", path: "Orphaned", inspected: Str.inspect(error) })
 	SpanOutOfRange(_) => leaf({ category: Invariant, feature: "span_out_of_range", path: "SpanOutOfRange", inspected: Str.inspect(error) })

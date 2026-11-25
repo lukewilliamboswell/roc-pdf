@@ -19,6 +19,7 @@ import ContinuationPaginationModel
 import DenseSpanProof
 import DocumentBuilderModel
 import GroupingContainmentModel
+import HeadingFamilyModel
 import LinkRegionModel
 import OutlineModel
 import PageBreakModel
