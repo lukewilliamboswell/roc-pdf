@@ -981,7 +981,9 @@ Closing Gate 6 alone does not make a PDF/UA-2 or combined-profile claim.
   by explicit PDF/UA-2 ledger requirements.
 - Page- and stream-spanning occurrences and exact mixed structure order.
 - Page-content artifacts and contextual Artifact structure elements.
-- Language inheritance and nested language changes.
+- Language inheritance and nested language changes. The document language
+  and scoped language tags identify specific languages. Standalone PDF text
+  strings use their inherited language.
 - Alternative, expanded, replacement, actual, phoneme, and phonetic-alphabet
   text where applicable.
 - IDTree construction and typed structure references.

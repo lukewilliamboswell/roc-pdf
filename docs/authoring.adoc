@@ -102,7 +102,9 @@ family unless explicitly configured. Unavailable styles reject with
 
 Use a nonempty, well-formed BCP 47 tag with `Pdf.in_language`, such as `fr`,
 `fr-CA`, or `zh-Hant-TW`. A malformed tag such as `en-12` produces the
-`semantics.language_tag` diagnostic at the inline's location.
+`semantics.language_tag` diagnostic at the inline's location. Use a tag for a
+specific language in the combined archive profile. Standalone strings such
+as outline titles and figure alternatives use their inherited language.
 
 The theme's `inline` record can select colours, scales and exact faces or
 families, such as `inline: { strong: { color: Themed(navy) } }` or

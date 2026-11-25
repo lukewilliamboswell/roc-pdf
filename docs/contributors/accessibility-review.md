@@ -47,6 +47,14 @@ Choose the applicable records based on the document's features.
 | `OutlineMeaningful`, `PageLabelsAccurate`, `LinkPurposeMeaningful` | Check that the outline and authored table of contents identify their intended logical sections. Check page labels, shown page numbers and cross-references against what a reader perceives. |
 | `FontEmbeddingRightsConfirmed` | Confirm that each font can legally be embedded in the file for unlimited, universal rendering and that subsetting is permitted. The package checks supported font structure and rejects restricted technical flags where applicable. |
 
+Use the `LanguageAccurate` record to check that each tag names the
+actual natural language. The combined profile rejects recognized placeholder
+tags and private-use-only tags. Declare language changes in body text with
+`Pdf.in_language`. Each standalone PDF string must use its one inherited
+language, including alternate descriptions, expansion text, outline titles
+and page-label prefixes. The text-string encoder rejects raw escape
+introducers.
+
 An optional human or assistive-technology review records the exact source and
 PDF digest, tool and version, operating system, tasks, expected result,
 observed result and any limitation or follow-up. Preserve raw files and
@@ -106,7 +114,7 @@ checked separately. See the ledger's
 | 8.2.6.1–8.2.6.3 | Check selected semantic layout, table, list and artifact attributes, including placement and nondefault values that carry meaning. PrintField attributes are outside the static business-document scope. |
 | 8.2.6.4 | ARIA/DPUB-ARIA authoring and namespace-owned custom attributes are outside the subset. |
 | 8.3.1–8.3.2 | Check explicit artifact marking and appropriate types and subtypes. Content meaningful only within a structural context requires a contextual Artifact. Test accepted page furniture, repeated table headers, callout panels, decoration, drawing-label and source-paint paths for the applicable ownership. |
-| 8.4.1–8.4.4 | Check programmatically obtainable Unicode, alternatives, PUA restrictions and effective language throughout the file. Language switches within human-readable strings need explicit encoding or an author contract that restricts those strings to their inherited language. |
+| 8.4.1–8.4.4 | Check programmatically obtainable Unicode, alternatives, PUA restrictions and effective language throughout the file. The facade keeps each human-readable string in its inherited language and uses typed scopes for changes in body text. |
 | 8.4.5.1–8.4.5.9 | Check font type, embedded CID fonts, used glyphs, CIDToGIDMap, widths, Unicode maps and absence of .notdef. Simple PDF fonts and arbitrary encoding CMaps are outside the subset. |
 | 8.5.1–8.5.2 | Check authored text alternatives for nontext content and equivalent ActualText when nontext paint needs to be consumed as text. |
 | 8.6–8.8 | Human-readable strings exclude PUA. Optional content is outside the subset. Internal links and outline actions identify a structure destination under the pinned PDF 2.0 errata. |

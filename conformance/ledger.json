@@ -3236,10 +3236,12 @@
       "source_ids": [
         "bcp47-rfc5646",
         "iso-14289-2-2024",
+        "iso-32000-2-2020-ec3",
         "wtpdf-1-0-0"
       ],
       "references": [
         "ISO 14289-2:2024 8.4.4",
+        "ISO 32000-2:2020 7.9.2.2.2 and 14.9.2",
         "WTPDF 1.0 8.4.4",
         "docs/contributors/accessibility-review.md"
       ],
@@ -3247,19 +3249,24 @@
         "PdfUa2",
         "WtpdfAccessibility"
       ],
-      "implementation": "partial",
+      "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "Existing author validation checks document and inline language, with independent object checks. Complete evidence for language inherited by PDF strings and explicit changes within strings. Pinned veraPDF controls: document-language.",
-      "human_verification": "Confirm the actual languages of content and strings match the document and scoped declarations.",
+      "machine_verification": "The catalog carries the authored default for content and human-readable PDF strings. Facade language spans lower explicit changes for their text, as the combined French and Han fixtures show. The public byte and chunk paths reject recognized BCP 47 placeholders and private-use-only tags with the authored path. Standalone PDF strings use their effective inherited language. KernelLex rejects U+001B at its original byte offset, so single-language authored strings cannot inject a PDF language change. Pinned veraPDF control: document-language. An independent authored oracle also rejects a valid but unintended replacement of a scoped language.",
+      "human_verification": "Confirm each declaration identifies the actual natural language and each standalone PDF string is entirely in its inherited language.",
       "positive_scenarios": [
+        "package/KernelLex.roc",
         "scripts/check_accessible_archive.py",
+        "scripts/check_rich_inline.py",
         "scripts/check_structure_semantics.py",
         "tests/rich_inline/Fixture.roc"
       ],
       "negative_scenarios": [
+        "package/KernelLex.roc",
         "package/Pdf.roc",
         "scripts/check_accessible_archive.py",
-        "scripts/check_structure_semantics.py"
+        "scripts/check_rich_inline.py",
+        "scripts/check_structure_semantics.py",
+        "tests/contracts/pdf_facade.roc"
       ],
       "external_rule_ids": [
         "verapdf-pdfua2:8.4.4-1",
@@ -3828,17 +3835,19 @@
       ],
       "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "kernel_expects_reject_malformed_node_languages; tagged_structure_expect_pins_nested_Lang_and_root_omission; kernel_lowering_harness_case; independent_checker_rejects_malformed_and_redundant_Lang; mutation_twin; facade_in_language_spans_lower_Span_Lang_with_leaf_occurrences_in_the_span_language; malformed_in_language_tags_reject_as_semantics.language_tag_before_layout Pinned veraPDF controls: invalid-language.",
+      "machine_verification": "kernel_expects_reject_malformed_node_languages; tagged_structure_expect_pins_nested_Lang_and_root_omission; kernel_lowering_harness_case; independent_checker_rejects_malformed_and_redundant_Lang; mutation_twin; facade_in_language_spans_lower_Span_Lang_with_leaf_occurrences_in_the_span_language; malformed_in_language_tags_reject_as_semantics.language_tag_before_layout Pinned veraPDF controls: invalid-language. The combined mixed and ordered fixtures pin authored French and Han scopes. The independent rich oracle rejects a well-formed wrong language.",
       "human_verification": "not_required",
       "positive_scenarios": [
         "package/KernelTaggedStructure.roc",
         "scripts/check_accessible_archive.py",
+        "scripts/check_rich_inline.py",
         "tests/containers/Cases.roc",
         "tests/rich_inline/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelSemantics.roc",
         "scripts/check_accessible_archive.py",
+        "scripts/check_rich_inline.py",
         "scripts/check_structure_semantics.py",
         "tests/rich_inline/Fixture.roc"
       ],

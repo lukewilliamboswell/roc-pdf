@@ -75,6 +75,21 @@ KernelPdfUa2 :: [].{
 		Ok({})
 	}
 
+	## Reject recognized placeholders for a specific natural language. A
+	## private-use extension can qualify a named language.
+	language_placeholder : Str -> Bool
+	language_placeholder = |tag| {
+		primary = match tag.split_first("-") {
+			Ok({ before, .. }) => before
+			Err(NotFound) => tag
+		}
+		match primary.with_ascii_lowercased() {
+			"mis" | "mul" | "und" | "x" | "zxx" => True
+			"i" => tag.count_utf8_bytes() == 9 and tag.with_ascii_lowercased() == "i-default"
+			_ => False
+		}
+	}
+
 	## Public authored strings that become human-readable PDF text strings
 	## cannot contain Private Use Area scalars. Iterate UTF-8 without retaining
 	## a scalar list and report the original byte offset of the first one.

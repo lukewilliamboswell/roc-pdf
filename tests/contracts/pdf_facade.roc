@@ -215,3 +215,27 @@ rejects_readable_string = |result, path| match result {
 	Err(InvalidDocument({ diagnostics: [{ code: ProfileRequirementViolated, feature: Feature("profile.accessible_archive.private_use_text"), details: [located], stage: AuthoringValidation, .. }], .. })) => located == path
 	_ => False
 }
+
+# Each BCP 47 placeholder has valid syntax but conveys no specific
+# language. Both export paths report the catalog or authored inline path.
+expect {
+	make = |language, inline| Pdf.document({ contents: [Pdf.rich_paragraph([Pdf.in_language(inline, [Pdf.text("Review the terms.")])])], language, title: "Specific language" })
+	archive = Pdf.Options.{ profile: Archive }
+	combined = Pdf.Options.{ profile: AccessibleArchive }
+	positive = Pdf.to_bytes_with(make("en-AU", "en-GB-x-edition"), combined).is_ok()
+	catalog = ["und", "und-Latn", "mul", "mis", "zxx"].map(|tag| (make(tag, "en"), "language"))
+	scoped = ["und", "UND-Latn", "mul", "mis", "zxx", "I-Default", "x-internal"].map(|tag| (make("en", tag), "contents[0].inlines[0]"))
+	positive and List.concat(catalog, scoped).all(
+		|(doc, path)| {
+			Pdf.to_bytes_with(doc, archive).is_ok()
+				and rejects_unspecified_language(Pdf.to_bytes_with(doc, combined), path)
+				and rejects_unspecified_language(Pdf.to_chunks_with(doc, combined), path)
+		},
+	)
+}
+
+rejects_unspecified_language : Try(a, Pdf.Error), Str -> Bool
+rejects_unspecified_language = |result, path| match result {
+	Err(InvalidDocument({ diagnostics: [{ code: ProfileRequirementViolated, feature: Feature("profile.accessible_archive.language"), details: [located], requirement_ids: ["ROC-PDF-PDFUA2-8-4-4-DEFAULT-LANGUAGE"], stage: AuthoringValidation, .. }], .. })) => located == path
+	_ => False
+}

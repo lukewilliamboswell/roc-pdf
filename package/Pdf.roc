@@ -1253,6 +1253,9 @@ accessibility_plan_batch = |{ position, requirement }| {
 
 validate_accessible_authoring : Document.NormalizedAuthoring -> Try({}, Pdf.Error)
 validate_accessible_authoring = |authoring| {
+	if KernelPdfUa2.language_placeholder(authoring.language) {
+		return Err(accessibility_language("language"))
+	}
 	var $index = 0
 	for entry in authoring.outline {
 		match KernelPdfUa2.private_use_offset(entry.title) {
@@ -1285,6 +1288,7 @@ validate_accessible_authoring = |authoring| {
 				while $inline < rich.inlines + rich.length {
 					kind = (authoring.inlines.get($inline) ?? crash "normalized inline identity escaped").kind
 					match kind {
+						InLanguage(tag) if KernelPdfUa2.language_placeholder(tag) and KernelSemantics.language_tag_valid(tag) => return Err(accessibility_language(inline_path(authoring, $index, AtInline($inline))))
 						Expansion(text) => match KernelPdfUa2.private_use_offset(text) {
 							PrivateUse(offset) => return Err(accessibility_private_use(inline_path(authoring, $index, AtInline($inline)), offset))
 							NoPrivateUse => {}
@@ -1299,6 +1303,30 @@ validate_accessible_authoring = |authoring| {
 		$index = $index + 1
 	}
 	Ok({})
+}
+
+accessibility_language : Str -> Pdf.Error
+accessibility_language = |path| {
+	requirement : KernelPdfUa2.Requirement
+	requirement = DocumentLanguage
+	clause = KernelPdfUa2.clause(requirement)
+	message = "AccessibleArchive needs a language tag that identifies a specific natural language (${clause})."
+	InvalidDocument({
+		detail_bytes: message.count_utf8_bytes() + path.count_utf8_bytes(),
+		diagnostics: [
+			{
+				clause_references: [clause],
+				code: ProfileRequirementViolated,
+				details: [path],
+				feature: Feature("profile.accessible_archive.language"),
+				location: Document,
+				message,
+				requirement_ids: [KernelPdfUa2.requirement_code(requirement)],
+				stage: AuthoringValidation,
+			},
+		],
+		truncation: Complete,
+	})
 }
 
 accessibility_private_use : Str, U64 -> Pdf.Error
