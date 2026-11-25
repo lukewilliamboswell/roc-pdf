@@ -175,3 +175,43 @@ rejects_private_use = |result, path| match result {
 	Err(InvalidDocument({ diagnostics: [{ feature: Feature("text.unsupported_script"), details: [located], stage: AuthoringValidation, .. }], .. })) => located == path
 	_ => False
 }
+
+# Turn each valid standalone PDF string into one private-use authoring
+# error. The chunked path must reject before returning an encoder.
+expect {
+	drawing = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 20, height: 20 }), color: Color.srgb8({ red: 30, green: 40, blue: 50 }) })
+	make = |suffix| {
+		doc = Pdf.document({
+			contents: [
+				Pdf.destination_heading({ name: "section", level: 1, text: "Section" }),
+				Pdf.rich_paragraph([Pdf.expansion({ text: "ID", expanded: "Identifier" })]),
+				Pdf.figure({ drawing, alt: "Illustration", caption: Pdf.no_caption }),
+			],
+			language: "en-AU",
+			title: "Readable strings",
+		})
+		doc
+			.with_outline([{ depth: 0, destination: "section", open: True, title: "Section${suffix}" }])
+			.with_page_labels([{ prefix: "S-", start_number: 1, start_page: 0, style: DecimalArabic }])
+	}
+	suffix = "\u(E000)"
+	base = make("")
+	label = base.with_page_labels([{ prefix: "S-${suffix}", start_number: 1, start_page: 0, style: DecimalArabic }])
+	expanded = Pdf.document({ contents: [Pdf.rich_paragraph([Pdf.expansion({ text: "ID", expanded: "Identifier${suffix}" })])], language: "en-AU", title: "Expanded text" })
+	figure = Pdf.document({ contents: [Pdf.figure({ drawing, alt: "Illustration${suffix}", caption: Pdf.no_caption })], language: "en-AU", title: "Illustration" })
+	cases = [(make(suffix), "outline[0].title"), (label, "page_labels[0].prefix"), (expanded, "contents[0].inlines[0]"), (figure, "contents[0]")]
+	options = Pdf.Options.{ profile: AccessibleArchive }
+	Pdf.to_bytes_with(base, options).is_ok() and cases.all(
+		|(doc, path)| {
+			Pdf.to_bytes_with(doc, { profile: Archive }).is_ok()
+				and rejects_readable_string(Pdf.to_bytes_with(doc, options), path)
+				and rejects_readable_string(Pdf.to_chunks_with(doc, options), path)
+		},
+	)
+}
+
+rejects_readable_string : Try(a, Pdf.Error), Str -> Bool
+rejects_readable_string = |result, path| match result {
+	Err(InvalidDocument({ diagnostics: [{ code: ProfileRequirementViolated, feature: Feature("profile.accessible_archive.private_use_text"), details: [located], stage: AuthoringValidation, .. }], .. })) => located == path
+	_ => False
+}

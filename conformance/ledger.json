@@ -3429,19 +3429,21 @@
         "PdfUa2",
         "WtpdfAccessibility"
       ],
-      "implementation": "partial",
+      "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "Existing archive checks cover ActualText. Extend the applicable negative controls to semantic descriptions, metadata, outline titles, annotation text and page-label prefixes. The outline-title-pua control isolates a human-readable outline string.",
+      "machine_verification": "Public controls inject private-use characters separately into an outline title, page-label prefix, expansion, and figure alternative. Archive accepts each document. AccessibleArchive rejects each supplied field with its located diagnostic before producing bytes or a chunk encoder. Pinned emitted-file controls exercise outline text, Alt and ActualText independently. Link annotation descriptions are unavailable in the facade. XML XMP content is governed by separately recorded metadata rules.",
       "human_verification": "Confirm each readable string conveys the intended information.",
       "positive_scenarios": [
         "scripts/check_accessible_archive.py",
         "scripts/check_metadata.py",
-        "scripts/check_page_labels.py"
+        "scripts/check_page_labels.py",
+        "tests/contracts/pdf_facade.roc"
       ],
       "negative_scenarios": [
         "package/KernelPdfA4.roc",
         "package/Pdf.roc",
-        "scripts/check_accessible_archive.py"
+        "scripts/check_accessible_archive.py",
+        "tests/contracts/pdf_facade.roc"
       ],
       "external_rule_ids": [
         "verapdf-pdfua2:8.6-1",
