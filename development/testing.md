@@ -169,6 +169,48 @@ reference. The ledger must map every rule of the pinned profile
 (`conformance/verapdf-pdfa4-rules.json`, extracted from the vendored
 installer) exactly once; `scripts/check_contracts.py` enforces this.
 
+## Designing correctness oracles
+
+1. **Start with a stage contract.** Identify the facts a production stage
+   accepts, what it promises its callers, and which inputs it must reject.
+   Exercise the entry point that owns that promise. For a kernel check, use
+   inputs that an earlier stage can produce, with deliberate malformed inputs
+   for rejection cases. If the contract includes facade lowering, drive it
+   through the facade.
+2. **Derive the expected result from the input.** Use the simplest
+   specification that answers the same question. The first-page model lists
+   fitting legal cuts and ranks them by preference, independently of the
+   production cursor and bit scores. Compare facts the caller consumes, such
+   as the chosen row prefix and ordered relaxations, or the diagnostic and
+   its fields. Exact observations can distinguish two plausible outputs that
+   both satisfy a weaker invariant.
+3. **Match the tool to the domain.** Use Model to exhaust small histories
+   whose transitions matter. Record the action and depth bounds, check
+   exhaustion and meaningful goals, and ensure the state key preserves all
+   facts needed by later actions and observations. Use Solve for an integer
+   law over a wider domain. State the domain and preconditions, use the
+   production arithmetic terms where practical, and feed a boundary value or
+   solver witness through the actual caller. The dense-span proof exercises
+   scene planning with both a wrapped endpoint and a legitimate empty range.
+   Use Fuzz for broader or less structured inputs. Seed it with inputs
+   that reach valid output and, where the property checks failures, inputs
+   that trigger structured errors in the tested code. Fixtures cover
+   full-path integration, emitted bytes, and allocation and work evidence.
+4. **Try a discriminating negative control.** In a scratch copy, change
+   one decision the oracle is meant to catch and check that it compiles and
+   fails on the intended observation. Removing the heading keep penalty
+   from an orphan split, for example, changes the first-page cut and its
+   relaxation list. Discard the temporary mutation after the check. When a
+   check finds a production bug, keep the minimized case as an ordinary
+   regression.
+5. **Name the limits and stop at the contract.** A bounded result applies to
+   the explored domain. Record what it leaves to other evidence, such as
+   continuation geometry, caller validation, or external conformance. Stop
+   expanding the model when it reaches the intended interactions and
+   distinguishes the outcomes. If a plausible failure escapes the model,
+   check whether existing independent evidence catches it. Add a case when
+   that leaves a gap in the contract.
+
 ## State models and arithmetic proofs
 
 `./scripts/test.py` runs the roc-fuzz Model and Solve checks as ordinary
@@ -199,8 +241,6 @@ A concrete maximum-value check exercises the emitter's U64 helpers.
 | Stream sealing | The [stream-pair model](performance/sealed-plan.md#bounded-stream-pair-model) compares builder histories with a ledger of ownership, object order, references, and last payload use. |
 | Page-tree child spans | `fuzz/page_tree_arithmetic.roc` proves that one level's fixed-fanout partition covers every child exactly once through the structural page cap. It uses the scalar terms from production, then walks concrete shapes at fanout boundaries and the cap to check dense offsets. |
 | Dense-store spans | `fuzz/dense_span_arithmetic.roc` proves endpoint validation across all U64 inputs and checks the concrete helper against U128 addition. It then uses a solver-produced wraparound witness to test the actual scene planner and its diagnostic, alongside a valid empty range. |
-
-Use exhaustive Model exploration when transition order matters and the authored world is small enough to enumerate. Use Solve on the scalar domain when integer boundaries are too numerous to enumerate. Shared arithmetic terms connect the proof to the implementation, while concrete cases check that callers enforce the proof's domain and use the result. Existing scale fixtures measure the full path, and the fuzz campaigns exercise larger and less structured inputs for their registered properties.
 
 ## Property fuzz targets
 

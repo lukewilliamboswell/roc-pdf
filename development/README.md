@@ -6,7 +6,7 @@ examples, start with the [user manual](../docs/README.md).
 - [Architecture](../architecture.md): enduring package and compiler-stage contracts.
 - [Feature roadmap](../feature-roadmap.md): capability boundaries and acceptance requirements.
 - [Implementation contracts](implementation-contracts.md): binding representation and harness details.
-- [Testing](testing.md): focused tests, snapshot review, exact allocation/work baselines and validators.
+- [Testing](testing.md) covers correctness oracles, focused tests, snapshot review, exact allocation and work baselines, and validators.
 - [Blueprint setup](blueprint.md): declared tools and test, fuzz, gallery, bundle and docs tasks.
 - [Property fuzzing](../fuzz/README.md): bounded searches, reports, witnesses and explicit baseline review.
 - [Reference documents](reference-documents.md): invoice, report and letter fixture contracts.
