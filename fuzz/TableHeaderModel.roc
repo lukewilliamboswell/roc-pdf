@@ -142,18 +142,14 @@ agrees = |rows, sections| {
 	authoring = Document.normalize(Document.from_blocks({ contents: [table], language: "en-AU", title: "Table header associations" }))
 	plan = match KernelFacadeSemantics.Plan.build(authoring, limits) {
 		Ok(value) => value
-		Err(error) => {
-			dbg "authored table failed semantic planning: ${Str.inspect(error)}"
-			return False
-		}
+		Err(error) => crash "table ${Str.inspect(sections)} ${Str.inspect(rows)} failed semantic planning: ${Str.inspect(error)}"
 	}
 	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(plan)))
 	cells = rectangles(rows)
 	headers = cells.map(|cell| expected_headers(cells, cell))
 	nodes = store.nodes.keep_if(|node| node.role.local_name == "TH" or node.role.local_name == "TD")
 	if nodes.len() != cells.len() {
-		dbg "wrong number of semantic cells"
-		return False
+		crash "wrong number of semantic cells for ${Str.inspect(sections)} ${Str.inspect(rows)}"
 	}
 	for cell in cells {
 		node = nodes.get(cell.id) ?? crash "missing planned cell"
@@ -162,8 +158,7 @@ agrees = |rows, sections| {
 		required = cell_attributes(cell.cell, linked)
 		role = if (cell.cell.role == Data) "TD" else "TH"
 		if node.role.local_name != role or node.element_identifier != HasElementIdentifier(Semantics.ElementId.from_index(cell.id)) or attributes.len() != required.len() or !required.all(|attribute| attributes.contains(attribute)) {
-			dbg "cell ${identifier(cell.id)} expects ${Str.inspect(required)}, found ${Str.inspect(attributes)}"
-			return False
+			crash "cell ${identifier(cell.id)} in ${Str.inspect(sections)} ${Str.inspect(rows)} expects ${Str.inspect(required)}, found ${Str.inspect(attributes)}"
 		}
 	}
 	relations = headers.map_with_index(|linked, cell| linked.map(|header|

@@ -96,7 +96,7 @@ cells in a row and describe optional processor lookup when a cell omits
 `Headers`. §14.8.5.7 and Table 384 define Table-owned `Scope` on `TH` and
 `Headers` as a byte-string array on `TH` or `TD`. The facade's explicit
 association order and target selection follow the policy above.
-[EC3 table structure types](https://pdf-issues.pdfa.org/32000-2-2020/clause14.html#148483-table-structure-types),
+[EC3 table structure types](https://pdf-issues.pdfa.org/32000-2-2020/clause14.html#H14.8.4.8.3),
 [PDF Association structure attribute reference](https://pdfa.org/download-area/cheat-sheets/StructureAttributes.pdf).
 
 `fuzz/TableHeaderModel.roc` enumerates three-column, three-row authored grids
