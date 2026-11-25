@@ -129,25 +129,17 @@ agrees = |world, ending, body| {
 	expected = partition(world, ending, body)
 	choice = match Pagination.Choice.build(blocks, [], rows, constraints, WithTemplate(template), scopes, [], limits) {
 		Ok(value) => value
-		Err(error) => {
-			dbg "Choice build failed for ${Str.inspect(body)}: ${Str.inspect(error)}"
-			return False
-		}
+		Err(error) => crash "Choice build failed for ${Str.inspect(body)} in ${Str.inspect(world)}: ${Str.inspect(error)}"
 	}
 	if !choice_matches(choice, expected) {
-		dbg "Choice projection differs for ${Str.inspect(body)}"
-		return False
+		crash "Choice projection differs for ${Str.inspect(body)} in ${Str.inspect(world)}"
 	}
 	plan = match Pagination.Plan.build_with_scopes(blocks, [], lines, constraints, template, scopes, limits) {
 		Ok(value) => value
-		Err(error) => {
-			dbg "Plan build failed for ${Str.inspect(body)}: ${Str.inspect(error)}"
-			return False
-		}
+		Err(error) => crash "Plan build failed for ${Str.inspect(body)} in ${Str.inspect(world)}: ${Str.inspect(error)}"
 	}
 	if !plan_matches(plan, expected, body) {
-		dbg "Plan projection differs for ${Str.inspect(body)}"
-		return False
+		crash "Plan projection differs for ${Str.inspect(body)} in ${Str.inspect(world)}"
 	}
 	True
 }
