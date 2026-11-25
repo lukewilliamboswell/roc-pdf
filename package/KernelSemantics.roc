@@ -1,4 +1,5 @@
 import KernelLex
+import KernelSpan
 import Semantics
 
 KernelSemantics :: [].{
@@ -37,6 +38,11 @@ KernelSemantics :: [].{
 		InvalidPdf20Namespace,
 		InvalidRelationship({ relationship : U64 }),
 		LimitExceeded({ attempted : U64, dimension : Dimension, limit : U64 }),
+
+		## The heading conflicts with the family already used in its nearest
+		## Document or DocumentFragment. Both indexes identify semantic nodes.
+		MixedHeadingFamilies({ node : U64, scope : U64 }),
+
 		NonDenseIdentity({ actual : U64, expected : U64, kind : IndexKind }),
 		Orphaned({ index : U64, kind : IndexKind }),
 		SpanOutOfRange({ available : U64, kind : IndexKind, length : U64, owner : U64, start : U64 }),
@@ -139,7 +145,10 @@ KernelSemantics :: [].{
 
 ## `language_owner` is the nearest ancestor with an explicit language, or
 ## `U64.highest` when the node inherits only the document default.
-NodeFrame := { depth : U64, language_owner : U64, node : Semantics.NodeId, role : U64 }
+## The heading scope is the nearest Document or DocumentFragment.
+## Both role codes fit in one byte, including the unknown-role sentinel.
+## A Part also limits the effective row across later Div wrappers.
+NodeFrame := { containment_role : U8, heading_scope : Semantics.NodeId, language_owner : U64, node : Semantics.NodeId, role : U8, through_part : Bool }
 
 PendingCaption := [NoPendingCaption, PendingCaption(U64)]
 
@@ -500,10 +509,11 @@ GraphWork : {
 	relationship_visits : U64,
 }
 
-## One breadth-first walk proves reachability, single ownership, depth, role
-## enablement, and every parent/child edge against the ISO/TS 32005 table in
-## O(1) per edge. Element identifiers, typed attributes, and relationships
-## are validated after the walk, once each, in dense-store order.
+## One breadth-first walk proves reachability, single ownership, depth,
+## role enablement, and heading families. It checks each parent/child edge
+## against the ISO/TS 32005 table in O(1). Element identifiers, typed
+## attributes, and relationships are validated after the walk, once each,
+## in dense-store order.
 validate_graph : Semantics.Store, U64, Bool, Bool -> Try(GraphWork, KernelSemantics.Error)
 validate_graph = |store, max_depth, text_allowed, navigation| {
 	if store.nodes.len() == 0 or store.document_root.index() >= store.nodes.len() {
@@ -519,18 +529,29 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 		var $attribute_owners = List.repeat(0, store.attributes.len())
 		var $identifier_owners = List.repeat(0, store.element_identifiers.len())
 		root = list_at(store.nodes, store.document_root.index())
-		var $frames = [NodeFrame.{ depth: 1, language_owner: U64.highest, node: store.document_root, role: role_index(root.role.local_name) }]
+		root_role = role_index(root.role.local_name).to_u8_wrap()
+		var $frames = [NodeFrame.{ containment_role: root_role, heading_scope: store.document_root, language_owner: U64.highest, node: store.document_root, role: root_role, through_part: False }]
 		var $frame_index = 0
 		var $content_visits = 0
 		var $attribute_visits = 0
 		var $containment_edges = 0
 		var $node_visits = 0
-		var $maximum_depth = 0
+		var $depth = 1
+		var $next_layer_start = 1
 		while $frame_index < $frames.len() {
+			# All children of the current layer are queued when its first
+			# successor is reached. They share a depth without storing it per frame.
+			if $frame_index == $next_layer_start {
+				$depth = U64.plus_try($depth, 1) ? |_| ArithmeticOverflow
+				$next_layer_start = $frames.len()
+			}
 			frame = list_at($frames, $frame_index)
+			role = frame.role.to_u64()
+			containment_role = frame.containment_role.to_u64()
+			allowed_roles = containment_row(containment_role).bitwise_and(if (frame.through_part) part_children else U64.highest)
 			node_index = frame.node.index()
-			if frame.depth > max_depth {
-				return Err(LimitExceeded({ attempted: frame.depth, dimension: SemanticDepth, limit: max_depth }))
+			if $depth > max_depth {
+				return Err(LimitExceeded({ attempted: $depth, dimension: SemanticDepth, limit: max_depth }))
 			} else {
 				if list_at($node_owners, node_index) != 0 {
 					return Err(DuplicateOwnership({ index: node_index, kind: NodeIndex }))
@@ -538,14 +559,26 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 					$node_owners = list_set($node_owners, node_index, 1)
 					node = list_at(store.nodes, node_index)
 					is_root = node_index == store.document_root.index()
-					if !role_enabled(frame.role, node.role.namespace.index(), is_root, text_allowed, navigation) {
+					if !role_enabled(role, node.role.namespace.index(), is_root, text_allowed, navigation) {
 						return Err(UnsupportedRole({ node: node_index }))
 					} else if node.text_properties.length() != 0 and !text_allowed {
 						return Err(UnsupportedStoreContent)
 					} else if is_root and node.parent != DocumentRoot {
 						return Err(InvalidDocumentRoot({ node: node_index }))
 					} else {
-						$maximum_depth = U64.max($maximum_depth, frame.depth)
+						# ISO 32000-2 14.8.4.3 requires one heading family per scope.
+						# Each scope is already owned before its descendants enter the queue.
+						# Extra bits in its ownership byte record the first family.
+						if role == role_h or role == role_hn {
+							scope = frame.heading_scope.index()
+							state = list_at($node_owners, scope)
+							family = if (role == role_h) 3 else 5
+							if state == 1 {
+								$node_owners = list_set($node_owners, scope, family)
+							} else if state != family {
+								return Err(MixedHeadingFamilies({ node: node_index, scope }))
+							}
+						}
 						match validate_node_facts(store, node, node_index, is_root, text_allowed, frame.language_owner, $identifier_owners) {
 							Err(error) => {
 								return Err(error)
@@ -577,6 +610,8 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 														match item {
 															AnnotationOccurrence(annotation_id) => if !navigation {
 																return Err(UnsupportedAnnotation({ content: $content_index }))
+															} else if role == role_part or role == role_div {
+																return Err(IllegalContentItem({ content: $content_index, node: node_index }))
 															} else {
 																annotation_index = annotation_id.index()
 																if annotation_index >= $annotation_owners.len() {
@@ -607,7 +642,7 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 																			child_role = role_index(child_node.role.local_name)
 																			child_bit = role_bit(child_role)
 																			$containment_edges = $containment_edges + 1
-																			if child_role != unknown_role and !may_contain(frame.role, child_role) {
+																			if child_role != unknown_role and allowed_roles.bitwise_and(child_bit) == 0 {
 																				return Err(IllegalContainment({ child: child_index, parent: node_index }))
 																			} else if $limited_seen.bitwise_and(child_bit) != 0 {
 																				return Err(DuplicateChildRole({ child: child_index, parent: node_index }))
@@ -617,17 +652,22 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 																						return Err(CaptionPosition({ caption, parent: node_index }))
 																					}
 																					NoPendingCaption => {
-																						$limited_seen = $limited_seen.bitwise_or(at_most_one_children(frame.role).bitwise_and(child_bit))
+																						$limited_seen = $limited_seen.bitwise_or(at_most_one_children(containment_role).bitwise_and(child_bit))
 																						if child_role == role_caption and $child_position > 0 {
 																							$pending_caption = PendingCaption(child_index)
 																						}
 																						$child_position = $child_position + 1
-																						depth = U64.plus_try(frame.depth, 1) ? |_| ArithmeticOverflow
 																						language_owner = match node.language {
 																							Language(_) => node_index
 																							Inherited => frame.language_owner
 																						}
-																						$frames = $frames.append(NodeFrame.{ depth, language_owner, node: child, role: child_role })
+																						# Part and Div inherit the containing element’s rules (ISO 32000-2 Table 365).
+																						compact_role = child_role.to_u8_wrap()
+																						inherits = child_role == role_part or child_role == role_div
+																						child_containment = if (inherits) frame.containment_role else compact_role
+																						through_part = child_role == role_part or (inherits and frame.through_part)
+																						heading_scope = if (child_role == role_document_fragment) child else frame.heading_scope
+																						$frames = $frames.append(NodeFrame.{ containment_role: child_containment, heading_scope, language_owner, node: child, role: compact_role, through_part })
 																					}
 																				}
 																			}
@@ -637,7 +677,7 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 															}
 															ContentOccurrence(occurrence) => {
 																occurrence_index = occurrence.index()
-																if forbids_content_items(frame.role) {
+																if role == role_part or role == role_div or forbids_content_items(role) {
 																	return Err(IllegalContentItem({ content: $content_index, node: node_index }))
 																} else if occurrence_index >= $occurrence_owners.len() {
 																	return Err(IndexOutOfRange({ available: $occurrence_owners.len(), index: occurrence_index, kind: OccurrenceIndex }))
@@ -706,7 +746,7 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 			containment_edges: $containment_edges,
 			content_visits: $content_visits,
 			identifier_visits: store.element_identifiers.len(),
-			max_depth: $maximum_depth,
+			max_depth: $depth,
 			node_visits: $node_visits,
 			relationship_visits,
 		})
@@ -768,25 +808,102 @@ repeats_language = |store, owner, tag| if owner >= store.nodes.len() {
 	}
 }
 
-## `^[A-Za-z]{1,8}(-[A-Za-z0-9]{1,8})*$`: the language-tag shape PDF/UA-2
-## 8.4.4 checks for every structure-element `/Lang` (RFC 3066 syntax).
+# RFC 5646 §2.1 language-tag syntax for structure-element /Lang. The
+# registry and the RFC's separate validity requirements need no lookup here.
+LanguageSubtag : [Primary, Core({ extlangs : U8, script_allowed : Bool }), Variants, ExtensionStart, Extension, PrivateStart, Private, Invalid]
+
 valid_language_tag : Str -> Bool
 valid_language_tag = |tag| {
-	var $subtag = 0
+	var $phase = Primary
 	var $length = 0
-	var $valid = !tag.is_empty()
+	var $letters = 0
+	var $first = 0
 	for byte in Str.iter_utf8(tag) {
 		if byte == 45 {
-			$valid = $valid and $length >= 1 and $length <= 8
-			$subtag = $subtag + 1
+			$phase = next_language_subtag($phase, $length, $letters, $first)
+			if $phase == Invalid {
+				return grandfathered_language_tag(tag)
+			}
 			$length = 0
-		} else if (byte >= 65 and byte <= 90) or (byte >= 97 and byte <= 122) or ($subtag > 0 and byte >= 48 and byte <= 57) {
-			$length = $length + 1
+			$letters = 0
 		} else {
-			$valid = False
+			folded = byte.bitwise_or(32)
+			letter = folded >= 97 and folded <= 122
+			if $length == 8 or (!letter and (byte < 48 or byte > 57)) {
+				return False
+			}
+			if $length == 0 {
+				$first = folded
+			}
+			$length = $length + 1
+			if letter {
+				$letters = $letters + 1
+			}
 		}
 	}
-	$valid and $length >= 1 and $length <= 8
+	match next_language_subtag($phase, $length, $letters, $first) {
+		Core(_) | Variants | Extension | Private => True
+		_ => grandfathered_language_tag(tag)
+	}
+}
+
+next_language_subtag : LanguageSubtag, U8, U8, U8 -> LanguageSubtag
+next_language_subtag = |phase, length, letters, first| {
+	if length == 0 {
+		return Invalid
+	}
+	match phase {
+		Primary => {
+			if length >= 2 and length == letters {
+				Core({ extlangs: if (length <= 3) 3 else 0, script_allowed: True })
+			} else if length == 1 and first == 120 {
+				PrivateStart
+			} else {
+				Invalid
+			}
+		}
+		Core(core) => {
+			if length == 3 and letters == 3 and core.extlangs > 0 {
+				Core({ ..core, extlangs: core.extlangs - 1 })
+			} else if length == 4 and letters == 4 and core.script_allowed {
+				Core({ extlangs: 0, script_allowed: False })
+			} else if (length == 2 and letters == 2) or (length == 3 and letters == 0) {
+				Variants
+			} else {
+				language_variant_or_singleton(length, first)
+			}
+		}
+		Variants => language_variant_or_singleton(length, first)
+		ExtensionStart => if (length >= 2) Extension else Invalid
+		Extension => if (length >= 2) Extension else language_variant_or_singleton(length, first)
+		PrivateStart | Private => Private
+		Invalid => Invalid
+	}
+}
+
+language_variant_or_singleton : U8, U8 -> LanguageSubtag
+language_variant_or_singleton = |length, first| {
+	if length >= 5 or (length == 4 and first >= 48 and first <= 57) {
+		Variants
+	} else if length == 1 {
+		if (first == 120) PrivateStart else ExtensionStart
+	} else {
+		Invalid
+	}
+}
+
+# Only the irregular grandfathered alternatives need a fallback. Their fixed
+# spellings all fit in Roc's inline short string even after ASCII case folding.
+grandfathered_language_tag : Str -> Bool
+grandfathered_language_tag = |tag| {
+	length = tag.count_utf8_bytes()
+	if length < 5 or length > 10 {
+		return False
+	}
+	match tag.with_ascii_lowercased() {
+		"en-gb-oed" | "i-ami" | "i-bnn" | "i-default" | "i-enochian" | "i-hak" | "i-klingon" | "i-lux" | "i-mingo" | "i-navajo" | "i-pwn" | "i-tao" | "i-tay" | "i-tsu" | "sgn-be-fr" | "sgn-be-nl" | "sgn-ch-de" => True
+		_ => False
+	}
 }
 
 ## Element identifiers are dense, non-empty, and stored in strictly
@@ -1162,9 +1279,9 @@ role_index = |name| {
 	} else if name == "Sect" {
 		3
 	} else if name == "Div" {
-		4
+		role_div
 	} else if name == "Part" {
-		2
+		role_part
 	} else if name == "Title" {
 		5
 	} else if name == "Figure" {
@@ -1188,9 +1305,9 @@ role_index = |name| {
 	} else if name == "TFoot" {
 		24
 	} else if name == "DocumentFragment" {
-		1
+		role_document_fragment
 	} else if name == "H" {
-		6
+		role_h
 	} else {
 		unknown_role
 	}
@@ -1198,6 +1315,9 @@ role_index = |name| {
 
 role_document : U64
 role_document = 0
+
+role_document_fragment : U64
+role_document_fragment = 1
 
 role_code : U64
 role_code = 19
@@ -1209,6 +1329,9 @@ role_quote = 20
 ## standard types (namespace 1); every other accepted role is PDF 2.0.
 role_namespace : U64 -> U64
 role_namespace = |role| if (role == role_code or role == role_quote) 1 else 0
+
+role_h : U64
+role_h = 6
 
 role_hn : U64
 role_hn = 7
@@ -1236,6 +1359,19 @@ role_th = 26
 
 role_td : U64
 role_td = 27
+
+role_part : U64
+role_part = 2
+
+role_div : U64
+role_div = 4
+
+## Annex L.2 and ISO/TS 32005 Table 5 list the child roles whose rules a
+## Part can inherit. For the supported subset these are Document,
+## DocumentFragment, Part, Div, Sect, Title, H, Hn, P, L, Lbl, Figure,
+## Caption, Link, Code, and Table.
+part_children : U64
+part_children = 2681855
 
 unknown_role : U64
 unknown_role = 63
@@ -1281,13 +1417,14 @@ containment_row = |parent| match parent {
 	## DocumentFragment: same as Document
 	1 => 2663423
 
-	## Part: every role
+	## Part and Div use contextual rows in validate_graph. These are
+	## the static rows of the pinned veraPDF pairwise profile.
 	2 => 268435455
 
 	## Sect: DocumentFragment, Part, Sect, Div, Title, H, Hn, P, L, Lbl, Figure, Caption, Link, Code, Table
 	3 => 2681854
 
-	## Div: every role
+	## Div: all supported roles are listed conditionally in Table 5.
 	4 => 268435455
 
 	## Title: Part, Div, P, L, Lbl, Figure, Caption, Link, Span, Em, Strong, Code, Quote, Table
@@ -1449,10 +1586,9 @@ validate_span : Semantics.IndexRange, U64, KernelSemantics.IndexKind, U64 -> Try
 validate_span = |range, available, kind, owner| {
 	start = range.start()
 	length = range.length()
-	if start > available or length > available - start {
-		Err(SpanOutOfRange({ available, kind, length, owner, start }))
-	} else {
-		Ok({ end: start + length, start })
+	match KernelSpan.end_within(start, length, available) {
+		Ok(ending) => Ok({ end: ending, start })
+		Err(Outside) => Err(SpanOutOfRange({ available, kind, length, owner, start }))
 	}
 }
 
@@ -1690,6 +1826,20 @@ expect {
 	KernelSemantics.Plan.work(plan).annotation_visits == 2 and rejected
 }
 
+# Annex L also excludes object reference content items directly in Part and Div.
+expect ["Part", "Div"].all(
+	|local_name| {
+		node = list_at(navigation_store.nodes, 1)
+		nodes = list_set(navigation_store.nodes, 1, { ..node, role: { ..node.role, local_name } })
+		content_spine = [ChildNode(Semantics.NodeId.from_index(1)), ContextualArtifact(Semantics.ContextualArtifactId.from_index(0)), AnnotationOccurrence(Semantics.AnnotationId.from_index(0)), ContentOccurrence(Semantics.OccurrenceId.from_index(0)), ContentOccurrence(Semantics.OccurrenceId.from_index(1))]
+		bad = { ..navigation_store, nodes, content_spine }
+		match KernelSemantics.Plan.build_text_navigation(bad, [], 1, 1, navigation_limits) {
+			Err(IllegalContentItem({ content: 2, node: 1 })) => True
+			_ => False
+		}
+	},
+)
+
 # The Link role is accepted only when navigation is enabled.
 expect {
 	link_node = list_at(navigation_store.nodes, 1)
@@ -1926,11 +2076,10 @@ expect {
 	}
 }
 
-# Document, Sect, L, LI, Table, and row groups cannot own content items.
+# Document, Part, Div, Sect, L, LI, Table, and row groups cannot own content items.
 expect {
 	sect = shaped_store([{ parent: 0, role: "Document" }, { parent: 0, role: "Sect" }], 1)
 	item = shaped_store([{ parent: 0, role: "Document" }, { parent: 0, role: "L" }, { parent: 1, role: "LI" }], 2)
-	part = shaped_store([{ parent: 0, role: "Document" }, { parent: 0, role: "Part" }], 1)
 	sect_rejected = match build_shaped(sect) {
 		Err(IllegalContentItem({ content: 1, node: 1 })) => True
 		_ => False
@@ -1939,11 +2088,16 @@ expect {
 		Err(IllegalContentItem({ content: 2, node: 2 })) => True
 		_ => False
 	}
-	part_accepted = match build_shaped(part) {
-		Ok(_) => True
-		Err(_) => False
-	}
-	sect_rejected and item_rejected and part_accepted
+	groupings_rejected = ["Part", "Div"].all(
+		|role| {
+			grouping = shaped_store([{ parent: 0, role: "Document" }, { parent: 0, role }], 1)
+			match build_shaped(grouping) {
+				Err(IllegalContentItem({ content: 1, node: 1 })) => True
+				_ => False
+			}
+		},
+	)
+	sect_rejected and item_rejected and groupings_rejected
 }
 
 # At-most-one child rules and the first-or-last Caption rule.
@@ -2120,6 +2274,13 @@ expect {
 	language and accepted and phoneme and twice and valid_language_tag("en-AU") and valid_language_tag("zh-Hant-TW") and !valid_language_tag("en--AU") and !valid_language_tag("1en") and !valid_language_tag("toolongtag")
 }
 
+# RFC 5646 subtag order, field boundaries, and grandfathered alternatives.
+expect {
+	good = ["en", "es-419", "de-CH-1901", "sl-rozaj-biske-1994", "abcd-Latn", "abcdefgh", "zh-cmn-Hans-CN", "zh-cmn-hak-nan-Hant-TW", "en-a-foo-u-nu-latn-x-note", "en-0-12", "x-1", "de-DE-x-phonebk", "en-GB-oed", "I-ENOCHIAN", "SGN-be-fr", "zh-min-nan"]
+	bad = ["", "a", "en-12", "en-1a23-CH", "en-US-Latn", "en-Latn-Cyrl", "en-US-GB", "zh-cmn-hak-nan-wuu", "abcd-cmn", "abcdef-cmn", "en-a", "en-a-x-p", "en-x", "en-u-ab-x", "x", "x-ab--c", "en-abcdefghi", "en-À", "en-GB-oed-extra", "i-klingon-extra"]
+	good.all(valid_language_tag) and bad.all(|tag| !valid_language_tag(tag))
+}
+
 # A language repeated from the nearest explicit ancestor is inherited and
 # needs no second check; a differing nested language is validated.
 expect {
@@ -2161,4 +2322,15 @@ expect {
 		_ => False
 	}
 	missing and orphan
+}
+
+# A mixed grouping chain inherits the ancestor's direct-child cardinality.
+expect {
+	single = [{ parent: 0, role: "Document" }, { parent: 0, role: "Part" }, { parent: 1, role: "Div" }, { parent: 2, role: "H" }]
+	plan = build_shaped(shaped_store(single, 3))?
+	KernelSemantics.Plan.work(plan).containment_edges == 3 and
+		match build_shaped(shaped_store(single.append({ parent: 2, role: "H" }), 3)) {
+			Err(DuplicateChildRole({ child: 4, parent: 2 })) => True
+			_ => False
+		}
 }

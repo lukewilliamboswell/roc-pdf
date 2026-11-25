@@ -1,12 +1,15 @@
 import pdf.KernelEmit
 import pdf.KernelFont
+import pdf.KernelFontLeaf
 import pdf.KernelFontPlan
 import pdf.KernelFontSubset
+import pdf.KernelLex
 import pdf.KernelObject
 import pdf.KernelPdfFont
 import pdf.KernelSeal
 import pdf.KernelStructure
 import "../../package/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
+import "../../examples/business-report/fonts/SourceSans3-Regular.ttf" as source_sans_bytes : List(U8)
 
 Fixture :: [].{
 	font_objects : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
@@ -191,4 +194,113 @@ list_at = |items, index| match items.get(index) {
 		crash "text-layout PDF font evidence index escaped"
 	}
 	Ok(value) => value
+}
+
+# The per-destination limit counts decoded UTF-16BE bytes. The combined
+# CMap is longer than 512 bytes even when each destination is in range.
+expect {
+	font = inspect_font({})?
+	plan = sample_font_plan(font)?
+	subset = KernelFontSubset.build(font, plan)?
+	limits = KernelPdfFont.Limits.make({ max_to_unicode_bytes: 4096, max_unicode_mappings: 8, max_unicode_scalars: 1024 })
+	mappings = [{ cid: 1, scalars: List.repeat(0x0041, 256) }, { cid: 3, scalars: List.repeat(0x1f600, 128) }]
+	leaf = KernelFontLeaf.Leaf.build({ font, plan, subset, descriptor, mappings })?
+	pdf_font = KernelPdfFont.Plan.build(KernelObject.init(object_limits), font, plan, subset, descriptor, mappings, limits)?
+	store = KernelSeal.Plan.store(KernelSeal.seal(KernelPdfFont.Plan.builder(pdf_font))?)
+	stream = store.streams.keep_if(|item| item.object == KernelPdfFont.Plan.objects(pdf_font).to_unicode).first()?
+	cmap = list_at(store.payloads, stream.source.index()).bytes
+	bmp = List.repeat(Str.to_utf8("0041"), 256).join()
+	supplementary = List.repeat(Str.to_utf8("D83DDE00"), 128).join()
+	KernelFontLeaf.Leaf.work(leaf).mapping_scalars == 384 and
+		contains_bytes(cmap, [Str.to_utf8("2 beginbfchar\n<0001> <"), bmp, Str.to_utf8(">\n<0003> <"), supplementary, Str.to_utf8(">\nendbfchar\n")].join())
+}
+
+expect {
+	font = inspect_font({})?
+	plan = sample_font_plan(font)?
+	subset = KernelFontSubset.build(font, plan)?
+	limits = KernelPdfFont.Limits.make({ max_to_unicode_bytes: 4096, max_unicode_mappings: 8, max_unicode_scalars: 1024 })
+	[
+		{ attempted: 514, scalars: List.repeat(0x1f600, 128).append(0x0041) },
+		{ attempted: 516, scalars: List.repeat(0x1f600, 129) },
+	].all(
+		|boundary| {
+			mappings = [{ cid: 1, scalars: [0x0041] }, { cid: 3, scalars: boundary.scalars }]
+			bundle = { font, plan, subset, descriptor, mappings }
+			match (KernelFontLeaf.Leaf.build(bundle), KernelPdfFont.Plan.build(KernelObject.init(object_limits), font, plan, subset, descriptor, mappings, limits)) {
+				(Err(UnicodeDestinationTooLong({ attempted: leaf, cid: 3, limit: 512 })), Err(UnicodeDestinationTooLong({ attempted: emitted, cid: 3, limit: 512 }))) =>
+					leaf == boundary.attempted and emitted == boundary.attempted
+				_ => False
+			}
+		},
+	)
+}
+
+# 101 two-CID ranges followed by 101 individual mappings require two
+# blocks of each kind. The consecutive source or destination pairs at
+# 00FF/0100 must stay individually mapped when either low byte would carry.
+expect {
+	font = inspect_font({})?
+	var $usages = []
+	var $mappings = []
+	var $cid = 1
+	while $cid <= 303 {
+		scalar = match $cid {
+			255 => 0x0041
+			256 => 0x0042
+			263 => 0x00ff
+			264 => 0x0100
+			_ => if ($cid <= 202) (if ($cid.bitwise_and(1) == 1) 0x0041 else 0x0042) else 0x20ac
+		}
+		$usages = $usages.append({ glyph: $cid })
+		$mappings = $mappings.append({ cid: $cid, scalars: [scalar] })
+		$cid = $cid + 1
+	}
+	plan = KernelFontPlan.plan(font, $usages, KernelFontPlan.Limits.make({ max_retained_glyphs: 512 }))?
+	subset = KernelFontSubset.build(font, plan)?
+	limits = KernelPdfFont.Limits.make({ max_to_unicode_bytes: 8192, max_unicode_mappings: 303, max_unicode_scalars: 303 })
+	builder = KernelObject.init({ ..object_limits, max_array_items: 1024, max_values: 1024 })
+	pdf_font = KernelPdfFont.Plan.build(builder, font, plan, subset, descriptor, $mappings, limits)?
+	store = KernelSeal.Plan.store(KernelSeal.seal(KernelPdfFont.Plan.builder(pdf_font))?)
+	stream = store.streams.keep_if(|item| item.object == KernelPdfFont.Plan.objects(pdf_font).to_unicode).first()?
+	cmap = Str.from_utf8_lossy(list_at(store.payloads, stream.source.index()).bytes)
+	cmap.contains("100 beginbfrange\n<0001> <0002> <0041>\n")
+		and cmap.contains("<00C7> <00C8> <0041>\nendbfrange\n1 beginbfrange\n<00C9> <00CA> <0041>\nendbfrange\n100 beginbfchar\n<00CB> <20AC>\n")
+		and cmap.contains("<00FF> <0041>\n<0100> <0042>\n")
+		and cmap.contains("<0107> <00FF>\n<0108> <0100>\n")
+		and cmap.contains("<012E> <20AC>\nendbfchar\n1 beginbfchar\n<012F> <20AC>\nendbfchar\nendcmap\n")
+}
+
+# Source Sans 3 Regular GID 2477 is a ligature with only an hmtx bearing
+# entry. FontTools reads its inherited advance as 425, versus 653 at GID 0.
+# Both must be explicit widths in the sealed CIDFont, with CID 0 first.
+expect {
+	font = KernelFont.inspect(source_sans_bytes, KernelFont.Limits.make({ max_bytes: 500000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }))?
+	plan = KernelFontPlan.plan(font, [{ glyph: 2477 }], KernelFontPlan.Limits.make({ max_retained_glyphs: 8 }))?
+	subset = KernelFontSubset.build(font, plan)?
+	limits = KernelPdfFont.Limits.make({ max_to_unicode_bytes: 1024, max_unicode_mappings: 1, max_unicode_scalars: 3 })
+	pdf_font = KernelPdfFont.Plan.build(KernelObject.init(object_limits), font, plan, subset, descriptor, [{ cid: 1, scalars: [0x3f, 0x2d, 0x28] }], limits)?
+	store = KernelSeal.Plan.store(KernelSeal.seal(KernelPdfFont.Plan.builder(pdf_font))?)
+	cid_font = KernelObject.ObjectId.number(KernelPdfFont.Plan.objects(pdf_font).cid_font)
+	value_at = |id| list_at(store.values, KernelObject.ValueId.index(id))
+	value = match list_at(store.objects, cid_font - 1).content {
+		Stored(id) => Ok(value_at(id))
+		_ => Err(EvidenceFailure)
+	}?
+	entries = match value {
+		Dictionary(span) => Ok(store.dictionary_entries.sublist({ start: span.start, len: span.length }))
+		_ => Err(EvidenceFailure)
+	}?
+	width_entry = entries.keep_if(|entry| KernelLex.Name.bytes(list_at(store.names, KernelObject.NameId.index(entry.key))) == Str.to_utf8("W")).first()?
+	array_values = |span| store.array_items.sublist({ start: span.start, len: span.length }).map(value_at)
+	match value_at(width_entry.value) {
+		Array(runs) => match array_values(runs) {
+			[Integer(0), Array(widths)] => match array_values(widths) {
+				[Integer(653), Integer(425)] => font.metrics.number_of_h_metrics == 2477
+				_ => False
+			}
+			_ => False
+		}
+		_ => False
+	}
 }

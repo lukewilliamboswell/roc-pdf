@@ -14,6 +14,8 @@ proves the canonical leaf facts of the color-image slice:
   reference resolves to the canonical space object, its Flate payload decodes
   to the exact row-compacted pixels, the alpha plane emits as a ``/DeviceGray``
   soft mask, and the DCT payload is byte-identical to the sanitized JPEG;
+- dimensions, decoded sample mappings, and the absence of a matte preserve
+  the authored pixel and straight-alpha interpretation;
 - deduplicated authored twins resolve to one shared object from page and form
   dictionaries alike, while every stream's direct dictionary stays exact
   (reusing the production-visual form checker's used-equals-declared rule).
@@ -23,16 +25,17 @@ from __future__ import annotations
 import argparse
 import hashlib
 import re
-import zlib
 from pathlib import Path
 
 from check_forms import FormFacts, check_ownership, replace_once
+from check_structure_semantics import Ref, parse_object
 from pdf_layout import mutate as layout_mutate
 from check_pdf_structure import (
     structure_kids,
     decode_stream,
     ValidationError,
     dictionary_ref,
+    decode_flate,
     indirect_length,
     object_slices,
     require,
@@ -82,10 +85,7 @@ def raw_stream(bodies: dict[int, bytes], number: int) -> tuple[bytes, bytes]:
 def flate_payload(bodies: dict[int, bytes], number: int) -> bytes:
     dictionary, encoded = raw_stream(bodies, number)
     require(b"/Filter /FlateDecode" in dictionary, f"object {number} is not FlateDecode")
-    try:
-        return zlib.decompress(encoded)
-    except zlib.error as error:
-        raise ValidationError(f"object {number} has invalid zlib DEFLATE: {error}") from error
+    return decode_flate(encoded, number)
 
 
 class LeafFacts:
@@ -123,11 +123,39 @@ class LeafFacts:
             dictionary = body[:marker]
             if b"/Subtype /Image" not in dictionary:
                 continue
+            properties = parse_object(body)
+            bits = properties.get("BitsPerComponent")
+            require(type(bits) is int and bits == 8, f"image {number}: bit depth is not 8")
+            width, height = properties.get("Width"), properties.get("Height")
+            expected = (1, 1) if properties.get("Filter") == "DCTDecode" else (2, 2)
             require(
-                b"/BitsPerComponent 8" in dictionary,
-                f"image {number}: bit depth is not the declared 8 bits per component",
+                type(width) is int and type(height) is int and (width, height) == expected,
+                f"image {number}: dimensions disagree with the authored sample grid",
             )
-            if b"/ColorSpace /DeviceGray" in dictionary:
+
+            # ISO 32000-2 8.9.5.2 and 11.6.5.2. An explicit default Decode
+            # has the same meaning as omission. Our straight alpha has one
+            # sample per authored pixel, even though PDF permits a different
+            # mask grid for unblended samples.
+            space = properties.get("ColorSpace")
+            is_mask = space == "DeviceGray"
+            is_gray = is_mask or isinstance(space, Ref) and space in self.cal_gray_spaces
+            default_decode = [0, 1] if is_gray else [0, 1] * 3
+            decode = properties.get("Decode")
+            require(
+                decode is None or (
+                    isinstance(decode, list)
+                    and all(type(endpoint) in (int, float) for endpoint in decode)
+                    and decode == default_decode
+                ),
+                f"image {number}: /Decode changes the authored sample mapping",
+            )
+            image_mask = properties.get("ImageMask")
+            require(image_mask is None or image_mask is False, f"image {number}: unexpected stencil mask")
+            require(properties.get("Mask") is None, f"image {number}: unexpected explicit or color-key mask")
+            if is_mask:
+                require(properties.get("Matte") is None, f"image {number}: unexpected /Matte for straight alpha")
+                require(properties.get("SMask") is None, f"image {number}: soft mask has a nested /SMask")
                 self.soft_masks[number] = dictionary
             else:
                 self.images[number] = dictionary
@@ -207,6 +235,7 @@ def validate_color_image_showcase(pdf: bytes, dimensions: dict[str, int]) -> Non
             dct_image = number
         elif b"/SMask" in dictionary:
             require(flate_payload(leaves.bodies, number) == GRAY_PIXELS, f"image {number}: gray plane mismatch")
+            require(dictionary_ref(dictionary, b"ColorSpace") == cal_gray, "gray image lost its calibrated gray space")
             mask = dictionary_ref(dictionary, b"SMask")
             require(mask in leaves.soft_masks, f"image {number}: /SMask does not reference the soft mask")
             require(flate_payload(leaves.bodies, mask) == ALPHA_PIXELS, "soft mask alpha plane mismatch")
@@ -350,6 +379,31 @@ def self_test() -> None:
         except ValidationError:
             continue
         raise SystemExit(f"production-visual color-image checker accepted mutated {label}")
+    leaves = LeafFacts(showcase)
+    mask_dictionary = next(iter(leaves.soft_masks.values()))
+    default_decode = mask_dictionary.replace(b"/Filter ", b"/Decode [0.0 1] /Filter ", 1)
+    validate_color_image_showcase(
+        layout_mutate(showcase, mask_dictionary, default_decode, occurrences=1, scope="objects"),
+        SHOWCASE_DIMENSIONS,
+    )
+    gray_dictionary = next(dictionary for dictionary in leaves.images.values() if b"/SMask " in dictionary)
+    gray_space = f"/ColorSpace {next(iter(leaves.cal_gray_spaces))} 0 R".encode()
+    rgb_space = f"/ColorSpace {next(iter(leaves.icc_spaces))} 0 R".encode()
+    for dictionary, original, replacement, expected in (
+        (mask_dictionary, b"/Height 2", b"/Height 1", "dimensions disagree with the authored sample grid"),
+        (mask_dictionary, b"/Filter ", b"/Decode [1 0] /Filter ", "/Decode changes the authored sample mapping"),
+        # All authored alpha samples are 0 or 255, so this false pre-blend
+        # assertion is invisible in the showcase's rendered pixels.
+        (mask_dictionary, b"/Subtype ", b"/Matte [0] /Subtype ", "unexpected /Matte"),
+        (gray_dictionary, gray_space, rgb_space, "gray image lost its calibrated gray space"),
+    ):
+        twin = layout_mutate(showcase, dictionary, dictionary.replace(original, replacement, 1), occurrences=1, scope="objects")
+        try:
+            validate_color_image_showcase(twin, SHOWCASE_DIMENSIONS)
+        except ValidationError as error:
+            require(expected in str(error), "mutated soft-mask dictionary rejected for a different reason")
+        else:
+            raise SystemExit(f"production-visual color-image checker missed {expected}")
     print("PASS production-visual color-image structural checker self-test")
 
 

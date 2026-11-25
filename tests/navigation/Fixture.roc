@@ -8,11 +8,14 @@ import pdf.KernelObjectPlan
 import pdf.KernelFormObjects
 import pdf.KernelFormStructure
 import pdf.KernelImage
+import pdf.KernelLex
 import pdf.KernelNavigation
 import pdf.KernelObject
 import pdf.KernelPdfFont
 import pdf.KernelResourceUse
 import pdf.KernelScene
+import pdf.KernelSeal
+import pdf.KernelSrgbProfile
 import pdf.KernelSemantics
 import pdf.KernelStructure
 import pdf.KernelTagged
@@ -499,7 +502,10 @@ no_images = |colors| {
 ## graph runs as closure uses, and the structure builder resolves the paired
 ## destination targets and lowers every navigation object.
 run_pipeline : Scenario, U64 -> Try(Built, BuildFailure)
-run_pipeline = |input, guard| {
+run_pipeline = |input, guard| run_pipeline_with_blending(input, guard, False)
+
+run_pipeline_with_blending : Scenario, U64, Bool -> Try(Built, BuildFailure)
+run_pipeline_with_blending = |input, guard, include_blending| {
 	stores = input.stores
 	semantic = KernelSemantics.Plan.build_navigation(stores.semantics, stores.scene.pages.len(), stores.scene.pages.len(), semantic_limits(stores.semantics)) ? SemanticFailure
 	navigation = KernelNavigation.validate(
@@ -526,20 +532,28 @@ run_pipeline = |input, guard| {
 		$appearance_scan = $appearance_scan + 1
 	}
 	resources = KernelScene.Resources.with_forms({
-		color_spaces: 1,
+		color_spaces: if (include_blending) 2 else 1,
 		forms: input.forms.forms.len(),
 		images: 0,
 		text_runs: 0,
 	})
 	paint_scene = KernelScene.PaintPlan.build(stores.scene, input.forms, Scene.no_shadings, Scene.no_patterns, resources, scene_limits, form_scene_limits, paint_limits) ? FormSceneFailure
-	colors = KernelColor.Plan.build(evidence_colors, KernelColor.Limits.make({ max_icc_bytes: 0, max_profiles: 0, max_spaces: 1, max_tags: 0 })) ? ColorFailure
+	colors = if include_blending {
+		KernelColor.Plan.build(blending_colors, KernelColor.Limits.make({ max_icc_bytes: KernelSrgbProfile.byte_count, max_profiles: 1, max_spaces: 2, max_tags: KernelSrgbProfile.tag_count })) ? ColorFailure
+	} else {
+		KernelColor.Plan.build(evidence_colors, KernelColor.Limits.make({ max_icc_bytes: 0, max_profiles: 0, max_spaces: 1, max_tags: 0 })) ? ColorFailure
+	}
 	images = no_images(colors)?
 	facts = KernelForm.Facts.build_with_navigation(paint_scene, { colors, font_count: 0, images }, NoTextStore, $appearances, graph_limits) ? FactsFailure
 	form_scene = KernelScene.PaintPlan.forms(paint_scene)
 	tagged = KernelTagged.Plan.build(semantic, KernelScene.FormPlan.page(form_scene)) ? TaggedFailure
 	form_plan = KernelForm.Plan.build_with_paints(paint_scene, facts, { colors, fonts: [], images }, NoText, tagged, graph_limits) ? FormPlanFailure
 	content = KernelContent.Plan.build_with_forms(tagged, form_context(form_plan, input.forms), content_limits) ? ContentFailure
-	resource_use = KernelResourceUse.TextPlan.build_with_forms(form_scene, colors, images) ? ResourceUseFailure
+	resource_use = if include_blending {
+		KernelResourceUse.TextPlan.build_with_forms_and_blending(form_scene, colors, images, KernelForm.Facts.blending(facts)) ? ResourceUseFailure
+	} else {
+		KernelResourceUse.TextPlan.build_with_forms(form_scene, colors, images) ? ResourceUseFailure
+	}
 	leaf_counts = KernelForm.Plan.canonical_leaf_counts(form_plan)
 	base = KernelObjectPlan.Plan.build_canonical(tagged, colors, images, resource_use, content, { color_spaces: leaf_counts.color_spaces, image_alpha: KernelForm.Plan.canonical_image_alpha(form_plan), profiles: leaf_counts.profiles }, KernelObjectPlan.Limits.make({ max_objects: 8192, max_pages: 128 })) ? ObjectFailure
 	objects = KernelFormObjects.Plan.build_with_states(base, KernelForm.Plan.canonical_form_count(form_plan), KernelForm.Plan.canonical_state_count(form_plan), 0, 8192) ? FormObjectFailure
@@ -1351,4 +1365,180 @@ expect match Fixture.scenario("labels", 4) {
 expect match Fixture.atomic_negatives(1) {
 	Ok(result) => list_at(result.work, 0) == 32
 	Err(_) => False
+}
+
+# The only alpha on the page belongs to an annotation appearance. Without a
+# declared blending space the pipeline must stop before emission.
+transparent_appearance : {} -> Scenario
+transparent_appearance = |_| {
+	input = appearance_scenario(1)
+	form = list_at(input.forms.forms, 0)
+	drawing = list_at(input.forms.commands, 0)
+	alpha = Opacity({ opacity: 32768, children: Semantics.IndexRange.from_start_and_length({ start: 1, length: 1 }) })
+	{ ..input, forms: { forms: [form], commands: [alpha, drawing] } }
+}
+
+expect match run_pipeline(transparent_appearance({}), 0) {
+	Err(FactsFailure(MissingBlendingSpace({ page: 0 }))) => True
+	_ => False
+}
+
+dictionary_item : KernelObject.Store, KernelObject.Span, Str -> [MissingKey, Present(KernelObject.Value)]
+dictionary_item = |store, range, key| {
+	key_bytes = Str.to_utf8(key)
+	var $offset = range.start
+	while $offset < range.start + range.length {
+		entry = list_at(store.dictionary_entries, $offset)
+		if KernelLex.Name.bytes(list_at(store.names, entry.key.index())) == key_bytes {
+			return Present(list_at(store.values, entry.value.index()))
+		}
+		$offset = $offset + 1
+	}
+	MissingKey
+}
+
+blending_colors : Color.Store
+blending_colors = {
+	profiles: [KernelSrgbProfile.profile(0, 0)],
+	spaces: evidence_colors.spaces.append({ id: Color.SpaceId.from_index(1), space: Srgb(Color.ProfileId.from_index(0)) }),
+	tags: KernelSrgbProfile.tags,
+}
+
+expect {
+	built = run_pipeline_with_blending(transparent_appearance({}), 0, True)?
+	sealed = KernelStructure.Plan.sealed(KernelFormStructure.Plan.structure(built.structure))
+	store = KernelSeal.Plan.store(sealed)
+	pages = store.objects.keep_if(
+		|object| match object.content {
+			Stored(id) => match list_at(store.values, id.index()) {
+				Dictionary(dictionary) => match dictionary_item(store, dictionary, "Type") {
+					Present(Name(name)) => KernelLex.Name.bytes(list_at(store.names, name.index())) == Str.to_utf8("Page")
+					_ => False
+				}
+				_ => False
+			}
+			_ => False
+		},
+	)
+	page = pages.first()?
+	has_group = match page.content {
+		Stored(id) => match list_at(store.values, id.index()) {
+			Dictionary(dictionary) => match dictionary_item(store, dictionary, "Group") {
+				Present(Dictionary(group)) => match (dictionary_item(store, group, "S"), dictionary_item(store, group, "CS")) {
+					(Present(Name(kind)), Present(Reference(_))) => KernelLex.Name.bytes(list_at(store.names, kind.index())) == Str.to_utf8("Transparency")
+					_ => False
+				}
+				_ => False
+			}
+			_ => False
+		}
+		_ => False
+	}
+	pages.len() == 1 and has_group and built.bytes.len() > 0 and
+		KernelForm.Plan.page_transparency(built.form_plan) == [True] and
+			KernelForm.Plan.canonical_state_count(built.form_plan) == 1 and KernelForm.Plan.page_dictionary(built.form_plan, 0).forms.is_empty()
+}
+
+# Distinguish the anchor's own occurrence from the first page reached
+# through the target structure element's semantic reading order.
+destination_page_pair : U64, U64, [DirectFirst, ChildFirst, AnchorFirst] -> Scenario
+destination_page_pair = |first_page, anchor_page, order| {
+	stores = if order == DirectFirst {
+		build_stores(2, [Paragraph({ pages: [first_page] }), Paragraph({ pages: [anchor_page] })])
+	} else {
+		build_stores(2, [Paragraph({ pages: [anchor_page] }), LinkBlock({ annotations: 1, pages: [first_page] })])
+	}
+	store = stores.semantics
+	root = list_at(store.nodes, 0)
+	paragraph = list_at(store.nodes, 1)
+	first = list_at(stores.block_occurrences, if (order == DirectFirst) 0 else 1)
+	anchor = list_at(stores.block_occurrences, if (order == DirectFirst) 1 else 0)
+	root_node = { ..root, content: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }) }
+	target_node = { ..paragraph, content: Semantics.IndexRange.from_start_and_length({ start: 1, length: 2 }) }
+	semantics = if order == DirectFirst {
+		{
+			..store,
+			nodes: [root_node, target_node],
+			content_spine: [ChildNode(paragraph.id), ContentOccurrence(first), ContentOccurrence(anchor)],
+		}
+	} else {
+		link = make_node(2, ParentNode(paragraph.id), "Link", Semantics.IndexRange.from_start_and_length({ start: 3, length: 2 }))
+		annotation = list_at(store.annotations, 0)
+		ordered_pair = if (order == ChildFirst) [ChildNode(link.id), ContentOccurrence(anchor)] else [ContentOccurrence(anchor), ChildNode(link.id)]
+		{
+			..store,
+			annotations: [{ ..annotation, owner: link.id }],
+			nodes: [root_node, target_node, link],
+			content_spine: [ChildNode(paragraph.id)].concat(ordered_pair).concat([ContentOccurrence(first), AnnotationOccurrence(annotation.id)]),
+		}
+	}
+	destinations = [
+		{ anchor, name: "target", target: paragraph.id },
+		{ anchor, name: "target-alias", target: paragraph.id },
+	]
+	annotations = if (order == DirectFirst) [] else [destination_link_annotation(first_page, 1)]
+	{
+		forms: Scene.no_forms,
+		navigation: { annotations, destinations, outline: [], page_labels: [] },
+		stores: { ..stores, semantics },
+	}
+}
+
+destination_link_annotation : U64, U64 -> KernelNavigation.AnnotationInput
+destination_link_annotation = |page, fragment| {
+	quads = [quad_of(fragment_rect(fragment))]
+	{
+		action: GoToName("target"),
+		appearance: NoAppearance,
+		description: NoDescription,
+		keyboard_order: 0,
+		page: Semantics.PageId.from_index(page),
+		print: True,
+		quads,
+		rect: union_of(quads),
+	}
+}
+
+expect {
+	different = |first, anchor, order| match run_pipeline(destination_page_pair(first, anchor, order), 64) {
+		Err(StructureFailure(Navigation(DestinationPageMismatch(facts)))) => facts == { anchor_page: anchor, destination: 0, structure_page: first }
+		_ => False
+	}
+	same = |first, anchor, order| match run_pipeline(destination_page_pair(first, anchor, order), 64) {
+		Ok(built) => !built.bytes.is_empty()
+		Err(_) => False
+	}
+	different(0, 1, DirectFirst) and different(1, 0, ChildFirst) and same(1, 1, ChildFirst) and same(1, 0, AnchorFirst)
+}
+
+# The first OBJR determines the page even when the element also owns a
+# marked-content anchor. Moving that annotation onto the anchor's page
+# leaves both destination views consistent.
+destination_objr_first : U64 -> Scenario
+destination_objr_first = |annotation_page| {
+	stores = build_stores(2, [LinkBlock({ annotations: 1, pages: [1] }), Paragraph({ pages: [0] })])
+	store = stores.semantics
+	target = list_at(stores.block_nodes, 0)
+	anchor = list_at(stores.block_occurrences, 0)
+	target_node = list_at(store.nodes, target.index())
+	start = target_node.content.start()
+	spine = list_set(list_set(store.content_spine, start, AnnotationOccurrence(Semantics.AnnotationId.from_index(0))), start + 1, ContentOccurrence(anchor))
+	annotation = destination_link_annotation(annotation_page, 0)
+	{
+		forms: Scene.no_forms,
+		navigation: { annotations: [annotation], destinations: [{ anchor, name: "target", target }], outline: [], page_labels: [] },
+		stores: { ..stores, semantics: { ..store, content_spine: spine } },
+	}
+}
+
+expect {
+	rejected = match run_pipeline(destination_objr_first(0), 64) {
+		Err(StructureFailure(Navigation(DestinationPageMismatch({ anchor_page: 1, destination: 0, structure_page: 0 })))) => True
+		_ => False
+	}
+	accepted = match run_pipeline(destination_objr_first(1), 64) {
+		Ok(built) => !built.bytes.is_empty()
+		Err(_) => False
+	}
+	rejected and accepted
 }

@@ -36,8 +36,9 @@ KernelNavigation :: [].{
 	AuthoredAction : [GoToName(Str), Uri(Str)]
 
 	## One axis-aligned quadrilateral in layout units. The emission order of
-	## the eight `/QuadPoints` numbers is pinned by the lowering policy:
-	## top-left, top-right, bottom-left, bottom-right.
+	## the eight `/QuadPoints` numbers follows ISO 32000-2 Table 176.
+	## Vertices are counterclockwise, starting with the left and right ends
+	## of the bottom edge.
 	Quad : {
 		x_left : Layout.Unit,
 		x_right : Layout.Unit,
@@ -224,7 +225,7 @@ KernelNavigation :: [].{
 
 	LabelRange : {
 		prefix : Str,
-		start_number : U64,
+		start_number : I64,
 		start_page : U64,
 		style : Document.PageLabelStyle,
 	}
@@ -281,13 +282,18 @@ KernelNavigation :: [].{
 
 	## Resolve every destination after layout: the anchor occurrence's first
 	## layout fragment supplies the page and geometry, and the occurrence's
-	## owning node must be exactly the destination's semantic target. A
-	## destination whose anchor has no resolvable fragment geometry is
+	## owning node must be exactly the destination's semantic target. The
+	## page found by following that node's semantic reading order must agree
+	## with the explicit anchor page. A destination without fragment geometry is
 	## rejected; an `/SD`-only link cannot be emitted.
 	resolve : Store, Semantics.Store, List(Semantics.NodeId), List(AnchorRect) -> Try({ destinations : List(ResolvedDestination), work : ResolveWork }, Document.NavigationError)
 	resolve = |store, semantics, occurrence_owners, anchor_rects| {
+		if store.annotations.len() != semantics.annotations.len() {
+			return Err(AnnotationCountMismatch({ navigation: store.annotations.len(), semantics: semantics.annotations.len() }))
+		}
 		count = store.destinations.len()
 		var $resolved = List.with_capacity(count)
+		var $first_pages = []
 		var $lookups = 0
 		var $index = 0
 		while $index < count {
@@ -323,6 +329,18 @@ KernelNavigation :: [].{
 			top_raw = I64.plus_try(rect.origin.y.raw(), rect.size.height.raw()) ? |_| InvalidAnchorGeometry({ destination: $index })
 			node = list_at(semantics.nodes, destination.target.index())
 			fragment = list_at(semantics.fragments, fragment_index)
+			# A first spine item equal to the anchor supplies the same first
+			# fragment to both destinations, with no traversal or cache.
+			if node.content.length() == 0 or list_at(semantics.content_spine, node.content.start()) != ContentOccurrence(destination.anchor) {
+				first = first_destination_page(semantics, store, $first_pages, node)
+				$first_pages = first.pages
+				match first.page {
+					FirstPage(page) => if page != fragment.page {
+						return Err(DestinationPageMismatch({ anchor_page: fragment.page.index(), destination: $index, structure_page: page.index() }))
+					}
+					_ => return Err(UnresolvedDestinationAnchor({ destination: $index }))
+				}
+			}
 			$resolved = $resolved.append({
 				left: rect.origin.x,
 				page: fragment.page,
@@ -930,9 +948,15 @@ validate_labels = |inputs, context, limits| {
 			}
 			DecimalArabic | LettersLower | LettersUpper | RomanLower | RomanUpper => {}
 		}
+		# /St is a positive PDF integer. Keep the checked value in the
+		# object writer's signed representation across the stage boundary.
+		limit = I64.highest.to_u64_wrap()
+		if input.start_number > limit {
+			return Err(LabelStartNumberOutOfRange({ attempted: input.start_number, limit, range: $index }))
+		}
 		$ranges = $ranges.append({
 			prefix: input.prefix,
-			start_number: input.start_number,
+			start_number: input.start_number.to_i64_wrap(),
 			start_page: input.start_page,
 			style: input.style,
 		})
@@ -982,7 +1006,7 @@ is_uri_byte = |byte| is_ascii_alpha(byte) or
 ## Appends every element of `source`. `List.concat` sizes its result
 ## exactly, so an accumulator grown by `concat` in a loop was reallocated,
 ## and copied, on every call; `append` grows geometrically
-## (development/performance/emission-linearity.md).
+## (docs/contributors/performance/emission-linearity.md).
 append_all : List(a), List(a) -> List(a)
 append_all = |target, source| {
 	var $out = target
@@ -1008,6 +1032,92 @@ list_set = |items, index, value| match items.set(index, value) {
 	Err(OutOfBounds) => {
 		crash "validated navigation write escaped"
 	}
+}
+
+DestinationPage : [Unseen, ResumeSpine(U64), NoPageContent, FirstPage(Semantics.PageId)]
+
+# ISO 32000-2 12.3.2.3 follows K in semantic order until the first MCR or
+# OBJR. Use the prepared semantic spine that KernelTagged.build_k_order
+# lowers directly to K. A child keeps its position, a content occurrence
+# expands into its normalized fragments, an annotation uses its planned
+# OBJR page, and a contextual artifact lowers to an element without K.
+#
+# Only complex targets need this cache. Each visited node and inspected
+# edge is traversed at most once across those targets. The validated parent
+# pointers and the saved next spine positions replace a separate DFS stack.
+first_destination_page : Semantics.Store, KernelNavigation.Store, List(DestinationPage), Semantics.Node -> { page : DestinationPage, pages : List(DestinationPage) }
+first_destination_page = |semantics, navigation, known, target| {
+	var $pages = known
+	if $pages.is_empty() {
+		$pages = List.repeat(Unseen, semantics.nodes.len())
+	}
+	target_index = target.id.index()
+	match list_at($pages, target_index) {
+		FirstPage(page) => return { page: FirstPage(page), pages: $pages }
+		NoPageContent => return { page: NoPageContent, pages: $pages }
+		_ => {}
+	}
+	var $node = target
+	var $edge = target.content.start()
+	while True {
+		node_index = $node.id.index()
+		if $edge == $node.content.start() + $node.content.length() {
+			$pages = list_set($pages, node_index, NoPageContent)
+			if node_index == target_index {
+				return { page: NoPageContent, pages: $pages }
+			}
+			$node = destination_parent(semantics, $node)
+			$edge = match list_at($pages, $node.id.index()) {
+				ResumeSpine(edge) => edge
+				_ => crash "destination scan lost its parent cursor"
+			}
+		} else {
+			content = list_at(semantics.content_spine, $edge)
+			found = match content {
+				AnnotationOccurrence(annotation) => FirstPage(list_at(navigation.annotations, annotation.index()).page)
+				ContentOccurrence(occurrence) => {
+					fragments = list_at(semantics.occurrences, occurrence.index()).fragments
+					if fragments.length() == 0 {
+						NoPageContent
+					} else {
+						fragment = list_at(semantics.occurrence_fragments, fragments.start())
+						FirstPage(list_at(semantics.fragments, fragment.index()).page)
+					}
+				}
+				ContextualArtifact(_) => NoPageContent
+				ChildNode(child) => list_at($pages, child.index())
+			}
+			match found {
+				FirstPage(page) => {
+					while True {
+						$pages = list_set($pages, $node.id.index(), FirstPage(page))
+						if $node.id.index() == target_index {
+							return { page: FirstPage(page), pages: $pages }
+						}
+						$node = destination_parent(semantics, $node)
+					}
+				}
+				Unseen => {
+					$pages = list_set($pages, node_index, ResumeSpine($edge + 1))
+					$node = match content {
+						ChildNode(child) => list_at(semantics.nodes, child.index())
+						_ => crash "only an unresolved child needs traversal"
+					}
+					$edge = $node.content.start()
+				}
+				NoPageContent => {
+					$edge = $edge + 1
+				}
+				ResumeSpine(_) => crash "validated destination spine revisited an active node"
+			}
+		}
+	}
+}
+
+destination_parent : Semantics.Store, Semantics.Node -> Semantics.Node
+destination_parent = |semantics, node| match node.parent {
+	ParentNode(parent) => list_at(semantics.nodes, parent.index())
+	DocumentRoot => crash "destination scan escaped its target"
 }
 
 test_limits : KernelNavigation.Limits
@@ -1528,18 +1638,30 @@ resolve_occurrence = |index, fragment_start| {
 
 resolve_semantics : Semantics.Store
 resolve_semantics = {
-	annotations: [],
+	annotations: [
+		{ id: Semantics.AnnotationId.from_index(0), logical_order: 0, owner: Semantics.NodeId.from_index(2) },
+		{ id: Semantics.AnnotationId.from_index(1), logical_order: 1, owner: Semantics.NodeId.from_index(2) },
+	],
 	assertions: [],
 	attribute_roles: [],
 	attributes: [],
-	content_spine: [],
+	content_spine: [
+		ChildNode(Semantics.NodeId.from_index(1)),
+		ChildNode(Semantics.NodeId.from_index(2)),
+		ContentOccurrence(Semantics.OccurrenceId.from_index(0)),
+		ContentOccurrence(Semantics.OccurrenceId.from_index(1)),
+	],
 	contextual_artifacts: [],
 	document_root: Semantics.NodeId.from_index(0),
 	fragments: [resolve_fragment(0, 0, 0), resolve_fragment(1, 1, 1)],
 	element_identifiers: [],
 	mathml_subtrees: [],
 	namespaces: [{ id: Semantics.NamespaceId.from_index(0), kind: Pdf20, uri: "http://iso.org/pdf2/ssn" }],
-	nodes: [resolve_node(0, "Document"), resolve_node(1, "P"), resolve_node(2, "Link")],
+	nodes: [
+		{ ..resolve_node(0, "Document"), content: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }) },
+		{ ..resolve_node(1, "P"), content: Semantics.IndexRange.from_start_and_length({ start: 2, length: 1 }) },
+		{ ..resolve_node(2, "Link"), content: Semantics.IndexRange.from_start_and_length({ start: 3, length: 1 }) },
+	],
 	non_text_sources: [[], []],
 	occurrence_fragments: [Semantics.FragmentId.from_index(0), Semantics.FragmentId.from_index(1)],
 	occurrences: [resolve_occurrence(0, 0), resolve_occurrence(1, 1)],

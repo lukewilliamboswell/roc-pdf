@@ -4,10 +4,19 @@ from __future__ import annotations
 import argparse
 import hashlib
 import re
-import zlib
 from pathlib import Path
 
-from pdf_layout import LayoutError, OBJECTS_PER_STREAM, is_object_stream_layout, is_stream_body
+from pdf_layout import (
+    LayoutError,
+    OBJECTS_PER_STREAM,
+    inflate_flate,
+    is_object_stream_layout,
+    is_top_level_body,
+    planned_bodies,
+    serialize_object_streams,
+    serialize_object_partition,
+    trailer_facts,
+)
 from pdf_layout import mutate as layout_mutate
 from pdf_layout import parse as parse_layout
 
@@ -178,6 +187,7 @@ def to_unicode_mappings(cmap: bytes) -> dict[int, tuple[int, ...]]:
                 match = BFCHAR_ROW.fullmatch(row)
                 require(match is not None, f"ToUnicode bfchar row {row!r} is not canonical")
                 cid = int(match.group(1), 16)
+                require(len(match.group(2)) <= 1024, f"ToUnicode CID {cid} exceeds the 512-byte destination limit")
                 require(cid > previous, "ToUnicode CIDs are not ascending")
                 mappings[cid] = utf16_scalars(match.group(2))
                 previous = cid
@@ -308,6 +318,13 @@ def indirect_length(bodies: dict[int, bytes], object_number: int) -> int:
     return int(match.group(1))
 
 
+def decode_flate(data: bytes, object_number: int) -> bytes:
+    try:
+        return inflate_flate(data, object_number)
+    except LayoutError as error:
+        raise ValidationError(str(error)) from error
+
+
 def decode_stream(bodies: dict[int, bytes], object_number: int) -> tuple[bytes, bytes]:
     """The dictionary and decoded payload of one stream object.
 
@@ -325,10 +342,7 @@ def decode_stream(bodies: dict[int, bytes], object_number: int) -> tuple[bytes, 
     length = indirect_length(bodies, int(reference.group(1))) if reference is not None else int(direct.group(1))
     _, data = stream_parts(body, length)
     if b"/Filter /FlateDecode" in dictionary:
-        try:
-            return dictionary, zlib.decompress(data)
-        except zlib.error as error:
-            raise ValidationError(f"object {object_number} has invalid zlib DEFLATE: {error}") from error
+        return dictionary, decode_flate(data, object_number)
     require(b"/Filter" not in dictionary, f"object {object_number} uses an unexpected filter")
     return dictionary, data
 
@@ -359,8 +373,8 @@ def validate_object_stream_layout(pdf: bytes, xref_offset: int) -> tuple[int, in
     """The package layout, checked from the bytes: returns the xref object,
     /Root, and the file identifier.
 
-    Stream objects are top-level; every other planned object is in an object
-    stream; object streams hold OBJECTS_PER_STREAM members in object-number
+    Stream objects and standalone references stay top-level. Other planned
+    objects are in object streams. Each object stream holds OBJECTS_PER_STREAM members in object-number
     order (the last one fewer) and are numbered after the planned objects;
     the xref stream follows them, uses the fewest offset bytes that hold its
     own offset, and is PNG Up predicted. Entry-by-entry agreement between the
@@ -386,8 +400,8 @@ def validate_object_stream_layout(pdf: bytes, xref_offset: int) -> tuple[int, in
     members = []
     for number in range(1, planned + 1):
         body = parsed.bodies[number]
-        if is_stream_body(body):
-            require(number in parsed.offsets, f"stream object {number} is in an object stream")
+        if is_top_level_body(body):
+            require(number in parsed.offsets, f"top-level object {number} is in an object stream")
         else:
             require(number in parsed.compressed, f"object {number} is not in an object stream")
             members.append(number)
@@ -417,10 +431,7 @@ def validate_stream_lengths(
         length = indirect_length(bodies, int(reference.group(1))) if reference is not None else int(direct.group(1))
         _, data = stream_parts(body, length)
         if b"/Filter /FlateDecode" in dictionary:
-            try:
-                decoded = zlib.decompress(data)
-            except zlib.error as error:
-                raise ValidationError(f"object {number} has invalid zlib DEFLATE: {error}") from error
+            decoded = decode_flate(data, number)
             if number in content_objects:
                 require(
                     decoded == expected_content,
@@ -499,10 +510,7 @@ def expected_identifier(bodies: dict[int, bytes], pages: set[int]) -> bytes:
         length_object = dictionary_ref(dictionary, b"Length")
         _, data = stream_parts(body, indirect_length(bodies, length_object))
         if b"/Filter /FlateDecode" in dictionary:
-            try:
-                decoded = zlib.decompress(data)
-            except zlib.error as error:
-                raise ValidationError(f"content stream {content_object} has invalid zlib DEFLATE: {error}") from error
+            decoded = decode_flate(data, content_object)
             content_payloads.append(("blank" if decoded == b"" else "generated", decoded))
         else:
             content_payloads.append(("unchanged", data))
@@ -551,6 +559,19 @@ def validate_pdf(
 
 
 def self_test() -> None:
+    def cmap(destination: bytes) -> bytes:
+        return b"begincmap\n1 beginbfchar\n<0001> <" + destination + b">\nendbfchar\nendcmap\n"
+
+    full_destination = b"D83DDE00" * 128
+    assert to_unicode_mappings(cmap(full_destination)) == {1: (0x1F600,) * 128}
+    for excess in (b"0041", b"D83DDE00"):
+        try:
+            to_unicode_mappings(cmap(full_destination + excess))
+        except ValidationError as error:
+            require("512-byte destination limit" in str(error), "overlong ToUnicode twin rejected for a different reason")
+        else:
+            raise SystemExit("structural checker accepted an overlong ToUnicode destination")
+
     # The facade blank fixture now carries document facts, so its identifier
     # is the sealed-plan digest rather than the recomputed blank identity;
     # the blank identity derivation stays covered by the kernel-path
@@ -584,6 +605,74 @@ def self_test() -> None:
             pass
         else:
             raise SystemExit(f"structural checker accepted {label}")
+
+    # One top-level chain and one nested reference. xref rows agree with
+    # both locations, so only the misplaced member is invalid. qpdf 12.3.2
+    # warns on spec-legal bare references. This package-internal writer case
+    # uses the independent byte checker.
+    parsed, bodies = planned_bodies(deflate_pdf)
+    root, file_id = trailer_facts(parsed)
+    alias = len(bodies) + 1
+    bodies[alias] = root + b" 0 R\nendobj\n"
+    bodies[alias + 1] = str(alias).encode() + b" 0 R\nendobj\n"
+    bodies[alias + 2] = b"[" + str(alias + 1).encode() + b" 0 R]\nendobj\n"
+    reference_chain = serialize_object_streams(bodies, parsed.header, root, file_id)
+    validate_pdf(reference_chain, 1, generated_content)
+    chain_layout = parse_layout(reference_chain)
+    require(alias in chain_layout.offsets and alias + 1 in chain_layout.offsets, "reference chain does not stay top-level")
+    require(alias + 2 in chain_layout.compressed, "nested reference is not packed")
+    invalid = serialize_object_partition(
+        bodies, parsed.header, root, file_id,
+        [number for number, body in bodies.items() if is_top_level_body(body) and number != alias],
+    )
+    try:
+        validate_pdf(invalid, 1, generated_content)
+    except ValidationError as error:
+        require(str(error) == f"object {alias} in an object stream is a standalone reference", "reference twin failed for the wrong reason")
+    else:
+        raise SystemExit("structural checker accepted a standalone reference in an object stream")
+
+    # Include one non-EOL byte past the checksum in the declared stream
+    # extent, recomputing the file layout. The decoded payload, references,
+    # and file identifier are identical to a passing re-serialized twin.
+    parsed, bodies = planned_bodies(deflate_pdf)
+    root, file_id = trailer_facts(parsed)
+    validate_pdf(serialize_object_streams(bodies, parsed.header, root, file_id), 1, generated_content)
+    dictionary = bodies[content_stream].split(b"stream\n", 1)[0]
+    length_object = dictionary_ref(dictionary, b"Length")
+    _, encoded = stream_parts(bodies[content_stream], indirect_length(bodies, length_object))
+    bodies[content_stream] = dictionary + b"stream\n" + encoded + b"X\nendstream\nendobj\n"
+    bodies[length_object] = str(len(encoded) + 1).encode() + b"\nendobj\n"
+    trailing_byte = serialize_object_streams(bodies, parsed.header, root, file_id)
+    try:
+        validate_pdf(trailing_byte, 1, generated_content)
+    except ValidationError as error:
+        require(str(error) == f"object {content_stream} has bytes after zlib DEFLATE end", "trailing byte twin rejected for a different reason")
+    else:
+        raise SystemExit("structural checker accepted a byte after the zlib checksum")
+
+    # The terminal xref stream has a direct Length. Its startxref offset
+    # continues to identify the same object after changing its extent.
+    xref = deflate_layout.xref
+    xref_body = deflate_layout.bodies[xref]
+    length = dictionary_int(deflate_layout.xref_dictionary, b"Length")
+    dictionary, encoded = stream_parts(xref_body, length)
+    longer_dictionary = dictionary.replace(
+        b"/Length " + str(length).encode(), b"/Length " + str(length + 1).encode(), 1
+    )
+    suffix_start = len(dictionary) + len(b"stream\n") + length
+    trailing_xref = (
+        deflate_pdf[: deflate_layout.xref_offset]
+        + str(xref).encode() + b" 0 obj\n"
+        + longer_dictionary + b"stream\n"
+        + encoded + b"X" + xref_body[suffix_start:]
+    )
+    try:
+        validate_pdf(trailing_xref, 1, generated_content)
+    except ValidationError as error:
+        require(str(error) == f"object {xref} has bytes after zlib DEFLATE end", "xref twin rejected for a different reason")
+    else:
+        raise SystemExit("structural checker accepted a byte after the xref zlib checksum")
 
     start_match = re.search(rb"startxref\n([0-9]+)\n%%EOF\n$", pdf)
     require(start_match is not None, "self-test fixture has no startxref")

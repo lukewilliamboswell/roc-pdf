@@ -66,9 +66,8 @@ Pdf :: [].{
 
 	## The size of every page. `A4` is 595 × 842 pt and `Letter` 612 × 792 pt;
 	## `A4Landscape` and `LetterLandscape` swap their width and height.
-	## `Custom` is any other size in whole points from 3 to 14,400 on each
-	## side (the PDF user-space page limits); anything else is
-	## `layout.page_size`. The theme's margins and page templates apply to
+	## `Custom` accepts whole-point sides from 3 to 14,400 for portability.
+	## Other dimensions produce `layout.page_size`. Margins and page templates apply to
 	## every size unchanged, so a size too small for them is rejected by the
 	## ordinary layout checks, never shrunk.
 	PageSize := [A4, A4Landscape, Custom({ height : Layout.Unit, width : Layout.Unit }), Letter, LetterLandscape].{
@@ -703,8 +702,9 @@ Pdf :: [].{
 	inline_internal_link : List(Inline), Str -> Inline
 	inline_internal_link = |contents, destination| Document.inline_internal_link(contents, destination)
 
-	## Inline content in another natural language: a `Span` with `/Lang`,
-	## such as `Pdf.in_language("fr", [Pdf.text("Atelier Beaulieu")])`.
+	## Inline content in another natural language, represented by a `Span`
+	## with `/Lang`. Pass a nonempty, well-formed BCP 47 language tag, as in
+	## `Pdf.in_language("fr", [Pdf.text("Atelier Beaulieu")])`.
 	in_language : Str, List(Inline) -> Inline
 	in_language = |tag, contents| Document.in_language(tag, contents)
 
@@ -1601,8 +1601,8 @@ image_error = |image| match image {
 ## `Output.Structure.TaggedObjects.Object.LimitExceeded`, becomes the stable
 ## feature `pipeline.output.structure.tagged_objects.object.limit_exceeded`.
 ## A crossed limit is a `BudgetExceeded` with the attempted value and the
-## limit in the message; any other failure is an `InternalInvariant`, a
-## package defect reported instead of an unlocated catch-all.
+## limit in the message. Unsupported plain text is an authoring error.
+## Other failures report an `InternalInvariant` with its exact stage.
 stage_error : KernelFacadePipeline.Error -> Pdf.Error
 stage_error = |error| {
 	described = KernelFacadeFailure.pipeline(error)
@@ -1610,6 +1610,7 @@ stage_error = |error| {
 	match described.category {
 		Budget => InvalidDocument(located_batch(BudgetExceeded, feature, "A preparation limit was crossed (${described.path}: ${described.detail}); no partial document is accepted.", [described.path]))
 		Invariant => InvalidDocument(located_batch(InternalInvariant, feature, "A compiler stage rejected an internal precondition (${described.path}: ${described.detail}). This is a package defect, not an authoring error; please report it with the document.", [described.path]))
+		UnsupportedText => InvalidDocument(located_batch(FeatureUnavailable, feature, "Plain PDF text reserves U+001B for language changes (${described.path}: ${described.detail}). Remove the escape character from the text.", [described.path]))
 	}
 }
 
@@ -3239,6 +3240,19 @@ expect {
 	bytes.len() > 4717
 }
 
+# PDF literal escaping preserves the authored URI spelling and percent bytes.
+expect {
+	uri = "https://example.org/report(v2)?file=%2freports&caption=caf%C3%A9&sign=%25#summary"
+	doc = Pdf.document({
+		contents: [Pdf.link({ text: "Read the report", uri })],
+		language: "en-AU",
+		title: "URI byte preservation",
+	})
+	Pdf.Prepared.(plan) = Pdf.prepare(doc, { profile: Standard })?
+	objects = Str.from_utf8(KernelEmit.object_text(plan)?)?
+	objects.contains("/A << /S /URI /Type /Action /URI (https://example.org/report\\(v2\\)?file=%2freports&caption=caf%C3%A9&sign=%25#summary) >>")
+}
+
 # A navigation document's chunked output is byte-identical to its buffered
 # output under both retention policies.
 expect {
@@ -4281,6 +4295,47 @@ page_label_test_document = |style, prefix, start_number, width| {
 	})
 }
 
+# Public emission rejects an unrepresentable start even without visible
+# label fields. The maximum accepted start reaches the sealed /St integer.
+expect {
+	doc = Pdf.document({ contents: [Pdf.paragraph("Body")], language: "en-AU", title: "Page label start boundary" })
+	label = { prefix: "", start_page: 0, style: DecimalArabic, start_number: U64.highest }
+	limit = I64.highest.to_u64_wrap()
+	invalid = doc.with_page_labels([label])
+	rejected = match Pdf.to_bytes_with(invalid, { profile: Standard }) {
+		Err(InvalidNavigation(LabelStartNumberOutOfRange({ attempted, limit: reported, range: 0 }))) => attempted == U64.highest and reported == limit
+		_ => False
+	}
+	Pdf.Prepared.(plan) = Pdf.prepare(doc.with_page_labels([{ ..label, start_number: limit }]), { profile: Standard })?
+	store = KernelSeal.Plan.store(KernelStructure.Plan.sealed(plan))
+	starts = store.dictionary_entries.keep_if(
+		|entry| {
+			key = store.names.get(entry.key.index()) ?? crash "missing sealed object name"
+			KernelLex.Name.bytes(key) == Str.to_utf8("St")
+		},
+	).map(|entry| store.values.get(entry.value.index()))
+	rejected and match starts {
+		[Ok(Integer(value))] => value == I64.highest
+		_ => False
+	}
+}
+
+# A plain authored label cannot introduce an inline PDF language change.
+expect {
+	prefix = Str.from_utf8([65, 27, 101, 110, 27, 66]) ?? crash "invalid test text"
+	doc = Pdf.document({
+		contents: [Pdf.paragraph("Body")],
+		language: "en-AU",
+		page_labels: [{ prefix, start_page: 0, style: DecimalArabic, start_number: 1 }],
+		title: "Plain page label",
+	})
+	match Pdf.to_bytes_with(doc, { profile: Standard }) {
+		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature(feature), message, .. }], .. })) =>
+			feature.ends_with(".lexical.text_string_language_escape") and message.contains("U+001B") and message.contains("byte: 1")
+		_ => False
+	}
+}
+
 # An intentionally unnumbered empty PDF label produces no artifact text
 # source or glyph; its reserved furniture width is still checked.
 expect match Pdf.to_bytes(page_label_test_document(NoNumber, "", 1, 40)) {
@@ -4295,7 +4350,7 @@ expect match Pdf.to_bytes(page_label_test_document(LettersUpper, "A-", 27, 1)) {
 
 # /St can be large even though its visible alphabetic expansion is huge.
 # The formatter rejects its byte budget before allocating that expansion.
-expect match Pdf.to_bytes(page_label_test_document(LettersUpper, "", U64.highest, 40)) {
+expect match Pdf.to_bytes(page_label_test_document(LettersUpper, "", I64.highest.to_u64_wrap(), 40)) {
 	Err(InvalidDocument({ diagnostics: [{ feature: Feature("layout.page_label_text"), .. }], .. })) => True
 	_ => False
 }
@@ -4329,6 +4384,25 @@ expect {
 		_ => False
 	}
 	check(make("missing", 36), "navigation.reference_destination") and check(make("target", 1), "layout.reference_field_overflow")
+}
+
+# Inline language uses RFC 5646 syntax while the root metadata keeps its
+# own profile. A bad tag is reported at its authored inline location.
+expect {
+	document_with_language = |tag| Pdf.document({ title: "Inline language", language: "en", contents: [Pdf.rich_paragraph([Pdf.in_language(tag, [Pdf.text("Language")])])] })
+	rejected = ["en-12", "en-a", ""].all(
+		|tag| match Pdf.to_bytes(document_with_language(tag)) {
+			Err(InvalidDocument({ diagnostics: [{ code: InvalidLanguage, feature: Feature("semantics.language_tag"), details: ["contents[0].inlines[0]"], .. }], .. })) => True
+			_ => False
+		},
+	)
+	accepted = ["I-klingon", "en-0-12", "de-DE-x-phonebk"].all(
+		|tag| match Pdf.to_bytes(document_with_language(tag)) {
+			Ok(bytes) => !bytes.is_empty()
+			Err(_) => False
+		},
+	)
+	rejected and accepted
 }
 
 # Missing, extra, misaligned and orphaned figure facts cannot invent an

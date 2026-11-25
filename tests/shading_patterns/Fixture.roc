@@ -61,6 +61,16 @@ Fixture :: [].{
 	scenario : Str, U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	scenario = |mode, scale| run_scenario(mode, scale)
 
+	clip_winding : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	clip_winding = |context| {
+		if context > 1 {
+			return Err(InvalidScale)
+		}
+		built = run_pipeline(clip_scenario(context)) ? |_| EvidenceFailure
+		work = KernelContent.Plan.work(built.content)
+		Ok({ bytes: built.bytes, work: [work.command_visits, work.graphics_state_pairs, work.path_segments, work.max_frame_depth, work.bytes_emitted, built.bytes.len()] })
+	}
+
 	## Atomic negative twins: each input differs from a valid scene in exactly
 	## one fact, every rejection is a distinct structured diagnostic, and no
 	## partial plan or PDF byte escapes. The fixture emits only an unrelated
@@ -785,6 +795,49 @@ scaled_scenario = |scene, shadings, patterns| {
 	}
 }
 
+clip_scenario : U64 -> Scenario
+clip_scenario = |context| {
+	# Derive one coordinate from the fixture input so measurement exercises lowering.
+	open_edge = 15000 + context.to_i64_wrap() * 1000
+	black = gray_value(0, 0)
+	filled = |id| DrawPath({ path: Scene.PathId.from_index(id), style: fill_with(black) })
+	stroke = { cap: ButtCap, color: black, dash: SolidLine, join: MiterJoin, miter_limit: unit(10000), width: unit(4000) }
+	commands = [
+		DrawPath({ path: Scene.PathId.from_index(0), style: { fill: SolidFill({ color: black, rule: EvenOdd }), stroke: SolidStroke(stroke) } }),
+		Clip({ children: span(3, 2), path: Scene.PathId.from_index(1) }),
+		filled(5),
+		Clip({ children: span(5, 1), path: Scene.PathId.from_index(2) }),
+		filled(4),
+		filled(3),
+	]
+	base = scaled_scene(commands, 1)
+	template = list_at(base.pages, 0)
+	scene = {
+		..base,
+		groups: [{ ..anchor_group, commands: span(0, 3) }],
+		page_groups: [anchor_group.id],
+		pages: [{ ..template, paint_order: span(0, 1) }],
+		path_segments: [
+			# Same winding in both contours. The inner contour has an open left edge.
+			Rectangle(rect(5000, 58000, 40000, 36000)),
+			MoveTo(point(open_edge, 68000)),
+			LineTo(point(35000, 68000)),
+			LineTo(point(35000, 84000)),
+			LineTo(point(open_edge, 84000)),
+			# The two nested clips overlap, and the last two fills probe restoration.
+			Rectangle(rect(10000, 10000, 50000, 45000)),
+			Rectangle(rect(20000, 20000, 25000, 22000)),
+			Rectangle(rect(30000, 0, 48000, 35000)),
+			Rectangle(rect(0, 0, 90000, 54000)),
+			Rectangle(rect(12000, 45000, 8000, 6000)),
+			Rectangle(rect(68000, 44000, 10000, 6000)),
+		],
+		paths: [(0, 5), (5, 2), (7, 1), (8, 1), (9, 1), (10, 1)].map_with_index(|(start, length), index| { id: Scene.PathId.from_index(index), segments: span(start, length) }),
+	}
+	base_input = scaled_scenario(scene, Scene.no_shadings, Scene.no_patterns)
+	{ ..base_input, color_limits: pattern_color_limits, colors: pattern_colors }
+}
+
 two_stop_shading : U64, U64 -> Scene.Shading
 two_stop_shading = |id, stops_start| shading_record(id, axial(10000, 0, 90000, 0), 1, stops_start, 2, False, False)
 
@@ -919,19 +972,21 @@ cell_ramp = |command_count| {
 
 run_scenario : Str, U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 run_scenario = |mode, scale| {
+	# Select the authored order from the runtime case so allocation checks run the pipeline.
+	first_order = if (scale == 0) Forward else Reversed
 	if mode == "showcase" {
-		forward = run_pipeline(showcase_scenario(Forward)) ? |_| EvidenceFailure
-		reversed = run_pipeline(showcase_scenario(Reversed)) ? |_| EvidenceFailure
+		forward = run_pipeline(showcase_scenario(first_order)) ? |_| EvidenceFailure
+		reversed = run_pipeline(showcase_scenario(if (scale == 0) Reversed else Forward)) ? |_| EvidenceFailure
 		if forward.bytes != reversed.bytes {
 			return Err(AdversarialOrderDiverged)
 		}
 		check_showcase_sharing(forward)?
 		Ok({ bytes: forward.bytes, work: work_vector(forward) })
 	} else if mode == "unique" {
-		built = run_pipeline(showcase_scenario(Forward)) ? |_| EvidenceFailure
+		built = run_pipeline(showcase_scenario(first_order)) ? |_| EvidenceFailure
 		Ok({ bytes: built.bytes, work: work_vector(built) })
 	} else if mode == "shared" {
-		scenario_input = showcase_scenario(Forward)
+		scenario_input = showcase_scenario(first_order)
 		first = run_pipeline(scenario_input) ? |_| EvidenceFailure
 		second = run_pipeline(scenario_input) ? |_| EvidenceFailure
 		if first.bytes != second.bytes {
@@ -1620,6 +1675,41 @@ expect {
 expect {
 	result = Fixture.scenario("distinct", 5)?
 	result.work.get(10) == Ok(5) and result.work.get(13) == Ok(5) and result.work.get(32) == Ok(5) and result.work.get(33) == Ok(5)
+}
+
+# ISO 32000-2 Table 79 assigns the first /Extend operand to the start and
+# the second to the end. Inspect each authored direction independently so
+# swapping the two emitted values cannot pass by preserving their set.
+expect {
+	start = run_pipeline(extension_scenario([(True, False)]))?
+	end = run_pipeline(extension_scenario([(False, True)]))?
+	start_objects = KernelEmit.object_text(KernelFormStructure.Plan.structure(start.structure)) ? |_| EmitFailure
+	end_objects = KernelEmit.object_text(KernelFormStructure.Plan.structure(end.structure)) ? |_| EmitFailure
+	Str.from_utf8_lossy(start_objects).contains("/Extend [true false] ") and
+		Str.from_utf8_lossy(end_objects).contains("/Extend [false true] ")
+}
+
+# Opposite extensions change the shaded region but share the same interval
+# function. Keep both resources even when every other authored fact agrees.
+expect {
+	paired = run_pipeline(extension_scenario([(True, False), (False, True)]))?
+	objects = KernelEmit.object_text(KernelFormStructure.Plan.structure(paired.structure)) ? |_| EmitFailure
+	lines = Str.from_utf8_lossy(objects).split_on("\n")
+	lines.keep_if(|line| line.contains("/ShadingType 2 ")).len() == 2 and
+		lines.keep_if(|line| line.contains("/FunctionType 2 ")).len() == 1
+}
+
+extension_scenario : List((Bool, Bool)) -> Scenario
+extension_scenario = |extensions| {
+	base = shading_grid(extensions.len(), Distinct)
+	stops = List.join(List.repeat(base.shadings.stops.take_first(2), extensions.len()))
+	shadings = base.shadings.shadings.map_with_index(
+		|shading, index| {
+			(extend_start, extend_end) = list_at(extensions, index)
+			{ ..shading, extend_start, extend_end }
+		},
+	)
+	{ ..base, shadings: { shadings, stops } }
 }
 
 # One shading with N stops derives N-1 segments plus one stitch.

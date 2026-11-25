@@ -464,8 +464,8 @@ add_destination_array = |builder, names, target_object, target| {
 	Ok(added)
 }
 
-## QuadPoints in the pinned per-quad number order: top-left, top-right,
-## bottom-left, bottom-right.
+## ISO 32000-2 Table 176 defines a counterclockwise path from the bottom
+## edge: bottom-left, bottom-right, top-right, top-left.
 add_quad_points : KernelObject.Builder, KernelNavigation.Store, Semantics.IndexRange -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelNavigationObjects.Error)
 add_quad_points = |builder, store, range| {
 	var $builder = builder
@@ -483,14 +483,14 @@ add_quad_points = |builder, store, range| {
 		y_bottom_right = add_thousandths(x_right_bottom.builder, quad.y_bottom)?
 		$builder = y_bottom_right.builder
 		$values = $values
-			.append(x_left.id)
-			.append(y_top.id)
-			.append(x_right.id)
-			.append(y_top_right.id)
 			.append(x_left_bottom.id)
 			.append(y_bottom.id)
 			.append(x_right_bottom.id)
 			.append(y_bottom_right.id)
+			.append(x_right.id)
+			.append(y_top_right.id)
+			.append(x_left.id)
+			.append(y_top.id)
 		$index = $index + 1
 	}
 	added = KernelObject.add_array($builder, $values) ? Object
@@ -543,7 +543,7 @@ add_name_tree = |builder, names, store, resolved, objects, context| {
 
 ## One byte-tree node's `/Kids` or `/Names` array. The builder moves into
 ## this function rather than being copied into a loop-local `var` beside the
-## still-live loop builder (development/performance/lowering-uniqueness.md).
+## still-live loop builder (docs/contributors/performance/lowering-uniqueness.md).
 add_byte_tree_children : KernelObject.Builder, KernelNavigationObjects.TreeNames, KernelIndex.ByteTree, List(KernelObject.ObjectId), KernelIndex.Node -> Try({ builder : KernelObject.Builder, key : KernelObject.NameId, value : KernelObject.ValueId }, KernelNavigationObjects.Error)
 add_byte_tree_children = |builder, names, tree, planned, node| match KernelIndex.Node.children(node) {
 	Nodes(span) => {
@@ -651,16 +651,33 @@ add_outline_objects = |builder, names, store, objects, max_depth| {
 
 	first_reference = KernelObject.add_reference($builder, item_object(objects, KernelOutline.Plan.root_first(outline))) ? Object
 	last_reference = KernelObject.add_reference(first_reference.builder, item_object(objects, KernelOutline.Plan.root_last(outline))) ? Object
-	root_count = KernelObject.add_integer(last_reference.builder, KernelOutline.Plan.root_count(outline).to_i64_wrap()) ? Object
-	root_type = KernelObject.add_name_value(root_count.builder, names.outlines) ? Object
-	root_dictionary = KernelObject.add_dictionary(
-		root_type.builder,
-		[
-			{ key: names.count, value: root_count.id },
-			{ key: names.first, value: first_reference.id },
-			{ key: names.last, value: last_reference.id },
-			{ key: names.type_name, value: root_type.id },
-		],
+
+	## Table 150 requires the root Count only when at least one item is
+	## open. Leaves have no open state in the serialized outline.
+	root_dictionary = (
+		if KernelOutline.Plan.has_open_items(outline) {
+			root_count = KernelObject.add_integer(last_reference.builder, KernelOutline.Plan.root_count(outline).to_i64_wrap()) ? Object
+			root_type = KernelObject.add_name_value(root_count.builder, names.outlines) ? Object
+			KernelObject.add_dictionary(
+				root_type.builder,
+				[
+					{ key: names.count, value: root_count.id },
+					{ key: names.first, value: first_reference.id },
+					{ key: names.last, value: last_reference.id },
+					{ key: names.type_name, value: root_type.id },
+				],
+			)
+		} else {
+			root_type = KernelObject.add_name_value(last_reference.builder, names.outlines) ? Object
+			KernelObject.add_dictionary(
+				root_type.builder,
+				[
+					{ key: names.first, value: first_reference.id },
+					{ key: names.last, value: last_reference.id },
+					{ key: names.type_name, value: root_type.id },
+				],
+			)
+		}
 	) ? Object
 	root_added = KernelObject.add_object(root_dictionary.builder, root_dictionary.id) ? Object
 	ensure_object(root_added.id, root_object)?
@@ -815,7 +832,7 @@ add_label_tree = |builder, names, store, objects| {
 			numbered = if range.start_number == 1 {
 				{ builder: styled.builder, value: NoValue }
 			} else {
-				added = KernelObject.add_integer(styled.builder, range.start_number.to_i64_wrap()) ? Object
+				added = KernelObject.add_integer(styled.builder, range.start_number) ? Object
 				{ builder: added.builder, value: WithValue(added.id) }
 			}
 			match numbered.value {
@@ -914,7 +931,7 @@ add_style_value = |builder, name| {
 ## References to `length` planned objects from `start`, then their array.
 ## It returns only the builder and the array's id: returning the builder
 ## beside the value list made the pinned dev backend copy the store once per
-## node (development/performance/lowering-uniqueness.md).
+## node (docs/contributors/performance/lowering-uniqueness.md).
 add_planned_reference_array : KernelObject.Builder, List(KernelObject.ObjectId), U64, U64 -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelNavigationObjects.Error)
 add_planned_reference_array = |builder, planned, start, length| {
 	var $builder = builder

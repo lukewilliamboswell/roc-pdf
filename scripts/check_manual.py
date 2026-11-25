@@ -172,14 +172,15 @@ def check(site: Path, source: Path, pdf: Path | None, review: Path | None = None
         # Remove only known running furniture at the edges of each page;
         # leave identical authored body occurrences intact.
         titles = {re.search(r"^= (.+)$", (ROOT / path).read_text(), re.M).group(1) for path in inventory["chapters"]}
-        titles.update({"roc-pdf user manual", "Release notes", "Runnable document gallery"})
+        manual_title = re.search(r"^= (.+)$", (ROOT / "docs/index.adoc").read_text(), re.M).group(1)
+        titles.update({manual_title, "Release notes", "Runnable document gallery"})
         body = []
         for page in extracted.split("\f"):
             lines = page.splitlines()
             nonempty = [index for index, line in enumerate(lines) if line.strip()]
             removed = set()
             for index in nonempty[:3]:
-                if (lines[index].strip() in titles or lines[index].startswith("roc-pdf user manual ")
+                if (lines[index].strip() in titles or lines[index].startswith(f"{manual_title} ")
                         or lines[index].strip() == "Authoring surface Support"):
                     removed.add(index)
             for index in nonempty[-3:]:

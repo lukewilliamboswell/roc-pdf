@@ -4,7 +4,7 @@ This guide runs the PDF generation comparison locally: the same one-page
 report produced by roc-pdf, Python with ReportLab, and Go with fpdf. It covers
 setup and commands only. The trial design, what each number measures and how
 to interpret it are in
-[`development/benchmarks/pdf-comparison/README.md`](development/benchmarks/pdf-comparison/README.md).
+[`docs/contributors/benchmarks/pdf-comparison/README.md`](docs/contributors/benchmarks/pdf-comparison/README.md).
 
 The harness supports Linux and macOS. Run every command from the repository
 root.
@@ -51,7 +51,7 @@ downloads the pinned Go modules, copies the font and generates each program's
 source.
 
 ```sh
-python3 development/benchmarks/pdf-comparison/trial.py prepare \
+python3 scripts/benchmarks/pdf-comparison/trial.py prepare \
   .roc-pdf-tmp/pdf-comparison-01 --roc "$ROC"
 ```
 
@@ -66,9 +66,9 @@ requirements into it with the host pip, then tell `prepare` to use it as is:
 ```sh
 python3 -m venv --without-pip .roc-pdf-tmp/reportlab-venv
 python3 -m pip --python .roc-pdf-tmp/reportlab-venv/bin/python install \
-  -r development/benchmarks/pdf-comparison/requirements.txt
+  -r scripts/benchmarks/pdf-comparison/requirements.txt
 
-python3 development/benchmarks/pdf-comparison/trial.py prepare \
+python3 scripts/benchmarks/pdf-comparison/trial.py prepare \
   .roc-pdf-tmp/pdf-comparison-01 --roc "$ROC" \
   --existing-python --python .roc-pdf-tmp/reportlab-venv/bin/python
 ```
@@ -82,7 +82,7 @@ Quick smoke run (one build or script invocation and one execution per
 language), in a separately prepared workspace:
 
 ```sh
-python3 development/benchmarks/pdf-comparison/trial.py run \
+python3 scripts/benchmarks/pdf-comparison/trial.py run \
   .roc-pdf-tmp/pdf-comparison-smoke --states first --runtime-samples 1
 ```
 
@@ -90,7 +90,7 @@ Full run (first, unchanged and edited cache states; five executions after each
 build):
 
 ```sh
-python3 development/benchmarks/pdf-comparison/trial.py run \
+python3 scripts/benchmarks/pdf-comparison/trial.py run \
   .roc-pdf-tmp/pdf-comparison-01
 ```
 
@@ -128,4 +128,4 @@ prepare a fresh workspace rather than resuming.
   caches are not touched.
 - Results are diagnostic. Build and script rows have one sample each, so treat
   small differences there as noise. Recorded runs are kept in
-  [`development/benchmarks/pdf-comparison/results/`](development/benchmarks/pdf-comparison/results/).
+  [`docs/contributors/benchmarks/pdf-comparison/results/`](docs/contributors/benchmarks/pdf-comparison/results/).

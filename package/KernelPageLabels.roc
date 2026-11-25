@@ -42,7 +42,7 @@ format_plan = |plan, page, max_bytes, allow_empty| {
 		return Err(InvalidPage)
 	}
 	range = at(ranges, $low - 1)
-	format_value(range.prefix, range.style, checked_add(range.start_number, page - range.start_page)?, max_bytes, allow_empty)
+	format_value(range.prefix, range.style, checked_add(range.start_number.to_u64_wrap(), page - range.start_page)?, max_bytes, allow_empty)
 }
 
 format_value : Str, Document.PageLabelStyle, U64, U64, Bool -> Try(Str, KernelPageLabels.Error)

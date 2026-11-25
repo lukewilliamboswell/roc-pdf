@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import argparse
 import re
-import zlib
 from pathlib import Path
 
 from pdf_layout import LayoutError, flatten, twin as layout_twin
@@ -31,12 +30,15 @@ from check_pdf_structure import (
     ValidationError,
     dictionary_int,
     dictionary_ref,
+    decode_flate,
     indirect_length,
     object_slices,
     require,
     stream_parts,
     validate_pdf,
 )
+
+from check_structure_semantics import mcids_in
 
 ROOT = Path(__file__).resolve().parents[1]
 SHOWCASE_SNAPSHOT = ROOT / "tests" / "forms" / "forms.pdf"
@@ -61,10 +63,7 @@ def decoded_stream(bodies: dict[int, bytes], number: int) -> tuple[bytes, bytes]
     length = indirect_length(bodies, dictionary_ref(dictionary, b"Length"))
     _, encoded = stream_parts(body, length)
     require(b"/Filter /FlateDecode" in dictionary, f"object {number} is not FlateDecode")
-    try:
-        return dictionary, zlib.decompress(encoded)
-    except zlib.error as error:
-        raise ValidationError(f"object {number} has invalid zlib DEFLATE: {error}") from error
+    return dictionary, decode_flate(encoded, number)
 
 
 def parse_resources(dictionary: bytes, owner: str) -> dict[str, int]:
@@ -167,7 +166,7 @@ class FormFacts:
             resources = parse_resources(dictionary, f"form {number}")
             check_stream_dictionary(f"form {number}", content, resources)
             check_balance(f"form {number}", content)
-            require(b" BDC\n" not in content or b"/P <</MCID" not in content, f"form {number}: structure-bearing marked content inside a form stream")
+            require(not mcids_in(content), f"form {number}: structure-bearing marked content inside a form stream")
             self.form_contents[number] = content
             self.form_resources[number] = resources
 
@@ -432,7 +431,18 @@ def self_test() -> None:
     validate_dag(DAG_8_SNAPSHOT.read_bytes(), {"pages": 1, "dag_parents": 8})
     validate_dag(DAG_32_SNAPSHOT.read_bytes(), {"pages": 1, "dag_parents": 32})
     validate_deep(DEEP_64_SNAPSHOT.read_bytes(), {"pages": 1, "chain_depth": 64})
-    validate_text(TEXT_SNAPSHOT.read_bytes(), {"pages": 1, "form_text": 1})
+    text = TEXT_SNAPSHOT.read_bytes()
+    text_dimensions = {"pages": 1, "form_text": 1}
+    validate_text(text, text_dimensions)
+    text_facts = FormFacts(text, 1)
+    form_content, = text_facts.form_contents.values()
+    foreign_mcid = layout_twin(text, form_content, b"/Span <</MCID 0>> BDC\n" + form_content + b"EMC\n", exactly_once=True)
+    try:
+        validate_text(foreign_mcid, text_dimensions)
+    except ValidationError as error:
+        require("structure-bearing marked content inside a form stream" in str(error), "FormText MCID twin failed for the wrong reason")
+    else:
+        raise SystemExit("production-visual form checker accepted an in-form Span MCID")
 
     nums = re.search(rb"/Nums \[0 \[([1-9][0-9]*) 0 R ([1-9][0-9]*) 0 R ", flatten(showcase))
     require(nums is not None, "self-test fixture has no ParentTree row")

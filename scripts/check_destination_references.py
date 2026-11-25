@@ -61,12 +61,14 @@ def page_label(document, page: int) -> str:
     return text_string(rule.get('P', b'')) + value
 
 
+def override_pieces(mark) -> list[str]:
+    return [text_string(bytes.fromhex(value.decode()))
+            for value in re.findall(rb'/ActualText\s*<([0-9A-Fa-f]+)>', mark.block)]
+
+
 def overrides(marks) -> str:
-    # The occurrence's exact logical override is carried by its actual paint
-    # pieces; it is not a structure element property on the enclosing Link/P.
-    return ''.join(text_string(bytes.fromhex(value.decode()))
-                   for mark in marks
-                   for value in re.findall(rb'/ActualText\s*<([0-9A-Fa-f]+)>', mark.block))
+    # Read the occurrence replacement from its paint pieces.
+    return ''.join(piece for mark in marks for piece in override_pieces(mark))
 
 
 def close(actual, expected, message: str) -> None:
@@ -219,8 +221,12 @@ def validate_destination_references_pdf(pdf: bytes, dimensions: dict[str, int]) 
                     'ordered reference selected the wrong registered script face')
         require(any(text_string(node.value.get('Lang', b'')) == 'zh-Hans'
                     for node in paragraph.descendants()), 'ordered reference lost language ownership')
-        require(overrides(link.marks) == label + ' ',
-                'mixed-face authored break duplicated or lost logical override pieces')
+        # ISO 32000-2 14.9.4 joins consecutive replacement sequences without
+        # inserting a word break. The facade also assigns each face run its
+        # own source text and writes the authored break space on the last run.
+        require([(mark.text, override_pieces(mark)) for mark in link.marks]
+                == [('p', ['p']), ('中', ['中 '])],
+                'mixed-face reference replacement differs from its own run or final separator')
         prefix = paragraph.marks[0]
         close(max(mark.bounds[2] for mark in link.marks) - prefix.bounds[2], F(60),
               'ordered mixed-face reserved box advance')
@@ -291,8 +297,8 @@ def validate_destination_references_pdf(pdf: bytes, dimensions: dict[str, int]) 
         top = max(glyph[2] + glyph[3] for mark in node.marks for glyph in mark.glyphs)
         close(F(rectangle[3]), top, 'reference link top edge')
         close(F(rectangle[1]), top - 13, 'reference link bottom edge')
-        require(annotation['QuadPoints'] == [rectangle[0], rectangle[3], rectangle[2], rectangle[3],
-                                             rectangle[0], rectangle[1], rectangle[2], rectangle[1]],
+        require(annotation['QuadPoints'] == [rectangle[0], rectangle[1], rectangle[2], rectangle[1],
+                                             rectangle[2], rectangle[3], rectangle[0], rectangle[3]],
                 'reference link quad differs from its actual glyph line')
     footer = {}
     for page, kind, block, _ in artifacts:
@@ -324,6 +330,20 @@ def mutation_checks(pdf: bytes, dimensions: dict[str, int]) -> None:
         except ValidationError:
             continue
         raise ValidationError(f'reference oracle accepted mutated {name}')
+
+
+def ordered_mutation(pdf: bytes, dimensions: dict[str, int]) -> None:
+    # The visible glyphs, tagged link and reconstructed replacement remain
+    # identical. The valid CJK scalar is now owned by the wrong paint run.
+    mutant = twin(pdf, b'/ActualText <FEFF0070>', b'/ActualText <FEFF00704E2D>', exactly_once=True)
+    mutant = twin(mutant, b'/ActualText <FEFF4E2D0020>', b'/ActualText <FEFF0020>', exactly_once=True)
+    try:
+        validate_destination_references_pdf(mutant, dimensions)
+    except ValidationError as error:
+        if 'replacement differs from its own run' in str(error):
+            return
+        raise
+    raise ValidationError('reference oracle accepted a shifted mixed-face replacement boundary')
 
 
 def geometry_mutations(pdf: bytes, dimensions: dict[str, int]) -> None:
@@ -359,9 +379,11 @@ def self_test() -> None:
         validate_destination_references_pdf(pdf, case['dimensions'])
         if case['dimensions'].get('geometry', 0):
             geometry_mutations(pdf, case['dimensions'])
+        elif case['dimensions'].get('ordered', 0):
+            ordered_mutation(pdf, case['dimensions'])
         elif case['dimensions']['sections'] == 2 and not case['dimensions'].get('styled', 0):
             mutation_checks(pdf, case['dimensions'])
-    print('PASS destination reference values, targets, geometry, ownership and seven mutation twins')
+    print('PASS destination reference values, targets, geometry, ownership and eight mutation twins')
 
 
 def reader_check(mutool: Path | None) -> None:

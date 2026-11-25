@@ -14,6 +14,7 @@ import unicode.Scalar
 KernelPdfText :: [].{
 	Dimension : [ActualTextScalars, ContentBytes, Mappings, Placements, SourceScalars]
 	Error : [
+		ActualTextLanguageEscape({ run : U64, scalar : U64 }),
 		ActualTextRequired({ run : U64 }),
 		ArithmeticOverflow,
 		ClusterInvalid({ cluster : U64, run : U64 }),
@@ -24,6 +25,7 @@ KernelPdfText :: [].{
 		OccurrenceInvalid({ occurrence : U64, run : U64 }),
 		PlacementInvalid({ placement : U64 }),
 		RunInvalid({ run : U64 }),
+		UnicodeDestinationTooLong({ attempted : U64, cid : U32, font : U64, limit : U64, run : U64 }),
 		UnicodeMappingConflict({ cid : U32, font : U64 }),
 	]
 
@@ -539,6 +541,16 @@ collect_run_mappings = |states, font_index, semantics, scalars, text, run, run_i
 			cid = cid_for_glyph(state.plan, glyph, run_index)?
 			match list_at($slots, cid.to_u64()) {
 				Unmapped => {
+					# Only the selected mapping becomes a ToUnicode destination.
+					match mapping {
+						Hyphen => {}
+						Scalars({ begin, length }) => {
+							KernelPdfFont.check_destination_length(scalars.values, begin, length) ? |error| match error {
+								ArithmeticOverflow => ArithmeticOverflow
+								DestinationTooLong({ attempted, limit }) => UnicodeDestinationTooLong({ attempted, cid, font: font_index, limit, run: run_index })
+							}
+						}
+					}
 					$slots = list_set($slots, cid.to_u64(), Mapped(mapping_values(scalars, mapping)))
 				}
 				Mapped(existing) => if !mapping_matches(existing, scalars, mapping) {
@@ -707,7 +719,7 @@ emit_run_body = |bytes, text, run, origin, font, limit| {
 ## so one adjustment step is 10^-digits thousandths of text space. One digit
 ## keeps every glyph within 0.00005 em of its layout position (0.0006 pt at
 ## 12 pt); whole thousandths would allow 0.0005 em for about 1% less output
-## (development/performance/output-size.md, step 3).
+## (docs/contributors/performance/output-size.md, step 3).
 adjustment_digits : U8
 adjustment_digits = 1
 
@@ -741,8 +753,8 @@ pow10 = |digits| {
 ## nearest 1/`adjustment_scale` thousandth of text space (halves round up).
 ## The pen is tracked exactly in units of 1/(1000 * `adjustment_scale`)
 ## layout units, so each glyph's rounding error is at most half an
-## adjustment step, 0.0005 em at scale 1, and never accumulates along the
-## segment. All arithmetic is checked `I64` integer arithmetic.
+## adjustment step (0.00005 em at the current scale) and never accumulates.
+## All arithmetic is checked `I64` integer arithmetic.
 emit_run_glyphs : List(U8), Text.Store, Text.Run, Layout.Point, KernelFontPlan.Plan, U64 -> Try({ bytes : List(U8), glyphs : U64 }, KernelPdfText.Error)
 emit_run_glyphs = |bytes, text, run, origin, font, limit| emit_run_glyphs_phase(bytes, text, run, origin, font, FirstPiece, limit)
 
@@ -886,7 +898,12 @@ append_actual_text_begin = |bytes, scalars, run, limit| {
 	var $out = append_literal(bytes, "/Span <</ActualText <FEFF", limit)?
 	var $index = 0
 	while $index < scalars.len() {
-		$out = append_utf16_scalar($out, list_at(scalars, $index), run, limit)?
+		scalar = list_at(scalars, $index)
+		# ActualText uses PDF text-string semantics.
+		if scalar == 27 {
+			return Err(ActualTextLanguageEscape({ run, scalar: $index }))
+		}
+		$out = append_utf16_scalar($out, scalar, run, limit)?
 		$index = $index + 1
 	}
 	append_literal($out, ">>> BDC\n", limit)
@@ -965,7 +982,7 @@ within_limit = |bytes, limit| {
 ## the length and reserves nothing: an explicit `List.reserve` sizes the
 ## allocation exactly, and a list returned through `?` and then appended to
 ## was copied per token by the pinned dev backend
-## (development/performance/lowering-uniqueness.md).
+## (docs/contributors/performance/lowering-uniqueness.md).
 check_room : U64, U64, U64 -> Try({}, KernelPdfText.Error)
 check_room = |length, additional, limit| {
 	if length > limit or additional > limit - length {
@@ -1032,6 +1049,25 @@ expect round_half_up(5, 10) == Ok(1) and
 			round_half_up(14, 10) == Ok(1) and
 				round_half_up(-15, 10) == Ok(-1) and
 					round_half_up(0, 7) == Ok(0)
+
+# Check the postcondition directly without dividing or using another
+# rounding function. Subtracting the returned number of size steps must
+# leave a position between -1/2 (included) and +1/2 (excluded).
+expect {
+	var $within_half_step = True
+	var $size = 1.I64
+	while $within_half_step and $size <= 64 {
+		var $distance = -256.I64
+		while $within_half_step and $distance <= 256 {
+			steps = round_half_up($distance, $size)?
+			twice_error = ($distance - steps * $size) * 2
+			$within_half_step = twice_error >= -$size and twice_error < $size
+			$distance = $distance + 1
+		}
+		$size = $size + 1
+	}
+	$within_half_step
+}
 
 # One-digit adjustments print as canonical decimals.
 expect append_adjustment([], -3, 16) == Ok(Str.to_utf8("-0.3")) and

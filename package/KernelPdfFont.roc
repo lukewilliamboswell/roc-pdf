@@ -14,6 +14,7 @@ KernelPdfFont :: [].{
 		InvalidUnicodeScalar(U32),
 		Object(KernelObject.Error),
 		UnexpectedUnicodeMapping({ cid : U32 }),
+		UnicodeDestinationTooLong({ attempted : U64, cid : U32, limit : U64 }),
 		UnicodeMappingLimitExceeded({ attempted : U64, limit : U64 }),
 	]
 
@@ -35,6 +36,29 @@ KernelPdfFont :: [].{
 	UnicodeMapping : {
 		cid : U32,
 		scalars : List(U32),
+	}
+
+	## ISO 32000-2 §9.10.3 limits each ToUnicode destination string to
+	## 512 bytes before hexadecimal syntax. A supplementary scalar takes
+	## four UTF-16BE bytes. The caller supplies an in-bounds scalar span.
+	check_destination_length : List(U32), U64, U64 -> Try({}, [ArithmeticOverflow, DestinationTooLong({ attempted : U64, limit : U64 })])
+	check_destination_length = |scalars, start, length| {
+		limit = 512
+		if length <= limit // 4 {
+			return Ok({})
+		}
+
+		var $bytes = 0
+		var $index = start
+		while $index < start + length {
+			width = if (list_at(scalars, $index) <= 0xffff) 2 else 4
+			$bytes = match U64.plus_try($bytes, width) {
+				Ok(value) => value
+				Err(Overflow) => return Err(ArithmeticOverflow)
+			}
+			$index = $index + 1
+		}
+		if ($bytes > limit) Err(DestinationTooLong({ attempted: $bytes, limit })) else Ok({})
 	}
 
 	Limits :: { max_to_unicode_bytes : U64, max_unicode_mappings : U64, max_unicode_scalars : U64 }.{
@@ -448,6 +472,10 @@ validate_mappings = |plan, mappings, limits| {
 					return Err(UnicodeMappingLimitExceeded({ attempted: $scalar_count, limit: limits.max_unicode_scalars }))
 				}
 				$scalar_index = $scalar_index + 1
+			}
+			KernelPdfFont.check_destination_length(mapping.scalars, 0, mapping.scalars.len()) ? |error| match error {
+				ArithmeticOverflow => ArithmeticOverflow
+				DestinationTooLong({ attempted, limit }) => UnicodeDestinationTooLong({ attempted, cid: mapping.cid, limit })
 			}
 			$mapping_index = $mapping_index + 1
 		}

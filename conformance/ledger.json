@@ -137,11 +137,11 @@
       "references": [
         "ISO 32000-2:2020 14.8.2.2",
         "ISO 32000-2:2020 14.8.4.3",
-        "development/performance/custom-block-report.md",
-        "development/performance/rich-flow.md",
-        "development/performance/technical-manual.md",
-        "development/reference-documents.md: Figures, decorations, and extensions",
-        "development/reference-documents.md: Preparation report"
+        "docs/contributors/performance/custom-block-report.md",
+        "docs/contributors/performance/rich-flow.md",
+        "docs/contributors/performance/technical-manual.md",
+        "docs/contributors/reference-documents.md: Figures, decorations, and extensions",
+        "docs/contributors/reference-documents.md: Preparation report"
       ],
       "capabilities": [
         "Pdf20"
@@ -210,9 +210,9 @@
       "references": [
         "ISO 32000-2:2020 14.8.4.4",
         "ISO 32000-2:2020 14.9.3",
-        "development/performance/flow-figures.md",
-        "development/performance/vector-diagram-adapter.md",
-        "development/reference-documents.md: Figures, decorations, and extensions"
+        "docs/contributors/performance/flow-figures.md",
+        "docs/contributors/performance/vector-diagram-adapter.md",
+        "docs/contributors/reference-documents.md: Figures, decorations, and extensions"
       ],
       "capabilities": [
         "Pdf20"
@@ -296,28 +296,32 @@
     },
     {
       "id": "ROC-PDF-PDF20-INLINE-SEMANTICS",
-      "summary": "Rich paragraph inlines lower in authored order to Em, Strong, Link, and Span structure elements of the PDF 2.0 namespace and Code and Quote elements of the PDF 1.7 standard namespace, declared only when used, inside one P; language spans carry /Lang, abbreviations carry /E, links never nest, and every inline link owns one OBJR-referenced link annotation per page its text is painted on, with one quadrilateral per painted line. Fixed-width destination-page references resolve to exact Unicode after accepted pagination, inherit their authored inline ownership, language and style, and create no link unless enclosed by an authored Link; reference-only paragraphs, cells, mandatory segments and links retain real occurrences, and authored-break separators remain occurrence-owned ActualText on semantic paint only.",
+      "summary": "Rich paragraph inlines lower in authored order to Em, Strong, Link, and Span structure elements of the PDF 2.0 namespace and Code and Quote elements of the PDF 1.7 standard namespace, declared only when used, inside one P; language spans carry /Lang, abbreviations carry /E, links never nest, and every inline link owns one OBJR-referenced link annotation per page its text is painted on, with active quadrilaterals covering its painted runs. Fixed-width destination-page references resolve to exact Unicode after accepted pagination, inherit their authored inline ownership, language and style, and create no link unless enclosed by an authored Link; reference-only paragraphs, cells, mandatory segments and links retain real occurrences, and authored-break separators remain occurrence-owned ActualText on semantic paint only.",
       "source_ids": [
-        "iso-32000-2-2020-ec3"
+        "iso-32000-2-2020-ec3",
+        "pdf-issues-ec3"
       ],
       "references": [
-        "ISO 32000-2:2020 12.5.6.5",
+        "ISO 32000-2:2020 12.5.6.5 Table 176",
         "ISO 32000-2:2020 14.8.4.7.2",
         "ISO 32000-2:2020 14.8.6",
         "ISO 32000-2:2020 14.9.2",
         "ISO 32000-2:2020 14.9.5",
-        "development/performance/destination-page-references.md",
-        "development/performance/rich-inline.md",
-        "development/performance/technical-manual.md"
+        "ISO 32000-2:2020+EC3 14.8.4.7.3",
+        "docs/contributors/performance/destination-page-references.md",
+        "docs/contributors/performance/rich-inline.md",
+        "docs/contributors/performance/technical-manual.md",
+        "pdf-issues#133"
       ],
       "capabilities": [
         "Pdf20"
       ],
       "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "roc_facade_and_kernel_expects; rich_inline_harness_family_with_pinned_normalized_structure; independent_checker_decodes_ToUnicode_logical_text_and_requires_structure_order_equal_to_paint_order; E_only_on_Span_and_OBJR_owning_Link_mutation_twins; atomic_inline_negatives_emit_no_bytes; symbolic_reference_occurrence_and_exact_final_cluster_mapping_expects; destination_reference_independent_values_targets_font_baseline_alignment_link_quad_and_actualtext_checks; seven_reference_mutation_twins; atomic_unknown_destination_empty_label_format_font_and_reserved_width_negatives_emit_no_bytes",
+      "machine_verification": "roc_facade_and_kernel_expects; bounded_authored_link_region_model_and_independent_counterclockwise_geometry_and_objr_checks; rich_inline_harness_family_with_pinned_normalized_structure; independent_checker_decodes_ToUnicode_logical_text_and_requires_structure_order_equal_to_paint_order; E_only_on_Span_and_OBJR_owning_Link_mutation_twins; atomic_inline_negatives_emit_no_bytes; symbolic_reference_occurrence_and_exact_final_cluster_mapping_expects; destination_reference_independent_values_targets_font_baseline_alignment_link_quad_and_actualtext_checks; seven_reference_mutation_twins; atomic_unknown_destination_empty_label_format_font_and_reserved_width_negatives_emit_no_bytes",
       "human_verification": "not_required",
       "positive_scenarios": [
+        "fuzz/LinkRegionModel.roc",
         "package/Pdf.roc",
         "tests/destination_references/Cases.roc",
         "tests/rich_inline/Cases.roc",
@@ -368,10 +372,10 @@
       "references": [
         "ISO 32000-2:2020 14.8.4.8.3",
         "ISO 32000-2:2020 Table 380",
-        "development/performance/layout-policies.md",
-        "development/performance/rich-flow.md",
-        "development/performance/technical-manual.md",
-        "development/reference-documents.md: Lists"
+        "docs/contributors/performance/layout-policies.md",
+        "docs/contributors/performance/rich-flow.md",
+        "docs/contributors/performance/technical-manual.md",
+        "docs/contributors/reference-documents.md: Lists"
       ],
       "capabilities": [
         "Pdf20"
@@ -402,9 +406,10 @@
         "pdf-issues-ec3"
       ],
       "references": [
+        "ISO 32000-2:2020 12.3.2.3",
         "ISO 32000-2:2020 12.3.2.4",
-        "development/performance/destination-page-references.md",
-        "development/performance/technical-manual.md",
+        "docs/contributors/performance/destination-page-references.md",
+        "docs/contributors/performance/technical-manual.md",
         "pdf-issues#162"
       ],
       "capabilities": [
@@ -412,7 +417,7 @@
       ],
       "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "roc_unit_named_destination_paired_facts; independent_structural_name_tree_paired_value_inspection_and_mutation_twins; pdfbox_3_0_8_named_destination_outline_resolution; printed_reference_values_and_named_structured_navigation_share_committed_destination_anchor_facts; independent_reference_target_and_page_label_checks; technical_manual_wrong_structured_destination_owner_mutation_twin",
+      "machine_verification": "roc_unit_named_destination_paired_facts; independent_structural_name_tree_paired_value_inspection_and_mcr_objr_first_page_mutation_twins; pdfbox_3_0_8_named_destination_outline_resolution; printed_reference_values_and_named_structured_navigation_share_committed_destination_anchor_facts; independent_reference_target_and_page_label_checks; technical_manual_wrong_structured_destination_owner_mutation_twin",
       "human_verification": "not_required",
       "positive_scenarios": [
         "tests/destination_references/Cases.roc",
@@ -462,23 +467,25 @@
     },
     {
       "id": "ROC-PDF-PDF20-OUTLINE-PLAN",
-      "summary": "Outline preorder seals into deterministic parent, sibling, child, root, and visible-descendant Count facts without synthetic balancing items.",
+      "summary": "Outline preorder seals into deterministic parent, sibling, child, root, and visible-descendant Count facts without synthetic balancing items. The root Count is present only when at least one nonleaf item is open.",
       "source_ids": [
         "iso-32000-2-2020-ec3",
         "pdf-issues-ec3"
       ],
       "references": [
         "ISO 32000-2:2020 12.3.3 Tables 150 and 151",
-        "architecture.md: Internal PDF object plan"
+        "architecture.md: Internal PDF object plan",
+        "pdf-issues#139"
       ],
       "capabilities": [
         "Pdf20"
       ],
       "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "roc_unit_mixed_visibility_exact_links_and_atomic_negative; optimized_4096_entry_exact_allocations_and_work; outline_object_lowering_with_independent_count_recomputation",
+      "machine_verification": "bounded_authored_intent_and_adjacency_model; serialized_root_count_presence_expectations; roc_unit_mixed_visibility_exact_links_and_atomic_negative; optimized_4096_entry_exact_allocations_and_work; outline_object_lowering_with_independent_count_recomputation",
       "human_verification": "not_required",
       "positive_scenarios": [
+        "fuzz/OutlineModel.roc",
         "package/KernelOutline.roc",
         "tests/navigation/Cases.roc",
         "tests/structural_kernel/Cases.roc"
@@ -496,12 +503,12 @@
       ],
       "references": [
         "ISO 32000-2:2020 14.8.2.2.2",
-        "development/performance/chapter-templates.md",
-        "development/performance/destination-page-references.md",
-        "development/performance/page-templates.md",
-        "development/performance/table-paint-footprints.md",
-        "development/performance/technical-manual.md",
-        "development/reference-documents.md: Page templates"
+        "docs/contributors/performance/chapter-templates.md",
+        "docs/contributors/performance/destination-page-references.md",
+        "docs/contributors/performance/page-templates.md",
+        "docs/contributors/performance/table-paint-footprints.md",
+        "docs/contributors/performance/technical-manual.md",
+        "docs/contributors/reference-documents.md: Page templates"
       ],
       "capabilities": [
         "Pdf20"
@@ -561,9 +568,9 @@
       "references": [
         "ISO 32000-2:2020 14.8.2.2.2",
         "ISO 32000-2:2020 14.8.4.7.2",
-        "development/performance/source-blocks.md",
-        "development/performance/source-foregrounds.md",
-        "docs/authoring.md: Preformatted source blocks"
+        "docs/authoring.md: Preformatted source blocks",
+        "docs/contributors/performance/source-blocks.md",
+        "docs/contributors/performance/source-foregrounds.md"
       ],
       "capabilities": [
         "Pdf20"
@@ -622,17 +629,18 @@
         "ISO 32000-2:2020 14.8.2.2.2",
         "ISO 32000-2:2020 14.8.4.8.3",
         "ISO 32000-2:2020 14.8.5.7",
-        "development/performance/tables.md",
-        "development/reference-documents.md: Tables"
+        "docs/contributors/performance/tables.md",
+        "docs/contributors/reference-documents.md: Tables"
       ],
       "capabilities": [
         "Pdf20"
       ],
       "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "roc_facade_and_kernel_expects; tables_harness_family_with_structure_semantics_table_checks_for_grid_regularity_scope_headers_idtree_header_once_and_pagination_artifacts; rich_inline_logical_order_checks; atomic_table_negatives_emit_no_bytes",
+      "machine_verification": "roc_facade_and_kernel_expects; bounded_authored_grid_oracle_for_exact_scope_headers_and_typed_edges; tables_harness_family_with_structure_semantics_table_checks_for_grid_regularity_scope_headers_idtree_header_once_and_pagination_artifacts; rich_inline_logical_order_checks; atomic_table_negatives_emit_no_bytes",
       "human_verification": "not_required",
       "positive_scenarios": [
+        "fuzz/TableHeaderModel.roc",
         "package/Pdf.roc",
         "tests/tables/Cases.roc"
       ],
@@ -651,7 +659,7 @@
         "jpeg-10918-1-1994"
       ],
       "references": [
-        "development/performance/tagged-visual-closure.md",
+        "docs/contributors/performance/tagged-visual-closure.md",
         "feature-roadmap.md: tagged-visual"
       ],
       "capabilities": [
@@ -686,7 +694,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.1.11",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -714,7 +722,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.1.12",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -742,7 +750,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.1.2",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -772,7 +780,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.1.3",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -802,7 +810,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.1.3",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -831,7 +839,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.1.3",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -861,7 +869,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.1.4",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -890,7 +898,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.1.5",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -920,7 +928,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.1.6.1",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -950,7 +958,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.1.6.1",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -979,7 +987,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.1.6.2",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1008,7 +1016,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.1.7",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1036,7 +1044,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.1.8",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1065,7 +1073,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.1.9",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1093,7 +1101,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.10",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1124,7 +1132,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.11",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1153,7 +1161,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.12",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1181,7 +1189,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.10.2",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1213,7 +1221,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.10.3",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1246,7 +1254,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.10.4",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1277,7 +1285,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.10.5",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1306,7 +1314,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.10.7",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1336,7 +1344,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.10.8",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1367,7 +1375,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.10.9",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1395,7 +1403,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.10",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1426,20 +1434,25 @@
       "summary": "Content streams use only ISO 32000-2 operators and explicit resource dictionaries.",
       "source_ids": [
         "iso-19005-4-2020",
-        "iso-32000-2-2020-ec3"
+        "iso-32000-2-2020-ec3",
+        "pdf-issues-ec3"
       ],
       "references": [
         "ISO 19005-4:2020 6.2.2",
-        "development/performance/static-pdfa4.md"
+        "ISO 32000-2:2020+EC3 7.8.2, 8.4.2, 9.4.1, and 14.6.1",
+        "docs/contributors/performance/static-pdfa4.md",
+        "https://github.com/pdf-association/pdf-issues/issues/302",
+        "pdf-issues#302"
       ],
       "capabilities": [
         "StaticPdfA4"
       ],
       "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "by_construction_closed_operator_union_and_complete_direct_resource_dictionaries; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
+      "machine_verification": "by_construction_closed_operator_union_and_complete_direct_resource_dictionaries; bounded_emitted_content_scope_model; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
+        "fuzz/ContentScopeModel.roc",
         "package/KernelContent.roc",
         "tests/archive/Cases.roc"
       ],
@@ -1461,7 +1474,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.3",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1492,7 +1505,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.4.2",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1521,7 +1534,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.4.3",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1550,7 +1563,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.4.4",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1579,7 +1592,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.4",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1609,7 +1622,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.5",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1643,7 +1656,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.7.1",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1676,7 +1689,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.7.3",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1709,7 +1722,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.8.1",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1737,7 +1750,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.8.2",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1766,7 +1779,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.9",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1797,7 +1810,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.3.1",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1826,7 +1839,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.3.2",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1857,7 +1870,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.3.3",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1889,7 +1902,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.4",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1922,7 +1935,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.6.1",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1952,7 +1965,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.6.3",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1980,7 +1993,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.7.2",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -2014,7 +2027,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.7.3",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -2050,7 +2063,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.9",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -2081,7 +2094,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 clause 6",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -2108,7 +2121,7 @@
       "references": [
         "ISO 14289-2:2024 6.2",
         "ISO 32000-2:2020 14.7.1",
-        "development/performance/semantic-foundation.md"
+        "docs/contributors/performance/semantic-foundation.md"
       ],
       "capabilities": [
         "Pdf20",
@@ -2139,7 +2152,7 @@
       "references": [
         "ISO 14289-2:2024 8.11.2",
         "ISO 32000-2:2020 Table 147",
-        "development/performance/semantic-foundation.md"
+        "docs/contributors/performance/semantic-foundation.md"
       ],
       "capabilities": [
         "Pdf20",
@@ -2170,8 +2183,8 @@
       "references": [
         "ISO 14289-2:2024 8.2.5.25",
         "ISO 32000-2:2020 Table 380",
-        "development/performance/layout-policies.md",
-        "development/reference-documents.md: Lists"
+        "docs/contributors/performance/layout-policies.md",
+        "docs/contributors/reference-documents.md: Lists"
       ],
       "capabilities": [
         "Pdf20",
@@ -2204,8 +2217,8 @@
       "references": [
         "ISO 14289-2:2024 8.2.5.26",
         "ISO 32000-2:2020 14.8.5.7",
-        "development/performance/tables.md",
-        "development/reference-documents.md: Tables"
+        "docs/contributors/performance/tables.md",
+        "docs/contributors/reference-documents.md: Tables"
       ],
       "capabilities": [
         "Pdf20",
@@ -2237,8 +2250,8 @@
       ],
       "references": [
         "ISO 14289-2:2024 8.2.5.26",
-        "development/performance/tables.md",
-        "development/reference-documents.md: Tables"
+        "docs/contributors/performance/tables.md",
+        "docs/contributors/reference-documents.md: Tables"
       ],
       "capabilities": [
         "Pdf20",
@@ -2273,7 +2286,7 @@
       "references": [
         "ISO 14289-2:2024 8.9.3.3",
         "ISO 32000-2:2020 Table 31",
-        "development/performance/semantic-foundation.md"
+        "docs/contributors/performance/semantic-foundation.md"
       ],
       "capabilities": [
         "Pdf20",
@@ -2304,7 +2317,7 @@
       "references": [
         "ISO 32000-2:2020 14.7.2 Tables 354 and 355",
         "ISO 32000-2:2020 14.8.5.7",
-        "development/performance/semantic-foundation.md"
+        "docs/contributors/performance/semantic-foundation.md"
       ],
       "capabilities": [
         "Pdf20",
@@ -2336,8 +2349,8 @@
       "references": [
         "ISO 14289-2:2024 8.4.4",
         "ISO 32000-2:2020 14.9.2",
-        "development/performance/rich-inline.md",
-        "development/performance/semantic-foundation.md"
+        "docs/contributors/performance/rich-inline.md",
+        "docs/contributors/performance/semantic-foundation.md"
       ],
       "capabilities": [
         "Pdf20",
@@ -2372,8 +2385,9 @@
       "references": [
         "ISO 14289-2:2024 8.2.5.25",
         "ISO 14289-2:2024 8.2.5.27",
+        "ISO 32000-2:2020 14.8.4.4 Table 365 and Annex L",
         "ISO/TS 32005:2023 Table 5",
-        "development/performance/semantic-foundation.md"
+        "docs/contributors/performance/semantic-foundation.md"
       ],
       "capabilities": [
         "Pdf20",
@@ -2381,7 +2395,7 @@
       ],
       "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "dense_bit_matrix_one_check_per_edge; legal_and_illegal_matrix_expect; kernel_store_negatives_for_edges_content_items_cardinality_and_caption_position; independent_checker_table_compared_with_the_pinned_veraPDF_ISO32005_profile_on_784_role_pairs; mutation_twins",
+      "machine_verification": "dense_bit_matrix_one_check_per_edge; bounded_model_for_Part_and_Div_containment; legal_and_illegal_matrix_expect; kernel_store_negatives_for_edges_content_items_cardinality_and_caption_position; independent_checker_table_compared_with_the_pinned_veraPDF_ISO32005_profile_on_784_role_pairs; mutation_twins",
       "human_verification": "not_required",
       "positive_scenarios": [
         "package/KernelSemantics.roc",

@@ -7,6 +7,7 @@ import "../tests/assets/jpeg-fuzz-corpus/gray-16x16.jpg" as gray_jpeg : List(U8)
 import "../tests/assets/jpeg-fuzz-corpus/rgb-comment.jpg" as comment_jpeg : List(U8)
 import "../tests/assets/jpeg-fuzz-corpus/rgb-exif-orientation-1.jpg" as exif_jpeg : List(U8)
 import "../tests/assets/jpeg-fuzz-corpus/rgb-exif-orientation-6.jpg" as rotated_jpeg : List(U8)
+import "../tests/assets/jpeg-fuzz-corpus/rgb-progressive-32x32.jpg" as progressive_jpeg : List(U8)
 
 JpegTargets :: [].{
 
@@ -83,20 +84,20 @@ sanitized_jpeg_invariants = |plan, source| {
 			## An inspected orientation is resolved before placement; a source that
 			## would still need a pixel transform must never reach the store.
 			match jpeg.orientation {
-				Applied(_) => {}
+				Applied(TopLeft) => {}
 				NoExifOrientation => {}
 				_ => return False
 			}
-			sanitized_stream(jpeg.bytes, source.len())
+			sanitized_header(jpeg, source.len())
 		}
 	}
 }
 
-## The emitted stream keeps JPEG framing, never grows past its source, retains
-## no comment segment, and retains an application segment only when it is the
-## JFIF APP0 or the Adobe APP14 that `KernelImage` deliberately copies through.
-sanitized_stream : List(U8), U64 -> Bool
-sanitized_stream = |bytes, source_length| {
+## Check the retained headers through the first scan. The frame header must
+## agree with the dimensions and components that placement will consume.
+sanitized_header : Image.ValidatedJpeg, U64 -> Bool
+sanitized_header = |jpeg, source_length| {
+	bytes = jpeg.bytes
 	if bytes.len() > source_length or bytes.len() < 4 {
 		return False
 	}
@@ -111,13 +112,26 @@ sanitized_stream = |bytes, source_length| {
 	# Huffman payload may legitimately contain a marker-looking pair, and a
 	# byte scan would report that as a retained segment.
 	var $index = 2
+	var $found_frame = False
 	while $index + 3 < bytes.len() {
 		if list_at(bytes, $index) != 0xff {
 			return False
 		}
 		marker = list_at(bytes, $index + 1)
-		if marker == 0xfe {
+		length = read_be16(bytes, $index + 2)
+		data = $index + 4
+		if marker == 0xfe or length < 2 or data + length - 2 > bytes.len() - 2 {
 			return False
+		}
+		if marker == 0xc0 or marker == 0xc1 or marker == 0xc2 {
+			count = if (jpeg.components == One) 1 else 3
+			if $found_frame or length != 8 + count.to_u64() * 3 or
+				read_be16(bytes, data + 1) != jpeg.dimensions.height.to_u64() or
+					read_be16(bytes, data + 3) != jpeg.dimensions.width.to_u64() or
+						list_at(bytes, data + 5) != count {
+				return False
+			}
+			$found_frame = True
 		}
 
 		# `KernelImage` drops every application segment except the two whose
@@ -129,30 +143,23 @@ sanitized_stream = |bytes, source_length| {
 		# An Exif APP1 is read for its orientation and then dropped, so it must
 		# never appear.
 		if marker >= 0xe0 and marker <= 0xef {
-			length_here = list_at(bytes, $index + 2).to_u64() * 256 + list_at(bytes, $index + 3).to_u64()
-			data_here = $index + 4
-			is_jfif = marker == 0xe0 and length_here >= 16 and matches_at(bytes, data_here, [0x4a, 0x46, 0x49, 0x46, 0x00])
-			is_adobe = marker == 0xee and length_here >= 14 and matches_at(bytes, data_here, [0x41, 0x64, 0x6f, 0x62, 0x65])
+			is_jfif = marker == 0xe0 and length >= 16 and matches_at(bytes, data, [0x4a, 0x46, 0x49, 0x46, 0x00])
+			is_adobe = marker == 0xee and length >= 14 and matches_at(bytes, data, [0x41, 0x64, 0x6f, 0x62, 0x65])
 			if !is_jfif and !is_adobe {
 				return False
 			}
 		}
 
-		# Entropy-coded scan data and the end marker carry no further headers.
-		if marker == 0xda or marker == 0xd9 {
-			return True
-		}
-		length = list_at(bytes, $index + 2).to_u64() * 256 + list_at(bytes, $index + 3).to_u64()
-
-		# An inspected stream always declares a segment length that stays inside
-		# the payload; stop conservatively rather than claim a violation.
-		if length < 2 or $index + 2 + length > bytes.len() {
-			return True
+		if marker == 0xda {
+			return $found_frame and length >= 8
 		}
 		$index = $index + 2 + length
 	}
-	True
+	False
 }
+
+read_be16 : List(U8), U64 -> U64
+read_be16 = |bytes, index| list_at(bytes, index).to_u64() * 256 + list_at(bytes, index + 1).to_u64()
 
 ## One store carrying both component counts the inspector accepts: a calibrated
 ## grey space for single-component frames and the packaged sRGB profile for
@@ -232,19 +239,16 @@ list_at = |items, index| match items.get(index) {
 	Ok(value) => value
 }
 
-## The sanitized bytes an accepted source produced, for expects that need to
-## distinguish "the invariants held" from "the inspector rejected the input and
-## the invariants were never evaluated". `jpeg_mutation` deliberately cannot
-## tell those apart, because a typed rejection is an ordinary outcome under
-## mutation; a replayed seed asserting a retention fact must.
-emitted_stream : List(U8), Color.SpaceId -> [None, Some(List(U8))]
-emitted_stream = |bytes, space| match inspect_encoded_jpeg(bytes, space) {
+## Observe the accepted resource separately so a seed can require successful
+## inspection and check the full stream and orientation carried to placement.
+accepted_jpeg : List(U8), Color.SpaceId -> [None, Some(Image.ValidatedJpeg)]
+accepted_jpeg = |bytes, space| match inspect_encoded_jpeg(bytes, space) {
 	Err(_) => None
 	Ok(plan) => {
 		store = KernelImage.Plan.store(plan)
 		match list_at(store.resources, 0).payload {
 			Raster(_) => None
-			Jpeg(jpeg) => Some(jpeg.bytes)
+			Jpeg(jpeg) => Some(jpeg)
 		}
 	}
 }
@@ -276,34 +280,39 @@ expect JpegTargets.jpeg_mutation(rotated_jpeg)
 # the comment-stripping half of the rule.
 expect JpegTargets.jpeg_mutation(comment_jpeg)
 
-# The three expects above would each pass if the inspector had merely rejected
-# its seed, so they are paired with positive evidence that the accept path was
-# actually taken. Each seed must produce a stream, and the two carrying a
-# segment the rule strips must produce a strictly shorter one.
-expect emitted_stream(gray_jpeg, gray_space) != None
-
-expect match emitted_stream(exif_jpeg, srgb_space) {
+# The corpus builder places these authored APP1 and COM records after the
+# 20-byte SOI/JFIF prefix. Comparing the two known retained ranges pins
+# every other byte, including entropy after the scan headers.
+seed_retains : List(U8), Color.SpaceId, U64, Image.OrientationEvidence -> Bool
+seed_retains = |source, space, stripped, orientation| match accepted_jpeg(source, space) {
 	None => False
-	Some(bytes) => bytes.len() < exif_jpeg.len()
+	Some(jpeg) => {
+		expected = if stripped == 0 {
+			source
+		} else {
+			source.take_first(20).concat(source.drop_first(20 + stripped))
+		}
+		jpeg.bytes == expected and jpeg.orientation == orientation
+	}
 }
 
-expect match emitted_stream(comment_jpeg, srgb_space) {
-	None => False
-	Some(bytes) => bytes.len() < comment_jpeg.len()
-}
+expect seed_retains(gray_jpeg, gray_space, 0, NoExifOrientation)
+expect seed_retains(progressive_jpeg, srgb_space, 0, NoExifOrientation)
+expect seed_retains(exif_jpeg, srgb_space, 36, Applied(TopLeft))
+expect seed_retains(comment_jpeg, srgb_space, 29, NoExifOrientation)
 
 # A three-component frame is admitted only by the sRGB space and a
 # single-component frame only by the calibrated-grey one, which is the reason
 # the store carries both. If this ever inverts, the seeds above would silently
 # stop exercising the accept path while their expects kept passing.
-expect emitted_stream(exif_jpeg, gray_space) == None
+expect accepted_jpeg(exif_jpeg, gray_space) == None
 
-expect emitted_stream(gray_jpeg, srgb_space) == None
+expect accepted_jpeg(gray_jpeg, srgb_space) == None
 
 # The rotation-requiring seed is rejected for its orientation rather than its
 # components, so neither space admits it. Pinning both directions keeps the
 # refusal attributable: a future change that started accepting it would fail
 # here instead of quietly widening what reaches the store.
-expect emitted_stream(rotated_jpeg, srgb_space) == None
+expect accepted_jpeg(rotated_jpeg, srgb_space) == None
 
-expect emitted_stream(rotated_jpeg, gray_space) == None
+expect accepted_jpeg(rotated_jpeg, gray_space) == None

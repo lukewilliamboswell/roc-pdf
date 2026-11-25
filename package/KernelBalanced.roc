@@ -13,6 +13,16 @@ KernelBalanced :: [].{
 		start = |span| span.start
 	}
 
+	## Scalar terms shared by shape construction, span lookup, and the proof.
+	## Group counts take nonzero item counts and a positive width. The span
+	## lookup checks the group index before calculating its start. The length
+	## is only calculated after establishing start <= available.
+	Partition :: [].{
+		group_count = |items, width| (items - 1) // width + 1
+		group_start = |group, width| group * width
+		group_length = |start, available, width, minimum| minimum(available - start, width)
+	}
+
 	Shape :: {
 		item_count : U64,
 		level_counts : List(U64),
@@ -39,7 +49,7 @@ KernelBalanced :: [].{
 			} else if level + 1 >= shape.level_counts.len() {
 				crash "balanced leaf node has no child-node span"
 			}
-			start_in_level = node * fixed_fanout
+			start_in_level = Partition.group_start(node, fixed_fanout)
 			available = list_at(shape.level_counts, level + 1)
 			Span.{
 				length: bounded_count(start_in_level, available, fixed_fanout),
@@ -87,10 +97,10 @@ fixed_fanout = 32
 
 build_nonempty_shape : U64 -> Try(KernelBalanced.Shape, KernelBalanced.Error)
 build_nonempty_shape = |item_count| {
-	var $bottom_counts = [ceil_div(item_count, fixed_fanout)?]
+	var $bottom_counts = [KernelBalanced.Partition.group_count(item_count, fixed_fanout)]
 	var $current = list_at($bottom_counts, 0)
 	while $current > 1 {
-		$current = ceil_div($current, fixed_fanout)?
+		$current = KernelBalanced.Partition.group_count($current, fixed_fanout)
 		$bottom_counts = $bottom_counts.append($current)
 	}
 
@@ -142,19 +152,8 @@ bounded_count = |start, available, limit|
 	if start >= available {
 		0
 	} else {
-		remaining = available - start
-		if (remaining < limit) remaining else limit
+		KernelBalanced.Partition.group_length(start, available, limit, U64.min)
 	}
-
-ceil_div : U64, U64 -> Try(U64, KernelBalanced.Error)
-ceil_div = |value, divisor| {
-	quotient = U64.div_by(value, divisor)
-	if U64.mod_by(value, divisor) == 0 {
-		Ok(quotient)
-	} else {
-		checked_add(quotient, 1)
-	}
-}
 
 checked_add : U64, U64 -> Try(U64, KernelBalanced.Error)
 checked_add = |left, right| match U64.plus_try(left, right) {

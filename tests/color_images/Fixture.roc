@@ -584,19 +584,21 @@ work_vector = |built| {
 
 run_scenario : Str, U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 run_scenario = |mode, scale| {
+	# Select the authored order from the runtime case so allocation checks run the pipeline.
+	first_order = if (scale == 0) Forward else Reversed
 	if mode == "showcase" {
-		forward = run_pipeline(showcase_scenario(Forward)) ? |_| EvidenceFailure
-		reversed = run_pipeline(showcase_scenario(Reversed)) ? |_| EvidenceFailure
+		forward = run_pipeline(showcase_scenario(first_order)) ? |_| EvidenceFailure
+		reversed = run_pipeline(showcase_scenario(if (scale == 0) Reversed else Forward)) ? |_| EvidenceFailure
 		if forward.bytes != reversed.bytes {
 			return Err(AdversarialOrderDiverged)
 		}
 		check_showcase_sharing(forward)?
 		Ok({ bytes: forward.bytes, work: work_vector(forward) })
 	} else if mode == "unique" {
-		built = run_pipeline(showcase_scenario(Forward)) ? |_| EvidenceFailure
+		built = run_pipeline(showcase_scenario(first_order)) ? |_| EvidenceFailure
 		Ok({ bytes: built.bytes, work: work_vector(built) })
 	} else if mode == "shared" {
-		scenario_input = showcase_scenario(Forward)
+		scenario_input = showcase_scenario(first_order)
 		first = run_pipeline(scenario_input) ? |_| EvidenceFailure
 		second = run_pipeline(scenario_input) ? |_| EvidenceFailure
 		if first.bytes != second.bytes {
@@ -1342,4 +1344,34 @@ expect {
 expect {
 	result = Fixture.atomic_negatives(1)?
 	result.work.get(0) == Ok(24) and result.work.get(1) == Ok(0)
+}
+
+# Two CalGray resources share a white point and differ only in one
+# nonzero BlackPoint coordinate. Path paint and raster samples use
+# separate spaces with their exact calibration and default gamma.
+expect {
+	base = grid_scenario(1, Duplicated)
+	white_point = { x: 956321, y: 1000000, z: 1083219 }
+	black_point = { x: 16321, y: 24107, z: 8899 }
+	other_black = { ..black_point, z: 13977 }
+	spaces = [
+		{ id: Color.SpaceId.from_index(0), space: CalibratedGray({ white_point, black_point }) },
+		{ id: Color.SpaceId.from_index(1), space: CalibratedGray({ white_point, black_point: other_black }) },
+	]
+	image = list_at(base.images.resources, 0)
+	payload = match image.payload {
+		PackedPixels(raster) => Ok(PackedPixels({ ..raster, color_space: Color.SpaceId.from_index(1) }))
+		_ => Err(EvidenceFailure)
+	}?
+	built = run_pipeline({
+		..base,
+		color_limits: KernelColor.Limits.make({ max_icc_bytes: 0, max_profiles: 0, max_spaces: 2, max_tags: 0 }),
+		colors: { ..base.colors, spaces },
+		images: { resources: [{ ..image, payload }] },
+	})?
+	objects = KernelEmit.object_text(KernelFormStructure.Plan.structure(built.structure))?
+	text = Str.from_utf8_lossy(objects)
+	KernelForm.Plan.work(built.form_plan).canonical_color_spaces == 2 and
+		text.contains("[/CalGray << /BlackPoint [0.016321 0.024107 0.008899] /WhitePoint [0.956321 1 1.083219] >>]") and
+			text.contains("[/CalGray << /BlackPoint [0.016321 0.024107 0.013977] /WhitePoint [0.956321 1 1.083219] >>]")
 }

@@ -190,7 +190,6 @@ Fixture :: [].{
 			}
 		}
 		byte_string = [0, U64.mod_by(seed, 3841).to_u8_wrap()]
-		text_string = KernelLex.Text.from_str("A😀")
 		var $lexical = List.with_capacity(metrics.emitted_bytes)
 		var $index = 0
 		while $index < entry_count {
@@ -202,7 +201,7 @@ Fixture :: [].{
 			$lexical = KernelLex.append_real($lexical, decimal).append(124)
 			$lexical = KernelLex.append_name($lexical, name).append(124)
 			$lexical = KernelLex.append_byte_string($lexical, byte_string).append(124)
-			$lexical = KernelLex.append_text($lexical, text_string).append(10)
+			$lexical = KernelLex.append_text($lexical, lexical_sample_text).append(10)
 			$index = $index + 1
 		}
 		audit = audit_bytes($lexical)
@@ -720,3 +719,7 @@ list_at = |list, index| match list.get(index) {
 		crash "structural-kernel evidence index invariant failed"
 	}
 }
+
+# Validate the fixed sample at compile time so the workload measures its emission.
+lexical_sample_text : KernelLex.Text
+lexical_sample_text = KernelLex.Text.from_str("A😀") ?? crash "structural-kernel lexical text invariant failed"

@@ -1,4 +1,5 @@
 import KernelSemantics
+import KernelSpan
 import Semantics
 import unicode.ByteRange
 import unicode.Scalar
@@ -254,13 +255,14 @@ mark_property_range : Semantics.IndexRange, U64, List(U8), List(Semantics.TextPr
 mark_property_range = |range, owner, owners, properties, used_bytes, byte_limit| {
 	start = range.start()
 	length = range.length()
-	if start > properties.len() or length > properties.len() - start {
-		return Err(TextPropertySpanOutOfRange({ available: properties.len(), length, owner, start }))
+	available = properties.len()
+	end = match KernelSpan.end_within(start, length, available) {
+		Ok(ending) => ending
+		Err(Outside) => return Err(TextPropertySpanOutOfRange({ available, length, owner, start }))
 	}
 	var $owners = owners
 	var $bytes = used_bytes
 	var $index = start
-	end = start + length
 	while $index < end {
 		if list_at($owners, $index) != 0 {
 			return Err(DuplicateTextPropertyOwnership({ property: $index }))

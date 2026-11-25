@@ -15,7 +15,7 @@ It does not read or repair existing PDFs.
 * Printing page numbers beside links? Use xref:destination-page-references.adoc#destination-page-references-destination-page-references[Destination page references].
 * Updating positional calls? Use xref:migrating-named-arguments.adoc#migrating-named-arguments-migrating-to-named-arguments[Migrating to named arguments].
 * Looking up a type or function? Open the https://lukewilliamboswell.github.io/roc-pdf/[API reference].
-* Contributing or preparing a release? Start with https://github.com/lukewilliamboswell/roc-pdf/blob/main/development/README.md[contributor documentation].
+* Contributing or preparing a release? Follow xref:contributing.adoc#contributing-to-roc-pdf[Contributing to roc-pdf].
 
 The xref:gallery.adoc#runnable-document-gallery[example gallery] contains complete
 applications and their PDF output. Read xref:releases.adoc#release-notes[release notes]

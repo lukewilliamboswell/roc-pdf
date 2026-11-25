@@ -312,6 +312,9 @@ Scene :: [].{
 	Path : { id : PathId, segments : Semantics.IndexRange }
 
 	TextRenderingMode : [Fill, FillAndStroke]
+
+	## Fill-and-stroke glyph outlines use a solid line, butt caps, and miter
+	## joins with limit 10. The stroke supplies its own color and width.
 	TextPaint : {
 		fill : Color.Value,
 		mode : TextRenderingMode,

@@ -1,11 +1,11 @@
-# Contributor tooling for roc-pdf. See development/blueprint.md.
+# Contributor tooling for roc-pdf. See docs/contributors/blueprint.md.
 #
 # The package compiler is not fetched here. `.roc-version` stays its only pin:
 # CI installs that nightly with the shared verified installer, contributors put it on PATH
 # as `roc`, and the scripts refuse any other compiler. Zig is fetched by digest
 # because the test platform hosts need exactly 0.16.0, and ripgrep because the
 # docs audit needs it and the CI runners do not ship it.
-app [config] { pf: platform "https://github.com/lukewilliamboswell/roc-blueprint/releases/download/0.12.0/GSb71LxYHqLohZz8jMfawWEwQcyev9ZdVC26sfsDwfq8.tar.zst" }
+app [config] { pf: platform "https://github.com/lukewilliamboswell/roc-blueprint/releases/download/0.15.0-rc.1/FwWWY6PczB7QsUoWKgaLTuBGGajLjfA4MhaLD36sJxrN.tar.zst" }
 
 import pf.Config
 import pf.Recipes
@@ -35,8 +35,8 @@ zig : System -> Config.Download
 zig = |system| {
 	base = "https://ziglang.org/download/0.16.0"
 	match system {
-		"x86_64-linux" => Archive("${base}/zig-x86_64-linux-0.16.0.tar.xz", TarXz, "zig-x86_64-linux-0.16.0/zig")
-		"aarch64-darwin" => Archive("${base}/zig-aarch64-macos-0.16.0.tar.xz", TarXz, "zig-aarch64-macos-0.16.0/zig")
+		"x86_64-linux" => Mirrored(Archive("https://pkg.hexops.org/zig/zig-x86_64-linux-0.16.0.tar.xz", TarXz, "zig-x86_64-linux-0.16.0/zig"), ["${base}/zig-x86_64-linux-0.16.0.tar.xz"])
+		"aarch64-darwin" => Mirrored(Archive("https://pkg.hexops.org/zig/zig-aarch64-macos-0.16.0.tar.xz", TarXz, "zig-aarch64-macos-0.16.0/zig"), ["${base}/zig-aarch64-macos-0.16.0.tar.xz"])
 		_ => Unavailable
 	}
 }

@@ -163,7 +163,6 @@ class BaselineDelta:
 @dataclass(frozen=True)
 class CaseRunResult:
     delta: BaselineDelta | None
-    drift: BaselineDelta | None
     metrics: Metrics
     output_bytes: int
 
@@ -815,7 +814,7 @@ def fixture_build_command(
     # fixtures were built before it. Built without the cache, every
     # fixture compiles exactly as a standalone `roc build --no-cache`
     # does, whatever the order or cache state
-    # (development/performance/lowering-uniqueness.md).
+    # (docs/contributors/performance/lowering-uniqueness.md).
     # --no-cache works around roc-lang/roc#11826. That issue is closed,
     # but re-tested on nightly-2026-10-18 a cold shared cache still
     # differs in 26 cases: "static PDF/A-4 archived report scaling x400"
@@ -916,11 +915,6 @@ def metrics_mismatch(
 
 def allocated_bytes_exceeded(expected: Metrics, actual: Metrics) -> bool:
     return actual.allocated_bytes * 10 > expected.allocated_bytes * ALLOCATED_BYTES_CEILING_TENTHS
-
-
-def metrics_drift(expected: Metrics, actual: Metrics) -> bool:
-    """Any exact difference, including allocated bytes inside the ceiling."""
-    return expected != actual
 
 
 def self_test_metrics(suite: TestSuite) -> None:
@@ -1395,12 +1389,7 @@ def run_case(
     )
 
     delta = None if mismatch is None else BaselineDelta(case.name, expected_metrics, actual_metrics)
-    drift = (
-        BaselineDelta(case.name, expected_metrics, actual_metrics)
-        if metrics_drift(expected_metrics, actual_metrics)
-        else None
-    )
-    return CaseRunResult(delta, drift, actual_metrics, len(result.stdout))
+    return CaseRunResult(delta, actual_metrics, len(result.stdout))
 
 
 def available_cpu_count() -> int:
@@ -1487,7 +1476,7 @@ def default_build_jobs() -> int:
     """Parallel fixture builds that fit in memory.
 
     A fixture group build peaks at up to 6.9 GB resident on
-    nightly-2026-10-23 (development/performance/fixture-grouping.md), more
+    nightly-2026-10-23 (docs/contributors/performance/fixture-grouping.md), more
     than a single-source build, so builds get their own memory bound.
     """
     memory = available_now_bytes()
@@ -1505,7 +1494,7 @@ def default_jobs() -> int:
         # Each check, test, or build root type-checks the whole package and
         # peaks at 4 to 5.2 GB resident with the pinned compiler; on a 32 GB
         # machine 8 and 10 workers were killed for memory, 6 were not
-        # (development/performance/test-suite-speed.md).
+        # (docs/contributors/performance/test-suite-speed.md).
         reserve = 2 * 1024**3
         per_job = 5 * 1024**3
         memory_jobs = max(1, (max(0, memory - reserve)) // per_job)
@@ -1529,8 +1518,8 @@ def main() -> None:
         "--baseline-report",
         type=Path,
         help=(
-            "With --compare-baselines or --update-snapshots, also write every differing case's "
-            "expected and observed metrics to this JSON file for review; it never edits the spec"
+            "With --compare-baselines or --update-snapshots, write expected and observed metrics "
+            "for cases that fail an allocation, allocated-byte ceiling, or work check"
         ),
     )
     parser.add_argument(
@@ -1865,7 +1854,6 @@ def run_suite(
             f"(toolchain cap {suite.toolchain.max_build_workers})"
         )
         baseline_deltas: list[BaselineDelta] = []
-        baseline_drift: list[BaselineDelta] = []
         build_case_units(
             units,
             build_dir,
@@ -1918,8 +1906,6 @@ def run_suite(
                 )
                 if result.delta is not None:
                     baseline_deltas.append(result.delta)
-                if result.drift is not None:
-                    baseline_drift.append(result.drift)
         except KeyboardInterrupt:
             cancel_parallel(executor, futures)
             raise
@@ -1928,9 +1914,6 @@ def run_suite(
 
     if args.baseline_report is not None:
         work_names = {case.name: case.work_counters for case in suite.cases}
-        # The report lists every exact difference, including allocated bytes
-        # that stay inside the ceiling, so a reviewed rebaseline can lower
-        # recorded ceilings as well as accept failing deltas.
         report = [
             {
                 "case": delta.case_name,
@@ -1945,10 +1928,10 @@ def run_suite(
                     "work": dict(zip(work_names[delta.case_name], delta.actual.work)),
                 },
             }
-            for delta in sorted(baseline_drift, key=lambda item: item.case_name)
+            for delta in sorted(baseline_deltas, key=lambda item: item.case_name)
         ]
         args.baseline_report.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-        announce("RUN", f"Wrote {len(report)} baseline differences to {args.baseline_report}")
+        announce("RUN", f"Wrote {len(report)} baseline violations to {args.baseline_report}")
 
     if args.update_snapshots:
         phase("Post-update contract validation")

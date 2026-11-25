@@ -39,7 +39,7 @@ fi
 mkdir -p "$output_dir"
 "$roc_bin" docs --output="$output_dir" "$root_dir/package/main.roc"
 
-if rg -n 'Kernel[A-Za-z]+' "$output_dir"; then
+if (cd "$output_dir" && rg -n --glob '!manual/**' 'Kernel[A-Za-z]+' .); then
     echo "ERROR: generated public documentation exposes a private Kernel type" >&2
     exit 1
 fi

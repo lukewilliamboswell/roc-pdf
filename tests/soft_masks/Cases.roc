@@ -3,9 +3,9 @@ import Fixture
 ## The soft_masks family's typed cases and their dispatch, run by a fixture group app.
 Cases :: [].{
 	Case : [
-		Showcase,
-		Unique,
-		Shared,
+		Showcase({ context : U64 }),
+		Unique({ context : U64 }),
+		Shared({ context : U64 }),
 		Reuse({ scale : U64 }),
 		Masks({ scale : U64 }),
 		Chain({ scale : U64 }),
@@ -15,9 +15,9 @@ Cases :: [].{
 	run : Case -> { bytes : List(U8), work : List(U64) }
 	run = |case| {
 		result = match case {
-			Showcase => Fixture.scenario("showcase", 0)
-			Unique => Fixture.scenario("unique", 0)
-			Shared => Fixture.scenario("shared", 0)
+			Showcase({ context }) => Fixture.scenario("showcase", context)
+			Unique({ context }) => Fixture.scenario("unique", context)
+			Shared({ context }) => Fixture.scenario("shared", context)
 			Reuse({ scale }) => if scale > 0 {
 				Fixture.scenario("reuse", scale)
 			} else {

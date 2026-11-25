@@ -1,0 +1,57 @@
+# Publishing a release
+
+A release dispatch records one full commit SHA from `main`, runs the complete
+applicable checks at that SHA, then publishes the tested artifacts once.
+`.roc-version` remains the only package compiler pin. Publishing a version does
+not expand any conformance or Gate 7 claim.
+
+## Prepare and validate
+
+1. Author `docs/releases/<version>.md` with the pinned nightly and literal
+   `{package-url}` and `{bundle-sha256}` placeholders. Describe user-visible
+   behavior and migration; keep the authored placeholders in Git.
+2. The PR checks choose the highest authored notes version and build the
+   package, examples archive, API/manual archive and PDF. They test the actual
+   bundle/archive consumers, render notes with the resulting URL/digest, and
+   run `roc bump --old <latest-final-bundle> --expect <version>` under the
+   pinned compiler. Both old/new APIs must compile; failures are investigated,
+   never skipped or replaced by a guessed compatibility verdict.
+   When the previous release cannot compile under a newly required compiler,
+   treat that requirement change as a source-compatibility boundary: document
+   the compiler migration and author a breaking version. The existing breaking-version rule
+   then applies; a patch release cannot claim an unproved API comparison.
+3. Merge only after applicable checks pass. Dispatch the release workflow on
+   `main` with that authored version and `nightly_validation: true` for an
+   end-to-end dry run. This repeats the full Linux/macOS checks, independent
+   profile/object-model checks and documentation/archive checks on the recorded
+   event SHA and builds the complete publication payload for the explicit
+   version. It publishes nothing. Compiler-candidate validation also accepts a branch and
+   an omitted tag, deriving the highest authored version; this compatibility
+   mode does not establish publication eligibility or an API version verdict.
+4. Review the same-run `roc-pdf-release-<sha>` artifact: its manifest records
+   the compiler, commit, exact names, lengths and SHA-256 values of all four
+   deliverables. Rendered notes are also hash-bound. No source file is rewritten.
+
+## Publish once
+
+Dispatch `release-candidate.yml` from `main` with the same authored version and
+`nightly_validation: false`. Existing tags/releases reject before publication.
+The protected `release` environment admits `main` alone. A separate job downloads
+its own run's artifacts, verifies their manifest/notes/identity and invokes the
+full-SHA shared publisher. It checks out no project source and rebuilds nothing.
+The publisher creates a draft at the tested SHA, uploads each explicit asset,
+downloads and verifies its bytes, and only then publishes. Candidates remain
+prereleases; final versions become latest. Immutable hosting and tag rules
+prevent modifying a published version.
+
+Assets are the content-addressed package, `roc-pdf-examples-<version>.zip`,
+`roc-pdf-docs-<version>.zip`, `roc-pdf-<version>.pdf` and
+`release-manifest.json`. The docs archive preserves both the original API site
+routes and `/manual/`. Default-branch Pages output says `unreleased`; release
+archives carry their exact version.
+
+If publication fails, inspect the named draft and the uploaded/downloaded
+files. A draft is never automatically adopted. Delete an unpublished failed
+draft before retrying the same run's tested artifacts. Never repair a published
+release, move a tag, replace an asset or reconstruct an expired artifact from a
+moving branch. Publish changed bytes as a new version.

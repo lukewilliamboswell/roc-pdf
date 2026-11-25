@@ -7,6 +7,7 @@ import KernelTagged
 import Layout
 import Scene
 import Semantics
+import Text
 
 KernelContent :: [].{
 	Dimension : [ContentBytes, ContentStreams]
@@ -727,10 +728,9 @@ emit_text = |bytes, paint, run, naming, limit| {
 				crash "validated fill-and-stroke text lost its stroke"
 			}
 			Stroke({ color, width }) => {
-				var $stroked = emit_color($out, color, True, naming, limit)?
-				$stroked = append_layout($stroked, width, limit)?
-				$stroked = append_literal($stroked, " w\nBT\n2 Tr\n", limit)?
-				$stroked
+				stroke = { cap: ButtCap, color, dash: SolidLine, join: MiterJoin, miter_limit: Layout.Unit.from_raw(10000), width }
+				stroked = emit_stroke($out, stroke, [], naming, limit)?
+				append_literal(stroked, "BT\n2 Tr\n", limit)?
 			}
 		}
 	}
@@ -996,7 +996,7 @@ emit_stroke = |bytes, stroke, dash_lengths, naming, limit| {
 ## both reassigns the stream `var` and passes it on as the arm's value. When
 ## one did, the join after the `match` carried the `var` beside the arm's
 ## result, the other arm's call saw a second reference, and it copied the
-## whole stream once per stroke (development/performance/emission-linearity.md).
+## whole stream once per stroke (docs/contributors/performance/emission-linearity.md).
 emit_dash : List(U8), Semantics.IndexRange, Layout.Unit, List(Layout.Unit), U64 -> Try(List(U8), KernelContent.Error)
 emit_dash = |bytes, lengths, phase, dash_lengths, limit| {
 	var $out = append_literal(bytes, "[", limit)?
@@ -1150,7 +1150,7 @@ append_bytes = |bytes, addition, limit| {
 ## on every token by the pinned dev backend, and it reserves nothing, because
 ## an explicit `List.reserve` sizes the allocation exactly and reserving
 ## before every token reallocated the whole stream once per token
-## (development/performance/lowering-uniqueness.md).
+## (docs/contributors/performance/lowering-uniqueness.md).
 check_room : U64, U64, U64 -> Try({}, KernelContent.Error)
 check_room = |length, additional, limit| {
 	attempted = checked_add(length, additional)?
@@ -1412,6 +1412,63 @@ expect {
 	canonical = emit_text([], paint, run, CanonicalNames({ colors: [0], fonts: [9, 9, 7], images: [], patterns: [], shadings: [] }), 512)?
 	expected = |ordinal| Str.to_utf8("/CS1_0 cs\n0 scn\nBT\n0 Tr\n/F1_${ordinal} 11 Tf\n1 0 0 1 0 0 Tm\n<0001> Tj\nET\n")
 	authored == expected("2") and canonical == expected("7")
+}
+
+# The text transform saves a copy of the preceding path state. A glyph
+# stroke must establish its own style inside that saved scope.
+expect {
+	unit = KernelFixture.unit
+	span = |start, length| Semantics.IndexRange.from_start_and_length({ start, length })
+	black = { channels: Gray(0), space: Color.SpaceId.from_index(0) }
+	white = { channels: Gray(65535), space: Color.SpaceId.from_index(0) }
+	stroke = { cap: RoundCap, color: black, dash: Dashed({ lengths: span(0, 2), phase: unit(750) }), join: BevelJoin, miter_limit: unit(1000), width: unit(1000) }
+	paint = { fill: white, mode: FillAndStroke, opacity: 65535, stroke: Stroke({ color: black, width: unit(2000) }) }
+	scenes = {
+		..KernelFixture.scene,
+		commands: [
+			DrawPath({ path: Scene.PathId.from_index(0), style: { fill: NoFill, stroke: SolidStroke(stroke) } }),
+			Transform({ children: span(2, 1), matrix: { a: unit(1000), b: unit(0), c: unit(0), d: unit(1000), e: unit(2000), f: unit(3000) } }),
+			DrawText({ paint, run: Text.RunId.from_index(0) }),
+		],
+		dash_lengths: [unit(1000), unit(2000)],
+	}
+	text = WithText(KernelContent.TextPlan.make([{ actual_text_begin: [], body: Str.to_utf8("<0001> Tj\n"), close_actual_text: False, font: 0, size: unit(11000) }]))
+	expected =
+		\\/CS1_0 CS
+		\\0 SCN
+		\\1 w
+		\\1 J
+		\\2 j
+		\\1 M
+		\\[1 2] 0.75 d
+		\\0 0 1 1 re
+		\\S
+		\\q
+		\\1 0 0 1 2 3 cm
+		\\/CS1_0 cs
+		\\1 scn
+		\\/CS1_0 CS
+		\\0 SCN
+		\\2 w
+		\\0 J
+		\\0 j
+		\\10 M
+		\\[] 0 d
+		\\BT
+		\\2 Tr
+		\\/F1_0 11 Tf
+		\\<0001> Tj
+		\\ET
+		\\Q
+	bytes = Str.to_utf8("${expected}\n")
+	emitted = emit_commands([], span(0, 2), scenes.commands, scenes, text, NoForms, AuthoredNames, [], bytes.len())?
+	limited = emit_commands([], span(0, 2), scenes.commands, scenes, text, NoForms, AuthoredNames, [], bytes.len() - 1)
+	emitted.bytes == bytes and (
+		match limited {
+			Err(LimitExceeded({ attempted, dimension: ContentBytes, limit })) => attempted == bytes.len() and limit == bytes.len() - 1
+			_ => False
+		}
+	)
 }
 
 # A shading paint lowers to its canonical `Sh` name with the bare `sh`

@@ -61,7 +61,7 @@ import Text
 ## categories are explicit; debug representations supply bounded detail only.
 ## Private module: no PDF object or compiler error types enter the public API.
 KernelFacadeFailure :: [].{
-	Failure : { category : [Budget, Invariant], feature : Str, path : Str, detail : Str }
+	Failure : { category : [Budget, Invariant, UnsupportedText], feature : Str, path : Str, detail : Str }
 
 	pipeline : KernelFacadePipeline.Error -> Failure
 	pipeline = |error| kernel_facade_pipeline_error(error)
@@ -76,7 +76,7 @@ context = |{ feature, path, cause }| { ..cause, feature: "${feature}.${cause.fea
 
 ## Diagnostic detail is explanatory and bounded. It cannot select a feature
 ## or category, including when strings contain text resembling error tags.
-leaf : { category : [Budget, Invariant], feature : Str, path : Str, inspected : Str } -> KernelFacadeFailure.Failure
+leaf : { category : [Budget, Invariant, UnsupportedText], feature : Str, path : Str, inspected : Str } -> KernelFacadeFailure.Failure
 leaf = |{ category, feature, path, inspected }| {
 	bytes = inspected.to_utf8()
 	detail = if bytes.len() <= 160 {
@@ -362,6 +362,7 @@ document_navigation_error = |error| match error {
 	DestinationNameEmpty(_) => leaf({ category: Invariant, feature: "destination_name_empty", path: "DestinationNameEmpty", inspected: Str.inspect(error) })
 	DestinationNameInvalidByte(_) => leaf({ category: Invariant, feature: "destination_name_invalid_byte", path: "DestinationNameInvalidByte", inspected: Str.inspect(error) })
 	DestinationNameTooLong(_) => leaf({ category: Invariant, feature: "destination_name_too_long", path: "DestinationNameTooLong", inspected: Str.inspect(error) })
+	DestinationPageMismatch(_) => leaf({ category: Invariant, feature: "destination_page_mismatch", path: "DestinationPageMismatch", inspected: Str.inspect(error) })
 	DestinationTargetMismatch(_) => leaf({ category: Invariant, feature: "destination_target_mismatch", path: "DestinationTargetMismatch", inspected: Str.inspect(error) })
 	DestinationTargetOutOfRange(_) => leaf({ category: Invariant, feature: "destination_target_out_of_range", path: "DestinationTargetOutOfRange", inspected: Str.inspect(error) })
 	DuplicateDestinationName(_) => leaf({ category: Invariant, feature: "duplicate_destination_name", path: "DuplicateDestinationName", inspected: Str.inspect(error) })
@@ -374,6 +375,7 @@ document_navigation_error = |error| match error {
 	LabelNumberWithoutStyle(_) => leaf({ category: Invariant, feature: "label_number_without_style", path: "LabelNumberWithoutStyle", inspected: Str.inspect(error) })
 	LabelPrefixTooLong(_) => leaf({ category: Invariant, feature: "label_prefix_too_long", path: "LabelPrefixTooLong", inspected: Str.inspect(error) })
 	LabelRangeNotAscending(_) => leaf({ category: Invariant, feature: "label_range_not_ascending", path: "LabelRangeNotAscending", inspected: Str.inspect(error) })
+	LabelStartNumberOutOfRange(_) => leaf({ category: Invariant, feature: "label_start_number_out_of_range", path: "LabelStartNumberOutOfRange", inspected: Str.inspect(error) })
 	LabelStartNumberZero(_) => leaf({ category: Invariant, feature: "label_start_number_zero", path: "LabelStartNumberZero", inspected: Str.inspect(error) })
 	LabelStartPageNotZero(_) => leaf({ category: Invariant, feature: "label_start_page_not_zero", path: "LabelStartPageNotZero", inspected: Str.inspect(error) })
 	LabelStartPageOutOfRange(_) => leaf({ category: Invariant, feature: "label_start_page_out_of_range", path: "LabelStartPageOutOfRange", inspected: Str.inspect(error) })
@@ -550,6 +552,7 @@ kernel_font_subset_error = |error| match error {
 
 kernel_pdf_text_error : KernelPdfText.Error -> KernelFacadeFailure.Failure
 kernel_pdf_text_error = |error| match error {
+	ActualTextLanguageEscape(_) => leaf({ category: UnsupportedText, feature: "actual_text_language_escape", path: "ActualTextLanguageEscape", inspected: Str.inspect(error) })
 	ActualTextRequired(_) => leaf({ category: Invariant, feature: "actual_text_required", path: "ActualTextRequired", inspected: Str.inspect(error) })
 	ArithmeticOverflow => leaf({ category: Invariant, feature: "arithmetic_overflow", path: "ArithmeticOverflow", inspected: Str.inspect(error) })
 	ClusterInvalid(_) => leaf({ category: Invariant, feature: "cluster_invalid", path: "ClusterInvalid", inspected: Str.inspect(error) })
@@ -560,6 +563,7 @@ kernel_pdf_text_error = |error| match error {
 	OccurrenceInvalid(_) => leaf({ category: Invariant, feature: "occurrence_invalid", path: "OccurrenceInvalid", inspected: Str.inspect(error) })
 	PlacementInvalid(_) => leaf({ category: Invariant, feature: "placement_invalid", path: "PlacementInvalid", inspected: Str.inspect(error) })
 	RunInvalid(_) => leaf({ category: Invariant, feature: "run_invalid", path: "RunInvalid", inspected: Str.inspect(error) })
+	UnicodeDestinationTooLong(_) => leaf({ category: Invariant, feature: "unicode_destination_too_long", path: "UnicodeDestinationTooLong", inspected: Str.inspect(error) })
 	UnicodeMappingConflict(_) => leaf({ category: Invariant, feature: "unicode_mapping_conflict", path: "UnicodeMappingConflict", inspected: Str.inspect(error) })
 }
 
@@ -699,6 +703,7 @@ kernel_semantics_error = |error| match error {
 	InvalidPdf20Namespace => leaf({ category: Invariant, feature: "invalid_pdf20_namespace", path: "InvalidPdf20Namespace", inspected: Str.inspect(error) })
 	InvalidRelationship(_) => leaf({ category: Invariant, feature: "invalid_relationship", path: "InvalidRelationship", inspected: Str.inspect(error) })
 	LimitExceeded(_) => leaf({ category: Budget, feature: "limit_exceeded", path: "LimitExceeded", inspected: Str.inspect(error) })
+	MixedHeadingFamilies(_) => leaf({ category: Invariant, feature: "mixed_heading_families", path: "MixedHeadingFamilies", inspected: Str.inspect(error) })
 	NonDenseIdentity(_) => leaf({ category: Invariant, feature: "non_dense_identity", path: "NonDenseIdentity", inspected: Str.inspect(error) })
 	Orphaned(_) => leaf({ category: Invariant, feature: "orphaned", path: "Orphaned", inspected: Str.inspect(error) })
 	SpanOutOfRange(_) => leaf({ category: Invariant, feature: "span_out_of_range", path: "SpanOutOfRange", inspected: Str.inspect(error) })
@@ -776,6 +781,7 @@ kernel_pdf_font_error = |error| match error {
 	InvalidUnicodeScalar(_) => leaf({ category: Invariant, feature: "invalid_unicode_scalar", path: "InvalidUnicodeScalar", inspected: Str.inspect(error) })
 	Object(cause) => context({ feature: "object", path: "Object", cause: kernel_object_error(cause) })
 	UnexpectedUnicodeMapping(_) => leaf({ category: Invariant, feature: "unexpected_unicode_mapping", path: "UnexpectedUnicodeMapping", inspected: Str.inspect(error) })
+	UnicodeDestinationTooLong(_) => leaf({ category: Invariant, feature: "unicode_destination_too_long", path: "UnicodeDestinationTooLong", inspected: Str.inspect(error) })
 	UnicodeMappingLimitExceeded(_) => leaf({ category: Budget, feature: "unicode_mapping_limit_exceeded", path: "UnicodeMappingLimitExceeded", inspected: Str.inspect(error) })
 }
 
@@ -915,6 +921,7 @@ kernel_lex_error : KernelLex.Error -> KernelFacadeFailure.Failure
 kernel_lex_error = |error| match error {
 	DecimalScaleOutOfRange(_) => leaf({ category: Invariant, feature: "decimal_scale_out_of_range", path: "DecimalScaleOutOfRange", inspected: Str.inspect(error) })
 	NullNameByte(_) => leaf({ category: Invariant, feature: "null_name_byte", path: "NullNameByte", inspected: Str.inspect(error) })
+	TextStringLanguageEscape(_) => leaf({ category: UnsupportedText, feature: "text_string_language_escape", path: "TextStringLanguageEscape", inspected: Str.inspect(error) })
 }
 
 kernel_object_dimension : KernelObject.Dimension -> KernelFacadeFailure.Failure

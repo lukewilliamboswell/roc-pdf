@@ -62,6 +62,138 @@ StructureOracle :: [].{
 	check : List(U8) -> Try({}, Failure)
 	check = |bytes| inspect_document(bytes)
 
+	## The paired and text-only operators used by the generated content subset.
+	ScopeOperator : [BeginGraphics, EndGraphics, BeginMarked, EndMarked, BeginText, EndText, SetTextState, UseText]
+
+	content_scope_operators : List(U8) -> Try(List(ScopeOperator), Failure)
+	content_scope_operators = |bytes| {
+		tokens = tokenize_with(bytes, 0, bytes.len(), 0, ContentTokens)?
+		var $operators = []
+		for token in tokens {
+			if token.kind == OperatorToken {
+				match scope_operator(bytes, token) {
+					Some(operator) => {
+						$operators = $operators.append(operator)
+					}
+					None => {}
+				}
+			}
+		}
+		Ok($operators)
+	}
+
+	AffineOperation : [Concat({ origin : { x : Dec, y : Dec }, x_end : { x : Dec, y : Dec }, y_end : { x : Dec, y : Dec } }), Invoke(Str), Restore, Save]
+
+	## Project only the graphics-state operators needed to observe the affine
+	## state at Form calls. The tokenizer keeps literal and name operands
+	## from masquerading as operators.
+	affine_operations : List(U8) -> Try(List(AffineOperation), Failure)
+	affine_operations = |bytes| {
+		tokens = tokenize_with(bytes, 0, bytes.len(), 0, ContentTokens)?
+		var $operations = []
+		var $index = 0
+		var $operands = 0
+		for token in tokens {
+			if token.kind == OperatorToken {
+				name = token_text(bytes, token)?
+				match name {
+					"q" | "Q" => {
+						if $operands != 0 {
+							return Err(BadToken(0))
+						}
+						$operations = $operations.append(if (name == "q") Save else Restore)
+					}
+					"cm" => {
+						if $operands != 6 {
+							return Err(BadToken(0))
+						}
+						start = $index - 6
+						a = token_decimal(bytes, list_at(tokens, start))?
+						b = token_decimal(bytes, list_at(tokens, start + 1))?
+						c = token_decimal(bytes, list_at(tokens, start + 2))?
+						d = token_decimal(bytes, list_at(tokens, start + 3))?
+						e = token_decimal(bytes, list_at(tokens, start + 4))?
+						f = token_decimal(bytes, list_at(tokens, start + 5))?
+						$operations = $operations.append(Concat({ origin: { x: e, y: f }, x_end: { x: a + e, y: b + f }, y_end: { x: c + e, y: d + f } }))
+					}
+					"Do" => {
+						if $operands != 1 {
+							return Err(BadToken(0))
+						}
+						resource = list_at(tokens, $index - 1)
+						if resource.kind != NameToken {
+							return Err(BadToken(0))
+						}
+						$operations = $operations.append(Invoke(token_text(bytes, resource)?))
+					}
+					_ => {}
+				}
+				$operands = 0
+			} else {
+				$operands = $operands + 1
+			}
+			$index = $index + 1
+		}
+		Ok($operations)
+	}
+
+	## Read the generated outline root's optional Count through xref and
+	## object-stream locations. Callers supply complete emitted PDF bytes.
+	outline_root_count : List(U8) -> Try([NoCount, Count(U64)], Failure)
+	outline_root_count = |bytes| {
+		{ catalog, entries, offset, root } = catalog_directory(bytes)?
+		outline_number = dictionary_reference(catalog, "Outlines", root)?
+		outline = member_dictionary(bytes, entries, offset, outline_number)?
+		match top_key_value(outline.content, outline.tokens, outline.keys, Str.to_utf8("Count")) {
+			Missing => Ok(NoCount)
+			Found(token) => if (token.kind == IntegerToken) Ok(Count(token.value)) else Err(BadToken(outline_number))
+		}
+	}
+
+	Viewport : { art : List(Dec), bleed : List(Dec), crop : List(Dec), media : List(Dec), rotation : [Degrees(U64), DefaultRotation], trim : List(Dec) }
+
+	## Read direct viewport entries on the one-page fixture path. An empty
+	## list records an omitted optional rectangle rather than its default.
+	single_page_viewport : List(U8) -> Try(Viewport, Failure)
+	single_page_viewport = |bytes| {
+		{ catalog, entries, offset, root } = catalog_directory(bytes)?
+		pages_number = dictionary_reference(catalog, "Pages", root)?
+		pages = member_dictionary(bytes, entries, offset, pages_number)?
+		kids_index = key_index(pages, "Kids", pages_number)?
+		if kids_index + 4 >= pages.tokens.len() or list_at(pages.tokens, kids_index).kind != ArrayOpen or !is_reference(pages.tokens, kids_index + 1) or list_at(pages.tokens, kids_index + 4).kind != ArrayClose {
+			return Err(BadToken(pages_number))
+		}
+		page_number = list_at(pages.tokens, kids_index + 1).value
+		page = member_dictionary(bytes, entries, offset, page_number)?
+		parent = dictionary_reference(page, "Parent", page_number)?
+		if parent != pages_number {
+			return Err(BadToken(page_number))
+		}
+		page_type = key_index(page, "Type", page_number)?
+		type_token = list_at(page.tokens, page_type)
+		if type_token.kind != NameToken or !region_equals(page.content, type_token.start, type_token.len, Str.to_utf8("Page")) {
+			return Err(BadToken(page_number))
+		}
+		media = dictionary_rectangle(page, "MediaBox", page_number)?
+		if media.is_empty() {
+			return Err(BadToken(page_number))
+		}
+		crop = dictionary_rectangle(page, "CropBox", page_number)?
+		bleed = dictionary_rectangle(page, "BleedBox", page_number)?
+		trim = dictionary_rectangle(page, "TrimBox", page_number)?
+		art = dictionary_rectangle(page, "ArtBox", page_number)?
+		rotation = match top_key_value(page.content, page.tokens, page.keys, Str.to_utf8("Rotate")) {
+			Missing => DefaultRotation
+			Found(token) => {
+				if token.kind != IntegerToken {
+					return Err(BadToken(page_number))
+				}
+				Degrees(token.value)
+			}
+		}
+		Ok({ art, bleed, crop, media, rotation, trim })
+	}
+
 	## The boolean form, for callers that only need the verdict.
 	accepts : List(U8) -> Bool
 	accepts = |bytes| match inspect_document(bytes) {
@@ -506,6 +638,77 @@ inspect_objects = |bytes, entries, sorted_starts, dictionary, xref_object, xref_
 	Ok({})
 }
 
+MemberDictionary : { content : List(U8), keys : List(TopKey), tokens : List(Token) }
+
+catalog_directory : List(U8) -> Try({ catalog : MemberDictionary, entries : List(Entry), offset : U64, root : U64 }, StructureOracle.Failure)
+catalog_directory = |bytes| {
+	if bytes.len() < 21 {
+		return Err(TooShort)
+	}
+	startxref = read_startxref(bytes)?
+	offset = startxref.xref_offset
+	header = read_object_header(bytes, offset, bytes.len()) ? |_| BadXrefFraming
+	xref = read_xref_dictionary(bytes, header.body, bytes.len())?
+	start = xref.end + stream_keyword_bytes.len()
+	rows = inflate(bytes, start, xref.length) ? |_| BadXrefFraming
+	entries = read_entries(rows, xref)?
+	catalog = member_dictionary(bytes, entries, offset, xref.root)?
+	Ok({ catalog, entries, offset, root: xref.root })
+}
+
+key_index : MemberDictionary, Str, U64 -> Try(U64, StructureOracle.Failure)
+key_index = |dictionary, name, number| match top_key_index(dictionary.content, dictionary.keys, Str.to_utf8(name)) {
+	Missing => Err(BadToken(number))
+	Found(index) => Ok(index)
+}
+
+dictionary_reference : MemberDictionary, Str, U64 -> Try(U64, StructureOracle.Failure)
+dictionary_reference = |dictionary, name, number| {
+	index = key_index(dictionary, name, number)?
+	if (is_reference(dictionary.tokens, index)) Ok(list_at(dictionary.tokens, index).value) else Err(BadToken(number))
+}
+
+dictionary_rectangle : MemberDictionary, Str, U64 -> Try(List(Dec), StructureOracle.Failure)
+dictionary_rectangle = |dictionary, name, number| {
+	index = match top_key_index(dictionary.content, dictionary.keys, Str.to_utf8(name)) {
+		Missing => return Ok([])
+		Found(value) => value
+	}
+	if index + 5 >= dictionary.tokens.len() or list_at(dictionary.tokens, index).kind != ArrayOpen or list_at(dictionary.tokens, index + 5).kind != ArrayClose {
+		return Err(BadToken(number))
+	}
+	a = token_decimal(dictionary.content, list_at(dictionary.tokens, index + 1))?
+	b = token_decimal(dictionary.content, list_at(dictionary.tokens, index + 2))?
+	c = token_decimal(dictionary.content, list_at(dictionary.tokens, index + 3))?
+	d = token_decimal(dictionary.content, list_at(dictionary.tokens, index + 4))?
+	Ok([a, b, c, d])
+}
+
+# Catalog, outline, and page dictionaries are emitted as object-stream members.
+member_dictionary : List(U8), List(Entry), U64, U64 -> Try(MemberDictionary, StructureOracle.Failure)
+member_dictionary = |bytes, entries, xref, number| {
+	entry = entries.get(number) ? |_| BadXrefEntry(number)
+	if entry.kind != 2 {
+		return Err(BadXrefEntry(number))
+	}
+	container = entries.get(entry.field) ? |_| BadXrefEntry(number)
+	if container.kind != 1 {
+		return Err(BadXrefEntry(number))
+	}
+	header = read_object_header(bytes, container.field, xref) ? |_| BadObjectHeader(entry.field)
+	var $end = xref
+	for other in entries {
+		if other.kind == 1 and other.field > container.field and other.field < $end {
+			$end = other.field
+		}
+	}
+	decoded = decode_object_stream(bytes, header.body, $end, entry.field, entries, 0)?
+	region = decoded.members.get(entry.index) ? |_| BadXrefEntry(number)
+	tokens = tokenize(decoded.content, region.start, region.end, number)?
+	keys = walk_structure(decoded.content, tokens, number, entries.len())?
+	Ok({ content: decoded.content, keys, tokens })
+}
+
 ## Whether the top-level object's dictionary is `/Type /ObjStm`.
 is_object_stream : List(U8), U64, U64 -> Bool
 is_object_stream = |bytes, body, end| match find_bytes(bytes, body, end, stream_keyword_bytes) {
@@ -667,14 +870,29 @@ check_filter = |bytes, tokens, top_keys, payload_start, payload_length, number| 
 ## literal `( )` strings only in their canonical escaped form, no comments
 ## inside objects, and a newline only at framing positions. Tokenizing exactly that grammar and rejecting everything
 ## else makes the tokenizer itself a canonical-output check.
-Kind : [ArrayClose, ArrayOpen, DictClose, DictOpen, FalseToken, HexToken, IntegerToken, LiteralToken, NameToken, NullToken, NumberToken, ReferenceToken, TrueToken]
+Kind : [ArrayClose, ArrayOpen, DictClose, DictOpen, FalseToken, HexToken, IntegerToken, LiteralToken, NameToken, NullToken, NumberToken, OperatorToken, ReferenceToken, TrueToken]
 
 Token : { kind : Kind, len : U64, start : U64, value : U64 }
+
+token_text : List(U8), Token -> Try(Str, StructureOracle.Failure)
+token_text = |bytes, token| Str.from_utf8(bytes.sublist({ len: token.len, start: token.start })).map_err(|_| BadToken(0))
+
+token_decimal : List(U8), Token -> Try(Dec, StructureOracle.Failure)
+token_decimal = |bytes, token| {
+	if token.kind != IntegerToken and token.kind != NumberToken {
+		return Err(BadToken(0))
+	}
+	text = token_text(bytes, token)?
+	Dec.from_str(text).map_err(|_| BadToken(0))
+}
 
 TopKey : { key_len : U64, key_start : U64, value_index : U64 }
 
 tokenize : List(U8), U64, U64, U64 -> Try(List(Token), StructureOracle.Failure)
-tokenize = |bytes, from, to, number| {
+tokenize = |bytes, from, to, number| tokenize_with(bytes, from, to, number, ObjectTokens)
+
+tokenize_with : List(U8), U64, U64, U64, [ContentTokens, ObjectTokens] -> Try(List(Token), StructureOracle.Failure)
+tokenize_with = |bytes, from, to, number, mode| {
 	if to < from or to > bytes.len() {
 		return Err(BadToken(number))
 	}
@@ -682,7 +900,7 @@ tokenize = |bytes, from, to, number| {
 	var $index = from
 	while $index < to {
 		byte = list_at(bytes, $index)
-		if byte == 32 {
+		if byte == 32 or (mode == ContentTokens and (byte == 10 or byte == 13 or byte == 9)) {
 			$index = $index + 1
 		} else if byte == 60 {
 			# A dictionary opener and a hex string are told apart by peeking one
@@ -759,13 +977,42 @@ tokenize = |bytes, from, to, number| {
 			while $scan < to and is_regular(list_at(bytes, $scan)) {
 				$scan = $scan + 1
 			}
-			$tokens = $tokens.append(classify(bytes, $index, $scan, number)?)
+			if mode == ContentTokens and !is_digit(byte) and byte != 45 {
+				$tokens = $tokens.append({ kind: OperatorToken, len: $scan - $index, start: $index, value: 0 })
+			} else {
+				$tokens = $tokens.append(classify(bytes, $index, $scan, number)?)
+			}
 			$index = $scan
 		} else {
 			return Err(BadToken(number))
 		}
 	}
 	Ok($tokens)
+}
+
+scope_operator : List(U8), Token -> [None, Some(StructureOracle.ScopeOperator)]
+scope_operator = |bytes, token| {
+	start = token.start
+	len = token.len
+	if region_equals(bytes, start, len, Str.to_utf8("q")) {
+		Some(BeginGraphics)
+	} else if region_equals(bytes, start, len, Str.to_utf8("Q")) {
+		Some(EndGraphics)
+	} else if region_equals(bytes, start, len, Str.to_utf8("BDC")) or region_equals(bytes, start, len, Str.to_utf8("BMC")) {
+		Some(BeginMarked)
+	} else if region_equals(bytes, start, len, Str.to_utf8("EMC")) {
+		Some(EndMarked)
+	} else if region_equals(bytes, start, len, Str.to_utf8("BT")) {
+		Some(BeginText)
+	} else if region_equals(bytes, start, len, Str.to_utf8("ET")) {
+		Some(EndText)
+	} else if region_equals(bytes, start, len, Str.to_utf8("Tf")) or region_equals(bytes, start, len, Str.to_utf8("Tr")) {
+		Some(SetTextState)
+	} else if region_equals(bytes, start, len, Str.to_utf8("Tm")) or region_equals(bytes, start, len, Str.to_utf8("Td")) or region_equals(bytes, start, len, Str.to_utf8("Tj")) or region_equals(bytes, start, len, Str.to_utf8("TJ")) {
+		Some(UseText)
+	} else {
+		None
+	}
 }
 
 ## Bare tokens are `true`, `false`, `null`, `R`, canonical unsigned integers,

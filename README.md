@@ -40,7 +40,7 @@ roc examples/tax-invoice/main.roc
 
 This writes `tax-invoice.pdf` in the current directory. For contributor setup,
 testing and release procedures, start with the
-[contributor documentation](development/README.md).
+[contributing chapter](docs/contributing.adoc).
 
 [Release notes](https://github.com/lukewilliamboswell/roc-pdf/releases) ·
 [Universal Permissive License](LICENSE)

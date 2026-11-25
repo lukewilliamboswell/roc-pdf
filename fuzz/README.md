@@ -18,6 +18,11 @@ suite builds once, including when several selected properties share it.
 executable's inventory and invokes each property with its own `--target`,
 baseline, corpus, input-size limit and report directory.
 
+The document suite also imports the bounded Model and Solve modules.
+Run their deterministic expectations with
+`roc test fuzz/document_suite.roc --no-cache`. See the
+[correctness oracle guide](../docs/contributors/testing.md#designing-correctness-oracles).
+
 The smoke lane checks every declared example in a fresh supervised process,
 compares its exact accepted allocation observations, then requests fixed-seed
 coverage exploration with a 64-run cap and a one second exploration budget.
@@ -59,7 +64,7 @@ measurement, not any particular accepted value. The optional
 `fuzz-accept` Blueprint task performs the same explicit maintenance action.
 Accepted files under `fuzz/baselines/` contain separate host entries for the
 `llvm-fuzz` profile; reductions also require review. The
-[suite allocation review](../development/performance/fuzz-suites.md) records the
+[suite allocation review](../docs/contributors/performance/fuzz-suites.md) records the
 causes and independent native controls. These observations do not replace
 the dev-backend PDF allocation, byte, work or retention contracts in
 `tests/spec.json`.
@@ -104,11 +109,20 @@ provenance entry. Existing tracked corpora are never mutated in place.
 - `font_inspector_repair`: independent checksum restoration lets bounded table
   edits reach parsers behind the checksum gates. The five-font selector mapping
   is retained.
-- `font_subset_roundtrip`: repeated bounded plans/subsets agree, re-inspect,
-  preserve source style facts and metrics, and rewrite composite dependencies.
+- `font_subset_roundtrip`: successful plans retain exactly the requested glyphs,
+  glyph zero, and their composite dependencies. The property checks content
+  flags and dense glyph IDs against the authored requests and inspected
+  component graph. It re-inspects subset bytes to check style, metrics, cmap
+  mappings, and rewritten dependencies. Rejected plans must repeat the
+  expected error and fields for the authored root checks. For a composite
+  closure rejection, an independent fixed-point scan checks whether the
+  requested closure exceeds the exact reported limit. Focused expects pin both
+  sides of the retention limit for the tracked Han glyph and its exact cmap
+  remapping.
 - `jpeg_inspector_mutation`: successful grey/RGB inspection produces a bounded
-  sanitized stream with resolved dimensions/orientation and only allowed
-  application segments.
+  sanitized stream whose frame agrees with the resolved dimensions and
+  components. The document suite also checks exact byte retention and
+  orientation for grey, progressive, EXIF, and comment seeds.
 - `facade_output_equivalence`: repeatability, buffered/chunked equality, chunk
   ownership invariance, prepared output and transactional rejection agree.
 - `facade_structure`: an independent byte-level oracle verifies PDF framing,

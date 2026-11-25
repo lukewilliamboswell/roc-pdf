@@ -51,7 +51,7 @@ assistive-technology behavior evidence is recorded where reviewed but is
 optional.
 
 This document owns enduring contracts. Versioned representation and repository
-harness details live in [implementation contracts](development/implementation-contracts.md),
+harness details live in [implementation contracts](docs/contributors/implementation-contracts.md),
 and executable evidence lives in the roadmap's linked records. Those contracts
 remain binding until explicitly revised; moving them out of this document does
 not permit unreviewed byte, allocation, or capability changes.
@@ -375,7 +375,7 @@ segments have bounded owned buffers; unchanged final-form resources may use
 exact shared ranges under the selected retention policy. Buffered output uses
 the same transition directly into its final accumulator.
 
-The binding [emission representation contract](development/implementation-contracts.md#emission-representation)
+The binding [emission representation contract](docs/contributors/implementation-contracts.md#emission-representation)
 specifies the current compressor seam, stream-length and xref representation,
 output-bound proofs, chunk ownership, and accumulator growth. Changing those
 choices requires reviewed determinism, allocation, and retention evidence.
@@ -752,7 +752,7 @@ Preparation provides a bounded, read-only report alongside the opaque prepared
 result through a supported inspection surface: `Pdf.prepare_with_report`
 returns the unchanged `Pdf.Prepared` beside a `Pdf.Report` whose mechanical
 facts and human-review obligations are separate fields
-([reference-documents.md](development/reference-documents.md#preparation-report)).
+([reference-documents.md](docs/contributors/reference-documents.md#preparation-report)).
 The report contains
 authoring locations, page and fragment summaries, logical reading order,
 authored alternatives and assertions, layout-policy outcomes, selected text
@@ -847,6 +847,10 @@ byte emission accepts only the sealed result and has no user-data error path.
 The semantic document is the source of meaning and logical reading order. It
 has exactly one top-level `Document` element in the PDF 2.0 namespace. A
 `DocumentFragment` is a descendant rather than an alternative root.
+Each Document or DocumentFragment uses one heading family, either generic
+`H` or numbered `Hn`. The semantic graph validator tracks the family within
+the nearest scope and reports both the conflicting node and that scope.
+[ISO 32000-2 §14.8.4.3](https://pdf-issues.pdfa.org/32000-2-2020/clause14.html#H14.8.4.3)
 
 Every semantic node has one structural parent and an ordered content spine.
 The spine, rather than a separate child list, may contain:
@@ -1236,6 +1240,9 @@ the ambiguity unless the affected run has explicit `ActualText`; in that case
 it retains the first mapping in deterministic traversal order and records the
 resolved conflict as work evidence. Exact logical extraction still comes from
 `ActualText`, not from that necessarily lossy per-CID fallback.
+The selected mapping must fit in 512 UTF-16BE bytes before hexadecimal
+serialization. The separate logical `ActualText` value follows its own
+budget. [ISO 32000-2 §9.10.3](https://pdf-issues.pdfa.org/32000-2-2020/clause09.html#H9.10.3)
 
 Presentation evidence explicitly covers inserted discretionary hyphens,
 suppressed soft hyphens, generated labels and counters, ligature replacement
@@ -1328,6 +1335,10 @@ patterns are added only through explicitly bounded subsets. CMYK, Separation,
 DeviceN, spot color, overprint, luminosity masks, non-Normal blend modes, and
 complex nested mask/group combinations are separate capabilities.
 
+Pages with transparency require an explicit blending space. Transparency
+planning includes an annotation's normal appearance and its nested form
+and image uses. [ISO 32000-2 Annex Q](https://pdf-issues.pdfa.org/32000-2-2020/clauseAnnexQ.html)
+
 ## Resources and annotations
 
 Resource identity describes reusable visual data, never semantic ownership or
@@ -1378,6 +1389,14 @@ Annotations are first-class structured values carrying:
 - Description and other accessibility properties when required.
 - Profile eligibility.
 
+A facade Link owns one annotation per painted page. Its active regions follow
+the painted lines, and the annotation rectangle encloses the union of those
+regions. A same-page wrap keeps one OBJR for the annotation and uses
+`QuadPoints` for the separate active areas. Each quadrilateral starts on its
+bottom edge and lists its vertices counterclockwise. [ISO 32000-2
+§12.5.6.5 and Table 176](https://pdf-issues.pdfa.org/32000-2-2020/clause12.html#H12.5.6.5),
+[§14.8.4.7.3 and correction #133](https://pdf-issues.pdfa.org/32000-2-2020/clause14.html#H14.8.4.7.3).
+
 Annotation appearances are subject to the same font, color, graphics, and
 content-ownership rules as ordinary page content. Arbitrary actions and raw
 annotation dictionaries are unavailable.
@@ -1396,8 +1415,10 @@ destination names, outlines, cross-references, and other features that refer to
 a destination by name. A named destination associated with a semantic target
 contains the same paired structure and geometric destination facts. It does not
 replace the direct `/SD` plus `/D` pair on a link's GoTo action. Structure and
-geometric targets are validated to identify the same authored destination, and
-navigation tests exercise the geometric fallback independently of structural
+geometric targets are validated to identify the same authored destination. The
+anchor page must match the page reached by following the target element’s
+children in semantic order to the first MCR or OBJR (ISO 32000-2 §12.3.2.3).
+Navigation tests exercise the geometric fallback independently of structural
 inspection. This policy implements the pinned Errata Collection 3 resolutions
 for issues 140 and 162 without assuming that shipping readers navigate `/SD`.
 
@@ -1443,12 +1464,19 @@ Only typed lowering modules may construct the private generic object model:
 - Indirect reference.
 - Stream with explicit dictionary, bytes source, and filter plan.
 
+Plain PDF text values use printable-ASCII PDFDocEncoding or BOM-prefixed
+UTF-16BE. They reject U+001B, which ISO 32000-2 7.9.2.2.2 reserves for
+language escapes inside Unicode text strings. Inline ActualText enforces the
+same rule before committing content bytes. Binary byte strings preserve each
+octet through literal or hexadecimal escaping.
+
 Before serialization the plan establishes:
 
 - Every indirect object and reference.
 - Object order and generation number zero.
 - Resource names and ownership.
-- Stream length strategy.
+- Stream length strategy, with one indirect object per stream and one adjacent
+  length object. Stream identities advance in object emission order.
 - Complete page, structure, ParentTree, name, number, ID, and outline trees.
 - Xref representation and trailer data.
 - Metadata, identifiers, output intents, and conformance declarations.
@@ -1467,9 +1495,11 @@ representation based on an undocumented size heuristic.
 Document outlines are ordered linked hierarchies rather than balanced search
 trees. Planning preserves authored preorder and open/closed state and seals
 exact parent, sibling, first/last-child, and visible-descendant `Count` facts.
-It never inserts synthetic grouping items to balance sibling lists because
-those items would alter the visible document outline. Entry and depth limits
-are explicit and checked before an outline plan can escape.
+The outline root carries its visible-item count only when at least one item
+with children is open, including an open item currently hidden by a closed
+ancestor. Synthetic grouping items would alter the visible outline.
+Entry and depth limits are explicit and checked before an outline plan can
+escape.
 
 Every generated stream payload (page and form content, font programs,
 ToUnicode CMaps, ICC profiles, image samples, and masks) is FlateDecode through
@@ -1489,7 +1519,7 @@ the presets of one document share an identifier and differ only in their
 compressed streams. The presets are a closed set rather than a numeric level:
 each one is a reviewed byte contract with its own size, time, and allocation
 evidence, recorded in
-[`development/performance/output-size.md`](development/performance/output-size.md).
+[`docs/contributors/performance/output-size.md`](docs/contributors/performance/output-size.md).
 `Balanced` is the default because it generates about ten times faster than
 `Smallest` for a modest size increase; `Smallest` keeps the package's previous
 bytes exactly.
@@ -1500,8 +1530,9 @@ map stream.
 
 The file representation is PDF 2.0 compressed object streams with a
 compressed cross-reference stream, and it is the only one the package writes.
-Stream objects stay top-level. Every other object goes into a FlateDecode
-object stream (ISO 32000-2 7.5.7): in plan order, the compressible objects fill
+Streams and objects whose entire value is an indirect reference stay
+top-level. Every other object goes into a FlateDecode object stream
+(ISO 32000-2 §7.5.7): in plan order, the compressible objects fill
 object streams of a fixed maximum number of members, which take the object
 numbers after the planned objects. The partition depends only on the plan's
 object order and kinds, so it is fixed before emission. The cross-reference
@@ -1510,15 +1541,16 @@ hold its own offset, and it is FlateDecode with the PNG Up predictor. Object
 streams and the cross-reference stream carry direct lengths.
 
 This is an enduring decision, and the evidence behind it is recorded in
-[`development/performance/output-size.md`](development/performance/output-size.md). In a
+[`docs/contributors/performance/output-size.md`](docs/contributors/performance/output-size.md). In a
 tagged business document most bytes are small dictionaries: structure
 elements, the ParentTree, annotations, and the page tree. Written as top-level
 uncompressed objects they were about half the file, and object streams remove
 most of those bytes. PDF 2.0 and PDF/A-4 both permit object streams. The rules
 of 7.5.7 are respected by construction: object streams never hold a stream
-object, a nonzero generation (none are written), an encryption dictionary
-(the package never encrypts), or an object stream's own length (object streams
-use direct lengths). Readers that predate PDF 1.5 cannot read the result; that
+object, an object whose entire value is an indirect reference, a nonzero
+generation (none are written), an encryption dictionary (the package never
+encrypts), or an object stream's own length (object streams use direct
+lengths). References within a packed array or dictionary remain supported. Readers that predate PDF 1.5 cannot read the result; that
 is outside the PDF 2.0 destination.
 
 There is no uncompressed or flat layout option. A second layout would double
@@ -1662,7 +1694,7 @@ consumer-visible surface.
 
 Evidence applications exercise private stage contracts through the repository
 integration root and public behavior through the release root. The binding
-[fixture protocol](development/implementation-contracts.md#repository-fixture-protocol)
+[fixture protocol](docs/contributors/implementation-contracts.md#repository-fixture-protocol)
 defines app families, versioned scenarios, manifest dispatch, and checker
 selection. Neither test integration nor fixture conventions expand the public
 package boundary.
@@ -1862,7 +1894,7 @@ Contributor and CI tooling is declared in `Blueprint.roc` and locked in
 `Blueprint.lock` without a package provider: fixed tools such as Zig are
 fetched by committed digest, the remaining host tools are expected, and the
 test, fuzz, gallery, bundle and docs scripts are exposed as named tasks
-(`development/blueprint.md`). The package compiler is not a Blueprint input:
+(`docs/contributors/blueprint.md`). The package compiler is not a Blueprint input:
 `.roc-version` remains its single pin, because allocation baselines are exact
 for one compiler build and the nightly updater changes only that file.
 
@@ -1962,6 +1994,6 @@ selection work linearly in authored input and registry size. The explicit
 reuse. Measurement and embedding consume identical selected static bytes.
 
 Merriweather lacks U+2318 and Fira Code has no genuine italic faces. Those
-requirements remain excluded and tracked upstream. [The integration record](development/roc-font.md)
+requirements remain excluded and tracked upstream. [The integration record](docs/contributors/roc-font.md)
 retains exact pins, licences, historical evidence and the consumer integration
 boundary. Package acceptance does not imply downstream adoption.

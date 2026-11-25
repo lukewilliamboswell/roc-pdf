@@ -237,7 +237,7 @@ DocumentInline :: [
 ].{}
 
 # Nominal types avoid widening unrelated inline alternatives; see
-# development/performance/page-templates.md for the allocation review.
+# docs/contributors/performance/page-templates.md for the allocation review.
 ## The numbering style of a page field. Use the public furniture constructors
 ## to select a style and reserve its width.
 PageFieldStyle := [DecimalField, LowerAlphaField, LowerRomanField, UpperAlphaField, UpperRomanField]
@@ -376,7 +376,7 @@ Caption := [Caption(Str), NoCaption]
 FigureFit : [Exact, ScaleToFit({ minimum_percent : U8 })]
 
 # Nominal representation avoids the structural-union allocation cost recorded
-# in development/performance/page-templates.md.
+# in docs/contributors/performance/page-templates.md.
 ## A figure's fit policy. Figure constructors convert the selected fit and
 ## minimum scale into this value.
 FigurePolicy := [ExactFit, ScaleFit(U64)]
@@ -540,7 +540,7 @@ NormalizedList : { items : U64, marker : ListMarker }
 NormalizedTable : { body_rows : U64, caption : Bool, columns : List(TableColumn), footer_rows : U64, header_rows : U64, row_split : RowSplit }
 
 # Spans retain U16 to keep the record at 24 bytes; see the allocation review
-# in development/performance/tables.md before changing its representation.
+# in docs/contributors/performance/tables.md before changing its representation.
 ## One table cell, in leaf-block order: its rich-paragraph leaf `block`, its
 ## kind, its authored column and row spans, and its line alignment.
 ##
@@ -680,6 +680,8 @@ PageLabelStyle : [DecimalArabic, LettersLower, LettersUpper, NoNumber, RomanLowe
 
 ## One authored page-label range starting at a physical page index. The
 ## first range must start at page zero and range starts ascend strictly.
+## Numbered ranges start at 1 through 9223372036854775807, inclusive.
+## A prefix-only range uses NoNumber and a start_number of 1.
 PageLabelRange : { prefix : Str, start_number : U64, start_page : U64, style : PageLabelStyle }
 
 ## Stable author-facing navigation rejections: destinations, link
@@ -704,6 +706,7 @@ NavigationError : [
 	DestinationNameEmpty({ destination : U64 }),
 	DestinationNameInvalidByte({ destination : U64, offset : U64 }),
 	DestinationNameTooLong({ attempted : U64, destination : U64, limit : U64 }),
+	DestinationPageMismatch({ anchor_page : U64, destination : U64, structure_page : U64 }),
 	DestinationTargetMismatch({ anchor_owner : U64, destination : U64, target : U64 }),
 	DestinationTargetOutOfRange({ attempted : U64, destination : U64, nodes : U64 }),
 	DuplicateDestinationName({ first : U64, second : U64 }),
@@ -716,6 +719,7 @@ NavigationError : [
 	LabelNumberWithoutStyle({ range : U64 }),
 	LabelPrefixTooLong({ attempted : U64, limit : U64, range : U64 }),
 	LabelRangeNotAscending({ range : U64 }),
+	LabelStartNumberOutOfRange({ attempted : U64, limit : U64, range : U64 }),
 	LabelStartNumberZero({ range : U64 }),
 	LabelStartPageNotZero({ start : U64 }),
 	LabelStartPageOutOfRange({ attempted : U64, pages : U64, range : U64 }),
@@ -863,16 +867,16 @@ DocumentBuilder :: {
 	## A URI link block: the whole text is the link. The secondary string is
 	## interned beside the text; the aux slot records its index.
 	add_link : DocumentBuilder, { text : Str, uri : Str } -> DocumentBuilder
-	add_link = |state, { text, uri }| append_with_secondary(state, link_tag, text, uri, 1)
+	add_link = |state, { text, uri }| append_with_secondary(state, link_tag, text, uri, 0)
 
 	add_internal_link : DocumentBuilder, { text : Str, destination : Str } -> DocumentBuilder
-	add_internal_link = |state, { text, destination }| append_with_secondary(state, internal_link_tag, text, destination, 1)
+	add_internal_link = |state, { text, destination }| append_with_secondary(state, internal_link_tag, text, destination, 0)
 
 	add_destination_heading : DocumentBuilder, { name : Str, level : U8, text : Str } -> DocumentBuilder
-	add_destination_heading = |state, { name, level, text }| append_with_secondary(state, destination_heading_tag, text, name, 8 * 1 + level.to_u64())
+	add_destination_heading = |state, { name, level, text }| append_with_secondary(state, destination_heading_tag, text, name, level)
 
 	add_destination_paragraph : DocumentBuilder, { name : Str, text : Str } -> DocumentBuilder
-	add_destination_paragraph = |state, { name, text }| append_with_secondary(state, destination_paragraph_tag, text, name, 1)
+	add_destination_paragraph = |state, { name, text }| append_with_secondary(state, destination_paragraph_tag, text, name, 0)
 
 	stats : DocumentBuilder -> Stats
 	stats = |state| {
@@ -1771,7 +1775,9 @@ normalize_compact = |compact, initial| {
 		} else if tag == internal_link_tag {
 			$blocks = $blocks.append({ kind: InternalLink({ destination: list_at(compact.text_sources, aux) }), parent: 0, text: list_at(compact.text_sources, text) })
 		} else if tag == destination_heading_tag {
-			$blocks = $blocks.append({ kind: DestinationHeading({ level: (aux % 8).to_u8_wrap(), name: list_at(compact.text_sources, aux // 8) }), parent: 0, text: list_at(compact.text_sources, text) })
+			# The name follows the heading text. The aux slot retains the
+			# full authored level for the semantic stage to validate.
+			$blocks = $blocks.append({ kind: DestinationHeading({ level: aux.to_u8_wrap(), name: list_at(compact.text_sources, text + 1) }), parent: 0, text: list_at(compact.text_sources, text) })
 		} else if tag == destination_paragraph_tag {
 			$blocks = $blocks.append({ kind: DestinationParagraph({ name: list_at(compact.text_sources, aux) }), parent: 0, text: list_at(compact.text_sources, text) })
 		} else {
@@ -2880,14 +2886,13 @@ segment_texts = |inlines, base, line_breaks, first_break| {
 ## the entry after the block text; the aux slot carries the secondary
 ## offset relative to the text index — for destination headings multiplied
 ## by eight with the heading level packed into the low three bits.
-append_with_secondary : DocumentBuilder, U8, Str, Str, U64 -> DocumentBuilder
-append_with_secondary = |DocumentBuilder.{ block_aux, block_tags, block_texts, language, metadata_title, text_sources }, tag, text, secondary, aux_pattern| {
+append_with_secondary : DocumentBuilder, U8, Str, Str, U8 -> DocumentBuilder
+append_with_secondary = |DocumentBuilder.{ block_aux, block_tags, block_texts, language, metadata_title, text_sources }, tag, text, secondary, heading_level| {
 	text_id = text_sources.len()
-	secondary_id = text_id + 1
 	aux = if tag == destination_heading_tag {
-		secondary_id * 8 + aux_pattern % 8
+		heading_level.to_u64()
 	} else {
-		secondary_id
+		text_id + 1
 	}
 
 	DocumentBuilder.{
@@ -2937,7 +2942,7 @@ destination_paragraph_tag = 8
 
 # Appends every element of `source`. List.concat sizes its result exactly,
 # so growing an accumulator with it copies on every call. Append grows
-# geometrically; see development/performance/emission-linearity.md.
+# geometrically; see docs/contributors/performance/emission-linearity.md.
 append_all : List(a), List(a) -> List(a)
 append_all = |target, source| {
 	var $out = target

@@ -2,6 +2,7 @@ import KernelDeflate
 import KernelFileLayout
 import KernelLex
 import KernelObject
+import KernelOutputBound
 import KernelSeal
 import KernelSha256
 import KernelStructure
@@ -147,8 +148,7 @@ KernelEmit :: [].{
 	}
 
 	## Every non-stream object rendered flat as `N 0 obj\n<value>\nendobj\n`,
-	## in plan order: the member bodies the object streams carry. Package
-	## tests inspect it; it is not a file layout.
+	## in plan order. Package tests inspect this logical representation.
 	object_text : KernelStructure.Plan -> Try(List(U8), Error)
 	object_text = |plan| {
 		store = plan_store(plan)
@@ -180,7 +180,7 @@ KernelEmit :: [].{
 			## Every arm either returns or reassigns `$encoder`. An arm that
 			## kept the old encoder (the `Done` arm setting a flag) made it
 			## live across `Encoder.next`, which then copied the offsets on
-			## every object (development/performance/emission-linearity.md).
+			## every object (docs/contributors/performance/emission-linearity.md).
 			match Encoder.next($encoder) {
 				Err(error) => {
 					return Err(error)
@@ -272,23 +272,29 @@ emit_object = |encoder, index| {
 		object = list_at(store.objects, $index)
 		object_id = object.id
 
-		## A stream object is written top-level. Its offset is recorded
-		## before any value read from the plan is still live, so the append
-		## cannot copy the offsets (development/performance/emission-linearity.md).
+		## Streams and standalone references stay top-level. Record their
+		## offsets without keeping plan values live across the append (docs/contributors/performance/emission-linearity.md).
 		body = match object.content {
 			LengthOf(stream_id) => match $encoder.stream_lengths.get(KernelObject.StreamId.index(stream_id)) {
 				Err(OutOfBounds) => return Err(StreamLengthUnavailable(stream_id))
 				Ok(length) => Member(Length(length))
 			}
-			Stored(value_id) => match list_at(store.values, KernelObject.ValueId.index(value_id)) {
-				Stream(stream_id) => TopLevel(stream_id)
-				_ => Member(Value(value_id))
+			Stored(value_id) => match KernelFileLayout.stored_placement(list_at(store.values, KernelObject.ValueId.index(value_id))) {
+				TopLevelStream(stream_id) => TopLevelStream(stream_id)
+				TopLevelReference(target) => TopLevelReference(target)
+				ObjectMember => Member(Value(value_id))
 			}
 		}
 		match body {
-			TopLevel(stream_id) => {
+			TopLevelStream(stream_id) => {
 				with_offset = encoder_with_offset($encoder, $encoder.position)
 				return emit_stream_prefix(with_offset, object_id, stream_id, $index + 1)
+			}
+			TopLevelReference(target) => {
+				bytes = append_end_object(append_reference(append_object_header([], object_id), target))
+				phase = next_object_phase($encoder.plan, $index + 1)
+				with_offset = encoder_with_offset($encoder, $encoder.position)
+				return emit_generated(with_offset, bytes, phase)
 			}
 			Member(member) => {
 				$encoder = encoder_with_member($encoder, KernelObject.ObjectId.number(object_id), store, member)
@@ -627,7 +633,7 @@ encoder_with_copied_resource_bytes = |encoder, copied_resource_bytes| KernelEmit
 ## Records one object offset. The encoder is taken apart before the append:
 ## appending to `encoder.offsets` while the encoder was still read afterwards
 ## held a second reference to the offsets, and every object copied them
-## (development/performance/emission-linearity.md).
+## (docs/contributors/performance/emission-linearity.md).
 encoder_with_offset : KernelEmit.Encoder, U64 -> KernelEmit.Encoder
 encoder_with_offset = |encoder, offset| {
 	{ copied_resource_bytes, deflate_work, file_id, object_streams, offsets, output_bound, phase, plan, position, retention, stream_lengths } = encoder
@@ -1534,4 +1540,36 @@ drain_encoder = |encoder| {
 			}
 		}
 	}
+}
+
+# §7.5.7 permits references inside packed values but excludes a standalone
+# reference. Both links of the chain stay top-level, including the link
+# after the last packed member.
+expect {
+	base = KernelStructure.build_blank(1, A4)?
+	limits = { ..emission_test_limits, max_array_items: 16, max_objects: 16, max_values: 64 }
+	empty = KernelObject.init(limits)
+	base_store = KernelSeal.Plan.store(KernelStructure.Plan.sealed(base))
+	root = KernelStructure.Plan.root(base)
+	first_reference = KernelObject.add_reference({ ..empty, store: base_store }, root)?
+	first = KernelObject.add_object(first_reference.builder, first_reference.id)?
+	nested_reference = KernelObject.add_reference(first.builder, first.id)?
+	array = KernelObject.add_array(nested_reference.builder, [nested_reference.id])?
+	nested = KernelObject.add_object(array.builder, array.id)?
+	second_reference = KernelObject.add_reference(nested.builder, first.id)?
+	second = KernelObject.add_object(second_reference.builder, second_reference.id)?
+	sealed = KernelSeal.seal(second.builder)?
+	xref_object = KernelObject.ObjectId.from_number(KernelObject.ObjectId.number(second.id) + 1)?
+	output_bound = KernelOutputBound.Bound.bytes(KernelOutputBound.calculate(sealed, xref_object)?)
+	plan = KernelStructure.Plan.from_sealed({ identity: Blank, output_bound, page_count: 1, root, sealed, tree_nodes: 1, xref_object })
+	bytes = KernelEmit.to_bytes(plan)?
+	first_number = KernelObject.ObjectId.number(first.id)
+	second_number = KernelObject.ObjectId.number(second.id)
+	root_number = KernelObject.ObjectId.number(root)
+	first_object = "${first_number.to_str()} 0 obj\n${root_number.to_str()} 0 R\nendobj\n"
+	second_object = "${second_number.to_str()} 0 obj\n${first_number.to_str()} 0 R\nendobj\n"
+	bytes.len() <= output_bound and
+		contains_bytes(bytes, Str.to_utf8(first_object)) and
+			contains_bytes(bytes, Str.to_utf8(second_object)) and
+				KernelFileLayout.compressible_count(KernelSeal.Plan.store(sealed)) == KernelFileLayout.compressible_count(base_store) + 1
 }

@@ -531,7 +531,12 @@ def validate_pattern_grid(pdf: bytes, dimensions: dict[str, int]) -> None:
 
 
 def validate_shadings_pdf(pdf: bytes, dimensions: dict[str, int]) -> None:
-    if dimensions.get("shading_showcase"):
+    if dimensions.get("clip_winding"):
+        facts = PaintFacts(pdf, dimensions["pages"])
+        page, = facts.pages
+        validate_pdf(pdf, 1, facts.page_contents[page], True)
+        check_ownership(facts_form_view(facts), page, 1)
+    elif dimensions.get("shading_showcase"):
         validate_shading_showcase(pdf, dimensions)
     elif dimensions.get("shading_share") or dimensions.get("shading_distinct"):
         validate_shading_grid(pdf, dimensions)

@@ -14,11 +14,13 @@ import pdf.KernelObjectPlan
 import pdf.KernelFontObjects
 import pdf.KernelTaggedTextStructure
 import pdf.KernelImage
+import pdf.KernelLex
 import pdf.KernelObject
 import pdf.KernelPdfFont
 import pdf.KernelPdfText
 import pdf.KernelResourceUse
 import pdf.KernelScene
+import pdf.KernelSeal
 import pdf.KernelSemantics
 import pdf.KernelShape
 import pdf.KernelStructure
@@ -2071,6 +2073,56 @@ expect {
 	accepted_work.actual_text_runs == 1 and accepted_work.actual_text_scalars == 7 and bounded
 }
 
+# Explicit replacement slices on the three physical runs of "C中é " preserve
+# each run's original Unicode plus one trailing separator. The same string
+# also belongs to the enclosing paragraph, which a run may not reference.
+expect {
+	sample = build_multi_face_sample({})?
+	occurrence = list_at(multi_face_semantics.occurrences, 0)
+	paragraph = list_at(multi_face_semantics.nodes, 1)
+	property_range = |start| Semantics.IndexRange.from_start_and_length({ start, length: 1 })
+	semantic = KernelTextSemantics.Plan.build(
+		{
+			..multi_face_semantics,
+			nodes: [list_at(multi_face_semantics.nodes, 0), { ..paragraph, text_properties: property_range(0) }],
+			occurrences: [{ ..occurrence, text_properties: property_range(1) }],
+			text_properties: [ActualText("C中é "), ActualText("C中é ")],
+		},
+		1,
+		1,
+		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
+		KernelTextSemantics.Limits.make({ max_text_properties: 2, max_text_property_bytes: 14, max_text_source_bytes: 6, max_text_source_scalars: 3, max_text_sources: 1 }),
+	)?
+	scene = KernelScene.Plan.build(multi_face_scene, KernelScene.Resources.with_text({ color_spaces: 1, images: 0, text_runs: 3 }), KernelScene.Limits.make({ max_commands: 4, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1, max_pages: 1, max_path_segments: 0, max_paths: 0 }))?
+	store = sample.shape.store
+	sliced = |start, length, property| SemanticOverrideSlice(Text.ActualTextSlice.make(Semantics.TextPropertyId.from_index(property), Semantics.IndexRange.from_start_and_length({ start, length })))
+	first = { ..list_at(store.runs, 0), actual_text: sliced(0, 1, 1) }
+	second = { ..list_at(store.runs, 1), actual_text: sliced(1, 3, 1) }
+	last = { ..list_at(store.runs, 2), actual_text: sliced(4, 3, 1) }
+	ownership = KernelTextOwnership.Plan.build(semantic, scene, { ..store, runs: [first, second, last] })?
+	fonts = [sample.latin_plan, sample.cjk_plan]
+	limits = KernelPdfText.Limits.make({ max_actual_text_scalars: 4, max_content_bytes: 1024, max_mappings: 8, max_placements: 0, max_source_scalars: 3 })
+	plan = KernelPdfText.ScenePlan.build(ownership, fonts, limits)?
+	pieces = [0, 1, 2].map(
+		|index| {
+			run = KernelPdfText.ScenePlan.run(plan, Text.RunId.from_index(index))
+			(run.actual_text_begin, run.close_actual_text)
+		},
+	)
+	expected = [
+		(Str.to_utf8("/Span <</ActualText <FEFF0043>>> BDC\n"), True),
+		(Str.to_utf8("/Span <</ActualText <FEFF4E2D>>> BDC\n"), True),
+		(Str.to_utf8("/Span <</ActualText <FEFF00E90020>>> BDC\n"), True),
+	]
+	foreign = { ..second, actual_text: sliced(1, 3, 0) }
+	foreign_ownership = KernelTextOwnership.Plan.build(semantic, scene, { ..store, runs: [first, foreign, last] })?
+	rejected = match KernelPdfText.ScenePlan.build(foreign_ownership, fonts, limits) {
+		Err(ActualTextRequired({ run: 1 })) => True
+		_ => False
+	}
+	pieces == expected and rejected
+}
+
 # A font-level CID cannot carry two occurrence mappings. The plain twin is
 # rejected; the reordered twin has exact ActualText, retains the first CMap
 # fallback deterministically, and reports the resolved conflict.
@@ -2135,7 +2187,11 @@ expect {
 	reordered = KernelShape.validate_advanced(font, source, conflict_store, context, shape_limits)?
 	accepted = KernelPdfText.Plan.build(semantics, reordered.store, [font_plan], [placement], limits)?
 	work = KernelPdfText.Plan.work(accepted)
-	plain_rejected and work.mapping_conflicts_resolved == 1 and work.mappings == 1
+	paint = Str.from_utf8(KernelPdfText.Plan.bytes(accepted))?
+	mappings = KernelPdfText.Plan.mappings(accepted)
+	plain_rejected and mappings == [[{ cid: 1, scalars: [0x66] }]] and
+		paint.contains("/Span <</ActualText <FEFF00660061>>> BDC\n") and
+			work.mapping_conflicts_resolved == 1 and work.mappings == 1
 }
 
 list_set : List(a), U64, a -> List(a)
@@ -2152,4 +2208,133 @@ list_at = |items, index| match items.get(index) {
 		crash "text-layout ActualText evidence index escaped"
 	}
 	Ok(value) => value
+}
+
+# Advanced shaped inputs can author many scalars per glyph. Even when the
+# run carries ActualText, each selected ToUnicode destination must fit.
+expect {
+	sample = build_sample({})?
+	registered = Font.Registry.empty.register({ bytes: caller_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default })?
+	font = registered.registry.prepared_face(registered.face)?
+	base_run = list_at(sample.shape.store.runs, 0)
+	long_source = Str.from_utf8(List.repeat(0x41, 257))?
+	range = text_range(0, 257)
+	cluster_span = Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 })
+	multi_store = {
+		..sample.shape.store,
+		clusters: [{ glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }), kind: ManyToMany, source: range }],
+		glyph_indices: [0, 1],
+		runs: [{ ..base_run, clusters: cluster_span, source: range }],
+	}
+	validated = KernelShape.validate_advanced(
+		font,
+		long_source,
+		multi_store,
+		{ instance: registered.instance, occurrence: Semantics.OccurrenceId.from_index(0) },
+		KernelShape.AdvancedLimits.make({ max_clusters: 1, max_glyph_indices: 2, max_glyphs: 2, max_runs: 1, max_scalars: 257, max_source_bytes: 257, max_substitutions: 0, max_transformations: 0 }),
+	)?
+	long_semantics = {
+		..semantics,
+		fragments: [{ ..list_at(semantics.fragments, 0), source_range: UnicodeRange(range) }],
+		occurrences: [{ ..list_at(semantics.occurrences, 0), source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange(range)) }],
+		text_sources: [{ unicode: long_source }],
+	}
+	placement = { origin: { x: 0, y: 0 }, run: Text.RunId.from_index(0) }
+	limits = KernelPdfText.Limits.make({ max_actual_text_scalars: 257, max_content_bytes: 4096, max_mappings: 2, max_placements: 1, max_source_scalars: 257 })
+	glyph = list_at(validated.store.glyphs, 0).id.raw()
+	expected_cid = list_at(sample.font_plan.original_to_subset, glyph.to_u64())
+	match KernelPdfText.Plan.build(long_semantics, validated.store, [sample.font_plan], [placement], limits) {
+		Err(UnicodeDestinationTooLong({ attempted: 514, cid, font: 0, limit: 512, run: 0 })) => cid == expected_cid
+		_ => False
+	}
+}
+
+heading_scope_store : Str -> Semantics.Store
+heading_scope_store = |second_scope| {
+	root = list_at(semantics.nodes, 0)
+	template = list_at(semantics.nodes, 1)
+	role_and_parent = [("Sect", 0), (second_scope, 0), ("H1", 1), ("H", 2)]
+	children = role_and_parent.map_with_index(
+		|(name, parent), offset| {
+			index = offset + 1
+			{
+				..template,
+				content: Semantics.IndexRange.from_start_and_length({ start: index + 1, length: if (index == 4) 0 else 1 }),
+				id: Semantics.NodeId.from_index(index),
+				parent: ParentNode(Semantics.NodeId.from_index(parent)),
+				role: { ..template.role, local_name: name },
+				structure_element: Semantics.StructureElementId.from_index(index),
+			}
+		},
+	)
+	{
+		..semantics,
+		nodes: [{ ..root, content: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }) }].concat(children),
+		content_spine: [
+			ChildNode(Semantics.NodeId.from_index(1)),
+			ChildNode(Semantics.NodeId.from_index(2)),
+			ChildNode(Semantics.NodeId.from_index(3)),
+			ChildNode(Semantics.NodeId.from_index(4)),
+			ContentOccurrence(Semantics.OccurrenceId.from_index(0)),
+		],
+	}
+}
+
+heading_scope_semantic : Semantics.Store -> Try(KernelTextSemantics.Plan, KernelTextSemantics.Error)
+heading_scope_semantic = |store| KernelTextSemantics.Plan.build(
+	store,
+	1,
+	1,
+	KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 5, max_fragments: 1, max_namespaces: 2, max_nodes: 5, max_occurrences: 1, max_semantic_depth: 3 }),
+	KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 2, max_text_source_scalars: 2, max_text_sources: 1 }),
+)
+
+expect match heading_scope_semantic(heading_scope_store("Sect")) {
+	Err(Semantic(MixedHeadingFamilies({ node: 4, scope: 0 }))) => True
+	_ => False
+}
+
+expect {
+	base = build_sample({})?
+	validated = heading_scope_semantic(heading_scope_store("DocumentFragment"))?
+	sample = build_sample_from(base.font, validated, source, base.shape.store)?
+	structure = KernelTaggedTextStructure.Plan.structure(sample.structure)
+	objects = KernelSeal.Plan.store(KernelStructure.Plan.sealed(structure))
+	roles = objects.dictionary_entries.keep_if(
+		|entry| KernelLex.Name.bytes(list_at(objects.names, KernelObject.NameId.index(entry.key))) == Str.to_utf8("S"),
+	).map(
+		|entry| match list_at(objects.values, KernelObject.ValueId.index(entry.value)) {
+			Name(role) => KernelLex.Name.bytes(list_at(objects.names, KernelObject.NameId.index(role)))
+			_ => []
+		},
+	)
+	bytes = KernelEmit.to_bytes(structure)?
+	!bytes.is_empty() and roles.contains(Str.to_utf8("DocumentFragment")) and roles.contains(Str.to_utf8("H")) and roles.contains(Str.to_utf8("H1"))
+}
+
+# Reject a language escape in an occurrence-owned replacement before emitting ActualText.
+expect {
+	sample = build_sample({})?
+	occurrence = list_at(semantics.occurrences, 0)
+	override = Str.from_utf8([65, 27, 101, 110, 27, 66]) ?? crash "invalid test text"
+	override_semantics = {
+		..semantics,
+		occurrences: [{ ..occurrence, text_properties: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }) }],
+		text_properties: [ActualText(override)],
+	}
+	validated = KernelTextSemantics.Plan.build(
+		override_semantics,
+		1,
+		1,
+		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
+		KernelTextSemantics.Limits.make({ max_text_properties: 1, max_text_property_bytes: 6, max_text_source_bytes: 2, max_text_source_scalars: 2, max_text_sources: 1 }),
+	)?
+	run = list_at(sample.shape.store.runs, 0)
+	text = { ..sample.shape.store, runs: [{ ..run, actual_text: SemanticOverride(Semantics.TextPropertyId.from_index(0)) }] }
+	ownership = KernelTextOwnership.Plan.build(validated, sample.scene, text)?
+	limits = KernelPdfText.Limits.make({ max_actual_text_scalars: 6, max_content_bytes: 512, max_mappings: 2, max_placements: 1, max_source_scalars: 2 })
+	match KernelPdfText.ScenePlan.build(ownership, [sample.font_plan], limits) {
+		Err(ActualTextLanguageEscape({ run: 0, scalar: 1 })) => True
+		_ => False
+	}
 }

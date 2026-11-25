@@ -57,6 +57,11 @@ physical index 1 with `prefix: "A-"`, `style: LettersUpper` and
 `start_number: 27` prints `A-AA` there. PDF alphabetic labels repeat letters
 (`AA`, `BB`, …); generated list labels use their own numbering rules.
 
+A numbered range accepts `start_number` from 1 through 9,223,372,036,854,775,807.
+Larger values produce `LabelStartNumberOutOfRange` with the range index,
+attempted value, and limit. A prefix-only range uses `NoNumber` and
+`start_number: 1`.
+
 `width` is required and uses the same point units as other facade geometry.
 `align` accepts `Start`, `Center`, or `End` and defaults to `End`. The box
 advance stays fixed even when the label is shorter. No padding characters are

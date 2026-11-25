@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import re
-import zlib
 from pathlib import Path
 
 from pdf_layout import LayoutError, twin as layout_twin
@@ -12,6 +11,7 @@ from check_pdf_structure import (
     ValidationError,
     dictionary_ref,
     dictionary_ref_array,
+    decode_flate,
     indirect_length,
     object_slices,
     require,
@@ -55,10 +55,7 @@ def decoded_stream(bodies: dict[int, bytes], number: int) -> tuple[bytes, bytes]
     length = indirect_length(bodies, dictionary_ref(dictionary, b"Length"))
     _, encoded = stream_parts(body, length)
     require(b"/Filter /FlateDecode" in dictionary, f"object {number} is not FlateDecode")
-    try:
-        return dictionary, zlib.decompress(encoded)
-    except zlib.error as error:
-        raise ValidationError(f"object {number} has invalid zlib DEFLATE: {error}") from error
+    return dictionary, decode_flate(encoded, number)
 
 
 def validate_tagged_visual_pdf(pdf: bytes) -> None:
