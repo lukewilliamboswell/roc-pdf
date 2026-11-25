@@ -178,7 +178,7 @@ algorithm. Record which profile requires it and which choices belong to
 roc-pdf's supported subset. For example, the PDF name-tree rule orders keys
 by byte sequence and puts a key before its longer extensions. The fixed
 fanout is a package choice. Both can be checked from the authored keys and
-the emitted tree. [ISO 32000-2 §7.9.6 and Table 36 errata](https://pdf-issues.pdfa.org/32000-2-2020/clause07.html#796-name-trees).
+the emitted tree. [ISO 32000-2 §7.9.6 and Table 36 errata](https://pdf-issues.pdfa.org/32000-2-2020/clause07.html#H7.9.6).
 
 1. **Start with a stage contract.** Identify the facts a production stage
    accepts, what it promises its callers, and which inputs it must reject.
