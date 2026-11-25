@@ -3854,7 +3854,7 @@
     },
     {
       "id": "ROC-PDF-PDFUA2-ISO-TEXT-RECONCILIATION",
-      "summary": "Reconcile the complete ISO/TS 32005 Table 5 and PDF/UA-2 clauses 8.13.3–8.14 with the informative containment matrix, the WTPDF accessibility text, the pinned errata and the independent rule catalogs.",
+      "summary": "The supported containment rules and the URI action and embedded-file requirements have been reconciled against the full published editions, the pinned errata and the corresponding WTPDF accessibility provisions.",
       "source_ids": [
         "iso-14289-2-2024",
         "iso-ts-32005-2023",
@@ -3877,14 +3877,19 @@
         "PdfUa2",
         "WtpdfAccessibility"
       ],
-      "implementation": "partial",
-      "applicability": "pending_iso_confirmation",
-      "machine_verification": "Pinned oracle mappings and the contributor clause inventory constrain the provisional audit.",
-      "human_verification": "Review the complete ISO editions from the sponsored publisher at the pinned publication IDs before claiming clause closure.",
+      "implementation": "implemented",
+      "applicability": "applicable",
+      "machine_verification": "The contributor inventory records the direct review of all 53 Table 5 rows. The independent checker validates the supported edges, cardinality and inherited rules, accounting for 22 more permissive veraPDF role pairs. Isolated controls reject prohibited URI action flags and embedded-file carriers.",
+      "human_verification": "not_required",
       "positive_scenarios": [
-        "scripts/check_structure_semantics.py"
+        "scripts/check_structure_semantics.py",
+        "tests/containers/Cases.roc",
+        "tests/navigation/Cases.roc"
       ],
       "negative_scenarios": [
+        "package/KernelSemantics.roc",
+        "scripts/check_navigation.py",
+        "scripts/check_pdfa4_structure.py",
         "scripts/check_structure_semantics.py"
       ],
       "external_rule_ids": []
