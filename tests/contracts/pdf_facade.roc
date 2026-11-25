@@ -254,3 +254,20 @@ expect {
 	report.obligations.contains({ obligation: StructureMeaningful, path: "document" })
 		and report.obligations.contains({ obligation: ArtifactClassificationMeaningful, path: "document" })
 }
+
+# Dense header associations reach the existing document budget during
+# planning. Both public export methods return the same located diagnostic.
+expect {
+	row = Pdf.row([Pdf.header_cell(Column, [Pdf.text("Heading")])])
+	table = Pdf.table({ body_rows: List.repeat(row, 361), caption: Pdf.no_caption, columns: [{ align: Start, width: Content }], footer_rows: [], header_rows: [], row_split: KeepRows })
+	doc = Pdf.document({ contents: [table], language: "en-AU", title: "Bounded headers" })
+	options = Pdf.Options.{ profile: AccessibleArchive }
+	exceeds_header_budget(Pdf.to_bytes_with(doc, options)) and exceeds_header_budget(Pdf.to_chunks_with(doc, options))
+}
+
+exceeds_header_budget : Try(a, Pdf.Error) -> Bool
+exceeds_header_budget = |result| match result {
+	Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, details: ["contents[0]"], feature: Feature("document.content_limit"), message, stage: AuthoringValidation, .. }], .. })) =>
+		message.starts_with("The document needs 65701 typed attributes and relationships but the facade accepts at most 65536.")
+	_ => False
+}

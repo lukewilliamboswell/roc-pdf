@@ -22364,7 +22364,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 3393,
+          "allocations": 3407,
           "allocated_bytes": 4616338,
           "work": {
             "node_writes": 47,
@@ -22386,7 +22386,7 @@
           }
         },
         "x64musl": {
-          "allocations": 3393,
+          "allocations": 3407,
           "allocated_bytes": 4616338,
           "work": {
             "node_writes": 47,
@@ -32558,7 +32558,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 9872,
+          "allocations": 9876,
           "allocated_bytes": 8601386,
           "work": {
             "authored_scale": 1,
@@ -32581,7 +32581,7 @@
           }
         },
         "x64musl": {
-          "allocations": 9872,
+          "allocations": 9876,
           "allocated_bytes": 8601386,
           "work": {
             "authored_scale": 1,

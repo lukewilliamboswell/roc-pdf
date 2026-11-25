@@ -2869,12 +2869,13 @@
         "PdfUa2",
         "WtpdfAccessibility"
       ],
-      "implementation": "partial",
+      "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "Explicit associations come from authored row and column scopes. The bounded model rescans grid rectangles independently for TH and TD, and the combined file oracle checks each association and ID. It rejects dropping a row header’s applicable column heading, omitting data cell Headers, or swapping a real header with one from the wrong column. Regenerate and qualify all affected output on the pinned targets before closing the row.",
+      "machine_verification": "Explicit associations follow authored row and column scopes. The bounded model rescans mixed and spanning rectangles independently for header and data cells, and the combined file oracle checks each association and ID. It rejects dropping a row header’s applicable column heading, omitting data-cell Headers, or substituting a real header from the wrong column. The planner accounts for the existing aggregate budget before storing associations. Small exact limits and public byte and chunk rejections test the bound.",
       "human_verification": "Confirm the row and column headers communicate the intended relationships to the corresponding data cells.",
       "positive_scenarios": [
         "fuzz/TableHeaderModel.roc",
+        "package/KernelFacadeSemantics.roc",
         "package/Pdf.roc",
         "scripts/check_structure_semantics.py",
         "tests/reference_documents/Cases.roc",
@@ -2883,7 +2884,8 @@
       "negative_scenarios": [
         "fuzz/TableHeaderModel.roc",
         "package/KernelSemantics.roc",
-        "scripts/check_structure_semantics.py"
+        "scripts/check_structure_semantics.py",
+        "tests/contracts/pdf_facade.roc"
       ],
       "external_rule_ids": [
         "verapdf-pdfua2:8.2.5.26-5",

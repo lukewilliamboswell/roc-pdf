@@ -100,6 +100,10 @@ separate column-start lists after a column header spans multiple columns.
 It reports `document.content_limit` at the authored table when the budget
 would be exceeded. Package tests pin the exact boundary for dense column
 headers and for a spanning header and target across two consecutive tables.
+Keeping the separate column-start index adds 14 allocations and 800
+allocated bytes in the two-header-row spans case. The scoped table paint
+spanning case adds four allocations and 272 allocated bytes. Both stay
+within their existing ceilings and preserve their PDFs and work vectors.
 
 ISO 32000-2:2020+EC3 §14.8.4.8.3 and Table 371 allow mixed header and data
 cells in a row and describe optional processor lookup when a cell omits
