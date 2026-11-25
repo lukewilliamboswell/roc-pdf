@@ -112,8 +112,9 @@ provenance entry. Existing tracked corpora are never mutated in place.
 - `font_subset_roundtrip`: repeated bounded plans/subsets agree, re-inspect,
   preserve source style facts and metrics, and rewrite composite dependencies.
 - `jpeg_inspector_mutation`: successful grey/RGB inspection produces a bounded
-  sanitized stream with resolved dimensions/orientation and only allowed
-  application segments.
+  sanitized stream whose frame agrees with the resolved dimensions and
+  components. The document suite also checks exact byte retention and
+  orientation for grey, progressive, EXIF, and comment seeds.
 - `facade_output_equivalence`: repeatability, buffered/chunked equality, chunk
   ownership invariance, prepared output and transactional rejection agree.
 - `facade_structure`: an independent byte-level oracle verifies PDF framing,
