@@ -2,9 +2,8 @@
 
 Issues #49–#53 are closed for the declared bounded Gate 6 extension subsets
 brought forward from Gate 8 for a technical-manual consumer. This record
-collects their implementation and final integration evidence. Gate 7 and
-`PdfUa2` remain pending; `Archive` remains the default profile. The integration
-branch is `integration/manual-composition-49-53`.
+collects their implementation and final integration evidence under the
+profile validated at that gate.
 
 ## Representation and ownership
 
@@ -99,8 +98,8 @@ The complete native comparison and strict affected replay, followed by the
 independent strict Linux run, establish integrated allocation/work/snapshot
 evidence and cross-target PDF byte equality. The previously provisional
 `x64musl` expectations are now observed. The [final integration closure](#final-integration-closure)
-below records source identity and the pinned conformance checks. This closes
-the declared extensions only; no Gate 7 or PDF/UA-2 claim is made.
+below records source identity and the pinned conformance checks for the
+declared extensions.
 
 ## Gallery paint-footprint review
 
@@ -175,7 +174,6 @@ Together with the per-slice semantic/geometry and mutation oracles, atomic
 negative cases, original-file readers, ownership review and scale pairs, this
 closes the declared bounded #49–#53 extensions. General generated TOCs,
 flow-changing references, midpage chapter changes, general custom pagination
-and browser SVG/HTML rendering remain outside these subsets. Gate 7,
-`PdfUa2` and `AccessibleArchive` remain pending; `Archive` stays the default.
+and browser SVG/HTML rendering remain outside these subsets.
 Human reader and assistive-technology review were not performed and remain
 optional.

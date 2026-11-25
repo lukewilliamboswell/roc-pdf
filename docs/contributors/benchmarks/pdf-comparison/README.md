@@ -31,7 +31,7 @@ general table layout or pagination.
 | Source → executable | Go + fpdf | `go build -o report .` |
 | Executable → PDF | Roc or Go | `./report` |
 
-The Roc facade keeps its default `Archive` profile: tagged PDF 2.0 with its
+The Roc trial selects `Archive` explicitly for comparable reruns: tagged PDF 2.0 with its
 static PDF/A-4 claim, embedded subset, Unicode mappings and color profile.
 ReportLab and fpdf produce ordinary PDFs with embedded TrueType fonts; they do
 not supply equivalent tagging or archival conformance. The harness records

@@ -150,8 +150,7 @@ extensions #49–#53 are closed. Their [implementation, ownership and closure
 record](docs/contributors/performance/manual-composition.md) includes the complete 409-case
 native comparison and strict affected replay, strict 409-case Linux integration,
 cross-target PDF byte equality, independent feature checks and pinned
-profile/object-model validation. This does not close Gate 7, enable `PdfUa2`,
-or change the `Archive` default.
+profile/object-model validation for those extensions.
 
 ### Performance intent
 
@@ -1086,8 +1085,8 @@ headings keep with their next block, `semantics.heading_skip` is returned,
 and table semantics no longer copy the document's node lists once per table.
 Closing Gate 6 makes no PDF/UA-2 or combined-profile claim.
 
-The following public authoring is executable under the default `Archive`
-profile, with exact allocation, work, and allocated-byte ceilings, scale
+The following public authoring has `Archive` profile evidence, with exact
+allocation, work, and allocated-byte ceilings, scale
 pairs, zero-failure veraPDF PDF/A-4 and Arlington evidence, and an
 independent structure checker. Each record lists its own open issues:
 

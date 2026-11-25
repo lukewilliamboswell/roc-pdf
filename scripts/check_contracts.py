@@ -623,7 +623,9 @@ def expect_rejected(baseline: object, matrix: object, ledger: object, mutate: st
     elif mutate == "roc-code":
         test_ledger["requirements"] = [requirement for requirement in test_ledger["requirements"] if requirement["id"] != "ROC-PDF-PDFA4-6-7-3-IDENTIFICATION"]
     elif mutate == "pending":
-        pending = next(requirement for requirement in test_ledger["requirements"] if requirement["applicability"] == "pending_iso_confirmation")
+        pending = next(requirement for requirement in test_ledger["requirements"] if requirement["id"] == PDFA4_TEXT_REVIEW)
+        pending["applicability"] = "pending_iso_confirmation"
+        pending["implementation"] = "partial"
         pending["human_verification"] = "not_required"
     elif mutate == "issue":
         issue_requirement = next(

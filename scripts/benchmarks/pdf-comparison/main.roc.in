@@ -41,6 +41,7 @@ main! = |_args| {
 	options : Pdf.Options
 	options = {
 		page_size: Custom({ width: 595, height: 842 }),
+		profile: Archive,
 		fonts: Registered(registered.registry),
 		theme: {
 			face: registered.face,
