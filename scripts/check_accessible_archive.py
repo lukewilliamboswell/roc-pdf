@@ -12,9 +12,11 @@ import argparse
 import json
 import re
 import xml.etree.ElementTree as ET
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from check_navigation import GOTO_LINK_ACTION, SNAPSHOTS as NAVIGATION_SNAPSHOTS, split_link_actions
 from check_pdf_structure import STRING, ValidationError, decode_stream, dictionary_ref, require as require_structure
 from check_pdfa4 import (
     DEFAULT_VERAPDF, ROOT, SPEC, VERSION, OracleError, check_compliant, classify,
@@ -82,13 +84,21 @@ class Control:
     source: str | Path
     scope: str
     old: bytes | re.Pattern[bytes]
-    new: bytes
+    new: bytes | Callable[[bytes], bytes]
     expected: frozenset[str]
     flavour: str = "ua2"
 
 
-def ua_control(name: str, source: str | Path, scope: str, old: bytes | re.Pattern[bytes], new: bytes, *rules: str) -> Control:
+def ua_control(
+    name: str, source: str | Path, scope: str, old: bytes | re.Pattern[bytes],
+    new: bytes | Callable[[bytes], bytes], *rules: str,
+) -> Control:
     return Control(name, source, scope, old, new, frozenset(rules))
+
+
+def distinct_navigation_target(data: bytes) -> bytes:
+    _overview, results = split_link_actions(data)
+    return results
 
 
 CONTROLS = (
@@ -108,6 +118,7 @@ CONTROLS = (
     ua_control("single-document-root", "letter", "objects", re.compile(rb"/K ([0-9]+ 0 R)(?=[^\n]+ /Type /StructTreeRoot)"), rb"/K [\g<1> \g<1>]", "8.2.5.2-1", "Table 5. StructTreeRoot-Document-1"),
     ua_control("contents-item-reference", ROOT / "tests" / "destination_references" / "contents_2.pdf", "objects", re.compile(rb" /Ref \[[^\]]+\](?= /S /TOCI)"), b"", "8.2.5.8-1"),
     ua_control("link-structure-role", "invoice", "objects", b"/S /Link ", b"/S /Span ", "8.2.5.20-1"),
+    ua_control("split-link-target", NAVIGATION_SNAPSHOTS["facade"], "objects", GOTO_LINK_ACTION, distinct_navigation_target, "8.2.5.20-2"),
     ua_control("document-namespace", "letter", "objects", re.compile(rb" /NS [0-9]+ 0 R(?= /P [0-9]+ 0 R /S /Document >>)"), b"", "8.2.5.2-2"),
     ua_control("list-numbering", "letter", "objects", b"/ListNumbering /Decimal", b"/ListNumbering /None", "8.2.5.25-1"),
     ua_control("table-column-span", "letter", "objects", b"/O /Table /Scope /Column", b"/ColSpan 2 /O /Table /Scope /Column", "8.2.5.26-4"),
@@ -123,6 +134,7 @@ CONTROLS = (
     ua_control("link-tab-order", "invoice", "objects", re.compile(rb"(/Annots \[[^\]]+\][^\n]+?) /Tabs /S(?= /Type /Page)"), rb"\g<1>", "8.9.3.3-1"),
     ua_control("unclassified-artifact", "letter", "streams", re.compile(rb"/Artifact <</Type /Pagination /Subtype /Header>> BDC\n(.*?)EMC\n", re.S), rb"\g<1>", "8.2.2-1"),
     ua_control("table-row-span", "letter", "objects", b"/O /Table /Scope /Column", b"/O /Table /RowSpan 2 /Scope /Column", "8.2.5.26-2"),
+    ua_control("table-body-row-span", "letter", "objects", b"/O /Table /Scope /Row", b"/O /Table /RowSpan 2 /Scope /Row", "8.2.5.26-3"),
     ua_control("table-caption-position", "letter", "objects", re.compile(rb"(/K \[)([0-9]+ 0 R) ([0-9]+ 0 R) ([0-9]+ 0 R)(\] /NS [0-9]+ 0 R /P [0-9]+ 0 R /S /Table >>)"), rb"\g<1>\g<3> \g<2> \g<4>\g<5>", "8.2.5.27-1"),
     ua_control("glyph-width", "letter", "objects", re.compile(rb"(/W \[0 \[[0-9]+) [0-9]+"), rb"\g<1> 7000", "8.4.5.6-1"),
     ua_control("unicode-mapping-bom", "report", "streams", re.compile(rb"(?<=beginbfchar\n)<0001> <0020>"), b"<0001> <FEFF>", "8.4.5.8-2"),
@@ -141,15 +153,16 @@ CONTROLS = (
 
 def reworked_control(data: bytes, control: Control) -> bytes:
     """Edit one PDF fact, repairing only serialization offsets and lengths."""
+    replacement = control.new(data) if callable(control.new) else control.new
     if isinstance(control.old, bytes):
-        return mutate(data, control.old, control.new, occurrences=None, scope=control.scope, first_only=True)
+        return mutate(data, control.old, replacement, occurrences=None, scope=control.scope, first_only=True)
     parsed, bodies = planned_bodies(data)
     if control.scope == "objects":
         for number in sorted(bodies):
             body = bodies[number]
             if not control.old.search(body):
                 continue
-            changed = control.old.sub(control.new, body, count=1)
+            changed = control.old.sub(replacement, body, count=1)
             return mutate(data, body, changed, scope="objects")
     elif control.scope == "streams":
         for number in sorted(bodies):
@@ -159,13 +172,13 @@ def reworked_control(data: bytes, control: Control) -> bytes:
             _, payload = decode_stream(bodies, number)
             match = control.old.search(payload)
             if match:
-                return mutate(data, match.group(0), match.expand(control.new), scope="payloads", first_only=True, occurrences=None)
+                return mutate(data, match.group(0), match.expand(replacement), scope="payloads", first_only=True, occurrences=None)
     else:
         root, _id = trailer_facts(parsed)
         _dict, packet = decode_stream(bodies, dictionary_ref(bodies[int(root)], b"Metadata"))
         match = control.old.search(packet)
         if match:
-            return mutate(data, match.group(0), match.expand(control.new), scope="payloads")
+            return mutate(data, match.group(0), match.expand(replacement), scope="payloads")
     raise OracleError(f"{control.name}: mutation target {control.old.pattern!r} absent")
 
 

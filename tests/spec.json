@@ -19472,7 +19472,7 @@
     },
     {
       "name": "production-visual navigation authored facade output",
-      "scenario_revision": "navigation-annotations-v1",
+      "scenario_revision": "navigation-annotations-v2",
       "family": "navigation_facade",
       "snapshot": "tests/navigation_facade/navigation_facade.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -19490,29 +19490,30 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1628,
+          "allocations": 1629,
           "allocated_bytes": 6345881,
           "work": {
-            "output_bytes": 20619
+            "output_bytes": 20737
           }
         },
         "x64musl": {
-          "allocations": 1628,
+          "allocations": 1629,
           "allocated_bytes": 6345881,
           "work": {
-            "output_bytes": 20619
+            "output_bytes": 20737
           }
         }
       },
       "retention": null,
       "validators": [
         "navigation",
-        "pdfa4"
+        "pdfa4",
+        "pdfua2"
       ]
     },
     {
       "name": "production-visual navigation facade determinism",
-      "scenario_revision": "navigation-annotations-v1",
+      "scenario_revision": "navigation-annotations-v2",
       "family": "navigation_facade",
       "snapshot": "tests/navigation_facade/navigation_facade.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -19531,26 +19532,27 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 3255,
+          "allocations": 3257,
           "allocated_bytes": 12691754,
           "work": {
             "byte_identical": 1,
-            "output_bytes": 20619
+            "output_bytes": 20737
           }
         },
         "x64musl": {
-          "allocations": 3255,
+          "allocations": 3257,
           "allocated_bytes": 12691754,
           "work": {
             "byte_identical": 1,
-            "output_bytes": 20619
+            "output_bytes": 20737
           }
         }
       },
       "retention": null,
       "validators": [
         "navigation",
-        "pdfa4"
+        "pdfa4",
+        "pdfua2"
       ]
     },
     {

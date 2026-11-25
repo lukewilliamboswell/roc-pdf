@@ -2169,9 +2169,9 @@
       "capabilities": [
         "PdfUa2"
       ],
-      "implementation": "planned",
+      "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "Require explicit ua2 validation of combined output and isolated absent, wrong-value, and wrong-prefix XMP controls. Pinned veraPDF controls: ua-identification, ua-identification-part, ua-identification-part-prefix, ua-identification-rev-prefix and ua-identification-revision.",
+      "machine_verification": "The public references pass the explicit ua2 and 4 profiles on the same emitted PDF. Five isolated XMP mutations each fail the corresponding 5-1 through 5-5 rule, including wrong part or revision prefixes.",
       "human_verification": "not_required",
       "positive_scenarios": [
         "scripts/check_accessible_archive.py"
@@ -2302,9 +2302,9 @@
         "PdfUa2",
         "WtpdfAccessibility"
       ],
-      "implementation": "partial",
+      "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "Existing metadata fixture and missing-title Roc control cover the title fact. Add explicit combined validation on the public letter without a visible title and an atomic Metadata stream typing control. Pinned veraPDF controls: document-title and metadata-subtype.",
+      "machine_verification": "The public letter retains an authored XMP title, with no visible title element and explicit combined validation. Separate title-removal and Metadata/XML subtype controls fail the pinned 8.11.1 rules.",
       "human_verification": "Check that the metadata title identifies the document.",
       "positive_scenarios": [
         "scripts/check_accessible_archive.py",
@@ -2527,7 +2527,7 @@
       ],
       "implementation": "partial",
       "applicability": "applicable",
-      "machine_verification": "Current structure checker checks parent chains, fragments, table-repeat and furniture artifacts. Close contextual artifact and artifact nesting/order evidence for the accepted scenes. Pinned veraPDF controls: structure-root.",
+      "machine_verification": "Current structure checker checks parent chains, fragments, table-repeat and furniture artifacts. Close contextual artifact and artifact nesting/order evidence for the accepted scenes. Pinned veraPDF controls: structure-root. Removing artifact classification from a complete footer or header content sequence triggers 8.2.2-1 without changing its paint.",
       "human_verification": "Confirm authored roles, real versus artifact classification, logical order, artifact grouping and order, and semantic reading across fragments.",
       "positive_scenarios": [
         "scripts/check_accessible_archive.py",
@@ -2723,17 +2723,19 @@
       ],
       "implementation": "partial",
       "applicability": "applicable",
-      "machine_verification": "Existing navigation oracles independently inspect annotations, content and destinations. Add isolated controls for cross-target ownership and fragmented annotation order. Pinned veraPDF controls: link-structure-role.",
+      "machine_verification": "Existing navigation oracles independently inspect annotations, content and destinations. Add isolated controls for cross-target ownership and fragmented annotation order. Pinned veraPDF controls: link-structure-role. The combined navigation facade fixture keeps one logical Overview link across consecutive pages. Retargeting one fragment to the existing Results destination triggers 8.2.5.20-2. The independent owner oracle also rejects a URI target mixed with GoTo under the same logical link.",
       "human_verification": "Confirm link purpose, semantic identity across fragments, annotation order and association with the intended text.",
       "positive_scenarios": [
         "scripts/check_accessible_archive.py",
         "scripts/check_contents_entries.py",
-        "scripts/check_navigation.py"
+        "scripts/check_navigation.py",
+        "tests/navigation_facade/Cases.roc"
       ],
       "negative_scenarios": [
         "package/KernelNavigation.roc",
         "scripts/check_accessible_archive.py",
-        "scripts/check_navigation.py"
+        "scripts/check_navigation.py",
+        "tests/navigation_facade/Cases.roc"
       ],
       "external_rule_ids": [
         "verapdf-pdfua2:8.2.5.20-1",
@@ -2859,10 +2861,11 @@
       ],
       "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "headers_derived_from_declared_scopes_in_semantic_planning; kernel_HeaderFor_Headers_agreement_check_with_expects; structure_semantics_checker_requires_TH_Scope_and_Headers_targets_resolving_to_TH_through_the_IDTree; tables_harness_family",
+      "machine_verification": "headers_derived_from_declared_scopes_in_semantic_planning; kernel_HeaderFor_Headers_agreement_check_with_expects; structure_semantics_checker_requires_TH_Scope_and_Headers_targets_resolving_to_TH_through_the_IDTree; tables_harness_family An independent facade oracle derives expected header membership from emitted grid and scopes for every combined case. It rejects substituting a real TH from the wrong column and removing an applicable explicit header list, which the pinned validator can accept when scopes still resolve an accessible header.",
       "human_verification": "Confirm the row and column headers communicate the intended relationships to the corresponding data cells.",
       "positive_scenarios": [
         "package/Pdf.roc",
+        "scripts/check_structure_semantics.py",
         "tests/tables/Cases.roc"
       ],
       "negative_scenarios": [
@@ -2897,7 +2900,7 @@
       ],
       "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "table_grid_mismatch_and_row_span_rejections_in_semantic_planning; structure_semantics_checker_grid_regularity; atomic_table_negatives_emit_no_bytes Pinned veraPDF controls: table-column-span.",
+      "machine_verification": "table_grid_mismatch_and_row_span_rejections_in_semantic_planning; structure_semantics_checker_grid_regularity; atomic_table_negatives_emit_no_bytes Pinned veraPDF controls: table-column-span. The table-row-span, table-body-row-span and table-column-span veraPDF twins isolate group and row regularity. The facade disallows row spans altogether and rejects invalid column widths before layout, so row-span/column-span intersections cannot arise in a supported file.",
       "human_verification": "not_required",
       "positive_scenarios": [
         "scripts/check_accessible_archive.py",
@@ -2946,7 +2949,7 @@
       ],
       "implementation": "partial",
       "applicability": "applicable",
-      "machine_verification": "The figure checker checks caption relation, alt and geometry, and rejects a missing-alt twin. Audit internal backgrounds and drawing-label marking against the figure relationship. Pinned veraPDF controls: figure-alternative. The existing captioned unit is a Sect containing only Figure and Caption, with Caption last. The association is validated against the authored figure and the emitted nesting.",
+      "machine_verification": "The figure checker checks caption relation, alt and geometry, and rejects a missing-alt twin. Audit internal backgrounds and drawing-label marking against the figure relationship. Pinned veraPDF controls: figure-alternative. The existing captioned unit is a Sect containing only Figure and Caption, with Caption last. The association is validated against the authored figure and the emitted nesting. Distinct controls exercise alternate description and caption edge order.",
       "human_verification": "Confirm that every meaningful illustration or labelled drawing has appropriate alternative or replacement text and the associated caption.",
       "positive_scenarios": [
         "scripts/check_accessible_archive.py",
@@ -3278,7 +3281,8 @@
         "WTPDF 1.0 8.4.5.5.2",
         "WTPDF 1.0 8.4.5.6",
         "WTPDF 1.0 8.4.5.8",
-        "WTPDF 1.0 8.4.5.9"
+        "WTPDF 1.0 8.4.5.9",
+        "docs/contributors/accessibility-review.md"
       ],
       "capabilities": [
         "PdfUa2",
@@ -3286,8 +3290,8 @@
       ],
       "implementation": "partial",
       "applicability": "applicable",
-      "machine_verification": "Reuse applicable PDF/A-4 font controls and independent source/subset checks. Verify the same embedded fonts under explicit ua2 and wt1a and link atomic cases to each listed rule. Pinned veraPDF controls: cid-to-gid-map, embedded-font-program and to-unicode.",
-      "human_verification": "not_required",
+      "machine_verification": "Reuse applicable PDF/A-4 font controls and independent source/subset checks. Verify the same embedded fonts under explicit ua2 and wt1a and link atomic cases to each listed rule. Pinned veraPDF controls: cid-to-gid-map, embedded-font-program and to-unicode. The independent pinned controls include a font-width mismatch, BOM-only Unicode mapping and .notdef selection.",
+      "human_verification": "Confirm embedding and subsetting permissions for the selected fonts and intended distribution.",
       "positive_scenarios": [
         "scripts/check_accessible_archive.py",
         "scripts/check_fonts.py",
@@ -3427,15 +3431,17 @@
       ],
       "implementation": "partial",
       "applicability": "applicable",
-      "machine_verification": "Existing archive checks cover ActualText. Extend the applicable negative controls to semantic descriptions, metadata, outline titles, annotation text and page-label prefixes.",
+      "machine_verification": "Existing archive checks cover ActualText. Extend the applicable negative controls to semantic descriptions, metadata, outline titles, annotation text and page-label prefixes. The outline-title-pua control isolates a human-readable outline string.",
       "human_verification": "Confirm each readable string conveys the intended information.",
       "positive_scenarios": [
+        "scripts/check_accessible_archive.py",
         "scripts/check_metadata.py",
         "scripts/check_page_labels.py"
       ],
       "negative_scenarios": [
         "package/KernelPdfA4.roc",
-        "package/Pdf.roc"
+        "package/Pdf.roc",
+        "scripts/check_accessible_archive.py"
       ],
       "external_rule_ids": [
         "verapdf-pdfua2:8.6-1",
@@ -3548,7 +3554,7 @@
     },
     {
       "id": "ROC-PDF-PDFUA2-8-9-4-2-ANNOTATION-DESCRIPTION",
-      "summary": "When a link annotation and its directly enclosing structure both supply a description, the text is identical.",
+      "summary": "The conditional equality requirement applies when a link annotation and its directly enclosing structure both provide descriptions. The combined facade does not expose either field on links.",
       "source_ids": [
         "iso-14289-2-2024",
         "wtpdf-1-0-0"
@@ -3562,16 +3568,12 @@
         "PdfUa2",
         "WtpdfAccessibility"
       ],
-      "implementation": "partial",
-      "applicability": "applicable",
-      "machine_verification": "Check the emitted described link and an isolated mismatch, or prove this field pair is unreachable in supported authoring.",
-      "human_verification": "Confirm any annotation description gives useful context for the link.",
-      "positive_scenarios": [
-        "scripts/check_navigation.py"
-      ],
-      "negative_scenarios": [
-        "scripts/check_navigation.py"
-      ],
+      "implementation": "defined_only",
+      "applicability": "package_excluded",
+      "machine_verification": "The combined facade constructs annotations with NoDescription and provides no Link Alt authoring. Advanced navigation scaffolding that can emit a description is outside this profile.",
+      "human_verification": "Confirm the authored link text identifies its purpose and gives appropriate context.",
+      "positive_scenarios": [],
+      "negative_scenarios": [],
       "external_rule_ids": [
         "verapdf-pdfua2:8.9.4.2-1",
         "verapdf-wtpdf-accessibility:8.9.4.2-1"
@@ -3592,9 +3594,9 @@
         "PdfUa2",
         "WtpdfAccessibility"
       ],
-      "implementation": "partial",
+      "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "Check the fixed link annotation flags and add isolated flag mutations to the emitted linked fixture. Pinned veraPDF controls: invisible-link.",
+      "machine_verification": "The public invoice emits a real viewable Link, verified by the independent annotation checker and explicit ua2 validation. The invisible-link and no-view-link controls isolate each prohibited flag combination.",
       "human_verification": "not_required",
       "positive_scenarios": [
         "scripts/check_accessible_archive.py",
@@ -4186,9 +4188,9 @@
       "capabilities": [
         "WtpdfAccessibility"
       ],
-      "implementation": "planned",
+      "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "Require explicit wt1a validation, an independent declaration URI check, and isolated absent and wrong-URI controls. Pinned veraPDF controls: wtpdf-identifier.",
+      "machine_verification": "The same public emitted letter passes explicit 4, ua2 and wt1a. XML verification independently checks the declaration resource, and separately removing the declaration or altering the URI fails 6.1.3-1.",
       "human_verification": "not_required",
       "positive_scenarios": [
         "scripts/check_accessible_archive.py"

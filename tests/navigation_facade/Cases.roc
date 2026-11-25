@@ -69,14 +69,15 @@ facade : U64, Bool -> { bytes : List(U8), work : List(U64) }
 facade = |context, twice| {
 	guard = U64.mod_by(context, 1)
 	document = build_document(guard)
-	first = match Pdf.to_bytes(document) {
+	options = Pdf.Options.{ profile: Pdf.Profile.AccessibleArchive }
+	first = match Pdf.to_bytes_with(document, options) {
 		Ok(bytes) => bytes
 		Err(error) => {
 			crash "production-visual navigation facade generation failed: ${Str.inspect(error)}"
 		}
 	}
 	if twice {
-		second = match Pdf.to_bytes(build_document(guard)) {
+		second = match Pdf.to_bytes_with(build_document(guard), options) {
 			Ok(bytes) => bytes
 			Err(_) => {
 				crash "production-visual navigation facade regeneration failed"
