@@ -454,24 +454,49 @@ for each choice. Before this option existed, the package always wrote what is
 now `Smallest`. To keep those exact bytes, for example to match stored
 checksums, pass `compression: Smallest`.
 
-The default options (`{}`, also `Pdf.Options.default`) select the `Archive` profile, which claims PDF 2.0 plus
-static PDF/A-4. The canonical XMP declares `pdfaid:part` 4 and `pdfaid:rev`
-2020, the packaged sRGB output intent characterizes every color, and every
-font is embedded. Profile and lowered-plan validation run before any byte is
-emitted. A document that cannot meet the claim fails with an `InvalidDocument`
-batch whose `ProfileRequirementViolated` diagnostic names the ledger
-requirement and the ISO 19005-4 clause. It is never silently emitted as
-`Standard`.
+[#authoring-output-profiles]
+== Output profiles
 
-To produce plain PDF 2.0 deliberately, opt out explicitly:
+`Pdf.to_bytes`, `Pdf.to_chunks`, and any options that omit `profile` use
+`AccessibleArchive`. Choose the claims your document needs.
+
+[cols="1,2",options="header"]
+|===
+| Profile | Claims
+| `AccessibleArchive` (default) | PDF 2.0, static PDF/A-4, and PDF/UA-2
+| `Archive` | PDF 2.0 and static PDF/A-4
+| `Standard` | PDF 2.0
+|===
+
+`AccessibleArchive` requires semantic content and a tagged document. Give the
+document a meaningful metadata title and a specific language tag, and supply
+text alternatives for figures. Use
+xref:authoring.adoc#authoring-preparation-reports[the preparation report] to
+review requirements that depend on the meaning of your content. Select
+`Archive` explicitly when you need a blank archived page.
 
 [source,roc]
 ----
-bytes = Pdf.to_bytes_with(document, { profile: Standard })?
+archive_bytes = Pdf.to_bytes_with(document, { profile: Archive })?
+standard_bytes = Pdf.to_bytes_with(document, { profile: Standard })?
 ----
 
-Reading, repairing, signing and encrypting PDFs are unsupported, as is
-converting text to outlines or raster images.
+WTPDF 1.0 accessibility is a separate declaration. Add it to
+`AccessibleArchive` by setting `wtpdf: DeclareAccessibility`. The default
+`NoWtpdfDeclaration` writes the selected profile's claims.
+
+[source,roc]
+----
+declared_bytes = Pdf.to_bytes_with(document, {
+    profile: AccessibleArchive,
+    wtpdf: DeclareAccessibility,
+})?
+----
+
+The selected profile is validated before emission. A profile requirement
+failure returns an `InvalidDocument` diagnostic batch before any bytes or
+chunks are produced. The diagnostics describe the offending requirement,
+including its authored location or standards reference when available.
 
 [#authoring-chapter-aware-page-scopes]
 == Chapter-aware page scopes
@@ -796,10 +821,11 @@ shows an extension that measures itself from the theme's public metrics.
 bounded, read-only `Pdf.Report`: pages, leaf blocks in reading order with
 their pages, alternatives and nested languages, layout outcomes (relaxed
 preferences, figure scales, repeated table headers, continued rows, placed
-custom blocks and callout fragments), text coverage, and author checks
-that the package cannot verify automatically. Every entry names the authored path diagnostics use. The
-prepared bytes are identical to `Pdf.prepare`'s, and a report over its
-budget is `report.budget_exceeded` rather than a shorter report.
+custom blocks and callout fragments), and text coverage. Use the report's
+`obligations` to review author-dependent requirements such as meaningful
+reading order, page numbering and text alternatives. Each obligation names
+its authored path. The prepared bytes are identical to `Pdf.prepare`'s, and a
+report over its budget returns `report.budget_exceeded`.
 
 [#authoring-supported-features]
 == Supported features
@@ -828,8 +854,11 @@ budget is `report.budget_exceeded` rather than a shorter report.
 | a caller-registered face per inline role (style faces) | supported
 | furniture text under an ordered font policy | supported
 | fixed pages, columns, floats, footnotes, row spans, complex tables | unavailable; requests return a feature diagnostic
-| `Archive` profile (static PDF/A-4, the default) and `Standard` | supported
+| `AccessibleArchive`, `Archive`, and `Standard` | xref:authoring.adoc#authoring-output-profiles[choose an output profile]
 |===
+
+Reading, repairing, signing and encrypting PDFs are unsupported, as is
+converting text to outlines or raster images.
 
 Capability diagnostics identify the unsupported request with a stable dotted
 feature code, a readable explanation, and its location in the authored

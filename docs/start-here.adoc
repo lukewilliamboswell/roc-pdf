@@ -23,9 +23,7 @@ for installation pins and upgrade impact.
 
 == Supported output
 
-The default `Archive` profile produces tagged PDF 2.0 with static PDF/A-4.
-`Standard` produces PDF 2.0 without that archival claim. Unsupported content
-returns a structured diagnostic before bytes; it never triggers font substitution,
-synthetic styling or a profile downgrade. PDF/UA-2 is not currently claimed.
-See xref:authoring.adoc#authoring-supported-features[supported features] for the
-bounded text, layout and conformance contract.
+The default `AccessibleArchive` profile claims static PDF/A-4 and PDF/UA-2.
+Choose an xref:authoring.adoc#authoring-output-profiles[output profile] for your
+document's requirements. Check the xref:authoring.adoc#authoring-supported-features[supported features]
+for authoring limits.

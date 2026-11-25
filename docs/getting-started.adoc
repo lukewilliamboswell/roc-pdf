@@ -44,9 +44,10 @@ this checkout.
 == Author the content
 
 Build a `Pdf.document` with a metadata title, language and a list of content
-blocks. Pass it to `Pdf.to_bytes`; write the successful byte list with your
-application's platform. The authoring guide shows the constructors and a
-xref:authoring.adoc#authoring-authoring-with-roc-pdf[complete document value].
+blocks. Pass it to `Pdf.to_bytes` and write the successful byte list with your
+application's platform. This uses the default `AccessibleArchive` profile.
+The authoring guide shows a xref:authoring.adoc#authoring-authoring-with-roc-pdf[complete document value]
+and how to xref:authoring.adoc#authoring-output-profiles[select a profile] explicitly.
 
 Keep the `Try` result visible in your application's error handling. Unsupported
 glyphs, styles or layout requests return structured diagnostics before any PDF
