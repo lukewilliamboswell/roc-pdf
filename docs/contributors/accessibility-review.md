@@ -119,8 +119,9 @@ were checked separately. See the ledger's
 
 | PDF/UA-2 clause | Review against the combined subset |
 | --- | --- |
-| 1–4, 6.1, 7, 8.1 | Scope, dependencies, terms, notation, access principles and general file requirements guide this audit. The programmatic PDF/UA-2 identification belongs to clause 5. Separate author claims through PDF Declarations are governed by the declaration mechanism. No additional author-declared standards are implied. |
-| 5, 6.2 | Inspect XMP part and revision, explicit claims and catalog MarkInfo. Reject incorrect metadata in the emitted-file controls. No embedded files are accepted. |
+| 1–4, 6.1, 7.1–7.2.1 | Use the stated scope, dependencies and access principles to assess the emitted PDF 2.0 file. |
+| 5 | Inspect the PDF/UA part and revision in XMP. Reject missing or incorrect identification in the emitted-file controls. |
+| 6.2, 7.2.2–7.2.3, 8.1 | Check the catalog marking and apply the PDF 2.0 constraints, ISO/TS 32005 containment and clause 8 together. Run PDF/A-4 independently on the combined output. The static profile excludes embedded files, including files essential to understanding that would require accessible content and appropriate declarations. |
 | 8.2.1–8.2.4 | Check parent and child object relationships, authored logical order, real content classification, intact logical units through fragmentation, coherent ordered artifacts, and the standard namespaces. Custom mappings and additional namespaces are outside this subset. |
 | 8.2.5.1–8.2.5.7 | Check a single PDF 2.0 Document root and appropriate roles for parts, sections and divisions. DocumentFragment denotes external origin. The public facade excludes article and block-quotation constructors. No inferred role based on style or coordinates is adequate. |
 | 8.2.5.8 | Authored contents entries presented as a table of contents require TOC and TOCI, each item's semantic target through Ref, and artifact leaders. This applies to explicit authored entries as well as generated contents. |
