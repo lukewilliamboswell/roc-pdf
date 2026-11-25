@@ -2073,6 +2073,56 @@ expect {
 	accepted_work.actual_text_runs == 1 and accepted_work.actual_text_scalars == 7 and bounded
 }
 
+# Explicit replacement slices on the three physical runs of "C中é " preserve
+# each run's original Unicode plus one trailing separator. The same string
+# also belongs to the enclosing paragraph, which a run may not reference.
+expect {
+	sample = build_multi_face_sample({})?
+	occurrence = list_at(multi_face_semantics.occurrences, 0)
+	paragraph = list_at(multi_face_semantics.nodes, 1)
+	property_range = |start| Semantics.IndexRange.from_start_and_length({ start, length: 1 })
+	semantic = KernelTextSemantics.Plan.build(
+		{
+			..multi_face_semantics,
+			nodes: [list_at(multi_face_semantics.nodes, 0), { ..paragraph, text_properties: property_range(0) }],
+			occurrences: [{ ..occurrence, text_properties: property_range(1) }],
+			text_properties: [ActualText("C中é "), ActualText("C中é ")],
+		},
+		1,
+		1,
+		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
+		KernelTextSemantics.Limits.make({ max_text_properties: 2, max_text_property_bytes: 14, max_text_source_bytes: 6, max_text_source_scalars: 3, max_text_sources: 1 }),
+	)?
+	scene = KernelScene.Plan.build(multi_face_scene, KernelScene.Resources.with_text({ color_spaces: 1, images: 0, text_runs: 3 }), KernelScene.Limits.make({ max_commands: 4, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1, max_pages: 1, max_path_segments: 0, max_paths: 0 }))?
+	store = sample.shape.store
+	sliced = |start, length, property| SemanticOverrideSlice(Text.ActualTextSlice.make(Semantics.TextPropertyId.from_index(property), Semantics.IndexRange.from_start_and_length({ start, length })))
+	first = { ..list_at(store.runs, 0), actual_text: sliced(0, 1, 1) }
+	second = { ..list_at(store.runs, 1), actual_text: sliced(1, 3, 1) }
+	last = { ..list_at(store.runs, 2), actual_text: sliced(4, 3, 1) }
+	ownership = KernelTextOwnership.Plan.build(semantic, scene, { ..store, runs: [first, second, last] })?
+	fonts = [sample.latin_plan, sample.cjk_plan]
+	limits = KernelPdfText.Limits.make({ max_actual_text_scalars: 4, max_content_bytes: 1024, max_mappings: 8, max_placements: 0, max_source_scalars: 3 })
+	plan = KernelPdfText.ScenePlan.build(ownership, fonts, limits)?
+	pieces = [0, 1, 2].map(
+		|index| {
+			run = KernelPdfText.ScenePlan.run(plan, Text.RunId.from_index(index))
+			(run.actual_text_begin, run.close_actual_text)
+		},
+	)
+	expected = [
+		(Str.to_utf8("/Span <</ActualText <FEFF0043>>> BDC\n"), True),
+		(Str.to_utf8("/Span <</ActualText <FEFF4E2D>>> BDC\n"), True),
+		(Str.to_utf8("/Span <</ActualText <FEFF00E90020>>> BDC\n"), True),
+	]
+	foreign = { ..second, actual_text: sliced(1, 3, 0) }
+	foreign_ownership = KernelTextOwnership.Plan.build(semantic, scene, { ..store, runs: [first, foreign, last] })?
+	rejected = match KernelPdfText.ScenePlan.build(foreign_ownership, fonts, limits) {
+		Err(ActualTextRequired({ run: 1 })) => True
+		_ => False
+	}
+	pieces == expected and rejected
+}
+
 # A font-level CID cannot carry two occurrence mappings. The plain twin is
 # rejected; the reordered twin has exact ActualText, retains the first CMap
 # fallback deterministically, and reports the resolved conflict.
