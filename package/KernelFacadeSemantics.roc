@@ -224,6 +224,14 @@ KernelFacadeSemantics :: [].{
 		view : Symbolic -> SymbolicView
 		view = |plan| { authoring: plan.authoring, block_ownership: plan.block_ownership, content_spine: plan.components.content_spine, destinations: plan.destinations, links: plan.links, literals: plan.literals, nodes: plan.components.nodes, pending: plan.pending, sources: plan.sources, work: plan.work }
 
+		## The full semantic occurrence arena includes Figure labels whose
+		## geometry is placed after reference measurement.
+		occurrence_count : Symbolic -> U64
+		occurrence_count = |plan| match plan.figure_labels {
+			NoFigureLabels => plan.literals.len() + plan.pending.len()
+			FigureLabels(labels) => labels.first + labels.owners.len()
+		}
+
 		## Label strings are in dense normalized reference-id order. This
 		## consumes the symbolic plan, preserves every node/occurrence id,
 		## and validates the first complete Unicode semantic store.
