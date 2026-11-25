@@ -1448,7 +1448,8 @@ Before serialization the plan establishes:
 - Every indirect object and reference.
 - Object order and generation number zero.
 - Resource names and ownership.
-- Stream length strategy.
+- Stream length strategy, with one indirect object per stream and one adjacent
+  length object. Stream identities advance in object emission order.
 - Complete page, structure, ParentTree, name, number, ID, and outline trees.
 - Xref representation and trailer data.
 - Metadata, identifiers, output intents, and conformance declarations.

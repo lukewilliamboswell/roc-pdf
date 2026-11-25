@@ -95,18 +95,22 @@ KernelSeal :: [].{
 	}
 }
 
+## Every stream value and length object belongs to its one stream pair.
+## Dense stream IDs must advance in object order so emission can append lengths.
 validate_objects : KernelObject.Store -> Try(U64, KernelSeal.Error)
 validate_objects = |store| {
 	length = store.objects.len()
 	var $index = 0
+	var $next_stream = 0
 	while $index < length {
 		object = list_at(store.objects, $index)
 		expected = $index + 1
 		if KernelObject.ObjectId.number(object.id) != expected {
 			return Err(ObjectOrder({ actual: object.id, expected }))
-		} else {
-			match object.content {
-				Stored(value) => if KernelObject.ValueId.index(value) >= store.values.len() {
+		}
+		match object.content {
+			Stored(value) => match store.values.get(KernelObject.ValueId.index(value)) {
+				Err(OutOfBounds) => {
 					return Err(
 						IndexOutOfRange({
 							available: store.values.len(),
@@ -115,14 +119,25 @@ validate_objects = |store| {
 						}),
 					)
 				}
-				LengthOf(stream) => if KernelObject.StreamId.index(stream) >= store.streams.len() {
-					return Err(
-						IndexOutOfRange({
-							available: store.streams.len(),
-							index: KernelObject.StreamId.index(stream),
-							kind: ObjectContent,
-						}),
-					)
+				Ok(Stream(stream)) => {
+					stream_index = KernelObject.StreamId.index(stream)
+					match store.streams.get(stream_index) {
+						Err(OutOfBounds) => return Err(IndexOutOfRange({ available: store.streams.len(), index: stream_index, kind: StreamValue }))
+						Ok(owner) => if owner.object != object.id or stream_index != $next_stream {
+							return Err(StreamObjectMismatch({ object: object.id, stream }))
+						}
+					}
+					$next_stream = $next_stream + 1
+				}
+				Ok(_) => {}
+			}
+			LengthOf(stream) => {
+				stream_index = KernelObject.StreamId.index(stream)
+				match store.streams.get(stream_index) {
+					Err(OutOfBounds) => return Err(IndexOutOfRange({ available: store.streams.len(), index: stream_index, kind: ObjectContent }))
+					Ok(owner) => if expected == 1 or KernelObject.ObjectId.number(owner.object) != expected - 1 {
+						return Err(StreamLengthObjectMismatch({ length_object: object.id, stream }))
+					}
 				}
 			}
 		}
@@ -458,6 +473,44 @@ expect {
 
 	match KernelSeal.seal(bad_builder) {
 		Err(StreamLengthNotAdjacent(_)) => True
+		_ => False
+	}
+}
+
+# A second indirect length object cannot point at an already paired stream.
+expect {
+	payload = KernelObject.add_payload(KernelObject.init(seal_limits), [1], Generated)?
+	added = KernelObject.add_stream_object(payload.builder, [], Unfiltered, payload.id)?
+	store = added.builder.store
+	extra = KernelObject.ObjectId.from_number(3)?
+	stream = KernelObject.StreamId.from_index(0)
+	objects = store.objects.append({ id: extra, content: LengthOf(stream) })
+	match KernelSeal.seal({ ..added.builder, store: { ..store, objects } }) {
+		Err(StreamLengthObjectMismatch({ length_object, stream: actual })) => length_object == extra and actual == stream
+		_ => False
+	}
+}
+
+# Pair ownership alone is insufficient when object and stream order disagree.
+expect {
+	payload = KernelObject.add_payload(KernelObject.init(seal_limits), [1], Generated)?
+	first = KernelObject.add_stream_object(payload.builder, [], Unfiltered, payload.id)?
+	second = KernelObject.add_stream_object(first.builder, [], Unfiltered, payload.id)?
+	store = second.builder.store
+	first_stream = store.streams.get(0)?
+	second_stream = store.streams.get(1)?
+	objects = [
+		{ id: first.id, content: Stored(second.value) },
+		{ id: first.length_object, content: LengthOf(second_stream.id) },
+		{ id: second.id, content: Stored(first.value) },
+		{ id: second.length_object, content: LengthOf(first_stream.id) },
+	]
+	streams = [
+		{ ..first_stream, object: second.id, length_object: second.length_object },
+		{ ..second_stream, object: first.id, length_object: first.length_object },
+	]
+	match KernelSeal.seal({ ..second.builder, store: { ..store, objects, streams } }) {
+		Err(StreamObjectMismatch({ object, stream })) => object == first.id and stream == second_stream.id
 		_ => False
 	}
 }

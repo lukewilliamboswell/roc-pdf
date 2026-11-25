@@ -20,19 +20,20 @@ construction work, and sealing work. It drops construction limits and does not
 materialize a recursive tree, object map, reference map, token list, or
 precompressed stream list.
 
-Sealing performs three direct indexed passes:
+Sealing uses direct indexed passes:
 
-- one pass over indirect objects validates contiguous generation-zero order
-  and their stored value or stream-length content;
-- one pass over values validates all final store ranges and forward indirect
-  references;
-- one pass over streams validates their object, immediately following length
-  object, payload-backed value, and stream identity.
+- The object pass validates contiguous generation-zero order, stored values,
+  and stream ownership in object order. It checks that each stream-bearing
+  object owns its stream and each length object follows that stream's owner.
+- The value pass validates final store ranges and forward indirect references.
+- The stream pass checks each declared owner's object, length object and
+  payload use. The payload pass verifies each recorded final stream points
+  back to the payload.
 
-The work is `O(objects + values + streams)` with constant auxiliary state.
-Exact object, value, reference, and stream visit counts are retained in the
-plan. Counter and span arithmetic is checked; no pass uses `Iter`, recursion,
-hash lookup, or an allocation per object or reference.
+The work is `O(objects + values + streams + payloads)` with constant auxiliary
+state. The object pass tracks the next stream ID in a scalar. Exact object,
+value, reference, and stream visit counts remain in the plan. Counter and
+span arithmetic is checked.
 
 ## Stream allocation and ownership
 
@@ -54,3 +55,30 @@ bound, and an independent counting sink covers offsets beyond 4 GiB. qpdf,
 Arlington, and strict PDFBox lanes now validate the emitted structural plans.
 Shared/owned unchanged-resource retention is checked against actual backing
 allocations and final-use release.
+
+## Bounded stream-pair model
+
+Run `roc test fuzz/stream_seal_model.roc --no-cache` with the pinned compiler.
+The model applies the same authored commands to the object builder and a
+plain ledger. After each command it compares the seal result with the
+ledger's ordered objects, reference targets, and payload readers. The
+ledger represents each stream pair directly and finds a payload's last
+reader by scanning the authored sources backwards.
+
+The bounded world uses up to five commands per trace, two payloads and
+reference targets 1 and 3. The search exhausts 2,379 states and 2,378
+transitions. Three named goals require a resolved forward reference, an
+attempt to reuse a stream value as a second object, and interleaved payload
+uses. A check against the previous sealer fails on the shortest witness
+`[AddPayload, AddStream(0), ReuseStreamValue(0)]`. The fixed sealer returns
+`StreamObjectMismatch` with the extra object and its stream before an
+encoder can start. Separate negative twins exercise a second length object
+and two self-consistent stream pairs in reversed stream order. Returning the
+first stream as every used payload's last reader also fails the ledger at
+`[AddPayload, AddStream(0), AddStream(0)]`.
+
+This finite search covers ownership and order at the sealing boundary.
+The canonical PDF byte comparisons, reader checks and retained-chunk cases
+continue to validate emission and backing-allocation behavior. Running the
+ledger as a Roc expectation keeps it outside the release package and the
+allocation measurement window.
