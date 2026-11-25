@@ -1427,20 +1427,25 @@
       "summary": "Content streams use only ISO 32000-2 operators and explicit resource dictionaries.",
       "source_ids": [
         "iso-19005-4-2020",
-        "iso-32000-2-2020-ec3"
+        "iso-32000-2-2020-ec3",
+        "pdf-issues-ec3"
       ],
       "references": [
         "ISO 19005-4:2020 6.2.2",
-        "development/performance/static-pdfa4.md"
+        "ISO 32000-2:2020+EC3 7.8.2, 8.4.2, 9.4.1, and 14.6.1",
+        "development/performance/static-pdfa4.md",
+        "https://github.com/pdf-association/pdf-issues/issues/302",
+        "pdf-issues#302"
       ],
       "capabilities": [
         "StaticPdfA4"
       ],
       "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "by_construction_closed_operator_union_and_complete_direct_resource_dictionaries; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
+      "machine_verification": "by_construction_closed_operator_union_and_complete_direct_resource_dictionaries; bounded_emitted_content_scope_model; verapdf_1_30_2_pdfa4_zero_failures_on_archive_snapshots",
       "human_verification": "not_required",
       "positive_scenarios": [
+        "fuzz/ContentScopeModel.roc",
         "package/KernelContent.roc",
         "tests/archive/Cases.roc"
       ],

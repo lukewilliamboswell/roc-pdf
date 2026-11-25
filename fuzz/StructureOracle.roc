@@ -62,6 +62,26 @@ StructureOracle :: [].{
 	check : List(U8) -> Try({}, Failure)
 	check = |bytes| inspect_document(bytes)
 
+	## The paired and text-only operators used by the generated content subset.
+	ScopeOperator : [BeginGraphics, EndGraphics, BeginMarked, EndMarked, BeginText, EndText, UseText]
+
+	content_scope_operators : List(U8) -> Try(List(ScopeOperator), Failure)
+	content_scope_operators = |bytes| {
+		tokens = tokenize_with(bytes, 0, bytes.len(), 0, ContentTokens)?
+		var $operators = []
+		for token in tokens {
+			if token.kind == OperatorToken {
+				match scope_operator(bytes, token) {
+					Some(operator) => {
+						$operators = $operators.append(operator)
+					}
+					None => {}
+				}
+			}
+		}
+		Ok($operators)
+	}
+
 	## The boolean form, for callers that only need the verdict.
 	accepts : List(U8) -> Bool
 	accepts = |bytes| match inspect_document(bytes) {
@@ -667,14 +687,17 @@ check_filter = |bytes, tokens, top_keys, payload_start, payload_length, number| 
 ## literal `( )` strings only in their canonical escaped form, no comments
 ## inside objects, and a newline only at framing positions. Tokenizing exactly that grammar and rejecting everything
 ## else makes the tokenizer itself a canonical-output check.
-Kind : [ArrayClose, ArrayOpen, DictClose, DictOpen, FalseToken, HexToken, IntegerToken, LiteralToken, NameToken, NullToken, NumberToken, ReferenceToken, TrueToken]
+Kind : [ArrayClose, ArrayOpen, DictClose, DictOpen, FalseToken, HexToken, IntegerToken, LiteralToken, NameToken, NullToken, NumberToken, OperatorToken, ReferenceToken, TrueToken]
 
 Token : { kind : Kind, len : U64, start : U64, value : U64 }
 
 TopKey : { key_len : U64, key_start : U64, value_index : U64 }
 
 tokenize : List(U8), U64, U64, U64 -> Try(List(Token), StructureOracle.Failure)
-tokenize = |bytes, from, to, number| {
+tokenize = |bytes, from, to, number| tokenize_with(bytes, from, to, number, ObjectTokens)
+
+tokenize_with : List(U8), U64, U64, U64, [ContentTokens, ObjectTokens] -> Try(List(Token), StructureOracle.Failure)
+tokenize_with = |bytes, from, to, number, mode| {
 	if to < from or to > bytes.len() {
 		return Err(BadToken(number))
 	}
@@ -682,7 +705,7 @@ tokenize = |bytes, from, to, number| {
 	var $index = from
 	while $index < to {
 		byte = list_at(bytes, $index)
-		if byte == 32 {
+		if byte == 32 or (mode == ContentTokens and (byte == 10 or byte == 13 or byte == 9)) {
 			$index = $index + 1
 		} else if byte == 60 {
 			# A dictionary opener and a hex string are told apart by peeking one
@@ -759,13 +782,40 @@ tokenize = |bytes, from, to, number| {
 			while $scan < to and is_regular(list_at(bytes, $scan)) {
 				$scan = $scan + 1
 			}
-			$tokens = $tokens.append(classify(bytes, $index, $scan, number)?)
+			if mode == ContentTokens and !is_digit(byte) and byte != 45 {
+				$tokens = $tokens.append({ kind: OperatorToken, len: $scan - $index, start: $index, value: 0 })
+			} else {
+				$tokens = $tokens.append(classify(bytes, $index, $scan, number)?)
+			}
 			$index = $scan
 		} else {
 			return Err(BadToken(number))
 		}
 	}
 	Ok($tokens)
+}
+
+scope_operator : List(U8), Token -> [None, Some(StructureOracle.ScopeOperator)]
+scope_operator = |bytes, token| {
+	start = token.start
+	len = token.len
+	if region_equals(bytes, start, len, Str.to_utf8("q")) {
+		Some(BeginGraphics)
+	} else if region_equals(bytes, start, len, Str.to_utf8("Q")) {
+		Some(EndGraphics)
+	} else if region_equals(bytes, start, len, Str.to_utf8("BDC")) or region_equals(bytes, start, len, Str.to_utf8("BMC")) {
+		Some(BeginMarked)
+	} else if region_equals(bytes, start, len, Str.to_utf8("EMC")) {
+		Some(EndMarked)
+	} else if region_equals(bytes, start, len, Str.to_utf8("BT")) {
+		Some(BeginText)
+	} else if region_equals(bytes, start, len, Str.to_utf8("ET")) {
+		Some(EndText)
+	} else if region_equals(bytes, start, len, Str.to_utf8("Tf")) or region_equals(bytes, start, len, Str.to_utf8("Tr")) or region_equals(bytes, start, len, Str.to_utf8("Tm")) or region_equals(bytes, start, len, Str.to_utf8("Td")) or region_equals(bytes, start, len, Str.to_utf8("Tj")) or region_equals(bytes, start, len, Str.to_utf8("TJ")) {
+		Some(UseText)
+	} else {
+		None
+	}
 }
 
 ## Bare tokens are `true`, `false`, `null`, `R`, canonical unsigned integers,

@@ -259,9 +259,30 @@ A concrete maximum-value check exercises the emitter's U64 helpers.
 | Scoped continuation | `fuzz/ContinuationPaginationModel.roc` partitions a guarded paragraph or padded source over declared opening and continuation frames. It checks measured and concrete layouts for frame selection, exact row coverage, ownership, geometry, and ordered relaxations, including a return to the default frame or entry to an adjacent scope. |
 | Reference wrapping | `fuzz/ReferenceWrapModel.roc` checks up to four measured items. It sums independent partitions for intrinsic widths and enumerates legal line ends for wrapping, including mandatory breaks, held cuts, and fixed-width reference atoms. A separate builder-authored fixture checks I64 overflow in both measurement and wrapping. |
 | Canonical resource graphs | `fuzz/ResourceGraphModel.roc` derives identity by byte rank in one forced collision bucket, grows reachability as a set, and selects the smallest ready node by recomputing the ready set. It compares dictionaries, direct dependencies, order, and diagnostics. Three-resource cases distinguish direct from transitive dependencies, ready priority after an insertion, and a cycle reached after a partial schedule. |
+| Content operator scopes | `fuzz/ContentScopeModel.roc` exhausts 16 one-page scenes with up to three transforms, optional prepared ActualText and two sibling paint orders. It compares the scope sequence in the serialized content bytes with the authored scene and checks it with one typed stack. |
 | Stream sealing | The [stream-pair model](performance/sealed-plan.md#bounded-stream-pair-model) compares builder histories with a ledger of ownership, object order, references, and last payload use. |
 | Page-tree child spans | `fuzz/PageTreeProof.roc` proves that one level's fixed-fanout partition covers every child exactly once through the structural page cap. It uses the scalar terms from production, then walks concrete shapes at fanout boundaries and the cap to check dense offsets. |
 | Dense-store spans | `fuzz/DenseSpanProof.roc` proves endpoint validation across all U64 inputs and checks the concrete helper against U128 addition. It then uses a solver-produced wraparound witness to test the actual scene planner and its diagnostic, alongside a valid empty range. |
+
+### Content operator scopes
+
+Scope pairs must nest in last-open, first-close order. Graphics saves and
+restores may balance over an ordered page Contents array. Marked content must
+close in its physical stream. One synthetic check carries graphics state over
+the boundary and another rejects a marked sequence across it. The model also
+rejects a balanced sequence that closes a marked scope before the graphics
+scope it encloses. [ISO 32000-2:2020+EC3](https://pdfa.org/resource/iso-32000-2/),
+[§8.4.2](https://pdf-issues.pdfa.org/32000-2-2020/clause08.html#H8.4.2),
+[§14.6.1](https://pdf-issues.pdfa.org/32000-2-2020/clause14.html#H14.6.1),
+[ISO-approved correction #302](https://github.com/pdf-association/pdf-issues/issues/302).
+
+The emitted check observes `KernelContent.Plan` bytes before PDF object
+packaging. The current writer emits one stream per page in this path and keeps
+each text object within it. Its graphics scopes wrap complete text objects.
+The rule that graphics save and restore inside a text object also preserve
+both text matrices is outside this emitted model. Compatibility sections and
+operand semantics are outside its observed operator set. [§9.4.1](https://pdf-issues.pdfa.org/32000-2-2020/clause09.html#H9.4.1).
+
 
 ## Property fuzz targets
 
