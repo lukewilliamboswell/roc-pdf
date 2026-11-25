@@ -167,6 +167,31 @@ reference. The ledger must map every rule of the pinned profile
 (`conformance/verapdf-pdfa4-rules.json`, extracted from the vendored
 installer) exactly once; `scripts/check_contracts.py` enforces this.
 
+## Combined accessibility and archival validation
+
+Register each combined PDF snapshot with both `pdfa4` and `pdfua2`. Add
+`wtpdf_accessibility` when the case requests that declaration. The test
+harness inspects the emitted XMP and compares the full output with the same
+snapshot on each supported target. The CI conformance job runs after that
+comparison. To run the conformance job's combined-profile checks locally:
+
+```sh
+python3 scripts/provision_extended_tools.py --skip-mupdf
+python3 scripts/check_accessible_archive.py --cases
+```
+
+Each combined snapshot must pass separate explicit veraPDF `4` and `ua2`
+runs. WTPDF fixtures also pass explicit `wt1a`. All profiles receive the
+original bytes. Arlington separately inspects the same snapshots along
+with the other registered fixture and example PDFs.
+
+The accessibility oracle builds atomic negative twins from declared
+passing cases and requires the complete expected set of failed rule IDs for
+each twin. Inspect the generated PDFs and raw validator reports in ignored
+`.roc-pdf-tmp/accessible-archive-oracles/`. The pinned PDF/UA-2 and WTPDF
+Accessibility catalogs include the ISO/TS 32005 containment rules and can
+be re-extracted offline with `scripts/extract_verapdf_rules.py`.
+
 ## Designing correctness oracles
 
 Follow the [testing chapter](../testing.adoc#designing-correctness-oracles)

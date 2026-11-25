@@ -41,6 +41,8 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+from extract_verapdf_rules import ACCESSIBILITY_PROFILES
+
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_VERAPDF = ROOT / ".roc-pdf-tmp" / "extended-tools" / "verapdf" / "verapdf"
 DEFAULT_CORPUS = ROOT / ".roc-pdf-tmp" / "extended-tools" / "verapdf-corpus" / "verapdf-corpus-pdfa4" / "PDF_A-4"
@@ -49,6 +51,7 @@ CATALOG = ROOT / "conformance" / "verapdf-pdfa4-rules.json"
 EXCEPTIONS = ROOT / "conformance" / "verapdf-exceptions.json"
 VERSION = "1.30.2"
 PROFILE_NAME = "PDF/A-4 validation profile"
+PROFILE_NAMES = {"4": PROFILE_NAME, **{name: profile.name for name, profile in ACCESSIBILITY_PROFILES.items()}}
 STANDARD_OMISSIONS = frozenset({"6.7.2.1-1", "6.7.3-1"})
 # Deliberate kernel inputs that the Archive whitelist rejects; each is a
 # negative fact of its own slice, never Archive output.
@@ -91,7 +94,7 @@ def rule_id(summary: dict[str, object]) -> str:
     return f"{summary['clause']}-{summary['testNumber']}"
 
 
-def classify(report: dict[str, object], strict: bool = True) -> list[Result]:
+def classify(report: dict[str, object], strict: bool = True, *, flavour: str = "4") -> list[Result]:
     """Classify a veraPDF JSON report.
 
     Package output is classified strictly: parser logs, warnings, and task
@@ -118,28 +121,69 @@ def classify(report: dict[str, object], strict: bool = True) -> list[Result]:
         validations = job["validationResult"]
         require(len(validations) == 1, f"{path}: expected exactly one validation result")
         validation = validations[0]
-        require(validation["profileName"] == PROFILE_NAME, f"{path}: validated against {validation['profileName']!r}")
+        require(
+            validation["profileName"] == PROFILE_NAMES[flavour],
+            f"{path}: requested profile {flavour}, validated against {validation['profileName']!r}",
+        )
         require(validation["jobEndStatus"] == "normal", f"{path}: validation did not end normally")
         details = validation["details"]
         failed = frozenset(rule_id(rule) for rule in details["ruleSummaries"] if rule["status"] == "failed")
         require(len(failed) == details["failedRules"], f"{path}: failed-rule summary is inconsistent")
-        results.append(Result(path, bool(validation["compliant"]), failed, int(details["failedChecks"])))
+        compliant = validation["compliant"]
+        failed_checks = details["failedChecks"]
+        require(type(compliant) is bool, f"{path}: compliance flag is not Boolean")
+        require(type(failed_checks) is int and failed_checks >= len(failed), f"{path}: invalid failed check count")
+        require(compliant == (failed_checks == 0) == (not failed), f"{path}: verdict and failed checks disagree")
+        require(details["passedRules"] > 0 and details["passedChecks"] > 0, f"{path}: no successful checks")
+        results.append(Result(path, compliant, failed, failed_checks))
     return results
 
 
-def run_verapdf(verapdf: Path, paths: list[Path], strict: bool = True) -> list[Result]:
+def run_verapdf(
+    verapdf: Path,
+    paths: list[Path],
+    strict: bool = True,
+    *,
+    flavour: str = "4",
+    report_dir: Path | None = None,
+) -> list[Result]:
     require(verapdf.is_file(), f"veraPDF is not provisioned at {verapdf}; run scripts/provision_extended_tools.py")
     results: list[Result] = []
     for start in range(0, len(paths), BATCH):
-        batch = paths[start:start + BATCH]
+        batch = [path.resolve() for path in paths[start:start + BATCH]]
         completed = subprocess.run(
-            [str(verapdf), "--flavour", "4", "--format", "json", "--addlogs", "--maxfailuresdisplayed", "1", *map(str, batch)],
+            [str(verapdf), "--flavour", flavour, "--format", "json", "--addlogs", "--maxfailuresdisplayed", "1", *map(str, batch)],
             check=False,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            timeout=300,
         )
+        if report_dir is not None:
+            report_dir.mkdir(parents=True, exist_ok=True)
+            (report_dir / f"{flavour}-{start}.json").write_bytes(completed.stdout)
+            (report_dir / f"{flavour}-{start}.stderr").write_bytes(completed.stderr)
         require(completed.stdout.strip() != b"", f"veraPDF produced no report: {completed.stderr.decode(errors='replace')[-2000:]}")
-        results.extend(classify(json.loads(completed.stdout), strict))
+        report = json.loads(completed.stdout)
+        batch_results = classify(report, strict, flavour=flavour)
+        if strict:
+            require(not completed.stderr.strip(), f"veraPDF wrote unexpected stderr: {completed.stderr.decode(errors='replace')[-2000:]}")
+            expected_jobs = [(path.as_posix(), path.stat().st_size) for path in batch]
+            observed_jobs = [(job["itemDetails"]["name"], job["itemDetails"]["size"]) for job in report["report"]["jobs"]]
+            require(observed_jobs == expected_jobs, "veraPDF jobs do not match the requested files and byte lengths")
+            summary = report["report"]["batchSummary"]
+            require(summary["totalJobs"] == len(batch), "veraPDF batch job count does not match")
+            validation_summary = summary["validationSummary"]
+            passed = sum(result.compliant for result in batch_results)
+            require(
+                validation_summary["failedJobCount"] == 0
+                and validation_summary["totalJobCount"] == len(batch)
+                and validation_summary["successfulJobCount"] == len(batch)
+                and validation_summary["compliantPdfaCount"] == passed
+                and validation_summary["nonCompliantPdfaCount"] == len(batch) - passed,
+                "veraPDF batch validation summary does not match job results",
+            )
+            require(completed.returncode == int(passed != len(batch)), f"unexpected veraPDF exit status {completed.returncode}")
+        results.extend(batch_results)
     require(len(results) == len(paths), "veraPDF did not report every file")
     return results
 
@@ -152,9 +196,16 @@ def spec_snapshots() -> tuple[list[Path], list[Path]]:
     return archive, standard
 
 
-def check_archive(results: list[Result]) -> None:
+def check_compliant(results: list[Result], flavour: str) -> None:
     for result in results:
-        require(result.compliant and not result.failed_rules and result.failed_checks == 0, f"{result.path}: PDF/A-4 failures {sorted(result.failed_rules)}")
+        require(
+            result.compliant and not result.failed_rules and result.failed_checks == 0,
+            f"{result.path}: {PROFILE_NAMES[flavour]} failures {sorted(result.failed_rules)}",
+        )
+
+
+def check_archive(results: list[Result]) -> None:
+    check_compliant(results, "4")
 
 
 def check_standard(results: list[Result], paths: list[Path]) -> dict[str, int]:

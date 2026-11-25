@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from check_accessible_archive import validate_claims
 from check_default_fonts import validate_default_fonts_pdf
 from check_contents_entries import validate_contents_entries_pdf
 from check_destination_references import validate_destination_references_pdf
@@ -54,6 +55,10 @@ from check_tagged_visual import validate_tagged_visual_pdf
 from check_text import EXPECTED_CONTENT as TEXT_CONTENT
 from check_text import decoded_stream, only_object, validate_text_pdf
 from check_transparency import validate_transparency_pdf
+
+
+# Claim IDs also select the corresponding explicit veraPDF conformance lanes.
+PROFILE_VALIDATORS = {"pdfua2": "pdfa4", "wtpdf_accessibility": "pdfua2"}
 
 
 Reporter = Callable[[str], None]
@@ -222,7 +227,7 @@ PREFLIGHT_CHECKS: dict[str, PreflightCheck] = {
         "check_soft_masks.py", "check_soft_mask_renderers.py", "check_shadings.py", "check_shading_renderers.py",
         "check_font_renderers.py", "check_metadata.py", "check_metadata_renderers.py",
         "check_navigation.py", "check_navigation_renderers.py", "check_link_underlines.py", "check_drawing_labels.py", "extract_verapdf_rules.py",
-        "build_verapdf_corpus_subset.py", "roc_diagnostics.py",
+        "build_verapdf_corpus_subset.py", "roc_diagnostics.py", "check_accessible_archive.py",
     )
 }
 # The static PDF/A-4 self-tests read Archive and Standard snapshots, which are
@@ -259,9 +264,12 @@ PREFLIGHT_CHECKS["reference_documents"] = PreflightCheck("check_reference_docume
 def validate_registry_ids(validators: tuple[str, ...], field: str) -> None:
     if len(validators) != len(set(validators)):
         raise SystemExit(f"{field}: validators must be unique")
-    unknown = set(validators) - VALIDATORS.keys()
+    unknown = set(validators) - VALIDATORS.keys() - PROFILE_VALIDATORS.keys()
     if unknown:
         raise SystemExit(f"{field}: unknown validator(s): {', '.join(sorted(unknown))}")
+    for selected, required in PROFILE_VALIDATORS.items():
+        if selected in validators and required not in validators:
+            raise SystemExit(f"{field}: {selected} requires {required}")
 
 
 def validate_preflight_ids(checks: tuple[str, ...], field: str) -> None:
@@ -275,7 +283,12 @@ def validate_preflight_ids(checks: tuple[str, ...], field: str) -> None:
 def run_validators(
     validator_ids: tuple[str, ...], data: bytes, dimensions: dict[str, int], report: Reporter
 ) -> None:
+    if "pdfua2" in validator_ids:
+        wtpdf = "wtpdf_accessibility" in validator_ids
+        validate_claims(data, wtpdf=wtpdf)
+        report("independent XML inspection of PDF/UA-2 identification and WTPDF Accessibility declaration")
     for validator_id in validator_ids:
-        VALIDATORS[validator_id](data, dimensions, report)
+        if validator_id not in PROFILE_VALIDATORS:
+            VALIDATORS[validator_id](data, dimensions, report)
 
 PREFLIGHT_CHECKS["chapter_templates"] = PreflightCheck("check_chapter_templates.py", True)
