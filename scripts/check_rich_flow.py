@@ -35,6 +35,7 @@ class Expected:
     alt: str | None = None
     padding: int | None = None
     column_width: int | None = None
+    list_numbering: str | None = None
 
 
 def e(role: str, *children: Expected, text: str | None = None, **kwargs) -> Expected:
@@ -69,9 +70,9 @@ def expected_tree(kind: int, count: int) -> Expected:
                 paragraph('The source and diagram belong to this instruction.'),
                 figure('Workflow stage', 'A rectangular workflow stage'),
                 table('Instruction parts', ('Part', 'Instruction detail'), 8, 'Part', 'Measured inside this numbered instruction.', 65),
-                e('L', e('LI', e('Lbl', text='•'), e('LBody', paragraph('Check the nested result.'), source('nested = preserved', 8)))),
+                e('L', e('LI', e('Lbl', text='•'), e('LBody', paragraph('Check the nested result.'), source('nested = preserved', 8))), list_numbering='Disc'),
                 paragraph('Complete this instruction before the next generated label.'))))
-        return e('Document', e('L', *items))
+        return e('Document', e('L', *items, list_numbering='Decimal'))
     if kind == 1:
         paragraphs = [e('P', e('Strong', text=f'Note {n}. '), text=f'Note {n}. ' + 'This wrapped paragraph belongs to one logical callout. ' * 6) for n in range(1, count+1)]
         return e('Document', paragraph('Before the callout.'), e('Div', *paragraphs, padding=8), paragraph('After the callout.'))
@@ -84,7 +85,7 @@ def expected_tree(kind: int, count: int) -> Expected:
                 paragraph('Inner paragraph after the continued table.'), padding=8)
             groups.append(e('Div', e('P', e('Strong', text='Warning. '), e('Link', text='Reference'), text='Warning. Preserve the complete procedure and its examples.Reference'),
                 e('L', e('LI', e('Lbl', text='100.'), e('LBody', paragraph('The inner callout belongs to instruction 100.'), inner, paragraph('Finish the instruction without generating another label.'))),
-                    e('LI', e('Lbl', text='101.'), e('LBody', paragraph('The next generated label is 101.')))),
+                    e('LI', e('Lbl', text='101.'), e('LBody', paragraph('The next generated label is 101.'))), list_numbering='Decimal'),
                 paragraph('Outer paragraph after the complete numbered procedure.'), padding=10))
         return e('Document', *groups)
     if kind == 3:
@@ -246,6 +247,13 @@ def match_tree(node: Node, expected: Expected) -> None:
         require(text_string(node.value.get('ActualText', b'')) == expected.actual, 'rich-flow Code canonical LF, blank/final lines or trailing spaces changed')
     if expected.alt is not None:
         require(text_string(node.value.get('Alt', b'')) == expected.alt, 'rich-flow figure alternative changed')
+    if expected.list_numbering is not None:
+        # Table 382 associates the declared scheme with the authored labels.
+        # These facade lists each declare their own scheme on the L element.
+        attributes = node.value.get('A')
+        entries = attributes if isinstance(attributes, list) else [attributes]
+        numbering = [value.get('ListNumbering') for value in entries if isinstance(value, dict) and value.get('O') == 'List']
+        require(numbering == [expected.list_numbering], f'rich-flow /ListNumbering expected /{expected.list_numbering}, found {numbering}')
     for child, contract in zip(node.children, expected.children):
         match_tree(child, contract)
 
@@ -412,6 +420,19 @@ def validate_rich_flow_pdf(pdf: bytes, dimensions: dict[str, int]) -> None:
     document, pages, root, artifacts = read(pdf)
     require(len(pages) == dimensions['pages'], 'rich-flow pagination changed')
     match_tree(root, expected_tree(kind, count))
+    if kind == 0:
+        # The markers and opening plain-text paragraphs in this fixture
+        # use the same face and size. Each item keeps one label on the
+        # lead line, including when its body continues on later pages.
+        for item in (node for node in root.descendants() if node.role == 'LI'):
+            label, body = item.children
+            lead = body.children[0]
+            require(len(label.marks) == 1 and lead.marks, 'rich-flow item lost its single label or lead paint')
+            marker, opening = label.marks[0], lead.marks[0]
+            require(
+                marker.page == opening.page and marker.glyphs[0][2] == opening.glyphs[0][2],
+                'rich-flow label left the opening line baseline',
+            )
     frames(root)
     check_sources(root, kind)
     check_headers(document, pages, root, artifacts)
@@ -442,7 +463,30 @@ def self_test() -> None:
             pass
         else:
             raise ValidationError(f'rich-flow oracle accepted mutation {old!r}')
-    print('PASS rich-flow exact semantic owners/text, shared occurrences, source foregrounds, frame/panel padding, table headers and mutation twins')
+    lists = next(c for c in cases if c['dimensions']['rich_kind'] == 0)
+    original = (ROOT / lists['snapshot']).read_bytes()
+    # These names remain legal declarations, but describe different schemes.
+    for old, new in ((b'/Decimal', b'/UpperRoman'), (b'/Disc', b'/Square')):
+        mutant = twin(original, b'/ListNumbering ' + old, b'/ListNumbering ' + new)
+        try:
+            validate_rich_flow_pdf(mutant, lists['dimensions'])
+        except ValidationError as error:
+            require(f"/ListNumbering expected {old.decode()}" in str(error), 'numbering twin rejected for a different reason')
+        else:
+            raise ValidationError(f'rich-flow checker accepted incorrect numbering {new!r}')
+    _, _, tree, _ = read(original)
+    first_item = tree.children[0].children[0]
+    require(len({mark.page for mark in first_item.marks}) > 1, 'list label twin needs an item that continues')
+    original_label = first_item.children[0].marks[0].block
+    shifted_label = original_label.replace(b'72 759 cm', b'72 755 cm', 1)
+    require(shifted_label != original_label, 'list label twin needs the authored opening baseline')
+    try:
+        validate_rich_flow_pdf(twin(original, original_label, shifted_label, exactly_once=True), lists['dimensions'])
+    except ValidationError as error:
+        require(str(error) == 'rich-flow label left the opening line baseline', 'label twin rejected for a different reason')
+    else:
+        raise ValidationError('rich-flow checker accepted a shifted label')
+    print('PASS rich-flow exact semantic owners/text, list labels and numbering, shared occurrences, source foregrounds, frame/panel padding, table headers and mutation twins')
 
 
 

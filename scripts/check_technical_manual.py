@@ -148,7 +148,7 @@ def contract(chapters: int, starts: dict[int, int]) -> Expected:
         contents.extend([e('H1', text=f'Procedure {number}'),
             paragraph(f'Contents physical 1; final procedure label M-{final}; final physical {final}.'),
             e('Div', paragraph('One logical procedure keeps its numbered instruction and rich children together in reading order.'),
-              e('L', item), paragraph('The outer callout closes after its one logical instruction.'), padding=8)])
+              e('L', item, list_numbering='Decimal'), paragraph('The outer callout closes after its one logical instruction.'), padding=8)])
     return e('Document', *contents)
 
 
