@@ -847,6 +847,10 @@ byte emission accepts only the sealed result and has no user-data error path.
 The semantic document is the source of meaning and logical reading order. It
 has exactly one top-level `Document` element in the PDF 2.0 namespace. A
 `DocumentFragment` is a descendant rather than an alternative root.
+Each Document or DocumentFragment uses one heading family, either generic
+`H` or numbered `Hn`. The semantic graph validator tracks the family within
+the nearest scope and reports both the conflicting node and that scope.
+[ISO 32000-2 §14.8.4.3](https://pdf-issues.pdfa.org/32000-2-2020/clause14.html#H14.8.4.3)
 
 Every semantic node has one structural parent and an ordered content spine.
 The spine, rather than a separate child list, may contain:
