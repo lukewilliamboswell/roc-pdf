@@ -20351,11 +20351,12 @@
     },
     {
       "name": "rich inline mixed styles, links, languages, and expansions",
-      "scenario_revision": "rich-inline-v1",
+      "scenario_revision": "rich-inline-v2",
       "family": "rich_inline",
       "snapshot": "tests/rich_inline/mixed.pdf",
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
+        "mixed_inline": 1,
         "pages": 1,
         "structure_elements": 34,
         "inline_elements": 16,
@@ -20393,7 +20394,7 @@
             "final_runs": 43,
             "fragments": 43,
             "pages": 1,
-            "output_bytes": 38592
+            "output_bytes": 38710
           }
         },
         "x64musl": {
@@ -20412,20 +20413,21 @@
             "final_runs": 43,
             "fragments": 43,
             "pages": 1,
-            "output_bytes": 38592
+            "output_bytes": 38710
           }
         }
       },
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics",
         "rich_inline"
       ]
     },
     {
       "name": "rich inline paragraphs x10",
-      "scenario_revision": "rich-inline-v1",
+      "scenario_revision": "rich-inline-v2",
       "family": "rich_inline",
       "snapshot": "tests/rich_inline/paragraphs_10.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -20468,7 +20470,7 @@
             "final_runs": 181,
             "fragments": 181,
             "pages": 1,
-            "output_bytes": 35373
+            "output_bytes": 35492
           }
         },
         "x64musl": {
@@ -20487,20 +20489,21 @@
             "final_runs": 181,
             "fragments": 181,
             "pages": 1,
-            "output_bytes": 35373
+            "output_bytes": 35492
           }
         }
       },
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics",
         "rich_inline"
       ]
     },
     {
       "name": "rich inline paragraphs x100",
-      "scenario_revision": "rich-inline-v1",
+      "scenario_revision": "rich-inline-v2",
       "family": "rich_inline",
       "snapshot": "tests/rich_inline/paragraphs_100.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -20543,7 +20546,7 @@
             "final_runs": 1801,
             "fragments": 1801,
             "pages": 6,
-            "output_bytes": 73414
+            "output_bytes": 73530
           }
         },
         "x64musl": {
@@ -20562,24 +20565,26 @@
             "final_runs": 1801,
             "fragments": 1801,
             "pages": 6,
-            "output_bytes": 73414
+            "output_bytes": 73530
           }
         }
       },
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics",
         "rich_inline"
       ]
     },
     {
       "name": "rich inline ordered multi-face spans",
-      "scenario_revision": "rich-inline-v1",
+      "scenario_revision": "rich-inline-v2",
       "family": "rich_inline",
       "snapshot": "tests/rich_inline/ordered.pdf",
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
+        "ordered_multiface": 1,
         "pages": 1,
         "structure_elements": 5,
         "inline_elements": 3,
@@ -20617,7 +20622,7 @@
             "final_runs": 3,
             "fragments": 3,
             "pages": 1,
-            "output_bytes": 10604
+            "output_bytes": 10723
           }
         },
         "x64musl": {
@@ -20636,13 +20641,14 @@
             "final_runs": 3,
             "fragments": 3,
             "pages": 1,
-            "output_bytes": 10604
+            "output_bytes": 10723
           }
         }
       },
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics",
         "rich_inline"
       ]

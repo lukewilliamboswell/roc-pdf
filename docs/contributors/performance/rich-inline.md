@@ -526,6 +526,23 @@ checks; `--standard-cases` fails only the deliberate omissions. Arlington
 extracts the mixed snapshot's exact expected lines. The gallery is
 unchanged and `check_gallery.py` passes.
 
+### Combined archive evidence
+
+The mixed business paragraphs, ordered Latin and Han spans, and the 10- and
+100-paragraph scale pair request the combined profile. veraPDF 1.30.2
+validates PDF/A-4 and PDF/UA-2 independently for all four outputs, and the
+Arlington 1.30.2 object-model check passes. PDFBox 3.0.8 extracts the exact
+mixed text. The authored structure check also rejects isolated substitutions
+of `Title`, `P`, `Lbl`, `Em`, `Strong`, `Quote`, and `Code`, a wrong scoped
+language, and a list attribute assigned to the Table owner.
+
+Under the pinned compiler, macOS arm64 and Linux x64 produce identical PDFs
+and counts. The combined profile adds 118, 119, 119, and 116 bytes to the
+mixed, ordered, 10-paragraph, and 100-paragraph outputs respectively. The
+XMP stream and its length are the only changed object bodies. The cases
+retain 3,739, 1,415, 5,012, and 27,630 allocations, all other exact work
+counters, and the existing allocated-byte ceilings.
+
 ## Reviewed rebaselines
 
 Every delta below comes from a cold-cache, full-order run. Each cause was

@@ -118,8 +118,8 @@ import "../assets/NotoSansMono-Code-Fixture.ttf" as mono_font_bytes : List(U8)
 ## - `atomic_negatives`: every inline rejection with its stable dotted code
 ##   and inline path, the eight-deep accepted boundary, and no bytes.
 ##
-## Bytes always come from `Pdf.to_bytes_with` (the default `Archive`
-## profile). Work comes from one additional semantic planning pass and one
+## Bytes come from `Pdf.to_bytes_with`. Mixed, ordered and paragraph
+## scale cases request `AccessibleArchive`. Work comes from one additional semantic planning pass and one
 ## facade pipeline build over the same normalized authoring.
 Fixture :: [].{
 	repeated_segments : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
@@ -140,7 +140,7 @@ Fixture :: [].{
 		# The nested Emphasis/Strong/Code owner explicitly selects genuine
 		# Inter Bold Italic: the default mono family has no italic program.
 		theme = Theme.{ inline: { strong_emphasis: { font: Family(BuiltIn(Sans)) }, code: { color: Themed(Color.srgb8({ blue: 60, green: 100, red: 20 })) }, emphasis: { color: Themed(Color.srgb8({ blue: 140, green: 70, red: 20 })) }, strong: { color: Themed(Color.srgb8({ blue: 30, green: 30, red: 150 })) } } }
-		evidence(mixed_document(context), theme, BuiltInFace)
+		evidence_with_profile(mixed_document(context), theme, BuiltInFace, pipeline_limits, AccessibleArchive)
 	}
 
 	paragraphs : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
@@ -148,13 +148,13 @@ Fixture :: [].{
 		if count == 0 or count > 1000 {
 			return Err(InvalidScale)
 		}
-		evidence(paragraph_document(count), Theme.default, BuiltInFace)
+		evidence_with_profile(paragraph_document(count), Theme.default, BuiltInFace, pipeline_limits, AccessibleArchive)
 	}
 
 	ordered : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	ordered = |context| {
 		registered = register_faces(context)?
-		evidence(ordered_document(context), Theme.{ font_selection: Policy(registered.policy) }, Policy(registered))
+		evidence_with_profile(ordered_document(context), Theme.{ font_selection: Policy(registered.policy) }, Policy(registered), pipeline_limits, AccessibleArchive)
 	}
 
 	code_face : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
@@ -975,10 +975,13 @@ evidence = |document, theme, faces| evidence_with_limits(document, theme, faces,
 ## `evidence` under explicit pipeline limits (a document with a table needs
 ## scene paths for its rules).
 evidence_with_limits : Document, Theme, Faces, KernelFacadePipeline.Limits -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
-evidence_with_limits = |document, theme, faces, limits| {
+evidence_with_limits = |document, theme, faces, limits| evidence_with_profile(document, theme, faces, limits, Archive)
+
+evidence_with_profile : Document, Theme, Faces, KernelFacadePipeline.Limits, Pdf.Profile -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+evidence_with_profile = |document, theme, faces, limits, profile| {
 	options = match faces {
-		BuiltInFace => Pdf.Options.{ theme: theme }
-		Policy(policy) => Pdf.Options.{ theme: theme, fonts: Registered(policy.registry) }
+		BuiltInFace => Pdf.Options.{ theme: theme, profile: profile }
+		Policy(policy) => Pdf.Options.{ theme: theme, fonts: Registered(policy.registry), profile: profile }
 	}
 	bytes = Pdf.to_bytes_with(document, options) ? |error| crash "Rich-inline public preparation failed: ${Str.inspect(error)}"
 	authoring = Document.normalize(document)

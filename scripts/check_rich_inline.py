@@ -36,7 +36,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from pdf_layout import flatten, mutate as layout_mutate, occurrences
 from check_pdf_structure import STRING, TO_UNICODE_BLOCK, ValidationError, require, to_unicode_mappings  # noqa: E402
-from check_structure_semantics import Document, Parser, Ref, element_children, page_order, text_string  # noqa: E402
+from check_structure_semantics import Document, Parser, Ref, check_structure_semantics, element_children, page_order, text_string  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 MIXED = ROOT / "tests" / "rich_inline" / "mixed.pdf"
@@ -253,7 +253,11 @@ def render(pdf: bytes, dimensions: dict[str, int] | None = None) -> list[str]:
 
 
 def validate_rich_inline_pdf(pdf: bytes, dimensions: dict[str, int]) -> None:
-    render(pdf, dimensions)
+    authored = render(pdf, dimensions)
+    if dimensions.get("mixed_inline"):
+        require(authored == MIXED_EXPECTED, "mixed inline roles, text or language disagree with authoring")
+    if dimensions.get("ordered_multiface"):
+        require(authored == ORDERED_EXPECTED, "ordered inline roles, text or language disagree with authoring")
     if dimensions.get("code_role_fonts"):
         validate_combined_code_font(pdf)
     repeated = dimensions.get("repeated_segments")
@@ -464,6 +468,33 @@ def self_test() -> None:
             rejected += 1
             continue
         raise SystemExit(f"rich-inline checker accepted {label}")
+    for original, replacement in (
+        (b"/S /Title >>", b"/S /P >>"),
+        (b"/S /P >>", b"/S /Code >>"),
+        (b"/S /Lbl >>", b"/S /Span >>"),
+        (b"/S /Em >>", b"/S /Strong >>"),
+        (b"/S /Strong >>", b"/S /Em >>"),
+        (b"/S /Quote >>", b"/S /Span >>"),
+        (b"/S /Code >>", b"/S /Span >>"),
+        (b"/Lang (fr)", b"/Lang (it)"),
+    ):
+        twin = layout_mutate(mixed, original, replacement, scope="objects", occurrences=None, first_only=True)
+        try:
+            validate_rich_inline_pdf(twin, {"mixed_inline": 1})
+        except ValidationError as error:
+            require(str(error) == "mixed inline roles, text or language disagree with authoring", str(error))
+        else:
+            raise ValidationError(f"mixed inline oracle accepted replacing {original!r} with {replacement!r}")
+        rejected += 1
+    wrong_owner = layout_mutate(mixed, b"/O /List", b"/O /Table", scope="objects")
+    try:
+        check_structure_semantics(wrong_owner)
+    except ValidationError as error:
+        require(str(error) == "unknown Table attribute", str(error))
+    else:
+        raise ValidationError("mixed inline oracle accepted a Table-owned ListNumbering attribute")
+    rejected += 1
+
     for name in ("repeated_segments", "repeated_ordered_segments"):
         for count in (10, 50):
             repeated = (ROOT / "tests" / "rich_inline" / f"{name}_{count}.pdf").read_bytes()
