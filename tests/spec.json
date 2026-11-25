@@ -22178,7 +22178,7 @@
       "dimensions": {
         "pages": 4,
         "structure_elements": 356,
-        "element_identifiers": 61
+        "element_identifiers": 62
       },
       "work_counters": [
         "node_writes",
@@ -22260,7 +22260,7 @@
       "dimensions": {
         "pages": 27,
         "structure_elements": 3113,
-        "element_identifiers": 511
+        "element_identifiers": 512
       },
       "work_counters": [
         "node_writes",
@@ -22342,7 +22342,7 @@
       "dimensions": {
         "pages": 1,
         "structure_elements": 47,
-        "element_identifiers": 11
+        "element_identifiers": 13
       },
       "work_counters": [
         "node_writes",
@@ -22424,7 +22424,7 @@
       "dimensions": {
         "pages": 6,
         "structure_elements": 23,
-        "element_identifiers": 5
+        "element_identifiers": 6
       },
       "work_counters": [
         "node_writes",
@@ -22505,7 +22505,7 @@
       "dimensions": {
         "pages": 2,
         "structure_elements": 216,
-        "element_identifiers": 39
+        "element_identifiers": 40
       },
       "work_counters": [
         "node_writes",
@@ -23174,7 +23174,7 @@
       "dimensions": {
         "pages": 1,
         "structure_elements": 19,
-        "element_identifiers": 4
+        "element_identifiers": 5
       },
       "work_counters": [
         "node_writes",
@@ -23257,7 +23257,7 @@
         "pages": 1,
         "rejections": 14,
         "structure_elements": 13,
-        "element_identifiers": 3
+        "element_identifiers": 4
       },
       "work_counters": [
         "rejections",
