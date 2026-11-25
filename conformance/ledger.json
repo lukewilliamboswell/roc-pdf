@@ -3072,20 +3072,22 @@
         "PdfUa2",
         "WtpdfAccessibility"
       ],
-      "implementation": "partial",
+      "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "The normalized role and emitted structure checks cover these facade shapes. The source block and foreground oracles check Code content and paint-only ranges. Per-role atomic controls belong with the combined fixtures.",
+      "machine_verification": "The combined rich-inline and nested container files preserve each authored role, its namespace and logical text. The independent expectations reject isolated valid-role substitutions for inline owners, Title, P, Lbl, Part and Sect. The combined source and foreground controls verify exact source ownership and text under Code even when paint is split by color. Heading, label intent and each semantic grouping also remain author review obligations.",
       "human_verification": "Review appropriate meanings for their chosen roles, including a heading for its section, visible title distinct from heading, inline quotations, emphasis and code source.",
       "positive_scenarios": [
         "scripts/check_rich_inline.py",
         "scripts/check_source_blocks.py",
         "scripts/check_source_foregrounds.py",
-        "scripts/check_structure_semantics.py"
+        "scripts/check_structure_semantics.py",
+        "tests/containers/Fixture.roc"
       ],
       "negative_scenarios": [
         "scripts/check_rich_inline.py",
         "scripts/check_source_blocks.py",
-        "scripts/check_source_foregrounds.py"
+        "scripts/check_source_foregrounds.py",
+        "scripts/check_structure_semantics.py"
       ],
       "external_rule_ids": []
     },
