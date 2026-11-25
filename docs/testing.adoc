@@ -57,6 +57,9 @@ https://pdf-issues.pdfa.org/32000-2-2020/clause07.html#H7.9.6[ISO 32000-2 §7.9.
   relaxations and diagnostic fields with the production decision. A role
   matrix can confirm each edge while leaving a clause about ancestors
   untested. Include the context the clause requires.
+  Check what each part contributes when an authored value is split across
+  output scopes. The concatenated replacement text can be correct even when a
+  character belongs to the wrong marked-content sequence.
 . *Match the tool to the domain.* Model exhausts small histories. Record
   action and depth bounds, check exhaustion and meaningful goals, and key
   states by every fact needed by later actions or observations. Solve
