@@ -3174,13 +3174,15 @@
       ],
       "implementation": "partial",
       "applicability": "applicable",
-      "machine_verification": "Existing semantic and object checks exercise list, table and supported artifact attributes. Verify the supported semantic layout properties and omission cases under the combined profile.",
+      "machine_verification": "Independent combined fixtures check supported Table and List properties, including invalid Scope, missing applicable Headers and ListNumbering with a substituted owner. Artifact classification and attached subtypes have independent controls. A gap remains when a nondefault visual property itself conveys part of the semantics and requires a Layout attribute.",
       "human_verification": "Review when nondefault layout or other properties carry meaning and require a semantic attribute.",
       "positive_scenarios": [
         "package/KernelSemantics.roc",
+        "scripts/check_rich_inline.py",
         "scripts/check_structure_semantics.py"
       ],
       "negative_scenarios": [
+        "scripts/check_rich_inline.py",
         "scripts/check_structure_semantics.py"
       ],
       "external_rule_ids": []
@@ -4070,7 +4072,7 @@
     },
     {
       "id": "ROC-PDF-SEMANTICS-ID-RELATIONSHIPS",
-      "summary": "Emitted structure identity, IDTree membership, destinations, annotations, and non-parental cross-relations use independent typed identities.",
+      "summary": "Structure element, identifier, navigation destination, and annotation identities stay distinct. Supported non-parental relations connect their typed endpoints without creating a second parent.",
       "source_ids": [
         "iso-14289-2-2024",
         "iso-32000-2-2020-ec3",
@@ -4082,19 +4084,26 @@
       ],
       "capabilities": [
         "Pdf20",
-        "PdfUa2"
+        "PdfUa2",
+        "WtpdfAccessibility"
       ],
-      "implementation": "partial",
+      "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "schema_and_roc_contract; kernel_validation_of_element_identifiers_and_HeaderFor_CaptionFor_LabelFor_relations_with_negative_expects; IDTree_lowering; other relation kinds remain outside the text subset",
+      "machine_verification": "The normalized store checks identifiers, HeaderFor, CaptionFor, LabelFor and ContentsTarget, and rejects unsupported generic cross-relations. Caption and label associations are expressed through the appropriate grouping and order. Table headers resolve through IDTree, and TOCI Ref must name the same structure element as the paired link destination. Independent combined oracles reject missing or wrong existing Ref, wrong scoped table membership, dangling IDs and cross-target ownership of split annotations.",
       "human_verification": "not_required",
       "positive_scenarios": [
         "package/KernelSemantics.roc",
+        "scripts/check_contents_entries.py",
+        "scripts/check_navigation.py",
+        "scripts/check_structure_semantics.py",
         "tests/containers/Cases.roc",
         "tests/contracts/advanced_semantics_contract.roc"
       ],
       "negative_scenarios": [
-        "package/KernelSemantics.roc"
+        "package/KernelSemantics.roc",
+        "scripts/check_contents_entries.py",
+        "scripts/check_navigation.py",
+        "scripts/check_structure_semantics.py"
       ],
       "external_rule_ids": []
     },
@@ -4126,7 +4135,7 @@
     },
     {
       "id": "ROC-PDF-SEMANTICS-NAMESPACE-ATTRIBUTES",
-      "summary": "Roles and role mappings retain namespace identity while structure attributes retain owner, typed value, and explicit applicability.",
+      "summary": "Supported PDF 2.0 and PDF 1.7 semantic roles retain explicit namespace identities, and supported Table, List and contextual Artifact properties retain typed owners and applicability.",
       "source_ids": [
         "iso-14289-2-2024",
         "iso-32000-2-2020-ec3",
@@ -4138,19 +4147,24 @@
       ],
       "capabilities": [
         "Pdf20",
-        "PdfUa2"
+        "PdfUa2",
+        "WtpdfAccessibility"
       ],
-      "implementation": "partial",
+      "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "schema_and_roc_contract; typed_Table_and_List_attribute_validation_and_A_lowering_with_negative_expects; PDF_2_0_and_PDF_1_7_standard_namespaces_with_each_role_checked_against_its_namespace_by_the_kernel_and_the_structure_checker_with_twins; role mappings (including cycles), attribute role lists, Layout and namespace-owned attributes remain rejected",
+      "machine_verification": "The semantic kernel validates standard role and namespace combinations, rejects caller-defined role mappings and attribute-owner extensions, and checks Table, List and contextual Artifact property names, value types and applicability. The independent combined oracle rejects claiming a PDF 1.7 Quote in the PDF 2.0 namespace, using PDF 1.7 for a PDF 2.0 P, substituting the Table owner on ListNumbering, and invalid Scope. The standard-attributes row tracks the separate requirement for semantically significant visual properties.",
       "human_verification": "not_required",
       "positive_scenarios": [
         "package/KernelSemantics.roc",
+        "scripts/check_rich_inline.py",
+        "scripts/check_structure_semantics.py",
         "tests/containers/Cases.roc",
         "tests/contracts/advanced_semantics_contract.roc"
       ],
       "negative_scenarios": [
-        "package/KernelSemantics.roc"
+        "package/KernelSemantics.roc",
+        "scripts/check_rich_inline.py",
+        "scripts/check_structure_semantics.py"
       ],
       "external_rule_ids": []
     },
