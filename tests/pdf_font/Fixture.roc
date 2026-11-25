@@ -3,11 +3,13 @@ import pdf.KernelFont
 import pdf.KernelFontLeaf
 import pdf.KernelFontPlan
 import pdf.KernelFontSubset
+import pdf.KernelLex
 import pdf.KernelObject
 import pdf.KernelPdfFont
 import pdf.KernelSeal
 import pdf.KernelStructure
 import "../../package/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
+import "../../examples/business-report/fonts/SourceSans3-Regular.ttf" as source_sans_bytes : List(U8)
 
 Fixture :: [].{
 	font_objects : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
@@ -267,4 +269,38 @@ expect {
 		and cmap.contains("<00FF> <0041>\n<0100> <0042>\n")
 		and cmap.contains("<0107> <00FF>\n<0108> <0100>\n")
 		and cmap.contains("<012E> <20AC>\nendbfchar\n1 beginbfchar\n<012F> <20AC>\nendbfchar\nendcmap\n")
+}
+
+# Source Sans 3 Regular GID 2477 is a ligature with only an hmtx bearing
+# entry. FontTools reads its inherited advance as 425, versus 653 at GID 0.
+# Both must be explicit widths in the sealed CIDFont, with CID 0 first.
+expect {
+	font = KernelFont.inspect(source_sans_bytes, KernelFont.Limits.make({ max_bytes: 500000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }))?
+	plan = KernelFontPlan.plan(font, [{ glyph: 2477 }], KernelFontPlan.Limits.make({ max_retained_glyphs: 8 }))?
+	subset = KernelFontSubset.build(font, plan)?
+	limits = KernelPdfFont.Limits.make({ max_to_unicode_bytes: 1024, max_unicode_mappings: 1, max_unicode_scalars: 3 })
+	pdf_font = KernelPdfFont.Plan.build(KernelObject.init(object_limits), font, plan, subset, descriptor, [{ cid: 1, scalars: [0x3f, 0x2d, 0x28] }], limits)?
+	store = KernelSeal.Plan.store(KernelSeal.seal(KernelPdfFont.Plan.builder(pdf_font))?)
+	cid_font = KernelObject.ObjectId.number(KernelPdfFont.Plan.objects(pdf_font).cid_font)
+	value_at = |id| list_at(store.values, KernelObject.ValueId.index(id))
+	value = match list_at(store.objects, cid_font - 1).content {
+		Stored(id) => Ok(value_at(id))
+		_ => Err(EvidenceFailure)
+	}?
+	entries = match value {
+		Dictionary(span) => Ok(store.dictionary_entries.sublist({ start: span.start, len: span.length }))
+		_ => Err(EvidenceFailure)
+	}?
+	width_entry = entries.keep_if(|entry| KernelLex.Name.bytes(list_at(store.names, KernelObject.NameId.index(entry.key))) == Str.to_utf8("W")).first()?
+	array_values = |span| store.array_items.sublist({ start: span.start, len: span.length }).map(value_at)
+	match value_at(width_entry.value) {
+		Array(runs) => match array_values(runs) {
+			[Integer(0), Array(widths)] => match array_values(widths) {
+				[Integer(653), Integer(425)] => font.metrics.number_of_h_metrics == 2477
+				_ => False
+			}
+			_ => False
+		}
+		_ => False
+	}
 }
