@@ -782,25 +782,102 @@ repeats_language = |store, owner, tag| if owner >= store.nodes.len() {
 	}
 }
 
-## `^[A-Za-z]{1,8}(-[A-Za-z0-9]{1,8})*$`: the language-tag shape PDF/UA-2
-## 8.4.4 checks for every structure-element `/Lang` (RFC 3066 syntax).
+# RFC 5646 §2.1 language-tag syntax for structure-element /Lang. The
+# registry and the RFC's separate validity requirements need no lookup here.
+LanguageSubtag : [Primary, Core({ extlangs : U8, script_allowed : Bool }), Variants, ExtensionStart, Extension, PrivateStart, Private, Invalid]
+
 valid_language_tag : Str -> Bool
 valid_language_tag = |tag| {
-	var $subtag = 0
+	var $phase = Primary
 	var $length = 0
-	var $valid = !tag.is_empty()
+	var $letters = 0
+	var $first = 0
 	for byte in Str.iter_utf8(tag) {
 		if byte == 45 {
-			$valid = $valid and $length >= 1 and $length <= 8
-			$subtag = $subtag + 1
+			$phase = next_language_subtag($phase, $length, $letters, $first)
+			if $phase == Invalid {
+				return grandfathered_language_tag(tag)
+			}
 			$length = 0
-		} else if (byte >= 65 and byte <= 90) or (byte >= 97 and byte <= 122) or ($subtag > 0 and byte >= 48 and byte <= 57) {
-			$length = $length + 1
+			$letters = 0
 		} else {
-			$valid = False
+			folded = byte.bitwise_or(32)
+			letter = folded >= 97 and folded <= 122
+			if $length == 8 or (!letter and (byte < 48 or byte > 57)) {
+				return False
+			}
+			if $length == 0 {
+				$first = folded
+			}
+			$length = $length + 1
+			if letter {
+				$letters = $letters + 1
+			}
 		}
 	}
-	$valid and $length >= 1 and $length <= 8
+	match next_language_subtag($phase, $length, $letters, $first) {
+		Core(_) | Variants | Extension | Private => True
+		_ => grandfathered_language_tag(tag)
+	}
+}
+
+next_language_subtag : LanguageSubtag, U8, U8, U8 -> LanguageSubtag
+next_language_subtag = |phase, length, letters, first| {
+	if length == 0 {
+		return Invalid
+	}
+	match phase {
+		Primary => {
+			if length >= 2 and length == letters {
+				Core({ extlangs: if (length <= 3) 3 else 0, script_allowed: True })
+			} else if length == 1 and first == 120 {
+				PrivateStart
+			} else {
+				Invalid
+			}
+		}
+		Core(core) => {
+			if length == 3 and letters == 3 and core.extlangs > 0 {
+				Core({ ..core, extlangs: core.extlangs - 1 })
+			} else if length == 4 and letters == 4 and core.script_allowed {
+				Core({ extlangs: 0, script_allowed: False })
+			} else if (length == 2 and letters == 2) or (length == 3 and letters == 0) {
+				Variants
+			} else {
+				language_variant_or_singleton(length, first)
+			}
+		}
+		Variants => language_variant_or_singleton(length, first)
+		ExtensionStart => if (length >= 2) Extension else Invalid
+		Extension => if (length >= 2) Extension else language_variant_or_singleton(length, first)
+		PrivateStart | Private => Private
+		Invalid => Invalid
+	}
+}
+
+language_variant_or_singleton : U8, U8 -> LanguageSubtag
+language_variant_or_singleton = |length, first| {
+	if length >= 5 or (length == 4 and first >= 48 and first <= 57) {
+		Variants
+	} else if length == 1 {
+		if (first == 120) PrivateStart else ExtensionStart
+	} else {
+		Invalid
+	}
+}
+
+# Only the irregular grandfathered alternatives need a fallback. Their fixed
+# spellings all fit in Roc's inline short string even after ASCII case folding.
+grandfathered_language_tag : Str -> Bool
+grandfathered_language_tag = |tag| {
+	length = tag.count_utf8_bytes()
+	if length < 5 or length > 10 {
+		return False
+	}
+	match tag.with_ascii_lowercased() {
+		"en-gb-oed" | "i-ami" | "i-bnn" | "i-default" | "i-enochian" | "i-hak" | "i-klingon" | "i-lux" | "i-mingo" | "i-navajo" | "i-pwn" | "i-tao" | "i-tay" | "i-tsu" | "sgn-be-fr" | "sgn-be-nl" | "sgn-ch-de" => True
+		_ => False
+	}
 }
 
 ## Element identifiers are dense, non-empty, and stored in strictly
@@ -2163,6 +2240,13 @@ expect {
 		_ => False
 	}
 	language and accepted and phoneme and twice and valid_language_tag("en-AU") and valid_language_tag("zh-Hant-TW") and !valid_language_tag("en--AU") and !valid_language_tag("1en") and !valid_language_tag("toolongtag")
+}
+
+# RFC 5646 subtag order, field boundaries, and grandfathered alternatives.
+expect {
+	good = ["en", "es-419", "de-CH-1901", "sl-rozaj-biske-1994", "abcd-Latn", "abcdefgh", "zh-cmn-Hans-CN", "zh-cmn-hak-nan-Hant-TW", "en-a-foo-u-nu-latn-x-note", "en-0-12", "x-1", "de-DE-x-phonebk", "en-GB-oed", "I-ENOCHIAN", "SGN-be-fr", "zh-min-nan"]
+	bad = ["", "a", "en-12", "en-1a23-CH", "en-US-Latn", "en-Latn-Cyrl", "en-US-GB", "zh-cmn-hak-nan-wuu", "abcd-cmn", "abcdef-cmn", "en-a", "en-a-x-p", "en-x", "en-u-ab-x", "x", "x-ab--c", "en-abcdefghi", "en-À", "en-GB-oed-extra", "i-klingon-extra"]
+	good.all(valid_language_tag) and bad.all(|tag| !valid_language_tag(tag))
 }
 
 # A language repeated from the nearest explicit ancestor is inherited and

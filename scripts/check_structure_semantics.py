@@ -142,7 +142,19 @@ LIST_NUMBERING = {
     "None", "Unordered", "Description", "Disc", "Circle", "Square", "Ordered", "Decimal", "UpperRoman",
     "LowerRoman", "UpperAlpha", "LowerAlpha",
 }
-LANGUAGE_TAG = re.compile(r"[A-Za-z]{1,8}(-[A-Za-z0-9]{1,8})*")
+# ISO 32000-2 14.9.2.2 refers to the RFC 5646 language-tag syntax.
+LANGUAGE_TAG = re.compile(
+    r"(?:[a-z]{2,3}(?:-[a-z]{3}){0,3}|[a-z]{4,8})"
+    r"(?:-[a-z]{4})?(?:-(?:[a-z]{2}|[0-9]{3}))?"
+    r"(?:-(?:[a-z0-9]{5,8}|[0-9][a-z0-9]{3}))*"
+    r"(?:-[0-9a-wy-z](?:-[a-z0-9]{2,8})+)*"
+    r"(?:-x(?:-[a-z0-9]{1,8})+)?"
+    r"|x(?:-[a-z0-9]{1,8})+"
+    r"|en-gb-oed"
+    r"|i-(?:ami|bnn|default|enochian|hak|klingon|lux|mingo|navajo|pwn|tao|tay|tsu)"
+    r"|sgn-(?:be-(?:fr|nl)|ch-de)",
+    re.ASCII | re.IGNORECASE,
+)
 
 
 def table_role(role: str) -> str:
@@ -959,6 +971,16 @@ def self_test() -> None:
         except (ValidationError, KeyError, ValueError, TypeError, AttributeError, IndexError, zlib.error):
             continue
         raise SystemExit(f"structure-semantics checker accepted {label}")
+    bad_region = replace_once(lowering, b"/Lang (fr-FR)", b"/Lang (en-12)")
+    try:
+        check_structure_semantics(bad_region)
+    except ValidationError as error:
+        require(str(error) == "structure /Lang 'en-12' is not a language tag", "invalid region twin failed for the wrong reason")
+    else:
+        raise ValidationError("structure-semantics checker accepted an invalid language region subtag")
+    for tag in ("I-klingon", "en-0-12", "de-DE-x-phonebk"):
+        require(LANGUAGE_TAG.fullmatch(tag) is not None, f"checker rejected well-formed language tag {tag}")
+
     # Wrappers between Document and Span still expose the illegal edge.
     grouping_twins = (("Part", "Part"), ("Div", "Div"), ("Part", "Div"), ("Div", "Part"))
     for outer, inner in grouping_twins:
@@ -1024,7 +1046,7 @@ def self_test() -> None:
         "PASS structure-semantics checker self-test: normalized trees, ParentTree/MCID/OBJR "
         "exactly-once, IDTree/ID, language, attributes, DisplayDocTitle, MarkInfo, Tabs, "
         f"Table 5 containment, page furniture, figure captions and scales, and custom-block Divs and underlays verified on {len(SNAPSHOTS)} snapshots; {len(mutations) + len(grouping_twins)} "
-        f"length-preserving mutation twins, {len(furniture_twins)} furniture twins, and {len(callout_twins)} custom-block twins rejected; {cross_check}",
+        f"length-preserving mutation twins, one invalid language region, {len(furniture_twins)} furniture twins, and {len(callout_twins)} custom-block twins rejected; {cross_check}",
         flush=True,
     )
 

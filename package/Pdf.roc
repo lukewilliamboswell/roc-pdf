@@ -703,8 +703,9 @@ Pdf :: [].{
 	inline_internal_link : List(Inline), Str -> Inline
 	inline_internal_link = |contents, destination| Document.inline_internal_link(contents, destination)
 
-	## Inline content in another natural language: a `Span` with `/Lang`,
-	## such as `Pdf.in_language("fr", [Pdf.text("Atelier Beaulieu")])`.
+	## Inline content in another natural language, represented by a `Span`
+	## with `/Lang`. Pass a nonempty, well-formed BCP 47 language tag, as in
+	## `Pdf.in_language("fr", [Pdf.text("Atelier Beaulieu")])`.
 	in_language : Str, List(Inline) -> Inline
 	in_language = |tag, contents| Document.in_language(tag, contents)
 
@@ -4354,6 +4355,25 @@ expect {
 		_ => False
 	}
 	check(make("missing", 36), "navigation.reference_destination") and check(make("target", 1), "layout.reference_field_overflow")
+}
+
+# Inline language uses RFC 5646 syntax while the root metadata keeps its
+# own profile. A bad tag is reported at its authored inline location.
+expect {
+	document_with_language = |tag| Pdf.document({ title: "Inline language", language: "en", contents: [Pdf.rich_paragraph([Pdf.in_language(tag, [Pdf.text("Language")])])] })
+	rejected = ["en-12", "en-a", ""].all(
+		|tag| match Pdf.to_bytes(document_with_language(tag)) {
+			Err(InvalidDocument({ diagnostics: [{ code: InvalidLanguage, feature: Feature("semantics.language_tag"), details: ["contents[0].inlines[0]"], .. }], .. })) => True
+			_ => False
+		},
+	)
+	accepted = ["I-klingon", "en-0-12", "de-DE-x-phonebk"].all(
+		|tag| match Pdf.to_bytes(document_with_language(tag)) {
+			Ok(bytes) => !bytes.is_empty()
+			Err(_) => False
+		},
+	)
+	rejected and accepted
 }
 
 # Missing, extra, misaligned and orphaned figure facts cannot invent an

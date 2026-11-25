@@ -95,6 +95,10 @@ nesting order. Inline code uses Fira Code; quotes inherit the surrounding
 family unless explicitly configured. Unavailable styles reject with
 `text.style_unavailable`; no upright face is silently substituted.
 
+Use a nonempty, well-formed BCP 47 tag with `Pdf.in_language`, such as `fr`,
+`fr-CA`, or `zh-Hant-TW`. A malformed tag such as `en-12` produces the
+`semantics.language_tag` diagnostic at the inline's location.
+
 The theme's `inline` record can select colours, scales and exact faces or
 families, such as `inline: { strong: { color: Themed(navy) } }` or
 `inline: { code: { font: Face(mono) } }`. The innermost explicit font choice
