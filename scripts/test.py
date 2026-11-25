@@ -163,7 +163,6 @@ class BaselineDelta:
 @dataclass(frozen=True)
 class CaseRunResult:
     delta: BaselineDelta | None
-    drift: BaselineDelta | None
     metrics: Metrics
     output_bytes: int
 
@@ -918,11 +917,6 @@ def allocated_bytes_exceeded(expected: Metrics, actual: Metrics) -> bool:
     return actual.allocated_bytes * 10 > expected.allocated_bytes * ALLOCATED_BYTES_CEILING_TENTHS
 
 
-def metrics_drift(expected: Metrics, actual: Metrics) -> bool:
-    """Any exact difference, including allocated bytes inside the ceiling."""
-    return expected != actual
-
-
 def self_test_metrics(suite: TestSuite) -> None:
     case = suite.cases[0]
     expected = case.expectations["arm64mac"]
@@ -1395,12 +1389,7 @@ def run_case(
     )
 
     delta = None if mismatch is None else BaselineDelta(case.name, expected_metrics, actual_metrics)
-    drift = (
-        BaselineDelta(case.name, expected_metrics, actual_metrics)
-        if metrics_drift(expected_metrics, actual_metrics)
-        else None
-    )
-    return CaseRunResult(delta, drift, actual_metrics, len(result.stdout))
+    return CaseRunResult(delta, actual_metrics, len(result.stdout))
 
 
 def available_cpu_count() -> int:
@@ -1529,8 +1518,8 @@ def main() -> None:
         "--baseline-report",
         type=Path,
         help=(
-            "With --compare-baselines or --update-snapshots, also write every differing case's "
-            "expected and observed metrics to this JSON file for review; it never edits the spec"
+            "With --compare-baselines or --update-snapshots, write expected and observed metrics "
+            "for cases that fail an allocation, allocated-byte ceiling, or work check"
         ),
     )
     parser.add_argument(
@@ -1865,7 +1854,6 @@ def run_suite(
             f"(toolchain cap {suite.toolchain.max_build_workers})"
         )
         baseline_deltas: list[BaselineDelta] = []
-        baseline_drift: list[BaselineDelta] = []
         build_case_units(
             units,
             build_dir,
@@ -1918,8 +1906,6 @@ def run_suite(
                 )
                 if result.delta is not None:
                     baseline_deltas.append(result.delta)
-                if result.drift is not None:
-                    baseline_drift.append(result.drift)
         except KeyboardInterrupt:
             cancel_parallel(executor, futures)
             raise
@@ -1928,9 +1914,6 @@ def run_suite(
 
     if args.baseline_report is not None:
         work_names = {case.name: case.work_counters for case in suite.cases}
-        # The report lists every exact difference, including allocated bytes
-        # that stay inside the ceiling, so a reviewed rebaseline can lower
-        # recorded ceilings as well as accept failing deltas.
         report = [
             {
                 "case": delta.case_name,
@@ -1945,10 +1928,10 @@ def run_suite(
                     "work": dict(zip(work_names[delta.case_name], delta.actual.work)),
                 },
             }
-            for delta in sorted(baseline_drift, key=lambda item: item.case_name)
+            for delta in sorted(baseline_deltas, key=lambda item: item.case_name)
         ]
         args.baseline_report.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-        announce("RUN", f"Wrote {len(report)} baseline differences to {args.baseline_report}")
+        announce("RUN", f"Wrote {len(report)} baseline violations to {args.baseline_report}")
 
     if args.update_snapshots:
         phase("Post-update contract validation")

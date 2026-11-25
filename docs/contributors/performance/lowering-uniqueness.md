@@ -175,8 +175,8 @@ lowering alone before.
 Metrics protocol 2 adds `allocated_bytes` to the host report, and every case
 records it per target beside `allocations`. `scripts/test.py` fails a case
 whose allocated bytes exceed the recorded value by more than 10%
-(`ALLOCATED_BYTES_CEILING_TENTHS = 11`). Decreases pass. `--baseline-report`
-lists every exact difference, so a reviewed rebaseline can lower ceilings.
+(`ALLOCATED_BYTES_CEILING_TENTHS = 11`). The baseline report includes ceiling
+violations. Detailed logs retain measurements for deliberate tightening.
 The self-test checks that one byte over the ceiling fails, that the ceiling
 itself and half the recorded value pass, and that the check is skipped when
 allocation baselines are not checked.

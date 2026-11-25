@@ -51,9 +51,9 @@
   bounds before fixing a representation.
 - Run affected tests through `./scripts/test.py`. Every focused case must keep
   its exact Roc allocation count and deterministic work evidence under the
-  pinned build, and must stay within 10% of its recorded allocated bytes. Do
-  not mechanically accept allocation-count, allocated-bytes, or PDF snapshot
-  changes; explain and review their architectural cause first.
+  pinned build. Keep allocated bytes at or below 110% of the recorded reference.
+  Use repeatable improvements to tighten that reference. Before raising it or
+  changing exact counts, work or PDF snapshots, explain the architectural cause.
 - Keep accumulators uniquely owned. Do not thread a growing list or builder
   through a `Try` that the caller then updates, keep it live on an error path
   (`Err(e) => { $error = … }` loop state), return it beside another list, or

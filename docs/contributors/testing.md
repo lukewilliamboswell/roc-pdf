@@ -106,13 +106,11 @@ fails a case whose allocated bytes exceed the recorded value by more than 10%
 (`ALLOCATED_BYTES_CEILING_TENTHS` in `scripts/test.py`). The ceiling exists to
 catch quadratic copying: a list copied on every append adds one allocation
 event per append, so the exact count grows linearly and can look reasonable,
-while the copied bytes grow with the square of the list. Decreases and drift
-inside the ceiling pass; a reviewed rebaseline lowers the recorded value. The
-ceiling is checked wherever allocation baselines are (`--allocation-baselines`,
-`--compare-baselines`, `--update-snapshots`), and from the same cold cache.
-`--baseline-report` lists every case whose allocations, allocated bytes, or
-work differ exactly, so a rebaseline can also lower ceilings that did not
-fail.
+while the copied bytes grow with the square of the list. Values below or at
+the ceiling pass with the current reference. Tighten the reference when a
+repeatable improvement warrants it, using measurements from the detailed log.
+The ceiling is checked wherever allocation baselines are
+(`--allocation-baselines`, `--compare-baselines`, `--update-snapshots`).
 
 Fixture executables are built with
 `roc build --opt=dev --specialize=yes --no-cache`. With the cache, the
@@ -134,13 +132,13 @@ XDG_CACHE_HOME="$PWD/.roc-pdf-tmp/cold-cache" ./scripts/test.py \
 ```
 
 `--baseline-report` (with `--compare-baselines` or `--update-snapshots`) writes
-each differing case's expected and observed metrics as JSON for review. It
-never edits `tests/spec.json`: accepting a delta remains a deliberate, recorded
-change with an identified cause.
+expected and observed metrics for cases that fail an allocation count,
+allocated-byte ceiling or work check. Review the cause before editing
+`tests/spec.json`. Detailed logs retain measured bytes for every fixture.
 
 CI runs this complete comparison and retains the report and detailed logs for
-each target, including failed runs. It still fails when any allocation or work
-baseline differs, and functional, byte and structural checks remain mandatory.
+each target, including failed runs. Exact allocation counts, allocated-byte
+ceilings, work counters, PDF snapshots and structural checks all remain enforced.
 Collecting the complete set of differences makes a compiler transition
 reviewable without repeatedly rerunning the suite for its next mismatch.
 
@@ -346,8 +344,8 @@ To add a family:
    `/usr/bin/time -v roc build tests/groups/<group>.roc --opt=dev --specialize=yes --no-cache`.
 
 Before landing a change to group membership, run the equivalence modes on
-the affected groups from an empty `XDG_CACHE_HOME`. Each must report no
-exact difference:
+the affected groups from an empty `XDG_CACHE_HOME`. Each must report zero
+baseline violations:
 
 ```sh
 ./scripts/test.py --quick --group <group> --compare-baselines --baseline-report group.json

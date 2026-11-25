@@ -82,7 +82,8 @@ Check the intended object changes and the exact downstream facts that the
 contract preserves.
 
 Record exact allocation counts and deterministic work alongside the expected
-change in output length. Identify the cause of each delta before accepting a
-new baseline. Allocation and work changes require their own evidence even
-when the output change is intentional. See the
+change in output length. Allocated bytes have a per-case ceiling with 10%
+headroom. Keep the reference when measurements stay within that ceiling and
+tighten it for repeatable improvements. Identify the cause of any violation
+before changing a reference. See the
 https://github.com/lukewilliamboswell/roc-pdf/blob/main/docs/contributors/testing.md#allocation-baselines[baseline review procedure].
