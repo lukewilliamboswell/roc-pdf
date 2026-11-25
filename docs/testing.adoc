@@ -38,6 +38,9 @@ https://pdf-issues.pdfa.org/32000-2-2020/clause07.html#H7.9.6[ISO 32000-2 §7.9.
   the rule were broken. For an outline, a checker can reconstruct visible
   counts from the emitted open flags. The authored flags supply the
   independent expectation needed to detect a branch opened by mistake.
+  Check which input shapes existing fixtures exercise. A Form placement
+  with equal off-diagonal matrix entries leaves an operand swap invisible.
+  Include an asymmetric matrix and enclosing transforms whose order matters.
 . *Derive expectations from the input.* Choose a simple independent
   specification. The first-page model enumerates fitting legal cuts and
   ranks them by preference. It compares the chosen row prefix, ordered
