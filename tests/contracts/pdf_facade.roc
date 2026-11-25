@@ -9,6 +9,8 @@ import pdf.Color
 import pdf.Layout
 import pdf.Image
 import pdf.Scene
+import pdf.Theme
+import "../../vendor/fonts/Inter-4.1-Regular.ttf" as inter_full : List(U8)
 
 make_report : Str -> Try(List(U8), Pdf.Error)
 make_report = |summary| {
@@ -142,4 +144,34 @@ expect {
 	document = Pdf.document({ title: "Source foreground contract", language: "en", contents: [Pdf.source_block({ text: "app [main!] {}\n", face: Face(registered.face), foregrounds: [keyword] })] })
 	bytes = Pdf.to_bytes_with(document, { fonts: Registered(registered.registry) })?
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n")
+}
+
+# A real caller face maps U+E000 to a glyph. Even with coverage, the
+# shaper rejects script Zzzz at the original location before ToUnicode
+# or ActualText planning. Verify both emission entry points and profiles.
+expect {
+	reg = Font.Registry.empty.register({ bytes: inter_full, registration: { provision: BuiltIn, scripts: ["Latn"] }, limits: Font.ValidationLimits.default })?
+	pua = "a\u(E000)a"
+	content = [
+		(Pdf.paragraph(pua), "contents[0]"),
+		(Pdf.rich_paragraph([Pdf.text("a"), Pdf.in_language("en", [Pdf.text(pua)])]), "contents[0].inlines[1].inlines[0]"),
+		(Pdf.source_block({ text: pua, face: Face(reg.face) }), "contents[0]"),
+	]
+	face_covers = reg.registry.store().coverage_spans.any(|span| span.first <= 0xE000 and span.last >= 0xE000)
+	options = Pdf.Options.{ fonts: Registered(reg.registry), theme: Theme.{ face: reg.face }, profile: Archive }
+	make = |block| Pdf.document({ contents: [block], language: "en", title: "Caller-text coverage" })
+	accepted = Pdf.to_bytes_with(make(Pdf.paragraph("aaa")), options)?
+	face_covers and !accepted.is_empty() and content.all(
+		|(block, path)| {
+			doc = make(block)
+			rejects_private_use(Pdf.to_bytes_with(doc, options), path)
+				and rejects_private_use(Pdf.to_chunks_with(doc, { ..options, profile: AccessibleArchive }), path)
+		},
+	)
+}
+
+rejects_private_use : Try(a, Pdf.Error), Str -> Bool
+rejects_private_use = |result, path| match result {
+	Err(InvalidDocument({ diagnostics: [{ feature: Feature("text.unsupported_script"), details: [located], stage: AuthoringValidation, .. }], .. })) => located == path
+	_ => False
 }

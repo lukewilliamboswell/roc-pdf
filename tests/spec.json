@@ -19965,7 +19965,7 @@
     },
     {
       "name": "static PDF/A-4 facade atomic negatives",
-      "scenario_revision": "static-pdfa4-v2-covered-bom",
+      "scenario_revision": "static-pdfa4-v3-combined-blank",
       "family": "archive",
       "snapshot": "tests/archive/archive_facade_negative.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -19980,16 +19980,16 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1914,
-          "allocated_bytes": 4304835,
+          "allocations": 1915,
+          "allocated_bytes": 4304847,
           "work": {
             "negatives_rejected": 6,
             "output_bytes": 9986
           }
         },
         "x64musl": {
-          "allocations": 1914,
-          "allocated_bytes": 4304835,
+          "allocations": 1915,
+          "allocated_bytes": 4304847,
           "work": {
             "negatives_rejected": 6,
             "output_bytes": 9986

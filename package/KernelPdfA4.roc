@@ -214,13 +214,7 @@ KernelPdfA4 :: [].{
 	validate_lowered : Claim, LoweredInput -> Try(LoweredWork, Violation)
 	validate_lowered = |claim, input| check_lowered(claim, input)
 
-	## The identification a claim requires in its canonical packet.
-	identification : Claim -> KernelXmp.Identification
-	identification = |claim| match claim {
-		NoArchiveClaim => NoIdentification
-		StaticPdfA4Claim => PdfA4Identification
-	}
-}
+	## The identification a claim requires in its canonical packet.}
 
 check_text : KernelPdfA4.Claim, KernelPdfA4.TextFacts -> Try(KernelPdfA4.TextWork, KernelPdfA4.Violation)
 check_text = |claim, facts| match claim {
