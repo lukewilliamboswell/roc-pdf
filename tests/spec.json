@@ -24230,30 +24230,30 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 6151,
-          "allocated_bytes": 11538483,
+          "allocations": 6245,
+          "allocated_bytes": 11846340,
           "work": {
             "lines": 69,
             "pages": 5,
-            "fragments": 69,
+            "fragments": 161,
             "scene_commands": 450,
             "figures": 11,
             "decorations": 0,
-            "output_bytes": 29890,
+            "output_bytes": 30147,
             "rejections": 7
           }
         },
         "x64musl": {
-          "allocations": 6151,
-          "allocated_bytes": 11538483,
+          "allocations": 6245,
+          "allocated_bytes": 11846340,
           "work": {
             "lines": 69,
             "pages": 5,
-            "fragments": 69,
+            "fragments": 161,
             "scene_commands": 450,
             "figures": 11,
             "decorations": 0,
-            "output_bytes": 29890,
+            "output_bytes": 30147,
             "rejections": 7
           }
         }
@@ -24287,30 +24287,30 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 16977,
-          "allocated_bytes": 38992806,
+          "allocations": 17125,
+          "allocated_bytes": 40673869,
           "work": {
             "lines": 329,
             "pages": 19,
-            "fragments": 329,
+            "fragments": 741,
             "scene_commands": 2050,
             "figures": 51,
             "decorations": 0,
-            "output_bytes": 60411,
+            "output_bytes": 61306,
             "rejections": 7
           }
         },
         "x64musl": {
-          "allocations": 16977,
-          "allocated_bytes": 38992806,
+          "allocations": 17125,
+          "allocated_bytes": 40673869,
           "work": {
             "lines": 329,
             "pages": 19,
-            "fragments": 329,
+            "fragments": 741,
             "scene_commands": 2050,
             "figures": 51,
             "decorations": 0,
-            "output_bytes": 60411,
+            "output_bytes": 61306,
             "rejections": 7
           }
         }
@@ -24345,32 +24345,32 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 4887,
-          "allocated_bytes": 10802024,
+          "allocations": 4934,
+          "allocated_bytes": 11154839,
           "work": {
             "lines": 56,
             "pages": 4,
-            "fragments": 56,
+            "fragments": 146,
             "scene_commands": 402,
             "body_labels": 50,
             "strong_labels": 10,
             "code_labels": 30,
-            "output_bytes": 29101,
+            "output_bytes": 29350,
             "rejections": 1
           }
         },
         "x64musl": {
-          "allocations": 4887,
-          "allocated_bytes": 10802024,
+          "allocations": 4934,
+          "allocated_bytes": 11154839,
           "work": {
             "lines": 56,
             "pages": 4,
-            "fragments": 56,
+            "fragments": 146,
             "scene_commands": 402,
             "body_labels": 50,
             "strong_labels": 10,
             "code_labels": 30,
-            "output_bytes": 29101,
+            "output_bytes": 29350,
             "rejections": 1
           }
         }
@@ -24405,32 +24405,32 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 16151,
-          "allocated_bytes": 36454879,
+          "allocations": 16252,
+          "allocated_bytes": 38601997,
           "work": {
             "lines": 276,
             "pages": 17,
-            "fragments": 276,
+            "fragments": 726,
             "scene_commands": 2002,
             "body_labels": 250,
             "strong_labels": 50,
             "code_labels": 150,
-            "output_bytes": 57448,
+            "output_bytes": 58613,
             "rejections": 1
           }
         },
         "x64musl": {
-          "allocations": 16151,
-          "allocated_bytes": 36454879,
+          "allocations": 16252,
+          "allocated_bytes": 38601997,
           "work": {
             "lines": 276,
             "pages": 17,
-            "fragments": 276,
+            "fragments": 726,
             "scene_commands": 2002,
             "body_labels": 250,
             "strong_labels": 50,
             "code_labels": 150,
-            "output_bytes": 57448,
+            "output_bytes": 58613,
             "rejections": 1
           }
         }

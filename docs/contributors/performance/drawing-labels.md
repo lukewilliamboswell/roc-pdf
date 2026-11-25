@@ -39,7 +39,9 @@ The `flow figures labels x10` and `x50` cases check each chart's ordered
 Figure labels, the labels on the scaled bay plan, and the custom-block panel
 artifact. The independent checker resolves each Figure's children through
 the ParentTree and decodes their exact Unicode using the shown font's
-`ToUnicode` map. It also checks that the panel's label is an artifact.
+`ToUnicode` map. It also checks that the panel's label is an artifact. The ownership mutation
+swaps a label with its figure's caption text in both structure indexes while
+preserving the page content. The focused checker rejects the misplaced label.
 The cases exercise width, script, coverage, empty label, unsupported drawing
 and ordered policy rejections.
 
