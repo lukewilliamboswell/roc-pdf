@@ -28,7 +28,7 @@ make_report = |summary| {
 	Pdf.to_bytes(document)
 }
 
-# The one-import Standard facade emits authored content without exposing
+# The one-import facade emits authored content with the default profile, without exposing
 # resources, glyphs, scenes, or PDF objects.
 expect {
 	bytes = make_report("Typed facade output")?
