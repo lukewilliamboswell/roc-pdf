@@ -406,6 +406,7 @@
         "pdf-issues-ec3"
       ],
       "references": [
+        "ISO 32000-2:2020 12.3.2.3",
         "ISO 32000-2:2020 12.3.2.4",
         "docs/contributors/performance/destination-page-references.md",
         "docs/contributors/performance/technical-manual.md",
@@ -416,7 +417,7 @@
       ],
       "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "roc_unit_named_destination_paired_facts; independent_structural_name_tree_paired_value_inspection_and_mutation_twins; pdfbox_3_0_8_named_destination_outline_resolution; printed_reference_values_and_named_structured_navigation_share_committed_destination_anchor_facts; independent_reference_target_and_page_label_checks; technical_manual_wrong_structured_destination_owner_mutation_twin",
+      "machine_verification": "roc_unit_named_destination_paired_facts; independent_structural_name_tree_paired_value_inspection_and_mcr_objr_first_page_mutation_twins; pdfbox_3_0_8_named_destination_outline_resolution; printed_reference_values_and_named_structured_navigation_share_committed_destination_anchor_facts; independent_reference_target_and_page_label_checks; technical_manual_wrong_structured_destination_owner_mutation_twin",
       "human_verification": "not_required",
       "positive_scenarios": [
         "tests/destination_references/Cases.roc",

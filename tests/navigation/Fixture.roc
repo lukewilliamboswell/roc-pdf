@@ -1438,3 +1438,107 @@ expect {
 		KernelForm.Plan.page_transparency(built.form_plan) == [True] and
 			KernelForm.Plan.canonical_state_count(built.form_plan) == 1 and KernelForm.Plan.page_dictionary(built.form_plan, 0).forms.is_empty()
 }
+
+# Distinguish the anchor's own occurrence from the first page reached
+# through the target structure element's semantic reading order.
+destination_page_pair : U64, U64, [DirectFirst, ChildFirst, AnchorFirst] -> Scenario
+destination_page_pair = |first_page, anchor_page, order| {
+	stores = if order == DirectFirst {
+		build_stores(2, [Paragraph({ pages: [first_page] }), Paragraph({ pages: [anchor_page] })])
+	} else {
+		build_stores(2, [Paragraph({ pages: [anchor_page] }), LinkBlock({ annotations: 1, pages: [first_page] })])
+	}
+	store = stores.semantics
+	root = list_at(store.nodes, 0)
+	paragraph = list_at(store.nodes, 1)
+	first = list_at(stores.block_occurrences, if (order == DirectFirst) 0 else 1)
+	anchor = list_at(stores.block_occurrences, if (order == DirectFirst) 1 else 0)
+	root_node = { ..root, content: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }) }
+	target_node = { ..paragraph, content: Semantics.IndexRange.from_start_and_length({ start: 1, length: 2 }) }
+	semantics = if order == DirectFirst {
+		{
+			..store,
+			nodes: [root_node, target_node],
+			content_spine: [ChildNode(paragraph.id), ContentOccurrence(first), ContentOccurrence(anchor)],
+		}
+	} else {
+		link = make_node(2, ParentNode(paragraph.id), "Link", Semantics.IndexRange.from_start_and_length({ start: 3, length: 2 }))
+		annotation = list_at(store.annotations, 0)
+		ordered_pair = if (order == ChildFirst) [ChildNode(link.id), ContentOccurrence(anchor)] else [ContentOccurrence(anchor), ChildNode(link.id)]
+		{
+			..store,
+			annotations: [{ ..annotation, owner: link.id }],
+			nodes: [root_node, target_node, link],
+			content_spine: [ChildNode(paragraph.id)].concat(ordered_pair).concat([ContentOccurrence(first), AnnotationOccurrence(annotation.id)]),
+		}
+	}
+	destinations = [
+		{ anchor, name: "target", target: paragraph.id },
+		{ anchor, name: "target-alias", target: paragraph.id },
+	]
+	annotations = if (order == DirectFirst) [] else [destination_link_annotation(first_page, 1)]
+	{
+		forms: Scene.no_forms,
+		navigation: { annotations, destinations, outline: [], page_labels: [] },
+		stores: { ..stores, semantics },
+	}
+}
+
+destination_link_annotation : U64, U64 -> KernelNavigation.AnnotationInput
+destination_link_annotation = |page, fragment| {
+	quads = [quad_of(fragment_rect(fragment))]
+	{
+		action: GoToName("target"),
+		appearance: NoAppearance,
+		description: NoDescription,
+		keyboard_order: 0,
+		page: Semantics.PageId.from_index(page),
+		print: True,
+		quads,
+		rect: union_of(quads),
+	}
+}
+
+expect {
+	different = |first, anchor, order| match run_pipeline(destination_page_pair(first, anchor, order), 64) {
+		Err(StructureFailure(Navigation(DestinationPageMismatch(facts)))) => facts == { anchor_page: anchor, destination: 0, structure_page: first }
+		_ => False
+	}
+	same = |first, anchor, order| match run_pipeline(destination_page_pair(first, anchor, order), 64) {
+		Ok(built) => !built.bytes.is_empty()
+		Err(_) => False
+	}
+	different(0, 1, DirectFirst) and different(1, 0, ChildFirst) and same(1, 1, ChildFirst) and same(1, 0, AnchorFirst)
+}
+
+# The first OBJR determines the page even when the element also owns a
+# marked-content anchor. Moving that annotation onto the anchor's page
+# leaves both destination views consistent.
+destination_objr_first : U64 -> Scenario
+destination_objr_first = |annotation_page| {
+	stores = build_stores(2, [LinkBlock({ annotations: 1, pages: [1] }), Paragraph({ pages: [0] })])
+	store = stores.semantics
+	target = list_at(stores.block_nodes, 0)
+	anchor = list_at(stores.block_occurrences, 0)
+	target_node = list_at(store.nodes, target.index())
+	start = target_node.content.start()
+	spine = list_set(list_set(store.content_spine, start, AnnotationOccurrence(Semantics.AnnotationId.from_index(0))), start + 1, ContentOccurrence(anchor))
+	annotation = destination_link_annotation(annotation_page, 0)
+	{
+		forms: Scene.no_forms,
+		navigation: { annotations: [annotation], destinations: [{ anchor, name: "target", target }], outline: [], page_labels: [] },
+		stores: { ..stores, semantics: { ..store, content_spine: spine } },
+	}
+}
+
+expect {
+	rejected = match run_pipeline(destination_objr_first(0), 64) {
+		Err(StructureFailure(Navigation(DestinationPageMismatch({ anchor_page: 1, destination: 0, structure_page: 0 })))) => True
+		_ => False
+	}
+	accepted = match run_pipeline(destination_objr_first(1), 64) {
+		Ok(built) => !built.bytes.is_empty()
+		Err(_) => False
+	}
+	rejected and accepted
+}

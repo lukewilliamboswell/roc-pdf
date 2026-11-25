@@ -706,6 +706,7 @@ NavigationError : [
 	DestinationNameEmpty({ destination : U64 }),
 	DestinationNameInvalidByte({ destination : U64, offset : U64 }),
 	DestinationNameTooLong({ attempted : U64, destination : U64, limit : U64 }),
+	DestinationPageMismatch({ anchor_page : U64, destination : U64, structure_page : U64 }),
 	DestinationTargetMismatch({ anchor_owner : U64, destination : U64, target : U64 }),
 	DestinationTargetOutOfRange({ attempted : U64, destination : U64, nodes : U64 }),
 	DuplicateDestinationName({ first : U64, second : U64 }),

@@ -16,8 +16,8 @@ that:
 - every internal GoTo action carries BOTH `/SD` and `/D`: `/D` is
   `[page /XYZ x y null]` referencing a real page object, `/SD` is
   `[structelem /XYZ x y null]` referencing a real structure element, and the
-  two carry identical coordinates — the paired facts of one authored
-  destination (pdf-issues #140);
+  two carry identical coordinates and resolve to the same page when /SD
+  follows the element’s /K reading order (ISO 32000-2 12.3.2.3, pdf-issues #140);
 - every URI action is `/S /URI` with a byte-string URI and no other action
   type appears anywhere;
 - the annotation `/StructParent` keys continue the ParentTree numbering
@@ -44,6 +44,7 @@ from __future__ import annotations
 import argparse
 import re
 import sys
+from functools import cache
 from pathlib import Path
 
 from check_pdf_structure import (
@@ -62,7 +63,7 @@ from check_pdf_structure import (
     validate_xref,
 )
 from check_forms import replace_once
-from check_structure_semantics import parse_object
+from check_structure_semantics import Ref, parse_object
 from pdf_layout import twin as layout_twin
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -186,7 +187,49 @@ def collect_annotations(bodies, pages):
     return annotation_pages, ordered
 
 
-def check_annotation(bodies, pages, structure_elements, number: int, page: int):
+def structure_page_lookup(bodies):
+    """The first content item found by the §12.3.2.3 /K traversal.
+
+    A writer-produced destination has a painted anchor, so its subtree must
+    supply a page before the specification's empty-target fallback.
+    """
+    active: set[int] = set()
+
+    @cache
+    def parsed(number):
+        return parse_object(bodies[number])
+
+    @cache
+    def first_content_page(number):
+        require(number not in active, "cycle in structured destination /K")
+        active.add(number)
+        try:
+            element = parsed(number)
+            children = element.get("K", [])
+            for child in children if isinstance(children, list) else [children]:
+                if isinstance(child, Ref):
+                    value = parsed(int(child))
+                    if "S" in value:
+                        found = first_content_page(int(child))
+                        if found is not None:
+                            return found
+                        continue
+                    child = value
+                if type(child) is int:
+                    page = element.get("Pg")
+                else:
+                    require(isinstance(child, dict) and child.get("Type") in ("MCR", "OBJR"), "unexpected structured destination /K item")
+                    page = child.get("Pg", element.get("Pg"))
+                require(isinstance(page, Ref), "structured destination content item needs a /Pg reference")
+                return int(page)
+            return None
+        finally:
+            active.remove(number)
+
+    return first_content_page
+
+
+def check_annotation(structure_page, bodies, pages, structure_elements, number: int, page: int):
     body = bodies[number]
     require(b"/Subtype /Link" in body, "annotation is not a link")
     require(b"/Type /Annot" in body, "annotation missing /Type /Annot")
@@ -238,6 +281,7 @@ def check_annotation(bodies, pages, structure_elements, number: int, page: int):
             d_x == sd_x and d_y == sd_y,
             "paired /D and /SD carry different coordinates",
         )
+        require(structure_page(sd_target) == d_target, "GoTo /SD and /D resolve to different pages")
         destination = (d_target, parse_number(d_x), parse_number(d_y))
     if b"/AP" in body:
         appearance = dictionary_ref(body, b"AP << /N")
@@ -312,7 +356,7 @@ def walk_name_tree(bodies, node, depth=0):
     return entries
 
 
-def check_name_tree(bodies, root, pages):
+def check_name_tree(bodies, root, pages, structure_page=None):
     catalog = bodies[root]
     if b"/Names" not in catalog:
         return {}
@@ -321,6 +365,8 @@ def check_name_tree(bodies, root, pages):
     keys = [key for key, _ in entries]
     require(keys == sorted(keys) and len(set(keys)) == len(keys), "name keys not strictly ascending")
     destinations = {}
+    if structure_page is None:
+        structure_page = structure_page_lookup(bodies)
     for key, value in entries:
         d_match = re.search(rb"/D " + DEST_ARRAY.pattern, value)
         sd_match = re.search(rb"/SD " + DEST_ARRAY.pattern, value)
@@ -336,6 +382,7 @@ def check_name_tree(bodies, root, pages):
             and d_match.group(3) == sd_match.group(3),
             "named destination /D and /SD coordinates disagree",
         )
+        require(structure_page(int(sd_match.group(1))) == int(d_match.group(1)), "named /SD and /D resolve to different pages")
         destinations[key] = (int(d_match.group(1)), d_match.group(2), d_match.group(3))
     return destinations
 
@@ -491,15 +538,16 @@ def check_navigation(pdf: bytes, expectations: dict[str, int]) -> None:
         number for number, body in bodies.items() if b"/Type /StructElem" in body
     }
     struct_parents = {}
+    structure_page = structure_page_lookup(bodies)
     for number in ordered:
         key, _destination = check_annotation(
-            bodies, pages, structure_elements, number, annotation_pages[number]
+            structure_page, bodies, pages, structure_elements, number, annotation_pages[number]
         )
         require(key not in struct_parents.values(), "duplicate /StructParent key")
         struct_parents[number] = key
     if struct_parents:
         check_parent_tree(bodies, root, annotation_pages, struct_parents)
-    named = check_name_tree(bodies, root, pages)
+    named = check_name_tree(bodies, root, pages, structure_page)
     outline_items = check_outline(bodies, root, named)
     label_ranges = check_page_labels(bodies, root)
 
@@ -570,6 +618,29 @@ def self_test() -> None:
         except Exception:
             continue
         raise SystemExit(f"navigation checker accepted {label}")
+    page_mismatches = (
+        (b"/D [18 0 R /XYZ 10 42 null] /S /GoTo", b"/D [15 0 R /XYZ 10 42 null] /S /GoTo", "GoTo /SD and /D resolve to different pages"),
+        (b"/D [18 0 R /XYZ 10 42 null] /SD", b"/D [15 0 R /XYZ 10 42 null] /SD", "named /SD and /D resolve to different pages"),
+    )
+    for old, new, expected in page_mismatches:
+        try:
+            check_navigation(layout_twin(showcase, old, new, exactly_once=True), {})
+        except ValidationError as error:
+            require(str(error) == expected, f"destination page twin failed for the wrong reason: {error}")
+        else:
+            raise ValidationError(f"navigation checker missed {expected}")
+
+    # Independently exercise /K order, scalars, and all emitted kid kinds.
+    destination_kids = {
+        1: b"<< /K [2 0 R 3 0 R 0] /Pg 10 0 R /S /P >> endobj",
+        2: b"<< /S /Artifact >> endobj",
+        3: b"<< /K << /Obj 20 0 R /Pg 11 0 R /Type /OBJR >> /S /Link >> endobj",
+        4: b"<< /K 0 /Pg 10 0 R /S /P >> endobj",
+        5: b"<< /K [<< /MCID 1 /Pg 11 0 R /Type /MCR >> 0] /Pg 10 0 R /S /P >> endobj",
+    }
+    lookup = structure_page_lookup(destination_kids)
+    require([lookup(i) for i in destination_kids] == [11, None, 11, 10, 11], "structured /K traversal disagrees with the authored content order")
+
     # Test decoded number-tree objects, including a two-byte negative mutation.
     # The fixture dictionaries live in compressed object streams.
     catalog = b"<< /PageLabels 2 0 R >>"
@@ -589,8 +660,8 @@ def self_test() -> None:
         "PASS production-visual navigation structural checker self-test: paired /SD + /D "
         "actions, keyboard-ordered /Annots, OBJR/ParentTree linkage, the "
         "named-destination registry, outline preorder counts, page labels, "
-        "and appearance geometry verified on all sixteen snapshots; thirteen "
-        "mutation twins rejected",
+        f"and appearance geometry verified on {len(SNAPSHOTS)} snapshots; "
+        f"{len(mutations) + len(page_mismatches)} mutation twins rejected",
         flush=True,
     )
 

@@ -1415,8 +1415,10 @@ destination names, outlines, cross-references, and other features that refer to
 a destination by name. A named destination associated with a semantic target
 contains the same paired structure and geometric destination facts. It does not
 replace the direct `/SD` plus `/D` pair on a link's GoTo action. Structure and
-geometric targets are validated to identify the same authored destination, and
-navigation tests exercise the geometric fallback independently of structural
+geometric targets are validated to identify the same authored destination. The
+anchor page must match the page reached by following the target element’s
+children in semantic order to the first MCR or OBJR (ISO 32000-2 §12.3.2.3).
+Navigation tests exercise the geometric fallback independently of structural
 inspection. This policy implements the pinned Errata Collection 3 resolutions
 for issues 140 and 162 without assuming that shipping readers navigate `/SD`.
 

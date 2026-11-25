@@ -362,6 +362,7 @@ document_navigation_error = |error| match error {
 	DestinationNameEmpty(_) => leaf({ category: Invariant, feature: "destination_name_empty", path: "DestinationNameEmpty", inspected: Str.inspect(error) })
 	DestinationNameInvalidByte(_) => leaf({ category: Invariant, feature: "destination_name_invalid_byte", path: "DestinationNameInvalidByte", inspected: Str.inspect(error) })
 	DestinationNameTooLong(_) => leaf({ category: Invariant, feature: "destination_name_too_long", path: "DestinationNameTooLong", inspected: Str.inspect(error) })
+	DestinationPageMismatch(_) => leaf({ category: Invariant, feature: "destination_page_mismatch", path: "DestinationPageMismatch", inspected: Str.inspect(error) })
 	DestinationTargetMismatch(_) => leaf({ category: Invariant, feature: "destination_target_mismatch", path: "DestinationTargetMismatch", inspected: Str.inspect(error) })
 	DestinationTargetOutOfRange(_) => leaf({ category: Invariant, feature: "destination_target_out_of_range", path: "DestinationTargetOutOfRange", inspected: Str.inspect(error) })
 	DuplicateDestinationName(_) => leaf({ category: Invariant, feature: "duplicate_destination_name", path: "DuplicateDestinationName", inspected: Str.inspect(error) })
