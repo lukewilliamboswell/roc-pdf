@@ -34,6 +34,9 @@ https://pdf-issues.pdfa.org/32000-2-2020/clause07.html#H7.9.6[ISO 32000-2 §7.9.
   entry point that owns the promise. Use inputs an earlier stage can produce
   and include deliberate malformed inputs for rejection cases. Drive the
   test through the public facade when its lowering is part of the contract.
+  Follow a suspected defect through the remaining stages before concluding
+  that it reaches the output. A page-stream alias can pass semantic planning
+  and still fail atomically when the content stream is assigned.
   Before adding a checker, identify which existing observation would fail if
   the rule were broken. For an outline, a checker can reconstruct visible
   counts from the emitted open flags. The authored flags supply the
