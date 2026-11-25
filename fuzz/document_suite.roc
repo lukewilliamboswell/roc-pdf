@@ -18,6 +18,7 @@ import ContinuationPaginationModel
 import DenseSpanProof
 import DocumentBuilderModel
 import GroupingContainmentModel
+import LinkRegionModel
 import PageBreakModel
 import PageTreeProof
 import ReferenceWrapModel
