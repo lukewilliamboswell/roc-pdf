@@ -20073,11 +20073,12 @@
     },
     {
       "name": "semantic foundation nested public containers",
-      "scenario_revision": "semantic-foundation-v1",
+      "scenario_revision": "semantic-foundation-v2",
       "family": "containers",
       "snapshot": "tests/containers/nested.pdf",
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
+        "authored_nested": 1,
         "pages": 1,
         "container_depth": 4,
         "structure_elements": 28
@@ -20104,7 +20105,7 @@
             "node_visits": 28,
             "containment_edges": 27,
             "max_semantic_depth": 8,
-            "output_bytes": 19900
+            "output_bytes": 20017
           }
         },
         "x64musl": {
@@ -20118,13 +20119,14 @@
             "node_visits": 28,
             "containment_edges": 27,
             "max_semantic_depth": 8,
-            "output_bytes": 19900
+            "output_bytes": 20017
           }
         }
       },
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics"
       ]
     },

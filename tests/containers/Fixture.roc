@@ -19,21 +19,22 @@ import pdf.Scene
 ## - `atomic_negatives`: container depth, empty containers, and nested
 ##   unavailable or invalid blocks reject with stable diagnostics and no bytes.
 ##
-## Bytes always come from `Pdf.to_bytes` (the default `Archive` profile). The
-## work vector comes from one additional semantic planning pass over the same
+## The nested fixture exports through the combined archive profile. The scale
+## pair exports through the static Archive profile. The work vector comes
+## from one additional semantic planning pass over the same
 ## normalized authoring with the facade's container and semantic limits.
 Fixture :: [].{
 	EvidenceError : [EvidenceFailure, InvalidScale, MissingRejection(U64)]
 
 	nested : {} -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
-	nested = |_| evidence(nested_document({}))
+	nested = |_| evidence(nested_document({}), AccessibleArchive)
 
 	sections : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	sections = |count| {
 		if count == 0 or count > 1000 {
 			return Err(InvalidScale)
 		}
-		evidence(section_document(count))
+		evidence(section_document(count), Archive)
 	}
 
 	atomic_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
@@ -85,9 +86,9 @@ section_document = |count| {
 	Pdf.document({ contents: $contents, language: "en-AU", title: "Sectioned report" })
 }
 
-evidence : Document -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
-evidence = |document| {
-	bytes = Pdf.to_bytes(document) ? |_| EvidenceFailure
+evidence : Document, Pdf.Profile -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+evidence = |document, profile| {
+	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ profile }) ? |_| EvidenceFailure
 	plan = KernelFacadeSemantics.Plan.build(Document.normalize(document), semantic_limits) ? |_| EvidenceFailure
 	work = KernelFacadeSemantics.Plan.work(plan)
 	semantic_work = KernelSemantics.Plan.work(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(plan)))

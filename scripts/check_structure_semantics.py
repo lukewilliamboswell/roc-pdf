@@ -949,7 +949,9 @@ def normalize_attributes(value, role: str) -> str:
 
 
 def validate_structure_semantics_pdf(pdf: bytes, dimensions: dict[str, int]) -> None:
-    check_structure_semantics(pdf, dimensions)
+    rendered = check_structure_semantics(pdf, dimensions)
+    if dimensions.get("authored_nested"):
+        require(rendered == NESTED_EXPECTED, "emitted container tree differs from the authored hierarchy")
 
 
 # ---------------------------------------------------------------------------
@@ -998,10 +1000,19 @@ def independent_table_matches_verapdf() -> str:
 def self_test() -> None:
     for label, path in SNAPSHOTS.items():
         check_structure_semantics(path.read_bytes())
-    require(check_structure_semantics(SNAPSHOTS["nested"].read_bytes()) == NESTED_EXPECTED, "nested normalized structure changed")
+    validate_structure_semantics_pdf(SNAPSHOTS["nested"].read_bytes(), {"authored_nested": 1})
     require(check_structure_semantics(SNAPSHOTS["lowering"].read_bytes()) == LOWERING_EXPECTED, "lowering normalized structure changed")
 
     nested = SNAPSHOTS["nested"].read_bytes()
+    authored_group_twins = ((b"/S /Part", b"/S /Div"), (b"/P 8 0 R /S /Sect", b"/P 8 0 R /S /Div"))
+    for old, new in authored_group_twins:
+        altered_group = layout_twin(nested, old, new, exactly_once=False)
+        try:
+            validate_structure_semantics_pdf(altered_group, {"authored_nested": 1})
+        except ValidationError as error:
+            require(str(error) == "emitted container tree differs from the authored hierarchy", str(error))
+        else:
+            raise ValidationError("the authored container tree accepted a substituted grouping role")
     lowering = SNAPSHOTS["lowering"].read_bytes()
     facade = SNAPSHOTS["facade"].read_bytes()
     table = SNAPSHOTS["table"].read_bytes()
@@ -1158,7 +1169,7 @@ def self_test() -> None:
     print(
         "PASS structure-semantics checker self-test: normalized trees, ParentTree/MCID/OBJR "
         "exactly-once, IDTree/ID, language, attributes, DisplayDocTitle, MarkInfo, Tabs, "
-        f"Table 5 containment, page furniture, figure captions and scales, and custom-block Divs and underlays verified on {len(SNAPSHOTS)} snapshots; {len(mutations) + len(grouping_twins)} "
+        f"Table 5 containment, page furniture, figure captions and scales, and custom-block Divs and underlays verified on {len(SNAPSHOTS)} snapshots; {len(mutations) + len(grouping_twins) + len(authored_group_twins)} "
         f"length-preserving mutation twins, one foreign-stream MCR twin, one invalid language region, 2 scope-header twins, {len(furniture_twins)} furniture twins, and {len(callout_twins)} custom-block twins rejected; {cross_check}",
         flush=True,
     )

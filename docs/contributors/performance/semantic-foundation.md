@@ -225,9 +225,15 @@ parser. For each document it:
 - checks containment, content items, cardinality, and Caption position
   against its own transcription of Table 5.
 
-Its self-test covers six snapshots and 13 length-preserving mutation twins,
-each rejected for its intended reason. When veraPDF is provisioned, it also
-compares its table with the veraPDF ISO 32005 profile on all 784 role pairs.
+The combined `nested.pdf` fixture pins the authored Document, Part, Sect,
+and Div hierarchy alongside Title, paragraph and labelled list roles.
+Independent mutations replace Part or the nested Sect with a Div and fail
+the authored hierarchy check even though Div is a recognized role. The
+profile adds only XMP and metadata length changes (19,900 to 20,017 bytes).
+The pinned compiler records 1,543 allocations and the same semantic work
+counts, under the existing allocated-byte ceiling. The checker compares
+its Table 5 transcription with the pinned veraPDF profile on 900 role
+pairs when the tool is provisioned.
 It also passes on every tagged Archive and facade snapshot.
 
 **External lanes.** veraPDF PDF/A-4 `--cases` passes every Archive snapshot,
