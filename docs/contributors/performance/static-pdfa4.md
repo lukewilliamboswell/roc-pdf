@@ -147,8 +147,8 @@ No bytes are emitted, and there is no rescan.
   is emitted, signatures are unrepresentable, and the whitelist rejects
   unlisted constructs. The entry stays `partial` until those requirements
   are reconciled against the licensed edition before Gate 7. The published
-  preview covers file structure through clause 6.1.4. The later technical
-  requirements need the full edition.
+  preview ends at the start of clause 6.1.4 on cross-reference tables.
+  The later technical requirements need the full edition.
   [Published preview](https://cdn.standards.iteh.ai/samples/71832/339ef0926f5f4edd9be9861eefb174ea/ISO-19005-4-2020.pdf) ·
   [Full ISO 19005-4:2020 edition](https://www.iso.org/standard/71832.html)
 
