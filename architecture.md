@@ -51,7 +51,7 @@ assistive-technology behavior evidence is recorded where reviewed but is
 optional.
 
 This document owns enduring contracts. Versioned representation and repository
-harness details live in [implementation contracts](development/implementation-contracts.md),
+harness details live in [implementation contracts](docs/contributors/implementation-contracts.md),
 and executable evidence lives in the roadmap's linked records. Those contracts
 remain binding until explicitly revised; moving them out of this document does
 not permit unreviewed byte, allocation, or capability changes.
@@ -375,7 +375,7 @@ segments have bounded owned buffers; unchanged final-form resources may use
 exact shared ranges under the selected retention policy. Buffered output uses
 the same transition directly into its final accumulator.
 
-The binding [emission representation contract](development/implementation-contracts.md#emission-representation)
+The binding [emission representation contract](docs/contributors/implementation-contracts.md#emission-representation)
 specifies the current compressor seam, stream-length and xref representation,
 output-bound proofs, chunk ownership, and accumulator growth. Changing those
 choices requires reviewed determinism, allocation, and retention evidence.
@@ -752,7 +752,7 @@ Preparation provides a bounded, read-only report alongside the opaque prepared
 result through a supported inspection surface: `Pdf.prepare_with_report`
 returns the unchanged `Pdf.Prepared` beside a `Pdf.Report` whose mechanical
 facts and human-review obligations are separate fields
-([reference-documents.md](development/reference-documents.md#preparation-report)).
+([reference-documents.md](docs/contributors/reference-documents.md#preparation-report)).
 The report contains
 authoring locations, page and fragment summaries, logical reading order,
 authored alternatives and assertions, layout-policy outcomes, selected text
@@ -1498,7 +1498,7 @@ the presets of one document share an identifier and differ only in their
 compressed streams. The presets are a closed set rather than a numeric level:
 each one is a reviewed byte contract with its own size, time, and allocation
 evidence, recorded in
-[`development/performance/output-size.md`](development/performance/output-size.md).
+[`docs/contributors/performance/output-size.md`](docs/contributors/performance/output-size.md).
 `Balanced` is the default because it generates about ten times faster than
 `Smallest` for a modest size increase; `Smallest` keeps the package's previous
 bytes exactly.
@@ -1519,7 +1519,7 @@ hold its own offset, and it is FlateDecode with the PNG Up predictor. Object
 streams and the cross-reference stream carry direct lengths.
 
 This is an enduring decision, and the evidence behind it is recorded in
-[`development/performance/output-size.md`](development/performance/output-size.md). In a
+[`docs/contributors/performance/output-size.md`](docs/contributors/performance/output-size.md). In a
 tagged business document most bytes are small dictionaries: structure
 elements, the ParentTree, annotations, and the page tree. Written as top-level
 uncompressed objects they were about half the file, and object streams remove
@@ -1671,7 +1671,7 @@ consumer-visible surface.
 
 Evidence applications exercise private stage contracts through the repository
 integration root and public behavior through the release root. The binding
-[fixture protocol](development/implementation-contracts.md#repository-fixture-protocol)
+[fixture protocol](docs/contributors/implementation-contracts.md#repository-fixture-protocol)
 defines app families, versioned scenarios, manifest dispatch, and checker
 selection. Neither test integration nor fixture conventions expand the public
 package boundary.
@@ -1871,7 +1871,7 @@ Contributor and CI tooling is declared in `Blueprint.roc` and locked in
 `Blueprint.lock` without a package provider: fixed tools such as Zig are
 fetched by committed digest, the remaining host tools are expected, and the
 test, fuzz, gallery, bundle and docs scripts are exposed as named tasks
-(`development/blueprint.md`). The package compiler is not a Blueprint input:
+(`docs/contributors/blueprint.md`). The package compiler is not a Blueprint input:
 `.roc-version` remains its single pin, because allocation baselines are exact
 for one compiler build and the nightly updater changes only that file.
 
@@ -1971,6 +1971,6 @@ selection work linearly in authored input and registry size. The explicit
 reuse. Measurement and embedding consume identical selected static bytes.
 
 Merriweather lacks U+2318 and Fira Code has no genuine italic faces. Those
-requirements remain excluded and tracked upstream. [The integration record](development/roc-font.md)
+requirements remain excluded and tracked upstream. [The integration record](docs/contributors/roc-font.md)
 retains exact pins, licences, historical evidence and the consumer integration
 boundary. Package acceptance does not imply downstream adoption.

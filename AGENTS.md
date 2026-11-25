@@ -1,9 +1,9 @@
 # AGENTS
 
-- Keep `docs/` and the root README user-facing: explain supported behavior,
-  runnable usage, limits, diagnostics, and migration steps. Introduce features
-  by the task they solve, not by issue numbers, delivery gates, or compiler work.
-- Put contributor workflows and enduring implementation contracts in `development/`.
+- Keep the root README and user chapters focused on using the package.
+  Explain supported behavior, runnable usage, limits and migration by task.
+  Put contributor workflows in their own manual chapters and supporting
+  implementation contracts under `docs/contributors/`.
   Keep current capability requirements in `feature-roadmap.md` and enduring
   decisions in `architecture.md`. Preserve executable baselines, provenance,
   licenses and normative controls; retire completed integration journals to Git.
@@ -64,8 +64,8 @@
   inside the branches of an `if` or `match` that produces a value (including
   a function's tail expression), and do not read a record or projection
   after the call that grows one of its lists. See
-  `development/performance/lowering-uniqueness.md` and
-  `development/performance/emission-linearity.md`.
+  `docs/contributors/performance/lowering-uniqueness.md` and
+  `docs/contributors/performance/emission-linearity.md`.
 - If a proposed change alters an enduring architectural decision or roadmap
   capability boundary, update the corresponding document in the same change.
   Do not use an implementation workaround to avoid resolving the conflict.
@@ -76,4 +76,4 @@ Documentation serves current users and contributors. Every paragraph must help a
 current task; delete obsolete or duplicated material. Keep implementation history
 in Git, unfinished work in issues, and release changes in release records. Preserve
 required public anchors without explaining their history. Follow the
-[shared documentation guidance](https://lukewilliamboswell.github.io/roc-automation/documentation.html#write-project-documentation).
+[shared documentation guidance](https://lukewilliamboswell.github.io/roc-automation/documentation.html#keep-documentation-current).

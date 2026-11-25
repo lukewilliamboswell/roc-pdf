@@ -30,5 +30,5 @@ selected break and records exactly `2 * clusters - 2` candidate visits.
 ## Allocation validation
 
 Current exact allocation and work expectations live in the matching scenarios
-in [`tests/spec.json`](../../tests/spec.json). Review changes with the
+in [`tests/spec.json`](../../../tests/spec.json). Review changes with the
 [allocation baseline protocol](../testing.md#allocation-baselines).

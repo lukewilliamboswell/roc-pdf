@@ -91,5 +91,5 @@ Inspect the emitted font with the independent fontTools checksum check and the
 Roc font inspector before accepting changes.
 
 Current exact allocation and work expectations live in the matching scenarios
-in [`tests/spec.json`](../../tests/spec.json). Review changes with the
+in [`tests/spec.json`](../../../tests/spec.json). Review changes with the
 [allocation baseline protocol](../testing.md#allocation-baselines).

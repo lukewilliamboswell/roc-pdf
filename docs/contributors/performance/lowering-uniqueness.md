@@ -355,5 +355,5 @@ not from its loop join:
 - **Users' builds** can still hit report B when a cache holds procedures
   from another program. The package cannot prevent this.
 - **Upstream:** the report draft
-  [upstream-roc-uniqueness-issue.md](upstream-roc-uniqueness-issue.md) is for
+  [upstream-roc-uniqueness-issue.md](https://github.com/lukewilliamboswell/roc-pdf/blob/4b247670ec05e8aa78c1d03a7002a00d820ceeda/development/performance/upstream-roc-uniqueness-issue.md) is for
   the maintainer to review and file.

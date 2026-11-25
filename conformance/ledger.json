@@ -137,11 +137,11 @@
       "references": [
         "ISO 32000-2:2020 14.8.2.2",
         "ISO 32000-2:2020 14.8.4.3",
-        "development/performance/custom-block-report.md",
-        "development/performance/rich-flow.md",
-        "development/performance/technical-manual.md",
-        "development/reference-documents.md: Figures, decorations, and extensions",
-        "development/reference-documents.md: Preparation report"
+        "docs/contributors/performance/custom-block-report.md",
+        "docs/contributors/performance/rich-flow.md",
+        "docs/contributors/performance/technical-manual.md",
+        "docs/contributors/reference-documents.md: Figures, decorations, and extensions",
+        "docs/contributors/reference-documents.md: Preparation report"
       ],
       "capabilities": [
         "Pdf20"
@@ -210,9 +210,9 @@
       "references": [
         "ISO 32000-2:2020 14.8.4.4",
         "ISO 32000-2:2020 14.9.3",
-        "development/performance/flow-figures.md",
-        "development/performance/vector-diagram-adapter.md",
-        "development/reference-documents.md: Figures, decorations, and extensions"
+        "docs/contributors/performance/flow-figures.md",
+        "docs/contributors/performance/vector-diagram-adapter.md",
+        "docs/contributors/reference-documents.md: Figures, decorations, and extensions"
       ],
       "capabilities": [
         "Pdf20"
@@ -308,9 +308,9 @@
         "ISO 32000-2:2020 14.9.2",
         "ISO 32000-2:2020 14.9.5",
         "ISO 32000-2:2020+EC3 14.8.4.7.3",
-        "development/performance/destination-page-references.md",
-        "development/performance/rich-inline.md",
-        "development/performance/technical-manual.md",
+        "docs/contributors/performance/destination-page-references.md",
+        "docs/contributors/performance/rich-inline.md",
+        "docs/contributors/performance/technical-manual.md",
         "pdf-issues#133"
       ],
       "capabilities": [
@@ -372,10 +372,10 @@
       "references": [
         "ISO 32000-2:2020 14.8.4.8.3",
         "ISO 32000-2:2020 Table 380",
-        "development/performance/layout-policies.md",
-        "development/performance/rich-flow.md",
-        "development/performance/technical-manual.md",
-        "development/reference-documents.md: Lists"
+        "docs/contributors/performance/layout-policies.md",
+        "docs/contributors/performance/rich-flow.md",
+        "docs/contributors/performance/technical-manual.md",
+        "docs/contributors/reference-documents.md: Lists"
       ],
       "capabilities": [
         "Pdf20"
@@ -407,8 +407,8 @@
       ],
       "references": [
         "ISO 32000-2:2020 12.3.2.4",
-        "development/performance/destination-page-references.md",
-        "development/performance/technical-manual.md",
+        "docs/contributors/performance/destination-page-references.md",
+        "docs/contributors/performance/technical-manual.md",
         "pdf-issues#162"
       ],
       "capabilities": [
@@ -500,12 +500,12 @@
       ],
       "references": [
         "ISO 32000-2:2020 14.8.2.2.2",
-        "development/performance/chapter-templates.md",
-        "development/performance/destination-page-references.md",
-        "development/performance/page-templates.md",
-        "development/performance/table-paint-footprints.md",
-        "development/performance/technical-manual.md",
-        "development/reference-documents.md: Page templates"
+        "docs/contributors/performance/chapter-templates.md",
+        "docs/contributors/performance/destination-page-references.md",
+        "docs/contributors/performance/page-templates.md",
+        "docs/contributors/performance/table-paint-footprints.md",
+        "docs/contributors/performance/technical-manual.md",
+        "docs/contributors/reference-documents.md: Page templates"
       ],
       "capabilities": [
         "Pdf20"
@@ -565,9 +565,9 @@
       "references": [
         "ISO 32000-2:2020 14.8.2.2.2",
         "ISO 32000-2:2020 14.8.4.7.2",
-        "development/performance/source-blocks.md",
-        "development/performance/source-foregrounds.md",
-        "docs/authoring.md: Preformatted source blocks"
+        "docs/authoring.md: Preformatted source blocks",
+        "docs/contributors/performance/source-blocks.md",
+        "docs/contributors/performance/source-foregrounds.md"
       ],
       "capabilities": [
         "Pdf20"
@@ -626,8 +626,8 @@
         "ISO 32000-2:2020 14.8.2.2.2",
         "ISO 32000-2:2020 14.8.4.8.3",
         "ISO 32000-2:2020 14.8.5.7",
-        "development/performance/tables.md",
-        "development/reference-documents.md: Tables"
+        "docs/contributors/performance/tables.md",
+        "docs/contributors/reference-documents.md: Tables"
       ],
       "capabilities": [
         "Pdf20"
@@ -656,7 +656,7 @@
         "jpeg-10918-1-1994"
       ],
       "references": [
-        "development/performance/tagged-visual-closure.md",
+        "docs/contributors/performance/tagged-visual-closure.md",
         "feature-roadmap.md: tagged-visual"
       ],
       "capabilities": [
@@ -691,7 +691,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.1.11",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -719,7 +719,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.1.12",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -747,7 +747,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.1.2",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -777,7 +777,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.1.3",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -807,7 +807,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.1.3",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -836,7 +836,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.1.3",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -866,7 +866,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.1.4",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -895,7 +895,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.1.5",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -925,7 +925,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.1.6.1",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -955,7 +955,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.1.6.1",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -984,7 +984,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.1.6.2",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1013,7 +1013,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.1.7",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1041,7 +1041,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.1.8",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1070,7 +1070,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.1.9",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1098,7 +1098,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.10",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1129,7 +1129,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.11",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1158,7 +1158,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.12",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1186,7 +1186,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.10.2",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1218,7 +1218,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.10.3",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1251,7 +1251,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.10.4",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1282,7 +1282,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.10.5",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1311,7 +1311,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.10.7",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1341,7 +1341,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.10.8",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1372,7 +1372,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.10.9",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1400,7 +1400,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.10",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1437,7 +1437,7 @@
       "references": [
         "ISO 19005-4:2020 6.2.2",
         "ISO 32000-2:2020+EC3 7.8.2, 8.4.2, 9.4.1, and 14.6.1",
-        "development/performance/static-pdfa4.md",
+        "docs/contributors/performance/static-pdfa4.md",
         "https://github.com/pdf-association/pdf-issues/issues/302",
         "pdf-issues#302"
       ],
@@ -1471,7 +1471,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.3",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1502,7 +1502,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.4.2",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1531,7 +1531,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.4.3",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1560,7 +1560,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.4.4",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1589,7 +1589,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.4",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1619,7 +1619,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.5",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1653,7 +1653,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.7.1",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1686,7 +1686,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.7.3",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1719,7 +1719,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.8.1",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1747,7 +1747,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.8.2",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1776,7 +1776,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.2.9",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1807,7 +1807,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.3.1",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1836,7 +1836,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.3.2",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1867,7 +1867,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.3.3",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1899,7 +1899,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.4",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1932,7 +1932,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.6.1",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1962,7 +1962,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.6.3",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -1990,7 +1990,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.7.2",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -2024,7 +2024,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.7.3",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -2060,7 +2060,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 6.9",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -2091,7 +2091,7 @@
       ],
       "references": [
         "ISO 19005-4:2020 clause 6",
-        "development/performance/static-pdfa4.md"
+        "docs/contributors/performance/static-pdfa4.md"
       ],
       "capabilities": [
         "StaticPdfA4"
@@ -2118,7 +2118,7 @@
       "references": [
         "ISO 14289-2:2024 6.2",
         "ISO 32000-2:2020 14.7.1",
-        "development/performance/semantic-foundation.md"
+        "docs/contributors/performance/semantic-foundation.md"
       ],
       "capabilities": [
         "Pdf20",
@@ -2149,7 +2149,7 @@
       "references": [
         "ISO 14289-2:2024 8.11.2",
         "ISO 32000-2:2020 Table 147",
-        "development/performance/semantic-foundation.md"
+        "docs/contributors/performance/semantic-foundation.md"
       ],
       "capabilities": [
         "Pdf20",
@@ -2180,8 +2180,8 @@
       "references": [
         "ISO 14289-2:2024 8.2.5.25",
         "ISO 32000-2:2020 Table 380",
-        "development/performance/layout-policies.md",
-        "development/reference-documents.md: Lists"
+        "docs/contributors/performance/layout-policies.md",
+        "docs/contributors/reference-documents.md: Lists"
       ],
       "capabilities": [
         "Pdf20",
@@ -2214,8 +2214,8 @@
       "references": [
         "ISO 14289-2:2024 8.2.5.26",
         "ISO 32000-2:2020 14.8.5.7",
-        "development/performance/tables.md",
-        "development/reference-documents.md: Tables"
+        "docs/contributors/performance/tables.md",
+        "docs/contributors/reference-documents.md: Tables"
       ],
       "capabilities": [
         "Pdf20",
@@ -2247,8 +2247,8 @@
       ],
       "references": [
         "ISO 14289-2:2024 8.2.5.26",
-        "development/performance/tables.md",
-        "development/reference-documents.md: Tables"
+        "docs/contributors/performance/tables.md",
+        "docs/contributors/reference-documents.md: Tables"
       ],
       "capabilities": [
         "Pdf20",
@@ -2283,7 +2283,7 @@
       "references": [
         "ISO 14289-2:2024 8.9.3.3",
         "ISO 32000-2:2020 Table 31",
-        "development/performance/semantic-foundation.md"
+        "docs/contributors/performance/semantic-foundation.md"
       ],
       "capabilities": [
         "Pdf20",
@@ -2314,7 +2314,7 @@
       "references": [
         "ISO 32000-2:2020 14.7.2 Tables 354 and 355",
         "ISO 32000-2:2020 14.8.5.7",
-        "development/performance/semantic-foundation.md"
+        "docs/contributors/performance/semantic-foundation.md"
       ],
       "capabilities": [
         "Pdf20",
@@ -2346,8 +2346,8 @@
       "references": [
         "ISO 14289-2:2024 8.4.4",
         "ISO 32000-2:2020 14.9.2",
-        "development/performance/rich-inline.md",
-        "development/performance/semantic-foundation.md"
+        "docs/contributors/performance/rich-inline.md",
+        "docs/contributors/performance/semantic-foundation.md"
       ],
       "capabilities": [
         "Pdf20",
@@ -2384,7 +2384,7 @@
         "ISO 14289-2:2024 8.2.5.27",
         "ISO 32000-2:2020 14.8.4.4 Table 365 and Annex L",
         "ISO/TS 32005:2023 Table 5",
-        "development/performance/semantic-foundation.md"
+        "docs/contributors/performance/semantic-foundation.md"
       ],
       "capabilities": [
         "Pdf20",

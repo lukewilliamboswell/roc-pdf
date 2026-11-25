@@ -11,7 +11,7 @@ The generic public error has since been removed.
 
 ## Typed conversion contract
 
-[KernelFacadeFailure.roc](../../package/KernelFacadeFailure.roc) owns private,
+[KernelFacadeFailure.roc](../../../package/KernelFacadeFailure.roc) owns private,
 exhaustive conversions from the pipeline's reachable error unions to
 `{ category, feature, path, detail }`. Each constructor explicitly selects its
 stable feature segment, diagnostic path segment and `Budget` or `Invariant`
@@ -42,7 +42,7 @@ it or build diagnostic strings.
 
 ## Public authoring diagnostics
 
-[Pdf.roc](../../package/Pdf.roc) keeps specific authoring mappings where the
+[Pdf.roc](../../../package/Pdf.roc) keeps specific authoring mappings where the
 failure has an author-facing cause and location:
 
 | Feature | Cause and location |
@@ -72,7 +72,7 @@ codes and stable paths. Additional facade regressions retain `image.invalid`
 for a bad declared image and `semantics.heading_level` at `contents[1]` for a
 level-7 heading. These execute with the package checks in `scripts/test.py`.
 The public facade contract in
-[tests/contracts/pdf_facade.roc](../../tests/contracts/pdf_facade.roc) retains
+[tests/contracts/pdf_facade.roc](../../../tests/contracts/pdf_facade.roc) retains
 the malformed packed-image regression.
 
 The earlier diagnostic slice recorded four facade expects and no case baseline

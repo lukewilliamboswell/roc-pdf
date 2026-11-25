@@ -31,5 +31,5 @@ and explicit break-before. Check scaled cases for linear work across all input
 lines and fragments, including the complete keep-policy planning boundary.
 
 Current exact allocation and work expectations live in the matching scenarios
-in [`tests/spec.json`](../../tests/spec.json). Review changes with the
+in [`tests/spec.json`](../../../tests/spec.json). Review changes with the
 [allocation baseline protocol](../testing.md#allocation-baselines).

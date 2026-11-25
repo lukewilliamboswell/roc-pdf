@@ -21,7 +21,7 @@ baseline, corpus, input-size limit and report directory.
 The document suite also imports the bounded Model and Solve modules.
 Run their deterministic expectations with
 `roc test fuzz/document_suite.roc --no-cache`. See the
-[correctness oracle guide](../development/testing.md#designing-correctness-oracles).
+[correctness oracle guide](../docs/contributors/testing.md#designing-correctness-oracles).
 
 The smoke lane checks every declared example in a fresh supervised process,
 compares its exact accepted allocation observations, then requests fixed-seed
@@ -64,7 +64,7 @@ measurement, not any particular accepted value. The optional
 `fuzz-accept` Blueprint task performs the same explicit maintenance action.
 Accepted files under `fuzz/baselines/` contain separate host entries for the
 `llvm-fuzz` profile; reductions also require review. The
-[suite allocation review](../development/performance/fuzz-suites.md) records the
+[suite allocation review](../docs/contributors/performance/fuzz-suites.md) records the
 causes and independent native controls. These observations do not replace
 the dev-backend PDF allocation, byte, work or retention contracts in
 `tests/spec.json`.

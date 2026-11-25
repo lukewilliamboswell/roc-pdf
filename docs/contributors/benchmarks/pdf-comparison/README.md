@@ -41,7 +41,7 @@ PDF conformance. No PDF/UA claim is made.
 
 ## Run
 
-The repository-root [`BENCHMARK.md`](../../../BENCHMARK.md) is the step-by-step
+The repository-root [`BENCHMARK.md`](../../../../BENCHMARK.md) is the step-by-step
 setup guide, including a Python environment workaround for systems without
 `python3-venv`. This section summarizes the same commands.
 
@@ -68,10 +68,10 @@ From the repository root, with `ROC` set to the absolute path of the pinned
 compiler (`--roc` defaults to `$ROC`):
 
 ```sh
-python3 development/benchmarks/pdf-comparison/trial.py prepare \
+python3 scripts/benchmarks/pdf-comparison/trial.py prepare \
   .roc-pdf-tmp/pdf-comparison-01 --roc "$ROC"
 
-python3 development/benchmarks/pdf-comparison/trial.py run \
+python3 scripts/benchmarks/pdf-comparison/trial.py run \
   .roc-pdf-tmp/pdf-comparison-01
 ```
 
@@ -96,7 +96,7 @@ language (in its own workspace, since a workspace keeps its first
 `--runtime-samples` value):
 
 ```sh
-python3 development/benchmarks/pdf-comparison/trial.py run \
+python3 scripts/benchmarks/pdf-comparison/trial.py run \
   .roc-pdf-tmp/pdf-comparison-smoke --states first --runtime-samples 1
 ```
 
@@ -218,5 +218,5 @@ The Linux resource-accounting scope is described in
 The harness failure-path checks do not need PDF libraries:
 
 ```sh
-python3 development/benchmarks/pdf-comparison/test_trial.py
+python3 scripts/benchmarks/pdf-comparison/test_trial.py
 ```

@@ -2,45 +2,19 @@
 
 ## Purpose and status
 
-This record is the correctness contract for the Gate 6 business-authoring
-slices. It fixes three reference documents — a multi-page invoice, a business
-report, and a business letter — together with their ordinary content, adverse
-variants, expected logical structure, expected appearance, author obligations,
-declared text support, layout policy, planned public vocabulary, and scale
-workloads. It is step 1 of
-[Work following the Gate 4 milestone](../feature-roadmap.md#work-following-the-gate-4-milestone).
+This contract defines the invoice, report and letter fixture outlines,
+adverse variants, logical structure, layout, author obligations and scale
+workloads. The source programs live under
+[examples](../../examples/), and
+[reference-document fixtures](../../tests/reference_documents/) exercise
+the public package surface. Capability status follows the
+[feature roadmap](../../feature-roadmap.md).
 
-Version: **`reference-documents-v12`**.
-
-- It began as a design record. From `reference-documents-v10` every outline,
-  adverse variant, and policy below is executable: the three references are
-  the gallery programs `examples/tax-invoice/main.roc`,
-  `examples/business-report/main.roc`, and `examples/warranty-letter/main.roc`, and
-  `tests/reference_documents` prepares each of them and every adverse
-  variant (see [the closure record](performance/business-authoring-closure.md)).
-  Capability status remains governed by the [roadmap](../feature-roadmap.md)
-  and the [authoring guide](../docs/authoring.md). It claims no reader behavior.
-- Every later Gate 6 slice cites the version it implements. A slice that must
-  change an outline, a policy, a diagnostic code, or a planned API name updates
-  this record in the same change, increments the version (`-v2`, ...), and adds
-  a line to [Change log](#change-log). Implementation may not silently diverge
-  from the recorded contract.
-- Correctness comes first. Each adverse variant below has exactly one expected
-  outcome: an exact policy-defined layout, or a structured error with no PDF
-  bytes. Where the exact page on which content lands can only be fixed by the
-  first executable snapshot, this record states the invariants that snapshot
-  must satisfy; the reviewed break positions are then added here as an
-  amendment rather than accepted mechanically.
-- Performance evidence for these references consists of the
-  [scale workloads](#scale-workloads), which exist only to catch super-linear
-  blow-ups in named deterministic work counters and exact allocation counts.
-  This record sets no numeric latency, throughput, or memory thresholds. The
-  roadmap's [product performance targets](../feature-roadmap.md#product-performance-targets)
-  section continues to govern whether such thresholds are later required.
-- [Human review tasks](#optional-human-review-tasks) are listed for
-  exploratory use and do not block slices recorded against this document.
-- The references are authored entirely through the public package surface in
-  the eventual release. Private fixture constructors cannot satisfy them.
+Update the contract and corresponding evidence together when an authored
+outline, layout policy or diagnostic changes. Each adverse variant requires
+either an exact policy-defined layout or a structured error with no PDF bytes.
+[Scale workloads](#scale-workloads) check allocation counts and deterministic
+work growth. [Human review](#optional-human-review-tasks) is optional.
 
 All sample content is fictional. Harbour & Finch Pty Ltd, its customers and
 suppliers, its ABN, bank details, and URLs are invented; domains use the
@@ -1464,148 +1438,3 @@ version, the task, the observed outcome, and any limitation.
   Beaulieu`, the quoted sentence) pronounced as French.
 - Letter: confirm the reader shows the metadata title, that the letterhead is
   read first, and that page furniture is not read as body text.
-
-## Change log
-
-- `reference-documents-v12`: the reference-documents upgrade sets the three
-  references in vendored OFL faces with real Bold and Italic (Source Sans 3
-  and Source Code Pro for the invoice and report, Literata for the letter),
-  each stored beside its example and registered at run time, with themes
-  written as records. Presentation changes only, except where recorded:
-  shaded and ruled tables through the theme's `table` record; header slots
-  inset above hairline backdrops and footers hanging below them; a
-  masthead rule under the invoice's logo, a cover band with the reversed
-  mark on the report's first page, and a letterhead rule with the sender's
-  address in slate; real drawing labels on Figure 1 (axis values, bar
-  values, region names, unit, and a labelled legend), replacing the
-  seven-segment tick digits and the unlabelled legend swatches; a
-  generated 966 × 520 JPEG for Figure 2 in place of the 128 × 69 one; the
-  callout's labels in `Strong` with a navy accent bar; the letter's
-  enclosure title in `Em`; and Table 2's shares widened to 4/3/2 so that
-  every supplier name fits one line. Region heights, gaps, and reserved
-  widths are re-measured for the new faces (the invoice's and report's page
-  field 50 pt, INV-A3's 60 pt, the letter's 62 pt, REP-A4's 12 pt). Reviewed
-  composition: the invoice two pages, the report four, the letter three;
-  INV-A3 21 pages; INV-A5 36 body rows; REP-A1 a 620 pt and REP-A2 a 420 pt
-  spacer; REP-A6b 710 thousandths on the smaller first-page frame; INV-A1
-  and LET-A1 lines lengthened so they still wrap; REP-A5 places Figure 1
-  without labels under its ordered policy (`text.drawing_label_policy`).
-  Every adverse variant keeps its outcome, and every rejection keeps its
-  code and paths.
-- API shape (no scenario revision): the facade's configuration became
-  records with defaults. Themes, options, scopes, regions, templates,
-  tables, figures, decorations, and custom blocks are written as records
-  that name only what differs from their defaults, and the cell modifiers
-  chain (`cell.spanning(4).aligned(End)`). The reference fixtures were
-  ported and every reference PDF is byte-identical; see
-  [performance/idiomatic-api.md](performance/idiomatic-api.md).
-- `reference-documents-v11`: the examples-showcase slice makes a cell with
-  no inlines an empty `TD` or `TH` (no marked content, no `/K`), narrows
-  `table.cell_empty` to inline content that holds no text, and extends
-  `table.empty` to a table whose every cell is empty; and tailors UAX #14
-  inside `code` spans so each word of the span keeps its tailorable break
-  opportunities withheld (a code word is one unbreakable token). The three
-  reference documents are unchanged.
-
-- `reference-documents-v10`: the reference-documents closure makes the three
-  references gallery programs and adds `tests/reference_documents`, which
-  prepares them and every adverse variant; records the reviewed break
-  positions of the three ordinary documents; amends INV-A2a to the `-v5`
-  column rule, INV-A3 and the invoice scale workload to an 80 pt page field
-  (the 64 pt field of two-digit totals is a `layout.field_overflow`),
-  REP-A4 to a 16 pt two-digit field, REP-A5 to the `中` scalar the Han
-  fixture covers, and records the constructions of INV-A5, REP-A1, REP-A2,
-  and REP-A3 and the exact scale of REP-A6b; puts `Code` and `Quote` in the
-  PDF 1.7 standard structure namespace; makes `semantics.heading_skip`
-  executable (`details`: the previous heading, then the skipping one); and
-  records that destination headings keep with their next block (R1) and are
-  unsplittable like every other heading. Figure 2 is a caller-supplied
-  128 × 69 baseline sRGB JPEG.
-
-- `reference-documents-v9`: the custom-block slice makes `custom_block`
-  (with `Pdf.CustomBlock`), `prepare_with_report`,
-  `prepare_with_report_budget`, `Report`, and `ReportBudget` executable;
-  fixes the custom block's data-only shape and its semantic, measurement,
-  fragmentation (`Unsplittable`), paint (panel behind text), and placement
-  contract; fixes the report's fields, outcome and obligation vocabulary
-  (adding `ExpansionAccurate`), and budget; and adds
-  `layout.custom_block_measure`, `layout.custom_block_drawing`,
-  `semantics.custom_block_content`, `semantics.custom_block_name`, and
-  `report.budget_exceeded`.
-
-- `reference-documents-v8`: the open-issues slice makes furniture text
-  executable under an ordered font policy and retires
-  `text.furniture_policy`; adds `Theme.with_inline_font` (a caller face per
-  inline role under style faces) and `text.inline_font_policy`; adds
-  `Pdf.aligned` for a cell's own alignment and end-aligns the invoice
-  totals labels; widens a list's label column for its widest label and
-  narrows `layout.list_label_width` to a column that leaves no body width;
-  gives each explicit line break a U+0020 separator at the end of the text
-  before it; and locates every remaining coverage failure as
-  `text.coverage_missing`, `text.unsupported_script`, or
-  `text.unsupported_cluster` (Han is declared on both paths, so uncovered Han
-  under the packaged face is a coverage gap).
-- `reference-documents-v7`: the flow-figures slice makes vector, grouped,
-  and multi-command drawings in `figure`, `figure_fit` with `FigureFit`,
-  `decoration`, and `Scene.Drawing.group` executable; records the caption
-  structure (`Sect ── Figure, Caption ── P` with `CaptionFor`) and why a
-  `Div` is not used; fixes the scale factor's precision, the frame
-  `ScaleToFit` fits (the smaller page frame), figure placement, and the
-  decoration's placement rule; and adds `document.figure_drawing`,
-  `document.figure_caption_empty`, `document.figure_fit`,
-  `layout.decoration_drawing`, and `layout.decoration_position`.
-- `reference-documents-v6`: the page-templates slice makes
-  `with_page_templates`, `first_page_template`, `page_template`, `region`,
-  `no_region`, `lead_region`, `no_lead`, `furniture_text`,
-  `furniture_image`, `page_number`, `total_pages`, and `reserved_width`
-  executable; `page_number` and `total_pages` take a `NumberStyle`; retires
-  `Pdf.page_header` and `Pdf.page_footer`; fixes slot-stack alignment, the
-  furniture text style, paint order, artifact kinds, furniture drawing
-  geometry, per-page width proofs, and the lead region's rules; adds
-  `layout.template_region_empty`, `layout.template_body_empty`,
-  `layout.furniture_drawing`, and `text.furniture_policy` and names the
-  template diagnostic paths; widens the letter's continuation reserved width
-  to 72 pt (measured widths recorded above); and amends the letter scale
-  workload to 20 / 200 body paragraphs.
-
-- `reference-documents-v5`: the tables slice makes `table`, `row`, `cell`,
-  `header_cell`, and `spanning` executable with unchanged names and shapes,
-  adds `row_spanning` (represented, rejected as `table.row_span`) and the
-  theme's table style, and retires `Pdf.simple_table`; refines the
-  column-width algorithm (measured minima and maxima with padding, slack-
-  proportional content reduction, share minima, spanning cells checked
-  afterwards), states that SplitRows minimums apply to the row's line grid,
-  that cells align by their visible advance in their first column's
-  alignment, and that header rows repaint as `/Artifact <</Type
-  /Pagination>>` (`RepeatedHeader`); replaces header-row shading with rules
-  in the invoice and report appearance; adds `table.empty`,
-  `table.cell_empty`, `layout.table_rule`, and `document.content_limit`;
-  records the facade's content bounds; and marks the Common-run text row
-  supported, each cluster taking the first policy face that covers it.
-- `reference-documents-v4`: the lists-and-layout-policies slice makes
-  `bullet_list`, `numbered_list`, `list_item`, `page_break`, `keep_together`,
-  `keep_with_next`, `spacer`, and `line_break` executable with unchanged
-  names and shapes; adds the `LayoutConstraintViolated` family with
-  `layout.keep_conflict`, `layout.oversize_block`, `layout.keep_empty`,
-  `layout.page_break_position`, `layout.spacer_negative`, and
-  `layout.list_label_width`, and the list codes `semantics.list_empty`,
-  `semantics.list_item_empty`, `semantics.list_item_content`,
-  `semantics.list_depth`, `semantics.list_numbering`, and
-  `semantics.line_break_position`; defines the first placement unit that
-  keeps bind, headings and titles as unsplittable, page-break position rules,
-  spacer placement, list geometry and labels, and the page scan's bounded
-  look-back; and records that dotted layout codes ride in `FeatureReference`
-  with every participating source's path in `details`.
-- `reference-documents-v1`: initial record.
-- `reference-documents-v3`: the rich-inline slice makes `rich_paragraph`,
-  `text`, `emphasis`, `strong`, `code`, `quote`, `inline_link`,
-  `inline_internal_link`, `in_language`, and `expansion` executable with
-  unchanged names and shapes; defers `line_break`; limits inline presentation
-  to theme colors and records a distinct per-role face as a required text
-  row; adds `semantics.inline_empty`, `semantics.inline_depth`, and
-  `semantics.link_uri`; and extends diagnostic paths with `.inlines[k]`.
-- `reference-documents-v2`: the semantic-foundation slice makes `part`,
-  `section`, and `division` executable with unchanged names; adds the
-  `semantics.container_depth` and `semantics.empty_container` diagnostic codes
-  with a 16-level container depth bound; and records that a dotted code rides
-  in `FeatureReference` with the compact block path in `details`.

@@ -1,0 +1,88 @@
+[#testing-roc-pdf]
+= Testing roc-pdf
+
+Use the test driver to check Roc expectations, generated PDFs and the exact
+resource evidence recorded by the fixtures. Run it with the tools from
+xref:contributing.adoc#contributor-setup[contributor setup].
+
+[source,sh]
+----
+blueprint run test
+blueprint run test -- --case "tables invoice x50" --compare-baselines
+blueprint run fuzz
+----
+
+The test command checks or builds each fixture and checks the resulting output.
+Selecting a case retains the package and model checks. The fuzz smoke run
+replays seeds and runs a short bounded search. Use the
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/docs/contributors/testing.md[repository testing reference]
+for test selection, fixture layout, validators and toolchain-baseline review.
+
+[#designing-correctness-oracles]
+== Designing correctness oracles
+
+Start a file-format or conformance check with the applicable clause, table
+and corrections in the
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/conformance/normative-baseline.json[pinned normative baseline].
+State the writer's obligation separately from any optional reader algorithm
+and from choices specific to roc-pdf. PDF name trees order byte-string keys
+with a key before its extensions. The fixed fanout is a package choice.
+https://pdf-issues.pdfa.org/32000-2-2020/clause07.html#H7.9.6[ISO 32000-2 §7.9.6 and Table 36 errata].
+
+. *Start with a stage contract.* Identify the facts the production stage
+  accepts, what it promises callers and what it must reject. Exercise the
+  entry point that owns the promise. Use inputs an earlier stage can produce
+  and include deliberate malformed inputs for rejection cases. Drive the
+  test through the public facade when its lowering is part of the contract.
+. *Derive expectations from the input.* Choose a simple independent
+  specification. The first-page model enumerates fitting legal cuts and
+  ranks them by preference. It compares the chosen row prefix, ordered
+  relaxations and diagnostic fields with the production decision. A role
+  matrix can confirm each edge while leaving a clause about ancestors
+  untested. Include the context the clause requires.
+. *Match the tool to the domain.* Model exhausts small histories. Record
+  action and depth bounds, check exhaustion and meaningful goals, and key
+  states by every fact needed by later actions or observations. Solve
+  proves integer laws over a declared domain. Use the production arithmetic
+  terms where practical and pass a concrete boundary value or a solver
+  witness through the actual caller. The dense-span proof passes both a
+  wrapped endpoint and a valid empty range to scene planning. Fuzz covers
+  broader inputs. Seed it with inputs that reach valid output and, where
+  relevant, structured errors. Fixtures exercise full integration and
+  record emitted bytes, allocation counts and deterministic work.
+. *Try a targeted mutation.* Change one production decision in a scratch
+  copy and verify the oracle fails on that decision. Removing the heading
+  keep penalty from an orphan split changes the first-page cut and its
+  relaxation list. Run the applicable existing check on the same mutant
+  to see which failure the new oracle detects. Discard the mutation after
+  the check. When a check reveals a real defect, keep its minimized case
+  as a regression test.
+. *Stop when the contract has enough independent evidence.* State the
+  explored domain and anything that depends on other evidence, such as
+  continuation geometry, caller validation or external conformance. When
+  a plausible failure escapes the model, look for an existing independent
+  check that catches it. Add a case when a gap remains.
+
+Run the deterministic document models and proofs directly with the pinned
+compiler. When suite imports change, run the optimized fuzz smoke build too.
+
+[source,sh]
+----
+roc test fuzz/document_suite.roc --no-cache
+blueprint run fuzz
+----
+
+[#review-fixture-changes]
+== Review fixture changes
+
+Compare independently decoded PDF objects before updating snapshots for a
+serialization change. A corrected vertex order can change a compressed
+stream's length while its geometry and semantic ownership stay identical.
+Check the intended object changes and the exact downstream facts that the
+contract preserves.
+
+Record exact allocation counts and deterministic work alongside the expected
+change in output length. Identify the cause of each delta before accepting a
+new baseline. Allocation and work changes require their own evidence even
+when the output change is intentional. See the
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/docs/contributors/testing.md#allocation-baselines[baseline review procedure].

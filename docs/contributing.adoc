@@ -1,0 +1,59 @@
+[#contributing-to-roc-pdf]
+= Contributing to roc-pdf
+
+Use this guide to set up a checkout, validate a change and find the contracts
+that govern it. Read the
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/AGENTS.md[repository instructions],
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/architecture.md[architecture]
+and https://github.com/lukewilliamboswell/roc-pdf/blob/main/feature-roadmap.md[capability requirements]
+before changing package behavior.
+
+[#contributor-setup]
+== Set up the tools
+
+Install the Roc nightly named in
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/.roc-version[.roc-version]
+and make its executable available on your path. Use the Blueprint release
+declared in
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/Blueprint.roc[Blueprint.roc]
+and verify the executable against the release digest. Blueprint checks fetched
+tools against `Blueprint.lock`. The
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/docs/contributors/blueprint.md[tooling reference]
+lists host prerequisites and the available tasks.
+
+[source,sh]
+----
+blueprint check
+blueprint tasks
+blueprint run test
+----
+
+Use xref:testing.adoc#testing-roc-pdf[Testing roc-pdf] to investigate a failure,
+add correctness evidence or review a baseline. The
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/docs/contributors/README.md[contributor reference]
+links to implementation contracts, retained evidence and benchmark workloads.
+
+[#contributor-documentation]
+== Change the manual
+
+Edit the top-level AsciiDoc chapters and update the owning section. Keep
+commands reproducible and link to the relevant contract or checked example.
+The https://lukewilliamboswell.github.io/roc-automation/documentation.html#keep-documentation-current[shared documentation guide]
+covers audience, scope and rendering.
+
+[source,sh]
+----
+blueprint run docs
+----
+
+Review the HTML and PDF around any changed content. The
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/docs/contributors/automation-publication.md[publication reference]
+describes the release bindings, generated Markdown checks and browser review.
+
+[#contributor-publishing]
+== Prepare a release
+
+The https://github.com/lukewilliamboswell/roc-pdf/blob/main/docs/contributors/releases/publishing.md[release procedure]
+covers authored notes, compiler checks, the dry run and publication of the
+validated artifacts. Review xref:releases.adoc#release-notes[release notes] for
+the installed package and compatibility changes.

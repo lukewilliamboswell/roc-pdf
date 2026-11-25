@@ -86,7 +86,7 @@ foundations. This explicitly brings that bounded capability forward from
 Gate 8; general custom-block fragmentation remains there. The new slice is
 closed with its own public API, whitespace, typography, wrapping, continuation,
 conformance and allocation/scale evidence in
-[preformatted source blocks](development/performance/source-blocks.md). This includes
+[preformatted source blocks](docs/contributors/performance/source-blocks.md). This includes
 the strict 357-case integration suite, focused arm64mac/x64musl equality,
 PDF/A-4 and Arlington checks, independent readers and scale pairs. General
 custom callbacks are inapplicable to this native bounded path. Human reader
@@ -99,7 +99,7 @@ original-UTF-8 ranges for external highlighters. This is a separate evidence
 slice: original-to-canonical endpoint mapping, grapheme-safe range rejection,
 paint-only layout invariance, shared-source ownership, token-scale pairs and
 colour-sensitive independent reader/conformance checks are recorded in
-[source foreground ranges](development/performance/source-foregrounds.md). It adds no
+[source foreground ranges](docs/contributors/performance/source-foregrounds.md). It adds no
 language parser, token semantics, font changes or new conformance claim.
 
 Gate 7 closes combined-profile, public-use, and scale-growth evidence for these
@@ -116,7 +116,7 @@ path: wrapped linked titles, a common terminal page column and optional
 decorative leaders. It does not collect headings or generate a contents tree,
 and does not close Gate 8's general generated-content/stabilization capability.
 Its geometry, semantic ownership and scale evidence is recorded separately in
-[contents entries](development/performance/contents-entries.md).
+[contents entries](docs/contributors/performance/contents-entries.md).
 
 The following selected Gate 8 capabilities are brought forward as dependency-
 gated Gate 6 extensions. Their acceptance does not close Gate 7, enable
@@ -147,7 +147,7 @@ rich list bodies, rich callout fragmentation, destination references, scoped
 templates, then combined-manual closure. Independent work may proceed against
 frozen contracts; closure requires integration evidence. The declared bounded
 extensions #49–#53 are closed. Their [implementation, ownership and closure
-record](development/performance/manual-composition.md) includes the complete 409-case
+record](docs/contributors/performance/manual-composition.md) includes the complete 409-case
 native comparison and strict affected replay, strict 409-case Linux integration,
 cross-target PDF byte equality, independent feature checks and pinned
 profile/object-model validation. This does not close Gate 7, enable `PdfUa2`,
@@ -208,14 +208,14 @@ Gate 7, and each future slice records the readiness dimensions above.
    observations are optional. This is release planning and exploratory
    evidence, not a new conformance claim. The reference documents, text-support
    matrix, and layout policies are recorded in
-   [development/reference-documents.md](development/reference-documents.md)
+   [docs/contributors/reference-documents.md](docs/contributors/reference-documents.md)
    (now `reference-documents-v3`).
 2. Continue Gate 6 business-authoring/semantic slices from the shared Gate 4
    foundation; Gate 5 archival closure is recorded below. Deliver each public
    feature through authoring, layout, diagnostics, and applicable evidence, and
    declare its static PDF/A-4 eligibility as it joins the `Archive` whitelist.
    The semantic-foundation slice
-   ([development/performance/semantic-foundation.md](development/performance/semantic-foundation.md))
+   ([docs/contributors/performance/semantic-foundation.md](docs/contributors/performance/semantic-foundation.md))
    makes `Pdf.part`, `Pdf.section`, and `Pdf.division` executable over a dense
    nested authoring tree, widens the kernel vocabulary with an ISO/TS 32005
    Table 5 containment checker, lowers node languages, element identifiers
@@ -223,7 +223,7 @@ Gate 7, and each future slice records the readiness dimensions above.
    and declares `/DisplayDocTitle` for every tagged facade document. It closes
    no Gate 6 capability as a whole and makes no PDF/UA-2 claim.
    The rich-inline slice
-   ([development/performance/rich-inline.md](development/performance/rich-inline.md))
+   ([docs/contributors/performance/rich-inline.md](docs/contributors/performance/rich-inline.md))
    makes `Pdf.rich_paragraph` and its inline constructors executable:
    `Em`, `Strong`, `Code`, `Quote`, `Link`, language `Span`s with `/Lang`, and
    expansion `Span`s with `/E`, shaped and broken as one paragraph text with
@@ -479,7 +479,7 @@ within an early correctness gate.
   `Balanced` (the default), `Smallest`, and `Fastest`. Each preset is
   deterministic and byte-identical across buffered, chunked, and prepared
   output; `Smallest` reproduces the earlier level-10 bytes. Evidence:
-  [development/performance/output-size.md](development/performance/output-size.md).
+  [docs/contributors/performance/output-size.md](docs/contributors/performance/output-size.md).
 - Stable object allocation, resource naming, stream length handling, and file
   identifiers.
 - Deterministic fixed-fanout balanced builders for page, name, number, ID, and
@@ -571,7 +571,7 @@ within an early correctness gate.
 
 Gate 2 is closed. The capability, negative, exact-structure, renderer, and
 performance aggregation is recorded in
-`development/performance/tagged-visual-closure.md`. This closes the private minimal tagged
+`docs/contributors/performance/tagged-visual-closure.md`. This closes the private minimal tagged
 visual kernel only; it does not make Gate 3 authoring or later conformance
 profiles available.
 
@@ -741,7 +741,7 @@ and [HarfBuzz boundary facts](https://harfbuzz.github.io/harfbuzz-hb-buffer.html
 
 Gate 3 is closed. The capability, negative, extraction, rendering, retention,
 cache, and adversarial-bound aggregation is recorded in
-`development/performance/text-layout-closure.md`. This closes the
+`docs/contributors/performance/text-layout-closure.md`. This closes the
 public single- and multi-face authoring boundary described above; it does not
 make Gate 4 graphics, the `Archive` or `AccessibleArchive` profiles, automatic
 hyphenation, or shaping beyond the declared boundary available. Those continue
@@ -815,7 +815,7 @@ appearances, or annotation types other than links.
 
 Gate 4 is closed for the `Pdf20`/`Standard` production-visual compiler. The
 slice-by-slice evidence and final boundary audit are aggregated in
-`development/performance/production-visual-closure.md`. This closes forms, resource
+`docs/contributors/performance/production-visual-closure.md`. This closes forms, resource
 identity and closure, raster/JPEG and color leaves, transparency and masks,
 shadings and patterns, font leaves, metadata/output intent, and navigation.
 
@@ -879,7 +879,7 @@ unavailable until their own gates close.
 Gate 5 is closed for static PDF/A-4 on the basis of the pinned veraPDF 1.30.2
 PDF/A-4 validation profile, and `Pdf.Options.default` now selects `Archive`
 (`Pdf20 + StaticPdfA4`). The slice record and evidence are in
-`development/performance/static-pdfa4.md`:
+`docs/contributors/performance/static-pdfa4.md`:
 
 - a typed claim with PDF/A identification emitted only for a validated claim;
 - a closed whitelist enforced by profile validation over prepared text facts
@@ -901,7 +901,7 @@ licensed standard text before Gate 7's combined claim.
 Arlington object-model validation of font-bearing output also found a
 pre-existing `Pdf20` defect: `CIDSystemInfo` `/Registry` and `/Ordering` were
 text strings rather than ASCII strings. It is resolved
-(`development/performance/cid-system-info-ascii.md`), and Linux CI now requires every
+(`docs/contributors/performance/cid-system-info-ascii.md`), and Linux CI now requires every
 package snapshot and gallery example to pass the pinned Arlington checker with
 zero failures. The advanced `Encode` boundary remains `Standard`-only.
 
@@ -956,7 +956,7 @@ Closing Gate 6 alone does not make a PDF/UA-2 or combined-profile claim.
   between visual lines. Optional padded panels repeat as decoration artifacts
   on each page fragment; Code semantics and source order remain logical facts.
   This extension slice is closed by its own
-  [public, conformance and performance evidence](development/performance/source-blocks.md),
+  [public, conformance and performance evidence](docs/contributors/performance/source-blocks.md),
   distinct from the historical business-authoring closure below.
 - The declared production text-support matrix and any additions needed by the
   reference documents, including bounded boundary reshaping and final fit
@@ -1061,7 +1061,7 @@ paragraphs or figures.
 ### Closure status
 
 Gate 6 is **closed**
-([development/performance/business-authoring-closure.md](development/performance/business-authoring-closure.md)).
+([docs/contributors/performance/business-authoring-closure.md](docs/contributors/performance/business-authoring-closure.md)).
 The reference invoice, report, and letter are gallery programs through the
 public API, and `tests/reference_documents` prepares them and every adverse
 variant of `reference-documents-v10`: each accepted variant's policy outcome
@@ -1084,24 +1084,24 @@ profile, with exact allocation, work, and allocated-byte ceilings, scale
 pairs, zero-failure veraPDF PDF/A-4 and Arlington evidence, and an
 independent structure checker. Each record lists its own open issues:
 
-- Reference contract: [development/reference-documents.md](development/reference-documents.md)
+- Reference contract: [docs/contributors/reference-documents.md](docs/contributors/reference-documents.md)
   (`reference-documents-v10`) defines the invoice, report, and letter,
   their adverse variants, the text-support matrix, and the layout-policy
   vocabulary.
 - Semantic foundation, containers, `/Lang`/`/ID`/`/IDTree`/`/A`, and
-  DisplayDocTitle: `development/performance/semantic-foundation.md`.
+  DisplayDocTitle: `docs/contributors/performance/semantic-foundation.md`.
 - Rich inline content, nested language, and inline links:
-  `development/performance/rich-inline.md`.
+  `docs/contributors/performance/rich-inline.md`.
 - Bullet and numbered lists, explicit breaks, spacers, and typed required or
-  ranked keeps: `development/performance/layout-policies.md`.
+  ranked keeps: `docs/contributors/performance/layout-policies.md`.
 - Ordinary tables with repeated header artifacts, column spans, scopes, and
-  `Headers`: `development/performance/tables.md`.
+  `Headers`: `docs/contributors/performance/tables.md`.
 - First-page and continuation-page templates, furniture, and stabilized
-  page and total-page fields: `development/performance/page-templates.md`.
+  page and total-page fields: `docs/contributors/performance/page-templates.md`.
 - Flow figures of bounded vector, raster, grouped, and multi-command
   drawings, explicit `ScaleToFit`, `Pdf.decoration` artifacts, and captions
   as `Sect > (Figure, Caption)` with `CaptionFor`:
-  `development/performance/flow-figures.md`. Its open issues: applied scales are
+  `docs/contributors/performance/flow-figures.md`. Its open issues: applied scales are
   not yet reported (the preparation report), figures are start-aligned with
   body-style captions, only translated groups exist, a decoration binds to
   the next flow block and never paints behind text, and `ScaleToFit` fits
@@ -1124,18 +1124,18 @@ independent structure checker. Each record lists its own open issues:
   callout (`tests/custom_block/Callout.roc`), and `Pdf.prepare_with_report`
   with separate facts and obligations, applied figure scales, relaxations,
   repeated headers, and an explicit budget:
-  `development/performance/custom-block-report.md`. Extensions can measure content
+  `docs/contributors/performance/custom-block-report.md`. Extensions can measure content
   height with `Pdf.measure_custom_content` (examples-showcase follow-up), so
   callouts hold wrapped rich paragraphs. Its open issues: only
   `Unsplittable` fragmentation, probe work stops at text, and inline report
   paths scan line breaks. (The `Quote`/`Code` 8.2.4 finding is resolved by
   the closure.)
 - Linear lowering and emission, plus the allocated-byte guard:
-  `development/performance/lowering-uniqueness.md` and
-  `development/performance/emission-linearity.md`. The Roc compiler defects behind
+  `docs/contributors/performance/lowering-uniqueness.md` and
+  `docs/contributors/performance/emission-linearity.md`. The Roc compiler defects behind
   them are reported upstream (roc-lang/roc #11821-#11827).
 - The CIDSystemInfo ASCII-string correction and the CI Arlington lane:
-  `development/performance/cid-system-info-ascii.md`.
+  `docs/contributors/performance/cid-system-info-ascii.md`.
 
 - The gallery's API gaps: odd-length Macintosh `name` records and fonts
   without TrueType hinting tables (`font-inspection.md`,
@@ -1151,7 +1151,7 @@ independent structure checker. Each record lists its own open issues:
   `examples/tax-invoice/main.roc`, `examples/business-report/main.roc`, and
   `examples/warranty-letter/main.roc`, the `tests/reference_documents` family, the
   structure-extraction and reference-document checkers, and the closure
-  review: `development/performance/business-authoring-closure.md`.
+  review: `docs/contributors/performance/business-authoring-closure.md`.
 
 ## Gate 7: business-document production release and combined closure
 
@@ -1461,8 +1461,8 @@ mono provides Regular/Bold. Missing coverage, unavailable styles and unsupported
 shaping reject before bytes, without automatic fallback. This adds no runtime
 variable-font, script-shaping or conformance-profile claim.
 
-[Packaged-font contracts](development/roc-font.md) define asset provenance,
-selection and ownership. [Default-family fixtures](development/performance/default-fonts.md)
+[Packaged-font contracts](docs/contributors/roc-font.md) define asset provenance,
+selection and ownership. [Default-family fixtures](docs/contributors/performance/default-fonts.md)
 cover independent source/subset metadata, searchable text, atomic rejection and
 scaling. Use the current allocation baselines and publication checks rather than
 an earlier integration run to assess a change.

@@ -111,7 +111,7 @@ packaged faces once for applications that need reusable family handles;
 sizes, colours, spacing and per-level heading overrides. The returned `sans`,
 `serif` and `mono` records are family mappings. `RocFont.licenses` supplies all
 three OFL notices; include them when distributing font assets. Distribution
-pins and validation evidence live in https://github.com/lukewilliamboswell/roc-pdf/blob/main/development/roc-font.md[the integration record].
+pins and validation evidence live in https://github.com/lukewilliamboswell/roc-pdf/blob/main/docs/contributors/roc-font.md[the integration record].
 
 Changing from the old restricted default or generated rc3 preset changes glyph
 metrics, line breaks, pagination and PDF bytes. Review existing layouts after

@@ -1,6 +1,6 @@
 # Compiler and allocation baseline evidence
 
-The dev allocation checks use the compiler in [`.roc-version`](../../.roc-version)
+The dev allocation checks use the compiler in [`.roc-version`](../../../.roc-version)
 and Zig 0.16.0 ReleaseFast hosts. Fixtures build with
 `--opt=dev --specialize=yes --no-cache`. The specialization setting is part
 of the required schema-8 toolchain identity. The [LLVM fuzz profile](fuzz-suites.md)
@@ -36,7 +36,7 @@ The following measurements used Roc `nightly-2026-11-18-a520eed` and Unicode
 4.3.3. The compiler was the official prebuilt release.
 
 The prior accepted profile and its controls remain available at the
-[previous profile](https://github.com/lukewilliamboswell/roc-pdf/blob/6a91b96/development/performance/toolchain-profile.md).
+[previous profile](https://github.com/lukewilliamboswell/roc-pdf/blob/6a91b96/docs/contributors/performance/toolchain-profile.md).
 A complete local replay of its 425 cases under the previous official compiler
 matched every recorded observation before this transition. The current profile
 combines the compiler/Unicode upgrade with builtin SHA-256 and compile-time

@@ -120,7 +120,7 @@ pinned compiler reused package procedures compiled for an earlier fixture
 program in later ones, and a later program could then copy lists that it
 updates in place when built alone: a case's allocation count and allocated
 bytes depended on which fixtures were built before it and on the local cache
-(`development/performance/lowering-uniqueness.md`). Without the cache each fixture
+(`docs/contributors/performance/lowering-uniqueness.md`). Without the cache each fixture
 compiles exactly as a standalone `roc build --no-cache --opt=dev --specialize=yes` does, so a
 case can be reproduced outside the harness. The flag works around
 roc-lang/roc#11826 and should be removed once that is fixed. Validation (`roc
@@ -171,62 +171,9 @@ installer) exactly once; `scripts/check_contracts.py` enforces this.
 
 ## Designing correctness oracles
 
-For a file-format or conformance contract, start with the applicable clause,
-tables, and corrections in the [pinned normative baseline](../conformance/normative-baseline.json).
-State the rule in terms of observable output before inspecting the production
-algorithm. Record which profile requires it and which choices belong to
-roc-pdf's supported subset. For example, the PDF name-tree rule orders keys
-by byte sequence and puts a key before its longer extensions. The fixed
-fanout is a package choice. Both can be checked from the authored keys and
-the emitted tree. [ISO 32000-2 §7.9.6 and Table 36 errata](https://pdf-issues.pdfa.org/32000-2-2020/clause07.html#H7.9.6).
-
-1. **Start with a stage contract.** Identify the facts a production stage
-   accepts, what it promises its callers, and which inputs it must reject.
-   Exercise the entry point that owns that promise. For a kernel check, use
-   inputs that an earlier stage can produce, with deliberate malformed inputs
-   for rejection cases. If the contract includes facade lowering, drive it
-   through the facade. Check who the clause addresses. A writer obligation
-   can be checked in emitted bytes, while a reader algorithm can help explain
-   the format without imposing its choices on the writer. When a contract
-   spans multiple stages, use a narrow check to locate failures and a fixture
-   to show that the authored fact survives lowering.
-2. **Derive the expected result from the input.** Use the simplest
-   specification that answers the same question. The first-page model lists
-   fitting legal cuts and ranks them by preference, independently of the
-   production cursor and bit scores. Compare facts the caller consumes, such
-   as the chosen row prefix and ordered relaxations, or the diagnostic and
-   its fields. Exact observations can distinguish two plausible outputs that
-   both satisfy a weaker invariant. A role matrix can confirm individual
-   edges while leaving a clause about ancestor context untested. Derive
-   cases from that context even when two checkers agree on each matrix row.
-3. **Match the tool to the domain.** Use Model to exhaust small histories
-   whose transitions matter. Record the action and depth bounds, check
-   exhaustion and meaningful goals, and ensure the state key preserves all
-   facts needed by later actions and observations. Use Solve for an integer
-   law over a wider domain. State the domain and preconditions, use the
-   production arithmetic terms where practical, and feed a boundary value or
-   solver witness through the actual caller. The dense-span proof exercises
-   scene planning with both a wrapped endpoint and a legitimate empty range.
-   Use Fuzz for broader or less structured inputs. Seed it with inputs
-   that reach valid output and, where the property checks failures, inputs
-   that trigger structured errors in the tested code. Fixtures cover
-   full-path integration, emitted bytes, and allocation and work evidence.
-4. **Try a discriminating negative control.** In a scratch copy, change
-   one decision the oracle is meant to catch and check that it compiles and
-   fails on the intended observation. Removing the heading keep penalty
-   from an orphan split, for example, changes the first-page cut and its
-   relaxation list. Discard the temporary mutation after the check. When a
-   check finds a production bug, keep the minimized case as an ordinary
-   regression. When estimating the gain from a new oracle, also run the
-   applicable existing evidence on the mutant. A mutant that passes an older
-   checker and fails the new assertion shows exactly what the new check adds.
-5. **Name the limits and stop at the contract.** A bounded result applies to
-   the explored domain. Record what it leaves to other evidence, such as
-   continuation geometry, caller validation, or external conformance. Stop
-   expanding the model when it reaches the intended interactions and
-   distinguishes the outcomes. If a plausible failure escapes the model,
-   check whether existing independent evidence catches it. Add a case when
-   that leaves a gap in the contract.
+Follow the [testing chapter](../testing.adoc#designing-correctness-oracles)
+to choose a production contract, derive an independent oracle, and validate it
+with a targeted mutation.
 
 ## State models and arithmetic proofs
 

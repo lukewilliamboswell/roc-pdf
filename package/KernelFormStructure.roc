@@ -1164,7 +1164,7 @@ form_targets = |objects, ordinals| {
 ## (`reference_entries`): returning the builder beside the entry list, as
 ## `Try({ builder, entries })`, made the pinned dev backend copy the object
 ## store once per resource dictionary
-## (development/performance/lowering-uniqueness.md).
+## (docs/contributors/performance/lowering-uniqueness.md).
 add_reference_values : KernelObject.Builder, List(KernelObject.ObjectId) -> Try(KernelObject.Builder, KernelFormStructure.Error)
 add_reference_values = |builder, object_ids| {
 	var $builder = builder

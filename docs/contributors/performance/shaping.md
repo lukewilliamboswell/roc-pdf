@@ -38,5 +38,5 @@ checks cover the declared shaping boundary; they do not establish a built-in
 OpenType GSUB/GPOS engine or bidirectional resolution.
 
 Current exact allocation and work expectations live in the matching scenarios
-in [`tests/spec.json`](../../tests/spec.json). Review changes with the
+in [`tests/spec.json`](../../../tests/spec.json). Review changes with the
 [allocation baseline protocol](../testing.md#allocation-baselines).

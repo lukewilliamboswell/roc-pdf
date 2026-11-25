@@ -14,8 +14,8 @@ combining members nor selecting a subset changes a property's input encoding
 or measurement boundary.
 
 Builds use `--fuzz --specialize=yes --no-cache`, the compiler in
-[`.roc-version`](../../.roc-version), and the platform pinned by
-[`scripts/fuzz.py`](../../scripts/fuzz.py). The executable stamp binds the
+[`.roc-version`](../../../.roc-version), and the platform pinned by
+[`scripts/fuzz.py`](../../../scripts/fuzz.py). The executable stamp binds the
 complete local source/asset closure, compiler, target, platform SHA-256, flags
 and executable digest. `--no-build` rejects a changed identity. The suite's
 source closure includes every member, even when only one member is selected.

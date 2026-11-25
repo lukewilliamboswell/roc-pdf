@@ -815,7 +815,7 @@ def fixture_build_command(
     # fixtures were built before it. Built without the cache, every
     # fixture compiles exactly as a standalone `roc build --no-cache`
     # does, whatever the order or cache state
-    # (development/performance/lowering-uniqueness.md).
+    # (docs/contributors/performance/lowering-uniqueness.md).
     # --no-cache works around roc-lang/roc#11826. That issue is closed,
     # but re-tested on nightly-2026-10-18 a cold shared cache still
     # differs in 26 cases: "static PDF/A-4 archived report scaling x400"
@@ -1487,7 +1487,7 @@ def default_build_jobs() -> int:
     """Parallel fixture builds that fit in memory.
 
     A fixture group build peaks at up to 6.9 GB resident on
-    nightly-2026-10-23 (development/performance/fixture-grouping.md), more
+    nightly-2026-10-23 (docs/contributors/performance/fixture-grouping.md), more
     than a single-source build, so builds get their own memory bound.
     """
     memory = available_now_bytes()
@@ -1505,7 +1505,7 @@ def default_jobs() -> int:
         # Each check, test, or build root type-checks the whole package and
         # peaks at 4 to 5.2 GB resident with the pinned compiler; on a 32 GB
         # machine 8 and 10 workers were killed for memory, 6 were not
-        # (development/performance/test-suite-speed.md).
+        # (docs/contributors/performance/test-suite-speed.md).
         reserve = 2 * 1024**3
         per_job = 5 * 1024**3
         memory_jobs = max(1, (max(0, memory - reserve)) // per_job)

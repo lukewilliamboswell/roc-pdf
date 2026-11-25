@@ -55,28 +55,3 @@ files. A draft is never automatically adopted. Delete an unpublished failed
 draft before retrying the same run's tested artifacts. Never repair a published
 release, move a tag, replace an asset or reconstruct an expired artifact from a
 moving branch. Publish changed bytes as a new version.
-
-## How the candidates were published
-
-- rc1 and rc2 were published by this workflow, which at each point accepted
-  only that one hard-coded tag (finally `0.1.0-rc2`).
-- rc3 to rc6 were created by hand with `gh release create --prerelease`,
-  uploading the bundle artifact from a successful bundle job (the PR run for
-  rc3, rc5 and rc6; a `nightly_validation` dispatch on `main` for rc4). Their
-  bodies were written in the GitHub release and are now copied into
-  `docs/releases/`.
-
-The workflow now accepts any `X.Y.Z` or `X.Y.Z-rcN` tag, so later releases do
-not need the manual path.
-
-## Bundle identity
-
-`scripts/bundle.sh` is deterministic for a given package tree and Roc
-nightly: the bundle built locally from the `ac8dba8` tree with
-`nightly-2026-10-18-1df370f` (`FtvjgqwbGNGsm97hoN8kayCX3QacEwMbJo6aPZd7LPEi.tar.zst`,
-SHA-256 `d0945e287568f87c79e72beb4777c2ef1403d4eb9a7a5dfa412a93371dac958f`)
-is byte-identical to the artifact from the bundle job of
-[run 39246645678](https://github.com/lukewilliamboswell/roc-pdf/actions/runs/39246645678),
-which built the same tree. The bundle
-contains only `package/`, so editing documentation does not change it; any
-change to `package/` or `.roc-version` does.

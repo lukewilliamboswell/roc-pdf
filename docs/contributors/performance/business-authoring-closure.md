@@ -6,7 +6,7 @@ introduces, and it reviews every Gate 6 gate-evidence bullet against the
 evidence that now exists.
 
 Amended for `reference-documents-v12`
-([reference-documents-upgrade.md](reference-documents-upgrade.md)): the
+([reference-documents-upgrade.md](https://github.com/lukewilliamboswell/roc-pdf/blob/4b247670ec05e8aa78c1d03a7002a00d820ceeda/development/performance/reference-documents-upgrade.md)): the
 references now use vendored OFL faces and the gallery's table, furniture,
 and chart styling. The variant outcomes, rejections, and gate evidence below
 are restated against the v12 snapshots; the closure decision is unchanged.
@@ -28,7 +28,7 @@ cannot provision it (see [Open issues](#open-issues)).
 ## What S10 adds
 
 - **Reference programs.** The three references of
-  [development/reference-documents.md](../reference-documents.md) are gallery
+  [docs/contributors/reference-documents.md](../reference-documents.md) are gallery
   programs through the public API only: `examples/tax-invoice/main.roc`
   (the multi-page tax invoice, still prepared once and then emitted;
   `tax-invoice.pdf` replaces `invoice-1048.pdf`), `examples/warranty-letter/main.roc` (the

@@ -104,7 +104,7 @@ rectangles = |rows| {
 # ISO 32000-2:2020+EC3 14.8.4.8.3 and Table 371 allow implicit lookup
 # when a cell omits Headers. Explicit Table attributes are in 14.8.5.7,
 # Table 384. The order and applicability here are the facade's contract
-# in development/performance/tables.md. Rescan authored rectangles once
+# in docs/contributors/performance/tables.md. Rescan authored rectangles once
 # per data cell, so a spanning header contributes at most one identity.
 expected_headers : List(Rectangle), Rectangle -> List(U64)
 expected_headers = |cells, target| match target.cell.role {

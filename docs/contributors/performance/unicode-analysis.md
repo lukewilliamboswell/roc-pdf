@@ -9,7 +9,7 @@ The dependency reports Unicode 17.0.0, UAX #14 revision 55, UAX #29 revision
 policy. Updating its release URL, source revision, archive digest or Unicode
 semantics requires review of affected correctness and performance evidence.
 The current normative pins live in
-[`conformance/normative-baseline.json`](../../conformance/normative-baseline.json);
+[`conformance/normative-baseline.json`](../../../conformance/normative-baseline.json);
 `.roc-version` selects the product compiler independently.
 
 ## Representation and ownership

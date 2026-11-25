@@ -32,7 +32,7 @@ ceilings are rebaselined.
   statements with an arm that neither reassigns `$v` nor exits. Most hits
   hold only scalars; the list-holding ones were reviewed by hand.
 - **Minimal programs** reproduce two of the causes; see report E of
-  [upstream-roc-uniqueness-issue.md](upstream-roc-uniqueness-issue.md).
+  [upstream-roc-uniqueness-issue.md](https://github.com/lukewilliamboswell/roc-pdf/blob/4b247670ec05e8aa78c1d03a7002a00d820ceeda/development/performance/upstream-roc-uniqueness-issue.md).
 
 The build is the pinned `nightly-2026-09-26-d6267b4`, `--opt=dev`, `x64musl`.
 
@@ -354,7 +354,7 @@ Review of the distribution:
   `var`s (counters, cursors). They copy nothing today, but the rule in
   `AGENTS.md` covers any list or builder added to them later.
 - **Upstream.** Report E of the draft
-  [upstream-roc-uniqueness-issue.md](upstream-roc-uniqueness-issue.md)
+  [upstream-roc-uniqueness-issue.md](https://github.com/lukewilliamboswell/roc-pdf/blob/4b247670ec05e8aa78c1d03a7002a00d820ceeda/development/performance/upstream-roc-uniqueness-issue.md)
   reproduces causes 1 and 2 in a small program. Causes 5 and 6 did not
   reduce and are described there under "Not reproduced". The draft is for
   the maintainer to review and file.

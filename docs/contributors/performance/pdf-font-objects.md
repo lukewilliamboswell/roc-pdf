@@ -30,5 +30,5 @@ The structural carrier isolates font-object lowering; reader extraction and
 visible page output are checked by the integrated text fixtures.
 
 Current exact allocation and work expectations live in the matching scenarios
-in [`tests/spec.json`](../../tests/spec.json). Review changes with the
+in [`tests/spec.json`](../../../tests/spec.json). Review changes with the
 [allocation baseline protocol](../testing.md#allocation-baselines).

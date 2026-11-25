@@ -12,8 +12,9 @@ PDF or searchable Markdown. The maintained chapter sources use AsciiDoc:
 - [Migrate to named arguments](migrating-named-arguments.adoc): update positional calls.
 
 The [API reference](https://lukewilliamboswell.github.io/roc-pdf/) documents public
-types and functions. Contributor workflows and retained validation evidence live
-in [development/](../development/README.md).
+types and functions. The manual also covers [contributing](contributing.adoc)
+and [testing](testing.adoc). Find implementation contracts and retained evidence
+in the [contributor reference](contributors/README.md).
 
 ## Release notes
 

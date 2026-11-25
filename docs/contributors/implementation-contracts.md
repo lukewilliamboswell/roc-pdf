@@ -1,9 +1,9 @@
 # Versioned Implementation Contracts
 
-[architecture.md](../architecture.md) owns enduring package, stage, ownership,
+[architecture.md](../../architecture.md) owns enduring package, stage, ownership,
 conformance, determinism, and performance decisions. This record preserves the
 binding representation and repository-harness details used to implement those
-decisions. The [roadmap](../feature-roadmap.md) owns capability availability and
+decisions. The [roadmap](../../feature-roadmap.md) owns capability availability and
 evidence; inclusion here does not establish a public capability.
 
 These contracts were extracted from the architecture without changing their
@@ -195,32 +195,8 @@ copy a list that the same program built alone updates in place, even though
 bytes and work counters are identical. Building fixtures without the cache
 makes each case's allocation evidence independent of build order and cache
 state. A reproduction of the cache dependence is recorded in
-[upstream-roc-uniqueness-issue.md](performance/upstream-roc-uniqueness-issue.md)
+[upstream-roc-uniqueness-issue.md](https://github.com/lukewilliamboswell/roc-pdf/blob/4b247670ec05e8aa78c1d03a7002a00d820ceeda/development/performance/upstream-roc-uniqueness-issue.md)
 (B). A case's
 static PDF/A-4 claim is declared by its `pdfa4` validator; Standard-only
 snapshots must never declare PDF/A identification, and
 `scripts/check_pdfa4.py` enforces both directions.
-
-## Scope decisions (2026-09-28)
-
-The maintainer refocused the project's goals on correctness to stop gates from
-accumulating evidence that does not affect whether generated PDFs are right.
-[architecture.md](../architecture.md), the [roadmap](../feature-roadmap.md),
-and `AGENTS.md` now state that:
-
-- Performance evidence exists to catch super-linear or exponential blow-ups
-  that would make the package unusable. Exact per-case Roc allocation counts,
-  deterministic work counters, and the pinned-compiler re-baseline protocol
-  remain mandatory and unchanged; every scalable feature carries at least one
-  small/large scale pair proving linear or `n log n` work growth.
-- There are no numeric latency, peak-memory, throughput, output-size, or
-  benchmark product targets, and no controlled timing or memory jobs. Copied
-  bytes, ARC counts, retained bytes, peak RSS, and timing are recorded only
-  where existing instrumentation reports them.
-- Human reader and assistive-technology review, expert review, and assessor
-  sign-off are optional recorded protocols that do not block Gate 6, Gate 7,
-  or later closure. Human-verifiable requirements remain recorded as author
-  obligations, and the package still never claims to certify semantic quality.
-- Machine-verifiable conformance (veraPDF profiles, PDF/UA-2 and PDF/A-4
-  ledger rules, structural checks, and atomic negative twins), determinism,
-  ownership, and no-fallback invariants are unchanged.

@@ -250,7 +250,7 @@ They are within the ceiling and left for a reviewed rebaseline.
 ## Deferred
 
 Closed by the reference-documents upgrade
-([reference-documents-upgrade.md](reference-documents-upgrade.md)), with
+([reference-documents-upgrade.md](https://github.com/lukewilliamboswell/roc-pdf/blob/4b247670ec05e8aa78c1d03a7002a00d820ceeda/development/performance/reference-documents-upgrade.md)), with
 every PDF byte unchanged:
 
 - `Layout.Unit` ordering methods (`is_lt`, `is_lte`, `is_gt`, `is_gte`);
