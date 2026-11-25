@@ -1464,6 +1464,12 @@ Only typed lowering modules may construct the private generic object model:
 - Indirect reference.
 - Stream with explicit dictionary, bytes source, and filter plan.
 
+Plain PDF text values use printable-ASCII PDFDocEncoding or BOM-prefixed
+UTF-16BE. They reject U+001B, which ISO 32000-2 7.9.2.2.2 reserves for
+language escapes inside Unicode text strings. Inline ActualText enforces the
+same rule before committing content bytes. Binary byte strings preserve each
+octet through literal or hexadecimal escaping.
+
 Before serialization the plan establishes:
 
 - Every indirect object and reference.

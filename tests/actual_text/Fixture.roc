@@ -2257,3 +2257,30 @@ expect {
 	bytes = KernelEmit.to_bytes(structure)?
 	!bytes.is_empty() and roles.contains(Str.to_utf8("DocumentFragment")) and roles.contains(Str.to_utf8("H")) and roles.contains(Str.to_utf8("H1"))
 }
+
+# Reject a language escape in an occurrence-owned replacement before emitting ActualText.
+expect {
+	sample = build_sample({})?
+	occurrence = list_at(semantics.occurrences, 0)
+	override = Str.from_utf8([65, 27, 101, 110, 27, 66]) ?? crash "invalid test text"
+	override_semantics = {
+		..semantics,
+		occurrences: [{ ..occurrence, text_properties: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }) }],
+		text_properties: [ActualText(override)],
+	}
+	validated = KernelTextSemantics.Plan.build(
+		override_semantics,
+		1,
+		1,
+		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
+		KernelTextSemantics.Limits.make({ max_text_properties: 1, max_text_property_bytes: 6, max_text_source_bytes: 2, max_text_source_scalars: 2, max_text_sources: 1 }),
+	)?
+	run = list_at(sample.shape.store.runs, 0)
+	text = { ..sample.shape.store, runs: [{ ..run, actual_text: SemanticOverride(Semantics.TextPropertyId.from_index(0)) }] }
+	ownership = KernelTextOwnership.Plan.build(validated, sample.scene, text)?
+	limits = KernelPdfText.Limits.make({ max_actual_text_scalars: 6, max_content_bytes: 512, max_mappings: 2, max_placements: 1, max_source_scalars: 2 })
+	match KernelPdfText.ScenePlan.build(ownership, [sample.font_plan], limits) {
+		Err(ActualTextLanguageEscape({ run: 0, scalar: 1 })) => True
+		_ => False
+	}
+}

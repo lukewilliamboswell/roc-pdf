@@ -38,6 +38,11 @@ report = Pdf.document({
 })
 ----
 
+Page-label prefixes, outline titles, and alternative descriptions take plain
+text. PDF reserves U+001B (ESC) for inline language directives, so roc-pdf
+rejects that character in PDF text values. Set the document or inline
+language with the supplied language fields.
+
 Group related blocks with `Pdf.part`, `Pdf.section`, and `Pdf.division`. They
 become PDF 2.0 `Part`, `Sect`, and `Div` structure elements around their
 children, in authored order; headings inside keep their explicit `H1`..`H6`

@@ -1601,8 +1601,8 @@ image_error = |image| match image {
 ## `Output.Structure.TaggedObjects.Object.LimitExceeded`, becomes the stable
 ## feature `pipeline.output.structure.tagged_objects.object.limit_exceeded`.
 ## A crossed limit is a `BudgetExceeded` with the attempted value and the
-## limit in the message; any other failure is an `InternalInvariant`, a
-## package defect reported instead of an unlocated catch-all.
+## limit in the message. Unsupported plain text is an authoring error.
+## Other failures report an `InternalInvariant` with its exact stage.
 stage_error : KernelFacadePipeline.Error -> Pdf.Error
 stage_error = |error| {
 	described = KernelFacadeFailure.pipeline(error)
@@ -1610,6 +1610,7 @@ stage_error = |error| {
 	match described.category {
 		Budget => InvalidDocument(located_batch(BudgetExceeded, feature, "A preparation limit was crossed (${described.path}: ${described.detail}); no partial document is accepted.", [described.path]))
 		Invariant => InvalidDocument(located_batch(InternalInvariant, feature, "A compiler stage rejected an internal precondition (${described.path}: ${described.detail}). This is a package defect, not an authoring error; please report it with the document.", [described.path]))
+		UnsupportedText => InvalidDocument(located_batch(FeatureUnavailable, feature, "Plain PDF text reserves U+001B for language changes (${described.path}: ${described.detail}). Remove the escape character from the text.", [described.path]))
 	}
 }
 
@@ -4302,6 +4303,22 @@ expect {
 	).map(|entry| store.values.get(entry.value.index()))
 	rejected and match starts {
 		[Ok(Integer(value))] => value == I64.highest
+		_ => False
+	}
+}
+
+# A plain authored label cannot introduce an inline PDF language change.
+expect {
+	prefix = Str.from_utf8([65, 27, 101, 110, 27, 66]) ?? crash "invalid test text"
+	doc = Pdf.document({
+		contents: [Pdf.paragraph("Body")],
+		language: "en-AU",
+		page_labels: [{ prefix, start_page: 0, style: DecimalArabic, start_number: 1 }],
+		title: "Plain page label",
+	})
+	match Pdf.to_bytes_with(doc, { profile: Standard }) {
+		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature(feature), message, .. }], .. })) =>
+			feature.ends_with(".lexical.text_string_language_escape") and message.contains("U+001B") and message.contains("byte: 1")
 		_ => False
 	}
 }

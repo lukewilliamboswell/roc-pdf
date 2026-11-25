@@ -325,8 +325,7 @@ KernelObject :: [].{
 	add_text_string : Builder, Str -> Try({ builder : Builder, id : TextStringId }, Error)
 	add_text_string = |builder, text| {
 		{ limits, store, total_byte_string_bytes, total_name_bytes, total_payload_bytes, total_text_string_bytes, work } = builder
-		lexical_text = KernelLex.Text.from_str(text)
-		byte_length = KernelLex.Text.bytes(lexical_text).len()
+		byte_length = text.count_utf8_bytes()
 		match checked_increment(store.text_strings.len(), limits.max_text_strings, TextStrings) {
 			Err(error) => Err(error)
 			Ok(_) => match checked_total(total_text_string_bytes, byte_length, limits.max_text_string_bytes, TextStringBytes) {
@@ -342,6 +341,7 @@ KernelObject :: [].{
 				) {
 					Err(error) => Err(error)
 					Ok(next_work) => {
+						lexical_text = KernelLex.Text.from_str(text) ? Lexical
 						id = TextStringId.from_index(store.text_strings.len())
 						Ok({
 							builder: {

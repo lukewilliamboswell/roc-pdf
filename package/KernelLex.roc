@@ -1,5 +1,5 @@
 KernelLex :: [].{
-	Error : [DecimalScaleOutOfRange(U8), NullNameByte(U64)]
+	Error : [DecimalScaleOutOfRange(U8), NullNameByte(U64), TextStringLanguageEscape({ byte : U64 })]
 
 	Name :: List(U8).{
 		from_bytes : List(U8) -> Try(Name, Error)
@@ -21,8 +21,22 @@ KernelLex :: [].{
 	}
 
 	Text :: List(U8).{
-		from_str : Str -> Text
-		from_str = |value| Text.(Str.to_utf8(value))
+
+		## Unicode PDF text reserves U+001B for language escapes
+		## (ISO 32000-2 7.9.2.2.2). In PDFDocEncoding, byte 0x1B
+		## denotes a different character.
+		from_str : Str -> Try(Text, Error)
+		from_str = |value| {
+			utf8 = Str.to_utf8(value)
+			var $index = 0
+			while $index < utf8.len() {
+				if byte_at(utf8, $index) == 27 {
+					return Err(TextStringLanguageEscape({ byte: $index }))
+				}
+				$index = $index + 1
+			}
+			Ok(Text.(utf8))
+		}
 
 		bytes : Text -> List(U8)
 		bytes = |Text.(input_bytes)| input_bytes
@@ -80,8 +94,11 @@ KernelLex :: [].{
 	## characters, under the byte-string rule. Any other text is UTF-16BE with a
 	## BOM in canonical uppercase hex. Roc Str supplies valid UTF-8, so
 	## malformed encodings cannot cross this API.
-	text_string : Str -> List(U8)
-	text_string = |value| write_text_string([], value)
+	text_string : Str -> Try(List(U8), Error)
+	text_string = |value| {
+		text = Text.from_str(value)?
+		Ok(append_text([], text))
+	}
 
 	append_boolean : List(U8), Bool -> List(U8)
 	append_boolean = |output, value| append_keyword_boolean(output, value)
@@ -122,9 +139,6 @@ KernelLex :: [].{
 
 	append_hex_string : List(U8), List(U8) -> List(U8)
 	append_hex_string = |output, bytes| write_hex_string(output, bytes)
-
-	append_text_string : List(U8), Str -> List(U8)
-	append_text_string = |output, value| write_text_string(output, value)
 
 	append_text : List(U8), Text -> List(U8)
 	append_text = |output, value| write_text_utf8(output, Text.bytes(value))
@@ -702,9 +716,6 @@ write_hex_string = |output, bytes| {
 	$out.append(62)
 }
 
-write_text_string : List(U8), Str -> List(U8)
-write_text_string = |output, value| write_text_utf8(output, Str.to_utf8(value))
-
 write_text_utf8 : List(U8), List(U8) -> List(U8)
 write_text_utf8 = |output, utf8| {
 	var $ascii = True
@@ -835,8 +846,22 @@ expect {
 }
 expect KernelLex.byte_string([0, 255]) == Str.to_utf8("<00FF>")
 expect KernelLex.byte_string([]) == Str.to_utf8("<>")
-expect KernelLex.text_string("A😀") == Str.to_utf8("<FEFF0041D83DDE00>")
-expect KernelLex.text_string("é水") == Str.to_utf8("<FEFF00E96C34>")
+expect KernelLex.text_string("A😀") == Ok(Str.to_utf8("<FEFF0041D83DDE00>"))
+expect KernelLex.text_string("é水") == Ok(Str.to_utf8("<FEFF00E96C34>"))
+
+expect {
+	# The encoding marker and an authored leading U+FEFF are distinct.
+	value = Str.from_utf8([239, 187, 191, 13, 10]) ?? crash "invalid test text"
+	KernelLex.text_string(value) == Ok(Str.to_utf8("<FEFFFEFF000D000A>"))
+}
+
+expect {
+	# The leading two-byte scalar makes the error location a UTF-8 byte
+	# offset. The same control remains valid binary data.
+	value = Str.from_utf8([195, 169, 27, 101, 110, 27, 66]) ?? crash "invalid test text"
+	KernelLex.text_string(value) == Err(TextStringLanguageEscape({ byte: 2 })) and
+		KernelLex.byte_string([27]) == Str.to_utf8("<1B>")
+}
 
 expect {
 	match KernelLex.Decimal.from_coefficient(1, 9) {
@@ -863,9 +888,9 @@ expect KernelLex.byte_string(Str.to_utf8("c000008")) == Str.to_utf8("(c000008)")
 				KernelLex.byte_string([]) == Str.to_utf8("<>")
 
 # Printable-ASCII text is written as PDFDocEncoding bytes; other text is UTF-16BE.
-expect KernelLex.text_string("en-AU") == Str.to_utf8("(en-AU)") and
-	KernelLex.text_string("Café") == Str.to_utf8("<FEFF00430061006600E9>") and
-		KernelLex.text_string("") == Str.to_utf8("<>")
+expect KernelLex.text_string("en-AU") == Ok(Str.to_utf8("(en-AU)")) and
+	KernelLex.text_string("Café") == Ok(Str.to_utf8("<FEFF00430061006600E9>")) and
+		KernelLex.text_string("") == Ok(Str.to_utf8("<>"))
 
 compare_iterators : Iter(U8), Iter(U8) -> [Equal, Greater, Less]
 compare_iterators = |left, right| {

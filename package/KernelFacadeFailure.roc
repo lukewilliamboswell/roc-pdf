@@ -61,7 +61,7 @@ import Text
 ## categories are explicit; debug representations supply bounded detail only.
 ## Private module: no PDF object or compiler error types enter the public API.
 KernelFacadeFailure :: [].{
-	Failure : { category : [Budget, Invariant], feature : Str, path : Str, detail : Str }
+	Failure : { category : [Budget, Invariant, UnsupportedText], feature : Str, path : Str, detail : Str }
 
 	pipeline : KernelFacadePipeline.Error -> Failure
 	pipeline = |error| kernel_facade_pipeline_error(error)
@@ -76,7 +76,7 @@ context = |{ feature, path, cause }| { ..cause, feature: "${feature}.${cause.fea
 
 ## Diagnostic detail is explanatory and bounded. It cannot select a feature
 ## or category, including when strings contain text resembling error tags.
-leaf : { category : [Budget, Invariant], feature : Str, path : Str, inspected : Str } -> KernelFacadeFailure.Failure
+leaf : { category : [Budget, Invariant, UnsupportedText], feature : Str, path : Str, inspected : Str } -> KernelFacadeFailure.Failure
 leaf = |{ category, feature, path, inspected }| {
 	bytes = inspected.to_utf8()
 	detail = if bytes.len() <= 160 {
@@ -552,6 +552,7 @@ kernel_font_subset_error = |error| match error {
 
 kernel_pdf_text_error : KernelPdfText.Error -> KernelFacadeFailure.Failure
 kernel_pdf_text_error = |error| match error {
+	ActualTextLanguageEscape(_) => leaf({ category: UnsupportedText, feature: "actual_text_language_escape", path: "ActualTextLanguageEscape", inspected: Str.inspect(error) })
 	ActualTextRequired(_) => leaf({ category: Invariant, feature: "actual_text_required", path: "ActualTextRequired", inspected: Str.inspect(error) })
 	ArithmeticOverflow => leaf({ category: Invariant, feature: "arithmetic_overflow", path: "ArithmeticOverflow", inspected: Str.inspect(error) })
 	ClusterInvalid(_) => leaf({ category: Invariant, feature: "cluster_invalid", path: "ClusterInvalid", inspected: Str.inspect(error) })
@@ -920,6 +921,7 @@ kernel_lex_error : KernelLex.Error -> KernelFacadeFailure.Failure
 kernel_lex_error = |error| match error {
 	DecimalScaleOutOfRange(_) => leaf({ category: Invariant, feature: "decimal_scale_out_of_range", path: "DecimalScaleOutOfRange", inspected: Str.inspect(error) })
 	NullNameByte(_) => leaf({ category: Invariant, feature: "null_name_byte", path: "NullNameByte", inspected: Str.inspect(error) })
+	TextStringLanguageEscape(_) => leaf({ category: UnsupportedText, feature: "text_string_language_escape", path: "TextStringLanguageEscape", inspected: Str.inspect(error) })
 }
 
 kernel_object_dimension : KernelObject.Dimension -> KernelFacadeFailure.Failure

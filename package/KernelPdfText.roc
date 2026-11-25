@@ -14,6 +14,7 @@ import unicode.Scalar
 KernelPdfText :: [].{
 	Dimension : [ActualTextScalars, ContentBytes, Mappings, Placements, SourceScalars]
 	Error : [
+		ActualTextLanguageEscape({ run : U64, scalar : U64 }),
 		ActualTextRequired({ run : U64 }),
 		ArithmeticOverflow,
 		ClusterInvalid({ cluster : U64, run : U64 }),
@@ -897,7 +898,12 @@ append_actual_text_begin = |bytes, scalars, run, limit| {
 	var $out = append_literal(bytes, "/Span <</ActualText <FEFF", limit)?
 	var $index = 0
 	while $index < scalars.len() {
-		$out = append_utf16_scalar($out, list_at(scalars, $index), run, limit)?
+		scalar = list_at(scalars, $index)
+		# ActualText uses PDF text-string semantics.
+		if scalar == 27 {
+			return Err(ActualTextLanguageEscape({ run, scalar: $index }))
+		}
+		$out = append_utf16_scalar($out, scalar, run, limit)?
 		$index = $index + 1
 	}
 	append_literal($out, ">>> BDC\n", limit)
