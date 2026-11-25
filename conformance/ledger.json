@@ -630,9 +630,10 @@
       ],
       "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "roc_facade_and_kernel_expects; tables_harness_family_with_structure_semantics_table_checks_for_grid_regularity_scope_headers_idtree_header_once_and_pagination_artifacts; rich_inline_logical_order_checks; atomic_table_negatives_emit_no_bytes",
+      "machine_verification": "roc_facade_and_kernel_expects; bounded_authored_grid_oracle_for_exact_scope_headers_and_typed_edges; tables_harness_family_with_structure_semantics_table_checks_for_grid_regularity_scope_headers_idtree_header_once_and_pagination_artifacts; rich_inline_logical_order_checks; atomic_table_negatives_emit_no_bytes",
       "human_verification": "not_required",
       "positive_scenarios": [
+        "fuzz/TableHeaderModel.roc",
         "package/Pdf.roc",
         "tests/tables/Cases.roc"
       ],
