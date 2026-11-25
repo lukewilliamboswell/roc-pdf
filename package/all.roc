@@ -66,6 +66,7 @@ package
 		KernelPdfA4,
 		KernelPdfFont,
 		KernelPdfText,
+		KernelPdfUa2,
 		KernelPipelineFixture,
 		KernelReferenceLayout,
 		KernelResource,

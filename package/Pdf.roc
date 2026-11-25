@@ -373,13 +373,29 @@ Pdf :: [].{
 		SourceFragmentPlaced({ page : U64, part : [First, Last, Middle, Whole], path : Str, rect : Layout.Rect, visual_lines : { count : U64, first : U64 } }),
 	]
 
-	## One human-review obligation at an authored location: whether a
-	## figure's alternative text conveys what it communicates, whether the
-	## reading order of the document (`document`) and of each custom block
-	## is meaningful, whether a table's header cells head their data, whether
-	## a link's text states its purpose, whether a declared language covers
-	## exactly its text, and whether an expansion is accurate.
-	ReportObligation : { obligation : [AlternativeTextMeaningful, ExpansionAccurate, LanguageAccurate, LinkPurposeMeaningful, ReadingOrderMeaningful, TableHeadersMeaningful], path : Str }
+	## A human-review obligation at an authored location. Combined-profile
+	## preparation adds document-level checks for semantics, title, text
+	## equivalence, artifact classification, page labels and embedding rights,
+	## with outline and annotation order obligations where applicable.
+	ReportObligation : {
+		obligation : [
+			AlternativeTextMeaningful,
+			AnnotationOrderMeaningful,
+			ArtifactClassificationMeaningful,
+			DocumentTitleAccurate,
+			ExpansionAccurate,
+			FontEmbeddingRightsConfirmed,
+			LanguageAccurate,
+			LinkPurposeMeaningful,
+			OutlineMeaningful,
+			PageLabelsAccurate,
+			ReadingOrderMeaningful,
+			StructureMeaningful,
+			TableHeadersMeaningful,
+			TextEquivalentAccurate,
+		],
+		path : Str,
+	}
 
 	## The report's explicit budget: its total entry count (65,536 unless
 	## given) and the bytes of its materialized paths and texts (4 MiB
@@ -952,7 +968,7 @@ Pdf :: [].{
 			UnavailableFeature({ feature, summary }) => return Err(InvalidDocument(unavailable_batch(feature, summary)))
 		}
 		{ facts, normalized, plan } = build_reporting_plan(doc, options)?
-		report = build_report(normalized, facts, budget)?
+		report = build_report(normalized, facts, budget, options.profile)?
 		Ok({ prepared: Prepared.(plan), report })
 	}
 
@@ -3925,8 +3941,8 @@ report_figure_invariant = |detail| InvalidDocument(located_batch(InternalInvaria
 ## Exceeding either is `report.budget_exceeded`: an explicit error, never
 ## a report with fewer entries or obligations. Leaf paths are computed in
 ## one linear pass; each is shared by that leaf's entries.
-build_report : Document.NormalizedAuthoring, [Facts(KernelFacadeReport.Facts), NoFacts], Pdf.ReportBudget -> Try(Pdf.Report, Pdf.Error)
-build_report = |normalized, collected, budget| {
+build_report : Document.NormalizedAuthoring, [Facts(KernelFacadeReport.Facts), NoFacts], Pdf.ReportBudget, Pdf.Profile -> Try(Pdf.Report, Pdf.Error)
+build_report = |normalized, collected, budget, profile| {
 	validate_report_figures(normalized, collected)?
 	facts = match collected {
 		Facts(value) => value
@@ -3934,7 +3950,11 @@ build_report = |normalized, collected, budget| {
 	}
 	inline_counts = count_inline_entries(normalized)
 	link_blocks = count_link_blocks(normalized)
-	obligation_count = 2 + normalized.figures.len() + normalized.tables.len() + normalized.customs.len() + normalized.callouts.len() + link_blocks + inline_counts.links + inline_counts.languages + inline_counts.expansions
+	combined = profile == AccessibleArchive
+	outline_review = combined and !normalized.outline.is_empty()
+	annotation_review = combined and (link_blocks > 0 or inline_counts.links > 0 or !normalized.contents_entries.is_empty())
+	profile_obligations = if (combined) accessible_document_obligations.len() else 0
+	obligation_count = 2 + profile_obligations + (if (outline_review) 1 else 0) + (if (annotation_review) 1 else 0) + normalized.figures.len() + normalized.tables.len() + normalized.customs.len() + normalized.callouts.len() + link_blocks + inline_counts.links + inline_counts.languages + inline_counts.expansions
 	alternative_count = normalized.figures.len() + inline_counts.languages + inline_counts.expansions
 	outcome_count = facts.layout.references.len() + facts.layout.scope_pages.len() + facts.layout.callouts.len() + facts.layout.relaxations.len() + normalized.figures.len() + facts.layout.repeats.len() + facts.layout.splits.len() + facts.layout.panels.len() + facts.layout.source_fragments.len()
 	entries = facts.pages.len() + normalized.blocks.len() + alternative_count + outcome_count + facts.coverage.len() + obligation_count
@@ -3989,6 +4009,17 @@ build_report = |normalized, collected, budget| {
 	var $obligations = List.with_capacity(obligation_count)
 	$obligations = $obligations.append({ obligation: ReadingOrderMeaningful, path: "document" })
 	$obligations = $obligations.append({ obligation: LanguageAccurate, path: "document" })
+	if combined {
+		for obligation in accessible_document_obligations {
+			$obligations = $obligations.append(obligation)
+		}
+	}
+	if outline_review {
+		$obligations = $obligations.append({ obligation: OutlineMeaningful, path: "outline" })
+	}
+	if annotation_review {
+		$obligations = $obligations.append({ obligation: AnnotationOrderMeaningful, path: "document" })
+	}
 
 	## Figures, in figure order, with their alternative text, their fit
 	## outcome, and their alternative-text obligation.
@@ -4124,6 +4155,16 @@ build_report = |normalized, collected, budget| {
 	}
 	Ok(report)
 }
+
+accessible_document_obligations : List(Pdf.ReportObligation)
+accessible_document_obligations = [
+	{ obligation: DocumentTitleAccurate, path: "title" },
+	{ obligation: StructureMeaningful, path: "document" },
+	{ obligation: ArtifactClassificationMeaningful, path: "document" },
+	{ obligation: PageLabelsAccurate, path: "document" },
+	{ obligation: TextEquivalentAccurate, path: "document" },
+	{ obligation: FontEmbeddingRightsConfirmed, path: "document" },
+]
 
 report_budget_error : Str, U64, U64 -> Pdf.Error
 report_budget_error = |dimension, required, limit| InvalidDocument(located_batch(BudgetExceeded, "report.budget_exceeded", "The preparation report needs ${required.to_str()} ${dimension} but its budget allows ${limit.to_str()}; no report entry or obligation is omitted to fit, so no report and no prepared document are returned.", []))
@@ -4612,7 +4653,7 @@ expect {
 	drawing = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 20, height: 20 }), color: Color.srgb8({ blue: 0, green: 0, red: 0 }) })
 	normalized = Document.normalize(Pdf.document({ contents: [Pdf.figure({ drawing, alt: "First", caption: Pdf.no_caption }), Pdf.figure({ drawing, alt: "Second", caption: Pdf.no_caption, fit: ScaleToFit({ minimum_percent: 50 }) })], language: "en", title: "Report facts" }))
 	facts = { blocks: [], coverage: [], layout: { references: [], scope_pages: [], callouts: [], panels: [], relaxations: [], repeats: [], scales: [1000, 500], source_fragments: [], splits: [] }, pages: [2] }
-	match build_report(normalized, Facts(facts), default_report_budget) {
+	match build_report(normalized, Facts(facts), default_report_budget, Archive) {
 		Ok(report) => report.facts.outcomes == [FigureScale({ fit: Exact, path: "contents[0]", scale: 1000 }), FigureScale({ fit: ScaleToFit, path: "contents[1]", scale: 500 })] and report.obligations.count_if(|entry| entry.obligation == AlternativeTextMeaningful) == 2
 		Err(_) => False
 	}
@@ -4621,8 +4662,27 @@ expect {
 # The legitimate empty-document NoFacts path keeps its one-page report.
 expect {
 	normalized = Document.normalize(Pdf.document({ contents: [], language: "en", title: "Empty report" }))
-	match build_report(normalized, NoFacts, default_report_budget) {
+	match build_report(normalized, NoFacts, default_report_budget, Archive) {
 		Ok(report) => report.facts.pages == [{ page: 1, fragments: 1 }] and report.facts.blocks.is_empty() and report.facts.outcomes.is_empty() and report.obligations.len() == 2
 		Err(_) => False
 	}
+}
+
+# Combined-profile review obligations are included in the preparation budget.
+# A report with enough room for the Archive entries alone fails atomically.
+expect {
+	archive = Pdf.prepare_with_report(archive_twin_document, { profile: Archive })?
+	combined = Pdf.prepare_with_report(archive_twin_document, { profile: AccessibleArchive })?
+	report = combined.report
+	facts = archive.report.facts
+	archive_entries = facts.alternatives.len() + facts.blocks.len() + facts.coverage.len() + facts.outcomes.len() + facts.pages.len() + archive.report.obligations.len()
+	over_budget = match Pdf.prepare_with_report_budget(archive_twin_document, { options: { profile: AccessibleArchive }, budget: { max_entries: archive_entries } }) {
+		Err(InvalidDocument({ diagnostics: [{ feature: Feature("report.budget_exceeded"), .. }], .. })) => True
+		_ => False
+	}
+	report.obligations.len() == archive.report.obligations.len() + 8
+		and accessible_document_obligations.all(|obligation| report.obligations.contains(obligation))
+		and report.obligations.contains({ obligation: OutlineMeaningful, path: "outline" })
+		and report.obligations.contains({ obligation: AnnotationOrderMeaningful, path: "document" })
+		and over_budget
 }
