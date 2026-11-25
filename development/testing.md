@@ -191,6 +191,17 @@ emitter. It proves the 47-bit stream ordinal and 16-bit member index round-trip
 and distinguishes compressed slots from offsets below the high-bit marker.
 A concrete maximum-value check exercises the emitter's U64 helpers.
 
+| Contract | Oracle and scope |
+| --- | --- |
+| First-page breaking | `fuzz/page_break_model.roc` exhausts up to three blocks of measured unit rows across four frame heights. It enumerates fitting legal cuts and compares the chosen prefix and ordered relaxations or exact failure. Geometry, shaping, and continuation policy have separate fixture coverage. |
+| Reference wrapping | `fuzz/reference_wrap_model.roc` checks up to four measured items. It sums independent partitions for intrinsic widths and enumerates legal line ends for wrapping, including mandatory breaks, held cuts, and fixed-width reference atoms. A separate builder-authored fixture checks I64 overflow in both measurement and wrapping. |
+| Canonical resource graphs | `fuzz/resource_graph_model.roc` derives identity by byte rank in one forced collision bucket, grows reachability as a set, and selects the smallest ready node by recomputing the ready set. It compares dictionaries, direct dependencies, order, and diagnostics. Three-resource cases distinguish direct from transitive dependencies, ready priority after an insertion, and a cycle reached after a partial schedule. |
+| Stream sealing | The [stream-pair model](performance/sealed-plan.md#bounded-stream-pair-model) compares builder histories with a ledger of ownership, object order, references, and last payload use. |
+| Page-tree child spans | `fuzz/page_tree_arithmetic.roc` proves that one level's fixed-fanout partition covers every child exactly once through the structural page cap. It uses the scalar terms from production, then walks concrete shapes at fanout boundaries and the cap to check dense offsets. |
+| Dense-store spans | `fuzz/dense_span_arithmetic.roc` proves endpoint validation across all U64 inputs and checks the concrete helper against U128 addition. It then uses a solver-produced wraparound witness to test the actual scene planner and its diagnostic, alongside a valid empty range. |
+
+Use exhaustive Model exploration when transition order matters and the authored world is small enough to enumerate. Use Solve on the scalar domain when integer boundaries are too numerous to enumerate. Shared arithmetic terms connect the proof to the implementation, while concrete cases check that callers enforce the proof's domain and use the result. Existing scale fixtures measure the full path, and the fuzz campaigns exercise larger and less structured inputs for their registered properties.
+
 ## Property fuzz targets
 
 The bounded property targets in `fuzz/` are evidence-only applications on the
