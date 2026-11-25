@@ -1624,6 +1624,41 @@ expect {
 	result.work.get(10) == Ok(5) and result.work.get(13) == Ok(5) and result.work.get(32) == Ok(5) and result.work.get(33) == Ok(5)
 }
 
+# ISO 32000-2 Table 79 assigns the first /Extend operand to the start and
+# the second to the end. Inspect each authored direction independently so
+# swapping the two emitted values cannot pass by preserving their set.
+expect {
+	start = run_pipeline(extension_scenario([(True, False)]))?
+	end = run_pipeline(extension_scenario([(False, True)]))?
+	start_objects = KernelEmit.object_text(KernelFormStructure.Plan.structure(start.structure)) ? |_| EmitFailure
+	end_objects = KernelEmit.object_text(KernelFormStructure.Plan.structure(end.structure)) ? |_| EmitFailure
+	Str.from_utf8_lossy(start_objects).contains("/Extend [true false] ") and
+		Str.from_utf8_lossy(end_objects).contains("/Extend [false true] ")
+}
+
+# Opposite extensions change the shaded region but share the same interval
+# function. Keep both resources even when every other authored fact agrees.
+expect {
+	paired = run_pipeline(extension_scenario([(True, False), (False, True)]))?
+	objects = KernelEmit.object_text(KernelFormStructure.Plan.structure(paired.structure)) ? |_| EmitFailure
+	lines = Str.from_utf8_lossy(objects).split_on("\n")
+	lines.keep_if(|line| line.contains("/ShadingType 2 ")).len() == 2 and
+		lines.keep_if(|line| line.contains("/FunctionType 2 ")).len() == 1
+}
+
+extension_scenario : List((Bool, Bool)) -> Scenario
+extension_scenario = |extensions| {
+	base = shading_grid(extensions.len(), Distinct)
+	stops = List.join(List.repeat(base.shadings.stops.take_first(2), extensions.len()))
+	shadings = base.shadings.shadings.map_with_index(
+		|shading, index| {
+			(extend_start, extend_end) = list_at(extensions, index)
+			{ ..shading, extend_start, extend_end }
+		},
+	)
+	{ ..base, shadings: { shadings, stops } }
+}
+
 # One shading with N stops derives N-1 segments plus one stitch.
 expect {
 	result = Fixture.scenario("stops", 5)?
