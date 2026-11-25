@@ -28,10 +28,10 @@ that:
 - the catalog `/Names /Dests` name tree holds strictly ascending byte-string
   keys with correct non-root `/Limits`, and every named-destination value
   dictionary carries the same paired `/D` and `/SD` facts (pdf-issues #162);
-- the catalog `/Outlines` tree preserves authored preorder: `/First`,
-  `/Last`, `/Prev`, `/Next`, and `/Parent` links are mutually consistent,
-  every `/Count` equals the independently recomputed visible-descendant
-  count, and every `/Dest` name resolves through the name tree;
+- the catalog `/Outlines` tree has consistent `/First`, `/Last`, `/Prev`,
+  `/Next`, and `/Parent` links, item counts agree with the state expressed by
+  their signs, the root count is present only when at least one item is open,
+  and every `/Dest` resolves through the name tree;
 - the catalog `/PageLabels` number tree holds strictly ascending integer
   keys starting at 0 with only the closed `/S`, `/P`, `/St` vocabulary;
 - every `/AP` normal appearance references a Form XObject whose `/BBox` is
@@ -62,6 +62,8 @@ from check_pdf_structure import (
     validate_xref,
 )
 from check_forms import replace_once
+from check_structure_semantics import parse_object
+from pdf_layout import twin as layout_twin
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -347,12 +349,17 @@ def check_outline(bodies, root, named):
     require(b"/Type /Outlines" in root_body, "outline root missing /Type")
 
     def signed_count(body):
-        match = re.search(rb"/Count (-?\d+)", body)
-        return int(match.group(1)) if match else 0
+        dictionary = parse_object(body)
+        if "Count" not in dictionary:
+            return None
+        value = dictionary["Count"]
+        require(type(value) is int, "outline /Count is not an integer")
+        return value
 
     def children(parent_number):
         body = bodies[parent_number]
         if b"/First" not in body:
+            require(b"/Last" not in body, "outline /Last has no corresponding /First")
             return []
         first = dictionary_ref(body, b"First")
         last = dictionary_ref(body, b"Last")
@@ -380,19 +387,21 @@ def check_outline(bodies, root, named):
 
     def subtree_visible(parent_number):
         total = 0
+        has_open_item = False
         for item in children(parent_number):
             total += 1
-            body = bodies[item]
-            declared = signed_count(body)
-            below = subtree_visible(item)
-            if declared > 0:
+            declared = signed_count(bodies[item])
+            below, open_below = subtree_visible(item)
+            if below == 0:
+                require(declared in (None, 0), "outline leaf /Count is nonzero")
+            elif declared is not None and declared > 0:
                 require(declared == below, "open outline /Count mismatch")
                 total += below
-            elif declared < 0:
-                require(-declared == below, "closed outline /Count mismatch")
+                has_open_item = True
             else:
-                require(below == 0, "outline leaf with children")
-        return total
+                require(declared == -below, "closed outline /Count mismatch")
+            has_open_item |= open_below
+        return total, has_open_item
 
     total_items = 0
 
@@ -412,8 +421,11 @@ def check_outline(bodies, root, named):
             count_items(item)
 
     declared_root = signed_count(root_body)
-    require(declared_root == subtree_visible(outline_root), "outline root /Count mismatch")
-    require(declared_root >= 0, "outline root count cannot be negative")
+    visible, has_open_item = subtree_visible(outline_root)
+    require(
+        declared_root == (visible if has_open_item else None),
+        "outline root /Count presence or visibility mismatch",
+    )
     count_items(outline_root)
     return total_items
 
@@ -528,8 +540,14 @@ def self_test() -> None:
         check_navigation(pdf, {})
 
     showcase = SNAPSHOTS["showcase"].read_bytes()
+    wide = SNAPSHOTS["outline_wide_64"].read_bytes()
+    _, wide_objects = object_slices(wide)
+    wide_root = next(body.split(b"\n", 1)[0] for body in wide_objects.values() if b"/Type /Outlines" in body)
 
     mutations = [
+        ("open outline missing root Count", layout_twin(showcase, b"/Count 3 /First", b"/First", exactly_once=True)),
+        ("leaf-only outline with redundant root Count",
+         layout_twin(wide, wide_root, wide_root.replace(b"<< ", b"<< /Count 64 ", 1), exactly_once=True)),
         ("forbidden action type", replace_once(showcase, b"/S /GoTo", b"/S /GoUo")),
         ("SD-only pairing break", replace_once(showcase, b"/SD [", b"/XD [")),
         ("quad escaping its rect", replace_once(showcase, b"/QuadPoints [10 56 70 56 70 66 10 66",
@@ -571,7 +589,7 @@ def self_test() -> None:
         "PASS production-visual navigation structural checker self-test: paired /SD + /D "
         "actions, keyboard-ordered /Annots, OBJR/ParentTree linkage, the "
         "named-destination registry, outline preorder counts, page labels, "
-        "and appearance geometry verified on all sixteen snapshots; eleven "
+        "and appearance geometry verified on all sixteen snapshots; thirteen "
         "mutation twins rejected",
         flush=True,
     )

@@ -112,6 +112,7 @@ KernelOutline :: [].{
 	}
 
 	Plan :: {
+		has_open_items : Bool,
 		items : List(Item),
 		root_count : U64,
 		root_first : ItemId,
@@ -129,6 +130,9 @@ KernelOutline :: [].{
 
 		item_at : Plan, U64 -> Item
 		item_at = |plan, index| list_at(plan.items, index)
+
+		has_open_items : Plan -> Bool
+		has_open_items = |plan| plan.has_open_items
 
 		root_count : Plan -> U64
 		root_count = |plan| plan.root_count
@@ -279,6 +283,7 @@ finalize_counts : List(KernelOutline.Item), KernelOutline.ItemId, KernelOutline.
 finalize_counts = |items, root_first, root_last, initial_work| {
 	var $items = items
 	var $root_count = 0
+	var $has_open_items = False
 	var $count_accumulations = initial_work.count_accumulations
 	var $item_rewrites = initial_work.item_rewrites
 	var $index = $items.len()
@@ -286,7 +291,11 @@ finalize_counts = |items, root_first, root_last, initial_work| {
 		$index = $index - 1
 		item = list_at($items, $index)
 		magnitude = count_magnitude(item.count)
-		contribution = checked_add(1, if (count_is_open(item.count)) magnitude else 0)?
+		open = count_is_open(item.count)
+		if open and magnitude > 0 {
+			$has_open_items = True
+		}
+		contribution = checked_add(1, if (open) magnitude else 0)?
 		match item.parent {
 			OutlineRoot => {
 				$root_count = checked_add($root_count, contribution)?
@@ -310,6 +319,7 @@ finalize_counts = |items, root_first, root_last, initial_work| {
 
 	Ok(
 		KernelOutline.Plan.{
+			has_open_items: $has_open_items,
 			items: $items,
 			root_count: $root_count,
 			root_first,

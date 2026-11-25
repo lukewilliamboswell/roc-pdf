@@ -651,16 +651,33 @@ add_outline_objects = |builder, names, store, objects, max_depth| {
 
 	first_reference = KernelObject.add_reference($builder, item_object(objects, KernelOutline.Plan.root_first(outline))) ? Object
 	last_reference = KernelObject.add_reference(first_reference.builder, item_object(objects, KernelOutline.Plan.root_last(outline))) ? Object
-	root_count = KernelObject.add_integer(last_reference.builder, KernelOutline.Plan.root_count(outline).to_i64_wrap()) ? Object
-	root_type = KernelObject.add_name_value(root_count.builder, names.outlines) ? Object
-	root_dictionary = KernelObject.add_dictionary(
-		root_type.builder,
-		[
-			{ key: names.count, value: root_count.id },
-			{ key: names.first, value: first_reference.id },
-			{ key: names.last, value: last_reference.id },
-			{ key: names.type_name, value: root_type.id },
-		],
+
+	## Table 150 requires the root Count only when at least one item is
+	## open. Leaves have no open state in the serialized outline.
+	root_dictionary = (
+		if KernelOutline.Plan.has_open_items(outline) {
+			root_count = KernelObject.add_integer(last_reference.builder, KernelOutline.Plan.root_count(outline).to_i64_wrap()) ? Object
+			root_type = KernelObject.add_name_value(root_count.builder, names.outlines) ? Object
+			KernelObject.add_dictionary(
+				root_type.builder,
+				[
+					{ key: names.count, value: root_count.id },
+					{ key: names.first, value: first_reference.id },
+					{ key: names.last, value: last_reference.id },
+					{ key: names.type_name, value: root_type.id },
+				],
+			)
+		} else {
+			root_type = KernelObject.add_name_value(last_reference.builder, names.outlines) ? Object
+			KernelObject.add_dictionary(
+				root_type.builder,
+				[
+					{ key: names.first, value: first_reference.id },
+					{ key: names.last, value: last_reference.id },
+					{ key: names.type_name, value: root_type.id },
+				],
+			)
+		}
 	) ? Object
 	root_added = KernelObject.add_object(root_dictionary.builder, root_dictionary.id) ? Object
 	ensure_object(root_added.id, root_object)?

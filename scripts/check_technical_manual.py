@@ -191,7 +191,7 @@ def destinations(document: Document, pages: list[int], root: Node, nodes: dict[i
     require(count == 2 * len(nodes) + 1, 'manual link/name-tree destination occurrence set changed')
     outline_root = int(catalog['Outlines'])
     outline = document.get(outline_root)
-    require(outline['Count'] == len(nodes) + 1, 'manual outline count changed')
+    require('Count' not in outline, 'manual outline of leaves carries a root Count')
     cursor = int(outline['First']); observed = []; seen = set()
     while cursor:
         require(cursor not in seen, 'manual outline cycle')

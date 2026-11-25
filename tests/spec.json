@@ -18940,7 +18940,7 @@
             "quad_numbers": 0,
             "annotation_parent_rows": 0,
             "objects": 77,
-            "output_bytes": 1745
+            "output_bytes": 1740
           }
         },
         "x64musl": {
@@ -18962,7 +18962,7 @@
             "quad_numbers": 0,
             "annotation_parent_rows": 0,
             "objects": 77,
-            "output_bytes": 1745
+            "output_bytes": 1740
           }
         }
       },
@@ -19702,14 +19702,14 @@
           "allocations": 1485,
           "allocated_bytes": 3452518,
           "work": {
-            "output_bytes": 19292
+            "output_bytes": 19291
           }
         },
         "x64musl": {
           "allocations": 1485,
           "allocated_bytes": 3452518,
           "work": {
-            "output_bytes": 19292
+            "output_bytes": 19291
           }
         }
       },
@@ -19737,14 +19737,14 @@
           "allocations": 3866,
           "allocated_bytes": 6189748,
           "work": {
-            "output_bytes": 24024
+            "output_bytes": 24019
           }
         },
         "x64musl": {
           "allocations": 3866,
           "allocated_bytes": 6189748,
           "work": {
-            "output_bytes": 24024
+            "output_bytes": 24019
           }
         }
       },
@@ -20002,14 +20002,14 @@
           "allocations": 1484,
           "allocated_bytes": 3452196,
           "work": {
-            "output_bytes": 19178
+            "output_bytes": 19176
           }
         },
         "x64musl": {
           "allocations": 1484,
           "allocated_bytes": 3452196,
           "work": {
-            "output_bytes": 19178
+            "output_bytes": 19176
           }
         }
       },
@@ -25870,7 +25870,7 @@
             "report_obligations": 22,
             "report_coverage": 201,
             "observations": 3,
-            "output_bytes": 34988
+            "output_bytes": 34987
           }
         },
         "x64musl": {
@@ -25886,7 +25886,7 @@
             "report_obligations": 22,
             "report_coverage": 201,
             "observations": 3,
-            "output_bytes": 34988
+            "output_bytes": 34987
           }
         }
       },
@@ -25933,7 +25933,7 @@
             "report_obligations": 202,
             "report_coverage": 2037,
             "observations": 3,
-            "output_bytes": 159774
+            "output_bytes": 159760
           }
         },
         "x64musl": {
@@ -25949,7 +25949,7 @@
             "report_obligations": 202,
             "report_coverage": 2037,
             "observations": 3,
-            "output_bytes": 159774
+            "output_bytes": 159760
           }
         }
       },
@@ -31149,7 +31149,7 @@
             "reference_passes": 1,
             "field_resolutions": 33,
             "furniture_items": 15,
-            "output_bytes": 32946
+            "output_bytes": 32944
           }
         },
         "x64musl": {
@@ -31178,7 +31178,7 @@
             "reference_passes": 1,
             "field_resolutions": 33,
             "furniture_items": 15,
-            "output_bytes": 32946
+            "output_bytes": 32944
           }
         }
       },
@@ -31252,7 +31252,7 @@
             "reference_passes": 1,
             "field_resolutions": 303,
             "furniture_items": 141,
-            "output_bytes": 197924
+            "output_bytes": 197917
           }
         },
         "x64musl": {
@@ -31281,7 +31281,7 @@
             "reference_passes": 1,
             "field_resolutions": 303,
             "furniture_items": 141,
-            "output_bytes": 197924
+            "output_bytes": 197917
           }
         }
       },

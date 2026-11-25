@@ -1483,9 +1483,11 @@ representation based on an undocumented size heuristic.
 Document outlines are ordered linked hierarchies rather than balanced search
 trees. Planning preserves authored preorder and open/closed state and seals
 exact parent, sibling, first/last-child, and visible-descendant `Count` facts.
-It never inserts synthetic grouping items to balance sibling lists because
-those items would alter the visible document outline. Entry and depth limits
-are explicit and checked before an outline plan can escape.
+The outline root carries its visible-item count only when at least one item
+with children is open, including an open item currently hidden by a closed
+ancestor. Synthetic grouping items would alter the visible outline.
+Entry and depth limits are explicit and checked before an outline plan can
+escape.
 
 Every generated stream payload (page and form content, font programs,
 ToUnicode CMaps, ICC profiles, image samples, and masks) is FlateDecode through

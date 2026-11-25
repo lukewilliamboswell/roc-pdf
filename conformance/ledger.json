@@ -466,23 +466,25 @@
     },
     {
       "id": "ROC-PDF-PDF20-OUTLINE-PLAN",
-      "summary": "Outline preorder seals into deterministic parent, sibling, child, root, and visible-descendant Count facts without synthetic balancing items.",
+      "summary": "Outline preorder seals into deterministic parent, sibling, child, root, and visible-descendant Count facts without synthetic balancing items. The root Count is present only when at least one nonleaf item is open.",
       "source_ids": [
         "iso-32000-2-2020-ec3",
         "pdf-issues-ec3"
       ],
       "references": [
         "ISO 32000-2:2020 12.3.3 Tables 150 and 151",
-        "architecture.md: Internal PDF object plan"
+        "architecture.md: Internal PDF object plan",
+        "pdf-issues#139"
       ],
       "capabilities": [
         "Pdf20"
       ],
       "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "roc_unit_mixed_visibility_exact_links_and_atomic_negative; optimized_4096_entry_exact_allocations_and_work; outline_object_lowering_with_independent_count_recomputation",
+      "machine_verification": "bounded_authored_intent_and_adjacency_model; serialized_root_count_presence_expectations; roc_unit_mixed_visibility_exact_links_and_atomic_negative; optimized_4096_entry_exact_allocations_and_work; outline_object_lowering_with_independent_count_recomputation",
       "human_verification": "not_required",
       "positive_scenarios": [
+        "fuzz/OutlineModel.roc",
         "package/KernelOutline.roc",
         "tests/navigation/Cases.roc",
         "tests/structural_kernel/Cases.roc"

@@ -82,6 +82,35 @@ StructureOracle :: [].{
 		Ok($operators)
 	}
 
+	## Read the generated outline root's optional Count through xref and
+	## object-stream locations. Callers supply complete emitted PDF bytes.
+	outline_root_count : List(U8) -> Try([NoCount, Count(U64)], Failure)
+	outline_root_count = |bytes| {
+		if bytes.len() < 21 {
+			return Err(TooShort)
+		}
+		startxref = read_startxref(bytes)?
+		header = read_object_header(bytes, startxref.xref_offset, bytes.len()) ? |_| BadXrefFraming
+		xref = read_xref_dictionary(bytes, header.body, bytes.len())?
+		start = xref.end + stream_keyword_bytes.len()
+		rows = inflate(bytes, start, xref.length) ? |_| BadXrefFraming
+		entries = read_entries(rows, xref)?
+		catalog = member_dictionary(bytes, entries, startxref.xref_offset, xref.root)?
+		index = match top_key_index(catalog.content, catalog.keys, Str.to_utf8("Outlines")) {
+			Missing => return Err(BadToken(xref.root))
+			Found(found) => found
+		}
+		if !is_reference(catalog.tokens, index) {
+			return Err(BadToken(xref.root))
+		}
+		outline_number = list_at(catalog.tokens, index).value
+		outline = member_dictionary(bytes, entries, startxref.xref_offset, outline_number)?
+		match top_key_value(outline.content, outline.tokens, outline.keys, Str.to_utf8("Count")) {
+			Missing => Ok(NoCount)
+			Found(token) => if (token.kind == IntegerToken) Ok(Count(token.value)) else Err(BadToken(outline_number))
+		}
+	}
+
 	## The boolean form, for callers that only need the verdict.
 	accepts : List(U8) -> Bool
 	accepts = |bytes| match inspect_document(bytes) {
@@ -524,6 +553,31 @@ inspect_objects = |bytes, entries, sorted_starts, dictionary, xref_object, xref_
 		return Err(RootNotCatalog)
 	}
 	Ok({})
+}
+
+# Catalog and outline dictionaries are emitted as object-stream members.
+member_dictionary : List(U8), List(Entry), U64, U64 -> Try({ content : List(U8), keys : List(TopKey), tokens : List(Token) }, StructureOracle.Failure)
+member_dictionary = |bytes, entries, xref, number| {
+	entry = entries.get(number) ? |_| BadXrefEntry(number)
+	if entry.kind != 2 {
+		return Err(BadXrefEntry(number))
+	}
+	container = entries.get(entry.field) ? |_| BadXrefEntry(number)
+	if container.kind != 1 {
+		return Err(BadXrefEntry(number))
+	}
+	header = read_object_header(bytes, container.field, xref) ? |_| BadObjectHeader(entry.field)
+	var $end = xref
+	for other in entries {
+		if other.kind == 1 and other.field > container.field and other.field < $end {
+			$end = other.field
+		}
+	}
+	decoded = decode_object_stream(bytes, header.body, $end, entry.field, entries, 0)?
+	region = decoded.members.get(entry.index) ? |_| BadXrefEntry(number)
+	tokens = tokenize(decoded.content, region.start, region.end, number)?
+	keys = walk_structure(decoded.content, tokens, number, entries.len())?
+	Ok({ content: decoded.content, keys, tokens })
 }
 
 ## Whether the top-level object's dictionary is `/Type /ObjStm`.

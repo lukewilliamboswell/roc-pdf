@@ -1,6 +1,9 @@
 import fuzz.Model
 import pdf.KernelObject
 import pdf.KernelOutline
+import pdf.Document
+import pdf.Pdf
+import StructureOracle
 
 OutlineModel := [].{}
 
@@ -82,7 +85,8 @@ agrees = |entries| {
 			first = at(roots, 0)
 			last = at(roots, roots.len() - 1)
 			visible = indices.keep_if(|index| visible_from(entries, parents, index, Root)).len()
-			KernelOutline.Plan.root_count(plan) == visible and
+			open_item = indices.any(|index| at(entries, index).open and parents.contains(Item(index)))
+			KernelOutline.Plan.has_open_items(plan) == open_item and KernelOutline.Plan.root_count(plan) == visible and
 				KernelOutline.Plan.root_first(plan).index() == first and
 					KernelOutline.Plan.root_last(plan).index() == last and
 						indices.all(|index| agrees_on_item(plan, entries, indices, parents, index))
@@ -175,3 +179,20 @@ title = KernelObject.TextStringId.from_index
 target = KernelObject.ValueId.from_index
 
 at = |items, index| items.get(index) ?? crash "outline model index escaped"
+
+# The initial state of a leaf is irrelevant because its dictionary never
+# serializes a nonzero Count. A hidden open branch still supplies an open item,
+# so the outline root records the one currently visible top-level entry.
+expect observed_root([{ depth: 0, open: True }]) == Ok(NoCount)
+expect observed_root([{ depth: 0, open: False }, { depth: 1, open: False }, { depth: 2, open: True }]) == Ok(NoCount)
+expect observed_root([{ depth: 0, open: False }, { depth: 1, open: True }, { depth: 2, open: True }]) == Ok(Count(1))
+
+observed_root : List(Entry) -> Try([NoCount, Count(U64)], [OutputFailed, StructureFailed(StructureOracle.Failure)])
+observed_root = |entries| {
+	outline : List(Document.OutlineEntry)
+	outline = entries.map(|entry| { depth: entry.depth, open: entry.open, destination: "chapter", title: "Chapter" })
+	document = Pdf.document({ contents: [Pdf.destination_heading({ level: 1, name: "chapter", text: "Chapter" })], language: "en", title: "Outline" }).with_outline(outline)
+	bytes = Pdf.to_bytes(document) ? |_| OutputFailed
+	count = StructureOracle.outline_root_count(bytes) ? StructureFailed
+	Ok(count)
+}
