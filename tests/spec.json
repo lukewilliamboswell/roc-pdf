@@ -29530,7 +29530,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 7925,
-          "allocated_bytes": 36828999,
+          "allocated_bytes": 36829116,
           "work": {
             "lines": 125,
             "pages": 6,
@@ -29539,7 +29539,7 @@
             "furniture_items": 9,
             "fragments": 125,
             "artifact_runs": 8,
-            "output_bytes": 25095,
+            "output_bytes": 25212,
             "scope_pages": 4,
             "scope_openings": 2,
             "scope_visits": 10,
@@ -29548,7 +29548,7 @@
         },
         "x64musl": {
           "allocations": 7925,
-          "allocated_bytes": 36828999,
+          "allocated_bytes": 36829116,
           "work": {
             "lines": 125,
             "pages": 6,
@@ -29557,7 +29557,7 @@
             "furniture_items": 9,
             "fragments": 125,
             "artifact_runs": 8,
-            "output_bytes": 25095,
+            "output_bytes": 25212,
             "scope_pages": 4,
             "scope_openings": 2,
             "scope_visits": 10,
@@ -29568,6 +29568,7 @@
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics",
         "chapter_templates"
       ]
@@ -29603,7 +29604,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 52990,
-          "allocated_bytes": 332611789,
+          "allocated_bytes": 332611907,
           "work": {
             "lines": 1223,
             "pages": 42,
@@ -29612,7 +29613,7 @@
             "furniture_items": 63,
             "fragments": 1223,
             "artifact_runs": 62,
-            "output_bytes": 83081,
+            "output_bytes": 83199,
             "scope_pages": 40,
             "scope_openings": 20,
             "scope_visits": 82,
@@ -29621,7 +29622,7 @@
         },
         "x64musl": {
           "allocations": 52990,
-          "allocated_bytes": 332611789,
+          "allocated_bytes": 332611907,
           "work": {
             "lines": 1223,
             "pages": 42,
@@ -29630,7 +29631,7 @@
             "furniture_items": 63,
             "fragments": 1223,
             "artifact_runs": 62,
-            "output_bytes": 83081,
+            "output_bytes": 83199,
             "scope_pages": 40,
             "scope_openings": 20,
             "scope_visits": 82,
@@ -29641,6 +29642,7 @@
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics",
         "chapter_templates"
       ]
@@ -30633,7 +30635,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 14464,
-          "allocated_bytes": 27191276,
+          "allocated_bytes": 27191615,
           "work": {
             "authored_scale": 3,
             "shaped_runs": 273,
@@ -30651,12 +30653,12 @@
             "callout_ancestors": 18,
             "callout_updates": 294,
             "callout_fragments": 21,
-            "output_bytes": 32889
+            "output_bytes": 33013
           }
         },
         "x64musl": {
           "allocations": 14464,
-          "allocated_bytes": 27191276,
+          "allocated_bytes": 27191615,
           "work": {
             "authored_scale": 3,
             "shaped_runs": 273,
@@ -30674,13 +30676,14 @@
             "callout_ancestors": 18,
             "callout_updates": 294,
             "callout_fragments": 21,
-            "output_bytes": 32889
+            "output_bytes": 33013
           }
         }
       },
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics",
         "rich_inline",
         "rich_flow"
@@ -30720,7 +30723,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 112336,
-          "allocated_bytes": 245481348,
+          "allocated_bytes": 245481663,
           "work": {
             "authored_scale": 30,
             "shaped_runs": 2730,
@@ -30738,12 +30741,12 @@
             "callout_ancestors": 180,
             "callout_updates": 2940,
             "callout_fragments": 211,
-            "output_bytes": 166592
+            "output_bytes": 166711
           }
         },
         "x64musl": {
           "allocations": 112336,
-          "allocated_bytes": 245481348,
+          "allocated_bytes": 245481663,
           "work": {
             "authored_scale": 30,
             "shaped_runs": 2730,
@@ -30761,13 +30764,14 @@
             "callout_ancestors": 180,
             "callout_updates": 2940,
             "callout_fragments": 211,
-            "output_bytes": 166592
+            "output_bytes": 166711
           }
         }
       },
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics",
         "rich_inline",
         "rich_flow"
@@ -32098,7 +32102,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 23484,
-          "allocated_bytes": 24919985,
+          "allocated_bytes": 24920295,
           "work": {
             "authored_scale": 2,
             "shaped_runs": 325,
@@ -32116,12 +32120,12 @@
             "callout_ancestors": 2,
             "callout_updates": 162,
             "callout_fragments": 0,
-            "output_bytes": 27799
+            "output_bytes": 27917
           }
         },
         "x64musl": {
           "allocations": 23484,
-          "allocated_bytes": 24919985,
+          "allocated_bytes": 24920295,
           "work": {
             "authored_scale": 2,
             "shaped_runs": 325,
@@ -32139,13 +32143,14 @@
             "callout_ancestors": 2,
             "callout_updates": 162,
             "callout_fragments": 0,
-            "output_bytes": 27799
+            "output_bytes": 27917
           }
         }
       },
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics",
         "rich_inline",
         "table_paint_frames"
@@ -32185,7 +32190,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 214934,
-          "allocated_bytes": 242024637,
+          "allocated_bytes": 242024947,
           "work": {
             "authored_scale": 20,
             "shaped_runs": 3241,
@@ -32203,12 +32208,12 @@
             "callout_ancestors": 20,
             "callout_updates": 1620,
             "callout_fragments": 0,
-            "output_bytes": 162347
+            "output_bytes": 162465
           }
         },
         "x64musl": {
           "allocations": 214934,
-          "allocated_bytes": 242024637,
+          "allocated_bytes": 242024947,
           "work": {
             "authored_scale": 20,
             "shaped_runs": 3241,
@@ -32226,13 +32231,14 @@
             "callout_ancestors": 20,
             "callout_updates": 1620,
             "callout_fragments": 0,
-            "output_bytes": 162347
+            "output_bytes": 162465
           }
         }
       },
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics",
         "rich_inline",
         "table_paint_frames"

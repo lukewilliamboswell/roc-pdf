@@ -94,8 +94,8 @@ import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 ## - `atomic_negatives`: every template rejection with its stable dotted
 ##   code and template path, and no bytes.
 ##
-## Bytes always come from `Pdf.to_bytes_with` (the default `Archive`
-## profile). Work comes from one additional facade pipeline probe, through
+## Bytes always come from `Pdf.to_bytes_with` with an explicit profile.
+## Work comes from one additional facade pipeline probe, through
 ## pagination, furniture, text, and fragments, over the same normalized
 ## authoring.
 Fixture :: [].{
@@ -111,7 +111,7 @@ Fixture :: [].{
 		if pages != 3 and pages != 30 {
 			return Err(InvalidScale)
 		}
-		evidence(page_labels_document(pages, 72, False), report_theme)
+		evidence(page_labels_document(pages, 72, False), report_theme, Archive)
 	}
 
 	letter : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
@@ -120,7 +120,7 @@ Fixture :: [].{
 			return Err(InvalidScale)
 		}
 		field_width = if (paragraphs > 60) 96 else 72
-		evidence(letter_document(paragraphs, field_width), letter_theme)
+		evidence(letter_document(paragraphs, field_width), letter_theme, Archive)
 	}
 
 	report : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
@@ -128,7 +128,7 @@ Fixture :: [].{
 		if sections == 0 or sections > 100 {
 			return Err(InvalidScale)
 		}
-		evidence(report_document(sections), report_theme)
+		evidence(report_document(sections), report_theme, Archive)
 	}
 
 	ordered : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
@@ -140,10 +140,10 @@ Fixture :: [].{
 	}
 
 	numbering : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
-	numbering = |context| evidence(numbering_document(context), report_theme)
+	numbering = |context| evidence(numbering_document(context), report_theme, Archive)
 
 	images : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
-	images = |context| evidence(images_document(context), report_theme)
+	images = |context| evidence(images_document(context), report_theme, Archive)
 
 	atomic_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	atomic_negatives = |context| run_negatives(context)
@@ -478,9 +478,9 @@ run_ordered = |sections| {
 	})
 }
 
-evidence : Document, Theme -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
-evidence = |document, theme| {
-	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ theme: theme }) ? |_| EvidenceFailure
+evidence : Document, Theme, Pdf.Profile -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+evidence = |document, theme, profile| {
+	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ theme: theme, profile }) ? |_| EvidenceFailure
 	font = KernelFont.inspect(KernelBuiltInFont.bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
 	flow = KernelFacadePipeline.probe(Document.normalize(document), font, theme, page_size, descriptor, pipeline_limits, FragmentsReady) ? |_| EvidenceFailure
 	Ok({
@@ -652,7 +652,7 @@ run_furniture_groups = |context| {
 			first: Pdf.first_page_template({ footer, gap: 12, header }),
 		}),
 	})
-	evidenced = evidence(document, report_theme)?
+	evidenced = evidence(document, report_theme, Archive)?
 	var $deep = mark
 	var $depth = 0
 	while $depth < 9 {
@@ -706,7 +706,7 @@ run_backdrops = |pages| {
 		title: "Backdrops (${pages.to_str()} pages)",
 		page_templates: Templates(backdrop_templates(483)),
 	})
-	evidenced = evidence(document, report_theme)?
+	evidenced = evidence(document, report_theme, Archive)?
 	body = [Pdf.paragraph("Body.")]
 	templated = |templates| Pdf.document({
 		contents: body,
@@ -766,7 +766,7 @@ run_slot_inset = |context| {
 		page_templates: Templates(templates),
 	})
 	document = inset_document(inset_templates(3, 4))
-	evidenced = evidence(document, report_theme)?
+	evidenced = evidence(document, report_theme, Archive)?
 	inset = inset_plan(document, report_theme)?
 	plain = inset_plan(inset_document(inset_templates(0, 0)), report_theme)?
 	inset_pieces = KernelFacadeFurniture.Plan.pieces(inset)
@@ -1004,7 +1004,7 @@ chapter_evidence = |count, mode| {
 	if $openings != count or $scopes <= count {
 		crash "unexpected scope facts ${$openings.to_str()} / ${$scopes.to_str()}"
 	}
-	result = evidence(doc, report_theme)?
+	result = evidence(doc, report_theme, if (mode == 0) AccessibleArchive else Archive)?
 	font = KernelFont.inspect(KernelBuiltInFont.bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
 	flow = KernelFacadePipeline.probe(Document.normalize(doc), font, report_theme, page_size, descriptor, pipeline_limits, FragmentsReady) ? |_| EvidenceFailure
 	Ok({ bytes: result.bytes, work: result.work.append($scopes).append($openings).append(flow.scope_visits).append(flow.template_region_visits) })
@@ -1033,6 +1033,6 @@ run_chapter_negatives = |context| {
 	if $passed != checks.len() {
 		crash "chapter rejections ${$passed.to_str()} / ${checks.len().to_str()} ${Str.inspect(checks)}"
 	}
-	result = evidence(document([paragraph]), letter_theme)?
+	result = evidence(document([paragraph]), letter_theme, Archive)?
 	Ok({ bytes: result.bytes, work: result.work.append($passed) })
 }
