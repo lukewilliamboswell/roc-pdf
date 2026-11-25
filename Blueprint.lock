@@ -10,11 +10,11 @@
 		(witness "")) (
 		(name "zig")
 		(obtained Computed)
-		(served ("ziglang.org"))
+		(served ("pkg.hexops.org"))
 		(sha256 "b23d70deaa879b5c2d486ed3316f7eaa53e84acf6fc9cc747de152450d401489")
 		(size 52238004)
 		(system "aarch64-darwin")
-		(urls ("https://ziglang.org/download/0.16.0/zig-aarch64-macos-0.16.0.tar.xz"))
+		(urls ("https://pkg.hexops.org/zig/zig-aarch64-macos-0.16.0.tar.xz" "https://ziglang.org/download/0.16.0/zig-aarch64-macos-0.16.0.tar.xz"))
 		(witness "")) (
 		(name "rg")
 		(obtained Both)
