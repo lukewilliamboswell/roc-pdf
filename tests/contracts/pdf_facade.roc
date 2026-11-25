@@ -240,6 +240,39 @@ rejects_unspecified_language = |result, path| match result {
 	_ => False
 }
 
+# Duplicate variants and extension singletons are invalid in authored spans.
+# The catalog separately keeps its language/script/region-only subset.
+expect {
+	make = |language, inline| Pdf.document({ contents: [Pdf.rich_paragraph([Pdf.in_language(inline, [Pdf.text("Review the terms.")])])], language, title: "Language subtags" })
+	options = Pdf.Options.{ profile: AccessibleArchive }
+	inline_rejected = ["de-1901-1901", "sl-rozaj-BISKE-ROZAJ", "en-u-ca-gregory-U-nu-latn"].all(
+		|tag| {
+			doc = make("en", tag)
+			rejects_inline_language(Pdf.to_bytes_with(doc, options)) and rejects_inline_language(Pdf.to_chunks_with(doc, options))
+		},
+	)
+	catalog_rejected = ["de-1901-1901", "en-u-ca-gregory-u-nu-latn"].all(
+		|tag| {
+			doc = make(tag, "en")
+			rejects_catalog_language_form(Pdf.to_bytes_with(doc, options)) and rejects_catalog_language_form(Pdf.to_chunks_with(doc, options))
+		},
+	)
+	positive = ["de-1901", "en-u-ca-gregory", "en-u-ca-gregory-x-u-u", "art-lojban"].all(|tag| Pdf.to_bytes_with(make("en", tag), options).is_ok())
+	inline_rejected and catalog_rejected and positive
+}
+
+rejects_inline_language : Try(a, Pdf.Error) -> Bool
+rejects_inline_language = |result| match result {
+	Err(InvalidDocument({ diagnostics: [{ code: InvalidLanguage, details: ["contents[0].inlines[0]"], feature: Feature("semantics.language_tag"), stage: AuthoringValidation, .. }], .. })) => True
+	_ => False
+}
+
+rejects_catalog_language_form : Try(a, Pdf.Error) -> Bool
+rejects_catalog_language_form = |result| match result {
+	Err(InvalidMetadata(UnsupportedLanguageForm({ offset: 3 }))) => True
+	_ => False
+}
+
 # Intent passes through the authored Warning label. Panel and text colours
 # are presentation choices, with the combined review carried by the report.
 expect {

@@ -148,8 +148,8 @@ LIST_NUMBERING = {
 LANGUAGE_TAG = re.compile(
     r"(?:[a-z]{2,3}(?:-[a-z]{3}){0,3}|[a-z]{4,8})"
     r"(?:-[a-z]{4})?(?:-(?:[a-z]{2}|[0-9]{3}))?"
-    r"(?:-(?:[a-z0-9]{5,8}|[0-9][a-z0-9]{3}))*"
-    r"(?:-[0-9a-wy-z](?:-[a-z0-9]{2,8})+)*"
+    r"(?P<variants>(?:-(?:[a-z0-9]{5,8}|[0-9][a-z0-9]{3}))*)"
+    r"(?P<extensions>(?:-[0-9a-wy-z](?:-[a-z0-9]{2,8})+)*)"
     r"(?:-x(?:-[a-z0-9]{1,8})+)?"
     r"|x(?:-[a-z0-9]{1,8})+"
     r"|en-gb-oed"
@@ -157,6 +157,16 @@ LANGUAGE_TAG = re.compile(
     r"|sgn-(?:be-(?:fr|nl)|ch-de)",
     re.ASCII | re.IGNORECASE,
 )
+
+
+def language_tag_valid(tag: str) -> bool:
+    shape = LANGUAGE_TAG.fullmatch(tag)
+    if shape is None:
+        return False
+    variants = (shape["variants"] or "").lower().split("-")[1:]
+    extension_parts = (shape["extensions"] or "").lower().split("-")[1:]
+    singletons = [part for part in extension_parts if len(part) == 1]
+    return len(set(variants)) == len(variants) and len(set(singletons)) == len(singletons)
 
 
 def table_role(role: str) -> str:
@@ -385,7 +395,7 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
         require(catalog.get("ViewerPreferences") == {"DisplayDocTitle": True}, "a document with a metadata title lacks /ViewerPreferences << /DisplayDocTitle true >>")
     catalog_language = text_string(catalog["Lang"]) if "Lang" in catalog else None
     if catalog_language is not None:
-        require(LANGUAGE_TAG.fullmatch(catalog_language) is not None, "catalog /Lang is not a language tag")
+        require(language_tag_valid(catalog_language), "catalog /Lang is not a language tag")
 
     pages: list[int] = []
     page_order(document, int(catalog["Pages"]), pages)
@@ -443,7 +453,7 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
         language = inherited
         if "Lang" in element:
             tag = text_string(element["Lang"])
-            require(LANGUAGE_TAG.fullmatch(tag) is not None, f"structure /Lang {tag!r} is not a language tag")
+            require(language_tag_valid(tag), f"structure /Lang {tag!r} is not a language tag")
             require(tag != inherited, f"structure /Lang {tag!r} repeats its inherited language")
             facts.append(f"Lang={tag}")
             language = tag
@@ -1116,8 +1126,16 @@ def self_test() -> None:
         require(str(error) == "structure /Lang 'en-12' is not a language tag", "invalid region twin failed for the wrong reason")
     else:
         raise ValidationError("structure-semantics checker accepted an invalid language region subtag")
-    for tag in ("I-klingon", "en-0-12", "de-DE-x-phonebk"):
-        require(LANGUAGE_TAG.fullmatch(tag) is not None, f"checker rejected well-formed language tag {tag}")
+    for tag in ("I-klingon", "en-0-12", "de-DE-x-phonebk", "art-lojban", "de-1901-x-1901", "en-u-ca-gregory-x-u-u"):
+        require(language_tag_valid(tag), f"checker rejected well-formed language tag {tag}")
+    for tag in ("de-1901-1901", "sl-rozaj-BISKE-ROZAJ", "en-u-ca-gregory-U-nu-latn", "en-0-ab-0-cd"):
+        changed_language = layout_twin(lowering, b"/Lang (fr-FR)", f"/Lang ({tag})".encode("ascii"), exactly_once=True)
+        try:
+            check_structure_semantics(changed_language)
+        except ValidationError as error:
+            require(str(error) == f"structure /Lang {tag!r} is not a language tag", "duplicate subtag twin failed for the wrong reason")
+        else:
+            raise ValidationError("structure-semantics checker accepted a duplicate language subtag")
 
     # Wrappers between Document and Span still expose the illegal edge.
     grouping_twins = (("Part", "Part"), ("Div", "Div"), ("Part", "Div"), ("Div", "Part"))
@@ -1218,7 +1236,7 @@ def self_test() -> None:
         "PASS structure-semantics checker self-test: normalized trees, ParentTree/MCID/OBJR "
         "exactly-once, IDTree/ID, language, attributes, DisplayDocTitle, MarkInfo, Tabs, "
         f"Table 5 containment, page furniture, figure captions and scales, and custom-block Divs and underlays verified on {len(SNAPSHOTS)} snapshots; {len(mutations) + len(grouping_twins) + len(authored_group_twins)} "
-        f"length-preserving mutation twins, two role-only containment twins, one foreign-stream MCR twin, one invalid language region, 3 scope-header twins, {len(furniture_twins)} furniture twins, and {len(callout_twins)} custom-block twins rejected; {cross_check}",
+        f"length-preserving mutation twins, two role-only containment twins, one foreign-stream MCR twin, five invalid language-tag twins, 3 scope-header twins, {len(furniture_twins)} furniture twins, and {len(callout_twins)} custom-block twins rejected; {cross_check}",
         flush=True,
     )
 

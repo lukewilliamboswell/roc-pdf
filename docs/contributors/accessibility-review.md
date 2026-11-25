@@ -53,10 +53,11 @@ outline for longer documents and leave the length judgment to the reviewer.
 
 Use the `LanguageAccurate` record to check that each tag names the
 actual natural language. The combined profile rejects recognized placeholder
-tags and private-use-only tags. Declare language changes in body text with
-`Pdf.in_language`. Each standalone PDF string must use its one inherited
-language, including alternate descriptions, expansion text, outline titles
-and page-label prefixes. The text-string encoder rejects raw escape
+tags and tags starting with the private-use singleton `x`. Check registered
+subtags and applicable private agreements as part of language review.
+Declare language changes in body text with `Pdf.in_language`. Each standalone
+PDF string must use its one inherited language, including alternate
+descriptions, expansion text, outline titles and page-label prefixes. The text-string encoder rejects raw escape
 introducers.
 
 Use the `StructureMeaningful` and `ArtifactClassificationMeaningful`

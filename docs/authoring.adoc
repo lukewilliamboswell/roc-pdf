@@ -100,11 +100,15 @@ nesting order. Inline code uses Fira Code; quotes inherit the surrounding
 family unless explicitly configured. Unavailable styles reject with
 `text.style_unavailable`; no upright face is silently substituted.
 
-Use a nonempty, well-formed BCP 47 tag with `Pdf.in_language`, such as `fr`,
-`fr-CA`, or `zh-Hant-TW`. A malformed tag such as `en-12` produces the
-`semantics.language_tag` diagnostic at the inline's location. Use a tag for a
-specific language in the combined archive profile. Standalone strings such
-as outline titles and figure alternatives use their inherited language.
+Use a BCP 47 tag with `Pdf.in_language`, such as `fr`, `fr-CA`, or
+`zh-Hant-TW`. Malformed syntax, repeated variants, and repeated extension
+singletons produce the `semantics.language_tag` diagnostic at the inline’s
+location. The document’s default language takes a canonical-case
+two- or three-letter language subtag with an optional script and region.
+Supply registered subtags or applicable private-use codes and choose a tag
+that identifies the specific language used in the combined archive profile.
+Standalone strings such as outline titles and figure alternatives use their
+inherited language.
 
 The theme's `inline` record can select colours, scales and exact faces or
 families, such as `inline: { strong: { color: Themed(navy) } }` or

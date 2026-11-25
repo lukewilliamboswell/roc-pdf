@@ -821,14 +821,29 @@ valid_language_tag = |tag| {
 	var $length = 0
 	var $letters = 0
 	var $first = 0
+	var $packed = 0
+	var $singletons = 0
+	var $variants = []
 	for byte in Str.iter_utf8(tag) {
 		if byte == 45 {
 			$phase = next_language_subtag($phase, $length, $letters, $first)
 			if $phase == Invalid {
 				return grandfathered_language_tag(tag)
 			}
+			if $phase == ExtensionStart {
+				index = if ($first <= 57) $first - 48 else $first - 87
+				bit = U64.shl_wrap(1, index)
+				if U64.bitwise_and($singletons, bit) != 0 {
+					return False
+				}
+				$singletons = U64.bitwise_or($singletons, bit)
+			}
+			if $phase == Variants and is_language_variant($length, $first) {
+				$variants = $variants.append($packed)
+			}
 			$length = 0
 			$letters = 0
+			$packed = 0
 		} else {
 			folded = byte.bitwise_or(32)
 			letter = folded >= 97 and folded <= 122
@@ -839,15 +854,38 @@ valid_language_tag = |tag| {
 				$first = folded
 			}
 			$length = $length + 1
+			$packed = $packed.shl_wrap(8).bitwise_or(folded.to_u64())
 			if letter {
 				$letters = $letters + 1
 			}
 		}
 	}
-	match next_language_subtag($phase, $length, $letters, $first) {
-		Core(_) | Variants | Extension | Private => True
+	$phase = next_language_subtag($phase, $length, $letters, $first)
+	if $phase == Variants and is_language_variant($length, $first) {
+		$variants = $variants.append($packed)
+	}
+	match $phase {
+		Core(_) | Variants | Extension | Private => unique_language_variants($variants)
 		_ => grandfathered_language_tag(tag)
 	}
+}
+
+## A packed subtag has at most eight nonzero ASCII bytes. Sorting the
+## variant keys once avoids rescanning an unbounded inline tag for duplicates.
+unique_language_variants : List(U64) -> Bool
+unique_language_variants = |variants| {
+	if variants.len() < 2 {
+		return True
+	}
+	sorted = variants.sort_with(|left, right| if (left < right) Before else if (left > right) After else Same)
+	var $previous = 0
+	for variant in sorted {
+		if variant == $previous {
+			return False
+		}
+		$previous = variant
+	}
+	True
 }
 
 next_language_subtag : LanguageSubtag, U8, U8, U8 -> LanguageSubtag
@@ -886,7 +924,7 @@ next_language_subtag = |phase, length, letters, first| {
 
 language_variant_or_singleton : U8, U8 -> LanguageSubtag
 language_variant_or_singleton = |length, first| {
-	if length >= 5 or (length == 4 and first >= 48 and first <= 57) {
+	if is_language_variant(length, first) {
 		Variants
 	} else if length == 1 {
 		if (first == 120) PrivateStart else ExtensionStart
@@ -894,6 +932,9 @@ language_variant_or_singleton = |length, first| {
 		Invalid
 	}
 }
+
+is_language_variant : U8, U8 -> Bool
+is_language_variant = |length, first| length >= 5 or (length == 4 and first >= 48 and first <= 57)
 
 # Only the irregular grandfathered alternatives need a fallback. Their fixed
 # spellings all fit in Roc's inline short string even after ASCII case folding.
@@ -2342,8 +2383,8 @@ expect {
 
 # RFC 5646 subtag order, field boundaries, and grandfathered alternatives.
 expect {
-	good = ["en", "es-419", "de-CH-1901", "sl-rozaj-biske-1994", "abcd-Latn", "abcdefgh", "zh-cmn-Hans-CN", "zh-cmn-hak-nan-Hant-TW", "en-a-foo-u-nu-latn-x-note", "en-0-12", "x-1", "de-DE-x-phonebk", "en-GB-oed", "I-ENOCHIAN", "SGN-be-fr", "zh-min-nan"]
-	bad = ["", "a", "en-12", "en-1a23-CH", "en-US-Latn", "en-Latn-Cyrl", "en-US-GB", "zh-cmn-hak-nan-wuu", "abcd-cmn", "abcdef-cmn", "en-a", "en-a-x-p", "en-x", "en-u-ab-x", "x", "x-ab--c", "en-abcdefghi", "en-À", "en-GB-oed-extra", "i-klingon-extra"]
+	good = ["en", "es-419", "de-CH-1901", "sl-rozaj-biske-1994", "abcd-Latn", "abcdefgh", "zh-cmn-Hans-CN", "zh-cmn-hak-nan-Hant-TW", "en-a-foo-u-nu-latn-x-note", "en-0-12", "x-1", "de-DE-x-phonebk", "en-GB-oed", "I-ENOCHIAN", "SGN-be-fr", "zh-min-nan", "art-lojban", "en-u-ca-gregory-x-u-u", "de-1901-u-nu-latn-x-1901", "en-u-nu-latn-0-ab"]
+	bad = ["", "a", "en-12", "en-1a23-CH", "en-US-Latn", "en-Latn-Cyrl", "en-US-GB", "zh-cmn-hak-nan-wuu", "abcd-cmn", "abcdef-cmn", "en-a", "en-a-x-p", "en-x", "en-u-ab-x", "x", "x-ab--c", "en-abcdefghi", "en-À", "en-GB-oed-extra", "i-klingon-extra", "de-1901-1901", "sl-rozaj-BISKE-ROZAJ", "en-u-ca-gregory-U-nu-latn", "en-0-ab-0-cd"]
 	good.all(valid_language_tag) and bad.all(|tag| !valid_language_tag(tag))
 }
 
