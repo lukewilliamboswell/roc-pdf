@@ -1933,8 +1933,8 @@
         "kind": "generated",
         "generator": "examples/vector-diagrams/main.roc"
       },
-      "bytes": 12174,
-      "sha256": "e8d08793ce3ec9f21cde9c278f20b9623e9621dd36f6cdc4352858da1c97fce6",
+      "bytes": 12552,
+      "sha256": "e281ac9b355e313fc91242af6d5b83045ec8b68373a1f3d91d57c2f36b572654",
       "modification_permitted": true,
       "redistribution_permitted": true
     },
@@ -6903,8 +6903,8 @@
         "kind": "generated",
         "generator": "tests/vector_diagrams/Cases.roc"
       },
-      "bytes": 12174,
-      "sha256": "e8d08793ce3ec9f21cde9c278f20b9623e9621dd36f6cdc4352858da1c97fce6",
+      "bytes": 12552,
+      "sha256": "e281ac9b355e313fc91242af6d5b83045ec8b68373a1f3d91d57c2f36b572654",
       "modification_permitted": true,
       "redistribution_permitted": true
     },
@@ -6918,8 +6918,8 @@
         "kind": "generated",
         "generator": "tests/vector_diagrams/Cases.roc"
       },
-      "bytes": 15320,
-      "sha256": "780e74aafb4a38651f30eb8352b2d11b4c1d54f283b556c4818c01b905744d39",
+      "bytes": 15459,
+      "sha256": "a75427ce5cb0911235077be8d6e0e1415d7fa467a9ef4dde50e113d237b5139b",
       "modification_permitted": true,
       "redistribution_permitted": true
     },
@@ -6933,8 +6933,8 @@
         "kind": "generated",
         "generator": "tests/vector_diagrams/Cases.roc"
       },
-      "bytes": 30206,
-      "sha256": "e4ed4d94251adf08431b7f47f30a9011f0d6c90d564b1da22df1e102f13e0189",
+      "bytes": 31186,
+      "sha256": "29e8b123e3b5a3481f030d038b39e0fd382d7a0ee20a4b8e1e22a92d9067fdc0",
       "modification_permitted": true,
       "redistribution_permitted": true
     },

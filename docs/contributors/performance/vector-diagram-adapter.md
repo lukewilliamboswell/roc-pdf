@@ -10,10 +10,10 @@ every path and label. Each path builder is finished once; fixed-point source
 geometry is owned by that command. There are no closures, copied suffixes,
 rollback scenes or repeated measurements. Each of N figures constructs its own
 18-command drawing (white viewport, 12 paths, five labels). The normal facade
-interns the five label sources and selected font, shapes labels through the
-existing artifact path, and preserves their explicit figure placement. Source
-Unicode is never recovered from geometry. Figure and caption semantics use the
-existing machinery unchanged.
+interns the five label sources and selected font, then shapes each label into
+a separate content occurrence owned by the Figure. Page placement preserves
+its authored geometry and the structure spine preserves its authored order.
+The visible caption retains its own structure element.
 
 The preparation tool has explicit input, node, depth and paint-order work
 budgets. Browser CSS resolution is preparation input, not a later Roc stage's
@@ -29,59 +29,28 @@ figures, authored commands, label placements, final report pages/fragments and
 output bytes. They describe actual accepted inputs/output facts; no private
 compiler probe or timing target is introduced.
 
-| Figures | Allocations | Allocated bytes | Commands | Labels | Pages | Fragments | PDF bytes |
-| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 1 | 4,733 | 5,449,647 | 18 | 5 | 1 | 2 | 12,068 |
-| 10 | 13,516 | 9,591,741 | 180 | 50 | 3 | 20 | 15,140 |
-| 50 | 52,470 | 33,080,663 | 900 | 250 | 13 | 100 | 29,586 |
-
-These are initial arm64mac baselines under `.roc-version`'s pinned dev build;
-no existing allocation, work or PDF baseline changes. For 5× the diagrams,
-allocations grow 3.88× and allocated bytes 3.45×, consistent with linear retained
-scene/text/structure work plus fixed font/package costs. Each case retains the
-10% allocated-byte ceiling. The final strict Linux run verifies the registered
-target expectations and the same immutable PDF bytes; complete closure evidence
-is recorded in [manual composition](manual-composition.md#final-integration-closure).
-
-A final integration replay through `scripts/test.py --compare-baselines`, using
-the registered canonical JSON cases, retains all three original allocation
-counts, complete work vectors and exact PDF snapshots. Observed requested bytes
-are 5,449,655 / 9,591,821 / 33,081,063: eight bytes per figure above the initial
-observations, inside the unchanged byte ceilings. The default figure-frame
-selection does not imply a net allocation-target reduction relative to this
-slice's earlier isolated baseline; no vector allocation or byte target changes.
+The one- and fifty-figure cases select `AccessibleArchive` with a WTPDF
+Accessibility declaration. The ten-figure case explicitly selects `Archive`.
+`tests/spec.json` records the exact allocation, allocated-byte and work
+baselines on both supported targets. Each consumer regenerates the same
+committed PDFs. The figures add five label fragments each, alongside the
+drawing and caption. The allocated-byte ceilings use the same 110% guard
+as the rest of the pinned harness.
 
 `check_vector_diagrams.py` checks original emitted bytes, exact Unicode labels,
-Alt/caption/artifact ownership, cubic/arrowhead paths, input/font/tool hashes and
-source Chrome versus independent PDFBox rendering. Visual comparison allows one
+Figure label order and ownership, alternative text, visible captions, cubic
+and arrowhead paths, input/font/tool hashes, and source Chrome versus
+independent PDFBox rendering. A targeted mutation exchanges two label
+references while preserving their paint and Figure ownership. The checker
+requires the authored order. Visual comparison allows one
 pixel for antialiasing, bounds unmatched dark pixels, and compares integrated
 ink within 10%; a one-pixel stroke straddles pixel centers differently in the two
 engines, so thresholded dark-pixel counts alone are not a stable measure.
 
-## Explicit validation policy and named drawing arguments
+## Font validation
 
-`Diagram.options` now accepts `Font.ValidationLimits`; the runnable example
-and every scale case pass the named default. Figure count no longer selects
-font-validation policy. Restrictive byte limits have an atomic `expect` that
-checks the original `LimitExceeded` dimension, attempted bytes and limit;
-registration errors retain `Font.ResourceError` through the adapter.
-
-The named-argument API migration changes only the syntax of the generated
-`PreparedDiagram.roc` call sites. Its witness SHA-256 changes from
-`ea2b4be45996a9f1c3c9e2081cbeba4b404584f253172b1efa02240ad80499ea` to
-`7b753f253c000188f876d6e58d8cc5d7508efcaffc08dfcf3e95c480611b606e`.
-The already-pinned exporter emits these named calls. Resolved geometry,
-original SVG/PNG, labels, font and exporter/test scripts retain their exact
-digests. This witness update does not accept any PDF or work-baseline change.
-
-The fixture threads registration, preparation and emission through one typed
-fallible `render(count)` helper, then handles failure at its runtime boundary.
-This avoids an unreachable-error-arm warning when matching known-success
-default registration on its own; it does not hide validation limits behind
-figure count. The public group's 637 Roc tests pass. A focused harness replay
-at the rc4 integration retains all three exact PDFs and work vectors. Observed
-allocations are 932 / 2,624 / 9,893 and requested bytes are 2,712,476 /
-4,701,258 / 13,682,646, within the unchanged byte guards. The strict comparison
-reports count deltas +33 / +37 / +39 against that checkout's recorded values;
-those differences require the integration's representation review and are not
-accepted by this fixture refactor alone.
+`Diagram.options` accepts explicit `Font.ValidationLimits`. The runnable
+example and scale cases use the named default. A restrictive byte limit has
+an atomic `expect` that checks the original `LimitExceeded` dimension,
+attempted bytes and limit. Registration errors retain `Font.ResourceError`
+through the adapter.

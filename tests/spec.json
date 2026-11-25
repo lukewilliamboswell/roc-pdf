@@ -29821,33 +29821,35 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1032,
-          "allocated_bytes": 2713786,
+          "allocations": 1039,
+          "allocated_bytes": 2724593,
           "work": {
             "diagrams": 1,
             "authored_scene_commands": 18,
             "label_sources": 5,
             "pages": 1,
-            "fragments": 2,
-            "output_bytes": 12174
+            "fragments": 7,
+            "output_bytes": 12552
           }
         },
         "x64musl": {
-          "allocations": 1032,
-          "allocated_bytes": 2713786,
+          "allocations": 1039,
+          "allocated_bytes": 2724593,
           "work": {
             "diagrams": 1,
             "authored_scene_commands": 18,
             "label_sources": 5,
             "pages": 1,
-            "fragments": 2,
-            "output_bytes": 12174
+            "fragments": 7,
+            "output_bytes": 12552
           }
         }
       },
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
+        "wtpdf_accessibility",
         "structure_semantics",
         "vector_diagrams"
       ]
@@ -29874,27 +29876,27 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2636,
-          "allocated_bytes": 4685984,
+          "allocations": 2661,
+          "allocated_bytes": 4819072,
           "work": {
             "diagrams": 10,
             "authored_scene_commands": 180,
             "label_sources": 50,
             "pages": 3,
-            "fragments": 20,
-            "output_bytes": 15320
+            "fragments": 70,
+            "output_bytes": 15459
           }
         },
         "x64musl": {
-          "allocations": 2636,
-          "allocated_bytes": 4685984,
+          "allocations": 2661,
+          "allocated_bytes": 4819072,
           "work": {
             "diagrams": 10,
             "authored_scene_commands": 180,
             "label_sources": 50,
             "pages": 3,
-            "fragments": 20,
-            "output_bytes": 15320
+            "fragments": 70,
+            "output_bytes": 15459
           }
         }
       },
@@ -29927,33 +29929,35 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 9515,
-          "allocated_bytes": 13593532,
+          "allocations": 9592,
+          "allocated_bytes": 14615448,
           "work": {
             "diagrams": 50,
             "authored_scene_commands": 900,
             "label_sources": 250,
             "pages": 13,
-            "fragments": 100,
-            "output_bytes": 30206
+            "fragments": 350,
+            "output_bytes": 31186
           }
         },
         "x64musl": {
-          "allocations": 9515,
-          "allocated_bytes": 13593532,
+          "allocations": 9592,
+          "allocated_bytes": 14615448,
           "work": {
             "diagrams": 50,
             "authored_scene_commands": 900,
             "label_sources": 250,
             "pages": 13,
-            "fragments": 100,
-            "output_bytes": 30206
+            "fragments": 350,
+            "output_bytes": 31186
           }
         }
       },
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
+        "wtpdf_accessibility",
         "structure_semantics",
         "vector_diagrams"
       ]

@@ -10,7 +10,7 @@ Diagram :: [].{
 	options : Font.ValidationLimits -> Try(Pdf.Options, Font.ResourceError)
 	options = |limits| {
 		registered = Font.Registry.empty.register({ bytes: font_bytes, registration: { provision: BuiltIn, scripts: ["Latn"] }, limits: limits })?
-		Ok(Pdf.Options.{ theme: { face: registered.face, page_margin: { top: 24, bottom: 24, left: 24, right: 24 } }, fonts: Registered(registered.registry) })
+		Ok(Pdf.Options.{ theme: { face: registered.face, page_margin: { top: 24, bottom: 24, left: 24, right: 24 } }, fonts: Registered(registered.registry), profile: AccessibleArchive, wtpdf: DeclareAccessibility })
 	}
 
 	document : U64 -> Document

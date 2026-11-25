@@ -11,8 +11,10 @@ connectors, arrowheads, translated rectangular nodes, a multiline label and
 “Café”. The prepared SVG deliberately adds margins around a nonzero viewBox
 origin. `PreparedDiagram.roc` is its generated public `Scene.Drawing` program;
 `Diagram.roc` registers the exact same font bytes and supplies `Pdf.figure`'s
-alternative text and visible caption. Searchable labels are `Decoration`
-artifact text. The figure's Alt text must still explain its meaning.
+alternative text and visible caption. Searchable labels belong to the Figure
+in authored drawing order. Describe the diagram's meaning in its alternative
+text. The example selects `AccessibleArchive` and requests a WTPDF
+Accessibility declaration.
 
 ## Explicit authoring-time preparation
 
@@ -87,4 +89,3 @@ asset manifest. The HTML-label negative comes from Luke Boswell's roc-automation
 manual, copyright 2026 Luke Boswell, under UPL-1.0:
 <https://lukewilliamboswell.github.io/roc-automation/diag-mermaid-md5-332f3e2cc13154f0257848fa9f290595.svg>.
 Its digest and source revision are recorded beside the fixture.
-PDF/UA conformance is not claimed by this example.
