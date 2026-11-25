@@ -11,7 +11,7 @@ machine.
 
 | Tool | Source |
 | --- | --- |
-| Zig 0.16.0 | Fetched from ziglang.org for `x86_64-linux` and `aarch64-darwin`, checked against `Blueprint.lock` |
+| Zig 0.16.0 | Fetched from Hexops with ziglang.org as fallback on `x86_64-linux`, and from ziglang.org on `aarch64-darwin`. Both archives are checked against `Blueprint.lock`. |
 | `roc` | Expected on `PATH`; it must be the nightly named in `.roc-version` |
 | `python3`, `bash`, `tar` | Expected on `PATH` |
 | ripgrep 15.2.0 (`rg`) | Fetched from its GitHub release for the `docs` task, checked against `Blueprint.lock` |
