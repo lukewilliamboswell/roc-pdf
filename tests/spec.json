@@ -32776,7 +32776,8 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "contents_entries"
+        "contents_entries",
+        "pdfua2"
       ]
     },
     {
@@ -32888,7 +32889,8 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "contents_entries"
+        "contents_entries",
+        "pdfua2"
       ]
     },
     {
@@ -33000,7 +33002,8 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "contents_entries"
+        "contents_entries",
+        "pdfua2"
       ]
     },
     {

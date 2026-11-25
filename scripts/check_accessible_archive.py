@@ -106,6 +106,7 @@ CONTROLS = (
     ua_control("nonstandard-structure-role", "letter", "objects", b"/S /LBody ", b"/S /Unknown ", "8.2.4-1"),
     ua_control("unnumbered-heading", "letter", "objects", b"/S /H1 ", b"/S /H ", "8.2.5.12-1"),
     ua_control("single-document-root", "letter", "objects", re.compile(rb"/K ([0-9]+ 0 R)(?=[^\n]+ /Type /StructTreeRoot)"), rb"/K [\g<1> \g<1>]", "8.2.5.2-1", "Table 5. StructTreeRoot-Document-1"),
+    ua_control("contents-item-reference", ROOT / "tests" / "destination_references" / "contents_2.pdf", "objects", re.compile(rb" /Ref \[[^\]]+\](?= /S /TOCI)"), b"", "8.2.5.8-1"),
     ua_control("link-structure-role", "invoice", "objects", b"/S /Link ", b"/S /Span ", "8.2.5.20-1"),
     ua_control("document-namespace", "letter", "objects", re.compile(rb" /NS [0-9]+ 0 R(?= /P [0-9]+ 0 R /S /Document >>)"), b"", "8.2.5.2-2"),
     ua_control("list-numbering", "letter", "objects", b"/ListNumbering /Decimal", b"/ListNumbering /None", "8.2.5.25-1"),
