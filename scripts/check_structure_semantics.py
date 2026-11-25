@@ -656,7 +656,8 @@ MARKED_FIGURE = re.compile(rb"/[A-Za-z0-9]+ <</MCID ([0-9]+)>> BDC\nq\n([-0-9.]+
 def check_figures(document: Document, visited: set[int], pages: list[int], page_index: dict[int, int], dimensions: dict[str, int]) -> None:
     """Independent figure and decoration checks, derived from the bytes:
 
-    - every Figure has a non-empty /Alt and owns exactly one MCID;
+    - every Figure has a non-empty /Alt and owns its drawing MCID and its
+      optional label text MCIDs on the same page;
     - a Caption beside a Figure is the last child of a Sect whose children
       are exactly that Figure and Caption, so the caption is exposed
       independently of the figure's /Alt;
@@ -668,6 +669,8 @@ def check_figures(document: Document, visited: set[int], pages: list[int], page_
     figures = 0
     captioned = 0
     scaled = 0
+    drawing_marks: dict[int, dict[int, tuple[bytes, bytes]]] = {}
+    text_marks: dict[int, set[int]] = {}
     for number in sorted(visited):
         element = document.get(number)
         role = str(element["S"])
@@ -677,12 +680,20 @@ def check_figures(document: Document, visited: set[int], pages: list[int], page_
             figures += 1
             require(isinstance(element.get("Alt"), bytes) and text_string(element["Alt"]).strip(), "a Figure has an empty /Alt")
             marks = [child for child in children if isinstance(child, dict) and child.get("Type") == "MCR"]
-            require(len(marks) == 1 and len(children) == 1, "a Figure does not own exactly one marked-content sequence")
+            require(marks and len(marks) == len(children), "a facade Figure must directly own its drawing and label sequences")
             page = int(marks[0]["Pg"])
-            content = document.stream(int(document.get(page)["Contents"]))
-            found = [match for match in MARKED_FIGURE.finditer(content) if int(match.group(1)) == int(marks[0]["MCID"])]
-            require(len(found) == 1, f"the Figure's MCID on page {page_index[page]} does not begin with its drawing's placement")
-            horizontal, vertical = found[0].group(2), found[0].group(3)
+            if page not in drawing_marks:
+                content = document.stream(int(document.get(page)["Contents"]))
+                drawing_marks[page] = {int(match[1]): (match[2], match[3]) for match in MARKED_FIGURE.finditer(content)}
+                text_marks[page] = {
+                    int(match[1]) for match in re.finditer(rb"/[A-Za-z0-9]+ <</MCID (\d+)>> BDC\n(.*?)\nEMC\n", content, re.S)
+                    if b"\nBT\n" in match[2]
+                }
+            drawing = int(marks[0]["MCID"])
+            require(drawing in drawing_marks[page], f"the Figure's first MCID on page {page_index[page]} does not begin with its drawing's placement")
+            for label in marks[1:]:
+                require(int(label["Pg"]) == page and int(label["MCID"]) in text_marks[page], "a Figure label must be a text sequence on its drawing's page")
+            horizontal, vertical = drawing_marks[page][drawing]
             require(horizontal == vertical and 0 < float(horizontal) <= 1, "a Figure's drawing is not scaled uniformly by at most 1")
             if float(horizontal) != 1:
                 scaled += 1
