@@ -40,7 +40,7 @@ Metadata :: [].{
 	TitlePolicy : [RequireAuthoredAndDcTitleAgreement]
 	TimestampPolicy : [ExplicitOrOmitted]
 	RequiredAuthorFact : [Required]
-	VisibleTitlePolicy : [RequiredForAccessibleArchive]
+	VisibleTitlePolicy : [AuthoredWhenPresent]
 
 	AuthoringPolicy : {
 		language : RequiredAuthorFact,
@@ -67,7 +67,7 @@ Metadata :: [].{
 	authoring = {
 		language: Required,
 		metadata_title: Required,
-		visible_title: RequiredForAccessibleArchive,
+		visible_title: AuthoredWhenPresent,
 	}
 }
 
@@ -77,5 +77,5 @@ expect Metadata.canonical.timestamps == ExplicitOrOmitted
 # Canonical metadata orders properties independently of map iteration.
 expect Metadata.canonical.property_order == NamespaceUriThenLocalName
 
-# Accessible archival facade output requires a distinct visible semantic title.
-expect Metadata.authoring.visible_title == RequiredForAccessibleArchive
+# The metadata title is required independently of a visible title.
+expect Metadata.authoring.visible_title == AuthoredWhenPresent

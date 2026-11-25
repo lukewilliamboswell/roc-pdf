@@ -380,7 +380,7 @@ empty_summary = {
 
 check_lowered : KernelPdfA4.Claim, KernelPdfA4.LoweredInput -> Try(KernelPdfA4.LoweredWork, KernelPdfA4.Violation)
 check_lowered = |claim, input| {
-	if KernelXmp.Packet.identification(input.packet) != KernelPdfA4.identification(claim) {
+	if KernelXmp.declares_archive(KernelXmp.Packet.identification(input.packet)) != (claim == StaticPdfA4Claim) {
 		return Err({ position: 0, requirement: Identification })
 	}
 	match claim {
@@ -741,7 +741,7 @@ is_stream = |store, value| match resolve_stream(store, value) {
 	NotStream => False
 }
 
-## The catalog must carry exactly the claim's canonical metadata stream, one
+## The catalog must carry exactly the selected canonical metadata stream, one
 ## PDF/A output intent with an embedded monitor or output profile, and no
 ## pre-2.0 version override.
 check_catalog : KernelObject.Store, List(NameClass), KernelObject.ObjectId, List(U8) -> Try(U64, KernelPdfA4.Violation)

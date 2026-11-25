@@ -58,6 +58,12 @@ Pdf :: [].{
 		is_eq : _
 	}
 
+	## Opt into the separately validated WTPDF 1.0 accessibility declaration
+	## with AccessibleArchive. The default writes only the selected profile.
+	WtpdfDeclaration := [DeclareAccessibility, NoWtpdfDeclaration].{
+		is_eq : _
+	}
+
 	## The facade records whether its selected theme face is the small packaged
 	## face or one of the opaque faces retained by a caller font registry. Both
 	## cases resolve to one validated inspection before the shared pipeline; no
@@ -448,6 +454,7 @@ Pdf :: [].{
 		page_size : PageSize ?? A4,
 		profile : Profile ?? Archive,
 		theme : Theme ?? {},
+		wtpdf : WtpdfDeclaration ?? NoWtpdfDeclaration,
 	}.{
 
 		## Every option at its default.
@@ -905,8 +912,8 @@ Pdf :: [].{
 	## The default profile is `Archive`: content follows the completed typed
 	## facade pipeline and passes static PDF/A-4 profile and lowered-plan
 	## validation before any byte exists. `Standard` is an explicit opt-out.
-	## AccessibleArchive remains unavailable until its combined capability
-	## closes; a document that cannot meet the requested claim is an error.
+	## Select AccessibleArchive explicitly for combined PDF/A-4 and PDF/UA-2.
+	## A document that cannot meet its requested claim returns an error.
 	to_bytes : Document -> Try(List(U8), Error)
 	to_bytes = |doc| to_bytes_with(doc, Options.default)
 
@@ -989,14 +996,14 @@ Pdf :: [].{
 
 build_plan : Document, Pdf.Options -> Try(KernelStructure.Plan, Pdf.Error)
 build_plan = |doc, options| {
-	claim = validate_profile_request(options)?
+	claims = validate_profile_request(doc, options)?
 	validate_theme(options.theme)?
 	validate_page_size(options.page_size)?
 	validate_body_frame(options.page_size, options.theme)?
 
 	## The authored metadata facts validate once and the canonical XMP packet
-	## serializes once, identified exactly when the requested profile claims
-	## static PDF/A-4; every later stage consumes the same validated values.
+	## serializes once with exactly the requested declarations. Every later
+	## stage consumes the same validated values.
 	validated = KernelMetadata.validate(
 		{
 			created: Document.created(doc),
@@ -1006,7 +1013,7 @@ build_plan = |doc, options| {
 		},
 		standard_metadata_limits,
 	) ? InvalidMetadata
-	xmp = KernelXmp.Packet.build_identified(validated.facts, KernelPdfA4.identification(claim), standard_xmp_bytes) ? |_| InternalGenerationFailure
+	xmp = KernelXmp.Packet.build_identified(validated.facts, claims.identification, standard_xmp_bytes) ? |_| InternalGenerationFailure
 	if Document.block_count(doc) == 0 and Document.has_templates(doc) {
 		return Err(furniture_error(BodyEmpty))
 	}
@@ -1023,7 +1030,7 @@ build_plan = |doc, options| {
 				xmp: KernelXmp.Packet.bytes(xmp),
 			},
 		) ? |_| InternalGenerationFailure
-		validate_lowered_plan(claim, xmp, plan)?
+		validate_lowered_plan(claims, xmp, plan)?
 		return Ok(KernelStructure.Plan.with_compression(plan, deflate_level(options.compression)))
 	}
 	facts = WithDocumentFacts({
@@ -1046,9 +1053,9 @@ build_plan = |doc, options| {
 		Ordered(ordered) => KernelFacadePipeline.Plan.build_ordered_with_facts(normalized, ordered, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| ordered_pipeline_error(error, ordered.policy, doc)
 	}
 	output = KernelFacadePipeline.Plan.output(pipeline)
-	_text_work = KernelPdfA4.validate_text(claim, KernelFacadeOutput.Plan.text_facts(output)) ? |violation| InvalidDocument(profile_batch(violation, ProfileValidation))
+	_text_work = KernelPdfA4.validate_text(claims.archive, KernelFacadeOutput.Plan.text_facts(output)) ? |violation| InvalidDocument(profile_batch(violation, ProfileValidation))
 	plan = KernelFacadeOutput.Plan.structure(output)
-	validate_lowered_plan(claim, xmp, plan)?
+	validate_lowered_plan(claims, xmp, plan)?
 	Ok(KernelStructure.Plan.with_compression(plan, deflate_level(font_compression)))
 }
 
@@ -1119,14 +1126,14 @@ measure_content = |options, contents, language, width| {
 ## returned for the report's path materialization.
 build_reporting_plan : Document, Pdf.Options -> Try({ facts : [Facts(KernelFacadeReport.Facts), NoFacts], normalized : Document.NormalizedAuthoring, plan : KernelStructure.Plan }, Pdf.Error)
 build_reporting_plan = |doc, options| {
-	claim = validate_profile_request(options)?
+	claims = validate_profile_request(doc, options)?
 	validate_theme(options.theme)?
 	validate_page_size(options.page_size)?
 	validate_body_frame(options.page_size, options.theme)?
 
 	## The authored metadata facts validate once and the canonical XMP packet
-	## serializes once, identified exactly when the requested profile claims
-	## static PDF/A-4; every later stage consumes the same validated values.
+	## serializes once with exactly the requested declarations. Every later
+	## stage consumes the same validated values.
 	validated = KernelMetadata.validate(
 		{
 			created: Document.created(doc),
@@ -1136,7 +1143,7 @@ build_reporting_plan = |doc, options| {
 		},
 		standard_metadata_limits,
 	) ? InvalidMetadata
-	xmp = KernelXmp.Packet.build_identified(validated.facts, KernelPdfA4.identification(claim), standard_xmp_bytes) ? |_| InternalGenerationFailure
+	xmp = KernelXmp.Packet.build_identified(validated.facts, claims.identification, standard_xmp_bytes) ? |_| InternalGenerationFailure
 	if Document.block_count(doc) == 0 and Document.has_templates(doc) {
 		return Err(furniture_error(BodyEmpty))
 	}
@@ -1153,7 +1160,7 @@ build_reporting_plan = |doc, options| {
 				xmp: KernelXmp.Packet.bytes(xmp),
 			},
 		) ? |_| InternalGenerationFailure
-		validate_lowered_plan(claim, xmp, plan)?
+		validate_lowered_plan(claims, xmp, plan)?
 		return Ok({ facts: NoFacts, normalized: Document.normalize(doc), plan: KernelStructure.Plan.with_compression(plan, deflate_level(options.compression)) })
 	}
 	facts = WithDocumentFacts({
@@ -1176,18 +1183,21 @@ build_reporting_plan = |doc, options| {
 		Ordered(ordered) => KernelFacadePipeline.Plan.build_ordered_reporting(normalized, ordered, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| ordered_pipeline_error(error, ordered.policy, doc)
 	}
 	output = KernelFacadePipeline.Plan.output(pipeline)
-	_text_work = KernelPdfA4.validate_text(claim, KernelFacadeOutput.Plan.text_facts(output)) ? |violation| InvalidDocument(profile_batch(violation, ProfileValidation))
+	_text_work = KernelPdfA4.validate_text(claims.archive, KernelFacadeOutput.Plan.text_facts(output)) ? |violation| InvalidDocument(profile_batch(violation, ProfileValidation))
 	plan = KernelFacadeOutput.Plan.structure(output)
-	validate_lowered_plan(claim, xmp, plan)?
+	validate_lowered_plan(claims, xmp, plan)?
 	Ok({ facts: KernelFacadePipeline.Plan.facts(pipeline), normalized, plan: KernelStructure.Plan.with_compression(plan, deflate_level(font_compression)) })
 }
 
 ## Lowered-plan validation runs on every prepared plan before it is wrapped:
 ## an unclaimed plan checks only that its packet declares no identification,
 ## and a claimed plan is checked against the full static whitelist.
-validate_lowered_plan : KernelPdfA4.Claim, KernelXmp.Packet, KernelStructure.Plan -> Try({}, Pdf.Error)
-validate_lowered_plan = |claim, packet, plan| {
-	_work = KernelPdfA4.validate_lowered(claim, { packet, root: KernelStructure.Plan.root(plan), sealed: KernelStructure.Plan.sealed(plan) }) ? |violation| InvalidDocument(profile_batch(violation, LoweredPlanValidation))
+validate_lowered_plan : ProfileClaims, KernelXmp.Packet, KernelStructure.Plan -> Try({}, Pdf.Error)
+validate_lowered_plan = |claims, packet, plan| {
+	if KernelXmp.Packet.identification(packet) != claims.identification {
+		return Err(InternalGenerationFailure)
+	}
+	_work = KernelPdfA4.validate_lowered(claims.archive, { packet, root: KernelStructure.Plan.root(plan), sealed: KernelStructure.Plan.sealed(plan) }) ? |violation| InvalidDocument(profile_batch(violation, LoweredPlanValidation))
 	Ok({})
 }
 
@@ -2527,14 +2537,23 @@ check_scale = |theme, role, name| match Theme.inline_scale(theme, role) {
 	_ => Ok({})
 }
 
-## The requested claim is derived from the public profile's exact claim set.
-## A profile whose claim set includes an unfinished capability is rejected
-## before any work; it never falls back to a narrower claim set.
-validate_profile_request : Pdf.Options -> Try(KernelPdfA4.Claim, Pdf.Error)
-validate_profile_request = |options| {
+ProfileClaims : { archive : KernelPdfA4.Claim, identification : KernelXmp.Identification }
+
+validate_profile_request : Document, Pdf.Options -> Try(ProfileClaims, Pdf.Error)
+validate_profile_request = |doc, options| {
+	if options.wtpdf == DeclareAccessibility and options.profile != AccessibleArchive {
+		return Err(InvalidDocument(located_batch(ProfileRequirementViolated, "profile.wtpdf_accessibility", "Select AccessibleArchive to request the WTPDF accessibility declaration.", ["options.wtpdf"])))
+	}
 	match options.profile {
-		AccessibleArchive => Err(Pdf.Error.InvalidDocument(unavailable_batch(AccessibleArchiveProfile, "The AccessibleArchive profile requires the unfinished combined PDF/A-4 and PDF/UA-2 capability.")))
-		Archive | Standard => Ok(if (Pdf.claims_for_profile(options.profile).static_pdf_a4) StaticPdfA4Claim else NoArchiveClaim)
+		AccessibleArchive => {
+			if Document.block_count(doc) == 0 {
+				return Err(InvalidDocument(located_batch(ProfileRequirementViolated, "profile.accessible_archive.empty_structure", "AccessibleArchive requires a tagged document. Add semantic content or explicitly select Archive for a blank page.", ["contents"])))
+			}
+			identification = if (options.wtpdf == DeclareAccessibility) AccessibleArchiveWithWtpdf else AccessibleArchiveIdentification
+			Ok({ archive: StaticPdfA4Claim, identification })
+		}
+		Archive => Ok({ archive: StaticPdfA4Claim, identification: PdfA4Identification })
+		Standard => Ok({ archive: NoArchiveClaim, identification: NoIdentification })
 	}
 }
 
@@ -3055,13 +3074,24 @@ expect {
 	contains_bytes(bytes, Str.to_utf8("<pdfaid:rev>2020</pdfaid:rev>"))
 }
 
-# AccessibleArchive remains unavailable rather than dropping its UA claim.
+# The combined profile supports a metadata title without a visible title
+# and declares WTPDF accessibility only on explicit request.
 expect {
-	document = Pdf.document({ contents: [], language: "en-AU", title: "Accessible" })
 	options = Pdf.Options.{ profile: Pdf.Profile.AccessibleArchive }
+	combined = Pdf.to_bytes_with(profile_document, options)?
+	declared = Pdf.to_bytes_with(profile_document, { ..options, wtpdf: DeclareAccessibility })?
+	ua = Str.to_utf8("<pdfuaid:part>2</pdfuaid:part>")
+	wtpdf = Str.to_utf8("<pdfd:conformsTo>http://pdfa.org/declarations/wtpdf#accessibility1.0</pdfd:conformsTo>")
 
-	match Pdf.to_bytes_with(document, options) {
-		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature(code), message, .. }], .. })) => code == "profile.accessible_archive" and message.contains("Gate 7")
+	contains_bytes(combined, profile_marker) and contains_bytes(combined, ua) and !contains_bytes(combined, wtpdf)
+		and contains_bytes(declared, profile_marker) and contains_bytes(declared, ua) and contains_bytes(declared, wtpdf)
+}
+
+# An incompatible WTPDF request fails both buffered and chunked entry points.
+expect {
+	options = Pdf.Options.{ wtpdf: DeclareAccessibility }
+	match (Pdf.to_bytes_with(profile_document, options), Pdf.to_chunks_with(profile_document, options)) {
+		(Err(InvalidDocument({ diagnostics: [{ code: ProfileRequirementViolated, feature: Feature("profile.wtpdf_accessibility"), .. }], .. })), Err(InvalidDocument({ diagnostics: [{ code: ProfileRequirementViolated, feature: Feature("profile.wtpdf_accessibility"), .. }], .. }))) => True
 		_ => False
 	}
 }

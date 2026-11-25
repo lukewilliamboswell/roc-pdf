@@ -118,13 +118,13 @@ expect {
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n")
 }
 
-# AccessibleArchive still rejects transactionally with its own feature code.
+# AccessibleArchive rejects a blank page transactionally with a located diagnostic.
 expect {
 	options = Pdf.Options.{ profile: Pdf.Profile.AccessibleArchive }
 	document = Pdf.document({ contents: [], language: "en-AU", title: "Accessible" })
 
-	match Pdf.to_bytes_with(document, options) {
-		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature(code), .. }], .. })) => code == "profile.accessible_archive"
+	match Pdf.to_chunks_with(document, options) {
+		Err(InvalidDocument({ diagnostics: [{ code: ProfileRequirementViolated, feature: Feature("profile.accessible_archive.empty_structure"), details: ["contents"], .. }], .. })) => True
 		_ => False
 	}
 }

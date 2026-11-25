@@ -246,11 +246,11 @@ chunked_twins = |scale, retention| {
 ## accepts it, while Archive rejects it without emitting bytes or downgrading.
 ## U+A7B0 is an uncovered Latin witness for the earlier coverage boundary.
 ## White-box twins continue to cover unrepresentable profile constructs.
-rejects_accessible_archive : Str -> Bool
-rejects_accessible_archive = |title| {
-	document = Pdf.document({ contents: [Pdf.paragraph("Body")], language: "en-AU", title })
+rejects_untagged_archive : Str -> Bool
+rejects_untagged_archive = |title| {
+	document = Pdf.document({ contents: [], language: "en-AU", title })
 	match Pdf.to_bytes_with(document, Pdf.Options.{ profile: Pdf.Profile.AccessibleArchive }) {
-		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature(code), stage: AuthoringValidation, .. }], .. })) => code == "profile.accessible_archive"
+		Err(InvalidDocument({ diagnostics: [{ code: ProfileRequirementViolated, feature: Feature("profile.accessible_archive.empty_structure"), stage: AuthoringValidation, .. }], .. })) => True
 		_ => False
 	}
 }
@@ -313,7 +313,7 @@ negatives : U64 -> { bytes : List(U8), work : List(U64) }
 negatives = |context| {
 	title = if (context == 0) "Archive negatives" else "guarded"
 	checks = [
-		rejects_accessible_archive(title),
+		rejects_untagged_archive(title),
 		keeps_metadata_cause("en-au"),
 		keeps_feature_cause(title),
 		keeps_content_cause(title, { text: "Missing Latin: \u(A7B0)", expected: "text.coverage_missing" }),
