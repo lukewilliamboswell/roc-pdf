@@ -79,7 +79,7 @@ def case_paths() -> tuple[list[Path], list[Path]]:
 @dataclass(frozen=True)
 class Control:
     name: str
-    source: str
+    source: str | Path
     scope: str
     old: bytes | re.Pattern[bytes]
     new: bytes
@@ -87,7 +87,7 @@ class Control:
     flavour: str = "ua2"
 
 
-def ua_control(name: str, source: str, scope: str, old: bytes | re.Pattern[bytes], new: bytes, *rules: str) -> Control:
+def ua_control(name: str, source: str | Path, scope: str, old: bytes | re.Pattern[bytes], new: bytes, *rules: str) -> Control:
     return Control(name, source, scope, old, new, frozenset(rules))
 
 
@@ -184,7 +184,7 @@ def run_controls(verapdf: Path, combined: list[Path], wtpdf: list[Path], report_
         paths = []
         for control in controls:
             if control.source:
-                source = REFERENCES / f"{control.source}.pdf"
+                source = control.source if isinstance(control.source, Path) else REFERENCES / f"{control.source}.pdf"
                 require(source in bases, f"{control.name}: source is not a registered combined positive")
             else:
                 require(bool(wtpdf), f"{control.name}: no registered WTPDF positive")
