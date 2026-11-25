@@ -64,13 +64,16 @@ containment. The veraPDF catalogs cover the corresponding executable machine
 rules. The catalogs do not cover every normative clause and passing them
 cannot resolve author-dependent requirements.
 
-The PDF/UA-2 preview includes the file requirements through 8.13.2. Direct
-review of 8.13.3–8.14 and the full ISO/TS 32005 text remains open pending
-access to the sponsored ISO copies. The pinned errata and the WTPDF
-accessibility provisions were checked separately. See the ledger's
+The PDF/UA-2 preview includes the file requirements through 8.13.2. The
+ISO/TS 32005 preview includes the textual clauses through 7.2 and the legend
+and beginning of Table 5. Direct review of PDF/UA-2 clauses 8.13.3–8.14 and
+the complete normative Table 5 remains open pending access to the sponsored
+ISO copies. The pinned errata and the WTPDF accessibility provisions were
+checked separately. See the ledger's
 `ROC-PDF-PDFUA2-ISO-TEXT-RECONCILIATION` for this open confirmation.
 [PDF/UA-2](https://pdfa.org/iso-14289-2-pdfua-2/) ·
 [ISO/TS 32005](https://pdfa.org/resource/iso-32005/) ·
+[ISO/TS 32005 preview](https://cdn.standards.iteh.ai/samples/45878/b574c2cc0cc94e7986f66b148550bd7d/ISO-TS-32005-2023.pdf) ·
 [WTPDF 1.0](https://pdfa.org/download-area/specifications/Well-Tagged-PDF-WTPDF-1.0.pdf) ·
 [ISO/TS 32005 informative matrix](https://pdfa.org/resource/iso-ts-32005-hierarchical-inclusion-rules/)
 
@@ -116,10 +119,21 @@ accessibility provisions were checked separately. See the ledger's
 | --- | --- |
 | 1–3 | Scope, dependencies and namespace terminology guide the review. |
 | 4 | The optional ISO/TS 32005 declaration is distinct from the PDF/UA-2 identification and WTPDF accessibility declaration. |
-| 5.1–5.5 | Check that PDF 2.0 roles use the correct namespace and the accepted unique PDF 1.7 roles use that namespace. Check the standards' permitted roles and any exception for legacy role names individually. |
+| 5.1 | The emitted PDF header specifies version 2.0. |
+| 5.2 | The PDF 1.7-only exception does not apply because this subset has an explicit PDF 2.0 Document root. |
+| 5.3–5.4 | Roles shared by both standard namespaces use PDF 2.0. Roles unique to PDF 2.0 explicitly use that namespace. |
+| 5.5.1–5.5.2.3 | The admitted unique PDF 1.7 roles follow the meanings and grouping or inline constraints of Tables 2 and 3. For an authored flat TOC, use a TOC with TOCI children and use Caption for descriptive text within it. |
 | 5.6 | The bounded role set has explicit standard namespaces and no custom role map. |
-| 6.1–6.3 | Check supported table, list, artifact and layout attribute owners and namespaces with the applicable roles. Custom attribute owners remain excluded. |
+| 6.1–6.2 | Check supported table, list, artifact and layout attribute owners against the role and attribute definitions. Standard owner eligibility follows the attribute definition independently of which standard namespace owns the role. |
+| 6.3 | Namespace-owned custom attributes remain excluded. |
 | 7.1–7.2 | Check each admitted parent/child pair, direct content item, cardinality and any applicable position constraint. The ledger maps the shared veraPDF Table 5 rules as one maintained group, with distinct evidence for the package's accepted roles and exclusions. Erratum #336 affects Code with Sub, and erratum #440 affects WP with Figure. Neither pair is currently supported because Sub and WP are unavailable. |
+
+A captioned figure uses a dedicated `Sect` whose entire content is the figure
+and its caption, in that order. This makes the caption the last child of the
+structure element enclosing the captioned content. The object check requires
+that exact relationship and rejects a transparent `Part` in its place.
+[ISO 32000-2 caption semantics](https://pdf-issues.pdfa.org/32000-2-2020/clause14.html) ·
+[PDF 2.0 HTML derivation, section 4.3.5.2](https://pdfa.org/download-area/specifications/Deriving_HTML_from_PDF.pdf)
 
 The exact errata revision in the normative baseline contains resolved
 ISO/TS 32005, WTPDF and PDF Declarations corrections. Do not treat proposals

@@ -3752,7 +3752,7 @@
     },
     {
       "id": "ROC-PDF-PDFUA2-ISO-TEXT-RECONCILIATION",
-      "summary": "Reconcile the full ISO/TS 32005 text and PDF/UA-2 clauses 8.13.3–8.14 with the WTPDF accessibility text, the pinned errata and the independent rule catalogs.",
+      "summary": "Reconcile the complete ISO/TS 32005 Table 5 and PDF/UA-2 clauses 8.13.3–8.14 with the informative containment matrix, the WTPDF accessibility text, the pinned errata and the independent rule catalogs.",
       "source_ids": [
         "iso-14289-2-2024",
         "iso-ts-32005-2023",
@@ -3765,7 +3765,7 @@
         "ISO 14289-2:2024 8.1",
         "ISO 14289-2:2024 8.13.3",
         "ISO 14289-2:2024 8.14",
-        "ISO/TS 32005:2023 4–7",
+        "ISO/TS 32005:2023 7.2 Table 5",
         "WTPDF 1.0 6.1",
         "WTPDF 1.0 6.2",
         "WTPDF 1.0 8.1",
