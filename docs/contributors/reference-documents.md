@@ -654,7 +654,7 @@ rules.
 | LET-A3a | Lead region height 640 pt | defaults | `layout.template_body_space` naming the first-page template, each region height, and the remaining body height (less than one body line). Detected before flow. No bytes. |
 | LET-A3b | Letterhead with twelve lines in the 64 pt lead region | defaults | `layout.template_region_overflow` naming the lead region (`templates.first.lead`), with the content and reserved heights in the message. No bytes. |
 | LET-A3c | Continuation header slot texts whose combined widths exceed the region width | defaults | `layout.template_region_overflow` naming the region and slots. No bytes. |
-| LET-A4 | The ordinary letter (no visible title) under `Archive` and, from Gate 7, `AccessibleArchive` | profile | Accepted. No diagnostic requires a visible title. Gate 6 evidence checks XMP `dc:title` equals the metadata title and the catalog sets `DisplayDocTitle true`. Until Gate 7, `AccessibleArchive` still reports `profile.accessible_archive`. |
+| LET-A4 | The ordinary letter with a metadata title and no visible title under `AccessibleArchive` | profile | Accepted. The independent reference checker verifies the authored XMP title, the catalog title-display preference, and the absence of a visible `Title` element. The combined-profile lane validates the original bytes with both profiles. |
 | LET-A5 | Empty metadata title | defaults | The existing typed metadata error. No bytes. |
 | LET-A6 | Signature block taller than a continuation body (e.g. a 700 pt spacer) | defaults | `layout.keep_conflict` naming the keep group and its first and last members. No bytes. |
 | LET-A7 | `Pdf.page_number` used inside a body paragraph | defaults | `document.generated_reference` (`FeatureUnavailable`, Gate 8). Page fields are furniture-only in v1. No bytes. |
@@ -1406,6 +1406,29 @@ the field; new names are introduced by the slice that implements them.
 | | | destination-name resolution `comparison_work` | `n log n` |
 | Letter pages | 20 / 200 body paragraphs (6 / 36 pages; amended in `reference-documents-v6` from 1 / 10 pages so the continuation template and two-digit page fields scale) | `lines`, `pages`, `fragments`, furniture items shaped, field resolutions | linear |
 | | | stabilization passes | constant (2) |
+| Statement batch | 10 / 100 customer accounts, one section, one table and one page per account | pages, fragments, report blocks, obligations, coverage | linear |
+
+The reference fixture checks the ordinary documents and adverse variants
+through the same public preparation options. The statement batch exercises
+the separate WTPDF accessibility declaration. The test harness checks exact
+allocation counts and deterministic counters, and
+[`check_reference_documents.py`](../../scripts/check_reference_documents.py)
+asserts linear growth across the four recorded pairs. The report coverage
+bound includes three additional runs for each repeated header in the large
+case, corresponding to its three authored columns.
+
+The combined profile adds 116–121 bytes to each existing reference file
+through the XMP declaration and its resulting cross-reference offsets.
+PDFBox 3.0.8 independently rendered and extracted all 165 pages of the 20
+accepted reference documents and variants. Its raster and text output was
+identical to the respective Archive fixtures in
+[the Gate 6 reference baseline](https://github.com/lukewilliamboswell/roc-pdf/tree/5492de12ca7fc008cc65c097e4862099412b7206/tests/reference_documents).
+The existing accepted cases retain their exact allocation counts. The
+negative carrier adds one allocation for the authored `options.wtpdf`
+diagnostic path and retains its count of rejected inputs. The new batches
+record 3,428 and 22,773 allocations for 10 and 100 accounts in the pinned
+native harness.
+
 
 ## Optional human review tasks
 

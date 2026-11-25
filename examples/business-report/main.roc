@@ -30,7 +30,7 @@ import "drying-yard.jpg" as drying_photo : List(U8)
 main! = |_args| {
 	fonts = register_fonts({})?
 	options : Pdf.Options
-	options = { theme: theme(fonts), fonts: Registered(fonts.registry) }
+	options = { profile: AccessibleArchive, theme: theme(fonts), fonts: Registered(fonts.registry) }
 	document = Pdf.document({
 		contents,
 		language: "en-AU",

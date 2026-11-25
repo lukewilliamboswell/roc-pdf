@@ -46,6 +46,7 @@
     "pdfa4_structure",
     "extract_verapdf_rules",
     "pdfa4",
+    "accessible_archive",
     "build_verapdf_corpus_subset",
     "archive_renderers",
     "structure_semantics",
@@ -70,6 +71,7 @@
     "pdf_structure",
     "pdfa4_structure",
     "pdfa4",
+    "accessible_archive",
     "archive_renderers",
     "fonts",
     "structure_semantics",
@@ -25013,7 +25015,7 @@
     },
     {
       "name": "reference invoice",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/invoice.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25043,10 +25045,10 @@
             "report_outcomes": 1,
             "repeated_headers": 1,
             "relaxations": 0,
-            "report_obligations": 9,
+            "report_obligations": 16,
             "report_coverage": 194,
             "observations": 12,
-            "output_bytes": 33448
+            "output_bytes": 33564
           }
         },
         "x64musl": {
@@ -25059,10 +25061,10 @@
             "report_outcomes": 1,
             "repeated_headers": 1,
             "relaxations": 0,
-            "report_obligations": 9,
+            "report_obligations": 16,
             "report_coverage": 194,
             "observations": 12,
-            "output_bytes": 33448
+            "output_bytes": 33564
           }
         }
       },
@@ -25070,12 +25072,13 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "rich_inline"
+        "rich_inline",
+        "pdfua2"
       ]
     },
     {
       "name": "reference report",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/report.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25105,10 +25108,10 @@
             "report_outcomes": 4,
             "repeated_headers": 1,
             "relaxations": 0,
-            "report_obligations": 14,
+            "report_obligations": 22,
             "report_coverage": 279,
             "observations": 17,
-            "output_bytes": 105690
+            "output_bytes": 105807
           }
         },
         "x64musl": {
@@ -25121,10 +25124,10 @@
             "report_outcomes": 4,
             "repeated_headers": 1,
             "relaxations": 0,
-            "report_obligations": 14,
+            "report_obligations": 22,
             "report_coverage": 279,
             "observations": 17,
-            "output_bytes": 105690
+            "output_bytes": 105807
           }
         }
       },
@@ -25133,12 +25136,13 @@
         "pdfa4",
         "structure_semantics",
         "rich_inline",
-        "navigation"
+        "navigation",
+        "pdfua2"
       ]
     },
     {
       "name": "reference letter",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/letter.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25168,10 +25172,10 @@
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
-            "report_obligations": 5,
+            "report_obligations": 11,
             "report_coverage": 53,
             "observations": 8,
-            "output_bytes": 38588
+            "output_bytes": 38704
           }
         },
         "x64musl": {
@@ -25184,10 +25188,10 @@
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
-            "report_obligations": 5,
+            "report_obligations": 11,
             "report_coverage": 53,
             "observations": 8,
-            "output_bytes": 38588
+            "output_bytes": 38704
           }
         }
       },
@@ -25195,12 +25199,13 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "rich_inline"
+        "rich_inline",
+        "pdfua2"
       ]
     },
     {
       "name": "reference invoice long text (INV-A1)",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/invoice_long_text.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25230,10 +25235,10 @@
             "report_outcomes": 2,
             "repeated_headers": 2,
             "relaxations": 0,
-            "report_obligations": 9,
+            "report_obligations": 16,
             "report_coverage": 199,
             "observations": 3,
-            "output_bytes": 35222
+            "output_bytes": 35339
           }
         },
         "x64musl": {
@@ -25246,10 +25251,10 @@
             "report_outcomes": 2,
             "repeated_headers": 2,
             "relaxations": 0,
-            "report_obligations": 9,
+            "report_obligations": 16,
             "report_coverage": 199,
             "observations": 3,
-            "output_bytes": 35222
+            "output_bytes": 35339
           }
         }
       },
@@ -25257,12 +25262,13 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "rich_inline"
+        "rich_inline",
+        "pdfua2"
       ]
     },
     {
       "name": "reference invoice wide code (INV-A2a)",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/invoice_wide_code.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25292,10 +25298,10 @@
             "report_outcomes": 2,
             "repeated_headers": 2,
             "relaxations": 0,
-            "report_obligations": 9,
+            "report_obligations": 16,
             "report_coverage": 199,
             "observations": 3,
-            "output_bytes": 34796
+            "output_bytes": 34912
           }
         },
         "x64musl": {
@@ -25308,10 +25314,10 @@
             "report_outcomes": 2,
             "repeated_headers": 2,
             "relaxations": 0,
-            "report_obligations": 9,
+            "report_obligations": 16,
             "report_coverage": 199,
             "observations": 3,
-            "output_bytes": 34796
+            "output_bytes": 34912
           }
         }
       },
@@ -25319,12 +25325,13 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "rich_inline"
+        "rich_inline",
+        "pdfua2"
       ]
     },
     {
       "name": "reference invoice split row (INV-A4b)",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/invoice_split_row.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25354,10 +25361,10 @@
             "report_outcomes": 11,
             "repeated_headers": 6,
             "relaxations": 0,
-            "report_obligations": 9,
+            "report_obligations": 16,
             "report_coverage": 224,
             "observations": 3,
-            "output_bytes": 42068
+            "output_bytes": 42186
           }
         },
         "x64musl": {
@@ -25370,22 +25377,23 @@
             "report_outcomes": 11,
             "repeated_headers": 6,
             "relaxations": 0,
-            "report_obligations": 9,
+            "report_obligations": 16,
             "report_coverage": 224,
             "observations": 3,
-            "output_bytes": 42068
+            "output_bytes": 42186
           }
         }
       },
       "retention": null,
       "validators": [
         "pdfa4",
-        "structure_semantics"
+        "structure_semantics",
+        "pdfua2"
       ]
     },
     {
       "name": "reference invoice totals carry (INV-A5)",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/invoice_totals_carry.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25415,10 +25423,10 @@
             "report_outcomes": 2,
             "repeated_headers": 2,
             "relaxations": 0,
-            "report_obligations": 10,
+            "report_obligations": 17,
             "report_coverage": 219,
             "observations": 5,
-            "output_bytes": 35024
+            "output_bytes": 35140
           }
         },
         "x64musl": {
@@ -25431,10 +25439,10 @@
             "report_outcomes": 2,
             "repeated_headers": 2,
             "relaxations": 0,
-            "report_obligations": 10,
+            "report_obligations": 17,
             "report_coverage": 219,
             "observations": 5,
-            "output_bytes": 35024
+            "output_bytes": 35140
           }
         }
       },
@@ -25442,12 +25450,13 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "rich_inline"
+        "rich_inline",
+        "pdfua2"
       ]
     },
     {
       "name": "reference invoice rows x50",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/invoice_50.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25477,10 +25486,10 @@
             "report_outcomes": 2,
             "repeated_headers": 2,
             "relaxations": 0,
-            "report_obligations": 11,
+            "report_obligations": 18,
             "report_coverage": 289,
             "observations": 3,
-            "output_bytes": 37971
+            "output_bytes": 38087
           }
         },
         "x64musl": {
@@ -25493,10 +25502,10 @@
             "report_outcomes": 2,
             "repeated_headers": 2,
             "relaxations": 0,
-            "report_obligations": 11,
+            "report_obligations": 18,
             "report_coverage": 289,
             "observations": 3,
-            "output_bytes": 37971
+            "output_bytes": 38087
           }
         }
       },
@@ -25504,12 +25513,13 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "rich_inline"
+        "rich_inline",
+        "pdfua2"
       ]
     },
     {
       "name": "reference invoice rows x500 (INV-A3)",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/invoice_500.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25539,10 +25549,10 @@
             "report_outcomes": 20,
             "repeated_headers": 20,
             "relaxations": 0,
-            "report_obligations": 68,
+            "report_obligations": 75,
             "report_coverage": 2629,
             "observations": 3,
-            "output_bytes": 145897
+            "output_bytes": 146015
           }
         },
         "x64musl": {
@@ -25555,10 +25565,10 @@
             "report_outcomes": 20,
             "repeated_headers": 20,
             "relaxations": 0,
-            "report_obligations": 68,
+            "report_obligations": 75,
             "report_coverage": 2629,
             "observations": 3,
-            "output_bytes": 145897
+            "output_bytes": 146015
           }
         }
       },
@@ -25566,12 +25576,13 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "rich_inline"
+        "rich_inline",
+        "pdfua2"
       ]
     },
     {
       "name": "reference report heading keep (REP-A1)",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/report_heading_keep.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25601,10 +25612,10 @@
             "report_outcomes": 4,
             "repeated_headers": 1,
             "relaxations": 0,
-            "report_obligations": 14,
+            "report_obligations": 22,
             "report_coverage": 280,
             "observations": 4,
-            "output_bytes": 106334
+            "output_bytes": 106455
           }
         },
         "x64musl": {
@@ -25617,10 +25628,10 @@
             "report_outcomes": 4,
             "repeated_headers": 1,
             "relaxations": 0,
-            "report_obligations": 14,
+            "report_obligations": 22,
             "report_coverage": 280,
             "observations": 4,
-            "output_bytes": 106334
+            "output_bytes": 106455
           }
         }
       },
@@ -25629,12 +25640,13 @@
         "pdfa4",
         "structure_semantics",
         "rich_inline",
-        "navigation"
+        "navigation",
+        "pdfua2"
       ]
     },
     {
       "name": "reference report figure and caption (REP-A2)",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/report_figure_caption.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25664,10 +25676,10 @@
             "report_outcomes": 4,
             "repeated_headers": 1,
             "relaxations": 0,
-            "report_obligations": 14,
+            "report_obligations": 22,
             "report_coverage": 280,
             "observations": 4,
-            "output_bytes": 106346
+            "output_bytes": 106465
           }
         },
         "x64musl": {
@@ -25680,10 +25692,10 @@
             "report_outcomes": 4,
             "repeated_headers": 1,
             "relaxations": 0,
-            "report_obligations": 14,
+            "report_obligations": 22,
             "report_coverage": 280,
             "observations": 4,
-            "output_bytes": 106346
+            "output_bytes": 106465
           }
         }
       },
@@ -25692,12 +25704,13 @@
         "pdfa4",
         "structure_semantics",
         "rich_inline",
-        "navigation"
+        "navigation",
+        "pdfua2"
       ]
     },
     {
       "name": "reference report table break (REP-A3)",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/report_table_break.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25727,10 +25740,10 @@
             "report_outcomes": 5,
             "repeated_headers": 2,
             "relaxations": 0,
-            "report_obligations": 14,
+            "report_obligations": 22,
             "report_coverage": 284,
             "observations": 6,
-            "output_bytes": 106589
+            "output_bytes": 106708
           }
         },
         "x64musl": {
@@ -25743,10 +25756,10 @@
             "report_outcomes": 5,
             "repeated_headers": 2,
             "relaxations": 0,
-            "report_obligations": 14,
+            "report_obligations": 22,
             "report_coverage": 284,
             "observations": 6,
-            "output_bytes": 106589
+            "output_bytes": 106708
           }
         }
       },
@@ -25755,12 +25768,13 @@
         "pdfa4",
         "structure_semantics",
         "rich_inline",
-        "navigation"
+        "navigation",
+        "pdfua2"
       ]
     },
     {
       "name": "reference report ordered faces (REP-A5)",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/report_ordered.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25790,10 +25804,10 @@
             "report_outcomes": 4,
             "repeated_headers": 1,
             "relaxations": 0,
-            "report_obligations": 15,
+            "report_obligations": 23,
             "report_coverage": 284,
             "observations": 4,
-            "output_bytes": 90151
+            "output_bytes": 90269
           }
         },
         "x64musl": {
@@ -25806,10 +25820,10 @@
             "report_outcomes": 4,
             "repeated_headers": 1,
             "relaxations": 0,
-            "report_obligations": 15,
+            "report_obligations": 23,
             "report_coverage": 284,
             "observations": 4,
-            "output_bytes": 90151
+            "output_bytes": 90269
           }
         }
       },
@@ -25818,12 +25832,13 @@
         "pdfa4",
         "structure_semantics",
         "rich_inline",
-        "navigation"
+        "navigation",
+        "pdfua2"
       ]
     },
     {
       "name": "reference report scaled figure (REP-A6b)",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/report_scaled_figure.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25853,10 +25868,10 @@
             "report_outcomes": 4,
             "repeated_headers": 1,
             "relaxations": 0,
-            "report_obligations": 14,
+            "report_obligations": 22,
             "report_coverage": 279,
             "observations": 2,
-            "output_bytes": 105350
+            "output_bytes": 105468
           }
         },
         "x64musl": {
@@ -25869,10 +25884,10 @@
             "report_outcomes": 4,
             "repeated_headers": 1,
             "relaxations": 0,
-            "report_obligations": 14,
+            "report_obligations": 22,
             "report_coverage": 279,
             "observations": 2,
-            "output_bytes": 105350
+            "output_bytes": 105468
           }
         }
       },
@@ -25881,12 +25896,13 @@
         "pdfa4",
         "structure_semantics",
         "rich_inline",
-        "navigation"
+        "navigation",
+        "pdfua2"
       ]
     },
     {
       "name": "reference report sections x10",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/report_sections_10.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25916,10 +25932,10 @@
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
-            "report_obligations": 22,
+            "report_obligations": 30,
             "report_coverage": 201,
             "observations": 3,
-            "output_bytes": 34987
+            "output_bytes": 35105
           }
         },
         "x64musl": {
@@ -25932,10 +25948,10 @@
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
-            "report_obligations": 22,
+            "report_obligations": 30,
             "report_coverage": 201,
             "observations": 3,
-            "output_bytes": 34987
+            "output_bytes": 35105
           }
         }
       },
@@ -25944,12 +25960,13 @@
         "pdfa4",
         "structure_semantics",
         "rich_inline",
-        "navigation"
+        "navigation",
+        "pdfua2"
       ]
     },
     {
       "name": "reference report sections x100",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/report_sections_100.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25979,10 +25996,10 @@
             "report_outcomes": 12,
             "repeated_headers": 12,
             "relaxations": 0,
-            "report_obligations": 202,
+            "report_obligations": 210,
             "report_coverage": 2037,
             "observations": 3,
-            "output_bytes": 159760
+            "output_bytes": 159877
           }
         },
         "x64musl": {
@@ -25995,10 +26012,10 @@
             "report_outcomes": 12,
             "repeated_headers": 12,
             "relaxations": 0,
-            "report_obligations": 202,
+            "report_obligations": 210,
             "report_coverage": 2037,
             "observations": 3,
-            "output_bytes": 159760
+            "output_bytes": 159877
           }
         }
       },
@@ -26007,12 +26024,13 @@
         "pdfa4",
         "structure_semantics",
         "rich_inline",
-        "navigation"
+        "navigation",
+        "pdfua2"
       ]
     },
     {
       "name": "reference letter long recipient (LET-A1)",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/letter_long_recipient.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -26042,10 +26060,10 @@
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
-            "report_obligations": 5,
+            "report_obligations": 11,
             "report_coverage": 53,
             "observations": 2,
-            "output_bytes": 38946
+            "output_bytes": 39066
           }
         },
         "x64musl": {
@@ -26058,10 +26076,10 @@
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
-            "report_obligations": 5,
+            "report_obligations": 11,
             "report_coverage": 53,
             "observations": 2,
-            "output_bytes": 38946
+            "output_bytes": 39066
           }
         }
       },
@@ -26069,12 +26087,13 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "rich_inline"
+        "rich_inline",
+        "pdfua2"
       ]
     },
     {
       "name": "reference letter x60 (LET-A2)",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/letter_60.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -26104,10 +26123,10 @@
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
-            "report_obligations": 14,
+            "report_obligations": 20,
             "report_coverage": 107,
             "observations": 3,
-            "output_bytes": 67984
+            "output_bytes": 68102
           }
         },
         "x64musl": {
@@ -26120,10 +26139,10 @@
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
-            "report_obligations": 14,
+            "report_obligations": 20,
             "report_coverage": 107,
             "observations": 3,
-            "output_bytes": 67984
+            "output_bytes": 68102
           }
         }
       },
@@ -26131,12 +26150,13 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "rich_inline"
+        "rich_inline",
+        "pdfua2"
       ]
     },
     {
       "name": "reference letter x20",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/letter_20.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -26166,10 +26186,10 @@
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
-            "report_obligations": 7,
+            "report_obligations": 13,
             "report_coverage": 67,
             "observations": 3,
-            "output_bytes": 46204
+            "output_bytes": 46322
           }
         },
         "x64musl": {
@@ -26182,10 +26202,10 @@
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
-            "report_obligations": 7,
+            "report_obligations": 13,
             "report_coverage": 67,
             "observations": 3,
-            "output_bytes": 46204
+            "output_bytes": 46322
           }
         }
       },
@@ -26193,12 +26213,13 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "rich_inline"
+        "rich_inline",
+        "pdfua2"
       ]
     },
     {
       "name": "reference letter x200",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/letter_200.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -26228,10 +26249,10 @@
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
-            "report_obligations": 37,
+            "report_obligations": 43,
             "report_coverage": 247,
             "observations": 3,
-            "output_bytes": 143539
+            "output_bytes": 143657
           }
         },
         "x64musl": {
@@ -26244,10 +26265,10 @@
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
-            "report_obligations": 37,
+            "report_obligations": 43,
             "report_coverage": 247,
             "observations": 3,
-            "output_bytes": 143539
+            "output_bytes": 143657
           }
         }
       },
@@ -26255,12 +26276,13 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "rich_inline"
+        "rich_inline",
+        "pdfua2"
       ]
     },
     {
       "name": "reference variant rejections",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/rejections.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -26274,21 +26296,21 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 81000,
+          "allocations": 81001,
           "allocated_bytes": 92577138,
           "work": {
             "rejections": 24,
-            "report_obligations": 2,
-            "output_bytes": 15588
+            "report_obligations": 8,
+            "output_bytes": 15705
           }
         },
         "x64musl": {
-          "allocations": 81000,
+          "allocations": 81001,
           "allocated_bytes": 92577138,
           "work": {
             "rejections": 24,
-            "report_obligations": 2,
-            "output_bytes": 15588
+            "report_obligations": 8,
+            "output_bytes": 15705
           }
         }
       },
@@ -26296,7 +26318,136 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "rich_inline"
+        "rich_inline",
+        "pdfua2"
+      ]
+    },
+    {
+      "name": "reference statement batch x10",
+      "scenario_revision": "reference-documents-v13",
+      "family": "reference_documents",
+      "snapshot": "tests/reference_documents/statements_10.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 10
+      },
+      "work_counters": [
+        "pages",
+        "fragments",
+        "report_blocks",
+        "report_outcomes",
+        "repeated_headers",
+        "relaxations",
+        "report_obligations",
+        "report_coverage",
+        "observations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 3428,
+          "allocated_bytes": 8885924,
+          "work": {
+            "pages": 10,
+            "fragments": 100,
+            "report_blocks": 100,
+            "report_outcomes": 0,
+            "repeated_headers": 0,
+            "relaxations": 0,
+            "report_obligations": 18,
+            "report_coverage": 100,
+            "observations": 1,
+            "output_bytes": 27472
+          }
+        },
+        "x64musl": {
+          "allocations": 3428,
+          "allocated_bytes": 8885924,
+          "work": {
+            "pages": 10,
+            "fragments": 100,
+            "report_blocks": 100,
+            "report_outcomes": 0,
+            "repeated_headers": 0,
+            "relaxations": 0,
+            "report_obligations": 18,
+            "report_coverage": 100,
+            "observations": 1,
+            "output_bytes": 27472
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "pdfua2",
+        "wtpdf_accessibility"
+      ]
+    },
+    {
+      "name": "reference statement batch x100",
+      "scenario_revision": "reference-documents-v13",
+      "family": "reference_documents",
+      "snapshot": "tests/reference_documents/statements_100.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 100
+      },
+      "work_counters": [
+        "pages",
+        "fragments",
+        "report_blocks",
+        "report_outcomes",
+        "repeated_headers",
+        "relaxations",
+        "report_obligations",
+        "report_coverage",
+        "observations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 22773,
+          "allocated_bytes": 64430098,
+          "work": {
+            "pages": 100,
+            "fragments": 1000,
+            "report_blocks": 1000,
+            "report_outcomes": 0,
+            "repeated_headers": 0,
+            "relaxations": 0,
+            "report_obligations": 108,
+            "report_coverage": 1000,
+            "observations": 1,
+            "output_bytes": 115456
+          }
+        },
+        "x64musl": {
+          "allocations": 22773,
+          "allocated_bytes": 64430098,
+          "work": {
+            "pages": 100,
+            "fragments": 1000,
+            "report_blocks": 1000,
+            "report_outcomes": 0,
+            "repeated_headers": 0,
+            "relaxations": 0,
+            "report_obligations": 108,
+            "report_coverage": 1000,
+            "observations": 1,
+            "output_bytes": 115456
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "pdfua2",
+        "wtpdf_accessibility"
       ]
     },
     {

@@ -19,3 +19,5 @@
 {"name":"reference letter x20","schema_version":1,"case":{"LetterParagraphs":{"paragraphs":20}}}
 {"name":"reference letter x200","schema_version":1,"case":{"LetterParagraphs":{"paragraphs":200}}}
 {"name":"reference variant rejections","schema_version":1,"case":{"AtomicNegatives":{"context":0}}}
+{"name":"reference statement batch x10","schema_version":1,"case":{"StatementBatch":{"accounts":10}}}
+{"name":"reference statement batch x100","schema_version":1,"case":{"StatementBatch":{"accounts":100}}}

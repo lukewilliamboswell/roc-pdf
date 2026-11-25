@@ -26,7 +26,7 @@ import "fonts/Literata-Italic.ttf" as italic_bytes : List(U8)
 main! = |_args| {
 	fonts = register_fonts({})?
 	options : Pdf.Options
-	options = { theme: theme(fonts), fonts: Registered(fonts.registry) }
+	options = { profile: AccessibleArchive, theme: theme(fonts), fonts: Registered(fonts.registry) }
 	document = Pdf.document({
 		contents: opening.concat(body).concat(closing),
 		language: "en-AU",
