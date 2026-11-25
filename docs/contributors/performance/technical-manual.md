@@ -46,8 +46,11 @@ The replacement of the front-matter physical field with the terminal
 configured label removes two shaped runs, final runs, and fragments per
 chapter. The table-of-contents wrappers and label link add three objects per
 chapter and one shared TOC object. Each diagram contributes five semantic
-label fragments and five corresponding drawing-text marks. The pinned
-counts are 17,249 and 136,140 allocations. The 2/20-chapter pair keeps its 9/81 pages,
-linear work growth, and one reference resolution phase. The physical
+label fragments and five corresponding drawing-text marks. Each checklist
+associates its first column heading with 40 row headers. This adds 80 and
+800 typed header relationships across the pair. The 20-chapter document
+needs one additional IDTree node for these referenced heading IDs. The
+pinned counts are 18,075 and 144,356 allocations. The pair keeps its 9/81
+pages, linear work growth, and one reference resolution phase. The physical
 references within chapter bodies still exercise the exact fixed-width
 measurement contract.
