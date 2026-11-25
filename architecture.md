@@ -1530,8 +1530,9 @@ map stream.
 
 The file representation is PDF 2.0 compressed object streams with a
 compressed cross-reference stream, and it is the only one the package writes.
-Stream objects stay top-level. Every other object goes into a FlateDecode
-object stream (ISO 32000-2 7.5.7): in plan order, the compressible objects fill
+Streams and objects whose entire value is an indirect reference stay
+top-level. Every other object goes into a FlateDecode object stream
+(ISO 32000-2 §7.5.7): in plan order, the compressible objects fill
 object streams of a fixed maximum number of members, which take the object
 numbers after the planned objects. The partition depends only on the plan's
 object order and kinds, so it is fixed before emission. The cross-reference
@@ -1546,9 +1547,10 @@ elements, the ParentTree, annotations, and the page tree. Written as top-level
 uncompressed objects they were about half the file, and object streams remove
 most of those bytes. PDF 2.0 and PDF/A-4 both permit object streams. The rules
 of 7.5.7 are respected by construction: object streams never hold a stream
-object, a nonzero generation (none are written), an encryption dictionary
-(the package never encrypts), or an object stream's own length (object streams
-use direct lengths). Readers that predate PDF 1.5 cannot read the result; that
+object, an object whose entire value is an indirect reference, a nonzero
+generation (none are written), an encryption dictionary (the package never
+encrypts), or an object stream's own length (object streams use direct
+lengths). References within a packed array or dictionary remain supported. Readers that predate PDF 1.5 cannot read the result; that
 is outside the PDF 2.0 destination.
 
 There is no uncompressed or flat layout option. A second layout would double

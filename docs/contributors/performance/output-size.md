@@ -539,8 +539,8 @@ clean -d`) expand any file for reading.
 - `KernelEmit` serializes each compressible object into the open batch,
   records its type 2 cross-reference entry, and writes the batch as one
   object stream with a direct length when it fills or the last compressible
-  object is placed. Stream objects are written top-level as before. The
-  cross-reference stream follows the object streams.
+  object is placed. Streams and standalone references stay top-level. The
+  cross-reference stream follows the planned objects and their object streams.
 - `KernelOutputBound` bounds the new layout with the same partition, and blank
   plans now store that bound too (`docs/contributors/performance/output-bounds.md`).
 - `Encode.canonical` records the policy: `LibdeflateLevel(10)` (now the
@@ -553,11 +553,13 @@ clean -d`) expand any file for reading.
 
 - ISO 32000-2 7.5.7 forbids storing stream objects, objects with a nonzero
   generation, the encryption dictionary, and the object that holds an object
-  stream's `/Length` in an object stream. Streams stay top-level, every object
-  has generation zero, the package never encrypts, and object streams and the
-  cross-reference stream use direct lengths.
-- ISO 32000-2 7.5.8.2 requires every cross-reference stream dictionary entry to
-  be direct; all of them are.
+  stream's `/Length` in an object stream. It also excludes objects whose
+  entire value is an indirect reference. Streams and those references stay
+  top-level. The package writes generation-zero objects without encryption,
+  and uses direct lengths for object streams and the cross-reference stream.
+- ISO 32000-2 7.5.8.2 requires direct values for the cross-reference entries
+  listed in Table 17 and for the filter and its parameters. The trailer's
+  `/Root` remains an indirect reference.
 - PDF/A-4 permits object streams and compressed cross-reference streams. The
   ledger's rules are unaffected: veraPDF finds zero failures on every Archive
   snapshot and gallery PDF.

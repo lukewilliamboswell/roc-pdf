@@ -30,8 +30,8 @@ calculate_bound = |sealed, xref_object| {
 	if KernelObject.ObjectId.number(xref_object) != expected_xref {
 		Err(XrefObjectMismatch({ actual: xref_object, expected: expected_xref }))
 	} else {
-		# Stream objects are bounded as top-level objects. Every other object
-		# is bounded as an object-stream member (a header pair of at most two
+		# Streams and standalone references use top-level framing. Other
+		# objects are bounded as object-stream members (a header pair of at most two
 		# 20-digit numbers and two spaces, its value, and a newline), and each
 		# object stream closed by the shared partition adds its DEFLATE bound
 		# and framing.
@@ -50,8 +50,8 @@ calculate_bound = |sealed, xref_object| {
 					$payload_bound_lookups = checked_add($payload_bound_lookups, 1)?
 					Member(decimal_length(payload_bound))
 				}
-				Stored(value_id) => match list_at(store.values, KernelObject.ValueId.index(value_id)) {
-					Stream(stream_id) => {
+				Stored(value_id) => match KernelFileLayout.stored_placement(list_at(store.values, KernelObject.ValueId.index(value_id))) {
+					TopLevelStream(stream_id) => {
 						stream = list_at(store.streams, KernelObject.StreamId.index(stream_id))
 						dictionary = dictionary_bound(store, stream.dictionary)?
 						$value_visits = checked_add($value_visits, dictionary.visits)?
@@ -65,7 +65,13 @@ calculate_bound = |sealed, xref_object| {
 						$bytes = checked_add($bytes, 18)?
 						TopLevel
 					}
-					_ => {
+					TopLevelReference(target) => {
+						header = decimal_length(KernelObject.ObjectId.number(object.id)) + 7
+						$bytes = checked_add($bytes, header + reference_bound(target) + 8)?
+						$value_visits = checked_add($value_visits, 1)?
+						TopLevel
+					}
+					ObjectMember => {
 						value = value_bound(store, value_id)?
 						$value_visits = checked_add($value_visits, value.visits)?
 						Member(value.bytes)
@@ -118,7 +124,7 @@ value_bound = |store, value_id| match list_at(store.values, KernelObject.ValueId
 	Null => Ok({ bytes: 4, visits: 1 })
 	Real(_) => Ok({ bytes: 21, visits: 1 })
 	Fixed16(_) => Ok({ bytes: 23, visits: 1 })
-	Reference(object) => Ok({ bytes: checked_add(decimal_length(KernelObject.ObjectId.number(object)), 4)?, visits: 1 })
+	Reference(object) => Ok({ bytes: reference_bound(object), visits: 1 })
 	Stream(_) => Err(NestedStreamValue(value_id))
 	TextString(string) => Ok({ bytes: checked_add(checked_times(KernelLex.Text.bytes(list_at(store.text_strings, KernelObject.TextStringId.index(string))).len(), 4)?, 6)?, visits: 1 })
 }
@@ -153,6 +159,9 @@ dictionary_bound = |store, span| {
 	}
 	Ok({ bytes: $bytes, visits: $visits })
 }
+
+reference_bound : KernelObject.ObjectId -> U64
+reference_bound = |object| decimal_length(KernelObject.ObjectId.number(object)) + 4
 
 name_bound : KernelLex.Name -> Try(U64, KernelOutputBound.Error)
 name_bound = |name| checked_add(checked_times(KernelLex.Name.bytes(name).len(), 3)?, 1)

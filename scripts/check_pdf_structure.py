@@ -11,9 +11,10 @@ from pdf_layout import (
     OBJECTS_PER_STREAM,
     inflate_flate,
     is_object_stream_layout,
-    is_stream_body,
+    is_top_level_body,
     planned_bodies,
     serialize_object_streams,
+    serialize_object_partition,
     trailer_facts,
 )
 from pdf_layout import mutate as layout_mutate
@@ -372,8 +373,8 @@ def validate_object_stream_layout(pdf: bytes, xref_offset: int) -> tuple[int, in
     """The package layout, checked from the bytes: returns the xref object,
     /Root, and the file identifier.
 
-    Stream objects are top-level; every other planned object is in an object
-    stream; object streams hold OBJECTS_PER_STREAM members in object-number
+    Stream objects and standalone references stay top-level. Other planned
+    objects are in object streams. Each object stream holds OBJECTS_PER_STREAM members in object-number
     order (the last one fewer) and are numbered after the planned objects;
     the xref stream follows them, uses the fewest offset bytes that hold its
     own offset, and is PNG Up predicted. Entry-by-entry agreement between the
@@ -399,8 +400,8 @@ def validate_object_stream_layout(pdf: bytes, xref_offset: int) -> tuple[int, in
     members = []
     for number in range(1, planned + 1):
         body = parsed.bodies[number]
-        if is_stream_body(body):
-            require(number in parsed.offsets, f"stream object {number} is in an object stream")
+        if is_top_level_body(body):
+            require(number in parsed.offsets, f"top-level object {number} is in an object stream")
         else:
             require(number in parsed.compressed, f"object {number} is not in an object stream")
             members.append(number)
@@ -604,6 +605,32 @@ def self_test() -> None:
             pass
         else:
             raise SystemExit(f"structural checker accepted {label}")
+
+    # One top-level chain and one nested reference. xref rows agree with
+    # both locations, so only the misplaced member is invalid. qpdf 12.3.2
+    # warns on spec-legal bare references. This package-internal writer case
+    # uses the independent byte checker.
+    parsed, bodies = planned_bodies(deflate_pdf)
+    root, file_id = trailer_facts(parsed)
+    alias = len(bodies) + 1
+    bodies[alias] = root + b" 0 R\nendobj\n"
+    bodies[alias + 1] = str(alias).encode() + b" 0 R\nendobj\n"
+    bodies[alias + 2] = b"[" + str(alias + 1).encode() + b" 0 R]\nendobj\n"
+    reference_chain = serialize_object_streams(bodies, parsed.header, root, file_id)
+    validate_pdf(reference_chain, 1, generated_content)
+    chain_layout = parse_layout(reference_chain)
+    require(alias in chain_layout.offsets and alias + 1 in chain_layout.offsets, "reference chain does not stay top-level")
+    require(alias + 2 in chain_layout.compressed, "nested reference is not packed")
+    invalid = serialize_object_partition(
+        bodies, parsed.header, root, file_id,
+        [number for number, body in bodies.items() if is_top_level_body(body) and number != alias],
+    )
+    try:
+        validate_pdf(invalid, 1, generated_content)
+    except ValidationError as error:
+        require(str(error) == f"object {alias} in an object stream is a standalone reference", "reference twin failed for the wrong reason")
+    else:
+        raise SystemExit("structural checker accepted a standalone reference in an object stream")
 
     # Include one non-EOL byte past the checksum in the declared stream
     # extent, recomputing the file layout. The decoded payload, references,

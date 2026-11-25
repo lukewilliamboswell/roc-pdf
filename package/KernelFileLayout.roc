@@ -2,9 +2,9 @@ import KernelObject
 
 ## The file layout facts that emission and the output bound share.
 ##
-## Stream objects are top-level indirect objects. Every other sealed object is
-## stored in a FlateDecode object stream (ISO 32000-2 7.5.7): in plan order,
-## the compressible objects fill object streams of at most
+## Streams and objects consisting solely of a reference stay top-level.
+## Other sealed objects fill FlateDecode object streams in plan order
+## (ISO 32000-2 §7.5.7). Each stream holds at most
 ## `max_objects_per_stream` members, the last one partly. The object streams
 ## take the object numbers after the planned objects, in order, and the
 ## cross-reference stream takes the number after them. The partition depends
@@ -12,24 +12,35 @@ import KernelObject
 ## and never on byte sizes.
 ##
 ## ISO 32000-2 7.5.7 keeps stream objects, objects with a nonzero generation,
-## the encryption dictionary, and the Length of an object stream out of object
-## streams. The package writes only generation-zero objects, never encrypts,
-## keeps every stream top-level, and gives object streams and the
-## cross-reference stream direct lengths, so every non-stream object may be
-## compressed.
+## the encryption dictionary, the Length of an object stream, and an object
+## consisting solely of a reference out of object streams. The package writes
+## generation-zero objects without encryption, keeps every stream top-level,
+## and gives object streams and the cross-reference stream direct lengths.
 KernelFileLayout :: [].{
 
 	## Members per object stream.
 	max_objects_per_stream : U64
 	max_objects_per_stream = 400
 
+	StoredPlacement : [ObjectMember, TopLevelReference(KernelObject.ObjectId), TopLevelStream(KernelObject.StreamId)]
+
+	stored_placement : KernelObject.Value -> StoredPlacement
+	stored_placement = |value| match value {
+		Reference(object) => TopLevelReference(object)
+		Stream(stream) => TopLevelStream(stream)
+		_ => ObjectMember
+	}
+
 	## Whether a sealed object is stored in an object stream.
 	compressible : KernelObject.Store, KernelObject.Object -> Bool
 	compressible = |store, object| match object.content {
 		LengthOf(_) => True
 		Stored(value_id) => match store.values.get(KernelObject.ValueId.index(value_id)) {
-			Ok(Stream(_)) => False
-			_ => True
+			Ok(value) => match stored_placement(value) {
+				ObjectMember => True
+				_ => False
+			}
+			Err(OutOfBounds) => True
 		}
 	}
 

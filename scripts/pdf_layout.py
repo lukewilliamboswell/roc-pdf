@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Independent reader and re-serializer for roc-pdf file layouts.
 
-The package writes one file layout: stream objects are top-level indirect
-objects, every other object is stored in a FlateDecode object stream, and a
-FlateDecode cross-reference stream (PNG Up predictor) indexes both. The
-structural checkers were written against the older flat layout, in which
+Streams and standalone references are top-level indirect objects. Other
+objects go into FlateDecode object streams. A FlateDecode cross-reference
+stream with the PNG Up predictor indexes both. The structural checkers were written against the older flat layout, in which
 every object is a top-level ``N 0 obj`` with an uncompressed ``[1 8 2]`` xref
 stream. This module parses either layout from the bytes alone and can
 re-serialize any parsed file into that flat layout, so:
@@ -139,6 +138,14 @@ def is_stream_body(body: bytes) -> bool:
     return b"stream\n" in body and body.endswith(b"\nendstream\nendobj\n")
 
 
+
+def is_standalone_reference_body(body: bytes) -> bool:
+    return re.fullmatch(rb"[1-9][0-9]* 0 R" + FLAT_TAIL, body) is not None
+
+
+def is_top_level_body(body: bytes) -> bool:
+    return is_stream_body(body) or is_standalone_reference_body(body)
+
 def is_object_stream_layout(pdf: bytes) -> bool:
     return b"/Type /ObjStm" in pdf
 
@@ -205,7 +212,9 @@ def parse(pdf: bytes) -> Parsed:
             _require(number not in parsed.bodies, f"object {number} is stored twice")
             _require(entries.get(number) == (2, stream_number, index), f"object {number} xref entry disagrees with object stream {stream_number}")
             _require(b"stream\n" not in text[:1] and not re.search(rb"\bstream\n", text), f"object {number} in an object stream is a stream")
-            parsed.bodies[number] = text[:-1] + FLAT_TAIL
+            body = text[:-1] + FLAT_TAIL
+            _require(not is_standalone_reference_body(body), f"object {number} in an object stream is a standalone reference")
+            parsed.bodies[number] = body
             parsed.compressed[number] = (stream_number, index)
 
     for number, (kind, second, third) in entries.items():
@@ -262,20 +271,21 @@ def serialize_flat(bodies: dict[int, bytes], header: bytes, root: bytes, identif
 
 
 def serialize_object_streams(bodies: dict[int, bytes], header: bytes, root: bytes, identifier: bytes) -> bytes:
-    """Write the package layout: streams top-level, every other object in
-    object streams of OBJECTS_PER_STREAM members in object-number order
-    (numbered after the objects), then a PNG-Up-predicted FlateDecode xref
-    stream. Object streams are written after the top-level streams."""
+    """Write top-level objects, object streams, and the FlateDecode xref."""
+    top_level = [number for number, body in bodies.items() if is_top_level_body(body)]
+    return serialize_object_partition(bodies, header, root, identifier, top_level)
+
+
+def serialize_object_partition(bodies: dict[int, bytes], header: bytes, root: bytes, identifier: bytes, top_level: list[int]) -> bytes:
     numbers = sorted(bodies)
     _require(numbers == list(range(1, len(numbers) + 1)), "objects are not contiguous")
-    streams = [number for number in numbers if is_stream_body(bodies[number])]
-    stream_set = set(streams)
-    members = [number for number in numbers if number not in stream_set]
+    top_level_set = set(top_level)
+    members = [number for number in numbers if number not in top_level_set]
     batches = [members[index : index + OBJECTS_PER_STREAM] for index in range(0, len(members), OBJECTS_PER_STREAM)]
     base = len(numbers) + 1
     out = bytearray(header)
     entries: dict[int, tuple[int, int, int]] = {0: (0, 0, 65535)}
-    for number in streams:
+    for number in sorted(top_level):
         entries[number] = (1, len(out), 0)
         out += str(number).encode() + b" 0 obj\n" + bodies[number]
     for ordinal, batch in enumerate(batches):
