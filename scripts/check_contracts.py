@@ -314,6 +314,8 @@ def validate_ledger(
             if applicability == "applicable" and requirement["implementation"] != "implemented":
                 fail(rule_id, f"{names} availability requires implementation of every applicable clause")
         if applicability == "pending_iso_confirmation":
+            if "PdfUa2" in accessible_available and "StaticPdfA4" in capabilities:
+                fail(rule_id, "AccessibleArchive availability requires resolved PDF/A-4 ISO confirmation")
             if requirement["implementation"] != "partial" or human == "not_required":
                 fail(path, "a pending ISO-text confirmation is partial and names its human obligation")
         elif (
@@ -647,7 +649,9 @@ def self_test_accessibility_availability(baseline: object, matrix: object, ledge
         if capability["id"] in ACCESSIBILITY_CAPABILITIES:
             capability["availability"] = "available"
     for requirement in closed_ledger["requirements"]:
-        if not ACCESSIBILITY_CAPABILITIES.intersection(requirement["capabilities"]):
+        capabilities = requirement["capabilities"]
+        pending_archive = "StaticPdfA4" in capabilities and requirement["applicability"] == "pending_iso_confirmation"
+        if not pending_archive and not ACCESSIBILITY_CAPABILITIES.intersection(capabilities):
             continue
         if requirement["applicability"] in ("applicable", "pending_iso_confirmation"):
             requirement["applicability"] = "applicable"
@@ -679,6 +683,20 @@ def self_test_accessibility_availability(baseline: object, matrix: object, ledge
                     raise ContractError(f"availability control failed for the wrong reason: {error}") from error
             else:
                 fail(rule_id, f"self-test accepted availability with {status} requirement")
+
+    rule_id = "ROC-PDF-PDFA4-ISO-TEXT-CONFIRMATION"
+    reviewed = next(row for row in closed_ledger["requirements"] if row["id"] == rule_id)
+    reviewed["applicability"] = "pending_iso_confirmation"
+    reviewed["implementation"] = "partial"
+    reviewed["human_verification"] = "Confirm the applicable PDF/A-4 ISO text."
+    try:
+        validate_documents(baseline, closed_matrix, closed_ledger)
+    except ContractError as error:
+        message = f"{rule_id}: AccessibleArchive availability requires resolved PDF/A-4 ISO confirmation"
+        if str(error) != message:
+            raise ContractError(f"archival availability control failed for the wrong reason: {error}") from error
+    else:
+        fail(rule_id, "self-test accepted combined profile availability with pending archival confirmation")
 
 
 def self_test() -> None:

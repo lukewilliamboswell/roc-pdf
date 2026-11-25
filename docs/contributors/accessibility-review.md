@@ -92,8 +92,9 @@ cannot resolve author-dependent requirements.
 The contract preflight checks the capability matrix against this ledger.
 An available PDF/UA-2 or WTPDF accessibility capability requires every
 applicable row to be implemented and every pending ISO confirmation for
-that capability to be resolved. Package exclusions and the independent
-static PDF/A-4 closure retain their own criteria.
+that capability to be resolved. Availability of the combined facade profile
+also requires resolving the remaining ISO 19005-4 confirmation. Package
+exclusions retain their own criteria.
 
 The PDF/UA-2 preview includes the file requirements through 8.13.2. The
 ISO/TS 32005 preview includes the textual clauses through 7.2 and the legend
