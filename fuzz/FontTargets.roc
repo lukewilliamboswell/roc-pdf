@@ -49,9 +49,9 @@ FontTargets :: [].{
 			return False
 		}
 		match (first_plan, second_plan) {
-			(Err(_), Err(_)) => True
+			(Err(problem), Err(_)) => expected_plan_rejection(problem, font, usages, input.retained_limit)
 			(Ok(plan), Ok(repeated_plan)) => {
-				if plan.prefix != repeated_plan.prefix or plan.entries != repeated_plan.entries {
+				if !requested_closure(font, usages, input.retained_limit, plan) {
 					return False
 				}
 				first_subset = KernelFontSubset.build(font, plan)
@@ -156,6 +156,116 @@ inspection_invariants = |font| {
 		$edge_index = $edge_index + 1
 	}
 	True
+}
+
+expected_plan_rejection : KernelFontPlan.Error, KernelFont.Inspection, List(KernelFontPlan.Usage), U64 -> Bool
+expected_plan_rejection = |problem, source, usages, limit| {
+	limit_error = RetainedGlyphLimitExceeded({ attempted: limit + 1, limit })
+	if limit == 0 {
+		return problem == limit_error
+	}
+	var $roots = 1
+	var $index = 0
+	while $index < usages.len() {
+		glyph = list_at(usages, $index).glyph
+		if glyph == 0 {
+			return problem == GlyphZeroUsed({ usage_index: $index })
+		}
+		var $prior = 0
+		while $prior < $index and list_at(usages, $prior).glyph != glyph {
+			$prior = $prior + 1
+		}
+		if $prior == $index {
+			$roots = $roots + 1
+			if $roots > limit {
+				return problem == limit_error
+			}
+		}
+		$index = $index + 1
+	}
+	# Each reachable non-root needs at least one component edge.
+	upper_bound = U64.min(source.metrics.glyph_count, $roots + source.components.len())
+	if limit >= upper_bound or problem != limit_error {
+		return False
+	}
+	closure_exceeds_limit(source, usages, $roots, limit)
+}
+
+# In the ambiguous rejection case, grow the authored set by scanning the
+# entire edge list to a fixed point. Each changing pass adds a glyph, and
+# the search can stop as soon as it proves the budget insufficient.
+closure_exceeds_limit : KernelFont.Inspection, List(KernelFontPlan.Usage), U64, U64 -> Bool
+closure_exceeds_limit = |source, usages, root_count, limit| {
+	var $reached = List.repeat(False, source.metrics.glyph_count)
+	$reached = list_put($reached, 0, True)
+	for usage in usages {
+		$reached = list_put($reached, usage.glyph.to_u64(), True)
+	}
+	var $count = root_count
+	while True {
+		before = $count
+		for edge in source.components {
+			parent = edge.parent.to_u64()
+			child = edge.child.to_u64()
+			if list_at($reached, parent) and !list_at($reached, child) {
+				$count = $count + 1
+				if $count > limit {
+					return True
+				}
+				$reached = list_put($reached, child, True)
+			}
+		}
+		if $count == before {
+			return False
+		}
+	}
+}
+
+# The inspected component graph is acyclic. Together with the forward edge
+# check on the round trip, roots and a retained predecessor for each added
+# dependency characterize exactly the reachable set.
+requested_closure : KernelFont.Inspection, List(KernelFontPlan.Usage), U64, KernelFontPlan.Plan -> Bool
+requested_closure = |source, usages, limit, plan| {
+	glyph_count = source.metrics.glyph_count
+	missing = 0xffffffff
+	if plan.entries.is_empty() or plan.entries.len() > limit or plan.original_to_subset.len() != glyph_count or plan.retained.len() != glyph_count {
+		return False
+	}
+	if list_at(plan.original_to_subset, 0) != 0 {
+		return False
+	}
+	for usage in usages {
+		if usage.glyph == 0 or list_at(plan.original_to_subset, usage.glyph.to_u64()) == missing {
+			return False
+		}
+	}
+	var $original = 0
+	var $next_entry = 0
+	while $original < glyph_count {
+		mapped = list_at(plan.original_to_subset, $original)
+		marker = list_at(plan.retained, $original)
+		if mapped == missing {
+			if marker != 0 {
+				return False
+			}
+		} else {
+			if mapped.to_u64() != $next_entry or $next_entry >= plan.entries.len() {
+				return False
+			}
+			entry = list_at(plan.entries, $next_entry)
+			glyph = $original.to_u32_wrap()
+			requested = usages.any(|usage| usage.glyph == glyph)
+			if entry.original_glyph != glyph or entry.content != requested or marker != (if (requested) 2 else 1) {
+				return False
+			}
+			if glyph != 0 and !requested and !source.components.any(|edge| edge.child == glyph and list_at(plan.original_to_subset, edge.parent.to_u64()) != missing) {
+				return False
+			}
+			$next_entry = $next_entry + 1
+		}
+		$original = $original + 1
+	}
+	$next_entry == plan.entries.len()
 }
 
 plan_and_subset_invariants : KernelFont.Inspection, KernelFontPlan.Plan, KernelFont.Inspection -> Bool
@@ -377,3 +487,25 @@ expect {
 	changed = { ..inspected, style: { ..inspected.style, italic_angle: inspected.style.italic_angle + 1 } }
 	plan_and_subset_invariants(source, plan, inspected) and !plan_and_subset_invariants(source, plan, changed)
 }
+
+# The tracked Han fixture maps U+4E2D to source glyph 4. Subsetting that
+# request remaps it to dense glyph 1, after .notdef, with no dependencies.
+expect {
+	source = KernelFont.inspect(cjk_font, inspection_limits)?
+	plan = KernelFontPlan.plan(source, [{ glyph: 4 }], KernelFontPlan.Limits.make({ max_retained_glyphs: 2 }))?
+	subset = KernelFontSubset.build(source, plan)?
+	inspected = KernelFont.inspect(subset.bytes, inspection_limits)?
+	KernelFont.glyph_for_scalar(source, 0x4e2d) == Some(4) and KernelFont.glyph_for_scalar(inspected, 0x4e2d) == Some(1)
+}
+
+expect {
+	source = KernelFont.inspect(cjk_font, inspection_limits)?
+	match KernelFontPlan.plan(source, [{ glyph: 4 }], KernelFontPlan.Limits.make({ max_retained_glyphs: 1 })) {
+		Err(RetainedGlyphLimitExceeded({ attempted: 2, limit: 1 })) => True
+		_ => False
+	}
+}
+
+# The regular face contains composite edges elsewhere. They must not make
+# the two simple roots of this request exceed their exact budget.
+expect FontTargets.subset_roundtrip({ font: 0, glyphs: [65], retained_limit: 2 })

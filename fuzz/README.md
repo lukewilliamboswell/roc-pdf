@@ -109,8 +109,16 @@ provenance entry. Existing tracked corpora are never mutated in place.
 - `font_inspector_repair`: independent checksum restoration lets bounded table
   edits reach parsers behind the checksum gates. The five-font selector mapping
   is retained.
-- `font_subset_roundtrip`: repeated bounded plans/subsets agree, re-inspect,
-  preserve source style facts and metrics, and rewrite composite dependencies.
+- `font_subset_roundtrip`: successful plans retain exactly the requested glyphs,
+  glyph zero, and their composite dependencies. The property checks content
+  flags and dense glyph IDs against the authored requests and inspected
+  component graph. It re-inspects subset bytes to check style, metrics, cmap
+  mappings, and rewritten dependencies. Rejected plans must repeat the
+  expected error and fields for the authored root checks. For a composite
+  closure rejection, an independent fixed-point scan checks whether the
+  requested closure exceeds the exact reported limit. Focused expects pin both
+  sides of the retention limit for the tracked Han glyph and its exact cmap
+  remapping.
 - `jpeg_inspector_mutation`: successful grey/RGB inspection produces a bounded
   sanitized stream whose frame agrees with the resolved dimensions and
   components. The document suite also checks exact byte retention and
