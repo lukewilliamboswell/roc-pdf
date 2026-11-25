@@ -58,6 +58,7 @@ from check_form_renderers import compile_java, render_mutool, require
 ROOT = Path(__file__).resolve().parents[1]
 SHOWCASE_SNAPSHOT = ROOT / "tests" / "shading_patterns" / "shadings.pdf"
 SHARE_SNAPSHOT = ROOT / "tests" / "shading_patterns" / "shadings_share_100.pdf"
+CLIP_SNAPSHOT = ROOT / "tests" / "shading_patterns" / "clip_winding.pdf"
 PSHARE_SNAPSHOT = ROOT / "tests" / "shading_patterns" / "patterns_share_100.pdf"
 PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
 SIZE = 100
@@ -289,6 +290,27 @@ def render_both(renderer, working_directory, classes, snapshot, temporary, name)
     return read_ppm(pdfium_output), read_ppm(pdfbox_output)
 
 
+def check_clip_probes(label: str, raster: Raster) -> None:
+    # Coordinates lie away from rasterization boundaries. The two contours
+    # have the same winding. The inner one is open on its left edge.
+    probes = (
+        ("filled ring", 10, 75, 0),
+        ("even-odd hole", 25, 75, 255),
+        ("open edge left unstroked", 15, 75, 255),
+        ("explicit inner edge stroked", 24, 68, 0),
+        ("overlap inside both nonzero clips", 35, 25, 0),
+        ("inner clip alone", 68, 25, 255),
+        ("inner clip below outer clip", 32, 5, 255),
+        ("sibling after inner clip", 14, 47, 0),
+        ("sibling after outer clip", 72, 46, 0),
+    )
+    require((raster.width, raster.height) == (SIZE, SIZE), f"{label}: unexpected clip raster dimensions")
+    for name, x, y, expected in probes:
+        start = ((raster.height - 1 - y) * raster.width + x) * 3
+        pixel = tuple(raster.pixels[start : start + 3])
+        require(pixel == (expected,) * 3, f"{label}: {name} at ({x}, {y}) is {pixel}, expected {expected}")
+
+
 def check_renderers(renderer: Path, working_directory: Path | None, mutool: Path | None) -> None:
     require(renderer.is_file(), f"PDFium renderer does not exist: {renderer}")
     require(PDFBOX_JAR.is_file(), f"vendored PDFBox JAR does not exist: {PDFBOX_JAR}")
@@ -324,6 +346,14 @@ def check_renderers(renderer: Path, working_directory: Path | None, mutool: Path
                 render_mutool(mutool, snapshot, mutool_output)
                 check_raster(f"MuPDF 1.28.2 {name}", read_ppm(mutool_output), sample, TOLERANCES["mutool"], "srgb", mutool_overrides[name])
 
+        pdfium, pdfbox = render_both(renderer, working_directory, classes, CLIP_SNAPSHOT, temporary, "clip-winding")
+        check_clip_probes("PDFium Chromium 7988", pdfium)
+        check_clip_probes("PDFBox 3.0.8", pdfbox)
+        if mutool is not None:
+            mutool_output = temporary / "clip-winding-mutool.ppm"
+            render_mutool(mutool, CLIP_SNAPSHOT, mutool_output)
+            check_clip_probes("MuPDF 1.28.2", read_ppm(mutool_output))
+
     third = (
         " MuPDF 1.28.2 agrees through its ICC pipeline and pinned calibrated-gray tone behavior."
         if mutool is not None
@@ -333,7 +363,7 @@ def check_renderers(renderer: Path, working_directory: Path | None, mutool: Path
         "PASS production-visual shading-pattern renderers: PDFium Chromium 7988 and PDFBox 3.0.8 match the "
         "independent gradient, radial, calibrated-gray, opacity-composite, and tiling models within "
         "the pinned per-region envelopes, including PDFBox's pinned radial deviation, the shared-"
-        "shading grid, and the shared-pattern grid." + third
+        "shading and pattern grids, and winding and nested clipping probes." + third
     )
 
 

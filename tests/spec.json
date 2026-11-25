@@ -16116,6 +16116,55 @@
       ]
     },
     {
+      "name": "production-visual even-odd stroke and nested clipping",
+      "scenario_revision": "clip-winding-v1",
+      "family": "shading_patterns",
+      "snapshot": "tests/shading_patterns/clip_winding.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "clip_winding": 1
+      },
+      "work_counters": [
+        "command_visits",
+        "graphics_state_pairs",
+        "path_segments",
+        "max_frame_depth",
+        "content_bytes",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 369,
+          "allocated_bytes": 897497,
+          "work": {
+            "command_visits": 6,
+            "graphics_state_pairs": 2,
+            "path_segments": 11,
+            "max_frame_depth": 3,
+            "content_bytes": 282,
+            "output_bytes": 1109
+          }
+        },
+        "x64musl": {
+          "allocations": 369,
+          "allocated_bytes": 897497,
+          "work": {
+            "command_visits": 6,
+            "graphics_state_pairs": 2,
+            "path_segments": 11,
+            "max_frame_depth": 3,
+            "content_bytes": 282,
+            "output_bytes": 1109
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "shadings"
+      ]
+    },
+    {
       "name": "production-visual shading-pattern atomic negatives",
       "scenario_revision": "shadings-patterns-v1",
       "family": "shading_patterns",

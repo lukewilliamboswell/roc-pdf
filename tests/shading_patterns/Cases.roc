@@ -12,6 +12,7 @@ Cases :: [].{
 		PatternShare({ scale : U64 }),
 		PatternDistinct({ scale : U64 }),
 		PatternCells({ scale : U64 }),
+		ClipWinding({ context : U64 }),
 		AtomicNegatives({ context : U64 }),
 	]
 
@@ -27,6 +28,7 @@ Cases :: [].{
 			PatternShare({ scale }) => Fixture.scenario("pshare", scale)
 			PatternDistinct({ scale }) => Fixture.scenario("pdistinct", scale)
 			PatternCells({ scale }) => Fixture.scenario("pcells", scale)
+			ClipWinding({ context }) => Fixture.clip_winding(context)
 			AtomicNegatives({ context }) => Fixture.atomic_negatives(context)
 		}
 		match result {

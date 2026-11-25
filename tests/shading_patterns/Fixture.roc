@@ -61,6 +61,16 @@ Fixture :: [].{
 	scenario : Str, U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	scenario = |mode, scale| run_scenario(mode, scale)
 
+	clip_winding : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	clip_winding = |context| {
+		if context > 1 {
+			return Err(InvalidScale)
+		}
+		built = run_pipeline(clip_scenario(context)) ? |_| EvidenceFailure
+		work = KernelContent.Plan.work(built.content)
+		Ok({ bytes: built.bytes, work: [work.command_visits, work.graphics_state_pairs, work.path_segments, work.max_frame_depth, work.bytes_emitted, built.bytes.len()] })
+	}
+
 	## Atomic negative twins: each input differs from a valid scene in exactly
 	## one fact, every rejection is a distinct structured diagnostic, and no
 	## partial plan or PDF byte escapes. The fixture emits only an unrelated
@@ -783,6 +793,49 @@ scaled_scenario = |scene, shadings, patterns| {
 		semantics: build_semantics(1, [0]),
 		shadings,
 	}
+}
+
+clip_scenario : U64 -> Scenario
+clip_scenario = |context| {
+	# Derive one coordinate from the fixture input so measurement exercises lowering.
+	open_edge = 15000 + context.to_i64_wrap() * 1000
+	black = gray_value(0, 0)
+	filled = |id| DrawPath({ path: Scene.PathId.from_index(id), style: fill_with(black) })
+	stroke = { cap: ButtCap, color: black, dash: SolidLine, join: MiterJoin, miter_limit: unit(10000), width: unit(4000) }
+	commands = [
+		DrawPath({ path: Scene.PathId.from_index(0), style: { fill: SolidFill({ color: black, rule: EvenOdd }), stroke: SolidStroke(stroke) } }),
+		Clip({ children: span(3, 2), path: Scene.PathId.from_index(1) }),
+		filled(5),
+		Clip({ children: span(5, 1), path: Scene.PathId.from_index(2) }),
+		filled(4),
+		filled(3),
+	]
+	base = scaled_scene(commands, 1)
+	template = list_at(base.pages, 0)
+	scene = {
+		..base,
+		groups: [{ ..anchor_group, commands: span(0, 3) }],
+		page_groups: [anchor_group.id],
+		pages: [{ ..template, paint_order: span(0, 1) }],
+		path_segments: [
+			# Same winding in both contours. The inner contour has an open left edge.
+			Rectangle(rect(5000, 58000, 40000, 36000)),
+			MoveTo(point(open_edge, 68000)),
+			LineTo(point(35000, 68000)),
+			LineTo(point(35000, 84000)),
+			LineTo(point(open_edge, 84000)),
+			# The two nested clips overlap, and the last two fills probe restoration.
+			Rectangle(rect(10000, 10000, 50000, 45000)),
+			Rectangle(rect(20000, 20000, 25000, 22000)),
+			Rectangle(rect(30000, 0, 48000, 35000)),
+			Rectangle(rect(0, 0, 90000, 54000)),
+			Rectangle(rect(12000, 45000, 8000, 6000)),
+			Rectangle(rect(68000, 44000, 10000, 6000)),
+		],
+		paths: [(0, 5), (5, 2), (7, 1), (8, 1), (9, 1), (10, 1)].map_with_index(|(start, length), index| { id: Scene.PathId.from_index(index), segments: span(start, length) }),
+	}
+	base_input = scaled_scenario(scene, Scene.no_shadings, Scene.no_patterns)
+	{ ..base_input, color_limits: pattern_color_limits, colors: pattern_colors }
 }
 
 two_stop_shading : U64, U64 -> Scene.Shading

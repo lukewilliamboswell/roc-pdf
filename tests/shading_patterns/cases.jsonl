@@ -13,4 +13,5 @@
 {"name":"production-visual distinct patterns x64","schema_version":1,"case":{"PatternDistinct":{"scale":64}}}
 {"name":"production-visual pattern cell commands x16","schema_version":1,"case":{"PatternCells":{"scale":16}}}
 {"name":"production-visual pattern cell commands x64","schema_version":1,"case":{"PatternCells":{"scale":64}}}
+{"name":"production-visual even-odd stroke and nested clipping","schema_version":1,"case":{"ClipWinding":{"context":0}}}
 {"name":"production-visual shading-pattern atomic negatives","schema_version":1,"case":{"AtomicNegatives":{"context":1}}}
