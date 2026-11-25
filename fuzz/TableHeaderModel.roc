@@ -46,6 +46,8 @@ machine = {
 		witness("a row header on either side of a data cell is confined to its row", BodyOnly, [RowAfter, RowBefore, FullData]),
 		witness("later column headers are absent from earlier data associations", BodyOnly, [FullData, WideColumnRight, NarrowData]),
 		witness("multiple earlier headers remain in authored cell order", HeadBodyFoot, [WideBothRight, WideBothLeft, FullData]),
+		witness("a spanning target header keeps each preceding column header once", HeadBodyFoot, [WideBothLeft, WideColumnRight, FullData]),
+		witness("a preceding row header can describe another header without a reverse edge", BodyOnly, [WideBothLeft, FullData, FullData]),
 	],
 }
 
@@ -101,24 +103,19 @@ rectangles = |rows| {
 	$result
 }
 
-# ISO 32000-2:2020+EC3 14.8.4.8.3 and Table 371 allow implicit lookup
-# when a cell omits Headers. Explicit Table attributes are in 14.8.5.7,
-# Table 384. The order and applicability here are the facade's contract
-# in docs/contributors/performance/tables.md. Rescan authored rectangles once
-# per data cell, so a spanning header contributes at most one identity.
+# ISO 32000-2:2020+EC3 14.8.4.8.3 describes a search from a data or
+# header cell. Rescan the authored rectangles per target, so a spanning
+# header contributes at most one identity and header edges precede targets.
 expected_headers : List(Rectangle), Rectangle -> List(U64)
-expected_headers = |cells, target| match target.cell.role {
-	Header(_) => []
-	Data => cells.keep_if(
-		|candidate|
-			match candidate.cell.role {
-				Header(scope) =>
-					(candidate.row < target.row and (scope == Column or scope == Both) and candidate.left < target.right and target.left < candidate.right)
-						or (candidate.row == target.row and (scope == Row or scope == Both))
-				Data => False
-			},
-	).map(|candidate| candidate.id)
-}
+expected_headers = |cells, target| cells.keep_if(
+	|candidate|
+		match candidate.cell.role {
+			Header(scope) =>
+				(candidate.row < target.row and (scope == Column or scope == Both) and candidate.left < target.right and target.left < candidate.right)
+					or (candidate.row == target.row and (scope == Row or scope == Both) and (target.cell.role == Data or candidate.left < target.left))
+			Data => False
+		},
+).map(|candidate| candidate.id)
 
 identifier : U64 -> Str
 identifier = |index| "c00000${(index + 1).to_str()}"
@@ -220,5 +217,5 @@ expect {
 	if report.verdict != Holds(Exhausted) {
 		crash "${Model.explain(report)} ${Str.inspect(report.verdict)}"
 	}
-	report.states == 1155 and report.steps == 1154 and report.depth == 4 and report.reached.len() == 5
+	report.states == 1155 and report.steps == 1154 and report.depth == 4 and report.reached.len() == 7
 }

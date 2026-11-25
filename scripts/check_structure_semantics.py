@@ -816,18 +816,21 @@ def check_scoped_table_headers(document: Document, rows: list[int]) -> None:
             for cell, attributes, _ in cells
             if cell["S"] == "TH" and attributes["Scope"] in ("Row", "Both")
         }
+        preceding_row_headers: set[bytes | None] = set()
         for cell, attributes, columns in cells:
-            if cell["S"] != "TD":
-                continue
-            expected = row_headers.copy()
+            is_header = cell["S"] == "TH"
+            expected = (preceding_row_headers if is_header else row_headers).copy()
             for column in columns:
                 expected.update(column_headers.get(column, ()))
             require(None not in expected, "a scoped header lacks its referenced /ID")
             actual = attributes.get("Headers", [])
+            role = "header" if is_header else "data"
             require(
                 set(actual) == expected and len(actual) == len(expected),
-                "facade data cell /Headers disagrees with its scoped table headers",
+                f"facade {role} cell /Headers disagrees with its scoped table headers",
             )
+            if is_header and attributes["Scope"] in ("Row", "Both"):
+                preceding_row_headers.add(cell.get("ID"))
 
         for cell, attributes, columns in cells:
             if cell["S"] == "TH" and attributes["Scope"] in ("Column", "Both"):
@@ -1141,6 +1144,24 @@ def self_test() -> None:
         else:
             raise ValidationError("scope-header twin passed the facade table checker")
 
+    # A row header in the combined letter inherits its column heading.
+    # Remove only that explicit association, leaving its Scope intact.
+    letter = (ROOT / "tests" / "reference_documents" / "letter.pdf").read_bytes()
+    check_structure_semantics(letter, header_dimensions)
+    letter_objects = Document(letter)
+    headed_row_header = next(
+        body for body in letter_objects.bodies.values()
+        if b"/S /TH >>" in body and b"/Scope /Row" in body and b"/Headers" in body
+    )
+    without_column_heading = re.sub(rb"/Headers \[[^\]]+\] ", b"", headed_row_header, count=1)
+    twin = layout_twin(letter, headed_row_header, without_column_heading, exactly_once=True)
+    try:
+        check_structure_semantics(twin, header_dimensions)
+    except ValidationError as error:
+        require(str(error) == "facade header cell /Headers disagrees with its scoped table headers", str(error))
+    else:
+        raise ValidationError("scope-header twin dropped a row header's column heading")
+
     # Furniture twins mutate decoded page furniture: an MCID inside a
     # pagination artifact, a wrong page number, a wrong total, and a missing
     # page-number artifact.
@@ -1170,7 +1191,7 @@ def self_test() -> None:
         "PASS structure-semantics checker self-test: normalized trees, ParentTree/MCID/OBJR "
         "exactly-once, IDTree/ID, language, attributes, DisplayDocTitle, MarkInfo, Tabs, "
         f"Table 5 containment, page furniture, figure captions and scales, and custom-block Divs and underlays verified on {len(SNAPSHOTS)} snapshots; {len(mutations) + len(grouping_twins) + len(authored_group_twins)} "
-        f"length-preserving mutation twins, one foreign-stream MCR twin, one invalid language region, 2 scope-header twins, {len(furniture_twins)} furniture twins, and {len(callout_twins)} custom-block twins rejected; {cross_check}",
+        f"length-preserving mutation twins, one foreign-stream MCR twin, one invalid language region, 3 scope-header twins, {len(furniture_twins)} furniture twins, and {len(callout_twins)} custom-block twins rejected; {cross_check}",
         flush=True,
     )
 

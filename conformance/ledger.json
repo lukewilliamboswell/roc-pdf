@@ -2848,14 +2848,16 @@
     },
     {
       "id": "ROC-PDF-PDFUA2-8-2-5-26-TABLE-HEADERS",
-      "summary": "Every TH declares its Scope, and every data cell that a header cell pertains to by declared scope carries a Headers attribute naming those TH element identifiers, which resolve through the IDTree; the kernel rejects a Headers attribute that disagrees with the cell's HeaderFor relationships.",
+      "summary": "Each TH declares Scope. Every TH or TD to which a header pertains declares its explicit Headers, with targets resolving through IDTree and typed HeaderFor relationships.",
       "source_ids": [
         "iso-14289-2-2024",
         "iso-32000-2-2020-ec3",
+        "pdf-issues-ec3",
         "wtpdf-1-0-0"
       ],
       "references": [
         "ISO 14289-2:2024 8.2.5.26",
+        "ISO 32000-2:2020 14.8.4.8.3 and pinned correction #200",
         "ISO 32000-2:2020 14.8.5.7",
         "WTPDF 1.0 8.2.5.26",
         "docs/contributors/accessibility-review.md",
@@ -2867,16 +2869,19 @@
         "PdfUa2",
         "WtpdfAccessibility"
       ],
-      "implementation": "implemented",
+      "implementation": "partial",
       "applicability": "applicable",
-      "machine_verification": "headers_derived_from_declared_scopes_in_semantic_planning; kernel_HeaderFor_Headers_agreement_check_with_expects; structure_semantics_checker_requires_TH_Scope_and_Headers_targets_resolving_to_TH_through_the_IDTree; tables_harness_family An independent facade oracle derives expected header membership from emitted grid and scopes for every combined case. It rejects substituting a real TH from the wrong column and removing an applicable explicit header list, which the pinned validator can accept when scopes still resolve an accessible header.",
+      "machine_verification": "Explicit associations come from authored row and column scopes. The bounded model rescans grid rectangles independently for TH and TD, and the combined file oracle checks each association and ID. It rejects dropping a row header’s applicable column heading, omitting data cell Headers, or swapping a real header with one from the wrong column. Regenerate and qualify all affected output on the pinned targets before closing the row.",
       "human_verification": "Confirm the row and column headers communicate the intended relationships to the corresponding data cells.",
       "positive_scenarios": [
+        "fuzz/TableHeaderModel.roc",
         "package/Pdf.roc",
         "scripts/check_structure_semantics.py",
+        "tests/reference_documents/Cases.roc",
         "tests/tables/Cases.roc"
       ],
       "negative_scenarios": [
+        "fuzz/TableHeaderModel.roc",
         "package/KernelSemantics.roc",
         "scripts/check_structure_semantics.py"
       ],

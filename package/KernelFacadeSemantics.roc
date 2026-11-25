@@ -1228,12 +1228,11 @@ TablePlan : { attributes : U64, breaks : U64, buffers : TableBuffers, cells : U6
 ## a header cell. Nodes are numbered in preorder: `Table`, the optional
 ## `Caption > P`, then each present section (`THead`, `TBody`, `TFoot`)
 ## before its rows, each `TR` before its cells, and each cell before its
-## inline elements. The `Headers` of every data cell are derived here from
-## declared scopes, never from geometry: the `Column`- or `Both`-scoped
-## header cells of earlier rows in the columns it spans (ascending cell
-## order), then the `Row`- or `Both`-scoped header cells of its own row.
-## Header cells carry no `Headers`. Each cell's range into the flattened
-## header list is recorded in table order, one per cell.
+## inline elements. Each cell receives `Headers` from the `Column`- or
+## `Both`-scoped headers of earlier rows in its spanned columns, followed by
+## its `Row`- or `Both`-scoped row headers. For header cells, only preceding
+## cells can act as row headers, so header-to-header edges follow preorder
+## without cycles. The flattened ranges follow authored cell order.
 plan_table : Document.NormalizedAuthoring, U64, U64, TableCursor, U64 -> Try(TablePlan, KernelFacadeSemantics.Error)
 plan_table = |authoring, group_index, table_index, at, max_depth| {
 	group = list_at(authoring.groups, group_index)
@@ -1349,24 +1348,34 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 			return Err(TableGridMismatch({ columns, group: $row_group, spanned: $spanned }))
 		}
 
-		# Every row's header cells are known before its data cells'
-		# associations are derived; column headers come from earlier rows.
+		# Column headers come from earlier rows. A forward row cursor
+		# gives every TH only the preceding row headers.
 		var $column = 0
 		var $index = first_cell
+		var $preceding_row_headers = 0
 		while $index < $cell {
 			record = list_at(authoring.cells, $index)
 			local_start = $headers.len()
 			start = at.header_base + local_start
+			$headers = if record.column_span == 1 {
+				append_all($headers, list_at($column_headers, $column))
+			} else {
+				append_spanned_headers($headers, $column_headers, $column, record.column_span.to_u64())
+			}
 			match record.kind {
 				DataCell => {
-					$headers = if record.column_span == 1 {
-						append_all($headers, list_at($column_headers, $column))
-					} else {
-						append_spanned_headers($headers, $column_headers, $column, record.column_span.to_u64())
-					}
 					$headers = append_all($headers, $row_headers)
 				}
-				HeaderCell(_) => {}
+				HeaderCell(scope) => {
+					var $row_header = 0
+					while $row_header < $preceding_row_headers {
+						$headers = $headers.append(list_at($row_headers, $row_header))
+						$row_header = $row_header + 1
+					}
+					if scope != Column {
+						$preceding_row_headers = $preceding_row_headers + 1
+					}
+				}
 			}
 			count = $headers.len() - local_start
 			if count != 0 {
@@ -1422,7 +1431,7 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 	})
 }
 
-## The union of the column headers of a spanning data cell's columns, in
+## The union of the column headers of a spanning cell's columns, in
 ## ascending cell order and without repeats (a spanning header cell heads
 ## every column it spans).
 append_spanned_headers : List(U64), List(List(U64)), U64, U64 -> List(U64)
@@ -3423,9 +3432,9 @@ table_authoring = Document.normalize(
 
 # A table plans `Table > (Caption > P, THead, TBody)` in preorder with one
 # `TR` per row and one `TH`/`TD` per cell. Every cell has an element
-# identifier in cell order, and a data cell's `Headers` are the column
-# headers above it in its columns followed by its row headers, each with a
-# `HeaderFor` relationship in the same order.
+# identifier in cell order. The Value header includes its preceding
+# same-row header, and the A header names the preceding Key column header.
+# Data cells retain their column headers followed by their row headers.
 expect {
 	limits = KernelFacadeSemantics.Limits.make({ ..test_limits_record, max_nodes: 64, max_content_spine: 64, semantics: KernelSemantics.Limits.make({ max_attributes: 32, max_content_spine: 64, max_fragments: 0, max_namespaces: 1, max_nodes: 64, max_occurrences: 12, max_semantic_depth: 16 }) })
 	plan = KernelFacadeSemantics.Plan.build(table_authoring, limits)?
@@ -3436,9 +3445,9 @@ expect {
 
 	roles == ["Document", "Table", "Caption", "P", "THead", "TR", "TH", "TH", "TBody", "TR", "TH", "TD", "TR", "TD"]
 		and store.element_identifiers.map(|identifier| identifier.value) == ["c000001", "c000002", "c000003", "c000004", "c000005"]
-		and headers == [Names(["c000002", "c000003"]), Names(["c000001", "c000002"])]
-		and store.relationships.len() == 4
-		and work.tables == 1 and work.table_cells == 5 and work.header_association_edges == 4
+		and headers == [Names(["c000001"]), Names(["c000001"]), Names(["c000002", "c000003"]), Names(["c000001", "c000002"])]
+		and store.relationships.len() == 6
+		and work.tables == 1 and work.table_cells == 5 and work.header_association_edges == 6
 }
 
 # Table rejections name the table, the row, or the cell.
