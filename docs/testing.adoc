@@ -44,6 +44,10 @@ https://pdf-issues.pdfa.org/32000-2-2020/clause07.html#H7.9.6[ISO 32000-2 §7.9.
   A schema check can accept a valid list numbering family while the writer
   emits a different family from the authored one. Compare the decoded
   declaration with the authored marker, even when the painted text matches.
+  Cross-references can also agree on a changed value. A structure `/ID`, the
+  corresponding IDTree entry and a table header reference must agree with
+  the authored identifier bytes. Include a key at a leaf boundary when the
+  index depends on byte ordering.
   Check which input shapes existing fixtures exercise. A Form placement
   with equal off-diagonal matrix entries leaves an operand swap invisible.
   Include an asymmetric matrix and enclosing transforms whose order matters.
