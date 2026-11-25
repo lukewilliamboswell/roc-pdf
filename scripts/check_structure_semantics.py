@@ -77,16 +77,15 @@ VERAPDF_JAR_GLOB = ".roc-pdf-tmp/extended-tools/verapdf/bin/cli-*.jar"
 VERAPDF_PROFILE = "org/verapdf/pdfa/validation/PDFUA-2-ISO32005.xml"
 
 # ---------------------------------------------------------------------------
-# ISO/TS 32005:2023 Table 5, transcribed independently as the set of child
-# roles each parent may contain ("Hn" stands for H1..H6). This is the
-# checker's own table; it is compared against the Roc kernel only through
-# emitted PDFs and against veraPDF's encoding of Table 5 by the self-test.
+# Supported ISO/TS 32005:2023 Table 5 edges ("Hn" stands for H1..H6).
+# Parent context is checked separately for Part and Div. Grouping-only
+# children of Caption, Code and Link are outside the bounded text subset.
+# The self-test checks the pinned catalog and its known differences.
 # ---------------------------------------------------------------------------
 PDF20_NAMESPACE = "http://iso.org/pdf2/ssn"
 PDF17_NAMESPACE = "http://iso.org/pdf/ssn"
-# ISO 32000-2 14.8.6 defines `Code` and `Quote` only in the PDF 1.7 standard
-# structure namespace; PDF/UA-2 8.2.4 requires each element to belong to a
-# standard namespace.
+# These unique PDF 1.7 roles retain that namespace in mixed structure
+# trees under ISO/TS 32005 §5.5 and PDF/UA-2 §8.2.4.
 PDF17_ROLES = {"Code", "Quote", "TOC", "TOCI"}
 
 INLINE = {"Lbl", "Figure", "Link", "Span", "Em", "Strong", "Code", "Quote"}
@@ -98,7 +97,7 @@ ALL_ROLES = {
 DOCUMENT_CHILDREN = {"Document", "DocumentFragment", "Part", "Sect", "Div", "Title", "H", "Hn", "P", "L", "Figure", "Link", "Code", "Table", "TOC"}
 GROUPING_WRAPPERS = {"Part", "Div"}
 # ISO/TS 32005 Table 5 lists these supported children in the Part row.
-PART_CHILDREN = DOCUMENT_CHILDREN | {"Caption", "Lbl"}
+PART_CHILDREN = DOCUMENT_CHILDREN | {"Caption", "Lbl", "TOCI"}
 CELL_CHILDREN = {"Sect", "Div", "H", "Hn", "P", "L", "Table"} | INLINE
 MAY_CONTAIN: dict[str, set[str]] = {
     "Document": DOCUMENT_CHILDREN,
@@ -115,13 +114,13 @@ MAY_CONTAIN: dict[str, set[str]] = {
     "Lbl": INLINE - {"Lbl"},
     "LBody": {"Part", "Sect", "Div", "H", "Hn", "P", "L", "Caption", "Table"} | (INLINE - {"Lbl"}),
     "Figure": {"Part", "Sect", "Div", "H", "Hn", "P", "L", "Caption", "Table"} | INLINE,
-    "Caption": {"DocumentFragment", "Part", "Sect", "Div", "H", "Hn", "P", "L", "Table"} | INLINE,
-    "Link": {"DocumentFragment", "Part", "Sect", "Div", "Title", "H", "Hn", "P", "L", "Caption", "Table"} | INLINE,
+    "Caption": {"Part", "Sect", "Div", "H", "Hn", "P", "L", "Table"} | INLINE,
+    "Link": {"Sect", "Div"} | (INLINE - {"Link"}),
     "Span": set(INLINE),
     "Em": set(INLINE),
     "Strong": set(INLINE),
-    "Code": {"DocumentFragment", "Part", "Sect", "Div", "P", "L", "Caption", "Table"} | INLINE,
-    "Quote": {"Div"} | INLINE,
+    "Code": {"Part", "Div", "Link", "Span", "Em", "Strong"},
+    "Quote": set(INLINE),
     "Table": {"Caption", "THead", "TBody", "TFoot", "TR"},
     "THead": {"TR"},
     "TBody": {"TR"},
@@ -136,7 +135,7 @@ NO_CONTENT_ITEMS = {"Document", "DocumentFragment", "Sect", "L", "LI", "Table", 
 AT_MOST_ONE: dict[str, set[str]] = {
     "Document": {"H"}, "DocumentFragment": {"H"}, "Sect": {"H"}, "Caption": {"H"}, "TH": {"H"}, "TD": {"H"},
     "LBody": {"H", "Caption"}, "Figure": {"H", "Caption"}, "H": {"Sect"}, "Hn": {"Sect"},
-    "Title": {"Caption"}, "L": {"Caption"}, "Link": {"Caption"}, "Code": {"Caption"},
+    "Title": {"Caption"}, "L": {"Caption"},
     "Table": {"Caption", "THead", "TFoot"},
     "TOC": {"Caption"},
 }
@@ -496,7 +495,7 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
                 mcr_owner[key] = number
                 leaves.append(f"mcid p{page_index[page]}:{key[1]}")
             elif isinstance(child, dict) and child.get("Type") == "OBJR":
-                require(role not in GROUPING_WRAPPERS, f"/{role} owns a content item")
+                require(role not in GROUPING_WRAPPERS and role not in NO_CONTENT_ITEMS, f"/{role} owns a content item")
                 annotation = int(child["Obj"])
                 require(annotation not in objr_owner, "an annotation is referenced by two OBJRs")
                 objr_owner[annotation] = number
@@ -991,13 +990,23 @@ def independent_table_matches_verapdf() -> str:
     for parent, child in re.findall(r"<description>&lt;(\w+)&gt;(?:, when used as [a-z ]+,)? shall not contain &lt;(\w+)&gt;</description>", profile):
         forbidden.add((parent, child))
     require(bool(forbidden), "the veraPDF profile yielded no Table 5 containment rules")
+    # The pinned profile permits these pairs, but the published
+    # Table 5 either excludes them or requires grouping-only context.
+    catalog_only = {
+        ("Caption", "DocumentFragment"),
+        *(("Code", child) for child in {"Caption", "Code", "DocumentFragment", "Figure", "L", "Lbl", "P", "Quote", "Sect", "Table"}),
+        *(("Link", child) for child in {"Caption", "DocumentFragment", "H", "Hn", "L", "Link", "P", "Part", "Table", "Title"}),
+        ("Quote", "Div"),
+    }
     for parent in ALL_ROLES:
         for child in ALL_ROLES:
             allowed = child in MAY_CONTAIN[parent]
-            require(allowed == ((parent, child) not in forbidden), f"independent Table 5 transcription disagrees with veraPDF for {parent} > {child}")
+            catalog_permits = (parent, child) not in forbidden
+            expected = (True, False) if (parent, child) in catalog_only else (allowed, allowed)
+            require((catalog_permits, allowed) == expected, f"unexpected Table 5 catalog relation for {parent} > {child}")
     content_rules = set(re.findall(r"<description>&lt;(\w+)&gt; shall not contain content items</description>", profile))
     require(NO_CONTENT_ITEMS - {"LI"} == content_rules & ALL_ROLES, "content-item roles disagree with veraPDF")
-    return f"Table 5 transcription agrees with {jars[-1].name} on {len(ALL_ROLES) ** 2} role pairs"
+    return f"checked {len(ALL_ROLES) ** 2} role pairs against {jars[-1].name}, including {len(catalog_only)} known catalog differences"
 
 
 def self_test() -> None:
@@ -1021,6 +1030,24 @@ def self_test() -> None:
     table = SNAPSHOTS["table"].read_bytes()
     figure_sections = SNAPSHOTS["figure_sections"].read_bytes()
     inline_roles = SNAPSHOTS["inline_roles"].read_bytes()
+    inline_document = Document(inline_roles)
+    for parent_role, original_role, forbidden_role in (("Quote", "Span", "Div"), ("Link", "Em", "P")):
+        offending_child = next(
+            int(child) for number in inline_document.bodies
+            if re.search(rb"/S /" + parent_role.encode() + rb" >>", inline_document.bodies[number])
+            for child in element_children(inline_document, inline_document.get(number))
+            if isinstance(child, Ref) and inline_document.get(int(child))["S"] == original_role
+        )
+        body = inline_document.bodies[offending_child]
+        changed = body.replace(f"/S /{original_role} >>".encode(), f"/S /{forbidden_role} >>".encode(), 1)
+        require(changed != body, "role-only containment control failed to change a structure dictionary")
+        twin = layout_twin(inline_roles, body, changed, exactly_once=True)
+        try:
+            check_structure_semantics(twin)
+        except ValidationError as error:
+            require(str(error) == f"/{parent_role} may not contain /{forbidden_role} under /{parent_role}", str(error))
+        else:
+            raise ValidationError(f"checker accepted {parent_role} > {forbidden_role}")
     check_structure_semantics(SNAPSHOTS["figures"].read_bytes(), {"figure_nodes": 4, "captioned_figures": 3, "scaled_figures": 1, "layout_artifacts": 2})
     mutations = [
         ("figure caption in a transparent Part", figure_sections, b"/S /Sect", b"/S /Part"),
@@ -1191,7 +1218,7 @@ def self_test() -> None:
         "PASS structure-semantics checker self-test: normalized trees, ParentTree/MCID/OBJR "
         "exactly-once, IDTree/ID, language, attributes, DisplayDocTitle, MarkInfo, Tabs, "
         f"Table 5 containment, page furniture, figure captions and scales, and custom-block Divs and underlays verified on {len(SNAPSHOTS)} snapshots; {len(mutations) + len(grouping_twins) + len(authored_group_twins)} "
-        f"length-preserving mutation twins, one foreign-stream MCR twin, one invalid language region, 3 scope-header twins, {len(furniture_twins)} furniture twins, and {len(callout_twins)} custom-block twins rejected; {cross_check}",
+        f"length-preserving mutation twins, two role-only containment twins, one foreign-stream MCR twin, one invalid language region, 3 scope-header twins, {len(furniture_twins)} furniture twins, and {len(callout_twins)} custom-block twins rejected; {cross_check}",
         flush=True,
     )
 

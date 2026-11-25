@@ -3935,11 +3935,12 @@
     },
     {
       "id": "ROC-PDF-PDFUA2-TABLE5-CONTAINMENT",
-      "summary": "Every parent/child structure edge, content item, at-most-one child, and Caption position satisfies ISO/TS 32005 Table 5 and PDF/UA-2 8.2.5.25/8.2.5.27 for the supported PDF 2.0 roles; an illegal edge is rejected, never flattened or remapped.",
+      "summary": "The supported mixed PDF 2.0 and PDF 1.7 structure roles obey applicable ISO/TS 32005 Table 5 edges, content-item and cardinality rules. PDF/UA-2 supplies the separate list body and Caption-position requirements.",
       "source_ids": [
         "iso-14289-2-2024",
         "iso-32000-2-2020-ec3",
         "iso-ts-32005-2023",
+        "pdf-issues-ec3",
         "wtpdf-1-0-0"
       ],
       "references": [
@@ -3959,12 +3960,14 @@
       ],
       "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "dense_bit_matrix_one_check_per_edge; bounded_model_for_Part_and_Div_containment; legal_and_illegal_matrix_expect; kernel_store_negatives_for_edges_content_items_cardinality_and_caption_position; independent_checker_table_compared_with_the_pinned_veraPDF_ISO32005_profile_on_900_role_pairs; mutation_twins Pinned veraPDF controls: structure-containment and single-document-root.",
+      "machine_verification": "Reviewed all 53 published Table 5 rows in both directions. The bounded checker reconciles 900 role pairs, including Part and Div inherited containment, and records 22 more permissive pinned veraPDF pairs. Eleven of those pairs require grouping contexts outside the bounded Caption, Code or Link authoring subset. The remaining eleven lack an allowed published edge. The independent and kernel checks cover supported root cardinality, content items, contextual Artifact placement and child cardinality. Exact role-only mutations reject Quote with Div and a direct Link with P. Pinned veraPDF controls: structure-containment and single-document-root.",
       "human_verification": "not_required",
       "positive_scenarios": [
         "package/KernelSemantics.roc",
         "scripts/check_accessible_archive.py",
-        "tests/containers/Cases.roc"
+        "scripts/check_structure_semantics.py",
+        "tests/containers/Cases.roc",
+        "tests/rich_inline/Fixture.roc"
       ],
       "negative_scenarios": [
         "package/KernelSemantics.roc",

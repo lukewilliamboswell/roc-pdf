@@ -165,7 +165,23 @@ were checked separately. See the ledger's
 | 5.6 | The bounded role set has explicit standard namespaces and no custom role map. |
 | 6.1–6.2 | Check supported table, list, artifact and layout attribute owners against the role and attribute definitions. Standard owner eligibility follows the attribute definition independently of which standard namespace owns the role. |
 | 6.3 | Namespace-owned custom attributes remain excluded. |
-| 7.1–7.2 | Check each admitted parent/child pair, direct content item, cardinality and any applicable position constraint. The ledger maps the shared veraPDF Table 5 rules as one maintained group, with distinct evidence for the package's accepted roles and exclusions. Erratum #336 affects Code with Sub, and erratum #440 affects WP with Figure. Neither pair is currently supported because Sub and WP are unavailable. |
+| 7.1–7.2 | Check root cardinality, contextual Part and Div containment, parent/child pairs, direct content items and child cardinalities. The ledger maps the shared veraPDF Table 5 rules and independently checks the supported constraints. The corrections #336 for Code and Sub and #440 for WP and Figure apply to excluded roles. |
+
+The complete edition's 53 Table 5 rows were checked in both directions.
+For the 30 roles in the supported matrix, the independent check records
+22 pairs the pinned veraPDF catalog permits that the bounded kernel
+rejects. Eleven require an unsupported grouping context for Caption,
+Code or Link. The other eleven lack an allowed edge in the published
+table. The facade constructs Code as authored text, Link with its own
+content and annotation, and Caption with its own caption text. Its TOCs
+remain flat. The kernel checks inherited Part and Div rules separately,
+including Part with TOCI when its surrounding role is TOC.
+
+Table 5 permits direct content in LI. PDF/UA-2 §8.2.5.25 requires real list
+item content to belong to Lbl or LBody, and the bounded graph checks
+that separate requirement. PDF/UA-2 §8.2.5.27 also governs the placement
+of Caption. The checker compares the applicable rules independently of
+external validator acceptance.
 
 A captioned figure uses a dedicated `Sect` whose entire content is the figure
 and its caption, in that order. This makes the caption the last child of the

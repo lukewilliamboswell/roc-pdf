@@ -613,7 +613,7 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 														match item {
 															AnnotationOccurrence(annotation_id) => if !navigation {
 																return Err(UnsupportedAnnotation({ content: $content_index }))
-															} else if role == role_part or role == role_div {
+															} else if role == role_part or role == role_div or forbids_content_items(role) {
 																return Err(IllegalContentItem({ content: $content_index, node: node_index }))
 															} else {
 																annotation_index = annotation_id.index()
@@ -1400,9 +1400,10 @@ role_div = 4
 ## Annex L.2 and ISO/TS 32005 Table 5 list the child roles whose rules a
 ## Part can inherit. For the supported subset these are Document,
 ## DocumentFragment, Part, Div, Sect, Title, H, Hn, P, L, Lbl, Figure,
-## Caption, Link, Code, and Table.
+## Caption, Link, Code, Table, TOC and TOCI. A TOCI can pass the
+## inherited containment row only when the surrounding element is a TOC.
 part_children : U64
-part_children = 271117311
+part_children = 807988223
 
 unknown_role : U64
 unknown_role = 63
@@ -1434,11 +1435,11 @@ role_enabled = |role, namespace, is_root, text_enabled, navigation| {
 
 ## ISO/TS 32005:2023 Table 5 parent/child containment, restricted to the
 ## roles above. Bit `c` of row `p` is set when a `p` element may contain a
-## `c` element. The rows were transcribed from the pinned veraPDF 1.30.2
-## `PDFUA-2-ISO32005.xml` profile, whose rules "Table 5. <Parent>-<Child>"
-## encode each forbidden pair; every pair not forbidden there is permitted.
-## `scripts/check_structure_semantics.py` holds an independent transcription
-## that its self-test compares against the same profile.
+## `c` element in the bounded text subset. Caption, Code and Link
+## grouping-only child edges are outside this subset. Part and Div
+## inherit their containing role's row in validate_graph.
+## The independent checker records differences from the pinned validator
+## rules alongside the published Table 5 reconciliation.
 containment_row : U64 -> U64
 containment_row = |parent| match parent {
 
@@ -1483,22 +1484,22 @@ containment_row = |parent| match parent {
 	## Figure: Part, Sect, Div, H, Hn, P, L, Lbl, Figure, Caption, Link, Span, Em, Strong, Code, Quote, Table
 	13 => 4189148
 
-	## Caption: DocumentFragment, Part, Sect, Div, H, Hn, P, L, Lbl, Figure, Link, Span, Em, Strong, Code, Quote, Table
-	14 => 4172766
+	## Caption: Part, Sect, Div, H, Hn, P, L, Lbl, Figure, Link, Span, Em, Strong, Code, Quote, Table
+	14 => 4172764
 
-	## Link: DocumentFragment, Part, Sect, Div, Title, H, Hn, P, L, Lbl, Figure, Caption, Link, Span, Em, Strong, Code, Quote, Table
-	15 => 4189182
+	## Link: Sect, Div, Lbl, Figure, Span, Em, Strong, Code, Quote
+	15 => 2041880
 
 	## Span, Em, Strong: Lbl, Figure, Link, Span, Em, Strong, Code, Quote
 	16 => 2074624
 	17 => 2074624
 	18 => 2074624
 
-	## Code: DocumentFragment, Part, Sect, Div, P, L, Lbl, Figure, Caption, Link, Span, Em, Strong, Code, Quote, Table
-	19 => 4188958
+	## Code: Part, Div, Link, Span, Em, Strong
+	19 => 491540
 
-	## Quote: Div, Lbl, Figure, Link, Span, Em, Strong, Code, Quote
-	20 => 2074640
+	## Quote: Lbl, Figure, Link, Span, Em, Strong, Code, Quote
+	20 => 2074624
 
 	## Table: Caption, THead, TBody, TFoot, TR
 	21 => 62930944
@@ -1535,7 +1536,7 @@ forbids_content_items = |role| role == role_document or role == 1 or role == 3 o
 ## Table 5 "<X> shall contain at most one <Y>" rules as child-role masks:
 ## one generic H in Document, DocumentFragment, Sect, LBody, Figure, Caption,
 ## TH, and TD; one Sect in H and Hn; one Caption in Title, L, LBody, Figure,
-## Link, Code, and Table; and one THead and one TFoot in Table.
+## and Table; and one THead and one TFoot in Table.
 at_most_one_children : U64 -> U64
 at_most_one_children = |parent| match parent {
 	0 => role_bit(6)
@@ -1548,8 +1549,6 @@ at_most_one_children = |parent| match parent {
 	12 => role_bit(6).bitwise_or(role_bit(role_caption))
 	13 => role_bit(6).bitwise_or(role_bit(role_caption))
 	14 => role_bit(6)
-	15 => role_bit(role_caption)
-	19 => role_bit(role_caption)
 	21 => role_bit(role_caption).bitwise_or(role_bit(22)).bitwise_or(role_bit(24))
 	26 => role_bit(6)
 	27 => role_bit(6)
@@ -1864,8 +1863,9 @@ expect {
 	KernelSemantics.Plan.work(plan).annotation_visits == 2 and rejected
 }
 
-# Annex L also excludes object reference content items directly in Part and Div.
-expect ["Part", "Div"].all(
+# An object reference is also a direct content item. Groupings and L
+# reject it at the same graph boundary as ordinary content occurrences.
+expect ["Part", "Div", "L"].all(
 	|local_name| {
 		node = list_at(navigation_store.nodes, 1)
 		nodes = list_set(navigation_store.nodes, 1, { ..node, role: { ..node.role, local_name } })
@@ -2057,8 +2057,16 @@ expect {
 		("TD", "P"),
 		("TH", "Span"),
 		("Caption", "P"),
+		("Code", "Em"),
+		("Link", "Quote"),
 	]
 	illegal = [
+		("Caption", "DocumentFragment"),
+		("Code", "P"),
+		("Code", "Code"),
+		("Link", "Link"),
+		("Link", "P"),
+		("Quote", "Div"),
 		("Sect", "Document"),
 		("Sect", "LI"),
 		("Sect", "Span"),
@@ -2094,6 +2102,26 @@ expect {
 		("Figure", "Title"),
 	]
 	legal.all(|(parent, child)| allows(parent, child)) and illegal.all(|(parent, child)| !allows(parent, child))
+}
+
+# PDF 1.7 roles keep their namespace in the mixed tree. A TOCI can pass
+# through a Part in TOC context, and Code can own inline Span content.
+# Changing only that child role to P yields an illegal Code edge.
+expect {
+	pdf17 = { id: Semantics.NamespaceId.from_index(1), kind: Pdf17, uri: "http://iso.org/pdf/ssn" }
+	limits = KernelSemantics.Limits.make({ max_attributes: 16, max_content_spine: 64, max_fragments: 0, max_namespaces: 2, max_nodes: 32, max_occurrences: 1, max_semantic_depth: 16 })
+	build = |shape, owner| {
+		base = shaped_store(shape, owner)
+		nodes = base.nodes.map(|node| { ..node, role: { ..node.role, namespace: Semantics.NamespaceId.from_index(role_namespace(role_index(node.role.local_name))) } })
+		KernelSemantics.Plan.build_text_validated({ ..base, namespaces: base.namespaces.append(pdf17), nodes }, [], 1, 1, limits)
+	}
+	contents = [{ parent: 0, role: "Document" }, { parent: 0, role: "TOC" }, { parent: 1, role: "Part" }, { parent: 2, role: "TOCI" }, { parent: 3, role: "P" }]
+	code = [{ parent: 0, role: "Document" }, { parent: 0, role: "P" }, { parent: 1, role: "Code" }, { parent: 2, role: "Span" }]
+	bad = list_set(code, 3, { parent: 2, role: "P" })
+	build(contents, 4).is_ok() and build(code, 3).is_ok() and match build(bad, 3) {
+		Err(IllegalContainment({ child: 3, parent: 2 })) => True
+		_ => False
+	}
 }
 
 # Nested grouping elements validate with one containment check per edge.
