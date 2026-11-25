@@ -331,8 +331,8 @@ selected_layout = |normalized| {
 	Ok({ lines: KernelLineLayout.BatchPlan.lines(KernelFacadeLines.Plan.line(lines)).len(), pages: KernelPageLayout.Plan.pages(KernelFacadePages.Plan.page(pages)).len() })
 }
 
-has_obligation : Pdf.Report, Str, [AlternativeTextMeaningful, ExpansionAccurate, LanguageAccurate, LinkPurposeMeaningful, ReadingOrderMeaningful, TableHeadersMeaningful] -> Bool
-has_obligation = |report, path, obligation| report.obligations.any(|entry| entry.path == path and entry.obligation == obligation)
+has_obligation : Pdf.Report, Pdf.ReportObligation -> Bool
+has_obligation = |report, expected| report.obligations.contains(expected)
 
 has_block : Pdf.Report, Str, Str -> Bool
 has_block = |report, path, role| report.facts.blocks.any(|block| block.path == path and block.role == role and block.fragments > 0)
@@ -374,13 +374,13 @@ report_observations = |report| {
 				_ => False
 			},
 		),
-		has_obligation(report, "document", ReadingOrderMeaningful),
-		has_obligation(report, "contents[2].contents[3]", ReadingOrderMeaningful),
-		has_obligation(report, "contents[3].contents[2]", AlternativeTextMeaningful),
-		has_obligation(report, "contents[4].contents[2]", TableHeadersMeaningful),
-		has_obligation(report, "contents[2].contents[1].inlines[5]", LinkPurposeMeaningful),
-		has_obligation(report, "contents[3].contents[1].inlines[1]", LanguageAccurate),
-		has_obligation(report, "contents[1].inlines[1]", ExpansionAccurate),
+		has_obligation(report, { path: "document", obligation: ReadingOrderMeaningful }),
+		has_obligation(report, { path: "contents[2].contents[3]", obligation: ReadingOrderMeaningful }),
+		has_obligation(report, { path: "contents[3].contents[2]", obligation: AlternativeTextMeaningful }),
+		has_obligation(report, { path: "contents[4].contents[2]", obligation: TableHeadersMeaningful }),
+		has_obligation(report, { path: "contents[2].contents[1].inlines[5]", obligation: LinkPurposeMeaningful }),
+		has_obligation(report, { path: "contents[3].contents[1].inlines[1]", obligation: LanguageAccurate }),
+		has_obligation(report, { path: "contents[1].inlines[1]", obligation: ExpansionAccurate }),
 		facts.coverage.any(|covered| covered.path == "contents[2].contents[3].contents[1]" and covered.script == "Latn" and covered.scalars > 0),
 		facts.pages.len() > 1 and facts.pages.all(|page| page.fragments > 0),
 	]

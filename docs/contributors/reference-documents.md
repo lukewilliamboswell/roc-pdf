@@ -1342,54 +1342,43 @@ custom block across pages is not offered in v1.
 
 ### Preparation report
 
-```roc
-prepare_with_report : Document, Options -> Try({ prepared : Prepared, report : Report }, Error)
-prepare_with_report_budget : Document, Options, ReportBudget -> Try({ prepared : Prepared, report : Report }, Error)
-Report : { facts : ReportFacts, obligations : List(ReportObligation) }
-ReportFacts : {
-    alternatives : List({ kind : [Alternative, Expansion, Language], path : Str, text : Str }),
-    blocks : List({ first_page : U64, fragments : U64, last_page : U64, path : Str, role : Str }),
-    coverage : List({ font : U64, path : Str, scalars : U64, script : Str }),
-    language : Str,
-    outcomes : List(ReportOutcome),
-    pages : List({ fragments : U64, page : U64 }),
-    title : Str,
-}
-ReportOutcome : [
-    CustomBlockPlaced({ height : Layout.Unit, name : Str, page : U64, path : Str }),
-    FigureScale({ fit : [Exact, ScaleToFit], path : Str, scale : U64 }),
-    PreferenceRelaxed({ page : U64, path : Str, preference : [AuthorKeep, FooterCarry, HeadingKeep, Orphan, Widow] }),
-    RepeatedHeader({ page : U64, path : Str, rows : U64 }),
-    RowContinued({ page : U64, path : Str }),
-]
-ReportObligation : { obligation : [AlternativeTextMeaningful, ExpansionAccurate, LanguageAccurate, LinkPurposeMeaningful, ReadingOrderMeaningful, TableHeadersMeaningful], path : Str }
-ReportBudget : { max_entries : U64, max_text_bytes : U64 }
-```
+`Pdf.prepare_with_report(document, options)` returns the prepared plan and a
+read-only `Pdf.Report`. The budget defaults to 65,536 entries and 4 MiB of
+text. Use `prepare_with_report_budget(document, { options, budget })` to set
+either limit. A report that exceeds a limit returns `report.budget_exceeded`.
 
-These are executable with these names and shapes (custom-block slice,
-`reference-documents-v9`). Mechanical facts (`facts`) and human-review
-obligations (`obligations`) are separate fields. Every observation carries
-the authored path diagnostics use; pages count from 1; `blocks` is the
-logical reading order of leaf blocks; a figure scale is in thousandths.
-`prepare_with_report` uses a budget of 65,536 entries and 4 MiB of text.
-The prepared document is the one `prepare` returns, so its bytes are
-identical. `ExpansionAccurate` joins the obligation vocabulary with this
-version; `LinkPurposeMeaningful` and `LanguageAccurate` are no longer only
-proposed. Obligations are one `ReadingOrderMeaningful` and one
-`LanguageAccurate` for the document (path `document`), one
-`ReadingOrderMeaningful` per custom block, and one per figure, table, link,
-nested language, and expansion.
+`report.facts` records the authored metadata title, language, figure
+alternatives, and inline expansions or language changes. It also shows leaf
+blocks in reading order, page and fragment counts, selected text coverage,
+and layout outcomes such as applied figure scales and table continuation.
+Pages count from one and figure scales are in thousandths. Locations use
+the same authored paths as diagnostics. The plan produces the same bytes as
+ordinary preparation with the same inputs.
 
-The report is bounded and read-only. It contains authored locations (block
-paths), per-page fragment summaries, logical reading order, authored
-alternatives and expansions, author assertions, layout-policy outcomes
-(relaxed preferences, applied figure scales, row splits, repeated headers),
-selected font and script coverage, and human-review obligations
-(`AlternativeTextMeaningful`, `ReadingOrderMeaningful`,
-`TableHeadersMeaningful`, and proposed `LinkPurposeMeaningful` and
-`LanguageAccurate`). It exposes no PDF object identity and retains no discarded
-compiler stage or resource payload. Exceeding the report budget is an explicit
-error, never silent omission.
+`report.obligations` contains `{ path, obligation }` entries for human review.
+The document always carries `ReadingOrderMeaningful` and `LanguageAccurate`.
+The report also records `ReadingOrderMeaningful` for each custom block and
+callout, `AlternativeTextMeaningful` for each figure, `TableHeadersMeaningful`
+for each table, `LinkPurposeMeaningful` for each authored link,
+`LanguageAccurate` for each nested language, and `ExpansionAccurate` for each
+abbreviation expansion.
+
+Combined-profile preparation adds these obligations.
+
+| Obligation | Authored location | What the reviewer verifies |
+| --- | --- | --- |
+| `DocumentTitleAccurate` | `title` | The metadata title identifies the document. |
+| `StructureMeaningful` | `document` | Roles, hierarchy, headings, lists, captions, and other relationships convey the intended meaning. |
+| `ArtifactClassificationMeaningful` | `document` | Artifacts are nonessential and retain meaningful grouping and order where applicable. |
+| `PageLabelsAccurate` | `document` | The page labels match the page numbering readers perceive. |
+| `TextEquivalentAccurate` | `document` | Unicode text and supplied replacements convey the intended text. |
+| `FontEmbeddingRightsConfirmed` | `document` | The licenses for the selected fonts allow embedding for unrestricted rendering. |
+| `OutlineMeaningful` | `outline`, when authored | Outline text and hierarchy describe their destinations. |
+| `AnnotationOrderMeaningful` | `document`, when links are authored | Annotation order and presentation match the intended navigation. |
+
+Supplying metadata and semantic content records the author's claims about
+those values. Preparation validates the mechanical requirements. Review
+follows the [accessibility review protocol](accessibility-review.md).
 
 ## Scale workloads
 
