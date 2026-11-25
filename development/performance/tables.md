@@ -91,6 +91,20 @@ ordinal in six digits, so identifier order is store order and the IDTree
 lowers without sorting. Each `Headers` entry is also a `HeaderFor`
 relationship, stored grouped by cell in node order.
 
+ISO 32000-2:2020+EC3 §14.8.4.8.3 and Table 371 allow mixed header and data
+cells in a row and describe optional processor lookup when a cell omits
+`Headers`. §14.8.5.7 and Table 384 define Table-owned `Scope` on `TH` and
+`Headers` as a byte-string array on `TH` or `TD`. The facade's explicit
+association order and target selection follow the policy above.
+[EC3 table structure types](https://pdf-issues.pdfa.org/32000-2-2020/clause14.html#148483-table-structure-types),
+[PDF Association structure attribute reference](https://pdfa.org/download-area/cheat-sheets/StructureAttributes.pdf).
+
+`fuzz/TableHeaderModel.roc` enumerates three-column, three-row authored grids
+and rescans authored rectangles for each data cell. It checks attached Table
+attributes, ordered identifiers, and typed associations across row sections.
+`scripts/check_structure_semantics.py` checks the emitted byte-string shape
+and resolves identifiers to `TH` elements through the IDTree.
+
 **Agreement (S3's open issue).** `KernelSemantics` now proves `/Headers`
 and `HeaderFor` state the same associations: one forward cursor over the
 relationships walks every node's `Headers` values in order, requiring the

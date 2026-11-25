@@ -21,6 +21,7 @@ import PageTreeProof
 import ReferenceWrapModel
 import ResourceGraphModel
 import StreamSealModel
+import TableHeaderModel
 import XrefSlotProof
 
 target = Fuzz.suite([
