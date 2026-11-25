@@ -773,6 +773,46 @@ def mcr_pages(document: Document, number: int) -> set[int]:
     return found
 
 
+def check_scoped_table_headers(document: Document, rows: list[int]) -> None:
+    """Check each facade cell's explicit headers against the grid and scopes."""
+    column_headers: dict[int, set[bytes | None]] = {}
+    for row in rows:
+        cells = []
+        column = 0
+        for ref in element_children(document, document.get(row)):
+            require(isinstance(ref, Ref), "facade table row contains a non-cell item")
+            cell = document.get(int(ref))
+            attributes = table_attributes(cell)
+            if cell["S"] == "TH":
+                require(attributes.get("Scope") in ("Row", "Column", "Both"), "a TH lacks valid /Scope")
+            end = column + attributes.get("ColSpan", 1)
+            cells.append((cell, attributes, range(column, end)))
+            column = end
+
+        row_headers = {
+            cell.get("ID")
+            for cell, attributes, _ in cells
+            if cell["S"] == "TH" and attributes["Scope"] in ("Row", "Both")
+        }
+        for cell, attributes, columns in cells:
+            if cell["S"] != "TD":
+                continue
+            expected = row_headers.copy()
+            for column in columns:
+                expected.update(column_headers.get(column, ()))
+            require(None not in expected, "a scoped header lacks its referenced /ID")
+            actual = attributes.get("Headers", [])
+            require(
+                set(actual) == expected and len(actual) == len(expected),
+                "facade data cell /Headers disagrees with its scoped table headers",
+            )
+
+        for cell, attributes, columns in cells:
+            if cell["S"] == "TH" and attributes["Scope"] in ("Column", "Both"):
+                for column in columns:
+                    column_headers.setdefault(column, set()).add(cell.get("ID"))
+
+
 def check_tables(document: Document, visited: set[int], identifiers: dict[bytes, int], pages: list[int], page_index: dict[int, int], dimensions: dict[str, int]) -> None:
     """Independent table checks, derived from the bytes alone:
 
@@ -830,6 +870,8 @@ def check_tables(document: Document, visited: set[int], identifiers: dict[bytes,
                 width += span
             widths.add(width)
         require(len(widths) <= 1, f"table rows span different column counts {sorted(widths)}")
+        if dimensions.get("facade_table_headers"):
+            check_scoped_table_headers(document, rows)
         table_pages = sorted(mcr_pages(document, number), key=lambda page: page_index[page])
         if not head or not table_pages:
             continue
@@ -1050,6 +1092,22 @@ def self_test() -> None:
         except (ValidationError, KeyError, ValueError, TypeError, AttributeError, IndexError):
             continue
         raise SystemExit(f"structure-semantics checker accepted {label}")
+    # Explicit scope membership is stronger than validity of each /ID.
+    header_dimensions = {"facade_table_headers": 1}
+    check_structure_semantics(table, header_dimensions)
+    header_entry = b"/Headers [(c000002) (c000005) (c000008)] "
+    for replacement in (b"/Headers [(c000002) (c000006) (c000008)] ", b""):
+        twin = layout_twin(table, header_entry, replacement, exactly_once=True)
+        try:
+            check_structure_semantics(twin, header_dimensions)
+        except ValidationError as error:
+            require(
+                str(error) == "facade data cell /Headers disagrees with its scoped table headers",
+                "scope-header twin failed for a different reason",
+            )
+        else:
+            raise ValidationError("scope-header twin passed the facade table checker")
+
     # Furniture twins mutate decoded page furniture: an MCID inside a
     # pagination artifact, a wrong page number, a wrong total, and a missing
     # page-number artifact.
@@ -1079,7 +1137,7 @@ def self_test() -> None:
         "PASS structure-semantics checker self-test: normalized trees, ParentTree/MCID/OBJR "
         "exactly-once, IDTree/ID, language, attributes, DisplayDocTitle, MarkInfo, Tabs, "
         f"Table 5 containment, page furniture, figure captions and scales, and custom-block Divs and underlays verified on {len(SNAPSHOTS)} snapshots; {len(mutations) + len(grouping_twins)} "
-        f"length-preserving mutation twins, one foreign-stream MCR twin, one invalid language region, {len(furniture_twins)} furniture twins, and {len(callout_twins)} custom-block twins rejected; {cross_check}",
+        f"length-preserving mutation twins, one foreign-stream MCR twin, one invalid language region, 2 scope-header twins, {len(furniture_twins)} furniture twins, and {len(callout_twins)} custom-block twins rejected; {cross_check}",
         flush=True,
     )
 

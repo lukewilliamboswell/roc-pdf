@@ -284,6 +284,7 @@ def run_validators(
     validator_ids: tuple[str, ...], data: bytes, dimensions: dict[str, int], report: Reporter
 ) -> None:
     if "pdfua2" in validator_ids:
+        dimensions = {**dimensions, "facade_table_headers": 1}
         wtpdf = "wtpdf_accessibility" in validator_ids
         validate_claims(data, wtpdf=wtpdf)
         report("independent XML inspection of PDF/UA-2 identification and WTPDF Accessibility declaration")

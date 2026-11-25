@@ -24,8 +24,8 @@ object rather than accepting an arbitrary error. Run the pinned
 [test harness](../testing.adoc) for affected paths, including deterministic
 work, exact Roc allocations, allocated bytes and cross-target output.
 
-The preparation report separates facts from obligations. Supply title and
-language, meaningful text alternatives, the intended structure and reading
+The [preparation report](reference-documents.md#preparation-report) separates
+facts from obligations. Supply title and language, meaningful text alternatives, the intended structure and reading
 order, labels and headers, and link purposes through the public authoring
 surface. The generated file preserves these choices within the supported
 subset. The author is responsible for their accuracy. Where a required
@@ -36,15 +36,16 @@ review and where. It cannot discharge the obligation.
 Review the following against source content and the preparation report.
 Choose the applicable records based on the document's features.
 
-| Obligation | What the author or reviewer checks |
+| Report obligations | What the author or reviewer checks |
 | --- | --- |
-| Document identity and language | The metadata title identifies the document, whether or not there is a visible title. The default and scoped languages fit the prose, inline language changes and human-readable strings, including alternatives, captions, link descriptions, outlines and labels. |
-| Structure and order | The structure reflects the type and level of each item and follows a coherent reading order. Review the title, headings, sections, quotations, paragraphs, emphasized text, code, lists and rich list items. A paginated unit stays one logical unit. Review meaning across boundaries in continued tables, source blocks and callouts. |
-| Layout and artifacts | Identify meaningful content separately from decoration, furniture, repeats and contextual artifacts. Check that relevant grouping, layout attributes and order convey the author’s intent, even when paint order and structure order differ. |
-| Nontext and replacement text | Evaluate the purpose and scope of each figure alternative, including labelled drawings and chart data. Check the caption association. Review text equivalents, replacements and expansions for fidelity, and verify that source blocks preserve the intended text and whitespace. |
-| List and table relations | Check that numbering, labels, header descriptions and cell relationships are meaningful. Repeated visual table headers do not add separate semantic headers. |
-| Links and annotations | Link and annotation descriptions provide enough context to identify their purpose. Check corresponding visible text, logical and focus order, and target on each fragment of a continued link. Check that distinct targets remain distinguishable. |
-| Document navigation | Check that the outline and authored table of contents identify their intended logical sections. Check page labels, shown page numbers and cross-references against what a reader perceives. |
+| `DocumentTitleAccurate`, `LanguageAccurate` | The metadata title identifies the document, whether or not there is a visible title. The default and scoped languages fit the prose, inline language changes and human-readable strings, including alternatives, captions, link descriptions, outlines and labels. |
+| `StructureMeaningful`, `ReadingOrderMeaningful` | The structure reflects the type and level of each item and follows a coherent reading order. Review the title, headings, sections, quotations, paragraphs, emphasized text, code, lists and rich list items. A paginated unit stays one logical unit. Review meaning across boundaries in continued tables, source blocks and callouts. |
+| `ArtifactClassificationMeaningful`, `StructureMeaningful` | Identify meaningful content separately from decoration, furniture, repeats and contextual artifacts. Check that relevant grouping, layout attributes and order convey the author’s intent, even when paint order and structure order differ. |
+| `AlternativeTextMeaningful`, `ExpansionAccurate`, `TextEquivalentAccurate` | Evaluate the purpose and scope of each figure alternative, including labelled drawings and chart data. Check the caption association. Review text equivalents, replacements and expansions for fidelity, and verify that source blocks preserve the intended text and whitespace. |
+| `StructureMeaningful`, `TableHeadersMeaningful` | Check that numbering, labels, header descriptions and cell relationships are meaningful. Repeated visual table headers do not add separate semantic headers. |
+| `LinkPurposeMeaningful`, `AnnotationOrderMeaningful` | Link and annotation descriptions provide enough context to identify their purpose. Check corresponding visible text, logical and focus order, and target on each fragment of a continued link. Check that distinct targets remain distinguishable. |
+| `OutlineMeaningful`, `PageLabelsAccurate`, `LinkPurposeMeaningful` | Check that the outline and authored table of contents identify their intended logical sections. Check page labels, shown page numbers and cross-references against what a reader perceives. |
+| `FontEmbeddingRightsConfirmed` | Confirm that each selected font can be embedded and subsetted for the intended distribution. The package checks supported font structure and rejects restricted technical flags where applicable. |
 
 An optional human or assistive-technology review records the exact source and
 PDF digest, tool and version, operating system, tasks, expected result,
