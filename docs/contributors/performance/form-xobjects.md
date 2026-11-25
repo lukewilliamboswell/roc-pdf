@@ -271,6 +271,16 @@ construction rather than detected late, which is the stronger property:
 
 ## Evidence
 
+`fuzz/GraphicsTransformModel.roc` checks the ISO 32000-2 §8.3.4 and
+§8.10.1 affine placement rules against real page content lowering. It compares
+the page-space positions of three Form-space basis points at each `Do` with
+an independent point-by-point evaluation of the authored transforms. Both
+orders of rotation and nonuniform scaling are exercised, with signed
+fractional shear or reflection at the placement and sibling calls at each
+outer depth to check state restoration. The oracle uses the package's
+canonical identity Form matrix. The existing structural and renderer checks
+cover final Form dictionaries and painted output.
+
 Roc `expect` coverage lives beside each module and in the two evidence
 modules. Harness cases (`tests/spec.json`, scenario revision
 `form-xobjects-v1`, measured on the pinned dev backend at

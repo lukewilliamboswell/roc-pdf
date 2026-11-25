@@ -15,6 +15,7 @@ import ThemeOptions
 # roc test also runs the bounded models and proofs in this suite.
 import AppearanceTransparencyModel
 import ContentScopeModel
+import GraphicsTransformModel
 import ContinuationPaginationModel
 import DenseSpanProof
 import DocumentBuilderModel

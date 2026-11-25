@@ -82,6 +82,61 @@ StructureOracle :: [].{
 		Ok($operators)
 	}
 
+	AffineOperation : [Concat({ origin : { x : Dec, y : Dec }, x_end : { x : Dec, y : Dec }, y_end : { x : Dec, y : Dec } }), Invoke(Str), Restore, Save]
+
+	## Project only the graphics-state operators needed to observe the affine
+	## state at Form calls. The tokenizer keeps literal and name operands
+	## from masquerading as operators.
+	affine_operations : List(U8) -> Try(List(AffineOperation), Failure)
+	affine_operations = |bytes| {
+		tokens = tokenize_with(bytes, 0, bytes.len(), 0, ContentTokens)?
+		var $operations = []
+		var $index = 0
+		var $operands = 0
+		for token in tokens {
+			if token.kind == OperatorToken {
+				name = token_text(bytes, token)?
+				match name {
+					"q" | "Q" => {
+						if $operands != 0 {
+							return Err(BadToken(0))
+						}
+						$operations = $operations.append(if (name == "q") Save else Restore)
+					}
+					"cm" => {
+						if $operands != 6 {
+							return Err(BadToken(0))
+						}
+						start = $index - 6
+						a = token_decimal(bytes, list_at(tokens, start))?
+						b = token_decimal(bytes, list_at(tokens, start + 1))?
+						c = token_decimal(bytes, list_at(tokens, start + 2))?
+						d = token_decimal(bytes, list_at(tokens, start + 3))?
+						e = token_decimal(bytes, list_at(tokens, start + 4))?
+						f = token_decimal(bytes, list_at(tokens, start + 5))?
+						$operations = $operations.append(Concat({ origin: { x: e, y: f }, x_end: { x: a + e, y: b + f }, y_end: { x: c + e, y: d + f } }))
+					}
+					"Do" => {
+						if $operands != 1 {
+							return Err(BadToken(0))
+						}
+						resource = list_at(tokens, $index - 1)
+						if resource.kind != NameToken {
+							return Err(BadToken(0))
+						}
+						$operations = $operations.append(Invoke(token_text(bytes, resource)?))
+					}
+					_ => {}
+				}
+				$operands = 0
+			} else {
+				$operands = $operands + 1
+			}
+			$index = $index + 1
+		}
+		Ok($operations)
+	}
+
 	## Read the generated outline root's optional Count through xref and
 	## object-stream locations. Callers supply complete emitted PDF bytes.
 	outline_root_count : List(U8) -> Try([NoCount, Count(U64)], Failure)
@@ -744,6 +799,18 @@ check_filter = |bytes, tokens, top_keys, payload_start, payload_length, number| 
 Kind : [ArrayClose, ArrayOpen, DictClose, DictOpen, FalseToken, HexToken, IntegerToken, LiteralToken, NameToken, NullToken, NumberToken, OperatorToken, ReferenceToken, TrueToken]
 
 Token : { kind : Kind, len : U64, start : U64, value : U64 }
+
+token_text : List(U8), Token -> Try(Str, StructureOracle.Failure)
+token_text = |bytes, token| Str.from_utf8(bytes.sublist({ len: token.len, start: token.start })).map_err(|_| BadToken(0))
+
+token_decimal : List(U8), Token -> Try(Dec, StructureOracle.Failure)
+token_decimal = |bytes, token| {
+	if token.kind != IntegerToken and token.kind != NumberToken {
+		return Err(BadToken(0))
+	}
+	text = token_text(bytes, token)?
+	Dec.from_str(text).map_err(|_| BadToken(0))
+}
 
 TopKey : { key_len : U64, key_start : U64, value_index : U64 }
 
