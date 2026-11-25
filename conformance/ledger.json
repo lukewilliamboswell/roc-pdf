@@ -3240,19 +3240,23 @@
         "PdfUa2",
         "WtpdfAccessibility"
       ],
-      "implementation": "partial",
+      "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "Source, ActualText span and font oracles check intended decoded Unicode. The pinned real-text-pua, alternate-text-pua, and actual-text-pua controls distinguish rendered text without a non-PUA alternative, forbidden PUA in Alt, and forbidden PUA in ActualText. The ActualText control derives from the combined coloured source-block fixture. Further coverage must audit all available source-to-presentation transformation paths and the authoring outcome for private-use content in caller fonts.",
+      "machine_verification": "The combined source block and foreground files preserve the exact canonical Unicode stream across wraps, foreground ranges, blank lines and original tabs. The styled and mixed-face page-reference fixtures check generated label text, inherited face and language, and exact separator ownership. The public ordered policy checks exact per-face Unicode while the advanced text fixtures exercise transformation capabilities beyond the facade. Pinned emitted twins isolate a private-use glyph mapping, Alt and ActualText. Public caller-font controls prove that real PUA is rejected before replacement planning even when the font maps it, and public string controls reject PUA in each authorable replacement or alternate field.",
       "human_verification": "Confirm that expansions, replacements and equivalents convey the intended content.",
       "positive_scenarios": [
         "scripts/check_accessible_archive.py",
         "scripts/check_actual_text.py",
-        "scripts/check_source_blocks.py"
+        "scripts/check_destination_references.py",
+        "scripts/check_multiface_facade.py",
+        "scripts/check_source_blocks.py",
+        "scripts/check_source_foregrounds.py"
       ],
       "negative_scenarios": [
         "package/Pdf.roc",
         "scripts/check_accessible_archive.py",
-        "scripts/check_actual_text.py"
+        "scripts/check_actual_text.py",
+        "tests/contracts/pdf_facade.roc"
       ],
       "external_rule_ids": [
         "verapdf-pdfua2:8.4.3-1",

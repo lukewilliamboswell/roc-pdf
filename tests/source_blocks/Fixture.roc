@@ -75,7 +75,7 @@ Fixture :: [].{
 	wrapping : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
 	wrapping = |context| evidence({ text: wrap_text, scale: context })
 	unicode : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
-	unicode = |context| evidence({ text: unicode_text, scale: context })
+	unicode = |context| evidence({ text: unicode_text, scale: context, profile: AccessibleArchive })
 	negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
 	negatives = |context| evidence({ text: short_text, scale: context, negative: True })
 }

@@ -48,7 +48,7 @@ Fixture :: [].{
 		styled_theme = { ..theme, face: body.face, headings: { all: { face: Face(body.face) } }, inline: { emphasis: { font: Face(mono.face), scale: Percent(75) } } }
 		document = Pdf.document({ title: "Reference inherited face and scale", language: "en", contents: [Pdf.destination_heading({ name: "start", level: 1, text: "Styled references" }), Pdf.rich_paragraph([Pdf.text("Scaled label "), Pdf.emphasis([Pdf.in_language("fr", [Pdf.page_reference({ destination: "end", width: 60, numbering: PageLabel })])]), Pdf.text(" ends here.")]), Pdf.page_break, Pdf.destination_heading({ name: "end", level: 1, text: "Styled target" })], page_labels: [{ start_page: 0, style: DecimalArabic, prefix: "m-", start_number: 8 }] })
 		selection = Styled({ faces: [body.face, mono.face], fonts: [body_font, mono_font], inline_faces: [], face_indexes: [], roles: { code: Inherited, emphasis: Candidate(1), quote: Inherited, strong: Inherited } })
-		evidence(document, styled_theme, { theme: styled_theme, fonts: Registered(mono.registry) }, selection)
+		evidence(document, styled_theme, { profile: AccessibleArchive, theme: styled_theme, fonts: Registered(mono.registry) }, selection)
 	}
 	ordered : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
 	ordered = |context| {
@@ -61,7 +61,7 @@ Fixture :: [].{
 		selected_theme : Theme
 		selected_theme = { ..theme, font_selection: Policy(configured.policy) }
 		document = Pdf.document({ title: "Ordered mixed-face references", language: "en", contents: [Pdf.destination_heading({ name: "start", level: 1, text: "Ordered references" }), Pdf.rich_paragraph([Pdf.text("Ordered label "), Pdf.in_language("zh-Hans", [Pdf.inline_internal_link([reference("end", PageLabel, 60)], "end")]), Pdf.line_break, Pdf.text("Physical "), reference("end", Physical, 24), Pdf.text(".")]), Pdf.page_break, Pdf.destination_heading({ name: "end", level: 1, text: "Ordered target" })], page_labels: [{ start_page: 0, style: NoNumber, prefix: "p中", start_number: 1 }] })
-		evidence(document, selected_theme, { theme: selected_theme, fonts: Registered(configured.registry) }, Ordered({ policy: configured.policy, registry: configured.registry }))
+		evidence(document, selected_theme, { profile: AccessibleArchive, theme: selected_theme, fonts: Registered(configured.registry) }, Ordered({ policy: configured.policy, registry: configured.registry }))
 	}
 	geometry : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
 	geometry = |context| {

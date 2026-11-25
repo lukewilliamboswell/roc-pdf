@@ -106,7 +106,7 @@ positive = |runtime_argument_count| {
 	}
 	registered = register_faces(runtime_argument_count)
 	theme = Theme.{ font_selection: Policy(registered.policy) }
-	options = Pdf.Options.{ theme: theme, fonts: Registered(registered.registry) }
+	options = Pdf.Options.{ profile: AccessibleArchive, theme: theme, fonts: Registered(registered.registry) }
 	document = mixed_document({})
 	bytes = match Pdf.to_bytes_with(document, options) {
 		Err(_) => crash "multiface facade output failed"
@@ -146,8 +146,8 @@ shared_registry = |runtime_argument_count| {
 	}
 	registered = register_faces(runtime_argument_count)
 	theme = Theme.{ font_selection: Policy(registered.policy) }
-	first_options = Pdf.Options.{ theme: theme, fonts: Registered(registered.registry) }
-	second_options = Pdf.Options.{ theme: theme, fonts: Registered(registered.registry) }
+	first_options = Pdf.Options.{ profile: AccessibleArchive, theme: theme, fonts: Registered(registered.registry) }
+	second_options = Pdf.Options.{ profile: AccessibleArchive, theme: theme, fonts: Registered(registered.registry) }
 	first_bytes = match Pdf.to_bytes_with(mixed_document({}), first_options) {
 		Err(_) => crash "multiface shared-registry first output failed"
 		Ok(value) => value
@@ -211,8 +211,8 @@ unique_registries = |runtime_argument_count| {
 	}
 	first_theme = Theme.{ font_selection: Policy(first.policy) }
 	second_theme = Theme.{ font_selection: Policy(second_configured.policy) }
-	first_options = Pdf.Options.{ theme: first_theme, fonts: Registered(first.registry) }
-	second_options = Pdf.Options.{ theme: second_theme, fonts: Registered(second_configured.registry) }
+	first_options = Pdf.Options.{ profile: AccessibleArchive, theme: first_theme, fonts: Registered(first.registry) }
+	second_options = Pdf.Options.{ profile: AccessibleArchive, theme: second_theme, fonts: Registered(second_configured.registry) }
 	first_bytes = match Pdf.to_bytes_with(mixed_document({}), first_options) {
 		Err(_) => crash "multiface unique-registry first output failed"
 		Ok(value) => value
