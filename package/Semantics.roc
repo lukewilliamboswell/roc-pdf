@@ -305,6 +305,7 @@ Semantics :: [].{
 	Relationship : [
 		AnnotationFor({ annotation : AnnotationId, owner : ElementId }),
 		CaptionFor({ caption : NodeId, target : NodeId }),
+		ContentsTarget({ item : NodeId, target : NodeId }),
 		DestinationTarget({ destination : DestinationId, target : ElementId }),
 		HeaderFor({ cell : ElementId, header : ElementId }),
 		LabelFor({ label : NodeId, target : NodeId }),

@@ -32669,7 +32669,7 @@
     },
     {
       "name": "contents entries x2",
-      "scenario_revision": "contents-entry-v1",
+      "scenario_revision": "contents-entries-v2",
       "family": "destination_references",
       "snapshot": "tests/destination_references/contents_2.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -32708,7 +32708,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1562,
+          "allocations": 1606,
           "allocated_bytes": 4301873,
           "work": {
             "reference_atoms": 2,
@@ -32734,13 +32734,13 @@
             "alignment_items": 0,
             "separator_run_visits": 0,
             "separator_override_writes": 0,
-            "output_bytes": 17394,
+            "output_bytes": 17584,
             "contents_rows": 2,
             "leader_dots": 125
           }
         },
         "x64musl": {
-          "allocations": 1562,
+          "allocations": 1606,
           "allocated_bytes": 4301873,
           "work": {
             "reference_atoms": 2,
@@ -32766,7 +32766,7 @@
             "alignment_items": 0,
             "separator_run_visits": 0,
             "separator_override_writes": 0,
-            "output_bytes": 17394,
+            "output_bytes": 17584,
             "contents_rows": 2,
             "leader_dots": 125
           }
@@ -32781,7 +32781,7 @@
     },
     {
       "name": "contents entries x80",
-      "scenario_revision": "contents-entry-v1",
+      "scenario_revision": "contents-entries-v2",
       "family": "destination_references",
       "snapshot": "tests/destination_references/contents_80.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -32820,7 +32820,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 10743,
+          "allocations": 11218,
           "allocated_bytes": 36024166,
           "work": {
             "reference_atoms": 80,
@@ -32846,13 +32846,13 @@
             "alignment_items": 0,
             "separator_run_visits": 0,
             "separator_override_writes": 0,
-            "output_bytes": 52922,
+            "output_bytes": 54144,
             "contents_rows": 80,
             "leader_dots": 6322
           }
         },
         "x64musl": {
-          "allocations": 10743,
+          "allocations": 11218,
           "allocated_bytes": 36024166,
           "work": {
             "reference_atoms": 80,
@@ -32878,7 +32878,7 @@
             "alignment_items": 0,
             "separator_run_visits": 0,
             "separator_override_writes": 0,
-            "output_bytes": 52922,
+            "output_bytes": 54144,
             "contents_rows": 80,
             "leader_dots": 6322
           }
@@ -32893,7 +32893,7 @@
     },
     {
       "name": "contents entry across pages",
-      "scenario_revision": "contents-entry-v1",
+      "scenario_revision": "contents-entries-v2",
       "family": "destination_references",
       "snapshot": "tests/destination_references/contents_tall.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -32932,7 +32932,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2191,
+          "allocations": 2226,
           "allocated_bytes": 22149267,
           "work": {
             "reference_atoms": 1,
@@ -32958,13 +32958,13 @@
             "alignment_items": 0,
             "separator_run_visits": 0,
             "separator_override_writes": 0,
-            "output_bytes": 17149,
+            "output_bytes": 17323,
             "contents_rows": 1,
             "leader_dots": 0
           }
         },
         "x64musl": {
-          "allocations": 2191,
+          "allocations": 2226,
           "allocated_bytes": 22149267,
           "work": {
             "reference_atoms": 1,
@@ -32990,7 +32990,7 @@
             "alignment_items": 0,
             "separator_run_visits": 0,
             "separator_override_writes": 0,
-            "output_bytes": 17149,
+            "output_bytes": 17323,
             "contents_rows": 1,
             "leader_dots": 0
           }
@@ -33005,7 +33005,7 @@
     },
     {
       "name": "contents entries atomic negatives",
-      "scenario_revision": "contents-entry-v1",
+      "scenario_revision": "contents-entries-v2",
       "family": "destination_references",
       "snapshot": "tests/destination_references/contents_negatives.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -33017,14 +33017,14 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1589,
+          "allocations": 1679,
           "allocated_bytes": 320024,
           "work": {
             "rejections": 11
           }
         },
         "x64musl": {
-          "allocations": 1589,
+          "allocations": 1679,
           "allocated_bytes": 320024,
           "work": {
             "rejections": 11

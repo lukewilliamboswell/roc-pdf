@@ -202,6 +202,7 @@ KernelFacadeSemantics :: [].{
 		authoring : Document.NormalizedAuthoring,
 		block_ownership : List(BlockOwnership),
 		components : SemanticComponents,
+		contents_nodes : List(Semantics.NodeId),
 		destinations : List(DestinationRecord),
 		limits : Limits,
 		links : List(LinkRecord),
@@ -220,13 +221,13 @@ KernelFacadeSemantics :: [].{
 		## consumes the symbolic plan, preserves every node/occurrence id,
 		## and validates the first complete Unicode semantic store.
 		finalize : Symbolic, List(Str) -> Try(Plan, Error)
-		finalize = |plan, labels| finalize_symbolic(plan, labels)
+		finalize = |plan, labels| finalize_symbolic(plan, labels, [])
 
-		finalize_with_contexts : Symbolic, List(Str) -> Try({ plan : Plan, contexts : List(LiteralContext), separators : List(Text.OccurrenceSeparator) }, Error)
-		finalize_with_contexts = |symbolic, labels| {
+		finalize_with_contexts : Symbolic, List(Str), List(Semantics.NodeId) -> Try({ plan : Plan, contexts : List(LiteralContext), separators : List(Text.OccurrenceSeparator) }, Error)
+		finalize_with_contexts = |symbolic, labels, resolved_nodes| {
 			literals = symbolic.literals
 			pending = symbolic.pending
-			plan = finalize_symbolic(symbolic, labels)?
+			plan = finalize_symbolic(symbolic, labels, resolved_nodes)?
 			store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(plan.preliminary))
 			var $contexts = List.with_capacity(store.occurrences.len())
 			var $separators = []
@@ -489,6 +490,7 @@ build_symbolic = |authoring, limits| {
 			authoring,
 			block_ownership: built.block_ownership,
 			components: built.components,
+			contents_nodes: authoring.contents_entries.map(|entry| parent_node(list_at(authoring.blocks, entry.block).parent, planning.group_nodes)),
 			destinations: planning.destinations,
 			limits,
 			links: planning.links,
@@ -590,8 +592,8 @@ symbolic_contexts = |authoring, owners, occurrences| {
 	{ literals: $literals, pending: $pending }
 }
 
-finalize_symbolic : KernelFacadeSemantics.Symbolic, List(Str) -> Try(KernelFacadeSemantics.Plan, KernelFacadeSemantics.Error)
-finalize_symbolic = |KernelFacadeSemantics.Symbolic.{ authoring, block_ownership, components, destinations, limits, links, literals: _, pending, sources: literal_sources, work }, labels| {
+finalize_symbolic : KernelFacadeSemantics.Symbolic, List(Str), List(Semantics.NodeId) -> Try(KernelFacadeSemantics.Plan, KernelFacadeSemantics.Error)
+finalize_symbolic = |KernelFacadeSemantics.Symbolic.{ authoring, block_ownership, components, contents_nodes, destinations, limits, links, literals: _, pending, sources: literal_sources, work }, labels, resolved_nodes| {
 	{ attributes, content_spine, element_identifiers, namespaces, nodes, literals, relationships, text_properties } = components
 	if labels.len() != pending.len() {
 		return Err(ReferenceResolution({ reference: labels.len(), reason: "Resolved labels must cover every reference exactly once in reference-id order." }))
@@ -646,7 +648,16 @@ finalize_symbolic = |KernelFacadeSemantics.Symbolic.{ authoring, block_ownership
 		$id = $id + 1
 	}
 	check_limit($properties.len(), limits.max_properties, Properties)?
-	final_components = { attributes, content_spine, element_identifiers, namespaces, nodes, literals, relationships, text_properties: $properties }
+	if contents_nodes.len() != resolved_nodes.len() {
+		return Err(ReferenceResolution({ reference: resolved_nodes.len(), reason: "A contents entry needs a resolved structure target." }))
+	}
+	var $relationships = relationships
+	var $contents_index = 0
+	for target in resolved_nodes {
+		$relationships = $relationships.append(ContentsTarget({ item: list_at(contents_nodes, $contents_index), target }))
+		$contents_index = $contents_index + 1
+	}
+	final_components = { attributes, content_spine, element_identifiers, namespaces, nodes, literals, relationships: $relationships, text_properties: $properties }
 	store = complete_store(final_components, $occurrences, sources)
 	navigated = !links.is_empty() or !destinations.is_empty()
 	preliminary = (if (navigated) KernelTextSemantics.Plan.build_navigation(store, 0, 0, limits.semantics, limits.text_semantics) else KernelTextSemantics.Plan.build(store, 0, 0, limits.semantics, limits.text_semantics)) ? TextSemantics
@@ -741,10 +752,10 @@ plan_blocks = |authoring, limits| {
 					$block_index = group.block_end
 					$next_group = group.group_end - 1
 				}
-				Container(_) | Custom(_) | Callout(_) | LeadRegion | FigureGroup(_) => {
+				Container(_) | ContentsItem | ContentsList | Custom(_) | Callout(_) | LeadRegion | FigureGroup(_) => {
 					if in_item {
 						match group.kind {
-							FigureGroup(_) | Callout(_) => {}
+							ContentsList | FigureGroup(_) | Callout(_) => {}
 							_ => return Err(ListItemGroup({ group: $next_group }))
 						}
 					}
@@ -2004,6 +2015,14 @@ build_components = |authoring, planning, source_plan| {
 					$nodes = list_set($nodes, node_index, make_node(node_index, ParentNode(parent_node(group.parent, planning.group_nodes)), container_role(kind), span, Inherited))
 				}
 
+				ContentsItem | ContentsList => {
+					role = match group.kind {
+						ContentsList => "TOC"
+						_ => "TOCI"
+					}
+					$nodes = list_set($nodes, node_index, make_node(node_index, ParentNode(parent_node(group.parent, planning.group_nodes)), role, span, Inherited))
+				}
+
 				## A custom block is a `Div` of its paragraphs.
 				Custom(_) | Callout(_) => {
 					if children == 0 {
@@ -2100,7 +2119,7 @@ build_components = |authoring, planning, source_plan| {
 					$index = group.block_end
 					$next_group = group.group_end - 1
 				}
-				Container(_) | Custom(_) | Callout(_) | ItemList(_) | LeadRegion | FigureGroup(_) => {
+				Container(_) | ContentsItem | ContentsList | Custom(_) | Callout(_) | ItemList(_) | LeadRegion | FigureGroup(_) => {
 					$next_node = checked_add($next_node, 1)?
 				}
 				KeepTogether | KeepWithNext(_) | PageScope(_) | Scope(_) => {}
@@ -2857,10 +2876,10 @@ standard_namespaces_with_pdf17 = [
 	{ id: Semantics.NamespaceId.from_index(1), kind: Pdf17, uri: "http://iso.org/pdf/ssn" },
 ]
 
-## `Code` and `Quote` are PDF 1.7 standard structure types (ISO 32000-2
-## 14.8.6); every other facade role is in the PDF 2.0 namespace.
+## These roles retain their PDF 1.7 standard namespace in PDF 2.0.
+## Every other facade role is in the PDF 2.0 namespace.
 role_namespace : Str -> Semantics.NamespaceId
-role_namespace = |role| if (role == "Code" or role == "Quote") Semantics.NamespaceId.from_index(1) else Semantics.NamespaceId.from_index(0)
+role_namespace = |role| if (role == "Code" or role == "Quote" or role == "TOC" or role == "TOCI") Semantics.NamespaceId.from_index(1) else Semantics.NamespaceId.from_index(0)
 
 make_node : U64, Semantics.NodeParent, Str, Semantics.IndexRange, Semantics.Language -> Semantics.Node
 make_node = |index, parent, role, content, language| {

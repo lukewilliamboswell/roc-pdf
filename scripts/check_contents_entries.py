@@ -34,8 +34,17 @@ def validate_contents_entries_pdf(pdf: bytes, dimensions: dict[str, int]) -> Non
     named = check_name_tree(document.bodies, document.root, pages)
     require(set(named) == {b'target'}, 'contents destination identity changed')
     target_page = pages.index(named[b'target'][0])
-    paragraphs = [node for node in root.children if node.role == 'P']
-    require(len(paragraphs) == entries, 'contents entries lost paragraph ownership')
+    lists = [node for node in root.children if node.role == 'TOC']
+    require(len(lists) == 1, 'consecutive entries did not form one TOC')
+    items = lists[0].children
+    require(len(items) == entries and all(node.role == 'TOCI' for node in items),
+            'each authored entry must have one TOCI in logical order')
+    require(all(len(node.children) == 1 and node.children[0].role == 'P' for node in items),
+            'contents entries lost paragraph ownership')
+    paragraphs = [node.children[0] for node in items]
+    structure_target = next(node.number for node in root.children if node.role == 'H1')
+    for item in items:
+        require(item.value.get('Ref') == [structure_target], 'contents item points to the wrong structure element')
     require(not any(node.role in ('L', 'Lbl', 'Table') for node in root.descendants()),
             'contents entries were replaced by bullet or table semantics')
     for index, node in enumerate(paragraphs):
@@ -99,7 +108,8 @@ def self_test() -> None:
         pdf = (ROOT / case['snapshot']).read_bytes()
         validate_contents_entries_pdf(pdf, case['dimensions'])
         _, _, root, _ = read(pdf)
-        number = next(node for node in root.children if node.role == 'P').children[-1].marks[-1]
+        first_item = next(node for node in root.children if node.role == 'TOC').children[0]
+        number = first_item.children[0].children[-1].marks[-1]
         moved = ORIGIN.sub(lambda match: b'1 0 0 1 ' + str(float(F(match[1].decode()) - 2)).encode()
                            + b' ' + match[2] + b' cm', number.block, count=1)
         require(moved != number.block, 'number-column mutation changed no origin')
@@ -109,6 +119,15 @@ def self_test() -> None:
             pass
         else:
             raise ValidationError('contents oracle accepted a displaced page-number column')
+        actual_target, = first_item.value['Ref']
+        ref_entry = f'/Ref [{actual_target} 0 R]'.encode()
+        missing_ref = twin(pdf, ref_entry, b'/Ree' + ref_entry[4:], exactly_once=False)
+        try:
+            validate_contents_entries_pdf(missing_ref, case['dimensions'])
+        except ValidationError as error:
+            require('wrong structure element' in str(error), 'missing Ref control failed for a different reason')
+        else:
+            raise ValidationError('contents oracle accepted an item with no Ref')
     print('PASS contents alignment, wrapping, references, link ownership, artifact leaders and mutation twins')
 
 

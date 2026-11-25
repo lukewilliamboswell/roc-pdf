@@ -1078,6 +1078,11 @@ indentation/leader facts; line measurement commits the title rows and terminal
 field offset. Reference resolution consumes those rows without wrapping again.
 Decorative leaders are bounded geometric page artifacts derived from that
 committed final-row interval, never generated text or inferred semantics.
+Consecutive authored entries under the same container form one PDF 1.7
+`TOC`. Each entry owns one `TOCI` and its linked paragraph. Indentation affects
+only presentation. The reference resolver carries the destination's
+semantic node identity alongside the visible resolved page label, so the
+structure reference and both link actions identify the same authored target.
 
 Paragraph analysis, measurement shaping, break selection, final boundary
 shaping, and per-line bidirectional placement are explicit operations inside

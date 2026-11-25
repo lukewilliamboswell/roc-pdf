@@ -105,7 +105,7 @@ Fixture :: [].{
 		$blocks = $blocks.append(Pdf.page_break).append(Pdf.destination_heading({ name: "target", level: 1, text: "Contents target" }))
 		registered = Font.Registry.empty.register({ bytes: KernelBuiltInFont.bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
 		font = registered.registry.prepared_face(registered.face) ? |_| FontFailure
-		evidence_mode(Pdf.document({ title: "Wrapped contents evidence", language: "en", contents: $blocks }), theme, { theme: theme }, Single(font), True)
+		evidence_mode(Pdf.document({ title: "Wrapped contents evidence", language: "en", contents: $blocks }), theme, { profile: AccessibleArchive, theme: theme }, Single(font), True)
 	}
 	contents_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
 	contents_negatives = |context| {

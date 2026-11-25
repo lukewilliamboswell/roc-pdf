@@ -2286,7 +2286,7 @@ leaf_position = |normalized, block, parent| {
 			_ => False
 		}
 		if group.parent == parent and group.block_end <= block and !lead {
-			$position = $position + 1
+			$position = $position + authored_group_width(group)
 		}
 	}
 	for record in normalized.page_breaks {
@@ -2321,6 +2321,13 @@ uri_problem = |error| match error {
 	UriInvalidPercentEncoding(_) => "it has an invalid percent-encoding"
 	UriInvalidByte(_) => "it contains a byte outside the URI grammar"
 	_ => "it is malformed"
+}
+
+## The semantic TOC wrapper covers multiple independently authored blocks.
+authored_group_width : Document.NormalizedGroup -> U64
+authored_group_width = |group| match group.kind {
+	ContentsList => group.block_end - group.first_block
+	_ => 1
 }
 
 ## A rich-inline rejection located by the authored block path of its
@@ -2395,10 +2402,21 @@ group_path = |groups, group| chain_path(groups, group + 1)
 
 ## The path of the child at authored `position` of group code `parent`.
 child_path : List(Document.NormalizedGroup), U64, U64 -> Str
-child_path = |groups, parent, position| if parent == 0 {
-	"contents[${position.to_str()}]"
-} else {
-	"${chain_path(groups, parent)}.${child_segment(groups, parent, position)}"
+child_path = |groups, parent, position| {
+	authored = if parent == 0 {
+		0
+	} else {
+		record = group_record(groups, parent)
+		match record.kind {
+			ContentsItem => group_record(groups, record.parent).parent
+			_ => parent
+		}
+	}
+	if authored == 0 {
+		"contents[${position.to_str()}]"
+	} else {
+		"${chain_path(groups, authored)}.${child_segment(groups, authored, position)}"
+	}
 }
 
 ## The path of group code `code`, from the outermost group inwards.
@@ -3666,11 +3684,13 @@ expect archive_twin_lowered(archive_twin_rename("Lang", "AF")) == Rejected(Embed
 
 expect archive_twin_lowered(archive_twin_rename("Lang", "PresSteps")) == Rejected(Presentations)
 
-expect archive_twin_lowered(archive_twin_rename("Lang", "Ref")) == Rejected(ReferenceXObject)
-
 expect archive_twin_lowered(archive_twin_rename("Lang", "TR")) == Rejected(GraphicsState)
 
 expect archive_twin_lowered(archive_twin_rename("Lang", "NeedsRendering")) == Rejected(InteractiveForms)
+
+# A stream /Ref is excluded. Structure relationship /Ref belongs to an
+# ordinary StructElem dictionary and is covered by the TOCI fixtures.
+expect archive_twin_lowered(archive_twin_rename("Width", "Ref")) == Rejected(ReferenceXObject)
 
 # Stream dictionaries must not reference external file data.
 expect archive_twin_lowered(archive_twin_rename("Length1", "FFilter")) == Rejected(StreamExternal)
@@ -4285,7 +4305,7 @@ leaf_paths = |normalized| {
 			_ => False
 		}
 		if !lead {
-			$closed = $closed.append({ end: group.block_end, parent: group.parent })
+			$closed = $closed.append({ end: group.block_end, parent: group.parent, width: authored_group_width(group) })
 		}
 		$group_index = $group_index + 1
 	}
@@ -4301,8 +4321,8 @@ leaf_paths = |normalized| {
 	var $block = 0
 	for record in normalized.blocks {
 		while $group_cursor < ends.len() and at(ends, $group_cursor).end <= $block {
-			parent = at(ends, $group_cursor).parent
-			$siblings = set_at($siblings, parent, at($siblings, parent) + 1)
+			group = at(ends, $group_cursor)
+			$siblings = set_at($siblings, group.parent, at($siblings, group.parent) + group.width)
 			$group_cursor = $group_cursor + 1
 		}
 		while $break_cursor < normalized.page_breaks.len() and at(normalized.page_breaks, $break_cursor).block <= $block {

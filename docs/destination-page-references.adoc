@@ -29,7 +29,7 @@ selectable text and reading order.
 
 Both the title and number link to `reference.destination`. Supply title text
 and inline styling, without nested links or page references. The entry retains
-ordinary paragraph/link semantics with one logical space between title and
+table-of-contents semantics with one logical space between title and
 number. Its reference must use `End` alignment. Empty titles, negative `indent`
 or `gap`, and geometry leaving no title width reject before emission. The
 exact resolved number must fit the reserved reference width as usual. Heading

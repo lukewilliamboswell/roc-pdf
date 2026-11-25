@@ -1090,19 +1090,37 @@ validate_relationships = |store| {
 		$node_index = $node_index + 1
 	}
 	var $index = 0
+	var $last_contents_item = 0
 	while $index < store.relationships.len() {
 		valid = match list_at(store.relationships, $index) {
 			HeaderFor({ cell, header }) => header_relation_valid(store, $owners, cell.index(), header.index())
 			CaptionFor({ caption, target }) => caption_relation_valid(store, caption.index(), target.index())
 			LabelFor({ label, target }) => label_relation_valid(store, label.index(), target.index())
+			ContentsTarget({ item, target }) => item.index() > $last_contents_item and contents_relation_valid(store, item.index(), target.index())
 			_ => False
 		}
 		if !valid {
 			return Err(InvalidRelationship({ relationship: $index }))
 		}
+		match list_at(store.relationships, $index) {
+			ContentsTarget({ item, target: _ }) => {
+				$last_contents_item = item.index()
+			}
+			_ => {}
+		}
 		$index = $index + 1
 	}
 	Ok(store.relationships.len())
+}
+
+contents_relation_valid : Semantics.Store, U64, U64 -> Bool
+contents_relation_valid = |store, item, target| {
+	if item >= store.nodes.len() or target >= store.nodes.len() {
+		False
+	} else {
+		role = role_index(list_at(store.nodes, target).role.local_name)
+		list_at(store.nodes, item).role.local_name == "TOCI" and (role == role_p or role == role_hn)
+	}
 }
 
 ## `/Headers` and `HeaderFor` state the same associations. `HeaderFor`
@@ -1304,6 +1322,10 @@ role_index = |name| {
 		23
 	} else if name == "TFoot" {
 		24
+	} else if name == "TOC" {
+		role_toc
+	} else if name == "TOCI" {
+		role_toci
 	} else if name == "DocumentFragment" {
 		role_document_fragment
 	} else if name == "H" {
@@ -1325,10 +1347,16 @@ role_code = 19
 role_quote : U64
 role_quote = 20
 
-## The namespace index that owns a role: `Code` and `Quote` are PDF 1.7
+role_toc : U64
+role_toc = 28
+
+role_toci : U64
+role_toci = 29
+
+## The namespace index that owns a role: Code, Quote, TOC and TOCI are PDF 1.7
 ## standard types (namespace 1); every other accepted role is PDF 2.0.
 role_namespace : U64 -> U64
-role_namespace = |role| if (role == role_code or role == role_quote) 1 else 0
+role_namespace = |role| if (role == role_code or role == role_quote or role == role_toc or role == role_toci) 1 else 0
 
 role_h : U64
 role_h = 6
@@ -1371,7 +1399,7 @@ role_div = 4
 ## DocumentFragment, Part, Div, Sect, Title, H, Hn, P, L, Lbl, Figure,
 ## Caption, Link, Code, and Table.
 part_children : U64
-part_children = 2681855
+part_children = 271117311
 
 unknown_role : U64
 unknown_role = 63
@@ -1412,20 +1440,20 @@ containment_row : U64 -> U64
 containment_row = |parent| match parent {
 
 	## Document: Document, DocumentFragment, Part, Sect, Div, Title, H, Hn, P, L, Figure, Link, Code, Table
-	0 => 2663423
+	0 => 271098879
 
 	## DocumentFragment: same as Document
-	1 => 2663423
+	1 => 271098879
 
 	## Part and Div use contextual rows in validate_graph. These are
 	## the static rows of the pinned veraPDF pairwise profile.
-	2 => 268435455
+	2 => 1073741823
 
 	## Sect: DocumentFragment, Part, Sect, Div, Title, H, Hn, P, L, Lbl, Figure, Caption, Link, Code, Table
-	3 => 2681854
+	3 => 271117310
 
 	## Div: all supported roles are listed conditionally in Table 5.
-	4 => 268435455
+	4 => 1073741823
 
 	## Title: Part, Div, P, L, Lbl, Figure, Caption, Link, Span, Em, Strong, Code, Quote, Table
 	5 => 4188948
@@ -1483,6 +1511,12 @@ containment_row = |parent| match parent {
 	## TH, TD: Sect, Div, H, Hn, P, L, Lbl, Figure, Link, Span, Em, Strong, Code, Quote, Table
 	26 => 4172760
 	27 => 4172760
+
+	## TOC: Part, Caption, TOC, TOCI
+	28 => 805322756
+
+	## TOCI: Div, P, Lbl, TOC
+	29 => 268437776
 	_ => 0
 }
 
@@ -1493,7 +1527,7 @@ may_contain = |parent, child| containment_row(parent).bitwise_and(role_bit(child
 ## DocumentFragment, Sect, L, Table, THead, TBody, TFoot, and TR, plus
 ## PDF/UA-2 8.2.5.25: real content in LI is enclosed in Lbl or LBody.
 forbids_content_items : U64 -> Bool
-forbids_content_items = |role| role == role_document or role == 1 or role == 3 or role == role_l or role == 10 or role == role_table or role == 22 or role == 23 or role == 24 or role == 25
+forbids_content_items = |role| role == role_document or role == 1 or role == 3 or role == role_l or role == 10 or role == role_table or role == 22 or role == 23 or role == 24 or role == 25 or role == role_toc or role == role_toci
 
 ## Table 5 "<X> shall contain at most one <Y>" rules as child-role masks:
 ## one generic H in Document, DocumentFragment, Sect, LBody, Figure, Caption,
@@ -1516,6 +1550,7 @@ at_most_one_children = |parent| match parent {
 	21 => role_bit(role_caption).bitwise_or(role_bit(22)).bitwise_or(role_bit(24))
 	26 => role_bit(6)
 	27 => role_bit(6)
+	28 => role_bit(role_caption)
 	_ => 0
 }
 

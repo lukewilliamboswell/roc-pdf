@@ -87,15 +87,15 @@ PDF17_NAMESPACE = "http://iso.org/pdf/ssn"
 # ISO 32000-2 14.8.6 defines `Code` and `Quote` only in the PDF 1.7 standard
 # structure namespace; PDF/UA-2 8.2.4 requires each element to belong to a
 # standard namespace.
-PDF17_ROLES = {"Code", "Quote"}
+PDF17_ROLES = {"Code", "Quote", "TOC", "TOCI"}
 
 INLINE = {"Lbl", "Figure", "Link", "Span", "Em", "Strong", "Code", "Quote"}
 ALL_ROLES = {
     "Document", "DocumentFragment", "Part", "Sect", "Div", "Title", "H", "Hn", "P", "L", "LI", "Lbl",
     "LBody", "Figure", "Caption", "Link", "Span", "Em", "Strong", "Code", "Quote", "Table", "THead",
-    "TBody", "TFoot", "TR", "TH", "TD",
+    "TBody", "TFoot", "TR", "TH", "TD", "TOC", "TOCI",
 }
-DOCUMENT_CHILDREN = {"Document", "DocumentFragment", "Part", "Sect", "Div", "Title", "H", "Hn", "P", "L", "Figure", "Link", "Code", "Table"}
+DOCUMENT_CHILDREN = {"Document", "DocumentFragment", "Part", "Sect", "Div", "Title", "H", "Hn", "P", "L", "Figure", "Link", "Code", "Table", "TOC"}
 GROUPING_WRAPPERS = {"Part", "Div"}
 # ISO/TS 32005 Table 5 lists these supported children in the Part row.
 PART_CHILDREN = DOCUMENT_CHILDREN | {"Caption", "Lbl"}
@@ -105,7 +105,7 @@ MAY_CONTAIN: dict[str, set[str]] = {
     "DocumentFragment": DOCUMENT_CHILDREN,
     "Part": set(ALL_ROLES),
     "Div": set(ALL_ROLES),
-    "Sect": {"DocumentFragment", "Part", "Sect", "Div", "Title", "H", "Hn", "P", "L", "Lbl", "Figure", "Caption", "Link", "Code", "Table"},
+    "Sect": {"DocumentFragment", "Part", "Sect", "Div", "Title", "H", "Hn", "P", "L", "Lbl", "Figure", "Caption", "Link", "Code", "Table", "TOC"},
     "Title": {"Part", "Div", "P", "L", "Caption", "Table"} | INLINE,
     "H": {"Sect"} | INLINE,
     "Hn": {"Sect"} | INLINE,
@@ -129,13 +129,16 @@ MAY_CONTAIN: dict[str, set[str]] = {
     "TR": {"TH", "TD"},
     "TH": set(CELL_CHILDREN),
     "TD": set(CELL_CHILDREN),
+    "TOC": {"Part", "Caption", "TOC", "TOCI"},
+    "TOCI": {"Div", "P", "Lbl", "TOC"},
 }
-NO_CONTENT_ITEMS = {"Document", "DocumentFragment", "Sect", "L", "LI", "Table", "THead", "TBody", "TFoot", "TR"}
+NO_CONTENT_ITEMS = {"Document", "DocumentFragment", "Sect", "L", "LI", "Table", "THead", "TBody", "TFoot", "TR", "TOC", "TOCI"}
 AT_MOST_ONE: dict[str, set[str]] = {
     "Document": {"H"}, "DocumentFragment": {"H"}, "Sect": {"H"}, "Caption": {"H"}, "TH": {"H"}, "TD": {"H"},
     "LBody": {"H", "Caption"}, "Figure": {"H", "Caption"}, "H": {"Sect"}, "Hn": {"Sect"},
     "Title": {"Caption"}, "L": {"Caption"}, "Link": {"Caption"}, "Code": {"Caption"},
     "Table": {"Caption", "THead", "TFoot"},
+    "TOC": {"Caption"},
 }
 TABLE_ATTRIBUTES = {"ColSpan", "Headers", "O", "RowSpan", "Scope", "Summary"}
 LIST_NUMBERING = {
@@ -414,6 +417,7 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
     identifiers: dict[bytes, int] = {}
     visited: set[int] = set()
     labelled_items: set[int] = set()
+    contents_targets: list[int] = []
 
     def walk(number: int, parent: int, inherited: str | None, ancestors: tuple[str, ...]) -> str:
         require(len(ancestors) < 64, "structure tree too deep")
@@ -447,6 +451,10 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
         for key in ("Alt", "E", "ActualText"):
             if key in element:
                 facts.append(f"{key}={text_string(element[key])!r}")
+        if role == "TOCI":
+            refs = element.get("Ref")
+            require(isinstance(refs, list) and len(refs) == 1 and isinstance(refs[0], Ref), "contents item must have one structure target")
+            contents_targets.append(int(refs[0]))
         if role == "Figure":
             require("Alt" in element or "ActualText" in element, "Figure has neither /Alt nor /ActualText")
         if "ID" in element:
@@ -512,6 +520,9 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
         return label + ("" if not leaves else " [" + ", ".join(leaves) + "]")
 
     lines.append(walk(int(root_element), tree_root_number, catalog_language, ()))
+    for target in contents_targets:
+        require(target in visited and table_role(str(document.get(target)["S"])) in ("P", "Hn"),
+                "contents reference does not name a reachable destination")
 
     # ParentTree <-> MCR/OBJR, exactly once in both directions.
     parent_tree = document.get(int(tree_root["ParentTree"]))

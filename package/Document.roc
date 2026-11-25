@@ -266,7 +266,7 @@ ContentsEntryProps := {
 	leader : [NoLeader, Dots] ?? NoLeader,
 }.{}
 
-## Sparse geometry facts, kept separately from the ordinary P/Link spine.
+## Sparse geometry facts, kept separately from the TOC/TOCI structure spine.
 NormalizedContentsEntry : { block : U64, indent : Layout.Unit, gap : Layout.Unit, leader : [NoLeader, Dots], reference : U64 }
 
 ReservedAlign := [CenterReserved, EndReserved, StartReserved]
@@ -568,7 +568,7 @@ TableSection : [Body, Footer, Header]
 ##
 ## `Custom` is a custom block (payload: its `customs` index): a `Div` of its
 ## paragraphs for semantics and one unsplittable unit for layout.
-NormalizedGroupKind := [Source(U64), Container(ContainerKind), Custom(U32), Callout(U32), FigureGroup(U32), ItemList(U32), KeepTogether, KeepWithNext(Keep), LeadRegion, ListItem(U32), PageScope(U32), Scope(U32), Table(U32), TableRow(TableSection)]
+NormalizedGroupKind := [Source(U64), Container(ContainerKind), ContentsItem, ContentsList, Custom(U32), Callout(U32), FigureGroup(U32), ItemList(U32), KeepTogether, KeepWithNext(Keep), LeadRegion, ListItem(U32), PageScope(U32), Scope(U32), Table(U32), TableRow(TableSection)]
 
 ## The semantic role of one normalized inline. Text leaves hold their exact
 ## authored string and its byte range in the paragraph's concatenated text.
@@ -1850,8 +1850,14 @@ normalize_simple = |simple, initial| {
 	var $block_index = 0
 	while $block_index < simple.contents.len() {
 		block = list_at(simple.contents, $block_index)
-		$state = if (is_grouping(block)) append_group($state, block, $block_index) else append_leaf($state, block, 0, $block_index)
-		$block_index = $block_index + 1
+		if is_contents_entry(block) {
+			end = contents_list_end(simple.contents, $block_index + 1)
+			$state = append_contents_list($state, simple.contents, 0, 0, $block_index, end)
+			$block_index = end
+		} else {
+			$state = if (is_grouping(block)) append_group($state, block, $block_index) else append_leaf($state, block, 0, $block_index)
+			$block_index = $block_index + 1
+		}
 	}
 	{
 		blocks: $state.blocks,
@@ -1887,6 +1893,38 @@ is_grouping : DocumentBlock -> Bool
 is_grouping = |block| match block {
 	Container(_) | Custom(_) | Callout(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) | PageScope(_) | Scoped(_) => True
 	_ => False
+}
+
+is_contents_entry : DocumentBlock -> Bool
+is_contents_entry = |block| match block {
+	ContentsEntry(_) => True
+	_ => False
+}
+
+contents_list_end : List(DocumentBlock), U64 -> U64
+contents_list_end = |blocks, start| {
+	var $end = start
+	while $end < blocks.len() and is_contents_entry(list_at(blocks, $end)) {
+		$end = $end + 1
+	}
+	$end
+}
+
+## Consecutive authored entries under one parent make one semantic TOC.
+## Position stays the authored sibling index, including for diagnostics.
+append_contents_list : SimpleState, List(DocumentBlock), U64, U64, U64, U64 -> SimpleState
+append_contents_list = |state, blocks, parent, depth, first, end| {
+	var $state = open_group(state, ContentsList, parent, depth, first)
+	group = $state.groups.len()
+	var $position = first
+	while $position < end {
+		$state = open_group($state, ContentsItem, group, depth, $position)
+		item = $state.groups.len()
+		$state = append_leaf($state, list_at(blocks, $position), item, $position)
+		$state = close_group($state, item - 1)
+		$position = $position + 1
+	}
+	close_group($state, group - 1)
 }
 
 ## A frame of the group walk: the children of group `group` (encoded
@@ -1933,7 +1971,11 @@ walk_group = |opened_state, opened_frame| {
 				$frames = $frames.append({ blocks: contents, depth: top.depth, group: $state.groups.len(), items: [], list_depth: top.list_depth, listing: False, next: 0 })
 			} else {
 				child = list_at(top.blocks, top.next)
-				if is_grouping(child) {
+				if is_contents_entry(child) {
+					end = contents_list_end(top.blocks, top.next + 1)
+					$state = append_contents_list($state, top.blocks, top.group, top.depth, top.next, end)
+					$frames = list_set($frames, $frames.len() - 1, { ..top, next: end })
+				} else if is_grouping(child) {
 					nested = open_block_group($state, child, top.group, top.depth, top.list_depth, top.next)
 					$state = nested.state
 					$frames = $frames.append(nested.frame)

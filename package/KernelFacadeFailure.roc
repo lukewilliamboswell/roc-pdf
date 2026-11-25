@@ -853,6 +853,7 @@ kernel_tagged_objects_error = |error| match error {
 	IdTree(cause) => context({ feature: "id_tree", path: "IdTree", cause: kernel_navigation_objects_error(cause) })
 	IdTreeIndex(cause) => context({ feature: "id_tree_index", path: "IdTreeIndex", cause: kernel_index_error(cause) })
 	IdTreeUnplanned(_) => leaf({ category: Invariant, feature: "id_tree_unplanned", path: "IdTreeUnplanned", inspected: Str.inspect(error) })
+	InvalidContentsTarget(_) => leaf({ category: Invariant, feature: "invalid_contents_target", path: "InvalidContentsTarget", inspected: Str.inspect(error) })
 	InvalidFigureAlternative(_) => leaf({ category: Invariant, feature: "invalid_figure_alternative", path: "InvalidFigureAlternative", inspected: Str.inspect(error) })
 	Object(cause) => context({ feature: "object", path: "Object", cause: kernel_object_error(cause) })
 	ObjectOrder(_) => leaf({ category: Invariant, feature: "object_order", path: "ObjectOrder", inspected: Str.inspect(error) })

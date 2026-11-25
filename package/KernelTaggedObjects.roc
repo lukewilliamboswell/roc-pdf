@@ -18,6 +18,7 @@ KernelTaggedObjects :: [].{
 		IdTree(KernelNavigationObjects.Error),
 		IdTreeIndex(KernelIndex.Error),
 		IdTreeUnplanned({ identifiers : U64, planned : U64 }),
+		InvalidContentsTarget({ node : U64 }),
 		InvalidFigureAlternative({ node : U64 }),
 		Object(KernelObject.Error),
 		ObjectOrder({ actual : KernelObject.ObjectId, expected : KernelObject.ObjectId }),
@@ -530,13 +531,14 @@ add_structure_elements = |builder, names, tagged, navigation, objects, catalog_l
 	nodes_by_structure = index_nodes_by_structure(semantics.nodes)
 	lowered = KernelTagged.Plan.lowered_identifiers(tagged)
 	ids = KernelObjectPlan.Plan.structure_elements(objects)
+	references = contents_references(semantics)
 	var $builder = builder
 	var $attribute_dictionaries = 0
 	var $language_entries = 0
 	var $structure_index = 0
 	while $structure_index < ids.len() {
 		node = list_at(semantics.nodes, list_at(nodes_by_structure, $structure_index).index())
-		{ attribute_dictionaries, builder: next_builder, language_entries } = add_structure_element($builder, names, tagged, navigation, objects, catalog_language, lowered, node, list_at(ids, $structure_index))?
+		{ attribute_dictionaries, builder: next_builder, language_entries } = add_structure_element($builder, names, tagged, navigation, objects, catalog_language, lowered, node, references.get(node.id.index()) ?? NoContentsTarget, list_at(ids, $structure_index))?
 		$builder = next_builder
 		$attribute_dictionaries = $attribute_dictionaries + attribute_dictionaries
 		$language_entries = $language_entries + language_entries
@@ -550,8 +552,8 @@ add_structure_elements = |builder, names, tagged, navigation, objects, catalog_l
 ## `/Alt`, and `/E` from node text properties, `/ID` from the element
 ## identifier, and `/Lang` where the node's explicit language differs from the
 ## language it inherits. Entries are emitted in canonical key order.
-add_structure_element : KernelObject.Builder, Names, KernelTagged.Plan, NavigationLowering, KernelObjectPlan.Plan, CatalogLanguage, List(Bool), Semantics.Node, KernelObject.ObjectId -> Try({ attribute_dictionaries : U64, builder : KernelObject.Builder, language_entries : U64 }, KernelTaggedObjects.Error)
-add_structure_element = |builder, names, tagged, navigation, objects, catalog_language, lowered, node, expected| {
+add_structure_element : KernelObject.Builder, Names, KernelTagged.Plan, NavigationLowering, KernelObjectPlan.Plan, CatalogLanguage, List(Bool), Semantics.Node, ContentsReference, KernelObject.ObjectId -> Try({ attribute_dictionaries : U64, builder : KernelObject.Builder, language_entries : U64 }, KernelTaggedObjects.Error)
+add_structure_element = |builder, names, tagged, navigation, objects, catalog_language, lowered, node, contents_reference, expected| {
 	semantics = KernelTagged.Plan.semantics(tagged)
 	node_k = list_at(KernelTagged.Plan.node_k(tagged), node.id.index())
 	k_items = KernelTagged.Plan.k_items(tagged)
@@ -582,15 +584,18 @@ add_structure_element = |builder, names, tagged, navigation, objects, catalog_la
 	# `/Type /StructElem` is optional (ISO 32000-2 Table 355) and omitted.
 	k_entry = if (node_k.items.length() != 0) WithEntry({ key: names.k, value: k_id }) else NoEntry
 	base = { k: k_entry, ns: ns_id, p: p_id, page: page_entry, s: s_id }
+	if node.role.local_name == "TOCI" and contents_reference == NoContentsTarget {
+		return Err(InvalidContentsTarget({ node: node.id.index() }))
+	}
 	properties = node_properties(semantics, node)
 	if node.role.local_name == "Figure" and properties.alternative == NoProperty {
 		return Err(InvalidFigureAlternative({ node: node.id.index() }))
 	}
 	lowered_language = lowered_node_language(semantics, catalog_language, node)
-	extras = node.attributes.length() != 0 or properties.actual != NoProperty or properties.alternative != NoProperty or properties.expansion != NoProperty or node.element_identifier != NoElementIdentifier or lowered_language != NoProperty
+	extras = node.attributes.length() != 0 or properties.actual != NoProperty or properties.alternative != NoProperty or properties.expansion != NoProperty or node.element_identifier != NoElementIdentifier or lowered_language != NoProperty or contents_reference != NoContentsTarget
 	if !extras {
 		mark = KernelObject.dictionary_mark(with_type)
-		{ builder: with_dictionary, id: dictionary_id } = KernelObject.add_pushed_dictionary(push_base_entries(with_type, names, base, NoEntry), mark) ? Object
+		{ builder: with_dictionary, id: dictionary_id } = KernelObject.add_pushed_dictionary(push_base_entries(with_type, names, base, NoEntry, NoEntry), mark) ? Object
 		{ builder: with_object, id: object_id } = KernelObject.add_object(with_dictionary, dictionary_id) ? Object
 		ensure_object(object_id, expected)?
 		return Ok({ attribute_dictionaries: 0, builder: with_object, language_entries: 0 })
@@ -610,16 +615,17 @@ add_structure_element = |builder, names, tagged, navigation, objects, catalog_la
 		}
 	}
 	language = add_text_entry(identifier.builder, "Lang", lowered_language)?
+	ref = add_contents_reference(language.builder, contents_reference, semantics.nodes, objects)?
 
 	## Every value, nested attribute dictionaries included, exists before the
 	## first entry is pushed, as `KernelObject.add_pushed_dictionary` requires.
-	mark = KernelObject.dictionary_mark(language.builder)
-	var $pushed = push_optional(language.builder, attributes.entry)
+	mark = KernelObject.dictionary_mark(ref.builder)
+	var $pushed = push_optional(ref.builder, attributes.entry)
 	$pushed = push_optional($pushed, actual.entry)
 	$pushed = push_optional($pushed, alternative.entry)
 	$pushed = push_optional($pushed, expansion.entry)
 	$pushed = push_optional($pushed, identifier.entry)
-	dictionary = KernelObject.add_pushed_dictionary(push_base_entries($pushed, names, base, language.entry), mark) ? Object
+	dictionary = KernelObject.add_pushed_dictionary(push_base_entries($pushed, names, base, language.entry, ref.entry), mark) ? Object
 	object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
 	ensure_object(object.id, expected)?
 	Ok({
@@ -629,18 +635,51 @@ add_structure_element = |builder, names, tagged, navigation, objects, catalog_la
 	})
 }
 
+ContentsReference : [NoContentsTarget, ContentsTargetNode(Semantics.NodeId)]
+
+## No per-node table is allocated for documents without contents entries.
+contents_references : Semantics.Store -> List(ContentsReference)
+contents_references = |semantics| {
+	var $references = []
+	for relationship in semantics.relationships {
+		match relationship {
+			ContentsTarget({ item, target }) => {
+				if $references.is_empty() {
+					$references = List.repeat(NoContentsTarget, semantics.nodes.len())
+				}
+				$references = list_set($references, item.index(), ContentsTargetNode(target))
+			}
+			_ => {}
+		}
+	}
+	$references
+}
+
+add_contents_reference : KernelObject.Builder, ContentsReference, List(Semantics.Node), KernelObjectPlan.Plan -> Try({ builder : KernelObject.Builder, entry : OptionalEntry }, KernelTaggedObjects.Error)
+add_contents_reference = |builder, reference, nodes, objects| match reference {
+	NoContentsTarget => Ok({ builder, entry: NoEntry })
+	ContentsTargetNode(target) => {
+		element = list_at(nodes, target.index()).structure_element
+		object_id = list_at(KernelObjectPlan.Plan.structure_elements(objects), element.index())
+		key = KernelObject.add_name(builder, Str.to_utf8("Ref")) ? Object
+		value = add_reference_array(key.builder, [object_id])?
+		Ok({ builder: value.builder, entry: WithEntry({ key: key.id, value: value.id }) })
+	}
+}
+
 OptionalProperty : [NoProperty, Property(Str)]
 
 ## Pushes an element's `/K`, `/Lang`, `/NS`, `/P`, `/Pg` and `/S` entries in
 ## key order (`/Lang` sorts after `/K` and before `/NS`) straight onto the
 ## object store, so no element builds a temporary entry list.
-push_base_entries : KernelObject.Builder, Names, { k : OptionalEntry, ns : KernelObject.ValueId, p : KernelObject.ValueId, page : OptionalEntry, s : KernelObject.ValueId }, OptionalEntry -> KernelObject.Builder
-push_base_entries = |builder, names, base, language| {
+push_base_entries : KernelObject.Builder, Names, { k : OptionalEntry, ns : KernelObject.ValueId, p : KernelObject.ValueId, page : OptionalEntry, s : KernelObject.ValueId }, OptionalEntry, OptionalEntry -> KernelObject.Builder
+push_base_entries = |builder, names, base, language, reference| {
 	var $builder = push_optional(builder, base.k)
 	$builder = push_optional($builder, language)
 	$builder = KernelObject.push_entry($builder, { key: names.ns, value: base.ns })
 	$builder = KernelObject.push_entry($builder, { key: names.p, value: base.p })
 	$builder = push_optional($builder, base.page)
+	$builder = push_optional($builder, reference)
 	KernelObject.push_entry($builder, { key: names.s, value: base.s })
 }
 

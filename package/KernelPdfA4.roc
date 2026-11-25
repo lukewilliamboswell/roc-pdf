@@ -592,7 +592,12 @@ forbidden_key = |key, kind| match key {
 	Ht => Forbidden(GraphicsState)
 	Hto => Forbidden(GraphicsState)
 	Alternates => Forbidden(ImageDictionary)
-	Ref => Forbidden(ReferenceXObject)
+	Ref => match kind {
+		StreamDictionary => Forbidden(ReferenceXObject)
+		# ISO 19005-4 bans reference XObjects. Structure elements have
+		# a distinct /Ref entry for relationships, including TOCI targets.
+		PlainDictionary => Allowed
+	}
 	AcroForm => Forbidden(InteractiveForms)
 	NeedAppearances => Forbidden(InteractiveForms)
 	NeedsRendering => Forbidden(InteractiveForms)
