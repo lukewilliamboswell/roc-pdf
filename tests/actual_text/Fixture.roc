@@ -2187,7 +2187,11 @@ expect {
 	reordered = KernelShape.validate_advanced(font, source, conflict_store, context, shape_limits)?
 	accepted = KernelPdfText.Plan.build(semantics, reordered.store, [font_plan], [placement], limits)?
 	work = KernelPdfText.Plan.work(accepted)
-	plain_rejected and work.mapping_conflicts_resolved == 1 and work.mappings == 1
+	paint = Str.from_utf8(KernelPdfText.Plan.bytes(accepted))?
+	mappings = KernelPdfText.Plan.mappings(accepted)
+	plain_rejected and mappings == [[{ cid: 1, scalars: [0x66] }]] and
+		paint.contains("/Span <</ActualText <FEFF00660061>>> BDC\n") and
+			work.mapping_conflicts_resolved == 1 and work.mappings == 1
 }
 
 list_set : List(a), U64, a -> List(a)
