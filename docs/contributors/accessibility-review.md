@@ -99,16 +99,21 @@ exclusions retain their own criteria.
 The PDF/UA-2 preview includes the file requirements through 8.13.2. The
 ISO/TS 32005 preview includes the textual clauses through 7.2 and the legend
 and beginning of Table 5. Direct review of PDF/UA-2 clauses 8.13.3–8.14 and
-the complete normative Table 5 remains open pending access to the sponsored
-ISO copies. The pinned errata and the WTPDF accessibility provisions were
-checked separately. See the ledger's
+the complete normative Table 5 remains open pending access to the full
+standards. When searching an Australian or New Zealand library catalogue,
+look up the identical adoptions AS/NZS ISO 14289.2:2025 and
+SA/SNZ TS ISO 32005:2025. Their public previews identify the ISO editions
+they reproduce. The pinned errata and the WTPDF accessibility provisions
+were checked separately. See the ledger's
 `ROC-PDF-PDFUA2-ISO-TEXT-RECONCILIATION` for this open confirmation.
 [Sponsored PDF/UA standards bundle](https://www.pdfa-inc.org/product/pdf-ua-bundle/) ·
 [PDF/UA-2](https://pdfa.org/iso-14289-2-pdfua-2/) ·
 [ISO/TS 32005](https://pdfa.org/resource/iso-32005/) ·
 [ISO/TS 32005 preview](https://cdn.standards.iteh.ai/samples/45878/b574c2cc0cc94e7986f66b148550bd7d/ISO-TS-32005-2023.pdf) ·
 [WTPDF 1.0](https://pdfa.org/download-area/specifications/Well-Tagged-PDF-WTPDF-1.0.pdf) ·
-[ISO/TS 32005 informative matrix](https://pdfa.org/resource/iso-ts-32005-hierarchical-inclusion-rules/)
+[ISO/TS 32005 informative matrix](https://pdfa.org/resource/iso-ts-32005-hierarchical-inclusion-rules/) ·
+[AS/NZS ISO 14289.2 preface](https://store.accuristech.com/products/preview/3030708) ·
+[SA/SNZ TS ISO 32005 preface](https://store.accuristech.com/products/preview/3030121)
 
 ### ISO 14289-2:2024 and WTPDF accessibility
 

@@ -148,7 +148,10 @@ No bytes are emitted, and there is no rescan.
   unlisted constructs. The entry stays `partial` until those requirements
   are reconciled against the licensed edition before Gate 7. The published
   preview ends at the start of clause 6.1.4 on cross-reference tables.
-  The later technical requirements need the full edition.
+  The later technical requirements need the full edition. Australian and New
+  Zealand library catalogues may list the identical adoption as
+  AS/NZS ISO 19005.4:2022.
+  [Australian and New Zealand adoption](https://pdfa.org/australia-and-new-zealand-jointly-adopt-pdf-a-4/) ·
   [Published preview](https://cdn.standards.iteh.ai/samples/71832/339ef0926f5f4edd9be9861eefb174ea/ISO-19005-4-2020.pdf) ·
   [Full ISO 19005-4:2020 edition](https://www.iso.org/standard/71832.html)
 
