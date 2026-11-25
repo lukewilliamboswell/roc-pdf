@@ -984,6 +984,10 @@ Closing Gate 6 alone does not make a PDF/UA-2 or combined-profile claim.
 - Language inheritance and nested language changes. The document language
   and scoped language tags identify specific languages. Standalone PDF text
   strings use their inherited language.
+- Theme, panel, spacing and other styling controls provide presentation. The
+  supported semantic properties use authored content, roles, alternatives and
+  the typed Table, List and Artifact attributes. Independent semantic Layout
+  properties are outside this bounded authoring scope.
 - Alternative, expanded, replacement, actual, phoneme, and phonetic-alphabet
   text where applicable.
 - IDTree construction and typed structure references.

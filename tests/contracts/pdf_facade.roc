@@ -239,3 +239,18 @@ rejects_unspecified_language = |result, path| match result {
 	Err(InvalidDocument({ diagnostics: [{ code: ProfileRequirementViolated, feature: Feature("profile.accessible_archive.language"), details: [located], requirement_ids: ["ROC-PDF-PDFUA2-8-4-4-DEFAULT-LANGUAGE"], stage: AuthoringValidation, .. }], .. })) => located == path
 	_ => False
 }
+
+# Intent passes through the authored Warning label. Panel and text colours
+# are presentation choices, with the combined review carried by the report.
+expect {
+	ink = Color.srgb8({ red: 120, green: 30, blue: 15 })
+	warning = Pdf.scoped({ strong: Themed(ink) }, [Pdf.rich_paragraph([Pdf.strong([Pdf.text("Warning. ")]), Pdf.text("Review the terms.")])])
+	doc = Pdf.document({
+		contents: [Pdf.callout({ name: "Warning panel", contents: [warning] })],
+		language: "en-AU",
+		title: "Presentation and structure",
+	})
+	{ report, .. } = Pdf.prepare_with_report(doc, { profile: AccessibleArchive })?
+	report.obligations.contains({ obligation: StructureMeaningful, path: "document" })
+		and report.obligations.contains({ obligation: ArtifactClassificationMeaningful, path: "document" })
+}

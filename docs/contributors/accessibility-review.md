@@ -55,6 +55,17 @@ language, including alternate descriptions, expansion text, outline titles
 and page-label prefixes. The text-string encoder rejects raw escape
 introducers.
 
+Use the `StructureMeaningful` and `ArtifactClassificationMeaningful`
+records to review styling and layout. Theme, scopes, panels, table fills,
+borders, spacing and source highlighting provide presentation in the
+combined facade. Express the full meaning of a styled distinction through
+authored text, semantic roles or alternatives. For example, put a visible
+`Warning.` label inside a tinted callout and use a heading or list to
+identify its logical content. Fixed figure appearance belongs to the
+Figure and its description. A visual property with independent semantic
+meaning requires an applicable Layout attribute and is outside the
+supported authoring scope.
+
 An optional human or assistive-technology review records the exact source and
 PDF digest, tool and version, operating system, tasks, expected result,
 observed result and any limitation or follow-up. Preserve raw files and
@@ -111,7 +122,7 @@ checked separately. See the ledger's
 | 8.2.5.27–8.2.5.28 | Check caption placement and association, full Figure paint ownership, and the authored alternative. The bounded vector adapter follows the same Figure contract as images. |
 | 8.2.5.29–8.2.5.31 | Mathematical and scientific formula structures, MathML, indexes and bibliography semantics are outside the subset. |
 | 8.2.5.32–8.2.5.33 | Code retains its source semantics and text, including when wrapped or coloured. Artifact structure follows 8.3. |
-| 8.2.6.1–8.2.6.3 | Check selected semantic layout, table, list and artifact attributes, including placement and nondefault values that carry meaning. PrintField attributes are outside the static business-document scope. |
+| 8.2.6.1–8.2.6.3 | Check the typed Table, List and Artifact properties. The combined authoring scope expresses intended meaning through the content and structure and uses layout controls for presentation. Independent semantic Layout properties and PrintField are outside the supported scope. |
 | 8.2.6.4 | ARIA/DPUB-ARIA authoring and namespace-owned custom attributes are outside the subset. |
 | 8.3.1–8.3.2 | Check explicit artifact marking and appropriate types and subtypes. Content meaningful only within a structural context requires a contextual Artifact. Test accepted page furniture, repeated table headers, callout panels, decoration, drawing-label and source-paint paths for the applicable ownership. |
 | 8.4.1–8.4.4 | Check programmatically obtainable Unicode, alternatives, PUA restrictions and effective language throughout the file. The facade keeps each human-readable string in its inherited language and uses typed scopes for changes in body text. |

@@ -1368,7 +1368,7 @@ Combined-profile preparation adds these obligations.
 | Obligation | Authored location | What the reviewer verifies |
 | --- | --- | --- |
 | `DocumentTitleAccurate` | `title` | The metadata title identifies the document. |
-| `StructureMeaningful` | `document` | Roles, hierarchy, headings, lists, captions, and other relationships convey the intended meaning. |
+| `StructureMeaningful` | `document` | Roles, hierarchy, headings, lists, captions and other relationships convey the intended meaning. Check that text, structure or alternatives fully express any meaning the visual treatment also suggests. |
 | `ArtifactClassificationMeaningful` | `document` | Artifacts are nonessential and retain meaningful grouping and order where applicable. |
 | `PageLabelsAccurate` | `document` | The page labels match the page numbering readers perceive. |
 | `TextEquivalentAccurate` | `document` | Unicode text and supplied replacements convey the intended text. |

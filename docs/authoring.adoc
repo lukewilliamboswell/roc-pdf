@@ -142,7 +142,10 @@ a warning callout's label in amber and a note's in teal, wrap them in
 colors a role wins, then the theme. A scope's `text` colors its ordinary
 text (paragraphs, headings, list items and their labels), so a callout on a
 dark panel can use `Pdf.scoped({ text: Themed(near_white) }, blocks)`. A
-scope adds no structure element and keeps nothing together. See
+scope adds no structure element and keeps nothing together. In the combined
+archive profile, give every styled distinction its full meaning in text,
+semantic roles or an alternative description. Use colour and spacing for
+presentation. See
 xref:authoring.adoc#authoring-themes-and-options[Themes and options] for the record idiom.
 
 Lines break at UAX #14 opportunities across inline boundaries, with one

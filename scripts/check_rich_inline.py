@@ -495,6 +495,22 @@ def self_test() -> None:
         raise ValidationError("mixed inline oracle accepted a Table-owned ListNumbering attribute")
     rejected += 1
 
+    # Styling the authored Strong content does not supply a Layout attribute.
+    # Inject one while keeping the equivalent authored structure and text.
+    styled = Document(mixed)
+    strong = [number for number, body in styled.bodies.items() if b"/S /Strong >>" in body]
+    require(strong and all("A" not in styled.get(number) for number in strong), "style-only Strong roles gained a structure attribute")
+    strong_body = styled.bodies[strong[0]]
+    style_as_semantics = strong_body.replace(b"<<", b"<< /A << /Color [0.5 0 0] /O /Layout >>", 1)
+    twin = layout_mutate(mixed, strong_body, style_as_semantics, scope="objects")
+    try:
+        check_structure_semantics(twin)
+    except ValidationError as error:
+        require(str(error) == "unsupported attribute owner 'Layout'", str(error))
+    else:
+        raise ValidationError("mixed inline checker accepted a paint style projected as a Layout attribute")
+    rejected += 1
+
     for name in ("repeated_segments", "repeated_ordered_segments"):
         for count in (10, 50):
             repeated = (ROOT / "tests" / "rich_inline" / f"{name}_{count}.pdf").read_bytes()

@@ -1450,6 +1450,11 @@ The static profile is implemented as a whitelist of supported constructs.
 Adding a feature requires declaring its profile eligibility and conformance
 rules; absence from the whitelist is rejection, not best-effort output.
 
+The facade's theme and layout controls determine presentation. The author
+provides meaning through typed content, roles, properties and alternatives.
+A feature that supports independent semantic layout properties must carry
+them as typed author facts through validation and lowering.
+
 Conformance metadata is emitted only for claims requested by the author and
 successfully validated. A declaration is not itself proof of conformance.
 

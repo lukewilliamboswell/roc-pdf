@@ -3152,8 +3152,37 @@
       "external_rule_ids": []
     },
     {
+      "id": "ROC-PDF-PDFUA2-8-2-6-SEMANTIC-LAYOUT",
+      "summary": "Independently meaningful visual properties requiring a standard Layout attribute are outside the supported facade. Themes, color scopes, callout panels, table presentation and source highlighting provide styling.",
+      "source_ids": [
+        "iso-14289-2-2024",
+        "iso-32000-2-2020-ec3",
+        "wtpdf-1-0-0"
+      ],
+      "references": [
+        "ISO 14289-2:2024 8.2.6.2",
+        "ISO 32000-2:2020 14.8.5.4",
+        "WTPDF 1.0 8.2.6.2",
+        "docs/contributors/accessibility-review.md"
+      ],
+      "capabilities": [
+        "PdfUa2",
+        "WtpdfAccessibility"
+      ],
+      "implementation": "defined_only",
+      "applicability": "package_excluded",
+      "machine_verification": "The typed facade has no constructor for semantic Layout attributes. The semantic kernel rejects general Layout attributes, and the independent oracle rejects an injected Layout owner on the combined rich-inline fixture.",
+      "human_verification": "not_required",
+      "positive_scenarios": [],
+      "negative_scenarios": [
+        "package/KernelSemantics.roc",
+        "scripts/check_rich_inline.py"
+      ],
+      "external_rule_ids": []
+    },
+    {
       "id": "ROC-PDF-PDFUA2-8-2-6-STANDARD-ATTRIBUTES",
-      "summary": "Applicable structure attributes use the appropriate standard attribute owner, and semantic nondefault properties are represented explicitly.",
+      "summary": "Applicable Table, List and Artifact properties use their standard owners and typed values. Authored semantics are conveyed by content and structure independently of presentation styling.",
       "source_ids": [
         "iso-14289-2-2024",
         "iso-ts-32005-2023",
@@ -3172,14 +3201,16 @@
         "PdfUa2",
         "WtpdfAccessibility"
       ],
-      "implementation": "partial",
+      "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "Independent combined fixtures check supported Table and List properties, including invalid Scope, missing applicable Headers and ListNumbering with a substituted owner. Artifact classification and attached subtypes have independent controls. A gap remains when a nondefault visual property itself conveys part of the semantics and requires a Layout attribute.",
-      "human_verification": "Review when nondefault layout or other properties carry meaning and require a semantic attribute.",
+      "machine_verification": "Independent combined fixtures check supported Table and List properties, including invalid Scope, missing applicable Headers and ListNumbering with a substituted owner. Artifact classification and subtypes have independent controls. The combined rich-flow oracle checks the authored Warning label, logical grouping and decorative panel separately. The styled rich-inline oracle rejects an injected Layout owner, and the public report supplies StructureMeaningful and ArtifactClassificationMeaningful for a scoped styled warning.",
+      "human_verification": "Check that changing a visual treatment would preserve the meaning conveyed by the authored content, roles and alternatives. A visual property with independent semantic meaning requires a Layout attribute outside the supported scope.",
       "positive_scenarios": [
         "package/KernelSemantics.roc",
+        "scripts/check_rich_flow.py",
         "scripts/check_rich_inline.py",
-        "scripts/check_structure_semantics.py"
+        "scripts/check_structure_semantics.py",
+        "tests/contracts/pdf_facade.roc"
       ],
       "negative_scenarios": [
         "scripts/check_rich_inline.py",
