@@ -1206,26 +1206,26 @@ by default or independently selected by the theme. Its size and face govern
 shaping and reserved-field measurement; its leading governs slot stacking.
 These presentation facts never alter artifact ownership or body typography.
 
-Page-content artifact text is the one other source. Page furniture and text
-labels inside drawings, both resolved after pagination, are shaped from
-artifact text sources appended to the same dense Unicode store after the
-semantic sources (furniture sources, then label sources). A drawing label
-(`Scene.Drawing.text`) is shaped whole in the body face, or in an inline
-role's style face (`Scene.Drawing.text_in`, whose face joins the output fonts
-through shaping's face selection like any run's), by the same shaper as
-body text, scaled with its figure, proved to lie inside its drawing, and
-painted as `Decoration` artifact text; it is never outlined or rasterized. In
-a figure it is part of the figure's visual presentation: the `Figure`
-element's `/Alt` is what assistive technology reads, so conveying what the
-labels say is part of the author's alternative-text obligation, and the
-labels stay extractable through `ToUnicode`. Decorations take no labels (they
-paint after the page's text), and furniture drawings take none (furniture
-text is their text path). An artifact run names its
-source rather than an occurrence, belongs to no structure element, carries no
-semantic text property, and may be painted only by a page-artifact
-`OwnedGroup`; a layout fragment that paints artifact text is an ownership
-error. Its `ToUnicode` entries come from its source exactly as an
-occurrence's do.
+The facade assigns a figure drawing's graphic anchor followed by one text
+occurrence per intrinsic label to the same `Figure` element. The label source
+bank is separate from flow text shaping so coverage is checked in each label’s
+selected face. Labels paint after the page’s other text, with size and position
+scaled by the figure’s applied scale. Their fragments retain their own logical
+order in the Figure’s content spine independently of page paint order. The
+Figure’s authored alternative description and optional Caption keep their own
+semantics.
+
+Page-content artifact text is the one other source. Page furniture and labels
+on custom-block panels use artifact text sources appended after the semantic
+sources. An artifact run names its source and is painted by a page-artifact
+`OwnedGroup`. A layout fragment that paints artifact text is an ownership
+error. Both semantic and artifact runs derive `ToUnicode` from their exact
+source text.
+
+Drawing labels are shaped whole in the body face (`Scene.Drawing.text`) or an
+inline role’s selected style face (`Scene.Drawing.text_in`). Their shaped
+extents must lie inside the drawing. Decorations take no labels because they
+paint after the page text. Furniture drawings use the furniture text path.
 
 PDF text lowering requires `ActualText` for right-to-left runs, explicit
 source-to-presentation transformations, reordered or contextual clusters, and

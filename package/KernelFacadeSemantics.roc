@@ -145,6 +145,12 @@ KernelFacadeSemantics :: [].{
 	## lays out, or paints anything for it.
 	BlockOwnership : [EmptySourceLine, ContentlessCell, RichTextBlock({ label : [Label(Semantics.OccurrenceId), NoLabel], level : U64, occurrences : Semantics.IndexRange }), TextBlock({ body : Semantics.OccurrenceId, label : [Label(Semantics.OccurrenceId), NoLabel], level : U64 })]
 
+	## Semantically owned drawing labels use a separate source bank so body
+	## shaping cannot check them in the wrong face. Occurrences follow the
+	## body arena, in Figure and drawing-command order.
+	FigureLabels : [NoFigureLabels, FigureLabels({ first : U64, owners : List(U64), sources : KernelFacadeSources.Plan })]
+	FlowTextFacts : { occurrences : List(Semantics.ContentOccurrence), text_properties : List(Semantics.TextProperty) }
+
 	## One authored destination declaration: the block's semantic node is the
 	## structure target and its content occurrence is the explicit layout
 	## anchor.
@@ -202,6 +208,7 @@ KernelFacadeSemantics :: [].{
 		authoring : Document.NormalizedAuthoring,
 		block_ownership : List(BlockOwnership),
 		components : SemanticComponents,
+		figure_labels : FigureLabels,
 		contents_nodes : List(Semantics.NodeId),
 		destinations : List(DestinationRecord),
 		limits : Limits,
@@ -229,11 +236,12 @@ KernelFacadeSemantics :: [].{
 			pending = symbolic.pending
 			plan = finalize_symbolic(symbolic, labels, resolved_nodes)?
 			store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(plan.preliminary))
-			var $contexts = List.with_capacity(store.occurrences.len())
+			body_count = literals.len() + pending.len()
+			var $contexts = List.with_capacity(body_count)
 			var $separators = []
 			var $literal = 0
 			var $pending = 0
-			for occurrence in store.occurrences {
+			for occurrence in store.occurrences.sublist({ start: 0, len: body_count }) {
 				if $pending < pending.len() and list_at(pending, $pending).occurrence == occurrence.id {
 					field = list_at(pending, $pending)
 					$contexts = $contexts.append({ block: field.block, inline: AtInline(field.inline), occurrence, role: Body, segment: field.segment })
@@ -264,6 +272,7 @@ KernelFacadeSemantics :: [].{
 		block_ownership : List(BlockOwnership),
 		destinations : List(DestinationRecord),
 		links : List(LinkRecord),
+		figure_labels : FigureLabels,
 		preliminary : KernelTextSemantics.Plan,
 		sources : KernelFacadeSources.Plan,
 		work : Work,
@@ -282,6 +291,22 @@ KernelFacadeSemantics :: [].{
 
 		block_ownership : Plan -> List(BlockOwnership)
 		block_ownership = |plan| plan.block_ownership
+
+		figure_labels : Plan -> FigureLabels
+		figure_labels = |plan| plan.figure_labels
+
+		flow_text : Plan -> FlowTextFacts
+		flow_text = |plan| {
+			store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(plan.preliminary))
+			occurrences = match plan.figure_labels {
+				NoFigureLabels => store.occurrences
+				FigureLabels(labels) => store.occurrences.sublist({ start: 0, len: labels.first })
+			}
+			{ occurrences, text_properties: store.text_properties }
+		}
+
+		semantic_source_count : Plan -> U64
+		semantic_source_count = |plan| KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(plan.preliminary)).text_sources.len()
 
 		preliminary : Plan -> KernelTextSemantics.Plan
 		preliminary = |plan| plan.preliminary
@@ -308,6 +333,8 @@ Planning : {
 	empty_cells : U64,
 	group_nodes : List(U64),
 	header_ranges : List(Semantics.IndexRange),
+	figure_label_owners : List(U64),
+	figure_label_texts : List(Str),
 	inline_elements : U64,
 	inline_leaves : U64,
 	links : List(KernelFacadeSemantics.LinkRecord),
@@ -335,8 +362,9 @@ build_plan = |authoring, limits| {
 	}
 	planning = plan_blocks(authoring, limits)?
 	sources = KernelFacadeSources.Plan.build(planning.source_inputs, limits.sources) ? Source
+	figure_labels = build_figure_labels(planning, limits.sources)?
 	built = build_components(authoring, planning, sources)?
-	store = complete_store(built.components, built.components.literals, sources)
+	store = complete_store(built.components, built.components.literals, sources, figure_labels, authoring.language)
 	check_limit(store.content_spine.len(), limits.max_content_spine, ContentSpine)?
 	check_limit(store.text_properties.len(), limits.max_properties, Properties)?
 	navigated = !planning.links.is_empty() or !planning.destinations.is_empty()
@@ -353,6 +381,7 @@ build_plan = |authoring, limits| {
 			block_ownership: built.block_ownership,
 			destinations: planning.destinations,
 			links: planning.links,
+			figure_labels,
 			preliminary,
 			sources,
 			work: {
@@ -367,7 +396,7 @@ build_plan = |authoring, limits| {
 				node_writes: store.nodes.len(),
 				occurrence_writes: store.occurrences.len(),
 				property_writes: store.text_properties.len(),
-				source_inputs: planning.source_inputs.len(),
+				source_inputs: planning.source_inputs.len() + planning.figure_label_texts.len(),
 				table_cells: planning.header_ranges.len(),
 				tables: planning.table_count,
 			},
@@ -455,9 +484,9 @@ semantic_work = |authoring, planning, components| {
 	list_items: planning.list_item_count,
 	lists: planning.list_count,
 	node_writes: components.nodes.len(),
-	occurrence_writes: components.literals.len(),
+	occurrence_writes: components.literals.len() + planning.figure_label_texts.len(),
 	property_writes: components.text_properties.len(),
-	source_inputs: planning.source_inputs.len(),
+	source_inputs: planning.source_inputs.len() + planning.figure_label_texts.len(),
 	table_cells: planning.header_ranges.len(),
 	tables: planning.table_count,
 }
@@ -473,8 +502,9 @@ build_symbolic = |authoring, limits| {
 	planning = plan_blocks(authoring, limits)?
 	# Final label sources are bounded now even though their Unicode is not
 	# known. Every reference contributes at most one additional input.
-	check_limit(checked_add(planning.source_inputs.len(), authoring.page_references.len())?, limits.max_source_inputs, SourceInputs)?
+	check_limit(checked_add(planning.source_inputs.len() + planning.figure_label_texts.len(), authoring.page_references.len())?, limits.max_source_inputs, SourceInputs)?
 	sources = KernelFacadeSources.Plan.build(planning.source_inputs, limits.sources) ? Source
+	figure_labels = build_figure_labels(planning, limits.sources)?
 	built = build_components(authoring, planning, sources)?
 	check_limit(built.components.content_spine.len(), limits.max_content_spine, ContentSpine)?
 	contexts = symbolic_contexts(authoring, built.block_ownership, built.components.literals)
@@ -490,6 +520,7 @@ build_symbolic = |authoring, limits| {
 			authoring,
 			block_ownership: built.block_ownership,
 			components: built.components,
+			figure_labels,
 			contents_nodes: authoring.contents_entries.map(|entry| parent_node(list_at(authoring.blocks, entry.block).parent, planning.group_nodes)),
 			destinations: planning.destinations,
 			limits,
@@ -593,7 +624,7 @@ symbolic_contexts = |authoring, owners, occurrences| {
 }
 
 finalize_symbolic : KernelFacadeSemantics.Symbolic, List(Str), List(Semantics.NodeId) -> Try(KernelFacadeSemantics.Plan, KernelFacadeSemantics.Error)
-finalize_symbolic = |KernelFacadeSemantics.Symbolic.{ authoring, block_ownership, components, contents_nodes, destinations, limits, links, literals: _, pending, sources: literal_sources, work }, labels, resolved_nodes| {
+finalize_symbolic = |KernelFacadeSemantics.Symbolic.{ authoring, block_ownership, components, contents_nodes, destinations, figure_labels, limits, links, literals: _, pending, sources: literal_sources, work }, labels, resolved_nodes| {
 	{ attributes, content_spine, element_identifiers, namespaces, nodes, literals, relationships, text_properties } = components
 	if labels.len() != pending.len() {
 		return Err(ReferenceResolution({ reference: labels.len(), reason: "Resolved labels must cover every reference exactly once in reference-id order." }))
@@ -658,7 +689,7 @@ finalize_symbolic = |KernelFacadeSemantics.Symbolic.{ authoring, block_ownership
 		$contents_index = $contents_index + 1
 	}
 	final_components = { attributes, content_spine, element_identifiers, namespaces, nodes, literals, relationships: $relationships, text_properties: $properties }
-	store = complete_store(final_components, $occurrences, sources)
+	store = complete_store(final_components, $occurrences, sources, figure_labels, authoring.language)
 	navigated = !links.is_empty() or !destinations.is_empty()
 	preliminary = (if (navigated) KernelTextSemantics.Plan.build_navigation(store, 0, 0, limits.semantics, limits.text_semantics) else KernelTextSemantics.Plan.build(store, 0, 0, limits.semantics, limits.text_semantics)) ? TextSemantics
 	Ok(
@@ -667,9 +698,10 @@ finalize_symbolic = |KernelFacadeSemantics.Symbolic.{ authoring, block_ownership
 			block_ownership: block_ownership,
 			destinations: destinations,
 			links: links,
+			figure_labels,
 			preliminary,
 			sources,
-			work: { ..work, occurrence_writes: count, property_writes: final_components.text_properties.len(), source_inputs: first_reference_input + labels.len() },
+			work: { ..work, occurrence_writes: store.occurrences.len(), property_writes: final_components.text_properties.len(), source_inputs: work.source_inputs + labels.len() },
 		},
 	)
 }
@@ -687,6 +719,8 @@ plan_blocks = |authoring, limits| {
 	var $destinations = []
 	var $links = []
 	var $sources = List.with_capacity(U64.min(source_bound, limits.max_source_inputs))
+	var $figure_label_texts = []
+	var $figure_label_owners = []
 	var $top_nodes = List.with_capacity(U64.min(checked_add(blocks.len(), groups.len())?, limits.max_nodes))
 	var $group_nodes = if (groups.is_empty()) [] else List.with_capacity(groups.len())
 	var $next_group = 0
@@ -1004,10 +1038,25 @@ plan_blocks = |authoring, limits| {
 					$list_state = NoActiveList
 				}
 				Figure(figure_index) => {
-					check_figure(list_at(authoring.figures, figure_index), $block_index)?
+					figure = list_at(authoring.figures, figure_index)
+					check_figure(figure, $block_index)?
+					first_label = $figure_label_texts.len()
+					match figure.drawing {
+						ValidDrawing(drawing) => for command in drawing.commands {
+							match command {
+								FlowText(label) => {
+									$figure_label_texts = $figure_label_texts.append(Box.unbox(label).text)
+									$figure_label_owners = $figure_label_owners.append($block_index)
+								}
+								_ => {}
+							}
+						}
+						InvalidDrawing(_) => crash "validated figure drawing escaped"
+					}
+					label_count = $figure_label_texts.len() - first_label
 					attempted_nodes = checked_add($next_node, 1)?
 					attempted_occurrences = checked_add($next_occurrence, 1)?
-					attempted_content = checked_add($content_count, 2)?
+					attempted_content = checked_add($content_count, checked_add(2, label_count)?)?
 					attempted_sources = checked_add($sources.len(), 1)?
 					attempted_properties = checked_add($property_count, 1)?
 					check_at(attempted_nodes, limits.max_nodes, Nodes, $block_index)?
@@ -1145,6 +1194,10 @@ plan_blocks = |authoring, limits| {
 					$list_state = NoActiveList
 				}
 			}
+			if !$figure_label_texts.is_empty() {
+				check_at(checked_add($next_occurrence, $figure_label_texts.len())?, limits.max_occurrences, Occurrences, $block_index)?
+				check_at(checked_add($sources.len(), $figure_label_texts.len())?, limits.max_source_inputs, SourceInputs, $block_index)?
+			}
 			$block_index = $block_index + 1
 		}
 	}
@@ -1152,7 +1205,7 @@ plan_blocks = |authoring, limits| {
 	check_customs(authoring)?
 	check_callouts(authoring)?
 	check_decorations(authoring)?
-	Ok({ attribute_count: $attribute_count, cell_headers: $cell_headers, content_count: $content_count, destinations: $destinations, empty_cells: $empty_cells, group_nodes: $group_nodes, header_ranges: $header_ranges, inline_elements: $inline_elements, inline_leaves: $inline_leaves, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, relationship_count: $relationship_count, source_inputs: $sources, table_count: $table_count, top_nodes: $top_nodes })
+	Ok({ attribute_count: $attribute_count, cell_headers: $cell_headers, content_count: $content_count, destinations: $destinations, empty_cells: $empty_cells, figure_label_owners: $figure_label_owners, figure_label_texts: $figure_label_texts, group_nodes: $group_nodes, header_ranges: $header_ranges, inline_elements: $inline_elements, inline_leaves: $inline_leaves, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, relationship_count: $relationship_count, source_inputs: $sources, table_count: $table_count, top_nodes: $top_nodes })
 }
 
 TableCursor : { break_cursor : U64, cell : U64, header_base : U64, node : U64, occurrence : U64 }
@@ -2067,6 +2120,7 @@ build_components = |authoring, planning, source_plan| {
 		}
 	}
 	var $occurrences = List.with_capacity(planning.occurrence_count)
+	var $figure_label = 0
 	var $properties = List.with_capacity(planning.property_count)
 	var $identifiers = if (planning.header_ranges.is_empty()) [] else List.with_capacity(planning.header_ranges.len())
 	var $relationships = if (planning.relationship_count == 0) [] else List.with_capacity(planning.relationship_count)
@@ -2215,8 +2269,12 @@ build_components = |authoring, planning, source_plan| {
 					start = $content.len()
 					property_start = $properties.len()
 					$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
+					while $figure_label < planning.figure_label_owners.len() and list_at(planning.figure_label_owners, $figure_label) == $index {
+						$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index(planning.occurrence_count + $figure_label)))
+						$figure_label = $figure_label + 1
+					}
 					$properties = $properties.append(AlternativeText(figure.alternative))
-					node = make_node($next_node, ParentNode(parent_node(block.parent, planning.group_nodes)), "Figure", Semantics.IndexRange.from_start_and_length({ start: start, length: 1 }), Inherited)
+					node = make_node($next_node, ParentNode(parent_node(block.parent, planning.group_nodes)), "Figure", Semantics.IndexRange.from_start_and_length({ start: start, length: $content.len() - start }), Inherited)
 					$nodes = list_set($nodes, $next_node, { ..node, text_properties: Semantics.IndexRange.from_start_and_length({ start: property_start, length: 1 }) })
 					$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
 					$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: NoLabel, level: list_level }))
@@ -2357,7 +2415,7 @@ build_components = |authoring, planning, source_plan| {
 		}
 		$next_group = $next_group + 1
 	}
-	if $identifiers.len() != planning.header_ranges.len() or $relationships.len() != planning.relationship_count or $attributes.len() != planning.attribute_count or $next_node != planning.node_count or $next_occurrence != planning.occurrence_count or $source_input != planning.source_inputs.len() or $content.len() != planning.content_count or $properties.len() != planning.property_count {
+	if $identifiers.len() != planning.header_ranges.len() or $relationships.len() != planning.relationship_count or $attributes.len() != planning.attribute_count or $next_node != planning.node_count or $next_occurrence != planning.occurrence_count or $source_input != planning.source_inputs.len() or $figure_label != planning.figure_label_owners.len() or $content.len() != planning.content_count or $properties.len() != planning.property_count {
 		crash "facade semantic planning count escaped"
 	}
 	components = {
@@ -2387,27 +2445,64 @@ SemanticComponents : {
 	text_properties : List(Semantics.TextProperty),
 }
 
-complete_store : SemanticComponents, List(Semantics.ContentOccurrence), KernelFacadeSources.Plan -> Semantics.Store
-complete_store = |components, occurrences, sources| {
-	annotations: [],
-	assertions: [],
-	attribute_roles: [],
-	attributes: components.attributes,
-	content_spine: components.content_spine,
-	contextual_artifacts: [],
-	document_root: Semantics.NodeId.from_index(0),
-	element_identifiers: components.element_identifiers,
-	fragments: [],
-	mathml_subtrees: [],
-	namespaces: components.namespaces,
-	nodes: components.nodes,
-	non_text_sources: [],
-	occurrence_fragments: [],
-	occurrences,
-	relationships: components.relationships,
-	role_mappings: [],
-	text_properties: components.text_properties,
-	text_sources: KernelFacadeSources.Plan.sources(sources).map(|source| { unicode: source.unicode }),
+build_figure_labels : Planning, KernelFacadeSources.Limits -> Try(KernelFacadeSemantics.FigureLabels, KernelFacadeSemantics.Error)
+build_figure_labels = |planning, limits| {
+	if planning.figure_label_texts.is_empty() {
+		return Ok(NoFigureLabels)
+	}
+	sources = KernelFacadeSources.Plan.build(planning.figure_label_texts, limits) ? Source
+	Ok(FigureLabels({ first: planning.occurrence_count, owners: planning.figure_label_owners, sources }))
+}
+
+complete_store : SemanticComponents, List(Semantics.ContentOccurrence), KernelFacadeSources.Plan, KernelFacadeSemantics.FigureLabels, Str -> Semantics.Store
+complete_store = |components, body_occurrences, sources, figure_labels, language| {
+	var $text_sources = KernelFacadeSources.Plan.sources(sources).map(|source| { unicode: source.unicode })
+	var $occurrences = body_occurrences
+	match figure_labels {
+		NoFigureLabels => {}
+		FigureLabels(labels) => {
+			source_base = $text_sources.len()
+			inputs = KernelFacadeSources.Plan.input_sources(labels.sources)
+			unique = KernelFacadeSources.Plan.sources(labels.sources)
+			for source in unique {
+				$text_sources = $text_sources.append({ unicode: source.unicode })
+			}
+			empty = Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 })
+			var $label = 0
+			for source_id in inputs {
+				source = list_at(unique, source_id.index())
+				$occurrences = $occurrences.append({
+					fragments: empty,
+					id: Semantics.OccurrenceId.from_index(labels.first + $label),
+					language: Language(language),
+					source: Text(Semantics.TextSourceId.from_index(source_base + source_id.index()), UnicodeRange({ scalars: Semantics.IndexRange.from_start_and_length({ start: 0, length: source.analysis.work.scalar_visits }), utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: 0, length: source.unicode.count_utf8_bytes() }) })),
+					text_properties: empty,
+				})
+				$label = $label + 1
+			}
+		}
+	}
+	{
+		annotations: [],
+		assertions: [],
+		attribute_roles: [],
+		attributes: components.attributes,
+		content_spine: components.content_spine,
+		contextual_artifacts: [],
+		document_root: Semantics.NodeId.from_index(0),
+		element_identifiers: components.element_identifiers,
+		fragments: [],
+		mathml_subtrees: [],
+		namespaces: components.namespaces,
+		nodes: components.nodes,
+		non_text_sources: [],
+		occurrence_fragments: [],
+		occurrences: $occurrences,
+		relationships: components.relationships,
+		role_mappings: [],
+		text_properties: components.text_properties,
+		text_sources: $text_sources,
+	}
 }
 
 StoreBuffers : { content : List(Semantics.ContentSpineItem), nodes : List(Semantics.Node), occurrences : List(Semantics.ContentOccurrence), properties : List(Semantics.TextProperty) }

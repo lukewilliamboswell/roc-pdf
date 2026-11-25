@@ -1,6 +1,7 @@
 import Color
 import Document
 import Font
+import KernelFacadeSemantics
 import KernelFacadeShape
 import KernelFacadeSources
 import KernelFacadeText
@@ -20,10 +21,9 @@ import unicode.Scalar
 ## panel sits at its measured box. Each label is shaped whole in its face
 ## (the body face, or under style faces the output font of its inline
 ## role's face) at its size (scaled with its figure), aligned to its anchor by its
-## exact advance, proved to lie inside its drawing, and placed as one
-## `Decoration` artifact run. Label text is artifact text: its Unicode
-## sources follow the furniture sources, and it belongs to no structure
-## element. Nothing here consults semantics beyond the figure anchors.
+## exact advance and proved to lie inside its drawing. Figure labels paint
+## the occurrences assigned by the semantic stage. Panel labels remain
+## decoration artifacts, with Unicode sources following the furniture.
 KernelFacadeLabels :: [].{
 
 	## The drawing a label belongs to: figure `k` in authored order, or the
@@ -60,8 +60,8 @@ KernelFacadeLabels :: [].{
 	}
 
 	## The placed label runs: one piece per label, in page order; the
-	## shaped store whose runs carry artifact sources starting at the
-	## source base; and the label sources in text-source order.
+	## shaped store whose runs carry their prepared Unicode ownership,
+	## and the panel artifact sources in text-source order.
 	Plan : { labels : U64, pieces : List(KernelFacadeText.LabelPiece), sources : List(Str), store : Text.Store }
 
 	## The faces labels are set in: the one body font, or the dense output
@@ -71,8 +71,8 @@ KernelFacadeLabels :: [].{
 
 	## `source_base` is the number of text sources before the labels'
 	## (semantic sources, then furniture sources).
-	build : Document.NormalizedAuthoring, KernelFacadeText.Plan, Semantics.Store, Fonts, Semantics.Language, U64, Limits -> Try([Labels(Plan), NoLabels], Error)
-	build = |authoring, text, store, fonts, language, source_base, limits| build_labels(authoring, text, store, fonts, language, source_base, limits)
+	build : Document.NormalizedAuthoring, KernelFacadeText.Plan, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FigureLabels, Fonts, Semantics.Language, U64, Limits -> Try([Labels(Plan), NoLabels], Error)
+	build = |authoring, text, blocks, figures, fonts, language, source_base, limits| build_labels(authoring, text, blocks, figures, fonts, language, source_base, limits)
 
 	## Whether any figure or panel drawing holds a label. Documents without
 	## one skip the stage and allocate nothing for it.
@@ -99,12 +99,12 @@ drawing_has_labels = |drawing| match drawing {
 	InvalidDrawing(_) => False
 }
 
-build_labels : Document.NormalizedAuthoring, KernelFacadeText.Plan, Semantics.Store, KernelFacadeLabels.Fonts, Semantics.Language, U64, KernelFacadeLabels.Limits -> Try([Labels(KernelFacadeLabels.Plan), NoLabels], KernelFacadeLabels.Error)
-build_labels = |authoring, text, store, fonts, language, source_base, limits| {
-	if !KernelFacadeLabels.has_labels(authoring) {
-		return Ok(NoLabels)
+build_labels : Document.NormalizedAuthoring, KernelFacadeText.Plan, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FigureLabels, KernelFacadeLabels.Fonts, Semantics.Language, U64, KernelFacadeLabels.Limits -> Try([Labels(KernelFacadeLabels.Plan), NoLabels], KernelFacadeLabels.Error)
+build_labels = |authoring, text, blocks, figures, fonts, language, source_base, limits| {
+	anchors = match figures {
+		NoFigureLabels => []
+		FigureLabels(labels) => figure_anchors(authoring, text, blocks, labels.owners, labels.first)
 	}
-	anchors = figure_anchors(authoring, text, store)?
 	flow = KernelFacadeText.Plan.flow(text)
 
 	# Every label, figures first, then panels, each in drawing order.
@@ -123,6 +123,7 @@ build_labels = |authoring, text, store, fonts, language, source_base, limits| {
 		}
 		$figure = $figure + 1
 	}
+	figure_count = $entries.len()
 	var $custom = 0
 	while $custom < authoring.customs.len() {
 		drawing = list_at(authoring.customs, $custom).panel
@@ -141,13 +142,35 @@ build_labels = |authoring, text, store, fonts, language, source_base, limits| {
 	}
 	entries = $entries
 
-	## Intern every label text once and prove its face can shape it before
-	## shaping, so a failure names its label. A source is checked once per
-	## face it is set in (`checked` holds the last output font it was
-	## checked in, plus one).
-	interned = KernelFacadeSources.Plan.build(entries.map(|entry| entry.text), limits.sources) ? Sources
-	unique = KernelFacadeSources.Plan.sources(interned)
-	input_sources = KernelFacadeSources.Plan.input_sources(interned)
+	# Figure Unicode was interned during semantic preparation. Panels
+	# use a separate bank with distinct artifact source identities.
+	figure = match figures {
+		NoFigureLabels => { first: 0, inputs: [], unique: [] }
+		FigureLabels(labels) => { first: labels.first, inputs: KernelFacadeSources.Plan.input_sources(labels.sources), unique: KernelFacadeSources.Plan.sources(labels.sources) }
+	}
+	if figure_count != figure.inputs.len() {
+		crash "prepared Figure label coverage escaped"
+	}
+	panel = if figure_count == entries.len() {
+		{ inputs: [], unique: [] }
+	} else {
+		interned = KernelFacadeSources.Plan.build(entries.sublist({ start: figure_count, len: entries.len() - figure_count }).map(|entry| entry.text), limits.sources) ? Sources
+		{ inputs: KernelFacadeSources.Plan.input_sources(interned), unique: KernelFacadeSources.Plan.sources(interned) }
+	}
+	unique = if panel.unique.is_empty() {
+		figure.unique
+	} else {
+		figure.unique.concat(panel.unique)
+	}
+	figure_sources = figure.unique.len()
+	input_sources = if panel.inputs.is_empty() {
+		figure.inputs
+	} else {
+		figure.inputs.concat(panel.inputs.map(|source| Semantics.TextSourceId.from_index(figure_sources + source.index())))
+	}
+
+	# Check each source before shaping so failures name its label. Cache the
+	# last face a source was checked in.
 	var $checked = List.repeat(0, unique.len())
 	var $index = 0
 	while $index < entries.len() {
@@ -207,7 +230,14 @@ build_labels = |authoring, text, store, fonts, language, source_base, limits| {
 	var $run_index = 0
 	while $run_index < $runs.len() {
 		run = list_at($runs, $run_index)
-		$runs = list_set($runs, $run_index, { ..run, unicode: ArtifactText(Semantics.TextSourceId.from_index(source_base + list_at(input_sources, run.id.index()).index())) })
+		entry = run.id.index()
+		unicode = if entry < figure_count {
+			OccurrenceText(Semantics.OccurrenceId.from_index(figure.first + entry))
+		} else {
+			source = list_at(input_sources, entry).index() - figure_sources
+			ArtifactText(Semantics.TextSourceId.from_index(source_base + source))
+		}
+		$runs = list_set($runs, $run_index, { ..run, unicode })
 		$run_index = $run_index + 1
 	}
 	shaped = { ..batch_store, runs: $runs }
@@ -246,7 +276,7 @@ build_labels = |authoring, text, store, fonts, language, source_base, limits| {
 	## Pieces join their pages in page order; within a page they keep
 	## entry order (the run index is the entry index).
 	pieces = $pieces.sort_with(|left, right| if (left.page < right.page) Before else if (left.page > right.page) After else if (left.run < right.run) Before else if (left.run > right.run) After else Same)
-	Ok(Labels({ labels: entries.len(), pieces, sources: unique.map(|source| source.unicode), store: shaped }))
+	Ok(Labels({ labels: entries.len(), pieces, sources: panel.unique.map(|source| source.unicode), store: shaped }))
 }
 
 ## Append one drawing's labels as entries.
@@ -272,35 +302,34 @@ append_entries = |entries, drawing, owner, placed, scale| match drawing {
 
 ## Each figure's anchor: the origin and page of the first painted run of
 ## its occurrence, where scenes also anchor its drawing.
-figure_anchors : Document.NormalizedAuthoring, KernelFacadeText.Plan, Semantics.Store -> Try(List(Anchor), KernelFacadeLabels.Error)
-figure_anchors = |authoring, text, store| {
-	if authoring.figures.is_empty() {
-		return Ok([])
-	}
-	var $by_occurrence = List.repeat(authoring.figures.len(), store.occurrences.len())
-	var $figure = 0
-	for node in store.nodes {
-		if node.role.local_name == "Figure" {
-			occurrence = match store.content_spine.get(node.content.start()) {
-				Ok(ContentOccurrence(id)) => id.index()
-				_ => return Err(InvalidPlacement(FigureOwner($figure)))
+figure_anchors : Document.NormalizedAuthoring, KernelFacadeText.Plan, List(KernelFacadeSemantics.BlockOwnership), List(U64), U64 -> List(Anchor)
+figure_anchors = |authoring, text, blocks, label_owners, body_count| {
+	sentinel = authoring.figures.len()
+	var $by_occurrence = List.repeat(sentinel, body_count)
+	var $previous = U64.highest
+	for block in label_owners {
+		if block != $previous {
+			figure = match list_at(authoring.blocks, block).kind {
+				Figure(index) => index
+				_ => crash "prepared Figure label owner escaped"
 			}
-			if occurrence >= $by_occurrence.len() or $figure >= authoring.figures.len() {
-				return Err(InvalidPlacement(FigureOwner($figure)))
+			occurrence = match list_at(blocks, block) {
+				TextBlock(owned) => owned.body.index()
+				_ => crash "prepared Figure drawing anchor escaped"
 			}
-			$by_occurrence = list_set($by_occurrence, occurrence, $figure)
-			$figure = $figure + 1
+			$by_occurrence = list_set($by_occurrence, occurrence, figure)
+			$previous = block
 		}
 	}
-	var $anchors = List.repeat(Unplaced, authoring.figures.len())
+	var $anchors = List.repeat(Unplaced, sentinel)
 	runs = KernelFacadeText.Plan.text(text).runs
 	placements = KernelFacadeText.Plan.placements(text)
 	var $run = 0
 	while $run < runs.len() {
 		match list_at(runs, $run).unicode {
-			OccurrenceText(occurrence) => if occurrence.index() < $by_occurrence.len() {
+			OccurrenceText(occurrence) => if occurrence.index() < body_count {
 				figure = list_at($by_occurrence, occurrence.index())
-				if figure < authoring.figures.len() and list_at($anchors, figure) == Unplaced {
+				if figure != sentinel and list_at($anchors, figure) == Unplaced {
 					placement = list_at(placements, $run)
 					$anchors = list_set($anchors, figure, Placed({ origin: placement.origin, page: placement.page.index() }))
 				}
@@ -309,7 +338,7 @@ figure_anchors = |authoring, text, store| {
 		}
 		$run = $run + 1
 	}
-	Ok($anchors)
+	$anchors
 }
 
 ## The body face covers every scalar of a label's source, one scalar per

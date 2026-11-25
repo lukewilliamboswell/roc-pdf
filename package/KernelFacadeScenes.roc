@@ -704,6 +704,8 @@ build_arena_with_intent = |prepared, intent, limits| {
 	)
 }
 
+## The semantic stage puts a Figure's drawing anchor first in its spine.
+## Later occurrences in that spine are ordinary positioned label text.
 index_figures : Semantics.Store, U64 -> Try(List([Figure(U64), NoFigure]), KernelFacadeScenes.Error)
 index_figures = |store, figure_count| {
 	var $by_occurrence = List.repeat(NoFigure, store.occurrences.len())
@@ -712,7 +714,7 @@ index_figures = |store, figure_count| {
 	while $node_index < store.nodes.len() {
 		node = list_at(store.nodes, $node_index)
 		if node.role.local_name == "Figure" {
-			if $figure >= figure_count or node.content.length() != 1 or node.content.start() >= store.content_spine.len() {
+			if $figure >= figure_count or node.content.length() == 0 or node.content.start() >= store.content_spine.len() {
 				return Err(InvalidPlacement({ placement: $node_index }))
 			}
 			occurrence = match list_at(store.content_spine, node.content.start()) {

@@ -551,17 +551,16 @@ evidence_with = |document, theme, faces, paints| {
 	authoring = Document.normalize(document)
 	semantics = KernelFacadeSemantics.Plan.build(authoring, semantic_limits) ? |_| EvidenceFailure
 	work = KernelFacadeSemantics.Plan.work(semantics)
-	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(semantics)))
 	source_store = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics))
 	staged = match faces {
 		BuiltInFace => {
 			font = KernelFont.inspect(KernelBuiltInFont.bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
-			shape = KernelFacadeShape.Plan.build(authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), store, source_store, font, theme, shape_limits) ? |_| EvidenceFailure
+			shape = KernelFacadeShape.Plan.build(authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), KernelFacadeSemantics.Plan.flow_text(semantics), source_store, font, theme, shape_limits) ? |_| EvidenceFailure
 			lines = KernelFacadeLines.Plan.build_authoring(authoring, shape, source_store, page_size, theme, line_limits) ? |_| EvidenceFailure
 			{ lines, shape }
 		}
 		Policy(policy) => {
-			shape = KernelFacadeShape.Plan.build_ordered(authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), store, source_store, policy, theme, shape_limits) ? |_| EvidenceFailure
+			shape = KernelFacadeShape.Plan.build_ordered(authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), KernelFacadeSemantics.Plan.flow_text(semantics), source_store, policy, theme, shape_limits) ? |_| EvidenceFailure
 			lines = KernelFacadeLines.Plan.build_ordered_authoring(authoring, shape, source_store, page_size, theme, line_limits) ? |_| EvidenceFailure
 			{ lines, shape }
 		}

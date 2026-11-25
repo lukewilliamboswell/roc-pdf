@@ -776,13 +776,21 @@ append_labels = |plan, pieces, source, sources, limits| {
 	run_count = checked_add(body.runs.len(), pieces.len())?
 	check_limit(run_count, limits.max_runs, Runs)?
 	check_limit(run_count, limits.max_placements, Placements)?
-	artifact_count = checked_add(plan.artifact_runs.len(), pieces.len())?
+	var $artifact_count = plan.artifact_runs.len()
+	for run in source.runs {
+		match run.unicode {
+			ArtifactText(_) => {
+				$artifact_count = checked_add($artifact_count, 1)?
+			}
+			OccurrenceText(_) => {}
+		}
+	}
 	var $runs = List.with_capacity(run_count)
 	var $placements = List.with_capacity(run_count)
 	var $styles = List.with_capacity(run_count)
 	var $pages = List.with_capacity(plan.pages.len())
-	var $artifact_runs = List.with_capacity(artifact_count)
-	var $artifact_kinds = List.with_capacity(artifact_count)
+	var $artifact_runs = List.with_capacity($artifact_count)
+	var $artifact_kinds = List.with_capacity($artifact_count)
 	var $clusters = body.clusters
 	var $glyph_indices = body.glyph_indices
 	var $glyphs = body.glyphs
@@ -830,8 +838,13 @@ append_labels = |plan, pieces, source, sources, limits| {
 			check_limit($glyphs.len(), limits.max_glyphs, Glyphs)?
 			check_limit($glyph_indices.len(), limits.max_glyph_indices, GlyphIndices)?
 			new_id = Text.RunId.from_index($runs.len())
-			$artifact_runs = $artifact_runs.append($runs.len())
-			$artifact_kinds = $artifact_kinds.append(Decoration)
+			match shaped.unicode {
+				ArtifactText(_) => {
+					$artifact_runs = $artifact_runs.append($runs.len())
+					$artifact_kinds = $artifact_kinds.append(Decoration)
+				}
+				OccurrenceText(_) => {}
+			}
 			$runs = $runs.append({
 				..shaped,
 				clusters: Semantics.IndexRange.from_start_and_length({ start: cluster_start, length: $clusters.len() - cluster_start }),
