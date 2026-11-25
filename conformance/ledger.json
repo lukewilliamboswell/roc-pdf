@@ -670,7 +670,7 @@
     },
     {
       "id": "ROC-PDF-PDF20-TABLE-SEMANTICS",
-      "summary": "Facade tables lower to Table > (Caption > P, THead, TBody, TFoot) > TR > TH/TD in authored order with typed Table attributes: TH declares Scope, spanning cells ColSpan, every cell a generated element identifier, lowered as /ID and an IDTree entry when a Headers attribute names it, and each data cell's Headers are derived from declared scopes; header rows are logical once, and header rows repainted on continuation pages are Pagination artifacts with no structure.",
+      "summary": "Facade tables retain authored order, caption and row groups, regular row grids, typed Scope and ColSpan, and explicit Headers for both data and header cells. Referenced headers have generated IDs and IDTree membership. Repainted continuation headers are Pagination artifacts.",
       "source_ids": [
         "iso-32000-2-2020-ec3"
       ],
@@ -4229,34 +4229,50 @@
     },
     {
       "id": "ROC-PDF-TEXT-SHAPED-RUN-EVIDENCE",
-      "summary": "Every positioned glyph run retains exact occurrence, Unicode range, cluster, script, language, direction, substitution, and presentation evidence.",
+      "summary": "Every supported positioned glyph run keeps its exact occurrence, source Unicode range, cluster, script, language, direction, substitution and presentation facts.",
       "source_ids": [
+        "iso-14289-2-2024",
         "opentype-1-9-1",
         "uax14-r55",
         "uax29-r47",
         "uax9-r51",
-        "unicode-17-0-0"
+        "unicode-17-0-0",
+        "wtpdf-1-0-0"
       ],
       "references": [
-        "architecture.md: Text and font boundary"
+        "ISO 14289-2:2024 8.4.1–8.4.3",
+        "WTPDF 1.0 8.4.1–8.4.3",
+        "architecture.md: Text and font boundary",
+        "docs/contributors/reference-documents.md: Declared production text support"
       ],
       "capabilities": [
         "Pdf20",
-        "PdfUa2"
+        "PdfUa2",
+        "WtpdfAccessibility"
       ],
-      "implementation": "partial",
+      "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "schema_and_roc_contract; pdf20_shaping_bidi_actualtext_and_multiface_positive_and_negative_fixtures; pdfua2_claim_deferred",
+      "machine_verification": "Combined rich-inline, ordered multi-face and generated-reference documents independently verify selected faces, exact Unicode, scoped language and logical occurrence boundaries. Combined Unicode source and foreground cases verify wrapped replacement text, blank lines and original whitespace. The facade supports horizontal Latin and Han with Common and Inherited runs and rejects unsupported scripts or clusters with located diagnostics. The advanced PDF 2.0 fixtures cover supported RTL, bidi, combining, supplementary, ligature and reordered ActualText runs at their typed boundary.",
       "human_verification": "not_required",
       "positive_scenarios": [
+        "scripts/check_multiface_facade.py",
+        "scripts/check_rich_inline.py",
+        "scripts/check_source_foregrounds.py",
         "tests/actual_text/Cases.roc",
         "tests/bidi/Cases.roc",
         "tests/contracts/advanced_text_contract.roc",
-        "tests/shaping/Cases.roc"
+        "tests/destination_references/Fixture.roc",
+        "tests/shaping/Cases.roc",
+        "tests/source_blocks/Fixture.roc"
       ],
       "negative_scenarios": [
+        "scripts/check_multiface_facade.py",
+        "scripts/check_rich_inline.py",
+        "scripts/check_source_foregrounds.py",
         "tests/actual_text/Cases.roc",
         "tests/bidi/Cases.roc",
+        "tests/contracts/pdf_facade.roc",
+        "tests/reference_documents/Fixture.roc",
         "tests/shaping/Cases.roc"
       ],
       "external_rule_ids": []

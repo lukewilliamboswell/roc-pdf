@@ -124,7 +124,7 @@ checked separately. See the ledger's
 | 8.2.5.16–8.2.5.20 | Check label ownership, language/attribute spans, quotation and emphasis intent, and distinct targets for distinct links. A single logical link can own multiple annotations across lines and pages. |
 | 8.2.5.21–8.2.5.24 | General annotation structures, form field semantics, ruby and warichu are outside this subset. Link has its own semantics. |
 | 8.2.5.25 | Check Lbl, LBody and ListNumbering against the authored list. Pagination keeps one logical L and LI rather than creating new lists. Continuation of one distinct authored list from another and its extra attributes are outside the subset. |
-| 8.2.5.26 | Check the regular table and row-group grid, scope and header membership, including ID resolution, column spans and paginated repeated headers. More general row span and complex span combinations remain outside this subset. |
+| 8.2.5.26 | Check the regular table and row-group grid, scope and header membership for both header and data cells, including ID resolution, column spans and paginated repeated headers. More general row span and complex span combinations remain outside this subset. |
 | 8.2.5.27–8.2.5.28 | Check caption placement and association, full Figure paint ownership, and the authored alternative. The bounded vector adapter follows the same Figure contract as images. |
 | 8.2.5.29–8.2.5.31 | Mathematical and scientific formula structures, MathML, indexes and bibliography semantics are outside the subset. |
 | 8.2.5.32–8.2.5.33 | Code retains its source semantics and text, including when wrapped or coloured. Artifact structure follows 8.3. |

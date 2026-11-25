@@ -58,7 +58,7 @@ dollars (AUD) and include 10% GST where stated. The document language is
   logical reading order.
 - Structure trees use PDF 2.0 standard roles. `⏎` marks an authored
   `Pdf.line_break` inside one paragraph. `Headers →` lists the header cells a
-  data cell's `Headers` attribute references.
+  cell's `Headers` attribute references.
 
 ## Multi-page invoice
 
@@ -980,15 +980,12 @@ letters are bijective base 26 (`z.`, `aa.`). Each `L` declares its
   above the first footer row when a body row precedes it on the page, across
   the table width, as a `Decoration` artifact; it must fit inside the gap
   (`layout.table_rule`). Header-row shading is not offered in v1.
-- `Headers` associations are derived from declared scopes, never geometry:
-  a data cell references the `Column`- or `Both`-scoped header cells of
-  earlier rows in the columns it spans (all header rows, including spanning
-  cells), in ascending cell order without repeats, then the `Row`- or
-  `Both`-scoped header cells of its own row. Header cells carry no
-  `Headers`. Every cell carries a generated element identifier (`c` and its
-  one-based cell ordinal in six digits, so identifier order is cell order),
-  and each `Headers` entry is also a typed `HeaderFor` relationship; the
-  kernel rejects any disagreement between the two.
+- Declared scopes determine `Headers` associations. Each cell references
+  the overlapping column-scoped header cells of earlier rows in ascending
+  cell order without repeats. A data cell also references all row-scoped
+  headers on its row. A header cell references only preceding row-scoped
+  headers on its row. Each entry has a typed `HeaderFor` relationship and
+  resolves through the IDTree to the generated header identifier.
 
 ### Page and total-page fields
 
