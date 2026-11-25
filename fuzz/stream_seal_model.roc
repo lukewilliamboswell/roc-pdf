@@ -166,8 +166,19 @@ matches_plan = |ledger, plan| {
 			}
 		},
 	)
-	if observed != ledger.objects or store.streams.map(|stream| stream.source.index()) != ledger.sources or store.payloads.len() != ledger.payloads {
+	if observed != ledger.objects or store.payloads.len() != ledger.payloads {
 		return False
+	}
+	owners = store.streams.map(|stream| { object: stream.object.number(), length: stream.length_object.number(), source: stream.source.index(), stream: stream.id.index() })
+	if owners != authored_owners(ledger) {
+		return False
+	}
+	var $object = 0
+	while $object < store.objects.len() {
+		if require(store.objects.get($object)).id.number() != $object + 1 {
+			return False
+		}
+		$object = $object + 1
 	}
 	var $payload = 0
 	while $payload < ledger.payloads {
@@ -178,6 +189,22 @@ matches_plan = |ledger, plan| {
 		$payload = $payload + 1
 	}
 	True
+}
+
+authored_owners : Ledger -> List({ object : U64, length : U64, source : U64, stream : U64 })
+authored_owners = |ledger| {
+	var $owners = []
+	var $position = 1
+	for entry in ledger.objects {
+		match entry {
+			Stream(stream) => {
+				$owners = $owners.append({ object: $position, length: $position + 1, source: require(ledger.sources.get(stream)), stream })
+			}
+			_ => {}
+		}
+		$position = $position + 1
+	}
+	$owners
 }
 
 last_reader : List(U64), U64 -> KernelObject.PayloadUse

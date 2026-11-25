@@ -135,8 +135,12 @@ validate_objects = |store| {
 				stream_index = KernelObject.StreamId.index(stream)
 				match store.streams.get(stream_index) {
 					Err(OutOfBounds) => return Err(IndexOutOfRange({ available: store.streams.len(), index: stream_index, kind: ObjectContent }))
-					Ok(owner) => if expected == 1 or KernelObject.ObjectId.number(owner.object) != expected - 1 {
-						return Err(StreamLengthObjectMismatch({ length_object: object.id, stream }))
+					Ok(owner) => {
+						# The stream pass diagnoses misplaced designated lengths and
+						# a designation that disagrees with its adjacent object.
+						if owner.length_object != object.id and (expected == 1 or KernelObject.ObjectId.number(owner.object) != expected - 1) {
+							return Err(StreamLengthObjectMismatch({ length_object: object.id, stream }))
+						}
 					}
 				}
 			}
@@ -473,6 +477,26 @@ expect {
 
 	match KernelSeal.seal(bad_builder) {
 		Err(StreamLengthNotAdjacent(_)) => True
+		_ => False
+	}
+}
+
+# Moving a designated length object preserves the exact adjacency diagnostic.
+expect {
+	payload = KernelObject.add_payload(KernelObject.init(seal_limits), [1], Generated)?
+	added = KernelObject.add_stream_object(payload.builder, [], Unfiltered, payload.id)?
+	null = KernelObject.add_null(added.builder)?
+	extra = KernelObject.add_object(null.builder, null.id)?
+	store = extra.builder.store
+	stream = store.streams.get(0)?
+	objects = [
+		{ id: added.id, content: Stored(added.value) },
+		{ id: added.length_object, content: Stored(null.id) },
+		{ id: extra.id, content: LengthOf(stream.id) },
+	]
+	streams = [{ ..stream, length_object: extra.id }]
+	match KernelSeal.seal({ ..extra.builder, store: { ..store, objects, streams } }) {
+		Err(StreamLengthNotAdjacent(actual)) => actual.object == added.id and actual.length_object == extra.id and actual.stream == stream.id
 		_ => False
 	}
 }

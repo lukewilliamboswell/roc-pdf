@@ -24,7 +24,8 @@ Sealing uses direct indexed passes:
 
 - The object pass validates contiguous generation-zero order, stored values,
   and stream ownership in object order. It checks that each stream-bearing
-  object owns its stream and each length object follows that stream's owner.
+  object owns its stream and catches extra length objects. The stream pass
+  reports misplaced designated length objects.
 - The value pass validates final store ranges and forward indirect references.
 - The stream pass checks each declared owner's object, length object and
   payload use. The payload pass verifies each recorded final stream points
@@ -61,9 +62,11 @@ allocations and final-use release.
 Run `roc test fuzz/stream_seal_model.roc --no-cache` with the pinned compiler.
 The model applies the same authored commands to the object builder and a
 plain ledger. After each command it compares the seal result with the
-ledger's ordered objects, reference targets, and payload readers. The
-ledger represents each stream pair directly and finds a payload's last
-reader by scanning the authored sources backwards.
+ledger's ordered objects, reference targets, and payload readers. For an
+accepted plan it also compares each stream's ID, owner object number,
+length object number, and source payload ID. The ledger represents each
+stream pair directly and finds a payload's last reader by scanning the
+authored sources backwards.
 
 The bounded world uses up to five commands per trace, two payloads and
 reference targets 1 and 3. The search exhausts 2,379 states and 2,378
@@ -72,8 +75,10 @@ attempt to reuse a stream value as a second object, and interleaved payload
 uses. A check against the previous sealer fails on the shortest witness
 `[AddPayload, AddStream(0), ReuseStreamValue(0)]`. The fixed sealer returns
 `StreamObjectMismatch` with the extra object and its stream before an
-encoder can start. Separate negative twins exercise a second length object
-and two self-consistent stream pairs in reversed stream order. Returning the
+encoder can start. Separate malformed-store cases exercise a second length
+object, a misplaced designated length object, and two self-consistent stream
+pairs in reversed stream order. The misplaced designation preserves the
+`StreamLengthNotAdjacent` diagnostic. Returning the
 first stream as every used payload's last reader also fails the ledger at
 `[AddPayload, AddStream(0), AddStream(0)]`.
 
