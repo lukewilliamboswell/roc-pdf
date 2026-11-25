@@ -18,6 +18,11 @@ suite builds once, including when several selected properties share it.
 executable's inventory and invokes each property with its own `--target`,
 baseline, corpus, input-size limit and report directory.
 
+The document suite also imports the bounded Model and Solve modules.
+Run their deterministic expectations with
+`roc test fuzz/document_suite.roc --no-cache`. See the
+[correctness oracle guide](../development/testing.md#designing-correctness-oracles).
+
 The smoke lane checks every declared example in a fresh supervised process,
 compares its exact accepted allocation observations, then requests fixed-seed
 coverage exploration with a 64-run cap and a one second exploration budget.

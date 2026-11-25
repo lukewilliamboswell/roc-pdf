@@ -1,14 +1,8 @@
-app [target] {
-	fuzz: platform "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.8.0/BUNcJDHxCd7xLVSe3WBioyXqR6tm1MqXwzwGgtnmqK43.tar.zst",
-	pdf: "../package/all.roc",
-}
-
-import fuzz.Fuzz
 import fuzz.Model
 import pdf.KernelReferenceLayout as ReferenceLayout
 import pdf.Layout
 
-target = Fuzz.suite([])
+ReferenceWrapModel := [].{}
 
 Item : [AllowOne, HoldOne, BreakTwo, RefTwo, HoldZero]
 

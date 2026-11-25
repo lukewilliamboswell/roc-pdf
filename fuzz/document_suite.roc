@@ -12,6 +12,16 @@ import NavigationProperty
 import RegistryProperty
 import ThemeOptions
 
+# roc test also runs the bounded models and proofs in this suite.
+import DenseSpanProof
+import DocumentBuilderModel
+import PageBreakModel
+import PageTreeProof
+import ReferenceWrapModel
+import ResourceGraphModel
+import StreamSealModel
+import XrefSlotProof
+
 target = Fuzz.suite([
 	JpegInspectorMutation.target,
 	FacadeOutputEquivalence.target,

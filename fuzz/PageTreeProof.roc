@@ -1,14 +1,8 @@
-app [target] {
-	fuzz: platform "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.8.0/BUNcJDHxCd7xLVSe3WBioyXqR6tm1MqXwzwGgtnmqK43.tar.zst",
-	pdf: "../package/all.roc",
-}
-
-import fuzz.Fuzz
 import fuzz.Solve
 import pdf.KernelBalanced
 import pdf.KernelStructure
 
-target = Fuzz.suite([])
+PageTreeProof := [].{}
 
 ## Every level of the structural page tree has at least one child and at
 ## most the page cap enforced by KernelStructure. Other index trees can

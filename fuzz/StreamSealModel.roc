@@ -1,14 +1,8 @@
-app [target] {
-	fuzz: platform "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.8.0/BUNcJDHxCd7xLVSe3WBioyXqR6tm1MqXwzwGgtnmqK43.tar.zst",
-	pdf: "../package/all.roc",
-}
-
-import fuzz.Fuzz
 import fuzz.Model
 import pdf.KernelObject
 import pdf.KernelSeal
 
-target = Fuzz.suite([])
+StreamSealModel := [].{}
 
 Action : [AddScalar, AddPayload, AddReference(U64), AddStream(U64), ReuseStreamValue(U64)]
 

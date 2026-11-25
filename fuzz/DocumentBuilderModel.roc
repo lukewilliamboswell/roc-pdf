@@ -1,15 +1,7 @@
-app [target] {
-	fuzz: platform "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.8.0/BUNcJDHxCd7xLVSe3WBioyXqR6tm1MqXwzwGgtnmqK43.tar.zst",
-	pdf: "../package/main.roc",
-}
-
-import fuzz.Fuzz
 import fuzz.Model
 import pdf.Document
-import pdf.Pdf
 
-# The model runs as an exhaustive roc test under the repository test harness.
-target = Fuzz.suite([])
+DocumentBuilderModel := [].{}
 
 Action : [
 	AddTitle,
@@ -161,21 +153,4 @@ expect {
 		crash "${Model.explain(report)} ${Str.inspect(report.verdict)}"
 	}
 	report.states == 2380 and report.steps == 2379 and report.depth == 3 and report.reached.len() == 3
-}
-
-# Level 9 must reach the facade's diagnostic in both authoring paths.
-options : Pdf.Options
-options = { profile: Standard }
-
-heading_error : Document -> Bool
-heading_error = |document| match Pdf.to_bytes_with(document, options) {
-	Err(InvalidDocument({ diagnostics: [{ feature: Feature("semantics.heading_level"), details: ["contents[0]"], .. }], .. })) => True
-	_ => False
-}
-
-expect {
-	heading = { level: 9, name: "section", text: "Section" }
-	compact = Document.builder(metadata).add_destination_heading(heading).finish()
-	direct = Pdf.document({ language: metadata.language, title: metadata.title, contents: [Pdf.destination_heading(heading)] })
-	heading_error(compact) and heading_error(direct)
 }

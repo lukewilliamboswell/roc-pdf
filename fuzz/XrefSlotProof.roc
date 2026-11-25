@@ -1,14 +1,7 @@
-app [target] {
-	fuzz: platform "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.8.0/BUNcJDHxCd7xLVSe3WBioyXqR6tm1MqXwzwGgtnmqK43.tar.zst",
-	pdf: "../package/all.roc",
-}
-
-import fuzz.Fuzz
 import fuzz.Solve
 import pdf.KernelFileLayout
 
-## A proof-only application run by scripts/test.py.
-target = Fuzz.suite([])
+XrefSlotProof := [].{}
 
 ## All 47-bit stream ordinals and 16-bit member indices fit the tagged slot.
 expect Solve.prove_within(

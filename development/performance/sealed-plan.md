@@ -59,7 +59,8 @@ allocations and final-use release.
 
 ## Bounded stream-pair model
 
-Run `roc test fuzz/stream_seal_model.roc --no-cache` with the pinned compiler.
+Run `roc test fuzz/document_suite.roc --no-cache` with the pinned compiler.
+The stream expectations live in `fuzz/StreamSealModel.roc`.
 The model applies the same authored commands to the object builder and a
 plain ledger. After each command it compares the seal result with the
 ledger's ordered objects, reference targets, and payload readers. For an

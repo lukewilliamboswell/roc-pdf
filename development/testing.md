@@ -213,20 +213,23 @@ installer) exactly once; `scripts/check_contracts.py` enforces this.
 
 ## State models and arithmetic proofs
 
-`./scripts/test.py` runs the roc-fuzz Model and Solve checks as ordinary
-`roc test` expectations. Run either check directly with the pinned compiler:
+`./scripts/test.py` runs the document suite's Model and Solve modules as
+ordinary Roc expectations. Run them together with the pinned compiler:
 
 ```sh
-roc test fuzz/document_builder_model.roc --no-cache
-roc test fuzz/output_arithmetic.roc --no-cache
+roc test fuzz/document_suite.roc --no-cache
 ```
+
+Keep each oracle's expectations and helpers in its own module imported by
+the suite. Register generated properties in the suite's `Fuzz.suite` list
+so the smoke and campaign harness can select them by name.
 
 The builder model checks every sequence of up to three appends from its
 13 authored operations. It compares normalized leaves, metadata and builder
 counts with an independent list model after each operation. Its goals cover
 mixed batches, empty and populated lists, and links with destination headings.
-The facade regression checks that heading level 9 produces the same located
-diagnostic through both authoring paths.
+The public builder contract checks that heading level 9 produces the same
+located diagnostic through both authoring paths.
 
 The xref proof uses the same packing and extraction expressions as the
 emitter. It proves the 47-bit stream ordinal and 16-bit member index round-trip
@@ -235,21 +238,20 @@ A concrete maximum-value check exercises the emitter's U64 helpers.
 
 | Contract | Oracle and scope |
 | --- | --- |
-| First-page breaking | `fuzz/page_break_model.roc` exhausts up to three blocks of measured unit rows across four frame heights. It enumerates fitting legal cuts and compares the chosen prefix and ordered relaxations or exact failure. Geometry, shaping, and continuation policy have separate fixture coverage. |
-| Reference wrapping | `fuzz/reference_wrap_model.roc` checks up to four measured items. It sums independent partitions for intrinsic widths and enumerates legal line ends for wrapping, including mandatory breaks, held cuts, and fixed-width reference atoms. A separate builder-authored fixture checks I64 overflow in both measurement and wrapping. |
-| Canonical resource graphs | `fuzz/resource_graph_model.roc` derives identity by byte rank in one forced collision bucket, grows reachability as a set, and selects the smallest ready node by recomputing the ready set. It compares dictionaries, direct dependencies, order, and diagnostics. Three-resource cases distinguish direct from transitive dependencies, ready priority after an insertion, and a cycle reached after a partial schedule. |
+| First-page breaking | `fuzz/PageBreakModel.roc` exhausts up to three blocks of measured unit rows across four frame heights. It enumerates fitting legal cuts and compares the chosen prefix and ordered relaxations or exact failure. Geometry, shaping, and continuation policy have separate fixture coverage. |
+| Reference wrapping | `fuzz/ReferenceWrapModel.roc` checks up to four measured items. It sums independent partitions for intrinsic widths and enumerates legal line ends for wrapping, including mandatory breaks, held cuts, and fixed-width reference atoms. A separate builder-authored fixture checks I64 overflow in both measurement and wrapping. |
+| Canonical resource graphs | `fuzz/ResourceGraphModel.roc` derives identity by byte rank in one forced collision bucket, grows reachability as a set, and selects the smallest ready node by recomputing the ready set. It compares dictionaries, direct dependencies, order, and diagnostics. Three-resource cases distinguish direct from transitive dependencies, ready priority after an insertion, and a cycle reached after a partial schedule. |
 | Stream sealing | The [stream-pair model](performance/sealed-plan.md#bounded-stream-pair-model) compares builder histories with a ledger of ownership, object order, references, and last payload use. |
-| Page-tree child spans | `fuzz/page_tree_arithmetic.roc` proves that one level's fixed-fanout partition covers every child exactly once through the structural page cap. It uses the scalar terms from production, then walks concrete shapes at fanout boundaries and the cap to check dense offsets. |
-| Dense-store spans | `fuzz/dense_span_arithmetic.roc` proves endpoint validation across all U64 inputs and checks the concrete helper against U128 addition. It then uses a solver-produced wraparound witness to test the actual scene planner and its diagnostic, alongside a valid empty range. |
+| Page-tree child spans | `fuzz/PageTreeProof.roc` proves that one level's fixed-fanout partition covers every child exactly once through the structural page cap. It uses the scalar terms from production, then walks concrete shapes at fanout boundaries and the cap to check dense offsets. |
+| Dense-store spans | `fuzz/DenseSpanProof.roc` proves endpoint validation across all U64 inputs and checks the concrete helper against U128 addition. It then uses a solver-produced wraparound witness to test the actual scene planner and its diagnostic, alongside a valid empty range. |
 
 ## Property fuzz targets
 
 The bounded property targets in `fuzz/` are evidence-only applications on the
 content-addressed `roc-fuzz` platform. `./scripts/test.py` formats every
-`fuzz/*.roc` source, checks every target, and tests the fewest targets that
-reach every helper module's `expect`s, which run against the committed corpus. Compiling a target
-proves nothing about its property, so a separate lane executes each one. It
-has two modes.
+`fuzz/*.roc` source and chooses the fewest application roots that exercise
+every module's `expect`s. A separate lane runs the generated properties
+against their example inputs and corpora. It has two modes.
 
 The smoke mode is the default and is what every pull request runs:
 

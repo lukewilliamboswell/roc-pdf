@@ -1,13 +1,7 @@
-app [target] {
-	fuzz: platform "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.8.0/BUNcJDHxCd7xLVSe3WBioyXqR6tm1MqXwzwGgtnmqK43.tar.zst",
-	pdf: "../package/all.roc",
-}
-
-import fuzz.Fuzz
 import fuzz.Model
 import pdf.KernelResourceGraph as Graph
 
-target = Fuzz.suite([])
+ResourceGraphModel := [].{}
 
 Action : [Connect({ source : U64, target : U64 }), Use(U64), Retain(U64)]
 
