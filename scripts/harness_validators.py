@@ -287,7 +287,7 @@ def run_validators(
         dimensions = {**dimensions, "facade_table_headers": 1}
         wtpdf = "wtpdf_accessibility" in validator_ids
         validate_claims(data, wtpdf=wtpdf)
-        report("independent XML inspection of PDF/UA-2 identification and WTPDF Accessibility declaration")
+        report("independent inspection of PDF/UA-2 and applicable WTPDF identification and embedded font bundles")
         if "structure_semantics" not in validator_ids:
             VALIDATORS["structure_semantics"](data, dimensions, report)
     for validator_id in validator_ids:

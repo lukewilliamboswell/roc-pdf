@@ -21,16 +21,19 @@
         "WtpdfAccessibility",
         "WtpdfReuse"
       ],
-      "implementation": "partial",
+      "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "schema_and_roc_contract; standard_profile_runtime_and_transactional_unavailable_profile_errors",
+      "machine_verification": "The typed facade maps the three selectable profiles exactly. Generated outputs exercise the combined, archive and standard selections through separate claims and metadata checks. Requests for an unsupported declaration or invalid accessible content fail before delivering any bytes or chunks. WTPDF reuse and PDF/A-4f are not selectable.",
       "human_verification": "architecture_review",
       "positive_scenarios": [
         "package/Pdf.roc",
-        "tests/contracts/pdf_facade.roc"
+        "scripts/check_accessible_archive.py",
+        "tests/contracts/pdf_facade.roc",
+        "tests/reference_documents/Fixture.roc"
       ],
       "negative_scenarios": [
-        "package/Pdf.roc"
+        "package/Pdf.roc",
+        "tests/reference_documents/Fixture.roc"
       ],
       "external_rule_ids": []
     },
@@ -2604,14 +2607,15 @@
         "PdfUa2",
         "WtpdfAccessibility"
       ],
-      "implementation": "partial",
+      "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "Facade headings have numbered roles and a skip check. Prove that profile validation also excludes generic H on every profile-capable entry point. Pinned veraPDF controls: unnumbered-heading.",
+      "machine_verification": "Facade authoring accepts numbered H1 through H6 after validation of the stated levels. Its heading progression check is a package policy. No combined entry point can author a generic H. The emitted letter uses H1 for a section heading, and changing only that role to H triggers 8.2.5.12-1.",
       "human_verification": "Confirm the selected levels match the logical hierarchy.",
       "positive_scenarios": [
         "scripts/check_accessible_archive.py",
         "scripts/check_structure_semantics.py",
-        "tests/containers/Cases.roc"
+        "tests/containers/Cases.roc",
+        "tests/reference_documents/Fixture.roc"
       ],
       "negative_scenarios": [
         "package/KernelFacadeSemantics.roc",
@@ -2721,9 +2725,9 @@
         "PdfUa2",
         "WtpdfAccessibility"
       ],
-      "implementation": "partial",
+      "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "Existing navigation oracles independently inspect annotations, content and destinations. Add isolated controls for cross-target ownership and fragmented annotation order. Pinned veraPDF controls: link-structure-role. The combined navigation facade fixture keeps one logical Overview link across consecutive pages. Retargeting one fragment to the existing Results destination triggers 8.2.5.20-2. The independent owner oracle also rejects a URI target mixed with GoTo under the same logical link.",
+      "machine_verification": "Public navigation attaches tagged whole annotation objects to their logical link, with each continued fragment in one link and structured targets preserved. Two cross-page annotations in the combined navigation facade fixture resolve to a single Overview link. Pinned controls change their enclosing role or retarget exactly one fragment. The independent owner oracle also rejects a URI mixed with a GoTo target under the same logical link.",
       "human_verification": "Confirm link purpose, semantic identity across fragments, annotation order and association with the intended text.",
       "positive_scenarios": [
         "scripts/check_accessible_archive.py",
@@ -3201,7 +3205,7 @@
       ],
       "implementation": "partial",
       "applicability": "applicable",
-      "machine_verification": "Existing source, ActualText span and font oracles check the intended decoded Unicode. Close separately rejected PUA source, Alt and ActualText cases for the combined claim. Pinned veraPDF controls: alternate-text-pua.",
+      "machine_verification": "Source, ActualText span and font oracles check intended decoded Unicode. The pinned real-text-pua, alternate-text-pua, and actual-text-pua controls distinguish rendered text without a non-PUA alternative, forbidden PUA in Alt, and forbidden PUA in ActualText. The ActualText control derives from the combined coloured source-block fixture. Further coverage must audit all available source-to-presentation transformation paths and the authoring outcome for private-use content in caller fonts.",
       "human_verification": "Confirm that expansions, replacements and equivalents convey the intended content.",
       "positive_scenarios": [
         "scripts/check_accessible_archive.py",
@@ -3288,14 +3292,15 @@
         "PdfUa2",
         "WtpdfAccessibility"
       ],
-      "implementation": "partial",
+      "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "Reuse applicable PDF/A-4 font controls and independent source/subset checks. Verify the same embedded fonts under explicit ua2 and wt1a and link atomic cases to each listed rule. Pinned veraPDF controls: cid-to-gid-map, embedded-font-program and to-unicode. The independent pinned controls include a font-width mismatch, BOM-only Unicode mapping and .notdef selection.",
-      "human_verification": "Confirm embedding and subsetting permissions for the selected fonts and intended distribution.",
+      "machine_verification": "The exact combined outputs pass 4 and ua2 and the requested WTPDF variants pass wt1a. The independent font oracle checks the embedded FontFile2 program, CIDToGIDMap, CIDSystemInfo, per-glyph widths and Unicode map for every Type 0 bundle. Pinned controls exercise omitted CIDToGIDMap and font program, out-of-range CID, width mismatch, absent and BOM Unicode maps, and .notdef. Non-Identity encodings and vertical metrics are outside the facade subset.",
+      "human_verification": "Confirm that subscriptions or special agreements are unnecessary for legal embedding and unlimited, universal rendering, and that font subsetting is permitted.",
       "positive_scenarios": [
         "scripts/check_accessible_archive.py",
         "scripts/check_fonts.py",
-        "tests/pdf_font/Fixture.roc"
+        "tests/pdf_font/Fixture.roc",
+        "tests/reference_documents/Fixture.roc"
       ],
       "negative_scenarios": [
         "package/KernelPdfA4.roc",
@@ -3336,16 +3341,19 @@
         "PdfUa2",
         "WtpdfAccessibility"
       ],
-      "implementation": "partial",
+      "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "Verify the emitted font uses the fixed encoding name. Reuse the PDF/A-4 negative for a malformed embedding and record unreachable WMode and referenced-CMap cases separately.",
+      "machine_verification": "The facade emits the predefined Identity-H encoding for each composite font. The combined oracle reconstructs all Type 0 bundles and rejects changing the encoding name to Identity-V. Embedded or chained encoding CMaps remain separately excluded.",
       "human_verification": "not_required",
       "positive_scenarios": [
+        "scripts/check_accessible_archive.py",
         "scripts/check_fonts.py",
-        "tests/pdf_font/Fixture.roc"
+        "tests/pdf_font/Fixture.roc",
+        "tests/reference_documents/Fixture.roc"
       ],
       "negative_scenarios": [
         "package/KernelPdfA4.roc",
+        "scripts/check_accessible_archive.py",
         "scripts/check_fonts.py"
       ],
       "external_rule_ids": [
@@ -3923,14 +3931,19 @@
         "PdfUa2",
         "StaticPdfA4"
       ],
-      "implementation": "defined_only",
+      "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "schema_and_roc_contract",
+      "machine_verification": "The public invoice, report and letter select AccessibleArchive and their original PDFs independently pass explicit veraPDF 4 and ua2. The package contracts check the exact claim set. A public profile rejection must return a located error through both bytes and chunks without an output.",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "tests/contracts/package_contract.roc"
+        "scripts/check_accessible_archive.py",
+        "tests/contracts/package_contract.roc",
+        "tests/reference_documents/Fixture.roc"
       ],
-      "negative_scenarios": [],
+      "negative_scenarios": [
+        "tests/contracts/pdf_facade.roc",
+        "tests/reference_documents/Fixture.roc"
+      ],
       "external_rule_ids": []
     },
     {
@@ -4100,9 +4113,9 @@
         "PdfUa2"
       ],
       "implementation": "defined_only",
-      "applicability": "applicable",
-      "machine_verification": "schema_and_roc_contract",
-      "human_verification": "author_assertion_required",
+      "applicability": "package_excluded",
+      "machine_verification": "The combined facade provides no MathML, formula subtree or associated-file input. The advanced contracts define the future representation.",
+      "human_verification": "not_required",
       "positive_scenarios": [
         "tests/contracts/advanced_semantics_contract.roc"
       ],
@@ -4219,7 +4232,7 @@
         "WtpdfAccessibility"
       ],
       "implementation": "defined_only",
-      "applicability": "applicable",
+      "applicability": "informative",
       "machine_verification": "Informative correction carries no additional test condition.",
       "human_verification": "not_required",
       "positive_scenarios": [],

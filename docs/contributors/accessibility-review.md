@@ -45,7 +45,7 @@ Choose the applicable records based on the document's features.
 | `StructureMeaningful`, `TableHeadersMeaningful` | Check that numbering, labels, header descriptions and cell relationships are meaningful. Repeated visual table headers do not add separate semantic headers. |
 | `LinkPurposeMeaningful`, `AnnotationOrderMeaningful` | Link and annotation descriptions provide enough context to identify their purpose. Check corresponding visible text, logical and focus order, and target on each fragment of a continued link. Check that distinct targets remain distinguishable. |
 | `OutlineMeaningful`, `PageLabelsAccurate`, `LinkPurposeMeaningful` | Check that the outline and authored table of contents identify their intended logical sections. Check page labels, shown page numbers and cross-references against what a reader perceives. |
-| `FontEmbeddingRightsConfirmed` | Confirm that each selected font can be embedded and subsetted for the intended distribution. The package checks supported font structure and rejects restricted technical flags where applicable. |
+| `FontEmbeddingRightsConfirmed` | Confirm that each font can legally be embedded in the file for unlimited, universal rendering and that subsetting is permitted. The package checks supported font structure and rejects restricted technical flags where applicable. |
 
 An optional human or assistive-technology review records the exact source and
 PDF digest, tool and version, operating system, tasks, expected result,

@@ -24,7 +24,7 @@ VERAPDF_ACCESSIBILITY = {
     "verapdf-wtpdf-accessibility:": ("verapdf-wtpdf-accessibility-rules.json", "WTPDF_1_0", "WtpdfAccessibility"),
 }
 VERAPDF_ISO32005_TABLE = "verapdf-iso32005:Table 5"
-APPLICABILITY = {"applicable", "package_excluded", "pending_iso_confirmation", "rejected_by_profile"}
+APPLICABILITY = {"applicable", "informative", "package_excluded", "pending_iso_confirmation", "rejected_by_profile"}
 LEDGER_SCHEMA_VERSION = 2
 ASSET_MANIFEST_PATH = ROOT / "assets" / "provenance.json"
 DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}\Z")
@@ -326,6 +326,8 @@ def validate_ledger(
         for field in ("positive_scenarios", "negative_scenarios", "external_rule_ids"):
             values = require_string_list(requirement[field], f"{path}.{field}")
             scenario_values[field] = values
+            if field == "external_rule_ids" and values and applicability == "informative":
+                fail(rule_id, "an informative clause cannot carry normative validator rules")
             if field.endswith("scenarios"):
                 for scenario in values:
                     scenario_path = (ROOT / scenario).resolve()

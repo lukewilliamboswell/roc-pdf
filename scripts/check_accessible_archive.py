@@ -16,6 +16,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from check_fonts import Bundle
 from check_navigation import GOTO_LINK_ACTION, SNAPSHOTS as NAVIGATION_SNAPSHOTS, split_link_actions
 from check_pdf_structure import STRING, ValidationError, decode_stream, dictionary_ref, require as require_structure
 from check_pdfa4 import (
@@ -34,8 +35,16 @@ REFERENCES = ROOT / "tests" / "reference_documents"
 REPORT_ROOT = ROOT / ".roc-pdf-tmp" / "accessible-archive-oracles"
 
 
+def validate_supported_fonts(bodies: dict[int, bytes]) -> None:
+    for number, body in bodies.items():
+        dictionary = dictionary_part(body)
+        if b"/Subtype /Type0 " in dictionary and b"/Type /Font" in dictionary:
+            Bundle(bodies, number)
+
+
 def validate_claims(data: bytes, *, wtpdf: bool = False) -> None:
     _offsets, bodies, root, _xref = skeleton(data, 0)
+    validate_supported_fonts(bodies)
     packet = check_metadata(bodies, dictionary_part(bodies[root]))
     try:
         xml = ET.fromstring(packet.split(b"?>", 1)[1].rsplit(b"<?xpacket", 1)[0])
@@ -123,6 +132,10 @@ CONTROLS = (
     ua_control("list-numbering", "letter", "objects", b"/ListNumbering /Decimal", b"/ListNumbering /None", "8.2.5.25-1"),
     ua_control("table-column-span", "letter", "objects", b"/O /Table /Scope /Column", b"/ColSpan 2 /O /Table /Scope /Column", "8.2.5.26-4"),
     ua_control("figure-alternative", "report", "objects", re.compile(rb" /Alt " + STRING + rb"(?= [^\n]+ /S /Figure >>)"), b"", "8.2.5.28.2-1"),
+    ua_control(
+        "actual-text-pua", ROOT / "tests" / "source_blocks" / "foreground_2_60_color.pdf",
+        "objects", re.compile(rb"/ActualText " + STRING), b"/ActualText <FEFFE000>", "8.4.3-2",
+    ),
     ua_control("alternate-text-pua", "report", "objects", re.compile(rb" /Alt " + STRING + rb"(?= [^\n]+ /S /Figure >>)"), b" /Alt <FEFFE000>", "8.4.3-3"),
     ua_control("document-language", "letter", "objects", b"/Lang (en-AU) /MarkInfo", b"/MarkInfo", "8.4.4-1"),
     ua_control("invalid-language", "letter", "objects", b"/Lang (en-AU) /MarkInfo", b"/Lang (12_) /MarkInfo", "8.4.4-2"),
@@ -139,6 +152,10 @@ CONTROLS = (
     ua_control("glyph-width", "letter", "objects", re.compile(rb"(/W \[0 \[[0-9]+) [0-9]+"), rb"\g<1> 7000", "8.4.5.6-1"),
     ua_control("unicode-mapping-bom", "report", "streams", re.compile(rb"(?<=beginbfchar\n)<0001> <0020>"), b"<0001> <FEFF>", "8.4.5.8-2"),
     ua_control("real-text-pua", "report", "streams", re.compile(rb"(?<=beginbfchar\n)<0001> <0020>"), b"<0001> <E000>", "8.4.3-1"),
+    ua_control(
+        "out-of-range-glyph", "letter", "streams", re.compile(rb"(\n\[<)[0-9A-F]{4}(?=[0-9A-F]+>)"), rb"\g<1>FFFF",
+        "8.4.5.5.1-2", "8.4.5.6-1", "8.4.5.8-1", "8.4.5.9-1",
+    ),
     ua_control("notdef-glyph", "letter", "streams", re.compile(rb"(\n\[<)[0-9A-F]{4}(?=[0-9A-F]+>)"), rb"\g<1>0000", "8.4.5.8-1", "8.4.5.9-1"),
     ua_control("outline-title-pua", "report", "objects", re.compile(rb" /Title " + STRING + rb"(?= >>)"), b" /Title <FEFFE000>", "8.6-1"),
     ua_control("no-view-link", "invoice", "objects", b" /F 4 /QuadPoints", b" /F 36 /QuadPoints", "8.9.2.2-2"),
@@ -232,6 +249,21 @@ def validate_cases(verapdf: Path, combined: list[Path], wtpdf: list[Path], repor
 
 
 def self_test() -> None:
+    letter = (REFERENCES / "letter.pdf").read_bytes()
+    _offsets, bodies, _root, _xref = skeleton(letter, 0)
+    validate_supported_fonts(bodies)
+    wrong_encoding = mutate(
+        letter, b"/Encoding /Identity-H", b"/Encoding /Identity-V",
+        occurrences=None, scope="objects", first_only=True,
+    )
+    _offsets, altered, _root, _xref = skeleton(wrong_encoding, 0)
+    try:
+        validate_supported_fonts(altered)
+    except ValidationError as error:
+        require("encoding is not Identity-H" in str(error), f"encoding control failed for the wrong reason: {error}")
+    else:
+        raise OracleError("encoding control accepted non-Identity-H CMap")
+
     combined, wt = case_paths()
     require(set(wt) <= set(combined), "WTPDF cases are missing from combined cases")
     ids = {
