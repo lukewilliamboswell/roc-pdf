@@ -20,6 +20,7 @@ import DenseSpanProof
 import DocumentBuilderModel
 import GroupingContainmentModel
 import LinkRegionModel
+import OutlineModel
 import PageBreakModel
 import PageLabelModel
 import PageTreeProof
