@@ -24,6 +24,7 @@ KernelPdfText :: [].{
 		OccurrenceInvalid({ occurrence : U64, run : U64 }),
 		PlacementInvalid({ placement : U64 }),
 		RunInvalid({ run : U64 }),
+		UnicodeDestinationTooLong({ attempted : U64, cid : U32, font : U64, limit : U64, run : U64 }),
 		UnicodeMappingConflict({ cid : U32, font : U64 }),
 	]
 
@@ -539,6 +540,16 @@ collect_run_mappings = |states, font_index, semantics, scalars, text, run, run_i
 			cid = cid_for_glyph(state.plan, glyph, run_index)?
 			match list_at($slots, cid.to_u64()) {
 				Unmapped => {
+					# Only the selected mapping becomes a ToUnicode destination.
+					match mapping {
+						Hyphen => {}
+						Scalars({ begin, length }) => {
+							KernelPdfFont.check_destination_length(scalars.values, begin, length) ? |error| match error {
+								ArithmeticOverflow => ArithmeticOverflow
+								DestinationTooLong({ attempted, limit }) => UnicodeDestinationTooLong({ attempted, cid, font: font_index, limit, run: run_index })
+							}
+						}
+					}
 					$slots = list_set($slots, cid.to_u64(), Mapped(mapping_values(scalars, mapping)))
 				}
 				Mapped(existing) => if !mapping_matches(existing, scalars, mapping) {

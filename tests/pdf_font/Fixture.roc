@@ -1,5 +1,6 @@
 import pdf.KernelEmit
 import pdf.KernelFont
+import pdf.KernelFontLeaf
 import pdf.KernelFontPlan
 import pdf.KernelFontSubset
 import pdf.KernelObject
@@ -191,4 +192,44 @@ list_at = |items, index| match items.get(index) {
 		crash "text-layout PDF font evidence index escaped"
 	}
 	Ok(value) => value
+}
+
+# The per-destination limit counts decoded UTF-16BE bytes. The combined
+# CMap is longer than 512 bytes even when each destination is in range.
+expect {
+	font = inspect_font({})?
+	plan = sample_font_plan(font)?
+	subset = KernelFontSubset.build(font, plan)?
+	limits = KernelPdfFont.Limits.make({ max_to_unicode_bytes: 4096, max_unicode_mappings: 8, max_unicode_scalars: 1024 })
+	mappings = [{ cid: 1, scalars: List.repeat(0x0041, 256) }, { cid: 3, scalars: List.repeat(0x1f600, 128) }]
+	leaf = KernelFontLeaf.Leaf.build({ font, plan, subset, descriptor, mappings })?
+	pdf_font = KernelPdfFont.Plan.build(KernelObject.init(object_limits), font, plan, subset, descriptor, mappings, limits)?
+	store = KernelSeal.Plan.store(KernelSeal.seal(KernelPdfFont.Plan.builder(pdf_font))?)
+	stream = store.streams.keep_if(|item| item.object == KernelPdfFont.Plan.objects(pdf_font).to_unicode).first()?
+	cmap = list_at(store.payloads, stream.source.index()).bytes
+	bmp = List.repeat(Str.to_utf8("0041"), 256).join()
+	supplementary = List.repeat(Str.to_utf8("D83DDE00"), 128).join()
+	KernelFontLeaf.Leaf.work(leaf).mapping_scalars == 384 and
+		contains_bytes(cmap, [Str.to_utf8("2 beginbfchar\n<0001> <"), bmp, Str.to_utf8(">\n<0003> <"), supplementary, Str.to_utf8(">\nendbfchar\n")].join())
+}
+
+expect {
+	font = inspect_font({})?
+	plan = sample_font_plan(font)?
+	subset = KernelFontSubset.build(font, plan)?
+	limits = KernelPdfFont.Limits.make({ max_to_unicode_bytes: 4096, max_unicode_mappings: 8, max_unicode_scalars: 1024 })
+	[
+		{ attempted: 514, scalars: List.repeat(0x1f600, 128).append(0x0041) },
+		{ attempted: 516, scalars: List.repeat(0x1f600, 129) },
+	].all(
+		|boundary| {
+			mappings = [{ cid: 1, scalars: [0x0041] }, { cid: 3, scalars: boundary.scalars }]
+			bundle = { font, plan, subset, descriptor, mappings }
+			match (KernelFontLeaf.Leaf.build(bundle), KernelPdfFont.Plan.build(KernelObject.init(object_limits), font, plan, subset, descriptor, mappings, limits)) {
+				(Err(UnicodeDestinationTooLong({ attempted: leaf, cid: 3, limit: 512 })), Err(UnicodeDestinationTooLong({ attempted: emitted, cid: 3, limit: 512 }))) =>
+					leaf == boundary.attempted and emitted == boundary.attempted
+				_ => False
+			}
+		},
+	)
 }

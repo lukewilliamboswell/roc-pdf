@@ -2153,3 +2153,42 @@ list_at = |items, index| match items.get(index) {
 	}
 	Ok(value) => value
 }
+
+# Advanced shaped inputs can author many scalars per glyph. Even when the
+# run carries ActualText, each selected ToUnicode destination must fit.
+expect {
+	sample = build_sample({})?
+	registered = Font.Registry.empty.register({ bytes: caller_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default })?
+	font = registered.registry.prepared_face(registered.face)?
+	base_run = list_at(sample.shape.store.runs, 0)
+	long_source = Str.from_utf8(List.repeat(0x41, 257))?
+	range = text_range(0, 257)
+	cluster_span = Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 })
+	multi_store = {
+		..sample.shape.store,
+		clusters: [{ glyphs: Semantics.IndexRange.from_start_and_length({ start: 0, length: 2 }), kind: ManyToMany, source: range }],
+		glyph_indices: [0, 1],
+		runs: [{ ..base_run, clusters: cluster_span, source: range }],
+	}
+	validated = KernelShape.validate_advanced(
+		font,
+		long_source,
+		multi_store,
+		{ instance: registered.instance, occurrence: Semantics.OccurrenceId.from_index(0) },
+		KernelShape.AdvancedLimits.make({ max_clusters: 1, max_glyph_indices: 2, max_glyphs: 2, max_runs: 1, max_scalars: 257, max_source_bytes: 257, max_substitutions: 0, max_transformations: 0 }),
+	)?
+	long_semantics = {
+		..semantics,
+		fragments: [{ ..list_at(semantics.fragments, 0), source_range: UnicodeRange(range) }],
+		occurrences: [{ ..list_at(semantics.occurrences, 0), source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange(range)) }],
+		text_sources: [{ unicode: long_source }],
+	}
+	placement = { origin: { x: 0, y: 0 }, run: Text.RunId.from_index(0) }
+	limits = KernelPdfText.Limits.make({ max_actual_text_scalars: 257, max_content_bytes: 4096, max_mappings: 2, max_placements: 1, max_source_scalars: 257 })
+	glyph = list_at(validated.store.glyphs, 0).id.raw()
+	expected_cid = list_at(sample.font_plan.original_to_subset, glyph.to_u64())
+	match KernelPdfText.Plan.build(long_semantics, validated.store, [sample.font_plan], [placement], limits) {
+		Err(UnicodeDestinationTooLong({ attempted: 514, cid, font: 0, limit: 512, run: 0 })) => cid == expected_cid
+		_ => False
+	}
+}

@@ -59,6 +59,7 @@ KernelFontLeaf :: [].{
 		## A mapping arrived for a CID that is not a content CID or arrived
 		## out of dense CID order.
 		UnexpectedUnicodeMapping({ cid : U32 }),
+		UnicodeDestinationTooLong({ attempted : U64, cid : U32, limit : U64 }),
 	]
 
 	## The validated earlier-stage facts one emitted Type 0 bundle consumes.
@@ -256,6 +257,10 @@ validate_mappings = |plan, mappings| {
 				$scalar_index = $scalar_index + 1
 			}
 			$scalar_count = checked_add($scalar_count, mapping.scalars.len())?
+			KernelPdfFont.check_destination_length(mapping.scalars, 0, mapping.scalars.len()) ? |error| match error {
+				ArithmeticOverflow => ArithmeticOverflow
+				DestinationTooLong({ attempted, limit }) => UnicodeDestinationTooLong({ attempted, cid: mapping.cid, limit })
+			}
 			$mapping_index = $mapping_index + 1
 		}
 		$entry_index = $entry_index + 1

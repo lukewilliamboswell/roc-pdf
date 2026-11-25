@@ -561,6 +561,7 @@ kernel_pdf_text_error = |error| match error {
 	OccurrenceInvalid(_) => leaf({ category: Invariant, feature: "occurrence_invalid", path: "OccurrenceInvalid", inspected: Str.inspect(error) })
 	PlacementInvalid(_) => leaf({ category: Invariant, feature: "placement_invalid", path: "PlacementInvalid", inspected: Str.inspect(error) })
 	RunInvalid(_) => leaf({ category: Invariant, feature: "run_invalid", path: "RunInvalid", inspected: Str.inspect(error) })
+	UnicodeDestinationTooLong(_) => leaf({ category: Invariant, feature: "unicode_destination_too_long", path: "UnicodeDestinationTooLong", inspected: Str.inspect(error) })
 	UnicodeMappingConflict(_) => leaf({ category: Invariant, feature: "unicode_mapping_conflict", path: "UnicodeMappingConflict", inspected: Str.inspect(error) })
 }
 
@@ -777,6 +778,7 @@ kernel_pdf_font_error = |error| match error {
 	InvalidUnicodeScalar(_) => leaf({ category: Invariant, feature: "invalid_unicode_scalar", path: "InvalidUnicodeScalar", inspected: Str.inspect(error) })
 	Object(cause) => context({ feature: "object", path: "Object", cause: kernel_object_error(cause) })
 	UnexpectedUnicodeMapping(_) => leaf({ category: Invariant, feature: "unexpected_unicode_mapping", path: "UnexpectedUnicodeMapping", inspected: Str.inspect(error) })
+	UnicodeDestinationTooLong(_) => leaf({ category: Invariant, feature: "unicode_destination_too_long", path: "UnicodeDestinationTooLong", inspected: Str.inspect(error) })
 	UnicodeMappingLimitExceeded(_) => leaf({ category: Budget, feature: "unicode_mapping_limit_exceeded", path: "UnicodeMappingLimitExceeded", inspected: Str.inspect(error) })
 }
 

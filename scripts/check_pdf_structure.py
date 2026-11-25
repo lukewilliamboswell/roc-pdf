@@ -178,6 +178,7 @@ def to_unicode_mappings(cmap: bytes) -> dict[int, tuple[int, ...]]:
                 match = BFCHAR_ROW.fullmatch(row)
                 require(match is not None, f"ToUnicode bfchar row {row!r} is not canonical")
                 cid = int(match.group(1), 16)
+                require(len(match.group(2)) <= 1024, f"ToUnicode CID {cid} exceeds the 512-byte destination limit")
                 require(cid > previous, "ToUnicode CIDs are not ascending")
                 mappings[cid] = utf16_scalars(match.group(2))
                 previous = cid
@@ -551,6 +552,19 @@ def validate_pdf(
 
 
 def self_test() -> None:
+    def cmap(destination: bytes) -> bytes:
+        return b"begincmap\n1 beginbfchar\n<0001> <" + destination + b">\nendbfchar\nendcmap\n"
+
+    full_destination = b"D83DDE00" * 128
+    assert to_unicode_mappings(cmap(full_destination)) == {1: (0x1F600,) * 128}
+    for excess in (b"0041", b"D83DDE00"):
+        try:
+            to_unicode_mappings(cmap(full_destination + excess))
+        except ValidationError as error:
+            require("512-byte destination limit" in str(error), "overlong ToUnicode twin rejected for a different reason")
+        else:
+            raise SystemExit("structural checker accepted an overlong ToUnicode destination")
+
     # The facade blank fixture now carries document facts, so its identifier
     # is the sealed-plan digest rather than the recomputed blank identity;
     # the blank identity derivation stays covered by the kernel-path
