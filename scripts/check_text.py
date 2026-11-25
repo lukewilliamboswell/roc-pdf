@@ -8,7 +8,6 @@ import re
 import struct
 import subprocess
 import tempfile
-import zlib
 from pathlib import Path
 
 from pdf_layout import mutate, occurrences
@@ -18,6 +17,7 @@ from check_pdf_structure import (
     ValidationError,
     dictionary_ref,
     dictionary_ref_array,
+    decode_flate,
     indirect_length,
     object_slices,
     require,
@@ -99,10 +99,7 @@ def decoded_stream(bodies: dict[int, bytes], number: int) -> tuple[bytes, bytes]
     _, encoded = stream_parts(body, length)
     if b"/Filter /FlateDecode" not in dictionary:
         return dictionary, encoded
-    try:
-        return dictionary, zlib.decompress(encoded)
-    except zlib.error as error:
-        raise ValidationError(f"object {number} has invalid zlib DEFLATE: {error}") from error
+    return dictionary, decode_flate(encoded, number)
 
 
 def cmap_mappings(cmap: bytes) -> dict[int, tuple[int, ...]]:

@@ -23,7 +23,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import re
-import zlib
 from pathlib import Path
 
 from check_forms import FormFacts, check_ownership, replace_once
@@ -33,6 +32,7 @@ from check_pdf_structure import (
     decode_stream,
     ValidationError,
     dictionary_ref,
+    decode_flate,
     indirect_length,
     object_slices,
     require,
@@ -82,10 +82,7 @@ def raw_stream(bodies: dict[int, bytes], number: int) -> tuple[bytes, bytes]:
 def flate_payload(bodies: dict[int, bytes], number: int) -> bytes:
     dictionary, encoded = raw_stream(bodies, number)
     require(b"/Filter /FlateDecode" in dictionary, f"object {number} is not FlateDecode")
-    try:
-        return zlib.decompress(encoded)
-    except zlib.error as error:
-        raise ValidationError(f"object {number} has invalid zlib DEFLATE: {error}") from error
+    return decode_flate(encoded, number)
 
 
 class LeafFacts:

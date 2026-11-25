@@ -105,12 +105,21 @@ def _stream_data(bodies: dict[int, bytes], number: int, direct_only: bool = Fals
     return dictionary, data
 
 
-def _inflate(dictionary: bytes, data: bytes, number: int) -> bytes:
-    _require(b"/Filter /FlateDecode" in dictionary, f"object {number} is not FlateDecode")
+def inflate_flate(data: bytes, number: int) -> bytes:
+    """Decode exactly one zlib stream, including its checksum (ISO 32000-2 7.3.8.2)."""
+    decoder = zlib.decompressobj()
     try:
-        return zlib.decompress(data)
+        decoded = decoder.decompress(data)
     except zlib.error as error:
         raise LayoutError(f"object {number} has invalid zlib DEFLATE: {error}") from error
+    _require(decoder.eof, f"object {number} has incomplete zlib DEFLATE")
+    _require(not decoder.unused_data, f"object {number} has bytes after zlib DEFLATE end")
+    return decoded
+
+
+def _inflate(dictionary: bytes, data: bytes, number: int) -> bytes:
+    _require(b"/Filter /FlateDecode" in dictionary, f"object {number} is not FlateDecode")
+    return inflate_flate(data, number)
 
 
 def _undo_up_predictor(decoded: bytes, columns: int) -> list[bytes]:
@@ -387,7 +396,7 @@ def occurrences(pdf: bytes, needle: bytes, scope: str = "all") -> int:
         if scope != "payloads":
             found += dictionary.count(needle)
         if scope != "objects":
-            payload = zlib.decompress(data) if b"/Filter /FlateDecode" in dictionary else data
+            payload = inflate_flate(data, number) if b"/Filter /FlateDecode" in dictionary else data
             found += payload.count(needle)
     return found
 
@@ -435,7 +444,7 @@ def mutate(pdf: bytes, old: bytes, new: bytes, occurrences: int | None = 1, scop
         if scope == "objects":
             continue
         stream_dictionary, data = _stream_data(bodies, number)
-        payload = zlib.decompress(data) if b"/Filter /FlateDecode" in stream_dictionary else data
+        payload = inflate_flate(data, number) if b"/Filter /FlateDecode" in stream_dictionary else data
         count = payload.count(old)
         if count:
             found += count

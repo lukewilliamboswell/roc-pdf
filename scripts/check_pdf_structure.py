@@ -4,10 +4,18 @@ from __future__ import annotations
 import argparse
 import hashlib
 import re
-import zlib
 from pathlib import Path
 
-from pdf_layout import LayoutError, OBJECTS_PER_STREAM, is_object_stream_layout, is_stream_body
+from pdf_layout import (
+    LayoutError,
+    OBJECTS_PER_STREAM,
+    inflate_flate,
+    is_object_stream_layout,
+    is_stream_body,
+    planned_bodies,
+    serialize_object_streams,
+    trailer_facts,
+)
 from pdf_layout import mutate as layout_mutate
 from pdf_layout import parse as parse_layout
 
@@ -309,6 +317,13 @@ def indirect_length(bodies: dict[int, bytes], object_number: int) -> int:
     return int(match.group(1))
 
 
+def decode_flate(data: bytes, object_number: int) -> bytes:
+    try:
+        return inflate_flate(data, object_number)
+    except LayoutError as error:
+        raise ValidationError(str(error)) from error
+
+
 def decode_stream(bodies: dict[int, bytes], object_number: int) -> tuple[bytes, bytes]:
     """The dictionary and decoded payload of one stream object.
 
@@ -326,10 +341,7 @@ def decode_stream(bodies: dict[int, bytes], object_number: int) -> tuple[bytes, 
     length = indirect_length(bodies, int(reference.group(1))) if reference is not None else int(direct.group(1))
     _, data = stream_parts(body, length)
     if b"/Filter /FlateDecode" in dictionary:
-        try:
-            return dictionary, zlib.decompress(data)
-        except zlib.error as error:
-            raise ValidationError(f"object {object_number} has invalid zlib DEFLATE: {error}") from error
+        return dictionary, decode_flate(data, object_number)
     require(b"/Filter" not in dictionary, f"object {object_number} uses an unexpected filter")
     return dictionary, data
 
@@ -418,10 +430,7 @@ def validate_stream_lengths(
         length = indirect_length(bodies, int(reference.group(1))) if reference is not None else int(direct.group(1))
         _, data = stream_parts(body, length)
         if b"/Filter /FlateDecode" in dictionary:
-            try:
-                decoded = zlib.decompress(data)
-            except zlib.error as error:
-                raise ValidationError(f"object {number} has invalid zlib DEFLATE: {error}") from error
+            decoded = decode_flate(data, number)
             if number in content_objects:
                 require(
                     decoded == expected_content,
@@ -500,10 +509,7 @@ def expected_identifier(bodies: dict[int, bytes], pages: set[int]) -> bytes:
         length_object = dictionary_ref(dictionary, b"Length")
         _, data = stream_parts(body, indirect_length(bodies, length_object))
         if b"/Filter /FlateDecode" in dictionary:
-            try:
-                decoded = zlib.decompress(data)
-            except zlib.error as error:
-                raise ValidationError(f"content stream {content_object} has invalid zlib DEFLATE: {error}") from error
+            decoded = decode_flate(data, content_object)
             content_payloads.append(("blank" if decoded == b"" else "generated", decoded))
         else:
             content_payloads.append(("unchanged", data))
@@ -598,6 +604,48 @@ def self_test() -> None:
             pass
         else:
             raise SystemExit(f"structural checker accepted {label}")
+
+    # Include one non-EOL byte past the checksum in the declared stream
+    # extent, recomputing the file layout. The decoded payload, references,
+    # and file identifier are identical to a passing re-serialized twin.
+    parsed, bodies = planned_bodies(deflate_pdf)
+    root, file_id = trailer_facts(parsed)
+    validate_pdf(serialize_object_streams(bodies, parsed.header, root, file_id), 1, generated_content)
+    dictionary = bodies[content_stream].split(b"stream\n", 1)[0]
+    length_object = dictionary_ref(dictionary, b"Length")
+    _, encoded = stream_parts(bodies[content_stream], indirect_length(bodies, length_object))
+    bodies[content_stream] = dictionary + b"stream\n" + encoded + b"X\nendstream\nendobj\n"
+    bodies[length_object] = str(len(encoded) + 1).encode() + b"\nendobj\n"
+    trailing_byte = serialize_object_streams(bodies, parsed.header, root, file_id)
+    try:
+        validate_pdf(trailing_byte, 1, generated_content)
+    except ValidationError as error:
+        require(str(error) == f"object {content_stream} has bytes after zlib DEFLATE end", "trailing byte twin rejected for a different reason")
+    else:
+        raise SystemExit("structural checker accepted a byte after the zlib checksum")
+
+    # The terminal xref stream has a direct Length. Its startxref offset
+    # continues to identify the same object after changing its extent.
+    xref = deflate_layout.xref
+    xref_body = deflate_layout.bodies[xref]
+    length = dictionary_int(deflate_layout.xref_dictionary, b"Length")
+    dictionary, encoded = stream_parts(xref_body, length)
+    longer_dictionary = dictionary.replace(
+        b"/Length " + str(length).encode(), b"/Length " + str(length + 1).encode(), 1
+    )
+    suffix_start = len(dictionary) + len(b"stream\n") + length
+    trailing_xref = (
+        deflate_pdf[: deflate_layout.xref_offset]
+        + str(xref).encode() + b" 0 obj\n"
+        + longer_dictionary + b"stream\n"
+        + encoded + b"X" + xref_body[suffix_start:]
+    )
+    try:
+        validate_pdf(trailing_xref, 1, generated_content)
+    except ValidationError as error:
+        require(str(error) == f"object {xref} has bytes after zlib DEFLATE end", "xref twin rejected for a different reason")
+    else:
+        raise SystemExit("structural checker accepted a byte after the xref zlib checksum")
 
     start_match = re.search(rb"startxref\n([0-9]+)\n%%EOF\n$", pdf)
     require(start_match is not None, "self-test fixture has no startxref")

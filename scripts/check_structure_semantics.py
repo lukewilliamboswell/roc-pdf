@@ -38,7 +38,6 @@ import argparse
 import re
 import sys
 import zipfile
-import zlib
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -46,6 +45,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from pdf_layout import LayoutError, twin as layout_twin  # noqa: E402
 from check_pdf_structure import (  # noqa: E402
     ValidationError,
+    decode_flate,
     indirect_length,
     object_slices,
     require,
@@ -313,7 +313,7 @@ class Document:
         length = indirect_length(self.bodies, int(dictionary["Length"]))
         _, encoded = stream_parts(body, length)
         if dictionary.get("Filter") == "FlateDecode":
-            return zlib.decompress(encoded)
+            return decode_flate(encoded, number)
         require("Filter" not in dictionary, "unsupported content filter")
         return encoded
 
@@ -968,7 +968,7 @@ def self_test() -> None:
         mutated = replace_once(source, old, new)
         try:
             check_structure_semantics(mutated)
-        except (ValidationError, KeyError, ValueError, TypeError, AttributeError, IndexError, zlib.error):
+        except (ValidationError, KeyError, ValueError, TypeError, AttributeError, IndexError):
             continue
         raise SystemExit(f"structure-semantics checker accepted {label}")
     bad_region = replace_once(lowering, b"/Lang (fr-FR)", b"/Lang (en-12)")
@@ -1014,7 +1014,7 @@ def self_test() -> None:
     for label, source, dimensions in callout_twins:
         try:
             check_structure_semantics(source, dimensions)
-        except (ValidationError, KeyError, ValueError, TypeError, AttributeError, IndexError, zlib.error):
+        except (ValidationError, KeyError, ValueError, TypeError, AttributeError, IndexError):
             continue
         raise SystemExit(f"structure-semantics checker accepted {label}")
     # Furniture twins mutate decoded page furniture: an MCID inside a
