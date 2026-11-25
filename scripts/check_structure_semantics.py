@@ -478,6 +478,8 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
                 leaves.append(walk(int(child), number, language, path))
             elif isinstance(child, dict) and child.get("Type") == "MCR":
                 require(role not in GROUPING_WRAPPERS and role not in NO_CONTENT_ITEMS, f"/{role} owns a content item")
+                # The writer identifies its one ordinary page stream by /Pg.
+                require("Stm" not in child and "StmOwn" not in child, "a page-content MCR names an additional stream or owner")
                 page = int(child["Pg"])
                 require(page in page_index, "MCR /Pg is not a page")
                 key = (page, int(child["MCID"]))
@@ -971,6 +973,22 @@ def self_test() -> None:
         except (ValidationError, KeyError, ValueError, TypeError, AttributeError, IndexError):
             continue
         raise SystemExit(f"structure-semantics checker accepted {label}")
+    navigation = SNAPSHOTS["navigation"].read_bytes()
+    document = Document(navigation)
+    mcr_pattern = re.compile(rb"<< /MCID [0-9]+ /Pg ([0-9]+) 0 R /Type /MCR >>")
+    mcr = next(match for body in document.bodies.values() if (match := mcr_pattern.search(body)))
+    pages: list[int] = []
+    page_order(document, int(document.get(document.root)["Pages"]), pages)
+    other_page = next(page for page in pages if page != int(mcr.group(1)))
+    other_stream = int(document.get(other_page)["Contents"])
+    wrong_stream = mcr.group(0).replace(b" /Type", f" /Stm {other_stream} 0 R /Type".encode("ascii"))
+    try:
+        check_structure_semantics(layout_twin(navigation, mcr.group(0), wrong_stream, exactly_once=True))
+    except ValidationError as error:
+        require(str(error) == "a page-content MCR names an additional stream or owner", "foreign-stream MCR twin failed for the wrong reason")
+    else:
+        raise SystemExit("structure-semantics checker accepted a page-content MCR naming another stream")
+
     bad_region = replace_once(lowering, b"/Lang (fr-FR)", b"/Lang (en-12)")
     try:
         check_structure_semantics(bad_region)
@@ -1046,7 +1064,7 @@ def self_test() -> None:
         "PASS structure-semantics checker self-test: normalized trees, ParentTree/MCID/OBJR "
         "exactly-once, IDTree/ID, language, attributes, DisplayDocTitle, MarkInfo, Tabs, "
         f"Table 5 containment, page furniture, figure captions and scales, and custom-block Divs and underlays verified on {len(SNAPSHOTS)} snapshots; {len(mutations) + len(grouping_twins)} "
-        f"length-preserving mutation twins, one invalid language region, {len(furniture_twins)} furniture twins, and {len(callout_twins)} custom-block twins rejected; {cross_check}",
+        f"length-preserving mutation twins, one foreign-stream MCR twin, one invalid language region, {len(furniture_twins)} furniture twins, and {len(callout_twins)} custom-block twins rejected; {cross_check}",
         flush=True,
     )
 
