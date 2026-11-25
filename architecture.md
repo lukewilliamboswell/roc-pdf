@@ -131,6 +131,11 @@ and incremental updates. Supported URI link actions remain ordinary annotation
 data. These are package policy exclusions, not claims that every such construct
 is universally prohibited by PDF/A-4.
 
+Static PDF/A-4 eligibility uses the pinned validator and corpus, the typed
+whitelist and the available published evidence. The ledger records the direct
+review of the remaining ISO 19005-4:2020 text as a follow-up after acquisition.
+This open review does not suspend the tested static or combined profiles.
+
 Passing machine validation does not establish that a document is useful to a
 person with a disability. PDF/UA-2 cannot determine whether author-supplied
 alternative text is truthful, whether reading order is meaningful, or whether

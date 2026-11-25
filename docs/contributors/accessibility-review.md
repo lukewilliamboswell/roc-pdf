@@ -97,9 +97,10 @@ cannot resolve author-dependent requirements.
 The contract preflight checks the capability matrix against this ledger.
 An available PDF/UA-2 or WTPDF accessibility capability requires every
 applicable row to be implemented and every pending ISO confirmation for
-that capability to be resolved. Availability of the combined facade profile
-also requires resolving the remaining ISO 19005-4 confirmation. Package
-exclusions retain their own criteria.
+that capability to be resolved. The combined profile relies on Gate 5's
+tested static PDF/A-4 subset. The ledger tracks the outstanding full-text
+ISO 19005-4 review independently of profile availability. Package exclusions
+retain their own criteria.
 
 The clause inventory uses the complete ISO 14289-2:2024 and ISO/TS
 32005:2023 editions, including the URI action and embedded-file requirements

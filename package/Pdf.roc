@@ -453,10 +453,10 @@ Pdf :: [].{
 	## `Pdf.to_bytes_with(document, { page_size: Letter, theme, fonts:
 	## Registered(registry) })`.
 	##
-	## The production default selects the most complete public profile whose
-	## claim set is implemented and validated: `Archive` (PDF 2.0 plus static
-	## PDF/A-4). `AccessibleArchive` becomes the default only when its combined
-	## claim closes; `Standard` is an explicit opt-out, never a fallback.
+	## The production default is `AccessibleArchive` (PDF 2.0, static PDF/A-4,
+	## and PDF/UA-2). Select `Archive` for static PDF/A-4 alone or `Standard`
+	## for PDF 2.0. Request the WTPDF accessibility declaration with
+	## `wtpdf: DeclareAccessibility`.
 	## `fonts` is the complete public caller-resource boundary: a
 	## `Registered` registry carries the original immutable font bytes and
 	## the once-produced inspection facts, and the theme selects only the
@@ -469,7 +469,7 @@ Pdf :: [].{
 		compression : Compression ?? Balanced,
 		fonts : FontSource ?? BuiltIn,
 		page_size : PageSize ?? A4,
-		profile : Profile ?? Archive,
+		profile : Profile ?? AccessibleArchive,
 		theme : Theme ?? {},
 		wtpdf : WtpdfDeclaration ?? NoWtpdfDeclaration,
 	}.{
@@ -928,10 +928,8 @@ Pdf :: [].{
 	reserved_width : { width : Layout.Unit, align : Align, contents : List(Inline) } -> Inline
 	reserved_width = |{ width, align, contents }| Document.reserved_width({ width: width, align: align, contents: contents })
 
-	## The default profile is `Archive`: content follows the completed typed
-	## facade pipeline and passes static PDF/A-4 profile and lowered-plan
-	## validation before any byte exists. `Standard` is an explicit opt-out.
-	## Select AccessibleArchive explicitly for combined PDF/A-4 and PDF/UA-2.
+	## Generate combined PDF/A-4 and PDF/UA-2 with `Options.default`.
+	## Use `to_bytes_with` to select another profile explicitly.
 	## A document that cannot meet its requested claim returns an error.
 	to_bytes : Document -> Try(List(U8), Error)
 	to_bytes = |doc| to_bytes_with(doc, Options.default)
@@ -3176,14 +3174,6 @@ expect match Pdf.to_bytes(Pdf.document({ contents: [Pdf.paragraph("Lead"), Pdf.r
 	_ => False
 }
 
-# Empty default documents emit one structural PDF 2.0 page.
-expect {
-	document = Pdf.document({ contents: [], language: "en-AU", title: "Blank" })
-	bytes = Pdf.to_bytes(document)?
-
-	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n")
-}
-
 # The explicit Standard option takes the same authored-content path.
 expect {
 	document = Pdf.document({
@@ -3197,15 +3187,18 @@ expect {
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 667
 }
 
-# The default is exactly `to_bytes_with(document, Options.default)`, and
-# that default claims static PDF/A-4.
+# The default and a partial options record select the exact combined profile.
 expect {
 	document = Pdf.document({ contents: [Pdf.paragraph("Default")], language: "en-AU", title: "Default" })
 	implicit = Pdf.to_bytes(document)?
-	explicit = Pdf.to_bytes_with(document, Pdf.Options.default)?
-	archive = Pdf.to_bytes_with(document, Pdf.Options.{ profile: Pdf.Profile.Archive })?
+	default = Pdf.to_bytes_with(document, Pdf.Options.default)?
+	empty_options = Pdf.to_bytes_with(document, {})?
+	combined = Pdf.to_bytes_with(document, { profile: AccessibleArchive })?
 
-	implicit == explicit and implicit == archive and contains_bytes(implicit, Str.to_utf8("<pdfaid:part>4</pdfaid:part>"))
+	implicit == default and implicit == empty_options and implicit == combined and
+		contains_bytes(implicit, Str.to_utf8("<pdfaid:part>4</pdfaid:part>")) and
+		contains_bytes(implicit, Str.to_utf8("<pdfuaid:part>2</pdfuaid:part>")) and
+		!contains_bytes(implicit, Str.to_utf8("http://pdfa.org/declarations/wtpdf#accessibility1.0"))
 }
 
 profile_document : Document
@@ -3243,16 +3236,19 @@ expect {
 expect {
 	document = Pdf.document({ contents: [], language: "en-AU", title: "Archive" })
 	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ profile: Pdf.Profile.Archive })?
+	default_rejected = match Pdf.to_bytes(document) {
+		Err(InvalidDocument({ diagnostics: [{ feature: Feature("profile.accessible_archive.empty_structure"), .. }], .. })) => True
+		_ => False
+	}
 
-	contains_bytes(bytes, Str.to_utf8("<pdfaid:rev>2020</pdfaid:rev>"))
+	default_rejected and bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and contains_bytes(bytes, Str.to_utf8("<pdfaid:rev>2020</pdfaid:rev>"))
 }
 
 # The combined profile supports a metadata title without a visible title
 # and declares WTPDF accessibility only on explicit request.
 expect {
-	options = Pdf.Options.{ profile: Pdf.Profile.AccessibleArchive }
-	combined = Pdf.to_bytes_with(profile_document, options)?
-	declared = Pdf.to_bytes_with(profile_document, { ..options, wtpdf: DeclareAccessibility })?
+	combined = Pdf.to_bytes(profile_document)?
+	declared = Pdf.to_bytes_with(profile_document, { wtpdf: DeclareAccessibility })?
 	ua = Str.to_utf8("<pdfuaid:part>2</pdfuaid:part>")
 	wtpdf = Str.to_utf8("<pdfd:conformsTo>http://pdfa.org/declarations/wtpdf#accessibility1.0</pdfd:conformsTo>")
 
@@ -3261,13 +3257,15 @@ expect {
 }
 
 # An incompatible WTPDF request fails both buffered and chunked entry points.
-expect {
-	options = Pdf.Options.{ wtpdf: DeclareAccessibility }
-	match (Pdf.to_bytes_with(profile_document, options), Pdf.to_chunks_with(profile_document, options)) {
-		(Err(InvalidDocument({ diagnostics: [{ code: ProfileRequirementViolated, feature: Feature("profile.wtpdf_accessibility"), .. }], .. })), Err(InvalidDocument({ diagnostics: [{ code: ProfileRequirementViolated, feature: Feature("profile.wtpdf_accessibility"), .. }], .. }))) => True
-		_ => False
-	}
-}
+expect [Pdf.Profile.Archive, Pdf.Profile.Standard].all(
+	|profile| {
+		options = Pdf.Options.{ profile, wtpdf: DeclareAccessibility }
+		match (Pdf.to_bytes_with(profile_document, options), Pdf.to_chunks_with(profile_document, options)) {
+			(Err(InvalidDocument({ diagnostics: [{ code: ProfileRequirementViolated, feature: Feature("profile.wtpdf_accessibility"), .. }], .. })), Err(InvalidDocument({ diagnostics: [{ code: ProfileRequirementViolated, feature: Feature("profile.wtpdf_accessibility"), .. }], .. }))) => True
+			_ => False
+		}
+	},
+)
 
 # An authored private-use scalar in a text string can reach ordinary Archive
 # output. The accessibility profile rejects it at the precise authoring path.
@@ -3282,11 +3280,11 @@ expect {
 	}
 }
 
-# Chunked facade output is byte-identical with buffered output.
+# Blank Archive chunked output is byte-identical with buffered output.
 expect {
 	document = Pdf.document({ contents: [], language: "en-AU", title: "Blank" })
-	expected = Pdf.to_bytes(document)?
-	var $encoder = Pdf.to_chunks(document)?
+	expected = Pdf.to_bytes_with(document, { profile: Archive })?
+	var $encoder = Pdf.to_chunks_with(document, { profile: Archive })?
 	var $actual = []
 	var $done = False
 	while $done == False {

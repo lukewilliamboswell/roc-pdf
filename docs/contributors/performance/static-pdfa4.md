@@ -1,10 +1,9 @@
 # Static PDF/A-4: the `Archive` profile and Gate 5 closure
 
-This slice makes the public `Archive` profile executable, closes Gate 5 on
-its declared basis, and advances `Pdf.Options.default` from `Standard` to
-`Archive`. `Archive` claims exactly `Pdf20 + StaticPdfA4`. `AccessibleArchive`
-still rejects until Gate 7, and `Standard` remains available as an explicit
-opt-out. Nothing ever falls back from one profile to another.
+`Archive` claims exactly `Pdf20 + StaticPdfA4` and remains available as an
+explicit profile. This record describes its Gate 5 validation and the
+associated historical default-profile evidence. The current production
+default is `AccessibleArchive`.
 
 ## Scope and non-goals
 
@@ -146,7 +145,7 @@ No bytes are emitted, and there is no rescan.
   information and are covered mechanically by construction: no `/RI` or `ri`
   is emitted, signatures are unrepresentable, and the whitelist rejects
   unlisted constructs. The entry stays `partial` until those requirements
-  are reconciled against the licensed edition before Gate 7. The published
+  are reconciled against the full purchased edition. The published
   preview ends at the start of clause 6.1.4 on cross-reference tables.
   The later technical requirements need the full edition. Australian and New
   Zealand library catalogues may list the identical adoption as
@@ -230,7 +229,7 @@ express, and facade links always print.
 
 `Pdf`:
 
-- default equals explicit Archive and declares the claim;
+- explicit Archive declares the claim;
 - Standard never declares it;
 - a blank Archive document validates.
 
@@ -406,16 +405,14 @@ the rerun passed.
 | Dimension | Status |
 | --- | --- |
 | Backend | Closed: typed claim, validation stages, exact lowering, ownership and allocation evidence |
-| Facade | Closed: `Archive` default and explicit opt-in; `Standard` opt-out; atomic diagnostics |
+| Facade | Explicit `Archive` and `Standard` options and atomic diagnostics |
 | Advanced integration | Not applicable: `Encode` has no profile input and remains `Standard`-only |
 | Conformance | `StaticPdfA4` closed on the pinned veraPDF PDF/A-4 profile basis, with ISO-text confirmation pending |
 | Reader and AT behavior | Not applicable to static PDF/A-4; the renderer matrix records interoperability |
 
 ## Exact remaining work
 
-- Confirm `ROC-PDF-PDFA4-ISO-TEXT-CONFIRMATION` against the licensed ISO
-  19005-4:2020 text before Gate 7's combined claim.
-- `AccessibleArchive` and the combined `StaticPdfA4 + PdfUa2` validation remain
-  Gate 7.
+- Confirm `ROC-PDF-PDFA4-ISO-TEXT-CONFIRMATION` against the full ISO
+  19005-4:2020 edition after acquisition.
 - A PDF/A claim through the advanced `Encode` boundary would need a typed
   claim input and the same two validation stages.

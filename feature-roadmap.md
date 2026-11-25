@@ -231,9 +231,9 @@ Gate 7, and each future slice records the readiness dimensions above.
    located `semantics.*` and `text.*` diagnostics. Explicit line breaks and a
    distinct face per inline role remain open; it closes no Gate 6 capability
    as a whole and makes no PDF/UA-2 claim.
-3. Close Gate 7 only when both branches and the business-document release
-   evidence are complete. New claims and defaults follow their original
-   explicit gate requirements.
+3. Close Gate 7 with the tested static archival subset, the direct accessibility
+   audit and the business-document release evidence. Track the remaining
+   full-text archival review separately as described under Gate 5.
 4. Select Gate 8 and 9 expansions from demonstrated application needs, retaining
    complete conformance and performance evidence for each accepted subset.
 
@@ -877,8 +877,8 @@ unavailable until their own gates close.
 ### Closure status
 
 Gate 5 is closed for static PDF/A-4 on the basis of the pinned veraPDF 1.30.2
-PDF/A-4 validation profile, and `Pdf.Options.default` now selects `Archive`
-(`Pdf20 + StaticPdfA4`). The slice record and evidence are in
+PDF/A-4 validation profile. Explicit `Archive` selects `Pdf20 + StaticPdfA4`.
+The slice record and evidence are in
 `docs/contributors/performance/static-pdfa4.md`:
 
 - a typed claim with PDF/A identification emitted only for a validated claim;
@@ -895,8 +895,9 @@ PDF/A-4 validation profile, and `Pdf.Options.default` now selects `Archive`
 Requirements of ISO 19005-4:2020 that the pinned validator profile does not
 encode were derived from public information and are covered mechanically by
 construction and the whitelist. They remain recorded as
-`ROC-PDF-PDFA4-ISO-TEXT-CONFIRMATION`, pending confirmation against the
-licensed standard text before Gate 7's combined claim.
+`ROC-PDF-PDFA4-ISO-TEXT-CONFIRMATION` for review after purchase of the full
+edition. Gate 7 accepts the implemented static subset on the available
+evidence and keeps this follow-up open.
 
 Arlington object-model validation of font-bearing output also found a
 pre-existing `Pdf20` defect: `CIDSystemInfo` `/Registry` and `/Ordering` were

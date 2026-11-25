@@ -2137,7 +2137,7 @@
     },
     {
       "id": "ROC-PDF-PDFA4-ISO-TEXT-CONFIRMATION",
-      "summary": "Requirements of ISO 19005-4:2020 that the pinned veraPDF profile does not encode (for example rendering-intent, digital-signature, and general clause text) are derived from public information and await confirmation against the licensed standard text.",
+      "summary": "The static PDF/A-4 claim uses the pinned validator profile and available public sources. Direct reconciliation of the remaining ISO 19005-4:2020 text follows when the full edition is acquired, including rendering intent, digital signatures and general file conditions.",
       "source_ids": [
         "iso-19005-4-2020"
       ],
@@ -2151,7 +2151,7 @@
       "implementation": "partial",
       "applicability": "pending_iso_confirmation",
       "machine_verification": "no_rendering_intent_operators_or_ri_entries_are_emitted; digital_signatures_unrepresentable; lowered_plan_whitelist_rejects_unlisted_constructs",
-      "human_verification": "clause_by_clause_confirmation_against_licensed_iso_19005_4_2020_text_pending_before_gate_7",
+      "human_verification": "Reconcile the full purchased ISO 19005-4:2020 edition clause by clause and add evidence for any newly identified applicable requirements.",
       "positive_scenarios": [
         "tests/archive/Cases.roc"
       ],
