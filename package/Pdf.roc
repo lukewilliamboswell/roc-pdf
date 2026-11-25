@@ -3240,6 +3240,19 @@ expect {
 	bytes.len() > 4717
 }
 
+# PDF literal escaping preserves the authored URI spelling and percent bytes.
+expect {
+	uri = "https://example.org/report(v2)?file=%2freports&caption=caf%C3%A9&sign=%25#summary"
+	doc = Pdf.document({
+		contents: [Pdf.link({ text: "Read the report", uri })],
+		language: "en-AU",
+		title: "URI byte preservation",
+	})
+	Pdf.Prepared.(plan) = Pdf.prepare(doc, { profile: Standard })?
+	objects = Str.from_utf8(KernelEmit.object_text(plan)?)?
+	objects.contains("/A << /S /URI /Type /Action /URI (https://example.org/report\\(v2\\)?file=%2freports&caption=caf%C3%A9&sign=%25#summary) >>")
+}
+
 # A navigation document's chunked output is byte-identical to its buffered
 # output under both retention policies.
 expect {

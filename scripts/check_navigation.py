@@ -18,8 +18,8 @@ that:
   `[structelem /XYZ x y null]` referencing a real structure element, and the
   two carry identical coordinates and resolve to the same page when /SD
   follows the element’s /K reading order (ISO 32000-2 12.3.2.3, pdf-issues #140);
-- every URI action is `/S /URI` with a byte-string URI and no other action
-  type appears anywhere;
+- each URI action carries its printable ASCII URI bytes, valid percent
+  escapes, and the default position-independent behavior;
 - the annotation `/StructParent` keys continue the ParentTree numbering
   after the per-page content-stream keys, each key maps to one direct
   structure-element reference, the owning Link structure element carries an
@@ -254,11 +254,18 @@ def check_annotation(structure_page, bodies, pages, structure_elements, number: 
     require(action_match is not None, "annotation missing /A action")
     action = action_match.group(1)
     if b"/S /URI" in action:
-        require(b"/Type /Action" in action, "URI action missing /Type")
+        uri_action = parse_object(body).get("A")
+        require(isinstance(uri_action, dict), "URI action must be a dictionary")
+        require(uri_action.get("S") == "URI" and uri_action.get("Type") == "Action", "invalid URI action type")
+        require(set(uri_action) <= {"S", "Type", "URI", "IsMap"}, "URI action has unexpected entries")
+        is_map = uri_action.get("IsMap")
+        require(is_map is None or is_map is False, "URI action must leave /IsMap false")
+        uri = uri_action.get("URI")
         require(
-            re.search(rb"/URI " + STRING, action) is not None,
-            "URI action missing byte-string URI",
+            isinstance(uri, bytes) and bool(uri) and all(33 <= byte <= 126 for byte in uri),
+            "URI action must carry printable ASCII URI bytes",
         )
+        require(re.search(rb"%(?![0-9A-Fa-f]{2})", uri) is None, "URI action has a malformed percent escape")
         destination = None
     else:
         require(b"/S /GoTo" in action, "unknown action type")
@@ -588,6 +595,26 @@ def self_test() -> None:
         check_navigation(pdf, {})
 
     showcase = SNAPSHOTS["showcase"].read_bytes()
+    uri_action_start = b"/A << /S /URI"
+    check_navigation(
+        layout_twin(showcase, uri_action_start, b"/A << /IsMap false /S /URI", exactly_once=True),
+        {},
+    )
+    authored_uri = b"/URI (https://example.org/reference?section=1&lang=en)"
+    uri_mutations = (
+        (uri_action_start, b"/A << /IsMap true /S /URI", "must leave /IsMap false"),
+        (authored_uri, b"/URI <FEFF004100420043>", "must carry printable ASCII URI bytes"),
+        (authored_uri, authored_uri.replace(b"=1", b"=%2G"), "has a malformed percent escape"),
+    )
+    for original, replacement, message in uri_mutations:
+        twin = layout_twin(showcase, original, replacement, exactly_once=True)
+        try:
+            check_navigation(twin, {})
+        except ValidationError as error:
+            require(message in str(error), "URI action twin rejected for a different reason")
+        else:
+            raise SystemExit(f"navigation checker accepted URI action that {message}")
+
     wide = SNAPSHOTS["outline_wide_64"].read_bytes()
     _, wide_objects = object_slices(wide)
     wide_root = next(body.split(b"\n", 1)[0] for body in wide_objects.values() if b"/Type /Outlines" in body)
@@ -657,11 +684,11 @@ def self_test() -> None:
             continue
         raise SystemExit(f"page-label checker accepted /St {token!r}")
     print(
-        "PASS production-visual navigation structural checker self-test: paired /SD + /D "
+        "PASS production-visual navigation structural checker self-test: URI actions, paired /SD + /D "
         "actions, keyboard-ordered /Annots, OBJR/ParentTree linkage, the "
         "named-destination registry, outline preorder counts, page labels, "
         f"and appearance geometry verified on {len(SNAPSHOTS)} snapshots; "
-        f"{len(mutations) + len(page_mismatches)} mutation twins rejected",
+        f"{len(mutations) + len(page_mismatches) + len(uri_mutations)} mutation twins rejected",
         flush=True,
     )
 
