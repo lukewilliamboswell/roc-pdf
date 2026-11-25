@@ -89,10 +89,15 @@ rejected.
 `containment_row` is a 28 × 28 bit matrix transcribed from ISO/TS 32005:2023
 Table 5 as encoded by the pinned veraPDF 1.30.2 `PDFUA-2-ISO32005.xml` rules
 ("Table 5. <Parent>-<Child>"). Each child edge costs one role lookup and one
-bit test. The same walk enforces:
+bit test. A Part uses the nearest non-Part ancestor's containment row for
+its own direct child roles and cardinality. Its parent link and reading order
+remain explicit. The walk records that role in the same visit
+([PDF 2.0 Table 365](https://github.com/pdf-association/pdf-issues/blob/8766b0a5f9929be3f29b80981ecc8e671e96151c/docs/32000-2-2020/clause14.md#L869-L879)).
+The same walk enforces:
 
 - the Table 5 content-item rows plus PDF/UA-2 8.2.5.25: no content items in
   Document, DocumentFragment, Sect, L, LI, Table, THead, TBody, TFoot, or TR;
+- the Annex L prohibition on content items in Part;
 - the at-most-one rows (one generic H, one Caption, one THead, one TFoot, and
   one Sect per heading, as tabulated);
 - PDF/UA-2 8.2.5.27: a Caption is the first or last child.

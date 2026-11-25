@@ -19,6 +19,7 @@ import DenseSpanProof
 import DocumentBuilderModel
 import PageBreakModel
 import PageTreeProof
+import PartContainmentModel
 import ReferenceWrapModel
 import ResourceGraphModel
 import StreamSealModel

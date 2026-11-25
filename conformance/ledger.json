@@ -2378,6 +2378,7 @@
       "references": [
         "ISO 14289-2:2024 8.2.5.25",
         "ISO 14289-2:2024 8.2.5.27",
+        "ISO 32000-2:2020 14.8.4.4 Table 365 and Annex L",
         "ISO/TS 32005:2023 Table 5",
         "development/performance/semantic-foundation.md"
       ],
@@ -2387,7 +2388,7 @@
       ],
       "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "dense_bit_matrix_one_check_per_edge; legal_and_illegal_matrix_expect; kernel_store_negatives_for_edges_content_items_cardinality_and_caption_position; independent_checker_table_compared_with_the_pinned_veraPDF_ISO32005_profile_on_784_role_pairs; mutation_twins",
+      "machine_verification": "dense_bit_matrix_one_check_per_edge; bounded_model_for_nested_Part_containment; legal_and_illegal_matrix_expect; kernel_store_negatives_for_edges_content_items_cardinality_and_caption_position; independent_checker_table_compared_with_the_pinned_veraPDF_ISO32005_profile_on_784_role_pairs; mutation_twins",
       "human_verification": "not_required",
       "positive_scenarios": [
         "package/KernelSemantics.roc",

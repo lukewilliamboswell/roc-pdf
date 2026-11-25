@@ -140,7 +140,8 @@ KernelSemantics :: [].{
 
 ## `language_owner` is the nearest ancestor with an explicit language, or
 ## `U64.highest` when the node inherits only the document default.
-NodeFrame := { depth : U64, language_owner : U64, node : Semantics.NodeId, role : U64 }
+## Both role codes fit in one byte, including the unknown-role sentinel.
+NodeFrame := { containment_role : U8, depth : U64, language_owner : U64, node : Semantics.NodeId, role : U8 }
 
 PendingCaption := [NoPendingCaption, PendingCaption(U64)]
 
@@ -520,7 +521,8 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 		var $attribute_owners = List.repeat(0, store.attributes.len())
 		var $identifier_owners = List.repeat(0, store.element_identifiers.len())
 		root = list_at(store.nodes, store.document_root.index())
-		var $frames = [NodeFrame.{ depth: 1, language_owner: U64.highest, node: store.document_root, role: role_index(root.role.local_name) }]
+		root_role = role_index(root.role.local_name).to_u8_wrap()
+		var $frames = [NodeFrame.{ containment_role: root_role, depth: 1, language_owner: U64.highest, node: store.document_root, role: root_role }]
 		var $frame_index = 0
 		var $content_visits = 0
 		var $attribute_visits = 0
@@ -529,6 +531,8 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 		var $maximum_depth = 0
 		while $frame_index < $frames.len() {
 			frame = list_at($frames, $frame_index)
+			role = frame.role.to_u64()
+			containment_role = frame.containment_role.to_u64()
 			node_index = frame.node.index()
 			if frame.depth > max_depth {
 				return Err(LimitExceeded({ attempted: frame.depth, dimension: SemanticDepth, limit: max_depth }))
@@ -539,7 +543,7 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 					$node_owners = list_set($node_owners, node_index, 1)
 					node = list_at(store.nodes, node_index)
 					is_root = node_index == store.document_root.index()
-					if !role_enabled(frame.role, node.role.namespace.index(), is_root, text_allowed, navigation) {
+					if !role_enabled(role, node.role.namespace.index(), is_root, text_allowed, navigation) {
 						return Err(UnsupportedRole({ node: node_index }))
 					} else if node.text_properties.length() != 0 and !text_allowed {
 						return Err(UnsupportedStoreContent)
@@ -578,6 +582,8 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 														match item {
 															AnnotationOccurrence(annotation_id) => if !navigation {
 																return Err(UnsupportedAnnotation({ content: $content_index }))
+															} else if role == role_part {
+																return Err(IllegalContentItem({ content: $content_index, node: node_index }))
 															} else {
 																annotation_index = annotation_id.index()
 																if annotation_index >= $annotation_owners.len() {
@@ -608,7 +614,7 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 																			child_role = role_index(child_node.role.local_name)
 																			child_bit = role_bit(child_role)
 																			$containment_edges = $containment_edges + 1
-																			if child_role != unknown_role and !may_contain(frame.role, child_role) {
+																			if child_role != unknown_role and !may_contain(containment_role, child_role) {
 																				return Err(IllegalContainment({ child: child_index, parent: node_index }))
 																			} else if $limited_seen.bitwise_and(child_bit) != 0 {
 																				return Err(DuplicateChildRole({ child: child_index, parent: node_index }))
@@ -618,7 +624,7 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 																						return Err(CaptionPosition({ caption, parent: node_index }))
 																					}
 																					NoPendingCaption => {
-																						$limited_seen = $limited_seen.bitwise_or(at_most_one_children(frame.role).bitwise_and(child_bit))
+																						$limited_seen = $limited_seen.bitwise_or(at_most_one_children(containment_role).bitwise_and(child_bit))
 																						if child_role == role_caption and $child_position > 0 {
 																							$pending_caption = PendingCaption(child_index)
 																						}
@@ -628,7 +634,10 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 																							Language(_) => node_index
 																							Inherited => frame.language_owner
 																						}
-																						$frames = $frames.append(NodeFrame.{ depth, language_owner, node: child, role: child_role })
+																						# A Part inherits the child-role containment of the nearest non-Part ancestor (ISO 32000-2 Table 365).
+																						compact_role = child_role.to_u8_wrap()
+																						child_containment = if (child_role == role_part) frame.containment_role else compact_role
+																						$frames = $frames.append(NodeFrame.{ containment_role: child_containment, depth, language_owner, node: child, role: compact_role })
 																					}
 																				}
 																			}
@@ -638,7 +647,7 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 															}
 															ContentOccurrence(occurrence) => {
 																occurrence_index = occurrence.index()
-																if forbids_content_items(frame.role) {
+																if role == role_part or forbids_content_items(role) {
 																	return Err(IllegalContentItem({ content: $content_index, node: node_index }))
 																} else if occurrence_index >= $occurrence_owners.len() {
 																	return Err(IndexOutOfRange({ available: $occurrence_owners.len(), index: occurrence_index, kind: OccurrenceIndex }))
@@ -1165,7 +1174,7 @@ role_index = |name| {
 	} else if name == "Div" {
 		4
 	} else if name == "Part" {
-		2
+		role_part
 	} else if name == "Title" {
 		5
 	} else if name == "Figure" {
@@ -1237,6 +1246,9 @@ role_th = 26
 
 role_td : U64
 role_td = 27
+
+role_part : U64
+role_part = 2
 
 unknown_role : U64
 unknown_role = 63
@@ -1690,6 +1702,18 @@ expect {
 	KernelSemantics.Plan.work(plan).annotation_visits == 2 and rejected
 }
 
+# Annex L also excludes object reference content items directly in Part.
+expect {
+	node = list_at(navigation_store.nodes, 1)
+	nodes = list_set(navigation_store.nodes, 1, { ..node, role: { ..node.role, local_name: "Part" } })
+	content_spine = [ChildNode(Semantics.NodeId.from_index(1)), ContextualArtifact(Semantics.ContextualArtifactId.from_index(0)), AnnotationOccurrence(Semantics.AnnotationId.from_index(0)), ContentOccurrence(Semantics.OccurrenceId.from_index(0)), ContentOccurrence(Semantics.OccurrenceId.from_index(1))]
+	bad = { ..navigation_store, nodes, content_spine }
+	match KernelSemantics.Plan.build_text_navigation(bad, [], 1, 1, navigation_limits) {
+		Err(IllegalContentItem({ content: 2, node: 1 })) => True
+		_ => False
+	}
+}
+
 # The Link role is accepted only when navigation is enabled.
 expect {
 	link_node = list_at(navigation_store.nodes, 1)
@@ -1926,7 +1950,7 @@ expect {
 	}
 }
 
-# Document, Sect, L, LI, Table, and row groups cannot own content items.
+# Document, Part, Sect, L, LI, Table, and row groups cannot own content items.
 expect {
 	sect = shaped_store([{ parent: 0, role: "Document" }, { parent: 0, role: "Sect" }], 1)
 	item = shaped_store([{ parent: 0, role: "Document" }, { parent: 0, role: "L" }, { parent: 1, role: "LI" }], 2)
@@ -1939,11 +1963,11 @@ expect {
 		Err(IllegalContentItem({ content: 2, node: 2 })) => True
 		_ => False
 	}
-	part_accepted = match build_shaped(part) {
-		Ok(_) => True
-		Err(_) => False
+	part_rejected = match build_shaped(part) {
+		Err(IllegalContentItem({ content: 1, node: 1 })) => True
+		_ => False
 	}
-	sect_rejected and item_rejected and part_accepted
+	sect_rejected and item_rejected and part_rejected
 }
 
 # At-most-one child rules and the first-or-last Caption rule.
@@ -2161,4 +2185,15 @@ expect {
 		_ => False
 	}
 	missing and orphan
+}
+
+# A Part inherits the effective parent's cardinality for its direct children.
+expect {
+	single = [{ parent: 0, role: "Document" }, { parent: 0, role: "Part" }, { parent: 1, role: "Part" }, { parent: 2, role: "H" }]
+	plan = build_shaped(shaped_store(single, 3))?
+	KernelSemantics.Plan.work(plan).containment_edges == 3 and
+		match build_shaped(shaped_store(single.append({ parent: 2, role: "H" }), 3)) {
+			Err(DuplicateChildRole({ child: 4, parent: 2 })) => True
+			_ => False
+		}
 }
