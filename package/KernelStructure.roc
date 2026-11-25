@@ -138,6 +138,10 @@ KernelStructure :: [].{
 		}
 	}
 
+	## Page-count cap enforced by the structural blank-plan entry points.
+	max_pages : U64
+	max_pages = 1048576
+
 	build_blank : U64, PageSize -> Try(Plan, Error)
 	build_blank = |page_count, page_size| {
 		if page_count == 0 {
@@ -177,9 +181,6 @@ KernelStructure :: [].{
 	}
 }
 
-max_pages : U64
-max_pages = 1048576
-
 build_nonempty : U64, KernelStructure.PageSize, ContentPlan, DocumentFacts -> Try(KernelStructure.Plan, KernelStructure.Error)
 build_nonempty = |page_count, page_size, content_plan, facts| {
 	payload_bytes = content_plan_bytes(content_plan).len()
@@ -188,7 +189,7 @@ build_nonempty = |page_count, page_size, content_plan, facts| {
 	payload_output_total = checked_times(page_count, payload_output)?
 	facts_bound = facts_output_bound(facts)?
 	output_bound = checked_add(checked_add(blank_output_bound(page_count)?, payload_output_total)?, facts_bound)?
-	shape = KernelBalanced.Shape.build(page_count, max_pages) ? Shape
+	shape = KernelBalanced.Shape.build(page_count, KernelStructure.max_pages) ? Shape
 	leaf_level = KernelBalanced.Shape.leaf_level(shape)
 	leaf_count = KernelBalanced.Shape.level_node_count(shape, leaf_level)
 	node_count = KernelBalanced.Shape.node_count(shape)
@@ -950,13 +951,13 @@ expect match KernelStructure.build_blank(0, A4) {
 }
 
 # The explicit page limit rejects oversized work before allocating stores.
-expect match KernelStructure.build_blank(max_pages + 1, A4) {
-	Err(PageLimitExceeded({ attempted, limit })) => attempted == max_pages + 1 and limit == max_pages
+expect match KernelStructure.build_blank(KernelStructure.max_pages + 1, A4) {
+	Err(PageLimitExceeded({ attempted, limit })) => attempted == KernelStructure.max_pages + 1 and limit == KernelStructure.max_pages
 	_ => False
 }
 
 # The maximum accepted plan fixes a checked pre-emission output bound.
-expect blank_output_bound(max_pages) == Ok(1073745920)
+expect blank_output_bound(KernelStructure.max_pages) == Ok(1073745920)
 
 # An unchanged stream extends the sealed bound and identity without copying its bytes.
 expect {
