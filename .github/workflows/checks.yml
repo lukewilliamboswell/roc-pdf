@@ -86,8 +86,6 @@ jobs:
       - name: Install Blueprint
         uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@2b0ffc9c556f465759ca81055bb819c7e15624eb
         with:
-          sha256-x86_64-linux: 75c0bafa081773da2a6210b5238ab6da0eef87ece8d4acecf7ad497e03adf796
-          sha256-aarch64-darwin: 0e7cc549582871410c4330e9d3f7970515fb83239057c274f524ecdaa15ea05d
           cache: "true"
           cache-workload: dev
 
@@ -163,8 +161,6 @@ jobs:
       - name: Install Blueprint
         uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@2b0ffc9c556f465759ca81055bb819c7e15624eb
         with:
-          sha256-x86_64-linux: 75c0bafa081773da2a6210b5238ab6da0eef87ece8d4acecf7ad497e03adf796
-          sha256-aarch64-darwin: 0e7cc549582871410c4330e9d3f7970515fb83239057c274f524ecdaa15ea05d
           cache: "true"
           cache-workload: dev
 
@@ -293,8 +289,6 @@ jobs:
         with:
           python-version: 3.14.0
       - uses: lukewilliamboswell/roc-automation/actions/setup-blueprint@2b0ffc9c556f465759ca81055bb819c7e15624eb
-        with:
-          sha256-x86_64-linux: 75c0bafa081773da2a6210b5238ab6da0eef87ece8d4acecf7ad497e03adf796
       - name: Read pinned compiler
         run: printf 'ROC_NIGHTLY_TAG=%s\n' "$(cat .roc-version)" >> "$GITHUB_ENV"
       - uses: lukewilliamboswell/roc-automation/actions/setup-roc-nightly@dd30a5dd576973b6e224db70d96e3e12c96bcc95
