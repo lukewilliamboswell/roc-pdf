@@ -22,6 +22,12 @@ must be contained by media; bleed, trim, and art must each be contained by
 crop. Validation performs five box checks, four containment checks, and twenty
 coordinate checks per page, with no geometry-dependent allocation.
 
+`fuzz/PageViewport.roc` checks the exact emitted box corners and rotation for
+negative and fractional origins. The checker follows the catalog and page
+tree to the page dictionary, where absent production boxes resolve to the
+crop box under ISO 32000-2 Table 31. It also checks both inclusive custom
+size limits through the public facade.
+
 Analytical point transforms have constant work and allocate no collections.
 Overflow is a typed failure rather than wrapped geometry. Later path and scene
 validation consumes these page and path arenas directly with indexed loops and

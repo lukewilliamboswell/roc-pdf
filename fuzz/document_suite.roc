@@ -26,6 +26,7 @@ import OutlineModel
 import PageBreakModel
 import PageLabelModel
 import PageTreeProof
+import PageViewport
 import ReferenceWrapModel
 import ResourceGraphModel
 import StreamSealModel

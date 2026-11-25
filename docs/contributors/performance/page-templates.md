@@ -379,8 +379,8 @@ change is the size table in `Pdf.layout_page_size` plus two authoring
 checks before any stage runs:
 
 - `layout.page_size` (`options.page_size`): a custom side that is not a
-  whole number of points from 3 to 14,400 pt (the PDF user-space page
-  limits). Whole points keep the blank-document page box
+  whole number of points from 3 to 14,400 pt (the facade's portability
+  range). Whole points keep the blank-document page box
   (`KernelStructure.PageSize.Points`) an integer and give the document
   identifier an exact width and height: a size other than A4 or Letter
   contributes geometry code 3 and both sides to the identifier facts, so

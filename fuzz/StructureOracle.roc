@@ -141,29 +141,57 @@ StructureOracle :: [].{
 	## object-stream locations. Callers supply complete emitted PDF bytes.
 	outline_root_count : List(U8) -> Try([NoCount, Count(U64)], Failure)
 	outline_root_count = |bytes| {
-		if bytes.len() < 21 {
-			return Err(TooShort)
-		}
-		startxref = read_startxref(bytes)?
-		header = read_object_header(bytes, startxref.xref_offset, bytes.len()) ? |_| BadXrefFraming
-		xref = read_xref_dictionary(bytes, header.body, bytes.len())?
-		start = xref.end + stream_keyword_bytes.len()
-		rows = inflate(bytes, start, xref.length) ? |_| BadXrefFraming
-		entries = read_entries(rows, xref)?
-		catalog = member_dictionary(bytes, entries, startxref.xref_offset, xref.root)?
-		index = match top_key_index(catalog.content, catalog.keys, Str.to_utf8("Outlines")) {
-			Missing => return Err(BadToken(xref.root))
-			Found(found) => found
-		}
-		if !is_reference(catalog.tokens, index) {
-			return Err(BadToken(xref.root))
-		}
-		outline_number = list_at(catalog.tokens, index).value
-		outline = member_dictionary(bytes, entries, startxref.xref_offset, outline_number)?
+		{ catalog, entries, offset, root } = catalog_directory(bytes)?
+		outline_number = dictionary_reference(catalog, "Outlines", root)?
+		outline = member_dictionary(bytes, entries, offset, outline_number)?
 		match top_key_value(outline.content, outline.tokens, outline.keys, Str.to_utf8("Count")) {
 			Missing => Ok(NoCount)
 			Found(token) => if (token.kind == IntegerToken) Ok(Count(token.value)) else Err(BadToken(outline_number))
 		}
+	}
+
+	Viewport : { art : List(Dec), bleed : List(Dec), crop : List(Dec), media : List(Dec), rotation : [Degrees(U64), DefaultRotation], trim : List(Dec) }
+
+	## Read direct viewport entries on the one-page fixture path. An empty
+	## list records an omitted optional rectangle rather than its default.
+	single_page_viewport : List(U8) -> Try(Viewport, Failure)
+	single_page_viewport = |bytes| {
+		{ catalog, entries, offset, root } = catalog_directory(bytes)?
+		pages_number = dictionary_reference(catalog, "Pages", root)?
+		pages = member_dictionary(bytes, entries, offset, pages_number)?
+		kids_index = key_index(pages, "Kids", pages_number)?
+		if kids_index + 4 >= pages.tokens.len() or list_at(pages.tokens, kids_index).kind != ArrayOpen or !is_reference(pages.tokens, kids_index + 1) or list_at(pages.tokens, kids_index + 4).kind != ArrayClose {
+			return Err(BadToken(pages_number))
+		}
+		page_number = list_at(pages.tokens, kids_index + 1).value
+		page = member_dictionary(bytes, entries, offset, page_number)?
+		parent = dictionary_reference(page, "Parent", page_number)?
+		if parent != pages_number {
+			return Err(BadToken(page_number))
+		}
+		page_type = key_index(page, "Type", page_number)?
+		type_token = list_at(page.tokens, page_type)
+		if type_token.kind != NameToken or !region_equals(page.content, type_token.start, type_token.len, Str.to_utf8("Page")) {
+			return Err(BadToken(page_number))
+		}
+		media = dictionary_rectangle(page, "MediaBox", page_number)?
+		if media.is_empty() {
+			return Err(BadToken(page_number))
+		}
+		crop = dictionary_rectangle(page, "CropBox", page_number)?
+		bleed = dictionary_rectangle(page, "BleedBox", page_number)?
+		trim = dictionary_rectangle(page, "TrimBox", page_number)?
+		art = dictionary_rectangle(page, "ArtBox", page_number)?
+		rotation = match top_key_value(page.content, page.tokens, page.keys, Str.to_utf8("Rotate")) {
+			Missing => DefaultRotation
+			Found(token) => {
+				if token.kind != IntegerToken {
+					return Err(BadToken(page_number))
+				}
+				Degrees(token.value)
+			}
+		}
+		Ok({ art, bleed, crop, media, rotation, trim })
 	}
 
 	## The boolean form, for callers that only need the verdict.
@@ -610,8 +638,54 @@ inspect_objects = |bytes, entries, sorted_starts, dictionary, xref_object, xref_
 	Ok({})
 }
 
-# Catalog and outline dictionaries are emitted as object-stream members.
-member_dictionary : List(U8), List(Entry), U64, U64 -> Try({ content : List(U8), keys : List(TopKey), tokens : List(Token) }, StructureOracle.Failure)
+MemberDictionary : { content : List(U8), keys : List(TopKey), tokens : List(Token) }
+
+catalog_directory : List(U8) -> Try({ catalog : MemberDictionary, entries : List(Entry), offset : U64, root : U64 }, StructureOracle.Failure)
+catalog_directory = |bytes| {
+	if bytes.len() < 21 {
+		return Err(TooShort)
+	}
+	startxref = read_startxref(bytes)?
+	offset = startxref.xref_offset
+	header = read_object_header(bytes, offset, bytes.len()) ? |_| BadXrefFraming
+	xref = read_xref_dictionary(bytes, header.body, bytes.len())?
+	start = xref.end + stream_keyword_bytes.len()
+	rows = inflate(bytes, start, xref.length) ? |_| BadXrefFraming
+	entries = read_entries(rows, xref)?
+	catalog = member_dictionary(bytes, entries, offset, xref.root)?
+	Ok({ catalog, entries, offset, root: xref.root })
+}
+
+key_index : MemberDictionary, Str, U64 -> Try(U64, StructureOracle.Failure)
+key_index = |dictionary, name, number| match top_key_index(dictionary.content, dictionary.keys, Str.to_utf8(name)) {
+	Missing => Err(BadToken(number))
+	Found(index) => Ok(index)
+}
+
+dictionary_reference : MemberDictionary, Str, U64 -> Try(U64, StructureOracle.Failure)
+dictionary_reference = |dictionary, name, number| {
+	index = key_index(dictionary, name, number)?
+	if (is_reference(dictionary.tokens, index)) Ok(list_at(dictionary.tokens, index).value) else Err(BadToken(number))
+}
+
+dictionary_rectangle : MemberDictionary, Str, U64 -> Try(List(Dec), StructureOracle.Failure)
+dictionary_rectangle = |dictionary, name, number| {
+	index = match top_key_index(dictionary.content, dictionary.keys, Str.to_utf8(name)) {
+		Missing => return Ok([])
+		Found(value) => value
+	}
+	if index + 5 >= dictionary.tokens.len() or list_at(dictionary.tokens, index).kind != ArrayOpen or list_at(dictionary.tokens, index + 5).kind != ArrayClose {
+		return Err(BadToken(number))
+	}
+	a = token_decimal(dictionary.content, list_at(dictionary.tokens, index + 1))?
+	b = token_decimal(dictionary.content, list_at(dictionary.tokens, index + 2))?
+	c = token_decimal(dictionary.content, list_at(dictionary.tokens, index + 3))?
+	d = token_decimal(dictionary.content, list_at(dictionary.tokens, index + 4))?
+	Ok([a, b, c, d])
+}
+
+# Catalog, outline, and page dictionaries are emitted as object-stream members.
+member_dictionary : List(U8), List(Entry), U64, U64 -> Try(MemberDictionary, StructureOracle.Failure)
 member_dictionary = |bytes, entries, xref, number| {
 	entry = entries.get(number) ? |_| BadXrefEntry(number)
 	if entry.kind != 2 {

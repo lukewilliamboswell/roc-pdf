@@ -66,9 +66,8 @@ Pdf :: [].{
 
 	## The size of every page. `A4` is 595 × 842 pt and `Letter` 612 × 792 pt;
 	## `A4Landscape` and `LetterLandscape` swap their width and height.
-	## `Custom` is any other size in whole points from 3 to 14,400 on each
-	## side (the PDF user-space page limits); anything else is
-	## `layout.page_size`. The theme's margins and page templates apply to
+	## `Custom` accepts whole-point sides from 3 to 14,400 for portability.
+	## Other dimensions produce `layout.page_size`. Margins and page templates apply to
 	## every size unchanged, so a size too small for them is rejected by the
 	## ordinary layout checks, never shrunk.
 	PageSize := [A4, A4Landscape, Custom({ height : Layout.Unit, width : Layout.Unit }), Letter, LetterLandscape].{
