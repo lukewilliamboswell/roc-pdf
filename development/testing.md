@@ -281,8 +281,10 @@ packaging. The current writer emits one stream per page in this path and keeps
 each text object within it. Its graphics scopes wrap complete text objects.
 The rule that graphics save and restore inside a text object also preserve
 both text matrices is outside this emitted model. Compatibility sections and
-operand semantics are outside its observed operator set. [§9.4.1](https://pdf-issues.pdfa.org/32000-2-2020/clause09.html#H9.4.1).
-
+operand semantics are outside its observed operator set. The stack allows text
+state changes outside a text object, while the emitted trace checks where the
+current writer places them. Positioning and showing text require an open
+text object. [ISO 32000-2:2020 §§9.3–9.4 and EC3](https://pdfa.org/resource/iso-32000-2/).
 
 ## Property fuzz targets
 

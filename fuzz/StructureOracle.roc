@@ -63,7 +63,7 @@ StructureOracle :: [].{
 	check = |bytes| inspect_document(bytes)
 
 	## The paired and text-only operators used by the generated content subset.
-	ScopeOperator : [BeginGraphics, EndGraphics, BeginMarked, EndMarked, BeginText, EndText, UseText]
+	ScopeOperator : [BeginGraphics, EndGraphics, BeginMarked, EndMarked, BeginText, EndText, SetTextState, UseText]
 
 	content_scope_operators : List(U8) -> Try(List(ScopeOperator), Failure)
 	content_scope_operators = |bytes| {
@@ -811,7 +811,9 @@ scope_operator = |bytes, token| {
 		Some(BeginText)
 	} else if region_equals(bytes, start, len, Str.to_utf8("ET")) {
 		Some(EndText)
-	} else if region_equals(bytes, start, len, Str.to_utf8("Tf")) or region_equals(bytes, start, len, Str.to_utf8("Tr")) or region_equals(bytes, start, len, Str.to_utf8("Tm")) or region_equals(bytes, start, len, Str.to_utf8("Td")) or region_equals(bytes, start, len, Str.to_utf8("Tj")) or region_equals(bytes, start, len, Str.to_utf8("TJ")) {
+	} else if region_equals(bytes, start, len, Str.to_utf8("Tf")) or region_equals(bytes, start, len, Str.to_utf8("Tr")) {
+		Some(SetTextState)
+	} else if region_equals(bytes, start, len, Str.to_utf8("Tm")) or region_equals(bytes, start, len, Str.to_utf8("Td")) or region_equals(bytes, start, len, Str.to_utf8("Tj")) or region_equals(bytes, start, len, Str.to_utf8("TJ")) {
 		Some(UseText)
 	} else {
 		None

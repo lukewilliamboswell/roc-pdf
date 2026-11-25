@@ -54,6 +54,7 @@ check = |streams| {
 					}
 					$stack = $stack.drop_last(1)
 				}
+				AllowAnywhere => {}
 				ReadText => if !$stack.contains(TextObject) {
 					return Err(TextOperatorOutside({ operator: $index, stream: $stream }))
 				}
@@ -71,7 +72,7 @@ check = |streams| {
 	if ($stack.is_empty()) Ok({}) else Err(UnclosedGraphics)
 }
 
-stack_action : Operator -> [Pop(Scope), Push(Scope), ReadText]
+stack_action : Operator -> [AllowAnywhere, Pop(Scope), Push(Scope), ReadText]
 stack_action = |operator| match operator {
 	BeginGraphics => Push(Graphics)
 	EndGraphics => Pop(Graphics)
@@ -79,6 +80,7 @@ stack_action = |operator| match operator {
 	EndMarked => Pop(Marked)
 	BeginText => Push(TextObject)
 	EndText => Pop(TextObject)
+	SetTextState => AllowAnywhere
 	UseText => ReadText
 }
 
@@ -90,6 +92,8 @@ expect check([[BeginMarked, BeginGraphics, EndMarked, EndGraphics]]) == Err(Cros
 expect check([[BeginGraphics]]) == Err(UnclosedGraphics)
 expect check([[BeginText, BeginText, EndText, EndText]]) == Err(NestedText({ operator: 1, stream: 0 }))
 expect check([[BeginText, BeginGraphics, EndGraphics, EndText]]) == Ok({})
+expect check([[SetTextState, BeginText, UseText, EndText]]) == Ok({})
+expect check([[UseText]]) == Err(TextOperatorOutside({ operator: 0, stream: 0 }))
 
 # Scope-like bytes in an operand do not become operators.
 expect StructureOracle.content_scope_operators(Str.to_utf8("/Span << /Literal (Q BT ET EMC) /Name /q >> BDC\nEMC\n")) == Ok([BeginMarked, EndMarked])
@@ -152,7 +156,7 @@ expected = |world| {
 	if world.actual {
 		$text = $text.append(BeginMarked)
 	}
-	$text = $text.concat([BeginText, UseText, UseText, UseText, EndText])
+	$text = $text.concat([BeginText, SetTextState, SetTextState, UseText, EndText])
 	if world.actual {
 		$text = $text.append(EndMarked)
 	}
