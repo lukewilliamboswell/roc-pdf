@@ -13,6 +13,7 @@ import KernelFontPlan
 import KernelMetadata
 import KernelNavigation
 import KernelPdfA4
+import KernelPdfUa2
 import KernelSrgbProfile
 import KernelXmp
 import Metadata
@@ -1042,7 +1043,11 @@ build_plan = |doc, options| {
 	})
 	font_page_size = options.page_size
 	font_compression = options.compression
-	planned = resolve_font_plan(Document.normalize(doc), { options: options, doc: doc })?
+	authoring = Document.normalize(doc)
+	if options.profile == AccessibleArchive {
+		validate_accessible_authoring(authoring)?
+	}
+	planned = resolve_font_plan(authoring, { options: options, doc: doc })?
 	font_selection = planned.fonts
 	font_theme = planned.theme
 	font_sources = planned.authoring.sources
@@ -1172,7 +1177,11 @@ build_reporting_plan = |doc, options| {
 	})
 	font_page_size = options.page_size
 	font_compression = options.compression
-	planned = resolve_font_plan(Document.normalize(doc), { options: options, doc: doc })?
+	authoring = Document.normalize(doc)
+	if options.profile == AccessibleArchive {
+		validate_accessible_authoring(authoring)?
+	}
+	planned = resolve_font_plan(authoring, { options: options, doc: doc })?
 	font_selection = planned.fonts
 	font_theme = planned.theme
 	font_sources = planned.authoring.sources
@@ -1198,7 +1207,104 @@ validate_lowered_plan = |claims, packet, plan| {
 		return Err(InternalGenerationFailure)
 	}
 	_work = KernelPdfA4.validate_lowered(claims.archive, { packet, root: KernelStructure.Plan.root(plan), sealed: KernelStructure.Plan.sealed(plan) }) ? |violation| InvalidDocument(profile_batch(violation, LoweredPlanValidation))
+	match claims.identification {
+		AccessibleArchiveIdentification | AccessibleArchiveWithWtpdf => KernelPdfUa2.validate_lowered(KernelStructure.Plan.sealed(plan), KernelStructure.Plan.root(plan)).map_err(|violation| InvalidDocument(accessibility_plan_batch(violation)))
+		_ => Ok({})
+	}
+}
+
+accessibility_plan_batch : KernelPdfUa2.Violation -> Conformance.DiagnosticBatch
+accessibility_plan_batch = |{ position, requirement }| {
+	clause = KernelPdfUa2.clause(requirement)
+	message = "AccessibleArchive requires that ${KernelPdfUa2.summary(requirement)} (${clause}). No PDF bytes were emitted."
+	{
+		detail_bytes: message.count_utf8_bytes(),
+		diagnostics: [
+			{
+				clause_references: [clause],
+				code: ProfileRequirementViolated,
+				details: [],
+				feature: Feature("profile.accessible_archive"),
+				location: if (requirement == PageTabs) Page(position) else Document,
+				message,
+				requirement_ids: [KernelPdfUa2.requirement_code(requirement)],
+				stage: LoweredPlanValidation,
+			},
+		],
+		truncation: Complete,
+	}
+}
+
+validate_accessible_authoring : Document.NormalizedAuthoring -> Try({}, Pdf.Error)
+validate_accessible_authoring = |authoring| {
+	var $index = 0
+	for entry in authoring.outline {
+		match KernelPdfUa2.private_use_offset(entry.title) {
+			PrivateUse(offset) => return Err(accessibility_private_use("outline[${$index.to_str()}].title", offset))
+			NoPrivateUse => {}
+		}
+		$index = $index + 1
+	}
+	$index = 0
+	for label in authoring.page_labels {
+		match KernelPdfUa2.private_use_offset(label.prefix) {
+			PrivateUse(offset) => return Err(accessibility_private_use("page_labels[${$index.to_str()}].prefix", offset))
+			NoPrivateUse => {}
+		}
+		$index = $index + 1
+	}
+	$index = 0
+	for block in authoring.blocks {
+		match block.kind {
+			Figure(figure_index) => {
+				figure = authoring.figures.get(figure_index) ?? crash "normalized figure identity escaped"
+				match KernelPdfUa2.private_use_offset(figure.alternative) {
+					PrivateUse(offset) => return Err(accessibility_private_use(leaf_path_normalized(authoring, $index), offset))
+					NoPrivateUse => {}
+				}
+			}
+			RichParagraph(paragraph) => {
+				rich = authoring.rich_paragraphs.get(paragraph) ?? crash "normalized rich paragraph identity escaped"
+				var $inline = rich.inlines
+				while $inline < rich.inlines + rich.length {
+					kind = (authoring.inlines.get($inline) ?? crash "normalized inline identity escaped").kind
+					match kind {
+						Expansion(text) => match KernelPdfUa2.private_use_offset(text) {
+							PrivateUse(offset) => return Err(accessibility_private_use(inline_path(authoring, $index, AtInline($inline)), offset))
+							NoPrivateUse => {}
+						}
+						_ => {}
+					}
+					$inline = $inline + 1
+				}
+			}
+			_ => {}
+		}
+		$index = $index + 1
+	}
 	Ok({})
+}
+
+accessibility_private_use : Str, U64 -> Pdf.Error
+accessibility_private_use = |path, offset| {
+	clause = "ISO 14289-2:2024 8.6"
+	message = "AccessibleArchive requires human-readable PDF strings to exclude Private Use Area characters. Replace the character at UTF-8 byte ${offset.to_str()} (${clause})."
+	InvalidDocument({
+		detail_bytes: message.count_utf8_bytes() + path.count_utf8_bytes(),
+		diagnostics: [
+			{
+				clause_references: [clause],
+				code: ProfileRequirementViolated,
+				details: [path],
+				feature: Feature("profile.accessible_archive.private_use_text"),
+				location: Document,
+				message,
+				requirement_ids: ["ROC-PDF-PDFUA2-8-6-TEXT-STRINGS"],
+				stage: AuthoringValidation,
+			},
+		],
+		truncation: Complete,
+	})
 }
 
 profile_batch : KernelPdfA4.Violation, Conformance.ValidationStage -> Conformance.DiagnosticBatch
@@ -2086,8 +2192,10 @@ located_batch = |diagnostic, feature, message, paths| {
 ## name their children `contents[k]`, a list its `items[k]`, and a keep
 ## with next its single `block`.
 leaf_path : Document, U64 -> Str
-leaf_path = |doc, block| {
-	normalized = Document.normalize(doc)
+leaf_path = |doc, block| leaf_path_normalized(Document.normalize(doc), block)
+
+leaf_path_normalized : Document.NormalizedAuthoring, U64 -> Str
+leaf_path_normalized = |normalized, block| {
 	record = match normalized.blocks.get(block) {
 		Ok(value) => value
 		Err(OutOfBounds) => crash "normalized leaf path escaped"
@@ -3096,6 +3204,19 @@ expect {
 	}
 }
 
+# An authored private-use scalar in a text string can reach ordinary Archive
+# output. The accessibility profile rejects it at the precise authoring path.
+expect {
+	drawing = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 20, height: 20 }), color: Color.srgb8({ red: 0, green: 0, blue: 0 }) })
+	doc = Pdf.document({ contents: [Pdf.figure({ drawing, alt: "Mark \u(E000)", caption: Pdf.no_caption })], language: "en", title: "Private use witness" })
+	archive = Pdf.to_bytes_with(doc, { profile: Archive })?
+	combined = Pdf.to_chunks_with(doc, { profile: AccessibleArchive })
+	!archive.is_empty() and match combined {
+		Err(InvalidDocument({ diagnostics: [{ code: ProfileRequirementViolated, stage: AuthoringValidation, details: ["contents[0]"], requirement_ids: ["ROC-PDF-PDFUA2-8-6-TEXT-STRINGS"], .. }], .. })) => True
+		_ => False
+	}
+}
+
 # Chunked facade output is byte-identical with buffered output.
 expect {
 	document = Pdf.document({ contents: [], language: "en-AU", title: "Blank" })
@@ -3466,6 +3587,30 @@ archive_twin_rewrite = |key, value| |store| {
 }
 
 # The unmutated claimed plan is eligible.
+accessible_twin_lowered : KernelStructure.Plan, (KernelObject.Store -> KernelObject.Store) -> Try({}, KernelPdfUa2.Violation)
+accessible_twin_lowered = |plan, mutate| {
+	store = mutate(KernelSeal.Plan.store(KernelStructure.Plan.sealed(plan)))
+	builder = KernelObject.init(archive_twin_store_limits)
+	sealed = KernelSeal.seal({ ..builder, store }) ?? crash "accessibility twin broke the sealed store shape"
+	KernelPdfUa2.validate_lowered(sealed, KernelStructure.Plan.root(plan))
+}
+
+# The lowered checks discriminate atomic mutations from the same accepted
+# public accessibility plan, independently of archive validation.
+expect {
+	Pdf.Prepared.(plan) = Pdf.prepare(archive_twin_document, { profile: AccessibleArchive })?
+	violates = |change, wanted| match accessible_twin_lowered(plan, change) {
+		Err({ requirement, .. }) => requirement == wanted
+		Ok(_) => False
+	}
+	accessible_twin_lowered(plan, |store| store) == Ok({})
+		and violates(archive_twin_rewrite("Marked", Boolean(False)), Marked)
+		and violates(archive_twin_rename("StructTreeRoot", "DisabledStructTreeRoot"), StructureRoot)
+		and violates(archive_twin_rename("Lang", "DisabledLang"), DocumentLanguage)
+		and violates(archive_twin_rewrite("DisplayDocTitle", Boolean(False)), DisplayTitle)
+		and violates(archive_twin_rename("Tabs", "DisabledTabs"), PageTabs)
+}
+
 expect archive_twin_lowered(|store| store) == Accepted
 
 # Annotation flags: a hidden or unprintable link is rejected.
