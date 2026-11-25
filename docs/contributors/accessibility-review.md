@@ -47,6 +47,10 @@ Choose the applicable records based on the document's features.
 | `OutlineMeaningful`, `PageLabelsAccurate`, `LinkPurposeMeaningful` | Check that the outline and authored table of contents identify their intended logical sections. Check page labels, shown page numbers and cross-references against what a reader perceives. |
 | `FontEmbeddingRightsConfirmed` | Confirm that each font can legally be embedded in the file for unlimited, universal rendering and that subsetting is permitted. The package checks supported font structure and rejects restricted technical flags where applicable. |
 
+Review the need for an outline even when the report has no
+`OutlineMeaningful` record. PDF/UA-2 and WTPDF accessibility recommend an
+outline for longer documents and leave the length judgment to the reviewer.
+
 Use the `LanguageAccurate` record to check that each tag names the
 actual natural language. The combined profile rejects recognized placeholder
 tags and private-use-only tags. Declare language changes in body text with

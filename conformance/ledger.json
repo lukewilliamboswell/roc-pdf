@@ -2264,12 +2264,19 @@
         "PdfUa2",
         "WtpdfAccessibility"
       ],
-      "implementation": "defined_only",
+      "implementation": "implemented",
       "applicability": "package_excluded",
-      "machine_verification": "No form fields or widget annotations are admitted. A visual Form XObject is reusable paint and does not add an interactive form.",
+      "machine_verification": "The facade has no widgets or semantic form-field input. Static lowering rejects AcroForm and XFA keys and accepts only link annotation subtypes. Accepted reusable Form XObjects contain visual paint, which the independent forms checker verifies.",
       "human_verification": "not_required",
-      "positive_scenarios": [],
-      "negative_scenarios": [],
+      "positive_scenarios": [
+        "scripts/check_forms.py",
+        "scripts/check_pdfa4_structure.py",
+        "tests/forms/Cases.roc"
+      ],
+      "negative_scenarios": [
+        "package/KernelPdfA4.roc",
+        "package/Pdf.roc"
+      ],
       "external_rule_ids": [
         "verapdf-pdfua2:8.10.1-1",
         "verapdf-pdfua2:8.10.1-2",
@@ -2407,7 +2414,7 @@
       "implementation": "implemented",
       "applicability": "applicable",
       "machine_verification": "The public technical manuals reconcile the authored running footer, contents links, semantic headings, outline, and configured PageLabels against independent expectations on both scales. A one-edit PageLabels prefix mutation disagrees with the visible footer and fails the check.",
-      "human_verification": "Confirm outline usefulness, intended numbering and that labels match the numbers understood by readers.",
+      "human_verification": "Determine whether the document is long enough to merit the recommended outline. The standards leave that judgment to the reviewer. Check that existing outline entries identify the intended sections and that page labels match the numbering readers perceive.",
       "positive_scenarios": [
         "scripts/check_chapter_templates.py",
         "scripts/check_page_labels.py",
