@@ -129,6 +129,11 @@ CONTROLS = (
     ua_control("notdef-glyph", "letter", "streams", re.compile(rb"(\n\[<)[0-9A-F]{4}(?=[0-9A-F]+>)"), rb"\g<1>0000", "8.4.5.8-1", "8.4.5.9-1"),
     ua_control("outline-title-pua", "report", "objects", re.compile(rb" /Title " + STRING + rb"(?= >>)"), b" /Title <FEFFE000>", "8.6-1"),
     ua_control("no-view-link", "invoice", "objects", b" /F 4 /QuadPoints", b" /F 36 /QuadPoints", "8.9.2.2-2"),
+    Control(
+        "wtpdf-declaration-missing", "", "payloads",
+        re.compile(rb"<pdfd:declarations>.*?</pdfd:declarations>", re.S),
+        b"", frozenset({"6.1.3-1"}), "wt1a",
+    ),
     Control("wtpdf-identifier", "", "payloads", ACCESSIBILITY.encode(), b"http://pdfa.org/declarations/example", frozenset({"6.1.3-1"}), "wt1a"),
 )
 
