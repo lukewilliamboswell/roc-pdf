@@ -233,3 +233,38 @@ expect {
 		},
 	)
 }
+
+# 101 two-CID ranges followed by 101 individual mappings require two
+# blocks of each kind. The consecutive source or destination pairs at
+# 00FF/0100 must stay individually mapped when either low byte would carry.
+expect {
+	font = inspect_font({})?
+	var $usages = []
+	var $mappings = []
+	var $cid = 1
+	while $cid <= 303 {
+		scalar = match $cid {
+			255 => 0x0041
+			256 => 0x0042
+			263 => 0x00ff
+			264 => 0x0100
+			_ => if ($cid <= 202) (if ($cid.bitwise_and(1) == 1) 0x0041 else 0x0042) else 0x20ac
+		}
+		$usages = $usages.append({ glyph: $cid })
+		$mappings = $mappings.append({ cid: $cid, scalars: [scalar] })
+		$cid = $cid + 1
+	}
+	plan = KernelFontPlan.plan(font, $usages, KernelFontPlan.Limits.make({ max_retained_glyphs: 512 }))?
+	subset = KernelFontSubset.build(font, plan)?
+	limits = KernelPdfFont.Limits.make({ max_to_unicode_bytes: 8192, max_unicode_mappings: 303, max_unicode_scalars: 303 })
+	builder = KernelObject.init({ ..object_limits, max_array_items: 1024, max_values: 1024 })
+	pdf_font = KernelPdfFont.Plan.build(builder, font, plan, subset, descriptor, $mappings, limits)?
+	store = KernelSeal.Plan.store(KernelSeal.seal(KernelPdfFont.Plan.builder(pdf_font))?)
+	stream = store.streams.keep_if(|item| item.object == KernelPdfFont.Plan.objects(pdf_font).to_unicode).first()?
+	cmap = Str.from_utf8_lossy(list_at(store.payloads, stream.source.index()).bytes)
+	cmap.contains("100 beginbfrange\n<0001> <0002> <0041>\n")
+		and cmap.contains("<00C7> <00C8> <0041>\nendbfrange\n1 beginbfrange\n<00C9> <00CA> <0041>\nendbfrange\n100 beginbfchar\n<00CB> <20AC>\n")
+		and cmap.contains("<00FF> <0041>\n<0100> <0042>\n")
+		and cmap.contains("<0107> <00FF>\n<0108> <0100>\n")
+		and cmap.contains("<012E> <20AC>\nendbfchar\n1 beginbfchar\n<012F> <20AC>\nendbfchar\nendcmap\n")
+}
