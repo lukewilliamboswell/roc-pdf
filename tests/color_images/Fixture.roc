@@ -1345,3 +1345,33 @@ expect {
 	result = Fixture.atomic_negatives(1)?
 	result.work.get(0) == Ok(24) and result.work.get(1) == Ok(0)
 }
+
+# Two CalGray resources share a white point and differ only in one
+# nonzero BlackPoint coordinate. Path paint and raster samples use
+# separate spaces with their exact calibration and default gamma.
+expect {
+	base = grid_scenario(1, Duplicated)
+	white_point = { x: 956321, y: 1000000, z: 1083219 }
+	black_point = { x: 16321, y: 24107, z: 8899 }
+	other_black = { ..black_point, z: 13977 }
+	spaces = [
+		{ id: Color.SpaceId.from_index(0), space: CalibratedGray({ white_point, black_point }) },
+		{ id: Color.SpaceId.from_index(1), space: CalibratedGray({ white_point, black_point: other_black }) },
+	]
+	image = list_at(base.images.resources, 0)
+	payload = match image.payload {
+		PackedPixels(raster) => Ok(PackedPixels({ ..raster, color_space: Color.SpaceId.from_index(1) }))
+		_ => Err(EvidenceFailure)
+	}?
+	built = run_pipeline({
+		..base,
+		color_limits: KernelColor.Limits.make({ max_icc_bytes: 0, max_profiles: 0, max_spaces: 2, max_tags: 0 }),
+		colors: { ..base.colors, spaces },
+		images: { resources: [{ ..image, payload }] },
+	})?
+	objects = KernelEmit.object_text(KernelFormStructure.Plan.structure(built.structure))?
+	text = Str.from_utf8_lossy(objects)
+	KernelForm.Plan.work(built.form_plan).canonical_color_spaces == 2 and
+		text.contains("[/CalGray << /BlackPoint [0.016321 0.024107 0.008899] /WhitePoint [0.956321 1 1.083219] >>]") and
+			text.contains("[/CalGray << /BlackPoint [0.016321 0.024107 0.013977] /WhitePoint [0.956321 1 1.083219] >>]")
+}
