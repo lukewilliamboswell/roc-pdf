@@ -34,6 +34,10 @@ https://pdf-issues.pdfa.org/32000-2-2020/clause07.html#H7.9.6[ISO 32000-2 §7.9.
   entry point that owns the promise. Use inputs an earlier stage can produce
   and include deliberate malformed inputs for rejection cases. Drive the
   test through the public facade when its lowering is part of the contract.
+  Before adding a checker, identify which existing observation would fail if
+  the rule were broken. For an outline, a checker can reconstruct visible
+  counts from the emitted open flags. The authored flags supply the
+  independent expectation needed to detect a branch opened by mistake.
 . *Derive expectations from the input.* Choose a simple independent
   specification. The first-page model enumerates fitting legal cuts and
   ranks them by preference. It compares the chosen row prefix, ordered
