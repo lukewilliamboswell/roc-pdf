@@ -196,7 +196,9 @@ the emitted tree. [ISO 32000-2 §7.9.6 and Table 36 errata](https://pdf-issues.p
    production cursor and bit scores. Compare facts the caller consumes, such
    as the chosen row prefix and ordered relaxations, or the diagnostic and
    its fields. Exact observations can distinguish two plausible outputs that
-   both satisfy a weaker invariant.
+   both satisfy a weaker invariant. A role matrix can confirm individual
+   edges while leaving a clause about ancestor context untested. Derive
+   cases from that context even when two checkers agree on each matrix row.
 3. **Match the tool to the domain.** Use Model to exhaust small histories
    whose transitions matter. Record the action and depth bounds, check
    exhaustion and meaningful goals, and ensure the state key preserves all
@@ -259,6 +261,8 @@ A concrete maximum-value check exercises the emitter's U64 helpers.
 | Scoped continuation | `fuzz/ContinuationPaginationModel.roc` partitions a guarded paragraph or padded source over declared opening and continuation frames. It checks measured and concrete layouts for frame selection, exact row coverage, ownership, geometry, and ordered relaxations, including a return to the default frame or entry to an adjacent scope. |
 | Reference wrapping | `fuzz/ReferenceWrapModel.roc` checks up to four measured items. It sums independent partitions for intrinsic widths and enumerates legal line ends for wrapping, including mandatory breaks, held cuts, and fixed-width reference atoms. A separate builder-authored fixture checks I64 overflow in both measurement and wrapping. |
 | Canonical resource graphs | `fuzz/ResourceGraphModel.roc` derives identity by byte rank in one forced collision bucket, grows reachability as a set, and selects the smallest ready node by recomputing the ready set. It compares dictionaries, direct dependencies, order, and diagnostics. Three-resource cases distinguish direct from transitive dependencies, ready priority after an insertion, and a cycle reached after a partial schedule. |
+| Structure containment through Parts | `fuzz/PartContainmentModel.roc` compares typed paths with an ancestor walk. It checks physical diagnostic locations and a return to ordinary containment after the chain. The byte checker exercises its own nested-Part twin. |
+| Explicit table headers | `fuzz/TableHeaderModel.roc` rescans 1,008 authored grids for exact headers on each cell and compares the typed relationships and identifiers. The byte checker verifies the emitted attributes and resolves their targets. |
 | Content operator scopes | `fuzz/ContentScopeModel.roc` exhausts 16 one-page scenes with up to three transforms, optional prepared ActualText and two sibling paint orders. It compares the scope sequence in the serialized content bytes with the authored scene and checks it with one typed stack. |
 | Stream sealing | The [stream-pair model](performance/sealed-plan.md#bounded-stream-pair-model) compares builder histories with a ledger of ownership, object order, references, and last payload use. |
 | Page-tree child spans | `fuzz/PageTreeProof.roc` proves that one level's fixed-fanout partition covers every child exactly once through the structural page cap. It uses the scalar terms from production, then walks concrete shapes at fanout boundaries and the cap to check dense offsets. |
