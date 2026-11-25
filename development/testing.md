@@ -185,7 +185,11 @@ the emitted tree. [ISO 32000-2 §7.9.6 and Table 36 errata](https://pdf-issues.p
    Exercise the entry point that owns that promise. For a kernel check, use
    inputs that an earlier stage can produce, with deliberate malformed inputs
    for rejection cases. If the contract includes facade lowering, drive it
-   through the facade.
+   through the facade. Check who the clause addresses. A writer obligation
+   can be checked in emitted bytes, while a reader algorithm can help explain
+   the format without imposing its choices on the writer. When a contract
+   spans multiple stages, use a narrow check to locate failures and a fixture
+   to show that the authored fact survives lowering.
 2. **Derive the expected result from the input.** Use the simplest
    specification that answers the same question. The first-page model lists
    fitting legal cuts and ranks them by preference, independently of the
@@ -211,7 +215,9 @@ the emitted tree. [ISO 32000-2 §7.9.6 and Table 36 errata](https://pdf-issues.p
    from an orphan split, for example, changes the first-page cut and its
    relaxation list. Discard the temporary mutation after the check. When a
    check finds a production bug, keep the minimized case as an ordinary
-   regression.
+   regression. When estimating the gain from a new oracle, also run the
+   applicable existing evidence on the mutant. A mutant that passes an older
+   checker and fails the new assertion shows exactly what the new check adds.
 5. **Name the limits and stop at the contract.** A bounded result applies to
    the explored domain. Record what it leaves to other evidence, such as
    continuation geometry, caller validation, or external conformance. Stop
@@ -231,7 +237,9 @@ roc test fuzz/document_suite.roc --no-cache
 
 Keep each oracle's expectations and helpers in its own module imported by
 the suite. Register generated properties in the suite's `Fuzz.suite` list
-so the smoke and campaign harness can select them by name.
+so the smoke and campaign harness can select them by name. Run both the
+deterministic expectations and the optimized fuzz build after changing the
+suite's imports. The optimized build checks the imported modules too.
 
 The builder model checks every sequence of up to three appends from its
 13 authored operations. It compares normalized leaves, metadata and builder
