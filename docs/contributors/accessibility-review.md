@@ -65,6 +65,12 @@ containment. The veraPDF catalogs cover the corresponding executable machine
 rules. The catalogs do not cover every normative clause and passing them
 cannot resolve author-dependent requirements.
 
+The contract preflight checks the capability matrix against this ledger.
+An available PDF/UA-2 or WTPDF accessibility capability requires every
+applicable row to be implemented and every pending ISO confirmation for
+that capability to be resolved. Package exclusions and the independent
+static PDF/A-4 closure retain their own criteria.
+
 The PDF/UA-2 preview includes the file requirements through 8.13.2. The
 ISO/TS 32005 preview includes the textual clauses through 7.2 and the legend
 and beginning of Table 5. Direct review of PDF/UA-2 clauses 8.13.3–8.14 and

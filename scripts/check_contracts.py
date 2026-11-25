@@ -52,13 +52,14 @@ CAPABILITIES = {
     "WtpdfAccessibility",
     "WtpdfReuse",
 }
-CAPABILITY_AVAILABILITY = {
-    "Pdf20": "available",
-    "PdfA4f": "future",
-    "PdfUa2": "defined_only",
-    "StaticPdfA4": "available",
-    "WtpdfAccessibility": "defined_only",
-    "WtpdfReuse": "defined_only",
+ACCESSIBILITY_CAPABILITIES = {"PdfUa2", "WtpdfAccessibility"}
+CAPABILITY_STATES = {
+    "Pdf20": {"available"},
+    "PdfA4f": {"future"},
+    "PdfUa2": {"defined_only", "available"},
+    "StaticPdfA4": {"available"},
+    "WtpdfAccessibility": {"defined_only", "available"},
+    "WtpdfReuse": {"defined_only"},
 }
 PROFILES = {
     "AccessibleArchive": ["Pdf20", "PdfUa2", "StaticPdfA4"],
@@ -189,7 +190,7 @@ def validate_baseline(value: object) -> set[str]:
     return set(ids)
 
 
-def validate_matrix(value: object) -> None:
+def validate_matrix(value: object) -> set[str]:
     document = require_object(value, "capability-matrix", {"schema_version", "capabilities", "profiles"})
     require_version(document, "capability-matrix")
 
@@ -198,18 +199,19 @@ def validate_matrix(value: object) -> None:
         fail("capability-matrix.capabilities", "must be a list")
     capability_ids: list[str] = []
     dependencies: dict[str, list[str]] = {}
+    available: set[str] = set()
     for index, raw_capability in enumerate(raw_capabilities):
         path = f"capability-matrix.capabilities[{index}]"
         capability = require_object(raw_capability, path, {"id", "requires", "availability"})
         capability_id = require_string(capability["id"], f"{path}.id")
         capability_ids.append(capability_id)
         dependencies[capability_id] = require_string_list(capability["requires"], f"{path}.requires")
-        expected_availability = CAPABILITY_AVAILABILITY.get(capability_id)
-        if capability["availability"] != expected_availability:
-            fail(
-                f"{path}.availability",
-                f"must be {expected_availability!r} at the current capability boundary",
-            )
+        supported_states = CAPABILITY_STATES.get(capability_id, set())
+        availability = require_string(capability["availability"], f"{path}.availability")
+        if availability not in supported_states:
+            fail(f"{path}.availability", f"must be one of {sorted(supported_states)}")
+        if availability == "available":
+            available.add(capability_id)
 
     if capability_ids != sorted(CAPABILITIES):
         fail("capability-matrix.capabilities", "must contain every capability sorted by id")
@@ -219,6 +221,12 @@ def validate_matrix(value: object) -> None:
             fail(f"capability-matrix.{capability_id}.requires", f"unknown capabilities: {sorted(unknown)}")
         if capability_id in requirements:
             fail(f"capability-matrix.{capability_id}.requires", "must not depend on itself")
+        if capability_id in available:
+            unavailable = set(requirements) - available
+            if unavailable:
+                fail(f"capability-matrix.{capability_id}.requires", f"dependencies are unavailable: {sorted(unavailable)}")
+    if "WtpdfAccessibility" in available and "PdfUa2" not in available:
+        fail("capability-matrix.WtpdfAccessibility.requires", "accessibility declaration requires an available PdfUa2 capability")
 
     raw_profiles = document["profiles"]
     if not isinstance(raw_profiles, list):
@@ -233,6 +241,7 @@ def validate_matrix(value: object) -> None:
         actual_profiles[profile_id] = require_string_list(profile["claims"], f"{path}.claims")
     if actual_profiles != PROFILES:
         fail("capability-matrix.profiles", f"must equal the facade mapping {PROFILES}")
+    return available
 
 
 def pdfa4_requirement_codes() -> set[str]:
@@ -243,12 +252,11 @@ def pdfa4_requirement_codes() -> set[str]:
 def validate_ledger(
     value: object,
     source_ids: set[str],
-    catalog_rules: set[str] | None = None,
-    roc_codes: set[str] | None = None,
-    static_available: bool = False,
+    catalog_rules: set[str],
+    roc_codes: set[str],
+    available: set[str],
 ) -> None:
-    catalog_rules = catalog_rules if catalog_rules is not None else set()
-    roc_codes = roc_codes if roc_codes is not None else set()
+    accessible_available = available & ACCESSIBILITY_CAPABILITIES
     document = require_object(value, "ledger", {"schema_version", "requirements"})
     if document["schema_version"] != LEDGER_SCHEMA_VERSION:
         fail("ledger.schema_version", f"must be {LEDGER_SCHEMA_VERSION}")
@@ -298,13 +306,19 @@ def validate_ledger(
             fail(f"{path}.applicability", f"must be one of {sorted(APPLICABILITY)}")
         require_string(requirement["machine_verification"], f"{path}.machine_verification")
         human = require_string(requirement["human_verification"], f"{path}.human_verification")
+        claimed_accessibility = accessible_available.intersection(capabilities)
+        if claimed_accessibility:
+            names = ", ".join(sorted(claimed_accessibility))
+            if applicability == "pending_iso_confirmation":
+                fail(rule_id, f"{names} availability requires resolved ISO confirmation")
+            if applicability == "applicable" and requirement["implementation"] != "implemented":
+                fail(rule_id, f"{names} availability requires implementation of every applicable clause")
         if applicability == "pending_iso_confirmation":
             if requirement["implementation"] != "partial" or human == "not_required":
                 fail(path, "a pending ISO-text confirmation is partial and names its human obligation")
         elif (
-            static_available
-            and "StaticPdfA4" in capabilities
-            and all(CAPABILITY_AVAILABILITY[capability] == "available" for capability in capabilities)
+            "StaticPdfA4" in capabilities
+            and available.issuperset(capabilities)
             and requirement["implementation"] != "implemented"
         ):
             fail(f"{path}.implementation", "an available StaticPdfA4 capability requires every confirmed requirement to be implemented")
@@ -547,9 +561,8 @@ def validate_accessibility_rules(requirements: list[dict[str, object]]) -> None:
 
 def validate_documents(baseline: object, matrix: object, ledger: object) -> None:
     source_ids = validate_baseline(baseline)
-    validate_matrix(matrix)
-    static_available = CAPABILITY_AVAILABILITY["StaticPdfA4"] == "available"
-    validate_ledger(ledger, source_ids, catalog_rule_ids(), pdfa4_requirement_codes(), static_available)
+    available = validate_matrix(matrix)
+    validate_ledger(ledger, source_ids, catalog_rule_ids(), pdfa4_requirement_codes(), available)
 
 
 def validate_repository() -> None:
@@ -623,6 +636,49 @@ def expect_rejected(baseline: object, matrix: object, ledger: object, mutate: st
     raise ContractError(f"self-test mutation was accepted: {mutate}")
 
 
+def self_test_accessibility_availability(baseline: object, matrix: object, ledger: object) -> None:
+    # Model a completely reviewed ledger in memory so each rejection names the
+    # one row changed by the test instead of another currently open clause.
+    closed_matrix = copy.deepcopy(matrix)
+    closed_ledger = copy.deepcopy(ledger)
+    for capability in closed_matrix["capabilities"]:
+        if capability["id"] in ACCESSIBILITY_CAPABILITIES:
+            capability["availability"] = "available"
+    for requirement in closed_ledger["requirements"]:
+        if not ACCESSIBILITY_CAPABILITIES.intersection(requirement["capabilities"]):
+            continue
+        if requirement["applicability"] in ("applicable", "pending_iso_confirmation"):
+            requirement["applicability"] = "applicable"
+            requirement["implementation"] = "implemented"
+            for field in ("positive_scenarios", "negative_scenarios"):
+                if not requirement[field]:
+                    requirement[field] = ["scripts/check_contracts.py"]
+    validate_documents(baseline, closed_matrix, closed_ledger)
+
+    for capability, rule_id in (
+        ("PdfUa2", "ROC-PDF-PDFUA2-5-IDENTIFICATION"),
+        ("WtpdfAccessibility", "ROC-PDF-WTPDF-6-1-3-ACCESSIBILITY-DECLARATION"),
+    ):
+        for status, expected in (
+            ("applicable", "implementation of every applicable clause"),
+            ("pending_iso_confirmation", "resolved ISO confirmation"),
+        ):
+            test_ledger = copy.deepcopy(closed_ledger)
+            rule = next(row for row in test_ledger["requirements"] if row["id"] == rule_id)
+            rule["applicability"] = status
+            rule["implementation"] = "partial"
+            if status == "pending_iso_confirmation":
+                rule["human_verification"] = "Confirm the applicable ISO text."
+            try:
+                validate_documents(baseline, closed_matrix, test_ledger)
+            except ContractError as error:
+                message = f"{rule_id}: {capability} availability requires {expected}"
+                if str(error) != message:
+                    raise ContractError(f"availability control failed for the wrong reason: {error}") from error
+            else:
+                fail(rule_id, f"self-test accepted availability with {status} requirement")
+
+
 def self_test() -> None:
     validate_portable_paths(repository_paths())
     validate_portable_paths([
@@ -644,6 +700,7 @@ def self_test() -> None:
     matrix = load(MATRIX_PATH)
     ledger = load(LEDGER_PATH)
     validate_documents(baseline, matrix, ledger)
+    self_test_accessibility_availability(baseline, matrix, ledger)
     for mutation in (
         "digest", "profile", "availability", "source", "issue", "applicability",
         "duplicate-rule", "unmapped-rule", "unknown-rule", "roc-code", "pending",
