@@ -135,11 +135,9 @@ KernelFacadeText :: [].{
 		with_furniture : Plan, KernelFacadeFurniture.Plan, Limits -> Try(Plan, Error)
 		with_furniture = |plan, input_furniture, limits| interleave_furniture(plan, input_furniture, limits)
 
-		## Append drawing-label runs as `Decoration` artifact runs: on every
-		## page, after the page's other runs, in piece order. `store` holds
-		## the shaped label runs, whose Unicode is already their artifact
-		## source; `sources` are the label sources, which follow the
-		## furniture sources.
+		## Append prepared drawing-label runs after each page's other runs.
+		## The runs carry Figure occurrences or panel artifact sources.
+		## Panel sources follow the furniture sources.
 		with_labels : Plan, List(LabelPiece), Text.Store, List(Str), Limits -> Try(Plan, Error)
 		with_labels = |plan, pieces, store, sources, limits| append_labels(plan, pieces, store, sources, limits)
 

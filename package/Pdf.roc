@@ -598,10 +598,12 @@ Pdf :: [].{
 
 	## Own a drawing as meaningful figure content (`Figure`) with required,
 	## non-empty alternative text (`/Alt`). The drawing may hold any number
-	## of images and solid paths, grouped with `Scene.Drawing.group`, all at
+	## of images, solid paths, and text labels, grouped with
+	## `Scene.Drawing.group`, all at
 	## or beyond its bottom-left origin; its extent is the union of its
 	## commands. It is placed start-aligned in the flow at its authored size,
-	## as one unsplittable unit together with its caption. A caption becomes
+	## as one unsplittable unit together with its caption. The Figure owns
+	## its drawing labels in drawing order. A caption becomes
 	## a visible `Caption` beside the `Figure` in a `Sect`, related to it by
 	## `CaptionFor`, so assistive technology reads it independently of the
 	## alternative text. A figure wider than the flow region, or taller with

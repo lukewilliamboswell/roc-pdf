@@ -817,9 +817,9 @@ flow_facts = |authoring, paints| {
 	Ok({ commands: $commands, decorations: $decorations, figures: $figures, images: $images, nonblack: $nonblack, panels: $panels, paths: $paths, segments: $segments })
 }
 
-## A drawing's paths and images: its text labels are artifact text runs,
-## shaped and placed by `KernelFacadeLabels` and painted with the page's
-## text. A drawing without labels keeps its command list as is.
+## The graphic commands for a drawing. Its labels are shaped and placed
+## by `KernelFacadeLabels` and painted with the page text. A drawing
+## without labels reuses its command list.
 without_labels : Document.FlowDrawing -> Document.FlowDrawing
 without_labels = |drawing| {
 	labelled = drawing.commands.any(
