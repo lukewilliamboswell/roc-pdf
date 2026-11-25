@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "first_invoice_reference": 1042,
+  "placements": [
+    { "role": "Title", "text": "Remittance advice", "frame": [54, 704, 504, 36] },
+    { "role": "P", "text": "Apply this payment to the invoice below.", "frame": [54, 638, 504, 36] },
+    { "role": "H1", "text": "Payment details", "frame": [54, 576, 504, 32] },
+    { "role": "P", "text": "Invoice reference R-{reference}", "frame": [66, 510, 284, 34] },
+    { "role": "P", "text": "Amount paid AUD {amount}", "frame": [372, 510, 174, 34], "rich_paragraph": true }
+  ],
+  "sheet_kinds": [
+    { "size": [612, 792], "vertical_offset": 0, "amount": "137.50", "paint_order": [0, 4, 1, 2, 3] },
+    { "size": [595, 842], "vertical_offset": 50, "amount": "89.75", "paint_order": [4, 0, 1, 3, 2] }
+  ],
+  "artifacts": [
+    { "type": "Background", "rect": [54, 498, 504, 56], "rgb": [235, 241, 248] },
+    { "type": "Layout", "rect": [54, 498, 504, 1], "rgb": [31, 53, 82] }
+  ]
+}
