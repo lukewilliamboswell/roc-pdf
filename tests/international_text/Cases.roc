@@ -1,19 +1,19 @@
 import invoice.Invoice
+import arabic.Invoice as ArabicInvoice
 import pdf.Document
-import pdf.Font
 import pdf.Pdf
-import pdf.RocFont
 
 Cases :: [].{
-	Case : [Atomic, Invoice({ wtpdf : Bool }), Wrap({ count : U64 })]
+	Case : [Arabic({ wtpdf : Bool }), ArabicAtomic, Atomic, Invoice({ wtpdf : Bool }), Wrap({ count : U64 })]
 
 	run : Case -> { bytes : List(U8), work : List(U64) }
 	run = |case| {
-		options = require_fixture(Invoice.options({}))
 		result = match case {
-			Invoice({ wtpdf }) => encode(Invoice.document({}), { ..options, wtpdf: if (wtpdf) DeclareAccessibility else NoWtpdfDeclaration }, 0)
-			Wrap({ count }) => encode(wrap_document(count), options, count)
-			Atomic => atomic(options)
+			Arabic({ wtpdf }) => encode(ArabicInvoice.document({}), selected_profile(require_fixture(ArabicInvoice.options({})), wtpdf), 0)
+			ArabicAtomic => arabic_atomic(require_fixture(ArabicInvoice.options({})))
+			Invoice({ wtpdf }) => encode(Invoice.document({}), selected_profile(require_fixture(Invoice.options({})), wtpdf), 0)
+			Wrap({ count }) => encode(wrap_document(count), require_fixture(Invoice.options({})), count)
+			Atomic => atomic(require_fixture(Invoice.options({})))
 		}
 		match result {
 			Ok(view) => view
@@ -74,8 +74,17 @@ encode = |document, selected, count| {
 
 atomic : Pdf.Options -> Try({ bytes : List(U8), work : List(U64) }, Pdf.Error)
 atomic = |options| {
-	latin = require_fixture(RocFont.register(Font.Registry.empty, Font.ValidationLimits.default))
-	selected = require_fixture(latin.registry.with_policy([latin.body]))
+	registry = match options.fonts {
+		Registered(value) => value
+		_ => crash "INTERNATIONAL_FIXTURE_HAS_NO_REGISTRY"
+	}
+	policy = match options.theme.font_selection {
+		Policy(value) => value
+		_ => crash "INTERNATIONAL_FIXTURE_HAS_NO_POLICY"
+	}
+	ordered = require_fixture(registry.policy_faces(policy))
+	first = require_fixture(ordered.get(0))
+	selected = require_fixture(registry.with_policy([first]))
 	latin_only : Pdf.Options
 	latin_only = { fonts: Registered(selected.registry), theme: { font_selection: Policy(selected.policy), international_text: HebrewLatin } }
 	cases = [
@@ -106,4 +115,24 @@ require_fixture : Try(a, e) -> a
 require_fixture = |result| match result {
 	Ok(value) => value
 	Err(error) => crash "INTERNATIONAL_FIXTURE_SETUP_FAILED: ${Str.inspect(error)}"
+}
+
+selected_profile : Pdf.Options, Bool -> Pdf.Options
+selected_profile = |options, wtpdf| { ..options, wtpdf: if (wtpdf) DeclareAccessibility else NoWtpdfDeclaration }
+
+arabic_atomic : Pdf.Options -> Try({ bytes : List(U8), work : List(U64) }, Pdf.Error)
+arabic_atomic = |options| {
+	cases = [
+		{ example: Pdf.rich_paragraph([Pdf.in_language("ar", [Pdf.text("ال"), Pdf.strong([Pdf.text("سلام")])])]), diagnostics: "text.international_joining_boundary" },
+		{ example: Pdf.paragraph("اَلْعَرَبِيَّة"), diagnostics: "text.international_cluster" },
+		{ example: Pdf.paragraph("Aאב"), diagnostics: "text.international_script" },
+	]
+	for case in cases {
+		document = Pdf.document({ title: "Unsupported Arabic text", language: "ar", contents: [case.example] })
+		if !reports(Pdf.to_bytes_with(document, options), case.diagnostics) or !reports(Pdf.to_chunks_with(document, options), case.diagnostics) {
+			crash "ARABIC_REJECTION_NOT_ATOMIC_OR_LOCATED"
+		}
+	}
+	result = encode(ArabicInvoice.document({}), options, 0)?
+	Ok({ ..result, work: result.work.append(cases.len() * 2) })
 }

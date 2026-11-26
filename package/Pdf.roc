@@ -1152,8 +1152,8 @@ fixed_pipeline_error = |error, doc, paths, planned| match error {
 ## size and body margins do not participate.
 build_fixed_plan : Document, Document.NormalizedFixed, Pdf.Options, KernelFacadeReport.Request -> Try({ facts : [Facts(KernelFacadeReport.Facts), NoFacts], normalized : Document.NormalizedAuthoring, plan : KernelStructure.Plan }, Pdf.Error)
 build_fixed_plan = |doc, fixed, options, request| {
-	if options.theme.international_text == HebrewLatin {
-		return Err(fixed_error(FeatureUnavailable, "text.international_surface", "Hebrew and Latin text uses the single-column flow facade.", "theme.international_text"))
+	if options.theme.international_text != OrdinaryText {
+		return Err(fixed_error(FeatureUnavailable, "text.international_surface", "International text uses the single-column flow facade.", "theme.international_text"))
 	}
 	view = Document.NormalizedFixed.view(fixed)
 	widget_request = match view.widget_fields.get(0) {
@@ -1266,8 +1266,8 @@ column_pipeline_error = |error, doc, paths, planned| match error {
 
 build_column_plan : Document, Document.NormalizedColumns, Pdf.Options, KernelFacadeReport.Request -> Try({ facts : [Facts(KernelFacadeReport.Facts), NoFacts], normalized : Document.NormalizedAuthoring, plan : KernelStructure.Plan }, Pdf.Error)
 build_column_plan = |doc, columns, options, request| {
-	if options.theme.international_text == HebrewLatin {
-		return Err(fixed_error(FeatureUnavailable, "text.international_surface", "Hebrew and Latin text uses the single-column flow facade.", "theme.international_text"))
+	if options.theme.international_text != OrdinaryText {
+		return Err(fixed_error(FeatureUnavailable, "text.international_surface", "International text uses the single-column flow facade.", "theme.international_text"))
 	}
 	if options.theme.latin_shaping == InterLatin {
 		return Err(fixed_error(FeatureUnavailable, "layout.columns.shaping", "Two-column layout uses nominal glyph metrics.", "theme.latin_shaping"))
@@ -2061,18 +2061,19 @@ pipeline_error_at = |error, doc, paths| match error {
 	Semantics(EmptyLanguage) => located_error(doc, InvalidLanguage, "document.language_empty", "The document language is empty; it must be a BCP 47 language tag.", [])
 	Semantics(EmptyMetadataTitle) => located_error(doc, InvalidRelationship, "document.title_empty", "The document's metadata title is empty.", [])
 	Shape(UnsupportedThemeFace({ block, face })) => located_error(doc, FeatureUnavailable, "text.theme_face", "A block's style selects face ${face.to_str()}, which is not one of the faces this document's font selection prepared.", [diagnostic_leaf_path(doc, paths, block)])
-	Shape(InternationalPolicy(problem)) => fixed_error(FeatureUnavailable, "text.international_policy", "The Hebrew and Latin policy could not use the selected faces (${Str.inspect(problem)}).", "theme.font_selection")
-	Shape(InternationalSurface) => fixed_error(FeatureUnavailable, "text.international_surface", "Hebrew and Latin text cannot share this document with source blocks or layout-dependent references.", "theme.international_text")
+	Shape(InternationalPolicy(problem)) => fixed_error(FeatureUnavailable, "text.international_policy", "The international text policy could not use the selected faces (${Str.inspect(problem)}).", "theme.font_selection")
+	Shape(InternationalSurface) => fixed_error(FeatureUnavailable, "text.international_surface", "International text cannot share this document with source blocks or layout-dependent references.", "theme.international_text")
 	Shape(InternationalShape({ block, cause })) => {
 		path = [diagnostic_leaf_path(doc, paths, block)]
 		match cause {
 			Coverage({ cause: NoCoverage({ scalar, scalar_index }), .. }) => located_error(doc, FontCoverageMissing, "text.international_coverage", "No selected face covers U+${scalar_hex(scalar)} at scalar ${scalar_index.to_str()}.", path)
-			LimitExceeded(_) | Shape({ cause: GlyphLimit(_), .. }) | Shape({ cause: ShapeBudget(_), .. }) => located_error(doc, BudgetExceeded, "text.international_budget", "Hebrew and Latin text exceeded its shaping or layout budget.", path)
+			LimitExceeded(_) | Shape({ cause: GlyphLimit(_), .. }) | Shape({ cause: ShapeBudget(_), .. }) => located_error(doc, BudgetExceeded, "text.international_budget", "International text exceeded its shaping or layout budget.", path)
 			Paragraph({ cause: UnsupportedControl({ scalar, scalar_index }), .. }) => located_error(doc, FeatureUnavailable, "text.international_control", "The selected repertoire excludes bidi control U+${scalar_hex(scalar)} at scalar ${scalar_index.to_str()}.", path)
+			Paragraph({ cause: UnsupportedJoiningBoundary({ scalar_index }), .. }) => located_error(doc, FeatureUnavailable, "text.international_joining_boundary", "An inline boundary splits an Arabic joining word at scalar ${scalar_index.to_str()}.", path)
 			Paragraph({ cause: UnsupportedCluster({ scalar_index }), .. }) => located_error(doc, FeatureUnavailable, "text.international_cluster", "The selected repertoire excludes the grapheme at scalar ${scalar_index.to_str()}.", path)
 			Paragraph({ cause: UnsupportedScript({ script, scalar_index }), .. }) => located_error(doc, FeatureUnavailable, "text.international_script", "The selected repertoire excludes script ${script} at scalar ${scalar_index.to_str()}.", path)
 			Paragraph({ cause: UnsupportedScalar({ scalar, scalar_index }), .. }) => located_error(doc, FeatureUnavailable, "text.international_scalar", "The selected repertoire excludes U+${scalar_hex(scalar)} at scalar ${scalar_index.to_str()}.", path)
-			_ => located_error(doc, FeatureUnavailable, "text.international_shape", "The paragraph could not be prepared by the Hebrew and Latin policy (${Str.inspect(cause)}).", path)
+			_ => located_error(doc, FeatureUnavailable, "text.international_shape", "The paragraph could not be prepared by the international text policy (${Str.inspect(cause)}).", path)
 		}
 	}
 	Shape(LatinShaping({ block, reason })) => {
@@ -3158,13 +3159,13 @@ selected_registered_font = |registry, face| {
 ## scaled run keeps its line's baseline and leading.
 validate_theme : Theme -> Try({}, Pdf.Error)
 validate_theme = |theme| {
-	if theme.international_text == HebrewLatin {
+	if theme.international_text != OrdinaryText {
 		match theme.font_selection {
 			Policy(_) => {}
-			_ => return Err(fixed_error(FeatureUnavailable, "text.international_policy", "Hebrew and Latin text needs an explicit ordered font policy.", "theme.font_selection"))
+			_ => return Err(fixed_error(FeatureUnavailable, "text.international_policy", "International text needs an explicit ordered font policy.", "theme.font_selection"))
 		}
 		if theme.latin_shaping == InterLatin {
-			return Err(fixed_error(FeatureUnavailable, "text.international_policy", "Choose the Hebrew and Latin policy on its own. It selects its own run shaping.", "theme.latin_shaping"))
+			return Err(fixed_error(FeatureUnavailable, "text.international_policy", "The international text policy selects its own run shaping.", "theme.latin_shaping"))
 		}
 	}
 	match theme.furniture {

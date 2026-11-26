@@ -21,6 +21,14 @@ description with the selectable text `SKU-42 ILS 1,250.00`.
 
 https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/bilingual-invoice[Run the bilingual invoice] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/bilingual-invoice/bilingual-invoice.pdf[PDF output] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/bilingual-invoice/preview.png[Preview]
 
+[#arabic-invoice]
+== Arabic and Latin supplier invoice
+
+The Arabic supplier name and Latin reference share a line. The Arabic
+payment wording precedes `AED 2,400.00` in the logical text.
+
+https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/arabic-invoice[Run the Arabic invoice] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/arabic-invoice/preview.png[First-page preview] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/arabic-invoice/arabic-invoice.pdf[PDF output]
+
 [#invoice-with-data]
 == Invoice with associated data
 

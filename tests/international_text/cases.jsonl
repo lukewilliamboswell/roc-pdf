@@ -3,3 +3,6 @@
 {"name":"Hebrew Latin wrap x2","schema_version":1,"case":{"Wrap":{"count":2}}}
 {"name":"Hebrew Latin wrap x20","schema_version":1,"case":{"Wrap":{"count":20}}}
 {"name":"Hebrew Latin atomic diagnostics","schema_version":1,"case":"Atomic"}
+{"name":"Arabic Latin invoice","schema_version":1,"case":{"Arabic":{"wtpdf":false}}}
+{"name":"Arabic Latin invoice WTPDF","schema_version":1,"case":{"Arabic":{"wtpdf":true}}}
+{"name":"Arabic Latin atomic diagnostics","schema_version":1,"case":"ArabicAtomic"}

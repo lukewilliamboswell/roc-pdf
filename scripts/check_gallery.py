@@ -31,6 +31,7 @@ PACKAGE_DEPENDENCY = 'pdf: "../../package/main.roc",'
 # Each example is a directory holding its app root `main.roc`, the assets it
 # imports, the PDF it writes (named after the directory), and a preview.
 EXAMPLES = (
+    "arabic-invoice",
     "audit-log",
     "bilingual-invoice",
     "brand-brief",

@@ -17,6 +17,7 @@ import pdf.RocFont
 import pdf.Text
 import "../assets/IBMPlexSansHebrew-Rtl-Fixture.ttf" as hebrew_bytes : List(U8)
 import "../../examples/bilingual-invoice/fonts/IBMPlexSansHebrew-Regular.ttf" as invoice_hebrew : List(U8)
+import "../../examples/arabic-invoice/fonts/IBMPlexSansArabic-Regular.ttf" as invoice_arabic : List(U8)
 
 main! = |_| { bytes: [], work: [] }
 
@@ -132,7 +133,7 @@ expect {
 	registered = Font.Registry.empty.register({ bytes: invoice_hebrew, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hebr")] }, limits })?
 	demo = RocFont.register(registered.registry, limits)?
 	combined = demo.registry.with_policy([demo.body, registered.face])?
-	policy = KernelInternationalSelection.policy(combined.registry, combined.policy)?
+	policy = KernelInternationalSelection.for_repertoire(combined.registry, combined.policy, UnpointedHebrewLatin)?
 	source = "אב AV"
 	analysis = KernelUnicode.analyze(source, KernelUnicode.default_limits)?
 	owners : List(KernelInternationalText.Occurrence)
@@ -144,7 +145,7 @@ expect {
 	selected = KernelInternationalSelection.select(policy, Semantics.TextSourceId.from_index(0), Language("en"), analyzed)?
 	selection = selected.selected.map(|entry| (entry.face, entry.item.level, entry.item.source.scalars.start(), entry.item.source.scalars.length()))
 	latin_only = combined.registry.with_policy([demo.body])?
-	uncovered = KernelInternationalSelection.policy(latin_only.registry, latin_only.policy)?
+	uncovered = KernelInternationalSelection.for_repertoire(latin_only.registry, latin_only.policy, UnpointedHebrewLatin)?
 	missing = match KernelInternationalSelection.select(uncovered, Semantics.TextSourceId.from_index(0), Language("en"), analyzed) {
 		Err(NoCoverage({ scalar: 0x5d0, scalar_index: 0 })) => True
 		_ => False
@@ -174,4 +175,21 @@ expect {
 	glyphs = shaped.glyphs.map(|glyph| (glyph.id, glyph.advance.x, glyph.advance.y, glyph.offset.x, glyph.offset.y))
 	boundaries = shaped.clusters.map(|entry| (entry.glyphs.start(), entry.source.scalars.start(), entry.source.utf8_bytes.start()))
 	glyphs == [(285, 552, 0, 0, 0), (289, 260, 0, 0, 0), (291, 647, 0, 0, 0), (308, 496, 0, -30, 0)] and boundaries == [(3, 2, 2), (2, 3, 4), (1, 4, 6), (0, 5, 8)]
+}
+
+## HarfBuzz 14.6.0, IBM Plex Sans Arabic Regular, Arab/ar/RTL and default
+## OpenType features. Arabic joining classes are Unicode 18.0.0
+## DerivedJoiningType.txt, as pinned by roc-font 0.2.0.
+expect {
+	font = KernelFont.inspect(invoice_arabic, KernelFont.Limits.make({ max_bytes: 1000000, max_cmap_mappings: 2000, max_glyphs: 2000, max_tables: 128 }))?
+	face = KernelInternationalShape.prepare(font)?
+	provider = KernelInternationalShape.program(face, { direction: RightToLeft, language: Language("ar"), script: "Arab" })
+	scalars : List(KernelInternationalText.ScalarAt)
+	scalars = [0x627, 0x644, 0x633, 0x644, 0x627, 0x645].map_with_index(|scalar, index| { scalar, offset: index * 2 })
+	supplier = { ..item, script: "Arab", language: Language("ar"), source: { scalars: range(0, 6), utf8_bytes: range(0, 12) } }
+	shaped = KernelInternationalShape.shape(provider, supplier, scalars, 5)?
+	glyphs = shaped.glyphs.map(|glyph| (glyph.id, glyph.advance.x, glyph.advance.y, glyph.offset.x, glyph.offset.y))
+	ranges = shaped.clusters.map(|entry| (entry.glyphs.start(), entry.source.utf8_bytes.start(), entry.source.utf8_bytes.length()))
+	glyphs == [(906, 555, 0, 0, 0), (1078, 564, 0, 0, 0), (359, 827, 0, 0, 0), (477, 269, 0, 0, 0), (286, 224, 0, 0, 0)] and
+		ranges == [(4, 0, 2), (3, 2, 2), (2, 4, 2), (1, 6, 4), (0, 10, 2)]
 }

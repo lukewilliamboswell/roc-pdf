@@ -30821,6 +30821,157 @@
       ]
     },
     {
+      "name": "Arabic Latin invoice",
+      "scenario_revision": "arabic-latin-v1",
+      "family": "international_text",
+      "snapshot": "tests/international_text/arabic-invoice.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "paragraphs": 0
+      },
+      "work_counters": [
+        "pages",
+        "authored_blocks",
+        "owned_fragments",
+        "wrapped_paragraphs",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 11586,
+          "allocated_bytes": 10247973,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 10,
+            "owned_fragments": 32,
+            "wrapped_paragraphs": 0,
+            "output_bytes": 18212
+          }
+        },
+        "x64musl": {
+          "allocations": 11586,
+          "allocated_bytes": 10247973,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 10,
+            "owned_fragments": 32,
+            "wrapped_paragraphs": 0,
+            "output_bytes": 18212
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "arabic_invoice"
+      ]
+    },
+    {
+      "name": "Arabic Latin invoice WTPDF",
+      "scenario_revision": "arabic-latin-v1",
+      "family": "international_text",
+      "snapshot": "tests/international_text/arabic-invoice-wtpdf.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "paragraphs": 0
+      },
+      "work_counters": [
+        "pages",
+        "authored_blocks",
+        "owned_fragments",
+        "wrapped_paragraphs",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 11588,
+          "allocated_bytes": 10251565,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 10,
+            "owned_fragments": 32,
+            "wrapped_paragraphs": 0,
+            "output_bytes": 18479
+          }
+        },
+        "x64musl": {
+          "allocations": 11588,
+          "allocated_bytes": 10251565,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 10,
+            "owned_fragments": 32,
+            "wrapped_paragraphs": 0,
+            "output_bytes": 18479
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "wtpdf_accessibility",
+        "arabic_invoice"
+      ]
+    },
+    {
+      "name": "Arabic Latin atomic diagnostics",
+      "scenario_revision": "arabic-latin-v1",
+      "family": "international_text",
+      "snapshot": "tests/international_text/arabic-invoice.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "paragraphs": 0
+      },
+      "work_counters": [
+        "pages",
+        "authored_blocks",
+        "owned_fragments",
+        "wrapped_paragraphs",
+        "output_bytes",
+        "rejected_deliveries"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 13564,
+          "allocated_bytes": 18271179,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 10,
+            "owned_fragments": 32,
+            "wrapped_paragraphs": 0,
+            "output_bytes": 18212,
+            "rejected_deliveries": 6
+          }
+        },
+        "x64musl": {
+          "allocations": 13564,
+          "allocated_bytes": 18271179,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 10,
+            "owned_fragments": 32,
+            "wrapped_paragraphs": 0,
+            "output_bytes": 18212,
+            "rejected_deliveries": 6
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "arabic_invoice"
+      ]
+    },
+    {
       "name": "Hebrew Latin invoice",
       "scenario_revision": "hebrew-latin-v1",
       "family": "international_text",
@@ -31035,8 +31186,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 12508,
-          "allocated_bytes": 19832372,
+          "allocations": 12615,
+          "allocated_bytes": 20400822,
           "work": {
             "pages": 1,
             "authored_blocks": 2,
@@ -31047,8 +31198,8 @@
           }
         },
         "x64musl": {
-          "allocations": 12508,
-          "allocated_bytes": 19832372,
+          "allocations": 12615,
+          "allocated_bytes": 20400822,
           "work": {
             "pages": 1,
             "authored_blocks": 2,

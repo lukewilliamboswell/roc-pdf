@@ -509,7 +509,7 @@ replace_at = |items, index, value| match items.set(index, value) {
 
 build_ordered_pipeline : Document.NormalizedAuthoring, MultiFace, Theme, Layout.Size, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelFacadeReport.Request, KernelFacadePipeline.Limits -> Try(KernelFacadePipeline.Plan, KernelFacadePipeline.Error)
 build_ordered_pipeline = |authoring, multi, theme, page_size, descriptor, facts, request, limits| {
-	if theme.international_text == HebrewLatin and !authoring.page_references.is_empty() {
+	if theme.international_text != OrdinaryText and !authoring.page_references.is_empty() {
 		return Err(Shape(InternationalSurface))
 	}
 	if !authoring.page_references.is_empty() {

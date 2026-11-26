@@ -13,6 +13,7 @@ from check_chapter_templates import validate_chapter_templates_pdf
 from check_vector_diagrams import validate_vector_diagrams_pdf
 from check_fixed_pages import validate_fixed_pages_pdf
 from check_generated_handbook import validate_generated_fixture
+from check_arabic_invoice import check as check_arabic_invoice
 from check_bilingual_invoice import check as check_bilingual_invoice
 from check_inter_latin import validate_inter_latin_pdf
 from check_columns import validate_columns_pdf
@@ -163,6 +164,7 @@ VALIDATORS: dict[str, Validator] = {
     "generated_contents": _dimensioned(validate_generated_fixture, "authored generated contents targets, printed labels, and paired link destinations"),
     "contents_entries": _dimensioned(validate_contents_entries_pdf, "aligned contents columns, wrapped titles, linked exact page references and decorative leaders"),
     "destination_references": _dimensioned(validate_destination_references_pdf, "printed reference Unicode agrees with emitted destinations and page labels, fixed advances, semantic owners and explicit annotations"),
+    "arabic_invoice": _dimensioned(lambda pdf, _: check_arabic_invoice(pdf), "Arabic invoice logical text, writing modes, paint positions and language scopes"),
     "bilingual_invoice": _dimensioned(lambda pdf, _: check_bilingual_invoice(pdf), "bilingual invoice logical text, writing modes, paint positions and language scopes"),
     "inter_latin": _dimensioned(validate_inter_latin_pdf, "exact kerned positions, ligature and literal mapping, wrap ownership and scope color"),
     "columns": _dimensioned(validate_columns_pdf, "authored source and semantic ownership across unequal-width columns and pages"),

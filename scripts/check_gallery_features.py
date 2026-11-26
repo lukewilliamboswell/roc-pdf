@@ -222,7 +222,13 @@ def check_bilingual(example: Path) -> None:
     check((example / "bilingual-invoice.pdf").read_bytes())
 
 
+def check_arabic(example: Path) -> None:
+    from check_arabic_invoice import check
+    check((example / "arabic-invoice.pdf").read_bytes())
+
+
 CHECKS = {
+    "arabic-invoice": check_arabic,
     "bilingual-invoice": check_bilingual,
     "audit-log": check_audit,
     "business-report": check_report,

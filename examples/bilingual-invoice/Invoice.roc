@@ -1,16 +1,15 @@
 import pdf.Document
 import pdf.Font
 import pdf.Pdf
-import pdf.RocFont
 import "fonts/IBMPlexSansHebrew-Regular.ttf" as hebrew_bytes : List(U8)
 
 Invoice :: [].{
 	options : {} -> Try(Pdf.Options, [Policy(Font.PolicyError), Registration(Font.ResourceError)])
 	options = |_| {
 		limits = Font.ValidationLimits.default
-		latin = RocFont.register(Font.Registry.empty, limits) ? Registration
+		latin = Font.Registry.register_built_in(Font.Registry.empty, limits) ? Registration
 		hebrew = latin.registry.register({ bytes: hebrew_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hebr")] }, limits }) ? Registration
-		selected = hebrew.registry.with_policy([latin.body, hebrew.face]) ? Policy
+		selected = hebrew.registry.with_policy([latin.face, hebrew.face]) ? Policy
 		Ok(
 			Pdf.Options.{
 				fonts: Registered(selected.registry),

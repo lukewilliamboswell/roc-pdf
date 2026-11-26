@@ -1743,7 +1743,7 @@ SelectedSegment : { clusters : Semantics.IndexRange, font : U64, script : Font.S
 
 build_ordered_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), { policy : Font.PolicyId, registry : Font.Registry }, Theme, KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
 build_ordered_plan = |authoring, owners, store, source_store, ordered, theme, limits| {
-	if theme.international_text == HebrewLatin {
+	if theme.international_text != OrdinaryText {
 		return build_international_plan(authoring, owners, store, source_store, ordered, theme, limits)
 	}
 	preparation = prepare_plan(authoring, owners, store, source_store, limits.max_requests, theme, PolicySelectsFaces)?
@@ -1888,7 +1888,8 @@ build_international_plan = |authoring, owners, store, sources, ordered, theme, l
 		return Err(InternationalSurface)
 	}
 	preparation = prepare_plan(authoring, owners, store, sources, limits.max_requests, theme, PolicySelectsFaces)?
-	policy = KernelInternationalSelection.policy(ordered.registry, ordered.policy) ? InternationalPolicy
+	repertoire = if (theme.international_text == ArabicLatin) UnpointedArabicLatin else UnpointedHebrewLatin
+	policy = KernelInternationalSelection.for_repertoire(ordered.registry, ordered.policy, repertoire) ? InternationalPolicy
 	var $origins = List.with_capacity(preparation.requests.len())
 	var $inputs = List.with_capacity(preparation.requests.len())
 	var $index = 0

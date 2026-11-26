@@ -46,13 +46,13 @@ class Owned:
         return "".join(mark.logical for mark in self.marks)
 
 
-def check(pdf: bytes) -> None:
+def read_international_page(pdf: bytes) -> tuple[dict[str, list[Owned]], list[Mark]]:
     check_structure_semantics(pdf)
     doc = Document(pdf)
     catalog = doc.get(doc.root)
     pages = []
     page_order(doc, int(catalog["Pages"]), pages)
-    require(len(pages) == 1, "bilingual invoice should occupy one page")
+    require(len(pages) == 1, "expected one international text page")
     page = pages[0]
     page_obj = doc.get(page)
     stream = doc.stream(int(page_obj["Contents"]))
@@ -100,6 +100,11 @@ def check(pdf: bytes) -> None:
     structure = doc.get(int(catalog["StructTreeRoot"]))
     visit(int(structure["K"]), text_string(catalog["Lang"]), "LrTb")
     require(owned_mcids == list(marks), "painted tags do not match logical structure order")
+    return entries, list(marks.values())
+
+
+def check(pdf: bytes) -> None:
+    entries, marks = read_international_page(pdf)
     require([entry.text() for entry in entries["H1"]] == ["Bill to", "Items", "Payment"], "heading reading order changed")
     require([entry.text() for entry in entries["P"]] == [
         "Harbour & Finch Pty Ltd", ADDRESS, f"Pay by bank transfer ({FRENCH}).",
@@ -127,7 +132,7 @@ def check(pdf: bytes) -> None:
     require(len({mark.y for mark in cell}) == 1, "mixed item cell should occupy one line")
     require("".join(mark.visible for mark in sorted(cell, key=lambda mark: mark.x)) ==
             "SKU-42 ILS 1,250.00 תוחיטב ץועיי", "mixed item cell has wrong visual order")
-    for mark in marks.values():
+    for mark in marks:
         if any("\u05d0" <= scalar <= "\u05ea" for scalar in mark.logical):
             require(mark.font == "IBMPlexSansHebrew", "Hebrew used the wrong embedded font")
         elif mark.logical.strip() and mark.logical != "24":

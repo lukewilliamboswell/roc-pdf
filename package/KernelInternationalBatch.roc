@@ -102,7 +102,7 @@ KernelInternationalBatch :: [].{
 				Analyzed(resolved) => resolved
 				Unseen => return Err(InvalidRequest(first))
 			}
-			paragraph = KernelInternationalText.from_paragraph(source.unicode, analysis, bidi, $owners, UnpointedHebrewLatin, { max_clusters: limits.max_clusters, max_items: limits.max_requests, max_scalars: limits.max_scalars }) ? |cause| Paragraph({ request: first, cause })
+			paragraph = KernelInternationalText.from_paragraph(source.unicode, analysis, bidi, $owners, policy.repertoire, { max_clusters: limits.max_clusters, max_items: limits.max_requests, max_scalars: limits.max_scalars }) ? |cause| Paragraph({ request: first, cause })
 			faces = KernelInternationalSelection.select(policy, head.shape.source, head.authored.language, paragraph) ? |cause| Coverage({ request: first, cause })
 			$coverage = $coverage + faces.work.coverage_spans
 			$face_visits = $face_visits + faces.work.faces
@@ -138,8 +138,8 @@ KernelInternationalBatch :: [].{
 				provider = list_at($programs, $program_index).provider
 
 				# Isolate the spans that end at legal wrap boundaries before
-				# fitting. This first repertoire accepts only unpointed
-				# Hebrew and Latin, so the breaks carry no joining context.
+				# fitting. The admitted repertoires keep every joining word
+				# inside one ownership span and prohibit cuts inside it.
 				var $start = item.source.scalars.start()
 				item_end = $start + item.source.scalars.length()
 				while $start < item_end {

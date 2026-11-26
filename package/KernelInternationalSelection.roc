@@ -20,7 +20,7 @@ KernelInternationalSelection :: [].{
 	]
 
 	Face : { id : Font.FaceId, inspection : KernelFont.Inspection, shaper : KernelInternationalShape.Face }
-	Policy : { id : Font.PolicyId, faces : List(Face), registry : Font.Registry }
+	Policy : { id : Font.PolicyId, faces : List(Face), registry : Font.Registry, repertoire : KernelInternationalText.Repertoire }
 
 	Selected : { face : U64, item : KernelInternationalText.Item }
 
@@ -29,8 +29,12 @@ KernelInternationalSelection :: [].{
 	## The first repertoire names static Inter Regular and IBM Plex Sans
 	## Hebrew Regular. The complete font identity is the validated bytes'
 	## SHA-256 value, not a family or PostScript name.
-	policy : Font.Registry, Font.PolicyId -> Try(Policy, Error)
-	policy = |registry, id| {
+	for_repertoire : Font.Registry, Font.PolicyId, KernelInternationalText.Repertoire -> Try(Policy, Error)
+	for_repertoire = |registry, id, repertoire| {
+		script_digest = match repertoire {
+			UnpointedArabicLatin => plex_arabic_sha256
+			UnpointedHebrewLatin => plex_hebrew_sha256
+		}
 		ordered = registry.policy_faces(id) ? FacePolicy
 		if ordered.is_empty() or ordered.len() > 2 {
 			return Err(UnsupportedPolicyCount(ordered.len()))
@@ -40,13 +44,13 @@ KernelInternationalSelection :: [].{
 		for face in ordered {
 			provision = list_at(store.faces, face.index()).provision
 			inspection = registry.prepared_face(face) ? |_| RegistryFace(face)
-			if provision != BuiltIn or !(KernelLatinShape.eligible_face(inspection) or inspection.digest == plex_hebrew_sha256) {
+			if provision != BuiltIn or !(KernelLatinShape.eligible_face(inspection) or inspection.digest == script_digest) {
 				return Err(UnsupportedFace(face))
 			}
 			shaper = KernelInternationalShape.prepare(inspection) ? |cause| ShaperFace({ face, cause })
 			$faces = $faces.append({ id: face, inspection, shaper })
 		}
-		Ok({ registry, id, faces: $faces })
+		Ok({ registry, id, faces: $faces, repertoire })
 	}
 
 	select : Policy, Semantics.TextSourceId, Semantics.Language, KernelInternationalText.Plan -> Try({ selected : List(Selected), work : Work }, Error)
@@ -141,6 +145,9 @@ face_index = |faces, instance, scalar| {
 	}
 	Err(InvalidSelection(scalar))
 }
+
+plex_arabic_sha256 : List(U8)
+plex_arabic_sha256 = [0x8e, 0x0f, 0x10, 0x46, 0xc7, 0x36, 0xbf, 0x93, 0x9d, 0x49, 0x39, 0xee, 0x3a, 0xe0, 0x11, 0x6a, 0xcf, 0x61, 0xcb, 0xcd, 0x65, 0x92, 0xde, 0xae, 0x76, 0x56, 0x76, 0x16, 0x27, 0x08, 0x09, 0x81]
 
 plex_hebrew_sha256 : List(U8)
 plex_hebrew_sha256 = [0x98, 0xcd, 0x8c, 0xa1, 0x3f, 0xef, 0x47, 0xfb, 0x57, 0xc2, 0x0f, 0xae, 0xd1, 0x7a, 0x34, 0x66, 0x39, 0xbb, 0x41, 0x8b, 0x7a, 0xbe, 0xb0, 0x96, 0xfd, 0x96, 0x93, 0xea, 0x3e, 0xec, 0xc4, 0x45]

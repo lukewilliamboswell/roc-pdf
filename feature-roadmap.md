@@ -994,6 +994,15 @@ Phrase order, writing mode and paint positions are checked from the emitted PDF.
 Other scripts, pointed Hebrew, bidi controls, and the option's integration with
 fixed pages, columns and references require their own executable evidence.
 
+### Arabic and Latin flow
+
+The `ArabicLatin` option uses exact static Inter Regular and IBM Plex Sans
+Arabic Regular under an ordered policy. It admits horizontal unpointed Arabic
+joining, contextual substitutions and lam-alef, with Arabic and Latin on the
+same line. The [supplier invoice](examples/arabic-invoice/README.md) exercises
+logical names and Latin amounts with an effective Arabic language scope.
+Marks and joining across inline boundaries require additional evidence.
+
 ## Gate 9: extended modern accessibility vocabulary
 
 ### Capabilities

@@ -9,7 +9,7 @@ import unicode.Scalar
 ## come from the author's occurrences. UAX #24 script facts come from
 ## KernelUnicode's explicitly itemized runs.
 KernelInternationalText :: [].{
-	Repertoire : [UnpointedHebrewLatin]
+	Repertoire : [UnpointedArabicLatin, UnpointedHebrewLatin]
 
 	Limits : { max_clusters : U64, max_items : U64, max_scalars : U64 }
 
@@ -18,6 +18,7 @@ KernelInternationalText :: [].{
 		FactMismatch({ scalar_index : U64 }),
 		ItemLimit({ attempted : U64, limit : U64 }),
 		UnsupportedCluster({ scalar_index : U64 }),
+		UnsupportedJoiningBoundary({ scalar_index : U64 }),
 		UnsupportedControl({ scalar : U32, scalar_index : U64 }),
 		UnsupportedScalar({ scalar : U32, scalar_index : U64 }),
 		UnsupportedScript({ script : Str, scalar_index : U64 }),
@@ -117,6 +118,11 @@ KernelInternationalText :: [].{
 				$item_byte = byte_start
 			}
 			if next_original {
+				# The bounded Arabic mode shapes one complete joining word.
+				# Ownership inside a word needs explicit neighboring context.
+				if repertoire == UnpointedArabicLatin and $index > 0 and arabic_letter(value) and arabic_letter(list_at($scalars, $index - 1).scalar) {
+					return Err(UnsupportedJoiningBoundary({ scalar_index: $index }))
+				}
 				$occurrence_index = $occurrence_index + 1
 				if $occurrence_index >= occurrences.len() or $original_byte_end != byte_start {
 					return Err(FactMismatch({ scalar_index: $index }))
@@ -179,12 +185,22 @@ check_items : U64, U64 -> Try({}, KernelInternationalText.Error)
 check_items = |count, limit| if (count >= limit) Err(ItemLimit({ attempted: count + 1, limit })) else Ok({})
 
 supported_script : KernelInternationalText.Repertoire, Str -> Bool
-supported_script = |UnpointedHebrewLatin, script| script == "Hebr" or script == "Latn" or script == "Zyyy"
+supported_script = |repertoire, script| script == "Latn" or script == "Zyyy" or (if (repertoire == UnpointedArabicLatin) script == "Arab" else script == "Hebr")
 
 supported_scalar : KernelInternationalText.Repertoire, U32 -> Bool
-supported_scalar = |UnpointedHebrewLatin, value| {
-	(value >= 0x20 and value <= 0x7e) or (value >= 0xa0 and value <= 0xff) or (value >= 0x5d0 and value <= 0x5ea) or value == 0x5f3 or value == 0x5f4
+supported_scalar = |repertoire, value| {
+	if (value >= 0x20 and value <= 0x7e) or (value >= 0xa0 and value <= 0xff) {
+		True
+	} else {
+		match repertoire {
+			UnpointedArabicLatin => arabic_letter(value) or (value >= 0x660 and value <= 0x669) or value == 0x60c or value == 0x61b or value == 0x61f
+			UnpointedHebrewLatin => (value >= 0x5d0 and value <= 0x5ea) or value == 0x5f3 or value == 0x5f4
+		}
+	}
 }
+
+arabic_letter : U32 -> Bool
+arabic_letter = |value| (value >= 0x621 and value <= 0x63a) or (value >= 0x641 and value <= 0x64a)
 
 item : KernelInternationalText.Occurrence, Str, U8, U64, U64, U64, U64 -> KernelInternationalText.Item
 item = |owner, script, level, start, stop, byte_start, byte_end| {

@@ -176,3 +176,18 @@ Latin-1 letters and selected punctuation. Vowel points, bidi controls and
 other scripts give a located error. The option applies to ordinary
 single-column flow and table cells. It excludes fixed-page placement, columns,
 source blocks, layout-dependent references and explicit role face selection.
+
+[#arabic-and-latin]
+== Set unpointed Arabic alongside Latin
+
+Enable `theme.international_text: ArabicLatin` with an ordered font policy
+over the packaged static Inter Regular and the exact static IBM Plex Sans
+Arabic Regular supplied with the xref:gallery.adoc#arabic-invoice[Arabic
+supplier invoice]. Use `Pdf.in_language("ar", ...)` for Arabic text. Basic
+unpointed Arabic letters, Arabic-Indic digits and selected Arabic
+punctuation use the horizontal Arabic OpenType shaper. Its joined glyphs
+and lam-alef ligatures preserve the authored text.
+
+Place each Arabic word in one inline span. Vowel marks, Arabic presentation
+forms, and explicit joining controls give a located error. The same flow,
+font-selection and layout limits as the Hebrew and Latin mode apply.
