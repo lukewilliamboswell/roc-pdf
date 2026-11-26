@@ -49,11 +49,11 @@ expect {
 	)
 }
 
-# Custom integer sides are inclusive at both public portability bounds.
+# A blank Archive page exercises both inclusive custom-size bounds.
 expect {
 	document = Pdf.document({ contents: [], language: "en", title: "Viewport bounds" })
 	theme = Theme.{ page_margin: { bottom: 0, left: 0, right: 0, top: 0 } }
-	bytes = Pdf.to_bytes_with(document, { theme, page_size: Custom({ width: 3, height: 14400 }) }) ? |_| ViewportFixtureFailed
+	bytes = Pdf.to_bytes_with(document, { theme, page_size: Custom({ width: 3, height: 14400 }), profile: Archive }) ? |_| ViewportFixtureFailed
 	StructureOracle.single_page_viewport(bytes) == Ok({ art: [], bleed: [], crop: [], media: [0, 0, 3, 14400], rotation: DefaultRotation, trim: [] })
 }
 
