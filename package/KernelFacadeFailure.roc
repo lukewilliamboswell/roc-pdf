@@ -614,6 +614,8 @@ kernel_page_layout_error = |error| match error {
 	LeadOverflow(_) => leaf({ category: Invariant, feature: "lead_overflow", path: "LeadOverflow", inspected: Str.inspect(error) })
 	LimitExceeded(_) => leaf({ category: Budget, feature: "limit_exceeded", path: "LimitExceeded", inspected: Str.inspect(error) })
 	Oversize(_) => leaf({ category: Invariant, feature: "oversize", path: "Oversize", inspected: Str.inspect(error) })
+	NoteBinding(_) => leaf({ category: Invariant, feature: "note_binding", path: "NoteBinding", inspected: Str.inspect(error) })
+	NoteTooTall(_) => leaf({ category: Invariant, feature: "note_too_tall", path: "NoteTooTall", inspected: Str.inspect(error) })
 }
 
 kernel_facade_reference_shape_error : KernelFacadeReferenceShape.Error -> KernelFacadeFailure.Failure
