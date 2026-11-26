@@ -139,7 +139,7 @@ def check_renderers(
     pdfium_expected: InkMetrics,
 ) -> None:
     require(renderer.is_file(), f"PDFium renderer does not exist: {renderer}")
-    require(PDFBOX_JAR.is_file(), f"vendored PDFBox JAR does not exist: {PDFBOX_JAR}")
+    require(PDFBOX_JAR.is_file(), f"cached PDFBox JAR does not exist: {PDFBOX_JAR}")
     with tempfile.TemporaryDirectory(prefix="roc-pdf-render-") as temporary_name:
         temporary = Path(temporary_name)
         classes = temporary / "classes"

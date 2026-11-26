@@ -94,7 +94,7 @@ def compare(pdfbox: PdfBox, pdf: Path) -> int:
 
 
 def self_test() -> None:
-    require(PDFBOX_JAR.is_file(), f"vendored PDFBox JAR does not exist: {PDFBOX_JAR}")
+    require(PDFBOX_JAR.is_file(), f"cached PDFBox JAR does not exist: {PDFBOX_JAR}")
     with tempfile.TemporaryDirectory(prefix="roc-pdf-structure-extraction-") as temporary_name:
         classes = Path(temporary_name) / "classes"
         classes.mkdir()

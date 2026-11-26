@@ -35,7 +35,7 @@ def validate_generated_labels_pdf(pdf: bytes) -> None:
 
 
 def check_pdfbox_extraction(pdf: Path) -> None:
-    require(PDFBOX_JAR.is_file(), f"vendored PDFBox JAR does not exist: {PDFBOX_JAR}")
+    require(PDFBOX_JAR.is_file(), f"cached PDFBox JAR does not exist: {PDFBOX_JAR}")
     with tempfile.TemporaryDirectory(prefix="roc-pdf-generated-label-") as temporary_name:
         classes = Path(temporary_name) / "classes"
         classes.mkdir()
@@ -61,7 +61,7 @@ def check_pdfbox_extraction(pdf: Path) -> None:
 
 def check_renderers(renderer: Path, working_directory: Path | None, pdf: Path) -> None:
     require(renderer.is_file(), f"PDFium renderer does not exist: {renderer}")
-    require(PDFBOX_JAR.is_file(), f"vendored PDFBox JAR does not exist: {PDFBOX_JAR}")
+    require(PDFBOX_JAR.is_file(), f"cached PDFBox JAR does not exist: {PDFBOX_JAR}")
     with tempfile.TemporaryDirectory(prefix="roc-pdf-generated-label-render-") as temporary_name:
         temporary = Path(temporary_name)
         classes = temporary / "classes"

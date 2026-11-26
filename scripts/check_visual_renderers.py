@@ -125,7 +125,7 @@ def render_pdfium(renderer: Path, output: Path, working_directory: Path | None) 
 
 def check_renderers(renderer: Path, working_directory: Path | None) -> None:
     require(renderer.is_file(), f"PDFium renderer does not exist: {renderer}")
-    require(PDFBOX_JAR.is_file(), f"vendored PDFBox JAR does not exist: {PDFBOX_JAR}")
+    require(PDFBOX_JAR.is_file(), f"cached PDFBox JAR does not exist: {PDFBOX_JAR}")
     expected = expected_raster()
     with tempfile.TemporaryDirectory(prefix="roc-pdf-render-") as temporary_name:
         temporary = Path(temporary_name)

@@ -118,7 +118,7 @@ def validate_facade_output_pdf(pdf: bytes, expected_text: str) -> None:
 
 
 def check_pdfbox_extraction(pdf: Path, expected_text: str) -> None:
-    require(PDFBOX_JAR.is_file(), f"vendored PDFBox JAR does not exist: {PDFBOX_JAR}")
+    require(PDFBOX_JAR.is_file(), f"cached PDFBox JAR does not exist: {PDFBOX_JAR}")
     with tempfile.TemporaryDirectory(prefix="roc-pdf-facade-output-") as temporary_name:
         classes = Path(temporary_name) / "classes"
         classes.mkdir()
@@ -145,7 +145,7 @@ def check_pdfbox_extraction(pdf: Path, expected_text: str) -> None:
 def check_fixture_renderers(renderer: Path, working_directory: Path | None, pdf: Path, expected: tuple[InkMetrics, InkMetrics]) -> None:
     pdfbox_expected, pdfium_expected = expected
     require(renderer.is_file(), f"PDFium renderer does not exist: {renderer}")
-    require(PDFBOX_JAR.is_file(), f"vendored PDFBox JAR does not exist: {PDFBOX_JAR}")
+    require(PDFBOX_JAR.is_file(), f"cached PDFBox JAR does not exist: {PDFBOX_JAR}")
     with tempfile.TemporaryDirectory(prefix="roc-pdf-facade-render-") as temporary_name:
         temporary = Path(temporary_name)
         classes = temporary / "classes"

@@ -313,7 +313,7 @@ def extract_text(classes: Path, snapshot: Path) -> str:
 
 def check_renderers(renderer: Path, working_directory: Path | None, mutool: Path | None) -> None:
     require(renderer.is_file(), f"PDFium renderer does not exist: {renderer}")
-    require(PDFBOX_JAR.is_file(), f"vendored PDFBox JAR does not exist: {PDFBOX_JAR}")
+    require(PDFBOX_JAR.is_file(), f"cached PDFBox JAR does not exist: {PDFBOX_JAR}")
     if mutool is not None:
         require(mutool.is_file(), f"mutool does not exist: {mutool}")
     with tempfile.TemporaryDirectory(prefix="roc-pdf-render-") as temporary_name:
@@ -435,7 +435,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--pdfium-renderer", type=Path)
     parser.add_argument("--pdfium-working-directory", type=Path)
-    parser.add_argument("--mutool", type=Path, help="mutool built from vendor/mupdf/mupdf-1.28.2-source.tgz")
+    parser.add_argument("--mutool", type=Path, help="mutool from the pinned local MuPDF cache")
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
     if args.self_test:

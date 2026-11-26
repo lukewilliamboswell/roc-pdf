@@ -74,7 +74,7 @@ class ArchivePin:
 class HttpsRedirects(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         if urlsplit(newurl).scheme != "https":
-            raise ProvisionError(f"oracle source redirected away from HTTPS: {newurl}")
+            raise ProvisionError("oracle source redirected away from HTTPS")
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 

@@ -98,7 +98,7 @@ def validate_actual_text_content(content: bytes, mappings: dict[int, tuple[int, 
 
 
 def check_pdfbox_extraction(pdf: Path) -> None:
-    require(PDFBOX_JAR.is_file(), f"vendored PDFBox JAR does not exist: {PDFBOX_JAR}")
+    require(PDFBOX_JAR.is_file(), f"cached PDFBox JAR does not exist: {PDFBOX_JAR}")
     with tempfile.TemporaryDirectory(prefix="roc-pdf-soft-hyphen-") as temporary_name:
         classes = Path(temporary_name) / "classes"
         classes.mkdir()
