@@ -392,10 +392,10 @@ text does; a face only furniture uses becomes an extra font. Text no policy
 face covers is `text.coverage_missing`, and text in an undeclared script
 `text.unsupported_script`, at its furniture item path.
 
-Documents are bounded: up to 16,384 content occurrences, structure elements,
-and text sources, and 1,024 pages. A document past a bound fails with the
-`BudgetExceeded` diagnostic `document.content_limit`, naming the table or
-block at which it was crossed.
+Documents admit up to 16,384 content occurrences, structure elements, and
+text sources, and 1,024 pages. Flow content over its semantic budget returns
+`document.content_limit` and names the table or block where it crossed the
+limit.
 
 Mandatory constraints are never relaxed: a conflict between them, or an
 unsplittable block taller than a page (`layout.oversize_block`), returns
@@ -786,8 +786,9 @@ Use `Pdf.prepare_with_report` to review placements by authored path, such as
 `pages[0].placements[1]`. Invalid frames and paint permutations identify
 `layout.fixed.frame` and `layout.fixed.paint_order` respectively. A text
 placement that cannot fit reports `layout.fixed.text_width` or
-`layout.fixed.text_height`. Invalid fixed documents produce an error before
-buffered or chunked output starts.
+`layout.fixed.text_height`. Exceeding 1,024 pages, 16,384 placements or
+1,000,000 artwork rectangles returns `layout.fixed.budget`. Invalid fixed
+documents produce an error before buffered or chunked output starts.
 
 See the runnable xref:gallery.adoc#remittance-advice[remittance advice] for
 a finished form with styled text and artwork on both sides of the text layer.
