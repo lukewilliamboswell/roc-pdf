@@ -42,6 +42,7 @@
     "chapter_templates",
     "fixed_pages",
     "inter_latin",
+    "columns",
     "vector_diagrams",
     "rich_flow",
     "technical_manual",
@@ -64,6 +65,7 @@
     "chapter_templates",
     "fixed_pages",
     "inter_latin",
+    "columns",
     "vector_diagrams",
     "rich_flow",
     "technical_manual",
@@ -122,6 +124,9 @@
     "max_build_workers": 4
   },
   "groups": [
+    {
+      "name": "columns"
+    },
     {
       "name": "core"
     },
@@ -382,6 +387,10 @@
     {
       "name": "default_fonts",
       "group": "default_fonts"
+    },
+    {
+      "name": "columns",
+      "group": "columns"
     }
   ],
   "cases": [
@@ -33930,6 +33939,197 @@
       },
       "retention": null,
       "validators": []
+    },
+    {
+      "name": "flowing columns one pilot article",
+      "scenario_revision": "pilot-columns-v1",
+      "family": "columns",
+      "snapshot": "tests/columns/article_1.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "paragraphs": 1
+      },
+      "work_counters": [
+        "pages",
+        "blocks",
+        "fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1040,
+          "allocated_bytes": 4179757,
+          "work": {
+            "pages": 2,
+            "blocks": 2,
+            "fragments": 38,
+            "output_bytes": 19516
+          }
+        },
+        "x64musl": {
+          "allocations": 1040,
+          "allocated_bytes": 4179757,
+          "work": {
+            "pages": 2,
+            "blocks": 2,
+            "fragments": 38,
+            "output_bytes": 19516
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "columns"
+      ]
+    },
+    {
+      "name": "flowing columns ten pilot articles",
+      "scenario_revision": "pilot-columns-v1",
+      "family": "columns",
+      "snapshot": "tests/columns/article_10.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 18,
+        "paragraphs": 10
+      },
+      "work_counters": [
+        "pages",
+        "blocks",
+        "fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 2912,
+          "allocated_bytes": 15410555,
+          "work": {
+            "pages": 18,
+            "blocks": 11,
+            "fragments": 370,
+            "output_bytes": 41650
+          }
+        },
+        "x64musl": {
+          "allocations": 2912,
+          "allocated_bytes": 15410555,
+          "work": {
+            "pages": 18,
+            "blocks": 11,
+            "fragments": 370,
+            "output_bytes": 41650
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "columns"
+      ]
+    },
+    {
+      "name": "flowing columns WTPDF",
+      "scenario_revision": "pilot-columns-v1",
+      "family": "columns",
+      "snapshot": "tests/columns/article_wtpdf.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "paragraphs": 1
+      },
+      "work_counters": [
+        "pages",
+        "blocks",
+        "fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1041,
+          "allocated_bytes": 4181553,
+          "work": {
+            "pages": 2,
+            "blocks": 2,
+            "fragments": 38,
+            "output_bytes": 19783
+          }
+        },
+        "x64musl": {
+          "allocations": 1041,
+          "allocated_bytes": 4181553,
+          "work": {
+            "pages": 2,
+            "blocks": 2,
+            "fragments": 38,
+            "output_bytes": 19783
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "wtpdf_accessibility",
+        "structure_semantics",
+        "columns"
+      ]
+    },
+    {
+      "name": "flowing columns atomic negatives",
+      "scenario_revision": "pilot-columns-v1",
+      "family": "columns",
+      "snapshot": "tests/columns/article_1.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "paragraphs": 1
+      },
+      "work_counters": [
+        "pages",
+        "blocks",
+        "fragments",
+        "output_bytes",
+        "buffered_rejections",
+        "chunked_rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1747,
+          "allocated_bytes": 5225379,
+          "work": {
+            "pages": 2,
+            "blocks": 2,
+            "fragments": 38,
+            "output_bytes": 19516,
+            "buffered_rejections": 5,
+            "chunked_rejections": 5
+          }
+        },
+        "x64musl": {
+          "allocations": 1747,
+          "allocated_bytes": 5225379,
+          "work": {
+            "pages": 2,
+            "blocks": 2,
+            "fragments": 38,
+            "output_bytes": 19516,
+            "buffered_rejections": 5,
+            "chunked_rejections": 5
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "columns"
+      ]
     }
   ]
 }

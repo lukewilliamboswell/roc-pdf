@@ -1,4 +1,6 @@
 import Document
+import KernelColumnLayout
+import KernelFacadeColumns
 import Font
 import KernelFacadeFragments
 import KernelFacadeFixed
@@ -48,6 +50,7 @@ KernelFacadePipeline :: [].{
 		Text(KernelFacadeText.Error),
 	]
 	FixedError : [Pipeline(Error), Placement(KernelFacadeFixed.Error)]
+	ColumnError : [Pipeline(Error), Placement(KernelFacadeColumns.Error)]
 	Stage : [FragmentsReady, LinesReady, OutputReady, PagesReady, ScenesReady, SemanticsReady, ShapeReady, TextReady]
 
 	Limits :: {
@@ -163,6 +166,9 @@ KernelFacadePipeline :: [].{
 
 		## Fixed preparation has separate physical placement rules while sharing
 		## semantic ownership, shaping, tagged lowering and profile output.
+		build_columns : Document.NormalizedAuthoring, { body : Layout.Rect, kept : List(Bool), page : Layout.Size, widths : KernelColumnLayout.Widths }, KernelFacadeShape.FontSelection, Theme, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelFacadeReport.Request, Limits -> Try(Plan, ColumnError)
+		build_columns = |authoring, columns, selection, theme, descriptor, input_facts, request, limits| build_columns_pipeline(authoring, columns, selection, theme, descriptor, input_facts, request, limits)
+
 		build_fixed : Document.NormalizedAuthoring, Document.NormalizedFixed, KernelFacadeShape.FontSelection, Theme, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelFacadeReport.Request, Limits -> Try(Plan, FixedError)
 		build_fixed = |authoring, fixed, selection, theme, descriptor, input_facts, request, limits| build_fixed_pipeline(authoring, fixed, selection, theme, descriptor, input_facts, request, limits)
 
@@ -240,6 +246,89 @@ build_fixed_pipeline = |authoring, fixed, selection, theme, descriptor, facts, r
 				occurrences: KernelFacadeSemantics.Plan.work(semantics).occurrence_writes,
 				page_candidate_visits: placement_work.placements,
 				pages: view.pages.len(),
+				reference_passes: 0,
+				scene_commands: KernelFacadeScenes.Plan.work(scenes).command_writes,
+				scope_visits: 0,
+				shape_metric_reads: shaped.work.metric_reads,
+				shaped_runs: shaped.store.runs.len(),
+				source_foreground_ranges: 0,
+				source_paint_clusters: 0,
+				source_paint_ranges: 0,
+				template_region_visits: 0,
+			},
+		},
+	)
+}
+
+build_columns_pipeline : Document.NormalizedAuthoring, { body : Layout.Rect, kept : List(Bool), page : Layout.Size, widths : KernelColumnLayout.Widths }, KernelFacadeShape.FontSelection, Theme, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelFacadeReport.Request, KernelFacadePipeline.Limits -> Try(KernelFacadePipeline.Plan, KernelFacadePipeline.ColumnError)
+build_columns_pipeline = |authoring, columns, selection, theme, descriptor, facts, request, limits| {
+	semantics = KernelFacadeSemantics.Plan.build(authoring, limits.semantics) ? |error| Pipeline(Semantics(error))
+	owners = KernelFacadeSemantics.Plan.block_ownership(semantics)
+	flow_text = KernelFacadeSemantics.Plan.flow_text(semantics)
+	sources = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics))
+	shape = (
+		match selection {
+			Single(font) => KernelFacadeShape.Plan.build(authoring, owners, flow_text, sources, font, theme, limits.shape)
+			Styled(styled) => KernelFacadeShape.Plan.build_styled(authoring, owners, flow_text, sources, styled, theme, limits.shape)
+			Ordered(ordered) => KernelFacadeShape.Plan.build_ordered(authoring, owners, flow_text, sources, ordered, theme, limits.shape)
+		}
+	) ? |error| Pipeline(Shape(error))
+	requests = KernelFacadeShape.Plan.requests(shape)
+	var $blocks = List.with_capacity(columns.kept.len())
+	for block in KernelFacadeShape.Plan.block_runs(shape) {
+		index = $blocks.len()
+		runs = match block {
+			TextBlock({ body, label: NoLabel, .. }) if body.physical.length() > 0 => body.physical
+			_ => return Err(Placement(InvalidBlock({ block: index })))
+		}
+		keep = match columns.kept.get(index) {
+			Ok(True) => KeepTogether
+			Ok(False) => Split
+			Err(OutOfBounds) => return Err(Placement(InvalidBlock({ block: index })))
+		}
+		source = list_at(requests, runs.start()).source
+		$blocks = $blocks.append({ keep, runs, source })
+	}
+	line_limits = KernelLineLayout.BatchLimits.line(KernelFacadeLines.Limits.values(limits.lines).line)
+	column_limits = { candidates: 8000000, line: line_limits, page_count: 1024, pieces: KernelFacadeText.Limits.max_placements(limits.text) }
+	{ positioned, work: placement } = KernelFacadeColumns.position($blocks, shape, sources, columns.body, columns.widths, theme.paragraph_spacing, column_limits) ? Placement
+	page_count = positioned.pages
+	text = KernelFacadeText.Plan.build_positioned(positioned, [], { decorations: [], figure_scales: [], panels: [] }, limits.text) ? |error| Pipeline(Text(error))
+	fragments = KernelFacadeFragments.Plan.build(KernelFacadeSemantics.Plan.preliminary(semantics), text, limits.fragments, limits.fragment_semantics) ? |error| Pipeline(Fragments(error))
+	scenes = KernelFacadeScenes.Plan.build_with_intent(fragments, columns.page, intent_profile(facts), limits.scenes) ? |error| Pipeline(Scenes(error))
+	output = (
+		match selection {
+			Single(font) => KernelFacadeOutput.Plan.build_with_facts(scenes, font, descriptor, facts, limits.output)
+			Styled(_) | Ordered(_) => KernelFacadeOutput.Plan.build_multi_with_facts(scenes, KernelFacadeShape.Plan.fonts(shape), descriptor, facts, limits.output)
+		}
+	) ? |error| Pipeline(Output(error))
+	fragment_table = KernelFacadeFragments.Plan.fragments(fragments)
+	final_text = KernelFacadeText.Plan.text(KernelFacadeFragments.Plan.text(fragments))
+	report_facts = match request {
+		NoCollect => NoFacts
+		Collect => Facts(KernelFacadeReport.collect({ callouts: [], panels: [], references: [], relaxations: [], repeats: [], scales: [], scope_pages: [], source_fragments: [], splits: [] }, owners, KernelFacadeSemantics.Plan.figure_labels(semantics), fragment_table, final_text, page_count))
+	}
+	shaped = KernelFacadeShape.Plan.shape(shape)
+	Ok(
+		KernelFacadePipeline.Plan.{
+			facts: report_facts,
+			output,
+			work: {
+				blocks: placement.blocks,
+				callout_ancestors: 0,
+				callout_contexts: 0,
+				callout_fragments: 0,
+				callout_updates: 0,
+				field_resolutions: 0,
+				final_runs: final_text.runs.len(),
+				fragments: fragment_table.len(),
+				furniture_items: 0,
+				line_candidate_visits: placement.candidate_visits,
+				lines: placement.lines,
+				objects: KernelFacadeOutput.Plan.work(output).objects,
+				occurrences: KernelFacadeSemantics.Plan.work(semantics).occurrence_writes,
+				page_candidate_visits: placement.frame_advances,
+				pages: page_count,
 				reference_passes: 0,
 				scene_commands: KernelFacadeScenes.Plan.work(scenes).command_writes,
 				scope_visits: 0,

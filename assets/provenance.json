@@ -7009,6 +7009,81 @@
         "source_url": "https://raw.githubusercontent.com/lukewilliamboswell/roc-platform-template-zig/d4db636a2f606edf5ae4803f84588f7a5207d53a/platform/targets/x64musl/libc.a",
         "upstream_revision": "d4db636a2f606edf5ae4803f84588f7a5207d53a"
       }
+    },
+    {
+      "id": "example-pilot-findings-pdf",
+      "path": "examples/pilot-findings/pilot-findings.pdf",
+      "kind": "expected_pdf",
+      "license": "UPL-1.0 and OFL-1.1 embedded fonts",
+      "attribution": "examples/pilot-findings/README.md",
+      "origin": {
+        "kind": "generated",
+        "generator": "examples/pilot-findings/main.roc"
+      },
+      "bytes": 19516,
+      "sha256": "4d3ad92ea5bb98cb31d2d7b04d50c525f9e6cc818e5f0b6fdf38a354616d907a",
+      "modification_permitted": true,
+      "redistribution_permitted": true
+    },
+    {
+      "id": "example-pilot-findings-preview",
+      "path": "examples/pilot-findings/preview.png",
+      "kind": "image",
+      "license": "UPL-1.0",
+      "attribution": "First-page preview rendered from the generated gallery PDF with Poppler 26.07.0.",
+      "origin": {
+        "kind": "generated",
+        "generator": "examples/pilot-findings/main.roc"
+      },
+      "bytes": 52458,
+      "sha256": "9e0b46e221998e1a22d468cbfc48bcf0f6dba983d292188476caedec17d2f325",
+      "modification_permitted": true,
+      "redistribution_permitted": true
+    },
+    {
+      "id": "pilot-columns-1-pdf-snapshot",
+      "path": "tests/columns/article_1.pdf",
+      "kind": "expected_pdf",
+      "license": "UPL-1.0 and OFL-1.1 embedded fonts",
+      "attribution": "examples/pilot-findings/README.md",
+      "origin": {
+        "kind": "generated",
+        "generator": "tests/columns/Cases.roc"
+      },
+      "bytes": 19516,
+      "sha256": "4d3ad92ea5bb98cb31d2d7b04d50c525f9e6cc818e5f0b6fdf38a354616d907a",
+      "modification_permitted": true,
+      "redistribution_permitted": true
+    },
+    {
+      "id": "pilot-columns-10-pdf-snapshot",
+      "path": "tests/columns/article_10.pdf",
+      "kind": "expected_pdf",
+      "license": "UPL-1.0 and OFL-1.1 embedded fonts",
+      "attribution": "examples/pilot-findings/README.md",
+      "origin": {
+        "kind": "generated",
+        "generator": "tests/columns/Cases.roc"
+      },
+      "bytes": 41650,
+      "sha256": "547b5abd4adbee028ec5a2f2dd22f90915f3724e263a23cc9f5ebea59a749635",
+      "modification_permitted": true,
+      "redistribution_permitted": true
+    },
+    {
+      "id": "pilot-columns-wtpdf-pdf-snapshot",
+      "path": "tests/columns/article_wtpdf.pdf",
+      "kind": "expected_pdf",
+      "license": "UPL-1.0 and OFL-1.1 embedded fonts",
+      "attribution": "examples/pilot-findings/README.md",
+      "origin": {
+        "kind": "generated",
+        "generator": "tests/columns/Cases.roc"
+      },
+      "bytes": 19783,
+      "sha256": "dfa3bcb988b5aebb2b599c77951e0ae0bbd122d2eb3fc09f53bca180c1e8ecb1",
+      "modification_permitted": true,
+      "redistribution_permitted": true
     }
   ]
 }

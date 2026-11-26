@@ -46,7 +46,13 @@ Opt in through `theme.latin_shaping: InterLatin` to use kerning and
 OpenType substitutions for supported plain English paragraphs in the
 packaged Inter Regular face. This can change wrapping and PDF bytes.
 Both arrow spellings preserve their original selectable text.
-See the [font guide](roc-font.md#inter-latin-shaping).
+See the [font guide](roc-font.adoc#inter-latin-shaping).
+
+## Two-column flow
+
+Flow plain paragraphs through two explicitly sized columns. A paragraph
+that spans columns or pages keeps its authored text and logical reading order.
+See the [two-column guide](authoring.adoc#authoring-column-flow).
 
 ## Compiler
 

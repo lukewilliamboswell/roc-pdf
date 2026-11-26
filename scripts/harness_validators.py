@@ -11,6 +11,7 @@ from check_chapter_templates import validate_chapter_templates_pdf
 from check_vector_diagrams import validate_vector_diagrams_pdf
 from check_fixed_pages import validate_fixed_pages_pdf
 from check_inter_latin import validate_inter_latin_pdf
+from check_columns import validate_columns_pdf
 from check_actual_text import EXPECTED_CONTENT as ACTUAL_TEXT_CONTENT
 from check_actual_text import validate_actual_text_pdf
 from check_caller_facade import validate_caller_facade_pdf, validate_unhinted_caller_pdf
@@ -155,6 +156,7 @@ VALIDATORS: dict[str, Validator] = {
     "contents_entries": _dimensioned(validate_contents_entries_pdf, "aligned contents columns, wrapped titles, linked exact page references and decorative leaders"),
     "destination_references": _dimensioned(validate_destination_references_pdf, "printed reference Unicode agrees with emitted destinations and page labels, fixed advances, semantic owners and explicit annotations"),
     "inter_latin": _dimensioned(validate_inter_latin_pdf, "exact kerned positions, ligature and literal mapping, wrap ownership and scope color"),
+    "columns": _dimensioned(validate_columns_pdf, "authored source and semantic ownership across unequal-width columns and pages"),
     "fixed_pages": _dimensioned(validate_fixed_pages_pdf, "fixed frame geometry, independent structure and stream order, and exact background/overlay ownership"),
     "vector_diagrams": _dimensioned(validate_vector_diagrams_pdf, "exact prepared-vector Unicode labels, caption/Alt ownership and cubic/arrowhead paths"),
     "page_labels": _dimensioned(validate_page_labels_pdf, "visible labels match emitted PDF label ranges; repeated labels remain artifacts"),
@@ -253,6 +255,7 @@ PREFLIGHT_CHECKS["contents_entries"] = PreflightCheck("check_contents_entries.py
 PREFLIGHT_CHECKS["destination_references"] = PreflightCheck("check_destination_references.py", True)
 PREFLIGHT_CHECKS["source_blocks"] = PreflightCheck("check_source_blocks.py", True)
 PREFLIGHT_CHECKS["inter_latin"] = PreflightCheck("check_inter_latin.py", True)
+PREFLIGHT_CHECKS["columns"] = PreflightCheck("check_columns.py", True)
 PREFLIGHT_CHECKS["fixed_pages"] = PreflightCheck("check_fixed_pages.py", True)
 PREFLIGHT_CHECKS["vector_diagrams"] = PreflightCheck("check_vector_diagrams.py", True)
 PREFLIGHT_CHECKS["source_foregrounds"] = PreflightCheck("check_source_foregrounds.py", True)

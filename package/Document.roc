@@ -36,6 +36,7 @@ DocumentBlock :: [
 	Paragraph(Str),
 	RichParagraph(List(DocumentInline)),
 	ContentsEntry(Box(ContentsEntryProps)),
+	Columns(Box(ColumnFlow)),
 
 	## Blocks whose inline colors a `Theme.Scope` overrides, boxed so the
 	## block union keeps the size of its other alternatives.
@@ -412,6 +413,26 @@ ValidatedDrawing : [InvalidDrawing(Str), ValidDrawing(FlowDrawing)]
 ## or `Div`. Grouping has no visual effect; children keep their own roles,
 ## so headings inside a section remain explicit `H1`..`H6`.
 ContainerKind : [Division, Part, Section]
+
+## Explicit widths for sequential flow across two columns.
+ColumnFlow := {
+	contents : List(DocumentBlock),
+	first : Layout.Unit,
+	gutter : Layout.Unit,
+	second : Layout.Unit,
+}
+
+ColumnOption : [Outline, PageLabels, Templates]
+
+ColumnError : [Empty, UnsupportedBlock(U64), UnsupportedOption(ColumnOption)]
+
+NormalizedColumns := {
+	authoring : NormalizedAuthoring,
+	first : Layout.Unit,
+	gutter : Layout.Unit,
+	kept : List(Bool),
+	second : Layout.Unit,
+}
 
 ## Stable feature identities used by transactional preparation diagnostics.
 AuthoringFeature := [
@@ -1209,6 +1230,9 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	ColumnWidth : ColumnWidth
 	ContainerKind : ContainerKind
 	Feature : AuthoringFeature
+	ColumnFlow : ColumnFlow
+	ColumnError : ColumnError
+	NormalizedColumns : NormalizedColumns
 	FixedArtifact : FixedArtifact
 	FixedArtifactLayer : FixedArtifactLayer
 	FixedError : FixedError
@@ -1756,6 +1780,30 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 		Simple(simple) => simple.contents.len()
 	}
 
+	columns : ColumnFlow -> Block
+	columns = |props| DocumentBlock.Columns(Box.box(props))
+
+	## A column flow is the document's body. The normalized text arena has
+	## one occurrence for each declared paragraph or title.
+	normalize_columns : Document -> Try([Ordinary, Columns(NormalizedColumns)], ColumnError)
+	normalize_columns = |document| {
+		spec = match document.authoring {
+			Simple({ contents: [Columns(value)], .. }) => Box.unbox(value)
+			_ => return Ok(Ordinary)
+		}
+		if document.has_templates() {
+			return Err(UnsupportedOption(Templates))
+		}
+		if !document.outline.is_empty() {
+			return Err(UnsupportedOption(Outline))
+		}
+		if !document.page_labels.is_empty() {
+			return Err(UnsupportedOption(PageLabels))
+		}
+		plan = normalize_column_flow(spec, document.language(), document.metadata_title())?
+		Ok(Columns(plan))
+	}
+
 	## Return the first unsupported authored capability in deterministic order.
 	first_unavailable : Document -> [Available, UnavailableFeature({ feature : AuthoringFeature, summary : Str })]
 	first_unavailable = |document| {
@@ -1954,6 +2002,34 @@ normalize_authoring = |authoring, initial| match authoring {
 	Simple(simple) => normalize_simple(simple, initial)
 }
 
+normalize_column_flow : ColumnFlow, Str, Str -> Try(NormalizedColumns, ColumnError)
+normalize_column_flow = |spec, language, metadata_title| {
+	if spec.contents.is_empty() {
+		return Err(Empty)
+	}
+	var $kept = List.with_capacity(spec.contents.len())
+	var $contents = List.with_capacity(spec.contents.len())
+	for block in spec.contents {
+		match block {
+			Title(_) => {
+				$contents = $contents.append(block)
+				$kept = $kept.append(True)
+			}
+			Paragraph(_) => {
+				$contents = $contents.append(block)
+				$kept = $kept.append(False)
+			}
+			KeepTogether([Paragraph(text)]) => {
+				$contents = $contents.append(DocumentBlock.Paragraph(text))
+				$kept = $kept.append(True)
+			}
+			_ => return Err(UnsupportedBlock($kept.len()))
+		}
+	}
+	normalized = normalize_simple({ contents: $contents, language, metadata_title }, empty_state)
+	Ok({ authoring: finish_reference_chunks(normalized), first: spec.first, gutter: spec.gutter, kept: $kept, second: spec.second })
+}
+
 first_unavailable_block : List(DocumentBlock) -> [Available, UnavailableFeature({ feature : AuthoringFeature, summary : Str })]
 first_unavailable_block = |blocks| {
 	var $index = 0
@@ -2066,6 +2142,7 @@ item_blocks = |items| {
 unavailable_leaf : DocumentBlock -> [Available, UnavailableFeature({ feature : AuthoringFeature, summary : Str })]
 unavailable_leaf = |block| match block {
 	Unavailable({ feature, summary }) => UnavailableFeature({ feature, summary })
+	Columns(_) => UnavailableFeature({ feature: MultiColumnLayout, summary: "The column flow must be the only top-level block." })
 	_ => Available
 }
 
@@ -2427,7 +2504,7 @@ append_leaf = |state, block, parent, position| match block {
 	Title(text) => { ..state, blocks: state.blocks.append({ kind: Title, parent, text }) }
 
 	## Preparation rejects this branch before normalization.
-	Unavailable({ feature: _, summary: _ }) => { ..state, blocks: state.blocks.append({ kind: Paragraph, parent, text: "" }) }
+	Unavailable({ feature: _, summary: _ }) | Columns(_) => { ..state, blocks: state.blocks.append({ kind: Paragraph, parent, text: "" }) }
 }
 
 ## The parser owns the canonical byte buffer once. Leaf text stays empty:
