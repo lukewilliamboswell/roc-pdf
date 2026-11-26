@@ -3,6 +3,7 @@ app [main!] {
 	pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.28.1/7brgwR8YUqfeGrkdfF1V4GPPN7DnP7ftqub9KcrTEZtr.tar.zst",
 }
 import pf.Path
+import pf.OsStr
 import pf.Stdout
 import pdf.Color
 import pdf.Document
@@ -19,10 +20,10 @@ import "fonts/SourceCodePro-Regular.ttf" as mono_bytes : List(U8)
 ## An on-call runbook with authored contents, chapter templates and
 ## a continuing rollback instruction containing rich blocks.
 main! = |args| {
-	generated = match args.get(1) {
-		Err(OutOfBounds) => False
-		Ok("generated") => True
-		Ok(_) => return Err(Usage)
+	generated = match args.map(OsStr.display) {
+		[] => False
+		["generated"] => True
+		_ => return Err(Usage)
 	}
 	fonts = register_fonts({})?
 	options : Pdf.Options

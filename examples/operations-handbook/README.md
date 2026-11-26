@@ -22,7 +22,7 @@ unsplittable custom block.
 ## Generate the contents
 
 ```sh
-roc run main.roc -- generated
+roc run main.roc generated
 ```
 
 This variant writes `operations-handbook.pdf` with a generated contents
