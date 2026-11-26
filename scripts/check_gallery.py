@@ -33,6 +33,7 @@ EXAMPLES = (
     "field-guide",
     "furniture-typography",
     "font-families",
+    "invoice-with-data",
     "operations-handbook",
     "pilot-findings",
     "product-brief",

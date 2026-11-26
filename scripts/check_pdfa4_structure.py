@@ -120,7 +120,7 @@ def stream_payload(bodies: dict[int, bytes], number: int) -> tuple[bytes, bytes]
     return decode_stream(bodies, number)
 
 
-def check_metadata(bodies: dict[int, bytes], catalog: bytes) -> bytes:
+def check_metadata(bodies: dict[int, bytes], catalog: bytes, *, associated_files: bool = False) -> bytes:
     dictionary, packet = stream_payload(bodies, dictionary_ref(catalog, b"Metadata"))
     require(b"/Type /Metadata" in dictionary and b"/Subtype /XML" in dictionary, "metadata stream is not /Type /Metadata /Subtype /XML")
     require(b"/Filter" not in dictionary, "metadata stream must stay unfiltered")
@@ -135,7 +135,11 @@ def check_metadata(bodies: dict[int, bytes], catalog: bytes) -> bytes:
     revision = document.findall(f".//{{{PDFAID_NAMESPACE}}}rev")
     require([item.text for item in part] == ["4"], "XMP must declare exactly pdfaid:part 4")
     require([item.text for item in revision] == ["2020"], "XMP must declare exactly pdfaid:rev 2020")
-    require(not document.findall(f".//{{{PDFAID_NAMESPACE}}}conformance"), "static PDF/A-4 must not declare pdfaid:conformance")
+    conformance = [tag.text for tag in document.findall(f".//{{{PDFAID_NAMESPACE}}}conformance")]
+    if associated_files:
+        require(conformance == ["F"], "PDF/A-4f must declare pdfaid:conformance F")
+    else:
+        require(not conformance, "static PDF/A-4 must not declare pdfaid:conformance")
     require(document.find(f".//{{{DC_NAMESPACE}}}title") is not None, "XMP has no dc:title")
     require(document.find(f".//{{{DC_NAMESPACE}}}language") is not None, "XMP has no dc:language")
     require(packet.count(PDFAID_BLOCK) == 1, "pdfaid properties are not in canonical form")

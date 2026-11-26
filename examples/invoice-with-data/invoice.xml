@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<invoice number="HF-2026-0417" currency="AUD">
+  <item code="HF-DSK-140" quantity="4" unit-price="689.00" total="2756.00"/>
+  <item code="HF-DEL-MET" quantity="1" unit-price="180.00" total="180.00"/>
+  <totals subtotal="2936.00" gst="293.60" amount-due="3229.60"/>
+</invoice>

@@ -6,6 +6,7 @@ app [target] {
 
 import fuzz.Fuzz
 import JpegInspectorMutation
+import AssociatedFilesProperty
 import FacadeOutputEquivalence
 import FacadeStructure
 import NavigationProperty
@@ -14,6 +15,7 @@ import ThemeOptions
 
 # roc test also runs the bounded models and proofs in this suite.
 import AppearanceTransparencyModel
+import AssociatedFilesModel
 import FormAmbientTransparencyModel
 import ContentScopeModel
 import ColumnFlowModel
@@ -39,6 +41,7 @@ import XrefSlotProof
 
 target = Fuzz.suite([
 	JpegInspectorMutation.target,
+	AssociatedFilesProperty.target,
 	FacadeOutputEquivalence.target,
 	FacadeStructure.target,
 	NavigationProperty.target,

@@ -1,3 +1,4 @@
+import KernelAssociatedObjects
 import KernelIndex
 import KernelLex
 import KernelObjectPlan
@@ -14,6 +15,7 @@ KernelTaggedObjects :: [].{
 	## objects: an annotation spine item on a plan without planned annotation
 	## object identities is a structured rejection, never a silent drop.
 	Error : [
+		Associated(KernelAssociatedObjects.Error),
 		AnnotationObjectUnplanned({ annotation : U64 }),
 		IdTree(KernelNavigationObjects.Error),
 		IdTreeIndex(KernelIndex.Error),
@@ -39,14 +41,14 @@ KernelTaggedObjects :: [].{
 
 	Plan :: { builder : KernelObject.Builder, navigation_names : [NoNavigationNames, WithNavigationNames(KernelNavigationObjects.Names)], work : Work }.{
 		build : KernelTagged.Plan, KernelObjectPlan.Plan, KernelObject.Limits -> Try(Plan, Error)
-		build = |tagged, objects, limits| build_plan(tagged, objects, NoCatalogFacts, NoNavigationObjects, limits)
+		build = |tagged, objects, limits| build_plan(tagged, objects, NoCatalogFacts, NoNavigationObjects, NoAssociatedPlan, limits)
 
 		## Document facts extend the catalog with its validated language, the
 		## planned metadata stream, and the packaged sRGB output intent whose
 		## profile stream the planner has already assigned. `NoCatalogFacts`
 		## keeps the plan byte-identical to `build`.
 		build_with_facts : KernelTagged.Plan, KernelObjectPlan.Plan, KernelMetadata.CatalogFacts, KernelObject.Limits -> Try(Plan, Error)
-		build_with_facts = |tagged, objects, facts, limits| build_plan(tagged, objects, facts, NoNavigationObjects, limits)
+		build_with_facts = |tagged, objects, facts, limits| build_plan(tagged, objects, facts, NoNavigationObjects, NoAssociatedPlan, limits)
 
 		## Navigation facts extend the prefix with the planned annotation,
 		## named-destination, outline, and page-label identities: the catalog
@@ -56,7 +58,10 @@ KernelTaggedObjects :: [].{
 		## content-stream rows. `NoNavigationObjects` keeps the plan
 		## byte-identical to `build_with_facts`.
 		build_with_navigation : KernelTagged.Plan, KernelObjectPlan.Plan, KernelMetadata.CatalogFacts, KernelNavigationObjects.TaggedFacts, KernelObject.Limits -> Try(Plan, Error)
-		build_with_navigation = |tagged, objects, facts, navigation, limits| build_plan(tagged, objects, facts, navigation, limits)
+		build_with_navigation = |tagged, objects, facts, navigation, limits| build_plan(tagged, objects, facts, navigation, NoAssociatedPlan, limits)
+
+		build_with_associated_files : KernelTagged.Plan, KernelObjectPlan.Plan, KernelMetadata.CatalogFacts, KernelNavigationObjects.TaggedFacts, KernelAssociatedObjects.Planned, KernelObject.Limits -> Try(Plan, Error)
+		build_with_associated_files = |tagged, objects, facts, navigation, associated, limits| build_plan(tagged, objects, facts, navigation, associated, limits)
 
 		builder : Plan -> KernelObject.Builder
 		builder = |plan| plan.builder
@@ -109,8 +114,8 @@ Names := {
 	type_name : KernelObject.NameId,
 }
 
-build_plan : KernelTagged.Plan, KernelObjectPlan.Plan, KernelMetadata.CatalogFacts, KernelNavigationObjects.TaggedFacts, KernelObject.Limits -> Try(KernelTaggedObjects.Plan, KernelTaggedObjects.Error)
-build_plan = |tagged, objects, facts, navigation, limits| {
+build_plan : KernelTagged.Plan, KernelObjectPlan.Plan, KernelMetadata.CatalogFacts, KernelNavigationObjects.TaggedFacts, KernelAssociatedObjects.Planned, KernelObject.Limits -> Try(KernelTaggedObjects.Plan, KernelTaggedObjects.Error)
+build_plan = |tagged, objects, facts, navigation, associated, limits| {
 	semantics = KernelTagged.Plan.semantics(tagged)
 	added_names = add_names(KernelObject.init(limits))?
 	prepared = match facts {
@@ -142,7 +147,7 @@ build_plan = |tagged, objects, facts, navigation, limits| {
 		NoCatalogInput => NoCatalogLanguage
 		CatalogInput(input) => CatalogLanguage(input.facts.language)
 	}
-	with_catalog = add_catalog(lowering.builder, added_names.names, prepared.input, lowering.value, objects)?
+	with_catalog = add_catalog(lowering.builder, added_names.names, prepared.input, lowering.value, associated, objects)?
 	with_root = add_structure_root(with_catalog, added_names.names, tagged, lowering.value, objects)?
 	with_parent_tree = add_parent_tree(with_root, added_names.names, tagged, lowering.value, objects)?
 	with_namespaces = add_namespaces(with_parent_tree, added_names.names, semantics, objects)?
@@ -277,8 +282,8 @@ add_fact_names = |builder| {
 	})
 }
 
-add_catalog : KernelObject.Builder, Names, CatalogInputFacts, NavigationLowering, KernelObjectPlan.Plan -> Try(KernelObject.Builder, KernelTaggedObjects.Error)
-add_catalog = |builder, names, catalog_input, navigation, objects| {
+add_catalog : KernelObject.Builder, Names, CatalogInputFacts, NavigationLowering, KernelAssociatedObjects.Planned, KernelObjectPlan.Plan -> Try(KernelObject.Builder, KernelTaggedObjects.Error)
+add_catalog = |builder, names, catalog_input, navigation, associated, objects| {
 	marked = KernelObject.add_boolean(builder, True) ? Object
 	mark_info = KernelObject.add_dictionary(marked.builder, [{ key: names.marked, value: marked.id }]) ? Object
 	pages = KernelObject.add_reference(mark_info.builder, list_at(KernelObjectPlan.Plan.page_tree(objects), 0)) ? Object
@@ -303,9 +308,9 @@ add_catalog = |builder, names, catalog_input, navigation, objects| {
 	navigation_values = match navigation {
 		NoNavigationLowering => { builder: metadata_values.builder, values: NoNavigationValues }
 		WithNavigationLowering(input) => {
-			dests = match input.dests_root {
-				NoDestsRoot => { builder: metadata_values.builder, value: NoValue }
-				DestsRootAt(root) => {
+			dests = match (associated, input.dests_root) {
+				(WithAssociatedPlan(_), _) | (_, NoDestsRoot) => { builder: metadata_values.builder, value: NoValue }
+				(NoAssociatedPlan, DestsRootAt(root)) => {
 					root_reference = KernelObject.add_reference(metadata_values.builder, root) ? Object
 					dictionary = KernelObject.add_dictionary(root_reference.builder, [{ key: input.names.dests, value: root_reference.id }]) ? Object
 					{ builder: dictionary.builder, value: WithValue(dictionary.id) }
@@ -328,7 +333,24 @@ add_catalog = |builder, names, catalog_input, navigation, objects| {
 			{ builder: labels.builder, values: WithNavigationValues({ dests: dests.value, labels: labels.value, names: input.names, outline: outline.value }) }
 		}
 	}
+	associated_values = match associated {
+		NoAssociatedPlan => { builder: navigation_values.builder, values: NoAssociatedCatalogValues }
+		WithAssociatedPlan(planned) => {
+			destination = match navigation {
+				WithNavigationLowering({ dests_root: DestsRootAt(root), .. }) => DestsRootAt(root)
+				_ => NoDestsRoot
+			}
+			entries = KernelAssociatedObjects.catalog_entries(navigation_values.builder, planned, destination) ? Associated
+			{ builder: entries.builder, values: AssociatedCatalogValues({ af: entries.af, names: entries.names }) }
+		}
+	}
 	var $entries = []
+	match associated_values.values {
+		NoAssociatedCatalogValues => {}
+		AssociatedCatalogValues(values) => {
+			$entries = $entries.append(values.af)
+		}
+	}
 	match metadata_values.values {
 		NoMetadataValues => {}
 		WithMetadataValues(values) => {
@@ -340,6 +362,12 @@ add_catalog = |builder, names, catalog_input, navigation, objects| {
 		NoMetadataValues => {}
 		WithMetadataValues(values) => {
 			$entries = $entries.append({ key: values.fact_names.metadata, value: values.metadata })
+		}
+	}
+	match associated_values.values {
+		NoAssociatedCatalogValues => {}
+		AssociatedCatalogValues(values) => {
+			$entries = $entries.append(values.names)
 		}
 	}
 	match navigation_values.values {
@@ -383,7 +411,7 @@ add_catalog = |builder, names, catalog_input, navigation, objects| {
 			$entries = $entries.append({ key: values.fact_names.viewer_preferences, value: values.viewer })
 		}
 	}
-	dictionary = KernelObject.add_dictionary(navigation_values.builder, $entries) ? Object
+	dictionary = KernelObject.add_dictionary(associated_values.builder, $entries) ? Object
 	object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
 	ensure_object(object.id, KernelObjectPlan.Plan.catalog(objects))?
 	Ok(object.builder)

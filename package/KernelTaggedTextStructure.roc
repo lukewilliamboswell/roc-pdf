@@ -1,3 +1,4 @@
+import KernelAssociatedObjects
 import Document
 import KernelColor
 import KernelContent
@@ -25,6 +26,7 @@ import Semantics
 
 KernelTaggedTextStructure :: [].{
 	Error : [
+		Associated(KernelAssociatedObjects.Error),
 		ArithmeticOverflow,
 		Font(KernelPdfFont.Error),
 		FontCountMismatch({ fonts : U64, mappings : U64, planned : U64 }),
@@ -182,7 +184,21 @@ build_plan = |tagged, colors, images, content, font_plan, text, fonts, facts, na
 			page_labels_root: if (plan_input.planned.label_nodes.is_empty()) NoPageLabelsRoot else PageLabelsRootAt(list_at(plan_input.planned.label_nodes, 0)),
 		})
 	}
-	prefix = KernelTaggedObjects.Plan.build_with_navigation(tagged, objects, catalog_facts, navigation_facts, limits.object_limits) ? TaggedObjects
+	associated = match facts {
+		NoDocumentFacts => NoAssociatedPlan
+		WithDocumentFacts(data) => {
+			after_metadata = checked_add(base_count, metadata_object_count)?
+			after_navigation = match navigation_plan {
+				NoNavigationPlan => after_metadata
+				WithNavigationPlan(input) => checked_add(after_metadata, input.planned.total)?
+			}
+			KernelAssociatedObjects.plan(data.associated, after_navigation) ? Associated
+		}
+	}
+	prefix = match associated {
+		NoAssociatedPlan => KernelTaggedObjects.Plan.build_with_navigation(tagged, objects, catalog_facts, navigation_facts, limits.object_limits)
+		WithAssociatedPlan(_) => KernelTaggedObjects.Plan.build_with_associated_files(tagged, objects, catalog_facts, navigation_facts, associated, limits.object_limits)
+	} ? TaggedObjects
 	pages = match navigation_plan {
 		NoNavigationPlan => KernelPageObjects.Plan.build_with_fonts(prefix, tagged, content, font_plan) ? Pages
 		WithNavigationPlan(plan_input) => {
@@ -288,17 +304,25 @@ build_plan = |tagged, colors, images, content, font_plan, text, fonts, facts, na
 			}
 		}
 	}
-	sealed = KernelSeal.seal(navigated.builder) ? Seal
+	associated_output = match associated {
+		NoAssociatedPlan => { builder: navigated.builder, objects: navigated.objects, ownership: NoAssociationOwnership, xref: navigated.xref }
+		WithAssociatedPlan(planned) => {
+			lowered = KernelAssociatedObjects.lower(navigated.builder, planned, KernelObjectPlan.Plan.catalog(objects)) ? Associated
+			{ builder: lowered.builder, objects: planned.object_count, ownership: lowered.ownership, xref: planned.xref }
+		}
+	}
+	sealed = KernelSeal.seal(associated_output.builder) ? Seal
 	identity = KernelIdentity.digest(sealed) ? Identity
-	bound = KernelOutputBound.calculate(sealed, navigated.xref) ? OutputBound
+	bound = KernelOutputBound.calculate(sealed, associated_output.xref) ? OutputBound
 	structure = KernelStructure.Plan.from_sealed({
+		association_ownership: associated_output.ownership,
 		identity: NormalizedPlanDigest(identity.digest),
 		output_bound: KernelOutputBound.Bound.bytes(bound),
 		page_count: KernelTagged.Plan.scenes(tagged).pages.len(),
 		root: KernelObjectPlan.Plan.catalog(objects),
 		sealed,
 		tree_nodes: KernelObjectPlan.Plan.page_tree(objects).len(),
-		xref_object: navigated.xref,
+		xref_object: associated_output.xref,
 	})
 	Ok(
 		KernelTaggedTextStructure.Plan.{
@@ -315,7 +339,7 @@ build_plan = |tagged, colors, images, content, font_plan, text, fonts, facts, na
 				metadata_bytes: finished.metadata_bytes,
 				metadata_objects: finished.metadata_objects,
 				name_node_objects: navigated.work.name_node_objects,
-				objects: navigated.objects,
+				objects: associated_output.objects,
 				outline_objects: navigated.work.outline_objects,
 				pages: KernelPageObjects.Plan.work(pages),
 				quad_numbers: navigated.work.quad_numbers,

@@ -1,3 +1,5 @@
+import KernelAssociatedFiles
+import KernelAssociatedObjects
 import Color
 import Conformance
 import Document
@@ -56,11 +58,11 @@ import Scene
 import Theme
 
 Pdf :: [].{
-	Profile := [AccessibleArchive, Archive, Standard].{
+	Profile := [AccessibleArchive, AccessibleArchiveWithFiles, Archive, ArchiveWithFiles, Standard].{
 		is_eq : _
 	}
 
-	## Opt into the WTPDF 1.0 accessibility declaration with AccessibleArchive.
+	## Opt into the WTPDF 1.0 accessibility declaration with an accessible profile.
 	## The package checks the supported output rules on a best-effort basis.
 	WtpdfDeclaration := [DeclareAccessibility, NoWtpdfDeclaration].{
 		is_eq : _
@@ -382,6 +384,8 @@ Pdf :: [].{
 		obligation : [
 			AlternativeTextMeaningful,
 			AnnotationOrderMeaningful,
+			AttachmentPurposeMeaningful,
+			AttachmentSupplemental,
 			ArtifactClassificationMeaningful,
 			DocumentTitleAccurate,
 			ExpansionAccurate,
@@ -458,10 +462,13 @@ Pdf :: [].{
 	## Registered(registry) })`.
 	##
 	## `AccessibleArchive` declares PDF/A-4 and PDF/UA-2 by default. `Archive`
-	## declares PDF/A-4. `Standard` writes PDF 2.0 without either declaration.
-	## Request WTPDF accessibility with `wtpdf: DeclareAccessibility`.
+	## declares PDF/A-4. `ArchiveWithFiles` opts into PDF/A-4f and
+	## `AccessibleArchiveWithFiles` adds PDF/UA-2 for supplemental files.
+	## `Standard` writes PDF 2.0 without additional declarations.
+	## Request WTPDF accessibility with `wtpdf: DeclareAccessibility`
+	## on either accessible profile.
 	## These options select the package's best-effort checks and declarations.
-	## `fonts` is the complete public caller-resource boundary: a
+	## The `fonts` option selects the document typography. A
 	## `Registered` registry carries the original immutable font bytes and
 	## the once-produced inspection facts, and the theme selects only the
 	## registry's opaque faces. `compression` trades file size against
@@ -499,7 +506,18 @@ Pdf :: [].{
 		Standard => Conformance.claims_for_profile(Standard)
 		Archive => Conformance.claims_for_profile(Archive)
 		AccessibleArchive => Conformance.claims_for_profile(AccessibleArchive)
+		ArchiveWithFiles => Conformance.claims_for_profile(ArchiveWithFiles)
+		AccessibleArchiveWithFiles => Conformance.claims_for_profile(AccessibleArchiveWithFiles)
 	}
+
+	AssociatedFile : Document.AssociatedFile
+	AttachmentRelationship : Document.AttachmentRelationship
+	AttachmentNecessity : Document.AttachmentNecessity
+
+	## Supply opaque files associated with the document as a whole. Select
+	## ArchiveWithFiles or AccessibleArchiveWithFiles at preparation.
+	with_associated_files : Document, List(AssociatedFile) -> Document
+	with_associated_files = |doc, files| Document.with_associated_files(doc, files)
 
 	## Build an automatically paginated document from semantic blocks, with
 	## the navigation, page templates, and timestamps its props name.
@@ -985,7 +1003,7 @@ Pdf :: [].{
 			Flow => {}
 			Fixed(fixed) => {
 				{ facts, normalized, plan } = build_fixed_plan(doc, fixed, options, Collect)?
-				report = build_report_at(normalized, facts, budget, options.profile, FixedReportPaths(Document.NormalizedFixed.view(fixed).pages))?
+				report = build_report_at(normalized, facts, budget, options.profile, FixedReportPaths(Document.NormalizedFixed.view(fixed).pages), Document.associated_files(doc).len())?
 				return Ok({ prepared: Prepared.(plan), report })
 			}
 		}
@@ -993,7 +1011,7 @@ Pdf :: [].{
 			Ordinary => {}
 			Columns(columns) => {
 				{ facts, normalized, plan } = build_column_plan(doc, columns, options, Collect)?
-				report = build_report_at(normalized, facts, budget, options.profile, ColumnReportPaths)?
+				report = build_report_at(normalized, facts, budget, options.profile, ColumnReportPaths, Document.associated_files(doc).len())?
 				return Ok({ prepared: Prepared.(plan), report })
 			}
 		}
@@ -1002,7 +1020,7 @@ Pdf :: [].{
 			UnavailableFeature({ feature, summary }) => return Err(InvalidDocument(unavailable_batch(feature, summary)))
 		}
 		{ facts, normalized, plan } = build_reporting_plan(doc, options)?
-		report = build_report(normalized, facts, budget, options.profile)?
+		report = build_report_at(normalized, facts, budget, options.profile, FlowReportPaths, Document.associated_files(doc).len())?
 		Ok({ prepared: Prepared.(plan), report })
 	}
 
@@ -1110,14 +1128,17 @@ build_fixed_plan = |doc, fixed, options, request| {
 		standard_metadata_limits,
 	) ? InvalidMetadata
 	xmp = KernelXmp.Packet.build_identified(validated.facts, claims.identification, standard_xmp_bytes) ? |_| InternalGenerationFailure
-	facts = WithDocumentFacts({
-		condition_identifier: KernelMetadata.srgb_condition_identifier,
-		profile: Color.ProfileId.from_index(0),
-		registry_name: KernelMetadata.icc_registry_name,
-		language: validated.facts.language,
-		xmp: KernelXmp.Packet.bytes(xmp),
-	})
-	if options.profile == AccessibleArchive {
+	facts = WithDocumentFacts(
+		KernelMetadata.PlanDocumentFacts.{
+			associated: claims.associated,
+			condition_identifier: KernelMetadata.srgb_condition_identifier,
+			profile: Color.ProfileId.from_index(0),
+			registry_name: KernelMetadata.icc_registry_name,
+			language: validated.facts.language,
+			xmp: KernelXmp.Packet.bytes(xmp),
+		},
+	)
+	if is_accessible(options.profile) {
 		validate_accessible_authoring_at(authoring, path_scope)?
 	}
 	planned = resolve_font_plan_at(authoring, { options, doc }, path_scope)?
@@ -1200,14 +1221,17 @@ build_column_plan = |doc, columns, options, request| {
 		standard_metadata_limits,
 	) ? InvalidMetadata
 	xmp = KernelXmp.Packet.build_identified(validated.facts, claims.identification, standard_xmp_bytes) ? |_| InternalGenerationFailure
-	facts = WithDocumentFacts({
-		condition_identifier: KernelMetadata.srgb_condition_identifier,
-		profile: Color.ProfileId.from_index(0),
-		registry_name: KernelMetadata.icc_registry_name,
-		language: validated.facts.language,
-		xmp: KernelXmp.Packet.bytes(xmp),
-	})
-	if options.profile == AccessibleArchive {
+	facts = WithDocumentFacts(
+		KernelMetadata.PlanDocumentFacts.{
+			associated: claims.associated,
+			condition_identifier: KernelMetadata.srgb_condition_identifier,
+			profile: Color.ProfileId.from_index(0),
+			registry_name: KernelMetadata.icc_registry_name,
+			language: validated.facts.language,
+			xmp: KernelXmp.Packet.bytes(xmp),
+		},
+	)
+	if is_accessible(options.profile) {
 		validate_accessible_authoring_at(authoring, paths)?
 	}
 	planned = resolve_font_plan_at(authoring, { options, doc }, paths)?
@@ -1248,6 +1272,7 @@ build_plan = |doc, options| {
 			1,
 			structure_page_size(options.page_size),
 			{
+				associated: claims.associated,
 				condition_identifier: KernelMetadata.srgb_condition_identifier,
 				language: validated.facts.language,
 				profile_bytes: KernelSrgbProfile.bytes,
@@ -1259,17 +1284,20 @@ build_plan = |doc, options| {
 		validate_lowered_plan(claims, xmp, plan)?
 		return Ok(KernelStructure.Plan.with_compression(plan, deflate_level(options.compression)))
 	}
-	facts = WithDocumentFacts({
-		condition_identifier: KernelMetadata.srgb_condition_identifier,
-		profile: Color.ProfileId.from_index(0),
-		registry_name: KernelMetadata.icc_registry_name,
-		language: validated.facts.language,
-		xmp: KernelXmp.Packet.bytes(xmp),
-	})
+	facts = WithDocumentFacts(
+		KernelMetadata.PlanDocumentFacts.{
+			associated: claims.associated,
+			condition_identifier: KernelMetadata.srgb_condition_identifier,
+			profile: Color.ProfileId.from_index(0),
+			registry_name: KernelMetadata.icc_registry_name,
+			language: validated.facts.language,
+			xmp: KernelXmp.Packet.bytes(xmp),
+		},
+	)
 	font_page_size = options.page_size
 	font_compression = options.compression
 	authoring = Document.normalize(doc)
-	if options.profile == AccessibleArchive {
+	if is_accessible(options.profile) {
 		validate_accessible_authoring(authoring)?
 	}
 	planned = resolve_font_plan(authoring, { options: options, doc: doc })?
@@ -1325,13 +1353,15 @@ measure_content = |options, contents, language, width| {
 	validate_page_size(options.page_size)?
 	validate_body_frame(options.page_size, options.theme)?
 	validated = KernelMetadata.validate({ created: Document.created(probe), language: Document.language(probe), modified: Document.modified(probe), title: Document.metadata_title(probe) }, standard_metadata_limits) ? InvalidMetadata
-	facts = WithDocumentFacts({
-		condition_identifier: KernelMetadata.srgb_condition_identifier,
-		profile: Color.ProfileId.from_index(0),
-		registry_name: KernelMetadata.icc_registry_name,
-		language: validated.facts.language,
-		xmp: [],
-	})
+	facts = WithDocumentFacts(
+		KernelMetadata.PlanDocumentFacts.{
+			condition_identifier: KernelMetadata.srgb_condition_identifier,
+			profile: Color.ProfileId.from_index(0),
+			registry_name: KernelMetadata.icc_registry_name,
+			language: validated.facts.language,
+			xmp: [],
+		},
+	)
 	measured = |result, on_error| match result {
 		Err(Pages(CustomMeasureShort({ content, .. }))) => Ok(Layout.Unit.from_raw(content.to_i64_wrap()))
 		Err(error) => Err(on_error(error))
@@ -1382,6 +1412,7 @@ build_reporting_plan = |doc, options| {
 			1,
 			structure_page_size(options.page_size),
 			{
+				associated: claims.associated,
 				condition_identifier: KernelMetadata.srgb_condition_identifier,
 				language: validated.facts.language,
 				profile_bytes: KernelSrgbProfile.bytes,
@@ -1393,17 +1424,20 @@ build_reporting_plan = |doc, options| {
 		validate_lowered_plan(claims, xmp, plan)?
 		return Ok({ facts: NoFacts, normalized: Document.normalize(doc), plan: KernelStructure.Plan.with_compression(plan, deflate_level(options.compression)) })
 	}
-	facts = WithDocumentFacts({
-		condition_identifier: KernelMetadata.srgb_condition_identifier,
-		profile: Color.ProfileId.from_index(0),
-		registry_name: KernelMetadata.icc_registry_name,
-		language: validated.facts.language,
-		xmp: KernelXmp.Packet.bytes(xmp),
-	})
+	facts = WithDocumentFacts(
+		KernelMetadata.PlanDocumentFacts.{
+			associated: claims.associated,
+			condition_identifier: KernelMetadata.srgb_condition_identifier,
+			profile: Color.ProfileId.from_index(0),
+			registry_name: KernelMetadata.icc_registry_name,
+			language: validated.facts.language,
+			xmp: KernelXmp.Packet.bytes(xmp),
+		},
+	)
 	font_page_size = options.page_size
 	font_compression = options.compression
 	authoring = Document.normalize(doc)
-	if options.profile == AccessibleArchive {
+	if is_accessible(options.profile) {
 		validate_accessible_authoring(authoring)?
 	}
 	planned = resolve_font_plan(authoring, { options: options, doc: doc })?
@@ -1431,9 +1465,9 @@ validate_lowered_plan = |claims, packet, plan| {
 	if KernelXmp.Packet.identification(packet) != claims.identification {
 		return Err(InternalGenerationFailure)
 	}
-	_work = KernelPdfA4.validate_lowered(claims.archive, { packet, root: KernelStructure.Plan.root(plan), sealed: KernelStructure.Plan.sealed(plan) }) ? |violation| InvalidDocument(profile_batch(violation, LoweredPlanValidation))
+	_work = KernelPdfA4.validate_associated_lowered(claims.archive, { packet, root: KernelStructure.Plan.root(plan), sealed: KernelStructure.Plan.sealed(plan) }, KernelStructure.Plan.association_ownership(plan)) ? |violation| InvalidDocument(profile_batch(violation, LoweredPlanValidation))
 	match claims.identification {
-		AccessibleArchiveIdentification | AccessibleArchiveWithWtpdf => KernelPdfUa2.validate_lowered(KernelStructure.Plan.sealed(plan), KernelStructure.Plan.root(plan)).map_err(|violation| InvalidDocument(accessibility_plan_batch(violation)))
+		AccessibleArchiveIdentification | AccessibleArchiveWithWtpdf | AccessibleArchiveWithFilesIdentification | AccessibleArchiveWithFilesAndWtpdf => KernelPdfUa2.validate_lowered(KernelStructure.Plan.sealed(plan), KernelStructure.Plan.root(plan)).map_err(|violation| InvalidDocument(accessibility_plan_batch(violation)))
 		_ => Ok({})
 	}
 }
@@ -3027,23 +3061,88 @@ check_scale = |theme, role, name| match Theme.inline_scale(theme, role) {
 	_ => Ok({})
 }
 
-ProfileClaims : { archive : KernelPdfA4.Claim, identification : KernelXmp.Identification }
+ProfileClaims : {
+	archive : KernelPdfA4.Claim,
+	associated : KernelAssociatedObjects.Input,
+	identification : KernelXmp.Identification,
+}
+
+is_accessible : Pdf.Profile -> Bool
+is_accessible = |profile| profile == AccessibleArchive or profile == AccessibleArchiveWithFiles
+
+attachment_path : U64 -> Str
+attachment_path = |index| "associated_files[${index.to_str()}]"
+
+attachment_error : KernelAssociatedFiles.Error -> Pdf.Error
+attachment_error = |error| {
+	finding = match error {
+		AccessibleDependency(index) => { code: ProfileRequirementViolated, feature: "required", message: "The accessible document must contain the information its reader needs. Provide that information in the document before marking this file Supplemental.", path: "${attachment_path(index)}.necessity" }
+		CountLimit({ actual, maximum }) => { code: BudgetExceeded, feature: "count_limit", message: "The document supplies ${actual.to_str()} associated files but the limit is ${maximum.to_str()}.", path: "associated_files" }
+		Description(index) => { code: ProfileRequirementViolated, feature: "description", message: "Describe why this file is attached in at most 1,024 UTF-8 bytes, without ASCII control characters.", path: "${attachment_path(index)}.description" }
+		Duplicate(index) => { code: DuplicateIdentity, feature: "duplicate", message: "An earlier associated file already has this exact filename.", path: "${attachment_path(index)}.filename" }
+		Filename(index) => { code: ProfileRequirementViolated, feature: "filename", message: "Use a single non-empty filename of at most 255 UTF-8 bytes, without path delimiters, ASCII control characters, or a trailing dot or space.", path: "${attachment_path(index)}.filename" }
+		FileLimit({ actual, index, maximum }) => { code: BudgetExceeded, feature: "file_limit", message: "The associated file has ${actual.to_str()} bytes but the per-file limit is ${maximum.to_str()}.", path: "${attachment_path(index)}.bytes" }
+		MediaType(index) => { code: ProfileRequirementViolated, feature: "media_type", message: "Use a parameter-free MIME type such as application/xml or application/octet-stream.", path: "${attachment_path(index)}.media_type" }
+		Modified(index) => { code: ProfileRequirementViolated, feature: "modified", message: "Supply the last modification time of the associated file in canonical UTC form YYYY-MM-DDThh:mm:ssZ.", path: "${attachment_path(index)}.modified" }
+		TotalLimit({ index, maximum }) => { code: BudgetExceeded, feature: "total_limit", message: "This associated file would exceed the aggregate limit of ${maximum.to_str()} payload bytes.", path: "${attachment_path(index)}.bytes" }
+	}
+	InvalidDocument(located_batch(finding.code, "attachment.${finding.feature}", finding.message, [finding.path]))
+}
 
 validate_profile_request : Document, Pdf.Options -> Try(ProfileClaims, Pdf.Error)
 validate_profile_request = |doc, options| {
-	if options.wtpdf == DeclareAccessibility and options.profile != AccessibleArchive {
-		return Err(InvalidDocument(located_batch(ProfileRequirementViolated, "profile.wtpdf_accessibility", "Select AccessibleArchive to request the WTPDF accessibility declaration.", ["options.wtpdf"])))
+	accessible = is_accessible(options.profile)
+	attachment_profile = options.profile == ArchiveWithFiles or options.profile == AccessibleArchiveWithFiles
+	files = Document.associated_files(doc)
+	if options.wtpdf == DeclareAccessibility and !accessible {
+		return Err(InvalidDocument(located_batch(ProfileRequirementViolated, "profile.wtpdf_accessibility", "Select AccessibleArchive or AccessibleArchiveWithFiles to request the WTPDF accessibility declaration.", ["options.wtpdf"])))
+	}
+	if attachment_profile {
+		if files.is_empty() {
+			return Err(InvalidDocument(located_batch(ProfileRequirementViolated, "attachment.missing", "The PDF/A-4f profile requires at least one associated file.", ["associated_files"])))
+		}
+	} else if !files.is_empty() {
+		return Err(InvalidDocument(located_batch(ProfileRequirementViolated, "attachment.profile", "Select ArchiveWithFiles or AccessibleArchiveWithFiles to embed associated files.", ["options.profile"])))
+	}
+	if accessible and Document.block_count(doc) == 0 {
+		message = if attachment_profile {
+			"AccessibleArchiveWithFiles requires a tagged document. Add semantic content or select ArchiveWithFiles for a blank page."
+		} else {
+			"AccessibleArchive requires a tagged document. Add semantic content or explicitly select Archive for a blank page."
+		}
+		return Err(InvalidDocument(located_batch(ProfileRequirementViolated, "profile.accessible_archive.empty_structure", message, ["contents"])))
+	}
+	if attachment_profile {
+		planned = KernelAssociatedFiles.Plan.build(files, accessible, KernelAssociatedFiles.limits) ? attachment_error
+		if accessible {
+			var $index = 0
+			for file in files {
+				match KernelPdfUa2.private_use_offset(file.filename) {
+					PrivateUse(offset) => return Err(accessibility_private_use("${attachment_path($index)}.filename", offset))
+					NoPrivateUse => {}
+				}
+				match KernelPdfUa2.private_use_offset(file.description) {
+					PrivateUse(offset) => return Err(accessibility_private_use("${attachment_path($index)}.description", offset))
+					NoPrivateUse => {}
+				}
+				$index = $index + 1
+			}
+		}
+		identification = if accessible {
+			if (options.wtpdf == DeclareAccessibility) AccessibleArchiveWithFilesAndWtpdf else AccessibleArchiveWithFilesIdentification
+		} else {
+			PdfA4fIdentification
+		}
+		return Ok({ archive: PdfA4fClaim, associated: WithAssociatedFiles(planned), identification })
 	}
 	match options.profile {
 		AccessibleArchive => {
-			if Document.block_count(doc) == 0 {
-				return Err(InvalidDocument(located_batch(ProfileRequirementViolated, "profile.accessible_archive.empty_structure", "AccessibleArchive requires a tagged document. Add semantic content or explicitly select Archive for a blank page.", ["contents"])))
-			}
 			identification = if (options.wtpdf == DeclareAccessibility) AccessibleArchiveWithWtpdf else AccessibleArchiveIdentification
-			Ok({ archive: StaticPdfA4Claim, identification })
+			Ok({ archive: StaticPdfA4Claim, associated: NoAssociatedFiles, identification })
 		}
-		Archive => Ok({ archive: StaticPdfA4Claim, identification: PdfA4Identification })
-		Standard => Ok({ archive: NoArchiveClaim, identification: NoIdentification })
+		Archive => Ok({ archive: StaticPdfA4Claim, associated: NoAssociatedFiles, identification: PdfA4Identification })
+		Standard => Ok({ archive: NoArchiveClaim, associated: NoAssociatedFiles, identification: NoIdentification })
+		_ => Err(InternalGenerationFailure)
 	}
 }
 
@@ -3656,6 +3755,59 @@ expect {
 	collected.bytes == expected
 }
 
+## Associated-file bytes use the unchanged-resource path and are released at
+## their last stream. Buffered equivalence is covered by the facade fixtures.
+expect {
+	base = Pdf.document({ contents: [], language: "en", title: "Attachment retention" })
+	payload = List.repeat(213, 189)
+	document = base.with_associated_files([
+		{
+			bytes: payload,
+			description: "Storage ownership probe",
+			filename: "sample.bin",
+			media_type: "application/octet-stream",
+			modified: "2024-02-29T12:00:00Z",
+			necessity: Supplemental,
+			relationship: Data,
+		},
+	])
+	Pdf.Prepared.(baseline) = Pdf.prepare(base, { profile: Archive })?
+	Pdf.Prepared.(attached) = Pdf.prepare(document, { profile: ArchiveWithFiles })?
+	shared = observe_attachment(KernelEmit.start(attached, ShareResourceChunks)?, payload)
+	owned = observe_attachment(KernelEmit.start(attached, OwnResourceChunks)?, payload)
+	ordinary = observe_attachment(KernelEmit.start(baseline, OwnResourceChunks)?, payload)
+	shared.shared == 1 and shared.owned == 0 and shared.copied == 0
+		and owned.shared == 0 and owned.owned == 1 and owned.copied == ordinary.copied + payload.len()
+		and ordinary.shared == 0 and ordinary.owned == 0
+}
+
+observe_attachment : KernelEmit.Encoder, List(U8) -> { copied : U64, owned : U64, shared : U64 }
+observe_attachment = |encoder, expected| {
+	var $encoder = encoder
+	var $owned = 0
+	var $shared = 0
+	while True {
+		copied = KernelEmit.Encoder.copied_resource_bytes($encoder)
+		match KernelEmit.Encoder.next_infallible($encoder) {
+			Done => return { copied, owned: $owned, shared: $shared }
+			Emit(segment, next) => {
+				if segment.bytes == expected {
+					match segment.ownership {
+						Generated => crash "associated bytes must retain resource ownership"
+						OwnedResource => {
+							$owned = $owned + 1
+						}
+						SharedResource => {
+							$shared = $shared + 1
+						}
+					}
+				}
+				$encoder = next
+			}
+		}
+	}
+}
+
 compression_document : Document
 compression_document = Pdf.document({ contents: [Pdf.title("Compression"), Pdf.paragraph("Smaller files or faster generation, with identical content.")], language: "en-AU", title: "Compression" })
 
@@ -3875,13 +4027,15 @@ archive_twin_pipeline = {
 			crash "archive twin font failed"
 		}
 	}
-	facts = WithDocumentFacts({
-		condition_identifier: KernelMetadata.srgb_condition_identifier,
-		profile: Color.ProfileId.from_index(0),
-		registry_name: KernelMetadata.icc_registry_name,
-		language: "en-AU",
-		xmp: KernelXmp.Packet.bytes(archive_twin_packet("Archive twins")),
-	})
+	facts = WithDocumentFacts(
+		KernelMetadata.PlanDocumentFacts.{
+			condition_identifier: KernelMetadata.srgb_condition_identifier,
+			profile: Color.ProfileId.from_index(0),
+			registry_name: KernelMetadata.icc_registry_name,
+			language: "en-AU",
+			xmp: KernelXmp.Packet.bytes(archive_twin_packet("Archive twins")),
+		},
+	)
 	match KernelFacadePipeline.Plan.build_with_facts(Document.normalize(archive_twin_document), font, archive_twin_options.theme, layout_page_size(A4), standard_font_descriptor, facts, standard_pipeline_limits) {
 		Ok(pipeline) => KernelFacadePipeline.Plan.output(pipeline)
 		Err(_) => {
@@ -4308,12 +4462,12 @@ report_figure_invariant = |detail| InvalidDocument(located_batch(InternalInvaria
 ## a report with fewer entries or obligations. Leaf paths are computed in
 ## one linear pass; each is shared by that leaf's entries.
 build_report : Document.NormalizedAuthoring, [Facts(KernelFacadeReport.Facts), NoFacts], Pdf.ReportBudget, Pdf.Profile -> Try(Pdf.Report, Pdf.Error)
-build_report = |normalized, collected, budget, profile| build_report_at(normalized, collected, budget, profile, FlowReportPaths)
+build_report = |normalized, collected, budget, profile| build_report_at(normalized, collected, budget, profile, FlowReportPaths, 0)
 
 ReportPaths : [ColumnReportPaths, FlowReportPaths, FixedReportPaths(List(Document.FixedPagePlan))]
 
-build_report_at : Document.NormalizedAuthoring, [Facts(KernelFacadeReport.Facts), NoFacts], Pdf.ReportBudget, Pdf.Profile, ReportPaths -> Try(Pdf.Report, Pdf.Error)
-build_report_at = |normalized, collected, budget, profile, path_source| {
+build_report_at : Document.NormalizedAuthoring, [Facts(KernelFacadeReport.Facts), NoFacts], Pdf.ReportBudget, Pdf.Profile, ReportPaths, U64 -> Try(Pdf.Report, Pdf.Error)
+build_report_at = |normalized, collected, budget, profile, path_source, attachment_count| {
 	validate_report_figures(normalized, collected)?
 	facts = match collected {
 		Facts(value) => value
@@ -4321,11 +4475,12 @@ build_report_at = |normalized, collected, budget, profile, path_source| {
 	}
 	inline_counts = count_inline_entries(normalized)
 	link_blocks = count_link_blocks(normalized)
-	combined = profile == AccessibleArchive
+	combined = is_accessible(profile)
 	outline_review = combined and !normalized.outline.is_empty()
 	annotation_review = combined and (link_blocks > 0 or inline_counts.links > 0 or !normalized.contents_entries.is_empty())
 	profile_obligations = if (combined) accessible_document_obligations.len() else 0
-	obligation_count = 2 + profile_obligations + (if (outline_review) 1 else 0) + (if (annotation_review) 1 else 0) + normalized.figures.len() + normalized.tables.len() + normalized.customs.len() + normalized.callouts.len() + link_blocks + inline_counts.links + inline_counts.languages + inline_counts.expansions
+	attachment_obligations = if (combined) attachment_count * 2 else attachment_count
+	obligation_count = 2 + attachment_obligations + profile_obligations + (if (outline_review) 1 else 0) + (if (annotation_review) 1 else 0) + normalized.figures.len() + normalized.tables.len() + normalized.customs.len() + normalized.callouts.len() + link_blocks + inline_counts.links + inline_counts.languages + inline_counts.expansions
 	alternative_count = normalized.figures.len() + inline_counts.languages + inline_counts.expansions
 	outcome_count = facts.layout.references.len() + facts.layout.scope_pages.len() + facts.layout.callouts.len() + facts.layout.relaxations.len() + normalized.figures.len() + facts.layout.repeats.len() + facts.layout.splits.len() + facts.layout.panels.len() + facts.layout.source_fragments.len()
 	entries = facts.pages.len() + normalized.blocks.len() + alternative_count + outcome_count + facts.coverage.len() + obligation_count
@@ -4394,6 +4549,16 @@ build_report_at = |normalized, collected, budget, profile, path_source| {
 	}
 	if annotation_review {
 		$obligations = $obligations.append({ obligation: AnnotationOrderMeaningful, path: "document" })
+	}
+
+	var $attachment = 0
+	while $attachment < attachment_count {
+		path = attachment_path($attachment)
+		$obligations = $obligations.append({ obligation: AttachmentPurposeMeaningful, path })
+		if combined {
+			$obligations = $obligations.append({ obligation: AttachmentSupplemental, path })
+		}
+		$attachment = $attachment + 1
 	}
 
 	## Figures, in figure order, with their alternative text, their fit

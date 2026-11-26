@@ -1,3 +1,4 @@
+import KernelAssociatedFiles
 import Color
 import Conformance
 import Font
@@ -1204,7 +1205,7 @@ DocumentBuilder :: {
 	}
 
 	finish : DocumentBuilder -> Document
-	finish = |state| Document.{ authoring: Compact(state), created: Omitted, modified: Omitted, outline: [], page_labels: [], templates: NoTemplates }
+	finish = |state| Document.{ associated_files: [], authoring: Compact(state), created: Omitted, modified: Omitted, outline: [], page_labels: [], templates: NoTemplates }
 }
 
 DocumentAuthoring := [
@@ -1213,7 +1214,10 @@ DocumentAuthoring := [
 	Simple({ contents : List(DocumentBlock), language : Str, metadata_title : Str }),
 ]
 
-Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, modified : Metadata.TimestampInput, outline : List(OutlineEntry), page_labels : List(PageLabelRange), templates : DocumentTemplates }.{
+Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : DocumentAuthoring, created : Metadata.TimestampInput, modified : Metadata.TimestampInput, outline : List(OutlineEntry), page_labels : List(PageLabelRange), templates : DocumentTemplates }.{
+	AssociatedFile : KernelAssociatedFiles.File
+	AttachmentRelationship : KernelAssociatedFiles.Relationship
+	AttachmentNecessity : KernelAssociatedFiles.Necessity
 	Block : DocumentBlock
 	Builder : DocumentBuilder
 	Caption : Caption
@@ -1421,6 +1425,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	from_blocks : { contents : List(DocumentBlock), language : Str, title : Str } -> Document
 	from_blocks = |{ contents, language: input_language, title: document_title }|
 		Document.{
+			associated_files: [],
 			authoring: Simple({ contents, language: input_language, metadata_title: document_title }),
 			created: Omitted,
 			modified: Omitted,
@@ -1434,6 +1439,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	from_props : { contents : List(DocumentBlock), created : Metadata.TimestampInput, language : Str, modified : Metadata.TimestampInput, outline : List(OutlineEntry), page_labels : List(PageLabelRange), templates : DocumentTemplates, title : Str } -> Document
 	from_props = |{ contents, created: input_created, language: input_language, modified: input_modified, outline: input_outline, page_labels: input_page_labels, templates, title: document_title }|
 		Document.{
+			associated_files: [],
 			authoring: Simple({ contents, language: input_language, metadata_title: document_title }),
 			created: input_created,
 			modified: input_modified,
@@ -1447,6 +1453,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	from_fixed_pages : { language : Str, pages : List(FixedPage), title : Str } -> Document
 	from_fixed_pages = |{ language: input_language, pages, title: document_title }|
 		Document.{
+			associated_files: [],
 			authoring: Fixed({ language: input_language, metadata_title: document_title, pages }),
 			created: Omitted,
 			modified: Omitted,
@@ -1460,6 +1467,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	## exact canonical UTC instant, which is validated before generation.
 	with_created : Document, Str -> Document
 	with_created = |document, timestamp| Document.{
+		associated_files: document.associated_files,
 		authoring: document.authoring,
 		created: Explicit(timestamp),
 		modified: document.modified,
@@ -1470,6 +1478,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 
 	with_modified : Document, Str -> Document
 	with_modified = |document, timestamp| Document.{
+		associated_files: document.associated_files,
 		authoring: document.authoring,
 		created: document.created,
 		modified: Explicit(timestamp),
@@ -1483,6 +1492,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	## preserved exactly through lowering.
 	with_outline : Document, List(OutlineEntry) -> Document
 	with_outline = |document, entries| Document.{
+		associated_files: document.associated_files,
 		authoring: document.authoring,
 		created: document.created,
 		modified: document.modified,
@@ -1495,6 +1505,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	## validated against the final page count after pagination.
 	with_page_labels : Document, List(PageLabelRange) -> Document
 	with_page_labels = |document, ranges| Document.{
+		associated_files: document.associated_files,
 		authoring: document.authoring,
 		created: document.created,
 		modified: document.modified,
@@ -1502,6 +1513,14 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 		page_labels: ranges,
 		templates: document.templates,
 	}
+
+	## Replace the associated-file list for any document constructor. File
+	## metadata and payload budgets are checked during profile preparation.
+	with_associated_files : Document, List(AssociatedFile) -> Document
+	with_associated_files = |Document.(record), files| Document.{ ..record, associated_files: files }
+
+	associated_files : Document -> List(AssociatedFile)
+	associated_files = |document| document.associated_files
 
 	created : Document -> Metadata.TimestampInput
 	created = |document| document.created
@@ -1520,6 +1539,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	## templates, pagination uses the theme's body frame on every page.
 	with_page_templates : Document, { continuation : DocumentPageTemplate, first : DocumentFirstPageTemplate } -> Document
 	with_page_templates = |document, { continuation, first }| Document.{
+		associated_files: document.associated_files,
 		authoring: document.authoring,
 		created: document.created,
 		modified: document.modified,

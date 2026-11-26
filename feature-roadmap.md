@@ -890,6 +890,20 @@ The emitted fonts, tagged line ownership, distinct source spellings,
 atomic exhaustion, and bounded allocation and work are exercised by
 [the Inter Latin fixtures](docs/contributors/performance/inter-latin.md).
 
+### Document-level associated files
+
+`ArchiveWithFiles` emits PDF/A-4f with one or more document-level
+associated files. `AccessibleArchiveWithFiles` additionally declares
+PDF/UA-2 and checks that the document is authored as self-contained. WTPDF
+accessibility remains optional on the accessible profile. Static profiles
+reject attachments before emission. The application owns file contents and
+metadata accuracy. Element-level associations and file attachment annotations
+need separate capability slices.
+
+The [associated-files evidence](docs/contributors/performance/associated-files.md)
+covers both declaration sets, exact extracted bytes, name-tree boundaries,
+metadata, error paths, and the count and payload-volume scale pairs.
+
 ## Gate 8: advanced document composition
 
 These capabilities extend the single-column flow, ordinary tables, bounded
@@ -1066,7 +1080,6 @@ edition and clause, with redistribution governed by their own licenses.
 
 The following are separate capabilities if an application needs them:
 
-- PDF/A-4f attachments.
 - WTPDF reuse conformance beyond accessibility.
 - Alternative replay or spooling surfaces beyond the baseline compact-plan,
   stateful-compression, owned-generated-chunk, and shared-final-resource-slice

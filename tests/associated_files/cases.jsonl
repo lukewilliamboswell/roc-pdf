@@ -1,0 +1,9 @@
+{"name":"associated invoice 4f and ua2","schema_version":1,"case":"Invoice"}
+{"name":"associated invoice 4f only","schema_version":1,"case":"ArchiveInvoice"}
+{"name":"associated files small","schema_version":1,"case":{"Files":{"count":4,"volume":16}}}
+{"name":"associated files many keys","schema_version":1,"case":{"Files":{"count":48,"volume":16}}}
+{"name":"associated files larger payloads","schema_version":1,"case":{"Files":{"count":4,"volume":32768}}}
+{"name":"associated files WTPDF","schema_version":1,"case":"Wtpdf"}
+{"name":"associated files blank archival page","schema_version":1,"case":"Blank"}
+{"name":"associated files atomic authoring rejections","schema_version":1,"case":"AtomicNegatives"}
+{"name":"associated files insertion permutation","schema_version":1,"case":"Permutation"}

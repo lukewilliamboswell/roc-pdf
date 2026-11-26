@@ -1440,6 +1440,36 @@
       }
     },
     {
+      "id": "example-invoice-with-data-pdf",
+      "path": "examples/invoice-with-data/invoice-with-data.pdf",
+      "kind": "expected_pdf",
+      "license": "UPL-1.0 and OFL-1.1 embedded fonts",
+      "attribution": "examples/invoice-with-data/README.md",
+      "origin": {
+        "kind": "generated",
+        "generator": "examples/invoice-with-data/main.roc"
+      },
+      "bytes": 23230,
+      "sha256": "9110dff172748932a69bf90ca84069d72882e7887127614927d48b92d995ba47",
+      "modification_permitted": true,
+      "redistribution_permitted": true
+    },
+    {
+      "id": "example-invoice-with-data-preview",
+      "path": "examples/invoice-with-data/preview.png",
+      "kind": "image",
+      "license": "UPL-1.0",
+      "attribution": "First-page preview rendered from the generated gallery PDF with Poppler 26.07.0.",
+      "origin": {
+        "kind": "generated",
+        "generator": "examples/invoice-with-data/main.roc"
+      },
+      "bytes": 59586,
+      "sha256": "d5d46c4e11a8ded74deb2fe1e87996d66322241c719bfb697e4a42b6b20d924c",
+      "modification_permitted": true,
+      "redistribution_permitted": true
+    },
+    {
       "id": "example-operations-handbook-pdf",
       "path": "examples/operations-handbook/operations-handbook.pdf",
       "kind": "expected_pdf",
@@ -2252,6 +2282,111 @@
       },
       "bytes": 19251,
       "sha256": "48623e888608aaf9e7abf74269fe2841996ddfb5809f3e2e163b406075b2edf5",
+      "modification_permitted": true,
+      "redistribution_permitted": true
+    },
+    {
+      "id": "fixture-associated-files-archive-invoice",
+      "path": "tests/associated_files/archive_invoice.pdf",
+      "kind": "expected_pdf",
+      "license": "UPL-1.0 and OFL-1.1 embedded fonts",
+      "attribution": "docs/contributors/performance/associated-files.md",
+      "origin": {
+        "kind": "generated",
+        "generator": "tests/associated_files/Cases.roc"
+      },
+      "bytes": 23114,
+      "sha256": "87c87f4b447a918aa9cb686314fc931e9903286a415e250e14f109d74eb9e395",
+      "modification_permitted": true,
+      "redistribution_permitted": true
+    },
+    {
+      "id": "fixture-associated-files-files-blank",
+      "path": "tests/associated_files/files_blank.pdf",
+      "kind": "expected_pdf",
+      "license": "UPL-1.0 and OFL-1.1 embedded fonts",
+      "attribution": "docs/contributors/performance/associated-files.md",
+      "origin": {
+        "kind": "generated",
+        "generator": "tests/associated_files/Cases.roc"
+      },
+      "bytes": 5326,
+      "sha256": "a35028788d0b6e5be7857349e93dd9936330f19f0b6ce4a01e330e4a8ea993c4",
+      "modification_permitted": true,
+      "redistribution_permitted": true
+    },
+    {
+      "id": "fixture-associated-files-files-many",
+      "path": "tests/associated_files/files_many.pdf",
+      "kind": "expected_pdf",
+      "license": "UPL-1.0 and OFL-1.1 embedded fonts",
+      "attribution": "docs/contributors/performance/associated-files.md",
+      "origin": {
+        "kind": "generated",
+        "generator": "tests/associated_files/Cases.roc"
+      },
+      "bytes": 25785,
+      "sha256": "5d59f9b131be0fedbf59b3e0dc3d3079344590cf9598f46e784efa1f9f02a4fc",
+      "modification_permitted": true,
+      "redistribution_permitted": true
+    },
+    {
+      "id": "fixture-associated-files-files-payloads",
+      "path": "tests/associated_files/files_payloads.pdf",
+      "kind": "expected_pdf",
+      "license": "UPL-1.0 and OFL-1.1 embedded fonts",
+      "attribution": "docs/contributors/performance/associated-files.md",
+      "origin": {
+        "kind": "generated",
+        "generator": "tests/associated_files/Cases.roc"
+      },
+      "bytes": 147705,
+      "sha256": "575f441e1c48f08c14b5f10cea3b99a6008e85ac68741a9c7d0d902376aa3cc0",
+      "modification_permitted": true,
+      "redistribution_permitted": true
+    },
+    {
+      "id": "fixture-associated-files-files-small",
+      "path": "tests/associated_files/files_small.pdf",
+      "kind": "expected_pdf",
+      "license": "UPL-1.0 and OFL-1.1 embedded fonts",
+      "attribution": "docs/contributors/performance/associated-files.md",
+      "origin": {
+        "kind": "generated",
+        "generator": "tests/associated_files/Cases.roc"
+      },
+      "bytes": 16669,
+      "sha256": "b918ef4ac04d5cc45196bfd39cf6f025f100718da03a5f710aae28e974436f1c",
+      "modification_permitted": true,
+      "redistribution_permitted": true
+    },
+    {
+      "id": "fixture-associated-files-files-wtpdf",
+      "path": "tests/associated_files/files_wtpdf.pdf",
+      "kind": "expected_pdf",
+      "license": "UPL-1.0 and OFL-1.1 embedded fonts",
+      "attribution": "docs/contributors/performance/associated-files.md",
+      "origin": {
+        "kind": "generated",
+        "generator": "tests/associated_files/Cases.roc"
+      },
+      "bytes": 16935,
+      "sha256": "7769e097ed58de60eebd0e92fed18ad0dfd580a085fd890410446cda0cc250e3",
+      "modification_permitted": true,
+      "redistribution_permitted": true
+    },
+    {
+      "id": "fixture-associated-files-invoice",
+      "path": "tests/associated_files/invoice.pdf",
+      "kind": "expected_pdf",
+      "license": "UPL-1.0 and OFL-1.1 embedded fonts",
+      "attribution": "docs/contributors/performance/associated-files.md",
+      "origin": {
+        "kind": "generated",
+        "generator": "tests/associated_files/Cases.roc"
+      },
+      "bytes": 23230,
+      "sha256": "9110dff172748932a69bf90ca84069d72882e7887127614927d48b92d995ba47",
       "modification_permitted": true,
       "redistribution_permitted": true
     },

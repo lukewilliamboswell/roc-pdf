@@ -465,10 +465,12 @@ checksums, pass `compression: Smallest`.
 | Profile | Output and declarations
 | `AccessibleArchive` (default) | PDF 2.0, static PDF/A-4, and PDF/UA-2
 | `Archive` | PDF 2.0 and static PDF/A-4
+| `ArchiveWithFiles` | PDF 2.0 and PDF/A-4f, with document-level associated files
+| `AccessibleArchiveWithFiles` | PDF 2.0, PDF/A-4f, and PDF/UA-2, with supplemental document-level associated files
 | `Standard` | PDF 2.0
 |===
 
-`AccessibleArchive` requires semantic content and a tagged document. Give the
+Both accessible profiles require semantic content and a tagged document. Give the
 document a meaningful metadata title and a specific language tag, and supply
 text alternatives for figures. Use
 xref:authoring.adoc#authoring-preparation-reports[the preparation report] to
@@ -482,7 +484,7 @@ standard_bytes = Pdf.to_bytes_with(document, { profile: Standard })?
 ----
 
 WTPDF 1.0 accessibility is a separate declaration. Add it to
-`AccessibleArchive` by setting `wtpdf: DeclareAccessibility`. The default
+either accessible profile by setting `wtpdf: DeclareAccessibility`. The default
 `NoWtpdfDeclaration` writes only the declarations for the selected profile.
 
 [source,roc]
@@ -504,6 +506,59 @@ content-dependent requirements such as whether figure descriptions are
 accurate and the reading order makes sense. If you need independent
 certification for a use case, discuss its scope, funding, and ownership in
 https://github.com/lukewilliamboswell/roc-pdf/issues[GitHub Issues].
+
+[#authoring-associated-files]
+== Associated files
+
+Use `Pdf.with_associated_files` to attach caller-supplied bytes to the entire
+document. The attachment profiles require at least one file. Other profiles
+return `attachment.profile` when supplied with any associated files.
+
+[source,roc]
+----
+with_data = document.with_associated_files([
+    {
+        bytes: xml_bytes,
+        filename: "invoice.xml",
+        media_type: "application/xml",
+        modified: "2026-09-14T00:00:00Z",
+        description: "Invoice line items for import into accounting software.",
+        necessity: Supplemental,
+        relationship: Data,
+    },
+])
+bytes = Pdf.to_bytes_with(with_data, { profile: AccessibleArchiveWithFiles })?
+----
+
+Use `Supplemental` only when a person can understand the document without
+opening the file. `AccessibleArchiveWithFiles` rejects
+`RequiredToUnderstand` and includes the attachment's purpose and
+supplemental status among the preparation report's author checks.
+`ArchiveWithFiles` supports a stated dependency for archival-only output.
+Choose `Data`, `Source`, `Supplement`, or `Alternative` according to
+the relationship of the file to the whole document.
+
+Use a single filename of at most 255 UTF-8 bytes, with no slash, backslash,
+colon, ASCII control character, trailing dot or trailing space. Filenames
+are case-sensitive and compared byte for byte without Unicode normalization.
+The reader-facing Unicode name preserves the authored text. For readers using
+the legacy filename, non-ASCII bytes and percent signs are percent-encoded.
+Use a parameter-free MIME type such as `application/xml` or explicitly
+supply `application/octet-stream` for opaque bytes of unknown type. Write
+the last modification time as `YYYY-MM-DDThh:mm:ssZ`. The package never
+reads the system clock. Supply a nonblank description of at most 1,024 UTF-8
+bytes with no ASCII control characters.
+
+The limit is 128 files, 4 MiB per file, and 8 MiB total. The ordinary document
+resource limits also apply. The package preserves the bytes exactly. The
+caller loads the files and validates their contents. Under
+`ShareUnchangedResources` the attachment chunks can share the source byte
+storage. Use `OwnChunks` when retaining chunks independently. Element-level
+associations and attachment annotations are outside this API.
+
+The xref:gallery.adoc#invoice-with-data[invoice with associated data]
+demonstrates both attachment profiles, extracting the original XML, and the
+static profile's rejection of the same document.
 
 [#authoring-chapter-aware-page-scopes]
 == Chapter-aware page scopes
@@ -986,7 +1041,8 @@ ordinary preparation with the same document options.
 | sequential flow of plain paragraphs through two columns | xref:authoring.adoc#authoring-column-flow[two-column guide]
 | fixed pages with text frames and rectangle artifacts | supported; xref:authoring.adoc#authoring-fixed-pages[fixed-page guide]
 | columns, floats, footnotes, row spans, complex tables | unavailable; requests return a feature diagnostic
-| `AccessibleArchive`, `Archive`, and `Standard` | xref:authoring.adoc#authoring-output-profiles[choose an output profile]
+| output profiles | xref:authoring.adoc#authoring-output-profiles[choose declarations]
+| document-level associated files | xref:authoring.adoc#authoring-associated-files[embed attachments]
 |===
 
 Reading, repairing, signing and encrypting PDFs are unsupported, as is

@@ -1,7 +1,7 @@
 Conformance :: [].{
 
 	## Public profiles select declarations and package checks.
-	Profile : [AccessibleArchive, Archive, Standard]
+	Profile : [AccessibleArchive, AccessibleArchiveWithFiles, Archive, ArchiveWithFiles, Standard]
 
 	## Capabilities name the declarations used by profile and diagnostic APIs.
 	Capability : [Pdf20, PdfA4f, PdfUa2, StaticPdfA4, WtpdfAccessibility, WtpdfReuse]
@@ -128,6 +128,14 @@ Conformance :: [].{
 				pdf_a4f: False,
 				pdf_ua2: False,
 				static_pdf_a4: True,
+				wtpdf_accessibility: False,
+				wtpdf_reuse: False,
+			}
+			ArchiveWithFiles | AccessibleArchiveWithFiles => {
+				pdf20: True,
+				pdf_a4f: True,
+				pdf_ua2: profile == AccessibleArchiveWithFiles,
+				static_pdf_a4: False,
 				wtpdf_accessibility: False,
 				wtpdf_reuse: False,
 			}

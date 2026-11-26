@@ -37,6 +37,7 @@ import Semantics
 ## normalized facts; nothing here re-derives sharing or scans operators.
 KernelFormStructure :: [].{
 	Error : [
+		AssociatedFilesUnsupported,
 		ArithmeticOverflow,
 		Font(KernelPdfFont.Error),
 		FontCountMismatch({ authored : U64, fonts : U64, mappings : U64, planned : U64 }),
@@ -213,6 +214,13 @@ ResourceNames := {
 
 build_plan : KernelTagged.Plan, KernelColor.Plan, KernelImage.Plan, KernelContent.Plan, KernelForm.Plan, KernelFormObjects.Plan, [NoTextObjects, WithTextObjects({ fonts : List(KernelFormStructure.FontInput), text : KernelPdfText.ScenePlan })], Scene.ShadingStore, KernelMetadata.PlanFacts, KernelFormStructure.NavigationInput, KernelFormStructure.Limits -> Try(KernelFormStructure.Plan, KernelFormStructure.Error)
 build_plan = |tagged, colors, images, content, forms, objects, text, shading_store, facts, navigation, limits| {
+	# This advanced Form XObject planner has its own catalog writer. The PDF
+	# facade's associated-file registry is only available to its structure planners.
+	match facts {
+		WithDocumentFacts({ associated: WithAssociatedFiles(_), .. }) => return Err(AssociatedFilesUnsupported)
+		_ => {}
+	}
+
 	base = KernelFormObjects.Plan.base(objects)
 	planned_fonts = KernelFormObjects.Plan.fonts(objects)
 	canonical_forms = KernelForm.Plan.canonical_form_count(forms)

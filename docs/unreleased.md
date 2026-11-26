@@ -54,6 +54,15 @@ Flow plain paragraphs through two explicitly sized columns. A paragraph
 that spans columns or pages keeps its authored text and logical reading order.
 See the [two-column guide](authoring.adoc#authoring-column-flow).
 
+## Associated files
+
+Generate PDF/A-4f with `ArchiveWithFiles` or add PDF/UA-2 with
+`AccessibleArchiveWithFiles`. Both profiles accept document-level files
+supplied as application-owned bytes. The accessible profile requires that
+the document be understandable without opening the files. See the
+[associated files guide](authoring.adoc#authoring-associated-files) and the
+[runnable invoice](../examples/invoice-with-data).
+
 ## Compiler
 
 This development branch uses Roc `nightly-2026-11-25-d5a4f1e`.

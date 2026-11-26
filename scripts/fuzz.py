@@ -103,6 +103,7 @@ TARGETS = (
     Target("font_subset_roundtrip", 2048, "font_suite"),
     Target("jpeg_inspector_mutation", 65536, "document_suite", corpus="tests/assets/jpeg-fuzz-corpus"),
     Target("facade_output_equivalence", 4096, "document_suite"),
+    Target("associated_files", 256, "document_suite"),
     Target("facade_structure", 4096, "document_suite"),
     Target("navigation_property", 4096, "document_suite"),
     Target("registry_property", 4096, "document_suite"),

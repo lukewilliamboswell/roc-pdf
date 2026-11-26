@@ -76,3 +76,20 @@ qualities or a reader's behavior.
 
 For independent certification, discuss the use case, scope, funding, and
 ownership in [GitHub Issues](https://github.com/lukewilliamboswell/roc-pdf/issues).
+
+
+## Supplemental associated files
+
+Apply ISO 14289-2:2024 §8.14.1 to each file specification reached through
+the catalog's `EmbeddedFiles` tree. Its `Desc` must describe the purpose
+of the file. Inspect that judgment and confirm that the document provides
+all information a reader needs before marking a file supplemental. Both
+checks appear at the file's authoring path in a combined-profile report.
+
+ISO 14289-2 §6.2 and WTPDF §6.2 impose accessibility obligations for files
+needed to understand the document. WTPDF §7.2.2 also addresses file-specific
+declarations for necessary non-PDF files. The package rejects that dependency
+under `AccessibleArchiveWithFiles`. Supply whole-document supplemental data
+only. The recommendations in §8.14.2 for associating alternate or
+supplemental representations with the applicable structure element belong
+to a separate element-level capability.

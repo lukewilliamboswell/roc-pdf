@@ -1,3 +1,4 @@
+import KernelAssociatedObjects
 import Document
 import Font
 import KernelBalanced
@@ -526,8 +527,19 @@ kernel_resource_use_error = |error| match error {
 	ShadingStopComponentMismatch(_) => leaf({ category: Invariant, feature: "shading_stop_component_mismatch", path: "ShadingStopComponentMismatch", inspected: Str.inspect(error) })
 }
 
+kernel_associated_objects_error : KernelAssociatedObjects.Error -> KernelFacadeFailure.Failure
+kernel_associated_objects_error = |error| match error {
+	ArithmeticOverflow => leaf({ category: Invariant, feature: "arithmetic_overflow", path: "ArithmeticOverflow", inspected: Str.inspect(error) })
+	InvalidAssociation => leaf({ category: Invariant, feature: "invalid_association", path: "InvalidAssociation", inspected: Str.inspect(error) })
+	Object(cause) => context({ feature: "object", path: "Object", cause: kernel_object_error(cause) })
+	Index(cause) => context({ feature: "index", path: "Index", cause: kernel_index_error(cause) })
+	Shape(cause) => context({ feature: "shape", path: "Shape", cause: kernel_balanced_error(cause) })
+	Tree(cause) => context({ feature: "tree", path: "Tree", cause: kernel_navigation_objects_error(cause) })
+}
+
 kernel_tagged_text_structure_error : KernelTaggedTextStructure.Error -> KernelFacadeFailure.Failure
 kernel_tagged_text_structure_error = |error| match error {
+	Associated(cause) => context({ feature: "associated_files", path: "Associated", cause: kernel_associated_objects_error(cause) })
 	ArithmeticOverflow => leaf({ category: Invariant, feature: "arithmetic_overflow", path: "ArithmeticOverflow", inspected: Str.inspect(error) })
 	Font(cause) => context({ feature: "font", path: "Font", cause: kernel_pdf_font_error(cause) })
 	FontCountMismatch(_) => leaf({ category: Invariant, feature: "font_count_mismatch", path: "FontCountMismatch", inspected: Str.inspect(error) })
@@ -852,6 +864,7 @@ kernel_seal_error = |error| match error {
 
 kernel_tagged_objects_error : KernelTaggedObjects.Error -> KernelFacadeFailure.Failure
 kernel_tagged_objects_error = |error| match error {
+	Associated(cause) => context({ feature: "associated_files", path: "Associated", cause: kernel_associated_objects_error(cause) })
 	AnnotationObjectUnplanned(_) => leaf({ category: Invariant, feature: "annotation_object_unplanned", path: "AnnotationObjectUnplanned", inspected: Str.inspect(error) })
 	IdTree(cause) => context({ feature: "id_tree", path: "IdTree", cause: kernel_navigation_objects_error(cause) })
 	IdTreeIndex(cause) => context({ feature: "id_tree_index", path: "IdTreeIndex", cause: kernel_index_error(cause) })

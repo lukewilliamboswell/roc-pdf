@@ -24,10 +24,10 @@ def validate_supported_fonts(bodies: dict[int, bytes]) -> None:
             Bundle(bodies, number)
 
 
-def validate_claims(data: bytes, *, wtpdf: bool = False) -> None:
+def validate_claims(data: bytes, *, wtpdf: bool = False, associated_files: bool = False) -> None:
     _offsets, bodies, root, _xref = skeleton(data, 0)
     validate_supported_fonts(bodies)
-    packet = check_metadata(bodies, dictionary_part(bodies[root]))
+    packet = check_metadata(bodies, dictionary_part(bodies[root]), associated_files=associated_files)
     try:
         xml = ET.fromstring(packet.split(b"?>", 1)[1].rsplit(b"<?xpacket", 1)[0])
     except ET.ParseError as error:

@@ -43,6 +43,7 @@
     "fixed_pages",
     "inter_latin",
     "columns",
+    "associated_files",
     "vector_diagrams",
     "rich_flow",
     "technical_manual",
@@ -66,6 +67,7 @@
     "fixed_pages",
     "inter_latin",
     "columns",
+    "associated_files",
     "vector_diagrams",
     "rich_flow",
     "technical_manual",
@@ -125,6 +127,9 @@
   },
   "groups": [
     {
+      "name": "associated_files"
+    },
+    {
       "name": "columns"
     },
     {
@@ -168,6 +173,10 @@
     }
   ],
   "families": [
+    {
+      "name": "associated_files",
+      "group": "associated_files"
+    },
     {
       "name": "forms",
       "group": "interactive"
@@ -394,6 +403,519 @@
     }
   ],
   "cases": [
+    {
+      "name": "associated invoice 4f and ua2",
+      "scenario_revision": "associated-files-v1",
+      "family": "associated_files",
+      "snapshot": "tests/associated_files/invoice.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "attachments": 1,
+        "file_bytes": 0,
+        "accessible": 1,
+        "wtpdf": 0,
+        "invoice": 1,
+        "dests": 0
+      },
+      "work_counters": [
+        "associated_files",
+        "associated_payload_bytes",
+        "chunks",
+        "purpose_obligations",
+        "supplemental_obligations",
+        "atomic_rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 2328,
+          "allocated_bytes": 8982253,
+          "work": {
+            "associated_files": 1,
+            "associated_payload_bytes": 315,
+            "chunks": 31,
+            "purpose_obligations": 1,
+            "supplemental_obligations": 1,
+            "atomic_rejections": 0,
+            "output_bytes": 23230
+          }
+        },
+        "x64musl": {
+          "allocations": 2328,
+          "allocated_bytes": 8982253,
+          "work": {
+            "associated_files": 1,
+            "associated_payload_bytes": 315,
+            "chunks": 31,
+            "purpose_obligations": 1,
+            "supplemental_obligations": 1,
+            "atomic_rejections": 0,
+            "output_bytes": 23230
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "associated_files"
+      ]
+    },
+    {
+      "name": "associated invoice 4f only",
+      "scenario_revision": "associated-files-v1",
+      "family": "associated_files",
+      "snapshot": "tests/associated_files/archive_invoice.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "attachments": 1,
+        "file_bytes": 0,
+        "accessible": 0,
+        "wtpdf": 0,
+        "invoice": 1,
+        "dests": 0
+      },
+      "work_counters": [
+        "associated_files",
+        "associated_payload_bytes",
+        "chunks",
+        "purpose_obligations",
+        "supplemental_obligations",
+        "atomic_rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 2327,
+          "allocated_bytes": 8980397,
+          "work": {
+            "associated_files": 1,
+            "associated_payload_bytes": 315,
+            "chunks": 31,
+            "purpose_obligations": 1,
+            "supplemental_obligations": 0,
+            "atomic_rejections": 0,
+            "output_bytes": 23114
+          }
+        },
+        "x64musl": {
+          "allocations": 2327,
+          "allocated_bytes": 8980397,
+          "work": {
+            "associated_files": 1,
+            "associated_payload_bytes": 315,
+            "chunks": 31,
+            "purpose_obligations": 1,
+            "supplemental_obligations": 0,
+            "atomic_rejections": 0,
+            "output_bytes": 23114
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "associated_files"
+      ]
+    },
+    {
+      "name": "associated files small",
+      "scenario_revision": "associated-files-v1",
+      "family": "associated_files",
+      "snapshot": "tests/associated_files/files_small.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "attachments": 4,
+        "file_bytes": 16,
+        "accessible": 1,
+        "wtpdf": 0,
+        "invoice": 0,
+        "dests": 1
+      },
+      "work_counters": [
+        "associated_files",
+        "associated_payload_bytes",
+        "chunks",
+        "purpose_obligations",
+        "supplemental_obligations",
+        "atomic_rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1583,
+          "allocated_bytes": 7906750,
+          "work": {
+            "associated_files": 4,
+            "associated_payload_bytes": 64,
+            "chunks": 40,
+            "purpose_obligations": 4,
+            "supplemental_obligations": 4,
+            "atomic_rejections": 0,
+            "output_bytes": 16669
+          }
+        },
+        "x64musl": {
+          "allocations": 1583,
+          "allocated_bytes": 7906750,
+          "work": {
+            "associated_files": 4,
+            "associated_payload_bytes": 64,
+            "chunks": 40,
+            "purpose_obligations": 4,
+            "supplemental_obligations": 4,
+            "atomic_rejections": 0,
+            "output_bytes": 16669
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "associated_files"
+      ]
+    },
+    {
+      "name": "associated files insertion permutation",
+      "scenario_revision": "associated-files-v1",
+      "family": "associated_files",
+      "snapshot": "tests/associated_files/files_small.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "attachments": 4,
+        "file_bytes": 16,
+        "accessible": 1,
+        "wtpdf": 0,
+        "invoice": 0,
+        "dests": 1
+      },
+      "work_counters": [
+        "associated_files",
+        "associated_payload_bytes",
+        "chunks",
+        "purpose_obligations",
+        "supplemental_obligations",
+        "atomic_rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 2744,
+          "allocated_bytes": 10891158,
+          "work": {
+            "associated_files": 4,
+            "associated_payload_bytes": 64,
+            "chunks": 40,
+            "purpose_obligations": 4,
+            "supplemental_obligations": 4,
+            "atomic_rejections": 0,
+            "output_bytes": 16669
+          }
+        },
+        "x64musl": {
+          "allocations": 2744,
+          "allocated_bytes": 10891158,
+          "work": {
+            "associated_files": 4,
+            "associated_payload_bytes": 64,
+            "chunks": 40,
+            "purpose_obligations": 4,
+            "supplemental_obligations": 4,
+            "atomic_rejections": 0,
+            "output_bytes": 16669
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "associated_files"
+      ]
+    },
+    {
+      "name": "associated files many keys",
+      "scenario_revision": "associated-files-v1",
+      "family": "associated_files",
+      "snapshot": "tests/associated_files/files_many.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "attachments": 48,
+        "file_bytes": 16,
+        "accessible": 1,
+        "wtpdf": 0,
+        "invoice": 0,
+        "dests": 1
+      },
+      "work_counters": [
+        "associated_files",
+        "associated_payload_bytes",
+        "chunks",
+        "purpose_obligations",
+        "supplemental_obligations",
+        "atomic_rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 3977,
+          "allocated_bytes": 9358160,
+          "work": {
+            "associated_files": 48,
+            "associated_payload_bytes": 768,
+            "chunks": 172,
+            "purpose_obligations": 48,
+            "supplemental_obligations": 48,
+            "atomic_rejections": 0,
+            "output_bytes": 25785
+          }
+        },
+        "x64musl": {
+          "allocations": 3977,
+          "allocated_bytes": 9358160,
+          "work": {
+            "associated_files": 48,
+            "associated_payload_bytes": 768,
+            "chunks": 172,
+            "purpose_obligations": 48,
+            "supplemental_obligations": 48,
+            "atomic_rejections": 0,
+            "output_bytes": 25785
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "associated_files"
+      ]
+    },
+    {
+      "name": "associated files larger payloads",
+      "scenario_revision": "associated-files-v1",
+      "family": "associated_files",
+      "snapshot": "tests/associated_files/files_payloads.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "attachments": 4,
+        "file_bytes": 32768,
+        "accessible": 1,
+        "wtpdf": 0,
+        "invoice": 0,
+        "dests": 1
+      },
+      "work_counters": [
+        "associated_files",
+        "associated_payload_bytes",
+        "chunks",
+        "purpose_obligations",
+        "supplemental_obligations",
+        "atomic_rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1588,
+          "allocated_bytes": 8711837,
+          "work": {
+            "associated_files": 4,
+            "associated_payload_bytes": 131072,
+            "chunks": 40,
+            "purpose_obligations": 4,
+            "supplemental_obligations": 4,
+            "atomic_rejections": 0,
+            "output_bytes": 147705
+          }
+        },
+        "x64musl": {
+          "allocations": 1588,
+          "allocated_bytes": 8711837,
+          "work": {
+            "associated_files": 4,
+            "associated_payload_bytes": 131072,
+            "chunks": 40,
+            "purpose_obligations": 4,
+            "supplemental_obligations": 4,
+            "atomic_rejections": 0,
+            "output_bytes": 147705
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "associated_files"
+      ]
+    },
+    {
+      "name": "associated files WTPDF",
+      "scenario_revision": "associated-files-v1",
+      "family": "associated_files",
+      "snapshot": "tests/associated_files/files_wtpdf.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "attachments": 4,
+        "file_bytes": 16,
+        "accessible": 1,
+        "wtpdf": 1,
+        "invoice": 0,
+        "dests": 1
+      },
+      "work_counters": [
+        "associated_files",
+        "associated_payload_bytes",
+        "chunks",
+        "purpose_obligations",
+        "supplemental_obligations",
+        "atomic_rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1583,
+          "allocated_bytes": 7907043,
+          "work": {
+            "associated_files": 4,
+            "associated_payload_bytes": 64,
+            "chunks": 40,
+            "purpose_obligations": 4,
+            "supplemental_obligations": 4,
+            "atomic_rejections": 0,
+            "output_bytes": 16935
+          }
+        },
+        "x64musl": {
+          "allocations": 1583,
+          "allocated_bytes": 7907043,
+          "work": {
+            "associated_files": 4,
+            "associated_payload_bytes": 64,
+            "chunks": 40,
+            "purpose_obligations": 4,
+            "supplemental_obligations": 4,
+            "atomic_rejections": 0,
+            "output_bytes": 16935
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "associated_files"
+      ]
+    },
+    {
+      "name": "associated files blank archival page",
+      "scenario_revision": "associated-files-v1",
+      "family": "associated_files",
+      "snapshot": "tests/associated_files/files_blank.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "attachments": 4,
+        "file_bytes": 16,
+        "accessible": 0,
+        "wtpdf": 0,
+        "invoice": 0,
+        "dests": 0
+      },
+      "work_counters": [
+        "associated_files",
+        "associated_payload_bytes",
+        "chunks",
+        "purpose_obligations",
+        "supplemental_obligations",
+        "atomic_rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 649,
+          "allocated_bytes": 2724733,
+          "work": {
+            "associated_files": 4,
+            "associated_payload_bytes": 64,
+            "chunks": 28,
+            "purpose_obligations": 4,
+            "supplemental_obligations": 0,
+            "atomic_rejections": 0,
+            "output_bytes": 5326
+          }
+        },
+        "x64musl": {
+          "allocations": 649,
+          "allocated_bytes": 2724733,
+          "work": {
+            "associated_files": 4,
+            "associated_payload_bytes": 64,
+            "chunks": 28,
+            "purpose_obligations": 4,
+            "supplemental_obligations": 0,
+            "atomic_rejections": 0,
+            "output_bytes": 5326
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "associated_files"
+      ]
+    },
+    {
+      "name": "associated files atomic authoring rejections",
+      "scenario_revision": "associated-files-v1",
+      "family": "associated_files",
+      "snapshot": "tests/associated_files/files_small.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "attachments": 4,
+        "file_bytes": 16,
+        "accessible": 1,
+        "wtpdf": 0,
+        "invoice": 0,
+        "dests": 1
+      },
+      "work_counters": [
+        "associated_files",
+        "associated_payload_bytes",
+        "chunks",
+        "purpose_obligations",
+        "supplemental_obligations",
+        "atomic_rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 8597,
+          "allocated_bytes": 9978765,
+          "work": {
+            "associated_files": 4,
+            "associated_payload_bytes": 64,
+            "chunks": 40,
+            "purpose_obligations": 4,
+            "supplemental_obligations": 4,
+            "atomic_rejections": 56,
+            "output_bytes": 16669
+          }
+        },
+        "x64musl": {
+          "allocations": 8597,
+          "allocated_bytes": 9978765,
+          "work": {
+            "associated_files": 4,
+            "associated_payload_bytes": 64,
+            "chunks": 40,
+            "purpose_obligations": 4,
+            "supplemental_obligations": 4,
+            "atomic_rejections": 56,
+            "output_bytes": 16669
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "associated_files"
+      ]
+    },
     {
       "name": "text-layout selected external discretionary-hyphen extraction",
       "scenario_revision": "external-discretionary-hyphen-v1-explicit-selection",

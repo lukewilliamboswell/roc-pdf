@@ -10,6 +10,13 @@ image::images/tax-invoice.png[Tax invoice preview]
 
 https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/tax-invoice/main.roc[Runnable invoice source] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/tax-invoice/tax-invoice.pdf[PDF output]
 
+[#invoice-with-data]
+== Invoice with associated data
+
+image::images/invoice-with-data.png[Tax invoice with associated XML data]
+
+https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/invoice-with-data[Run the invoice and extract its XML] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/invoice-with-data/invoice-with-data.pdf[PDF output]
+
 == Business report
 
 image::images/business-report.png[Business report preview]

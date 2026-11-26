@@ -84,12 +84,12 @@ The package supports distinct, composable claims:
 - `Pdf20`: valid output within the implemented ISO 32000-2 subset.
 - `StaticPdfA4`: the package's static, self-contained subset of PDF/A-4.
 - `PdfUa2`: PDF/UA-2 accessibility requirements, optionally combined with
-  `StaticPdfA4`.
+  `StaticPdfA4` or `PdfA4f`.
 - `WtpdfAccessibility`: the WTPDF accessibility declaration, whose file
   requirements align with PDF/UA-2.
 - `WtpdfReuse`: a separate capability with additional requirements.
-- `PdfA4f`: a possible future attachment-bearing profile, separate from the
-  base static profile.
+- `PdfA4f`: the document-level associated-file profile. Its accessible
+  combination requires the authored document to stand on its own.
 
 PDF/A-4 declarations address durable static appearance. PDF/UA-2 concerns
 accessibility, and WTPDF reuse would add separate requirements. A supported
@@ -102,6 +102,12 @@ attachments, multimedia, 3D, encryption, external visual/file dependencies,
 and incremental updates. Supported URI link actions remain ordinary annotation
 data. These are package policy exclusions, not claims that every such construct
 is universally prohibited by PDF/A-4.
+
+The PDF/A-4f variants allow only document-level embedded files. The accessible
+variant also checks PDF/UA-2 authoring and records that each file is supplemental
+and its purpose description needs review. A declared dependency on an embedded
+file is outside this accessible profile. This bounds the extra obligations in
+ISO 14289-2:2024 §§6.2, 7.2.2 and 8.14 and WTPDF 1.0 §§6.2, 7.2.2 and 8.14.
 
 Archive preparation checks the supported-feature whitelist, closed resources
 and metadata. Accessible archive preparation adds checks such as specific
@@ -1405,6 +1411,20 @@ policies for overlapping tables, checksums, composite cycles, instruction and
 hinting data, private tables, variation/color tables, and table order. JPEG and
 ICC outputs follow equivalent allowlist policies. Arbitrary input containers
 are not copied wholesale into a valid PDF wrapper.
+
+Associated files enter a document-level registry outside the visual resource
+graph. Authoring validation checks count, per-file length and aggregate length
+before handling any payload contents. It validates bounded metadata and orders
+exact UTF-8 filename keys by their unsigned PDF string bytes. Each filename
+owns a separate stream, even when two inputs contain equal bytes. The writer
+plans the file specifications, streams, and name-tree nodes in that order,
+and checks association identity, metadata, boundaries, and stream ownership
+before sealing. Every allowed catalog association edge is recorded explicitly,
+so the archival whitelist stays closed outside the document-level registry.
+The payload is opaque caller data and flows into unchanged-resource emission
+as a shared list. Type and content-specific validation belong to the
+application supplying it. See ISO 19005-4:2020 §6.9 and Annex A, and ISO
+32000-2:2020 §§7.9.6, 7.11 and 14.13.
 
 Annotations are first-class structured values carrying:
 

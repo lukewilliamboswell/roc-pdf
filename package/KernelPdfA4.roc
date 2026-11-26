@@ -1,3 +1,4 @@
+import KernelAssociatedObjects
 # The static PDF/A-4 profile boundary. A requested claim is a typed input
 # selected by the facade from the public profile; every construct that
 # reaches a claimed file is either eligible by construction or checked here
@@ -32,7 +33,7 @@ import KernelStructure
 import KernelXmp
 
 KernelPdfA4 :: [].{
-	Claim : [NoArchiveClaim, StaticPdfA4Claim]
+	Claim : [NoArchiveClaim, PdfA4fClaim, StaticPdfA4Claim]
 
 	## One tag per requirement with a runtime check. Requirements that
 	## hold by construction (file header, cross-reference streams, string and
@@ -211,13 +212,18 @@ KernelPdfA4 :: [].{
 
 	## Lowered-plan validation over the sealed store before serialization.
 	validate_lowered : Claim, LoweredInput -> Try(LoweredWork, Violation)
-	validate_lowered = |claim, input| check_lowered(claim, input)
+	validate_lowered = |claim, input| check_lowered(claim, input, NoAssociationOwnership)
+
+	## Accept AF and EmbeddedFiles exclusively at the two verified dictionary
+	## edges produced by the document-level associated-file writer.
+	validate_associated_lowered : Claim, LoweredInput, KernelAssociatedObjects.Ownership -> Try(LoweredWork, Violation)
+	validate_associated_lowered = |claim, input, ownership| check_lowered(claim, input, ownership)
 }
 
 check_text : KernelPdfA4.Claim, KernelPdfA4.TextFacts -> Try(KernelPdfA4.TextWork, KernelPdfA4.Violation)
 check_text = |claim, facts| match claim {
 	NoArchiveClaim => Ok({ mappings_checked: 0, scalars_checked: 0 })
-	StaticPdfA4Claim => {
+	StaticPdfA4Claim | PdfA4fClaim => {
 		match facts.actual_text {
 			PrivateUseInRun(run) => return Err({ position: run, requirement: ActualTextPrivateUse })
 			NoPrivateUse => {}
@@ -370,26 +376,31 @@ empty_summary = {
 	type_name: Other,
 }
 
-check_lowered : KernelPdfA4.Claim, KernelPdfA4.LoweredInput -> Try(KernelPdfA4.LoweredWork, KernelPdfA4.Violation)
-check_lowered = |claim, input| {
-	if KernelXmp.declares_archive(KernelXmp.Packet.identification(input.packet)) != (claim == StaticPdfA4Claim) {
+check_lowered : KernelPdfA4.Claim, KernelPdfA4.LoweredInput, KernelAssociatedObjects.Ownership -> Try(KernelPdfA4.LoweredWork, KernelPdfA4.Violation)
+check_lowered = |claim, input, ownership| {
+	identification = KernelXmp.Packet.identification(input.packet)
+	if KernelXmp.declares_archive(identification) != (claim != NoArchiveClaim) or KernelXmp.declares_files(identification) != (claim == PdfA4fClaim) {
 		return Err({ position: 0, requirement: Identification })
 	}
 	match claim {
 		NoArchiveClaim => Ok({ entries_checked: 0, names_classified: 0, packet_bytes_compared: 0, streams_checked: 0, values_checked: 0 })
-		StaticPdfA4Claim => validate_claimed_store(KernelSeal.Plan.store(input.sealed), input.root, KernelXmp.Packet.bytes(input.packet))
+		StaticPdfA4Claim => validate_claimed_store(KernelSeal.Plan.store(input.sealed), input.root, KernelXmp.Packet.bytes(input.packet), NoAssociationOwnership)
+		PdfA4fClaim => match ownership {
+			NoAssociationOwnership => Err({ position: 0, requirement: EmbeddedFiles })
+			AssociationOwnership(_) => validate_claimed_store(KernelSeal.Plan.store(input.sealed), input.root, KernelXmp.Packet.bytes(input.packet), ownership)
+		}
 	}
 }
 
-validate_claimed_store : KernelObject.Store, KernelObject.ObjectId, List(U8) -> Try(KernelPdfA4.LoweredWork, KernelPdfA4.Violation)
-validate_claimed_store = |store, root, packet| {
+validate_claimed_store : KernelObject.Store, KernelObject.ObjectId, List(U8), KernelAssociatedObjects.Ownership -> Try(KernelPdfA4.LoweredWork, KernelPdfA4.Violation)
+validate_claimed_store = |store, root, packet, ownership| {
 	classes = classify_names(store.names)?
 	var $entries_checked = 0
 	var $value = 0
 	while $value < store.values.len() {
 		match list_at(store.values, $value) {
 			Dictionary(span) => {
-				check_dictionary(store, classes, span, PlainDictionary, $value)?
+				check_dictionary(store, classes, span, PlainDictionary, $value, ownership)?
 				$entries_checked = $entries_checked + span.length
 			}
 			_ => {}
@@ -399,7 +410,7 @@ validate_claimed_store = |store, root, packet| {
 	var $stream = 0
 	while $stream < store.streams.len() {
 		stream = list_at(store.streams, $stream)
-		check_dictionary(store, classes, stream.dictionary, StreamDictionary, $stream)?
+		check_dictionary(store, classes, stream.dictionary, StreamDictionary, $stream, NoAssociationOwnership)?
 		$entries_checked = $entries_checked + stream.dictionary.length
 		$stream = $stream + 1
 	}
@@ -486,15 +497,15 @@ value_name_class = |store, classes, value| match list_at(store.values, KernelObj
 
 ## Forbidden keys map directly to their requirement; everything else is
 ## summarized for the kind-specific checks below.
-check_dictionary : KernelObject.Store, List(NameClass), KernelObject.Span, DictionaryKind, U64 -> Try({}, KernelPdfA4.Violation)
-check_dictionary = |store, classes, span, kind, position| {
+check_dictionary : KernelObject.Store, List(NameClass), KernelObject.Span, DictionaryKind, U64, KernelAssociatedObjects.Ownership -> Try({}, KernelPdfA4.Violation)
+check_dictionary = |store, classes, span, kind, position, ownership| {
 	var $summary = empty_summary
 	var $entry = span.start
 	end = span.start + span.length
 	while $entry < end {
 		entry = list_at(store.dictionary_entries, $entry)
 		key = name_class(store, classes, entry.key)
-		forbidden = forbidden_key(key, kind)
+		forbidden = forbidden_key(key, kind, ownership, $entry)
 		match forbidden {
 			Forbidden(requirement) => return Err({ position, requirement })
 			Allowed => {}
@@ -567,8 +578,8 @@ check_dictionary = |store, classes, span, kind, position| {
 
 ForbiddenKey : [Allowed, Forbidden(KernelPdfA4.Requirement)]
 
-forbidden_key : NameClass, DictionaryKind -> ForbiddenKey
-forbidden_key = |key, kind| match key {
+forbidden_key : NameClass, DictionaryKind, KernelAssociatedObjects.Ownership, U64 -> ForbiddenKey
+forbidden_key = |key, kind, ownership, edge| match key {
 	Encrypt => Forbidden(Encryption)
 	PieceInfo => Forbidden(DocumentInformation)
 	FFilter => Forbidden(StreamExternal)
@@ -597,8 +608,10 @@ forbidden_key = |key, kind| match key {
 	Js => Forbidden(Actions)
 	JavaScript => Forbidden(Actions)
 	Aa => Forbidden(AdditionalActions)
-	EmbeddedFiles => Forbidden(EmbeddedFiles)
-	Af => Forbidden(EmbeddedFiles)
+	EmbeddedFiles | Af => match ownership {
+		AssociationOwnership(associated) if (key == Af and edge == associated.af) or (key == EmbeddedFiles and edge == associated.embedded_files) => Allowed
+		_ => Forbidden(EmbeddedFiles)
+	}
 	OcProperties => Forbidden(OptionalContent)
 	Oc => Forbidden(OptionalContent)
 	AlternatePresentations => Forbidden(Presentations)
