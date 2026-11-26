@@ -52,6 +52,7 @@ EXAMPLES = (
     "service-intake",
     "source-blocks",
     "tax-invoice",
+    "thai-notice",
     "vector-diagrams",
     "warranty-letter",
 )

@@ -9,3 +9,6 @@
 {"name":"Hindi Latin statement","schema_version":1,"case":{"Hindi":{"wtpdf":false}}}
 {"name":"Hindi Latin statement WTPDF","schema_version":1,"case":{"Hindi":{"wtpdf":true}}}
 {"name":"Hindi Latin atomic diagnostics","schema_version":1,"case":"HindiAtomic"}
+{"name":"Thai Latin notice","schema_version":1,"case":{"Thai":{"wtpdf":false}}}
+{"name":"Thai Latin notice WTPDF","schema_version":1,"case":{"Thai":{"wtpdf":true}}}
+{"name":"Thai Latin atomic diagnostics","schema_version":1,"case":"ThaiAtomic"}

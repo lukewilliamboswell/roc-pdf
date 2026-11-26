@@ -19,6 +19,7 @@ import "../assets/IBMPlexSansHebrew-Rtl-Fixture.ttf" as hebrew_bytes : List(U8)
 import "../../examples/bilingual-invoice/fonts/IBMPlexSansHebrew-Regular.ttf" as invoice_hebrew : List(U8)
 import "../../examples/arabic-invoice/fonts/IBMPlexSansArabic-Regular.ttf" as invoice_arabic : List(U8)
 import "../../examples/hindi-statement/fonts/IBMPlexSansDevanagari-Regular.ttf" as statement_hindi : List(U8)
+import "../../examples/thai-notice/fonts/IBMPlexSansThaiLooped-Regular.ttf" as notice_thai : List(U8)
 
 main! = |_| { bytes: [], work: [] }
 
@@ -210,4 +211,31 @@ expect {
 	ranges = shaped.clusters.map(|entry| (entry.glyphs.start(), entry.glyphs.length(), entry.source.scalars.start(), entry.source.scalars.length()))
 	glyphs == [(928, 310, 0, 0, 0), (883, 624, 0, 0, 0), (857, 730, 0, 0, 0), (944, 310, 0, 0, 0), (893, 683, 0, 0, 0)] and
 		ranges == [(0, 2, 0, 2), (2, 2, 2, 4), (4, 1, 6, 1)]
+}
+
+## HarfBuzz 14.6.0, exact Thai Looped font, Thai/th/LTR defaults. SARA AM
+## produces an extra glyph and mark positioning without changing the
+## logical source interval.
+expect {
+	font = KernelFont.inspect(notice_thai, KernelFont.Limits.make({ max_bytes: 1000000, max_cmap_mappings: 3000, max_glyphs: 3000, max_tables: 128 }))?
+	face = KernelInternationalShape.prepare(font)?
+	provider = KernelInternationalShape.program(face, { direction: LeftToRight, language: Language("th"), script: "Thai" })
+	scalars : List(KernelInternationalText.ScalarAt)
+	scalars = [0xe0a, 0xe33, 0xe23, 0xe30].map_with_index(|scalar, index| { scalar, offset: index * 3 })
+	word = { ..item, direction: LeftToRight, level: 0, script: "Thai", language: Language("th"), source: { scalars: range(0, 4), utf8_bytes: range(0, 12) } }
+	shaped = KernelInternationalShape.shape(provider, word, scalars, 5)?
+	glyphs = shaped.glyphs.map(|glyph| (glyph.id, glyph.advance.x, glyph.advance.y, glyph.offset.x, glyph.offset.y))
+	ranges = shaped.clusters.map(|entry| (entry.glyphs.start(), entry.glyphs.length(), entry.source.scalars.start(), entry.source.scalars.length()))
+	glyphs == [(288, 623, 0, 0, 0), (465, 0, 0, 4, 0), (328, 492, 0, 0, 0), (319, 570, 0, 0, 0), (336, 513, 0, 0, 0)] and
+		ranges == [(0, 3, 0, 2), (3, 1, 2, 1), (4, 1, 3, 1)]
+}
+
+expect {
+	source = "กรุณาชำระเงินภายในวันนี้"
+	base = KernelUnicode.analyze(source, KernelUnicode.default_limits)?
+	lexicon = KernelUnicode.thai_dictionary({ revision: "notice-v1", words: ["กรุณา", "ชำระ", "เงิน", "ภายใน", "วันนี้"] })?
+	tailored = KernelUnicode.tailor_thai(source, base, lexicon)?
+	allowed = tailored.line_boundaries.keep_if(|entry| entry.decision == Allowed)
+	allowed.map(|entry| (entry.scalar_offset, entry.byte_offset)) == [(5, 15), (9, 27), (13, 39), (18, 54)] and
+		base.line_boundaries.keep_if(|entry| entry.decision == Allowed).is_empty() and tailored.graphemes == base.graphemes
 }

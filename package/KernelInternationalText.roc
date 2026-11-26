@@ -9,7 +9,7 @@ import unicode.Scalar
 ## come from the author's occurrences. UAX #24 script facts come from
 ## KernelUnicode's explicitly itemized runs.
 KernelInternationalText :: [].{
-	Repertoire : [ModernHindiLatin, UnpointedArabicLatin, UnpointedHebrewLatin]
+	Repertoire : [ModernHindiLatin, ThaiWithLatin, UnpointedArabicLatin, UnpointedHebrewLatin]
 
 	Limits : { max_clusters : U64, max_items : U64, max_scalars : U64 }
 
@@ -61,7 +61,7 @@ KernelInternationalText :: [].{
 		if analysis.work.scalar_visits != bidi.entries.len() or bidi.logical_source.utf8_bytes.length() != source.count_utf8_bytes() {
 			return Err(FactMismatch({ scalar_index: 0 }))
 		}
-		if repertoire != ModernHindiLatin and cluster_count != analysis.work.scalar_visits {
+		if (repertoire == UnpointedArabicLatin or repertoire == UnpointedHebrewLatin) and cluster_count != analysis.work.scalar_visits {
 			index = first_multi_scalar(analysis.graphemes)
 			return Err(UnsupportedCluster({ scalar_index: index }))
 		}
@@ -155,7 +155,7 @@ KernelInternationalText :: [].{
 				return Err(UnsupportedScript({ script: $script.script, scalar_index: $index }))
 			}
 			if next_original or next_script or $index == 0 {
-				if $script.script == "Deva" and !language_is($original.language, "hi") {
+				if ($script.script == "Deva" and !language_is($original.language, "hi")) or ($script.script == "Thai" and !language_is($original.language, "th")) {
 					return Err(UnsupportedLanguage({ scalar_index: $index, script: $script.script }))
 				}
 			}
@@ -203,6 +203,7 @@ supported_script : KernelInternationalText.Repertoire, Str -> Bool
 supported_script = |repertoire, script| {
 	selected = match repertoire {
 		ModernHindiLatin => "Deva"
+		ThaiWithLatin => "Thai"
 		UnpointedArabicLatin => "Arab"
 		UnpointedHebrewLatin => "Hebr"
 	}
@@ -215,6 +216,7 @@ supported_scalar = |repertoire, value| {
 		True
 	} else {
 		match repertoire {
+			ThaiWithLatin => (value >= 0xe01 and value <= 0xe3a) or (value >= 0xe40 and value <= 0xe59)
 			ModernHindiLatin => (value >= 0x901 and value <= 0x903) or (value >= 0x905 and value <= 0x939) or (value >= 0x93a and value <= 0x94d) or (value >= 0x958 and value <= 0x96f)
 			UnpointedArabicLatin => arabic_letter(value) or (value >= 0x660 and value <= 0x669) or value == 0x60c or value == 0x61b or value == 0x61f
 			UnpointedHebrewLatin => (value >= 0x5d0 and value <= 0x5ea) or value == 0x5f3 or value == 0x5f4

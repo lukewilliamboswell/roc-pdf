@@ -27,6 +27,8 @@ KernelFacadeShape :: [].{
 		InternationalPolicy(KernelInternationalSelection.Error),
 		InternationalShape({ block : U64, cause : KernelInternationalBatch.Error }),
 		InternationalStore(KernelInternationalLine.Error),
+		InternationalThaiDictionary(KernelUnicode.ThaiError),
+		InternationalThaiSource({ block : U64, cause : KernelUnicode.ThaiError }),
 		InternationalSurface,
 
 		LanguageMismatch({ occurrence : U64 }),
@@ -221,6 +223,7 @@ KernelFacadeShape :: [].{
 		owners : List(U64),
 		paragraphs : List(KernelInternationalBatch.Paragraph),
 		requests : List(KernelShape.SimpleRequest),
+		tailored : [DefaultSources, TailoredSources(List(KernelFacadeSources.Source))],
 	}
 
 	Plan :: {
@@ -1892,6 +1895,7 @@ build_international_plan = |authoring, owners, store, sources, ordered, theme, l
 		ArabicLatin => UnpointedArabicLatin
 		HindiLatin => ModernHindiLatin
 		HebrewLatin => UnpointedHebrewLatin
+		ThaiLatin(_) => ThaiWithLatin
 		OrdinaryText => return Err(InternationalSurface)
 	}
 	policy = KernelInternationalSelection.for_repertoire(ordered.registry, ordered.policy, repertoire) ? InternationalPolicy
@@ -1909,8 +1913,26 @@ build_international_plan = |authoring, owners, store, sources, ordered, theme, l
 		$inputs = $inputs.append({ authored: { id: shape.occurrence, language: source.language, source: range }, shape, segment: list_at(preparation.styles, $index).segment })
 		$index = $index + 1
 	}
+	tailored = match theme.international_text {
+		ThaiLatin(words) => {
+			dictionary = KernelUnicode.thai_dictionary(words) ? InternationalThaiDictionary
+			var $effective = List.with_capacity(sources.len())
+			var $source_index = 0
+			for source in sources {
+				analysis = KernelUnicode.tailor_thai(source.unicode, source.analysis, dictionary) ? |cause| InternationalThaiSource({ block: source_block(preparation, $source_index), cause })
+				$effective = $effective.append({ ..source, analysis })
+				$source_index = $source_index + 1
+			}
+			TailoredSources($effective)
+		}
+		_ => DefaultSources
+	}
+	layout_sources = match tailored {
+		TailoredSources(prepared) => prepared
+		DefaultSources => sources
+	}
 	shape_limits = KernelShape.Limits.values(limits.shape)
-	result = KernelInternationalBatch.build(sources, $inputs, policy, { max_clusters: shape_limits.max_clusters, max_glyphs: shape_limits.max_glyphs, max_requests: limits.max_requests, max_scalars: shape_limits.max_scalars, max_source_bytes: shape_limits.max_source_bytes }) ? |cause| InternationalShape({ block: international_request_block(preparation.block_runs, cause), cause })
+	result = KernelInternationalBatch.build(layout_sources, $inputs, policy, { max_clusters: shape_limits.max_clusters, max_glyphs: shape_limits.max_glyphs, max_requests: limits.max_requests, max_scalars: shape_limits.max_scalars, max_source_bytes: shape_limits.max_source_bytes }) ? |cause| InternationalShape({ block: international_request_block(preparation.block_runs, cause), cause })
 	physical = result.parents.map(|parent| list_at(preparation.requests, parent))
 	var $used = List.repeat(False, policy.faces.len())
 	for run in result.batch.store.runs {
@@ -1951,7 +1973,7 @@ build_international_plan = |authoring, owners, store, sources, ordered, theme, l
 	cluster_owners = KernelInternationalLine.cluster_owners(shaped_store) ? InternationalStore
 	Ok(
 		KernelFacadeShape.Plan.{
-			international: International({ owners: cluster_owners, paragraphs: result.paragraphs, requests: physical }),
+			international: International({ owners: cluster_owners, paragraphs: result.paragraphs, requests: physical, tailored }),
 			block_runs,
 			origins: Origins(result.parents.map(|parent| list_at($origins, parent))),
 			requests: physical,
@@ -1965,6 +1987,18 @@ build_international_plan = |authoring, owners, store, sources, ordered, theme, l
 			work: { font_bytes, font_tables, glyphs: work.glyph_visits, metric_reads: work.metric_reads, requests: physical.len(), scalars: work.scalar_visits, script_run_visits: work.script_run_visits, source_bytes: work.utf8_bytes },
 		},
 	)
+}
+
+source_block : KernelFacadeShape.Preparation, U64 -> U64
+source_block = |preparation, source_index| {
+	var $index = 0
+	for request in preparation.requests {
+		if request.source.index() == source_index {
+			return inter_block(preparation.block_runs, $index)
+		}
+		$index = $index + 1
+	}
+	0
 }
 
 expanded_range : KernelFacadeShape.LogicalRun, List(U64) -> KernelFacadeShape.LogicalRun

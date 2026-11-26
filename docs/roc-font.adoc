@@ -201,3 +201,17 @@ Devanagari Regular supplied with the xref:gallery.adoc#hindi-statement[Hindi
 statement]. Devanagari text must have an effective `hi` language tag.
 Use `Pdf.in_language("hi", ...)` inside a document with another language.
 Keep each grapheme within one authored inline.
+
+[#thai-and-latin]
+== Wrap Thai alongside Latin
+
+Enable `theme.international_text: ThaiLatin({ revision, words })` with an
+ordered font policy over packaged Inter Regular and the exact IBM Plex Sans
+Thai Looped Regular from the xref:gallery.adoc#thai-notice[Thai notice].
+Tag Thai text with `th` or a more specific Thai language tag. The policy
+uses the supplied dictionary to admit grapheme-aligned boundaries between
+known words. Supply a stable revision for the exact word set. Use up to
+4,096 words, 96 bytes per word, 256 KiB total, and a nonempty revision
+up to 128 bytes. Each analyzed source is limited to 64 KiB and each
+unspaced Thai run to 16 KiB. The policy can wrap across an admitted word
+boundary without adding spaces to the logical text.

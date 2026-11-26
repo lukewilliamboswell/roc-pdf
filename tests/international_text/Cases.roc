@@ -1,11 +1,12 @@
 import invoice.Invoice
 import hindi.Statement
+import thai.Notice
 import arabic.Invoice as ArabicInvoice
 import pdf.Document
 import pdf.Pdf
 
 Cases :: [].{
-	Case : [Arabic({ wtpdf : Bool }), ArabicAtomic, Atomic, Hindi({ wtpdf : Bool }), HindiAtomic, Invoice({ wtpdf : Bool }), Wrap({ count : U64 })]
+	Case : [Arabic({ wtpdf : Bool }), ArabicAtomic, Atomic, Hindi({ wtpdf : Bool }), HindiAtomic, Thai({ wtpdf : Bool }), ThaiAtomic, Invoice({ wtpdf : Bool }), Wrap({ count : U64 })]
 
 	run : Case -> { bytes : List(U8), work : List(U64) }
 	run = |case| {
@@ -14,6 +15,8 @@ Cases :: [].{
 			ArabicAtomic => arabic_atomic(require_fixture(ArabicInvoice.options({})))
 			Hindi({ wtpdf }) => encode(Statement.document({}), selected_profile(require_fixture(Statement.options({})), wtpdf), 0)
 			HindiAtomic => hindi_atomic(require_fixture(Statement.options({})))
+			Thai({ wtpdf }) => encode(Notice.document({}), selected_profile(require_fixture(Notice.options({})), wtpdf), 0)
+			ThaiAtomic => thai_atomic(require_fixture(Notice.options({})))
 			Invoice({ wtpdf }) => encode(Invoice.document({}), selected_profile(require_fixture(Invoice.options({})), wtpdf), 0)
 			Wrap({ count }) => encode(wrap_document(count), require_fixture(Invoice.options({})), count)
 			Atomic => atomic(require_fixture(Invoice.options({})))
@@ -161,4 +164,26 @@ reported_at : Try(a, Pdf.Error), Str, Str -> Bool
 reported_at = |result, name, path| match result {
 	Err(InvalidDocument({ diagnostics: [{ feature: Feature(feature), details: [source_path], .. }], .. })) => feature == name and source_path == path
 	_ => False
+}
+
+thai_atomic : Pdf.Options -> Try({ bytes : List(U8), work : List(U64) }, Pdf.Error)
+thai_atomic = |options| {
+	bad_dictionary : Pdf.Options
+	bad_dictionary = { ..options, theme: { ..options.theme, international_text: ThaiLatin({ revision: "", words: ["กรุณา"] }) } }
+	uncovered_dictionary : Pdf.Options
+	uncovered_dictionary = { ..options, theme: { ..options.theme, international_text: ThaiLatin({ revision: "uncovered-v1", words: [] }) } }
+	wrong_language = Pdf.document({ title: "Thai range in wrong language", language: "en", contents: [Pdf.paragraph("ชำระ")] })
+	cases = [
+		{ document: Notice.document({}), selection: bad_dictionary, diagnosis: "text.thai_dictionary", path: "theme.international_text" },
+		{ document: Notice.document({}), selection: uncovered_dictionary, diagnosis: "layout.international_unbreakable", path: "contents[2].contents[0]" },
+		{ document: wrong_language, selection: options, diagnosis: "text.international_language", path: "contents[0]" },
+	]
+	for case in cases {
+		document = case.document
+		if !reported_at(Pdf.to_bytes_with(document, case.selection), case.diagnosis, case.path) or !reported_at(Pdf.to_chunks_with(document, case.selection), case.diagnosis, case.path) {
+			crash "THAI_REJECTION_NOT_ATOMIC_OR_LOCATED: ${Str.inspect(Pdf.to_bytes_with(document, case.selection))}"
+		}
+	}
+	result = encode(Notice.document({}), options, 0)?
+	Ok({ ..result, work: result.work.append(cases.len() * 2) })
 }

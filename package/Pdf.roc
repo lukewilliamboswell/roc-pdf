@@ -1995,6 +1995,7 @@ pipeline_error_at = |error, doc, paths| match error {
 		},
 	)
 	Lines(Tables(TableWidth({ available, group, required }))) => group_error(doc, group, LayoutConstraintViolated, "layout.table_width", "A table's fixed column widths and column minimums need ${points_text(required)} but the table has ${points_text(available)}; content is never shrunk or clipped.")
+	Lines(InternationalUnbreakable({ block, available })) => located_error(doc, LayoutConstraintViolated, "layout.international_unbreakable", "The unbreakable segment does not fit its ${signed_points_text(available.raw())} frame.", [diagnostic_leaf_path(doc, paths, block)])
 	Lines(Tables(UnbreakableToken({ available, block, token, width }))) => located_error(doc, LayoutConstraintViolated, "layout.unbreakable_token", "A table cell holds text with no break opportunity (scalars ${token.start().to_str()} to ${(token.start() + token.length()).to_str()}) that is ${points_text(width)} wide, but its column gives it at most ${points_text(available)}; there is no emergency breaking.", [diagnostic_leaf_path(doc, paths, block)])
 	Lines(Tables(UnbreakableItems({ available, block, items, width }))) => located_error(doc, LayoutConstraintViolated, "layout.unbreakable_reference_items", "A table cell has an unbreakable measured item span ${items.start().to_str()} to ${(items.start() + items.length()).to_str()} of width ${points_text(width)}, but its columns provide ${points_text(available)}.", [diagnostic_leaf_path(doc, paths, block)])
 	Pages(TableLayout({ error: LeadOverflow({ available, required }), groups: _, units: _ })) => lead_overflow_error(available, required)
@@ -2073,6 +2074,8 @@ pipeline_error_at = |error, doc, paths| match error {
 	Semantics(EmptyMetadataTitle) => located_error(doc, InvalidRelationship, "document.title_empty", "The document's metadata title is empty.", [])
 	Shape(UnsupportedThemeFace({ block, face })) => located_error(doc, FeatureUnavailable, "text.theme_face", "A block's style selects face ${face.to_str()}, which is not one of the faces this document's font selection prepared.", [diagnostic_leaf_path(doc, paths, block)])
 	Shape(InternationalPolicy(problem)) => fixed_error(FeatureUnavailable, "text.international_policy", "The international text policy could not use the selected faces (${Str.inspect(problem)}).", "theme.font_selection")
+	Shape(InternationalThaiDictionary(cause)) => fixed_error(FeatureUnavailable, "text.thai_dictionary", "The Thai line-break dictionary was rejected (${Str.inspect(cause)}).", "theme.international_text")
+	Shape(InternationalThaiSource({ block, cause })) => located_error(doc, FeatureUnavailable, "text.thai_tailoring", "Thai line break preparation failed (${Str.inspect(cause)}).", [diagnostic_leaf_path(doc, paths, block)])
 	Shape(InternationalSurface) => fixed_error(FeatureUnavailable, "text.international_surface", "International text cannot share this document with source blocks or layout-dependent references.", "theme.international_text")
 	Shape(InternationalShape({ block, cause })) => {
 		path = [diagnostic_leaf_path(doc, paths, block)]

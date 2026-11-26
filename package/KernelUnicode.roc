@@ -6,6 +6,7 @@ import unicode.Script
 import unicode.ScriptItemization
 import unicode.TextPosition
 import unicode.TextRange
+import unicode.ThaiLineBreak
 import unicode.UnicodeVersion
 
 KernelUnicode :: [].{
@@ -56,6 +57,65 @@ KernelUnicode :: [].{
 		ScalarLimitExceeded({ limit : U64, required : U64 }),
 		ScriptRunLimitExceeded({ limit : U64, required : U64 }),
 	]
+
+	ThaiError : [Dictionary(ThaiLineBreak.DictionaryError), DictionaryRevisionLimit, Tailoring(ThaiLineBreak.Error), TailoringMismatch(U64)]
+
+	thai_dictionary : { revision : Str, words : List(Str) } -> Try(ThaiLineBreak.Dictionary, ThaiError)
+	thai_dictionary = |policy| {
+		if policy.revision.count_utf8_bytes() > 128 {
+			return Err(DictionaryRevisionLimit)
+		}
+		dictionary = ThaiLineBreak.Dictionary.from_words(
+			policy.words,
+			ThaiLineBreak.Dictionary.BuildOptions.{
+				revision: policy.revision,
+				limits: { max_words: 4096, max_total_bytes: 262144, max_word_bytes: 96 },
+			},
+		) ? Dictionary
+		Ok(dictionary)
+	}
+
+	## Reuse the earlier dense boundary coordinates. The Unicode Thai
+	## dictionary profile supplies a sorted set of exactly those edges that
+	## may end a line, including the baseline PreserveGraphemes decisions.
+	tailor_thai : Str, UnicodeAnalysis, ThaiLineBreak.Dictionary -> Try(UnicodeAnalysis, ThaiError)
+	tailor_thai = |source, analysis, dictionary| {
+		opportunities = ThaiLineBreak.opportunities(source, dictionary, { max_input_bytes: 65536, max_run_bytes: 16384 }) ? Tailoring
+		var $out = List.with_capacity(analysis.line_boundaries.len())
+		var $next = 0
+		for boundary in analysis.line_boundaries {
+			prohibited : [Allowed, Mandatory, Prohibited]
+			prohibited = Prohibited
+			var $decision = prohibited
+			match opportunities.get($next) {
+				Ok(opportunity) => {
+					offset = TextPosition.scalar_offset(opportunity.at)
+					if offset < boundary.scalar_offset {
+						return Err(TailoringMismatch(offset))
+					}
+					if offset == boundary.scalar_offset {
+						if TextPosition.byte_offset(opportunity.at) != boundary.byte_offset {
+							return Err(TailoringMismatch(offset))
+						}
+						$decision = match opportunity.decision {
+							Allowed => Allowed
+							Mandatory => Mandatory
+						}
+						$next = $next + 1
+					}
+				}
+				Err(_) => {}
+			}
+			if (boundary.decision == Mandatory) != ($decision == Mandatory) or (boundary.authority == NonTailorable and boundary.decision == Prohibited and $decision != Prohibited) {
+				return Err(TailoringMismatch(boundary.scalar_offset))
+			}
+			$out = $out.append({ ..boundary, decision: $decision })
+		}
+		if $next != opportunities.len() {
+			return Err(TailoringMismatch($next))
+		}
+		Ok({ ..analysis, line_boundaries: $out })
+	}
 
 	## The released package tag resolves to this reviewed source identity. Its
 	## immutable archive URL and digest are recorded with the text-layout evidence.

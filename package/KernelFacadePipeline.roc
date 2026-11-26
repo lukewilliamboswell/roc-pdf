@@ -547,7 +547,11 @@ build_ordered_pipeline = |authoring, multi, theme, page_size, descriptor, facts,
 			StyledFace({ font: list_at(styled.fonts, $candidate), instance: $instance, extra: $instance == faces.len() })
 		}
 	}
-	lines = KernelFacadeLines.Plan.build_ordered_authoring(authoring, shape, source_store, page_size, theme, limits.lines, KernelFacadeSemantics.Plan.table_grids(semantics)) ? Lines
+	line_sources = match KernelFacadeShape.Plan.international(shape) {
+		International({ tailored: TailoredSources(value), .. }) => value
+		_ => source_store
+	}
+	lines = KernelFacadeLines.Plan.build_ordered_authoring(authoring, shape, line_sources, page_size, theme, limits.lines, KernelFacadeSemantics.Plan.table_grids(semantics)) ? Lines
 
 	## The laid-out record is destructured at once so its plans stay uniquely
 	## owned by the stages that consume them.

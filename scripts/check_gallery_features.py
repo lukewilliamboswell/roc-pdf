@@ -232,7 +232,13 @@ def check_hindi(example: Path) -> None:
     check((example / "hindi-statement.pdf").read_bytes())
 
 
+def check_thai(example: Path) -> None:
+    from check_thai_notice import check
+    check((example / "thai-notice.pdf").read_bytes())
+
+
 CHECKS = {
+    "thai-notice": check_thai,
     "hindi-statement": check_hindi,
     "arabic-invoice": check_arabic,
     "bilingual-invoice": check_bilingual,

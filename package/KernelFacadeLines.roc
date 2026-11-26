@@ -23,6 +23,7 @@ KernelFacadeLines :: [].{
 		CalloutWidth({ group : U64 }),
 		CustomWidth({ available : U64, custom : U64, width : U64 }),
 		FixedUnbreakable({ block : U64, available : Layout.Unit }),
+		InternationalUnbreakable({ block : U64, available : Layout.Unit }),
 		InvalidGeometry,
 		InvalidRun({ block : U64, run : U64 }),
 		LabelTooWide({ available : U64, block : U64, width : U64 }),
@@ -500,7 +501,10 @@ build_ordered_with_geometry = |authoring, shape, sources, limits, input| {
 		KernelLineLayout.BatchPlan.build_logical_variants(sources, shape_batch.store, $line_requests, $holds, $modes, shape_batch.inter_runs, limits.line) ? |error| source_layout_error(authoring, $logical_index_of_body, geometries, shape_batch.store, error)
 	} else {
 		match KernelFacadeShape.Plan.international(shape) {
-			International(_) => KernelLineLayout.BatchPlan.build_international(sources, shape_batch.store, $line_requests, $holds, limits.line) ? LineLayout
+			International(_) => KernelLineLayout.BatchPlan.build_international(sources, shape_batch.store, $line_requests, $holds, limits.line) ? |error| match fixed_line_error(block_runs, geometries, shape_batch.store, error) {
+				FixedUnbreakable(problem) => InternationalUnbreakable(problem)
+				other => other
+			}
 			NoInternational => KernelLineLayout.BatchPlan.build_logical_variants(sources, shape_batch.store, $line_requests, $holds, [], shape_batch.inter_runs, limits.line) ? |error| if (fixed) fixed_line_error(block_runs, geometries, shape_batch.store, error) else LineLayout(error)
 		}
 	}

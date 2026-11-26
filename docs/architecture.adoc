@@ -1167,6 +1167,12 @@ earlier semantic owner. ISO 32000-2 §§9.10, 14.7.5, 14.8.5.4 and 14.9 and
 ISO 14289-2:2024 Annex B.1 define the applicable text, structure, attribute
 and language obligations.
 
+The Thai mode builds one bounded dictionary from the caller's exact word
+set and revision. Unicode's ThaiDictionaryV1 profile supplies approved
+opportunities in the original source coordinates. The shape and line-fit
+paths consume the same dense opportunity list, while grapheme data and
+source text keep their identities. Unknown tokens cannot open a boundary.
+
 Before shaping, a deterministic `FontPlan` maps source scalar ranges to exact
 validated font instances:
 

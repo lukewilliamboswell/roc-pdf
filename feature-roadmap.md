@@ -1022,6 +1022,15 @@ exercises a conjunct, dependent vowels, below-base positioning and Latin
 references. Face selection preserves whole graphemes. The fixture checks
 language, logical extraction, visible positions and a located inline split.
 
+### Thai and Latin flow
+
+The `ThaiLatin` option admits modern horizontal Thai with Inter Regular and
+IBM Plex Sans Thai Looped Regular. The caller supplies an exact, bounded
+dictionary and revision. The [Thai notice](examples/thai-notice/README.md)
+checks unspaced word wrapping, SARA AM decomposition, mark positioning,
+effective language and exact logical extraction. Unknown word boundaries
+keep their Unicode prohibition.
+
 ## Gate 9: extended modern accessibility vocabulary
 
 ### Capabilities

@@ -37,6 +37,14 @@ positioned below-base mark. Its activity cell includes a Latin reference.
 
 https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/hindi-statement[Run the Hindi statement] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/hindi-statement/preview.png[First-page preview] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/hindi-statement/hindi-statement.pdf[PDF output]
 
+[#thai-notice]
+== Thai and Latin payment notice
+
+The Thai paragraph wraps at a word boundary supplied by the dictionary.
+The tagged paragraph retains the authored text without added spaces.
+
+https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/thai-notice[Run the Thai notice] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/thai-notice/preview.png[First-page preview] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/thai-notice/thai-notice.pdf[PDF output]
+
 [#invoice-with-data]
 == Invoice with associated data
 

@@ -113,3 +113,24 @@ reversals. It checks line levels, visual cluster order and logical
 ranges, with witnesses for an earlier committed cut on both base
 directions. The Hebrew invoice checks the corresponding ordered owner
 and paint facts through the public compiler and archived PDF.
+
+## Thai and Latin
+
+The Thai notice uses Unicode 4.4.0 ThaiDictionaryV1 over the case's authored
+five words, with the dictionary revision supplied in the public options.
+Independently expected scalar cuts 5, 9, 13 and 18 map to bytes 15, 27, 39
+and 54. The production shaper and fitter consume the same decisions.
+The notice shows the break after เงิน. Its owner retains the full unspaced
+text, including SARA AM and combining marks. HarfBuzz 14.6.0 agrees on the
+glyphs, advances and offsets of ชำระ in Thai/th/LTR with the exact static
+IBM Plex Sans Thai Looped font and default features. The PDF oracle checks
+those painted positions and the vertical mark in วันนี้.
+
+The two one-page PDFs each have four authored blocks and 22 owned fragments.
+The combined profile uses 7,618 allocations and 8,644,644 bytes. WTPDF
+uses 7,620 allocations and 8,648,232 bytes. The six rejected byte/chunk
+deliveries and one accepted output use 14,098 allocations and 16,029,534
+bytes. The diagnostics cover invalid dictionary revision, an uncovered
+dictionary causing an unbreakable segment, and unsupported effective
+language. Arlington 1.30.2 and explicit veraPDF `4` and `ua2` accept both
+PDFs. Explicit `wt1a` accepts the WTPDF snapshot.

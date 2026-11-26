@@ -31581,6 +31581,157 @@
       ]
     },
     {
+      "name": "Thai Latin notice",
+      "scenario_revision": "thai-latin-v1",
+      "family": "international_text",
+      "snapshot": "tests/international_text/thai-notice.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "paragraphs": 0
+      },
+      "work_counters": [
+        "pages",
+        "authored_blocks",
+        "owned_fragments",
+        "wrapped_paragraphs",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 7618,
+          "allocated_bytes": 8644644,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 4,
+            "owned_fragments": 22,
+            "wrapped_paragraphs": 0,
+            "output_bytes": 16523
+          }
+        },
+        "x64musl": {
+          "allocations": 7618,
+          "allocated_bytes": 8644644,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 4,
+            "owned_fragments": 22,
+            "wrapped_paragraphs": 0,
+            "output_bytes": 16523
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "thai_notice"
+      ]
+    },
+    {
+      "name": "Thai Latin notice WTPDF",
+      "scenario_revision": "thai-latin-v1",
+      "family": "international_text",
+      "snapshot": "tests/international_text/thai-notice-wtpdf.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "paragraphs": 0
+      },
+      "work_counters": [
+        "pages",
+        "authored_blocks",
+        "owned_fragments",
+        "wrapped_paragraphs",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 7620,
+          "allocated_bytes": 8648232,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 4,
+            "owned_fragments": 22,
+            "wrapped_paragraphs": 0,
+            "output_bytes": 16788
+          }
+        },
+        "x64musl": {
+          "allocations": 7620,
+          "allocated_bytes": 8648232,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 4,
+            "owned_fragments": 22,
+            "wrapped_paragraphs": 0,
+            "output_bytes": 16788
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "wtpdf_accessibility",
+        "thai_notice"
+      ]
+    },
+    {
+      "name": "Thai Latin atomic diagnostics",
+      "scenario_revision": "thai-latin-v1",
+      "family": "international_text",
+      "snapshot": "tests/international_text/thai-notice.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "paragraphs": 0
+      },
+      "work_counters": [
+        "pages",
+        "authored_blocks",
+        "owned_fragments",
+        "wrapped_paragraphs",
+        "output_bytes",
+        "rejected_deliveries"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 14098,
+          "allocated_bytes": 16029534,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 4,
+            "owned_fragments": 22,
+            "wrapped_paragraphs": 0,
+            "output_bytes": 16523,
+            "rejected_deliveries": 6
+          }
+        },
+        "x64musl": {
+          "allocations": 14098,
+          "allocated_bytes": 16029534,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 4,
+            "owned_fragments": 22,
+            "wrapped_paragraphs": 0,
+            "output_bytes": 16523,
+            "rejected_deliveries": 6
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "thai_notice"
+      ]
+    },
+    {
       "name": "Hebrew Latin invoice",
       "scenario_revision": "hebrew-latin-v1",
       "family": "international_text",
