@@ -3104,13 +3104,8 @@ validate_profile_request = |doc, options| {
 	} else if !files.is_empty() {
 		return Err(InvalidDocument(located_batch(ProfileRequirementViolated, "attachment.profile", "Select ArchiveWithFiles or AccessibleArchiveWithFiles to embed associated files.", ["options.profile"])))
 	}
-	if accessible and Document.block_count(doc) == 0 {
-		message = if attachment_profile {
-			"AccessibleArchiveWithFiles requires a tagged document. Add semantic content or select ArchiveWithFiles for a blank page."
-		} else {
-			"AccessibleArchive requires a tagged document. Add semantic content or explicitly select Archive for a blank page."
-		}
-		return Err(InvalidDocument(located_batch(ProfileRequirementViolated, "profile.accessible_archive.empty_structure", message, ["contents"])))
+	if options.profile == AccessibleArchiveWithFiles and Document.block_count(doc) == 0 {
+		return Err(InvalidDocument(located_batch(ProfileRequirementViolated, "profile.accessible_archive.empty_structure", "AccessibleArchiveWithFiles requires a tagged document. Add semantic content or select ArchiveWithFiles for a blank page.", ["contents"])))
 	}
 	if attachment_profile {
 		planned = KernelAssociatedFiles.Plan.build(files, accessible, KernelAssociatedFiles.limits) ? attachment_error
@@ -3137,6 +3132,9 @@ validate_profile_request = |doc, options| {
 	}
 	match options.profile {
 		AccessibleArchive => {
+			if Document.block_count(doc) == 0 {
+				return Err(InvalidDocument(located_batch(ProfileRequirementViolated, "profile.accessible_archive.empty_structure", "AccessibleArchive requires a tagged document. Add semantic content or explicitly select Archive for a blank page.", ["contents"])))
+			}
 			identification = if (options.wtpdf == DeclareAccessibility) AccessibleArchiveWithWtpdf else AccessibleArchiveIdentification
 			Ok({ archive: StaticPdfA4Claim, associated: NoAssociatedFiles, identification })
 		}
