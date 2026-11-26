@@ -772,8 +772,9 @@ in whole points from 3 to 14,400. A frame has its origin at its lower-left
 corner, measured from the lower-left corner of the page. Frame and artwork
 rectangles need positive sides and must fit entirely on the page. Text wraps
 to the frame's width and starts at the top. The fit check uses each shaped
-line's advance and the theme's line spacing. Allow room for glyphs that
-extend past those metrics. Each placement must fit within its own frame.
+line's advance and the theme's line spacing. Set the leading at least as
+large as the text size. Allow room for glyphs that extend past those metrics.
+Each placement must fit within its own frame.
 
 Supported blocks are `Pdf.title`, `Pdf.heading`, `Pdf.paragraph`, and
 `Pdf.rich_paragraph`. Rich paragraphs accept styling, language spans,

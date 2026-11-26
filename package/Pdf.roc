@@ -1072,6 +1072,7 @@ fixed_pipeline_error = |error, doc, paths, planned| match error {
 	}
 	Placement(LineTooWide({ page, placement, actual, maximum })) => fixed_error(LayoutConstraintViolated, "layout.fixed.text_width", "A line needs ${signed_points_text(actual.raw())} of width but the frame has ${signed_points_text(maximum.raw())}.", fixed_placement_path(page, placement))
 	Placement(LineBoxesTooTall({ page, placement, actual, maximum })) => fixed_error(LayoutConstraintViolated, "layout.fixed.text_height", "The line boxes need ${points_text(actual)} of height but the frame has ${points_text(maximum)}.", fixed_placement_path(page, placement))
+	Placement(InvalidTextStyle({ page, placement })) => fixed_error(LayoutConstraintViolated, "layout.fixed.text_style", "Use a positive text size and set leading at least as large as the text size for this placement.", fixed_placement_path(page, placement))
 	Placement(PieceLimit({ attempted, limit })) => fixed_error(BudgetExceeded, "layout.fixed.budget", "Fixed text needs ${attempted.to_str()} positioned pieces, but the limit is ${limit.to_str()}.", "pages")
 	Placement(InvalidPlan) => fixed_error(InternalInvariant, "pipeline.fixed.placement", "The fixed layout stage received inconsistent accepted facts.", "pages")
 }
@@ -5001,4 +5002,21 @@ expect {
 	has_fixed_language_error(Pdf.to_bytes(doc))
 		and has_fixed_language_error(Pdf.to_chunks_with(doc, options))
 		and has_fixed_language_error(Pdf.prepare_with_report(doc, options))
+}
+
+expect {
+	doc = fixed_report_document("fr")
+	has_fixed_style_error = |result| match result {
+		Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, feature: Feature("layout.fixed.text_style"), details: ["pages[0].placements[1]"], stage: AuthoringValidation, .. }], .. })) => True
+		_ => False
+	}
+	[9, 0].all(
+		|leading| {
+			options : Pdf.Options
+			options = { theme: { body: { size: 11, leading } } }
+			has_fixed_style_error(Pdf.to_bytes_with(doc, options))
+				and has_fixed_style_error(Pdf.to_chunks_with(doc, options))
+				and has_fixed_style_error(Pdf.prepare_with_report(doc, options))
+		},
+	)
 }
