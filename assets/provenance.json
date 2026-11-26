@@ -2129,7 +2129,7 @@
       }
     },
     {
-      "id": "example-quarterly-report-regional-expected_pdf",
+      "id": "example-quarterly-report-regional-expected-pdf",
       "path": "examples/quarterly-report/quarterly-report-regional.pdf",
       "kind": "expected_pdf",
       "bytes": 15885,
