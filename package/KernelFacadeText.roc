@@ -43,6 +43,9 @@ KernelFacadeText :: [].{
 			max_runs : U64,
 		} -> Limits
 		make = |limits| Limits.(limits)
+
+		max_placements : Limits -> U64
+		max_placements = |limits| limits.max_placements
 	}
 	Page : { id : Semantics.PageId, runs : Semantics.IndexRange }
 	Placement : { origin : Layout.Point, page : Semantics.PageId, run : Text.RunId }

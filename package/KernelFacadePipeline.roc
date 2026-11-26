@@ -1,6 +1,7 @@
 import Document
 import Font
 import KernelFacadeFragments
+import KernelFacadeFixed
 import KernelFacadeFurniture
 import KernelFacadeLabels
 import KernelFacadeLines
@@ -46,6 +47,7 @@ KernelFacadePipeline :: [].{
 		Shape(KernelFacadeShape.Error),
 		Text(KernelFacadeText.Error),
 	]
+	FixedError : [Pipeline(Error), Placement(KernelFacadeFixed.Error)]
 	Stage : [FragmentsReady, LinesReady, OutputReady, PagesReady, ScenesReady, SemanticsReady, ShapeReady, TextReady]
 
 	Limits :: {
@@ -159,6 +161,11 @@ KernelFacadePipeline :: [].{
 		build_styled_reporting : Document.NormalizedAuthoring, KernelFacadeShape.StyledFaces, Theme, Layout.Size, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, Limits -> Try(Plan, Error)
 		build_styled_reporting = |authoring, styled, theme, page_size, descriptor, input_facts, limits| build_ordered_pipeline(authoring, Styled(styled), theme, page_size, descriptor, input_facts, Collect, limits)
 
+		## Fixed preparation has separate physical placement rules while sharing
+		## semantic ownership, shaping, tagged lowering and profile output.
+		build_fixed : Document.NormalizedAuthoring, Document.NormalizedFixed, KernelFacadeShape.FontSelection, Theme, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelFacadeReport.Request, Limits -> Try(Plan, FixedError)
+		build_fixed = |authoring, fixed, selection, theme, descriptor, input_facts, request, limits| build_fixed_pipeline(authoring, fixed, selection, theme, descriptor, input_facts, request, limits)
+
 		output : Plan -> KernelFacadeOutput.Plan
 		output = |plan| plan.output
 
@@ -176,6 +183,74 @@ KernelFacadePipeline :: [].{
 ## The multi-font arms: an ordered policy, or style faces with inline role
 ## faces.
 MultiFace : [Policy({ policy : Font.PolicyId, registry : Font.Registry }), Styled(KernelFacadeShape.StyledFaces)]
+
+build_fixed_pipeline : Document.NormalizedAuthoring, Document.NormalizedFixed, KernelFacadeShape.FontSelection, Theme, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelFacadeReport.Request, KernelFacadePipeline.Limits -> Try(KernelFacadePipeline.Plan, KernelFacadePipeline.FixedError)
+build_fixed_pipeline = |authoring, fixed, selection, theme, descriptor, facts, request, limits| {
+	semantics = KernelFacadeSemantics.Plan.build(authoring, limits.semantics) ? |error| Pipeline(Semantics(error))
+	preliminary = KernelFacadeSemantics.Plan.preliminary(semantics)
+	owners = KernelFacadeSemantics.Plan.block_ownership(semantics)
+	flow_text = KernelFacadeSemantics.Plan.flow_text(semantics)
+	sources = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics))
+	shape = (
+		match selection {
+			Single(font) => KernelFacadeShape.Plan.build(authoring, owners, flow_text, sources, font, theme, limits.shape)
+			Styled(styled) => KernelFacadeShape.Plan.build_styled(authoring, owners, flow_text, sources, styled, theme, limits.shape)
+			Ordered(ordered) => KernelFacadeShape.Plan.build_ordered(authoring, owners, flow_text, sources, ordered, theme, limits.shape)
+		}
+	) ? |error| Pipeline(Shape(error))
+	view = Document.NormalizedFixed.view(fixed)
+	lines = KernelFacadeLines.Plan.build_fixed(authoring, shape, sources, view.frames, limits.lines) ? |error| Pipeline(Lines(error))
+	{ positioned, work: placement_work } = KernelFacadeFixed.position(fixed, shape, lines, { max_pieces: KernelFacadeText.Limits.max_placements(limits.text) }) ? Placement
+	text = KernelFacadeText.Plan.build_positioned(positioned, [], { decorations: [], figure_scales: [], panels: [] }, limits.text) ? |error| Pipeline(Text(error))
+	fragments = KernelFacadeFragments.Plan.build(preliminary, text, limits.fragments, limits.fragment_semantics) ? |error| Pipeline(Fragments(error))
+	scenes = KernelFacadeScenes.Plan.build_fixed(fragments, { pages: view.pages, artifacts: view.artifacts }, intent_profile(facts), limits.scenes) ? |error| Pipeline(Scenes(error))
+	output = (
+		match selection {
+			Single(font) => KernelFacadeOutput.Plan.build_with_facts(scenes, font, descriptor, facts, limits.output)
+			Styled(_) | Ordered(_) => KernelFacadeOutput.Plan.build_multi_with_facts(scenes, KernelFacadeShape.Plan.fonts(shape), descriptor, facts, limits.output)
+		}
+	) ? |error| Pipeline(Output(error))
+	fragment_table = KernelFacadeFragments.Plan.fragments(fragments)
+	final_text = KernelFacadeText.Plan.text(KernelFacadeFragments.Plan.text(fragments))
+	report_facts = match request {
+		NoCollect => NoFacts
+		Collect => Facts(KernelFacadeReport.collect({ callouts: [], panels: [], references: [], relaxations: [], repeats: [], scales: [], scope_pages: [], source_fragments: [], splits: [] }, owners, KernelFacadeSemantics.Plan.figure_labels(semantics), fragment_table, final_text, view.pages.len()))
+	}
+	batch = KernelFacadeLines.Plan.line(lines)
+	shaped = KernelFacadeShape.Plan.shape(shape)
+	Ok(
+		KernelFacadePipeline.Plan.{
+			facts: report_facts,
+			output,
+			work: {
+				blocks: authoring.blocks.len(),
+				callout_ancestors: 0,
+				callout_contexts: 0,
+				callout_fragments: 0,
+				callout_updates: 0,
+				field_resolutions: 0,
+				final_runs: final_text.runs.len(),
+				fragments: fragment_table.len(),
+				furniture_items: 0,
+				line_candidate_visits: KernelLineLayout.BatchPlan.work(batch).candidate_visits,
+				lines: placement_work.line_visits,
+				objects: KernelFacadeOutput.Plan.work(output).objects,
+				occurrences: KernelFacadeSemantics.Plan.work(semantics).occurrence_writes,
+				page_candidate_visits: placement_work.placements,
+				pages: view.pages.len(),
+				reference_passes: 0,
+				scene_commands: KernelFacadeScenes.Plan.work(scenes).command_writes,
+				scope_visits: 0,
+				shape_metric_reads: shaped.work.metric_reads,
+				shaped_runs: shaped.store.runs.len(),
+				source_foreground_ranges: 0,
+				source_paint_clusters: 0,
+				source_paint_ranges: 0,
+				template_region_visits: 0,
+			},
+		},
+	)
+}
 
 Upstream := {
 	descriptor : KernelPdfFont.Descriptor,
