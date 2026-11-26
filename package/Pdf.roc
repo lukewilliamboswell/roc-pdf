@@ -3197,8 +3197,8 @@ expect {
 
 	implicit == default and implicit == empty_options and implicit == combined and
 		contains_bytes(implicit, Str.to_utf8("<pdfaid:part>4</pdfaid:part>")) and
-		contains_bytes(implicit, Str.to_utf8("<pdfuaid:part>2</pdfuaid:part>")) and
-		!contains_bytes(implicit, Str.to_utf8("http://pdfa.org/declarations/wtpdf#accessibility1.0"))
+			contains_bytes(implicit, Str.to_utf8("<pdfuaid:part>2</pdfuaid:part>")) and
+				!contains_bytes(implicit, Str.to_utf8("http://pdfa.org/declarations/wtpdf#accessibility1.0"))
 }
 
 profile_document : Document
