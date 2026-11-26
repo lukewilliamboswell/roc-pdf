@@ -556,7 +556,7 @@ build_ordered_pipeline = |authoring, multi, theme, page_size, descriptor, facts,
 
 	## The laid-out record is destructured at once so its plans stay uniquely
 	## owned by the stages that consume them.
-	{ pages, text: unlabelled, work: laid_work } = lay_out(authoring, shape, lines, page_size, theme, furniture_selection, KernelFacadeSemantics.Plan.semantic_source_count(semantics), limits)?
+	{ pages, text: unlabelled, work: laid_work } = lay_out(KernelFacadeSemantics.Plan.authoring(semantics), shape, lines, page_size, theme, furniture_selection, KernelFacadeSemantics.Plan.semantic_source_count(semantics), limits)?
 	label_fonts = match multi {
 		Policy(_) => PolicyLabels
 		Styled(styled) => LabelFonts(StyledFonts({ fonts: KernelFacadeShape.Plan.fonts(shape), instances: KernelFacadeShape.Plan.label_instances(shape, styled) }))
@@ -831,7 +831,7 @@ probe_early = |authoring, font, theme, page_size, limits, stage| {
 		Templates(_) => False
 	}
 	pages = if plain {
-		KernelFacadePages.Plan.build(authoring, shape, lines, page_size, theme, limits.pages) ? Pages
+		KernelFacadePages.Plan.build(KernelFacadeSemantics.Plan.authoring(semantics), shape, lines, page_size, theme, limits.pages) ? Pages
 	} else {
 		static = KernelFacadeFurniture.Static.build(authoring, theme, page_size) ? Furniture
 		KernelFacadePages.Plan.build_with_scopes(authoring, shape, lines, page_size, theme, KernelFacadeFurniture.Static.flow(static), KernelFacadeFurniture.Static.scope_flows(static), limits.pages) ? Pages
@@ -849,7 +849,7 @@ probe_ordered_plan = |authoring, ordered, theme, page_size, limits| {
 	shaped_runs = KernelFacadeShape.Plan.shape(shape).store.runs.len()
 	lines = KernelFacadeLines.Plan.build_ordered_authoring(authoring, shape, source_store, page_size, theme, limits.lines, KernelFacadeSemantics.Plan.table_grids(semantics)) ? Lines
 	line_count = KernelLineLayout.BatchPlan.lines(KernelFacadeLines.Plan.line(lines)).len()
-	{ pages, text: unlabelled, work: laid_work } = lay_out(authoring, shape, lines, page_size, theme, selection, KernelFacadeSemantics.Plan.semantic_source_count(semantics), limits)?
+	{ pages, text: unlabelled, work: laid_work } = lay_out(KernelFacadeSemantics.Plan.authoring(semantics), shape, lines, page_size, theme, selection, KernelFacadeSemantics.Plan.semantic_source_count(semantics), limits)?
 	labelled = label_text(semantics, unlabelled, PolicyLabels, limits)?
 	text = KernelFacadeText.Plan.with_source_foregrounds(labelled, authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), limits.text) ? Text
 	page_count_value = KernelPageLayout.Plan.pages(KernelFacadePages.Plan.page(pages)).len()
@@ -893,7 +893,7 @@ build_upstream = |authoring, font, theme, page_size, descriptor, request, limits
 
 	## The laid-out record is destructured at once so its plans stay uniquely
 	## owned by the stages that consume them.
-	{ pages, text: unlabelled, work: laid_work } = lay_out(authoring, shape, lines, page_size, theme, SingleFace(font), KernelFacadeSemantics.Plan.semantic_source_count(semantics), limits)?
+	{ pages, text: unlabelled, work: laid_work } = lay_out(KernelFacadeSemantics.Plan.authoring(semantics), shape, lines, page_size, theme, SingleFace(font), KernelFacadeSemantics.Plan.semantic_source_count(semantics), limits)?
 	labelled = label_text(semantics, unlabelled, LabelFonts(SingleFont(font)), limits)?
 	text = KernelFacadeText.Plan.with_source_foregrounds(labelled, authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), limits.text) ? Text
 	collected = match request {

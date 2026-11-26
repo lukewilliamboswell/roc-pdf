@@ -46,6 +46,7 @@
     "columns",
     "associated_files",
     "fillable_forms",
+    "footnotes",
     "vector_diagrams",
     "rich_flow",
     "technical_manual",
@@ -73,6 +74,7 @@
     "columns",
     "associated_files",
     "fillable_forms",
+    "footnotes",
     "vector_diagrams",
     "rich_flow",
     "technical_manual",
@@ -133,6 +135,9 @@
   },
   "groups": [
     {
+      "name": "footnotes"
+    },
+    {
       "name": "interactive_fields"
     },
     {
@@ -188,6 +193,10 @@
     }
   ],
   "families": [
+    {
+      "name": "footnotes",
+      "group": "footnotes"
+    },
     {
       "name": "interactive_fields",
       "group": "interactive_fields"
@@ -430,6 +439,246 @@
     }
   ],
   "cases": [
+    {
+      "name": "handbook linked footnotes",
+      "scenario_revision": "first-citation-footnotes-v1",
+      "family": "footnotes",
+      "snapshot": "tests/footnotes/handbook.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 3,
+        "notes": 1,
+        "handbook": 1,
+        "wtpdf": 0
+      },
+      "work_counters": [
+        "pages",
+        "notes",
+        "chunks",
+        "output_bytes",
+        "atomic_rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1572,
+          "allocated_bytes": 7238632,
+          "work": {
+            "pages": 3,
+            "notes": 1,
+            "chunks": 34,
+            "output_bytes": 20516,
+            "atomic_rejections": 0
+          }
+        },
+        "x64musl": {
+          "allocations": 1572,
+          "allocated_bytes": 7238632,
+          "work": {
+            "pages": 3,
+            "notes": 1,
+            "chunks": 34,
+            "output_bytes": 20516,
+            "atomic_rejections": 0
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "footnotes"
+      ]
+    },
+    {
+      "name": "handbook linked footnotes WTPDF",
+      "scenario_revision": "first-citation-footnotes-v1",
+      "family": "footnotes",
+      "snapshot": "tests/footnotes/handbook_wtpdf.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 3,
+        "notes": 1,
+        "handbook": 1,
+        "wtpdf": 1
+      },
+      "work_counters": [
+        "pages",
+        "notes",
+        "chunks",
+        "output_bytes",
+        "atomic_rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1583,
+          "allocated_bytes": 7272901,
+          "work": {
+            "pages": 3,
+            "notes": 1,
+            "chunks": 34,
+            "output_bytes": 20803,
+            "atomic_rejections": 0
+          }
+        },
+        "x64musl": {
+          "allocations": 1583,
+          "allocated_bytes": 7272901,
+          "work": {
+            "pages": 3,
+            "notes": 1,
+            "chunks": 34,
+            "output_bytes": 20803,
+            "atomic_rejections": 0
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "footnotes"
+      ]
+    },
+    {
+      "name": "whole footnotes x3",
+      "scenario_revision": "first-citation-footnotes-v1",
+      "family": "footnotes",
+      "snapshot": "tests/footnotes/notes_3.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "notes": 3,
+        "handbook": 0,
+        "wtpdf": 0
+      },
+      "work_counters": [
+        "pages",
+        "notes",
+        "chunks",
+        "output_bytes",
+        "atomic_rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1689,
+          "allocated_bytes": 6664777,
+          "work": {
+            "pages": 2,
+            "notes": 3,
+            "chunks": 31,
+            "output_bytes": 18241,
+            "atomic_rejections": 0
+          }
+        },
+        "x64musl": {
+          "allocations": 1689,
+          "allocated_bytes": 6664777,
+          "work": {
+            "pages": 2,
+            "notes": 3,
+            "chunks": 31,
+            "output_bytes": 18241,
+            "atomic_rejections": 0
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "footnotes"
+      ]
+    },
+    {
+      "name": "whole footnotes x18",
+      "scenario_revision": "first-citation-footnotes-v1",
+      "family": "footnotes",
+      "snapshot": "tests/footnotes/notes_18.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 7,
+        "notes": 18,
+        "handbook": 0,
+        "wtpdf": 0
+      },
+      "work_counters": [
+        "pages",
+        "notes",
+        "chunks",
+        "output_bytes",
+        "atomic_rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 3879,
+          "allocated_bytes": 12948240,
+          "work": {
+            "pages": 7,
+            "notes": 18,
+            "chunks": 46,
+            "output_bytes": 25750,
+            "atomic_rejections": 0
+          }
+        },
+        "x64musl": {
+          "allocations": 3879,
+          "allocated_bytes": 12948240,
+          "work": {
+            "pages": 7,
+            "notes": 18,
+            "chunks": 46,
+            "output_bytes": 25750,
+            "atomic_rejections": 0
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "footnotes"
+      ]
+    },
+    {
+      "name": "footnote atomic rejections",
+      "scenario_revision": "first-citation-footnotes-v1",
+      "family": "footnotes",
+      "snapshot": "tests/footnotes/handbook.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 3,
+        "notes": 1,
+        "handbook": 1,
+        "wtpdf": 0
+      },
+      "work_counters": [
+        "pages",
+        "notes",
+        "chunks",
+        "output_bytes",
+        "atomic_rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 3773,
+          "allocated_bytes": 9929315,
+          "work": {
+            "pages": 3,
+            "notes": 1,
+            "chunks": 34,
+            "output_bytes": 20516,
+            "atomic_rejections": 18
+          }
+        },
+        "x64musl": {
+          "allocations": 3773,
+          "allocated_bytes": 9929315,
+          "work": {
+            "pages": 3,
+            "notes": 1,
+            "chunks": 34,
+            "output_bytes": 20516,
+            "atomic_rejections": 18
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "footnotes"
+      ]
+    },
     {
       "name": "fillable service intake",
       "scenario_revision": "fillable-fields-v1",

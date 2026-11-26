@@ -600,6 +600,43 @@ accurate and the reading order makes sense. If you need independent
 certification for a use case, discuss its scope, funding, and ownership in
 https://github.com/lukewilliamboswell/roc-pdf/issues[GitHub Issues].
 
+[#authoring-footnotes]
+== Footnotes
+
+Add a short marker to a rich paragraph and declare the note once at the
+end of the document's contents. Reuse the same ID for any later citations.
+
+[source,roc]
+----
+clock = Pdf.footnote_marker({ id: "response-clock", text: "[1]" })
+document = Pdf.document({
+    title: "On-call procedure",
+    language: "en-AU",
+    contents: [
+        Pdf.rich_paragraph([Pdf.text("Start the response clock "), clock, Pdf.text(" when a usable alert arrives.")]),
+        Pdf.footnote_definition({ id: "response-clock", label: "[1]", body: "A usable alert names the affected service and an observed symptom." }),
+    ],
+})
+bytes = Pdf.to_bytes(document)?
+----
+
+The first citation and its complete note share a page. A note occupies the
+bottom of the body frame, with six points above each note. Notes on the same
+page follow first-citation order. The note is printed once, and its visible
+return link goes to the first citation. Every citation retains its structural
+connection to the note. Give each a meaningful marker and visible label.
+
+A document can declare up to 128 notes and 512 citations. The ID has 1–48
+ASCII letters, digits, hyphens or underscores. Marker text has 1–32
+printable ASCII characters without spaces. Labels and bodies can hold up
+to 128 and 2,048 UTF-8 bytes respectively and use the document typography.
+The writer reports `document.footnote.fit` if no legal page cut can keep the
+citation and whole note together. Keep definitions together as the final
+contents. The supported layout is ordinary single-column flow without
+templates, page scopes, tables, source blocks, decorations, callouts, custom
+blocks, or symbolic page references. See the
+xref:gallery.adoc#operations-handbook-footnotes[operations handbook example].
+
 [#authoring-fillable-fields]
 == Fillable fields
 
@@ -1227,6 +1264,7 @@ PDF. It includes a tighter report budget and an exhausted-budget example.
 | fixed pages with text, exact-size captioned figures, and rectangle artifacts | supported; xref:authoring.adoc#authoring-fixed-pages[fixed-page guide]
 | floats and footnotes | unavailable
 | output profiles | xref:authoring.adoc#authoring-output-profiles[choose declarations]
+| linked notes on their first citation page | xref:authoring.adoc#authoring-footnotes[place and reuse a footnote]
 | labelled, fillable fields | xref:authoring.adoc#authoring-fillable-fields[place fields on a fixed page]
 | document-level associated files | xref:authoring.adoc#authoring-associated-files[embed attachments]
 |===

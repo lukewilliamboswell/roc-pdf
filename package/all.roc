@@ -50,6 +50,7 @@ package
 		KernelFontObjects,
 		KernelFontPlan,
 		KernelFontSubset,
+		KernelFootnoteGraph,
 		KernelFootnoteReserve,
 		KernelForm,
 		KernelFormObjects,

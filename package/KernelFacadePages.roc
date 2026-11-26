@@ -598,7 +598,7 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 							owner: Content(semantic_occurrence(body_record, $block_index, body_index)?),
 							policy: {
 								break_before,
-								keep_together: keeps_together(author_block.kind),
+								keep_together: keeps_together(author_block.kind) or is_note_block(authoring.footnotes, $block_index),
 								keep_with_next,
 								minimum_first_lines: minimum,
 								minimum_last_lines: minimum,
@@ -620,7 +620,10 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 	keep_groups = together_groups(authoring)
 	constraints = page_constraints(theme, page_size)
 	containers = callout_containers(authoring, |group| KernelFacadeLines.Plan.group_frame(line_plan, group), [], $page_blocks.len(), theme)?
-	page = if !containers.is_empty() {
+	page = if !authoring.footnote_placements.is_empty() {
+		input = footnote_layout(authoring, $page_blocks, $rows, $visual_lines, styles)?
+		KernelPageLayout.Plan.build_with_footnotes($page_blocks, keep_groups, $visual_lines, constraints, input, limits.page) ? PageLayout
+	} else if !containers.is_empty() {
 		selection = match flow {
 			NoFlowTemplate => NoTemplate
 			WithFlowTemplate(template) | WithScopedFlow({ template, scopes: _ }) => WithTemplate(layout_template(template, lead_leaves(flow)))
@@ -641,6 +644,11 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 	}
 	decorations = decoration_paints(authoring, KernelPageLayout.Plan.bands(page), [], nonnegative_raw(theme.page_margin.left)?)?
 	panels = panel_paints(authoring, KernelPageLayout.Plan.fragments(page), block_runs, shape_batch.store.runs)?
+	paint_order = if authoring.footnote_placements.is_empty() {
+		{ rows: $rows, placement: FromLayout }
+	} else {
+		order_note_rows(page, $rows)
+	}
 	Ok(
 		KernelFacadePages.Plan.{
 			callout_fragments: KernelPageLayout.Plan.container_fragments(page),
@@ -648,9 +656,9 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 			artifact_rows: [],
 			flow: { decorations, figure_scales: flow_facts.scales, panels },
 			page,
-			placed: FromLayout,
+			placed: paint_order.placement,
 			repeats: [],
-			rows: $rows,
+			rows: paint_order.rows,
 			rules: callout_rules(authoring, KernelPageLayout.Plan.container_fragments(page)),
 			splits: [],
 			units: [],
@@ -661,7 +669,7 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 				blank_rows: 0,
 				page: KernelPageLayout.Plan.work(page),
 				repeated_header_paints: 0,
-				row_writes: $rows.len(),
+				row_writes: paint_order.rows.len(),
 			},
 		},
 	)
@@ -673,6 +681,66 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 ##
 ## `fill` is the row's theme fill and `body_rule` whether the theme's body
 ## rule separates it from the body row before it.
+
+## Notes put their measured rows after the body on the chosen page. Keep
+## the paginator's source-indexed plan for ownership and reporting, and
+## give the text materializer one row per paint-order placement.
+order_note_rows : KernelPageLayout.Plan, List(KernelFacadePages.Row) -> { rows : List(KernelFacadePages.Row), placement : [FromLayout, Rebuilt({ pages : List(KernelPageLayout.Page), placements : List(KernelPageLayout.PlacedLine) })] }
+order_note_rows = |plan, rows| {
+	var $ordered = List.with_capacity(rows.len())
+	var $placed = List.with_capacity(rows.len())
+	for placement in KernelPageLayout.Plan.placements(plan) {
+		index = $ordered.len()
+		$ordered = $ordered.append(list_at(rows, placement.line))
+		$placed = $placed.append({ ..placement, line: index })
+	}
+	{ rows: $ordered, placement: Rebuilt({ pages: KernelPageLayout.Plan.pages(plan), placements: $placed }) }
+}
+
+is_note_block : List(Document.NormalizedFootnote), U64 -> Bool
+is_note_block = |notes, block| {
+	!notes.is_empty() and block >= list_at(notes, 0).block
+}
+
+## Match the measured line owning the citation's first source byte. Its
+## paragraph and explicit-break segment come from earlier layout facts.
+footnote_layout : Document.NormalizedAuthoring, List(KernelPageLayout.Block), List(KernelFacadePages.Row), List(KernelLineLayout.Line), List(KernelFacadeShape.RunStyle) -> Try(KernelPageLayout.FootnoteInput, KernelFacadePages.Error)
+footnote_layout = |authoring, blocks, rows, lines, styles| {
+	var $anchors = List.with_capacity(authoring.footnotes.len())
+	var $block = blocks.len()
+	var $row = 0
+	var $segment = 0
+	var $style_segment = 0
+	for placement in authoring.footnote_placements {
+		citation = list_at(authoring.footnote_citations, placement.citation)
+		note = list_at(authoring.footnotes, placement.definition)
+		span = list_at(blocks, citation.block).lines
+		if citation.block != $block {
+			$block = citation.block
+			$row = span.start()
+			$segment = 0
+			$style_segment = list_at(styles, list_at(rows, $row).body_runs.physical.start()).segment
+		}
+		while $row < span.start() + span.length() {
+			style_segment = list_at(styles, list_at(rows, $row).body_runs.physical.start()).segment
+			if style_segment != $style_segment {
+				$segment = $segment + 1
+				$style_segment = style_segment
+			}
+			bytes = list_at(lines, $row).source.utf8_bytes
+			if $segment == citation.segment and citation.utf8_start >= bytes.start() and citation.utf8_start < bytes.start() + bytes.length() {
+				break
+			}
+			$row = $row + 1
+		}
+		if $row == span.start() + span.length() {
+			return Err(PageLayout(NoteBinding(note.block)))
+		}
+		$anchors = $anchors.append({ block: note.block, line: $row })
+	}
+	Ok({ anchors: $anchors, body_blocks: list_at(authoring.footnotes, 0).block })
+}
+
 RowInfo : { body_rule : Bool, cells : Semantics.IndexRange, fill : Theme.TableFill, grid : U64, rule_above : Bool, rule_below : Bool, table : U64 }
 
 ## One table's repeat facts: its header row units, the height they and the

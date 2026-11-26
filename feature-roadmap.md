@@ -958,6 +958,18 @@ figures, page references and source blocks described under Gate 6.
 - Each capability verifies its supported profile declarations and applicable
   emission checks with focused project-owned fixtures.
 
+### Whole footnotes
+
+A bounded single-column document can reserve and paint a short linked
+footnote on the first citation's page. Repeated citations retain
+structure references without repeating note text. PDF/UA-2 and optional
+WTPDF accessibility use FENote, reciprocal references, and structure
+destinations. See the
+[footnote evidence](docs/contributors/performance/footnotes.md) and
+[operations handbook](examples/operations-handbook#footnotes).
+Long-note continuation and combinations with more advanced flow layouts
+have separate requirements.
+
 ### Generated contents
 
 Generated contents selects anchored headings in authoring order by scope

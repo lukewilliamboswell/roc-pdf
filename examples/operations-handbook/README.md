@@ -69,3 +69,15 @@ procedure and the escalation section containing the escalation table.
 display the page labels where those sections were laid out.
 
 [Indexed PDF](operations-handbook-index.pdf) · [Index page preview](preview-index.png)
+
+## Footnotes
+
+Run `roc run main.roc footnotes` to write a shorter runbook with a
+same-page footnote. The response-clock marker in **Severity levels** and the
+note move together to page 2. The marker in **Escalation** on page 3 points
+to the same note. The note's return link goes to its first citation.
+`roc run main.roc footnote-oversize` reports
+`document.footnote.fit at contents[8]` before opening the output file.
+
+[PDF output](operations-handbook-footnotes.pdf) ·
+[Preview of the citation page](footnotes-preview.png)

@@ -264,6 +264,7 @@ kernel_facade_semantics_error = |error| match error {
 	CalloutBlock(_) => leaf({ category: Invariant, feature: "callout_block", path: "CalloutBlock", inspected: Str.inspect(error) })
 	CalloutFlow(_) => leaf({ category: Invariant, feature: "callout_flow", path: "CalloutFlow", inspected: Str.inspect(error) })
 	ArithmeticOverflow => leaf({ category: Invariant, feature: "arithmetic_overflow", path: "ArithmeticOverflow", inspected: Str.inspect(error) })
+	Footnote(_) => leaf({ category: Invariant, feature: "footnote", path: "Footnote", inspected: Str.inspect(error) })
 	ReferenceStageRequired => leaf({ category: Invariant, feature: "reference_stage_required", path: "ReferenceStageRequired", inspected: Str.inspect(error) })
 	ContentsEntry(_) => leaf({ category: Invariant, feature: "contents_entry", path: "ContentsEntry", inspected: Str.inspect(error) })
 	PageReference(_) => leaf({ category: Invariant, feature: "page_reference", path: "PageReference", inspected: Str.inspect(error) })

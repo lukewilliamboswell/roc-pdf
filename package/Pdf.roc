@@ -860,6 +860,16 @@ Pdf :: [].{
 	complex_table : Str -> Document.Block
 	complex_table = |summary| Document.unavailable(ComplexTables, summary)
 
+	FootnoteProps : Document.FootnoteProps
+
+	## Declare one short note after the single-column body content.
+	footnote_definition : FootnoteProps -> Document.Block
+	footnote_definition = Document.footnote_definition
+
+	## Place an authored citation label pointing to a declared note.
+	footnote_marker : { id : Str, text : Str } -> Document.Inline
+	footnote_marker = Document.footnote_marker
+
 	## Reserve footnote content; currently reports `document.footnote`.
 	footnote : Str -> Document.Block
 	footnote = |value| Document.unavailable(Footnotes, value)
@@ -1404,7 +1414,7 @@ build_plan = |doc, options| {
 	)
 	font_page_size = options.page_size
 	font_compression = options.compression
-	authoring = Document.normalize(doc)
+	authoring = normalize_footnote_profile(doc, options.wtpdf)
 	if is_accessible(options.profile) {
 		validate_accessible_authoring(authoring)?
 	}
@@ -1423,6 +1433,18 @@ build_plan = |doc, options| {
 	plan = KernelFacadeOutput.Plan.structure(output)
 	validate_lowered_plan(claims, xmp, plan)?
 	Ok(KernelStructure.Plan.with_compression(plan, deflate_level(font_compression)))
+}
+
+## The base FENote role and reciprocal Ref apply across profiles. Attach
+## the optional note subtype when the extension that defines it is declared.
+normalize_footnote_profile : Document, Pdf.WtpdfDeclaration -> Document.NormalizedAuthoring
+normalize_footnote_profile = |doc, wtpdf| {
+	authoring = Document.normalize(doc)
+	if !authoring.footnotes.is_empty() and wtpdf == DeclareAccessibility {
+		{ ..authoring, footnote_type: AnnotateFootnoteType }
+	} else {
+		authoring
+	}
 }
 
 ## The author's compression choice becomes the sealed plan's DEFLATE level,
@@ -1544,7 +1566,7 @@ build_reporting_plan = |doc, options| {
 	)
 	font_page_size = options.page_size
 	font_compression = options.compression
-	authoring = Document.normalize(doc)
+	authoring = normalize_footnote_profile(doc, options.wtpdf)
 	if is_accessible(options.profile) {
 		validate_accessible_authoring(authoring)?
 	}
@@ -2085,9 +2107,12 @@ pipeline_error_at = |error, doc, paths| match error {
 	Lines(LabelTooWide({ available, block, width })) => label_width_error(doc, block, width, available)
 	Pages(PageBreakPosition({ page_break })) => flow_item_error(doc, PageBreakItem(page_break), LayoutConstraintViolated, "layout.page_break_position", "A page break must separate two flow blocks; a break first, last, or directly after another would produce an empty page.")
 	Pages(PageLayout(KeepConflict(conflict))) => keep_conflict_error(doc, conflict)
+	Pages(PageLayout(NoteTooTall({ available, block, required }))) => located_error(doc, LayoutConstraintViolated, "document.footnote.fit", "The first citation and its whole note need ${points_text(required)} but the page body has ${points_text(available)}.", [diagnostic_leaf_path(doc, paths, block)])
 	Pages(PageLayout(Oversize({ available, block, required }))) => oversize_error(doc, block, required, available)
 	Pages(PageLayout(LimitExceeded({ attempted, dimension: Pages, limit }))) => located_error(doc, BudgetExceeded, "document.content_limit", "The document needs ${attempted.to_str()} pages but the facade accepts at most ${limit.to_str()}.", [])
 	Pages(PageLayout(LeadOverflow({ available, required }))) => lead_overflow_error(available, required)
+
+	Semantics(Footnote({ block, inline, feature, message })) => inline_error_at(doc, paths, block, inline, InvalidRelationship, "document.footnote.${feature}", message)
 	Semantics(PageReference({ block, inline, reason })) => inline_error_at(doc, paths, block, AtInline(inline), InvalidRelationship, "document.page_reference", reason)
 	Semantics(ContentsEntry({ block, reason })) => located_error(doc, InvalidRelationship, "document.contents_entry", reason, [diagnostic_leaf_path(doc, paths, block)])
 	Semantics(FurnitureInline({ block, inline })) => inline_error_at(doc, paths, block, AtInline(inline), FeatureUnavailable, "document.generated_reference", "Page-number, page-label, total-page and running-label fields belong in page furniture. Use page_reference for a fixed-width destination reference in body content.")
@@ -4853,6 +4878,10 @@ build_report_at = |normalized, collected, budget, profile, path_source, attachme
 		$pages = $pages.append({ fragments, page: $page + 1 })
 		$page = $page + 1
 	}
+	first_footnote = match normalized.footnotes.get(0) {
+		Ok(note) => note.block
+		Err(_) => U64.highest
+	}
 	var $blocks = List.with_capacity(normalized.blocks.len())
 	var $cell = 0
 	var $index = 0
@@ -4877,6 +4906,8 @@ build_report_at = |normalized, collected, budget, profile, path_source, attachme
 				DataCell => "TD"
 				HeaderCell(_) => "TH"
 			}
+		} else if $index >= first_footnote {
+			"FENote"
 		} else {
 			leaf_role(normalized, record)
 		}

@@ -9,6 +9,7 @@ import JpegInspectorMutation
 import AssociatedFilesProperty
 import WidgetFormsProperty
 import CheckboxFormsProperty
+import FootnoteProperty
 import FacadeOutputEquivalence
 import FacadeStructure
 import NavigationProperty
@@ -27,6 +28,7 @@ import ContinuationPaginationModel
 import DenseSpanProof
 import DocumentBuilderModel
 import FixedPageOrderModel
+import FootnotePaginationModel
 import WidgetFormsModel
 import GroupingContainmentModel
 import HeadingFamilyModel
@@ -54,6 +56,7 @@ target = Fuzz.suite([
 	AssociatedFilesProperty.target,
 	WidgetFormsProperty.target,
 	CheckboxFormsProperty.target,
+	FootnoteProperty.target,
 	FacadeOutputEquivalence.target,
 	FacadeStructure.target,
 	NavigationProperty.target,

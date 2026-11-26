@@ -125,3 +125,13 @@ https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/service-intake[
 * https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/field-guide/README.md[Pocket field guide] for custom pages and layout preferences.
 * https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/chunked-export/README.md[Cold-chain telemetry] for direct sink writes and compression choices.
 * https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/audit-log/README.md[Audit log] for compact text batches and explicit output profiles.
+
+
+[#operations-handbook-footnotes]
+== Operations handbook with footnotes
+
+In the single-column runbook, the response-clock note stays with the first
+citation in Severity levels. The citation in Escalation opens the same note,
+and the note links back to Severity levels.
+
+https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/operations-handbook#footnotes[Run the footnote example] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/operations-handbook/operations-handbook-footnotes.pdf[PDF output] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/operations-handbook/footnotes-preview.png[Preview of page 2]

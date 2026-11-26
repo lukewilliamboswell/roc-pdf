@@ -1074,6 +1074,15 @@ check_attribute = |attribute, role| {
 				_ => InvalidAttributeCheck
 			}
 		}
+		# ISO 14289-2:2024 8.2.5.14.2 Table 3.
+		FENote => if name != "NoteType" or attribute.applicability != AllRoles or role != role_footnote {
+			InvalidAttributeCheck
+		} else {
+			match attribute.value {
+				Name("Footnote") => AttributeBit(128)
+				_ => InvalidAttributeCheck
+			}
+		}
 		# ISO 32000-2 §14.8.5.4, Layout attributes.
 		Layout => if name != "WritingMode" or attribute.applicability != AllRoles {
 			InvalidAttributeCheck
@@ -1145,6 +1154,7 @@ validate_relationships = |store| {
 	var $index = 0
 	var $last_contents_item = 0
 	var $last_index_item = 0
+	var $last_citation = 0
 	while $index < store.relationships.len() {
 		valid = match list_at(store.relationships, $index) {
 			HeaderFor({ cell, header }) => header_relation_valid(store, $owners, cell.index(), header.index())
@@ -1152,12 +1162,16 @@ validate_relationships = |store| {
 			LabelFor({ label, target }) => label_relation_valid(store, label.index(), target.index())
 			ContentsTarget({ item, target }) => item.index() > $last_contents_item and contents_relation_valid(store, item.index(), target.index())
 			IndexTarget({ item, target }) => item.index() > $last_index_item and destination_relation_valid(store, item.index(), target.index(), "Reference")
+			FootnoteReference({ note, citation }) => citation.index() > $last_citation and footnote_relation_valid(store, note.index(), citation.index())
 			_ => False
 		}
 		if !valid {
 			return Err(InvalidRelationship({ relationship: $index }))
 		}
 		match list_at(store.relationships, $index) {
+			FootnoteReference({ citation, .. }) => {
+				$last_citation = citation.index()
+			}
 			ContentsTarget({ item, target: _ }) => {
 				$last_contents_item = item.index()
 			}
@@ -1169,6 +1183,13 @@ validate_relationships = |store| {
 		$index = $index + 1
 	}
 	Ok(store.relationships.len())
+}
+
+footnote_relation_valid : Semantics.Store, U64, U64 -> Bool
+footnote_relation_valid = |store, note, citation| {
+	note < store.nodes.len() and citation < store.nodes.len()
+		and list_at(store.nodes, note).role.local_name == "FENote"
+		and list_at(store.nodes, citation).role.local_name == "Link"
 }
 
 contents_relation_valid : Semantics.Store, U64, U64 -> Bool
@@ -1349,6 +1370,8 @@ role_index = |name| {
 		12
 	} else if name == "Form" {
 		role_form
+	} else if name == "FENote" {
+		role_footnote
 	} else if name == "Link" {
 		role_link
 	} else if name == "TD" {
@@ -1452,6 +1475,9 @@ role_caption = 14
 role_form : U64
 role_form = 30
 
+role_footnote : U64
+role_footnote = 33
+
 role_link : U64
 role_link = 15
 
@@ -1517,7 +1543,7 @@ containment_row : U64 -> U64
 containment_row = |parent| match parent {
 
 	## Document: Document, DocumentFragment, Part, Sect, Div, Title, H, Hn, P, L, Figure, Link, Code, Table and Form.
-	0 => (271098879.U64).bitwise_or(role_bit(role_form)).bitwise_or(role_bit(role_index_group))
+	0 => (271098879.U64).bitwise_or(role_bit(role_form)).bitwise_or(role_bit(role_index_group)).bitwise_or(role_bit(role_footnote))
 
 	## DocumentFragment: same as Document
 	1 => 271098879
@@ -1602,6 +1628,7 @@ containment_row = |parent| match parent {
 	## Index terms are paragraphs with distinct Reference children.
 	31 => role_bit(role_p)
 	32 => role_bit(role_link)
+	33 => role_bit(role_link)
 	_ => 0
 }
 

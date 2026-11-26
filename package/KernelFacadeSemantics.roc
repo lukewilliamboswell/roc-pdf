@@ -2,6 +2,7 @@ import Document
 import Font
 import KernelFacadeSources
 import KernelFacadeTableGrid
+import KernelFootnoteGraph
 import KernelNavigation
 import KernelSemantics
 import KernelTextSemantics
@@ -19,6 +20,7 @@ KernelFacadeSemantics :: [].{
 		CalloutFlow({ group : U64, position : U64 }),
 		ArithmeticOverflow,
 		ReferenceStageRequired,
+		Footnote(KernelFootnoteGraph.Error),
 		ContentsEntry({ block : U64, reason : Str }),
 		PageReference({ block : U64, inline : U64, reason : Str }),
 		ReferenceResolution({ reference : U64, reason : Str }),
@@ -356,6 +358,8 @@ Planning : {
 	attribute_count : U64,
 	cell_headers : List(U64),
 	content_count : U64,
+	citation_nodes : List(Semantics.NodeId),
+	note_nodes : List(Semantics.NodeId),
 	destinations : List(KernelFacadeSemantics.DestinationRecord),
 	empty_cells : U64,
 	group_nodes : List(U64),
@@ -378,7 +382,8 @@ Planning : {
 }
 
 build_plan : Document.NormalizedAuthoring, List(U64), KernelFacadeSemantics.Limits -> Try(KernelFacadeSemantics.Plan, KernelFacadeSemantics.Error)
-build_plan = |authoring, widget_groups, limits| {
+build_plan = |input_authoring, widget_groups, limits| {
+	authoring = KernelFootnoteGraph.resolve(input_authoring) ? Footnote
 	if !authoring.page_references.is_empty() {
 		return Err(ReferenceStageRequired)
 	}
@@ -529,6 +534,7 @@ build_symbolic = |authoring, limits| {
 	if authoring.metadata_title.is_empty() {
 		return Err(EmptyMetadataTitle)
 	}
+	_ = KernelFootnoteGraph.resolve(authoring) ? Footnote
 	planning = plan_blocks(authoring, limits)?
 	# Final label sources are bounded now even though their Unicode is not
 	# known. Every reference contributes at most one additional input.
@@ -783,12 +789,16 @@ plan_blocks = |authoring, limits| {
 	var $property_count = 0
 	var $next_list = 0
 	var $list_state = NoActiveList
-	var $attribute_count = 0
+	var $attribute_count = if (authoring.footnote_type == AnnotateFootnoteType) authoring.footnotes.len() else 0
 	var $break_cursor = 0
 	var $cell_cursor = 0
 	var $association_cursor = 0
 	var $cell_headers = []
 	var $header_ranges = if (authoring.cells.is_empty()) [] else List.with_capacity(authoring.cells.len())
+	var $note_nodes = List.with_capacity(authoring.footnotes.len())
+	var $citation_nodes = List.with_capacity(authoring.footnote_citations.len())
+	var $citation = 0
+	var $first_citation = 0
 	var $relationship_count = 0
 	var $table_count = 0
 	var $table_grids = []
@@ -1241,6 +1251,23 @@ plan_blocks = |authoring, limits| {
 					if checked.links != 0 {
 						$links = append_rich_links($links, authoring.inlines, rich, $next_node, $next_occurrence)
 					}
+					while $citation < authoring.footnote_citations.len() and list_at(authoring.footnote_citations, $citation).block == $block_index {
+						marker = list_at(authoring.footnote_citations, $citation)
+						inline_record = list_at(authoring.inlines, marker.inline)
+						node = Semantics.NodeId.from_index($next_node + 1 + inline_record.element)
+						if $first_citation < authoring.footnote_placements.len() and list_at(authoring.footnote_placements, $first_citation).citation == $citation {
+							$destinations = $destinations.append({ anchor: Semantics.OccurrenceId.from_index($next_occurrence + inline_record.first_leaf), name: Document.footnote_return(marker.id), target: node })
+							$first_citation = $first_citation + 1
+						}
+						$citation_nodes = $citation_nodes.append(node)
+						$citation = $citation + 1
+					}
+					if $note_nodes.len() < authoring.footnotes.len() and list_at(authoring.footnotes, $note_nodes.len()).block == $block_index {
+						note = list_at(authoring.footnotes, $note_nodes.len())
+						node = Semantics.NodeId.from_index($next_node)
+						$destinations = $destinations.append({ anchor: Semantics.OccurrenceId.from_index($next_occurrence), name: Document.footnote_destination(note.id), target: node })
+						$note_nodes = $note_nodes.append(node)
+					}
 					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
 					$sources = append_rich_sources($sources, authoring, paragraph, block.text, $break_cursor, breaks)
 					$break_cursor = $break_cursor + breaks
@@ -1264,7 +1291,7 @@ plan_blocks = |authoring, limits| {
 	check_customs(authoring)?
 	check_callouts(authoring)?
 	check_decorations(authoring)?
-	Ok({ attribute_count: $attribute_count, cell_headers: $cell_headers, content_count: $content_count, destinations: $destinations, empty_cells: $empty_cells, figure_label_owners: $figure_label_owners, figure_label_texts: $figure_label_texts, group_nodes: $group_nodes, header_ranges: $header_ranges, inline_elements: $inline_elements, inline_leaves: $inline_leaves, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, relationship_count: $relationship_count, source_inputs: $sources, table_count: $table_count, table_grids: $table_grids, top_nodes: $top_nodes })
+	Ok({ attribute_count: $attribute_count, cell_headers: $cell_headers, content_count: $content_count, citation_nodes: $citation_nodes, note_nodes: $note_nodes, destinations: $destinations, empty_cells: $empty_cells, figure_label_owners: $figure_label_owners, figure_label_texts: $figure_label_texts, group_nodes: $group_nodes, header_ranges: $header_ranges, inline_elements: $inline_elements, inline_leaves: $inline_leaves, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, relationship_count: $relationship_count, source_inputs: $sources, table_count: $table_count, table_grids: $table_grids, top_nodes: $top_nodes })
 }
 
 TableCursor : { association : U64, attribute_base : U64, break_cursor : U64, cell : U64, header_base : U64, node : U64, occurrence : U64 }
@@ -2649,7 +2676,13 @@ build_components = |authoring, planning, source_plan| {
 				RichParagraph(paragraph) => {
 					rich = list_at(authoring.rich_paragraphs, paragraph)
 					breaks = paragraph_breaks(authoring.line_breaks, $break_cursor, paragraph)
-					placed = place_rich({ content: $content, nodes: $nodes, occurrences: $occurrences, properties: $properties }, authoring, rich, { attributes: Semantics.IndexRange.from_start_and_length({ start: 0, length: 0 }), breaks: $break_cursor, element_identifier: NoElementIdentifier, language, node: $next_node, occurrence: $next_occurrence, parent: parent_node(block.parent, planning.group_nodes), paragraph, role: "P", segments: breaks + 1, source_input: $source_input }, source_plan)?
+					footnote = is_footnote_block(authoring.footnotes, $index)
+					typed = footnote and authoring.footnote_type == AnnotateFootnoteType
+					attributes = Semantics.IndexRange.from_start_and_length({ start: if (typed) $attributes.len() else 0, length: if (typed) 1 else 0 })
+					if typed {
+						$attributes = $attributes.append({ owner: FENote, name: Standard("NoteType"), applicability: AllRoles, value: Name("Footnote") })
+					}
+					placed = place_rich({ content: $content, nodes: $nodes, occurrences: $occurrences, properties: $properties }, authoring, rich, { attributes, breaks: $break_cursor, element_identifier: NoElementIdentifier, language, node: $next_node, occurrence: $next_occurrence, parent: parent_node(block.parent, planning.group_nodes), paragraph, role: if (footnote) "FENote" else "P", segments: breaks + 1, source_input: $source_input }, source_plan)?
 					$content = placed.content
 					$nodes = placed.nodes
 					$occurrences = placed.occurrences
@@ -2729,6 +2762,11 @@ build_components = |authoring, planning, source_plan| {
 	if $identifiers.len() != planning.header_ranges.len() or $relationships.len() != planning.relationship_count or $attributes.len() != planning.attribute_count or $next_node != planning.node_count or $next_occurrence != planning.occurrence_count or $source_input != planning.source_inputs.len() or $figure_label != planning.figure_label_owners.len() or $content.len() != planning.content_count or $properties.len() != planning.property_count {
 		crash "facade semantic planning count escaped"
 	}
+	var $citation = 0
+	for target in authoring.footnote_targets {
+		$relationships = $relationships.append(FootnoteReference({ note: list_at(planning.note_nodes, target), citation: list_at(planning.citation_nodes, $citation) }))
+		$citation = $citation + 1
+	}
 	components = {
 		attributes: $attributes,
 		content_spine: $content,
@@ -2740,6 +2778,11 @@ build_components = |authoring, planning, source_plan| {
 		text_properties: $properties,
 	}
 	Ok({ block_ownership: $ownership, components })
+}
+
+is_footnote_block : List(Document.NormalizedFootnote), U64 -> Bool
+is_footnote_block = |notes, block| {
+	!notes.is_empty() and block >= list_at(notes, 0).block and block - list_at(notes, 0).block < notes.len()
 }
 
 ## Pending values cannot be represented as a Semantics.Store: this private

@@ -91,6 +91,13 @@ See the [page reference guide](destination-page-references.adoc#flow-changing-pa
 named destinations. The [manual composition guide](manual-composition.adoc#add-an-index)
 covers sorting, duplicates and label widths.
 
+## Footnotes
+
+Place a named footnote marker in a rich paragraph and declare a whole note
+at the end of an ordinary single-column document. The note stays on its
+first citation's page. Later citations link to the same note. See the
+[footnote authoring guide](authoring.adoc#authoring-footnotes).
+
 ## Compiler
 
 This development branch uses Roc `nightly-2026-11-25-d5a4f1e`.

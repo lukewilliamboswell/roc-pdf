@@ -1140,6 +1140,20 @@ the latest candidate plan. Preparation accepts consecutive equality and
 rejects a nonconsecutive repetition or exhaustion before publishing any plan.
 The final pass owns the geometry consumed by link and structure lowering.
 
+A whole footnote uses a document-local identity, a visible citation, and a
+visible note label. Normalization preserves each citation and declaration.
+Semantic preparation resolves IDs, binds each citation Link to its FENote,
+and declares forward and return structure destinations. The FENote holds
+all citation references and its visible return link targets the first one.
+Line layout binds the first citation's source position to a measured body
+line. Page candidate selection reserves the exact footprint of every
+newly included note. The selected page paints these notes below its body
+in first-citation order and retains declaration order in the structure
+tree. The paginator preserves the existing mandatory cuts and ranked keep
+policies. An unplaceable whole note produces a located failure.
+See ISO 32000-2:2020+EC3 §§12.3.2.3 and 14.7.2/Table 355, ISO
+14289-2:2024 and WTPDF 1.0 §§8.2.5.14 and 8.8, and ISO/TS 32005:2023 Table 5.
+
 A bounded contents entry reserves a terminal page-reference column before
 pagination. Normalization retains its title/reference logical order and sparse
 indentation/leader facts; line measurement commits the title rows and terminal

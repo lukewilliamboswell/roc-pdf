@@ -86,9 +86,9 @@ INLINE = {"Lbl", "Figure", "Link", "Span", "Em", "Strong", "Code", "Quote"}
 ALL_ROLES = {
     "Document", "DocumentFragment", "Part", "Sect", "Div", "Title", "H", "Hn", "P", "L", "LI", "Lbl",
     "LBody", "Figure", "Caption", "Link", "Span", "Em", "Strong", "Code", "Quote", "Table", "THead",
-    "TBody", "TFoot", "TR", "TH", "TD", "TOC", "TOCI", "Form", "Index", "Reference",
+    "TBody", "TFoot", "TR", "TH", "TD", "TOC", "TOCI", "Form", "Index", "Reference", "FENote",
 }
-DOCUMENT_CHILDREN = {"Document", "DocumentFragment", "Part", "Sect", "Div", "Title", "H", "Hn", "P", "L", "Figure", "Link", "Code", "Table", "TOC", "Form"}
+DOCUMENT_CHILDREN = {"Document", "DocumentFragment", "Part", "Sect", "Div", "Title", "H", "Hn", "P", "L", "Figure", "Link", "Code", "Table", "TOC", "Form", "FENote"}
 GROUPING_WRAPPERS = {"Part", "Div"}
 # ISO/TS 32005 Table 5 lists these supported children in the Part row.
 PART_CHILDREN = DOCUMENT_CHILDREN | {"Caption", "Lbl", "TOCI"}
@@ -107,6 +107,7 @@ MAY_CONTAIN: dict[str, set[str]] = {
     "LI": {"Div", "Lbl", "LBody"},
     "Lbl": INLINE - {"Lbl"},
     "Form": {"Lbl"},
+    "FENote": {"Link"},
     "LBody": {"Part", "Sect", "Div", "H", "Hn", "P", "L", "Caption", "Table"} | (INLINE - {"Lbl"}),
     "Figure": {"Part", "Sect", "Div", "H", "Hn", "P", "L", "Caption", "Table"} | INLINE,
     "Caption": {"Part", "Sect", "Div", "H", "Hn", "P", "L", "Table"} | INLINE,
@@ -965,6 +966,8 @@ def normalize_attributes(value, role: str) -> str:
                     require(role in ("TH", "TD") and isinstance(dictionary[span], int) and dictionary[span] >= 1, f"invalid /{span}")
             if "Summary" in dictionary:
                 require(role == "Table", "/Summary outside Table")
+        elif owner == "FENote":
+            require(role == "FENote" and dictionary == {"O": "FENote", "NoteType": "Footnote"}, "invalid footnote attribute")
         elif owner == "Layout":
             require(set(dictionary) == {"O", "WritingMode"}, "invalid Layout attributes")
             require(dictionary["WritingMode"] in ("LrTb", "RlTb"), "invalid /WritingMode")

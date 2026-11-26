@@ -572,13 +572,14 @@ add_structure_elements = |builder, names, tagged, navigation, objects, catalog_l
 	lowered = KernelTagged.Plan.lowered_identifiers(tagged)
 	ids = KernelObjectPlan.Plan.structure_elements(objects)
 	references = contents_references(semantics)
+	footnote_refs = footnote_references(semantics)
 	var $builder = builder
 	var $attribute_dictionaries = 0
 	var $language_entries = 0
 	var $structure_index = 0
 	while $structure_index < ids.len() {
 		node = list_at(semantics.nodes, list_at(nodes_by_structure, $structure_index).index())
-		{ attribute_dictionaries, builder: next_builder, language_entries } = add_structure_element($builder, names, tagged, navigation, objects, catalog_language, lowered, node, references.get(node.id.index()) ?? NoContentsTarget, list_at(ids, $structure_index))?
+		{ attribute_dictionaries, builder: next_builder, language_entries } = add_structure_element($builder, names, tagged, navigation, objects, catalog_language, lowered, node, reference_for(references, footnote_refs, node.id.index()), list_at(ids, $structure_index))?
 		$builder = next_builder
 		$attribute_dictionaries = $attribute_dictionaries + attribute_dictionaries
 		$language_entries = $language_entries + language_entries
@@ -624,7 +625,7 @@ add_structure_element = |builder, names, tagged, navigation, objects, catalog_la
 	# `/Type /StructElem` is optional (ISO 32000-2 Table 355) and omitted.
 	k_entry = if (node_k.items.length() != 0) WithEntry({ key: names.k, value: k_id }) else NoEntry
 	base = { k: k_entry, ns: ns_id, p: p_id, page: page_entry, s: s_id }
-	if (node.role.local_name == "TOCI" or node.role.local_name == "Reference") and contents_reference == NoContentsTarget {
+	if (node.role.local_name == "TOCI" or node.role.local_name == "Reference") and !has_structure_reference(contents_reference) {
 		return Err(InvalidContentsTarget({ node: node.id.index() }))
 	}
 	properties = node_properties(semantics, node)
@@ -632,7 +633,7 @@ add_structure_element = |builder, names, tagged, navigation, objects, catalog_la
 		return Err(InvalidFigureAlternative({ node: node.id.index() }))
 	}
 	lowered_language = lowered_node_language(semantics, catalog_language, node)
-	extras = node.attributes.length() != 0 or properties.actual != NoProperty or properties.alternative != NoProperty or properties.expansion != NoProperty or node.element_identifier != NoElementIdentifier or lowered_language != NoProperty or contents_reference != NoContentsTarget
+	extras = node.attributes.length() != 0 or properties.actual != NoProperty or properties.alternative != NoProperty or properties.expansion != NoProperty or node.element_identifier != NoElementIdentifier or lowered_language != NoProperty or has_structure_reference(contents_reference)
 	if !extras {
 		mark = KernelObject.dictionary_mark(with_type)
 		{ builder: with_dictionary, id: dictionary_id } = KernelObject.add_pushed_dictionary(push_base_entries(with_type, names, base, NoEntry, NoEntry), mark) ? Object
@@ -675,7 +676,73 @@ add_structure_element = |builder, names, tagged, navigation, objects, catalog_la
 	})
 }
 
-ContentsReference : [NoContentsTarget, ContentsTargetNode(Semantics.NodeId)]
+ContentsReference : [NoContentsTarget, ContentsTargetNode(Semantics.NodeId), FootnoteTargets(List(Semantics.NodeId))]
+
+has_structure_reference : ContentsReference -> Bool
+has_structure_reference = |reference| match reference {
+	NoContentsTarget => False
+	_ => True
+}
+
+FootnoteReferences : { ranges : List(Semantics.IndexRange), peers : List(Semantics.NodeId) }
+
+reference_for : List(ContentsReference), FootnoteReferences, U64 -> ContentsReference
+reference_for = |contents, notes, index| {
+	if !notes.ranges.is_empty() {
+		span = list_at(notes.ranges, index)
+		if span.length() != 0 {
+			return FootnoteTargets(notes.peers.sublist({ start: span.start(), len: span.length() }))
+		}
+	}
+	contents.get(index) ?? NoContentsTarget
+}
+
+## Use one flat adjacency tape. Counts and prefix offsets let each pair
+## add exactly one edge in each direction without revisiting other notes.
+footnote_references : Semantics.Store -> FootnoteReferences
+footnote_references = |semantics| {
+	var $counts = []
+	var $total = 0
+	for relationship in semantics.relationships {
+		match relationship {
+			FootnoteReference({ note, citation }) => {
+				if $counts.is_empty() {
+					$counts = List.repeat(0, semantics.nodes.len())
+				}
+				$counts = list_set($counts, note.index(), list_at($counts, note.index()) + 1)
+				$counts = list_set($counts, citation.index(), list_at($counts, citation.index()) + 1)
+				$total = $total + 2
+			}
+			_ => {}
+		}
+	}
+	if $total == 0 {
+		return { ranges: [], peers: [] }
+	}
+	var $ranges = List.with_capacity($counts.len())
+	var $next = List.with_capacity($counts.len())
+	var $offset = 0
+	for count in $counts {
+		$ranges = $ranges.append(Semantics.IndexRange.from_start_and_length({ start: $offset, length: count }))
+		$next = $next.append($offset)
+		$offset = $offset + count
+	}
+	var $peers = List.repeat(Semantics.NodeId.from_index(0), $total)
+	for relationship in semantics.relationships {
+		match relationship {
+			FootnoteReference({ note, citation }) => {
+				note_slot = list_at($next, note.index())
+				citation_slot = list_at($next, citation.index())
+				$peers = list_set($peers, note_slot, citation)
+				$peers = list_set($peers, citation_slot, note)
+				$next = list_set($next, note.index(), note_slot + 1)
+				$next = list_set($next, citation.index(), citation_slot + 1)
+			}
+			_ => {}
+		}
+	}
+	{ ranges: $ranges, peers: $peers }
+}
 
 ## No per-node table is allocated for documents without contents entries.
 contents_references : Semantics.Store -> List(ContentsReference)
@@ -703,6 +770,13 @@ add_contents_reference = |builder, reference, nodes, objects| match reference {
 		object_id = list_at(KernelObjectPlan.Plan.structure_elements(objects), element.index())
 		key = KernelObject.add_name(builder, Str.to_utf8("Ref")) ? Object
 		value = add_reference_array(key.builder, [object_id])?
+		Ok({ builder: value.builder, entry: WithEntry({ key: key.id, value: value.id }) })
+	}
+	FootnoteTargets(peers) => {
+		ids = KernelObjectPlan.Plan.structure_elements(objects)
+		refs = peers.map(|target| list_at(ids, list_at(nodes, target.index()).structure_element.index()))
+		key = KernelObject.add_name(builder, Str.to_utf8("Ref")) ? Object
+		value = add_reference_array(key.builder, refs)?
 		Ok({ builder: value.builder, entry: WithEntry({ key: key.id, value: value.id }) })
 	}
 }
@@ -833,6 +907,16 @@ add_attribute_value = |builder, semantics, node| {
 	if node.attributes.length() == 0 {
 		return Ok({ builder, dictionaries: 0, entry: NoEntry })
 	}
+	if node.role.local_name == "FENote" {
+		footnote = add_owner_dictionary(builder, semantics, node, FootnoteOwner)?
+		layout = add_owner_dictionary(footnote.builder, semantics, node, LayoutOwner)?
+		key = KernelObject.add_name(layout.builder, Str.to_utf8("A")) ? Object
+		return match (footnote.value, layout.value) {
+			(WithValue(note_type), WithValue(writing_mode)) => lower_layout_attributes(key.builder, key.id, writing_mode, WithValue(note_type), NoValue)
+			(WithValue(value), _) | (_, WithValue(value)) => Ok({ builder: key.builder, dictionaries: 1, entry: WithEntry({ key: key.id, value }) })
+			(NoValue, NoValue) => Ok({ builder: key.builder, dictionaries: 0, entry: NoEntry })
+		}
+	}
 	list_dictionary = add_owner_dictionary(builder, semantics, node, ListOwner)?
 	table_dictionary = add_owner_dictionary(list_dictionary.builder, semantics, node, TableOwner)?
 	layout_dictionary = add_owner_dictionary(table_dictionary.builder, semantics, node, LayoutOwner)?
@@ -873,11 +957,12 @@ lower_layout_attributes = |builder, key, layout_value, list_value, table_value| 
 	Ok({ builder: array.builder, dictionaries: count, entry: WithEntry({ key, value: array.id }) })
 }
 
-AttributeOwnerKind : [LayoutOwner, ListOwner, TableOwner]
+AttributeOwnerKind : [FootnoteOwner, LayoutOwner, ListOwner, TableOwner]
 
 owner_matches : Semantics.AttributeOwner, AttributeOwnerKind -> Bool
 owner_matches = |owner, kind| match (owner, kind) {
 	(Layout, LayoutOwner) => True
+	(FENote, FootnoteOwner) => True
 	(List, ListOwner) => True
 	(Table, TableOwner) => True
 	_ => False
@@ -886,6 +971,7 @@ owner_matches = |owner, kind| match (owner, kind) {
 ## Canonical key order in each emitted attribute owner.
 owner_keys : AttributeOwnerKind -> List(Str)
 owner_keys = |kind| match kind {
+	FootnoteOwner => ["NoteType", "O"]
 	LayoutOwner => ["O", "WritingMode"]
 	ListOwner => ["ListNumbering", "O"]
 	TableOwner => ["ColSpan", "Headers", "O", "RowSpan", "Scope", "Summary"]
@@ -919,6 +1005,7 @@ add_owner_dictionary = |builder, semantics, node, kind| {
 		if key == "O" {
 			o_name = KernelObject.add_name($builder, KernelLex.name_bytes("O")) ? Object
 			name = match kind {
+				FootnoteOwner => "FENote"
 				LayoutOwner => "Layout"
 				ListOwner => "List"
 				TableOwner => "Table"

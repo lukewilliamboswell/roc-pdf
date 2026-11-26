@@ -5,6 +5,7 @@ app [main!] {
 import pf.Path
 import pf.OsStr
 import pf.Stdout
+import Footnotes
 import pdf.Color
 import pdf.Document
 import pdf.Font
@@ -26,6 +27,8 @@ main! = |args| {
 		["index"] => Indexed
 		["flow-short"] => return flow_note!("A-")
 		["flow-long"] => return flow_note!("RECOVERY-CHECKS-")
+		["footnotes"] => return write_footnotes!(False)
+		["footnote-oversize"] => return write_footnotes!(True)
 		_ => return Err(Usage)
 	}
 	fonts = register_fonts({})?
@@ -113,6 +116,16 @@ flow_note! = |prefix| {
 	output : Path
 	output = "operations-handbook.pdf"
 	output.write_bytes!(bytes).map_err(|err| WriteFailed(err))?
+	Ok({})
+}
+
+write_footnotes! = |oversized| {
+	document = Footnotes.document(oversized)
+	bytes = Pdf.to_bytes_with(document, Footnotes.options).map_err(|error| PdfFailed(error))?
+	output : Path
+	output = "operations-handbook.pdf"
+	output.write_bytes!(bytes).map_err(|error| WriteFailed(error))?
+	Stdout.line!("Wrote operations-handbook.pdf with an on-page footnote").map_err(|error| OutputFailed(error))?
 	Ok({})
 }
 

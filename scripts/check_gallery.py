@@ -97,6 +97,8 @@ CASES = {
         Case(("index",), "operations-handbook-index.pdf"),
         Case(("flow-short",), "operations-handbook-flow-short.pdf", facts=("A-1 on physical page 1",)),
         Case(("flow-long",), "operations-handbook-flow-long.pdf", facts=("RECOVERY-CHECKS-2 on physical page 2",)),
+        Case(("footnotes",), "operations-handbook-footnotes.pdf"),
+        Case(("footnote-oversize",), diagnosis="document.footnote.fit at contents[8]"),
     ),
     "ordered-han": (
         Case(("latin-only",), diagnosis="text.coverage_missing at contents[1].inlines[1].inlines[0]"),

@@ -30,6 +30,7 @@ DocumentBlock :: [
 	Decoration(DecorationSpec),
 	Figure({ alternative : Str, caption : Caption, drawing : Scene.Drawing, fit : FigurePolicy }),
 	InternalLink({ destination : Str, text : Str }),
+	Footnote(Box(FootnoteProps)),
 	KeepTogether(List(DocumentBlock)),
 	KeepWithNext({ contents : List(DocumentBlock), keep : Keep }),
 	Link({ text : Str, uri : Str }),
@@ -54,6 +55,12 @@ DocumentBlock :: [
 	Title(Str),
 	Unavailable({ feature : AuthoringFeature, summary : Str }),
 ].{}
+
+FootnoteProps := { id : Str, label : Str, body : Str }
+
+NormalizedFootnote : { id : Str, label : Str, body : Str, block : U64, parent : U64, position : U64 }
+
+NormalizedCitation : { id : Str, text : Str, block : U64, inline : U64, segment : U64, utf8_start : U64 }
 
 ## An in-flow decoration: its drawing, the space it keeps above the
 ## drawing and between the drawing and the next block (`below`, negative
@@ -242,6 +249,7 @@ DocumentInline :: [
 	Code(Str),
 	Emphasis(List(DocumentInline)),
 	Expansion({ expanded : Str, text : Str }),
+	FootnoteMarker({ id : Str, text : Str }),
 	InLanguage({ contents : List(DocumentInline), tag : Str }),
 	InternalLink({ contents : List(DocumentInline), destination : Str }),
 	IndexReference(Box(List(DocumentInline))),
@@ -1163,6 +1171,11 @@ NormalizedAuthoring := {
 	callouts : List(NormalizedCallout),
 	decorations : List(NormalizedDecoration),
 	figures : List(NormalizedFigure),
+	footnotes : List(NormalizedFootnote) ?? [],
+	footnote_citations : List(NormalizedCitation) ?? [],
+	footnote_targets : List(U64) ?? [],
+	footnote_type : [AnnotateFootnoteType, CommonFootnote] ?? CommonFootnote,
+	footnote_placements : List({ definition : U64, citation : U64 }) ?? [],
 	groups : List(NormalizedGroup),
 	inlines : List(NormalizedInline),
 	language : Str,
@@ -1474,6 +1487,21 @@ Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : D
 	SourceBlockProps : SourceBlockProps
 	NormalizedSource : NormalizedSource
 	NormalizedFigure : NormalizedFigure
+	FootnoteProps : FootnoteProps
+	NormalizedFootnote : NormalizedFootnote
+	NormalizedCitation : NormalizedCitation
+
+	footnote_destination : Str -> Str
+	footnote_destination = |id| "_roc_footnote.${id}"
+
+	footnote_return : Str -> Str
+	footnote_return = |id| "_roc_citation.${id}"
+
+	footnote_definition : FootnoteProps -> DocumentBlock
+	footnote_definition = |props| DocumentBlock.Footnote(Box.box(props))
+
+	footnote_marker : { id : Str, text : Str } -> DocumentInline
+	footnote_marker = |props| DocumentInline.FootnoteMarker(props)
 	FigureFit : FigureFit
 	FigurePolicy : FigurePolicy
 	FlowCommand : FlowCommand
@@ -2281,7 +2309,7 @@ furniture_leaf = |inline, position, inner| match inline {
 }
 
 empty_state : SimpleState
-empty_state = { contents_entries: [], page_references: [], source_bytes: 0, source_exhaustion: NoSourceExhaustion, blocks: [], cell_associations: [], cells: [], customs: [], callouts: [], decorations: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], page_scopes: [], rich_paragraphs: [], scopes: [], source_foregrounds: [], source_lines: [], sources: [], spacers: [], tables: [] }
+empty_state = { contents_entries: [], footnotes: [], footnote_citations: [], page_references: [], source_bytes: 0, source_exhaustion: NoSourceExhaustion, blocks: [], cell_associations: [], cells: [], customs: [], callouts: [], decorations: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], page_scopes: [], rich_paragraphs: [], scopes: [], source_foregrounds: [], source_lines: [], sources: [], spacers: [], tables: [] }
 
 normalize_authoring : DocumentAuthoring, SimpleState -> NormalizedAuthoring
 normalize_authoring = |authoring, initial| match authoring {
@@ -2732,6 +2760,8 @@ SimpleState : {
 	source_lines : List(KernelSourceText.Line),
 	spacers : List(NormalizedSpacer),
 	tables : List(NormalizedTable),
+	footnotes : List(NormalizedFootnote),
+	footnote_citations : List(NormalizedCitation),
 }
 
 normalize_simple : { contents : List(DocumentBlock), language : Str, metadata_title : Str }, SimpleState -> NormalizedAuthoring
@@ -2773,6 +2803,8 @@ finish_simple_authoring = |state, language, metadata_title| {
 	callouts: state.callouts,
 	decorations: state.decorations,
 	figures: state.figures,
+	footnotes: state.footnotes,
+	footnote_citations: state.footnote_citations,
 	groups: state.groups,
 	inlines: state.inlines,
 	page_references: state.page_references,
@@ -2993,6 +3025,20 @@ append_leaf = |state, block, parent, position| match block {
 	}
 	DestinationHeading({ level, name, text }) => { ..state, blocks: state.blocks.append({ kind: DestinationHeading({ level, name }), parent, text }) }
 	DestinationParagraph({ name, text }) => { ..state, blocks: state.blocks.append({ kind: DestinationParagraph({ name: name }), parent, text }) }
+	Footnote(boxed) => {
+		{ id, label, body } = Box.unbox(boxed)
+		definition = { id, label, body, block: state.blocks.len(), parent, position }
+		with_note = { ..state, footnotes: state.footnotes.append(definition) }
+		append_rich(
+			with_note,
+			[
+				DocumentInline.Text("${label} ${body} "),
+				Document.inline_internal_link([DocumentInline.Text("Return to first citation")], Document.footnote_return(id)),
+			],
+			parent,
+			position,
+		)
+	}
 	Heading({ level, text }) => { ..state, blocks: state.blocks.append({ kind: Heading(level), parent, text }) }
 	Decoration(spec) => {
 		{ ..state, decorations: state.decorations.append({ behind: spec.behind, block: state.blocks.len(), drawing: space_decoration(without_decoration_labels(validate_flow_drawing(spec.drawing)), spec.above, spec.below), parent, position }) }
@@ -3594,6 +3640,8 @@ append_rich = |state, contents, parent, position| {
 		callouts: state.callouts,
 		decorations: state.decorations,
 		figures: state.figures,
+		footnotes: state.footnotes,
+		footnote_citations: [],
 		groups: state.groups,
 		list_index: state.list_index,
 		lists: state.lists,
@@ -3615,6 +3663,7 @@ append_rich = |state, contents, parent, position| {
 	var $inlines = state.inlines
 	var $line_breaks = state.line_breaks
 	var $references = state.page_references
+	var $citations = state.footnote_citations
 	first_reference = $references.len()
 	var $last_reference = 0
 	var $elements = 0
@@ -3659,6 +3708,17 @@ append_rich = |state, contents, parent, position| {
 					$inlines = $inlines.append({ children: 0, depth: top.depth, element: 0, first_leaf: $leaves, kind: Text({ byte_length: length, byte_start: $bytes, text: value }), language: top.language, leaf_end: $leaves + 1, parent: top.owner, position: slot, spine: 0 })
 					$last_text = $inlines.len()
 					$last_reference = 0
+					$leaves = $leaves + 1
+					$bytes = $bytes + length
+				}
+				FootnoteMarker({ id, text: value }) => {
+					length = value.count_utf8_bytes()
+					$citations = $citations.append({ id, text: value, block: block_index, inline: index, segment: $line_breaks.len() - first_break, utf8_start: $bytes })
+					$inlines = $inlines.append({ ..inline_element(top, slot, InternalLink(Document.footnote_destination(id)), 1, $elements, $leaves), leaf_end: $leaves + 1 })
+					$inlines = $inlines.append({ children: 0, depth: top.depth + 1, element: 0, first_leaf: $leaves, kind: Text({ byte_length: length, byte_start: $bytes, text: value }), language: top.language, leaf_end: $leaves + 1, parent: index + 1, position: 0, spine: 0 })
+					$last_text = $inlines.len()
+					$last_reference = 0
+					$elements = $elements + 1
 					$leaves = $leaves + 1
 					$bytes = $bytes + length
 				}
@@ -3763,11 +3823,11 @@ append_rich = |state, contents, parent, position| {
 	if $references.len() != first_reference {
 		## No concatenated paragraph source can cross a symbolic atom. The
 		## explicit chunk pass below supplies its literal sources instead.
-		return { ..unchanged, blocks: blocks.append({ kind: RichParagraph(paragraph), parent, text: "" }), inlines: $inlines, line_breaks: $line_breaks, page_references: $references, rich_paragraphs: rich_paragraphs.append(rich) }
+		return { ..unchanged, blocks: blocks.append({ kind: RichParagraph(paragraph), parent, text: "" }), inlines: $inlines, line_breaks: $line_breaks, page_references: $references, footnote_citations: $citations, rich_paragraphs: rich_paragraphs.append(rich) }
 	}
 	if $line_breaks.len() == first_break {
 		text = if ($leaves == 1) single_leaf_text($inlines, base) else concatenated_text($inlines, base, $bytes)
-		return { ..unchanged, blocks: blocks.append({ kind: RichParagraph(paragraph), parent, text }), inlines: $inlines, line_breaks: $line_breaks, page_references: $references, rich_paragraphs: rich_paragraphs.append(rich) }
+		return { ..unchanged, blocks: blocks.append({ kind: RichParagraph(paragraph), parent, text }), inlines: $inlines, line_breaks: $line_breaks, page_references: $references, footnote_citations: $citations, rich_paragraphs: rich_paragraphs.append(rich) }
 	}
 	segments = segment_texts($inlines, base, $line_breaks, first_break)
 	var $index_break = first_break
@@ -3776,7 +3836,7 @@ append_rich = |state, contents, parent, position| {
 		$line_breaks = list_set($line_breaks, $index_break, { ..record, text: list_at(segments, $index_break - first_break + 1) })
 		$index_break = $index_break + 1
 	}
-	{ ..unchanged, blocks: blocks.append({ kind: RichParagraph(paragraph), parent, text: list_at(segments, 0) }), inlines: $inlines, line_breaks: $line_breaks, page_references: $references, rich_paragraphs: rich_paragraphs.append(rich) }
+	{ ..unchanged, blocks: blocks.append({ kind: RichParagraph(paragraph), parent, text: list_at(segments, 0) }), inlines: $inlines, line_breaks: $line_breaks, page_references: $references, footnote_citations: $citations, rich_paragraphs: rich_paragraphs.append(rich) }
 }
 
 ## The text leaf `last_text - 1` before a line break, ending in U+0020: the
