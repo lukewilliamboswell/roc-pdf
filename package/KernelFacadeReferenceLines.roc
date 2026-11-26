@@ -39,7 +39,10 @@ KernelFacadeReferenceLines :: [].{
 	}
 	Plan :: View.{
 		build : KernelFacadeSemantics.SymbolicView, KernelFacadeReferenceShape.Plan, Layout.Size, Theme, KernelFacadeLines.Limits -> Try(Plan, Error)
-		build = |symbolic, shape, page, theme, limits| build_plan(symbolic, shape, page, theme, limits)
+		build = |symbolic, shape, page, theme, limits| build_plan(symbolic, shape, page, theme, limits, [])
+
+		build_with_widths : KernelFacadeSemantics.SymbolicView, KernelFacadeReferenceShape.Plan, Layout.Size, Theme, KernelFacadeLines.Limits, List(Layout.Unit) -> Try(Plan, Error)
+		build_with_widths = |symbolic, shape, page, theme, limits, widths| build_plan(symbolic, shape, page, theme, limits, widths)
 		view : Plan -> View
 		view = |Plan.(value)| value
 	}
@@ -53,8 +56,8 @@ BlockItems : { body : Semantics.IndexRange, label : [NoLabel, Label(Semantics.In
 
 Holds : { ranges : List(Semantics.IndexRange), contexts : List(Semantics.IndexRange), scalars : U64 }
 
-build_plan : KernelFacadeSemantics.SymbolicView, KernelFacadeReferenceShape.Plan, Layout.Size, Theme, KernelFacadeLines.Limits -> Try(KernelFacadeReferenceLines.Plan, KernelFacadeReferenceLines.Error)
-build_plan = |symbolic, shape, page, theme, line_limits| {
+build_plan : KernelFacadeSemantics.SymbolicView, KernelFacadeReferenceShape.Plan, Layout.Size, Theme, KernelFacadeLines.Limits, List(Layout.Unit) -> Try(KernelFacadeReferenceLines.Plan, KernelFacadeReferenceLines.Error)
+build_plan = |symbolic, shape, page, theme, line_limits, widths| {
 	authoring = symbolic.authoring
 	owners = symbolic.block_ownership
 	limits = KernelFacadeLines.Limits.values(line_limits)
@@ -115,7 +118,15 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 				}
 				style = KernelFacadeShape.leaf_style(authoring, $block, AtInline(context.inline), Body, theme)
 				$size = I64.max($size, style.size.raw())
-				$builder = KernelReferenceLayout.Builder.reference($builder, context.reference, list_at(authoring.page_references, context.reference).spec.width)
+				$builder = KernelReferenceLayout.Builder.reference(
+					$builder,
+					context.reference,
+					if widths.is_empty() {
+						list_at(authoring.page_references, context.reference).spec.width
+					} else {
+						list_at(widths, context.reference)
+					},
+				)
 				$pending = $pending + 1
 			}
 		}

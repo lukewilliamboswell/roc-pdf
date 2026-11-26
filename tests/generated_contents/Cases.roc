@@ -2,7 +2,7 @@ import pdf.Document
 import pdf.Pdf
 
 Cases :: [].{
-	Case : [Entries({ count : U64 }), Wtpdf, Rejections]
+	Case : [Entries({ count : U64 }), FlowReference({ long : Bool }), FlowRejections, Wtpdf, Rejections]
 	Stats : { bytes : List(U8), work : List(U64) }
 
 	run : Case -> Stats
@@ -10,6 +10,8 @@ Cases :: [].{
 		result = match case {
 			Entries({ count }) if count == 2 or count == 40 => evidence(count, options)
 			Entries(_) => crash "CASE_SCALE_INVALID"
+			FlowReference({ long }) => flow_evidence(if (long) LongLabel else ShortLabel)
+			FlowRejections => reject_flow({})
 			Wtpdf => evidence(2, { ..options, wtpdf: DeclareAccessibility })
 			Rejections => reject_cases({})
 		}
@@ -109,4 +111,83 @@ handbook = |count, selection| {
 			Pdf.destination_heading({ name: "appendix", level: 1, text: "Administrative appendix" }),
 		],
 	})
+}
+
+FlowCase : [LongLabel, ShortLabel, Cycle, Missing]
+
+flow_options : Pdf.Options
+flow_options = {
+	page_size: Custom({ width: 254, height: 90 }),
+	theme: { page_margin: { left: 18, right: 18, top: 16, bottom: 16 }, paragraph_spacing: 4 },
+}
+
+flow_document : FlowCase -> Document
+flow_document = |variation| {
+	target = if (variation == Missing) "unregistered" else "recovery"
+	base = if (variation == LongLabel or variation == Cycle) "RECOVERY-CHECKS-" else "A-"
+	first : Document.PageLabelRange
+	first = { start_page: 0, start_number: 1, prefix: base, style: DecimalArabic }
+	labels = if (variation == Cycle) [first, { start_page: 1, start_number: 2, prefix: "A-", style: DecimalArabic }] else [first]
+	body = [
+		Pdf.rich_paragraph([
+			Pdf.text("For the regional recovery checks, see "),
+			Pdf.inline_internal_link([Pdf.flow_page_reference({ destination: target, numbering: PageLabel })], "recovery"),
+		]),
+		Pdf.destination_heading({ level: 1, name: "recovery", text: "Recovery checks" }),
+		Pdf.paragraph("Verify replica health."),
+	]
+	contents = if (variation == Cycle) body.append(Pdf.page_break).append(Pdf.paragraph("Appendix")) else body
+	Pdf.document({
+		language: "en-AU",
+		title: "Recovery handbook",
+		page_labels: labels,
+		contents,
+	})
+}
+
+flow_evidence : FlowCase -> Try(Cases.Stats, Pdf.Error)
+flow_evidence = |variation| {
+	{ prepared, report } = Pdf.prepare_with_report(flow_document(variation), { options: flow_options })?
+	evidence_value = if (variation == LongLabel) "RECOVERY-CHECKS-2" else "A-1"
+	evidence_page = if (variation == LongLabel) 2 else 1
+	var $resolved = 0
+	for outcome in report.facts.outcomes {
+		match outcome {
+			PageReferenceResolved({ destination: "recovery", page, value, path }) if page == evidence_page and value == evidence_value and path == "contents[0].inlines[1].inlines[0]" => {
+				$resolved = $resolved + 1
+			}
+			_ => {}
+		}
+	}
+	if $resolved != 1 {
+		crash "FLOW_REFERENCE_RESOLUTION_DRIFT"
+	}
+	bytes = Pdf.to_bytes_prepared(prepared)?
+	Ok({ bytes, work: [report.facts.pages.len(), report.facts.blocks.len(), $resolved, bytes.len()] })
+}
+
+reject_flow : {} -> Try(Cases.Stats, Pdf.Error)
+reject_flow = |_| {
+	cases = [(Cycle, "layout.reference_cycle"), (Missing, "navigation.reference_destination")]
+	for (scenario, feature) in cases {
+		doc = flow_document(scenario)
+		selected = if (scenario == Cycle) { ..flow_options, page_size: Custom({ width: 260, height: 90 }) } else flow_options
+		if !rejects_flow(Pdf.to_bytes_with(doc, selected), feature) or !rejects_flow(Pdf.to_chunks_with(doc, selected), feature) {
+			crash "FLOW_REFERENCE_EXPECTED_REJECTION"
+		}
+	}
+	carrier = flow_evidence(LongLabel)?
+	Ok({ ..carrier, work: carrier.work.append(cases.len()).append(cases.len()) })
+}
+
+rejects_flow : Try(a, Pdf.Error), Str -> Bool
+rejects_flow = |result, expected| match result {
+	Err(InvalidDocument({ diagnostics: [{ feature: Feature(feature), details, .. }], truncation: Complete, .. })) => {
+		if feature != expected or details != ["contents[0].inlines[1].inlines[0]"] {
+			crash Str.inspect({ expected, feature, details })
+		}
+		True
+	}
+	Err(error) => crash Str.inspect(error)
+	Ok(_) => crash "flow reference unexpectedly accepted"
 }

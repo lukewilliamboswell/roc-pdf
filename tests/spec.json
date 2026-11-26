@@ -36340,6 +36340,150 @@
         "structure_semantics",
         "generated_contents"
       ]
+    },
+    {
+      "name": "flow page reference short label",
+      "scenario_revision": "flow-page-reference-v1",
+      "family": "generated_contents",
+      "snapshot": "tests/generated_contents/flow_short.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "flow_long": 0
+      },
+      "work_counters": [
+        "pages",
+        "blocks",
+        "references",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1310,
+          "allocated_bytes": 3088026,
+          "work": {
+            "pages": 1,
+            "blocks": 3,
+            "references": 1,
+            "output_bytes": 16222
+          }
+        },
+        "x64musl": {
+          "allocations": 1310,
+          "allocated_bytes": 3088026,
+          "work": {
+            "pages": 1,
+            "blocks": 3,
+            "references": 1,
+            "output_bytes": 16222
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "flow_page_reference"
+      ]
+    },
+    {
+      "name": "flow page reference long label",
+      "scenario_revision": "flow-page-reference-v1",
+      "family": "generated_contents",
+      "snapshot": "tests/generated_contents/flow_long.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "flow_long": 1
+      },
+      "work_counters": [
+        "pages",
+        "blocks",
+        "references",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1451,
+          "allocated_bytes": 3438561,
+          "work": {
+            "pages": 2,
+            "blocks": 3,
+            "references": 1,
+            "output_bytes": 17320
+          }
+        },
+        "x64musl": {
+          "allocations": 1451,
+          "allocated_bytes": 3438561,
+          "work": {
+            "pages": 2,
+            "blocks": 3,
+            "references": 1,
+            "output_bytes": 17320
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "flow_page_reference"
+      ]
+    },
+    {
+      "name": "flow page reference atomic rejections",
+      "scenario_revision": "flow-page-reference-v1",
+      "family": "generated_contents",
+      "snapshot": "tests/generated_contents/flow_long.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "flow_long": 1
+      },
+      "work_counters": [
+        "pages",
+        "blocks",
+        "references",
+        "output_bytes",
+        "buffered_rejections",
+        "chunked_rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 3253,
+          "allocated_bytes": 3990157,
+          "work": {
+            "pages": 2,
+            "blocks": 3,
+            "references": 1,
+            "output_bytes": 17320,
+            "buffered_rejections": 2,
+            "chunked_rejections": 2
+          }
+        },
+        "x64musl": {
+          "allocations": 3253,
+          "allocated_bytes": 3990157,
+          "work": {
+            "pages": 2,
+            "blocks": 3,
+            "references": 1,
+            "output_bytes": 17320,
+            "buffered_rejections": 2,
+            "chunked_rejections": 2
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "flow_page_reference"
+      ]
     }
   ]
 }

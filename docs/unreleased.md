@@ -78,6 +78,13 @@ ASCII. Independent checkboxes can start checked or unchecked.
 See the [fillable fields guide](authoring.adoc#authoring-fillable-fields) and
 the [service intake example](../examples/service-intake).
 
+## Flow-changing page references
+
+Use `Pdf.flow_page_reference` to fit the exact printed page value in a rich
+paragraph. Preparation resolves the heading's committed placement and
+returns a located diagnostic if the layout cycles or reaches its budget.
+See the [page reference guide](destination-page-references.adoc#flow-changing-page-references).
+
 ## Compiler
 
 This development branch uses Roc `nightly-2026-11-25-d5a4f1e`.

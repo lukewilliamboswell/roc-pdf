@@ -100,6 +100,38 @@ field `Pdf.page_label` instead. An explicitly unnumbered page with an empty
 prefix paints no label in furniture and cannot be the value of a `PageLabel`
 body reference.
 
+[#flow-changing-page-references]
+== Let a page reference reflow
+
+Use `Pdf.flow_page_reference` in a rich paragraph when the printed value
+should take up its exact shaped width. The label moves as one unbreakable
+item. It can push following text or the destination onto another page.
+The numbering mode and optional link work like fixed-width references.
+
+[source,roc]
+----
+Pdf.rich_paragraph([
+    Pdf.text("For the regional recovery checks, see "),
+    Pdf.inline_internal_link([
+        Pdf.flow_page_reference({ destination: "recovery", numbering: PageLabel }),
+    ], "recovery"),
+])
+----
+
+Preparation repeats measurement until the resolved values, line placements,
+anchors and page geometry agree across consecutive passes. It rejects a
+repeated earlier state as `layout.reference_cycle`. The pass limit is eight,
+with at most 500,000 state words per pass and 4,000,000 charged work units
+overall. Exhaustion returns `layout.reference_stabilization_budget`.
+A cycle, exhausted budget or missing destination reports the authored inline
+before PDF bytes or chunks are available. Choose `Pdf.page_reference` when a
+fixed field should keep layout independent of the printed label.
+
+Run the
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/operations-handbook/README.md[handbook's compact recovery note]
+with a short or long label. The long label wraps and moves Recovery checks
+to the second physical page. Its link and label follow the new placement.
+
 See xref:manual-composition.adoc#manual-composition-composing-a-technical-manual[Composing a technical manual] for chapter headers,
 numbered instructions and continued callouts. The xref:authoring.adoc#authoring-authoring-with-roc-pdf[authoring guide]
 explains font selection, furniture and document options.

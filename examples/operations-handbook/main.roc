@@ -23,6 +23,8 @@ main! = |args| {
 	generated = match args.map(OsStr.display) {
 		[] => False
 		["generated"] => True
+		["flow-short"] => return flow_note!("A-")
+		["flow-long"] => return flow_note!("RECOVERY-CHECKS-")
 		_ => return Err(Usage)
 	}
 	fonts = register_fonts({})?
@@ -63,6 +65,40 @@ main! = |args| {
 	output = "operations-handbook.pdf"
 	output.write_bytes!(bytes).map_err(|err| WriteFailed(err))?
 	Stdout.line!("Wrote operations-handbook.pdf").map_err(|err| OutputFailed(err))?
+	Ok({})
+}
+
+## A compact insert from the runbook isolates the page-break change.
+flow_note! = |prefix| {
+	options : Pdf.Options
+	options = {
+		page_size: Custom({ width: 254, height: 90 }),
+		theme: { page_margin: { left: 18, right: 18, top: 16, bottom: 16 }, paragraph_spacing: 4 },
+	}
+	doc = Pdf.document({
+		language: "en-AU",
+		title: "Recovery handbook",
+		page_labels: [{ start_page: 0, start_number: 1, prefix, style: DecimalArabic }],
+		contents: [
+			Pdf.rich_paragraph([
+				Pdf.text("For the regional recovery checks, see "),
+				Pdf.inline_internal_link([Pdf.flow_page_reference({ destination: "recovery", numbering: PageLabel })], "recovery"),
+			]),
+			Pdf.destination_heading({ level: 1, name: "recovery", text: "Recovery checks" }),
+			Pdf.paragraph("Verify replica health."),
+		],
+	})
+	{ prepared, report } = Pdf.prepare_with_report(doc, { options: options }).map_err(|err| PdfFailed(err))?
+	for outcome in report.facts.outcomes {
+		match outcome {
+			PageReferenceResolved({ destination: "recovery", page, value, .. }) => Stdout.line!("Recovery checks: ${value} on physical page ${page.to_str()}").map_err(|err| OutputFailed(err))?
+			_ => {}
+		}
+	}
+	bytes = Pdf.to_bytes_prepared(prepared).map_err(|err| PdfFailed(err))?
+	output : Path
+	output = "operations-handbook.pdf"
+	output.write_bytes!(bytes).map_err(|err| WriteFailed(err))?
 	Ok({})
 }
 

@@ -2,3 +2,6 @@
 {"name":"generated contents x40","schema_version":1,"case":{"Entries":{"count":40}}}
 {"name":"generated contents WTPDF","schema_version":1,"case":"Wtpdf"}
 {"name":"generated contents atomic rejections","schema_version":1,"case":"Rejections"}
+{"name":"flow page reference short label","schema_version":1,"case":{"FlowReference":{"long":false}}}
+{"name":"flow page reference long label","schema_version":1,"case":{"FlowReference":{"long":true}}}
+{"name":"flow page reference atomic rejections","schema_version":1,"case":"FlowRejections"}

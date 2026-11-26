@@ -236,6 +236,8 @@ kernel_facade_references_error = |error| match error {
 	UnknownDestination(_) => leaf({ category: Invariant, feature: "unknown_destination", path: "UnknownDestination", inspected: Str.inspect(error) })
 	MissingAnchor(_) => leaf({ category: Invariant, feature: "missing_anchor", path: "MissingAnchor", inspected: Str.inspect(error) })
 	Format({ error: cause, .. }) => leaf({ category: kernel_page_labels_error(cause).category, feature: "format", path: "Format", inspected: Str.inspect(error) })
+	FlowBudget(_) => leaf({ category: Budget, feature: "flow_reference_budget", path: "FlowBudget", inspected: Str.inspect(error) })
+	FlowCycle(_) => leaf({ category: Invariant, feature: "flow_reference_cycle", path: "FlowCycle", inspected: Str.inspect(error) })
 	FieldOverflow(_) => leaf({ category: Invariant, feature: "field_overflow", path: "FieldOverflow", inspected: Str.inspect(error) })
 	InvalidMapping(_) => leaf({ category: Invariant, feature: "invalid_mapping", path: "InvalidMapping", inspected: Str.inspect(error) })
 }

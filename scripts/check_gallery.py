@@ -91,6 +91,8 @@ CASES = {
     ),
     "operations-handbook": (
         Case(("generated",), "operations-handbook-generated.pdf"),
+        Case(("flow-short",), "operations-handbook-flow-short.pdf", facts=("A-1 on physical page 1",)),
+        Case(("flow-long",), "operations-handbook-flow-long.pdf", facts=("RECOVERY-CHECKS-2 on physical page 2",)),
     ),
     "ordered-han": (
         Case(("latin-only",), diagnosis="text.coverage_missing at contents[1].inlines[1].inlines[0]"),

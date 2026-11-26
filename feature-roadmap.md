@@ -966,6 +966,14 @@ the authored TOC/TOCI path with fixed-width fields, paired destinations and
 optional artifact leaders. Flow-changing references and indexes have
 separate layout and structure requirements.
 
+### Flow-changing page references
+
+A rich paragraph can reserve the measured advance of a resolved page value.
+Preparation commits labels, placements and links only after exact state
+equality within explicit pass and work bounds. The compact handbook note
+moves its heading from physical page one to two when the label wraps. The
+reference lane checks atomic missing-target and cycle diagnostics.
+
 ### Bounded fixed-page text and artwork
 
 The fixed-page builder supports explicit sheet sizes, framed titles,

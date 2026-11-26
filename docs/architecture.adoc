@@ -1120,6 +1120,17 @@ choice when the final value is resolved, shaped, and proven to fit. The
 architecture permits such exact strategies without requiring every reference
 to change surrounding flow or participate in general iterative stabilization.
 
+A flow-changing body reference consumes an exact shaped-label advance.
+The first pass uses a one-point seed. Each subsequent pass reserves the last
+resolved advance for that atom. The equality key records page count, label
+bytes and physical targets, literal-anchor rectangles, measured advances and
+item offsets, committed row identities and origins, and committed block and
+container fragments. The pending symbolic document and literal shaping are
+immutable shared inputs. The key history keeps compact word buffers and only
+the latest candidate plan. Preparation accepts consecutive equality and
+rejects a nonconsecutive repetition or exhaustion before publishing any plan.
+The final pass owns the geometry consumed by link and structure lowering.
+
 A bounded contents entry reserves a terminal page-reference column before
 pagination. Normalization retains its title/reference logical order and sparse
 indentation/leader facts; line measurement commits the title rows and terminal

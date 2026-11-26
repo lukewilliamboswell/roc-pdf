@@ -117,6 +117,7 @@ Pdf :: [].{
 
 	ContentsEntryProps : Document.ContentsEntryProps
 	PageReferenceProps : Document.PageReferenceProps
+	FlowPageReferenceProps : Document.FlowPageReferenceProps
 	PageReferenceNumbering : Document.PageReferenceNumbering
 
 	Inline : Document.Inline
@@ -977,6 +978,11 @@ Pdf :: [].{
 	## width. Its page number or configured page label resolves after layout.
 	page_reference : PageReferenceProps -> Inline
 	page_reference = |props| Document.page_reference(props)
+
+	## An unbreakable page value whose measured width can change pagination.
+	## Preparation publishes the result only after the layout stabilizes.
+	flow_page_reference : FlowPageReferenceProps -> Inline
+	flow_page_reference = |props| Document.flow_page_reference(props)
 
 	## The physical page count in a number style (furniture only).
 	total_pages : NumberStyle -> Inline
@@ -2232,6 +2238,8 @@ reference_error : Document, KernelFacadeReferences.Error -> Pdf.Error
 reference_error = |doc, error| match error {
 	UnknownDestination({ reference }) => reference_diagnostic(doc, reference, InvalidRelationship, "navigation.reference_destination", "The page reference names no declared destination.")
 	MissingAnchor({ reference }) => reference_diagnostic(doc, reference, LayoutConstraintViolated, "layout.reference_anchor", "The page reference's destination has no committed physical placement.")
+	FlowCycle({ reference, first, repeated }) => reference_diagnostic(doc, reference, LayoutConstraintViolated, "layout.reference_cycle", "Page-reference layout repeated pass ${first.to_str()} at pass ${repeated.to_str()}. Use a fixed-width reference to remove the pagination dependency.")
+	FlowBudget(reference) => reference_diagnostic(doc, reference, BudgetExceeded, "layout.reference_stabilization_budget", "Page-reference layout exceeded its stabilization budget. Use a fixed-width reference or reduce the document layout.")
 	Format({ error: problem, reference }) => {
 		code = match problem {
 			LimitExceeded(_) | ArithmeticOverflow => BudgetExceeded

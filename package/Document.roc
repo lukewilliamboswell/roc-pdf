@@ -251,6 +251,7 @@ DocumentInline :: [
 	PageNumber(PageFieldStyle),
 	PageLabel,
 	PageReference(Box(PageReferenceProps)),
+	FlowPageReference(Box(PageReferenceProps)),
 	RunningLabel,
 	Quote(List(DocumentInline)),
 
@@ -283,6 +284,8 @@ PageReferenceProps := {
 	numbering : PageReferenceNumbering ?? Physical,
 	width : Layout.Unit,
 }.{}
+
+FlowPageReferenceProps := { destination : Str, numbering : PageReferenceNumbering ?? Physical }.{}
 
 ## A linked contents entry. The page field is terminal and end-aligned;
 ## every title line reserves the field and gap before pagination.
@@ -1062,7 +1065,7 @@ NormalizedFigure := { alternative : Str, captioned : Bool, drawing : ValidatedDr
 ## A reference is a semantic content leaf with no provisional Unicode.
 ## `separator_after` is the explicit authored line-break normalization fact:
 ## final ActualText includes its separator; shaping uses the label alone.
-NormalizedPageReference : { block : U64, inline : U64, leaf : U64, paragraph : U64, separator_after : Bool, spec : PageReferenceProps }
+NormalizedPageReference : { block : U64, flow : Bool, inline : U64, leaf : U64, paragraph : U64, separator_after : Bool, spec : PageReferenceProps }
 
 ## Literal chunks stop at every reference and mandatory authored break.
 ## Byte offsets on Text leaves are relative to their chunk. `ordinal` is
@@ -1412,6 +1415,7 @@ Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : D
 	PageScopeProps : PageScopeProps
 	NormalizedRegion : NormalizedRegion
 	PageReferenceProps : PageReferenceProps
+	FlowPageReferenceProps : FlowPageReferenceProps
 	GeneratedContentsError : GeneratedContentsError
 	GeneratedContentsProps : GeneratedContentsProps
 	ContentsEntryProps : ContentsEntryProps
@@ -1720,6 +1724,12 @@ Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : D
 
 	page_reference : PageReferenceProps -> DocumentInline
 	page_reference = |spec| DocumentInline.PageReference(Box.box(spec))
+
+	flow_page_reference : FlowPageReferenceProps -> DocumentInline
+	flow_page_reference = |props| {
+		spec = PageReferenceProps.{ align: Start, destination: props.destination, numbering: props.numbering, width: 1 }
+		DocumentInline.FlowPageReference(Box.box(spec))
+	}
 
 	total_pages : NumberStyle -> DocumentInline
 	total_pages = |style| DocumentInline.TotalPages(page_field_style(style))
@@ -3416,7 +3426,8 @@ append_rich = |state, contents, parent, position| {
 			$frames = list_set($frames, $frames.len() - 1, { ..top, next: top.next + 1 })
 			index = $inlines.len()
 			slot = top.next - top.breaks
-			match list_at(top.items, top.next) {
+			authored = list_at(top.items, top.next)
+			match authored {
 				LineBreak => {
 					## The break's separator: the text before it gains a
 					## trailing U+0020, painted at the end of its line, so
@@ -3491,9 +3502,13 @@ append_rich = |state, contents, parent, position| {
 					$elements = $elements + 1
 				}
 
-				PageReference(boxed) => {
+				PageReference(boxed) | FlowPageReference(boxed) => {
+					flow = match authored {
+						FlowPageReference(_) => True
+						_ => False
+					}
 					reference = $references.len()
-					$references = $references.append({ block: block_index, inline: index, leaf: $leaves, paragraph, separator_after: False, spec: Box.unbox(boxed) })
+					$references = $references.append({ block: block_index, flow, inline: index, leaf: $leaves, paragraph, separator_after: False, spec: Box.unbox(boxed) })
 					$inlines = $inlines.append({ children: 0, depth: top.depth, element: 0, first_leaf: $leaves, kind: PageReference(reference), language: top.language, leaf_end: $leaves + 1, parent: top.owner, position: slot, spine: 0 })
 					$last_reference = reference + 1
 					$last_text = 0

@@ -9,7 +9,7 @@ from check_destination_references import page_label
 from check_gallery_features import tagged, only
 from check_navigation import check_name_tree, walk_name_tree
 from check_pdf_structure import ValidationError, dictionary_ref, require
-from check_rich_flow import ARTIFACT
+from check_rich_flow import ARTIFACT, read
 from check_structure_semantics import element_children
 from pdf_layout import twin
 
@@ -77,7 +77,43 @@ def validate_handbook(pdf: bytes, authored: bytes) -> None:
         require(leaders and all(b" Tf" not in block for block in leaders), "leaders must be nontext artifacts")
 
 
+def validate_flow_fixture(pdf: bytes, dimensions: dict[str, int]) -> None:
+    document, pages, root, _ = read(pdf)
+    is_long = dimensions["flow_long"]
+    page_index = is_long
+    require(len(pages) == dimensions["pages"] == page_index + 1,
+            "measured label must move the heading only for the long shape")
+    paragraph, heading, body = root.children
+    expected = "RECOVERY-CHECKS-2" if is_long else "A-1"
+    require((paragraph.role, heading.role, body.role) == ("P", "H1", "P")
+            and heading.text == "Recovery checks", "flow reference changed the logical body order")
+    require({mark.page for mark in heading.marks} == {page_index},
+            "heading paint is on the wrong committed page")
+    link = only(paragraph.descendants(), "Link", expected)
+    prefix = [mark for mark in paragraph.marks if mark not in link.marks]
+    values = {glyph[2] for mark in link.marks for glyph in mark.glyphs}
+    previous = {glyph[2] for mark in prefix for glyph in mark.glyphs}
+    require(len(values) == 1 and values.isdisjoint(previous) == bool(is_long),
+            "the resolved label must wrap as one unbreakable atom")
+    destinations = check_name_tree(document.bodies, document.root, pages)
+    require(set(destinations) == {b"recovery"}, "flow reference changed the authored target")
+    page, _, _ = destinations[b"recovery"]
+    require(page == pages[page_index] and page_label(document, page_index) == expected,
+            "resolved label disagrees with the committed named destination")
+    require(named_structures(document)[b"recovery"] == heading.number,
+            "flow reference has the wrong structure destination")
+    refs = [item for item in element_children(document, link.value)
+            if isinstance(item, dict) and item.get("Type") == "OBJR"]
+    require(len(refs) == 1, "flow reference link lost its annotation")
+    action = document.get(int(refs[0]["Obj"]))["A"]
+    require(action["D"][0] == page and action["SD"][0] == heading.number,
+            "flow reference annotation disagrees with the final target")
+
+
 def check(example: Path) -> None:
+    for length, meaning in (("short", 0), ("long", 1)):
+        payload = (example / f"operations-handbook-flow-{length}.pdf").read_bytes()
+        validate_flow_fixture(payload, {"flow_long": meaning, "pages": meaning + 1})
     pdf = (example / "operations-handbook-generated.pdf").read_bytes()
     authored = (example / "operations-handbook.pdf").read_bytes()
     validate_handbook(pdf, authored)

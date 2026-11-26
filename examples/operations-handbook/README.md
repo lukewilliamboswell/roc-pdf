@@ -35,3 +35,23 @@ command appendix retains the restarted label `A-1`.
 The checked output and preview are
 [operations-handbook-generated.pdf](operations-handbook-generated.pdf) and
 [preview-generated.png](preview-generated.png).
+
+## A page label that moves its own target
+
+From this directory, run:
+
+```sh
+roc run main.roc flow-short
+roc run main.roc flow-long
+```
+
+Both commands write `operations-handbook.pdf`. The compact recovery note
+has a linked page label near the end of the first line. With `A-` as the
+prefix, the label stays on that line and prints `A-1`. With
+`RECOVERY-CHECKS-`, the label wraps, the heading moves to physical page 2,
+and the link prints `RECOVERY-CHECKS-2`. Change the prefix passed to
+`flow_note!` in `main.roc` to try another value.
+
+[Short-label PDF](operations-handbook-flow-short.pdf) ·
+[Long-label PDF](operations-handbook-flow-long.pdf) ·
+[Long-label preview](preview-flow-long.png)

@@ -83,7 +83,7 @@ KernelFacadePipeline :: [].{
 	}
 
 	## `reference_passes` counts template stabilization passes, or one exact
-	## resolution phase for fixed-width body references. `field_resolutions`
+	## resolution phase for fixed-width body references. Flow-changing body\n\t## references count each pass through committed body geometry. `field_resolutions`
 	## counts resolved page-field values; `furniture_items` counts furniture
 	## lines shaped, one per line per page. With body reference atoms,
 	## `line_candidate_visits` counts actual wrapped-item visits.
@@ -702,7 +702,7 @@ build_references = |authoring, selection, theme, page_size, descriptor, facts, r
 				callout_updates: page_work.container_updates,
 				callout_fragments: page_work.container_fragments,
 				scope_visits: page_work.scope_visits,
-				reference_passes: 1,
+				reference_passes: U64.max(view.work.flow_passes, 1),
 				field_resolutions: furniture_result.field_resolutions,
 				furniture_items: furniture_result.furniture_items,
 				template_region_visits: furniture_result.template_region_visits,
