@@ -335,6 +335,13 @@ Old versions of a growing scene list are not rollback checkpoints. Paragraph
 analysis, table grids, cell measurements, and other invariant work are computed
 once per exact input and reused by explicit cache entries.
 
+Fixed-page preparation carries the authored sheet sizes and frame bounds
+alongside the logical block arena. It checks fit before positioning. A
+validated per-page permutation determines physical placement order, and
+separate typed ranges carry artwork before and after that content. Fragment
+ownership still consumes the authored occurrence identities, and tagged
+lowering follows the semantic spine to derive reading order.
+
 Each layout algorithm declares its worst-case complexity and exact cache keys.
 Line breaking does not rescan a paragraph for every candidate; pagination
 resumes from its continuation; keep/backtracking rules do not permit exponential

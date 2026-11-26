@@ -1278,6 +1278,24 @@ wait for the broader algorithms below.
 - Every accepted capability preserves Gate 7's full applicable-requirements
   closure and combined-profile validation.
 
+### Bounded fixed-page text and artwork
+
+The fixed-page builder supports explicit sheet sizes, framed titles,
+numbered headings, paragraphs and rich paragraphs, and solid rectangle
+backgrounds and overlays. Placements determine reading order. A per-page
+permutation can independently select paint order. Preparation checks nominal
+line-box and advance fit and reports errors at the authored page and placement.
+The [remittance example](examples/remittance-advice/main.roc) exercises mixed
+sizes and differing orders. The [fixed-page evidence](docs/contributors/performance/fixed-pages.md)
+covers the same outputs under the combined profile, WTPDF accessibility where
+declared, and exact two- and twenty-page scale checks.
+
+Flowing columns are a separate slice. Define a typed cursor that resumes an
+occurrence across a column and a page before adding column selection policy.
+Next select table fragmentation, stabilized references, or custom-block
+continuation from an application that needs it. Each slice carries its own
+profile eligibility and independent ownership and geometry evidence.
+
 ## Gate 9: extended modern accessibility vocabulary
 
 ### Capabilities
