@@ -8,7 +8,7 @@ import unicode.ScalarRange
 import unicode.TextRange
 
 ## The project-side UAX #9 boundary over the pinned Unicode package's
-## revision-51 bidirectional algorithm.
+## revision-52 bidirectional algorithm.
 ##
 ## This module owns no bidi rules. It consumes one immutable source once,
 ## projects the dependency's per-scalar resolution into flat project-typed
