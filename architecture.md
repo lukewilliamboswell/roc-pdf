@@ -532,19 +532,20 @@ style's; deriving from an existing theme spreads the sub-record explicitly
 explicit tag (`ThemeFace`, `SameAsAll`, `Inherited`), resolved in one place
 by the getters preparation reads, never inferred from a missing value.
 
-The same rule applies to the public configuration and constructor records
-(`Pdf.DocumentProps`, whose outline, page labels, and page templates are
-empty and whose timestamps are `Omitted` unless given, `Pdf.ReportBudget`,
-`Pdf.Options`, `Theme.Scope`, `Pdf.CustomBlock`, `Pdf.NumberedList`,
-`Pdf.TableProps`, `Pdf.RegionProps`, the page-template props,
-`Pdf.DecorationProps`, `Pdf.FigureProps`, `Scene.Label`, and
-`Scene.AuthorPathStyle`): only presentation has defaults. Facts that cannot be
-responsibly guessed (title, language, contents, alternative text, captions,
-table columns and rows, and font security limits) stay required fields. A
-default is a documented construction value, never a fallback: constructors
-copy what they are given, preparation validates every field with a located
-diagnostic, and an invalid supplied value is rejected, not replaced. Changing
-a `??` default is a reviewed package-version change like any other default.
+Configurable public operations take transparent nominal props. A field uses
+`??` when omission has a defined value and `?:` when caller-supplied presence
+itself matters. Defaults cover presentation, bounded policies such as
+`KeepRows` and preparation-report limits, emission choices such as
+`Balanced`, and intentionally absent data such as `Omitted` timestamps.
+Use typed tags for policy, inheritance, and meaningful absence. Materially
+different behavior requires an explicit choice such as `SplitRows`.
+Author facts such as title, language, alternative text and identity remain
+required where applicable. Authors also choose captions explicitly, including
+`Pdf.no_caption`, and supply font validation limits explicitly.
+
+A default is a documented value applied at construction. Invalid supplied
+values return the applicable diagnostic before output. Preparation preserves
+the selected policies and profile and rejects content that cannot meet them.
 
 The facade accepts typed sRGB text colors through `Theme` record fields. A
 string literal where a `Color.SourceValue` is expected is an sRGB hex color
@@ -702,8 +703,8 @@ profile. The defaults are:
 - No encryption, scripts, interactive forms, external rendering dependencies,
   or other features outside the static package policy.
 
-Changing a default in a way that changes document semantics, conformance, or
-bytes is a reviewed package-version change.
+Changing a shipped default that affects semantics, conformance, layout, or
+bytes requires review and release migration guidance.
 
 The facade never silently weakens these defaults. If accessible archival output
 cannot be produced, `Pdf.to_bytes` returns a structured error explaining the
@@ -728,10 +729,12 @@ assertion, and the human-verifiable requirements described later still apply.
 ### Authoring feedback
 
 Preparation provides a bounded, read-only report alongside the opaque prepared
-result through a supported inspection surface: `Pdf.prepare_with_report`
-returns the unchanged `Pdf.Prepared` beside a `Pdf.Report` whose mechanical
-facts and human-review obligations are separate fields
-([reference-documents.md](docs/contributors/reference-documents.md#preparation-report)).
+result. `Pdf.prepare_with_report(document, props)` takes `Pdf.ReportProps`
+with independent document options and report budget, each defaulted. It
+returns the same `Pdf.Prepared` as ordinary preparation with those options,
+beside a `Pdf.Report` whose mechanical facts and human-review obligations are
+separate fields. The budget governs only report materialization.
+See the [report contract](docs/contributors/reference-documents.md#preparation-report).
 The report contains
 authoring locations, page and fragment summaries, logical reading order,
 authored alternatives and assertions, layout-policy outcomes, selected text

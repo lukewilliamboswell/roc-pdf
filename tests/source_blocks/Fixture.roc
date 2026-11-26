@@ -141,7 +141,7 @@ evidence = |EvidenceProps.{ text, profile, spacer, scale, negative, defaults, ha
 	theme = { face: if (same_body) registered.mono else registered.body, body: { size: 11, leading: 15 }, furniture: Own({ size: 8, leading: 10 }), paragraph_spacing: 8 }
 	options : Pdf.Options
 	options = { theme, fonts: Registered(registered.registry), profile }
-	{ prepared, report } = Pdf.prepare_with_report(document, options) ? PdfFailure
+	{ prepared, report } = Pdf.prepare_with_report(document, { options: options }) ? PdfFailure
 	bytes = Pdf.to_bytes_prepared(prepared) ? PdfFailure
 	reported = if (highlighted) source_report_counts(report) else report_evidence(report, text, source_only)?
 	body_font = registered.registry.prepared_face(registered.body) ? |_| FontFailure
@@ -274,7 +274,7 @@ multiple_evidence = |context| {
 	document = Pdf.document({ title: "Independent source placements", language: "en", contents: [first, Pdf.paragraph("Between source blocks."), second, first] })
 	theme : Theme
 	theme = { body: { size: 11, leading: 15 } }
-	{ prepared, report } = Pdf.prepare_with_report(document, { profile: Archive, theme, fonts: Registered(registered.registry) }) ? PdfFailure
+	{ prepared, report } = Pdf.prepare_with_report(document, { options: { profile: Archive, theme, fonts: Registered(registered.registry) } }) ? PdfFailure
 	bytes = Pdf.to_bytes_prepared(prepared) ? PdfFailure
 	expected = [{ path: "contents[0]", count: 3 }, { path: "contents[2]", count: 4 }, { path: "contents[3]", count: 3 }]
 	var $index = 0

@@ -1339,10 +1339,12 @@ custom block across pages is not offered in v1.
 
 ### Preparation report
 
-`Pdf.prepare_with_report(document, options)` returns the prepared plan and a
-read-only `Pdf.Report`. The budget defaults to 65,536 entries and 4 MiB of
-text. Use `prepare_with_report_budget(document, { options, budget })` to set
-either limit. A report that exceeds a limit returns `report.budget_exceeded`.
+`Pdf.prepare_with_report(document, { options, budget })` returns the
+prepared plan and a read-only `Pdf.Report`. Both props default independently.
+If the report exceeds either budget limit, preparation returns
+`report.budget_exceeded` without a prepared value. See the
+[preparation report guide](../authoring.adoc#authoring-preparation-reports)
+for defaults and call examples.
 
 `report.facts` records the authored metadata title, language, figure
 alternatives, and inline expansions or language changes. It also shows leaf

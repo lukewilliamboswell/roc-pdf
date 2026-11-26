@@ -623,9 +623,20 @@ shows a block continuing over pages with ordinary paragraphs before and after.
 [#authoring-themes-and-options]
 == Themes and options
 
-A theme, the options, a scope, and the configuration of every block
-constructor are records whose presentation fields have documented defaults.
-Write only the fields you change; `{}` is all defaults:
+Configurable calls take named nominal props. Supply required author facts
+such as title, language, identity and alternative text where the type asks
+for them. Make the caption choice explicit with `Pdf.caption` or
+`Pdf.no_caption`, and pass font validation limits when registering a face.
+
+Omitting a field declared with `??` applies its documented value. Defaults
+include presentation, `KeepRows` for ordinary tables, report budgets, and
+`Omitted` for timestamps. A field declared with `?:` distinguishes a
+caller-supplied field from an omitted one. Tags express policies, inheritance
+and meaningful absence. Select `SplitRows` to allow a long table row to
+continue onto another page.
+
+When configuring a theme or options, write only the fields you change.
+An empty record applies all defaults.
 
 [source,roc]
 ----
@@ -659,12 +670,9 @@ have no arithmetic operators.
 The built-in values are declared on the types (`Theme`, `Theme.BodyStyle`,
 `Theme.TableStyle`, `Pdf.Options`, `Pdf.RegionProps`, and the others), and
 `Theme.default` and `Pdf.Options.default` are those records with nothing
-set. A default is the value a field holds when you leave it out, never a
-fallback for a bad value: preparation still validates every field and
-names it in the diagnostic, such as `text.inline_scale` at
-`theme.inline.code.scale`. Title, language, contents, alternative text,
-captions, table columns and rows, and font validation limits have no
-defaults.
+set. Invalid supplied values produce a diagnostic before output, such as
+`text.inline_scale` at `theme.inline.code.scale`. Preparation enforces the
+selected policy and profile.
 
 A style's face is `ThemeFace`, the theme's `face` (the default), or
 `Face(face)`. A heading level is `SameAsAll`, the `headings.all` style (the
@@ -673,19 +681,16 @@ default), or `Own(style)`: `headings: { all: { size: 15 }, h1: Own({ size:
 Strong and emphasis request the selected family's genuine styles; code defaults
 to the built-in mono family. Exact role choices can override these selections.
 
-A nested record you write is completed from its own type's defaults, not
-from another theme's values, so derive from an existing theme by spreading
-the sub-record you change:
+Each partial nested record gets its own type's defaults. In this example,
+`reset` uses the built-in values for omitted heading fields. `quiet`
+preserves the brand's heading choices and changes only the leading.
 
 [source,roc]
 ----
+brand = theme(faces)
+reset = { ..brand, headings: { all: { leading: 20 } } }
 quiet = { ..brand, headings: { ..brand.headings, all: { ..brand.headings.all, leading: 20 } } }
 ----
-
-`{ ..brand, headings: { all: { leading: 20 } } }` would instead reset every
-other heading field to the built-in value. Each sub-record with different
-defaults (`BodyStyle`, `TitleStyle`, `HeadingStyle`) is its own type, so a
-partial `title` literal never picks up the body's size.
 
 [#authoring-images-and-figures]
 == Images and figures
@@ -888,8 +893,24 @@ preferences, figure scales, repeated table headers, continued rows, placed
 custom blocks and callout fragments), and text coverage. Use the report's
 `obligations` to review author-dependent requirements such as meaningful
 reading order, page numbering and text alternatives. Each obligation names
-its authored path. The prepared bytes are identical to `Pdf.prepare`'s, and a
-report over its budget returns `report.budget_exceeded`.
+its authored path.
+
+Use `Pdf.ReportProps` to choose the ordinary document options and the report
+budget independently.
+
+[source,roc]
+----
+defaults = Pdf.prepare_with_report(document, {})?
+configured = Pdf.prepare_with_report(document, { options: options })?
+limited = Pdf.prepare_with_report(document, { budget: { max_entries: 100 } })?
+----
+
+`Pdf.ReportBudget` defaults to 65,536 total entries and 4 MiB of materialized
+paths and text. Set `max_entries` or `max_text_bytes` to change either limit.
+The budget applies only to the report. A report that exceeds either limit
+returns `report.budget_exceeded` without a report or prepared document. On
+success, `Pdf.to_bytes_prepared(limited.prepared)` emits the same bytes as
+ordinary preparation with the same document options.
 
 [#authoring-supported-features]
 == Supported features

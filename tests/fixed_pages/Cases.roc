@@ -37,7 +37,7 @@ Cases :: [].{
 
 evidence : U64, Pdf.Options -> Try(Cases.Stats, Pdf.Error)
 evidence = |count, options| {
-	{ prepared, report } = Pdf.prepare_with_report(Remittance.document(count), options)?
+	{ prepared, report } = Pdf.prepare_with_report(Remittance.document(count), { options: options })?
 	bytes = Pdf.to_bytes_prepared(prepared)?
 	fragments = report.facts.pages.map(|page| page.fragments).sum()
 	if report.facts.pages.len() != count or fragments != count * 5 or !authored_paths(report.facts.blocks, count) {

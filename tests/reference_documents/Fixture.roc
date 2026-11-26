@@ -81,7 +81,7 @@ Fixture :: [].{
 	invoice_totals_carry = |context| {
 		options = invoice_options(context)?
 		config = { ..Invoice.ordinary, rows: carry_rows }
-		control = Pdf.prepare_with_report(Invoice.document({ ..config, totals: False }), options) ? |_| EvidenceFailure("totals control")
+		control = Pdf.prepare_with_report(Invoice.document({ ..config, totals: False }), { options: options }) ? |_| EvidenceFailure("totals control")
 		evidence(Invoice.document(config), options, |observed| carry_observations(observed, control.report, config.rows))
 	}
 
@@ -131,7 +131,7 @@ Fixture :: [].{
 	report_heading_keep = |context| {
 		options = report_options(context)?
 		prefix = fresh_page(heading_space)
-		control = Pdf.prepare_with_report(Report.framed([Pdf.paragraph("Lead.")].concat(prefix).append(Pdf.heading(1, "2 Sales performance"))), options) ? |_| EvidenceFailure("heading control")
+		control = Pdf.prepare_with_report(Report.framed([Pdf.paragraph("Lead.")].concat(prefix).append(Pdf.heading(1, "2 Sales performance"))), { options: options }) ? |_| EvidenceFailure("heading control")
 		evidence(Report.document({ ..Report.ordinary, before_sales: prefix }), options, |observed| heading_keep_observations(observed, control.report))
 	}
 
@@ -141,7 +141,7 @@ Fixture :: [].{
 		options = report_options(context)?
 		prefix = fresh_page(figure_space)
 		uncaptioned = Pdf.figure({ drawing: Report.chart, alt: "Bar chart comparing revenue by region.", caption: Pdf.no_caption })
-		control = Pdf.prepare_with_report(Report.framed([Pdf.paragraph("Lead.")].concat(prefix).append(uncaptioned)), options) ? |_| EvidenceFailure("figure control")
+		control = Pdf.prepare_with_report(Report.framed([Pdf.paragraph("Lead.")].concat(prefix).append(uncaptioned)), { options: options }) ? |_| EvidenceFailure("figure control")
 		evidence(Report.document({ ..Report.ordinary, before_figure1: prefix }), options, |observed| figure_caption_observations(observed, control.report))
 	}
 
@@ -289,7 +289,7 @@ register_faces = |guard| {
 ## Prepare once with the report; bytes come from the prepared document.
 evidence : Document, Pdf.Options, (Pdf.Report -> List(Bool)) -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 evidence = |document, options, observe| {
-	{ prepared, report } = match Pdf.prepare_with_report(document, options) {
+	{ prepared, report } = match Pdf.prepare_with_report(document, { options: options }) {
 		Ok(value) => value
 		Err(error) => return Err(EvidenceFailure(Str.inspect(error)))
 	}
@@ -646,7 +646,7 @@ Expected : [Code(Conformance.DiagnosticCode, Str, List(Str)), Located(Conformanc
 ## report.
 check_rejection : Document, Pdf.Options, Expected -> Try({}, Str)
 check_rejection = |document, options, expected| {
-	actual = Pdf.prepare_with_report(document, options)
+	actual = Pdf.prepare_with_report(document, { options: options })
 	held = match (expected, actual) {
 		(Code(code, feature, paths), Err(InvalidDocument({ diagnostics: [{ code: got, details, feature: Feature(named), location: Document, .. }], truncation: Complete, .. }))) => got == code and named == feature and details == paths
 		(Located(code, feature, paths, fragment), Err(InvalidDocument({ diagnostics: [{ code: got, details, feature: Feature(named), location: Document, message, .. }], truncation: Complete, .. }))) => got == code and named == feature and details == paths and message.contains(fragment)
@@ -765,7 +765,7 @@ run_negatives = |guard| {
 		}
 		$index = $index + 1
 	}
-	{ prepared, report } = Pdf.prepare_with_report(Pdf.document({ contents: [Pdf.title("Reference variant rejections"), Pdf.paragraph("Every rejected variant returned its stable diagnostic and no bytes.")], language: "en-AU", title: "Reference variant rejections" }), invoice_faces) ? |_| EvidenceFailure("carrier")
+	{ prepared, report } = Pdf.prepare_with_report(Pdf.document({ contents: [Pdf.title("Reference variant rejections"), Pdf.paragraph("Every rejected variant returned its stable diagnostic and no bytes.")], language: "en-AU", title: "Reference variant rejections" }), { options: invoice_faces }) ? |_| EvidenceFailure("carrier")
 	carrier = Pdf.to_bytes_prepared(prepared) ? |_| EvidenceFailure("carrier emit")
 	Ok({ bytes: carrier, work: [$index, report.obligations.len(), carrier.len()] })
 }

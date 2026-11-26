@@ -283,9 +283,36 @@ expect {
 		language: "en-AU",
 		title: "Presentation and structure",
 	})
-	{ report, .. } = Pdf.prepare_with_report(doc, { profile: AccessibleArchive })?
+	{ report, .. } = Pdf.prepare_with_report(doc, { options: { profile: AccessibleArchive } })?
 	report.obligations.contains({ obligation: StructureMeaningful, path: "document" })
 		and report.obligations.contains({ obligation: ArtifactClassificationMeaningful, path: "document" })
+}
+
+# Report defaults and tighter successful limits preserve the facts and the
+# bytes from ordinary preparation. Either independently exhausted limit fails
+# before returning a report or prepared document.
+expect {
+	doc = Pdf.document({ title: "Preparation report", language: "en-AU", contents: [Pdf.paragraph("Inspect the report.")] })
+	options = Pdf.Options.default
+	ordinary = Pdf.prepare(doc, options)?
+	omitted = Pdf.prepare_with_report(doc, {})?
+	explicit = Pdf.prepare_with_report(doc, { options, budget: { max_entries: 65536, max_text_bytes: 4194304 } })?
+	tighter = Pdf.prepare_with_report(doc, { budget: { max_entries: 100, max_text_bytes: 1024 } })?
+	bytes = Pdf.to_bytes_prepared(ordinary)?
+	omitted_bytes = Pdf.to_bytes_prepared(omitted.prepared)?
+	explicit_bytes = Pdf.to_bytes_prepared(explicit.prepared)?
+	tighter_bytes = Pdf.to_bytes_prepared(tighter.prepared)?
+	exhausted = |budget| match Pdf.prepare_with_report(doc, { budget: budget }) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("report.budget_exceeded"), .. }], .. })) => True
+		_ => False
+	}
+	omitted.report == explicit.report
+		and omitted.report == tighter.report
+		and bytes == omitted_bytes
+		and bytes == explicit_bytes
+		and bytes == tighter_bytes
+		and exhausted({ max_entries: 0 })
+		and exhausted({ max_text_bytes: 0 })
 }
 
 # Dense header associations reach the existing document budget during

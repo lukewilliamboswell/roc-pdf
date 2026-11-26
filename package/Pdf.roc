@@ -404,6 +404,9 @@ Pdf :: [].{
 	## obligation is ever silently omitted.
 	ReportBudget := { max_entries : U64 ?? 65536, max_text_bytes : U64 ?? 4194304 }
 
+	## The document's ordinary preparation options and independent report budget.
+	ReportProps := { options : Options ?? {}, budget : ReportBudget ?? {} }
+
 	## Every facade failure is typed. `InvalidDocument` is a bounded diagnostic
 	## batch and preparation emits no partial bytes on any error.
 	Error := [
@@ -961,16 +964,12 @@ Pdf :: [].{
 		Ok(Prepared.(plan))
 	}
 
-	## Prepare a document exactly as `prepare` does and return the bounded
-	## read-only preparation report beside it (see `Report`), under the
-	## default report budget of 65,536 entries and 4 MiB of text. The
-	## prepared document, and so its bytes, is identical to `prepare`'s.
-	prepare_with_report : Document, Options -> Try({ prepared : Prepared, report : Report }, Error)
-	prepare_with_report = |doc, options| prepare_with_report_budget(doc, { options, budget: default_report_budget })
-
-	## `prepare_with_report` under an explicit report budget.
-	prepare_with_report_budget : Document, { options : Options, budget : ReportBudget } -> Try({ prepared : Prepared, report : Report }, Error)
-	prepare_with_report_budget = |doc, { options, budget }| {
+	## Prepare a document as `prepare` does and return a bounded, read-only
+	## report beside it. The report budget applies only to inspection.
+	## Successful reporting emits the same bytes as ordinary preparation
+	## with the same document options.
+	prepare_with_report : Document, ReportProps -> Try({ prepared : Prepared, report : Report }, Error)
+	prepare_with_report = |doc, { options, budget }| {
 		match Document.normalize_fixed(doc, standard_fixed_limits) ? fixed_authoring_error {
 			Flow => {}
 			Fixed(fixed) => {
@@ -4127,11 +4126,6 @@ expect {
 	grid and spanned
 }
 
-## The default preparation-report budget: 65,536 entries and 4 MiB of
-## materialized paths and texts.
-default_report_budget : Pdf.ReportBudget
-default_report_budget = Pdf.ReportBudget.{}
-
 ## Report inspection consumes complete accepted figure facts. Dense figure
 ## identity is produced by normalization; pagination supplies one actual scale
 ## per figure. A mismatch is a package invariant failure, never an inferred
@@ -4848,7 +4842,7 @@ expect match Pdf.to_bytes(Pdf.document({ contents: [Pdf.rich_paragraph([Pdf.page
 # pages used by navigation, and expose located preparation facts.
 expect {
 	doc = Pdf.document({ title: "Public destination references", language: "en", page_labels: [{ prefix: "P-", start_number: 1, start_page: 0, style: DecimalArabic }], contents: [Pdf.rich_paragraph([Pdf.text("Target page "), Pdf.page_reference({ destination: "target", width: 36, numbering: PageLabel })]), Pdf.page_break, Pdf.destination_heading({ name: "target", level: 1, text: "Target" })] })
-	match Pdf.prepare_with_report(doc, Pdf.Options.default) {
+	match Pdf.prepare_with_report(doc, {}) {
 		Ok(value) => value.report.facts.outcomes.any(
 			|outcome| match outcome {
 				PageReferenceResolved({ page: 2, value: "P-2", destination: "target", path: "contents[0].inlines[1]" }) => True
@@ -4921,7 +4915,7 @@ expect {
 	drawing = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 20, height: 20 }), color: Color.srgb8({ blue: 0, green: 0, red: 0 }) })
 	normalized = Document.normalize(Pdf.document({ contents: [Pdf.figure({ drawing, alt: "First", caption: Pdf.no_caption }), Pdf.figure({ drawing, alt: "Second", caption: Pdf.no_caption, fit: ScaleToFit({ minimum_percent: 50 }) })], language: "en", title: "Report facts" }))
 	facts = { blocks: [], coverage: [], layout: { references: [], scope_pages: [], callouts: [], panels: [], relaxations: [], repeats: [], scales: [1000, 500], source_fragments: [], splits: [] }, pages: [2] }
-	match build_report(normalized, Facts(facts), default_report_budget, Archive) {
+	match build_report(normalized, Facts(facts), {}, Archive) {
 		Ok(report) => report.facts.outcomes == [FigureScale({ fit: Exact, path: "contents[0]", scale: 1000 }), FigureScale({ fit: ScaleToFit, path: "contents[1]", scale: 500 })] and report.obligations.count_if(|entry| entry.obligation == AlternativeTextMeaningful) == 2
 		Err(_) => False
 	}
@@ -4930,7 +4924,7 @@ expect {
 # The legitimate empty-document NoFacts path keeps its one-page report.
 expect {
 	normalized = Document.normalize(Pdf.document({ contents: [], language: "en", title: "Empty report" }))
-	match build_report(normalized, NoFacts, default_report_budget, Archive) {
+	match build_report(normalized, NoFacts, {}, Archive) {
 		Ok(report) => report.facts.pages == [{ page: 1, fragments: 1 }] and report.facts.blocks.is_empty() and report.facts.outcomes.is_empty() and report.obligations.len() == 2
 		Err(_) => False
 	}
@@ -4939,12 +4933,12 @@ expect {
 # Combined-profile review obligations are included in the preparation budget.
 # A report with enough room for the Archive entries alone fails atomically.
 expect {
-	archive = Pdf.prepare_with_report(archive_twin_document, { profile: Archive })?
-	combined = Pdf.prepare_with_report(archive_twin_document, { profile: AccessibleArchive })?
+	archive = Pdf.prepare_with_report(archive_twin_document, { options: { profile: Archive } })?
+	combined = Pdf.prepare_with_report(archive_twin_document, { options: { profile: AccessibleArchive } })?
 	report = combined.report
 	facts = archive.report.facts
 	archive_entries = facts.alternatives.len() + facts.blocks.len() + facts.coverage.len() + facts.outcomes.len() + facts.pages.len() + archive.report.obligations.len()
-	over_budget = match Pdf.prepare_with_report_budget(archive_twin_document, { options: { profile: AccessibleArchive }, budget: { max_entries: archive_entries } }) {
+	over_budget = match Pdf.prepare_with_report(archive_twin_document, { options: { profile: AccessibleArchive }, budget: { max_entries: archive_entries } }) {
 		Err(InvalidDocument({ diagnostics: [{ feature: Feature("report.budget_exceeded"), .. }], .. })) => True
 		_ => False
 	}
@@ -4974,12 +4968,12 @@ expect {
 	options = Pdf.Options.default
 	buffered = Pdf.to_bytes(doc)?
 	chunked = collect_chunks(Pdf.to_chunks(doc)?)
-	reported = Pdf.prepare_with_report(doc, options)?
+	reported = Pdf.prepare_with_report(doc, { options: options })?
 	reported_bytes = Pdf.to_bytes_prepared(reported.prepared)?
 	facts = reported.report.facts
 	paths = facts.blocks.map(|block| block.path)
 	pages = facts.blocks.map(|block| (block.first_page, block.last_page))
-	over_budget = match Pdf.prepare_with_report_budget(doc, { options, budget: { max_entries: 0 } }) {
+	over_budget = match Pdf.prepare_with_report(doc, { options, budget: { max_entries: 0 } }) {
 		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("report.budget_exceeded"), .. }], .. })) => True
 		_ => False
 	}
@@ -5001,7 +4995,7 @@ expect {
 	}
 	has_fixed_language_error(Pdf.to_bytes(doc))
 		and has_fixed_language_error(Pdf.to_chunks_with(doc, options))
-		and has_fixed_language_error(Pdf.prepare_with_report(doc, options))
+		and has_fixed_language_error(Pdf.prepare_with_report(doc, { options: options }))
 }
 
 expect {
@@ -5016,7 +5010,7 @@ expect {
 			options = { theme: { body: { size: 11, leading } } }
 			has_fixed_style_error(Pdf.to_bytes_with(doc, options))
 				and has_fixed_style_error(Pdf.to_chunks_with(doc, options))
-				and has_fixed_style_error(Pdf.prepare_with_report(doc, options))
+				and has_fixed_style_error(Pdf.prepare_with_report(doc, { options: options }))
 		},
 	)
 }

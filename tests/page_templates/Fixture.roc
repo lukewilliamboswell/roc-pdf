@@ -987,7 +987,7 @@ chapter_evidence = |count, mode| {
 	}
 	$contents = $contents.append(Pdf.paragraph("Unscoped ending resets the chapter label."))
 	doc = Pdf.document({ contents: $contents, language: "en-AU", title: "Chapter scope evidence", page_templates: if (mode == 1) NoTemplates else Templates({ first: Pdf.first_page_template({ footer, gap: 10, lead: Pdf.lead_region(40, [Pdf.paragraph("Semantic document lead")]) }), continuation: Pdf.page_template({ footer, gap: 10, header }) }) })
-	reported = Pdf.prepare_with_report(doc, Pdf.Options.{ profile: Archive, theme: report_theme }) ? |error| crash Str.inspect(error)
+	reported = Pdf.prepare_with_report(doc, { options: { profile: Archive, theme: report_theme } }) ? |error| crash Str.inspect(error)
 	var $scopes = 0
 	var $openings = 0
 	for outcome in reported.report.facts.outcomes {

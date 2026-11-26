@@ -268,7 +268,7 @@ run_rich_callouts = |count| {
 ## comes from one selected-font pagination probe and the report's entry counts.
 evidence : Document, (Pdf.Report -> List(Bool)) -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 evidence = |document, observe| {
-	{ prepared, report } = Pdf.prepare_with_report(document, options) ? |_| EvidenceFailure
+	{ prepared, report } = Pdf.prepare_with_report(document, { options: options }) ? |_| EvidenceFailure
 	bytes = Pdf.to_bytes_prepared(prepared) ? |_| EvidenceFailure
 	plain = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
 	if bytes != plain {
@@ -405,13 +405,13 @@ page_size : Layout.Size
 page_size = { height: Layout.Unit.from_raw(842000), width: Layout.Unit.from_raw(595000) }
 
 rejects : Document, Conformance.DiagnosticCode, Str, List(Str) -> U64
-rejects = |document, expected_code, expected_feature, expected_paths| match Pdf.prepare_with_report(document, options) {
+rejects = |document, expected_code, expected_feature, expected_paths| match Pdf.prepare_with_report(document, { options: options }) {
 	Err(InvalidDocument({ diagnostics: [{ code, details, feature: Feature(feature), location: Document, stage: AuthoringValidation, .. }], truncation: Complete, .. })) => if (code == expected_code and feature == expected_feature and details == expected_paths) 1 else 0
 	_ => 0
 }
 
 budget_rejects : Document, Pdf.ReportBudget -> U64
-budget_rejects = |document, budget| match Pdf.prepare_with_report_budget(document, { options: options, budget: budget }) {
+budget_rejects = |document, budget| match Pdf.prepare_with_report(document, { options: options, budget: budget }) {
 	Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, details: [], feature: Feature("report.budget_exceeded"), location: Document, stage: AuthoringValidation, .. }], truncation: Complete, .. })) => 1
 	_ => 0
 }
@@ -459,7 +459,7 @@ run_negatives = |context| {
 	if passed != checks.len() {
 		return Err(MissingRejection(passed))
 	}
-	{ prepared, report } = Pdf.prepare_with_report(document([Pdf.title("Custom block carrier"), valid]), options) ? |_| EvidenceFailure
+	{ prepared, report } = Pdf.prepare_with_report(document([Pdf.title("Custom block carrier"), valid]), { options: options }) ? |_| EvidenceFailure
 	carrier = Pdf.to_bytes_prepared(prepared) ? |_| EvidenceFailure
 	Ok({ bytes: carrier, work: [passed, report.obligations.len(), carrier.len()] })
 }

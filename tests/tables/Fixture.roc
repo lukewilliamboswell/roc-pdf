@@ -151,7 +151,7 @@ Fixture :: [].{
 	kept_whole : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	kept_whole = |context| {
 		document = kept_document(context)
-		prepared = Pdf.prepare_with_report(document, Pdf.Options.{ profile: Archive }) ? |_| EvidenceFailure
+		prepared = Pdf.prepare_with_report(document, { options: { profile: Archive } }) ? |_| EvidenceFailure
 		table_leaves = prepared.report.facts.blocks.keep_if(|block| block.path.starts_with("contents[26]"))
 		on_second = table_leaves.keep_if(|block| block.first_page == 2 and block.last_page == 2).len()
 		if table_leaves.len() != 27 or on_second != table_leaves.len() {

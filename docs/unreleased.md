@@ -31,6 +31,15 @@ paint order. Fixed pages also support solid rectangle artwork before and after
 the text. See the [fixed-page authoring guide](authoring.adoc#authoring-fixed-pages).
 
 
+## Migrate preparation reports
+
+Pass `{ options: options }` to `Pdf.prepare_with_report(document, props)`
+when migrating from the previous `Pdf.prepare_with_report(document, options)`.
+Replace `Pdf.prepare_with_report_budget(document, { options, budget })` with
+`Pdf.prepare_with_report(document, { options, budget })`. Use `{}` to apply
+the existing defaults for both document options and report budget. See the
+[preparation report guide](authoring.adoc#authoring-preparation-reports).
+
 ## Compiler
 
 This development branch uses Roc `nightly-2026-11-25-d5a4f1e`.

@@ -1,9 +1,8 @@
 # Gate 6 custom-block seam and preparation report
 
 This slice (S9) implements `reference-documents-v9`, which it introduces. It
-makes `Pdf.custom_block` (with `Pdf.CustomBlock`), `Pdf.prepare_with_report`,
-`Pdf.prepare_with_report_budget`, `Pdf.Report`, and `Pdf.ReportBudget`
-executable, and exercises the seam with a separately authored extension,
+exercises `Pdf.custom_block` and bounded preparation reporting with a
+separately authored extension,
 the "Key figures" callout (`tests/custom_block/Callout.roc`). It closes the
 custom-block half of the roadmap capability "Bounded image/vector flow
 figures and captions … plus one separately authored chart or callout" and
@@ -164,7 +163,7 @@ the pages plan's two lists, and the pipeline plan's `facts` field.
 | Dimension | Status |
 | --- | --- |
 | Backend | Executable: custom groups, trailing reservation, panel underlays, report fact collection |
-| Facade | Executable: `Pdf.custom_block`, `Pdf.prepare_with_report(_budget)` with located diagnostics |
+| Facade | Executable: `Pdf.custom_block`, `Pdf.prepare_with_report` with `Pdf.ReportProps` with located diagnostics |
 | Advanced integration | Exercised by the separately authored `Callout` extension through public modules only |
 | Conformance | `ROC-PDF-PDF20-CUSTOM-BLOCK` is `implemented`; `PdfUa2` stays `defined_only` |
 | Reader and AT behavior | Not performed (optional) |
