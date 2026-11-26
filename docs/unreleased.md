@@ -70,10 +70,11 @@ title overrides keyed by destination and display committed page labels
 after the contents lays out. See the
 [manual composition guide](manual-composition.adoc#generate-contents-from-headings).
 
-## Fillable text fields
+## Fillable forms
 
 Select `AccessibleForm` to place labelled, editable single-line fields on a
-fixed page. Initial values may be blank or prefilled with printable ASCII.
+fixed page. Initial text values may be blank or prefilled with printable
+ASCII. Independent checkboxes can start checked or unchecked.
 See the [fillable fields guide](authoring.adoc#authoring-fillable-fields) and
 the [service intake example](../examples/service-intake).
 

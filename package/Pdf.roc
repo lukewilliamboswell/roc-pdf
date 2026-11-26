@@ -538,6 +538,8 @@ Pdf :: [].{
 
 	TextFieldProps : KernelWidgetFields.TextFieldProps
 	InitialTextFieldValue : KernelWidgetFields.InitialText
+	CheckboxProps : KernelWidgetFields.CheckboxProps
+	CheckboxState : KernelWidgetFields.CheckState
 
 	## Build a document whose pages supply their own sizes and text frames.
 	## Placements declare reading order. The page builder can choose a separate
@@ -1121,7 +1123,8 @@ fixed_authoring_error = |error| match error {
 	}
 	UnsupportedPlacement({ page, placement }) => fixed_error(FeatureUnavailable, "layout.fixed.block", "A fixed placement accepts a title, numbered heading, paragraph or rich paragraph.", fixed_placement_path(page, placement))
 	UnsupportedInline({ page, placement }) => fixed_error(FeatureUnavailable, "layout.fixed.inline", "Links and generated fields are unavailable in fixed placements.", fixed_placement_path(page, placement))
-	InvalidWidgetLabel(location) => fixed_error(InvalidRelationship, "form.text.label", "Use the authored field label as the visible label.", "${widget_path(location)}.label")
+	InvalidWidgetLabel({ kind, location }) => fixed_error(InvalidRelationship, widget_feature(kind, "label"), "Use the authored field label as the visible label.", "${widget_path(location)}.label")
+	InvalidCheckboxFrame({ page, placement }) => fixed_error(LayoutConstraintViolated, "form.checkbox.frame", "Leave 266 points across and 24 points high for the checkbox and its visible label on the page.", fixed_placement_path(page, placement))
 	InvalidWidgetFrame({ page, placement }) => fixed_error(LayoutConstraintViolated, "form.text.frame", "Use a widget width from 48 to 1,024 points and leave 48 points in the page for the widget and its label.", fixed_placement_path(page, placement))
 	InvalidFrame({ page, placement }) => fixed_error(LayoutConstraintViolated, "layout.fixed.frame", "The frame needs positive sides and must fit entirely within its page.", "${fixed_placement_path(page, placement)}.frame")
 	PaintOrderLength({ page, actual, expected }) => fixed_error(LayoutConstraintViolated, "layout.fixed.paint_order", "The paint order needs ${expected.to_str()} entries, but it contains ${actual.to_str()}.", "${fixed_page_path(page)}.paint_order")
@@ -3238,13 +3241,22 @@ WidgetRequest : [AuthoredWidgets(KernelWidgetFields.Location), NoAuthoredWidgets
 widget_path : KernelWidgetFields.Location -> Str
 widget_path = |{ page, placement }| "${fixed_placement_path(page, placement)}.field"
 
+widget_feature : KernelWidgetFields.Kind, Str -> Str
+widget_feature = |kind, suffix| {
+	prefix = match kind {
+		TextKind => "text"
+		CheckboxKind => "checkbox"
+	}
+	"form.${prefix}.${suffix}"
+}
+
 widget_error : KernelWidgetFields.Error -> Pdf.Error
 widget_error = |error| match error {
 	FontUnavailable => fixed_error(InternalInvariant, "form.text.font", "The packaged editable font is unavailable.", "pages")
-	CountLimit({ actual, maximum }) => fixed_error(BudgetExceeded, "form.text.count", "The document uses ${actual.to_str()} fields and the limit is ${maximum.to_str()}.", "pages")
-	DuplicateId(location) => fixed_error(DuplicateIdentity, "form.text.duplicate_id", "Each field needs its own distinct identifier.", "${widget_path(location)}.id")
-	InvalidId(location) => fixed_error(InvalidRelationship, "form.text.id", "A field identifier needs 1–64 ASCII letters, digits, hyphens or underscores.", "${widget_path(location)}.id")
-	InvalidLabel(location) => fixed_error(InvalidRelationship, "form.text.label", "Supply a visible label of at most 256 UTF-8 bytes.", "${widget_path(location)}.label")
+	CountLimit({ actual, maximum, has_checkbox }) => fixed_error(BudgetExceeded, if (has_checkbox) "form.count" else "form.text.count", "The document uses ${actual.to_str()} fields and the limit is ${maximum.to_str()}.", "pages")
+	DuplicateId({ kind, location }) => fixed_error(DuplicateIdentity, widget_feature(kind, "duplicate_id"), "Each field needs its own distinct identifier.", "${widget_path(location)}.id")
+	InvalidId({ kind, location }) => fixed_error(InvalidRelationship, widget_feature(kind, "id"), "A field identifier needs 1–64 ASCII letters, digits, hyphens or underscores.", "${widget_path(location)}.id")
+	InvalidLabel({ kind, location }) => fixed_error(InvalidRelationship, widget_feature(kind, "label"), "Supply a visible label of at most 256 UTF-8 bytes.", "${widget_path(location)}.label")
 	InvalidValue(location) => fixed_error(LayoutConstraintViolated, "form.text.value", "Use at most 64 printable ASCII characters in the initial value.", "${widget_path(location)}.value")
 	ValueDoesNotFit({ width, required, location }) => fixed_error(LayoutConstraintViolated, "form.text.fit", "The value needs ${signed_points_text(required)} but the field has ${signed_points_text(width)} inside its padding.", "${widget_path(location)}.value")
 }

@@ -8,6 +8,7 @@ import fuzz.Fuzz
 import JpegInspectorMutation
 import AssociatedFilesProperty
 import WidgetFormsProperty
+import CheckboxFormsProperty
 import FacadeOutputEquivalence
 import FacadeStructure
 import NavigationProperty
@@ -46,6 +47,7 @@ target = Fuzz.suite([
 	JpegInspectorMutation.target,
 	AssociatedFilesProperty.target,
 	WidgetFormsProperty.target,
+	CheckboxFormsProperty.target,
 	FacadeOutputEquivalence.target,
 	FacadeStructure.target,
 	NavigationProperty.target,

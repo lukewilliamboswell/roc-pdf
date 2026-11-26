@@ -904,13 +904,16 @@ The [associated-files evidence](docs/contributors/performance/associated-files.m
 covers both declaration sets, exact extracted bytes, name-tree boundaries,
 metadata, error paths, and the count and payload-volume scale pairs.
 
-### Fillable text fields
+### Fillable forms
 
 `AccessibleForm` explicitly selects PDF/A-4 and PDF/UA-2 for a fixed-page
-document with labelled single-line widgets. The package checks field IDs,
+document with labelled single-line text widgets and independent checkboxes.
+The package checks field IDs,
 authored focus and structure order, visible label ownership, initial values,
 page geometry and normal appearances before emission. The embedded editable
-font covers printable ASCII even when the initial value is blank. WTPDF
+font covers printable ASCII even when the initial value is blank. Checkbox
+initial values and selected appearances use the same authored state, and the
+checkbox glyphs are vector paths. WTPDF
 accessibility is optional. See the
 [fillable-field evidence](docs/contributors/performance/fillable-forms.md)
 and [service intake example](examples/service-intake).

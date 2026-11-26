@@ -632,6 +632,30 @@ The 10-point embedded editable font covers that repertoire even for blank
 fields. The writer emits a 64-character field limit. Editing and saving
 behavior depends on the recipient's reader.
 
+Use `place_checkbox` for independent checked and unchecked options.
+
+[source,roc]
+----
+page_with_option = Pdf.fixed_page({ width: 595, height: 842 })
+    .place_checkbox({
+        field: { id: "inspection_report", label: "Include an inspection report", state: Checked },
+        origin: { x: 56, y: 570 },
+    })
+    .place_checkbox({
+        field: { id: "site_visit", label: "Request a site visit" },
+        origin: { x: 56, y: 456 },
+    })
+    .finish()
+----
+
+A checkbox takes the lower-left origin of a 22-point square. Reserve
+266 points across and 24 points high for the square, a 4-point gap,
+and the label. Omit `state` or use `Unchecked` for an empty initial mark.
+`Checked` displays the mark. Export state names are `Yes` and `Off`.
+Distinct checkbox IDs let recipients toggle each option independently,
+even when the options share the same export state. The 128-field budget
+and unique IDs apply across both types.
+
 The form profile accepts fixed-page documents and optional
 `wtpdf: DeclareAccessibility`. Other profiles reject fields before
 emission. The same form cannot include associated files. The standards

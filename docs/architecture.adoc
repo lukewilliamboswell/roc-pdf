@@ -1466,12 +1466,16 @@ field to its typed `Form` owner and visible `Lbl` child. The annotation spine
 links the page and the owner to the widget via OBJR and ParentTree.
 Per-page annotation arrays follow authored order, and pages write `/Tabs /S`.
 Lowering consumes that plan to emit one terminal widget per field, a normal
-appearance and one shared full editable font program with a bounded encoding.
-It checks the planned dictionaries, font and appearance edges, and page
+appearance. Text widgets reference one shared full editable font program
+with a bounded encoding. Checkbox widgets reference two shared vector
+appearances and use the authored state for both the field value and widget
+appearance selection. Checkbox-only forms carry only the field registry
+at AcroForm level. Lowering checks the planned dictionaries, font and
+appearance edges, and page
 annotation arrays before sealing. The interactive PDF/A-4 claim takes the
 specific approved values and object identities. Other archival restrictions
 remain in force. See ISO 32000-2:2020+EC3 §§12.5.5, 12.5.6.19, 12.7.2–12.7.4
-and 12.7.5.3, ISO 19005-4:2020 §§6.2.10, 6.3 and 6.4, ISO 14289-2:2024
+and 12.7.5.2.3 and 12.7.5.3, ISO 19005-4:2020 §§6.2.10, 6.3 and 6.4, ISO 14289-2:2024
 §§8.9.3.3 and 8.10, and ISO/TS 32005:2023 Table 5.
 
 Annotations are first-class structured values carrying:

@@ -149,7 +149,7 @@ KernelPdfA4 :: [].{
 		ActualTextPrivateUse => "ActualText replacement text must not contain Private Use Area characters"
 		Actions => "only URI and GoTo actions without chained actions are supported"
 		AdditionalActions => "additional-action (AA) entries are not permitted"
-		AnnotationAppearance => "an annotation appearance must be a single normal appearance stream"
+		AnnotationAppearance => "an annotation must use its required normal appearance"
 		AnnotationFlags => "annotations must be printable and never hidden"
 		AnnotationTypes => "only link annotations are supported"
 		BlendMode => "only the Normal blend mode is supported"
@@ -676,8 +676,8 @@ check_summary = |store, classes, summary, position, interactive| {
 	}
 	if summary.type_name == Font {
 		approved_edit_face = match interactive {
-			WidgetEvidence({ editable_font_value, .. }) => position == editable_font_value and summary.subtype == TrueType
-			NoWidgetEvidence => False
+			WidgetEvidence({ editable_font_value: EditableFontValue(index), .. }) => position == index and summary.subtype == TrueType
+			_ => False
 		}
 		if summary.subtype != Type0 and summary.subtype != CidFontType2 and !approved_edit_face {
 			return Err({ position, requirement: FontDictionary })
@@ -698,10 +698,9 @@ is_action_type = |class| match class {
 	_ => False
 }
 
-## The package emits only link annotations, always printable and visible.
-## ISO 19005-4 6.3.3 exempts link annotations from requiring an appearance,
-## so facade links without `/AP` are eligible; an appearance that is present
-## must be a single normal appearance stream.
+## ISO 19005-4:2020 6.3.3 permits a normal appearance state dictionary for a
+## non-pushbutton widget. The scoped interactive writer proof independently
+## checks both checked and unchecked streams before the archival scan.
 check_annotation : KernelObject.Store, List(NameClass), Summary, U64, Bool -> Try({}, KernelPdfA4.Violation)
 check_annotation = |store, classes, summary, position, interactive| {
 	if summary.subtype != Link and !(interactive and summary.subtype == Widget) {
@@ -725,10 +724,16 @@ check_annotation = |store, classes, summary, position, interactive| {
 				return Err({ position, requirement: AnnotationAppearance })
 			}
 			entry = list_at(store.dictionary_entries, span.start)
-			if name_class(store, classes, entry.key) != N or !is_stream(store, entry.value) {
+			if name_class(store, classes, entry.key) != N {
 				return Err({ position, requirement: AnnotationAppearance })
 			}
-			Ok({})
+			if is_stream(store, entry.value) {
+				return Ok({})
+			}
+			match resolve_dictionary(store, entry.value) {
+				Resolved(states) if interactive and summary.subtype == Widget and states.length == 2 => Ok({})
+				_ => Err({ position, requirement: AnnotationAppearance })
+			}
 		}
 	}
 }

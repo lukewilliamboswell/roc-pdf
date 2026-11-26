@@ -75,8 +75,9 @@ https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/pilot-findings[
 [#service-intake]
 == Service intake
 
-The form has a blank Contact name field and the initial service reference
-HF-2041. See the
+The form has two editable text fields and two independent checkboxes.
+Include an inspection report starts checked, and Request a site visit starts
+unchecked. See the
 https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/service-intake/preview.png[first-page preview].
 
 https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/service-intake[Run the intake form] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/service-intake/service-intake.pdf[PDF output]

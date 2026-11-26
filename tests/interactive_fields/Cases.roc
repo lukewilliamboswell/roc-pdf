@@ -4,7 +4,7 @@ import pdf.Layout
 import pdf.Pdf
 
 Cases :: [].{
-	Case : [Intake, Defaults, Scale({ count : U64 }), Rejections({ count : U64 }), Wtpdf]
+	Case : [Intake, Defaults, Scale({ count : U64 }), Rejections({ count : U64 }), Wtpdf, Mixed, CheckboxDefaults, MixedScale({ count : U64 }), CheckboxRejections, MixedWtpdf]
 	Stats : { bytes : List(U8), work : List(U64) }
 
 	run : Case -> Stats
@@ -15,6 +15,11 @@ Cases :: [].{
 			Scale({ count }) => evidence(scale_document(count), options, 0)
 			Defaults => default_equivalence({})
 			Rejections({ count }) => rejections(count)
+			Mixed => evidence(Intake.mixed_document(False), options, 0)
+			CheckboxDefaults => checkbox_default_equivalence({})
+			MixedScale({ count }) => evidence(mixed_scale(count), options, 0)
+			CheckboxRejections => checkbox_rejections({})
+			MixedWtpdf => evidence(Intake.mixed_document(False), { profile: AccessibleForm, wtpdf: DeclareAccessibility }, 0)
 		}
 		match result {
 			Ok(value) => value
@@ -147,4 +152,79 @@ rejects : Try(a, Pdf.Error), Str, Str -> Bool
 rejects = |result, feature, path| match result {
 	Err(InvalidDocument({ diagnostics: [{ feature: Feature(actual), details: [location], .. }], truncation: Complete, .. })) => actual == feature and location == path
 	_ => False
+}
+
+mixed_scale : U64 -> Document
+mixed_scale = |count| {
+	var $pages = []
+	var $index = 0
+	while $index < count {
+		var $page = Pdf.fixed_page({ width: 595, height: 842 })
+			.place({ block: Pdf.title("Intake checklist"), frame: Layout.rect({ x: 56, y: 746, width: 480, height: 48 }) })
+		var $slot = 0
+		while $index < count and $slot < 6 {
+			index = $index
+			origin = { x: Layout.Unit.points(56), y: Layout.Unit.points(680 - $slot.to_i64_wrap() * 64) }
+			id = "mixed_${index.to_str()}"
+			label = "Option ${index.to_str()}"
+			if index % 2 == 0 {
+				$page = $page.place_checkbox({ field: { id, label, state: if (index % 4 == 0) Checked else Unchecked }, origin })
+			} else {
+				$page = $page.place_text_field({ field: { id, label, width: 200, value: Prefilled("Ref ${index.to_str()}") }, origin })
+			}
+			$index = $index + 1
+			$slot = $slot + 1
+		}
+		$pages = $pages.append($page.finish())
+	}
+	Pdf.fixed_document({ pages: $pages, language: "en", title: "Intake checklist" })
+}
+
+one_checkbox : Pdf.CheckboxProps, Layout.Point -> Document
+one_checkbox = |field, origin| {
+	page = Pdf.fixed_page({ width: 595, height: 842 })
+		.place({ block: Pdf.title("Checkbox defaults"), frame: Layout.rect({ x: 56, y: 730, width: 482, height: 48 }) })
+		.place_checkbox({ field, origin })
+		.finish()
+	Pdf.fixed_document({ pages: [page], language: "en", title: "Checkbox defaults" })
+}
+
+checkbox_default_equivalence : {} -> Try(Cases.Stats, Pdf.Error)
+checkbox_default_equivalence = |_| {
+	origin = { x: Layout.Unit.points(56), y: Layout.Unit.points(650) }
+	implicit = one_checkbox({ id: "visit", label: "Request a site visit" }, origin)
+	explicit = one_checkbox({ id: "visit", label: "Request a site visit", state: Unchecked }, origin)
+	prepared = evidence(implicit, options, 0)?
+	explicit_bytes = Pdf.to_bytes_with(explicit, options)?
+	if prepared.bytes != explicit_bytes {
+		crash "omitted and explicit Unchecked must be byte-identical"
+	}
+	Ok(prepared)
+}
+
+checkbox_rejections : {} -> Try(Cases.Stats, Pdf.Error)
+checkbox_rejections = |_| {
+	origin = { x: Layout.Unit.points(56), y: Layout.Unit.points(650) }
+	field = Pdf.CheckboxProps.{ id: "visit", label: "Request a site visit" }
+	valid = one_checkbox(field, origin)
+	samples = [
+		(valid, Pdf.Options.{}, "form.profile", "pages[0].placements[1].field"),
+		(valid, Pdf.Options.{ profile: Standard }, "form.profile", "pages[0].placements[1].field"),
+		(Intake.mixed_document(True), options, "form.checkbox.duplicate_id", "pages[0].placements[5].field.id"),
+		(one_checkbox({ id: "visit.option", label: "Request a site visit" }, origin), options, "form.checkbox.id", "pages[0].placements[1].field.id"),
+		(one_checkbox({ id: "visit", label: "   " }, origin), options, "form.checkbox.label", "pages[0].placements[1].field.label"),
+		(one_checkbox(field, { x: Layout.Unit.millipoints(329001), y: 650 }), options, "form.checkbox.frame", "pages[0].placements[1]"),
+		(one_checkbox(field, { x: 56, y: Layout.Unit.millipoints(818001) }), options, "form.checkbox.frame", "pages[0].placements[1]"),
+		(mixed_scale(129), options, "form.count", "pages"),
+	]
+	for (document, selection, feature, path) in samples {
+		if !rejects(Pdf.prepare(document, selection), feature, path)
+			or !rejects(Pdf.to_bytes_with(document, selection), feature, path)
+			or !rejects(Pdf.to_chunks_with(document, selection), feature, path) {
+			crash "expected atomic checkbox rejection: ${feature} at ${path}"
+		}
+	}
+	_ = Pdf.prepare(one_checkbox(field, { x: 329, y: 818 }), options)?
+	_ = Pdf.prepare(mixed_scale(128), options)?
+	evidence(Intake.mixed_document(False), options, samples.len() * 3)
 }

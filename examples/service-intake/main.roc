@@ -15,7 +15,7 @@ main! = |args| {
 		[Ok("duplicate-id")] => True
 		_ => return Err(Usage("Run with no argument or with duplicate-id."))
 	}
-	prepared = Pdf.prepare(Intake.document(duplicate), { profile: AccessibleForm }).map_err(|error| PrepareFailed(error))?
+	prepared = Pdf.prepare(Intake.mixed_document(duplicate), { profile: AccessibleForm }).map_err(|error| PrepareFailed(error))?
 	bytes = Pdf.to_bytes_prepared(prepared).map_err(|error| EmitFailed(error))?
 	output : Path
 	output = if (duplicate) "service-intake-invalid.pdf" else "service-intake.pdf"

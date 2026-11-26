@@ -12,43 +12,77 @@ KernelWidgetObjects :: [].{
 		Object(KernelObject.Error),
 	]
 
-	Slot : { appearance : KernelObject.ObjectId, field : KernelWidgetFields.Field, widget : KernelObject.ObjectId }
-	Plan : {
+	Slot : { appearance : [TextAppearance(KernelObject.ObjectId), CheckboxAppearance], field : KernelWidgetFields.Field, widget : KernelObject.ObjectId }
+	TextObjects : {
 		descriptor : KernelObject.ObjectId,
 		font : KernelWidgetFields.EditableFont,
 		font_object : KernelObject.ObjectId,
 		font_stream : KernelObject.ObjectId,
-		slots : List(Slot),
 		to_unicode : KernelObject.ObjectId,
+	}
+	CheckboxObjects : { off : KernelObject.ObjectId, yes : KernelObject.ObjectId }
+	EditableFontPlan : [NoTextObjects, WithTextObjects(TextObjects)]
+	CheckboxPlan : [NoCheckboxObjects, WithCheckboxObjects(CheckboxObjects)]
+	Plan : {
+		text_objects : EditableFontPlan,
+		checkbox_objects : CheckboxPlan,
+		slots : List(Slot),
 		xref : KernelObject.ObjectId,
 	}
 
 	Selection : [NoWidgetPlan, WithWidgetPlan(Plan)]
 	Prepared : [NoPreparedWidgets, WithPreparedWidgets(KernelWidgetFields.Plan)]
-	Evidence : [NoWidgetEvidence, WidgetEvidence({ acro_form_edge : U64, editable_font_value : U64, widget_values : List(U64) })]
+	Evidence : [NoWidgetEvidence, WidgetEvidence({ acro_form_edge : U64, editable_font_value : [NoEditableFontValue, EditableFontValue(U64)], widget_values : List(U64) })]
 
 	plan : Prepared, U64 -> Try(Selection, Error)
 	plan = |selection, previous_objects| match selection {
 		NoPreparedWidgets => Ok(NoWidgetPlan)
 		WithPreparedWidgets(prepared) => {
 			fields = KernelWidgetFields.Plan.fields(prepared)
-			if fields.is_empty() or previous_objects > U64.highest - 7 - 3 * fields.len() {
+			if fields.is_empty() or previous_objects > U64.highest - 11 - 3 * fields.len() {
 				return Err(InvalidPlan)
 			}
-			font_stream = object_id(previous_objects + 1)?
-			to_unicode = object_id(previous_objects + 3)?
-			descriptor = object_id(previous_objects + 5)?
-			font_object = object_id(previous_objects + 6)?
-			var $next = previous_objects + 7
+			{ text_objects, first_widget_resource } = match KernelWidgetFields.Plan.font(prepared) {
+				NoEditableFont => { text_objects: NoTextObjects, first_widget_resource: previous_objects + 1 }
+				WithEditableFont(font) => {
+					font_stream = object_id(previous_objects + 1)?
+					to_unicode = object_id(previous_objects + 3)?
+					descriptor = object_id(previous_objects + 5)?
+					font_object = object_id(previous_objects + 6)?
+					{ text_objects: WithTextObjects({ descriptor, font, font_object, font_stream, to_unicode }), first_widget_resource: previous_objects + 7 }
+				}
+			}
+			{ checkbox_objects, first_widget } = if fields.any(
+				|field| match field.value {
+					Checkbox(_) => True
+					Text(_) => False
+				},
+			) {
+				off = object_id(first_widget_resource)?
+				yes = object_id(first_widget_resource + 2)?
+				{ checkbox_objects: WithCheckboxObjects({ off, yes }), first_widget: first_widget_resource + 4 }
+			} else {
+				{ checkbox_objects: NoCheckboxObjects, first_widget: first_widget_resource }
+			}
+			var $next = first_widget
 			var $slots = List.with_capacity(fields.len())
 			for field in fields {
-				appearance = object_id($next)?
-				widget = object_id($next + 2)?
-				$slots = $slots.append({ appearance, field, widget })
-				$next = $next + 3
+				slot = match field.value {
+					Text(_) => {
+						appearance = object_id($next)?
+						widget = object_id($next + 2)?
+						{ plan: { appearance: TextAppearance(appearance), field, widget }, next: $next + 3 }
+					}
+					Checkbox(_) => {
+						widget = object_id($next)?
+						{ plan: { appearance: CheckboxAppearance, field, widget }, next: $next + 1 }
+					}
+				}
+				$slots = $slots.append(slot.plan)
+				$next = slot.next
 			}
 			xref = object_id($next)?
-			Ok(WithWidgetPlan({ descriptor, font: KernelWidgetFields.Plan.font(prepared), font_object, font_stream, slots: $slots, to_unicode, xref }))
+			Ok(WithWidgetPlan({ checkbox_objects, text_objects, slots: $slots, xref }))
 		}
 	}
 
@@ -62,23 +96,46 @@ KernelWidgetObjects :: [].{
 			$refs = $refs.append(ref.id)
 		}
 		fields = KernelObject.add_array($builder, $refs) ? Object
-		appearance = text(fields.builder, default_appearance)?
-		dr = font_resources(appearance.builder, prepared.font_object)?
-		form = dictionary(dr.builder, [{ key: "DA", value: appearance.id }, { key: "DR", value: dr.id }, { key: "Fields", value: fields.id }])?
+		form = match prepared.text_objects {
+			NoTextObjects => dictionary(fields.builder, [{ key: "Fields", value: fields.id }])?
+			WithTextObjects(font) => {
+				appearance = text(fields.builder, default_appearance)?
+				dr = font_resources(appearance.builder, font.font_object)?
+				dictionary(dr.builder, [{ key: "DA", value: appearance.id }, { key: "DR", value: dr.id }, { key: "Fields", value: fields.id }])?
+			}
+		}
 		key = KernelObject.add_name(form.builder, Str.to_utf8("AcroForm")) ? Object
 		Ok({ builder: key.builder, entry: { key: key.id, value: form.id } })
 	}
 
 	lower : KernelObject.Builder, Plan, { catalog : KernelObject.ObjectId, content_streams : U64, pages : List(KernelObject.ObjectId) } -> Try({ builder : KernelObject.Builder, evidence : Evidence }, Error)
 	lower = |builder, prepared, context| {
-		var $builder = add_editable_font(builder, prepared)?
-		resources = font_resources($builder, prepared.font_object)?
-		default = text(resources.builder, default_appearance)?
-		$builder = default.builder
+		{ text_values, after_text } = match prepared.text_objects {
+			NoTextObjects => { text_values: NoTextValues, after_text: builder }
+			WithTextObjects(font) => {
+				font_builder = add_editable_font(builder, font)?
+				resources = font_resources(font_builder, font.font_object)?
+				default = text(resources.builder, default_appearance)?
+				{ text_values: WithTextValues({ resources: resources.id, default: default.id }), after_text: default.builder }
+			}
+		}
+		var $builder = match prepared.checkbox_objects {
+			NoCheckboxObjects => after_text
+			WithCheckboxObjects(checkboxes) => add_checkbox_appearances(after_text, checkboxes)?
+		}
 		var $slot = 0
 		for slot in prepared.slots {
 			page = context.pages.get(slot.field.location.page) ? |_| InvalidPlan
-			$builder = add_text_widget($builder, slot, page, context.content_streams + $slot, { resources: resources.id, default: default.id })?
+			structure_parent = context.content_streams + $slot
+			match (slot.appearance, slot.field.value, text_values, prepared.checkbox_objects) {
+				(TextAppearance(appearance), Text(value), WithTextValues(values), _) => {
+					$builder = add_text_widget($builder, slot, page, structure_parent, { appearance, value, resources: values.resources, default: values.default })?
+				}
+				(CheckboxAppearance, Checkbox(state), _, WithCheckboxObjects(checkboxes)) => {
+					$builder = add_checkbox_widget($builder, slot, page, structure_parent, checkboxes, state)?
+				}
+				_ => return Err(InvalidPlan)
+			}
 			$slot = $slot + 1
 		}
 		if KernelObject.counts($builder).objects + 1 != KernelObject.ObjectId.number(prepared.xref) {
@@ -100,8 +157,8 @@ KernelWidgetObjects :: [].{
 default_appearance : Str
 default_appearance = "0 0 0 rg /Ftx 10 Tf"
 
-add_editable_font : KernelObject.Builder, KernelWidgetObjects.Plan -> Try(KernelObject.Builder, KernelWidgetObjects.Error)
-add_editable_font = |builder, { font, font_stream, to_unicode, descriptor, font_object, .. }| {
+add_editable_font : KernelObject.Builder, KernelWidgetObjects.TextObjects -> Try(KernelObject.Builder, KernelWidgetObjects.Error)
+add_editable_font = |builder, { font, font_stream, to_unicode, descriptor, font_object }| {
 	length = KernelObject.add_integer(builder, font.bytes.len().to_i64_wrap()) ? Object
 	program_fields = entries(length.builder, [{ key: "Length1", value: length.id }])?
 	program = KernelObject.add_payload(program_fields.builder, font.bytes, Generated) ? Object
@@ -169,7 +226,7 @@ add_editable_font = |builder, { font, font_stream, to_unicode, descriptor, font_
 ascii_cmap : Str
 ascii_cmap = "/CIDInit /ProcSet findresource begin\n12 dict begin\nbegincmap\n/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def\n/CMapName /ROCPdfWidgetASCII def\n/CMapType 2 def\n1 begincodespacerange\n<20> <7E>\nendcodespacerange\n1 beginbfrange\n<20> <7E> <0020>\nendbfrange\nendcmap\nCMapName currentdict /CMap defineresource pop\nend\nend\n"
 
-add_text_widget : KernelObject.Builder, KernelWidgetObjects.Slot, KernelObject.ObjectId, U64, { resources : KernelObject.ValueId, default : KernelObject.ValueId } -> Try(KernelObject.Builder, KernelWidgetObjects.Error)
+add_text_widget : KernelObject.Builder, KernelWidgetObjects.Slot, KernelObject.ObjectId, U64, { resources : KernelObject.ValueId, default : KernelObject.ValueId, appearance : KernelObject.ObjectId, value : Str } -> Try(KernelObject.Builder, KernelWidgetObjects.Error)
 add_text_widget = |builder, slot, page, structure_parent, values| {
 	{ origin, size } = slot.field.widget
 	width = size.width.raw()
@@ -186,11 +243,11 @@ add_text_widget = |builder, slot, page, structure_parent, values| {
 			{ key: "Type", value: xobject.id },
 		],
 	)?
-	appearance_bytes = text_appearance(width, height, slot.field.value)?
+	appearance_bytes = text_appearance(width, height, values.value)?
 	appearance = KernelObject.add_payload(appearance_fields.builder, appearance_bytes, Generated) ? Object
 	stream = KernelObject.add_stream_object(appearance.builder, appearance_fields.entries, Deflate, appearance.id) ? Object
-	ensure(stream.id, slot.appearance)?
-	normal = KernelObject.add_reference(stream.builder, slot.appearance) ? Object
+	ensure(stream.id, values.appearance)?
+	normal = KernelObject.add_reference(stream.builder, values.appearance) ? Object
 	ap = dictionary(normal.builder, [{ key: "N", value: normal.id }])?
 	flags = KernelObject.add_integer(ap.builder, 4) ? Object
 	field_type = name_value(flags.builder, "Tx")?
@@ -204,7 +261,7 @@ add_text_widget = |builder, slot, page, structure_parent, values| {
 	name = text(subtype.builder, slot.field.id)?
 	label = text(name.builder, slot.field.label)?
 	annot = name_value(label.builder, "Annot")?
-	value = text(annot.builder, slot.field.value)?
+	value = text(annot.builder, values.value)?
 	widget_dict = dictionary(
 		value.builder,
 		[
@@ -215,6 +272,88 @@ add_text_widget = |builder, slot, page, structure_parent, values| {
 			{ key: "Ff", value: field_flags.id },
 			{ key: "MK", value: characteristics.id },
 			{ key: "MaxLen", value: max_len.id },
+			{ key: "P", value: page_ref.id },
+			{ key: "Rect", value: rect.id },
+			{ key: "StructParent", value: owner.id },
+			{ key: "Subtype", value: subtype.id },
+			{ key: "T", value: name.id },
+			{ key: "TU", value: label.id },
+			{ key: "Type", value: annot.id },
+			{ key: "V", value: value.id },
+		],
+	)?
+	widget = KernelObject.add_object(widget_dict.builder, widget_dict.id) ? Object
+	ensure(widget.id, slot.widget)?
+	Ok(widget.builder)
+}
+
+## ISO 32000-2:2020 12.7.5.2.3, ISO 19005-4:2020 6.3.3. Both normal
+## appearances are present even if every field selects the same state.
+## A checkbox-only form has no editable text font or default text resources.
+checkbox_appearance : KernelWidgetFields.CheckState -> List(U8)
+checkbox_appearance = |state| match state {
+	Unchecked => Str.to_utf8("q\n1 1 1 rg\n0 0 0 RG\n1 w\n0.5 0.5 21 21 re B\nQ\n")
+	Checked => Str.to_utf8("q\n1 1 1 rg\n0 0 0 RG\n1 w\n0.5 0.5 21 21 re B\n2 w\n1 J\n1 j\n5 11 m 9 7 l 17 15 l S\nQ\n")
+}
+
+checkbox_name : KernelWidgetFields.CheckState -> Str
+checkbox_name = |state| match state {
+	Unchecked => "Off"
+	Checked => "Yes"
+}
+
+add_checkbox_appearances : KernelObject.Builder, KernelWidgetObjects.CheckboxObjects -> Try(KernelObject.Builder, KernelWidgetObjects.Error)
+add_checkbox_appearances = |builder, planned| {
+	bbox = decimal_array(builder, [0, 0, 22000, 22000])?
+	resources = dictionary(bbox.builder, [])?
+	xobject = name_value(resources.builder, "XObject")?
+	form = name_value(xobject.builder, "Form")?
+	fields = entries(
+		form.builder,
+		[
+			{ key: "BBox", value: bbox.id },
+			{ key: "Resources", value: resources.id },
+			{ key: "Subtype", value: form.id },
+			{ key: "Type", value: xobject.id },
+		],
+	)?
+	off = KernelObject.add_payload(fields.builder, checkbox_appearance(Unchecked), Generated) ? Object
+	off_stream = KernelObject.add_stream_object(off.builder, fields.entries, Deflate, off.id) ? Object
+	ensure(off_stream.id, planned.off)?
+	yes = KernelObject.add_payload(off_stream.builder, checkbox_appearance(Checked), Generated) ? Object
+	yes_stream = KernelObject.add_stream_object(yes.builder, fields.entries, Deflate, yes.id) ? Object
+	ensure(yes_stream.id, planned.yes)?
+	Ok(yes_stream.builder)
+}
+
+add_checkbox_widget : KernelObject.Builder, KernelWidgetObjects.Slot, KernelObject.ObjectId, U64, KernelWidgetObjects.CheckboxObjects, KernelWidgetFields.CheckState -> Try(KernelObject.Builder, KernelWidgetObjects.Error)
+add_checkbox_widget = |builder, slot, page, structure_parent, planned, state| {
+	off = KernelObject.add_reference(builder, planned.off) ? Object
+	yes = KernelObject.add_reference(off.builder, planned.yes) ? Object
+	normal = dictionary(yes.builder, [{ key: "Off", value: off.id }, { key: "Yes", value: yes.id }])?
+	ap = dictionary(normal.builder, [{ key: "N", value: normal.id }])?
+	flags = KernelObject.add_integer(ap.builder, 4) ? Object
+	field_type = name_value(flags.builder, "Btn")?
+	field_flags = KernelObject.add_integer(field_type.builder, 0) ? Object
+	page_ref = KernelObject.add_reference(field_flags.builder, page) ? Object
+	{ origin, size } = slot.field.widget
+	x = origin.x.raw()
+	y = origin.y.raw()
+	rect = decimal_array(page_ref.builder, [x, y, x + size.width.raw(), y + size.height.raw()])?
+	owner = KernelObject.add_integer(rect.builder, structure_parent.to_i64_wrap()) ? Object
+	subtype = name_value(owner.builder, "Widget")?
+	name = text(subtype.builder, slot.field.id)?
+	label = text(name.builder, slot.field.label)?
+	annot = name_value(label.builder, "Annot")?
+	value = name_value(annot.builder, checkbox_name(state))?
+	widget_dict = dictionary(
+		value.builder,
+		[
+			{ key: "AP", value: ap.id },
+			{ key: "AS", value: value.id },
+			{ key: "F", value: flags.id },
+			{ key: "FT", value: field_type.id },
+			{ key: "Ff", value: field_flags.id },
 			{ key: "P", value: page_ref.id },
 			{ key: "Rect", value: rect.id },
 			{ key: "StructParent", value: owner.id },
@@ -342,35 +481,21 @@ check_lowered = |store, planned, context| {
 	catalog = object_dictionary(store, context.catalog)?
 	acro = find_field(store, catalog, "AcroForm")?
 	form = as_dictionary(value_at(store, acro.value)?)?
-	if form.length != 3 or !text_matches(store, field(store, form, "DA")?, default_appearance)? {
-		return Err(InvalidPlan)
+	font_value = match planned.text_objects {
+		NoTextObjects if form.length == 1 => NoEditableFontValue
+		NoTextObjects => return Err(InvalidPlan)
+		WithTextObjects(font) => EditableFontValue(check_text_resources(store, form, font)?)
 	}
-	resources = as_dictionary(field(store, form, "DR")?)?
-	verify_font_resources(store, resources, planned.font_object)?
+	match planned.checkbox_objects {
+		NoCheckboxObjects => {}
+		WithCheckboxObjects(checkboxes) => {
+			verify_checkbox_appearance(store, checkboxes.off, Unchecked)?
+			verify_checkbox_appearance(store, checkboxes.yes, Checked)?
+		}
+	}
 	field_values = as_array(field(store, form, "Fields")?)?
 	if field_values.length != planned.slots.len() {
 		return Err(InvalidPlan)
-	}
-	font_value = stored_id(store, planned.font_object)?
-	font = as_dictionary(value_at(store, font_value)?)?
-	if !name_matches(store, field(store, font, "Subtype")?, "TrueType")?
-		or !name_matches(store, field(store, font, "Encoding")?, "WinAnsiEncoding")?
-		or !ref_matches(field(store, font, "FontDescriptor")?, planned.descriptor)
-		or !ref_matches(field(store, font, "ToUnicode")?, planned.to_unicode)
-		or !int_matches(field(store, font, "FirstChar")?, 32)
-		or !int_matches(field(store, font, "LastChar")?, 126) {
-		return Err(InvalidPlan)
-	}
-	widths = as_array(field(store, font, "Widths")?)?
-	if widths.length != planned.font.widths.len() {
-		return Err(InvalidPlan)
-	}
-	var $width = 0
-	for expected in planned.font.widths {
-		if !int_matches(array_at(store, widths, $width)?, expected) {
-			return Err(InvalidPlan)
-		}
-		$width = $width + 1
 	}
 	var $slot = 0
 	var $page = 0
@@ -386,7 +511,7 @@ check_lowered = |store, planned, context| {
 				return Err(InvalidPlan)
 			}
 			widget_value = stored_id(store, slot.widget)?
-			verify_widget(store, slot, widget_value, page, context.content_streams + $slot, planned.font_object)?
+			verify_widget(store, slot, widget_value, page, context.content_streams + $slot, planned.text_objects, planned.checkbox_objects)?
 			$widget_values = $widget_values.append(KernelObject.ValueId.index(widget_value))
 			$slot = $slot + 1
 		}
@@ -410,23 +535,49 @@ check_lowered = |store, planned, context| {
 	if $slot != planned.slots.len() {
 		return Err(InvalidPlan)
 	}
-	Ok(WidgetEvidence({ acro_form_edge: acro.edge, editable_font_value: KernelObject.ValueId.index(font_value), widget_values: $widget_values }))
+	Ok(WidgetEvidence({ acro_form_edge: acro.edge, editable_font_value: font_value, widget_values: $widget_values }))
 }
 
-verify_widget : KernelObject.Store, KernelWidgetObjects.Slot, KernelObject.ValueId, KernelObject.ObjectId, U64, KernelObject.ObjectId -> Try({}, KernelWidgetObjects.Error)
-verify_widget = |store, slot, id, page, struct_parent, font| {
+check_text_resources : KernelObject.Store, KernelObject.Span, KernelWidgetObjects.TextObjects -> Try(U64, KernelWidgetObjects.Error)
+check_text_resources = |store, form, font_plan| {
+	if form.length != 3 or !text_matches(store, field(store, form, "DA")?, default_appearance)? {
+		return Err(InvalidPlan)
+	}
+	verify_font_resources(store, as_dictionary(field(store, form, "DR")?)?, font_plan.font_object)?
+	font_value = stored_id(store, font_plan.font_object)?
+	font = as_dictionary(value_at(store, font_value)?)?
+	if !name_matches(store, field(store, font, "Subtype")?, "TrueType")?
+		or !name_matches(store, field(store, font, "Encoding")?, "WinAnsiEncoding")?
+		or !ref_matches(field(store, font, "FontDescriptor")?, font_plan.descriptor)
+		or !ref_matches(field(store, font, "ToUnicode")?, font_plan.to_unicode)
+		or !int_matches(field(store, font, "FirstChar")?, 32)
+		or !int_matches(field(store, font, "LastChar")?, 126) {
+		return Err(InvalidPlan)
+	}
+	widths = as_array(field(store, font, "Widths")?)?
+	if widths.length != font_plan.font.widths.len() {
+		return Err(InvalidPlan)
+	}
+	var $width = 0
+	for expected in font_plan.font.widths {
+		if !int_matches(array_at(store, widths, $width)?, expected) {
+			return Err(InvalidPlan)
+		}
+		$width = $width + 1
+	}
+	Ok(KernelObject.ValueId.index(font_value))
+}
+
+verify_widget : KernelObject.Store, KernelWidgetObjects.Slot, KernelObject.ValueId, KernelObject.ObjectId, U64, KernelWidgetObjects.EditableFontPlan, KernelWidgetObjects.CheckboxPlan -> Try({}, KernelWidgetObjects.Error)
+verify_widget = |store, slot, id, page, struct_parent, text_plan, checkbox_plan| {
 	entries_value = as_dictionary(value_at(store, id)?)?
 	types = field(store, entries_value, "Type")?
 	if !name_matches(store, types, "Annot")?
 		or !name_matches(store, field(store, entries_value, "Subtype")?, "Widget")?
-		or !name_matches(store, field(store, entries_value, "FT")?, "Tx")?
-		or !text_matches(store, field(store, entries_value, "DA")?, default_appearance)?
 		or !int_matches(field(store, entries_value, "F")?, 4)
 		or !int_matches(field(store, entries_value, "Ff")?, 0)
-		or !int_matches(field(store, entries_value, "MaxLen")?, KernelWidgetFields.max_characters.to_i64_wrap())
 		or !text_matches(store, field(store, entries_value, "T")?, slot.field.id)?
 		or !text_matches(store, field(store, entries_value, "TU")?, slot.field.label)?
-		or !text_matches(store, field(store, entries_value, "V")?, slot.field.value)?
 		or !ref_matches(field(store, entries_value, "P")?, page)
 		or !int_matches(field(store, entries_value, "StructParent")?, struct_parent.to_i64_wrap()) {
 		return Err(InvalidPlan)
@@ -438,20 +589,63 @@ verify_widget = |store, slot, id, page, struct_parent, font| {
 	h = size.height.raw()
 	verify_box(store, field(store, entries_value, "Rect")?, [x, y, x + w, y + h])?
 	appearance = as_dictionary(field(store, entries_value, "AP")?)?
-	if appearance.length != 1 or !ref_matches(field(store, appearance, "N")?, slot.appearance) {
+	if appearance.length != 1 {
 		return Err(InvalidPlan)
 	}
-	stream_id = match value_at(store, stored_id(store, slot.appearance)?)? {
+	normal = field(store, appearance, "N")?
+	match (slot.appearance, slot.field.value, text_plan, checkbox_plan) {
+		(TextAppearance(expected), Text(text_value), WithTextObjects(font), _) => {
+			if !name_matches(store, field(store, entries_value, "FT")?, "Tx")?
+				or !text_matches(store, field(store, entries_value, "DA")?, default_appearance)?
+				or !int_matches(field(store, entries_value, "MaxLen")?, KernelWidgetFields.max_characters.to_i64_wrap())
+				or !text_matches(store, field(store, entries_value, "V")?, text_value)?
+				or !ref_matches(normal, expected) {
+				return Err(InvalidPlan)
+			}
+			stream = verify_widget_appearance(store, expected, w, h)?
+			verify_font_resources(store, as_dictionary(field(store, stream.dictionary, "Resources")?)?, font.font_object)
+		}
+		(CheckboxAppearance, Checkbox(state), _, WithCheckboxObjects(expected)) => {
+			selection = checkbox_name(state)
+			states = as_dictionary(normal)?
+			if !name_matches(store, field(store, entries_value, "FT")?, "Btn")?
+				or !name_matches(store, field(store, entries_value, "V")?, selection)?
+				or !name_matches(store, field(store, entries_value, "AS")?, selection)?
+				or states.length != 2
+				or !ref_matches(field(store, states, "Off")?, expected.off)
+				or !ref_matches(field(store, states, "Yes")?, expected.yes) {
+				return Err(InvalidPlan)
+			}
+			Ok({})
+		}
+		_ => Err(InvalidPlan)
+	}
+}
+
+verify_widget_appearance : KernelObject.Store, KernelObject.ObjectId, I64, I64 -> Try(KernelObject.StreamObject, KernelWidgetObjects.Error)
+verify_widget_appearance = |store, expected, width, height| {
+	stream_id = match value_at(store, stored_id(store, expected)?)? {
 		Stream(stream) => stream
 		_ => return Err(InvalidPlan)
 	}
 	stream = store.streams.get(KernelObject.StreamId.index(stream_id)) ? |_| InvalidPlan
-	if stream.object != slot.appearance or !name_matches(store, field(store, stream.dictionary, "Type")?, "XObject")?
+	if stream.object != expected or !name_matches(store, field(store, stream.dictionary, "Type")?, "XObject")?
 		or !name_matches(store, field(store, stream.dictionary, "Subtype")?, "Form")? {
 		return Err(InvalidPlan)
 	}
-	verify_box(store, field(store, stream.dictionary, "BBox")?, [0, 0, w, h])?
-	verify_font_resources(store, as_dictionary(field(store, stream.dictionary, "Resources")?)?, font)
+	verify_box(store, field(store, stream.dictionary, "BBox")?, [0, 0, width, height])?
+	Ok(stream)
+}
+
+verify_checkbox_appearance : KernelObject.Store, KernelObject.ObjectId, KernelWidgetFields.CheckState -> Try({}, KernelWidgetObjects.Error)
+verify_checkbox_appearance = |store, expected, state| {
+	stream = verify_widget_appearance(store, expected, 22000, 22000)?
+	resources = as_dictionary(field(store, stream.dictionary, "Resources")?)?
+	payload = store.payloads.get(KernelObject.PayloadId.index(stream.source)) ? |_| InvalidPlan
+	if resources.length != 0 or payload.bytes != checkbox_appearance(state) {
+		return Err(InvalidPlan)
+	}
+	Ok({})
 }
 
 verify_box : KernelObject.Store, KernelObject.Value, List(I64) -> Try({}, KernelWidgetObjects.Error)

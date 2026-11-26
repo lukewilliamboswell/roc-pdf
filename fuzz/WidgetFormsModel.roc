@@ -2,6 +2,7 @@ import fuzz.Model
 import fuzz.Solve
 import pdf.Document
 import pdf.KernelSpan
+import pdf.KernelWidgetFields
 import pdf.Layout
 import pdf.Pdf
 
@@ -22,7 +23,7 @@ machine = {
 	} else if world.fields.len() == 3 {
 		[Finalize]
 	} else {
-		[Append(0), Append(1), Append(2), Append(3), Finalize]
+		[Append(0), Append(1), Append(2), Append(3), Append(4), Append(5), Finalize]
 	},
 	step: |world, action| match action {
 		Append(index) => { ..world, fields: world.fields.append(index) }
@@ -32,7 +33,8 @@ machine = {
 		Model.always("public preparation retains valid widgets in authored page order", |world| !world.closed or agrees(world.fields)),
 		Model.sometimes("a duplicate ID has two different labels", |world| world.closed and world.fields == [0, 3]),
 		Model.sometimes("reordered blank and filled fields", |world| world.closed and world.fields == [1, 0]),
-		Model.sometimes("preparation crosses a page boundary", |world| world.closed and world.fields == [1, 2, 0]),
+		Model.sometimes("mixed preparation crosses a page boundary", |world| world.closed and world.fields == [1, 2, 4]),
+		Model.sometimes("checked options have distinct visible labels and one export token", |world| world.closed and world.fields == [2, 5, 4]),
 	],
 }
 
@@ -40,6 +42,8 @@ identifier : U8 -> Str
 identifier = |code| match code {
 	1 => "reference"
 	2 => "approved"
+	4 => "visit"
+	5 => "consent"
 	_ => "contact"
 }
 
@@ -48,6 +52,8 @@ label = |code| match code {
 	0 => "Name"
 	1 => "Reference"
 	2 => "Approved label"
+	4 => "Visit request"
+	5 => "Consent label"
 	_ => "Other name"
 }
 
@@ -63,7 +69,11 @@ form_document = |codes| {
 			code = codes.get($index) ?? crash "model field index"
 			origin : Layout.Point
 			origin = { x: 56, y: Layout.Unit.points(630 - $slot.to_i64_wrap() * 60) }
-			$page = $page.place_text_field({ field: { id: identifier(code), label: label(code), width: 150, value: if (code == 1) Prefilled("R7") else Blank }, origin })
+			if code == 2 or code == 4 or code == 5 {
+				$page = $page.place_checkbox({ field: { id: identifier(code), label: label(code), state: if (code == 4) Unchecked else Checked }, origin })
+			} else {
+				$page = $page.place_text_field({ field: { id: identifier(code), label: label(code), width: 150, value: if (code == 1) Prefilled("R7") else Blank }, origin })
+			}
 			$index = $index + 1
 			$slot = $slot + 1
 		}
@@ -98,12 +108,14 @@ agrees = |codes| {
 		$first_duplicate,
 	) {
 		(Err(InvalidDocument({ diagnostics: [{ feature: Feature("form.fields_required"), .. }], .. })), None) => codes.is_empty()
-		(Err(InvalidDocument({ diagnostics: [{ feature: Feature("form.text.duplicate_id"), details: [path], .. }], .. })), At(duplicate)) => {
+		(Err(InvalidDocument({ diagnostics: [{ feature: Feature(feature), details: [path], .. }], .. })), At(duplicate)) => {
+			code = codes.get(duplicate) ?? crash "duplicate model index"
+			expected = if (code == 2 or code == 4 or code == 5) "form.checkbox.duplicate_id" else "form.text.duplicate_id"
 			page = duplicate // 2
 			placement = duplicate % 2 + 1
-			path == "pages[${page.to_str()}].placements[${placement.to_str()}].field.id"
+			feature == expected and path == "pages[${page.to_str()}].placements[${placement.to_str()}].field.id"
 		}
-		(Ok({ report, .. }), None) => {
+		(Ok({ report, prepared }), None) => {
 			labels = report.facts.blocks.keep_if(|block| block.role == "Lbl")
 			if labels.len() != codes.len() or report.facts.pages.len() != (codes.len() + 1) // 2 {
 				return False
@@ -117,10 +129,42 @@ agrees = |codes| {
 				}
 				$slot = $slot + 1
 			}
-			True
+			planned_values_agree(doc, codes) and Pdf.to_bytes_prepared(prepared).is_ok()
 		}
 		_ => False
 	}
+}
+
+## The public facade above checks owner, order and accepted lowering. Compare
+## its production field-planning input against an authored truth table without
+## deriving initial values or labels from a PDF dictionary.
+planned_values_agree : Document, List(U8) -> Bool
+planned_values_agree = |doc, codes| {
+	view = match Document.normalize_fixed(doc, { max_pages: 2, max_placements: 5, max_rectangles: 0 }) {
+		Ok(Fixed(normalized)) => Document.NormalizedFixed.view(normalized)
+		_ => return False
+	}
+	plan = KernelWidgetFields.prepare(view.widget_fields) ?? return False
+	fields = KernelWidgetFields.Plan.fields(plan)
+	if fields.len() != codes.len() {
+		return False
+	}
+	var $order = 0
+	for field in fields {
+		code = codes.get($order) ?? crash "field model index"
+		value_agrees = match (code, field.value) {
+			(1, Text("R7")) => True
+			(2, Checkbox(Checked)) | (5, Checkbox(Checked)) => True
+			(4, Checkbox(Unchecked)) => True
+			(0, Text("")) | (3, Text("")) => True
+			_ => False
+		}
+		if !value_agrees or field.label != label(code) or field.id != identifier(code) or field.location.page != $order // 2 {
+			return False
+		}
+		$order = $order + 1
+	}
+	True
 }
 
 expect {
@@ -128,7 +172,7 @@ expect {
 	if report.verdict != Holds(Exhausted) {
 		crash Model.explain(report)
 	}
-	report.states == 170 and report.steps == 169 and report.depth == 4 and report.reached.len() == 3
+	report.states == 518 and report.steps == 517 and report.depth == 4 and report.reached.len() == 4
 }
 
 ## The widest admitted page bounds checked coordinates. The label occupies
@@ -147,6 +191,17 @@ expect Solve.prove_within(
 				(start + 24000 + 24000).eq(end),
 			]),
 		)
+	},
+	5000,
+) == Ok(Proved)
+
+## A live checkbox reserves the widget, its gap and the complete label.
+expect Solve.prove_within(
+	{ start: Solve.u64_in(0, 14400000), available: Solve.u64_in(0, 14400000) }.Solve,
+	|{ start, available }| {
+		end = KernelSpan.Arithmetic.wrapped_end(start, Solve.num(266000))
+		fits = KernelSpan.Arithmetic.fits(start, end, available, |left, right| left.lte(right), |left, right| Solve.all([left, right]))
+		fits.implies(Solve.all([(start + 22000).lt(start + 26000), (start + 26000 + 240000).eq(end)]))
 	},
 	5000,
 ) == Ok(Proved)

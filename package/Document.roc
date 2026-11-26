@@ -510,7 +510,7 @@ PageArtifactKind := [Background, Decoration, Footer, Header, PageNumber, Waterma
 FixedPlacement := {
 	block : DocumentBlock,
 	frame : Layout.Rect,
-	widget : [NoWidget, TextWidget(KernelWidgetFields.TextFieldProps)] ?? NoWidget,
+	widget : [NoWidget, WithWidget(KernelWidgetFields.Input)] ?? NoWidget,
 }
 
 ## A drawing whose non-content purpose and paint layer are explicit.
@@ -542,7 +542,14 @@ FixedPageBuilder :: FixedPage.{
 	place_text_field : FixedPageBuilder, { field : KernelWidgetFields.TextFieldProps, origin : Layout.Point } -> FixedPageBuilder
 	place_text_field = |FixedPageBuilder.{ artifacts_after, artifacts_before, placements, paint_order, size }, { field, origin }| {
 		frame = { origin, size: { width: field.width, height: 22 } }
-		FixedPageBuilder.{ artifacts_after, artifacts_before, placements: placements.append({ block: Paragraph(field.label), frame, widget: TextWidget(field) }), paint_order, size }
+		FixedPageBuilder.{ artifacts_after, artifacts_before, placements: placements.append({ block: Paragraph(field.label), frame, widget: WithWidget(TextWidget(field)) }), paint_order, size }
+	}
+
+	## Place a 22-point checkbox at the page origin with its label to the right.
+	place_checkbox : FixedPageBuilder, { field : KernelWidgetFields.CheckboxProps, origin : Layout.Point } -> FixedPageBuilder
+	place_checkbox = |FixedPageBuilder.{ artifacts_after, artifacts_before, placements, paint_order, size }, { field, origin }| {
+		frame = { origin, size: { width: 22, height: 22 } }
+		FixedPageBuilder.{ artifacts_after, artifacts_before, placements: placements.append({ block: Paragraph(field.label), frame, widget: WithWidget(CheckboxWidget(field)) }), paint_order, size }
 	}
 
 	overlay : FixedPageBuilder, { kind : PageArtifactKind, drawing : Scene.Drawing } -> FixedPageBuilder
@@ -570,7 +577,8 @@ FixedError : [
 	UnsupportedInline({ page : U64, placement : U64 }),
 	InvalidFrame({ page : U64, placement : U64 }),
 	InvalidWidgetFrame(KernelWidgetFields.Location),
-	InvalidWidgetLabel(KernelWidgetFields.Location),
+	InvalidCheckboxFrame(KernelWidgetFields.Location),
+	InvalidWidgetLabel(KernelWidgetFields.Located),
 	PaintOrderLength({ page : U64, actual : U64, expected : U64 }),
 	PaintOrderIndex({ page : U64, index : U64, placement : U64 }),
 	DuplicatePaintPlacement({ page : U64, index : U64, placement : U64 }),
@@ -645,11 +653,11 @@ normalize_fixed_pages = |fixed, limits| {
 					$frames = $frames.append(placement.frame)
 					$state = append_leaf($state, placement.block, 0, position)
 				}
-				TextWidget(field) => {
+				WithWidget(field) => {
 					location = { page: $page, placement: $placement }
-					geometry = match KernelWidgetFields.geometry(placement.frame.origin, field.width, page.size) {
+					geometry = match KernelWidgetFields.geometry(placement.frame.origin, field, page.size) {
 						Frames(value) => value
-						InvalidFrames => return Err(InvalidWidgetFrame(location))
+						InvalidFrames => return Err(invalid_widget_frame(field, location))
 					}
 					$frames = $frames.append(geometry.label)
 					group = $state.groups.len()
@@ -717,6 +725,12 @@ fixed_rect_fits = |rect, size| {
 		and KernelSpan.end_within(y.to_u64_wrap(), height.to_u64_wrap(), size.height.raw().to_u64_wrap()).is_ok()
 }
 
+invalid_widget_frame : KernelWidgetFields.Input, KernelWidgetFields.Location -> FixedError
+invalid_widget_frame = |field, location| match field {
+	TextWidget(_) => InvalidWidgetFrame(location)
+	CheckboxWidget(_) => InvalidCheckboxFrame(location)
+}
+
 validate_fixed_placements : FixedPage, U64 -> Try({}, FixedError)
 validate_fixed_placements = |page, page_index| {
 	var $index = 0
@@ -725,16 +739,16 @@ validate_fixed_placements = |page, page_index| {
 			NoWidget => if !fixed_rect_fits(placement.frame, page.size) {
 				return Err(InvalidFrame({ page: page_index, placement: $index }))
 			}
-			TextWidget(field) => match KernelWidgetFields.geometry(placement.frame.origin, field.width, page.size) {
+			WithWidget(field) => match KernelWidgetFields.geometry(placement.frame.origin, field, page.size) {
 				Frames(_) => {}
-				InvalidFrames => return Err(InvalidWidgetFrame({ page: page_index, placement: $index }))
+				InvalidFrames => return Err(invalid_widget_frame(field, { page: page_index, placement: $index }))
 			}
 		}
 		match placement.widget {
 			NoWidget => {}
-			TextWidget(field) => match placement.block {
-				Paragraph(label) if label == field.label => {}
-				_ => return Err(InvalidWidgetLabel({ page: page_index, placement: $index }))
+			WithWidget(field) => match placement.block {
+				Paragraph(label) if label == KernelWidgetFields.label(field) => {}
+				_ => return Err(InvalidWidgetLabel({ kind: KernelWidgetFields.kind(field), location: { page: page_index, placement: $index } }))
 			}
 		}
 		match placement.block {
