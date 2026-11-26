@@ -710,3 +710,16 @@ cell with an explicitly named later row header, and a missing-fragment
 mutation with an intact structure cell and header list.
 Arlington 1.30.2 and veraPDF 1.30.2 profiles `4`, `ua2` and `wt1a`
 pass on the regional annex and both continuation cases.
+
+The bounded bitmap model exhausts 1,201 states and seven witnesses. It
+expands independently authored rectangles, compares the accepted tile
+order and scopes, and exercises overlap, holes, overrun, section
+boundaries, and rows covered by earlier cells. The pagination model
+exhausts 129 states and three witnesses with two body rows, a header,
+an optional footer, and three page capacities. It enumerates legal cuts,
+uses two-line preferences where capacity allows them, and compares note
+line ownership and repeated artifacts to measured facade placement.
+Grid endpoints use the `KernelSpan.end_within` predicate proved over
+the full U64 domain by `DenseSpanProof`. The targeted fuzz lane replays
+a valid variable-height grid, bad associations and intersections,
+and U16 boundary witnesses through both public output paths.

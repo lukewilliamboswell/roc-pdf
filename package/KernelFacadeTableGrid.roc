@@ -1,4 +1,5 @@
 import Document
+import KernelSpan
 import Semantics
 
 ## Verified logical coordinates for tables with row spans. Ordinary tables
@@ -108,16 +109,11 @@ check_rectangles = |authoring, group, first, end, table| {
 				if height == 0 {
 					return Err(CellExtent({ block: record.block, reason: ZeroRows }))
 				}
-				if height > group_end - $row {
-					return Err(CellExtent({ block: record.block, reason: RowGroupEnd }))
-				}
+				last_row = KernelSpan.end_within($row, height, group_end) ? |_| CellExtent({ block: record.block, reason: RowGroupEnd })
 				if span == 0 {
 					return Err(CellExtent({ block: record.block, reason: ZeroColumns }))
 				}
-				if span > width - $column {
-					return Err(CellExtent({ block: record.block, reason: ColumnEnd }))
-				}
-				cell_end = $column + span
+				cell_end = KernelSpan.end_within($column, span, width) ? |_| CellExtent({ block: record.block, reason: ColumnEnd })
 				area = span * height
 				if area > track_limit - $work {
 					return Err(TrackBudget({ group, limit: track_limit }))
@@ -128,10 +124,10 @@ check_rectangles = |authoring, group, first, end, table| {
 					if list_at($active, $track).row_end > $row {
 						return Err(CellExtent({ block: record.block, reason: ColumnOccupied }))
 					}
-					$active = list_set($active, $track, { cell: $cell, column_end: cell_end, row_end: $row + height })
+					$active = list_set($active, $track, { cell: $cell, column_end: cell_end, row_end: last_row })
 					$track = $track + 1
 				}
-				$cells = $cells.append({ column: $column, column_end: cell_end, row: $row, row_end: $row + height })
+				$cells = $cells.append({ column: $column, column_end: cell_end, row: $row, row_end: last_row })
 				$tiles = $tiles.append($cell)
 				$crosses_after = $crosses_after or height > 1
 				$cell = $cell + 1

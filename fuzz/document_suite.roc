@@ -14,6 +14,7 @@ import FacadeStructure
 import NavigationProperty
 import RegistryProperty
 import ThemeOptions
+import TableSpanProperty
 
 # roc test also runs the bounded models and proofs in this suite.
 import AppearanceTransparencyModel
@@ -42,6 +43,7 @@ import ResourceGraphModel
 import StreamSealModel
 import TaggedStreamOwners
 import TableHeaderModel
+import TableSpanPaginationModel
 import XrefSlotProof
 
 target = Fuzz.suite([
@@ -53,5 +55,6 @@ target = Fuzz.suite([
 	FacadeStructure.target,
 	NavigationProperty.target,
 	RegistryProperty.target,
+	TableSpanProperty.target,
 	ThemeOptions.target,
 ])
