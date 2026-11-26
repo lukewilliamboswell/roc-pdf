@@ -15,7 +15,7 @@ from check_fixed_pages import validate_fixed_pages_pdf
 from check_generated_handbook import validate_flow_fixture, validate_generated_fixture
 from check_arabic_invoice import check as check_arabic_invoice
 from check_hindi_statement import check as check_hindi_statement
-from check_thai_notice import check as check_thai_notice
+from check_thai_notice import check as check_thai_notice, check_scale as check_thai_scale
 from check_bilingual_invoice import check as check_bilingual_invoice
 from check_inter_latin import validate_inter_latin_pdf
 from check_columns import validate_columns_pdf
@@ -170,6 +170,7 @@ VALIDATORS: dict[str, Validator] = {
     "arabic_invoice": _dimensioned(lambda pdf, _: check_arabic_invoice(pdf), "Arabic invoice logical text, writing modes, paint positions and language scopes"),
     "hindi_statement": _dimensioned(lambda pdf, _: check_hindi_statement(pdf), "logical text, glyph positions and language scopes"),
     "thai_notice": _dimensioned(lambda pdf, _: check_thai_notice(pdf), "logical text, glyph positions and language scopes"),
+    "thai_dictionary_scale": _dimensioned(check_thai_scale, "logical Thai dictionary word and ordered line positions at scale"),
     "bilingual_invoice": _dimensioned(lambda pdf, _: check_bilingual_invoice(pdf), "bilingual invoice logical text, writing modes, paint positions and language scopes"),
     "inter_latin": _dimensioned(validate_inter_latin_pdf, "exact kerned positions, ligature and literal mapping, wrap ownership and scope color"),
     "columns": _dimensioned(validate_columns_pdf, "authored source and semantic ownership across unequal-width columns and pages"),

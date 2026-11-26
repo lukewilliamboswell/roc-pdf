@@ -31732,6 +31732,104 @@
       ]
     },
     {
+      "name": "Thai Latin dictionary x2",
+      "scenario_revision": "thai-dictionary-v1",
+      "family": "international_text",
+      "snapshot": "tests/international_text/thai-scale-2.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "dictionary_repetitions": 2
+      },
+      "work_counters": [
+        "pages",
+        "authored_blocks",
+        "owned_fragments",
+        "dictionary_repetitions",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 3695,
+          "allocated_bytes": 6378436,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 1,
+            "owned_fragments": 10,
+            "dictionary_repetitions": 2,
+            "output_bytes": 9443
+          }
+        },
+        "x64musl": {
+          "allocations": 3695,
+          "allocated_bytes": 6378436,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 1,
+            "owned_fragments": 10,
+            "dictionary_repetitions": 2,
+            "output_bytes": 9443
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "thai_dictionary_scale"
+      ]
+    },
+    {
+      "name": "Thai Latin dictionary x20",
+      "scenario_revision": "thai-dictionary-v1",
+      "family": "international_text",
+      "snapshot": "tests/international_text/thai-scale-20.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "dictionary_repetitions": 20
+      },
+      "work_counters": [
+        "pages",
+        "authored_blocks",
+        "owned_fragments",
+        "dictionary_repetitions",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 19361,
+          "allocated_bytes": 10746280,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 1,
+            "owned_fragments": 100,
+            "dictionary_repetitions": 20,
+            "output_bytes": 10246
+          }
+        },
+        "x64musl": {
+          "allocations": 19361,
+          "allocated_bytes": 10746280,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 1,
+            "owned_fragments": 100,
+            "dictionary_repetitions": 20,
+            "output_bytes": 10246
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "thai_dictionary_scale"
+      ]
+    },
+    {
       "name": "Hebrew Latin invoice",
       "scenario_revision": "hebrew-latin-v1",
       "family": "international_text",

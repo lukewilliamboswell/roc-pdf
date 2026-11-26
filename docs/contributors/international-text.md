@@ -134,3 +134,28 @@ bytes. The diagnostics cover invalid dictionary revision, an uncovered
 dictionary causing an unbreakable segment, and unsupported effective
 language. Arlington 1.30.2 and explicit veraPDF `4` and `ua2` accept both
 PDFs. Explicit `wt1a` accepts the WTPDF snapshot.
+
+One unspaced paragraph at two and twenty dictionary repetitions retains ten
+and one hundred owned word fragments, respectively. Both documents stay on
+one page. The exact x64musl references are 3,695 allocations and 6,378,436
+bytes for two repetitions, and 19,361 allocations and 10,746,280 bytes for
+twenty. The PDF oracle verifies the single owner, exact original text, and
+paint order within each committed baseline. Arlington 1.30.2 and explicit
+veraPDF `4` and `ua2` accept both scale snapshots.
+
+The separate face model in `fuzz/InternationalCoverageModel.roc` exhausts
+16 states. It checks four ordered coverage choices against an independent
+scan of the admitted faces, including a two-scalar Hindi grapheme and a
+Latin glyph covered by both faces. The Solve proof checks the positive
+signed-advance boundary. It finds an overflow witness and sends it, and
+the largest valid neighboring advance, through production line placement.
+Each trailing space has its own positioning unit, so UAX #9 L1 can reset
+consecutive spaces without reversing any shaped run.
+
+The structured `international_text` fuzz target varies widths, repeated
+text, occurrence boundaries, four scripts and font or control failures
+through actual shape, fit and positioning. Eight pinned examples and
+64 generated smoke inputs passed the bounded lane. The smoke report
+recorded 56 accepted and eight rejected generated inputs. Public fixture
+cases separately check the atomic byte/chunk diagnostics and emitted PDF
+ownership.

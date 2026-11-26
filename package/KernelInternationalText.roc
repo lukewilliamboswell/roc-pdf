@@ -112,10 +112,10 @@ KernelInternationalText :: [].{
 			next_original = $index == $original_scalar_end
 			next_script = $index == $script.range.scalar_end
 			# A line's trailing spaces can later acquire the paragraph level
-			# under L1. A separate unit lets final ordering move that space
-			# without reshaping a neighboring word.
+			# under L1. Keep each one separate so resetting and ordering
+			# several trailing spaces can never reverse a shaped run.
 			space = value == 0x20 or value == 0xa0
-			if $index > 0 and (next_original or next_script or level != $level or space != $space) {
+			if $index > 0 and (next_original or next_script or level != $level or space or $space) {
 				if !at_cluster_start {
 					return Err(UnsupportedCluster({ scalar_index: cluster.scalar_start }))
 				}

@@ -8,7 +8,8 @@ import sys
 from check_bilingual_invoice import read_international_page
 from check_pdf_structure import require
 
-NOTICE = "กรุณาชำระเงินภายในวันนี้"
+WORDS = ["กรุณา", "ชำระ", "เงิน", "ภายใน", "วันนี้"]
+NOTICE = "".join(WORDS)
 
 
 def check(pdf: bytes) -> None:
@@ -31,6 +32,24 @@ def check(pdf: bytes) -> None:
         require(mark.replaced and len(mark.positions) == len(expected) and
                 all(abs(x-ex) <= 2 and abs(y-ey) <= 2 for (x, y), (ex, ey) in zip(mark.positions, expected)),
                 "Thai SARA AM decomposition or attached mark positions changed")
+
+
+def check_scale(pdf: bytes, dimensions: dict[str, int]) -> None:
+    entries, _ = read_international_page(pdf)
+    copies = dimensions["dictionary_repetitions"]
+    require(len(entries["P"]) == 1, "Thai scale paragraph lost its single owner")
+    paragraph = entries["P"][0]
+    require(paragraph.language == "th" and paragraph.mode == "LrTb" and paragraph.text() == NOTICE * copies,
+            "Thai scale logical text, language or writing mode changed")
+    require([mark.logical for mark in paragraph.marks] == WORDS * copies,
+            "Thai scale lost a grapheme-aligned word edge")
+    baselines = defaultdict(list)
+    for mark in paragraph.marks:
+        baselines[mark.y].append(mark.x)
+    require(len(baselines) >= copies and list(baselines) == sorted(baselines, reverse=True),
+            "Thai scale paragraph lost a committed line")
+    require(all(positions == sorted(positions) and len(set(positions)) == len(positions)
+                for positions in baselines.values()), "Thai scale painted a line in the wrong order")
 
 
 if __name__ == "__main__":

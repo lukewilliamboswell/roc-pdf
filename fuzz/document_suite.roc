@@ -32,6 +32,8 @@ import GroupingContainmentModel
 import HeadingFamilyModel
 import InterLatinModel
 import InternationalLineModel
+import InternationalAdvanceProof
+import InternationalCoverageModel
 import LinkRegionModel
 import OutlineModel
 import PageBreakModel

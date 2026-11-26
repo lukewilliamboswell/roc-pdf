@@ -6,7 +6,7 @@ import pdf.Document
 import pdf.Pdf
 
 Cases :: [].{
-	Case : [Arabic({ wtpdf : Bool }), ArabicAtomic, Atomic, Hindi({ wtpdf : Bool }), HindiAtomic, Thai({ wtpdf : Bool }), ThaiAtomic, Invoice({ wtpdf : Bool }), Wrap({ count : U64 })]
+	Case : [Arabic({ wtpdf : Bool }), ArabicAtomic, Atomic, Hindi({ wtpdf : Bool }), HindiAtomic, Thai({ wtpdf : Bool }), ThaiAtomic, ThaiWrap({ count : U64 }), Invoice({ wtpdf : Bool }), Wrap({ count : U64 })]
 
 	run : Case -> { bytes : List(U8), work : List(U64) }
 	run = |case| {
@@ -17,6 +17,7 @@ Cases :: [].{
 			HindiAtomic => hindi_atomic(require_fixture(Statement.options({})))
 			Thai({ wtpdf }) => encode(Notice.document({}), selected_profile(require_fixture(Notice.options({})), wtpdf), 0)
 			ThaiAtomic => thai_atomic(require_fixture(Notice.options({})))
+			ThaiWrap({ count }) => thai_wrap(require_fixture(Notice.options({})), count)
 			Invoice({ wtpdf }) => encode(Invoice.document({}), selected_profile(require_fixture(Invoice.options({})), wtpdf), 0)
 			Wrap({ count }) => encode(wrap_document(count), require_fixture(Invoice.options({})), count)
 			Atomic => atomic(require_fixture(Invoice.options({})))
@@ -186,4 +187,22 @@ thai_atomic = |options| {
 	}
 	result = encode(Notice.document({}), options, 0)?
 	Ok({ ..result, work: result.work.append(cases.len() * 2) })
+}
+
+thai_wrap : Pdf.Options, U64 -> Try({ bytes : List(U8), work : List(U64) }, Pdf.Error)
+thai_wrap = |options, count| {
+	text = Str.join_with(List.repeat("กรุณาชำระเงินภายในวันนี้", count), "")
+	block = Pdf.custom_block({
+		name: "Thai dictionary scale",
+		size: { width: 150, height: 495 },
+		inset: 4,
+		contents: [Pdf.paragraph(text)],
+	})
+	document = Pdf.document({ title: "Thai dictionary scale", language: "th", contents: [block] })
+	result = encode(document, options, 0)?
+	if result.work.get(2) != Ok(count * 5) {
+		crash "THAI_DICTIONARY_LOST_LOGICAL_WORDS"
+	}
+	work = require_fixture(result.work.set(3, count))
+	Ok({ ..result, work })
 }

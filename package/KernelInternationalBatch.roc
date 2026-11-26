@@ -52,6 +52,7 @@ KernelInternationalBatch :: [].{
 		var $glyphs = []
 		var $runs = []
 		var $coverage = 0
+		var $graphemes = 0
 		var $face_visits = 0
 		var $source_scalars = 0
 		var $source_bytes = 0
@@ -105,6 +106,7 @@ KernelInternationalBatch :: [].{
 			paragraph = KernelInternationalText.from_paragraph(source.unicode, analysis, bidi, $owners, policy.repertoire, { max_clusters: limits.max_clusters, max_items: limits.max_requests, max_scalars: limits.max_scalars }) ? |cause| Paragraph({ request: first, cause })
 			faces = KernelInternationalSelection.select(policy, head.shape.source, head.authored.language, paragraph) ? |cause| Coverage({ request: first, cause })
 			$coverage = $coverage + faces.work.coverage_spans
+			$graphemes = $graphemes + faces.work.graphemes
 			$face_visits = $face_visits + faces.work.faces
 			$paragraph_count = $paragraph_count + 1
 			var $parent = first
@@ -218,7 +220,7 @@ KernelInternationalBatch :: [].{
 			firsts: $firsts,
 			paragraphs: $paragraphs,
 			parents: $parents,
-			work: { coverage_spans: $coverage, faces: $face_visits, graphemes: $source_scalars, paragraphs: $paragraph_count, programs: $programs.len() },
+			work: { coverage_spans: $coverage, faces: $face_visits, graphemes: $graphemes, paragraphs: $paragraph_count, programs: $programs.len() },
 		})
 	}
 }

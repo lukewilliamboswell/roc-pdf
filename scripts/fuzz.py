@@ -113,6 +113,7 @@ TARGETS = (
     Target("theme_options", 4096, "document_suite"),
     Target("profile_output", 32, "profile_output"),
     Target("inter_latin", 32, "inter_latin"),
+    Target("international_text", 32, "international_text"),
 )
 
 
