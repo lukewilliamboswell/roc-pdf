@@ -18,7 +18,7 @@ Profile checks run before emission, so handle any new diagnostics in
 applications that rely on the default. Standards support is best effort. Use
 the preparation report to review author-dependent requirements for combined
 output. See the
-[output profile guide](../authoring.adoc#authoring-output-profiles).
+[output profile guide](authoring.adoc#authoring-output-profiles).
 
 The document builder now reports `semantics.heading_level` for destination
 headings outside levels 1–6, matching the block-based API.
@@ -28,7 +28,7 @@ headings outside levels 1–6, matching the block-based API.
 Place titles, headings and paragraphs into explicit frames on each sheet.
 Placement order defines reading order, and each page can specify its own
 paint order. Fixed pages also support solid rectangle artwork before and after
-the text. See the [fixed-page authoring guide](../authoring.adoc#authoring-fixed-pages).
+the text. See the [fixed-page authoring guide](authoring.adoc#authoring-fixed-pages).
 
 
 ## Compiler
