@@ -3261,7 +3261,7 @@ validate_profile_request = |doc, options, widgets| {
 	attachment_profile = options.profile == ArchiveWithFiles or options.profile == AccessibleArchiveWithFiles
 	files = Document.associated_files(doc)
 	if options.wtpdf == DeclareAccessibility and !accessible {
-		return Err(InvalidDocument(located_batch(ProfileRequirementViolated, "profile.wtpdf_accessibility", "Select an accessible profile to request the WTPDF accessibility declaration.", ["options.wtpdf"])))
+		return Err(InvalidDocument(located_batch(ProfileRequirementViolated, "profile.wtpdf_accessibility", "Select AccessibleArchive to request the WTPDF accessibility declaration.", ["options.wtpdf"])))
 	}
 	if attachment_profile {
 		if files.is_empty() {
