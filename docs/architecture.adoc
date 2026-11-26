@@ -16,10 +16,10 @@ validation paths.
 
 The production implementation and all of its runtime dependencies are pure
 Roc. Python checks run on generated files, and independent native PDF tools
-are available for optional local review. The package depends on two pure-Roc
-packages, each pinned by an immutable release URL: `roc-lang/unicode` for
-Unicode analysis, and `roc-deflate` for DEFLATE compression (a port of
-libdeflate). The DEFLATE dependency is currently the release candidate of a
+are available for optional local review. The package pins pure Roc
+packages by immutable release URL: `roc-lang/unicode` for Unicode analysis,
+`roc-font` for OpenType run shaping, and `roc-deflate` for DEFLATE
+compression (a port of libdeflate). The DEFLATE dependency is currently the release candidate of a
 fork that carries the libdeflate port ahead of upstream; the package moves to
 an upstream `niclas-ahden/roc-deflate` release once one includes that work.
 https://github.com/lukewilliamboswell/roc-pdf/blob/main/vendor/README.md[`vendor/README.md`] records each dependency's provenance.
@@ -976,6 +976,16 @@ page, and incompatible keeps must not trigger implicit shrinking, clipping,
 content removal, or font substitution. Applications select supported layout
 policies before preparation rather than discover an undocumented recovery mode.
 
+Run shaping uses the exact face chosen by font planning and the scalar,
+grapheme, and line-break facts from Unicode analysis. The provider supplies
+positioned glyphs, cluster offsets, and checked substitution origins.
+Preparation validates the source and glyph partition, scales in the shared
+layout unit, and retains each accepted cluster's source range and semantic
+owner. Unicode break opportunities remain source facts. A provider-unsafe
+legal cut needs fresh context on both sides before measurement accepts it.
+A scope-only color choice leaves shaping and line cache identity unchanged.
+A separate font, size, or authored semantic occurrence is a shaping boundary.
+
 Preformatted source blocks have their own whitespace and typography contract,
 separate from inline code and measured custom blocks. Preparation produces one
 canonical LF source with explicit scalar/UTF-8 line ranges, retaining empty
@@ -1241,12 +1251,12 @@ bounded by a cumulative scalar limit before content emission. The value is
 serialized canonically as a BOM-prefixed UTF-16BE hex string around the run's
 marked-content sequence.
 
-Every painted CID retains a `ToUnicode` entry even when `ActualText` is
-authoritative. If one CID has different occurrence mappings, lowering rejects
-the ambiguity unless the affected run has explicit `ActualText`; in that case
-it retains the first mapping in deterministic traversal order and records the
-resolved conflict as work evidence. Exact logical extraction still comes from
-`ActualText`, not from that necessarily lossy per-CID fallback.
+Every painted CID retains a `ToUnicode` entry even when scoped `ActualText`
+supplies the authored source. The first unscoped mapping is canonical for
+that CID. All other unscoped uses must agree. If every use has `ActualText`,
+the first mapping in deterministic traversal order is canonical. A scoped
+use can disagree because its replacement remains authoritative for
+extraction. Lowering records each resolved disagreement as work evidence.
 The selected mapping must fit in 512 UTF-16BE bytes before hexadecimal
 serialization. The separate logical `ActualText` value follows its own
 budget. https://pdf-issues.pdfa.org/32000-2-2020/clause09.html#H9.10.3[ISO 32000-2 §9.10.3]

@@ -225,7 +225,7 @@ build_labels = |authoring, text, blocks, figures, fonts, language, source_base, 
 
 	## The runs are rewritten in place rather than with `map`: dev builds
 	## never reuse `List.map`'s list.
-	{ advances, store: batch_store, work: _ } = batch
+	{ advances, store: batch_store, .. } = batch
 	var $runs = batch_store.runs
 	var $run_index = 0
 	while $run_index < $runs.len() {

@@ -13,3 +13,8 @@ italic. The [font guide](../../docs/roc-font.adoc) explains these limits and
 caller font mappings. The package retains each original font, licence and
 provenance pin, and `RocFont.licenses` exposes the three family notices for
 applications distributing font assets.
+
+The Inter specimen turns on `theme.latin_shaping: InterLatin` for the plain
+paragraphs. Copy the first arrow into a text editor to get `->` and the
+second to get `→`. Both draw the same Inter glyph. The `AV` specimen uses
+Inter’s kerning adjustment between the two letters.

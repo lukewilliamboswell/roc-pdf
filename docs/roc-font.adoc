@@ -45,8 +45,7 @@ spacing remain theme settings.
 | Fira Code | Available | Unavailable | Available in both faces
 |===
 
-The unchanged source character maps contain these per-face repertoires; this
-does not extend the single-scalar Latin shaping contract:
+The source character maps contain these per-face repertoires under the default shaping policy:
 
 [cols="1,1,1",options="header"]
 |===
@@ -62,8 +61,8 @@ does not extend the single-scalar Latin shaping contract:
 The package ships ten unchanged upstream static font files. Measurement and
 embedding use the same selected bytes, with
 Regular at weight 400 and Bold at 700. No runtime variation axes or font
-instancing are involved. Supported convenience shaping remains single-scalar
-Latin text; glyph coverage does not add script or combining-mark shaping.
+instancing are involved. The default shapes single-scalar Latin text. Glyph
+coverage alone cannot enable a script or shape combining marks.
 Italic repertoires can differ from upright ones. Source versions, hashes and
 licences are recorded in the
 https://github.com/lukewilliamboswell/roc-pdf/blob/main/vendor/fonts/roc-font/upstream-pins.json[font provenance].
@@ -118,3 +117,26 @@ metrics, line breaks, pagination and PDF bytes. Review existing layouts after
 upgrading. Wrap an existing explicit source handle in `Face(...)`, and add
 family mappings or genuine role overrides where custom themes request styles.
 Changing a dependency URL does not replace fonts an application registers itself.
+
+[#inter-latin-shaping]
+== Shape plain Latin paragraphs with Inter
+
+Set `theme: { latin_shaping: InterLatin }` in `Pdf.Options` to use
+Inter Regular kerning and default OpenType substitutions in plain
+`Pdf.paragraph` text. Select the packaged Sans regular face or register
+the byte-identical static Inter Regular that the package ships. The
+shaping path covers printable ASCII and U+2192 in documents with English
+language tags. It accepts one horizontal glyph per shaped cluster, including
+ligatures, up to 16,384 scalars per paragraph. Paragraph colour affects paint
+only. Rich inline spans, other faces and repertoires, ordered font policies,
+fixed pages, and layout-dependent reference documents use their established
+shaping paths. A failed Inter shape reports a diagnostic at the paragraph.
+
+The two-character spelling `->` and the literal `→` can draw the same
+glyph. Copying them preserves the authored spelling. Wrapping measures the
+shaped advances. If a legal break crosses shaping context, preparation
+shapes both sides independently before measuring. `NominalGlyphs` selects
+the default metrics-only path.
+
+See the https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/font-families[font specimen]
+and https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/product-brief[wrapped paragraph example].

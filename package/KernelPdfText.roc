@@ -97,7 +97,10 @@ KernelPdfText :: [].{
 	}
 }
 
-MappingSlot := [Mapped(List(U32)), Unmapped]
+## A replacement scope supplies source text independently of ToUnicode.
+## Its mapping can yield to the first exact use of the same CID. Two
+## unscoped and disagreeing uses still cannot share a character code.
+MappingSlot := [Mapped(List(U32)), Overridden(List(U32)), Unmapped]
 
 FontState := { mappings : List(MappingSlot), plan : KernelFontPlan.Plan }
 
@@ -539,26 +542,33 @@ collect_run_mappings = |states, font_index, semantics, scalars, text, run, run_i
 			}
 			glyph = list_at(text.glyphs, glyph_index).id.raw()
 			cid = cid_for_glyph(state.plan, glyph, run_index)?
-			match list_at($slots, cid.to_u64()) {
+			previous = list_at($slots, cid.to_u64())
+			match previous {
 				Unmapped => {
-					# Only the selected mapping becomes a ToUnicode destination.
-					match mapping {
-						Hyphen => {}
-						Scalars({ begin, length }) => {
-							KernelPdfFont.check_destination_length(scalars.values, begin, length) ? |error| match error {
-								ArithmeticOverflow => ArithmeticOverflow
-								DestinationTooLong({ attempted, limit }) => UnicodeDestinationTooLong({ attempted, cid, font: font_index, limit, run: run_index })
-							}
+					validate_mapping(scalars, mapping, cid, font_index, run_index)?
+					values = mapping_values(scalars, mapping)
+					slot = if (allow_conflicts) Overridden(values) else Mapped(values)
+					$slots = list_set($slots, cid.to_u64(), slot)
+				}
+				Overridden(existing) => {
+					same = mapping_matches(existing, scalars, mapping)
+					if !same {
+						$conflicts = checked_add($conflicts, 1)?
+					}
+					if !allow_conflicts {
+						if same {
+							$slots = list_set($slots, cid.to_u64(), Mapped(existing))
+						} else {
+							validate_mapping(scalars, mapping, cid, font_index, run_index)?
+							$slots = list_set($slots, cid.to_u64(), Mapped(mapping_values(scalars, mapping)))
 						}
 					}
-					$slots = list_set($slots, cid.to_u64(), Mapped(mapping_values(scalars, mapping)))
 				}
 				Mapped(existing) => if !mapping_matches(existing, scalars, mapping) {
-					if allow_conflicts {
-						$conflicts = checked_add($conflicts, 1)?
-					} else {
+					if !allow_conflicts {
 						return Err(UnicodeMappingConflict({ cid, font: font_index }))
 					}
+					$conflicts = checked_add($conflicts, 1)?
 				}
 			}
 			$glyph_reference = $glyph_reference + 1
@@ -566,6 +576,20 @@ collect_run_mappings = |states, font_index, semantics, scalars, text, run, run_i
 		$cluster_index = $cluster_index + 1
 	}
 	Ok({ conflicts: $conflicts, states: list_set(states, font_index, { mappings: $slots, plan: state.plan }) })
+}
+
+## ISO 32000-2:2020 9.10.3 bounds each Unicode CMap destination. Only
+## the value selected for the actual CMap needs to fit this destination.
+validate_mapping : ScalarCache, ClusterMapping, U32, U64, U64 -> Try({}, KernelPdfText.Error)
+validate_mapping = |scalars, mapping, cid, font, run| match mapping {
+	Hyphen => Ok({})
+	Scalars({ begin, length }) => {
+		KernelPdfFont.check_destination_length(scalars.values, begin, length) ? |error| match error {
+			ArithmeticOverflow => ArithmeticOverflow
+			DestinationTooLong({ attempted, limit }) => UnicodeDestinationTooLong({ attempted, cid, font, limit, run })
+		}
+		Ok({})
+	}
 }
 
 generated_discretionary_property : Semantics.IndexRange, List(Semantics.TextProperty), Semantics.TextPropertyId, Semantics.TextRange -> Bool
@@ -671,7 +695,7 @@ finish_mappings = |states, limit| {
 				Unmapped => if entry.content {
 					return Err(IncompleteUnicodeMapping({ cid: entry.cid, font: $font_index }))
 				}
-				Mapped(values) => {
+				Mapped(values) | Overridden(values) => {
 					if !entry.content {
 						return Err(FontPlanInvalid({ font: $font_index }))
 					}

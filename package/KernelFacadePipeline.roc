@@ -191,10 +191,12 @@ build_fixed_pipeline = |authoring, fixed, selection, theme, descriptor, facts, r
 	owners = KernelFacadeSemantics.Plan.block_ownership(semantics)
 	flow_text = KernelFacadeSemantics.Plan.flow_text(semantics)
 	sources = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics))
+	shape_theme : Theme
+	shape_theme = { ..theme, latin_shaping: NominalGlyphs }
 	shape = (
 		match selection {
-			Single(font) => KernelFacadeShape.Plan.build(authoring, owners, flow_text, sources, font, theme, limits.shape)
-			Styled(styled) => KernelFacadeShape.Plan.build_styled(authoring, owners, flow_text, sources, styled, theme, limits.shape)
+			Single(font) => KernelFacadeShape.Plan.build(authoring, owners, flow_text, sources, font, shape_theme, limits.shape)
+			Styled(styled) => KernelFacadeShape.Plan.build_styled(authoring, owners, flow_text, sources, styled, shape_theme, limits.shape)
 			Ordered(ordered) => KernelFacadeShape.Plan.build_ordered(authoring, owners, flow_text, sources, ordered, theme, limits.shape)
 		}
 	) ? |error| Pipeline(Shape(error))

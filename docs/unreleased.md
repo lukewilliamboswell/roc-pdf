@@ -40,6 +40,14 @@ Replace `Pdf.prepare_with_report_budget(document, { options, budget })` with
 the existing defaults for both document options and report budget. See the
 [preparation report guide](authoring.adoc#authoring-preparation-reports).
 
+## Inter Latin shaping
+
+Opt in through `theme.latin_shaping: InterLatin` to use kerning and
+OpenType substitutions for supported plain English paragraphs in the
+packaged Inter Regular face. This can change wrapping and PDF bytes.
+Both arrow spellings preserve their original selectable text.
+See the [font guide](roc-font.md#inter-latin-shaping).
+
 ## Compiler
 
 This development branch uses Roc `nightly-2026-11-25-d5a4f1e`.

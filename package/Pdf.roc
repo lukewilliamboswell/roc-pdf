@@ -1803,6 +1803,14 @@ pipeline_error_at = |error, doc, paths| match error {
 	Semantics(EmptyLanguage) => located_error(doc, InvalidLanguage, "document.language_empty", "The document language is empty; it must be a BCP 47 language tag.", [])
 	Semantics(EmptyMetadataTitle) => located_error(doc, InvalidRelationship, "document.title_empty", "The document's metadata title is empty.", [])
 	Shape(UnsupportedThemeFace({ block, face })) => located_error(doc, FeatureUnavailable, "text.theme_face", "A block's style selects face ${face.to_str()}, which is not one of the faces this document's font selection prepared.", [diagnostic_leaf_path(doc, paths, block)])
+	Shape(LatinShaping({ block, reason })) => {
+		path = [diagnostic_leaf_path(doc, paths, block)]
+		match reason {
+			ShapeBudget(_) => located_error(doc, BudgetExceeded, "text.latin_shaping_budget", "Inter Latin shaping exceeded its checked work budget.", path)
+			MissingGlyph({ byte }) => located_error(doc, FontCoverageMissing, "text.latin_shaping_glyph", "Inter Latin shaping reported a missing glyph at UTF-8 byte ${byte.to_str()}.", path)
+			_ => located_error(doc, FeatureUnavailable, "text.latin_shaping", "The selected Inter Latin run could not be shaped (${Str.inspect(reason)}).", path)
+		}
+	}
 	Shape(ShapeFailure) => located_error(doc, FontCoverageMissing, "text.shaping_failed", "The selected faces could not shape the document's text, and no single text run was identified as the cause; no face is substituted.", [])
 	Scenes(UnsupportedColor({ run })) => located_error(doc, FeatureUnavailable, "color.unsupported", "Text run ${run.to_str()} is painted in a color the selected profile's output intent cannot represent; no color is converted.", [])
 	Output(Images(image)) => image_error(image)

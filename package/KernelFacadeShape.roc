@@ -4,6 +4,7 @@ import Font
 import KernelFacadeSemantics
 import KernelFacadeSources
 import KernelFont
+import KernelLatinShape
 import KernelUnicode
 import KernelShape
 import Layout
@@ -21,6 +22,7 @@ KernelFacadeShape :: [].{
 		InlineClusterBoundary({ block : U64, inline : U64 }),
 		InvalidOccurrence({ block : U64, occurrence : U64 }),
 		LanguageMismatch({ occurrence : U64 }),
+		LatinShaping({ block : U64, reason : KernelLatinShape.Error }),
 		LimitExceeded({ attempted : U64, dimension : Dimension, limit : U64 }),
 		OccurrenceCoverage({ actual : U64, expected : U64 }),
 		PolicyInvalid(Font.PolicyError),
@@ -341,12 +343,17 @@ build_plan = |authoring, owners, store, source_store, font, theme, limits| {
 	## the exact whole-source batch shaper applies. A rich paragraph's
 	## occurrences cover sub-ranges of one source, which the range-exact
 	## selected shaper consumes with the one resolved face.
-	shaped = if preparation.ranges.is_empty() {
-		KernelShape.shape_simple_batch(font, source_store, preparation.options, preparation.requests, limits.shape)
-	} else {
-		KernelShape.shape_selected_batch([font], source_store, { direction: LeftToRight, language: preparation.options.language, writing_mode: Horizontal }, single_face_requests(preparation), limits.shape)
+	latin = inter_latin(authoring, { blocks: preparation.block_runs, requests: preparation.requests.len() }, font, 0, theme)?
+	shaped = match latin {
+		InterLatin(plan) => KernelShape.shape_selected_inter_batch([font], source_store, { direction: LeftToRight, language: preparation.options.language, writing_mode: Horizontal }, single_face_requests(preparation, source_store), limits.shape, plan)
+		NoInterLatin => if preparation.ranges.is_empty() {
+			KernelShape.shape_simple_batch(font, source_store, preparation.options, preparation.requests, limits.shape)
+		} else {
+			KernelShape.shape_selected_batch([font], source_store, { direction: LeftToRight, language: preparation.options.language, writing_mode: Horizontal }, single_face_requests(preparation, source_store), limits.shape)
+		}
 	}
 	shape = match shaped {
+		Err(InterLatin({ request, reason })) => return Err(LatinShaping({ block: inter_block(preparation.block_runs, request), reason }))
 		Err(_) => return Err(
 			match locate_text_failure(authoring, preparation, store, source_store, [single_face_rules(font)], |_| 0) {
 				Located(located) => located
@@ -408,7 +415,7 @@ build_styled_plan = |authoring, owners, store, source_store, styled, theme, limi
 		$candidate = $candidate + 1
 	}
 	if !authoring.sources.is_empty() {
-		return build_source_styled(authoring, preparation, store, source_store, styled, candidates, $dense, $faces, $fonts, limits)
+		return build_source_styled(authoring, preparation, store, source_store, styled, candidates, $dense, $faces, $fonts, theme, limits)
 	}
 	latin = Font.Script.from_iso15924("Latn")
 	var $selected = List.with_capacity(preparation.requests.len())
@@ -420,12 +427,13 @@ build_styled_plan = |authoring, owners, store, source_store, styled, theme, limi
 		$selected = $selected.append({ clusters: range.clusters, instance, language: range.language, occurrence: request.occurrence, script: latin, size: request.size, source: request.source })
 		$index = $index + 1
 	}
-	shaped = if authoring.sources.is_empty() {
-		KernelShape.shape_selected_batch($fonts, source_store, { direction: LeftToRight, language: preparation.options.language, writing_mode: Horizontal }, $selected, limits.shape)
-	} else {
-		KernelShape.shape_ranged_selected_batch($fonts, source_store, { direction: LeftToRight, language: preparation.options.language, writing_mode: Horizontal }, $selected, limits.shape)
+	body = list_at($dense, 0)
+	shaped = match inter_latin(authoring, { blocks: preparation.block_runs, requests: preparation.requests.len() }, list_at($fonts, body), body, theme)? {
+		InterLatin(plan) => KernelShape.shape_selected_inter_batch($fonts, source_store, { direction: LeftToRight, language: preparation.options.language, writing_mode: Horizontal }, $selected, limits.shape, plan)
+		NoInterLatin => KernelShape.shape_selected_batch($fonts, source_store, { direction: LeftToRight, language: preparation.options.language, writing_mode: Horizontal }, $selected, limits.shape)
 	}
 	shape = match shaped {
+		Err(InterLatin({ request, reason })) => return Err(LatinShaping({ block: inter_block(preparation.block_runs, request), reason }))
 		Ok(value) => value
 		Err(_) => {
 			rules = styled.fonts.map(|font| single_face_rules(font))
@@ -462,8 +470,8 @@ build_styled_plan = |authoring, owners, store, source_store, styled, theme, limi
 ## A source document retains ordinary paragraph preparation while expanding
 ## source logical lines at their actual itemized script boundaries. Exact
 ## registered face selection is preserved for every source segment.
-build_source_styled : Document.NormalizedAuthoring, KernelFacadeShape.Preparation, KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), KernelFacadeShape.StyledFaces, List(U64), List(U64), List(Font.FaceId), List(KernelFont.Inspection), KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
-build_source_styled = |authoring, preparation, store, sources, styled, candidates, dense, faces, fonts, limits| {
+build_source_styled : Document.NormalizedAuthoring, KernelFacadeShape.Preparation, KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), KernelFacadeShape.StyledFaces, List(U64), List(U64), List(Font.FaceId), List(KernelFont.Inspection), Theme, KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
+build_source_styled = |authoring, preparation, store, sources, styled, candidates, dense, faces, fonts, theme, limits| {
 	var $requests = []
 	var $selected = []
 	var $styles = []
@@ -532,7 +540,15 @@ build_source_styled = |authoring, preparation, store, sources, styled, candidate
 		}
 		$block = $block + 1
 	}
-	shape = match KernelShape.shape_ranged_selected_batch(fonts, sources, { direction: LeftToRight, language: preparation.options.language, writing_mode: Horizontal }, $selected, limits.shape) {
+	options = { direction: LeftToRight, language: preparation.options.language, writing_mode: Horizontal }
+	# On the source-aware path the body face need not be present at all.
+	# Try the original candidate for eligibility, even if it was unused.
+	shaped = match inter_latin(authoring, { blocks: $block_runs, requests: $requests.len() }, list_at(styled.fonts, 0), list_at(dense, 0), theme)? {
+		InterLatin(plan) => KernelShape.shape_ranged_inter_batch(fonts, sources, options, $selected, limits.shape, plan)
+		NoInterLatin => KernelShape.shape_ranged_selected_batch(fonts, sources, options, $selected, limits.shape)
+	}
+	shape = match shaped {
+		Err(InterLatin({ request, reason })) => return Err(LatinShaping({ block: inter_block($block_runs, request), reason }))
 		Ok(value) => value
 		Err(_) => {
 			rules = styled.fonts.map(|font| single_face_rules(font))
@@ -750,18 +766,72 @@ inline_candidate = |inlines, { index, styled }| {
 
 ## Range-exact requests over the one resolved face (dense font 0), in
 ## preparation order: each request shapes exactly its occurrence's clusters.
-single_face_requests : KernelFacadeShape.Preparation -> List(KernelShape.SelectedBatchRequest)
-single_face_requests = |preparation| {
+single_face_requests : KernelFacadeShape.Preparation, List(KernelFacadeSources.Source) -> List(KernelShape.SelectedBatchRequest)
+single_face_requests = |preparation, sources| {
 	latin = Font.Script.from_iso15924("Latn")
 	var $selected = List.with_capacity(preparation.requests.len())
 	var $index = 0
 	while $index < preparation.requests.len() {
 		request = list_at(preparation.requests, $index)
-		range = list_at(preparation.ranges, $index)
+		range = if (preparation.ranges.is_empty()) whole_source_range(sources, request.source, preparation.options.language) else list_at(preparation.ranges, $index)
 		$selected = $selected.append({ clusters: range.clusters, instance: Font.InstanceId.from_index(0), language: range.language, occurrence: request.occurrence, script: latin, size: request.size, source: request.source })
 		$index = $index + 1
 	}
 	$selected
+}
+
+## The selected face and the authored block/occurrence boundaries decide
+## eligibility. No late glyph or paint inspection changes those boundaries.
+inter_latin : Document.NormalizedAuthoring, { blocks : List(KernelFacadeShape.BlockRuns), requests : U64 }, KernelFont.Inspection, U64, Theme -> Try([InterLatin(KernelShape.InterLatinPlan), NoInterLatin], KernelFacadeShape.Error)
+inter_latin = |authoring, preparation, font, face, theme| {
+	if theme.latin_shaping != InterLatin or !KernelLatinShape.eligible_face(font) {
+		return Ok(NoInterLatin)
+	}
+	language = authoring.language.to_utf8()
+	if language.len() < 2 or (list_at(language, 0) != 0x45 and list_at(language, 0) != 0x65) or (list_at(language, 1) != 0x4e and list_at(language, 1) != 0x6e) or (language.len() > 2 and list_at(language, 2) != 0x2d) {
+		return Ok(NoInterLatin)
+	}
+	var $paragraphs = List.repeat(False, preparation.requests)
+	var $first = authoring.blocks.len()
+	var $block = 0
+	while $block < authoring.blocks.len() {
+		authored = list_at(authoring.blocks, $block)
+		ordinary_paragraph = match authored.kind {
+			Paragraph => authored.parent == 0 or match list_at(authoring.groups, authored.parent - 1).kind {
+				Table(_) => False
+				_ => True
+			}
+			_ => False
+		}
+		if ordinary_paragraph {
+			match list_at(preparation.blocks, $block) {
+				TextBlock({ body, label: NoLabel, level: _ }) if body.physical.length() == 1 => {
+					$paragraphs = list_set($paragraphs, body.physical.start(), True)
+					$first = U64.min($first, $block)
+				}
+				_ => {}
+			}
+		}
+		$block = $block + 1
+	}
+	if $first == authoring.blocks.len() {
+		return Ok(NoInterLatin)
+	}
+	plan = KernelLatinShape.prepare(font) ? |reason| LatinShaping({ block: $first, reason })
+	Ok(InterLatin({ face, paragraphs: $paragraphs, plan }))
+}
+
+inter_block : List(KernelFacadeShape.BlockRuns), U64 -> U64
+inter_block = |blocks, request| {
+	var $block = 0
+	for block in blocks {
+		match block {
+			TextBlock({ body, label: _, level: _ }) if body.physical.start() == request => return $block
+			_ => {}
+		}
+		$block = $block + 1
+	}
+	crash "eligible Latin run escaped its authored block"
 }
 
 request_origins : List(KernelFacadeShape.RequestRange) -> KernelFacadeShape.Origins

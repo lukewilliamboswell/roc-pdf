@@ -1017,7 +1017,7 @@ resolve_plan = |static, label_plan, scope_pages, selection, language, source_bas
 				$requests = $requests.append({ occurrence: Semantics.OccurrenceId.from_index(index), size: static.style.size, source: Semantics.TextSourceId.from_index(index) })
 			}
 			options = { direction: LeftToRight, instance: Font.InstanceId.from_index(instance), language, script: Font.Script.from_iso15924("Latn"), writing_mode: Horizontal }
-			batch = if (unique.is_empty()) { advances: [], store: empty_store, work: empty_shape_work } else KernelShape.shape_simple_batch(font, unique, options, $requests, limits.shape) ? |error| locate_single_text_error(static, font, unique, options, input_sources, $pending, error, limits.shape)
+			batch = if (unique.is_empty()) { advances: [], inter_runs: [], store: empty_store, work: empty_shape_work } else KernelShape.shape_simple_batch(font, unique, options, $requests, limits.shape) ? |error| locate_single_text_error(static, font, unique, options, input_sources, $pending, error, limits.shape)
 			{ batch, extra_fonts: if (extra and !unique.is_empty()) [font] else [], run_sources: [], source_runs: [] }
 		}
 		PolicyFaces(policy) => shape_under_policy(policy, unique, static, input_sources, $pending, language, limits)?
@@ -1568,7 +1568,7 @@ shape_under_policy = |policy, unique, static, input_sources, pending, language, 
 		$source_runs = $source_runs.append(span(start, $selected.len()))
 		$index = $index + 1
 	}
-	batch = if (unique.is_empty()) { advances: [], store: empty_store, work: empty_shape_work } else KernelShape.shape_selected_batch($fonts, unique, { direction: LeftToRight, language, writing_mode: Horizontal }, $selected, limits.shape) ? Shape
+	batch = if (unique.is_empty()) { advances: [], inter_runs: [], store: empty_store, work: empty_shape_work } else KernelShape.shape_selected_batch($fonts, unique, { direction: LeftToRight, language, writing_mode: Horizontal }, $selected, limits.shape) ? Shape
 	Ok({ batch, extra_fonts: $fonts.drop_first(policy.fonts.len()), run_sources: $run_sources, source_runs: $source_runs })
 }
 

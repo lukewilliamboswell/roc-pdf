@@ -121,7 +121,10 @@ KernelLineLayout :: [].{
 
 	BatchPlan :: { lines : List(Line), run_lines : List(Semantics.IndexRange), work : BatchWork }.{
 		build : List(KernelShape.SimpleSource), List(KernelShape.SimpleRequest), Text.Store, List(RunRequest), BatchLimits -> Try(BatchPlan, Error)
-		build = |sources, shape_requests, store, requests, limits| build_batch(sources, shape_requests, store, requests, limits)
+		build = |sources, shape_requests, store, requests, limits| build_batch(sources, shape_requests, store, requests, [], limits)
+
+		build_variants : List(KernelShape.SimpleSource), List(KernelShape.SimpleRequest), Text.Store, List(RunRequest), List(Bool), BatchLimits -> Try(BatchPlan, Error)
+		build_variants = |sources, shape_requests, store, requests, variants, limits| build_batch(sources, shape_requests, store, requests, variants, limits)
 
 		## A wholly contentless source still has visual rows for pagination.
 		empty : {} -> BatchPlan
@@ -135,20 +138,25 @@ KernelLineLayout :: [].{
 		## instance, size, and cluster count. A signature over that sequence
 		## narrows probes, and equal signatures are confirmed run by run.
 		build_logical : List(KernelShape.SimpleSource), Text.Store, List(LogicalRunRequest), BatchLimits -> Try(BatchPlan, Error)
-		build_logical = |sources, store, requests, limits| build_logical_batch(sources, store, requests, [], [], limits)
+		build_logical = |sources, store, requests, limits| build_logical_batch(sources, store, requests, [], [], [], limits)
 
 		## `build_logical` with holds, sorted by request and then by start.
 		## A request with holds is laid out on its own: its template is
 		## neither found in nor added to the template cache, so it never
 		## shares lines with an equal request that has none.
 		build_logical_held : List(KernelShape.SimpleSource), Text.Store, List(LogicalRunRequest), List(Hold), BatchLimits -> Try(BatchPlan, Error)
-		build_logical_held = |sources, store, requests, holds, limits| build_logical_batch(sources, store, requests, holds, [], limits)
+		build_logical_held = |sources, store, requests, holds, limits| build_logical_batch(sources, store, requests, holds, [], [], limits)
 
 		## A source-aware batch: aligned request modes mark exact canonical
 		## logical-line ranges. Source requests bypass whole-source caching;
 		## prose preserves its usual holds and cache contract.
 		build_source_mixed : List(KernelShape.SimpleSource), Text.Store, List(LogicalRunRequest), List(Hold), List(SourceMode), BatchLimits -> Try(BatchPlan, Error)
-		build_source_mixed = |sources, store, requests, holds, modes, limits| build_logical_batch(sources, store, requests, holds, modes, limits)
+		build_source_mixed = |sources, store, requests, holds, modes, limits| build_logical_batch(sources, store, requests, holds, modes, [], limits)
+
+		## A shaping variant uses a separate cache namespace without duplicating
+		## its Unicode analysis. Only whole single-run paragraphs are eligible.
+		build_logical_variants : List(KernelShape.SimpleSource), Text.Store, List(LogicalRunRequest), List(Hold), List(SourceMode), List(Bool), BatchLimits -> Try(BatchPlan, Error)
+		build_logical_variants = |sources, store, requests, holds, modes, variants, limits| build_logical_batch(sources, store, requests, holds, modes, variants, limits)
 
 		lines : BatchPlan -> List(Line)
 		lines = |plan| plan.lines
@@ -204,9 +212,12 @@ RangeBounds := { cluster_end : U64, cluster_start : U64, glyph_end : U64, glyph_
 empty_slot : U64
 empty_slot = U64.highest
 
-build_batch : List(KernelShape.SimpleSource), List(KernelShape.SimpleRequest), Text.Store, List(KernelLineLayout.RunRequest), KernelLineLayout.BatchLimits -> Try(KernelLineLayout.BatchPlan, KernelLineLayout.Error)
-build_batch = |sources, shape_requests, store, requests, limits| {
+build_batch : List(KernelShape.SimpleSource), List(KernelShape.SimpleRequest), Text.Store, List(KernelLineLayout.RunRequest), List(Bool), KernelLineLayout.BatchLimits -> Try(KernelLineLayout.BatchPlan, KernelLineLayout.Error)
+build_batch = |sources, shape_requests, store, requests, variants, limits| {
 	if requests.len() == 0 or requests.len() != store.runs.len() or shape_requests.len() != requests.len() {
+		return Err(InvalidAnalysis)
+	}
+	if !variants.is_empty() and variants.len() != store.runs.len() {
 		return Err(InvalidAnalysis)
 	}
 	check_limit(requests.len(), limits.max_runs, Runs)?
@@ -238,7 +249,7 @@ build_batch = |sources, shape_requests, store, requests, limits| {
 		if source_index >= sources.len() or shape_request.source.index() != source_index or !same_occurrence or shape_request.size != run.size or request.width <= 0 {
 			return Err(InvalidRun({ run: $run_index }))
 		}
-		key = { instance: run.instance.index(), size: run.size.raw(), source: source_index, width: request.width.raw() }
+		key = { instance: run.instance.index(), size: run.size.raw(), source: cache_source(sources.len(), source_index, variants, $run_index)?, width: request.width.raw() }
 		var $template_index = empty_slot
 		var $insertion_slot = empty_slot
 		if $previous_template != empty_slot {
@@ -367,12 +378,15 @@ build_batch = |sources, shape_requests, store, requests, limits| {
 ## adjacent physical runs, proven contiguous before any measurement.
 LogicalBounds := { bounds : RangeBounds, glyph_length : U64, instance : U64, signature : U64, size : I64 }
 
-build_logical_batch : List(KernelShape.SimpleSource), Text.Store, List(KernelLineLayout.LogicalRunRequest), List(KernelLineLayout.Hold), List(KernelLineLayout.SourceMode), KernelLineLayout.BatchLimits -> Try(KernelLineLayout.BatchPlan, KernelLineLayout.Error)
-build_logical_batch = |sources, store, requests, holds, modes, limits| {
+build_logical_batch : List(KernelShape.SimpleSource), Text.Store, List(KernelLineLayout.LogicalRunRequest), List(KernelLineLayout.Hold), List(KernelLineLayout.SourceMode), List(Bool), KernelLineLayout.BatchLimits -> Try(KernelLineLayout.BatchPlan, KernelLineLayout.Error)
+build_logical_batch = |sources, store, requests, holds, modes, variants, limits| {
 	if requests.len() == 0 or store.runs.len() == 0 {
 		return Err(InvalidAnalysis)
 	}
 	if !modes.is_empty() and modes.len() != requests.len() {
+		return Err(InvalidAnalysis)
+	}
+	if !variants.is_empty() and variants.len() != store.runs.len() {
 		return Err(InvalidAnalysis)
 	}
 	check_limit(requests.len(), limits.max_runs, Runs)?
@@ -411,10 +425,11 @@ build_logical_batch = |sources, store, requests, holds, modes, limits| {
 		}
 		logical = logical_bounds(store, request.runs, $run_cursor)?
 		$run_cursor = range_end(request.runs)?
-		if source_index > u32_max or request.runs.length() > u32_max {
+		variant_source = if (request.runs.length() == 1) cache_source(sources.len(), source_index, variants, request.runs.start())? else source_index
+		if variant_source > u32_max or request.runs.length() > u32_max {
 			return Err(InvalidRun({ run: $request_index }))
 		}
-		key = { run_count: request.runs.length().to_u32_wrap(), run_start: request.runs.start(), signature: logical.signature, source: source_index.to_u32_wrap(), width: request.width.raw() }
+		key = { run_count: request.runs.length().to_u32_wrap(), run_start: request.runs.start(), signature: logical.signature, source: variant_source.to_u32_wrap(), width: request.width.raw() }
 		var $template_index = empty_slot
 		var $insertion_slot = empty_slot
 		if $previous_template != empty_slot and !held {
@@ -705,6 +720,15 @@ logical_key_equal = |store, left, right| {
 ## by `logical_key_equal`.
 hash_logical_key : LogicalKey, U64, I64 -> U64
 hash_logical_key = |key, instance, size| hash_key({ instance, size, source: key.source.to_u64(), width: key.width })
+
+cache_source : U64, U64, List(Bool), U64 -> Try(U64, KernelLineLayout.Error)
+cache_source = |source_count, source, variants, run| {
+	if !variants.is_empty() and list_at(variants, run) {
+		checked_add(source_count, source)
+	} else {
+		Ok(source)
+	}
+}
 
 hash_key : BatchKey -> U64
 hash_key = |key| {

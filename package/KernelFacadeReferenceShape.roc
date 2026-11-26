@@ -115,7 +115,7 @@ build_plan = |authoring, literals, sources, selection, theme, limits| {
 	## Empty literal stores are intentional, including an atom-only document.
 	## They do not manufacture an empty source or a shaping request.
 	batch = if $selected.is_empty() {
-		{ store: empty_store, advances: [], work: empty_work }
+		{ store: empty_store, advances: [], inter_runs: [], work: empty_work }
 	} else {
 		match KernelShape.shape_ranged_selected_batch(selected.fonts, sources, { direction: LeftToRight, language: Language(authoring.language), writing_mode: Horizontal }, $selected, KernelFacadeShape.Limits.shape(limits)) {
 			Ok(value) => value
@@ -404,7 +404,7 @@ finalize_shape = |plan, authoring, owners, count| {
 		$font_tables = $font_tables + font.work.directory_entries
 	}
 	work = view.work.shape
-	final = KernelFacadeShape.Plan.from_contexts({ block_runs: $blocks, origins: Origins(view.origins), requests: view.requests, selection: view.selection, shape: { store: view.store, advances: view.advances, work }, styles: view.styles, work: { font_bytes: $font_bytes, font_tables: $font_tables, glyphs: work.glyph_visits, metric_reads: work.metric_reads, requests: view.work.selected_runs, scalars: work.scalar_visits, script_run_visits: work.script_run_visits, source_bytes: work.utf8_bytes } }, count) ? Style
+	final = KernelFacadeShape.Plan.from_contexts({ block_runs: $blocks, origins: Origins(view.origins), requests: view.requests, selection: view.selection, shape: { store: view.store, advances: view.advances, inter_runs: [], work }, styles: view.styles, work: { font_bytes: $font_bytes, font_tables: $font_tables, glyphs: work.glyph_visits, metric_reads: work.metric_reads, requests: view.work.selected_runs, scalars: work.scalar_visits, script_run_visits: work.script_run_visits, source_bytes: work.utf8_bytes } }, count) ? Style
 	Ok(final)
 }
 

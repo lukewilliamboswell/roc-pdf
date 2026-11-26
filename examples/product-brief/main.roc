@@ -97,6 +97,7 @@ white = Color.srgb8({ red: 255, green: 255, blue: 255 })
 theme : Faces -> Theme
 theme = |faces| {
 	face: faces.regular,
+	latin_shaping: InterLatin,
 	body: { color: charcoal, size: 11, leading: 16 },
 	title: { color: forest, face: Face(faces.bold), size: 40, leading: 46 },
 	headings: { all: { color: forest, face: Face(faces.bold), size: 17, leading: 22 } },
@@ -473,6 +474,14 @@ contents = |options| Ok([
 	]),
 	Pdf.section([
 		Pdf.destination_heading({ name: "new", level: 1, text: "What is new in 2.4" }),
+		# At 131 pt, shaped Inter keeps Decided on the first line. The
+		# unkerned, non-ligature version breaks before that word.
+		Pdf.custom_block({
+			name: "Decision workflow",
+			size: { width: 143, height: 44 },
+			inset: 6,
+			contents: [Pdf.paragraph("AV Proposed -> Decided → Archived")],
+		}),
 		Pdf.bullet_list([
 			feature("Decision log.", [Pdf.text("Every card that reaches Decided is written to an append-only log with its owner, date, and rationale.")]),
 			feature("Typed ownership.", [Pdf.text("Owners are people, not channels; a card without an owner cannot leave Proposed.")]),

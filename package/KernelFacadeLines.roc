@@ -209,7 +209,7 @@ build_plan = |authoring, shape, sources, page, theme, limits| {
 	if $next_run != run_count {
 		return Err(RunCoverage({ actual: $next_run, expected: run_count }))
 	}
-	line = KernelLineLayout.BatchPlan.build(sources, shape_requests, shape_batch.store, $line_requests, limits.line) ? LineLayout
+	line = KernelLineLayout.BatchPlan.build_variants(sources, shape_requests, shape_batch.store, $line_requests, shape_batch.inter_runs, limits.line) ? LineLayout
 	run_lines = KernelLineLayout.BatchPlan.run_lines(line)
 	var $blocks = List.with_capacity(block_runs.len())
 	$block_index = 0
@@ -491,9 +491,9 @@ build_ordered_with_geometry = |authoring, shape, sources, limits, input| {
 	line = if run_count == 0 {
 		KernelLineLayout.BatchPlan.empty({})
 	} else if !authoring.sources.is_empty() {
-		KernelLineLayout.BatchPlan.build_source_mixed(sources, shape_batch.store, $line_requests, $holds, $modes, limits.line) ? |error| source_layout_error(authoring, $logical_index_of_body, geometries, shape_batch.store, error)
+		KernelLineLayout.BatchPlan.build_logical_variants(sources, shape_batch.store, $line_requests, $holds, $modes, shape_batch.inter_runs, limits.line) ? |error| source_layout_error(authoring, $logical_index_of_body, geometries, shape_batch.store, error)
 	} else {
-		(if ($holds.is_empty()) KernelLineLayout.BatchPlan.build_logical(sources, shape_batch.store, $line_requests, limits.line) else KernelLineLayout.BatchPlan.build_logical_held(sources, shape_batch.store, $line_requests, $holds, limits.line)) ? |error| if (fixed) fixed_line_error(block_runs, geometries, shape_batch.store, error) else LineLayout(error)
+		KernelLineLayout.BatchPlan.build_logical_variants(sources, shape_batch.store, $line_requests, $holds, [], shape_batch.inter_runs, limits.line) ? |error| if (fixed) fixed_line_error(block_runs, geometries, shape_batch.store, error) else LineLayout(error)
 	}
 	run_lines = KernelLineLayout.BatchPlan.run_lines(line)
 	var $blocks = List.with_capacity(block_runs.len())

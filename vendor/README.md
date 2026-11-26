@@ -21,15 +21,24 @@ for corpus investigations.
 
 ## Package dependencies
 
-The production package depends on two pure-Roc packages, fetched by `roc` from
+The production package depends on pure Roc packages, fetched by `roc` from
 their immutable release URLs; they are not vendored or bundled. The URL's
 final path segment is the bundle's content hash, so a changed archive cannot
-satisfy the pin. `package/main.roc` and `package/all.roc` declare both.
+satisfy the pin. `package/main.roc` and `package/all.roc` declare the same dependencies.
 
 | Package | Version | Release bundle | Archive SHA-256 | License | Use |
 | --- | --- | --- | --- | --- | --- |
 | `roc-lang/unicode` | 4.4.0 | [9qGDBYdjWTJFMhauxdUMpWHDQuzRd4E4E2dtBDHNffnS.tar.zst](https://github.com/roc-lang/unicode/releases/download/4.4.0/9qGDBYdjWTJFMhauxdUMpWHDQuzRd4E4E2dtBDHNffnS.tar.zst) | `73a7d30b8e93e08bab73b9f548df3416bda3a06c6358ba020e12c2d4d5eaddbc` | UPL-1.0 | Scalar, segmentation, bidirectional, and case analysis |
 | `lukewilliamboswell/roc-deflate` | 0.4.0-rc4 | [FoGWbhCP9K1Qk7HA9wcSxHYTpiwTHmCpfNUZx7rAGSSk.tar.zst](https://github.com/lukewilliamboswell/roc-deflate/releases/download/0.4.0-rc4/FoGWbhCP9K1Qk7HA9wcSxHYTpiwTHmCpfNUZx7rAGSSk.tar.zst) | `ef6d916b1629440ef0dab40e8416014dac227aeb60c2ecf19f2a28ecddf6d77d` | Apache-2.0 | DEFLATE compression behind `package/KernelDeflate.roc` |
+
+`roc-font` 0.2.0 resolves to commit
+[`e9f8dbc3302fb59b9172710f8c01da51bcd8b999`](https://github.com/lukewilliamboswell/roc-font/tree/e9f8dbc3302fb59b9172710f8c01da51bcd8b999)
+and the [immutable package archive](https://github.com/lukewilliamboswell/roc-font/releases/download/0.2.0/FQLdPYwz6xJD3n7Bg3Y8ACd3Aym4aYvBGybd9Z3tAnjN.tar.zst)
+(SHA-256 `a094838edc5f3943c889f52761ecaf724f5d268e1294136d055fd817a6f54f59`).
+The release's [license and notices](https://github.com/lukewilliamboswell/roc-font/tree/e9f8dbc3302fb59b9172710f8c01da51bcd8b999#license)
+govern the shaper and its Unicode 18.0.0 data. The PDF adapter uses the
+already registered exact Inter Regular bytes. The optional differential
+oracle uses HarfBuzz 14.6.0 via uharfbuzz 0.56.3 and never runs from the package.
 
 `roc-deflate` 0.4.0-rc4 (fork commit `78e74dd`) is a fork of
 `niclas-ahden/roc-deflate` carrying Richard Feldman's pure-Roc port of

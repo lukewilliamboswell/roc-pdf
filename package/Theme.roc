@@ -43,6 +43,7 @@ Theme := {
 	furniture : FurnitureStyle ?? BodyStyle,
 	headings : Headings ?? {},
 	inline : InlineRoles ?? {},
+	latin_shaping : [InterLatin, NominalGlyphs] ?? NominalGlyphs,
 	link : LinkStyle ?? {},
 	page_margin : PageMargin ?? {},
 	paragraph_spacing : Layout.Unit ?? 8,
