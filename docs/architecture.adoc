@@ -976,6 +976,16 @@ page, and incompatible keeps must not trigger implicit shrinking, clipping,
 content removal, or font substitution. Applications select supported layout
 policies before preparation rather than discover an undocumented recovery mode.
 
+For sequential column flow, validated page-local widths and gutter select
+an ordered pair of frames. A paragraph cursor carries the next uncommitted
+cluster and its original shaped run ranges. It shares a single measured
+advance prefix, so continuing at a different width does not remeasure
+earlier text or copy the paragraph. Bounded line selection scouts a frame's
+cut, with at most a two-line end check at the next width. The accepted
+placement retains the physical page and baseline while preserving the
+existing paragraph occurrence. A rejected mandatory keep never emits a
+partial column.
+
 Preformatted source blocks have their own whitespace and typography contract,
 separate from inline code and measured custom blocks. Preparation produces one
 canonical LF source with explicit scalar/UTF-8 line ranges, retaining empty

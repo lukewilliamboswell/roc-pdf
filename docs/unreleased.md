@@ -40,6 +40,12 @@ Replace `Pdf.prepare_with_report_budget(document, { options, budget })` with
 the existing defaults for both document options and report budget. See the
 [preparation report guide](authoring.adoc#authoring-preparation-reports).
 
+## Two-column flow
+
+Flow plain paragraphs through two explicitly sized columns. A paragraph
+that spans columns or pages keeps its authored text and logical reading order.
+See the [two-column guide](authoring.adoc#authoring-column-flow).
+
 ## Compiler
 
 This development branch uses Roc `nightly-2026-11-25-d5a4f1e`.

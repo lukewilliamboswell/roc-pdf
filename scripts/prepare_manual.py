@@ -17,7 +17,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_URL = "https://github.com/lukewilliamboswell/roc-pdf/blob/main/"
 ASSETS = {f"images/{name}.png": f"examples/{name}/preview.png"
-          for name in ("tax-invoice", "business-report", "vector-diagrams", "remittance-advice")}
+          for name in ("tax-invoice", "business-report", "vector-diagrams", "remittance-advice", "pilot-findings")}
 
 
 def version_key(version: str) -> tuple[int, int, int, int]:

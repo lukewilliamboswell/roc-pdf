@@ -747,6 +747,51 @@ text, such as a band behind a heading. Drawings are
 validated at their authored path (`document.figure_drawing`,
 `layout.decoration_drawing`).
 
+[#authoring-column-flow]
+== Flow paragraphs through two columns
+
+Use `Pdf.multi_column` as the document's only top-level block. Specify both
+column widths and the gutter. For example, a 456 pt page with 24 pt side
+margins leaves 408 pt for columns of 206 and 186 pt separated by 16 pt.
+
+[source,roc]
+----
+article = Pdf.document({
+    title: "Pilot findings",
+    language: "en-AU",
+    contents: [
+        Pdf.multi_column({
+            first: 206, second: 186, gutter: 16,
+            contents: [
+                Pdf.title("Pilot findings"),
+                Pdf.paragraph("The trial compared two afternoon routes."),
+            ],
+        }),
+    ],
+})
+bytes = Pdf.to_bytes_with(article, {
+    page_size: Custom({ width: 456, height: 228 }),
+    theme: { page_margin: { left: 24, right: 24, top: 24, bottom: 24 } },
+})?
+----
+
+Each page fills its left column and then its right column. Text wraps against
+the current column's width. A paragraph keeps its logical identity and
+authored source when it continues into another column or page. Paragraph
+spacing stops at a column edge. The layout prefers two lines at the start
+and end of a split paragraph where the available space permits it.
+
+Titles and a single paragraph wrapped in `Pdf.keep_together([paragraph])`
+require a complete column fragment. An impossible keep reports
+`layout.columns.keep_conflict` at the authored block. Column widths and
+gutter must be positive and fit the body. An oversized or unbreakable line
+returns a diagnostic at the containing block. Flow accepts plain paragraphs
+and titles. Page templates, links, rich inline spans, tables, and balancing
+are outside this composition mode.
+
+See the xref:gallery.adoc#pilot-findings[runnable pilot article] for text
+that continues through both columns and onto a second page.
+
 [#authoring-fixed-pages]
 == Position text on fixed pages
 
@@ -938,6 +983,7 @@ ordinary preparation with the same document options.
 | chapter scopes (`Pdf.page_scope`), opening/continuation templates and running labels | supported
 | a caller-registered face per inline role (style faces) | supported
 | furniture text under an ordered font policy | supported
+| sequential flow of plain paragraphs through two columns | xref:authoring.adoc#authoring-column-flow[two-column guide]
 | fixed pages with text frames and rectangle artifacts | supported; xref:authoring.adoc#authoring-fixed-pages[fixed-page guide]
 | columns, floats, footnotes, row spans, complex tables | unavailable; requests return a feature diagnostic
 | `AccessibleArchive`, `Archive`, and `Standard` | xref:authoring.adoc#authoring-output-profiles[choose an output profile]

@@ -2481,6 +2481,17 @@ diagnostic_leaf_path = |doc, paths, block| match paths {
 	ColumnPaths(_) => column_block_path(block)
 }
 
+column_report_paths : U64 -> List(Str)
+column_report_paths = |count| {
+	var $paths = List.with_capacity(count)
+	var $block = 0
+	while $block < count {
+		$paths = $paths.append(column_block_path($block))
+		$block = $block + 1
+	}
+	$paths
+}
+
 fixed_page_path : U64 -> Str
 fixed_page_path = |page| "pages[${page.to_str()}]"
 
@@ -4312,15 +4323,7 @@ build_report_at = |normalized, collected, budget, profile, path_source| {
 	paths = match path_source {
 		FlowReportPaths => leaf_paths(normalized)
 		FixedReportPaths(pages) => fixed_report_paths(pages, normalized.blocks.len())
-		ColumnReportPaths => {
-			var $paths = List.with_capacity(normalized.blocks.len())
-			var $block = 0
-			while $block < normalized.blocks.len() {
-				$paths = $paths.append(column_block_path($block))
-				$block = $block + 1
-			}
-			$paths
-		}
+		ColumnReportPaths => column_report_paths(normalized.blocks.len())
 	}
 	path_at = |block| match paths.get(block) {
 		Ok(value) => value

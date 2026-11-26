@@ -1,0 +1,4 @@
+{"name":"flowing columns one pilot article","schema_version":1,"case":{"Article":{"copies":1}}}
+{"name":"flowing columns ten pilot articles","schema_version":1,"case":{"Article":{"copies":10}}}
+{"name":"flowing columns WTPDF","schema_version":1,"case":"Wtpdf"}
+{"name":"flowing columns atomic negatives","schema_version":1,"case":"Rejections"}

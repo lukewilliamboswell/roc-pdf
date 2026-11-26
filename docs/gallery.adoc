@@ -29,3 +29,10 @@ https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/vector-diagrams
 image::images/remittance-advice.png[Remittance advice on a fixed payment form]
 
 https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/remittance-advice/main.roc[Runnable remittance source] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/remittance-advice/remittance-advice.pdf[PDF output]
+
+[#pilot-findings]
+== Pilot findings
+
+image::images/pilot-findings.png[Pilot findings laid out in two columns]
+
+https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/pilot-findings[Runnable pilot article] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/pilot-findings/pilot-findings.pdf[PDF output]

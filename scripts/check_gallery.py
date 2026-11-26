@@ -34,6 +34,7 @@ EXAMPLES = (
     "furniture-typography",
     "font-families",
     "operations-handbook",
+    "pilot-findings",
     "product-brief",
     "quarterly-report",
     "release-notes",

@@ -931,11 +931,13 @@ sizes and differing orders. The [fixed-page evidence](docs/contributors/performa
 covers the combined and WTPDF declarations, exact reading and paint order,
 and two- and twenty-page scale checks.
 
-Flowing columns are a separate slice. Define a typed cursor that resumes an
-occurrence across a column and a page before adding column selection policy.
-Next select table fragmentation, stabilized references, or custom-block
-continuation from an application that needs it. Each slice carries its own
-profile eligibility and independent ownership and geometry evidence.
+Sequential two-column flow covers titles, plain paragraphs, and a required
+keep around one paragraph. The two widths may differ. A bounded cursor
+advances through committed source ranges while preserving one logical
+paragraph across frames and pages. See the
+[pilot article](examples/pilot-findings/README.md) for the accepted geometry
+and a located impossible-keep diagnostic. Column balancing, spanners, and
+integration with floats or footnotes have separate requirements.
 
 ## Gate 9: extended modern accessibility vocabulary
 

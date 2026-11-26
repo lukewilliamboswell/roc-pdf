@@ -16,6 +16,7 @@ import ThemeOptions
 import AppearanceTransparencyModel
 import FormAmbientTransparencyModel
 import ContentScopeModel
+import ColumnFlowModel
 import GraphicsTransformModel
 import ContinuationPaginationModel
 import DenseSpanProof
