@@ -13,6 +13,7 @@ package
 		KernelBuiltInFonts,
 		KernelCaseTransform,
 		KernelColor,
+		KernelColumnLayout,
 		KernelContent,
 		KernelDeflate,
 		KernelDiscretionaryHyphen,
