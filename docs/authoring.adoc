@@ -355,6 +355,12 @@ and rejects a row taller than a page body as `layout.oversize_row`. Body
 rows joined by spans stay together. An oversized connected group reports
 `layout.oversize_span_group` at its first and last rows. `SplitRows` lets
 a row break at a line boundary in a table without row spans.
+Select `row_split: SplitSpans` to allow body rows and their spanning
+cells to continue onto later pages. Breaks can fall between body rows
+or at line boundaries within a body row. Continued lines keep their
+original cell and header associations. Header and footer groups stay
+whole. See the xref:gallery.adoc#quarterly-financial-schedule[quarterly report]
+for a runnable regional continuation.
 Wrap a table in
 `Pdf.keep_together([table])` to keep it whole on one page instead; a kept
 table taller than a page body is `layout.keep_conflict`. Header and footer
@@ -1201,7 +1207,7 @@ PDF. It includes a tighter report budget and an exhausted-budget example.
 | bulleted and numbered lists with nested blocks, `Pdf.bullets` | supported
 | explicit line and page breaks, spacers, required and preferred keeps | supported
 | ordinary tables with captions, header rows, column spans, footers, and repeated headers | supported
-| grouped tables with row and column spans, explicit headers, and kept groups | xref:authoring.adoc#authoring-tables[table guide]
+| grouped tables with row and column spans, explicit headers, kept groups and opt-in body fragmentation | xref:authoring.adoc#authoring-tables[table guide]
 | page templates: header, footer, and lead regions, furniture text and drawings, page and total-page fields | supported
 | chapter scopes (`Pdf.page_scope`), opening/continuation templates and running labels | supported
 | a caller-registered face per inline role (style faces) | supported

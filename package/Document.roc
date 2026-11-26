@@ -142,8 +142,9 @@ TableColumn : { align : ColumnAlign, width : ColumnWidth }
 ## its row, or both.
 HeaderScope : [Both, Column, Row]
 
-## Whether a body row may break across pages at a line boundary.
-RowSplit : [KeepRows, SplitRows]
+## How body rows fragment. SplitRows applies to one-row cells. SplitSpans
+## also allows a spanning cell's line slots to continue across pages.
+RowSplit : [KeepRows, SplitRows, SplitSpans]
 
 ## How one cell's lines align: in the alignment of the first column it
 ## spans, or in an explicit alignment of its own.

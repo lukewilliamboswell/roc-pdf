@@ -726,8 +726,10 @@ TableRuleStyle : [NoTableRule, TableRule({ color : Color.SourceValue, width : U6
 ## boundary of every cell. Header rows are unsplittable and require their
 ## next unit, so the table start (caption, header rows, and the first body
 ## row's first placement unit) is placed together. Body rows are
-## unsplittable under `KeepRows`; under `SplitRows` they break at a grid
-## line with the orphan and widow minimums applied to the row's grid.
+## unsplittable under `KeepRows`; under `SplitRows` or `SplitSpans` they
+## break at a grid line, with orphan and widow minimums applied to the
+## row's grid. SplitSpans also permits a break at a boundary crossed by
+## a body cell. Accepted line slots retain the original cell ordinal.
 ## Footer rows are unsplittable and form one required group, and the last
 ## body row prefers to keep with them (R3). Every body and footer row
 ## reserves the table's header height as its `lead`, so a page that starts

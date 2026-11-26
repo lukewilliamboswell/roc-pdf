@@ -927,8 +927,8 @@ figures, page references and source blocks described under Gate 6.
 
 - Tables with one header, body and footer group, combined row and column
   spans inside a group, and layered explicit header identities. Keep connected
-  rows together and preserve repeated-header artifact ownership. Cross-page
-  fragmentation of spanning cells extends this subset.
+  rows together by default. Opt-in body fragmentation supports continued
+  spanning cells with stable ownership and repeated-header artifacts.
 - General fixed-page composition, richer page templates, multi-column layout,
   floats, footnotes, side content, and explicit logical order.
 - General cross-references, generated tables of contents, indexes, richer page

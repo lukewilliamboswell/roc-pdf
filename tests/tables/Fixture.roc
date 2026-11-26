@@ -102,6 +102,14 @@ Fixture :: [].{
 		evidence_with(spanning_schedule_document(groups), ruled_theme, BuiltInFace, SpanPaints)
 	}
 
+	continuing_span : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	continuing_span = |count| {
+		if count < 50 or count > 200 {
+			return Err(InvalidScale)
+		}
+		evidence_with(continuing_span_document(count), ruled_theme, BuiltInFace, SpanPaints)
+	}
+
 	ordered : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	ordered = |context| {
 		registered = register_faces(context)?
@@ -548,6 +556,34 @@ spanning_schedule_document = |groups| {
 		body_rows: $body,
 	})
 	Pdf.document({ contents: [table], language: "en-AU", title: "Farm schedule" })
+}
+
+continuing_span_document : U64 -> Document
+continuing_span_document = |count| {
+	var $notes = List.with_capacity(count * 2 - 1)
+	var $line = 1
+	while $line <= count {
+		if $line > 1 {
+			$notes = $notes.append(Pdf.line_break)
+		}
+		$notes = $notes.append(Pdf.text("Regional observation ${$line.to_str()}"))
+		$line = $line + 1
+	}
+	head = |label| Pdf.header_cell(Column, [Pdf.text(label)])
+	group = |label, header_key| Pdf.header_cell_with([Pdf.text(label)], { scope: Row, layout: { key: Named(header_key) } })
+	body = |label| Pdf.cell([Pdf.text(label)])
+	table = Pdf.table({
+		caption: Pdf.caption("Regional observations"),
+		columns: [{ align: Start, width: Fixed(100) }, { align: Start, width: Fixed(240) }, { align: End, width: Fixed(100) }],
+		header_rows: [Pdf.row([head("Segment"), Pdf.header_cell_with([Pdf.text("Observation")], { scope: Column, layout: { key: Named("note") } }), head("Amount")])],
+		body_rows: [
+			Pdf.row([group("Grain", "grain"), Pdf.cell_with($notes, { row_span: 2, headers: Explicit(["note", "grain", "farm"]) }), body("3,262")]),
+			Pdf.row([group("Farm supplies", "farm"), body("2,436")]),
+		],
+		footer_rows: [Pdf.row([Pdf.header_cell(Row, [Pdf.text("Total")]).spanning(2), body("5,698")])],
+		row_split: SplitSpans,
+	})
+	Pdf.document({ contents: [table], language: "en-AU", title: "Regional observations" })
 }
 
 ## The packaged Latin face registered as a caller face, then a Han face.

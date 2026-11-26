@@ -14,3 +14,5 @@
 {"name":"tables ruled grid x400","schema_version":1,"case":{"Ruled":{"rows":400}}}
 {"name":"tables kept span groups x2","schema_version":1,"case":{"SpanningSchedule":{"groups":2}}}
 {"name":"tables kept span groups x40","schema_version":1,"case":{"SpanningSchedule":{"groups":40}}}
+{"name":"tables continuing span x64","schema_version":1,"case":{"ContinuingSpan":{"count":64}}}
+{"name":"tables continuing span x128","schema_version":1,"case":{"ContinuingSpan":{"count":128}}}

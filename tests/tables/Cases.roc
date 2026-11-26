@@ -6,6 +6,7 @@ Cases :: [].{
 		Invoice({ rows : U64 }),
 		Spans({ context : U64 }),
 		SpanningSchedule({ groups : U64 }),
+		ContinuingSpan({ count : U64 }),
 		SplitRows({ context : U64 }),
 		FooterCarry({ context : U64 }),
 		Ordered({ context : U64 }),
@@ -22,6 +23,7 @@ Cases :: [].{
 			Invoice({ rows }) => Fixture.invoice(rows)
 			Spans({ context }) => Fixture.spans(context)
 			SpanningSchedule({ groups }) => Fixture.spanning_schedule(groups)
+			ContinuingSpan({ count }) => Fixture.continuing_span(count)
 			SplitRows({ context }) => Fixture.split_rows(context)
 			FooterCarry({ context }) => Fixture.footer_carry(context)
 			Ordered({ context }) => Fixture.ordered(context)

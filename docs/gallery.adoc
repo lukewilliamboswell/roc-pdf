@@ -51,7 +51,15 @@ Grain result of AUD 3,262 thousand names Q2, Revenue, Grain and fodder, and
 Farm operations explicitly. Farm supplies uses its scope-derived
 associations. The two farm rows stay together.
 
-https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/quarterly-report/main.roc[Runnable quarterly report source] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/quarterly-report/quarterly-report.pdf[PDF output] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/quarterly-report/preview.png[Preview]
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/quarterly-report/main.roc[Runnable quarterly report source] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/quarterly-report/quarterly-report.pdf[PDF output] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/quarterly-report/preview.png[Page-two preview]
+
+Run `roc run main.roc regional` from `examples/quarterly-report` for a
+two-page regional commentary. One spanning cell holds the sixteen
+observations and retains its three header references across both pages.
+The repeated headings are artifacts. `regional-keep` rejects the same
+schedule with `layout.oversize_span_group` at both body rows.
+
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/quarterly-report/quarterly-report-regional.pdf[Regional PDF] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/quarterly-report/regional-preview.png[Continuation preview]
 
 == Prepared vector diagrams
 

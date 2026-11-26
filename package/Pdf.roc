@@ -162,7 +162,8 @@ Pdf :: [].{
 	Scope : Document.HeaderScope
 
 	## Whether a body row may break across pages at a line boundary
-	## (`SplitRows`) or always moves whole to the next page (`KeepRows`).
+	## (`SplitRows`, or `SplitSpans` for row-spanning cells), or moves whole
+	## to the next page (`KeepRows`).
 	RowSplit : Document.RowSplit
 
 	## The first page's template: header, lead, and footer regions and the
@@ -258,7 +259,7 @@ Pdf :: [].{
 	## column declarations, and its header, body, and footer rows in
 	## logical order. Header and footer rows default to none (a table
 	## still needs a header cell somewhere), and rows are kept whole
-	## (`KeepRows`) unless `row_split` is `SplitRows`.
+	## (`KeepRows`) unless `row_split` chooses a split policy.
 	TableProps := {
 		body_rows : List(Row),
 		caption : Document.Caption,
@@ -810,7 +811,8 @@ Pdf :: [].{
 	## `Pdf.keep_together([table])` keeps a whole table on one page.
 	## A table needs a header cell and a regularly occupied grid. A cell
 	## may span rows within its header, body or footer group. KeepRows
-	## keeps all body rows connected by a span on the same page.
+	## keeps all body rows connected by a span on the same page. Select
+	## SplitSpans to let body cell text continue with the same owner.
 	table : TableProps -> Document.Block
 	table = |TableProps.{ body_rows, caption: caption_value, columns, footer_rows, header_rows, row_split }| Document.table({ body_rows, caption: caption_value, columns, footer_rows, header_rows, row_split })
 
@@ -1974,7 +1976,7 @@ pipeline_error_at = |error, doc, paths| match error {
 		"A table row leaves column ${(column + 1).to_str()} unoccupied.",
 	)
 	Semantics(TableSpan(TrackBudget({ group, limit }))) => group_error(doc, group, BudgetExceeded, "table.grid_limit", "The spanning table needs more than ${limit.to_str()} occupied tracks and row tiles.")
-	Semantics(TableSpanPolicy({ group })) => group_error(doc, group, InvalidRelationship, "table.span_policy", "SplitRows applies only to tables whose cells each cover one row. Select KeepRows for a table with row spans.")
+	Semantics(TableSpanPolicy({ group })) => group_error(doc, group, InvalidRelationship, "table.span_policy", "SplitRows applies only to tables whose cells each cover one row. Select KeepRows or SplitSpans for a table with row spans.")
 	Semantics(BlockLimitExceeded({ attempted, block, dimension, limit })) => located_error(
 		doc,
 		BudgetExceeded,
@@ -2346,7 +2348,7 @@ table_layout_error = |doc, error, sources, units| {
 		Oversize({ available, block, required }) => match unit_at(block) {
 			LeafUnit(leaf) => oversize_error(doc, leaf, required, available)
 			SourceUnit(source) => source_error(doc, source, LayoutConstraintViolated, "source.oversize", "An unsplittable source block needs ${points_text(required)}, but a page body holds ${points_text(available)}; source text is never shrunk or clipped.")
-			RowUnit(group) => located_error(doc, LayoutConstraintViolated, "layout.oversize_row", "A table row needs ${points_text(required)}, with the repeated header rows, but a page body holds ${points_text(available)}; under KeepRows a row is never split, shrunk, or clipped. Select SplitRows to let rows break at line boundaries.", [group_path(normalized.groups, group)])
+			RowUnit(group) => located_error(doc, LayoutConstraintViolated, "layout.oversize_row", "A table row needs ${points_text(required)}, with the repeated header rows, but a page body holds ${points_text(available)}; under KeepRows a row is never split, shrunk, or clipped. Select SplitRows for single-row cells or SplitSpans for spanning cells.", [group_path(normalized.groups, group)])
 		}
 		KeepConflict(conflict) => match conflict {
 			GroupTooTall({ available, group, required }) => match sources.get(group) {

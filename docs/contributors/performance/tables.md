@@ -698,3 +698,15 @@ fails the authored association check.
 The quarterly report and both fixtures pass Arlington 1.30.2 and the
 veraPDF 1.30.2 `4`, `ua2` and `wt1a` profiles. These checks cover the
 emitted declarations and machine-testable rules.
+
+
+`SplitSpans` leaves header and footer groups whole and permits a page cut
+at a body row or line boundary. A continued tile intersects the accepted
+page slots with the original cell's line range. It preserves its authored
+ordinal, scope, headers and structure owner. The 64- and 128-line cases
+pin the cuts, per-fragment source text, footer placement, column positions,
+repeat counts, work and allocations. The regional gallery annex checks a
+cell with an explicitly named later row header, and a missing-fragment
+mutation with an intact structure cell and header list.
+Arlington 1.30.2 and veraPDF 1.30.2 profiles `4`, `ua2` and `wt1a`
+pass on the regional annex and both continuation cases.

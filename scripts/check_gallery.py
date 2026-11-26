@@ -21,7 +21,7 @@ from pathlib import Path
 from check_drawing_labels import artifact_and_tagged_text
 from check_generated_handbook import check as check_generated_handbook
 from check_gallery_features import check_features
-from check_table_spans import validate_quarterly
+from check_table_spans import validate_quarterly, validate_regional
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -93,6 +93,10 @@ CASES = {
     ),
     "ordered-han": (
         Case(("latin-only",), diagnosis="text.coverage_missing at contents[1].inlines[1].inlines[0]"),
+    ),
+    "quarterly-report": (
+        Case(("regional",), "quarterly-report-regional.pdf", facts=("Repeated header on page 2", "Continued row contents[0].table.body_rows[1] on page 2")),
+        Case(("regional-keep",), diagnosis="layout.oversize_span_group at contents[0].table.body_rows[0], contents[0].table.body_rows[1]"),
     ),
     "source-blocks": (
         Case(("plain",), "source-blocks-plain.pdf"),
@@ -281,6 +285,7 @@ def main() -> None:
                 check_features(name, example)
                 if name == "quarterly-report":
                     validate_quarterly(generated)
+                    validate_regional((example / "quarterly-report-regional.pdf").read_bytes())
             if server is not None and server.get_requests == 0:
                 raise SystemExit("gallery never requested the served package bundle")
     if args.update:

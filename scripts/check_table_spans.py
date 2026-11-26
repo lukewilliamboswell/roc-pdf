@@ -11,6 +11,7 @@ from check_gallery_features import Node, artifacts, only, tagged
 from check_pdf_structure import ValidationError, require
 from check_profile_declarations import validate_claims
 from check_rich_flow import MARKED, ORIGIN
+from check_rich_inline import page_marked_text
 from check_structure_semantics import check_structure_semantics, table_attributes, walk_name_tree
 
 
@@ -160,14 +161,143 @@ def validate_quarterly(pdf: bytes) -> None:
         raise ValidationError("an internally valid but incorrect edge passed")
 
 
+
+def validate_continuing_span(pdf: bytes, count: int) -> None:
+    validate_claims(pdf, wtpdf=True)
+    document, pages, root = tagged(pdf)
+    ids = identifiers(document)
+    table = only(root.descendants(), "Table", "Regional observations")
+    caption, head, body, foot = table.children
+    require([node.role for node in (caption, head, body, foot)] == ["Caption", "THead", "TBody", "TFoot"], "continuing schedule changed its row groups")
+    check_row(head.children[0], [
+        Cell("Segment", "TH", scope="Column", identifier=1),
+        Cell("Observation", "TH", scope="Column", identifier=2),
+        Cell("Amount", "TH", scope="Column", identifier=3),
+    ], ids, document)
+    require(len(body.children) == 2 and len(foot.children) == 1, "a continued fragment added a logical row")
+    first, second = body.children
+    expected_lines = tuple(f"Regional observation {ordinal}" for ordinal in range(1, count + 1))
+    check_row(first, [
+        Cell("Grain", "TH", scope="Row", identifier=4, headers=(1,)),
+        Cell(" ".join(expected_lines), row_span=2, headers=(2, 4, 7)),
+        Cell("3,262", headers=(3, 4)),
+    ], ids, document)
+    check_row(second, [
+        Cell("Farm supplies", "TH", scope="Row", identifier=7, headers=(1,)),
+        Cell("2,436", headers=(3, 7)),
+    ], ids, document)
+    check_row(foot.children[0], [
+        Cell("Total", "TH", column_span=2, scope="Row", identifier=9, headers=(1, 2)),
+        Cell("5,698", headers=(3, 9)),
+    ], ids, document)
+    require(head.pages == {pages[0]} and foot.pages == {pages[-1]}, "header or footer ownership escaped its page")
+    note = first.children[1]
+    text = {(p, mcid): value.rstrip() for p in pages for mcid, value in page_marked_text(document, p)}
+    origins = first_origins(document, pages)
+    expected_cuts = {64: (46, 18), 128: (46, 48, 34)}[count]
+    require(tuple(sum(page == p for page, _ in note.marks) for p in pages) == expected_cuts, "wrong continuation cuts")
+    require(tuple(text[mark] for mark in note.marks) == expected_lines, "continued span lost or duplicated text")
+    require({origins[mark][0] for mark in note.marks} == {176}, "continued span shifted columns")
+    for page in pages[1:]:
+        require(artifacts(document, pages, page, b"/Type /Pagination") == "SegmentObservationAmount", "wrong repeated span headers")
+
+
+def validate_table_spans(pdf: bytes, dimensions: dict[str, int]) -> None:
+    if count := dimensions.get("continuing_span_lines"):
+        validate_continuing_span(pdf, count)
+    else:
+        validate_spanning_schedule(pdf, dimensions)
+
+
+REGIONAL_LINES = (
+    "North: morning transfers cleared.",
+    "North: growers delivered to plan.",
+    "North: standing orders held.",
+    "Coast: harvest intake rose.",
+    "Coast: farm supplies held steady.",
+    "Coast: garage deliveries resumed.",
+    "South: grain testing finished.",
+    "South: the new silo opened.",
+    "South: carrying costs eased.",
+    "East: invoices caught up.",
+    "East: road access improved.",
+    "East: fewer delayed orders.",
+    "West: storage stayed full.",
+    "West: demand for seed grew.",
+    "West: shared routes cut mileage.",
+    "All regions: reconcile in January.",
+)
+
+
+def validate_regional(pdf: bytes) -> None:
+    validate_claims(pdf, wtpdf=True)
+    check_structure_semantics(pdf)
+    document, pages, root = tagged(pdf)
+    require(len(pages) == 2, "regional schedule needs exactly two pages")
+    page1, page2 = pages
+    ids = identifiers(document)
+    table = only(root.descendants(), "Table", "Regional revenue commentary")
+    require([node.role for node in table.children] == ["Caption", "THead", "TBody"], "regional schedule lost its row groups")
+    _, head, body = table.children
+    require(head.pages == {page1}, "regional repeat acquired logical header content")
+    check_row(head.children[0], [
+        Cell("Segment", "TH", scope="Column", identifier=1),
+        Cell("Regional commentary", "TH", scope="Column", identifier=2),
+        Cell("Q2 (AUD thousands)", "TH", scope="Column", identifier=3),
+    ], ids, document)
+    require(len(body.children) == 2, "a continuation acquired a logical row")
+    first, second = body.children
+    check_row(first, [
+        Cell("Grain North Coast South East West All regions", "TH", scope="Row", identifier=4, headers=(1,)),
+        Cell(" ".join(REGIONAL_LINES), row_span=2, headers=(2, 4, 7)),
+        Cell("3,262", headers=(3, 4)),
+    ], ids, document)
+    check_row(second, [
+        Cell("Farm supplies", "TH", scope="Row", identifier=7, headers=(1,)),
+        Cell("2,436", headers=(3, 7)),
+    ], ids, document)
+    repeated = artifacts(document, pages, page2, b"/Type /Pagination")
+    require(repeated == "SegmentRegional commentaryQ2 (AUD thousands)", "wrong repeated regional header text")
+
+    note = first.children[1]
+    text = {(page, mcid): value.rstrip() for page in pages for mcid, value in page_marked_text(document, page)}
+    origins = first_origins(document, pages)
+
+    def check_continuation(marks: list[tuple[int, int]]) -> None:
+        require([page for page, _ in marks] == [page1] * 10 + [page2] * 6, "wrong regional continuation partition")
+        require(tuple(text[mark] for mark in marks) == REGIONAL_LINES, "wrong regional continuation text")
+        require({origins[mark][0] for mark in marks} == {165}, "the continued cell drifted across columns")
+        require(
+            [origins[mark][1] for mark in marks] == [Fraction(value, 2) for value in
+                (359, 331, 303, 275, 247, 219, 191, 153, 125, 97, 397, 369, 341, 313, 285, 257)],
+            "regional cell line geometry changed",
+        )
+
+    check_continuation(note.marks)
+    # Drop the last continuation mark while preserving the logical cell and
+    # its complete headers. The authored page and fragment oracle must fail.
+    try:
+        check_continuation(note.marks[:-1])
+    except ValidationError as error:
+        require(str(error) == "wrong regional continuation partition", str(error))
+    else:
+        raise ValidationError("continued cell with missing paint passed")
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("pdf", type=Path)
     parser.add_argument("--groups", type=int)
+    parser.add_argument("--regional", action="store_true")
     parser.add_argument("--pages", type=int)
+    parser.add_argument("--continued", type=int)
     args = parser.parse_args()
     pdf = args.pdf.read_bytes()
-    if args.groups is None:
+    if args.continued:
+        check_structure_semantics(pdf)
+        validate_continuing_span(pdf, args.continued)
+    elif args.regional:
+        validate_regional(pdf)
+    elif args.groups is None:
         validate_quarterly(pdf)
     else:
         check_structure_semantics(pdf)

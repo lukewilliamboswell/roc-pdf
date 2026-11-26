@@ -2,7 +2,9 @@ app [main!] {
 	pdf: "../../package/main.roc",
 	pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.28.1/7brgwR8YUqfeGrkdfF1V4GPPN7DnP7ftqub9KcrTEZtr.tar.zst",
 }
+import pf.OsStr
 import pf.Path
+import pf.Stderr
 import pf.Stdout
 import pdf.Color
 import pdf.Document
@@ -24,8 +26,21 @@ import "fonts/NotoSerif-Italic.ttf" as italic_bytes : List(U8)
 ## progress against annual targets kept with its notes), and running
 ## headers inset above a ruled backdrop with `Page N of M` on every later
 ## page.
-main! = |_args| {
+main! = |args| {
+	mode = match args.map(OsStr.display) {
+		[] => Quarterly
+		["regional"] => Regional(SplitSpans)
+		["regional-keep"] => Regional(KeepRows)
+		_ => {
+			Stderr.line!("Usage: roc run main.roc [regional|regional-keep]").map_err(|err| OutputFailed(err))?
+			return Err(Exit(2))
+		}
+	}
 	fonts = register_fonts({})?
+	match mode {
+		Regional(policy) => return write_regional!(fonts, policy)
+		Quarterly => {}
+	}
 	options : Pdf.Options
 	options = { theme: theme(fonts), fonts: Registered(fonts.registry), wtpdf: DeclareAccessibility }
 	blocks = contents(options).map_err(|err| PdfFailed(err))?
@@ -488,6 +503,97 @@ segments = {
 			]),
 		],
 	})
+}
+
+## Use hard line breaks for this annex's list of regional observations.
+observations : List(Str) -> List(Pdf.Inline)
+observations = |lines| {
+	var $inlines = []
+	for line in lines {
+		if !$inlines.is_empty() {
+			$inlines = $inlines.append(Pdf.line_break)
+		}
+		$inlines = $inlines.append(Pdf.text(line))
+	}
+	$inlines
+}
+
+regional_schedule : Pdf.RowSplit -> Document.Block
+regional_schedule = |policy| {
+	notes = observations([
+		"North: morning transfers cleared.",
+		"North: growers delivered to plan.",
+		"North: standing orders held.",
+		"Coast: harvest intake rose.",
+		"Coast: farm supplies held steady.",
+		"Coast: garage deliveries resumed.",
+		"South: grain testing finished.",
+		"South: the new silo opened.",
+		"South: carrying costs eased.",
+		"East: invoices caught up.",
+		"East: road access improved.",
+		"East: fewer delayed orders.",
+		"West: storage stayed full.",
+		"West: demand for seed grew.",
+		"West: shared routes cut mileage.",
+		"All regions: reconcile in January.",
+	])
+	Pdf.table({
+		caption: Pdf.caption("Regional revenue commentary"),
+		columns: [{ align: Start, width: Fixed(110) }, { align: Start, width: Fixed(275) }, { align: End, width: Fixed(110) }],
+		header_rows: [
+			Pdf.row([
+				Pdf.header_cell(Column, [Pdf.text("Segment")]),
+				Pdf.header_cell_with([Pdf.text("Regional commentary")], { scope: Column, layout: { key: Named("commentary") } }),
+				Pdf.header_cell(Column, [Pdf.text("Q2 (AUD thousands)")]),
+			]),
+		],
+		body_rows: [
+			Pdf.row([
+				Pdf.header_cell_with(observations(["Grain", "North", "Coast", "South", "East", "West", "All regions"]), { scope: Row, layout: { key: Named("grain") } }),
+				Pdf.cell_with(notes, { row_span: 2, headers: Explicit(["commentary", "grain", "farm"]) }),
+				Pdf.cell([Pdf.text("3,262")]),
+			]),
+			Pdf.row([
+				Pdf.header_cell_with([Pdf.text("Farm supplies")], { scope: Row, layout: { key: Named("farm") } }),
+				Pdf.cell([Pdf.text("2,436")]),
+			]),
+		],
+		row_split: policy,
+	})
+}
+
+write_regional! = |fonts, policy| {
+	options : Pdf.Options
+	options = { theme: theme(fonts), fonts: Registered(fonts.registry), page_size: Custom({ height: 270, width: 595 }), wtpdf: DeclareAccessibility }
+	document = Pdf.document({
+		contents: [regional_schedule(policy)],
+		language: "en-AU",
+		title: "Northstar Cooperative regional revenue commentary",
+		created: Explicit("2027-01-18T00:00:00Z"),
+		modified: Explicit("2027-01-18T00:00:00Z"),
+	})
+	prepared = match Pdf.prepare_with_report(document, Pdf.ReportProps.{ options: options }) {
+		Ok(result) => {
+			for outcome in result.report.facts.outcomes {
+				match outcome {
+					RepeatedHeader({ page, .. }) => Stdout.line!("Repeated header on page ${page.to_str()}").map_err(|err| OutputFailed(err))?
+					RowContinued({ page, path }) => Stdout.line!("Continued row ${path} on page ${page.to_str()}").map_err(|err| OutputFailed(err))?
+					_ => {}
+				}
+			}
+			result.prepared
+		}
+		Err(error) => {
+			Stderr.line!(Pdf.Error.to_inspect(error)).map_err(|err| OutputFailed(err))?
+			return Err(Exit(1))
+		}
+	}
+	bytes = Pdf.to_bytes_prepared(prepared).map_err(|err| PdfFailed(err))?
+	path : Path
+	path = "quarterly-report.pdf"
+	path.write_bytes!(bytes).map_err(|err| WriteFailed(err))?
+	Ok({})
 }
 
 position_row : Str, Str, Str -> Pdf.Row

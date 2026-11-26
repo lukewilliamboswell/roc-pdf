@@ -935,8 +935,11 @@ identities. Ordinary tables keep their dense cell path. For a spanning
 table, line layout uses the verified columns and pagination sizes its row
 bands from exact line counts and span-end constraints. A continuing paint
 tile always refers to the original semantic cell. Kept body groups cover
-every consecutive boundary crossed by a span. Repainting a header group
-uses its accepted bands and artifact ownership.
+every consecutive boundary crossed by a span. Under SplitSpans the
+paginator may break a body span at a row or line boundary. Each placement
+uses the intersection of the accepted page slots and the original cell's
+line range. Repainting a header group uses its accepted bands and artifact
+ownership.
 
 Parent-child legality is not represented merely by `role` and `children`.
 Normalization checks namespace-aware containment, required attributes, role
