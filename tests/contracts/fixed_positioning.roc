@@ -44,7 +44,9 @@ page = |first_height, first_width| {
 		.finish()
 }
 
-position = |pages| {
+position = |pages| position_with_theme(pages, Theme.default)
+
+position_with_theme = |pages, theme| {
 	doc = Pdf.fixed_document({ pages, title: "Fixed smoke", language: "en" })
 	fixed = match Document.normalize_fixed(doc, fixed_limits) {
 		Ok(Fixed(value)) => value
@@ -55,7 +57,7 @@ position = |pages| {
 	font = KernelFont.inspect(KernelBuiltInFont.bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 100000, max_glyphs: 10000, max_tables: 32 })) ? |_| Font
 	semantic = KernelFacadeSemantics.Plan.build(authoring, semantic_limits) ? Semantic
 	sources = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantic))
-	shape = KernelFacadeShape.Plan.build(authoring, KernelFacadeSemantics.Plan.block_ownership(semantic), KernelFacadeSemantics.Plan.flow_text(semantic), sources, font, Theme.default, KernelFacadeShape.Limits.make({ max_requests: 128, shape: KernelShape.Limits.make({ max_clusters: 4096, max_glyphs: 4096, max_scalars: 4096, max_source_bytes: 4096 }) })) ? Shape
+	shape = KernelFacadeShape.Plan.build(authoring, KernelFacadeSemantics.Plan.block_ownership(semantic), KernelFacadeSemantics.Plan.flow_text(semantic), sources, font, theme, KernelFacadeShape.Limits.make({ max_requests: 128, shape: KernelShape.Limits.make({ max_clusters: 4096, max_glyphs: 4096, max_scalars: 4096, max_source_bytes: 4096 }) })) ? Shape
 	lines = KernelFacadeLines.Plan.build_fixed(authoring, shape, sources, view.frames, lines_limits) ? Lines
 	KernelFacadeFixed.position(fixed, shape, lines, { max_pieces: 256 }).map_err(|error| Position(error))
 }
@@ -86,6 +88,19 @@ expect {
 		_ => False
 	}
 	width and height
+}
+
+# A font size above leading violates the nominal line-box metric. The
+# heading's authored placement is retained in the diagnostic.
+expect {
+	theme = Theme.{ headings: { all: { size: 20, leading: 18 } } }
+	sheet = Pdf.fixed_page({ height: 500, width: 350 })
+		.place({ block: Pdf.heading(1, "Alpha beta"), frame: Layout.rect({ x: 10, y: 200, width: 66, height: 40 }) })
+		.finish()
+	match position_with_theme([sheet], theme) {
+		Err(Position(InvalidTextStyle({ page: 0, placement: 0 }))) => True
+		_ => False
+	}
 }
 
 # Reusing the same authored sheet still creates independent placements on each

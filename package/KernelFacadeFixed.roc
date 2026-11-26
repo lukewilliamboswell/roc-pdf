@@ -13,6 +13,7 @@ KernelFacadeFixed :: [].{
 
 	Error : [
 		InvalidPlan,
+		InvalidTextStyle({ page : U64, placement : U64 }),
 		LineTooWide({ page : U64, placement : U64, actual : Layout.Unit, maximum : Layout.Unit }),
 		LineBoxesTooTall({ page : U64, placement : U64, actual : U64, maximum : U64 }),
 		PieceLimit({ attempted : U64, limit : U64 }),
@@ -114,20 +115,23 @@ fit_block = |block, frame, at, shaped| match block {
 			return Err(InvalidPlan)
 		}
 		leading = leading_raw.to_u64_wrap()
-		maximum = frame.size.height.raw().to_u64_wrap()
-		if lines.length() > maximum // leading {
-			actual = if (lines.length() > U64.highest // leading) U64.highest else lines.length() * leading
-			return Err(LineBoxesTooTall({ page: at.page, placement: at.placement, actual, maximum }))
-		}
 		var $size = 0
 		var $run = physical.start()
 		while $run < physical_end {
 			raw = list_at(shaped.runs, $run).size.raw()
-			if raw <= 0 or raw > leading_raw or list_at(shaped.styles, $run).leading.raw() != leading_raw {
+			if raw <= 0 or list_at(shaped.styles, $run).leading.raw() != leading_raw {
 				return Err(InvalidPlan)
+			}
+			if raw > leading_raw {
+				return Err(InvalidTextStyle(at))
 			}
 			$size = U64.max($size, raw.to_u64_wrap())
 			$run = $run + 1
+		}
+		maximum = frame.size.height.raw().to_u64_wrap()
+		if lines.length() > maximum // leading {
+			actual = if (lines.length() > U64.highest // leading) U64.highest else lines.length() * leading
+			return Err(LineBoxesTooTall({ page: at.page, placement: at.placement, actual, maximum }))
 		}
 		first_cluster = list_at(shaped.runs, physical.start()).clusters.start()
 		last_cluster = cluster_end(list_at(shaped.runs, physical_end - 1))
