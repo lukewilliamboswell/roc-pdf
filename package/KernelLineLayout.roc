@@ -119,6 +119,31 @@ KernelLineLayout :: [].{
 	measure_logical_held : List(KernelShape.SimpleSource), Text.Store, LogicalRunRequest, List(Hold), Limits -> Try({ measure : Measure, work : Work }, Error)
 	measure_logical_held = |sources, store, request, holds, limits| measure_request(sources, store, request, { holds, length: holds.len(), start: 0 }, limits)
 
+	## A measured paragraph and the next uncommitted cluster. The ranges
+	## refer to the original shaped source and the prefix buffer is shared
+	## across lines. The layout caller chooses each line's frame width.
+	LineCursor :: {
+		boundaries : List(KernelUnicode.LineBoundary),
+		clusters : List(Text.Cluster),
+		limits : Limits,
+		paragraph : Semantics.IndexRange,
+		prefix : List(I64),
+		next_cluster : U64,
+		work : Work,
+	}.{
+		start : KernelUnicode.UnicodeAnalysis, Text.Store, Semantics.IndexRange, Limits -> Try(LineCursor, Error)
+		start = |analysis, store, runs, limits| {
+			logical = logical_bounds(store, runs, runs.start())?
+			start_cursor(analysis, store, logical.bounds, limits)
+		}
+
+		next : LineCursor, Layout.Unit -> Try([Complete, Line({ line : Line, remaining : LineCursor })], Error)
+		next = |cursor, width| next_cursor_line(cursor, width)
+
+		work : LineCursor -> Work
+		work = |LineCursor.(cursor)| cursor.work
+	}
+
 	BatchPlan :: { lines : List(Line), run_lines : List(Semantics.IndexRange), work : BatchWork }.{
 		build : List(KernelShape.SimpleSource), List(KernelShape.SimpleRequest), Text.Store, List(RunRequest), BatchLimits -> Try(BatchPlan, Error)
 		build = |sources, shape_requests, store, requests, limits| build_batch(sources, shape_requests, store, requests, limits)
@@ -838,6 +863,96 @@ build_range = |analysis, store, bounds, width, holds, limits| {
 	)
 }
 
+start_cursor : KernelUnicode.UnicodeAnalysis, Text.Store, RangeBounds, KernelLineLayout.Limits -> Try(KernelLineLayout.LineCursor, KernelLineLayout.Error)
+start_cursor = |analysis, store, bounds, limits| {
+	scalars = analysis.work.scalar_visits
+	clusters = bounds.cluster_end - bounds.cluster_start
+	glyphs = bounds.glyph_end - bounds.glyph_start
+	if scalars == 0 or analysis.line_boundaries.len() != scalars + 1 {
+		return Err(InvalidAnalysis)
+	}
+	check_limit(analysis.line_boundaries.len(), limits.max_boundaries, Boundaries)?
+	check_limit(clusters, limits.max_clusters, Clusters)?
+	check_limit(glyphs, limits.max_glyph_indices, GlyphIndices)?
+	check_limit(glyphs, limits.max_glyphs, Glyphs)?
+	boundary_work = validate_boundaries(analysis.line_boundaries, store.clusters, bounds.cluster_start, bounds.cluster_end, scalars)?
+	measure = measure_clusters(store.clusters, store.glyph_indices, store.glyphs, bounds.cluster_start, bounds.cluster_end, bounds.glyph_start, bounds.glyph_end, scalars)?
+	if measure.glyph_index_visits != glyphs {
+		return Err(InvalidAnalysis)
+	}
+	Ok(
+		KernelLineLayout.LineCursor.{
+			boundaries: analysis.line_boundaries,
+			clusters: store.clusters,
+			limits,
+			paragraph: Semantics.IndexRange.from_start_and_length({ start: bounds.cluster_start, length: clusters }),
+			prefix: measure.prefix,
+			next_cluster: bounds.cluster_start,
+			work: {
+				boundary_visits: boundary_work.visits,
+				candidate_visits: 0,
+				cluster_visits: measure.cluster_visits,
+				glyph_index_visits: measure.glyph_index_visits,
+				glyph_visits: measure.glyph_index_visits,
+				line_writes: 0,
+			},
+		},
+	)
+}
+
+next_cursor_line : KernelLineLayout.LineCursor, Layout.Unit -> Try([Complete, Line({ line : KernelLineLayout.Line, remaining : KernelLineLayout.LineCursor })], KernelLineLayout.Error)
+next_cursor_line = |KernelLineLayout.LineCursor.(cursor), width| {
+	end = cursor.paragraph.start() + cursor.paragraph.length()
+	start = cursor.next_cluster
+	if start == end {
+		return Ok(Complete)
+	}
+	if width.raw() <= 0 {
+		return Err(InvalidWidth(width.raw()))
+	}
+
+	prefix_start = cursor.paragraph.start()
+	start_advance = list_at(cursor.prefix, start - prefix_start)
+	var $last_break = start
+	var $cut = 0
+	var $candidate = start + 1
+	var $visits = cursor.work.candidate_visits
+	while $candidate <= end {
+		$visits = checked_add($visits, 1)?
+		check_limit($visits, cursor.limits.max_candidates, Candidates)?
+		advance = list_at(cursor.prefix, $candidate - prefix_start) - start_advance
+		if advance > width.raw() {
+			if $last_break == start {
+				return Err(Unbreakable({ cluster_end: $candidate, cluster_start: start }))
+			}
+			$cut = $last_break
+			break
+		}
+		cluster = list_at(cursor.clusters, $candidate - 1)
+		boundary = list_at(cursor.boundaries, range_end(cluster.source.scalars)?)
+		match boundary.decision {
+			Allowed => {
+				$last_break = $candidate
+			}
+			Mandatory => {
+				$cut = $candidate
+				break
+			}
+			Prohibited => {}
+		}
+		$candidate = $candidate + 1
+	}
+	required = checked_add(cursor.work.line_writes, 1)?
+	check_limit(required, cursor.limits.max_lines, Lines)?
+	line = source_line(cursor.clusters, cursor.prefix, prefix_start, start, $cut)?
+	remaining = KernelLineLayout.LineCursor.{
+		..cursor,
+		next_cluster: $cut,
+		work: { ..cursor.work, candidate_visits: $visits, line_writes: required },
+	}
+	Ok(Line({ line, remaining }))
+}
+
 build_source_range : KernelUnicode.UnicodeAnalysis, Text.Store, RangeBounds, Layout.Unit, [Wrap, RejectOverflow], KernelLineLayout.Limits -> Try(KernelLineLayout.Plan, KernelLineLayout.Error)
 build_source_range = |analysis, store, bounds, width, policy, limits| {
 	cluster_start = bounds.cluster_start
@@ -1261,6 +1376,34 @@ expect {
 	match build_plan(analysis, test_store, Layout.Unit.from_raw(3000), test_limits) {
 		Err(Unbreakable({ cluster_end: 4, cluster_start: 0 })) => True
 		_ => False
+	}
+}
+
+# The continuation retains the earlier source cut when the next frame gets
+# narrower. Its measurement work is charged once, and its scan budget follows
+# the cursor across the transition.
+expect {
+	cursor = start_cursor(test_analysis, test_store, { cluster_start: 0, cluster_end: 6, glyph_start: 0, glyph_end: 6 }, test_limits)?
+	match cursor.next(Layout.Unit.from_raw(4500))? {
+		Complete => False
+		Line(first) => match first.remaining.next(Layout.Unit.from_raw(2000))? {
+			Complete => False
+			Line(second) => {
+				work = second.remaining.work()
+				complete = match second.remaining.next(Layout.Unit.from_raw(2000))? {
+					Complete => True
+					Line(_) => False
+				}
+				first.line.source.scalars.length() == 4 and
+					first.line.advance.raw() == 4000 and
+						second.line.source.utf8_bytes.start() == 4 and
+							second.line.source.utf8_bytes.length() == 2 and
+								work.boundary_visits == 7 and
+									work.candidate_visits == 7 and
+										work.cluster_visits == 6 and
+											work.line_writes == 2 and complete
+			}
+		}
 	}
 }
 
