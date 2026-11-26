@@ -229,6 +229,30 @@ Control the flow explicitly:
 [#authoring-tables]
 == Tables
 
+Use `Pdf.cell(contents)` for a data cell and `Pdf.header_cell(scope, contents)`
+for a header. Both use one column, one row, the first column's alignment
+and no cell fill. Set named overrides with `Pdf.cell_with(contents, props)`
+and `Pdf.header_cell_with(contents, { scope, layout })`. They share
+`Pdf.CellProps`. Keep the header's scope explicit.
+
+[source,roc]
+----
+plain = Pdf.cell_with([Pdf.text("Opening balance")], {})
+amount = Pdf.cell_with([Pdf.text("100.00")], { align: Aligned(End) })
+
+header = Pdf.header_cell_with([Pdf.text("Balance (AUD)")], {
+    scope: Column,
+    layout: { column_span: 2, align: Aligned(Center) },
+})
+equivalent = Pdf.header_cell(Column, [Pdf.text("Balance (AUD)")])
+    .spanning(2)
+    .aligned(Center)
+----
+
+`CellFill(color)` gives one cell a solid background. The existing
+`.shaded(color)` setter sets the same fill. Use `FirstColumn` to inherit
+the alignment of the first column covered by a span.
+
 Build ordinary tables from columns and rows of cells. `Pdf.table` becomes a
 `Table` with an optional `Caption`, one `THead`, `TBody`, and `TFoot`, a `TR`
 per row, and a `TH` or `TD` per cell:

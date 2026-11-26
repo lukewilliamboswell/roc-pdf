@@ -331,3 +331,44 @@ exceeds_header_budget = |result| match result {
 		message.starts_with("The document needs 65701 typed attributes and relationships but the facade accepts at most 65536.")
 	_ => False
 }
+
+# Nominal cell defaults and explicit layout overrides use the same dense
+# representation and emission as the ordinary constructors and setters.
+expect {
+	head = [Pdf.text("Balance (AUD)")]
+	label = [Pdf.text("Opening balance")]
+	amount = [Pdf.text("100.00")]
+	tint : Color.SourceValue
+	tint = "#E8F5F6"
+	document = |header, item, total| Pdf.document({
+		title: "Balance schedule",
+		language: "en-AU",
+		contents: [
+			Pdf.table({
+				caption: Pdf.no_caption,
+				columns: [{ width: Share(1), align: Start }, { width: Fixed(100), align: End }],
+				header_rows: [Pdf.row([header])],
+				body_rows: [Pdf.row([item, total])],
+			}),
+		],
+	})
+	shorthand = document(
+		Pdf.header_cell(Column, head).spanning(2).aligned(Center).shaded(tint),
+		Pdf.cell(label),
+		Pdf.cell(amount).aligned(End).shaded(tint),
+	)
+	configured = document(
+		Pdf.header_cell_with(head, { scope: Column, layout: { column_span: 2, align: Aligned(Center), fill: CellFill(tint) } }),
+		Pdf.cell_with(label, {}),
+		Pdf.cell_with(amount, { align: Aligned(End), fill: CellFill(tint) }),
+	)
+	explicit = document(
+		Pdf.header_cell_with(head, { scope: Column, layout: { column_span: 2, row_span: 1, align: Aligned(Center), fill: CellFill(tint) } }),
+		Pdf.cell_with(label, { column_span: 1, row_span: 1, align: FirstColumn, fill: NoCellFill }),
+		Pdf.cell_with(amount, { row_span: 1, column_span: 1, align: Aligned(End), fill: CellFill(tint) }),
+	)
+	ordinary_bytes = Pdf.to_bytes(shorthand)?
+	configured_bytes = Pdf.to_bytes(configured)?
+	explicit_bytes = Pdf.to_bytes(explicit)?
+	ordinary_bytes == configured_bytes and configured_bytes == explicit_bytes
+}

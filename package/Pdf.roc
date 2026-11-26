@@ -146,6 +146,14 @@ Pdf :: [].{
 	## One table cell, from `cell` or `header_cell`.
 	Cell : Document.Cell
 
+	## Geometry and paint shared by data and header cells.
+	CellProps : Document.CellProps
+	CellAlign : Document.CellAlign
+	CellFill : Document.CellFill
+
+	## A required scope and the header cell's optional layout overrides.
+	HeaderCellProps : Document.HeaderCellProps
+
 	## The cells a header cell heads: the data cells below it in its columns
 	## (`Column`), the data cells of its row (`Row`), or both.
 	Scope : Document.HeaderScope
@@ -806,11 +814,19 @@ Pdf :: [].{
 	cell : List(Inline) -> Cell
 	cell = |contents| Document.cell(contents)
 
+	## Create a data cell with named span, alignment or fill overrides.
+	cell_with : List(Inline), CellProps -> Cell
+	cell_with = |contents, props| Document.cell_with(contents, props)
+
 	## A header cell (`TH`) with its declared scope. With no contents it is
 	## an empty header cell, such as the blank corner above a column of row
 	## headers.
 	header_cell : Scope, List(Inline) -> Cell
 	header_cell = |scope, contents| Document.header_cell(scope, contents)
+
+	## Create a header cell with an explicit scope and optional cell layout.
+	header_cell_with : List(Inline), HeaderCellProps -> Cell
+	header_cell_with = |contents, props| Document.header_cell_with(contents, props)
 
 	## Gate 6-8 authoring shapes are stable before their lowering is enabled.
 	## These constructors retain the authored intent and reject transactionally

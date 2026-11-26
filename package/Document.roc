@@ -149,6 +149,18 @@ CellAlign : [Aligned(ColumnAlign), FirstColumn]
 ## fill as a layout decoration artifact.
 CellFill := [NoCellFill, CellFill(Color.SourceValue)]
 
+## Shared geometry and paint for data and header cells. Alignment defaults
+## to the first spanned column. A fill affects only the cell's decoration.
+CellProps := {
+	align : CellAlign ?? FirstColumn,
+	column_span : U16 ?? 1,
+	fill : CellFill ?? NoCellFill,
+	row_span : U16 ?? 1,
+}
+
+## Header scope is an authored fact, independent of shared cell layout.
+HeaderCellProps := { scope : HeaderScope, layout : CellProps ?? {} }
+
 ## A data cell (`TD`) or a header cell (`TH`) with its declared scope.
 CellKind : [DataCell, HeaderCell(HeaderScope)]
 
@@ -1224,6 +1236,8 @@ Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : D
 	Cell : DocumentCell
 	CellAlign : CellAlign
 	CellFill : CellFill
+	CellProps : CellProps
+	HeaderCellProps : HeaderCellProps
 
 	## A normalized cell's own fill color.
 	cell_fill : NormalizedCell -> CellFill
@@ -1674,11 +1688,17 @@ Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : D
 
 	## A data cell (`TD`) of inline content.
 	cell : List(DocumentInline) -> DocumentCell
-	cell = |contents| DocumentCell.Cell({ align: FirstColumn, column_span: 1, contents, fill: NoCellFill, kind: DataCell, row_span: 1 })
+	cell = |contents| cell_with(contents, {})
+
+	cell_with : List(DocumentInline), CellProps -> DocumentCell
+	cell_with = |contents, props| make_cell(contents, DataCell, props)
 
 	## A header cell (`TH`) with its declared scope.
 	header_cell : HeaderScope, List(DocumentInline) -> DocumentCell
-	header_cell = |scope, contents| DocumentCell.Cell({ align: FirstColumn, column_span: 1, contents, fill: NoCellFill, kind: HeaderCell(scope), row_span: 1 })
+	header_cell = |scope, contents| header_cell_with(contents, { scope: scope })
+
+	header_cell_with : List(DocumentInline), HeaderCellProps -> DocumentCell
+	header_cell_with = |contents, { layout, scope }| make_cell(contents, HeaderCell(scope), layout)
 
 	## An explicit line break inside a rich paragraph.
 	line_break : DocumentInline
@@ -3017,6 +3037,9 @@ rgb_color_kind = 0x1_0000_0000_0000
 
 gray_color_kind : U64
 gray_color_kind = 0x2_0000_0000_0000
+
+make_cell : List(DocumentInline), CellKind, CellProps -> DocumentCell
+make_cell = |contents, kind, { align, column_span, fill, row_span }| DocumentCell.Cell({ align, column_span, contents, fill, kind, row_span })
 
 append_table_rows : SimpleState, List(DocumentRow), TableSection, U64 -> SimpleState
 append_table_rows = |state, rows, section, table_code| {
