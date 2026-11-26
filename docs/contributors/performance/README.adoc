@@ -1,0 +1,18 @@
+[#contributor-engineering]
+= Engineering evidence
+
+Use the xref:architecture.adoc[architecture] for the compiler-stage
+contracts and the xref:testing.adoc[testing chapter] for choosing
+and running checks. These records explain the bounds, ownership and
+fixture design behind individual subsystems.
+
+[cols="1,1",options="header"]
+|===
+|Task |References
+|Review allocation or copying changes |xref:contributor-output.adoc#contributor-lowering-uniqueness[Lowering and uniqueness], xref:contributor-output.adoc#contributor-emission-linearity[emission linearity], xref:contributor-reference.adoc#contributor-toolchain-profile[pinned toolchain baselines]
+|Change pagination or text fitting |xref:contributor-layout.adoc#contributor-layout-policies[Page breaking], xref:contributor-layout.adoc#contributor-page-templates[frames and furniture], xref:contributor-layout.adoc#contributor-line-layout[line layout], xref:contributor-layout.adoc#contributor-inter-latin[Inter run shaping], xref:contributor-layout.adoc#contributor-destination-page-references[reference wrapping]
+|Change semantic output |xref:contributor-layout.adoc#contributor-semantic-identity[Semantic identity], xref:contributor-output.adoc#contributor-structure-lowering[structure lowering], xref:contributor-layout.adoc#contributor-tables[table associations], xref:contributor-output.adoc#contributor-navigation-annotations[navigation]
+|Change object or resource planning |xref:contributor-output.adoc#contributor-resource-graph[Resource graph], xref:contributor-layout.adoc#contributor-balanced-indexes[balanced indexes], xref:contributor-output.adoc#contributor-sealed-plan[sealed plan], xref:contributor-output.adoc#contributor-object-store[object store]
+|Change a profile or review output |xref:contributor-conformance.adoc#contributor-static-pdfa4[Archive checks], xref:contributor-reference.adoc#contributor-accessibility-review[author review], xref:contributor-reference.adoc#contributor-testing-optional-local-pdf-review[optional local tools]
+|Add an evidence fixture |xref:contributor-reference.adoc#contributor-scenario-protocol[Scenario protocol], xref:contributor-reference.adoc#contributor-fixture-grouping[fixture grouping], xref:contributor-reference.adoc#contributor-test-suite-speed[test validation plan], xref:contributor-reference.adoc#contributor-fuzz-suites[fuzz suites]
+|===

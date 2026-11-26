@@ -1,0 +1,10 @@
+[#contributor-rich-inline]
+= Rich inline content and nested language
+
+Normalization writes dense preorder inline records. Each rich paragraph owns one logical text source, built from its leaves in order with one consuming accumulator. Leaves retain exact scalar and byte subranges. The semantics stage allocates a `P` and nested inline nodes, then occurrence ranges for text leaves and links. The nearest language scope supplies the leaf's language, which is emitted at the authored structure node. PDF 1.7 standard roles `Code` and `Quote` use their namespace from semantic planning.
+
+Shaping treats each occurrence group's face and style split as local to that group. Shared literal text can be interned once and still participate in differently split runs. Line-template equality includes the physical split and range facts used by layout. Inline scale changes each physical run's typography and retains the line geometry needed by pagination. Prior style facts resolve scoped text and role colors. Line-selection policy suppresses legal breaks inside a code word. A word wider than the frame rejects with `layout.unbreakable_token`.
+
+Inline links produce one annotation per page where owned text paints. Link occurrence ranges and accepted placements determine the annotation bounds. The shape of the link annotation is independent of any adjacent content that used the same source.
+
+Use `tests/rich_inline` for mixed styles, language nesting, shared-source faces, scaled code, scoped colors, and code-hold scale pairs. `scripts/check_rich_inline.py` reconstructs paint and structure order, language, and source text and rejects mutation twins. The combined archive cases apply the same verification to ordered Latin/Han paragraphs and their 10/100 scale pair.

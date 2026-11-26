@@ -1,0 +1,6 @@
+[#contributor-font-inspection]
+= TrueType inspection
+
+`KernelFont.Inspection` retains the caller's exact immutable font bytes. Table, loca, cmap, coverage and glyph component records are flat and reference these bytes by checked range. Inspection checks every name record individually and retains source-backed name ranges. SHA-256 uses Roc's `Crypto.SHA256` builtin. The sfnt checksum is a wrapping sum of fixed-width big-endian words with a bounded incomplete word.
+
+The independent Inter 4.1-derived fixture carries reproducible OFL-1.1 provenance and uses its retained composite and cmap facts. Reset the allocation count before passing it into inspection or requesting glyph coverage. The independent font fixture tooling verifies the original font against its recipe and digest.

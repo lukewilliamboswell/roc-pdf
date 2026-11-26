@@ -1,0 +1,31 @@
+[#contributor-deflate]
+= Generated-stream compression contract
+
+`KernelDeflate` wraps the pinned `roc-deflate` dependency. The sealed
+plan chooses level 1 (`Fastest`), 6 (`Balanced`), or 10 (`Smallest`).
+The seam owns zlib framing, Adler-32, the empty-stream encoding, and the
+checked bound for each stream. Generated streams have FlateDecode.
+Validated unchanged JPEG bytes use DCTDecode and XMP stays unfiltered.
+
+[#contributor-deflate-bounds-ownership-and-traversal]
+== Bounds, ownership, and traversal
+
+The stored-block bound covers input bytes, five bytes per 5,000-byte
+block (at least one block), and six framing bytes. The bound holds for
+all presets. Preparation checks input and output limits before the plan
+escapes. The compression transition consumes the source and checks the
+exact framed length against the bound. Work counts streams, input bytes,
+and emitted bytes.
+
+[#contributor-deflate-executable-evidence]
+== Executable evidence
+
+`KernelDeflate` checks framing, FLEVEL, Adler-32, round trip, bounds, and
+empty-stream bytes. The `structural-kernel` generated-stream fixture
+family in `tests/spec.json` pins output, allocation and deterministic
+work. `scripts/check_pdf_structure.py` uses independent zlib
+decompression to check the original payload, indirect length, xref
+offset, and malformed compressed data. See also
+xref:contributor-output.adoc#contributor-output-size[encoding and compression presets].
+
+See https://github.com/lukewilliamboswell/roc-pdf/blob/a6d1bde3028d51955b96af3ba1a183855a92cd2d/docs/contributors/performance/deflate.md[the archived design and measurements].

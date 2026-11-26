@@ -1,0 +1,53 @@
+[#contributor-lowering-uniqueness]
+= Accumulator ownership and the allocated-bytes guard
+
+The object, scene, and semantic lowerers consume growing buffers. Each loop
+retains one owner through the next update. Keep the declaration-specific
+rules in AGENTS.md and inspect emitted LIR when equal allocation counts
+hide growing copies.
+
+[#contributor-lowering-uniqueness-fix-pattern]
+== Fix pattern
+
+The rules now in `AGENTS.md`:
+
+* Thread an accumulator (list, builder, or store) only through calls that
+consume it. Never keep it live on another path, as in
+`Err(e) => { $error = … }` loop state or `Err(_) => $acc` fallbacks. Use
+`?` or `return Err(e)`.
+* Do not return an accumulator beside another refcounted value in a `Try`
+that the caller then splits. Let the helper finish the aggregate
+(`add_*_array` returning `{ builder, id }`), or return the accumulator
+alone and derive dense ids from counts taken before the call.
+* Do not update a list the caller received through `?`. Move the update into
+the producing call.
+* Grow accumulators with `append` only. `List.reserve` and `List.concat` are
+for one-shot sizing when the final size is known.
+
+[#contributor-lowering-uniqueness-the-allocated-bytes-guard]
+== The allocated-bytes guard
+
+Metrics protocol 2 adds `allocated_bytes`, the size of every `roc_alloc`
+and the new size of every `roc_realloc`. Each case records it per target
+beside exact allocations and work. `scripts/test.py` fails a case whose
+allocated bytes exceed the recorded value by more than 10%
+(`ALLOCATED_BYTES_CEILING_TENTHS = 11`). The self-test checks that one
+byte over the ceiling fails and that the ceiling and half the recorded
+value pass. The baseline report lists violations and the run log retains
+measurements for reviewed tightening.
+
+The ceiling is checked with `--allocation-baselines`,
+`--compare-baselines`, and `--update-snapshots`. Use at least one small
+and large pair for a scalable feature. Exact counts can remain linear
+even when a per-append copy increases allocated bytes quadratically.
+
+[#contributor-lowering-uniqueness-harness-builds-without-the-cache]
+== Harness builds without the cache
+
+`fixture_build_command` uses `--no-cache` with the pinned dev backend.
+Allocation evidence then depends on the fixture's source and argument
+ownership, rather than previously compiled procedures. The harness's
+grouped, isolated, perturbed, and injected modes exercise the equivalence
+check. The injected allocation must be detected.
+
+See https://github.com/lukewilliamboswell/roc-pdf/blob/a6d1bde3028d51955b96af3ba1a183855a92cd2d/docs/contributors/performance/lowering-uniqueness.md[the archived design and measurements].

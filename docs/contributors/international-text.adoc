@@ -1,0 +1,119 @@
+[#contributor-international-text]
+= International flow evidence
+
+[#contributor-international-text-hebrew-and-latin]
+== Hebrew and Latin
+
+The bilingual invoice uses Unicode 18.0.0 analysis from Unicode 4.4.0
+(UAX #9 revision 52, UAX #14 revision 57 and UAX #29 revision 49) and
+roc-font 0.2.0 shaping. Earlier checked-in Unicode vectors continue to
+exercise their pinned cases. UAX #24 script facts are intersected with
+paragraph levels and authored occurrences. Coverage then uses the caller's
+ordered exact faces. The shaper uses the provider's default features with
+the resolved direction, exact script and author language. The admitted
+repertoire avoids joining across UAX #14 opportunities, so shaping both
+sides independently before fitting gives final measurement at every legal
+boundary. The Latin and Hebrew fonts are pinned in the asset inventory.
+
+`tests/contracts/international_shape.roc` checks source intervals, RTL glyph
+order, glyph limits, exact selected fonts and a line whose wrap changes paint
+positions while preserving logical owners. The matched HarfBuzz 14.6.0 case
+uses the exact gallery Hebrew font, Latin prefix byte origin, Hebr, he, RTL
+and default features. It checks glyph IDs, clusters, advances and offsets.
+The invoice PDF oracle independently traverses structure owners and reads
+the painted positions, ToUnicode and scoped ActualText. Its mutations
+change an owned replacement, reorder a mirrored bracket on a committed line,
+or change WritingMode. ISO 32000-2 §§9.10, 14.7.5, 14.8.5.4 and 14.9 and
+ISO 14289-2:2024 Annex B.1 govern these mappings, scoped replacements,
+language and layout attributes.
+
+The fixture group exercises normal preparation, reporting, WTPDF
+Accessibility and located rejections for an unsupported script, pointed
+grapheme, bidi control and missing face coverage. Each rejection is exercised
+through complete bytes and chunk preparation.
+
+Arlington 1.30.2 accepts the four PDF snapshots. Explicit veraPDF `4` and
+`ua2` accept the gallery invoice and its WTPDF counterpart and both scale layouts, and `wt1a`
+accepts the latter. The checked-in preview uses Poppler 26.07.0 at 96 dpi.
+The exact UTF-8 inputs and profile cases are in https://github.com/lukewilliamboswell/roc-pdf/blob/main/tests/international_text/Cases.roc[the international fixture group].
+
+[#contributor-international-text-arabic-and-latin]
+== Arabic and Latin
+
+The supplier invoice exercises initial, medial, final and isolated forms
+with the audited IBM Plex Sans Arabic Regular font. The Arabic shaper uses
+Unicode 18.0.0 DerivedJoiningType supplied by roc-font 0.2.0 and OpenType
+Arabic joining and contextual substitutions. The production adapter checks
+all positions, glyph IDs and cluster ranges in `U+0627 U+0644 U+0633 U+0644 U+0627 U+0645` against HarfBuzz
+14.6.0 with the exact face, Arab, ar, RTL and default features. The checked
+lam-alef cluster owns one glyph and both original letters. The fixture's
+tagged owners supply exact logical extraction, writing mode and scope
+language. An inline boundary inside a joining word has a located rejection
+until supported shaping contexts can cross that boundary.
+
+[#contributor-international-text-hindi-and-latin]
+== Hindi and Latin
+
+The Hindi statement checks a conjunct and pre-base vowel in `U+0935 U+093F U+0924 U+094D U+0924 U+0940 U+092F`
+and a below-base mark in `U+0915 U+0943 U+092A U+092F U+093E`. Layout uses the exact static IBM Plex
+Sans Devanagari Regular and the font's OpenType `dev2` features with
+Deva, hi and left-to-right direction. Coverage planning keeps each
+Unicode grapheme together. The provider may merge contributors into a
+single cluster and reorder glyphs according to the script's OpenType
+stages. The adapter and the emitted PDF are independently compared to
+HarfBuzz 14.6.0 for these choices and positions. Tagged language and exact
+logical source remain intact. An inline divide inside a conjunct is
+located before paint, and unsupported script or effective language
+gives a separate diagnostic.
+
+[#contributor-international-text-committed-line-model]
+== Committed-line model
+
+The bounded model in `fuzz/InternationalLineModel.roc` exhausts 37
+states at depth three using four independently authored paragraph-level
+cases. It retains base direction, bracket and digit contexts, an optional
+authored style boundary and one of three exact committed line ranges.
+The production analysis and line stages must agree with hand-derived
+paragraph levels and independent L1 trailing-space resets and L2 run
+reversals. It checks line levels, visual cluster order and logical
+ranges, with witnesses for an earlier committed cut on both base
+directions. The Hebrew invoice checks the corresponding ordered owner
+and paint facts through the public compiler and archived PDF.
+
+[#contributor-international-text-thai-and-latin]
+== Thai and Latin
+
+The Thai notice uses Unicode 4.4.0 ThaiDictionaryV1 over the case's authored
+five words, with the dictionary revision supplied in the public options.
+Independently expected scalar cuts 5, 9, 13 and 18 map to bytes 15, 27, 39
+and 54. The production shaper and fitter consume the same decisions.
+The notice shows the break after U+0E40 U+0E07 U+0E34 U+0E19. Its owner retains the full unspaced
+text, including SARA AM and combining marks. HarfBuzz 14.6.0 agrees on the
+glyphs, advances and offsets of U+0E0A U+0E33 U+0E23 U+0E30 in Thai/th/LTR with the exact static
+IBM Plex Sans Thai Looped font and default features. The PDF oracle checks
+those painted positions and the vertical mark in U+0E27 U+0E31 U+0E19 U+0E19 U+0E35 U+0E49.
+
+One unspaced paragraph at two and twenty dictionary repetitions retains ten
+and one hundred owned word fragments, respectively. Both documents stay on
+one page. The exact x64musl references are 3,695 allocations and 6,378,436
+bytes for two repetitions, and 19,361 allocations and 10,746,280 bytes for
+twenty. The PDF oracle verifies the single owner, exact original text, and
+paint order within each committed baseline. Arlington 1.30.2 and explicit
+veraPDF `4` and `ua2` accept both scale snapshots.
+
+The separate face model in `fuzz/InternationalCoverageModel.roc` exhausts
+16 states. It checks four ordered coverage choices against an independent
+scan of the admitted faces, including a two-scalar Hindi grapheme and a
+Latin glyph covered by both faces. The Solve proof checks the positive
+signed-advance boundary. It finds an overflow witness and sends it, and
+the largest valid neighboring advance, through production line placement.
+Each trailing space has its own positioning unit, so UAX #9 L1 can reset
+consecutive spaces without reversing any shaped run.
+
+The structured `international_text` fuzz target varies widths, repeated
+text, occurrence boundaries, four scripts and font or control failures
+through actual shape, fit and positioning. Eight pinned examples and
+64 generated smoke inputs passed the bounded lane. The smoke report
+recorded 56 accepted and eight rejected generated inputs. Public fixture
+cases separately check the atomic byte/chunk diagnostics and emitted PDF
+ownership.

@@ -1,0 +1,13 @@
+[#contributor-source-foregrounds]
+= Source foreground ranges
+
+`Pdf.SourceForeground` is `{ start : U64, end : U64, color : Color.SourceValue }`.
+
+Worst-case normalization is O(input bytes + expanded bytes + original
+clusters + ranges); retained mapping is O(ranges). Paint subdivision is
+O(runs + logical rows + occurrences + source clusters + ranges), with O(occurrences + sources
+
+* paint pieces) temporary/index storage. Run/placement limits are checked
+before every new piece. Accumulators stay uniquely owned; no growing list
+passes through a fallible helper that its caller then extends. There are no
+new payload copies, caches, native dependencies or language dependencies.

@@ -1,0 +1,19 @@
+[#contributor-tagged-visual-closure]
+= Tagged visual verification controls
+
+Run the tagged visual cases in `tests/spec.json` when changing paint
+planning or structure ownership. The same fixture checks independent
+object and structure layout and renderer output, with exact allocation
+and work evidence under the pinned compiler.
+
+[#contributor-tagged-visual-closure-capability-and-evidence-aggregation]
+== Capability and evidence aggregation
+
+`scripts/check_tagged_visual.py` checks normalized structure, resource
+use and adversarial negatives. `scripts/check_visual_renderers.py`
+checks an independent pixel oracle in the pinned reader matrix.
+Pair contextual ownership cases with the million-command image-reuse
+fixture to exercise paint attachment and bounded command traversal.
+Check reading and paint order independently.
+
+See https://github.com/lukewilliamboswell/roc-pdf/blob/a6d1bde3028d51955b96af3ba1a183855a92cd2d/docs/contributors/performance/tagged-visual-closure.md[the archived design and measurements].

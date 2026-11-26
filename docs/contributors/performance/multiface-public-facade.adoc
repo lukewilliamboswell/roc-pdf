@@ -1,0 +1,6 @@
+[#contributor-multiface-public-facade]
+= Public ordered multi-face facade output
+
+The ordered policy selects a registered face for each complete grapheme cluster from its declared script and coverage. One interned logical source can have several ordered physical runs. The prepared dense font table includes only selected faces in policy order. A missing script, uncovered scalar or ambiguous policy emits a located rejection before PDF output.
+
+The `tests/multiface_facade` case registers separate Latin and Han faces. Its four public negative cases test missing coverage, script/policy errors and no partial PDF emission. The shared-registry control prepares independent documents against one validated face set. The planner-level alternating cluster scale and the facade's repeated mixed-source x1000/x10000 pair check candidate probes and reuse without taking one allocation per candidate visit.

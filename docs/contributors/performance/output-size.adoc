@@ -1,0 +1,94 @@
+[#contributor-output-size]
+= Canonical compact PDF encoding
+
+File size is evidence about the representation. Use the sealed layout and
+its independent reader when changing a PDF encoding choice. Compression
+presets alter compressed bytes and can alter object offsets. They preserve
+uncompressed content, structure, and plan identity.
+
+[#contributor-output-size-compression-presets-2026-10-19]
+== Compression presets
+
+`Pdf.Options.compression` selects `Fastest`, `Balanced` (default), or
+`Smallest`. Preparation seals the corresponding libdeflate level (1, 6,
+or 10) into the plan. Emission applies that level to all generated
+streams, object streams and the xref stream. `/ID` derives from normalized
+plan facts and uncompressed generated inputs. The stored-block bound
+holds for every level and the zlib wrapper owns the FLEVEL bits. The
+empty stream keeps its canonical framing bytes.
+
+`tests/pdf_facade` and the `facade_output_equivalence` fuzz target
+exercise buffered, chunked, prepared and one-shot output for these
+choices. The package checks exact framing and work. The
+`Smallest` snapshot records the pre-preset bytes for its matching source.
+
+[#contributor-output-size-checkers]
+== Checkers
+
+`scripts/pdf_layout.py` parses the layout independently: it decodes the
+predicted cross-reference rows, checks every type 1 offset against the object
+it lands on and every type 2 row against the object stream header that holds
+it, and returns every object's flat body, so the existing checkers read
+objects exactly as before. `check_pdf_structure.validate_object_stream_layout`
+checks the layout itself: canonical dictionaries, the minimal offset width,
+the numbering of object streams after the planned objects, streams top-level,
+and the 400-member partition in object-number order. Negative self-tests
+build their twins in the same layout (`pdf_layout.twin` and `mutate`), so a
+twin differs from a valid file only by its edit; `check_pdf_structure`'s
+self-test also proves that an unedited re-serialized twin still validates.
+The fuzz lane's `StructureOracle` inflates
+the cross-reference and object streams with the DEFLATE dependency's
+inflater (which shares no code with its compressor), undoes the predictor,
+and tokenizes every object where it lives.
+
+[#contributor-output-size-conformance-basis]
+== Conformance basis
+
+PDF 2.0 permits compressed object streams under ISO 32000-2 §7.5.7.
+The canonical partition is 400 members in object-number order, with
+streams and values consisting entirely of an indirect reference kept
+top-level. All objects use generation zero. The xref stream uses
+minimal offset width and PNG Up prediction. See
+xref:contributor-output.adoc#contributor-output-bounds[the checked bounds].
+
+Generated font programs, CMaps, and ICC streams use FlateDecode.
+Validated JPEG bytes use DCTDecode and XMP stays unfiltered.
+`KernelPdfA4` checks ISO 19005-4:2020 §6.1.6.2 and §6.7.2 as
+`ROC-PDF-PDFA4-6-1-6-2-FILTERS` and
+`ROC-PDF-PDFA4-6-7-2-METADATA`.
+`/CIDToGIDMap /Identity` is valid under ISO 32000-2 §9.7.4 and Table 115.
+Preparation validates CID equals subset glyph ID before writing it.
+
+[#contributor-output-size-5a-literal-strings-and-single-byte-text-strings]
+== 5a. Literal strings and single-byte text strings
+
+`KernelLex` chooses the shorter canonical byte-string form. Literal
+strings escape delimiters and nonprintable bytes. Ties use uppercase
+hexadecimal. Printable ASCII text uses PDFDocEncoding.
+Other Unicode uses BOM-prefixed UTF-16BE. File identifiers remain hex
+and ActualText keeps its UTF-16BE hex form. See ISO 32000-2 §§7.3.4
+and 7.9.2.2. `canonical_bytes` and `canonical_text` check this policy
+independently.
+
+[#contributor-output-size-5b-structure-elements-optional-type-bare-mcids-and-referenced-cell-ids]
+== 5b. Structure elements: optional /Type, bare MCIDs, and referenced cell IDs
+
+Use `/Pg` on an element for the page of its first marked-content
+child. Same-page kids write bare MCIDs and other pages write explicit
+MCR dictionaries under ISO 32000-2 §14.7.5.2 and Table 355.
+`/Type /StructElem` is optional. A generated cell `/ID` lowers only
+when a `/Headers` attribute refers to it. Authored identifiers
+continue to lower. Independent checkers expand bare MCIDs and verify
+ownership, structure and ID references.
+
+[#contributor-output-size-5c-default-page-entries-and-tounicode-ranges]
+== 5c. Default page entries and ToUnicode ranges
+
+Page boxes and rotation use the defaults in ISO 32000-2 Table 31.
+Empty resource categories are omitted. `ToUnicode` uses `bfrange`
+for consecutive CIDs mapping to consecutive BMP units when both stay
+inside their 256-code windows. Other rows use `bfchar`. Blocks have
+at most 100 rows. `check_pdf_structure.to_unicode_mappings` checks
+the range limits, counts, and exact ascending CID coverage.
+
+See https://github.com/lukewilliamboswell/roc-pdf/blob/a6d1bde3028d51955b96af3ba1a183855a92cd2d/docs/contributors/performance/output-size.md[the archived design and measurements].

@@ -53,7 +53,7 @@ The first release is judged by correctness: complete business documents that
 author through public APIs, lay out predictably, report actionable diagnostics,
 and pass the project-owned checks for the supported output profiles.
 
-The [reference document contract](docs/contributors/reference-documents.md)
+The [reference document contract](docs/contributors/reference-documents.adoc)
 defines the business-document fixtures, their adverse variants, and the text
 and layout policies used by the public facade.
 
@@ -85,8 +85,8 @@ destination references select decimal page numbers or configured PDF page
 labels, which can also appear in furniture. Page scopes are nonnested
 full-body-page regions with independently authored opening and continuation
 templates and short running labels. The
-[manual-composition evidence](docs/contributors/performance/manual-composition.md)
-and [contents-entry checks](docs/contributors/performance/contents-entries.md)
+[manual-composition evidence](docs/contributors/performance/manual-composition.adoc)
+and [contents-entry checks](docs/contributors/performance/contents-entries.adoc)
 exercise these capabilities through the public facade.
 
 List items can contain source blocks, captioned figures, ordinary tables
@@ -372,7 +372,7 @@ within an early correctness gate.
   `Balanced` (the default), `Smallest`, and `Fastest`. Each preset is
   deterministic and byte-identical across buffered, chunked, and prepared
   output; `Smallest` reproduces the earlier level-10 bytes. Evidence:
-  [docs/contributors/performance/output-size.md](docs/contributors/performance/output-size.md).
+  [docs/contributors/performance/output-size.adoc](docs/contributors/performance/output-size.adoc).
 - Stable object allocation, resource naming, stream length handling, and file
   identifiers.
 - Deterministic fixed-fanout balanced builders for page, name, number, ID, and
@@ -457,7 +457,7 @@ within an early correctness gate.
 - A million-command stress fixture has bounded stack use, linear visits, and no
   payload duplication per placement.
 
-The [tagged visual checks](docs/contributors/performance/tagged-visual-closure.md)
+The [tagged visual checks](docs/contributors/performance/tagged-visual-closure.adoc)
 cover exact structure, renderer comparisons, rejection and scale for this
 compiler boundary.
 
@@ -517,7 +517,7 @@ compiler boundary.
 Use pure Roc Unicode algorithms from [roc-lang/unicode](https://github.com/roc-lang/unicode)
 for scalar analysis, grapheme ranges, line breaks, bidirectional resolution,
 script properties and itemization, and case mappings. The
-[analysis dependency record](docs/contributors/performance/unicode-analysis.md)
+[analysis dependency record](docs/contributors/performance/unicode-analysis.adoc)
 pins Unicode 18.0.0, the package revision, the data manifest and the
 separately versioned script-itemization policy. Review correctness, ownership,
 allocations and deterministic work when adopting a new revision.
@@ -528,7 +528,7 @@ the Unicode analysis boundary.
 
 ### Text capability planning for the production release
 
-Maintain a [declared support matrix](docs/contributors/reference-documents.md#declared-production-text-support)
+Maintain a [declared support matrix](docs/contributors/reference-documents.adoc#contributor-reference-documents-declared-production-text-support)
 with explicit rows for:
 
 - Scripts and language-sensitive shaping behavior.
@@ -603,7 +603,7 @@ and [HarfBuzz boundary facts](https://harfbuzz.github.io/harfbuzz-hb-buffer.html
   pagination cases meet their declared operation-count bounds; accepted page
   scenes are materialized once.
 
-The [text and layout checks](docs/contributors/performance/text-layout-closure.md)
+The [text and layout checks](docs/contributors/performance/text-layout-closure.adoc)
 cover the declared single- and multi-face boundaries from source facts through
 extraction and placement. See the text-support matrix for currently supported
 shaping and layout.
@@ -672,7 +672,7 @@ The initial profile does not include CMYK, Separation/DeviceN/spot color,
 overprint, luminosity masks, non-Normal blending, rollover/down annotation
 appearances, or annotation types other than links.
 
-The [visual compiler evidence](docs/contributors/performance/production-visual-closure.md)
+The [visual compiler evidence](docs/contributors/performance/production-visual-closure.adoc)
 covers resource and graphics validation, exact emission and scale for
 `Standard`. Public drawing, flow figure and fixed-page limits are specified
 under Gates 6 and 8.
@@ -700,7 +700,7 @@ under Gates 6 and 8.
 checks the supported-feature whitelist, selected text, resource closure and
 sealed-plan metadata. Fixtures exercise accepted Archive and Standard output,
 identification and unchanged page appearance, plus atomic rejection. The
-[archive implementation record](docs/contributors/performance/static-pdfa4.md)
+[archive implementation record](docs/contributors/performance/static-pdfa4.adoc)
 describes the supported path.
 
 ## Gate 6: business authoring and core PDF/UA-2 vocabulary
@@ -747,8 +747,8 @@ reference invoice, report and letter.
   between visual lines. Optional padded panels repeat as decoration artifacts
   on each page fragment; Code semantics and source order remain logical facts.
   Foreground ranges preserve the source, wrapping and semantic ownership.
-  [Source-block evidence](docs/contributors/performance/source-blocks.md) and
-  [foreground-range evidence](docs/contributors/performance/source-foregrounds.md)
+  [Source-block evidence](docs/contributors/performance/source-blocks.adoc) and
+  [foreground-range evidence](docs/contributors/performance/source-foregrounds.adoc)
   exercise these contracts.
 - The declared production text-support matrix and any additions needed by the
   reference documents, including bounded boundary reshaping and final fit
@@ -855,7 +855,7 @@ reference invoice, report and letter.
 Unsupported semantic constructs are rejected; they are never flattened into
 paragraphs or figures.
 
-The [business-authoring evidence](docs/contributors/performance/business-authoring-closure.md)
+The [business-authoring evidence](docs/contributors/performance/business-authoring-closure.adoc)
 links the public fixtures, independent checks and scale baselines. See the
 [authoring guide](docs/authoring.adoc) for supported combinations and
 diagnostics.
@@ -888,7 +888,7 @@ plain English flow paragraphs in exact Inter Regular. The line fitter
 consumes the adjusted advances and may reshape at legal, unsafe cuts.
 The emitted fonts, tagged line ownership, distinct source spellings,
 atomic exhaustion, and bounded allocation and work are exercised by
-[the Inter Latin fixtures](docs/contributors/performance/inter-latin.md).
+[the Inter Latin fixtures](docs/contributors/performance/inter-latin.adoc).
 
 ### Document-level associated files
 
@@ -900,7 +900,7 @@ reject attachments before emission. The application owns file contents and
 metadata accuracy. Element-level associations and file attachment annotations
 need separate capability slices.
 
-The [associated-files evidence](docs/contributors/performance/associated-files.md)
+The [associated-files evidence](docs/contributors/performance/associated-files.adoc)
 covers both declaration sets, exact extracted bytes, name-tree boundaries,
 metadata, error paths, and the count and payload-volume scale pairs.
 
@@ -915,7 +915,7 @@ font covers printable ASCII even when the initial value is blank. Checkbox
 initial values and selected appearances use the same authored state, and the
 checkbox glyphs are vector paths. WTPDF
 accessibility is optional. See the
-[fillable-field evidence](docs/contributors/performance/fillable-forms.md)
+[fillable-field evidence](docs/contributors/performance/fillable-forms.adoc)
 and [service intake example](examples/service-intake).
 
 ## Gate 8: advanced document composition
@@ -965,7 +965,7 @@ footnote on the first citation's page. Repeated citations retain
 structure references without repeating note text. PDF/UA-2 and optional
 WTPDF accessibility use FENote, reciprocal references, and structure
 destinations. See the
-[footnote evidence](docs/contributors/performance/footnotes.md) and
+[footnote evidence](docs/contributors/performance/footnotes.adoc) and
 [operations handbook](examples/operations-handbook#footnotes).
 Long-note continuation and combinations with more advanced flow layouts
 have separate requirements.
@@ -1009,7 +1009,7 @@ permutation can independently select paint order. Preparation checks nominal
 line-box and advance fit and reports errors at the authored page and placement.
 The [remittance example](examples/remittance-advice/main.roc) exercises mixed
 sizes and differing orders. The [designed brief](examples/designed-brief/Brief.roc)
-exercises figure and caption ownership in one paint-order slot. The [fixed-page evidence](docs/contributors/performance/fixed-pages.md)
+exercises figure and caption ownership in one paint-order slot. The [fixed-page evidence](docs/contributors/performance/fixed-pages.adoc)
 covers the combined and WTPDF declarations, exact reading and paint order,
 and two- and twenty-page scale checks.
 
@@ -1065,7 +1065,7 @@ flow. The [operations handbook bibliography variant](examples/operations-handboo
 uses a tagged bibliography section, exact structure destinations, and
 ordered entry backlinks. The focused fixtures cover two and twenty
 citations, WTPDF Accessibility, and atomic diagnostics. [Executable
-evidence](docs/contributors/bibliography.md)
+evidence](docs/contributors/bibliography.adoc)
 
 ## Gate 9: extended modern accessibility vocabulary
 
@@ -1207,8 +1207,8 @@ mono provides Regular/Bold. Missing coverage, unavailable styles and unsupported
 shaping reject before bytes, without automatic fallback. This adds no runtime
 variable-font, script-shaping or conformance-profile claim.
 
-[Packaged-font contracts](docs/contributors/roc-font.md) define asset provenance,
-selection and ownership. [Default-family fixtures](docs/contributors/performance/default-fonts.md)
+[Packaged-font contracts](docs/contributors/roc-font.adoc) define asset provenance,
+selection and ownership. [Default-family fixtures](docs/contributors/performance/default-fonts.adoc)
 cover independent source/subset metadata, searchable text, atomic rejection and
 scaling. Use the current allocation baselines and publication checks rather than
 an earlier integration run to assess a change.

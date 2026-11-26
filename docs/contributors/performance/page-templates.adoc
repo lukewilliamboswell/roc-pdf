@@ -1,0 +1,15 @@
+[#contributor-page-templates]
+= Page templates, furniture, and page fields
+
+First-page and continuation templates resolve to fixed flow frames before pagination. Geometry derives from region heights and gaps. The opening lead normalizes before ordinary body blocks and must fit on its opening page. Authored scope names and individual region and item paths identify any geometry or fit rejection.
+
+`KernelStabilization.stabilize` bounds explicit state iteration and distinguishes stable results, cycles and exhaustion. Furniture fields resolve from accepted pages. Field width and region placement are established before painting. Fixed frame geometry is independent of the final page-field text. Start, center and end slots align to prepared geometry, with placed text and drawings sharing one region fit check.
+
+`KernelFacadeText.Plan.with_furniture` interleaves header and footer paint with each page's body. The earlier furniture plan provides placement and artifact ownership. Furniture shape is reused by resolved text/style identity. The default furniture typography derives from the current body style and a fixed override can select a separately prepared face. Backdrops use their own region slot. Insets and nested drawing offsets are validated before scene construction.
+
+The `tests/page_templates` fixture family covers page-field geometry in the letter x20/x200 pair, landscape and custom page size, region backdrops, slot insets, grouped furniture drawings, and independent typography x3/x30. `scripts/check_structure_semantics.py` checks furniture ownership and paint order from emitted bytes.
+
+[#contributor-page-templates-reviewed-rebaselines]
+== Template baseline verification
+
+Run the `page_templates` group through the strict harness when changing frame, furniture or page-field storage. Its registered allocation, work and PDF expectations are the reference for both pinned targets.

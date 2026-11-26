@@ -1,0 +1,4 @@
+[#contributor-visible-text]
+= Visible searchable text
+
+The scene's text command resolves through the validated ownership join to one prepared run and fragment. Lowering builds a bounded local-coordinate glyph body and keeps one occurrence-owned logical source. The common no-replacement path maps CIDs through `ToUnicode`. The visible searchable-text fixture independently checks calibrated color, structure ownership and exact painted character order for `Café PDF`.

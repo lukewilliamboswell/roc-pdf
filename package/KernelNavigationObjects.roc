@@ -543,7 +543,7 @@ add_name_tree = |builder, names, store, resolved, objects, context| {
 
 ## One byte-tree node's `/Kids` or `/Names` array. The builder moves into
 ## this function rather than being copied into a loop-local `var` beside the
-## still-live loop builder (docs/contributors/performance/lowering-uniqueness.md).
+## still-live loop builder (docs/contributors/performance/lowering-uniqueness.adoc).
 add_byte_tree_children : KernelObject.Builder, KernelNavigationObjects.TreeNames, KernelIndex.ByteTree, List(KernelObject.ObjectId), KernelIndex.Node -> Try({ builder : KernelObject.Builder, key : KernelObject.NameId, value : KernelObject.ValueId }, KernelNavigationObjects.Error)
 add_byte_tree_children = |builder, names, tree, planned, node| match KernelIndex.Node.children(node) {
 	Nodes(span) => {
@@ -931,7 +931,7 @@ add_style_value = |builder, name| {
 ## References to `length` planned objects from `start`, then their array.
 ## It returns only the builder and the array's id: returning the builder
 ## beside the value list made the pinned dev backend copy the store once per
-## node (docs/contributors/performance/lowering-uniqueness.md).
+## node (docs/contributors/performance/lowering-uniqueness.adoc).
 add_planned_reference_array : KernelObject.Builder, List(KernelObject.ObjectId), U64, U64 -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelNavigationObjects.Error)
 add_planned_reference_array = |builder, planned, start, length| {
 	var $builder = builder

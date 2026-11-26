@@ -1,0 +1,33 @@
+[#contributor-font-subsetting]
+= Sanitized TrueType subsetting
+
+This slice consumes the sealed `KernelFont.Inspection` and
+`KernelFontPlan.Plan` facts. It does not reparse glyph semantics, infer use from
+serialized content, or accept caller-selected PDF object identities.
+
+Retained glyphs are copied once in ascending original-glyph order. Composite
+component IDs are rewritten at the validated component offsets recorded by the
+inspection stage. The subset uses long `loca` offsets and one explicit long
+horizontal metric per retained glyph. Glyph zero remains the required
+`.notdef` entry but is absent from the rebuilt Unicode mapping.
+
+The writer constructs a fresh, deterministic sfnt from an allowlist.
+
+The format-12 `cmap` is emitted from one contiguous group-byte buffer. The sfnt
+directory is planned by bounded passes over a fixed list of at most 14
+tables, sizes the
+result before emission, and appends every payload once. The original font byte
+resource remains shared through glyph copying; inspection does not duplicate
+it.
+
+Subset mapping consumes the inspection layer's ordered traversal of the selected
+cmap. It preserves all source aliases of retained content glyphs, not only the
+scalars seen in the document. Format-4 decoding remains owned by inspection;
+subsetting does not reinterpret font bytes or restart a random-access search for
+each scalar.
+
+Traversal work is linear in source ranges plus their scalar spans. The traversal
+reports exact range, scalar and yielded-mapping counts; small/large unit cases
+pin that growth. Its fold threads the caller's accumulator without allocating
+an intermediate mapping list. The subset's existing mapping count still counts
+emitted mappings, and the output order and grouping rules are unchanged.

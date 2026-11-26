@@ -182,7 +182,7 @@ build_multi_plan = |scenes, fonts, descriptor, facts, navigation, limits| {
 		}
 		# Take the font's usages out of the outer list before growing them,
 		# so the inner list stays unique and appends in place
-		# (docs/contributors/performance/lowering-uniqueness.md).
+		# (docs/contributors/performance/lowering-uniqueness.adoc).
 		var $usages = list_at($usages_per_font, font_index)
 		$usages_per_font = list_set($usages_per_font, font_index, [])
 		var $glyph_index = run.glyphs.start()

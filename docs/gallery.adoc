@@ -4,6 +4,19 @@
 These complete applications use public Roc APIs. Run one from a checkout to
 inspect its PDF and then adapt its source to your own content.
 
+Use the compiler pinned in the checkout and run the application from its
+directory. For example:
+
+[source,sh]
+----
+cd examples/product-brief
+roc run main.roc
+----
+
+The application writes its PDF in that directory. The committed preview
+shows a selected page rendered at 96 dpi. To use an example with a published
+package, point its `pdf` dependency at the release bundle.
+
 == Invoice
 
 image::images/tax-invoice.png[Tax invoice preview]
@@ -52,9 +65,11 @@ https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/invoice-with-da
 
 == Business report
 
+ifdef::backend-html5[]
 image::images/business-report.png[Business report preview]
+endif::[]
 
-https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/business-report/main.roc[Runnable report source] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/business-report/business-report.pdf[PDF output]
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/business-report/main.roc[Runnable report source] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/business-report/business-report.pdf[PDF output] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/business-report/preview.png[Preview]
 
 https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/business-report/README.md[Run the preparation report and heat-map variants.]
 
@@ -79,9 +94,11 @@ https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/quarterly-repor
 
 == Prepared vector diagrams
 
+ifdef::backend-html5[]
 image::images/vector-diagrams.png[Prepared vector diagram preview]
+endif::[]
 
-https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/vector-diagrams/main.roc[Runnable vector-diagram source] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/vector-diagrams/vector-diagrams.pdf[PDF output]
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/vector-diagrams/main.roc[Runnable vector-diagram source] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/vector-diagrams/vector-diagrams.pdf[PDF output] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/vector-diagrams/preview.png[Preview]
 
 
 [#designed-brief]
@@ -98,9 +115,11 @@ https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/designed-brief/
 [#remittance-advice]
 == Remittance advice
 
+ifdef::backend-html5[]
 image::images/remittance-advice.png[Remittance advice on a fixed payment form]
+endif::[]
 
-https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/remittance-advice/main.roc[Runnable remittance source] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/remittance-advice/remittance-advice.pdf[PDF output]
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/remittance-advice/main.roc[Runnable remittance source] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/remittance-advice/remittance-advice.pdf[PDF output] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/remittance-advice/preview.png[Preview of the fixed payment form]
 
 [#pilot-findings]
 == Pilot findings
@@ -127,6 +146,12 @@ https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/operations-hand
 
 == More authoring examples
 
+* https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/warranty-letter[Warranty letter] for custom letterhead, a kept signature, and a covered-items schedule.
+* https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/brand-brief[Brand brief] for themed callouts, color swatches and vector logo placements.
+* https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/product-brief[Product brief] for Inter Latin shaping, vector charts and a kept plan comparison.
+* https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/font-families[Built-in font families] for the packaged sans, serif and monospace roles.
+* https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/furniture-typography[Furniture typography] for independent running text settings.
+* https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/release-notes[Release notes] for a version banner, compatibility table and issue links.
 * https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/operations-handbook/README.md[On-call handbook] for authored and generated contents, flow-changing references, indexes and chapter templates.
 * https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/source-blocks/README.md[Highlighted YAML] for caller-supplied UTF-8 ranges and an invalid-boundary example.
 * https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/ordered-han/README.md[Latin and Han receiving note] for explicit coverage order and language spans.

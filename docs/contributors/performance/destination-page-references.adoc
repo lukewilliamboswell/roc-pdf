@@ -1,0 +1,10 @@
+[#contributor-destination-page-references]
+= Destination page-reference verification
+
+`Pdf.page_reference` is an authored atom with a destination name and positive fixed width. Normalization records reference and chunk arenas only for rich paragraphs containing atoms. Symbolic semantics allocates the final owner and occurrence IDs before layout. A reference is one measured item with an unbroken reserved width. Tables use the same item domain for intrinsic width and wrapping. A range diagnostic over atoms names item coordinates instead of scalar coordinates.
+
+`KernelFacadeReferenceShape` shapes the exact literals against the selected face and style. `KernelFacadeReferences` registers destinations and commits anchor identities from accepted rows. Resolution shapes each final label once to check it against the reserved width and uses the cached run span and alignment at final emission. Finalization extends source interning without renumbering existing literals. An authored break after an atom preserves its semantic space as occurrence-owned `ActualText`.
+
+Normalization captures state projections before growing inline/reference arenas. Measured items use owning `Open | Failed` state. Anchor evidence freezes before label evaluation. Positioning builds one linear owned placement sequence from that evidence. Pagination consumes the exact maximum body-leaf size for vertical alignment. Table alignment consumes the separate visible advance that trims only terminal literal U+0020 clusters. Repeating table headers carry reserved frame geometry without a redundant lead-band arena for ordinary unpainted tables.
+
+The `reference_layout` pair isolates item building, intrinsic measurement and wrapping. The `destination_references` group exercises public preparation, configured labels, fit and rejection, Archive evidence and geometry. Its byte-level oracle derives each resolved reference from the actual target page and recovers its painted label from the emitted glyph mappings.

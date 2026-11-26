@@ -1,0 +1,24 @@
+[#contributor-uax-boundary-vectors]
+= UAX boundary-vector seam evidence
+
+This project owns a compact regression seam for the Unicode facts consumed by
+source normalization, grapheme-cluster font selection, and line layout. It
+does not vendor or duplicate the upstream package's full conformance corpus.
+That corpus belongs to `roc-lang/unicode`; this evidence protects the PDF
+pipeline's exact UTF-8/scalar coordinate handoff against a dependency upgrade
+or an accidental loss of a fact between stages.
+
+The positive fixture asserts these source coordinates.
+
+* CRLF is one grapheme at UTF-8 `[0, 2)` and scalar `[0, 2)`.
+* the Indic conjunct is one grapheme at UTF-8 `[0, 9)` and scalar `[0, 3)`.
+* the UAX #14 vectors retain every project boundary, including initial
+`Prohibited` and final `Mandatory` entries: AK/RI `[0, 3, 7]` and
+AI/SP/RI `[0, 3, 4, 8]`, with matching scalar coordinates and decisions.
+
+The atomic-negative twin independently sets the grapheme limit below the CRLF
+cluster count and the line-boundary limit below the AK/RI boundary count. Both
+must reject at their first crossing with the stable bounded error; no partial
+Unicode analysis is accepted. The fixture emits the standard blank structural
+carrier only after proving the two errors, so the common harness can inspect
+deterministic PDF bytes without treating it as successful text output.

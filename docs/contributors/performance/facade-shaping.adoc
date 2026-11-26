@@ -1,0 +1,4 @@
+[#contributor-facade-shaping]
+= Facade batch shaping
+
+Count requests from the validated occurrence store before allocating request and run buffers. A request takes earlier source, style, face and occurrence facts. The bounded shaper checks cumulative source bytes, scalars, clusters and glyphs before producing shaped arenas. Immutable shaped templates may be shared across placements. Use the batch shaping scales to verify that request construction and write counts grow with their declared inputs.

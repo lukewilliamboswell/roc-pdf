@@ -1,0 +1,229 @@
+[#release-0-1-0-rc3]
+= roc-pdf 0.1.0-rc3 (draft)
+
+This candidate makes static PDF/A-4 the default output profile and adds rich
+text, lists, tables, page templates, and technical-manual authoring.
+
+[#profiles-and-output]
+== Profiles and output
+
+* `Pdf.Options.default` selects `Archive`, producing tagged PDF 2.0 with a
+  static PDF/A-4 claim. Buffered and chunked output use the same profile.
+* Archive metadata declares `pdfaid:part` 4 and `pdfaid:rev` 2020. `Standard`
+  output does not declare PDF/A conformance.
+* Preparation checks the document before output. A document that cannot meet
+  its selected profile returns `InvalidDocument` with
+  `Conformance.DiagnosticCode.ProfileRequirementViolated`, the requirement
+  identifier, and the ISO 19005-4 clause. It is never downgraded to `Standard`.
+* PDF/UA-2 and `AccessibleArchive` remain unavailable.
+
+To keep plain PDF 2.0 output, select it explicitly:
+
+[source,roc]
+----
+bytes = Pdf.to_bytes_with(document, { profile: Standard })?
+----
+
+Metadata and structure additions change output bytes and document identifiers.
+Update any expected PDF bytes when upgrading. Output remains deterministic
+for the same inputs and package version.
+
+Exhaustive matches over `Conformance.DiagnosticCode` must handle
+`ProfileRequirementViolated`. The `profile.archive` feature code can now
+accompany that diagnostic instead of `FeatureUnavailable`.
+`AccessibleArchive` continues to report `profile.accessible_archive`.
+
+[#themes-and-options]
+== Themes and options
+
+Themes, options, and block configuration use records with defaults. Replace
+setter chains with the fields you want to change, such as `Theme.body`,
+`Theme.inline`, `Theme.table`, and `Pdf.Options.page_size`. A nested record
+uses its own type's defaults; spread the existing nested record to preserve
+its other fields. The link:https://lukewilliamboswell.github.io/roc-pdf/manual/#authoring-authoring-with-roc-pdf[authoring guide] shows complete examples.
+
+[#semantic-containers]
+== Semantic containers
+
+`Pdf.section` now accepts `List(Document.Block)` and groups its children as a
+`Sect`. Replace `Pdf.section("summary text")` with `Pdf.section([...blocks])`.
+`Pdf.part` and `Pdf.division` group blocks as `Part` and `Div` respectively.
+These groups preserve authored reading order and do not change layout.
+
+Containers must have content and nest at most 16 levels. Failures report
+`semantics.empty_container` (`InvalidRelationship`) or
+`semantics.container_depth` (`BudgetExceeded`), with the container's block
+path in `details`.
+
+Exhaustive matches over `Document.Block` must handle `Container`.
+`Document.Feature.SemanticContainers` is removed, and
+`semantics.containers` is no longer reported. Tagged documents also request
+that readers display the metadata title through `DisplayDocTitle`.
+
+[#rich-inline-content]
+== Rich inline content
+
+`Pdf.rich_paragraph` now accepts `List(Pdf.Inline)`. Replace
+`Pdf.rich_paragraph("text")` with `Pdf.rich_paragraph([Pdf.text("text")])`.
+
+Inline constructors include `Pdf.text`, `Pdf.emphasis`, `Pdf.strong`,
+`Pdf.code`, `Pdf.quote`, `Pdf.inline_link`, `Pdf.inline_internal_link`,
+`Pdf.in_language`, and `Pdf.expansion`. Lines wrap across inline boundaries;
+links remain clickable when their text continues onto another line or page.
+Inline roles can inherit or select their own color, face, and scale through
+`Theme.inline`.
+
+New diagnostics include `semantics.inline_empty`, `semantics.inline_depth`
+(more than eight nested inline elements), `semantics.link_uri`,
+`semantics.nested_link`, `semantics.link_text_empty`,
+`semantics.language_tag`, `text.unsupported_script`, and
+`text.unsupported_cluster`. Locations identify the inline, such as
+`contents[2].inlines[1]`.
+
+Exhaustive matches over `Document.Block` must handle `RichParagraph`.
+`Document.Feature.RichInline` and `NestedLanguage` are removed;
+`semantics.rich_inline` and `semantics.nested_language` are no longer
+reported. Link hit areas also now follow their own text's leading when a
+preceding block uses different typography.
+
+[#lists-breaks-and-keeps]
+== Lists, breaks, and keeps
+
+`Pdf.bullet_list`, `Pdf.numbered_list`, and `Pdf.list_item` create lists with
+generated labels. Number styles include `Decimal`, `LowerAlpha`,
+`UpperAlpha`, `LowerRoman`, and `UpperRoman`. Items begin with a paragraph
+and can contain rich paragraphs, nested lists, source blocks, figures,
+tables, and callouts. Lists nest at most four levels.
+
+Use `Pdf.line_break`, `Pdf.page_break`, and `Pdf.spacer` to control flow.
+`Pdf.keep_together` keeps blocks on one page; `Pdf.keep_with_next` accepts
+`Required` or `Preferred`.
+
+Required constraints are never relaxed. Heading keeps, preferred author
+keeps, footer carry, and orphan/widow minimums are preferences; when a legal
+break cannot satisfy them, preparation records the relaxation in its report.
+A document longer than 32 pages can now be prepared without the earlier
+internal error.
+
+Layout failures use `Conformance.DiagnosticCode.LayoutConstraintViolated`,
+including `layout.keep_conflict`, `layout.oversize_block`,
+`layout.keep_empty`, `layout.page_break_position`, `layout.spacer_negative`,
+and `layout.list_label_width`. Oversized figures report
+`document.figure_oversize`. List diagnostics include `semantics.list_empty`,
+`semantics.list_item_empty`, `semantics.list_item_content`,
+`semantics.list_depth`, and `semantics.list_numbering`; invalid line breaks
+report `semantics.line_break_position`. Details name the participating
+blocks or inlines.
+
+Exhaustive matches must handle the new diagnostic code and the
+`Document.Block` alternatives `KeepTogether`, `KeepWithNext`, `ListBlock`,
+`PageBreak`, and `Spacer`, plus `Document.Inline.LineBreak`. Lists, including
+`Pdf.bullets`, declare their numbering in the PDF structure.
+
+[#tables]
+== Tables
+
+`Pdf.table({ caption, columns, header_rows, body_rows, footer_rows, row_split })`
+replaces the unsupported `Pdf.simple_table` placeholder. Build rows with
+`Pdf.row`, `Pdf.cell`, and `Pdf.header_cell(scope, ...)`; use
+`cell.spanning(n)` for column spans. Header scopes are `Column`, `Row`, and
+`Both`. Row spans and `Pdf.complex_table` remain unavailable.
+
+Columns use `Fixed`, `Content`, or `Share` widths. Cells wrap and align
+`Start`, `End`, or `Center`. Tables can continue over pages while retaining
+one logical table; repeated headers are page artifacts. `KeepRows` moves
+whole rows and rejects an oversized row as `layout.oversize_row`;
+`SplitRows` permits line-by-line row continuation. Footer rows stay together
+and prefer to carry a body row.
+
+Configure cell padding, row gaps, fills, and rules through `Theme.table`.
+Fills, column rules, and frames now include their outer half row gaps when
+fitting a table fragment onto a page. Decorated tables can therefore break
+earlier than in older output, keeping their paint inside the body area.
+Header scopes, column spans, and header associations remain part of the
+table's semantic structure.
+
+Numbers, punctuation, and spaces under an ordered font policy select the
+first declared face that covers each cluster, including beside text in
+another script.
+
+Table diagnostics include `table.grid_mismatch`, `table.header_missing`,
+`table.empty`, `table.cell_empty`, `table.row_span`, `layout.table_width`,
+`layout.unbreakable_token`, `layout.oversize_row`, and `layout.table_rule`.
+Details name the table, row, or cell. The authoring limits are 16,384 content
+occurrences, structure elements, and text sources, and 1,024 pages; exceeding
+a semantic bound returns `document.content_limit` (`BudgetExceeded`).
+
+Exhaustive matches over `Document.Block` must handle `Table`.
+`Document.Feature.SimpleTables` is removed, and `table.simple` is no longer
+reported. Advanced drawings' `Scene.PageArtifactKind` gains `RepeatedHeader`.
+
+[#page-templates-and-page-fields]
+== Page templates and page fields
+
+`Pdf.page_header` and `Pdf.page_footer`, which previously failed preparation,
+are removed, along with the builder's `add_page_header` and
+`add_page_footer` and `Document.Block.PageArtifact`.
+
+Supply `page_templates: Templates({ first, continuation })` in
+`Pdf.document`. Use `Pdf.first_page_template`, `Pdf.page_template`, and
+`Pdf.region` for header/footer regions, and `Pdf.lead_region` for first-page
+letterhead blocks. Region slots accept `Pdf.furniture_text` and
+`Pdf.furniture_image`; omitted regions reserve no space.
+
+`Pdf.page_number(style)`, `Pdf.total_pages(style)`, and
+`Pdf.reserved_width(width, align, inlines)` display page fields in furniture.
+They use the final page count and must fit their reserved region and width.
+Page fields are furniture-only; a body paragraph reports
+`document.generated_reference`. Use `Pdf.page_reference` for a destination's
+page in body text instead.
+
+Header and footer text repeats as page artifacts and does not enter the
+logical text. First-page lead blocks retain their semantic content at the
+start of reading order. Furniture can use independent typography or an
+ordered font policy, with the same coverage requirements as body text.
+
+Template diagnostics include `layout.template_body_space`,
+`layout.template_region_overflow`, `layout.template_region_empty`,
+`layout.template_body_empty`, `layout.field_overflow`,
+`layout.furniture_inline`, and `layout.furniture_drawing`. Locations identify
+items such as `templates.continuation.footer.end[0].inlines[0]`.
+Exhaustive matches over `Document.Inline` must handle `PageNumber`,
+`TotalPages`, and `ReservedWidth`.
+
+[#technical-manuals]
+== Technical manuals
+
+* `Pdf.page_reference` prints the page of a named destination in a fixed-width
+  box, using a physical page number or the configured page label.
+  `Pdf.page_label` displays the current label in furniture.
+* `Pdf.page_scope` supplies explicit chapter opening/continuation templates
+  and running labels. Scopes start on fresh body pages and cannot nest.
+* Rich list items retain one label while their source, figures, tables, and
+  callouts continue across pages.
+* `Pdf.callout` sizes itself from its contents and can continue across pages
+  with repeated panels and padding. Measured `Pdf.custom_block` extensions
+  remain unsplittable.
+* The prepared-vector example converts a constrained Mermaid/SVG subset to
+  public drawings before PDF generation. It rejects embedded HTML labels
+  and adds no production runtime dependency.
+
+See the link:https://lukewilliamboswell.github.io/roc-pdf/manual/#authoring-authoring-with-roc-pdf[authoring guide] for supported combinations and
+limits.
+
+[#advanced-text-integrations]
+== Advanced text integrations
+
+`Text.Run.occurrence` is replaced by `Text.Run.unicode : Text.RunUnicode`:
+`OccurrenceText(Semantics.OccurrenceId)` identifies semantic content;
+`ArtifactText(Semantics.TextSourceId)` identifies artifact text. Existing
+advanced callers use `unicode: OccurrenceText(occurrence)`.
+
+[#conformance-limits]
+== Conformance limits
+
+PDF/UA-2 and `AccessibleArchive` are unavailable. The advanced `Encode`
+API has no profile input and emits `Standard` output. Author-supplied
+semantics, such as meaningful alternative text and reading order, still
+require author judgment; structural tags alone do not establish
+accessibility conformance.

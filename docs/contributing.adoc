@@ -18,7 +18,7 @@ declared in
 https://github.com/lukewilliamboswell/roc-pdf/blob/main/Blueprint.roc[Blueprint.roc]
 and verify the executable against the release digest. Blueprint checks fetched
 tools against `Blueprint.lock`. The
-https://github.com/lukewilliamboswell/roc-pdf/blob/main/docs/contributors/blueprint.md[tooling reference]
+xref:contributor-reference.adoc#contributor-blueprint[tooling reference]
 lists host prerequisites and the available tasks.
 
 [source,sh]
@@ -30,7 +30,7 @@ blueprint run test
 
 Use xref:testing.adoc#testing-roc-pdf[Testing roc-pdf] to investigate a failure,
 add correctness evidence or review a baseline. The
-https://github.com/lukewilliamboswell/roc-pdf/blob/main/docs/contributors/README.md[contributor reference]
+xref:contributor-reference.adoc#contributor-readme[contributor reference]
 links to implementation contracts, retained evidence and benchmark workloads.
 
 [#contributor-documentation]
@@ -48,13 +48,13 @@ blueprint run docs
 ----
 
 Review the HTML, Markdown and PDF for each changed chapter. The
-https://github.com/lukewilliamboswell/roc-pdf/blob/main/docs/contributors/automation-publication.md[publication reference]
+xref:contributor-reference.adoc#contributor-automation-publication[publication reference]
 describes the release bindings, generated Markdown checks and browser review.
 
 [#contributor-publishing]
 == Prepare a release
 
-The https://github.com/lukewilliamboswell/roc-pdf/blob/main/docs/contributors/releases/publishing.md[release procedure]
+The xref:contributor-reference.adoc#contributor-releases-publishing[release procedure]
 covers authored notes, compiler checks, the dry run and publication of the
 validated artifacts. Review xref:releases.adoc#release-notes[release notes] for
 the installed package and compatibility changes.

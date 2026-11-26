@@ -1,0 +1,29 @@
+[#contributor-facade-text-materialization]
+= Facade text materialization
+
+`KernelFacadeText` is the committed-materialization boundary between speculative
+line/page layout and the final scene. It consumes validated shaped runs, cached
+line ranges, visual rows, and page placements. It produces one dense final text
+run for every painted line plus one for each painted list label.
+
+This split is required by tagged-text ownership: every final run is painted and
+owned exactly once. A shaped paragraph that wraps across lines therefore cannot
+remain one repeatedly placed run. The stage copies each source cluster and glyph
+to exactly one final line run, preserves the occurrence-relative Unicode range,
+and assigns a new dense run identity in page paint order.
+
+The bullet-body horizontal offset is retained by `KernelFacadeLines` and passed
+through `KernelFacadePages.Row`. Materialization consumes that explicit layout
+fact. It does not recover indentation from the theme, label presence, glyph
+geometry, or coordinates.
+
+The result contains flat `Text.Store` buffers, a parallel dense style list,
+page-to-run ranges, and one compact placement per final run. Page and run ranges
+follow canonical page paint order. No recursive line, run, or scene object is
+allocated.
+
+Clusters retain source ranges. Their glyph-reference ranges are rewritten into
+the final flat glyph-index buffer, and referenced glyph records are appended to
+the final flat glyph buffer. The completed stage verifies that final cluster,
+glyph-index, and glyph counts exactly equal the shaped input counts. Wrapping
+changes run boundaries but neither duplicates nor drops glyph payload.

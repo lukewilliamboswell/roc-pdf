@@ -1,0 +1,21 @@
+[#contributor-balanced-shape]
+= Shared balanced shape
+
+`KernelBalanced.Shape` is the shared topology for structural-kernel balanced structures.
+It always uses a maximum fanout of 32 and left-packed breadth-first levels.
+There is no flat-to-balanced size threshold: one item creates a root leaf, and
+the 33rd item creates a root above two leaves. Tree-specific lowerers retain
+their own ordering, key, `Limits`, `Count`, and object-numbering policy instead
+of placing PDF semantics in the shared shape.
+
+The opaque shape stores only the accepted item count, one node count and offset
+per level, and the total node count. It does not store per-item or per-node
+child ranges. Accessors derive a node's contiguous child-node and descendant-
+item spans arithmetically from the sealed shape. The shape builder rejects zero
+items and the caller's explicit item limit before allocating level storage;
+node-offset accumulation is checked `U64` arithmetic.
+
+Focused tests cover one item, the 33-item depth transition, the 4,096-item
+stress shape, zero and over-limit failures, and the maximum accepted 1,048,576-
+item shape. The maximum has level counts `[1, 32, 1024, 32768]` and exactly
+33,825 nodes.

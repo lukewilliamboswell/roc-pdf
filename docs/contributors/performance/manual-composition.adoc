@@ -1,0 +1,6 @@
+[#contributor-manual-composition]
+= Bounded composition contracts
+
+Derive dense parent frames after label shaping and before measuring child geometry. Retain exact authored scopes and reading order, and carry typed continuations through accepted fragments. Repainted headers and furniture receive paint ownership from layout. An original source position retains one semantic occurrence owner. Nested container work follows bounded depth and emitted placements.
+
+For a change that crosses these stages, run the focused geometry and structure fixture, its atomic rejection and the corresponding scale pair. Review changed snapshots, allocation counts and work counters by architectural cause.

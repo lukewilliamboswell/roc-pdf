@@ -1,0 +1,14 @@
+[#contributor-objects]
+= Dense PDF object identities
+
+The object planner joins resolved tagged, content, navigation, and resource
+facts before assigning PDF object numbers. The planning order of each
+family is explicit. All counts and total object limits use checked
+arithmetic. A forward reference names a planned identity, and a linear
+prefix walk accounts for optional image alpha-mask objects.
+
+The planner stores dense scalar identities, page-tree shape facts, and
+fixed-shape rows. Large scene, text, and resource payloads stay in their
+own stores. Each variable family contributes exact work counters. Sealing
+and emission consume the resulting flat plan in order, with a separate
+deterministic partition into top-level objects and packed objects.

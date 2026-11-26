@@ -1,0 +1,85 @@
+[#contributor-transparency]
+= Constant alpha and isolated transparency groups
+
+Scene normalization plans literal opacity, effective opacity through
+nesting, and explicit form-group isolation. It resolves paint contexts
+before lowering. PDF writes Normal blending in the packaged sRGB blending
+space, with exact direct-use dictionaries.
+
+[#contributor-transparency-effective-alpha-semantics-and-the-u16-mapping]
+== Effective-alpha semantics and the U16 mapping
+
+`Scene.Opacity` carries one public `U16` alpha applied to both the
+non-stroking and stroking constants. The *effective alpha of a painted
+element is the product of every enclosing opacity group within its content
+stream*, computed in exact fixed width:
+`effective = round_half_even(ambient * own, 65535)` at each nesting step
+(the denominator is odd, so the half-way tie cannot occur and the rounding is
+plain nearest; the function keeps the shared round-half-even shape).
+
+* 65535 is fully opaque and an *exact multiplicative identity*
+(`x·65535/65535 = x`). An opacity command whose own value is the identity
+*normalizes away entirely*: no resource, no operators, no recipe marker.
+This is a normalization decision, tested at every stage boundary, not a
+serializer optimization.
+* Zero annihilates exactly and is a supported constant (invisible painting).
+* A non-identity factor always lands strictly below 65535, so an emitted
+state's value is in `[0, 65534]` and the identity value doubles as the
+internal "no state" sentinel without collision.
+* The canonical PDF number uses the identical mapping color channels use:
+`round_half_even(value * 1000000000, 65535)` emitted at scale 9 — 32768 emits
+`0.50000763`, 49152 emits `0.750011444`, 16384 emits `0.250003815`, zero
+emits `0`. `/ca`, `/CA`, and painted channel values therefore agree
+byte-for-byte on one canonical arithmetic.
+
+Nested groups lower to nested `q /GS_eff gs … Q` pairs whose operands carry
+the _effective_ products, so PDF's replace-semantics `gs` implements the
+typed multiplicative semantics exactly. The showcase pins the exactness:
+0.75 * 2/3 (49152 then 43690) collapses onto the same canonical state as a
+directly authored 0.5, because `49152 * 43690 = 32768 * 65535` exactly.
+
+[#contributor-transparency-across-form-boundaries]
+== Across form boundaries
+
+A form without a transparency group is transparent to the graphics state, so
+its painted elements multiply the ambient alpha natively — placing a plain
+form under an opacity group needs nothing special. An *isolated group form*
+resets the ambient constant alpha at its boundary (ISO 32000-2, 11.6.6: at
+the start of group execution ca/CA/BM/SMask reset to their initial values,
+and the enclosing state applies once to the group's composited result), so
+its internal opacity is relative to the group and the one shared stream stays
+valid under every placement context.
+
+The single combination whose correct behavior one shared stream cannot
+encode is a *non-group form whose own stream carries a non-opaque opacity
+command, executed under a non-identity ambient alpha*: the inner `gs` would
+replace, not multiply, and the required per-placement effective product has
+no shared representation. That combination is the transactional rejection
+`FormOpacityInAmbient`, resolved over the placement DAG (ambient context
+propagates through non-group parents and stops at isolated-group
+boundaries). Authors who need it isolate the form. This mirrors the form
+slice's `TextFormMultiplyPlaced` rule: a structured rejection in place of
+silent duplication or changed semantics.
+
+[#contributor-transparency-resource-graph-dictionaries-and-objects]
+== Resource graph, dictionaries, and objects
+
+Derived states are ordinary canonical graph leaves. One state per
+distinct effective value carries `/BM /Normal /CA a /Type /ExtGState
+/ca a`. Page blending space is a closure-only use. Every stream
+dictionary declares exactly its direct uses, with canonical state
+names. A shared page-group value serves transparency pages, and a
+shared isolated-group value serves isolated forms.
+
+[#contributor-transparency-independent-evidence]
+== Independent evidence
+
+`scripts/check_transparency.py` checks canonical state sharing,
+group isolation and blending space, all `gs` operands in page and form
+contexts, and corrupted states. `scripts/check_transparency_renderers.py`
+checks independent sampled compositing values and pinned reader
+rasters. The transparency cases in `tests/spec.json` exercise
+all-opaque elision, shared and distinct alphas, nested form contexts,
+transparency limits, and allocation/work scaling.
+
+See https://github.com/lukewilliamboswell/roc-pdf/blob/a6d1bde3028d51955b96af3ba1a183855a92cd2d/docs/contributors/performance/transparency.md[the archived design and measurements].

@@ -1,0 +1,8 @@
+[#contributor-flow-figures]
+= Flow figures and decorations
+
+`Scene.Drawing.group` is an authored translation. Normalization validates a drawing once, flattens commands in authored order and accumulates translations. The extent is the conservative control-point hull. A drawing-bound error names the authored command and either an offending local point or the group origin. Coordinates include accumulated offsets. Validation walks commands, segments and bounded depth, retaining one flat buffer.
+
+An uncaptioned figure contributes one space anchor leaf. A captioned figure has a `Sect` containing the `Figure` with alternative text and the real `Caption`. Pagination fits the drawing, caption and decorations as an atomic unit. Scale-to-fit scales only the drawing and respects the declared floor. Decoration spacing and the paint layer are layout facts. The scene consumes accepted anchor positions and scale. Figure paint belongs to the anchor's semantic fragment and decoration paint is an artifact.
+
+`Pdf.anchored_figure` normalizes a transparent group containing the paragraph and figure. The paginator can defer the pair, preserving their declared order and accepted ownership. The dedicated anchored-figure fuzz target covers exact defer and keeping the pair after context. The `flow_figures` group covers report drawings, the sections x10/x100 pair, spaced decorations x10/x100, bounds diagnostics and anchored figures. `scripts/check_structure_semantics.py` verifies figure ownership and drawing extents from the emitted PDF.

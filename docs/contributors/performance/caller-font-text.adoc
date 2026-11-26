@@ -1,0 +1,17 @@
+[#contributor-caller-font-text]
+= Caller-font text
+
+The caller-font visible fixture uses the ordinary semantic, text-ownership,
+calibrated-color, page-resource and sealed-object stages. One fragment-owned
+group paints one run. The page, MCID, ParentTree entry, structure children, color
+space and Type 0 font all consume earlier validated facts.
+
+TrueType inspection retains source ranges for the Windows Unicode family,
+full and PostScript names. Subset construction copies those ranges from the
+shared source. The PDF font consumes the validated PostScript name and the
+descriptor gets CapHeight from the validated OS/2 table.
+
+PDFBox extracts exact UTF-8 `Café PDF`. The pinned PDFium check compares the
+caller and built-in fixtures with identical outlines. A checksum-valid twin with
+restricted embedding rights fails registration with `EmbeddingRightsProhibited`
+before a registry or PDF can be emitted.

@@ -1,0 +1,6 @@
+[#contributor-benchmarks-chapter]
+= PDF generation benchmarks
+
+include::contributors/benchmarks/pdf-comparison/README.adoc[leveloffset=+1]
+
+include::contributors/benchmarks/pdf-comparison/results/linux-desktop-2026-10-20.adoc[leveloffset=+1]

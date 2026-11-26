@@ -1,0 +1,6 @@
+[#contributor-fixed-pages]
+= Fixed-page text and artwork
+
+The remittance-advice example authors fixed page frames, semantic content order and a separate paint permutation. Normalization validates page sizes, placement geometry and the complete permutation. The semantic compiler retains logical order. Scene construction consumes accepted positions, page boxes and paint order.
+
+`fuzz/FixedPageOrderModel.roc` checks 7,057 small placement and ordering states, including incomplete and duplicate permutations. The designed-brief checker verifies exact page, drawing and text geometry and the caption's logical owner. A caption expands a fixed figure into one contiguous normalized leaf span. Page boxes follow ISO 32000-2:2020+EC3 §7.7.3.3 and Table 31.

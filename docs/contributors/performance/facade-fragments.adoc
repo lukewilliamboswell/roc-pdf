@@ -1,0 +1,30 @@
+[#contributor-facade-fragments]
+= Facade semantic-fragment materialization
+
+The facade fragment stage consumes the preliminary validated text-semantic plan
+and the final per-line text plan. It does not infer occurrence identity, source
+ranges, page identity, content-stream identity, or paint order from geometry.
+Each final run already carries its occurrence-relative Unicode range, and each
+placement already carries its accepted page.
+
+The stage writes exactly one dense `LayoutFragment` per final run.
+
+After arena construction, `KernelTextSemantics.Plan.attach_fragments` rebuilds
+the occurrence-to-fragment reverse index through the existing semantic
+validator. It reuses the preliminary plan's exact scalar/UTF-8 source facts and
+text-property work instead of rescanning immutable source strings. The final
+semantic store therefore has validated absolute fragment ranges and normalized
+occurrence spans without duplicating Unicode analysis.
+
+For `p` pages, `r` final runs/fragments, and `o` occurrences, arena construction
+uses `O(p + r)` time and `O(r + o)` storage. It performs one page visit, one
+placement visit, one fragment write, and one continuation counter read/write
+per applicable input. Semantic attachment uses the existing `O(o + r)`
+count/prefix/write reverse-index algorithm.
+
+The fragment list and continuation counter list are created once with exact
+capacities. The hot loop consumes and returns unique accumulators, retains no
+source substrings, and stores only dense IDs and scalar ranges. The successful
+plan retains the final text plan required by the scene successor and the final
+semantic plan; it does not retain alternate fragment arenas or speculative page
+scenes.

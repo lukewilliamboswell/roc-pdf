@@ -1,0 +1,8 @@
+[#contributor-rich-flow]
+= Rich list bodies and continued callouts
+
+Lists and callouts can contain source blocks, tables and figures with their own semantic subtrees. Frame resolution runs after label shaping and before table column measurement. Pagination consumes typed flat units and scalar continuations. Active containers derive accepted paint from bounded context and ancestor walks.
+
+Use the empty table-frame contract when earlier ownership facts prove there is no active container for a table. Defer frame resolution only when normalized stores prove the default path is available, preserving the table error order. Simple continuation consumes repeated-header geometry without retaining a lead-band arena. Active containers retain explicit bands even when their padding is zero, because their paint footprint needs those regions.
+
+The `rich_flow` family pairs wide list labels and rich children x10/x100, nested callouts x3/x30 and zero-padding paint geometry. Work counters separately cover context and ancestor writes, accepted fragment updates, and fragment writes. The ownership pair exercises both a shared immutable callout and deliberately fresh inputs.

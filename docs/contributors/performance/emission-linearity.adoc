@@ -1,0 +1,38 @@
+[#contributor-emission-linearity]
+= Linear emission through unique accumulators
+
+Review ownership when a change adds an object, stream, text token, or graphics
+command. Use the pinned harness to compare exact Roc allocations, deterministic
+work, and allocated bytes across small and large cases. A list copied on every
+append can have a linear allocation count and quadratic allocated bytes.
+
+[#contributor-emission-linearity-causes-and-fixes]
+== Causes and fixes
+
+* When an `if` or `match` produces a value and one branch reassigns a `var`
+while another passes it on as the value, the join carries the `var` beside
+the value. On the second branch both refer to the same list, and the call
+copies the list. Each branch can consume an immutable binding. Alternatively,
+mutate the `var` in statements and read it after the construct.
+* After `match f($state) { ... }`, make every arm reassign the consumed
+accumulator or return. A `Done => { $done = True }` arm keeps the old state
+live and can cause every `KernelEmit` transition to copy its object offsets.
+* `List.concat`, `Str.concat`, and `List.reserve` size their result exactly.
+Grow with `append`, or calculate the final size and allocate once. Join
+a segment's leaf texts once with `Str.join_with`.
+* When several accumulators leave a loop, destructure the result once and
+consume its fields. Leaving the result record live while projecting and
+growing its lists can make each list shared.
+
+[#contributor-emission-linearity-how-it-was-measured]
+== How it was measured
+
+`ROC_LIR_DUMP=<procedure>` prints the final low-level IR. Inspect callers
+and the actual owned or borrowed specialization. An `incref` on the same
+list that later reaches `list_map_prepare_reuse`, `list_set` or
+`list_append_unsafe` before a matching `decref` forces a copy. Use the
+allocated-byte comparison to confirm the result in the fixture. The
+https://github.com/lukewilliamboswell/roc-pdf/blob/4b247670ec05e8aa78c1d03a7002a00d820ceeda/development/performance/upstream-roc-uniqueness-issue.md[minimal compiler witnesses]
+isolate the relevant control-flow shapes.
+
+See https://github.com/lukewilliamboswell/roc-pdf/blob/a6d1bde3028d51955b96af3ba1a183855a92cd2d/docs/contributors/performance/emission-linearity.md[the archived design and measurements].

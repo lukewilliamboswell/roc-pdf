@@ -1,0 +1,30 @@
+[#contributor-structure-lowering]
+= Catalog and page-tree lowering
+
+The page tree consumes the shared opaque `KernelBalanced.Shape`:
+fixed fanout 32, left-packed breadth-first levels, and every leaf at
+one depth. Each node stores its exact descendant page count. Each page
+and each non-root node has an explicit parent. Catalog, page tree, page
+and stream facts go into the same flat checked stores as other objects.
+
+[#contributor-structure-lowering-representation-and-traversal]
+== Representation and traversal
+
+Shared names and direct values are stored once. A page retains scalar
+IDs for its media box, resources and parent reference. Direct indexed
+loops traverse tree levels and pages in `O(pages + nodes)` work.
+Counts, object numbers, and xref-object assignment use checked
+`U64` arithmetic. The lowerer builds the compact sealed plan and leaves
+byte materialization to the shared emission transition.
+
+[#contributor-structure-lowering-evidence]
+== Evidence
+
+Focused Roc tests cover a single-node tree, the 33-page depth transition,
+and a deterministic 4,096-page shape. The independent byte checker
+verifies `/Kids`, `/Parent` and `/Count` and rejects cycles,
+unreachable nodes, mixed child types and fanout violations. The
+4,096-page case pins object, value and edge work, exact output and
+allocations in `tests/spec.json`.
+
+See https://github.com/lukewilliamboswell/roc-pdf/blob/a6d1bde3028d51955b96af3ba1a183855a92cd2d/docs/contributors/performance/structure-lowering.md[the archived design and measurements].

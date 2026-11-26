@@ -1,0 +1,4 @@
+[#contributor-caller-font-facade]
+= Caller-font facade composition
+
+The facade resolves the caller's exact registered face with `Theme` and `Pdf.Options`. Use `tests/caller_font/caller_facade.roc` to exercise the 7,816-byte fixture from external registration through PDF emission. The `text-layout caller-font facade restricted-rights atomic negative` checks that a checksum-valid font with restricted embedding rights is rejected without partial output.

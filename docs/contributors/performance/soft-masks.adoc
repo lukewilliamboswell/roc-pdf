@@ -1,0 +1,58 @@
+[#contributor-soft-masks]
+= Form-backed alpha soft masks
+
+A soft mask uses the alpha of an explicit isolated-group form rendered
+against a transparent backdrop. Normative basis and layout constraints use
+ISO 32000-2 §11.6.6. Select the mask through a canonical ExtGState with one
+direct `/SMask /G` dependency. The mask Form required only by this edge
+stays reachable through it.
+
+[#contributor-soft-masks-scope-and-non-scope]
+== Scope and non-scope
+
+The mask group writes balanced `q /GSn gs ... Q` operators. The state
+points to the isolated group's stream object with `/S /Alpha`.
+Constant alpha, image masks, and group masks compose. A documented
+isolated-group boundary resets ambient state and permits inner and outer
+masks to compose. Within one stream context a second active mask would
+replace the first, so it is rejected as `NestedSoftMask`. The planner
+rejects ambient non-isolated application (`FormMaskInAmbient`), text
+reachable in mask rendering (`TextInMaskForm`), and an over-budget
+chain (`MaskDepthExceeded`).
+
+[#contributor-soft-masks-normalization-pipeline]
+== Normalization pipeline
+
+The transparency slice's derived-state pre-pass generalizes to one combined
+derived-state space `[AlphaState(value), MaskState(form)]`: distinct
+effective alphas and distinct authored mask Forms register dense
+first-appearance indices during the same walk (each registry map allocated
+only when the scene counted the corresponding commands), each walk frame
+carries `(ambient alpha, opacity depth, mask context)`, in-stream nesting and
+non-isolated mask targets reject immediately, and `PlaceForm` sites record
+both ambient channels. Use collection touches mask states exactly like alpha
+states; the state→mask-Form edges join the graph alongside the image→space
+and space→profile edges.
+
+After the ownership sweep, the transparency sweeps carry both channels
+(direct masks are transparency facts, so masked pages get the page `/Group`
+and require the blending space), and two mask-specific sweeps run *only for
+documents that apply masks*: a reversed sweep marks mask-reachable forms
+(for `TextInMaskForm`), and a forward, dependencies-first sweep computes
+mask-chain depths over a counting-and-prefix-sum adjacency of the direct
+edges (`MaskDepthExceeded`). Content lowering consumes the same dense
+per-command canonical-state maps as opacity — the `SoftMask` emission branch
+is the identical balanced-group mechanism.
+
+[#contributor-soft-masks-independent-evidence]
+== Independent evidence
+
+`scripts/check_soft_masks.py` checks exact Alpha state dictionaries,
+isolated-group targets, direct dictionary ownership, state sharing,
+mask chains, marked-content ownership, and malformed mutations.
+`scripts/check_soft_mask_renderers.py` compares the full 100x100
+rasters against geometry and compositing models. The
+`soft-masks-v1` cases in `tests/spec.json` measure retained versus unique
+input and scaled reuse. Work counts commands and direct edges.
+
+See https://github.com/lukewilliamboswell/roc-pdf/blob/a6d1bde3028d51955b96af3ba1a183855a92cd2d/docs/contributors/performance/soft-masks.md[the archived design and measurements].

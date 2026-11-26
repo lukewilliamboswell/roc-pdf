@@ -1,0 +1,52 @@
+[#contributor-output-bounds]
+= Checked bounds for emitted PDF bytes
+
+`KernelOutputBound.calculate` computes the final stored bound from the
+sealed object stores. Every later `KernelEmit` transition checks its
+position against that bound. The blank-plan construction guard uses
+checked `4096 + 1024 * page_count + payload_bytes` as a preallocation
+bound for the supported 1 to 1,048,576 page range. The final file
+calculation follows the actual object-stream partition.
+
+[#contributor-output-bounds-object-stream-layout-bound]
+== Object-stream layout bound
+
+`KernelOutputBound.calculate` walks the sealed objects once in plan order and
+applies the same partition as emission (`KernelFileLayout`):
+
+* A stream object is bounded as a top-level object, exactly as before: its
+header, dictionary value bound with the generated `/Filter` and `/Length`
+entries, framing, and payload bound (a DEFLATE bound for generated
+payloads).
+* Every other object is bounded as an object-stream member: its value bound
+(or the digits of its stream's payload bound for a length object) plus 43
+bytes for its header pair (two numbers of at most 20 digits, two spaces)
+and newline.
+* Each object stream closed by the partition (every 400 members, and the last
+partial batch) adds the DEFLATE bound of its members plus the header's
+newline, and 256 bytes of framing: its object header, a dictionary with at
+most three 20-digit numbers, and the stream keywords.
+* The cross-reference stream adds the DEFLATE bound of 12 bytes per row (a
+predictor byte, the type, at most eight offset bytes, and two index bytes)
+over every object including zero, the object streams, and itself, plus 512
+bytes of dictionary and the `startxref` trailer with the digits of the
+running bound.
+
+The DEFLATE bound is the dependency's stored-block bound (five bytes per
+5,000-byte block beyond the input, at least one block) plus six zlib framing
+bytes, so every term is an upper bound of what emission writes whatever the
+compressor finds. Every addition and multiplication is checked. The emitter
+still compares its position with the stored bound at every segment.
+
+[#contributor-output-bounds-executable-evidence]
+== Executable evidence
+
+Focused Roc tests exercise maximum accepted page count, rejected
+arithmetic and compressor limits, and realized outputs within the stored
+bound. The 4,096-page and compressed-stream fixtures in `tests/spec.json`
+pin exact output, work and allocations. A counting sink starts above
+`2^32` and checks correct positions and `U64` overflow without
+allocating a multi-gigabyte PDF. The xref width is checked independently
+by `scripts/pdf_layout.py` and the structure validator.
+
+See https://github.com/lukewilliamboswell/roc-pdf/blob/a6d1bde3028d51955b96af3ba1a183855a92cd2d/docs/contributors/performance/output-bounds.md[the archived design and measurements].

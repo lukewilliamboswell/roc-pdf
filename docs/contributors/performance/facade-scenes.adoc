@@ -1,0 +1,33 @@
+[#contributor-facade-scenes]
+= Facade scene materialization and text ownership
+
+The facade scene stage consumes final page/run placement facts, final
+per-run styles, final text, and the fragment-attached semantic plan. It
+writes the flat scene arena for PDF content lowering. Page identity,
+reading order, occurrence, fragment, and resources come from earlier
+stage records.
+
+A text group carries a baseline transform, local text commands, and
+explicit fragment ownership. Page paint order references the groups in
+accepted placement order. Figure and caption facts, drawing labels,
+foregrounds, panels and furniture also have explicit placement records
+with semantic owners or artifact classifications.
+
+[#contributor-facade-scenes-complexity-and-ownership]
+== Complexity and ownership
+
+Materialization traverses each page, placement, command and resource
+reference with dense buffers. Validation checks scene arenas and exact
+run/fragment association. Referenced font, color, and image facts are
+shared with the scene plan. Scene paint order carries each group once.
+
+[#contributor-facade-scenes-evidence]
+== Evidence
+
+The `facade-scenes-v1` cases in `tests/spec.json` measure prepared
+inputs and scene construction separately at 1,000 and 10,000 runs.
+They pin placement and ownership work with the structural and
+allocated-byte checks. Figure, fixed-page and rich-flow cases add paint
+and logical-order variants.
+
+See https://github.com/lukewilliamboswell/roc-pdf/blob/a6d1bde3028d51955b96af3ba1a183855a92cd2d/docs/contributors/performance/facade-scenes.md[the archived design and measurements].

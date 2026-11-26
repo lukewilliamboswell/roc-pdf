@@ -1,0 +1,30 @@
+[#contributor-geometry]
+= Page and analytical geometry
+
+Prepared pages carry resolved media, crop, bleed, trim, and art boxes plus one
+closed quarter-turn rotation. Coordinates use PDF user space with a bottom-left
+origin and upward Y axis. One point is exactly 1,000 `Layout.Unit` values.
+Affine matrix coefficients are signed fixed-point thousandths; translations
+use layout units. Transform multiplication uses checked `I64` arithmetic and
+half-even rounding at the single division boundary.
+
+Paths are dense records over one flat segment arena. Cubics store two controls
+and an endpoint; rectangles remain one fixed-shape segment rather than four
+duplicated line records. Dash lengths occupy one flat scalar arena. Commands
+refer to paths, images, text runs, and child spans by dense scalar identity;
+they do not retain payload copies or recursive command lists.
+
+Every resolved box must have positive dimensions and checked endpoints. Crop
+must be contained by media; bleed, trim, and art must each be contained by
+crop. Validation performs five box checks, four containment checks, and twenty
+coordinate checks per page, with no geometry-dependent allocation.
+
+`fuzz/PageViewport.roc` checks the exact emitted box corners and rotation for
+negative and fractional origins. The checker follows the catalog and page
+tree to the page dictionary, where absent production boxes resolve to the
+crop box under ISO 32000-2 Table 31. It also checks both inclusive custom
+size limits through the public facade.
+
+The prepared scene owns each path segment and dash scalar once. Placements and
+commands carry scalar IDs or ranges, so repeated drawing and resource reuse do
+not duplicate geometric or image payloads.

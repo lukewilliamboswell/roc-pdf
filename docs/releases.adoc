@@ -1,7 +1,7 @@
 [#release-notes]
 = Release notes
 
-Read the https://github.com/lukewilliamboswell/roc-pdf/releases[published release
-records] for immutable package URLs, compiler requirements and upgrade instructions.
+Find package URLs, compiler requirements, and upgrade instructions in the
+link:https://github.com/lukewilliamboswell/roc-pdf/releases[published release records].
 
 include::releases/list.adoc[]

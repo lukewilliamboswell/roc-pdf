@@ -1,0 +1,6 @@
+[#contributor-cache-closure]
+= Bounded-cache closure record
+
+`KernelFacadeSources` retains one string and one analysis per unique source, with exact equality after hash selection. The adjacent compact-builder path checks the last source directly. Font registration keeps inspected programs and face coverage spans in shared immutable stores.
+
+The ordered selection plan consumes the source range, language, script and exact ordered policy. A line template includes the measured typography and width, exact physical shape partition, source positions and applicable break policy. Reuse keeps distinct occurrence ownership. Compare cache hits, probing, measurement and committed placement work in the exact registered harness cases.

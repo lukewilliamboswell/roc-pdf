@@ -1,0 +1,6 @@
+[#contributor-contents-entries]
+= Contents, indexes and reference layout
+
+Consecutive `Pdf.contents_entry` blocks under one parent normalize to a PDF 1.7 `TOC`. Title wrapping reserves indentation, clearance and one terminal atomic page field. Decoration intervals derive from the final row. Leader squares remain artifacts. Preparation walks dense items and rows in order and retains the symbolic spine through stabilization.
+
+Generated contents reuse the terminal field path from selected headings. Each heading supplies explicit title and destination identity. A generated index retains its authored terms and picked destination pages in reading order. `GeneratedNavigationModel` exhausts 341 transition histories, 65 heading histories and 85 index histories. The `destination_references` family exercises 2 and 80 entries. `check_contents_entries.py` independently derives title text, alignments, destinations, link ownership and leader placement from the PDF.

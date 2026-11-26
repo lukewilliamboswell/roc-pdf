@@ -1,0 +1,6 @@
+[#contributor-rtl-text]
+= Resolved right-to-left output
+
+The advanced bidi fixture exercises the Unicode bracket-pair input, exact source order and independently resolved visual permutation. The right-to-left cases in `tests/spec.json` link the original input and malformed permutation twin. The fixture uses the pinned test-only IBM Plex Sans Hebrew font and checked-in Unicode 17.0.0 vectors. The active runtime uses the current Unicode pin.
+
+`KernelBidiBoundary` checks the earlier paragraph facts and source/run intervals. The tagged PDF paints fourteen CIDs in resolved visual order with scoped replacement for logical extraction. An invalid glyph permutation or source interval rejects independently. See xref:contributor-layout.adoc#contributor-international-text[international flow] for the multilingual facade.

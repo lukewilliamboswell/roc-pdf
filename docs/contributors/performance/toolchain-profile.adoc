@@ -1,0 +1,27 @@
+[#contributor-toolchain-profile]
+= Compiler and allocation evidence
+
+The checked `.roc-version` and `Blueprint.lock` identify the current toolchain.
+The fixture inventory owns each target's exact allocation and deterministic work
+references. The dev backend uses explicit specialization. Fixture builds use the
+script's declared compiler-cache policy, which is itself part of the evidence.
+
+When a compiler or dependency changes, compare native Linux and macOS
+fixtures before updating a reference. Hold the old fixture inputs and
+snapshots fixed when diagnosing allocation changes. Establish whether the
+change is due to compiler lowering, ownership of retained input, explicit
+stage work or a changed scenario. An optimised benchmark may support the
+diagnosis, and the dev build remains the fixture's measured contract.
+
+[#contributor-toolchain-profile-lowering-policy]
+== Ownership and lowering
+
+Check uniqueness through lowerings that pass a growing list or object store
+across a call. An error path that retains the prior value can make every
+append copy its accumulator. Compare allocation bytes, exact counts and
+work on small and large inputs. See the
+xref:contributor-output.adoc#contributor-lowering-uniqueness[lowering uniqueness contract].
+
+Logs and before/after receipts belong in scratch storage or CI artifacts.
+The exact inputs and reviewed reference values remain in the fixture
+inventory and its Git history.

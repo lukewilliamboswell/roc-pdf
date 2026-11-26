@@ -1,0 +1,30 @@
+[#contributor-fuzz-suites]
+= Fuzz suite ownership and allocation profile
+
+Font inspection, repair and subset
+round trips share `font_suite`; JPEG inspection, facade output and structure,
+navigation, registry and theme checks share `document_suite`. `profile_output`
+runs separately and measures the named profile selection and rejection cases.
+Each selected executable builds once per invocation.
+
+The supervisor selects each member by its declared name, after the harness
+checks the executable's complete inventory. Examples, corpus directories,
+input bounds, baselines, deadlines and reports remain per property. Dispatch
+and input preparation stay outside the measured `$property` region. Neither
+combining members nor selecting a subset changes a property's input encoding
+or measurement boundary.
+
+Builds use `--fuzz --specialize=yes --no-cache`, the compiler in
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/.roc-version[`.roc-version`], and the platform pinned by
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/scripts/fuzz.py[`scripts/fuzz.py`]. The executable stamp binds the
+complete local source/asset closure, compiler, target, platform SHA-256, flags
+and executable digest. `--no-build` rejects a changed identity. The suite's
+source closure includes every member, even when only one member is selected.
+
+
+The baseline retains each reviewed example's name, revision, original input
+digest and complete allocation observation for the measured property.
+A passing run also checks the property/trace result and exit-live
+allocations. See xref:testing.adoc#run-and-review-property-fuzzing[how to run
+and review property fuzzing]. The suite membership and build operands in
+`scripts/fuzz.py` are the executable inventory.

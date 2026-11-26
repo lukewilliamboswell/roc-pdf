@@ -1,0 +1,26 @@
+[#contributor-structural-kernel-closure]
+= Structural PDF verification controls
+
+Run `./scripts/test.py --group kernel --allocation-baselines` to
+exercise the shared structural fixture app, or select an exact case
+by name:
+
+[source,bash]
+----
+./scripts/test.py --case "structural-kernel balanced 4096-page PDF" --allocation-baselines
+----
+
+The spec pins group membership,
+exact allocations, work, snapshots, digest and per-target byte ceilings.
+
+[#contributor-structural-kernel-closure-capability-and-evidence-aggregation]
+== Capability and evidence aggregation
+
+The independent PDF parser checks lexical values, lossless decompression,
+the sealed object range, every xref reference, and page-tree invariants.
+The structural fixture set covers all typed values, the blank page
+tree, long offsets with a counting sink, and unchanged-resource lifetime.
+Review both the selected positive cases and the exact invalid twins.
+Optional qpdf, Arlington and PDFBox checks read the original file.
+
+See https://github.com/lukewilliamboswell/roc-pdf/blob/a6d1bde3028d51955b96af3ba1a183855a92cd2d/docs/contributors/performance/structural-kernel-closure.md[the archived design and measurements].

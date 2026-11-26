@@ -1,0 +1,43 @@
+[#release-0-1-0-rc2]
+= roc-pdf 0.1.0-rc2
+
+rc2 adds prepare-once output, sRGB theme colors, and image figures.
+
+Highlights:
+
+* Opaque `Pdf.Prepared` values can be emitted as buffered bytes or chunks.
+* Theme colors support exact 16-bit sRGB and convenient 8-bit channels.
+* Theme setters configure text styles, spacing, and margins.
+* Figures accept typed packed-raster or validated JPEG images, with required
+  alternative text and optional captions.
+* Unsupported requests return bounded `InvalidDocument` diagnostics with
+  stable dotted feature codes.
+* Runnable examples and generated API documentation show the public API.
+
+These notes describe rc2. Its output uses the `Standard` PDF 2.0 profile;
+PDF/A-4 and PDF/UA-2 are unavailable. Single-image figures are supported in
+this version. Broader drawings and fixed pages can be authored, but
+preparation rejects them without emitting output.
+
+See the
+link:https://lukewilliamboswell.github.io/roc-pdf/manual/#authoring-authoring-with-roc-pdf[authoring guide]. The link:https://github.com/lukewilliamboswell/roc-pdf/releases/tag/0.1.0-rc3[rc3 notes] describe the
+later Archive default and expanded authoring support.
+
+[#migrating-to-010-rc2]
+== Migrating to 0.1.0-rc2
+
+Existing `Pdf.to_bytes*` and `Pdf.to_chunks*` calls remain valid.
+
+* Use `Pdf.prepare(document, options)` to validate once before choosing an
+  output strategy.
+* Use `Pdf.to_bytes_prepared` or `Pdf.to_chunks_prepared` to emit that plan.
+* In rc2, configure colors through `Theme.with_body_color`,
+  `with_heading_color`, `with_title_color`, or `with_text_color`. Its `Theme`
+  value is opaque.
+* Use the opaque `Pdf.Prepared` returned by preparation. The earlier open
+  `Document.Prepared` description is not a supported output API.
+* rc2 supports the `Standard` profile only. Its `Archive` and
+  `AccessibleArchive` selectors return capability errors; do not claim
+  PDF/A-4 or PDF/UA-2 from rc2 output.
+
+The link:https://github.com/lukewilliamboswell/roc-pdf/releases/tag/0.1.0-rc1[rc1 notes] describe that earlier release.

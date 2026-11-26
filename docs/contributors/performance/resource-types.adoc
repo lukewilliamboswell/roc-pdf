@@ -1,0 +1,58 @@
+[#contributor-resource-types]
+= Color, ICC, and image input contracts
+
+[#contributor-resource-types-scope]
+== Scope
+
+Prepared values carry the validated ICC/color and packed raster/JPEG
+facts consumed by image lowering, scene placement and the byte writer.
+
+[#contributor-resource-types-representation-and-ownership]
+== Representation and ownership
+
+* ICC bytes are owned once per profile. Parsed tag records carry ranges into
+that allocation; color spaces, output intent, and blend space carry scalar
+profile or space IDs.
+* Component counts are a closed typed union for grayscale and RGB.
+* Raster color and optional alpha planes are packed byte buffers with checked
+dimensions and row strides. There is no list allocation per pixel.
+* Validated JPEG bytes remain one encoded allocation. Dimension, component,
+color-space, and orientation evidence are fixed-shape facts beside it.
+* Repeated scene placements carry one `Image.Id` from the validated
+resource store. A theme names an explicit source sRGB value, while a prepared
+scene color carries the exact validated `Color.SpaceId`; neither duplicates
+the channel union or invents a resource ID during authoring.
+
+[#contributor-resource-types-complexity-and-lifetime]
+== Complexity and lifetime
+
+ICC inspection is linear in profile bytes, tags, and checked tag edges. JPEG
+inspection is linear in encoded bytes and marker count. Raster validation,
+alpha separation, filtering, and transformation are linear in checked pixel
+bytes and rows. Exact work records separate these dimensions.
+
+Inspectors use direct indexed loops over bounded byte ranges. They reject
+overflow, overlap, unsupported components, invalid dimensions, and conflicting
+orientation before constructing a trusted resource. Input and transformed
+planes are consumed or released at the earliest phase boundary; an executable
+implementation may not retain whole encoded, decoded, separated, filtered, and
+compressed copies simultaneously.
+
+No resource stores a closure, iterator, semantic owner, placement, alternative
+text, or eventual PDF object number. Returned seamless encoded-resource slices
+remain governed by the explicit chunk-retention policy.
+
+[#contributor-resource-types-failure-policy]
+== Failure policy
+
+Unsupported color, prohibited profile facts, malformed binary input, excessive
+work, and orientation conflicts are errors. There is no assumed profile,
+metadata passthrough, rasterization recovery, or conversion fallback.
+
+[#contributor-resource-types-evidence]
+== Evidence
+
+`tests/contracts/advanced_resource_contract.roc` compiles one retained ICC profile,
+a packed RGB raster, and explicit JPEG orientation evidence. Runtime positive,
+atomic negative, fuzz, allocation, copied-byte, and retention evidence belongs
+to the capabilities implementing these inspectors.

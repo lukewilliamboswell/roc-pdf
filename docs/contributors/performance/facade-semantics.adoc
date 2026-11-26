@@ -1,0 +1,4 @@
+[#contributor-facade-semantics]
+= Facade semantic planning
+
+Semantic planning assigns explicit occurrence ownership before layout. It consumes normalized kinds and source spans and produces dense semantic nodes, ordered spine items and occurrences. Symbolic references may retain pending content owned by already assigned IDs. The preliminary semantic store is validated before line/page layout. Later placement attaches fragments to those owners.

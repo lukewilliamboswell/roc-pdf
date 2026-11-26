@@ -1,0 +1,146 @@
+[#unreleased]
+= Unreleased
+
+`AccessibleArchive` becomes the default. Supported documents now include
+PDF/A-4 and PDF/UA-2 declarations when you omit the profile, including through
+the buffered and chunked convenience functions.
+
+[#unreleased-migrate-profile-selection]
+== Migrate profile selection
+
+* To retain the previous static PDF/A-4 profile, set `profile: Archive`.
+  Use that profile for intentionally blank archived pages. The new default
+  requires tagged semantic content.
+* For PDF 2.0 without archival or accessibility declarations, set
+  `profile: Standard`.
+* To add the WTPDF 1.0 accessibility declaration, use
+  `{ profile: AccessibleArchive, wtpdf: DeclareAccessibility }`.
+
+Profile checks run before emission, so handle any new diagnostics in
+applications that rely on the default. Standards support is best effort. Use
+the preparation report to review author-dependent requirements for combined
+output. See the
+link:https://lukewilliamboswell.github.io/roc-pdf/manual/#authoring-output-profiles[output profile guide].
+
+The document builder now reports `semantics.heading_level` for destination
+headings outside levels 1–6, matching the block-based API.
+
+[#unreleased-fixed-page-documents]
+== Fixed-page documents
+
+Place titles, headings and paragraphs into explicit frames on each sheet.
+Placement order defines reading order, and each page can specify its own
+paint order. Give captioned figures their own fixed frames. Paint decorative
+rectangles before or after the semantic content. See the
+link:https://lukewilliamboswell.github.io/roc-pdf/manual/#authoring-fixed-pages[fixed-page authoring guide].
+
+[#unreleased-migrate-preparation-reports]
+== Migrate preparation reports
+
+Pass `{ options: options }` to `Pdf.prepare_with_report(document, props)`
+when migrating from the previous `Pdf.prepare_with_report(document, options)`.
+Replace `Pdf.prepare_with_report_budget(document, { options, budget })` with
+`Pdf.prepare_with_report(document, { options, budget })`. Use `{}` to apply
+the existing defaults for both document options and report budget. See the
+link:https://lukewilliamboswell.github.io/roc-pdf/manual/#authoring-preparation-reports[preparation report guide].
+
+[#unreleased-inter-latin-shaping]
+== Inter Latin shaping
+
+Opt in through `theme.latin_shaping: InterLatin` to use kerning and
+OpenType substitutions for supported plain English paragraphs in the
+packaged Inter Regular face. This can change wrapping and PDF bytes.
+Both arrow spellings preserve their original selectable text.
+See the link:https://lukewilliamboswell.github.io/roc-pdf/manual/#inter-latin-shaping[font guide].
+
+[#unreleased-mixed-script-text]
+== Mixed-script text
+
+Opt in to Hebrew, Arabic, Hindi or Thai alongside Latin text using the
+supported font selection and language settings. Thai wrapping uses the
+dictionary supplied by your application. See the
+link:https://lukewilliamboswell.github.io/roc-pdf/manual/roc-font.html[mixed-script authoring guide]
+for supported ranges, faces and limits.
+
+[#unreleased-table-spans]
+== Accessible table spans
+
+Use row and column spans with scope-derived or explicit header associations.
+Select `SplitSpans` to let a spanning group continue across pages while
+retaining its logical cell and header references. See
+link:https://lukewilliamboswell.github.io/roc-pdf/manual/#authoring-tables[table authoring].
+
+[#unreleased-two-column-flow]
+== Two-column flow
+
+Flow plain paragraphs through two explicitly sized columns. A paragraph
+that spans columns or pages keeps its authored text and logical reading order.
+See the link:https://lukewilliamboswell.github.io/roc-pdf/manual/#authoring-column-flow[two-column guide].
+
+[#unreleased-associated-files]
+== Associated files
+
+Generate PDF/A-4f with `ArchiveWithFiles` or add PDF/UA-2 with
+`AccessibleArchiveWithFiles`. Both profiles accept document-level files
+supplied as application-owned bytes. The accessible profile requires that
+the document be understandable without opening the files. See the
+link:https://lukewilliamboswell.github.io/roc-pdf/manual/#authoring-associated-files[associated files guide] and the
+link:https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/invoice-with-data[runnable invoice].
+
+[#unreleased-generated-contents]
+== Generated contents
+
+Collect anchored headings into linked contents by scope and depth. Use
+title overrides keyed by destination and display committed page labels
+after the contents lays out. See the
+link:https://lukewilliamboswell.github.io/roc-pdf/manual/#generate-contents-from-headings[manual composition guide].
+
+[#unreleased-fillable-forms]
+== Fillable forms
+
+Select `AccessibleForm` to place labelled, editable single-line fields on a
+fixed page. Initial text values may be blank or prefilled with printable
+ASCII. Independent checkboxes can start checked or unchecked.
+See the link:https://lukewilliamboswell.github.io/roc-pdf/manual/#authoring-fillable-fields[fillable fields guide] and
+the link:https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/service-intake[service intake example].
+
+[#unreleased-flow-changing-page-references]
+== Flow-changing page references
+
+Use `Pdf.flow_page_reference` to fit the exact printed page value in a rich
+paragraph. Preparation resolves the heading's committed placement and
+returns a located diagnostic if the layout cycles or reaches its budget.
+See the link:https://lukewilliamboswell.github.io/roc-pdf/manual/#flow-changing-page-references[page reference guide].
+
+[#unreleased-authored-indexes]
+== Authored indexes
+
+`Pdf.index` collates authored terms and prints linked page labels for their
+named destinations. The link:https://lukewilliamboswell.github.io/roc-pdf/manual/#add-an-index[manual composition guide]
+covers sorting, duplicates and label widths.
+
+[#unreleased-footnotes]
+== Footnotes
+
+Place a named footnote marker in a rich paragraph and declare a whole note
+at the end of an ordinary single-column document. The note stays on its
+first citation's page. Later citations link to the same note. See the
+link:https://lukewilliamboswell.github.io/roc-pdf/manual/#authoring-footnotes[footnote authoring guide].
+
+[#unreleased-bibliography-and-anchored-figures]
+== Bibliography and anchored figures
+
+Link authored citations to an explicitly ordered bibliography with return
+links to the citing passages. See the link:https://lukewilliamboswell.github.io/roc-pdf/manual/#authoring-bibliography[bibliography guide].
+
+Keep a paragraph with its captioned figure when composing a page.
+The link:https://lukewilliamboswell.github.io/roc-pdf/manual/#authoring-anchored-figures[anchored figure guide]
+explains placement and fit diagnostics.
+
+[#unreleased-compiler]
+== Compiler
+
+Use Roc `nightly-2026-11-25-d5a4f1e`.
+The packaged fonts come from `roc-font` 0.2.0.
+Text analysis uses `roc-lang/unicode` 4.4.0, with Unicode 18.0.0 data for
+segmentation, line breaking, bidirectional analysis, and case mapping.

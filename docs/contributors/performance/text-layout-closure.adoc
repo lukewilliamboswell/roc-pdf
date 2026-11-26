@@ -1,0 +1,4 @@
+[#contributor-text-layout-closure]
+= Text-layout verification map
+
+Use xref:contributor-layout.adoc#contributor-cache-closure[preparation cache contracts] for stage-level work and xref:contributor-layout.adoc#contributor-international-text[international flow evidence] for the multilingual facade. The advanced text cases verify xref:contributor-layout.adoc#contributor-actual-text[replacement text], xref:contributor-layout.adoc#contributor-soft-hyphen[discretionary hyphens], and xref:contributor-layout.adoc#contributor-case-transformation[case transformations] against emitted bytes.

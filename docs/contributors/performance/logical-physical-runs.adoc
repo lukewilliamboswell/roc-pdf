@@ -1,0 +1,4 @@
+[#contributor-logical-physical-runs]
+= Logical-to-physical facade run boundary
+
+Logical requests preserve authored text and semantic ownership across line wrapping. A logical run can produce several paint-ordered physical runs with different faces or typographic facts. Each physical range carries the earlier logical owner. See xref:contributor-layout.adoc#contributor-facade-text-materialization[committed text materialization].

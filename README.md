@@ -27,7 +27,7 @@ discuss the scope, funding, and who would own the work.
 </tr>
 </table>
 
-[Browse the complete example gallery.](examples/README.md)
+[Browse the complete example gallery.](docs/gallery.adoc#runnable-document-gallery)
 
 ## Install
 

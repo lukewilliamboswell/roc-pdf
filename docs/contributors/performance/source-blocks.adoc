@@ -1,0 +1,8 @@
+[#contributor-source-blocks]
+= Preformatted source blocks
+
+`KernelSourceText.prepare` owns a single canonical UTF-8 source and a dense logical line arena. It expands tabs and handles CRLF and blank rows, retaining earlier byte and scalar coordinates. Limits on input bytes, expanded bytes and lines are checked before growth. One consuming output byte builder and one independent line arena use worst-case work proportional to input, expansion and lines.
+
+`Pdf.source_block` uses a separately prepared static face and local size and leading. Normalization retains each source span over the global line arena. Shaping consumes the earlier exact ranges. Blank rows remain typed visual rows and there is no synthesized glyph for a wholly blank source. Pagination uses a `SourceUnit` owned by its source and carries explicit visual-row continuation. Source, shape, visual-row and page arenas grow separately. Font option rejection precedes font enrichment.
+
+Use the `source_text` group to isolate canonicalization and the `source_blocks` group for public continuation, owned source offsets, blank lines, and the 50/500-line scale cases. The source-foreground cases additionally use xref:contributor-layout.adoc#contributor-source-foregrounds[original-input range mapping].

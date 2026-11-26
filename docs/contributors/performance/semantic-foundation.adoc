@@ -1,0 +1,8 @@
+[#contributor-semantic-foundation]
+= Semantic foundation: nested containers and core structure vocabulary
+
+Normalization writes preorder block and group arenas with range-based child ownership. Semantic planning assigns container IDs before children and creates one dense spine from the Document, container and content ranges in authored order. The bound check carries the original authored path. One valid group traversal uses a bounded frame stack and no retained recursive node payload.
+
+`KernelSemantics` encodes ISO/TS 32005:2023 Table 5 containment and PDF/UA-2 §8.2.5.25 content-item restrictions. Attributes, identifiers and relations are validated before tagging. An ID is a nonempty byte string in strict order. Each accepted relationship has reciprocal types and valid dense owners. Lowering consumes these facts in canonical key order. It uses one direct `/A` dictionary per owner, or an array for multiple owners.
+
+The `tests/containers` nested fixture and scale pair verify Document, Part, Sect and Div nesting. `scripts/check_structure_semantics.py` derives an object-number-independent normalized tree. Kernel expectations exercise allowed and denied containment and validation rejects excessive nesting and empty structural containers before emission.

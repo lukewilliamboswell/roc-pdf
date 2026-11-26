@@ -1,0 +1,84 @@
+[#contributor-testing]
+= Fixture driver reference
+
+Run the checks and interpret their results through xref:testing.adoc[Testing roc-pdf].
+The fixture inventory in
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/tests/spec.json[`tests/spec.json`]
+declares the validation roots, groups, cases, snapshots and named checks.
+The driver checks the public package and tests the internal package's
+expectations. Each application root is checked by its evidence build or a
+validation command. The detailed log records the roots and local import closures.
+
+Use `--quick --group NAME` or `--quick --case NAME` to skip preflights and
+validation while iterating. `ROC` selects the pinned compiler executable.
+`--jobs N` changes the worker cap, and `--verbose` mirrors the detailed log
+under `.roc-pdf-tmp/logs/`.
+
+[#contributor-testing-allocation-baselines]
+== Allocation baselines
+
+Integration tests use the dev backend with `--specialize=yes`. Each accepted
+case pins the PDF, allocation count and deterministic work. The fixture host
+resets its counters at `before_fixture_main`, after decoding the envelope.
+Protocol 2 reports allocation events (`roc_alloc` and `roc_realloc`) and total
+requested bytes, including the new size of every reallocation. Requested
+bytes may reach 110% of the recorded reference. Review a repeatable reduction
+to tighten the baseline. An exact count alone cannot detect quadratic copying.
+
+[source,sh]
+----
+./scripts/test.py --compare-baselines --baseline-report .roc-pdf-tmp/baselines.json
+./scripts/test.py --update-snapshots
+----
+
+The snapshot update path still enforces allocation and work evidence.
+Explain the cause of an intentional PDF or count change before refreshing
+its record. When investigating a difference, run the complete comparison with
+a separate empty `XDG_CACHE_HOME`. Keep reports in ignored scratch storage.
+
+[#contributor-testing-profile-fixtures]
+== Profile checks
+
+Select the fixture validators for the actual declarations and observed
+production contract. The driver checks PDF/A-4, PDF/UA-2 and WTPDF accessibility
+using XMP and structure and resource facts. It compares the output against
+the same authored snapshot on the supported native targets. Anchor new
+conditions in the pinned normative reference and include relevant atomic
+rejections and mutations.
+
+[#contributor-testing-optional-local-pdf-review]
+== Optional local PDF review
+
+Provision the independent tools used in the review. Use `--offline` for
+already-cached archives.
+
+[source,sh]
+----
+python3 scripts/provision_extended_tools.py --only verapdf
+python3 scripts/check_pdfa4.py --cases
+python3 scripts/check_accessible_archive.py --cases
+----
+
+The Archive runner selects veraPDF `4`. The combined runner selects `4`
+and `ua2` against the same PDFs and `wt1a` where declared.
+Report tool versions. Commit the independent fixture or curated observation,
+and keep raw generated validator and mutation files in scratch storage.
+
+[#contributor-testing-family-fixtures-and-fixture-groups]
+== Family fixtures and fixture groups
+
+A family has `package.roc` exposing `Cases`, a typed case union and handler in
+`Cases.roc`, and ordered schema-1 rows in `cases.jsonl`. A family uses either
+the public `package/main.roc` or the internal `package/all.roc`. Group apps
+decode a schema-2 envelope, reset allocation counters and dispatch one
+process per case. Keep runtime measurements on runtime inputs. A case
+with no payload or one that resolves entirely at compile time can have no
+runtime allocation evidence.
+
+Add the matching snapshot, dimensions, ordered validators, work counters,
+expected allocations and retention contract in the inventory. Regenerate
+the group apps with `./scripts/test.py --write-groups`. See the
+xref:contributor-reference.adoc#contributor-fixture-grouping-equivalence-evidence[fixture grouping checks]
+for membership changes. The validator allowlist lives in
+`scripts/harness_validators.py`. Unknown or duplicate identifiers are
+inventory errors.

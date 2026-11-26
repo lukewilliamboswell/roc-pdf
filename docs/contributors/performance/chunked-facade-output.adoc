@@ -1,0 +1,28 @@
+[#contributor-chunked-facade-output]
+= Buffered and chunked facade output
+
+`Pdf.prepare` seals the same plan used for buffered and chunked delivery
+under the selected profile and compression preset. Prepared and one-shot
+entry points share this transition. See
+xref:architecture.adoc#pure-output-and-chunked-delivery[Pure output and chunked delivery].
+
+[#contributor-chunked-facade-output-byte-identity-by-construction]
+== Byte identity by construction
+
+`KernelEmit.to_bytes` collects the same transition that `Pdf.next_chunk`
+drives. The plan-derived phase machine determines object order and chunk
+boundaries. Preparation rejects incomplete plans before an encoder can
+escape. Chunk retention affects memory ownership and leaves concatenated
+bytes identical.
+
+[#contributor-chunked-facade-output-registered-evidence]
+== Registered evidence
+
+The `tests/pdf_facade` chunked cases compare prepared, one-shot,
+buffered, and chunked output over all compression presets and retention
+policies. The cases pin byte identity, chunk count, largest chunk, and
+an order-sensitive length counter alongside exact allocation and output
+evidence in `tests/spec.json`. Atomic negative examples check that no
+encoder or bytes escape. The
+xref:contributor-output.adoc#contributor-resource-retention[unchanged-resource fixture]
+separately checks pointer identity and source release.

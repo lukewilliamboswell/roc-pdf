@@ -1,0 +1,72 @@
+[#contributor-output-chapter]
+= PDF object planning and emission
+
+Consult these contracts when changing scene or resource lowering, PDF object
+planning, or the byte writer. Follow the typed stage boundary that owns the
+fact you are changing. Use the xref:testing.adoc#testing-roc-pdf[testing guide]
+to run exact snapshots, allocations, and work counters. The fixture specs
+are the source of current numerical baselines.
+
+include::contributors/performance/prepared-document.adoc[leveloffset=+1]
+
+include::contributors/performance/facade-scenes.adoc[leveloffset=+1]
+
+include::contributors/performance/tagged-plan.adoc[leveloffset=+1]
+
+include::contributors/performance/content.adoc[leveloffset=+1]
+
+include::contributors/performance/lexical-kernel.adoc[leveloffset=+1]
+
+include::contributors/performance/resource-types.adoc[leveloffset=+1]
+
+include::contributors/performance/resources.adoc[leveloffset=+1]
+
+include::contributors/performance/resource-graph.adoc[leveloffset=+1]
+
+include::contributors/performance/resource-names.adoc[leveloffset=+1]
+
+include::contributors/performance/form-xobjects.adoc[leveloffset=+1]
+
+include::contributors/performance/transparency.adoc[leveloffset=+1]
+
+include::contributors/performance/soft-masks.adoc[leveloffset=+1]
+
+include::contributors/performance/shadings-patterns.adoc[leveloffset=+1]
+
+include::contributors/performance/pdf-font-objects.adoc[leveloffset=+1]
+
+include::contributors/performance/multiface-advanced-output.adoc[leveloffset=+1]
+
+include::contributors/performance/metadata-output-intent.adoc[leveloffset=+1]
+
+include::contributors/performance/navigation-annotations.adoc[leveloffset=+1]
+
+include::contributors/performance/outline-hierarchy.adoc[leveloffset=+1]
+
+include::contributors/performance/objects.adoc[leveloffset=+1]
+
+include::contributors/performance/object-store.adoc[leveloffset=+1]
+
+include::contributors/performance/structure-lowering.adoc[leveloffset=+1]
+
+include::contributors/performance/sealed-plan.adoc[leveloffset=+1]
+
+include::contributors/performance/output-bounds.adoc[leveloffset=+1]
+
+include::contributors/performance/output-size.adoc[leveloffset=+1]
+
+include::contributors/performance/deflate.adoc[leveloffset=+1]
+
+include::contributors/performance/chunked-facade-output.adoc[leveloffset=+1]
+
+include::contributors/performance/resource-retention.adoc[leveloffset=+1]
+
+include::contributors/performance/lowering-uniqueness.adoc[leveloffset=+1]
+
+include::contributors/performance/emission-linearity.adoc[leveloffset=+1]
+
+include::contributors/performance/structural-kernel-closure.adoc[leveloffset=+1]
+
+include::contributors/performance/tagged-visual-closure.adoc[leveloffset=+1]
+
+include::contributors/performance/production-visual-closure.adoc[leveloffset=+1]

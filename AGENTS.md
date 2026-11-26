@@ -71,8 +71,8 @@
   inside the branches of an `if` or `match` that produces a value (including
   a function's tail expression), and do not read a record or projection
   after the call that grows one of its lists. See
-  `docs/contributors/performance/lowering-uniqueness.md` and
-  `docs/contributors/performance/emission-linearity.md`.
+  `docs/contributors/performance/lowering-uniqueness.adoc` and
+  `docs/contributors/performance/emission-linearity.adoc`.
 - If a proposed change alters an enduring architectural decision or roadmap
   capability boundary, update the corresponding document in the same change.
   Do not use an implementation workaround to avoid resolving the conflict.
@@ -84,6 +84,12 @@ current task; delete obsolete or duplicated material. Keep implementation histor
 in Git, unfinished work in issues, and release changes in release records. Preserve
 required public anchors without explaining their history. Follow the
 [shared documentation guidance](https://lukewilliamboswell.github.io/roc-automation/documentation.html#keep-documentation-current).
+
+Author documentation as AsciiDoc in the manual rooted at `docs/index.adoc`.
+Include each chapter or source section once. Keep release records as AsciiDoc
+under `docs/releases/`, include the upcoming changes in the development manual,
+and link to published versions. The shared roc-docs build generates HTML, PDF and
+Markdown. Keep repository entry points short and link to the relevant chapter.
 Author each rendered manual chapter once as a top-level `docs/*.adoc` file
 included by `docs/index.adoc`. The pinned shared `roc-docs` renderer builds
 HTML, PDF and static Markdown from those same sources. Keep generated formats

@@ -17,7 +17,7 @@ from urllib.parse import unquote, urlsplit
 
 from check_structure_semantics import Document
 from check_vector_diagrams import read_png
-from prepare_manual import ASSETS
+from prepare_manual import ASSETS, HTML_ONLY_PREVIEWS, expand_chapter
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -72,11 +72,22 @@ class Page(HTMLParser):
 
 
 def source_blocks(source: str) -> list[str]:
-    return re.findall(r"^\[source,[^\n]+\]\n----\n(.*?)^----\s*$", source, re.M | re.S)
+    listings = re.compile(r"^\[source,[^\n]+\]\n----\n(.*?)^----[ \t]*$|^\.\.\.\.\n(.*?)^\.\.\.\.[ \t]*$", re.M | re.S)
+    return [source_code or literal for source_code, literal in listings.findall(source)]
 
 
 def compact(text: str) -> str:
     return re.sub(r"\s+", "", text)
+
+
+def table_text(text: str) -> str:
+    return compact(text.translate(str.maketrans("‘’“”", "''\"\"")))
+
+
+def markdown_table_text(cell: str) -> str:
+    label_text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", cell)
+    unescaped = re.sub(r"\\([!-/:-@\[-`{-~])", r"\1", label_text)
+    return table_text(unescaped.replace("`", ""))
 
 
 def check(site: Path, source: Path, pdf: Path | None, review: Path | None = None) -> None:
@@ -90,17 +101,18 @@ def check(site: Path, source: Path, pdf: Path | None, review: Path | None = None
     assert {name.removesuffix(".html") + ".md" for name in pages} <= index_links, "llms.txt omits a generated chapter"
     all_code = []
     table_cells = []
+    table_headers = set()
     table_count = 0
     expected_table_shapes = []
     for path, prepared in inventory["chapters"].items():
         page = pages[prepared.removesuffix(".adoc") + ".html"]
-        authored = (ROOT / path).read_text()
+        authored = expand_chapter(source / prepared, source)
         expected = source_blocks(authored)
         if path == "docs/releases.adoc":
             # Independently derive the generated dependency snippet from the
             # binding record instead of trusting the staged renderer input.
             for binding in inventory["release_bindings"].values():
-                expected.append(f'pdf: "{binding["{package-url}"]}",\n')
+                assert f'pdf: "{binding["{package-url}"]}",\n' in expected, "release package snippet differs from binding"
         assert [code.rstrip("\n") for code in page.code] == [code.rstrip("\n") for code in expected], f"source whitespace changed in {path}"
         all_code.extend(expected)
         grids = []
@@ -118,10 +130,11 @@ def check(site: Path, source: Path, pdf: Path | None, review: Path | None = None
                 for cell in line[1:].split("|"):
                     plain = re.sub(r"(?:xref:)?[^\s\[]+\[([^\]]+)\]", r"\1", cell).replace("`", "")
                     table_cells.append(plain)
-                    row.append(compact(plain))
+                    row.append(table_text(plain))
                 rows.append(row)
         assert rows is None, f"unterminated source table in {path}"
-        actual_grids = [[[compact(cell) for cell in row] for row in table] for table in page.tables]
+        table_headers.update("".join(grid[0]) for grid in grids)
+        actual_grids = [[[table_text(cell) for cell in row] for row in table] for table in page.tables]
         assert actual_grids == grids, f"HTML table row/cell associations changed in {path}"
         markdown = (site / prepared.replace(".adoc", ".md")).read_text()
         exports = re.compile(r"^```[^\n]*\n(.*?)^```[ \t]*$", re.M | re.S)
@@ -135,8 +148,7 @@ def check(site: Path, source: Path, pdf: Path | None, review: Path | None = None
         for line in exports.sub("", markdown).splitlines():
             if line.startswith("|"):
                 if not re.fullmatch(r"\|[ |:-]+\|", line):
-                    markdown_rows.append([compact(re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", cell).replace("`", ""))
-                                          for cell in line.strip("|").split("|")])
+                    markdown_rows.append([markdown_table_text(cell) for cell in line.strip("|").split("|")])
             elif markdown_rows:
                 markdown_grids.append(markdown_rows)
                 markdown_rows = []
@@ -157,6 +169,7 @@ def check(site: Path, source: Path, pdf: Path | None, review: Path | None = None
             assert path.exists(), f"missing link target in {name}: {href}"
             if target.fragment and path.suffix == ".html":
                 assert unquote(target.fragment) in pages[path.name].ids, f"missing anchor in {name}: {href}"
+    assert set(pages["gallery.html"].images) == set(ASSETS), "gallery lost a registered preview"
     for path in site.glob("*.md"):
         for href in re.findall(r"!?\[[^\]]*\]\(([^)]+)\)", path.read_text()):
             target = urlsplit(href)
@@ -176,7 +189,7 @@ def check(site: Path, source: Path, pdf: Path | None, review: Path | None = None
             review.mkdir(parents=True, exist_ok=True)
             for previous in review.glob("pdf-page-*.png"):
                 previous.unlink()
-            command.append(str(review))
+            command.extend([str(review), str(len(ASSETS.keys() - HTML_ONLY_PREVIEWS))])
             extracted = subprocess.check_output(command, text=True)
         # Remove only known running furniture at the edges of each page;
         # leave identical authored body occurrences intact.
@@ -189,9 +202,17 @@ def check(site: Path, source: Path, pdf: Path | None, review: Path | None = None
             nonempty = [index for index, line in enumerate(lines) if line.strip()]
             removed = set()
             for index in nonempty[:3]:
-                if (lines[index].strip() in titles or lines[index].startswith(f"{manual_title} ")
-                        or lines[index].strip() == "Authoring surface Support"):
+                if lines[index].strip() in titles or lines[index].startswith(f"{manual_title} "):
                     removed.add(index)
+            leading = [index for index in nonempty[:12] if index not in removed]
+            header = ""
+            for position, index in enumerate(leading):
+                header += table_text(lines[index])
+                if header in table_headers:
+                    removed.update(leading[:position + 1])
+                    break
+                if not any(candidate.startswith(header) for candidate in table_headers):
+                    break
             for index in nonempty[-3:]:
                 if re.fullmatch(r"\s*\d+\s*/\s*\d+\s*", lines[index]):
                     removed.add(index)
@@ -203,8 +224,7 @@ def check(site: Path, source: Path, pdf: Path | None, review: Path | None = None
         for text in ("Runnable document gallery", "Invoice", "Business report", "Remittance advice", "Supported features"):
             assert compact(text) in actual, f"PDF lost {text}"
     if pdf:
-        # The manual embeds every registered RGB preview. Check exact decoded
-        # pixel content against the authored assets.
+        # Check the decoded pixels of the previews embedded in the PDF.
         document = Document(pdf.read_bytes())
         images = []
         tables = []
@@ -215,7 +235,7 @@ def check(site: Path, source: Path, pdf: Path | None, review: Path | None = None
             if isinstance(value, dict) and value.get("S") == "Table":
                 tables.append(number)
         expected_images = []
-        for path in ASSETS.values():
+        for path in (path for name, path in ASSETS.items() if name not in HTML_ONLY_PREVIEWS):
             image = read_png(ROOT / path)
             expected_images.append((image.width, image.height, hashlib.sha256(image.pixels).hexdigest()))
         assert sorted(images) == sorted(expected_images), "PDF figure pixels differ from prepared source previews"
@@ -235,11 +255,12 @@ def check(site: Path, source: Path, pdf: Path | None, review: Path | None = None
             actual_table_shapes.append(tuple(rows))
         assert sorted(actual_table_shapes) == sorted(expected_table_shapes), "PDF table rows/cells differ from the authored grids"
         if review:
+            normalized_body, normalized_raw = table_text(actual), table_text(raw_actual)
             for cell in table_cells:
                 # Initial headers can also sit at the page edge; their source
                 # text must remain in raw extraction even when repeated headers
                 # are removed to join a continued body cell.
-                assert compact(cell) in actual or compact(cell) in raw_actual, f"PDF lost table cell: {cell}"
+                assert table_text(cell) in normalized_body or table_text(cell) in normalized_raw, f"PDF lost table cell: {cell}"
             java = subprocess.run(["java", "-version"], text=True, capture_output=True, check=True)
             (review / "pdf-report.json").write_text(json.dumps({
                 "pdf_sha256": hashlib.sha256(pdf.read_bytes()).hexdigest(),

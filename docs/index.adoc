@@ -6,8 +6,9 @@
 :sectnums:
 
 Generate searchable PDF 2.0 reports, invoices and letters using public Roc APIs.
-Start with a complete example, follow the guide for your task, and use the API
-reference for exact types and functions. Contributors can start with
+Start with a complete example, follow the guide for your task, and use the
+https://lukewilliamboswell.github.io/roc-pdf/[API reference] for exact types and functions.
+Contributors can start with
 xref:contributing.adoc#contributing-to-roc-pdf[repository setup] and
 xref:testing.adoc#testing-roc-pdf[testing], or read the
 xref:architecture.adoc#pure-roc-pdf-generation-architecture[architecture].
@@ -28,10 +29,20 @@ include::migrating-named-arguments.adoc[leveloffset=+1]
 
 include::gallery.adoc[leveloffset=+1]
 
-include::releases.adoc[leveloffset=+1]
-
 include::contributing.adoc[leveloffset=+1]
 
 include::testing.adoc[leveloffset=+1]
 
 include::architecture.adoc[leveloffset=+1]
+
+include::contributor-reference.adoc[leveloffset=+1]
+
+include::contributor-layout.adoc[leveloffset=+1]
+
+include::contributor-output.adoc[leveloffset=+1]
+
+include::contributor-conformance.adoc[leveloffset=+1]
+
+include::contributor-benchmarks.adoc[leveloffset=+1]
+
+include::releases.adoc[leveloffset=+1]
