@@ -11,6 +11,7 @@ from check_destination_references import validate_destination_references_pdf
 from check_chapter_templates import validate_chapter_templates_pdf
 from check_vector_diagrams import validate_vector_diagrams_pdf
 from check_fixed_pages import validate_fixed_pages_pdf
+from check_generated_handbook import validate_generated_fixture
 from check_inter_latin import validate_inter_latin_pdf
 from check_columns import validate_columns_pdf
 from check_actual_text import EXPECTED_CONTENT as ACTUAL_TEXT_CONTENT
@@ -155,6 +156,7 @@ def _facade_image(data: bytes, dimensions: dict[str, int], report: Reporter) -> 
 VALIDATORS: dict[str, Validator] = {
     "associated_files": _dimensioned(validate_associated_files_pdf, "catalog AF, name-tree ordering and boundaries, exact file-specification metadata, distinct streams, and extracted payloads"),
     "default_fonts": _dimensioned(validate_default_fonts_pdf, "genuine static family/style programs, exact selected glyph outlines and searchable source text"),
+    "generated_contents": _dimensioned(validate_generated_fixture, "authored generated contents targets, printed labels, and paired link destinations"),
     "contents_entries": _dimensioned(validate_contents_entries_pdf, "aligned contents columns, wrapped titles, linked exact page references and decorative leaders"),
     "destination_references": _dimensioned(validate_destination_references_pdf, "printed reference Unicode agrees with emitted destinations and page labels, fixed advances, semantic owners and explicit annotations"),
     "inter_latin": _dimensioned(validate_inter_latin_pdf, "exact kerned positions, ligature and literal mapping, wrap ownership and scope color"),
@@ -253,6 +255,7 @@ PREFLIGHT_CHECKS["rich_inline"] = PreflightCheck("check_rich_inline.py", True)
 PREFLIGHT_CHECKS["table_paint_frames"] = PreflightCheck("check_table_paint_frames.py", True)
 PREFLIGHT_CHECKS["rich_flow"] = PreflightCheck("check_rich_flow.py", True)
 PREFLIGHT_CHECKS["technical_manual"] = PreflightCheck("check_technical_manual.py", True)
+PREFLIGHT_CHECKS["generated_contents"] = PreflightCheck("check_generated_handbook.py", True)
 PREFLIGHT_CHECKS["contents_entries"] = PreflightCheck("check_contents_entries.py", True)
 PREFLIGHT_CHECKS["destination_references"] = PreflightCheck("check_destination_references.py", True)
 PREFLIGHT_CHECKS["source_blocks"] = PreflightCheck("check_source_blocks.py", True)

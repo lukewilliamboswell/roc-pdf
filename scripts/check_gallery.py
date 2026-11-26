@@ -19,6 +19,7 @@ import threading
 from pathlib import Path
 
 from check_drawing_labels import artifact_and_tagged_text
+from check_generated_handbook import check as check_generated_handbook
 from check_gallery_features import check_features
 
 
@@ -81,6 +82,9 @@ CASES = {
     ),
     "field-guide": (
         Case(("pocket",), "field-guide-pocket.pdf", facts=("Preferred species note keep relaxed",)),
+    ),
+    "operations-handbook": (
+        Case(("generated",), "operations-handbook-generated.pdf"),
     ),
     "ordered-han": (
         Case(("latin-only",), diagnosis="text.coverage_missing at contents[1].inlines[1].inlines[0]"),
@@ -267,6 +271,8 @@ def main() -> None:
                 generated_path.unlink()
                 print(f"PASS {name}/main.roc -> {pdf_name} ({len(generated)} bytes)", flush=True)
                 check_cases(name, source, example, output)
+                if name == "operations-handbook":
+                    check_generated_handbook(example)
                 check_features(name, example)
             if server is not None and server.get_requests == 0:
                 raise SystemExit("gallery never requested the served package bundle")

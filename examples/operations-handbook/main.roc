@@ -18,11 +18,16 @@ import "fonts/SourceCodePro-Regular.ttf" as mono_bytes : List(U8)
 
 ## An on-call runbook with authored contents, chapter templates and
 ## a continuing rollback instruction containing rich blocks.
-main! = |_args| {
+main! = |args| {
+	generated = match args.get(1) {
+		Err(OutOfBounds) => False
+		Ok("generated") => True
+		Ok(_) => return Err(Usage)
+	}
 	fonts = register_fonts({})?
 	options : Pdf.Options
 	options = { theme: theme(fonts), fonts: Registered(fonts.registry) }
-	blocks = contents(options, fonts.mono).map_err(|err| PdfFailed(err))?
+	blocks = contents(options, fonts.mono, generated).map_err(|err| PdfFailed(err))?
 	document = Pdf.document({
 		contents: blocks,
 		language: "en-AU",
@@ -590,8 +595,8 @@ accent_band = Pdf.decoration({
 	drawing: Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 10, width: 56, height: 6 }), color: teal }).rectangle({ bounds: Layout.rect({ x: 60, y: 10, width: 18, height: 6 }), color: rust }).rectangle({ bounds: { origin: Layout.point({ x: 0, y: 0 }), size: { height: 0.6, width: Layout.Unit.points(measure) } }, color: mist }),
 })
 
-contents : Pdf.Options, Font.FaceId -> Try(List(Document.Block), Pdf.Error)
-contents = |options, mono| {
+contents : Pdf.Options, Font.FaceId, Bool -> Try(List(Document.Block), Pdf.Error)
+contents = |options, mono, generated| {
 	cover = [
 		accent_band,
 		Pdf.title("Payments platform on-call runbook"),
@@ -609,11 +614,25 @@ contents = |options, mono| {
 			],
 		)?,
 		Pdf.heading(1, "Contents"),
-		Pdf.contents_entry({ title: [Pdf.text("4 Incident response procedure: how the on-call engineer should stabilise the system, review the last change and restore normal service before handing the incident back to the duty manager")], reference: { destination: "response", width: 28, numbering: PageLabel } }),
-		Pdf.contents_entry({ title: [Pdf.text("4.2 Rolling back a release")], reference: { destination: "rollback", width: 28, numbering: PageLabel }, indent: 20, leader: Dots }),
-		Pdf.contents_entry({ title: [Pdf.text("5 Escalation")], reference: { destination: "escalation", width: 28, numbering: PageLabel } }),
-		Pdf.contents_entry({ title: [Pdf.text("Appendix A. Command reference")], reference: { destination: "commands", width: 28, numbering: PageLabel } }),
 	]
+	toc = if generated {
+		[
+			Pdf.generated_contents({
+				depth: 2,
+				leader: Dots,
+				numbering: PageLabel,
+				page_width: 28,
+				overrides: [{ target: "recovery-check-2", title: "Recovery checks after settlement resumes" }],
+			}),
+		]
+	} else {
+		[
+			Pdf.contents_entry({ title: [Pdf.text("4 Incident response procedure: how the on-call engineer should stabilise the system, review the last change and restore normal service before handing the incident back to the duty manager")], reference: { destination: "response", width: 28, numbering: PageLabel } }),
+			Pdf.contents_entry({ title: [Pdf.text("4.2 Rolling back a release")], reference: { destination: "rollback", width: 28, numbering: PageLabel }, indent: 20, leader: Dots }),
+			Pdf.contents_entry({ title: [Pdf.text("5 Escalation")], reference: { destination: "escalation", width: 28, numbering: PageLabel } }),
+			Pdf.contents_entry({ title: [Pdf.text("Appendix A. Command reference")], reference: { destination: "commands", width: 28, numbering: PageLabel } }),
+		]
+	}
 	duties = [
 		Pdf.section([
 			Pdf.destination_heading({ name: "scope", level: 1, text: "1 Scope and on-call duties" }),
@@ -787,15 +806,63 @@ contents = |options, mono| {
 			drill_table,
 		]),
 	]
-	Ok(
-		cover.append(
-			Pdf.part([
-				chapter("On-call duties", duties),
-				chapter("Incident response", procedure),
-				chapter("Escalation and review", follow_up),
-			]),
-		).append(Pdf.part([chapter("Appendices", appendices)])),
+	core = cover.concat(toc).append(
+		Pdf.part([
+			chapter("On-call duties", duties),
+			chapter("Incident response", procedure),
+			chapter("Escalation and review", follow_up),
+		]),
 	)
+	with_checks = if (generated) core.append(Pdf.part([chapter("Recovery checklists", recovery_checks({}))])) else core
+	Ok(with_checks.append(Pdf.part([chapter("Appendices", appendices)])))
+}
+
+recovery_checks : {} -> List(Document.Block)
+recovery_checks = |_| {
+	checks = [
+		"Card authorisation",
+		"Bank transfers",
+		"Settlement status",
+		"Queue depth",
+		"Excess retries",
+		"Stale transactions",
+		"Reconciliation",
+		"Nightly reconciliation",
+		"Stalled routing",
+		"Processor handover",
+		"Secondary routing",
+		"Duplicate payouts",
+		"Callback queue",
+		"Processor response codes",
+		"Settlement limits",
+		"Outbound files",
+		"Recurring payments",
+		"Refunds",
+		"Disputes",
+		"Wallet authorisation",
+		"Wallet balances",
+		"Delayed receipts",
+		"Provider windows",
+		"Ledger exports",
+		"Search health",
+		"End-of-day summary",
+		"Audit log",
+		"Customer support queue",
+		"Morning handover",
+		"Alert thresholds",
+		"Credential rotation",
+		"Recovery timing",
+	]
+	var $blocks = [Pdf.destination_heading({ name: "recovery-checklists", level: 1, text: "Recovery checklists" })]
+	var $number = 1.U64
+	for check in checks {
+		target = "recovery-check-${$number.to_str()}"
+		title = if ($number <= 2) "Recovery checks" else check
+		$blocks = $blocks.append(Pdf.destination_heading({ name: target, level: 2, text: title }))
+		$blocks = $blocks.append(Pdf.paragraph("Confirm ${check} and record the observed result on the recovery ticket."))
+		$number = $number + 1
+	}
+	$blocks
 }
 
 rollback_step : Font.FaceId -> Pdf.ListItem

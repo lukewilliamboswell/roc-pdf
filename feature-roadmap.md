@@ -942,6 +942,14 @@ figures, page references and source blocks described under Gate 6.
 - Each capability verifies its supported profile declarations and applicable
   emission checks with focused project-owned fixtures.
 
+### Generated contents
+
+Generated contents selects anchored headings in authoring order by scope
+and depth. Target names carry identity and title overrides. Entries share
+the authored TOC/TOCI path with fixed-width fields, paired destinations and
+optional artifact leaders. Flow-changing references and indexes have
+separate layout and structure requirements.
+
 ### Bounded fixed-page text and artwork
 
 The fixed-page builder supports explicit sheet sizes, framed titles,

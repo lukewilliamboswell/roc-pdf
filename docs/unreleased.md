@@ -63,6 +63,13 @@ the document be understandable without opening the files. See the
 [associated files guide](authoring.adoc#authoring-associated-files) and the
 [runnable invoice](../examples/invoice-with-data).
 
+## Generated contents
+
+Collect anchored headings into linked contents by scope and depth. Use
+title overrides keyed by destination and display committed page labels
+after the contents lays out. See the
+[manual composition guide](manual-composition.adoc#generate-contents-from-headings).
+
 ## Compiler
 
 This development branch uses Roc `nightly-2026-11-25-d5a4f1e`.

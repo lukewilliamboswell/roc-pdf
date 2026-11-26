@@ -8,6 +8,43 @@ authored contents, chapter scopes, restarted appendix labels and a
 numbered rollback item that continues across pages.
 
 [#manual-composition-print-page-numbers-in-a-table-of-contents]
+[#generate-contents-from-headings]
+== Generate contents from headings
+
+Place `Pdf.generated_contents` at the top level where the contents should
+start. It collects anchored headings in authoring order. Heading names
+identify destinations even when their visible titles repeat.
+
+[source,roc]
+----
+Pdf.generated_contents({
+    scope: Under("procedures"),
+    depth: 2,
+    leader: Dots,
+    page_width: 36,
+    numbering: PageLabel,
+    overrides: [{ target: "second-check", title: "Follow-up checks" }],
+})
+----
+
+Use `WholeDocument` for the whole heading sequence. With `Under(name)`,
+the named heading identifies the start and is excluded. Collection stops at
+the next heading at the same or a shallower level. `depth` counts from the
+document or selected heading. Plain headings still determine scope, but
+entries require `Pdf.destination_heading` to provide a target. An override
+must name a selected target. Empty selection, a missing scope, and an
+invalid override report `document.generated_contents` at the request.
+
+Links, end-aligned page fields, and artifact leaders use the same layout
+as authored `Pdf.contents_entry`. Choose a fixed `page_width` wide enough
+for the labels. Generated entries may take several pages, and the printed
+labels refer to the final heading placements. Keep headings and overrides
+meaningful in isolation.
+
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/operations-handbook/README.md[Run the generated handbook] to see the first chapter move from page 2 to
+page 3 while its link and printed number follow it.
+
+
 == Print page numbers in a table of contents
 
 Give each chapter a named destination with `Pdf.destination_heading`, then

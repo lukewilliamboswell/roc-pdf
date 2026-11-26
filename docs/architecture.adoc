@@ -997,6 +997,14 @@ legal cut needs fresh context on both sides before measurement accepts it.
 A scope-only color choice leaves shaping and line cache identity unchanged.
 A separate font, size, or authored semantic occurrence is a shaping boundary.
 
+Generated contents collects heading destinations in authored order before
+the ordinary authoring normalization. Scope is a named heading boundary and
+a relative depth, or the entire document with an absolute depth. Stable
+destination identities select overrides independently of visible titles.
+The collected entries use the authored TOC/TOCI structure, with headings
+as semantic targets and fixed-width resolved fields. Every generated entry
+keeps its source block and entry position for diagnostics and reports.
+
 For sequential column flow, validated page-local widths and gutter select
 an ordered pair of frames. A paragraph cursor carries the next uncommitted
 cluster and its original shaped run ranges. It shares a single measured

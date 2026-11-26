@@ -18,3 +18,20 @@ The app reports that the callout starts on page 4 and ends on page 5.
 Its panel and padding repeat while the step number appears once. The
 [business report](../business-report/README.md) also shows a measured,
 unsplittable custom block.
+
+## Generate the contents
+
+```sh
+roc run main.roc -- generated
+```
+
+This variant writes `operations-handbook.pdf` with a generated contents
+covering two pages. Compare it with the authored default. The first chapter
+moves from page 2 to page 3, and its printed page label and both links follow.
+The two “Recovery checks” headings have different destinations. The second
+entry uses the override “Recovery checks after settlement resumes”. The
+command appendix retains the restarted label `A-1`.
+
+The checked output and preview are
+[operations-handbook-generated.pdf](operations-handbook-generated.pdf) and
+[preview-generated.png](preview-generated.png).

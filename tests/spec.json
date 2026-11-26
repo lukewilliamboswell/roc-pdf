@@ -50,6 +50,7 @@
     "destination_references",
     "table_paint_frames",
     "contents_entries",
+    "generated_contents",
     "default_fonts"
   ],
   "post_update_checks": [
@@ -74,6 +75,7 @@
     "destination_references",
     "table_paint_frames",
     "contents_entries",
+    "generated_contents",
     "default_fonts"
   ],
   "validation": {
@@ -170,6 +172,9 @@
     },
     {
       "name": "text"
+    },
+    {
+      "name": "generated_contents"
     }
   ],
   "families": [
@@ -400,6 +405,10 @@
     {
       "name": "columns",
       "group": "columns"
+    },
+    {
+      "name": "generated_contents",
+      "group": "generated_contents"
     }
   ],
   "cases": [
@@ -34651,6 +34660,197 @@
         "pdfua2",
         "structure_semantics",
         "columns"
+      ]
+    },
+    {
+      "name": "generated contents x2",
+      "scenario_revision": "generated-contents-v1",
+      "family": "generated_contents",
+      "snapshot": "tests/generated_contents/handbook_2.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 3,
+        "entries": 2
+      },
+      "work_counters": [
+        "pages",
+        "blocks",
+        "heading_references",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1504,
+          "allocated_bytes": 4011429,
+          "work": {
+            "pages": 3,
+            "blocks": 8,
+            "heading_references": 2,
+            "output_bytes": 19476
+          }
+        },
+        "x64musl": {
+          "allocations": 1504,
+          "allocated_bytes": 4011429,
+          "work": {
+            "pages": 3,
+            "blocks": 8,
+            "heading_references": 2,
+            "output_bytes": 19476
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "generated_contents"
+      ]
+    },
+    {
+      "name": "generated contents x40",
+      "scenario_revision": "generated-contents-v1",
+      "family": "generated_contents",
+      "snapshot": "tests/generated_contents/handbook_40.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 13,
+        "entries": 40
+      },
+      "work_counters": [
+        "pages",
+        "blocks",
+        "heading_references",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 7622,
+          "allocated_bytes": 17145879,
+          "work": {
+            "pages": 13,
+            "blocks": 122,
+            "heading_references": 40,
+            "output_bytes": 38124
+          }
+        },
+        "x64musl": {
+          "allocations": 7622,
+          "allocated_bytes": 17145879,
+          "work": {
+            "pages": 13,
+            "blocks": 122,
+            "heading_references": 40,
+            "output_bytes": 38124
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "generated_contents"
+      ]
+    },
+    {
+      "name": "generated contents WTPDF",
+      "scenario_revision": "generated-contents-v1",
+      "family": "generated_contents",
+      "snapshot": "tests/generated_contents/handbook_wtpdf.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 3,
+        "entries": 2
+      },
+      "work_counters": [
+        "pages",
+        "blocks",
+        "heading_references",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1505,
+          "allocated_bytes": 4013224,
+          "work": {
+            "pages": 3,
+            "blocks": 8,
+            "heading_references": 2,
+            "output_bytes": 19742
+          }
+        },
+        "x64musl": {
+          "allocations": 1505,
+          "allocated_bytes": 4013224,
+          "work": {
+            "pages": 3,
+            "blocks": 8,
+            "heading_references": 2,
+            "output_bytes": 19742
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "wtpdf_accessibility",
+        "generated_contents"
+      ]
+    },
+    {
+      "name": "generated contents atomic rejections",
+      "scenario_revision": "generated-contents-v1",
+      "family": "generated_contents",
+      "snapshot": "tests/generated_contents/handbook_2.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 3,
+        "entries": 2
+      },
+      "work_counters": [
+        "pages",
+        "blocks",
+        "heading_references",
+        "output_bytes",
+        "buffered_rejections",
+        "chunked_rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1650,
+          "allocated_bytes": 4036489,
+          "work": {
+            "pages": 3,
+            "blocks": 8,
+            "heading_references": 2,
+            "output_bytes": 19476,
+            "buffered_rejections": 5,
+            "chunked_rejections": 5
+          }
+        },
+        "x64musl": {
+          "allocations": 1650,
+          "allocated_bytes": 4036489,
+          "work": {
+            "pages": 3,
+            "blocks": 8,
+            "heading_references": 2,
+            "output_bytes": 19476,
+            "buffered_rejections": 5,
+            "chunked_rejections": 5
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "generated_contents"
       ]
     }
   ]
