@@ -15,9 +15,9 @@ https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/tax-invoice/REA
 [#bilingual-invoice]
 == Hebrew and English invoice
 
-The Hebrew address wraps after the city. The second line places the
-parenthesized purchase-order ID beside ישראל. The mixed service cell has
-the logical text `ייעוץ בטיחות SKU-42 ILS 1,250.00`.
+The Hebrew address wraps after the city. The second line includes a
+parenthesized purchase-order ID. The mixed service cell pairs a Hebrew
+description with the selectable text `SKU-42 ILS 1,250.00`.
 
 https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/bilingual-invoice[Run the bilingual invoice] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/bilingual-invoice/bilingual-invoice.pdf[PDF output] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/bilingual-invoice/preview.png[Preview]
 

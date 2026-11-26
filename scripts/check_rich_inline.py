@@ -513,7 +513,7 @@ def self_test() -> None:
     try:
         check_structure_semantics(twin)
     except ValidationError as error:
-        require(str(error) == "unsupported attribute owner 'Layout'", str(error))
+        require(str(error) == "invalid Layout attributes", str(error))
     else:
         raise ValidationError("mixed inline checker accepted a paint style projected as a Layout attribute")
     rejected += 1
