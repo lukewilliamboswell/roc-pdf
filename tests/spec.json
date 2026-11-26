@@ -57,6 +57,7 @@
     "source_blocks",
     "source_foregrounds",
     "chapter_templates",
+    "fixed_pages",
     "vector_diagrams",
     "rich_flow",
     "technical_manual",
@@ -81,6 +82,7 @@
     "source_blocks",
     "source_foregrounds",
     "chapter_templates",
+    "fixed_pages",
     "vector_diagrams",
     "rich_flow",
     "technical_manual",
@@ -281,6 +283,10 @@
     {
       "name": "destination_references",
       "group": "pages"
+    },
+    {
+      "name": "fixed_pages",
+      "group": "public"
     },
     {
       "name": "vector_diagrams",
@@ -29803,6 +29809,229 @@
         "pdfa4",
         "structure_semantics",
         "chapter_templates"
+      ]
+    },
+    {
+      "name": "fixed remittance pages x2",
+      "scenario_revision": "fixed-remittance-v1",
+      "family": "fixed_pages",
+      "snapshot": "tests/fixed_pages/remittance_2.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "placements": 10,
+        "artifact_rectangles": 4
+      },
+      "work_counters": [
+        "pages",
+        "reported_placements",
+        "fragments",
+        "authored_paint_indices",
+        "authored_artifact_rectangles",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1080,
+          "allocated_bytes": 3434525,
+          "work": {
+            "pages": 2,
+            "reported_placements": 10,
+            "fragments": 10,
+            "authored_paint_indices": 10,
+            "authored_artifact_rectangles": 4,
+            "output_bytes": 18984
+          }
+        },
+        "x64musl": {
+          "allocations": 1080,
+          "allocated_bytes": 3434525,
+          "work": {
+            "pages": 2,
+            "reported_placements": 10,
+            "fragments": 10,
+            "authored_paint_indices": 10,
+            "authored_artifact_rectangles": 4,
+            "output_bytes": 18984
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "fixed_pages"
+      ]
+    },
+    {
+      "name": "fixed remittance pages x20",
+      "scenario_revision": "fixed-remittance-v1",
+      "family": "fixed_pages",
+      "snapshot": "tests/fixed_pages/remittance_20.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 20,
+        "placements": 100,
+        "artifact_rectangles": 40
+      },
+      "work_counters": [
+        "pages",
+        "reported_placements",
+        "fragments",
+        "authored_paint_indices",
+        "authored_artifact_rectangles",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 2516,
+          "allocated_bytes": 10766942,
+          "work": {
+            "pages": 20,
+            "reported_placements": 100,
+            "fragments": 100,
+            "authored_paint_indices": 100,
+            "authored_artifact_rectangles": 40,
+            "output_bytes": 31418
+          }
+        },
+        "x64musl": {
+          "allocations": 2516,
+          "allocated_bytes": 10766942,
+          "work": {
+            "pages": 20,
+            "reported_placements": 100,
+            "fragments": 100,
+            "authored_paint_indices": 100,
+            "authored_artifact_rectangles": 40,
+            "output_bytes": 31418
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "fixed_pages"
+      ]
+    },
+    {
+      "name": "fixed remittance authoring rejections",
+      "scenario_revision": "fixed-remittance-v1",
+      "family": "fixed_pages",
+      "snapshot": "tests/fixed_pages/remittance_2.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "placements": 10,
+        "artifact_rectangles": 4
+      },
+      "work_counters": [
+        "pages",
+        "reported_placements",
+        "fragments",
+        "authored_paint_indices",
+        "authored_artifact_rectangles",
+        "output_bytes",
+        "byte_rejections",
+        "chunk_rejections",
+        "flush_frames_accepted"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 2000,
+          "allocated_bytes": 5536416,
+          "work": {
+            "pages": 2,
+            "reported_placements": 10,
+            "fragments": 10,
+            "authored_paint_indices": 10,
+            "authored_artifact_rectangles": 4,
+            "output_bytes": 18984,
+            "byte_rejections": 8,
+            "chunk_rejections": 8,
+            "flush_frames_accepted": 1
+          }
+        },
+        "x64musl": {
+          "allocations": 2000,
+          "allocated_bytes": 5536416,
+          "work": {
+            "pages": 2,
+            "reported_placements": 10,
+            "fragments": 10,
+            "authored_paint_indices": 10,
+            "authored_artifact_rectangles": 4,
+            "output_bytes": 18984,
+            "byte_rejections": 8,
+            "chunk_rejections": 8,
+            "flush_frames_accepted": 1
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "fixed_pages"
+      ]
+    },
+    {
+      "name": "fixed remittance WTPDF x2",
+      "scenario_revision": "fixed-remittance-v1",
+      "family": "fixed_pages",
+      "snapshot": "tests/fixed_pages/remittance_wtpdf_2.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "placements": 10,
+        "artifact_rectangles": 4,
+        "wtpdf_accessibility": 1
+      },
+      "work_counters": [
+        "pages",
+        "reported_placements",
+        "fragments",
+        "authored_paint_indices",
+        "authored_artifact_rectangles",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1081,
+          "allocated_bytes": 3436321,
+          "work": {
+            "pages": 2,
+            "reported_placements": 10,
+            "fragments": 10,
+            "authored_paint_indices": 10,
+            "authored_artifact_rectangles": 4,
+            "output_bytes": 19251
+          }
+        },
+        "x64musl": {
+          "allocations": 1081,
+          "allocated_bytes": 3436321,
+          "work": {
+            "pages": 2,
+            "reported_placements": 10,
+            "fragments": 10,
+            "authored_paint_indices": 10,
+            "authored_artifact_rectangles": 4,
+            "output_bytes": 19251
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "wtpdf_accessibility",
+        "structure_semantics",
+        "fixed_pages"
       ]
     },
     {

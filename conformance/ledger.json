@@ -2556,7 +2556,8 @@
         "WTPDF 1.0 8.2.3",
         "WTPDF 1.0 8.3.1",
         "WTPDF 1.0 8.3.2",
-        "docs/contributors/accessibility-review.md"
+        "docs/contributors/accessibility-review.md",
+        "docs/contributors/performance/fixed-pages.md"
       ],
       "capabilities": [
         "PdfUa2",
@@ -2564,12 +2565,13 @@
       ],
       "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "The bounded facade emits page artifacts for decoration and furniture, repeated table headers and contents leaders. Authored real content, including intrinsic drawing labels, has a semantic owner with stable logical order and continuation identity. Separate contextual artifact authoring is unavailable. The independent manual oracle checks artifact type and isolation, and rejects tagged content nested in a page artifact. Removing a running header classification also fails the pinned veraPDF rule.",
+      "machine_verification": "The bounded facade emits page artifacts for decoration and furniture, repeated table headers and contents leaders. Authored real content, including intrinsic drawing labels, has a semantic owner with stable logical order and continuation identity. Separate contextual artifact authoring is unavailable. The manual oracle rejects tagged content nested in a page artifact. Removing a running header classification fails the pinned veraPDF rule. The fixed-page oracle checks authored structure order independently of stream paint order and rejects isolated changes to either order, frame geometry, and artwork layering.",
       "human_verification": "Confirm authored roles, real versus artifact classification, logical order, artifact grouping and order, and semantic reading across fragments.",
       "positive_scenarios": [
         "scripts/check_accessible_archive.py",
         "scripts/check_chapter_templates.py",
         "scripts/check_drawing_labels.py",
+        "scripts/check_fixed_pages.py",
         "scripts/check_source_blocks.py",
         "scripts/check_structure_semantics.py",
         "scripts/check_technical_manual.py",
@@ -2578,6 +2580,7 @@
       ],
       "negative_scenarios": [
         "scripts/check_accessible_archive.py",
+        "scripts/check_fixed_pages.py",
         "scripts/check_structure_semantics.py",
         "scripts/check_technical_manual.py"
       ],

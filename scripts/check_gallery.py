@@ -37,6 +37,7 @@ EXAMPLES = (
     "product-brief",
     "quarterly-report",
     "release-notes",
+    "remittance-advice",
     "source-blocks",
     "tax-invoice",
     "vector-diagrams",

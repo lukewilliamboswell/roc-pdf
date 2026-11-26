@@ -12,6 +12,7 @@ Read the maintained [Authoring with roc-pdf](authoring.adoc) guide, or its
 - <a id="themes-and-options"></a>[Themes and options](authoring.adoc#authoring-themes-and-options)
 - <a id="output-profiles"></a>[Output profiles](authoring.adoc#authoring-output-profiles)
 - <a id="images-and-figures"></a>[Images and figures](authoring.adoc#authoring-images-and-figures)
+- [Position text on fixed pages](authoring.adoc#authoring-fixed-pages)
 - <a id="callouts"></a>[Callouts](authoring.adoc#authoring-callouts)
 - <a id="custom-blocks"></a>[Custom blocks](authoring.adoc#authoring-custom-blocks)
 - <a id="preparation-reports"></a>[Preparation reports](authoring.adoc#authoring-preparation-reports)

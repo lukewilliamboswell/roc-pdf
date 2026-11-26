@@ -1800,6 +1800,36 @@
       }
     },
     {
+      "id": "example-remittance-advice-pdf",
+      "path": "examples/remittance-advice/remittance-advice.pdf",
+      "kind": "expected_pdf",
+      "license": "UPL-1.0 and OFL-1.1 embedded fonts",
+      "attribution": "examples/remittance-advice/README.md",
+      "origin": {
+        "kind": "generated",
+        "generator": "examples/remittance-advice/main.roc"
+      },
+      "bytes": 18984,
+      "sha256": "94805abb372c83e16bca6e6e5bf9c26905142dc0d02671849015f2478205ec29",
+      "modification_permitted": true,
+      "redistribution_permitted": true
+    },
+    {
+      "id": "example-remittance-advice-preview",
+      "path": "examples/remittance-advice/preview.png",
+      "kind": "image",
+      "license": "UPL-1.0",
+      "attribution": "First-page preview rendered from the generated gallery PDF with Poppler 26.07.0.",
+      "origin": {
+        "kind": "generated",
+        "generator": "examples/remittance-advice/main.roc"
+      },
+      "bytes": 21339,
+      "sha256": "3082a7e848683df5587c5ccb7380b6cab7f5417914f65dd04bae50082d69bde7",
+      "modification_permitted": true,
+      "redistribution_permitted": true
+    },
+    {
       "id": "example-source-blocks-pdf",
       "path": "examples/source-blocks/source-blocks.pdf",
       "kind": "expected_pdf",
@@ -2195,6 +2225,51 @@
         "kind": "generated",
         "generator": "tests/actual_text/Cases.roc"
       }
+    },
+    {
+      "id": "fixed-remittance-2-pdf-snapshot",
+      "path": "tests/fixed_pages/remittance_2.pdf",
+      "kind": "expected_pdf",
+      "license": "UPL-1.0 and OFL-1.1 embedded fonts",
+      "attribution": "examples/remittance-advice/README.md",
+      "origin": {
+        "kind": "generated",
+        "generator": "tests/fixed_pages/Cases.roc"
+      },
+      "bytes": 18984,
+      "sha256": "94805abb372c83e16bca6e6e5bf9c26905142dc0d02671849015f2478205ec29",
+      "modification_permitted": true,
+      "redistribution_permitted": true
+    },
+    {
+      "id": "fixed-remittance-20-pdf-snapshot",
+      "path": "tests/fixed_pages/remittance_20.pdf",
+      "kind": "expected_pdf",
+      "license": "UPL-1.0 and OFL-1.1 embedded fonts",
+      "attribution": "examples/remittance-advice/README.md",
+      "origin": {
+        "kind": "generated",
+        "generator": "tests/fixed_pages/Cases.roc"
+      },
+      "bytes": 31418,
+      "sha256": "94db43775c8f412073961d7895c41a80574c835c1e448bd6b454fbc5822068f2",
+      "modification_permitted": true,
+      "redistribution_permitted": true
+    },
+    {
+      "id": "fixed-remittance-wtpdf-2-pdf-snapshot",
+      "path": "tests/fixed_pages/remittance_wtpdf_2.pdf",
+      "kind": "expected_pdf",
+      "license": "UPL-1.0 and OFL-1.1 embedded fonts",
+      "attribution": "examples/remittance-advice/README.md",
+      "origin": {
+        "kind": "generated",
+        "generator": "tests/fixed_pages/Cases.roc"
+      },
+      "bytes": 19251,
+      "sha256": "48623e888608aaf9e7abf74269fe2841996ddfb5809f3e2e163b406075b2edf5",
+      "modification_permitted": true,
+      "redistribution_permitted": true
     },
     {
       "id": "flow-figures-bound-diagnostics-pdf-snapshot",
