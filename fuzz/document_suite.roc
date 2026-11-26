@@ -41,6 +41,7 @@ import PageLabelModel
 import PageTreeProof
 import PageViewport
 import ReferenceWrapModel
+import GeneratedNavigationModel
 import ResourceGraphModel
 import StreamSealModel
 import TaggedStreamOwners

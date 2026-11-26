@@ -36733,6 +36733,197 @@
         "structure_semantics",
         "flow_page_reference"
       ]
+    },
+    {
+      "name": "authored index x2",
+      "scenario_revision": "authored-index-v1",
+      "family": "generated_contents",
+      "snapshot": "tests/generated_contents/index_2.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 3,
+        "index_terms": 2
+      },
+      "work_counters": [
+        "pages",
+        "blocks",
+        "references",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1475,
+          "allocated_bytes": 3828490,
+          "work": {
+            "pages": 3,
+            "blocks": 7,
+            "references": 3,
+            "output_bytes": 18480
+          }
+        },
+        "x64musl": {
+          "allocations": 1475,
+          "allocated_bytes": 3828490,
+          "work": {
+            "pages": 3,
+            "blocks": 7,
+            "references": 3,
+            "output_bytes": 18480
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "authored_index"
+      ]
+    },
+    {
+      "name": "authored index x40",
+      "scenario_revision": "authored-index-v1",
+      "family": "generated_contents",
+      "snapshot": "tests/generated_contents/index_40.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 6,
+        "index_terms": 40
+      },
+      "work_counters": [
+        "pages",
+        "blocks",
+        "references",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 4532,
+          "allocated_bytes": 7391991,
+          "work": {
+            "pages": 6,
+            "blocks": 45,
+            "references": 41,
+            "output_bytes": 24752
+          }
+        },
+        "x64musl": {
+          "allocations": 4532,
+          "allocated_bytes": 7391991,
+          "work": {
+            "pages": 6,
+            "blocks": 45,
+            "references": 41,
+            "output_bytes": 24752
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "authored_index"
+      ]
+    },
+    {
+      "name": "authored index WTPDF",
+      "scenario_revision": "authored-index-v1",
+      "family": "generated_contents",
+      "snapshot": "tests/generated_contents/index_wtpdf.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 3,
+        "index_terms": 2
+      },
+      "work_counters": [
+        "pages",
+        "blocks",
+        "references",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1476,
+          "allocated_bytes": 3830284,
+          "work": {
+            "pages": 3,
+            "blocks": 7,
+            "references": 3,
+            "output_bytes": 18745
+          }
+        },
+        "x64musl": {
+          "allocations": 1476,
+          "allocated_bytes": 3830284,
+          "work": {
+            "pages": 3,
+            "blocks": 7,
+            "references": 3,
+            "output_bytes": 18745
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "authored_index",
+        "wtpdf_accessibility"
+      ]
+    },
+    {
+      "name": "authored index atomic rejections",
+      "scenario_revision": "authored-index-v1",
+      "family": "generated_contents",
+      "snapshot": "tests/generated_contents/index_2.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 3,
+        "index_terms": 2
+      },
+      "work_counters": [
+        "pages",
+        "blocks",
+        "references",
+        "output_bytes",
+        "buffered_rejections",
+        "chunked_rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 2376,
+          "allocated_bytes": 4057456,
+          "work": {
+            "pages": 3,
+            "blocks": 7,
+            "references": 3,
+            "output_bytes": 18480,
+            "buffered_rejections": 5,
+            "chunked_rejections": 5
+          }
+        },
+        "x64musl": {
+          "allocations": 2376,
+          "allocated_bytes": 4057456,
+          "work": {
+            "pages": 3,
+            "blocks": 7,
+            "references": 3,
+            "output_bytes": 18480,
+            "buffered_rejections": 5,
+            "chunked_rejections": 5
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "authored_index"
+      ]
     }
   ]
 }

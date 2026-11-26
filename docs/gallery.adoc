@@ -108,7 +108,7 @@ https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/service-intake[
 
 == More authoring examples
 
-* https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/operations-handbook/README.md[On-call handbook] for authored contents, chapter templates and a continued numbered instruction.
+* https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/operations-handbook/README.md[On-call handbook] for authored and generated contents, flow-changing references, indexes and chapter templates.
 * https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/source-blocks/README.md[Highlighted YAML] for caller-supplied UTF-8 ranges and an invalid-boundary example.
 * https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/ordered-han/README.md[Latin and Han receiving note] for explicit coverage order and language spans.
 * https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/field-guide/README.md[Pocket field guide] for custom pages and layout preferences.

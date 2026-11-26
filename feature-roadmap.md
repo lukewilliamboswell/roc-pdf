@@ -974,6 +974,13 @@ equality within explicit pass and work bounds. The compact handbook note
 moves its heading from physical page one to two when the label wraps. The
 reference lane checks atomic missing-target and cycle diagnostics.
 
+### Authored indexes
+
+An index orders terms by their exact UTF-8 bytes and keeps each term's
+authored order of named destinations. Each location has a separate PDF 1.7
+`Reference` with a selectable page label and a paired link. The indexed
+handbook demonstrates shared targets and more than one location for a term.
+
 ### Bounded fixed-page text and artwork
 
 The fixed-page builder supports explicit sheet sizes, framed titles,

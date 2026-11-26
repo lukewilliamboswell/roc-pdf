@@ -746,6 +746,11 @@ Pdf :: [].{
 	generated_contents : GeneratedContentsProps -> Document.Block
 	generated_contents = |props| Document.generated_contents(props)
 
+	## Sort authored terms and link each location to its named destination.
+	IndexProps : Document.IndexProps
+	index : IndexProps -> Document.Block
+	index = |props| Document.index(props)
+
 	## Plain inline text in the surrounding language and role.
 	text : Str -> Inline
 	text = |value| Document.plain_text(value)
@@ -1207,6 +1212,22 @@ build_fixed_plan = |doc, fixed, options, request| {
 	Ok({ facts: KernelFacadePipeline.Plan.facts(pipeline), normalized: planned.authoring, plan: KernelStructure.Plan.with_compression(plan, deflate_level(options.compression)) })
 }
 
+index_error : Document.IndexError, U64 -> Pdf.Error
+index_error = |error, position| {
+	location = "contents[${position.to_str()}]"
+	located = |code, message, suffix| fixed_error(code, "document.index", message, location.concat(suffix))
+	match error {
+		Empty => located(InvalidRelationship, "Supply at least one authored index term.", ".entries")
+		Budget => located(BudgetExceeded, "Use at most 256 terms per index, 16 targets per term and 2,048 locations per document.", ".entries")
+		DuplicateTerm(entry) => located(DuplicateIdentity, "The index already contains this exact term. List its targets in one entry.", ".entries[${entry.to_str()}].term")
+		EmptyTerm(entry) => located(InvalidRelationship, "Supply nonempty term text of at most 256 UTF-8 bytes.", ".entries[${entry.to_str()}].term")
+		NoTargets(entry) => located(InvalidRelationship, "An index entry needs at least one destination.", ".entries[${entry.to_str()}].destinations")
+		InvalidTarget({ entry, target }) => located(InvalidRelationship, "An index location needs a nonempty destination name.", ".entries[${entry.to_str()}].destinations[${target.to_str()}]")
+		DuplicateTarget({ entry, target }) => located(DuplicateIdentity, "The term already references this exact destination.", ".entries[${entry.to_str()}].destinations[${target.to_str()}]")
+		InvalidWidth => located(LayoutConstraintViolated, "An index page reference needs a positive reserved width.", ".page_width")
+	}
+}
+
 generated_contents_error : Document.GeneratedContentsError -> Pdf.Error
 generated_contents_error = |problem| {
 	located = |position, code, message, suffix| fixed_error(code, "document.generated_contents", message, "contents[${position.to_str()}]${suffix}")
@@ -1215,6 +1236,7 @@ generated_contents_error = |problem| {
 		EntryLimit({ limit, position }) => located(position, BudgetExceeded, "Generated contents exceeded the ${limit.to_str()}-entry document limit.", "")
 		RequestLimit({ limit, position }) => located(position, BudgetExceeded, "Use at most ${limit.to_str()} generated contents blocks.", "")
 		Indent({ position }) => located(position, LayoutConstraintViolated, "Use a nonnegative representable indentation step.", ".indent_step")
+		InvalidIndex({ error, position }) => index_error(error, position)
 		Selection({ error, position }) => match error {
 			EmptySelection => located(position, InvalidRelationship, "The selected scope and depth contain no anchored headings.", ".scope")
 			InvalidDepth => located(position, InvalidRelationship, "Select a depth from 1 to 6.", ".depth")
@@ -2262,7 +2284,10 @@ reference_diagnostic : Document, U64, Conformance.DiagnosticCode, Str, Str -> Pd
 reference_diagnostic = |doc, reference, code, feature, message| {
 	authoring = Document.normalize(doc)
 	match authoring.page_references.get(reference) {
-		Ok(record) => inline_error(doc, record.block, AtInline(record.inline), code, feature, message)
+		Ok(record) => match Document.index_location(authoring, reference) {
+			IndexLocation(target) => fixed_error(code, feature, message, "${leaf_path(doc, record.block)}.destinations[${target.to_str()}]")
+			NoIndexLocation => inline_error(doc, record.block, AtInline(record.inline), code, feature, message)
+		}
 		Err(_) => located_error(doc, code, feature, message, [])
 	}
 }
@@ -2733,6 +2758,7 @@ leaf_path_normalized = |normalized, block| {
 	} else {
 		match group_record(normalized.groups, record.parent).kind {
 			Source(_) => FigureLeaf
+			IndexList => IndexLeaf
 			FigureGroup(_) => match record.kind {
 				FigureCaption(_) => CaptionLeaf
 				_ => FigureLeaf
@@ -2744,6 +2770,14 @@ leaf_path_normalized = |normalized, block| {
 		NotFigure => {
 			position = leaf_position(normalized, block, record.parent)
 			child_path(normalized.groups, record.parent, position)
+		}
+		IndexLeaf => {
+			paragraph = match record.kind {
+				RichParagraph(value) => value
+				_ => crash "index term is not a rich paragraph"
+			}
+			rich = normalized.rich_paragraphs.get(paragraph) ?? crash "index term escaped"
+			child_path(normalized.groups, record.parent, rich.position)
 		}
 		FigureLeaf => chain_path(normalized.groups, record.parent)
 		CaptionLeaf => "${chain_path(normalized.groups, record.parent)}.caption"
@@ -2939,7 +2973,7 @@ child_path = |groups, parent, position| {
 			ContentsItem => {
 				list = group_record(groups, record.parent)
 				match list.kind {
-					GeneratedContentsList => return "${chain_path(groups, record.parent)}.entries[${record.position.to_str()}]"
+					GeneratedContentsList | IndexList => return "${chain_path(groups, record.parent)}.entries[${record.position.to_str()}]"
 					_ => list.parent
 				}
 			}
@@ -2989,6 +3023,7 @@ child_segment = |groups, parent, position| if parent == 0 {
 	"contents[${position.to_str()}]"
 } else {
 	match group_record(groups, parent).kind {
+		IndexList => "entries[${position.to_str()}]"
 		ItemList(_) => "items[${position.to_str()}]"
 		KeepWithNext(_) => "block"
 		Table(_) => "caption"
@@ -4934,7 +4969,11 @@ build_report_at = |normalized, collected, budget, profile, path_source, attachme
 	}
 	for resolved in facts.layout.references {
 		reference = normalized.page_references.get(resolved.reference) ?? crash "reference report identity escaped"
-		$outcomes = $outcomes.append(PageReferenceResolved({ path: inline_path(normalized, reference.block, AtInline(reference.inline)), destination: reference.spec.destination, page: resolved.physical_page, value: resolved.value }))
+		path = match Document.index_location(normalized, resolved.reference) {
+			IndexLocation(target) => "${path_at(reference.block)}.destinations[${target.to_str()}]"
+			NoIndexLocation => inline_path(normalized, reference.block, AtInline(reference.inline))
+		}
+		$outcomes = $outcomes.append(PageReferenceResolved({ path, destination: reference.spec.destination, page: resolved.physical_page, value: resolved.value }))
 	}
 	for context in facts.layout.scope_pages {
 		scope = normalized.page_scopes.get(context.scope) ?? crash "scope report identity escaped"

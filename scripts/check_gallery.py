@@ -92,6 +92,7 @@ CASES = {
     ),
     "operations-handbook": (
         Case(("generated",), "operations-handbook-generated.pdf"),
+        Case(("index",), "operations-handbook-index.pdf"),
         Case(("flow-short",), "operations-handbook-flow-short.pdf", facts=("A-1 on physical page 1",)),
         Case(("flow-long",), "operations-handbook-flow-long.pdf", facts=("RECOVERY-CHECKS-2 on physical page 2",)),
     ),

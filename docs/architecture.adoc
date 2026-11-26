@@ -1143,6 +1143,14 @@ only presentation. The reference resolver carries the destination's
 semantic node identity alongside the visible resolved page label, so the
 structure reference and both link actions identify the same authored target.
 
+An authored index sorts exact term bytes before normalization. It keeps each
+term's authored index and destination order. One PDF 1.7 `Index` owns term
+paragraphs. Each location has a PDF 1.7 `Reference` owning its link.
+The reference resolver supplies the committed target's structure identity;
+lowering writes that target in `/Ref` alongside the geometric and structure
+destinations of the link. Printed page labels use the existing fixed-width
+reference contract.
+
 Paragraph analysis, measurement shaping, break selection, final boundary
 shaping, and per-line bidirectional placement are explicit operations inside
 the shaping/layout stage. A measured run carries sufficient boundary/context

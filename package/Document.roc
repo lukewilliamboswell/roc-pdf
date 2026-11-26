@@ -41,6 +41,8 @@ DocumentBlock :: [
 	ContentsEntry(Box(ContentsEntryProps)),
 	GeneratedContents(Box(GeneratedContentsProps)),
 	GeneratedEntries(List(DocumentBlock)),
+	Index(Box(IndexProps)),
+	IndexEntries(List(IndexBlock)),
 	Columns(Box(ColumnFlow)),
 
 	## Blocks whose inline colors a `Theme.Scope` overrides, boxed so the
@@ -242,6 +244,7 @@ DocumentInline :: [
 	Expansion({ expanded : Str, text : Str }),
 	InLanguage({ contents : List(DocumentInline), tag : Str }),
 	InternalLink({ contents : List(DocumentInline), destination : Str }),
+	IndexReference(Box(List(DocumentInline))),
 	LineBreak,
 	Link({ contents : List(DocumentInline), uri : Str }),
 
@@ -315,10 +318,23 @@ GeneratedContentsProps := {
 	scope : GeneratedContentsScope ?? WholeDocument,
 }
 
+IndexEntry : { term : Str, destinations : List(Str) }
+
+IndexBlock : { block : DocumentBlock, position : U64 }
+
+IndexProps := {
+	entries : List(IndexEntry),
+	numbering : PageReferenceNumbering ?? PageLabel,
+	page_width : Layout.Unit ?? 36,
+}
+
+IndexError : [Empty, Budget, DuplicateTerm(U64), EmptyTerm(U64), NoTargets(U64), InvalidTarget({ entry : U64, target : U64 }), DuplicateTarget({ entry : U64, target : U64 }), InvalidWidth]
+
 GeneratedContentsError : [
 	BlockScanLimit({ limit : U64 }),
 	EntryLimit({ limit : U64, position : U64 }),
 	Indent({ position : U64 }),
+	InvalidIndex({ error : IndexError, position : U64 }),
 	RequestLimit({ limit : U64, position : U64 }),
 	Selection({ error : KernelContentsSelection.Error, position : U64 }),
 ]
@@ -1008,7 +1024,7 @@ TableSection : [Body, Footer, Header]
 ##
 ## `Custom` is a custom block (payload: its `customs` index): a `Div` of its
 ## paragraphs for semantics and one unsplittable unit for layout.
-NormalizedGroupKind := [Source(U64), Container(ContainerKind), ContentsItem, ContentsList, GeneratedContentsList, Custom(U32), Callout(U32), FigureGroup(U32), ItemList(U32), KeepTogether, KeepWithNext(Keep), LeadRegion, ListItem(U32), PageScope(U32), Scope(U32), Table(U32), TableRow(TableSection)]
+NormalizedGroupKind := [Source(U64), Container(ContainerKind), ContentsItem, ContentsList, GeneratedContentsList, IndexList, Custom(U32), Callout(U32), FigureGroup(U32), ItemList(U32), KeepTogether, KeepWithNext(Keep), LeadRegion, ListItem(U32), PageScope(U32), Scope(U32), Table(U32), TableRow(TableSection)]
 
 ## The semantic role of one normalized inline. Text leaves hold their exact
 ## authored string and its byte range in the paragraph's concatenated text.
@@ -1018,6 +1034,7 @@ NormalizedGroupKind := [Source(U64), Container(ContainerKind), ContentsItem, Con
 ## because page fields are page furniture only.
 NormalizedInlineKind := [
 	Code,
+	IndexReference,
 	Emphasis,
 	Expansion(Str),
 	FurnitureOnly,
@@ -1418,6 +1435,8 @@ Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : D
 	FlowPageReferenceProps : FlowPageReferenceProps
 	GeneratedContentsError : GeneratedContentsError
 	GeneratedContentsProps : GeneratedContentsProps
+	IndexProps : IndexProps
+	IndexError : IndexError
 	ContentsEntryProps : ContentsEntryProps
 	NormalizedContentsEntry : NormalizedContentsEntry
 	PageReferenceNumbering : PageReferenceNumbering
@@ -1771,6 +1790,29 @@ Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : D
 	generated_contents : GeneratedContentsProps -> DocumentBlock
 	generated_contents = |props| DocumentBlock.GeneratedContents(Box.box(props))
 
+	index : IndexProps -> DocumentBlock
+	index = |props| DocumentBlock.Index(Box.box(props))
+
+	## Index locations are an authored Reference wrapper around exactly one
+	## internal link, whose only child is the fixed-width page reference.
+	index_location : NormalizedAuthoring, U64 -> [IndexLocation(U64), NoIndexLocation]
+	index_location = |authoring, reference| {
+		record = list_at(authoring.page_references, reference)
+		parent = list_at(authoring.inlines, record.inline).parent
+		if parent == 0 {
+			return NoIndexLocation
+		}
+		outer = list_at(authoring.inlines, parent - 1).parent
+		if outer == 0 {
+			return NoIndexLocation
+		}
+		wrapper = list_at(authoring.inlines, outer - 1)
+		match wrapper.kind {
+			IndexReference => IndexLocation(wrapper.position // 2 - 1)
+			_ => NoIndexLocation
+		}
+	}
+
 	## Resolve generated entries before the ordinary normalization pass.
 	## Documents without a request keep their authored blocks unchanged.
 	resolve_generated_contents : Document -> Try(Document, GeneratedContentsError)
@@ -1778,7 +1820,7 @@ Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : D
 		Simple(simple) => {
 			if !simple.contents.any(
 				|block| match block {
-					GeneratedContents(_) => True
+					GeneratedContents(_) | Index(_) => True
 					_ => False
 				},
 			) {
@@ -2272,6 +2314,7 @@ resolve_contents_blocks = |blocks, headings| {
 	var $resolved = List.with_capacity(blocks.len())
 	var $entries = 0
 	var $requests = 0
+	var $locations_left = 2048
 	for block in blocks {
 		position = $resolved.len()
 		match block {
@@ -2288,6 +2331,11 @@ resolve_contents_blocks = |blocks, headings| {
 				$entries = $entries + entries.len()
 				converted = build_generated_entries(entries, props) ? |_| Indent({ position: position })
 				$resolved = $resolved.append(DocumentBlock.GeneratedEntries(converted))
+			}
+			Index(spec) => {
+				converted = build_index_entries(Box.unbox(spec), $locations_left) ? |error| InvalidIndex({ error, position: position })
+				$locations_left = $locations_left - converted.locations
+				$resolved = $resolved.append(DocumentBlock.IndexEntries(converted.blocks))
 			}
 			_ => {
 				$resolved = $resolved.append(block)
@@ -2317,6 +2365,93 @@ build_generated_entries = |entries, props| {
 		)
 	}
 	Ok($blocks)
+}
+
+build_index_entries : IndexProps, U64 -> Try({ blocks : List(IndexBlock), locations : U64 }, IndexError)
+build_index_entries = |props, available| {
+	if props.entries.is_empty() {
+		return Err(Empty)
+	}
+	if props.entries.len() > 256 {
+		return Err(Budget)
+	}
+	if props.page_width <= 0 {
+		return Err(InvalidWidth)
+	}
+	var $entries = List.with_capacity(props.entries.len())
+	var $index = 0
+	var $locations = 0
+	for entry in props.entries {
+		if entry.term.is_empty() or entry.term.count_utf8_bytes() > 256 {
+			return Err(EmptyTerm($index))
+		}
+		if entry.destinations.is_empty() {
+			return Err(NoTargets($index))
+		}
+		if entry.destinations.len() > 16 or entry.destinations.len() > available - $locations {
+			return Err(Budget)
+		}
+		$locations = $locations + entry.destinations.len()
+		var $target = 0
+		for target in entry.destinations {
+			if target.is_empty() {
+				return Err(InvalidTarget({ entry: $index, target: $target }))
+			}
+			if entry.destinations.sublist({ start: 0, len: $target }).contains(target) {
+				return Err(DuplicateTarget({ entry: $index, target: $target }))
+			}
+			$target = $target + 1
+		}
+		$entries = $entries.append({ entry, key: entry.term.to_utf8(), position: $index })
+		$index = $index + 1
+	}
+	sorted = $entries.sort_with(
+		|left, right| match compare_index_terms(left.key, right.key) {
+			Same => if (left.position < right.position) Before else if (left.position > right.position) After else Same
+			order => order
+		},
+	)
+	var $blocks = List.with_capacity(sorted.len())
+	$index = 0
+	for term in sorted {
+		if $index > 0 and list_at(sorted, $index - 1).key == term.key {
+			return Err(DuplicateTerm(term.position))
+		}
+		var $inlines = List.with_capacity(2 * term.entry.destinations.len() + 1)
+		$inlines = $inlines.append(Document.plain_text(term.entry.term))
+		var $separator = ": "
+		for target in term.entry.destinations {
+			$inlines = $inlines.append(Document.plain_text($separator))
+			reference = Document.page_reference({ destination: target, align: Start, width: props.page_width, numbering: props.numbering })
+			link = Document.inline_internal_link([reference], target)
+			$inlines = $inlines.append(DocumentInline.IndexReference(Box.box([link])))
+			$separator = ", "
+		}
+		$blocks = $blocks.append({ block: Document.rich_paragraph($inlines), position: term.position })
+		$index = $index + 1
+	}
+	Ok({ blocks: $blocks, locations: $locations })
+}
+
+compare_index_terms : List(U8), List(U8) -> [After, Before, Same]
+compare_index_terms = |left, right| {
+	common = U64.min(left.len(), right.len())
+	var $index = 0
+	while $index < common {
+		a = list_at(left, $index)
+		b = list_at(right, $index)
+		if a != b {
+			return if (a < b) Before else After
+		}
+		$index = $index + 1
+	}
+	if left.len() < right.len() {
+		Before
+	} else if left.len() > right.len() {
+		After
+	} else {
+		Same
+	}
 }
 
 first_unavailable_block : List(DocumentBlock) -> [Available, UnavailableFeature({ feature : AuthoringFeature, summary : Str })]
@@ -2432,6 +2567,7 @@ unavailable_leaf : DocumentBlock -> [Available, UnavailableFeature({ feature : A
 unavailable_leaf = |block| match block {
 	Unavailable({ feature, summary }) => UnavailableFeature({ feature, summary })
 	Columns(_) => UnavailableFeature({ feature: MultiColumnLayout, summary: "The column flow must be the only top-level block." })
+	Index(_) => UnavailableFeature({ feature: GeneratedReferences, summary: "Place the index at the top level of the document." })
 	GeneratedContents(_) => UnavailableFeature({ feature: GeneratedReferences, summary: "Place generated contents at the top level of the document." })
 	_ => Available
 }
@@ -2548,6 +2684,10 @@ normalize_simple = |simple, initial| {
 				$state = append_contents_list_at($state, entries, 0, 0, 0, entries.len(), { position: $block_index, kind: GeneratedContentsList })
 				$block_index = $block_index + 1
 			}
+			IndexEntries(entries) => {
+				$state = append_index_entries($state, entries, $block_index)
+				$block_index = $block_index + 1
+			}
 			ContentsEntry(_) => {
 				end = contents_list_end(simple.contents, $block_index + 1)
 				$state = append_contents_list($state, simple.contents, 0, 0, $block_index, end)
@@ -2630,6 +2770,16 @@ append_contents_list_at = |state, blocks, parent, depth, first, end, list| {
 		$state = append_leaf($state, list_at(blocks, $position), item, $position)
 		$state = close_group($state, item - 1)
 		$position = $position + 1
+	}
+	close_group($state, group - 1)
+}
+
+append_index_entries : SimpleState, List(IndexBlock), U64 -> SimpleState
+append_index_entries = |state, entries, position| {
+	var $state = open_group(state, IndexList, 0, 0, position)
+	group = $state.groups.len()
+	for entry in entries {
+		$state = append_leaf($state, entry.block, group, entry.position)
 	}
 	close_group($state, group - 1)
 }
@@ -2807,7 +2957,7 @@ append_leaf = |state, block, parent, position| match block {
 	Title(text) => { ..state, blocks: state.blocks.append({ kind: Title, parent, text }) }
 
 	## Preparation rejects this branch before normalization.
-	Unavailable({ feature: _, summary: _ }) | Columns(_) | GeneratedContents(_) | GeneratedEntries(_) => { ..state, blocks: state.blocks.append({ kind: Paragraph, parent, text: "" }) }
+	Unavailable({ feature: _, summary: _ }) | Columns(_) | GeneratedContents(_) | GeneratedEntries(_) | Index(_) | IndexEntries(_) => { ..state, blocks: state.blocks.append({ kind: Paragraph, parent, text: "" }) }
 }
 
 ## The parser owns the canonical byte buffer once. Leaf text stays empty:
@@ -3502,6 +3652,12 @@ append_rich = |state, contents, parent, position| {
 					$elements = $elements + 1
 				}
 
+				IndexReference(boxed) => {
+					nested = Box.unbox(boxed)
+					$inlines = $inlines.append(inline_element(top, slot, IndexReference, nested.len(), $elements, $leaves))
+					$frames = $frames.append({ breaks: 0, depth: top.depth + 1, items: nested, language: top.language, next: 0, owner: index + 1 })
+					$elements = $elements + 1
+				}
 				PageReference(boxed) | FlowPageReference(boxed) => {
 					flow = match authored {
 						FlowPageReference(_) => True

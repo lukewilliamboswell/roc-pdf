@@ -1144,12 +1144,14 @@ validate_relationships = |store| {
 	}
 	var $index = 0
 	var $last_contents_item = 0
+	var $last_index_item = 0
 	while $index < store.relationships.len() {
 		valid = match list_at(store.relationships, $index) {
 			HeaderFor({ cell, header }) => header_relation_valid(store, $owners, cell.index(), header.index())
 			CaptionFor({ caption, target }) => caption_relation_valid(store, caption.index(), target.index())
 			LabelFor({ label, target }) => label_relation_valid(store, label.index(), target.index())
 			ContentsTarget({ item, target }) => item.index() > $last_contents_item and contents_relation_valid(store, item.index(), target.index())
+			IndexTarget({ item, target }) => item.index() > $last_index_item and destination_relation_valid(store, item.index(), target.index(), "Reference")
 			_ => False
 		}
 		if !valid {
@@ -1159,6 +1161,9 @@ validate_relationships = |store| {
 			ContentsTarget({ item, target: _ }) => {
 				$last_contents_item = item.index()
 			}
+			IndexTarget({ item, target: _ }) => {
+				$last_index_item = item.index()
+			}
 			_ => {}
 		}
 		$index = $index + 1
@@ -1167,12 +1172,15 @@ validate_relationships = |store| {
 }
 
 contents_relation_valid : Semantics.Store, U64, U64 -> Bool
-contents_relation_valid = |store, item, target| {
+contents_relation_valid = |store, item, target| destination_relation_valid(store, item, target, "TOCI")
+
+destination_relation_valid : Semantics.Store, U64, U64, Str -> Bool
+destination_relation_valid = |store, item, target, expected_owner| {
 	if item >= store.nodes.len() or target >= store.nodes.len() {
 		False
 	} else {
 		role = role_index(list_at(store.nodes, target).role.local_name)
-		list_at(store.nodes, item).role.local_name == "TOCI" and (role == role_p or role == role_hn)
+		list_at(store.nodes, item).role.local_name == expected_owner and (role == role_p or role == role_hn)
 	}
 }
 
@@ -1381,6 +1389,10 @@ role_index = |name| {
 		role_toc
 	} else if name == "TOCI" {
 		role_toci
+	} else if name == "Index" {
+		role_index_group
+	} else if name == "Reference" {
+		role_reference
 	} else if name == "DocumentFragment" {
 		role_document_fragment
 	} else if name == "H" {
@@ -1408,10 +1420,16 @@ role_toc = 28
 role_toci : U64
 role_toci = 29
 
+role_index_group : U64
+role_index_group = 31
+
+role_reference : U64
+role_reference = 32
+
 ## The namespace index that owns a role: Code, Quote, TOC and TOCI are PDF 1.7
 ## standard types (namespace 1); every other accepted role is PDF 2.0.
 role_namespace : U64 -> U64
-role_namespace = |role| if (role == role_code or role == role_quote or role == role_toc or role == role_toci) 1 else 0
+role_namespace = |role| if (role == role_code or role == role_quote or role == role_toc or role == role_toci or role == role_index_group or role == role_reference) 1 else 0
 
 role_h : U64
 role_h = 6
@@ -1499,7 +1517,7 @@ containment_row : U64 -> U64
 containment_row = |parent| match parent {
 
 	## Document: Document, DocumentFragment, Part, Sect, Div, Title, H, Hn, P, L, Figure, Link, Code, Table and Form.
-	0 => (271098879.U64).bitwise_or(role_bit(role_form))
+	0 => (271098879.U64).bitwise_or(role_bit(role_form)).bitwise_or(role_bit(role_index_group))
 
 	## DocumentFragment: same as Document
 	1 => 271098879
@@ -1522,7 +1540,7 @@ containment_row = |parent| match parent {
 	7 => 2074632
 
 	## P: L, Lbl, Figure, Link, Span, Em, Strong, Code, Quote, Table
-	8 => 4172288
+	8 => (4172288.U64).bitwise_or(role_bit(role_reference))
 
 	## L: L, LI, Caption
 	9 => 17920
@@ -1580,6 +1598,10 @@ containment_row = |parent| match parent {
 	## Form: the fixed-widget subset permits the direct Lbl of
 	## ISO 14289-2:2024 8.10.2.2 and its annotation content item.
 	30 => role_bit(role_lbl)
+
+	## Index terms are paragraphs with distinct Reference children.
+	31 => role_bit(role_p)
+	32 => role_bit(role_link)
 	_ => 0
 }
 

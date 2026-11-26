@@ -710,14 +710,30 @@ finalize_symbolic = |KernelFacadeSemantics.Symbolic.{ authoring, block_ownership
 		$id = $id + 1
 	}
 	check_limit($properties.len(), limits.max_properties, Properties)?
-	if contents_nodes.len() != resolved_nodes.len() {
+	if contents_nodes.len() > resolved_nodes.len() {
 		return Err(ReferenceResolution({ reference: resolved_nodes.len(), reason: "A contents entry needs a resolved structure target." }))
 	}
 	var $relationships = relationships
-	var $contents_index = 0
-	for target in resolved_nodes {
-		$relationships = $relationships.append(ContentsTarget({ item: list_at(contents_nodes, $contents_index), target }))
-		$contents_index = $contents_index + 1
+	var $target_index = 0
+	for item in contents_nodes {
+		target = list_at(resolved_nodes, $target_index)
+		$relationships = $relationships.append(ContentsTarget({ item, target }))
+		$target_index = $target_index + 1
+	}
+	if resolved_nodes.len() != contents_nodes.len() {
+		for link in links {
+			match list_at(nodes, link.node.index()).parent {
+				ParentNode(item) if list_at(nodes, item.index()).role.local_name == "Reference" => {
+					target = resolved_nodes.get($target_index) ? |_| ReferenceResolution({ reference: $target_index, reason: "An index location needs a resolved structure target." })
+					$relationships = $relationships.append(IndexTarget({ item, target }))
+					$target_index = $target_index + 1
+				}
+				_ => {}
+			}
+		}
+	}
+	if $target_index != resolved_nodes.len() {
+		return Err(ReferenceResolution({ reference: $target_index, reason: "A resolved index location is missing its structure owner." }))
 	}
 	final_components = { attributes, content_spine, element_identifiers, namespaces, nodes, literals, relationships: $relationships, text_properties: $properties }
 	store = complete_store(final_components, $occurrences, sources, figure_labels, authoring.language)
@@ -821,7 +837,7 @@ plan_blocks = |authoring, limits| {
 					$block_index = group.block_end
 					$next_group = group.group_end - 1
 				}
-				Container(_) | ContentsItem | ContentsList | GeneratedContentsList | Custom(_) | Callout(_) | LeadRegion | FigureGroup(_) => {
+				Container(_) | ContentsItem | ContentsList | GeneratedContentsList | IndexList | Custom(_) | Callout(_) | LeadRegion | FigureGroup(_) => {
 					if in_item {
 						match group.kind {
 							ContentsList | FigureGroup(_) | Callout(_) => {}
@@ -2358,9 +2374,10 @@ build_components = |authoring, planning, source_plan| {
 					$nodes = list_set($nodes, node_index, make_node(node_index, ParentNode(parent_node(group.parent, planning.group_nodes)), container_role(kind), span, Inherited))
 				}
 
-				ContentsItem | ContentsList | GeneratedContentsList => {
+				ContentsItem | ContentsList | GeneratedContentsList | IndexList => {
 					role = match group.kind {
 						ContentsList | GeneratedContentsList => "TOC"
+						IndexList => "Index"
 						_ => "TOCI"
 					}
 					$nodes = list_set($nodes, node_index, make_node(node_index, ParentNode(parent_node(group.parent, planning.group_nodes)), role, span, Inherited))
@@ -2463,7 +2480,7 @@ build_components = |authoring, planning, source_plan| {
 					$index = group.block_end
 					$next_group = group.group_end - 1
 				}
-				Container(_) | ContentsItem | ContentsList | GeneratedContentsList | Custom(_) | Callout(_) | ItemList(_) | LeadRegion | FigureGroup(_) => {
+				Container(_) | ContentsItem | ContentsList | GeneratedContentsList | IndexList | Custom(_) | Callout(_) | ItemList(_) | LeadRegion | FigureGroup(_) => {
 					$next_node = checked_add($next_node, 1)?
 				}
 				KeepTogether | KeepWithNext(_) | PageScope(_) | Scope(_) => {}
@@ -3196,6 +3213,7 @@ inline_role = |kind| match kind {
 	Expansion(_) | InLanguage(_) => "Span"
 	InternalLink(_) | Link(_) => "Link"
 	Quote => "Quote"
+	IndexReference => "Reference"
 	Strong => "Strong"
 	Text(_) | PageReference(_) => "Span"
 	FurnitureOnly => crash "furniture-only inline escaped semantic validation"
@@ -3272,7 +3290,7 @@ standard_namespaces_with_pdf17 = [
 ## These roles retain their PDF 1.7 standard namespace in PDF 2.0.
 ## Every other facade role is in the PDF 2.0 namespace.
 role_namespace : Str -> Semantics.NamespaceId
-role_namespace = |role| if (role == "Code" or role == "Quote" or role == "TOC" or role == "TOCI") Semantics.NamespaceId.from_index(1) else Semantics.NamespaceId.from_index(0)
+role_namespace = |role| if (role == "Code" or role == "Quote" or role == "TOC" or role == "TOCI" or role == "Index" or role == "Reference") Semantics.NamespaceId.from_index(1) else Semantics.NamespaceId.from_index(0)
 
 make_node : U64, Semantics.NodeParent, Str, Semantics.IndexRange, Semantics.Language -> Semantics.Node
 make_node = |index, parent, role, content, language| {

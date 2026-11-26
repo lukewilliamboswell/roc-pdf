@@ -624,7 +624,7 @@ add_structure_element = |builder, names, tagged, navigation, objects, catalog_la
 	# `/Type /StructElem` is optional (ISO 32000-2 Table 355) and omitted.
 	k_entry = if (node_k.items.length() != 0) WithEntry({ key: names.k, value: k_id }) else NoEntry
 	base = { k: k_entry, ns: ns_id, p: p_id, page: page_entry, s: s_id }
-	if node.role.local_name == "TOCI" and contents_reference == NoContentsTarget {
+	if (node.role.local_name == "TOCI" or node.role.local_name == "Reference") and contents_reference == NoContentsTarget {
 		return Err(InvalidContentsTarget({ node: node.id.index() }))
 	}
 	properties = node_properties(semantics, node)
@@ -683,7 +683,7 @@ contents_references = |semantics| {
 	var $references = []
 	for relationship in semantics.relationships {
 		match relationship {
-			ContentsTarget({ item, target }) => {
+			ContentsTarget({ item, target }) | IndexTarget({ item, target }) => {
 				if $references.is_empty() {
 					$references = List.repeat(NoContentsTarget, semantics.nodes.len())
 				}

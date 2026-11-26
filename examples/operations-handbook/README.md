@@ -38,7 +38,7 @@ The checked output and preview are
 
 ## A page label that moves its own target
 
-From this directory, run:
+Run these variants from the example directory.
 
 ```sh
 roc run main.roc flow-short
@@ -55,3 +55,17 @@ and the link prints `RECOVERY-CHECKS-2`. Change the prefix passed to
 [Short-label PDF](operations-handbook-flow-short.pdf) ·
 [Long-label PDF](operations-handbook-flow-long.pdf) ·
 [Long-label preview](preview-flow-long.png)
+
+## Index with shared locations
+
+```sh
+roc run main.roc index
+```
+
+This variant writes `operations-handbook.pdf` with an index after the final
+handbook chapter. **Failover** appears first and links to the failover
+procedure and the escalation section containing the escalation table.
+**On-call escalation** links to the same escalation section. The links
+display the page labels where those sections were laid out.
+
+[Indexed PDF](operations-handbook-index.pdf) · [Index page preview](preview-index.png)

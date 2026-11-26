@@ -85,6 +85,12 @@ paragraph. Preparation resolves the heading's committed placement and
 returns a located diagnostic if the layout cycles or reaches its budget.
 See the [page reference guide](destination-page-references.adoc#flow-changing-page-references).
 
+## Authored indexes
+
+`Pdf.index` collates authored terms and prints linked page labels for their
+named destinations. The [manual composition guide](manual-composition.adoc#add-an-index)
+covers sorting, duplicates and label widths.
+
 ## Compiler
 
 This development branch uses Roc `nightly-2026-11-25-d5a4f1e`.

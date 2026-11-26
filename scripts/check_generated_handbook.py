@@ -10,7 +10,7 @@ from check_gallery_features import tagged, only
 from check_navigation import check_name_tree, walk_name_tree
 from check_pdf_structure import ValidationError, dictionary_ref, require
 from check_rich_flow import ARTIFACT, read
-from check_structure_semantics import element_children
+from check_structure_semantics import Document, Ref, element_children
 from pdf_layout import twin
 
 TARGETS = (
@@ -110,10 +110,65 @@ def validate_flow_fixture(pdf: bytes, dimensions: dict[str, int]) -> None:
             "flow reference annotation disagrees with the final target")
 
 
+def validate_index(pdf: bytes, scale: int = 2) -> tuple[Document, int, int]:
+    document, pages, root = tagged(pdf)
+    index = only(root.descendants(), "Index", "Failover")
+    structures = named_structures(document)
+    locations = check_name_tree(document.bodies, document.root, pages)
+    expected = [("Failover", (b"failover", b"escalation")), ("On-call escalation", (b"escalation",))]
+    expected.extend((f"Region {number}", (b"failover",))
+                    for number in sorted(range(1, scale - 1), key=lambda number: str(number).encode()))
+    require(len(index.children) == len(expected), "index changed the authored term count")
+    first_reference = None
+    for entry, (term, keys) in zip(index.children, expected, strict=True):
+        require(entry.role == "P" and entry.text.startswith(f"{term}: "), "index terms are out of UTF-8 order")
+        refs = [node for node in entry.children if node.role == "Reference"]
+        require(len(refs) == len(keys), "one authored index location needs one Reference owner")
+        expected_labels = []
+        for reference, key in zip(refs, keys, strict=True):
+            page, _, _ = locations[key]
+            label = page_label(document, pages.index(page))
+            expected_labels.append(label)
+            require(reference.value.get("Ref") == [structures[key]], "index location references the wrong authored target")
+            require(len(reference.children) == 1, "index location does not directly own one link")
+            link = only(reference.children, "Link", label)
+            require(link.text == label, "index location printed the wrong page label")
+            annotations = [item for item in element_children(document, link.value)
+                           if isinstance(item, dict) and item.get("Type") == "OBJR"]
+            require(len(annotations) == 1, "index location lost its link annotation")
+            action = document.get(int(annotations[0]["Obj"]))["A"]
+            require(action["D"][0] == page and action["SD"][0] == structures[key],
+                    "index link disagrees with its structure target")
+            if first_reference is None:
+                first_reference = next(int(kid) for kid in element_children(document, entry.value)
+                                       if isinstance(kid, Ref) and document.get(kid) == reference.value)
+        require(entry.text == term + ": " + ", ".join(expected_labels), "index lost authored term or label characters")
+    require(first_reference is not None, "index lost its first Reference")
+    return document, first_reference, structures[b"escalation"]
+
+
+def validate_index_fixture(pdf: bytes, dimensions: dict[str, int]) -> None:
+    document, _, _ = validate_index(pdf, dimensions["index_terms"])
+    require(document.get(document.get(document.root)["Pages"])["Count"] == dimensions["pages"],
+            "index fixture's page count changed")
+
+
 def check(example: Path) -> None:
     for length, meaning in (("short", 0), ("long", 1)):
         payload = (example / f"operations-handbook-flow-{length}.pdf").read_bytes()
         validate_flow_fixture(payload, {"flow_long": meaning, "pages": meaning + 1})
+    indexed = (example / "operations-handbook-index.pdf").read_bytes()
+    index_doc, first, alternate = validate_index(indexed)
+    before = index_doc.bodies[first]
+    after = re.sub(rb"/Ref \[[0-9]+ 0 R\]", f"/Ref [{alternate} 0 R]".encode(), before)
+    bad_index = twin(indexed, before, after, exactly_once=True)
+    try:
+        validate_index(bad_index)
+    except ValidationError as error:
+        require("wrong authored target" in str(error), "index target mutation failed for a different reason")
+    else:
+        raise ValidationError("the index oracle accepted a different valid target")
+
     pdf = (example / "operations-handbook-generated.pdf").read_bytes()
     authored = (example / "operations-handbook.pdf").read_bytes()
     validate_handbook(pdf, authored)
@@ -173,4 +228,6 @@ if __name__ == "__main__":
     for case in spec["cases"]:
         if "generated_contents" in case["validators"]:
             validate_generated_fixture((root / case["snapshot"]).read_bytes(), case["dimensions"])
+        if "authored_index" in case["validators"]:
+            validate_index_fixture((root / case["snapshot"]).read_bytes(), case["dimensions"])
     print("PASS generated contents targets, page labels and mutation control")

@@ -80,13 +80,13 @@ PDF20_NAMESPACE = "http://iso.org/pdf2/ssn"
 PDF17_NAMESPACE = "http://iso.org/pdf/ssn"
 # These unique PDF 1.7 roles retain that namespace in mixed structure
 # trees under ISO/TS 32005 §5.5 and PDF/UA-2 §8.2.4.
-PDF17_ROLES = {"Code", "Quote", "TOC", "TOCI"}
+PDF17_ROLES = {"Code", "Quote", "TOC", "TOCI", "Index", "Reference"}
 
 INLINE = {"Lbl", "Figure", "Link", "Span", "Em", "Strong", "Code", "Quote"}
 ALL_ROLES = {
     "Document", "DocumentFragment", "Part", "Sect", "Div", "Title", "H", "Hn", "P", "L", "LI", "Lbl",
     "LBody", "Figure", "Caption", "Link", "Span", "Em", "Strong", "Code", "Quote", "Table", "THead",
-    "TBody", "TFoot", "TR", "TH", "TD", "TOC", "TOCI", "Form",
+    "TBody", "TFoot", "TR", "TH", "TD", "TOC", "TOCI", "Form", "Index", "Reference",
 }
 DOCUMENT_CHILDREN = {"Document", "DocumentFragment", "Part", "Sect", "Div", "Title", "H", "Hn", "P", "L", "Figure", "Link", "Code", "Table", "TOC", "Form"}
 GROUPING_WRAPPERS = {"Part", "Div"}
@@ -94,7 +94,7 @@ GROUPING_WRAPPERS = {"Part", "Div"}
 PART_CHILDREN = DOCUMENT_CHILDREN | {"Caption", "Lbl", "TOCI"}
 CELL_CHILDREN = {"Sect", "Div", "H", "Hn", "P", "L", "Table"} | INLINE
 MAY_CONTAIN: dict[str, set[str]] = {
-    "Document": DOCUMENT_CHILDREN,
+    "Document": DOCUMENT_CHILDREN | {"Index"},
     "DocumentFragment": DOCUMENT_CHILDREN,
     "Part": set(ALL_ROLES),
     "Div": set(ALL_ROLES),
@@ -102,7 +102,7 @@ MAY_CONTAIN: dict[str, set[str]] = {
     "Title": {"Part", "Div", "P", "L", "Caption", "Table"} | INLINE,
     "H": {"Sect"} | INLINE,
     "Hn": {"Sect"} | INLINE,
-    "P": {"L", "Table"} | INLINE,
+    "P": {"L", "Table", "Reference"} | INLINE,
     "L": {"L", "LI", "Caption"},
     "LI": {"Div", "Lbl", "LBody"},
     "Lbl": INLINE - {"Lbl"},
@@ -125,6 +125,8 @@ MAY_CONTAIN: dict[str, set[str]] = {
     "TD": set(CELL_CHILDREN),
     "TOC": {"Part", "Caption", "TOC", "TOCI"},
     "TOCI": {"Div", "P", "Lbl", "TOC"},
+    "Index": {"P"},
+    "Reference": {"Link"},
 }
 NO_CONTENT_ITEMS = {"Document", "DocumentFragment", "Sect", "L", "LI", "Table", "THead", "TBody", "TFoot", "TR", "TOC", "TOCI"}
 AT_MOST_ONE: dict[str, set[str]] = {
@@ -455,9 +457,9 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
         for key in ("Alt", "E", "ActualText"):
             if key in element:
                 facts.append(f"{key}={text_string(element[key])!r}")
-        if role == "TOCI":
+        if role in {"TOCI", "Reference"}:
             refs = element.get("Ref")
-            require(isinstance(refs, list) and len(refs) == 1 and isinstance(refs[0], Ref), "contents item must have one structure target")
+            require(isinstance(refs, list) and len(refs) == 1 and isinstance(refs[0], Ref), f"{role} must have one structure target")
             contents_targets.append(int(refs[0]))
         if role == "Figure":
             require("Alt" in element or "ActualText" in element, "Figure has neither /Alt nor /ActualText")

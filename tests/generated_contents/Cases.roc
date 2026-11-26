@@ -2,7 +2,7 @@ import pdf.Document
 import pdf.Pdf
 
 Cases :: [].{
-	Case : [Entries({ count : U64 }), FlowReference({ long : Bool }), FlowRejections, Wtpdf, Rejections]
+	Case : [Entries({ count : U64 }), FlowReference({ long : Bool }), FlowRejections, IndexTerms({ count : U64 }), IndexWtpdf, IndexRejections, Wtpdf, Rejections]
 	Stats : { bytes : List(U8), work : List(U64) }
 
 	run : Case -> Stats
@@ -12,6 +12,10 @@ Cases :: [].{
 			Entries(_) => crash "CASE_SCALE_INVALID"
 			FlowReference({ long }) => flow_evidence(if (long) LongLabel else ShortLabel)
 			FlowRejections => reject_flow({})
+			IndexTerms({ count }) if count == 2 or count == 40 => index_evidence(count, options)
+			IndexTerms(_) => crash "CASE_SCALE_INVALID"
+			IndexWtpdf => index_evidence(2, { ..options, wtpdf: DeclareAccessibility })
+			IndexRejections => index_rejections({})
 			Wtpdf => evidence(2, { ..options, wtpdf: DeclareAccessibility })
 			Rejections => reject_cases({})
 		}
@@ -190,4 +194,83 @@ rejects_flow = |result, expected| match result {
 	}
 	Err(error) => crash Str.inspect(error)
 	Ok(_) => crash "flow reference unexpectedly accepted"
+}
+
+index_props : Pdf.IndexProps
+index_props = {
+	entries: [
+		{ term: "On-call escalation", destinations: ["escalation"] },
+		{ term: "Failover", destinations: ["failover", "escalation"] },
+	],
+}
+
+index_document : Pdf.IndexProps -> Document
+index_document = |index| Pdf.document({
+	language: "en-AU",
+	title: "Recovery index",
+	page_labels: [{ start_page: 0, start_number: 1, prefix: "A-", style: DecimalArabic }],
+	contents: [
+		Pdf.destination_heading({ name: "failover", level: 1, text: "Failover procedure" }),
+		Pdf.paragraph("Recover the primary."),
+		Pdf.page_break,
+		Pdf.destination_heading({ name: "escalation", level: 1, text: "Escalation table" }),
+		Pdf.paragraph("Contact the incident lead."),
+		Pdf.page_break,
+		Pdf.heading(1, "Index"),
+		Pdf.index(index),
+	],
+})
+
+index_evidence : U64, Pdf.Options -> Try(Cases.Stats, Pdf.Error)
+index_evidence = |count, settings| {
+	var $entries = index_props.entries
+	var $remaining = count - 2
+	while $remaining > 0 {
+		$entries = $entries.append({ term: "Region ${$remaining.to_str()}", destinations: ["failover"] })
+		$remaining = $remaining - 1
+	}
+	doc = index_document({ ..index_props, entries: $entries })
+	{ prepared, report } = Pdf.prepare_with_report(doc, { options: settings })?
+	var $references = 0
+	for outcome in report.facts.outcomes {
+		match outcome {
+			PageReferenceResolved({ destination, page, value, .. }) => {
+				if (destination == "failover" and (page != 1 or value != "A-1")) or (destination == "escalation" and (page != 2 or value != "A-2")) {
+					crash "INDEX_REFERENCE_DRIFT"
+				}
+				$references = $references + 1
+			}
+			_ => {}
+		}
+	}
+	if $references != count + 1 {
+		crash "INDEX_REFERENCE_COUNT_DRIFT"
+	}
+	bytes = Pdf.to_bytes_prepared(prepared)?
+	Ok({ bytes, work: [report.facts.pages.len(), report.facts.blocks.len(), $references, bytes.len()] })
+}
+
+index_rejections : {} -> Try(Cases.Stats, Pdf.Error)
+index_rejections = |_| {
+	inputs = [
+		({ ..index_props, entries: [] }, "document.index", "contents[7].entries"),
+		({ ..index_props, entries: [{ term: "X", destinations: [] }] }, "document.index", "contents[7].entries[0].destinations"),
+		({ ..index_props, entries: [{ term: "X", destinations: ["failover", "failover"] }] }, "document.index", "contents[7].entries[0].destinations[1]"),
+		({ ..index_props, entries: [{ term: "X", destinations: ["failover"] }, { term: "X", destinations: ["escalation"] }] }, "document.index", "contents[7].entries[1].term"),
+		({ ..index_props, entries: [{ term: "Z", destinations: ["failover", "missing"] }, { term: "X", destinations: ["escalation"] }] }, "navigation.reference_destination", "contents[7].entries[0].destinations[1]"),
+	]
+	for (configured, feature, path) in inputs {
+		doc = index_document(configured)
+		if !rejects_index(Pdf.to_bytes_with(doc, options), feature, path) or !rejects_index(Pdf.to_chunks_with(doc, options), feature, path) {
+			crash "INDEX_EXPECTED_REJECTION: ${path}"
+		}
+	}
+	carrier = index_evidence(2, options)?
+	Ok({ ..carrier, work: carrier.work.append(inputs.len()).append(inputs.len()) })
+}
+
+rejects_index : Try(a, Pdf.Error), Str, Str -> Bool
+rejects_index = |result, expected_feature, path| match result {
+	Err(InvalidDocument({ diagnostics: [{ feature: Feature(feature), details, .. }], truncation: Complete, .. })) => feature == expected_feature and details == [path]
+	_ => False
 }

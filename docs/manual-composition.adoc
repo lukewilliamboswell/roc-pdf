@@ -57,6 +57,38 @@ See xref:destination-page-references.adoc#destination-page-references-destinatio
 example, numbering options and overflow diagnostics. You author the contents
 entries yourself; roc-pdf resolves their page values.
 
+[#add-an-index]
+== Add an index
+
+Place `Pdf.index` at the document's top level. Give each term one entry
+and list the named destinations in the order their links should appear.
+
+[source,roc]
+----
+Pdf.index({
+    entries: [
+        { term: "On-call escalation", destinations: ["escalation"] },
+        { term: "Failover", destinations: ["failover", "escalation"] },
+    ],
+    page_width: 36,
+})
+----
+
+Terms sort by unsigned UTF-8 bytes. Exact duplicate terms and repeated
+destinations within a term are rejected. Different terms may link to the
+same destination. Term text has a 256-byte limit. Each index accepts up to
+256 terms, each has up to 16 destinations, and a document accepts up to
+2,048 index locations.
+
+Each location prints the committed page label in a fixed-width field and
+links to its named heading or paragraph. Use `numbering: Physical` for
+decimal physical page numbers. Set `page_width` to fit your longest label.
+An unknown destination reports its authored term and destination indices.
+Use terms readers can recognize when scanning the index.
+
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/operations-handbook/README.md[Run the indexed handbook] to see the two locations for Failover and the
+shared escalation location.
+
 [#manual-composition-give-chapters-their-own-headers-and-opening-pages]
 == Give chapters their own headers and opening pages
 

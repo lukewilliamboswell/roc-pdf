@@ -20,9 +20,10 @@ import "fonts/SourceCodePro-Regular.ttf" as mono_bytes : List(U8)
 ## An on-call runbook with authored contents, chapter templates and
 ## a continuing rollback instruction containing rich blocks.
 main! = |args| {
-	generated = match args.map(OsStr.display) {
-		[] => False
-		["generated"] => True
+	mode = match args.map(OsStr.display) {
+		[] => Authored
+		["generated"] => Generated
+		["index"] => Indexed
 		["flow-short"] => return flow_note!("A-")
 		["flow-long"] => return flow_note!("RECOVERY-CHECKS-")
 		_ => return Err(Usage)
@@ -30,7 +31,20 @@ main! = |args| {
 	fonts = register_fonts({})?
 	options : Pdf.Options
 	options = { theme: theme(fonts), fonts: Registered(fonts.registry) }
-	blocks = contents(options, fonts.mono, generated).map_err(|err| PdfFailed(err))?
+	body = contents(options, fonts.mono, mode != Authored).map_err(|err| PdfFailed(err))?
+	blocks = if mode == Indexed {
+		body.append(Pdf.page_break).append(Pdf.heading(1, "Index")).append(
+			Pdf.index({
+				page_width: 36,
+				entries: [
+					{ term: "On-call escalation", destinations: ["escalation"] },
+					{ term: "Failover", destinations: ["failover", "escalation"] },
+				],
+			}),
+		)
+	} else {
+		body
+	}
 	document = Pdf.document({
 		contents: blocks,
 		language: "en-AU",

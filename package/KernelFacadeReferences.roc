@@ -510,6 +510,13 @@ resolve_labels : Document.NormalizedAuthoring, KernelNavigation.Registry, Kernel
 resolve_labels = |authoring, registry, labels, anchors, max_bytes| {
 	destinations = KernelNavigation.Registry.destinations(registry)
 	var $contents_targets = []
+	var $index_targets = []
+	has_index = authoring.groups.any(
+		|group| match group.kind {
+			IndexList => True
+			_ => False
+		},
+	)
 	var $contents_index = 0
 	var $values = List.with_capacity(authoring.page_references.len())
 	var $facts = List.with_capacity(authoring.page_references.len())
@@ -527,6 +534,14 @@ resolve_labels = |authoring, registry, labels, anchors, max_bytes| {
 		if $contents_index < authoring.contents_entries.len() and list_at(authoring.contents_entries, $contents_index).reference == $reference {
 			$contents_targets = $contents_targets.append(destination.target)
 			$contents_index = $contents_index + 1
+		}
+		if has_index {
+			match Document.index_location(authoring, $reference) {
+				IndexLocation(_) => {
+					$index_targets = $index_targets.append(destination.target)
+				}
+				NoIndexLocation => {}
+			}
 		}
 		anchor = match list_at(anchors, destination.anchor.index()) {
 			Unplaced => return Err(MissingAnchor({ reference: $reference }))
@@ -547,7 +562,8 @@ resolve_labels = |authoring, registry, labels, anchors, max_bytes| {
 		$facts = $facts.append({ reference: $reference, physical_page: checked_add(anchor.page.index(), 1)?, value })
 		$reference = $reference + 1
 	}
-	Ok({ values: $values, facts: $facts, contents_targets: $contents_targets, steps: $steps, bytes: $bytes })
+	structure_targets = if ($index_targets.is_empty()) $contents_targets else $contents_targets.concat($index_targets)
+	Ok({ values: $values, facts: $facts, contents_targets: structure_targets, steps: $steps, bytes: $bytes })
 }
 
 ## The final title row is explicit measurement evidence. Paint bounded small

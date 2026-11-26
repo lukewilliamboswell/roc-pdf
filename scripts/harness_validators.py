@@ -12,7 +12,7 @@ from check_destination_references import validate_destination_references_pdf
 from check_chapter_templates import validate_chapter_templates_pdf
 from check_vector_diagrams import validate_vector_diagrams_pdf
 from check_fixed_pages import validate_fixed_pages_pdf
-from check_generated_handbook import validate_flow_fixture, validate_generated_fixture
+from check_generated_handbook import validate_flow_fixture, validate_generated_fixture, validate_index_fixture
 from check_arabic_invoice import check as check_arabic_invoice
 from check_hindi_statement import check as check_hindi_statement
 from check_thai_notice import check as check_thai_notice, check_scale as check_thai_scale
@@ -163,6 +163,7 @@ VALIDATORS: dict[str, Validator] = {
     "fillable_forms": _dimensioned(validate_fillable_pdf, "editable widget repertoire, exact values and appearances, authored geometry and tab order, and Form-owned labels"),
     "associated_files": _dimensioned(validate_associated_files_pdf, "catalog AF, name-tree ordering and boundaries, exact file-specification metadata, distinct streams, and extracted payloads"),
     "default_fonts": _dimensioned(validate_default_fonts_pdf, "genuine static family/style programs, exact selected glyph outlines and searchable source text"),
+    "authored_index": _dimensioned(validate_index_fixture, "index collation and linked authored locations"),
     "flow_page_reference": _dimensioned(validate_flow_fixture, "final reference wrapping, committed labels and paired destinations"),
     "generated_contents": _dimensioned(validate_generated_fixture, "authored generated contents targets, printed labels, and paired link destinations"),
     "contents_entries": _dimensioned(validate_contents_entries_pdf, "aligned contents columns, wrapped titles, linked exact page references and decorative leaders"),
