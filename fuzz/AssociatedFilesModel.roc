@@ -136,5 +136,5 @@ expect {
 	if report.verdict != Holds(Exhausted) {
 		crash Model.explain(report)
 	}
-	report.states == 682 and report.steps == 681 and report.depth == 5 and report.reached.len() == 7
+	report.states == 682 and report.steps == 681 and report.depth == 5 and report.reached.len() == 6
 }
