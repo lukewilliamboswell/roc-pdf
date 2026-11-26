@@ -104,6 +104,7 @@ TARGETS = (
     Target("jpeg_inspector_mutation", 65536, "document_suite", corpus="tests/assets/jpeg-fuzz-corpus"),
     Target("facade_output_equivalence", 4096, "document_suite"),
     Target("associated_files", 256, "document_suite"),
+    Target("fixed_figure", 32, "fixed_figure"),
     Target("fillable_text_fields", 48, "document_suite"),
     Target("fillable_checkboxes", 48, "document_suite"),
     Target("table_spans", 128, "document_suite"),

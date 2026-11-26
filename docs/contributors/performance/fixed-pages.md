@@ -108,3 +108,7 @@ on each completed paint-order history. The fixture suite also replays
 an exact drawing-and-caption fit, a one-point drawing in a flush frame,
 and seven located rejections through both buffered and chunked entry
 points.
+The fixed-figure fuzz target replays six named Letter and A4 examples,
+including a one-millipoint frame overrun and a caption one point taller
+than its available height. The smoke run also varies frame size and
+paint order and checks byte and chunk rejection paths.
