@@ -1,15 +1,15 @@
 # Using roc-pdf
 
-[Read the manual](https://lukewilliamboswell.github.io/roc-pdf/manual/) as HTML,
-PDF or searchable Markdown. The maintained chapter sources use AsciiDoc:
+Read the manual as HTML, PDF or searchable Markdown.
+[Published manual](https://lukewilliamboswell.github.io/roc-pdf/manual/)
 
-- [Start here](start-here.adoc): choose a guide for your task.
-- [Create your first document](getting-started.adoc): install a package or run a checked example.
-- [Author documents](authoring.adoc): text, tables, figures, styles and diagnostics.
-- [Compose a technical manual](manual-composition.adoc): page references, chapters, lists and continued callouts.
-- [Choose built-in and caller fonts](roc-font.adoc): genuine styles, mappings and coverage errors.
-- [Print destination page references](destination-page-references.adoc): page values, numbering and overflow.
-- [Migrate to named arguments](migrating-named-arguments.adoc): update positional calls.
+- [Start here](start-here.adoc)
+- [Create your first document](getting-started.adoc)
+- [Author text, tables, figures and forms](authoring.adoc)
+- [Compose a technical manual](manual-composition.adoc)
+- [Choose built-in or caller fonts](roc-font.adoc)
+- [Print destination page references](destination-page-references.adoc)
+- [Migrate to named arguments](migrating-named-arguments.adoc)
 
 The [API reference](https://lukewilliamboswell.github.io/roc-pdf/) documents public
 types and functions. The manual also covers [contributing](contributing.adoc),
