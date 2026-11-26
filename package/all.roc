@@ -40,6 +40,7 @@ package
 		KernelFacadeSemantics,
 		KernelFacadeShape,
 		KernelFacadeSources,
+		KernelFacadeTableGrid,
 		KernelFacadeTables,
 		KernelFacadeText,
 		KernelFileLayout,
