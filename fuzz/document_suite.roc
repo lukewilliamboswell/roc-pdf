@@ -18,6 +18,7 @@ import TableSpanProperty
 
 # roc test also runs the bounded models and proofs in this suite.
 import AppearanceTransparencyModel
+import AnchoredFigureModel
 import AssociatedFilesModel
 import FormAmbientTransparencyModel
 import ContentScopeModel

@@ -19,6 +19,7 @@ import threading
 from pathlib import Path
 
 from check_drawing_labels import artifact_and_tagged_text
+from check_anchored_figure import validate_topology
 from check_generated_handbook import check as check_generated_handbook
 from check_gallery_features import check_features
 from check_designed_brief import check_logical_twin, validate_designed_brief_pdf
@@ -99,6 +100,9 @@ CASES = {
         Case(("flow-long",), "operations-handbook-flow-long.pdf", facts=("RECOVERY-CHECKS-2 on physical page 2",)),
         Case(("footnotes",), "operations-handbook-footnotes.pdf"),
         Case(("footnote-oversize",), diagnosis="document.footnote.fit at contents[8]"),
+        Case(("topology",), "operations-handbook-topology.pdf",
+             facts=("contents[3].anchor on page 2", "contents[3].figure on page 2")),
+        Case(("topology-tight",), diagnosis="layout.anchored_figure_fit at contents[3].anchor, contents[3].figure"),
     ),
     "ordered-han": (
         Case(("latin-only",), diagnosis="text.coverage_missing at contents[1].inlines[1].inlines[0]"),
@@ -291,6 +295,7 @@ def main() -> None:
                 check_cases(name, source, example, output)
                 if name == "operations-handbook":
                     check_generated_handbook(example)
+                    validate_topology((example / "operations-handbook-topology.pdf").read_bytes())
                 check_features(name, example)
                 if name == "designed-brief":
                     validate_designed_brief_pdf(generated, {"pages": 1})

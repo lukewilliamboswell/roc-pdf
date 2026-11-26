@@ -881,7 +881,7 @@ plan_blocks = |authoring, limits| {
 					## recolors inline text inside it.
 					$group_nodes = $group_nodes.append(parent_node(group.parent, $group_nodes).index())
 				}
-				KeepTogether | KeepWithNext(_) => {
+				KeepTogether | FigureAnchor | KeepWithNext(_) => {
 					if in_item {
 						return Err(ListItemGroup({ group: $next_group }))
 					}
@@ -1796,7 +1796,7 @@ semantic_code = |groups, code| {
 	while $searching and $code != 0 {
 		group = list_at(groups, $code - 1)
 		match group.kind {
-			KeepTogether | KeepWithNext(_) | PageScope(_) | Scope(_) => {
+			KeepTogether | FigureAnchor | KeepWithNext(_) | PageScope(_) | Scope(_) => {
 				$code = group.parent
 			}
 			_ => {
@@ -1883,7 +1883,7 @@ callout_parent = |groups, code| {
 		group = list_at(groups, $code - 1)
 		match group.kind {
 			Callout(_) => return InCallout($code - 1)
-			KeepTogether | KeepWithNext(_) | Scope(_) => {
+			KeepTogether | FigureAnchor | KeepWithNext(_) | Scope(_) => {
 				$code = group.parent
 			}
 			_ => return OutsideCallout
@@ -1917,7 +1917,7 @@ check_callouts = |authoring| {
 		match callout_parent(authoring.groups, group.parent) {
 			OutsideCallout => {}
 			InCallout(_) => match group.kind {
-				Callout(_) | ItemList(_) | Source(_) | Table(_) | FigureGroup(_) | KeepTogether | KeepWithNext(_) | Scope(_) => {}
+				Callout(_) | ItemList(_) | Source(_) | Table(_) | FigureGroup(_) | KeepTogether | FigureAnchor | KeepWithNext(_) | Scope(_) => {}
 				_ => return Err(CalloutContent({ group: $group }))
 			}
 		}
@@ -2435,7 +2435,7 @@ build_components = |authoring, planning, source_plan| {
 				FigureGroup(_) => {
 					$nodes = list_set($nodes, node_index, make_node(node_index, ParentNode(parent_node(group.parent, planning.group_nodes)), container_role(Section), span, Inherited))
 				}
-				KeepTogether | KeepWithNext(_) | PageScope(_) | Scope(_) => {}
+				KeepTogether | FigureAnchor | KeepWithNext(_) | PageScope(_) | Scope(_) => {}
 				ItemList(list_index) => {
 					attribute = $attributes.len()
 					$attributes = $attributes.append(list_numbering(list_at(authoring.lists, list_index.to_u64()).marker))
@@ -2510,7 +2510,7 @@ build_components = |authoring, planning, source_plan| {
 				Container(_) | ContentsItem | ContentsList | GeneratedContentsList | IndexList | Custom(_) | Callout(_) | ItemList(_) | LeadRegion | FigureGroup(_) => {
 					$next_node = checked_add($next_node, 1)?
 				}
-				KeepTogether | KeepWithNext(_) | PageScope(_) | Scope(_) => {}
+				KeepTogether | FigureAnchor | KeepWithNext(_) | PageScope(_) | Scope(_) => {}
 				Table(table_index) => {
 					## The result is destructured in one pattern, so each
 					## accumulator moves out of it: projecting the fields of a
@@ -2753,7 +2753,7 @@ build_components = |authoring, planning, source_plan| {
 	}
 	while $next_group < groups.len() {
 		$next_node = match list_at(groups, $next_group).kind {
-			KeepTogether | KeepWithNext(_) | PageScope(_) | Scope(_) | Table(_) | TableRow(_) => $next_node
+			KeepTogether | FigureAnchor | KeepWithNext(_) | PageScope(_) | Scope(_) | Table(_) | TableRow(_) => $next_node
 			ListItem(_) => checked_add($next_node, 3)?
 			_ => checked_add($next_node, 1)?
 		}

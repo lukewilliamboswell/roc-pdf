@@ -9,3 +9,6 @@
 {"name":"flow figures drawing bound diagnostics","schema_version":1,"case":{"BoundDiagnostics":{"context":0}}}
 {"name":"flow figures label faces x10","schema_version":1,"case":{"LabelFaces":{"count":10}}}
 {"name":"flow figures label faces x50","schema_version":1,"case":{"LabelFaces":{"count":50}}}
+{"name":"flow figures anchored pairs x1","schema_version":1,"case":{"AnchoredFigures":{"count":1}}}
+{"name":"flow figures anchored pairs x12","schema_version":1,"case":{"AnchoredFigures":{"count":12}}}
+{"name":"flow figures anchored atomic rejections","schema_version":1,"case":"AnchoredRejections"}

@@ -1852,7 +1852,7 @@ unit_groups = |authoring, unit_of_block, unit_count| {
 	var $together = []
 	for group in groups {
 		match group.kind {
-			KeepTogether | Custom(_) | Callout(_) => {
+			KeepTogether | FigureAnchor | Custom(_) | Callout(_) => {
 				if !is_splittable_callout(authoring, group.kind) {
 					first = list_at(unit_of_block, group.first_block)
 					end = unit_boundary(unit_of_block, unit_count, group.block_end)
@@ -1965,7 +1965,7 @@ together_groups = |authoring| {
 	var $together = []
 	for group in groups {
 		match group.kind {
-			KeepTogether | Custom(_) | Callout(_) => {
+			KeepTogether | FigureAnchor | Custom(_) | Callout(_) => {
 				if !is_splittable_callout(authoring, group.kind) {
 					$together = $together.append({ blocks: Semantics.IndexRange.from_start_and_length({ start: group.first_block, length: group.block_end - group.first_block }) })
 				}

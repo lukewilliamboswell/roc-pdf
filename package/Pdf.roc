@@ -707,6 +707,12 @@ Pdf :: [].{
 	measure_custom_content : Options, { contents : List(Document.Block), language : Str, width : Layout.Unit } -> Try(Layout.Unit, Error)
 	measure_custom_content = |options, { contents, language, width }| measure_content(options, contents, language, width)
 
+	## Keep an introducing paragraph and an exact-size captioned figure in
+	## one flow frame. They move together to the next frame when necessary.
+	## The paragraph, figure, and caption retain their normal semantic order.
+	anchored_figure : List(Inline), { alt : Str, caption : Str, drawing : Scene.Drawing } -> Document.Block
+	anchored_figure = |anchor, { alt, caption: value, drawing }| Document.anchored_figure(anchor, { alternative: alt, caption: value, drawing })
+
 	## Add an optional visible caption to a figure.
 	caption : Str -> Document.Caption
 	caption = |value| Document.caption(value)
@@ -2423,6 +2429,9 @@ table_layout_error = |doc, error, sources, units| {
 				Ok(AuthoredKeep(k)) => {
 					index = together_group(normalized, k)
 					record = group_record(normalized.groups, index + 1)
+					if is_figure_anchor(record.kind) {
+						return anchored_fit_error(doc, normalized.groups, index, required, available)
+					}
 					located_error(doc, LayoutConstraintViolated, feature, "A keep-together group needs ${points_text(required)} but a page body holds ${points_text(available)}.", [group_path(normalized.groups, index), member_path(doc, normalized, record.first_block), member_path(doc, normalized, record.block_end - 1)])
 				}
 				Err(OutOfBounds) => crash "page-layout group escaped"
@@ -2553,6 +2562,9 @@ keep_conflict_error = |doc, conflict| {
 				Ok(value) => value
 				Err(OutOfBounds) => crash "normalized keep path escaped"
 			}
+			if is_figure_anchor(record.kind) {
+				return anchored_fit_error(doc, normalized.groups, index, required, available)
+			}
 			located_error(doc, LayoutConstraintViolated, feature, "A keep-together group needs ${points_text(required)} but a page body holds ${points_text(available)}.", [group_path(normalized.groups, index), leaf_path(doc, record.first_block), leaf_path(doc, record.block_end - 1)])
 		}
 		BreakInsideGroup({ block, group }) => located_error(doc, LayoutConstraintViolated, feature, "A page break falls inside a keep-together group.", [break_path(normalized, block), group_path(normalized.groups, together_group(normalized, group))])
@@ -2560,6 +2572,24 @@ keep_conflict_error = |doc, conflict| {
 		ChainTooTall({ available, block, next, required }) => located_error(doc, LayoutConstraintViolated, feature, "A required keep-with-next and the block it keeps with need ${points_text(required)} but a page body holds ${points_text(available)}.", [required_keep_path(doc, normalized, block), leaf_path(doc, next)])
 		RequiredKeepAtEnd({ block }) => located_error(doc, LayoutConstraintViolated, feature, "A required keep-with-next has no following block.", [required_keep_path(doc, normalized, block)])
 	}
+}
+
+is_figure_anchor : Document.NormalizedGroupKind -> Bool
+is_figure_anchor = |kind| match kind {
+	FigureAnchor => True
+	_ => False
+}
+
+anchored_fit_error : Document, List(Document.NormalizedGroup), U64, U64, U64 -> Pdf.Error
+anchored_fit_error = |doc, groups, group, required, available| {
+	path = group_path(groups, group)
+	located_error(
+		doc,
+		LayoutConstraintViolated,
+		"layout.anchored_figure_fit",
+		"The paragraph and its captioned figure need ${points_text(required)} together, but the frame holds ${points_text(available)}.",
+		["${path}.anchor", "${path}.figure"],
+	)
 }
 
 source_error : Document, U64, Conformance.DiagnosticCode, Str, Str -> Pdf.Error
@@ -2573,7 +2603,13 @@ source_error = |doc, source, code, feature, message| {
 oversize_error : Document, U64, U64, U64 -> Pdf.Error
 oversize_error = |doc, block, required, available| {
 	normalized = Document.normalize(doc)
-	figure = match normalized.blocks.get(block) {
+	position = normalized.blocks.get(block)
+	match position {
+		Ok(record) if record.parent > 0 and is_figure_anchor(group_record(normalized.groups, record.parent).kind) =>
+			return anchored_fit_error(doc, normalized.groups, record.parent - 1, required, available)
+		_ => {}
+	}
+	figure = match position {
 		Ok(record) => match record.kind {
 			Figure(_) => True
 			_ => False
@@ -2593,7 +2629,7 @@ together_group = |authoring, k| {
 	var $index = 0
 	for group in groups {
 		match group.kind {
-			KeepTogether | Custom(_) | Callout(_) => {
+			KeepTogether | FigureAnchor | Custom(_) | Callout(_) => {
 				splittable = match group.kind {
 					Callout(index) => match authoring.callouts.get(index.to_u64()) {
 						Ok(value) => value.fragmentation == Lines
@@ -3072,6 +3108,7 @@ child_segment = |groups, parent, position| if parent == 0 {
 		IndexList => "entries[${position.to_str()}]"
 		ItemList(_) => "items[${position.to_str()}]"
 		KeepWithNext(_) => "block"
+		FigureAnchor => if (position == 0) "anchor" else "figure"
 		Table(_) => "caption"
 		TableRow(_) => "cells[${position.to_str()}]"
 		_ => "contents[${position.to_str()}]"

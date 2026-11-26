@@ -25765,6 +25765,168 @@
       ]
     },
     {
+      "name": "flow figures anchored pairs x1",
+      "scenario_revision": "anchored-figure-v1",
+      "family": "flow_figures",
+      "snapshot": "tests/flow_figures/anchored_1.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "anchored_figures": 1
+      },
+      "work_counters": [
+        "anchors",
+        "pages",
+        "reported_leaves",
+        "owned_fragments",
+        "exact_figure_placements",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 857,
+          "allocated_bytes": 2487510,
+          "work": {
+            "anchors": 1,
+            "pages": 2,
+            "reported_leaves": 4,
+            "owned_fragments": 5,
+            "exact_figure_placements": 1,
+            "output_bytes": 12292
+          }
+        },
+        "x64musl": {
+          "allocations": 857,
+          "allocated_bytes": 2487510,
+          "work": {
+            "anchors": 1,
+            "pages": 2,
+            "reported_leaves": 4,
+            "owned_fragments": 5,
+            "exact_figure_placements": 1,
+            "output_bytes": 12292
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "wtpdf_accessibility",
+        "structure_semantics",
+        "anchored_figure"
+      ]
+    },
+    {
+      "name": "flow figures anchored pairs x12",
+      "scenario_revision": "anchored-figure-v1",
+      "family": "flow_figures",
+      "snapshot": "tests/flow_figures/anchored_12.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 24,
+        "anchored_figures": 12
+      },
+      "work_counters": [
+        "anchors",
+        "pages",
+        "reported_leaves",
+        "owned_fragments",
+        "exact_figure_placements",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 2473,
+          "allocated_bytes": 10362597,
+          "work": {
+            "anchors": 12,
+            "pages": 24,
+            "reported_leaves": 48,
+            "owned_fragments": 60,
+            "exact_figure_placements": 12,
+            "output_bytes": 22205
+          }
+        },
+        "x64musl": {
+          "allocations": 2473,
+          "allocated_bytes": 10362597,
+          "work": {
+            "anchors": 12,
+            "pages": 24,
+            "reported_leaves": 48,
+            "owned_fragments": 60,
+            "exact_figure_placements": 12,
+            "output_bytes": 22205
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "wtpdf_accessibility",
+        "structure_semantics",
+        "anchored_figure"
+      ]
+    },
+    {
+      "name": "flow figures anchored atomic rejections",
+      "scenario_revision": "anchored-figure-v1",
+      "family": "flow_figures",
+      "snapshot": "tests/flow_figures/anchored_1.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "anchored_figures": 1
+      },
+      "work_counters": [
+        "anchors",
+        "pages",
+        "reported_leaves",
+        "owned_fragments",
+        "exact_figure_placements",
+        "output_bytes",
+        "atomic_rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1856,
+          "allocated_bytes": 2715316,
+          "work": {
+            "anchors": 1,
+            "pages": 2,
+            "reported_leaves": 4,
+            "owned_fragments": 5,
+            "exact_figure_placements": 1,
+            "output_bytes": 12292,
+            "atomic_rejections": 4
+          }
+        },
+        "x64musl": {
+          "allocations": 1856,
+          "allocated_bytes": 2715316,
+          "work": {
+            "anchors": 1,
+            "pages": 2,
+            "reported_leaves": 4,
+            "owned_fragments": 5,
+            "exact_figure_placements": 1,
+            "output_bytes": 12292,
+            "atomic_rejections": 4
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "wtpdf_accessibility",
+        "structure_semantics",
+        "anchored_figure"
+      ]
+    },
+    {
       "name": "flow figures report",
       "scenario_revision": "flow-figures-v1",
       "family": "flow_figures",

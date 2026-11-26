@@ -992,6 +992,14 @@ authored order of named destinations. Each location has a separate PDF 1.7
 `Reference` with a selectable page label and a paired link. The indexed
 handbook demonstrates shared targets and more than one location for a term.
 
+### Paragraph-anchored captioned figures
+
+`Pdf.anchored_figure` pairs an authored paragraph with an exact-size drawing
+and visible caption in one body frame. The whole pair can move to the next
+frame. An oversized pair fails at both authored paths. The operations
+handbook's `topology` mode demonstrates deferral and checks logical order
+independently of paint order.
+
 ### Bounded fixed-page text, figures, and artwork
 
 The fixed-page builder supports explicit sheet sizes, framed titles,

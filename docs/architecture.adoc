@@ -1095,6 +1095,15 @@ source-free reference path; painters consume accepted placement facts and
 never clip or retroactively adjust page breaks. Panels remain artifacts and
 each semantic child occurs once.
 
+An anchored figure normalizes one layout-only group whose first child is the
+authored anchor paragraph and whose second is the ordinary captioned
+figure. The group owns a dense span of shaped leaves. Pagination sums those
+leaves and their gaps in the enclosing frame, then accepts one placement or
+defers the span together. Semantic planning keeps the paragraph and figure
+group in authored order. The figure and caption keep separate occurrence
+ownership, and drawing labels retain their ordered Figure children when
+paint commands execute after the caption.
+
 Page scopes are explicit layout-only, nonnested full-body-page boundaries.
 Their opening and continuation geometry is declared before pagination;
 running labels are author text rather than inferred headings. Accepted page

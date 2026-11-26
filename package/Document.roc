@@ -15,6 +15,7 @@ import Text
 import Theme
 
 DocumentBlock :: [
+	AnchoredFigure(Box(AnchoredFigureSpec)),
 	Bullets(List(Str)),
 	Container({ contents : List(DocumentBlock), kind : ContainerKind }),
 
@@ -455,6 +456,9 @@ Caption := [Caption(Str), NoCaption]
 ## the smallest page frame together with its caption, never below
 ## `minimum_percent`.
 FigureFit : [Exact, ScaleToFit({ minimum_percent : U8 })]
+
+## One authored paragraph paired with an exact-size captioned drawing.
+AnchoredFigureSpec : { anchor : List(DocumentInline), alternative : Str, caption : Str, drawing : Scene.Drawing }
 
 # Nominal representation avoids the structural-union allocation cost recorded
 # in docs/contributors/performance/page-templates.md.
@@ -1093,7 +1097,7 @@ TableSection : [Body, Footer, Header]
 ##
 ## `Custom` is a custom block (payload: its `customs` index): a `Div` of its
 ## paragraphs for semantics and one unsplittable unit for layout.
-NormalizedGroupKind := [Source(U64), Container(ContainerKind), ContentsItem, ContentsList, GeneratedContentsList, IndexList, Custom(U32), Callout(U32), FigureGroup(U32), ItemList(U32), KeepTogether, KeepWithNext(Keep), LeadRegion, ListItem(U32), PageScope(U32), Scope(U32), Table(U32), TableRow(TableSection)]
+NormalizedGroupKind := [FigureAnchor, Source(U64), Container(ContainerKind), ContentsItem, ContentsList, GeneratedContentsList, IndexList, Custom(U32), Callout(U32), FigureGroup(U32), ItemList(U32), KeepTogether, KeepWithNext(Keep), LeadRegion, ListItem(U32), PageScope(U32), Scope(U32), Table(U32), TableRow(TableSection)]
 
 ## The semantic role of one normalized inline. Text leaves hold their exact
 ## authored string and its byte range in the paragraph's concatenated text.
@@ -2015,6 +2019,10 @@ Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : D
 	## An abbreviation and its expansion (`Span` with `/E`).
 	expansion : { text : Str, expanded : Str } -> DocumentInline
 	expansion = |{ text: value, expanded }| DocumentInline.Expansion({ expanded, text: value })
+
+	## Attach an exact-size captioned drawing to its introducing paragraph.
+	anchored_figure : List(DocumentInline), { alternative : Str, caption : Str, drawing : Scene.Drawing } -> DocumentBlock
+	anchored_figure = |anchor, { alternative, caption: caption_value, drawing }| DocumentBlock.AnchoredFigure(Box.box({ anchor, alternative, caption: caption_value, drawing }))
 
 	## Attach meaningful drawing content with required alternative text.
 	figure : Scene.Drawing, { alternative : Str, caption : Caption } -> DocumentBlock
@@ -3011,6 +3019,7 @@ close_group = |state, group| {
 
 append_leaf : SimpleState, DocumentBlock, U64, U64 -> SimpleState
 append_leaf = |state, block, parent, position| match block {
+	AnchoredFigure(spec) => append_anchored_figure(state, Box.unbox(spec), parent, position)
 	Bullets(items) => {
 		var $blocks = state.blocks
 		var $item = 0
@@ -3141,6 +3150,17 @@ append_table = |state, spec, parent, position| {
 	$state = append_table_rows($state, spec.body_rows, Body, table_code)
 	$state = append_table_rows($state, spec.footer_rows, Footer, table_code)
 	close_group($state, table_group)
+}
+
+## The paired layout group has no structure role. It preserves one
+## paragraph and an ordinary captioned figure under their semantic parent.
+append_anchored_figure : SimpleState, AnchoredFigureSpec, U64, U64 -> SimpleState
+append_anchored_figure = |state, spec, parent, position| {
+	group = state.groups.len()
+	opened = open_group(state, FigureAnchor, parent, 0, position)
+	anchor = append_rich(opened, spec.anchor, group + 1, 0)
+	placed = append_figure(anchor, { alternative: spec.alternative, caption: Caption(spec.caption), drawing: spec.drawing, fit: ExactFit }, group + 1, 1)
+	close_group(placed, group)
 }
 
 ## Lower one figure. An uncaptioned figure is one `Figure` leaf. A

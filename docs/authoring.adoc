@@ -1008,6 +1008,29 @@ The https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/business-re
 RGB pixels, then uses one oversized drawing to demonstrate exact fit, a
 permitted scale, and a rejected scale floor.
 
+[#authoring-anchored-figures]
+=== Keep a paragraph with its figure
+
+Use `Pdf.anchored_figure` when a paragraph introduces a drawing and its
+visible caption. Write the paragraph as a list of inlines and supply the
+drawing, alternative text, and caption.
+
+[source,roc]
+----
+topology = Pdf.anchored_figure([Pdf.text("Follow the request through the gateway.")], {
+    drawing: request_path,
+    alt: "Requests travel from the gateway through the queue to the workers.",
+    caption: "Figure 1. Request routing during failover.",
+})
+----
+
+The layout keeps the paragraph, exact-size drawing, and caption in one body
+frame. When the remaining space is too short, the whole block moves to the
+next frame. If it cannot fit there, preparation returns
+`layout.anchored_figure_fit` at the `.anchor` and `.figure` paths. The
+paragraph comes first in reading order, followed by the figure and caption.
+Run the operations handbook's `topology` mode for a two-page example.
+
 [#authoring-column-flow]
 == Flow paragraphs through two columns
 

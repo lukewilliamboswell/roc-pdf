@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from check_fillable_forms import validate_fillable_pdf
 from check_footnotes import validate_footnotes_pdf
 from check_associated_files import validate_associated_files_pdf
+from check_anchored_figure import validate_anchored_figure_pdf
 from check_profile_declarations import validate_claims
 from check_default_fonts import validate_default_fonts_pdf
 from check_contents_entries import validate_contents_entries_pdf
@@ -164,6 +165,7 @@ def _facade_image(data: bytes, dimensions: dict[str, int], report: Reporter) -> 
 VALIDATORS: dict[str, Validator] = {
     "footnotes": _dimensioned(validate_footnotes_pdf, "first-citation placement, logical backlinks and structure destinations"),
     "fillable_forms": _dimensioned(validate_fillable_pdf, "editable widget repertoire, exact values and appearances, authored geometry and tab order, and Form-owned labels"),
+    "anchored_figure": _dimensioned(validate_anchored_figure_pdf, "atomic anchor deferral with owned figure and caption, exact drawing geometry and authored order"),
     "associated_files": _dimensioned(validate_associated_files_pdf, "catalog AF, name-tree ordering and boundaries, exact file-specification metadata, distinct streams, and extracted payloads"),
     "default_fonts": _dimensioned(validate_default_fonts_pdf, "genuine static family/style programs, exact selected glyph outlines and searchable source text"),
     "authored_index": _dimensioned(validate_index_fixture, "index collation and linked authored locations"),

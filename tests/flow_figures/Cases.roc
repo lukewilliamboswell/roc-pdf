@@ -1,4 +1,5 @@
 import Fixture
+import Anchors
 
 ## The flow_figures family's typed cases and their dispatch, run by a fixture group app.
 Cases :: [].{
@@ -10,6 +11,8 @@ Cases :: [].{
 		AtomicNegatives({ context : U64 }),
 		SpacedDecorations({ sections : U64 }),
 		BoundDiagnostics({ context : U64 }),
+		AnchoredFigures({ count : U64 }),
+		AnchoredRejections,
 	]
 
 	run : Case -> { bytes : List(U8), work : List(U64) }
@@ -22,10 +25,18 @@ Cases :: [].{
 			AtomicNegatives({ context }) => Fixture.atomic_negatives(context)
 			SpacedDecorations({ sections }) => Fixture.spaced_decorations(sections)
 			BoundDiagnostics({ context }) => Fixture.bound_diagnostics(context)
+			AnchoredFigures({ count }) => return anchor_result(Anchors.evidence(count))
+			AnchoredRejections => return anchor_result(Anchors.rejections({}))
 		}
 		match result {
 			Ok(value) => value
 			Err(_) => crash "CASE_EXECUTION_FAILED: flow_figures fixture rejected the typed case"
 		}
 	}
+}
+
+anchor_result : Try(Anchors.Stats, Anchors.Error) -> Anchors.Stats
+anchor_result = |result| match result {
+	Ok(value) => value
+	Err(error) => crash "anchored-figure evidence disagrees: ${Str.inspect(error)}"
 }

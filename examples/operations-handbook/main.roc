@@ -4,6 +4,7 @@ app [main!] {
 }
 import pf.Path
 import pf.OsStr
+import pf.Stderr
 import pf.Stdout
 import Footnotes
 import pdf.Color
@@ -29,6 +30,8 @@ main! = |args| {
 		["flow-long"] => return flow_note!("RECOVERY-CHECKS-")
 		["footnotes"] => return write_footnotes!(False)
 		["footnote-oversize"] => return write_footnotes!(True)
+		["topology"] => return topology_excerpt!(350)
+		["topology-tight"] => return topology_excerpt!(310)
 		_ => return Err(Usage)
 	}
 	fonts = register_fonts({})?
@@ -82,6 +85,50 @@ main! = |args| {
 	output = "operations-handbook.pdf"
 	output.write_bytes!(bytes).map_err(|err| WriteFailed(err))?
 	Stdout.line!("Wrote operations-handbook.pdf").map_err(|err| OutputFailed(err))?
+	Ok({})
+}
+
+topology_intro : Str
+topology_intro = "Every payment enters through the edge, is authorised by the payments API, and is written to the ledger before any acquirer is told to capture funds. Figure 1 shows the tiers you will meet during an incident."
+
+topology_alternative : Str
+topology_alternative = "Diagram of the payments request path. Traffic flows left to right from the edge load balancer (1) through the API gateway (2) and payments API (3) to the acquirer adapters (4). The payments API writes to the ledger database (5), and the adapters publish to the settlement queue (6), which the settlement worker (7) consumes before reconciling against the ledger."
+
+topology_caption : Str
+topology_caption = "Figure 1. Request path through the production zone (shaded)"
+
+## A short sheet leaves room for the pair on a fresh page and too little
+## room after the incident context. The tighter sheet exercises rejection.
+topology_excerpt! = |height| {
+	fonts = register_fonts({})?
+	options : Pdf.Options
+	options = { theme: theme(fonts), fonts: Registered(fonts.registry), page_size: Custom({ width: 595, height: Layout.Unit.points(height) }), wtpdf: DeclareAccessibility }
+	document = Pdf.document({
+		language: "en-AU",
+		title: "Payments platform: service topology",
+		contents: [
+			Pdf.title("Service topology"),
+			Pdf.paragraph("Begin a payments incident by checking edge reachability and the gateway error rate. This overview shows where to follow a payment across the production zone."),
+			Pdf.spacer(62),
+			Pdf.anchored_figure([Pdf.text(topology_intro)], { drawing: topology, alt: topology_alternative, caption: topology_caption }),
+		],
+	})
+	result = match Pdf.prepare_with_report(document, Pdf.ReportProps.{ options: options }) {
+		Ok(value) => value
+		Err(error) => {
+			Stderr.line!(Pdf.Error.to_inspect(error)).map_err(|err| OutputFailed(err))?
+			return Err(Exit(1))
+		}
+	}
+	for block in result.report.facts.blocks {
+		if block.path.ends_with(".anchor") or block.path.ends_with(".figure") {
+			Stdout.line!("${block.path} on page ${block.first_page.to_str()}").map_err(|err| OutputFailed(err))?
+		}
+	}
+	bytes = Pdf.to_bytes_prepared(result.prepared).map_err(|err| PdfFailed(err))?
+	output : Path
+	output = "operations-handbook.pdf"
+	output.write_bytes!(bytes).map_err(|err| WriteFailed(err))?
 	Ok({})
 }
 
@@ -723,8 +770,8 @@ contents = |options, mono, generated| {
 		]),
 		Pdf.section([
 			Pdf.destination_heading({ name: "topology", level: 1, text: "2 Service topology" }),
-			Pdf.paragraph("Every payment enters through the edge, is authorised by the payments API, and is written to the ledger before any acquirer is told to capture funds. Figure 1 shows the tiers you will meet during an incident."),
-			Pdf.figure({ drawing: topology, alt: "Diagram of the payments request path. Traffic flows left to right from the edge load balancer (1) through the API gateway (2) and payments API (3) to the acquirer adapters (4). The payments API writes to the ledger database (5), and the adapters publish to the settlement queue (6), which the settlement worker (7) consumes before reconciling against the ledger.", caption: Pdf.caption("Figure 1. Request path through the production zone (shaded)") }),
+			Pdf.paragraph(topology_intro),
+			Pdf.figure({ drawing: topology, alt: topology_alternative, caption: Pdf.caption(topology_caption) }),
 			Pdf.numbered_list(
 				{},
 				[

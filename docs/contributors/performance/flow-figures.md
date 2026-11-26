@@ -400,3 +400,25 @@ Evidence: `flow figures drawing bound diagnostics` checks each message for
 a figure, a decoration, and a furniture drawing, and that the same curve
 moved inside the origin by a group is accepted (8,104 allocations). No
 existing baseline changes: the messages are built only for rejections.
+
+## Paragraph-anchored figures
+
+`Pdf.anchored_figure` normalizes a transparent layout group containing the
+authored paragraph and ordinary captioned figure. The group supplies a dense
+leaf span to the existing whole-group check. The checked height covers the
+wrapped anchor, validated drawing, caption lines, and paragraph spacing. A
+deferral carries the same leaf indices and reuses the shaped blocks. No
+extra draw or text storage is needed during pagination. The enclosing and
+figure structure roles follow ISO 32000-2:2020 §§14.7.2 and 14.8.4, and
+the ordinary caption uses the same WTPDF §8.2.5.27 containment contract.
+
+The layout fixtures measure one and twelve deferred pairs. They use 857 and
+2,473 Roc allocations, request 2,487,510 and 10,362,597 bytes, and produce
+two and 24 pages. A 161-state model exercises varied frame heights, paragraph
+line counts, drawing heights, and remaining space, including exact fit and
+a one-point-short empty frame. The atomic rejection case checks oversized
+pairs and missing required content through buffered and chunked generation.
+The operations handbook's topology PDF exercises drawing labels under the
+Figure and the separate Caption, whose paint occurs before the labels.
+Swapping the anchor and Figure group in the structure tree fails the
+independent order check.
