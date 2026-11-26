@@ -922,7 +922,12 @@ progression policy.
 
 Tables retain row groups, rows, cells, row and column spans, scopes, IDs, and
 explicit header relationships. The normalized graph contains the emitted
-structure IDs, IDTree membership, and typed `Headers` associations. Flattening
+structure IDs, IDTree membership, and typed `Headers` associations.
+Table-local keys and explicit associations use a sparse normalized tape,
+leaving the dense cell arena unchanged. The semantic planner resolves
+explicit keys before layout, preserving the chosen header order and the
+scope-derived associations of other cells. A header-to-header edge points
+to an earlier header in authored order. Flattening
 a table to positioned boxes before semantic validation is forbidden.
 
 Parent-child legality is not represented merely by `role` and `children`.

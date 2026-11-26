@@ -147,6 +147,8 @@ Pdf :: [].{
 	Cell : Document.Cell
 
 	## Geometry and paint shared by data and header cells.
+	CellKey : Document.CellKey
+	HeaderAssociations : Document.HeaderAssociations
 	CellProps : Document.CellProps
 	CellAlign : Document.CellAlign
 	CellFill : Document.CellFill
@@ -782,6 +784,8 @@ Pdf :: [].{
 	## identifier; a header cell declares its `Scope`, and a data cell's
 	## `Headers` name the column header cells above it in its columns and
 	## the row header cells of its row, derived from the declared scopes.
+	## A cell can instead choose `Explicit` associations by table-local keys
+	## declared with `Named` on the target cells.
 	##
 	## Column widths resolve once per table (fixed, then content, then
 	## shares). Cells wrap within their columns; header rows repeat at the
@@ -814,7 +818,7 @@ Pdf :: [].{
 	cell : List(Inline) -> Cell
 	cell = |contents| Document.cell(contents)
 
-	## Create a data cell with named span, alignment or fill overrides.
+	## Create a data cell with optional span, alignment, fill or header associations.
 	cell_with : List(Inline), CellProps -> Cell
 	cell_with = |contents, props| Document.cell_with(contents, props)
 
@@ -824,7 +828,7 @@ Pdf :: [].{
 	header_cell : Scope, List(Inline) -> Cell
 	header_cell = |scope, contents| Document.header_cell(scope, contents)
 
-	## Create a header cell with an explicit scope and optional cell layout.
+	## Create a header with explicit scope and optional shared cell props.
 	header_cell_with : List(Inline), HeaderCellProps -> Cell
 	header_cell_with = |contents, props| Document.header_cell_with(contents, props)
 
@@ -1871,6 +1875,24 @@ pipeline_error_at = |error, doc, paths| match error {
 	Pages(DecorationOversize({ decoration, frame_height, frame_width, height, width })) => flow_item_error(doc, DecorationItem(decoration), LayoutConstraintViolated, "layout.oversize_block", "A decoration is ${points_text(width)} wide and ${points_text(height)} tall, but the flow region is ${points_text(frame_width)} wide and at most ${points_text(frame_height)} tall; a decoration is never clipped or shrunk.")
 	Semantics(EmptyRichParagraph({ block })) => inline_error_at(doc, paths, block, NoInline, InvalidRelationship, "semantics.inline_empty", "A rich paragraph contains no text.")
 	Semantics(TableCellEmpty({ block })) => located_error(doc, InvalidRelationship, "table.cell_empty", "A table cell's content holds no text; write an empty cell as Pdf.cell([]).", [diagnostic_leaf_path(doc, paths, block)])
+	Semantics(TableCellKey({ block, reason })) => {
+		summary = match reason {
+			DuplicateKey => "Another cell in this table declares the same key."
+			InvalidKey => "A cell key must contain 1 to 64 ASCII letters, digits, hyphens, periods or underscores."
+		}
+		located_error(doc, InvalidRelationship, "table.cell_key", summary, [diagnostic_leaf_path(doc, paths, block)])
+	}
+	Semantics(TableHeaderTargets({ block, reason })) => {
+		summary = match reason {
+			DataTarget => "A cell's explicit header key names a data cell."
+			DuplicateTarget => "A cell's explicit header list names the same header twice."
+			EmptyTargets => "An explicit header list needs at least one header key."
+			ForwardTarget => "A header cell's explicit header keys must name earlier header cells."
+			InvalidTarget => "A header key must contain 1 to 64 ASCII letters, digits, hyphens, periods or underscores."
+			UnknownTarget => "A cell's explicit header key names no cell in this table."
+		}
+		located_error(doc, InvalidRelationship, "table.header_targets", summary, [diagnostic_leaf_path(doc, paths, block)])
+	}
 	Semantics(TableEmpty({ group })) => group_error(doc, group, InvalidRelationship, "table.empty", "A table needs at least one column, one body row, and one cell with content.")
 	Semantics(TableGridMismatch({ columns, group, spanned })) => group_error(doc, group, InvalidRelationship, "table.grid_mismatch", "A table row spans ${spanned.to_str()} columns but the table declares ${columns.to_str()}; every row's column spans must sum to the column count and each span must be at least one.")
 	Semantics(TableHeaderMissing({ group })) => group_error(doc, group, InvalidRelationship, "table.header_missing", "A table declares no header cell; at least one cell must be a header_cell with a declared scope.")
@@ -4409,6 +4431,63 @@ expect {
 	}
 
 	contains("/S /THead") and contains("/S /TFoot") and contains("/ColSpan 2") and contains("/Scope /Column") and contains("/Headers [(c000002) (c000004)]") and contains("/IDTree")
+}
+
+# Layered headers use table-local names, resolve to byte IDs in the
+# authored order, and leave other cells on the scope-derived path.
+expect {
+	header = |name, props| Pdf.header_cell_with([Pdf.text(name)], { scope: Column, layout: props })
+	columns = [{ align: End, width: Share(1) }, { align: End, width: Share(1) }]
+	header_rows = [
+		Pdf.row([header("Revenue (AUD thousands)", { column_span: 2, key: Named("revenue") })]),
+		Pdf.row([header("Prior", { key: Named("prior"), headers: Explicit(["revenue"]) }), header("Current", { key: Named("current") })]),
+	]
+	body_rows = [
+		Pdf.row([Pdf.cell_with([Pdf.text("100")], { headers: Explicit(["prior", "revenue"]) }), Pdf.cell([Pdf.text("104")])]),
+	]
+	document = Pdf.document({
+		contents: [Pdf.table({ caption: Pdf.no_caption, columns, header_rows, body_rows })],
+		language: "en-AU",
+		title: "Revenue",
+	})
+	body = Str.from_utf8_lossy(KernelEmit.object_text(build_plan(document, Pdf.Options.default)?)?)
+	body.contains("/Headers [(c000001)] /O /Table /Scope /Column >> /ID (c000002)")
+		and body.contains("/Headers [(c000002) (c000001)]")
+		and body.contains("/Headers [(c000001) (c000003)]")
+		and body.contains("/IDTree")
+		and !body.contains("(revenue)")
+}
+
+# Rejection is transactional and identifies the cell with a bad key or
+# association. A preceding table's declarations cannot satisfy a lookup.
+expect {
+	text = [Pdf.text("Value")]
+	named_header = |key| Pdf.header_cell_with(text, { scope: Column, layout: { key: Named(key) } })
+	named_data = |key| Pdf.cell_with(text, { key: Named(key) })
+	explicit = |keys| Pdf.cell_with(text, { headers: Explicit(keys) })
+	explicit_header = |keys| Pdf.header_cell_with(text, { scope: Column, layout: { headers: Explicit(keys) } })
+	column = { align: End, width: Share(1) }
+	table = |header_cells, body_cells| Pdf.table({ caption: Pdf.no_caption, columns: [column, column], header_rows: [Pdf.row(header_cells)], body_rows: [Pdf.row(body_cells)] })
+	path = "contents[1].table.body_rows[0].cells[0]"
+	head_path = "contents[1].table.header_rows[0].cells[0]"
+	row_header = named_header("a")
+	prior = table([named_header("other-table"), Pdf.header_cell(Column, text)], [Pdf.cell(text), Pdf.cell(text)])
+	check = |header_cells, body_cells, feature, expected_path, reason| {
+		document = Pdf.document({ contents: [prior, table(header_cells, body_cells)], language: "en-AU", title: "Header keys" })
+		match Pdf.to_bytes(document) {
+			Err(InvalidDocument({ diagnostics: [{ code: InvalidRelationship, details: [actual_path], feature: Feature(actual_feature), message, .. }], .. })) =>
+				actual_path == expected_path and actual_feature == feature and message.contains(reason)
+			_ => False
+		}
+	}
+	check([row_header, named_header("b")], [explicit(["other-table"]), Pdf.cell(text)], "table.header_targets", path, "no cell")
+		and check([row_header, named_header("b")], [explicit(["value"]), named_data("value")], "table.header_targets", path, "data cell")
+		and check([row_header, named_header("b")], [explicit(["a", "a"]), Pdf.cell(text)], "table.header_targets", path, "twice")
+		and check([row_header, named_header("b")], [explicit([]), Pdf.cell(text)], "table.header_targets", path, "at least one")
+		and check([row_header, named_header("b")], [explicit(["bad target"]), Pdf.cell(text)], "table.header_targets", path, "ASCII")
+		and check([explicit_header(["later"]), named_header("later")], [Pdf.cell(text), Pdf.cell(text)], "table.header_targets", head_path, "earlier")
+		and check([row_header, named_header("b")], [named_data("a"), Pdf.cell(text)], "table.cell_key", path, "same key")
+		and check([named_header(""), named_header("b")], [Pdf.cell(text), Pdf.cell(text)], "table.cell_key", head_path, "ASCII")
 }
 
 # Table rejections are located: the row whose spans do not sum to the

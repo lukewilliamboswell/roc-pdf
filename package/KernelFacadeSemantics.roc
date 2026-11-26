@@ -96,6 +96,8 @@ KernelFacadeSemantics :: [].{
 		BlockLimitExceeded({ attempted : U64, block : U64, dimension : Dimension, limit : U64 }),
 		Source(KernelFacadeSources.Error),
 		TableCellEmpty({ block : U64 }),
+		TableCellKey({ block : U64, reason : [DuplicateKey, InvalidKey] }),
+		TableHeaderTargets({ block : U64, reason : [DataTarget, DuplicateTarget, EmptyTargets, ForwardTarget, InvalidTarget, UnknownTarget] }),
 		TableEmpty({ group : U64 }),
 		TableGridMismatch({ columns : U64, group : U64, spanned : U64 }),
 		TableHeaderMissing({ group : U64 }),
@@ -745,6 +747,7 @@ plan_blocks = |authoring, limits| {
 	var $attribute_count = 0
 	var $break_cursor = 0
 	var $cell_cursor = 0
+	var $association_cursor = 0
 	var $cell_headers = []
 	var $header_ranges = if (authoring.cells.is_empty()) [] else List.with_capacity(authoring.cells.len())
 	var $relationship_count = 0
@@ -864,7 +867,7 @@ plan_blocks = |authoring, limits| {
 					## cells are fixed-depth descendants, so the walk resumes
 					## after the table's last group and leaf.
 					attribute_base = checked_add($attribute_count, $relationship_count)?
-					planned = plan_table(authoring, $next_group, table_index.to_u64(), { attribute_base, break_cursor: $break_cursor, cell: $cell_cursor, header_base: $cell_headers.len(), node: $next_node, occurrence: $next_occurrence }, { max_attributes: KernelSemantics.Limits.attribute_limit(limits.semantics), max_depth: limits.max_inline_depth })?
+					planned = plan_table(authoring, $next_group, table_index.to_u64(), { association: $association_cursor, attribute_base, break_cursor: $break_cursor, cell: $cell_cursor, header_base: $cell_headers.len(), node: $next_node, occurrence: $next_occurrence }, { max_attributes: KernelSemantics.Limits.attribute_limit(limits.semantics), max_depth: limits.max_inline_depth })?
 					attempted_nodes = checked_add($next_node, planned.nodes)?
 					attempted_occurrences = checked_add($next_occurrence, planned.occurrences)?
 					attempted_content = checked_add($content_count, planned.content)?
@@ -905,6 +908,7 @@ plan_blocks = |authoring, limits| {
 					$inline_leaves = checked_add($inline_leaves, planned.leaves)?
 					$break_cursor = $break_cursor + planned.breaks
 					$cell_cursor = $cell_cursor + planned.cells
+					$association_cursor = planned.association_end
 					$table_count = $table_count + 1
 					$empty_cells = $empty_cells + planned.empty_cells
 					$block_index = group.block_end
@@ -1217,11 +1221,11 @@ plan_blocks = |authoring, limits| {
 	Ok({ attribute_count: $attribute_count, cell_headers: $cell_headers, content_count: $content_count, destinations: $destinations, empty_cells: $empty_cells, figure_label_owners: $figure_label_owners, figure_label_texts: $figure_label_texts, group_nodes: $group_nodes, header_ranges: $header_ranges, inline_elements: $inline_elements, inline_leaves: $inline_leaves, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, relationship_count: $relationship_count, source_inputs: $sources, table_count: $table_count, top_nodes: $top_nodes })
 }
 
-TableCursor : { attribute_base : U64, break_cursor : U64, cell : U64, header_base : U64, node : U64, occurrence : U64 }
+TableCursor : { association : U64, attribute_base : U64, break_cursor : U64, cell : U64, header_base : U64, node : U64, occurrence : U64 }
 
 TableBuffers : { group_nodes : List(U64), headers : List(U64), links : List(KernelFacadeSemantics.LinkRecord), ranges : List(Semantics.IndexRange), sources : List(Str) }
 
-TablePlan : { attributes : U64, breaks : U64, buffers : TableBuffers, cells : U64, content : U64, elements : U64, empty_cells : U64, expansions : U64, leaves : U64, nodes : U64, occurrences : U64, relationships : U64 }
+TablePlan : { association_end : U64, attributes : U64, breaks : U64, buffers : TableBuffers, cells : U64, content : U64, elements : U64, empty_cells : U64, expansions : U64, leaves : U64, nodes : U64, occurrences : U64, relationships : U64 }
 
 ## Validate and count one table in authored order: a table needs columns
 ## and a body row; each cell has non-empty inline content and no row span;
@@ -1242,6 +1246,13 @@ plan_table = |authoring, group_index, table_index, at, { max_attributes, max_dep
 	if columns == 0 or table.body_rows == 0 {
 		return Err(TableEmpty({ group: group_index }))
 	}
+	cell_end = at.cell + group.block_end - group.first_block - (if (table.caption) 1 else 0)
+	var $association_end = at.association
+	while $association_end < authoring.cell_associations.len() and list_at(authoring.cell_associations, $association_end).cell < cell_end {
+		$association_end = $association_end + 1
+	}
+	keys = table_keys(authoring, at.association, $association_end)?
+	var $association = at.association
 	caption_nodes = if (table.caption) 2 else 0
 	sections = (if (table.header_rows > 0) 1 else 0) + 1 + (if (table.footer_rows > 0) 1 else 0)
 
@@ -1362,35 +1373,55 @@ plan_table = |authoring, group_index, table_index, at, { max_attributes, max_dep
 			local_start = $headers.len()
 			start = at.header_base + local_start
 			span = record.column_span.to_u64()
-			starting = if ($starting_headers.is_empty()) $column_headers else $starting_headers
-			covering_first = list_at($column_headers, $column)
-			column_count = spanned_header_count(covering_first.len(), starting, $column, span)
-			row_count = if (record.kind == DataCell) $row_headers.len() else $preceding_row_headers
-			association_count = column_count + row_count
-			if association_count > 0 {
-				# Account for the Headers attribute and all its unique edges before
-				# growing either the result or the temporary span union.
-				check_at(at.attribute_base + $attributes + $relationships + 1 + association_count, max_attributes, Attributes, row.first_block + ($index - first_cell))?
+			var $associations = FromScopes
+			if $association < $association_end {
+				info = list_at(authoring.cell_associations, $association)
+				if info.cell == $index {
+					$associations = info.headers
+					$association = $association + 1
+				}
 			}
-			$headers = if span == 1 {
-				append_all($headers, covering_first)
-			} else {
-				append_spanned_headers($headers, covering_first, starting, $column, span)
+			match $associations {
+				FromScopes => {
+					starting = if ($starting_headers.is_empty()) $column_headers else $starting_headers
+					covering_first = list_at($column_headers, $column)
+					column_count = spanned_header_count(covering_first.len(), starting, $column, span)
+					row_count = if (record.kind == DataCell) $row_headers.len() else $preceding_row_headers
+					association_count = column_count + row_count
+					if association_count > 0 {
+						# Account for the Headers attribute and each edge before
+						# growing the result or a temporary span union.
+						check_at(at.attribute_base + $attributes + $relationships + 1 + association_count, max_attributes, Attributes, record.block)?
+					}
+					$headers = if span == 1 {
+						append_all($headers, covering_first)
+					} else {
+						append_spanned_headers($headers, covering_first, starting, $column, span)
+					}
+					if record.kind == DataCell {
+						$headers = append_all($headers, $row_headers)
+					} else {
+						var $row_header = 0
+						while $row_header < $preceding_row_headers {
+							$headers = $headers.append(list_at($row_headers, $row_header))
+							$row_header = $row_header + 1
+						}
+					}
+				}
+				Explicit(target_keys) => {
+					if target_keys.is_empty() {
+						return Err(TableHeaderTargets({ block: record.block, reason: EmptyTargets }))
+					}
+					check_at(at.attribute_base + $attributes + $relationships + 1 + target_keys.len(), max_attributes, Attributes, record.block)?
+					resolved = resolve_header_targets(keys, target_keys, record, $index)?
+					$headers = append_all($headers, resolved)
+				}
 			}
 			match record.kind {
-				DataCell => {
-					$headers = append_all($headers, $row_headers)
+				HeaderCell(scope) => if scope != Column {
+					$preceding_row_headers = $preceding_row_headers + 1
 				}
-				HeaderCell(scope) => {
-					var $row_header = 0
-					while $row_header < $preceding_row_headers {
-						$headers = $headers.append(list_at($row_headers, $row_header))
-						$row_header = $row_header + 1
-					}
-					if scope != Column {
-						$preceding_row_headers = $preceding_row_headers + 1
-					}
-				}
+				DataCell => {}
 			}
 			count = $headers.len() - local_start
 			if count != 0 {
@@ -1437,6 +1468,7 @@ plan_table = |authoring, group_index, table_index, at, { max_attributes, max_dep
 		return Err(TableEmpty({ group: group_index }))
 	}
 	Ok({
+		association_end: $association_end,
 		attributes: $attributes,
 		breaks: $breaks,
 		buffers: { group_nodes: $group_nodes, headers: $headers, links: $links, ranges: $ranges, sources: $sources },
@@ -1450,6 +1482,141 @@ plan_table = |authoring, group_index, table_index, at, { max_attributes, max_dep
 		occurrences: $occurrences,
 		relationships: $relationships,
 	})
+}
+
+TableKey : { bytes : List(U8), cell : U64, kind : Document.CellKind }
+
+## PDF 2.0 §14.7.2 Tables 354–355 and §14.8.5.7 Table 384. Authored keys
+## resolve in their own table and bind to cell identities. The writer emits
+## the generated byte IDs used by Headers and the structure ID tree.
+table_keys : Document.NormalizedAuthoring, U64, U64 -> Try(List(TableKey), KernelFacadeSemantics.Error)
+table_keys = |authoring, start, end| {
+	var $keys = []
+	var $index = start
+	while $index < end {
+		info = list_at(authoring.cell_associations, $index)
+		match info.key {
+			Named(key) => {
+				cell = list_at(authoring.cells, info.cell)
+				bytes = match checked_key_bytes(key) {
+					Ok(value) => value
+					Err(_) => return Err(TableCellKey({ block: cell.block, reason: InvalidKey }))
+				}
+				$keys = $keys.append({ bytes, cell: info.cell, kind: cell.kind })
+			}
+			Unnamed => {}
+		}
+		$index = $index + 1
+	}
+	if $keys.len() < 2 {
+		return Ok($keys)
+	}
+	sorted = $keys.sort_with(
+		|left, right| {
+			match compare_table_keys(left.bytes, right.bytes) {
+				Same => compare_cell_ordinals(left.cell, right.cell)
+				order => order
+			}
+		},
+	)
+	$index = 1
+	while $index < sorted.len() {
+		key = list_at(sorted, $index)
+		if key.bytes == list_at(sorted, $index - 1).bytes {
+			return Err(TableCellKey({ block: list_at(authoring.cells, key.cell).block, reason: DuplicateKey }))
+		}
+		$index = $index + 1
+	}
+	Ok(sorted)
+}
+
+checked_key_bytes : Str -> Try(List(U8), [InvalidKey])
+checked_key_bytes = |key| {
+	size = key.count_utf8_bytes()
+	if size == 0 or size > 64 {
+		return Err(InvalidKey)
+	}
+	bytes = key.to_utf8()
+	for byte in bytes {
+		allowed = (byte >= 48 and byte <= 57) or (byte >= 65 and byte <= 90) or (byte >= 97 and byte <= 122) or byte == 45 or byte == 46 or byte == 95
+		if !allowed {
+			return Err(InvalidKey)
+		}
+	}
+	Ok(bytes)
+}
+
+compare_table_keys : List(U8), List(U8) -> [After, Before, Same]
+compare_table_keys = |left, right| {
+	var $index = 0
+	while $index < left.len() and $index < right.len() {
+		match compare_cell_ordinals(list_at(left, $index).to_u64(), list_at(right, $index).to_u64()) {
+			Same => {
+				$index = $index + 1
+			}
+			order => return order
+		}
+	}
+	compare_cell_ordinals(left.len(), right.len())
+}
+
+compare_cell_ordinals : U64, U64 -> [After, Before, Same]
+compare_cell_ordinals = |left, right| if (left < right) Before else if (left > right) After else Same
+
+find_table_key : List(TableKey), List(U8) -> Try(TableKey, [UnknownTarget])
+find_table_key = |keys, bytes| {
+	var $lo = 0
+	var $hi = keys.len()
+	while $lo < $hi {
+		mid = $lo + U64.div_by($hi - $lo, 2)
+		entry = list_at(keys, mid)
+		match compare_table_keys(entry.bytes, bytes) {
+			Same => return Ok(entry)
+			Before => {
+				$lo = mid + 1
+			}
+			After => {
+				$hi = mid
+			}
+		}
+	}
+	Err(UnknownTarget)
+}
+
+## An explicit list replaces the scope-derived list for this cell alone.
+## Preserve authors' order. As for scope-derived associations, header-to-
+## header edges follow preorder so that the association graph is acyclic.
+resolve_header_targets : List(TableKey), List(Str), Document.NormalizedCell, U64 -> Try(List(U64), KernelFacadeSemantics.Error)
+resolve_header_targets = |keys, target_keys, cell, ordinal| {
+	var $resolved = List.with_capacity(target_keys.len())
+	for target in target_keys {
+		bytes = match checked_key_bytes(target) {
+			Ok(value) => value
+			Err(_) => return Err(TableHeaderTargets({ block: cell.block, reason: InvalidTarget }))
+		}
+		entry = match find_table_key(keys, bytes) {
+			Ok(value) => value
+			Err(_) => return Err(TableHeaderTargets({ block: cell.block, reason: UnknownTarget }))
+		}
+		if entry.kind == DataCell {
+			return Err(TableHeaderTargets({ block: cell.block, reason: DataTarget }))
+		}
+		if cell.kind != DataCell and entry.cell >= ordinal {
+			return Err(TableHeaderTargets({ block: cell.block, reason: ForwardTarget }))
+		}
+		$resolved = $resolved.append(entry.cell)
+	}
+	if $resolved.len() > 1 {
+		sorted = $resolved.sort_with(compare_cell_ordinals)
+		var $index = 1
+		while $index < sorted.len() {
+			if list_at(sorted, $index) == list_at(sorted, $index - 1) {
+				return Err(TableHeaderTargets({ block: cell.block, reason: DuplicateTarget }))
+			}
+			$index = $index + 1
+		}
+	}
+	Ok($resolved)
 }
 
 ## Every overlapping header covers the first column of the target or

@@ -296,7 +296,38 @@ spans columns. A cell aligns like the first column it spans unless
 end-aligned totals label spanning start-aligned columns. The package derives
 each cell's header associations from the declared scopes. A column heading can
 describe a row header below it. Within a row, a header can describe later
-headers as well as any data cells in that row. Column widths resolve once per table:
+headers as well as any data cells in that row. The defaults are
+`headers: FromScopes` and `key: Unnamed`.
+
+For a layered or exceptional association, put `key: Named("revenue")` in
+the target header's layout. Choose the source cell's complete ordered
+header list with `headers: Explicit(["prior", "revenue"])`. This replaces
+scope-derived associations for that cell. All other cells keep their own
+association policy. Header targets for a header cell must precede it in
+authored order.
+
+[source,roc]
+----
+group_heading = Pdf.header_cell_with([Pdf.text("Revenue (AUD thousands)")], {
+    scope: Column,
+    layout: { column_span: 2, key: Named("revenue") },
+})
+prior_heading = Pdf.header_cell_with([Pdf.text("Prior quarter")], {
+    scope: Column,
+    layout: { key: Named("prior"), headers: Explicit(["revenue"]) },
+})
+prior_amount = Pdf.cell_with([Pdf.text("749.00")], {
+    headers: Explicit(["prior", "revenue"]),
+})
+----
+
+Keys are case-sensitive, unique within a table and 1 to 64 ASCII letters,
+digits, hyphens, periods or underscores. Preparation locates invalid or
+duplicate declarations with `table.cell_key`. It rejects empty, invalid,
+unknown, duplicate or ineligible explicit targets with
+`table.header_targets`.
+
+Column widths resolve once per table:
 `Fixed` widths are exact, `Content` columns take their content's width,
 reduced toward their widest word only as needed, and `Share` columns divide
 the rest. `End` aligns amounts at the column's end edge.

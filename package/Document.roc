@@ -149,12 +149,22 @@ CellAlign : [Aligned(ColumnAlign), FirstColumn]
 ## fill as a layout decoration artifact.
 CellFill := [NoCellFill, CellFill(Color.SourceValue)]
 
-## Shared geometry and paint for data and header cells. Alignment defaults
+## An optional table-local cell key for authored header associations.
+CellKey : [Named(Str), Unnamed]
+
+## Use automatic associations or give the exact ordered list of header keys.
+HeaderAssociations : [Explicit(List(Str)), FromScopes]
+
+CellAssociation : { headers : HeaderAssociations, key : CellKey }
+
+## Shared geometry, paint and semantic associations for data and header cells. Alignment defaults
 ## to the first spanned column. A fill affects only the cell's decoration.
 CellProps := {
 	align : CellAlign ?? FirstColumn,
 	column_span : U16 ?? 1,
 	fill : CellFill ?? NoCellFill,
+	headers : HeaderAssociations ?? FromScopes,
+	key : CellKey ?? Unnamed,
 	row_span : U16 ?? 1,
 }
 
@@ -170,7 +180,7 @@ DocumentRow :: [Row(List(DocumentCell))].{}
 ## One authored table cell: inline content forming one paragraph, its kind,
 ## and the columns and rows it spans. Row spans are represented so they can
 ## be rejected with a located diagnostic.
-DocumentCell :: [Cell({ align : CellAlign, column_span : U16, contents : List(DocumentInline), fill : CellFill, kind : CellKind, row_span : U16 })].{
+DocumentCell :: [Cell({ align : CellAlign, association : [Associated(Box(CellAssociation)), NoAssociation], column_span : U16, contents : List(DocumentInline), fill : CellFill, kind : CellKind, row_span : U16 })].{
 
 	## The cell spanning `count` columns (`ColSpan`):
 	## `Pdf.header_cell(Row, label).spanning(2)`.
@@ -877,6 +887,8 @@ NormalizedTable : { body_rows : U64, caption : Bool, columns : List(TableColumn)
 ## kind, its authored column and row spans, and its line alignment.
 ##
 ## `fill` is zero, or the cell's own background packed by `pack_color`.
+NormalizedCellAssociation : { cell : U64, headers : HeaderAssociations, key : CellKey }
+
 NormalizedCell : { align : CellAlign, block : U64, column_span : U16, fill : U64, kind : CellKind, row_span : U16 }
 
 ## The section a normalized table row belongs to.
@@ -971,6 +983,7 @@ NormalizedReferenceParagraph : { chunks : Semantics.IndexRange, paragraph : U64,
 NormalizedAuthoring := {
 	blocks : List(NormalizedBlock),
 	contents_entries : List(NormalizedContentsEntry) ?? [],
+	cell_associations : List(NormalizedCellAssociation) ?? [],
 	cells : List(NormalizedCell),
 	customs : List(NormalizedCustom),
 	callouts : List(NormalizedCallout),
@@ -1236,6 +1249,8 @@ Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : D
 	Cell : DocumentCell
 	CellAlign : CellAlign
 	CellFill : CellFill
+	CellKey : CellKey
+	HeaderAssociations : HeaderAssociations
 	CellProps : CellProps
 	HeaderCellProps : HeaderCellProps
 
@@ -1272,6 +1287,7 @@ Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : D
 	NavigationError : NavigationError
 	NormalizedBlock : NormalizedBlock
 	NormalizedBlockKind : NormalizedBlockKind
+	NormalizedCellAssociation : NormalizedCellAssociation
 	NormalizedCell : NormalizedCell
 	NormalizedDecoration : NormalizedDecoration
 	NormalizedCustom : NormalizedCustom
@@ -2033,7 +2049,7 @@ furniture_leaf = |inline, position, inner| match inline {
 }
 
 empty_state : SimpleState
-empty_state = { contents_entries: [], page_references: [], source_bytes: 0, source_exhaustion: NoSourceExhaustion, blocks: [], cells: [], customs: [], callouts: [], decorations: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], page_scopes: [], rich_paragraphs: [], scopes: [], source_foregrounds: [], source_lines: [], sources: [], spacers: [], tables: [] }
+empty_state = { contents_entries: [], page_references: [], source_bytes: 0, source_exhaustion: NoSourceExhaustion, blocks: [], cell_associations: [], cells: [], customs: [], callouts: [], decorations: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], page_scopes: [], rich_paragraphs: [], scopes: [], source_foregrounds: [], source_lines: [], sources: [], spacers: [], tables: [] }
 
 normalize_authoring : DocumentAuthoring, SimpleState -> NormalizedAuthoring
 normalize_authoring = |authoring, initial| match authoring {
@@ -2229,6 +2245,7 @@ normalize_compact = |compact, initial| {
 	{
 		blocks: $blocks,
 		contents_entries: initial.contents_entries,
+		cell_associations: initial.cell_associations,
 		cells: initial.cells,
 		customs: initial.customs,
 		callouts: initial.callouts,
@@ -2259,6 +2276,7 @@ normalize_compact = |compact, initial| {
 SourceExhaustion : [NoSourceExhaustion, SourceExhausted(KernelSourceText.Error)]
 
 SimpleState : {
+	cell_associations : List(NormalizedCellAssociation),
 	contents_entries : List(NormalizedContentsEntry),
 	source_bytes : U64,
 	source_exhaustion : SourceExhaustion,
@@ -2307,6 +2325,7 @@ finish_simple_authoring : SimpleState, Str, Str -> NormalizedAuthoring
 finish_simple_authoring = |state, language, metadata_title| {
 	blocks: state.blocks,
 	contents_entries: state.contents_entries,
+	cell_associations: state.cell_associations,
 	cells: state.cells,
 	customs: state.customs,
 	callouts: state.callouts,
@@ -3039,7 +3058,13 @@ gray_color_kind : U64
 gray_color_kind = 0x2_0000_0000_0000
 
 make_cell : List(DocumentInline), CellKind, CellProps -> DocumentCell
-make_cell = |contents, kind, { align, column_span, fill, row_span }| DocumentCell.Cell({ align, column_span, contents, fill, kind, row_span })
+make_cell = |contents, kind, { align, column_span, fill, headers, key, row_span }| {
+	association = match (headers, key) {
+		(FromScopes, Unnamed) => NoAssociation
+		_ => Associated(Box.box({ headers, key }))
+	}
+	DocumentCell.Cell({ align, association, column_span, contents, fill, kind, row_span })
+}
 
 append_table_rows : SimpleState, List(DocumentRow), TableSection, U64 -> SimpleState
 append_table_rows = |state, rows, section, table_code| {
@@ -3059,6 +3084,13 @@ append_table_rows = |state, rows, section, table_code| {
 			fill = match record.fill {
 				NoCellFill => 0
 				CellFill(color) => pack_color(color)
+			}
+			match record.association {
+				Associated(box) => {
+					{ headers, key } = Box.unbox(box)
+					$state = { ..$state, cell_associations: $state.cell_associations.append({ cell: $state.cells.len(), headers, key }) }
+				}
+				NoAssociation => {}
 			}
 			$state = { ..$state, cells: $state.cells.append({ align: record.align, block: $state.blocks.len(), column_span: record.column_span, fill, kind: record.kind, row_span: record.row_span }) }
 			$state = if record.contents.is_empty() {
@@ -3101,6 +3133,7 @@ append_rich = |state, contents, parent, position| {
 		rich_paragraphs: [],
 		source_bytes: state.source_bytes,
 		source_exhaustion: state.source_exhaustion,
+		cell_associations: state.cell_associations,
 		cells: state.cells,
 		customs: state.customs,
 		callouts: state.callouts,
