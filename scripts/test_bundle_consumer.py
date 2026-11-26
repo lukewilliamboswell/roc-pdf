@@ -104,9 +104,13 @@ def verify_bundle_members(bundle: Path) -> None:
 
 def verify_bundle_size(bundle: Path) -> None:
     # Roc's decoder counts the complete expanded tar stream, including
-    # headers, member padding and end markers.
+    # headers, member padding and end markers. Tar implementations with built-in
+    # Zstandard support can check member size without the separate zstd program.
+    zstd = shutil.which("zstd")
+    command = [zstd, "-dc", str(bundle)] if zstd else ["tar", "--zstd", "-xOf", str(bundle)]
+    boundary = "expanded tar stream" if zstd else "expanded member payload"
     expanded_bytes = 0
-    with subprocess.Popen(["zstd", "-dc", str(bundle)], stdout=subprocess.PIPE, stderr=subprocess.PIPE) as extraction:
+    with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as extraction:
         assert extraction.stdout is not None
         while chunk := extraction.stdout.read(65536):
             expanded_bytes += len(chunk)
@@ -116,7 +120,7 @@ def verify_bundle_size(bundle: Path) -> None:
         if extraction.wait() != 0:
             assert extraction.stderr is not None
             raise TestFailure(f"could not measure expanded bundle: {extraction.stderr.read().decode(errors='replace')}")
-    print(f"Bundle expanded payload {expanded_bytes} bytes (limit {MAX_PACKAGE_BYTES})")
+    print(f"Bundle {boundary} {expanded_bytes} bytes (limit {MAX_PACKAGE_BYTES})")
 
 
 def package_byte_imports() -> set[str]:
