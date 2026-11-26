@@ -49,7 +49,21 @@ CHECKBOX_DA_REASON = (
     "12.7.4.3 Table 228 applies to fields containing variable text. "
     "These boxes supply both vector appearances. See PDF Association issue #323."
 )
+BIBLIOGRAPHY_ROLE = "StructureAttributesDict#1"
+BIBLIOGRAPHY_ROLE_REASON = (
+    "Arlington 1.30.2 permits uppercase /Role only. WTPDF 1.0 sections "
+    "8.2.5.31 and 8.2.6.4 use case-sensitive lowercase /role under /ARIA-1.1."
+)
+# Exact terminal object path from the destination's entry to its section's
+# direct /A dictionary. The fixture oracle independently checks that path.
+BIBLIOGRAPHY_OBJECTS = {
+    "tests/bibliography/graph-2.pdf": (17, 16, 13),
+    "tests/bibliography/graph-20.pdf": (53, 52, 49),
+    "tests/bibliography/graph-wtpdf.pdf": (17, 16, 13),
+    "examples/operations-handbook/operations-handbook-bibliography.pdf": (695, 694, 691),
+}
 FIXTURE_EXCEPTIONS: dict[str, tuple[dict[str, int], str]] = {
+    **{path: ({BIBLIOGRAPHY_ROLE: 1}, BIBLIOGRAPHY_ROLE_REASON) for path in BIBLIOGRAPHY_OBJECTS},
     "tests/placeholder/snapshot.pdf": (
         {"FileTrailer-ID#11": 1},
         "the harness placeholder is a fixed classic-xref PDF written by the test "
@@ -179,12 +193,29 @@ def describe_failures(value: object) -> str:
     return "".join("\n" + line for line in lines)
 
 
+def check_bibliography_context(value: object, entry: int, parent: int, section: int) -> None:
+    output = value["report"]["jobs"][0]["arlingtonResult"][0]["details"]["ruleSummaries"][0]  # type: ignore[index]
+    expected = (
+        f"/SD[0]{{SD}}/entry0[0](AStructElem {entry} 0 obj){{0}}"
+        f"/P[0](AStructElem {parent} 0 obj){{P}}/P[0](AStructElem {section} 0 obj){{P}}/A[0]{{A}}"
+    )
+    checks = list_value(output.get("checks"), "bibliography checks")
+    require(output.get("object") == "AStructureAttributesDict" and len(checks) == 1,
+            "bibliography disagreement did not name one structure attribute dictionary")
+    observed = object_value(checks[0], "bibliography check")
+    path = observed.get("context")
+    require(isinstance(path, str) and path.endswith(expected) and observed.get("status") == "failed",
+            "bibliography disagreement has a different object path")
+
+
 def classify_case(value: object, relative: str, expected_size: int) -> str:
     """Accept one case report, or raise with the precise failure."""
     exception = FIXTURE_EXCEPTIONS.get(relative)
     expected_failures, reason = exception if exception is not None else ({}, "")
     try:
         passed_rules, passed_checks = validate_report(value, Path(relative).name, expected_size, expected_failures)
+        if relative in BIBLIOGRAPHY_OBJECTS:
+            check_bibliography_context(value, *BIBLIOGRAPHY_OBJECTS[relative])
     except ValidationError as error:
         raise ValidationError(f"{relative}: {error}{describe_failures(value)}") from error
     if expected_failures:
@@ -386,6 +417,27 @@ def self_test() -> None:
         except ValidationError:
             continue
         raise SystemExit(f"Arlington case checker accepted a {label}")
+
+    bibliography = copy.deepcopy(failing)
+    bibl_job = bibliography["report"]["jobs"][0]
+    bibl_job["itemDetails"]["name"] = "graph-2.pdf"
+    bibl_failure = bibl_job["arlingtonResult"][0]["details"]["ruleSummaries"][0]
+    bibl_failure.update(
+        clause="StructureAttributesDict",
+        testNumber=1,
+        object="AStructureAttributesDict",
+        checks=[{"status": "failed", "context": "root/SD[0]{SD}/entry0[0](AStructElem 17 0 obj){0}"
+                "/P[0](AStructElem 16 0 obj){P}/P[0](AStructElem 13 0 obj){P}/A[0]{A}"}],
+    )
+    require(classify_case(bibliography, "tests/bibliography/graph-2.pdf", 10).startswith("recorded exception"),
+            "bibliography exception rejected its object path")
+    bibl_failure["checks"][0]["context"] = bibl_failure["checks"][0]["context"].replace("13 0 obj", "14 0 obj")
+    try:
+        classify_case(bibliography, "tests/bibliography/graph-2.pdf", 10)
+    except ValidationError:
+        pass
+    else:
+        raise SystemExit("Arlington accepted a bibliography disagreement at the wrong object path")
 
     ## Case collection is deterministic, distinct, and covers every recorded
     ## exception and the public examples.

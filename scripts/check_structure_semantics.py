@@ -80,13 +80,13 @@ PDF20_NAMESPACE = "http://iso.org/pdf2/ssn"
 PDF17_NAMESPACE = "http://iso.org/pdf/ssn"
 # These unique PDF 1.7 roles retain that namespace in mixed structure
 # trees under ISO/TS 32005 §5.5 and PDF/UA-2 §8.2.4.
-PDF17_ROLES = {"Code", "Quote", "TOC", "TOCI", "Index", "Reference"}
+PDF17_ROLES = {"Code", "Quote", "TOC", "TOCI", "Index", "Reference", "BibEntry"}
 
 INLINE = {"Lbl", "Figure", "Link", "Span", "Em", "Strong", "Code", "Quote"}
 ALL_ROLES = {
     "Document", "DocumentFragment", "Part", "Sect", "Div", "Title", "H", "Hn", "P", "L", "LI", "Lbl",
     "LBody", "Figure", "Caption", "Link", "Span", "Em", "Strong", "Code", "Quote", "Table", "THead",
-    "TBody", "TFoot", "TR", "TH", "TD", "TOC", "TOCI", "Form", "Index", "Reference", "FENote",
+    "TBody", "TFoot", "TR", "TH", "TD", "TOC", "TOCI", "Form", "Index", "Reference", "FENote", "BibEntry",
 }
 DOCUMENT_CHILDREN = {"Document", "DocumentFragment", "Part", "Sect", "Div", "Title", "H", "Hn", "P", "L", "Figure", "Link", "Code", "Table", "TOC", "Form", "FENote"}
 GROUPING_WRAPPERS = {"Part", "Div"}
@@ -102,7 +102,7 @@ MAY_CONTAIN: dict[str, set[str]] = {
     "Title": {"Part", "Div", "P", "L", "Caption", "Table"} | INLINE,
     "H": {"Sect"} | INLINE,
     "Hn": {"Sect"} | INLINE,
-    "P": {"L", "Table", "Reference"} | INLINE,
+    "P": {"L", "Table", "Reference", "BibEntry"} | INLINE,
     "L": {"L", "LI", "Caption"},
     "LI": {"Div", "Lbl", "LBody"},
     "Lbl": INLINE - {"Lbl"},
@@ -128,6 +128,7 @@ MAY_CONTAIN: dict[str, set[str]] = {
     "TOCI": {"Div", "P", "Lbl", "TOC"},
     "Index": {"P"},
     "Reference": {"Link"},
+    "BibEntry": set(),
 }
 NO_CONTENT_ITEMS = {"Document", "DocumentFragment", "Sect", "L", "LI", "Table", "THead", "TBody", "TFoot", "TR", "TOC", "TOCI"}
 AT_MOST_ONE: dict[str, set[str]] = {
@@ -968,6 +969,9 @@ def normalize_attributes(value, role: str) -> str:
                 require(role == "Table", "/Summary outside Table")
         elif owner == "FENote":
             require(role == "FENote" and dictionary == {"O": "FENote", "NoteType": "Footnote"}, "invalid footnote attribute")
+        elif owner == "ARIA-1.1":
+            require(role == "Sect" and set(dictionary) == {"O", "role"}
+                    and dictionary["role"] == "doc-bibliography", "invalid bibliography ARIA attribute")
         elif owner == "Layout":
             require(set(dictionary) == {"O", "WritingMode"}, "invalid Layout attributes")
             require(dictionary["WritingMode"] in ("LrTb", "RlTb"), "invalid /WritingMode")

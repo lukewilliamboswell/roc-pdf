@@ -275,7 +275,7 @@ Semantics :: [].{
 		SuppressedSoftHyphen,
 	]
 
-	AttributeOwner : [Artifact, FENote, Layout, List, Namespace(NamespaceId), Table]
+	AttributeOwner : [Aria11, Artifact, FENote, Layout, List, Namespace(NamespaceId), Table]
 	AttributeName : [
 		Namespaced({ local_name : Str, namespace : NamespaceId }),
 		Standard(Str),
@@ -303,6 +303,7 @@ Semantics :: [].{
 	}
 
 	Relationship : [
+		BibliographyReference({ entry : NodeId, citation : NodeId }),
 		AnnotationFor({ annotation : AnnotationId, owner : ElementId }),
 		CaptionFor({ caption : NodeId, target : NodeId }),
 		ContentsTarget({ item : NodeId, target : NodeId }),

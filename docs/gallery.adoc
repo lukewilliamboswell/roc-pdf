@@ -117,6 +117,14 @@ https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/service-intake/
 
 https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/service-intake[Run the intake form] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/service-intake/service-intake.pdf[PDF output]
 
+[#handbook-bibliography]
+== Operations handbook bibliography
+
+The bibliography mode links the recovery checklist and service-level
+policy from “After the incident” to an explicitly ordered appendix.
+
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/operations-handbook/README.md[Run the bibliography variant] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/operations-handbook/preview-bibliography.png[Appendix preview] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/operations-handbook/operations-handbook-bibliography.pdf[PDF output]
+
 == More authoring examples
 
 * https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/operations-handbook/README.md[On-call handbook] for authored and generated contents, flow-changing references, indexes and chapter templates.

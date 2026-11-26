@@ -1058,6 +1058,15 @@ checks unspaced word wrapping, SARA AM decomposition, mark positioning,
 effective language and exact logical extraction. Unknown word boundaries
 keep their Unicode prohibition.
 
+### Authored bibliography
+
+Ordered bibliography entries and authored citation links are supported in
+flow. The [operations handbook bibliography variant](examples/operations-handbook/README.md)
+uses a tagged bibliography section, exact structure destinations, and
+ordered entry backlinks. The focused fixtures cover two and twenty
+citations, WTPDF Accessibility, and atomic diagnostics. [Executable
+evidence](docs/contributors/bibliography.md)
+
 ## Gate 9: extended modern accessibility vocabulary
 
 ### Capabilities

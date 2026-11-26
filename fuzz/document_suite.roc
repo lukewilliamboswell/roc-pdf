@@ -20,6 +20,7 @@ import TableSpanProperty
 import AppearanceTransparencyModel
 import AnchoredFigureModel
 import AssociatedFilesModel
+import BibliographyModel
 import FormAmbientTransparencyModel
 import ContentScopeModel
 import ColumnFlowModel

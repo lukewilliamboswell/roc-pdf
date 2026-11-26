@@ -26,6 +26,7 @@ main! = |args| {
 		[] => Authored
 		["generated"] => Generated
 		["index"] => Indexed
+		["bibliography"] => Bibliography
 		["flow-short"] => return flow_note!("A-")
 		["flow-long"] => return flow_note!("RECOVERY-CHECKS-")
 		["footnotes"] => return write_footnotes!(False)
@@ -37,7 +38,7 @@ main! = |args| {
 	fonts = register_fonts({})?
 	options : Pdf.Options
 	options = { theme: theme(fonts), fonts: Registered(fonts.registry) }
-	body = contents(options, fonts.mono, mode != Authored).map_err(|err| PdfFailed(err))?
+	body = contents(options, fonts.mono, mode != Authored, mode == Bibliography).map_err(|err| PdfFailed(err))?
 	blocks = if mode == Indexed {
 		body.append(Pdf.page_break).append(Pdf.heading(1, "Index")).append(
 			Pdf.index({
@@ -47,6 +48,13 @@ main! = |args| {
 					{ term: "Failover", destinations: ["failover", "escalation"] },
 				],
 			}),
+		)
+	} else if mode == Bibliography {
+		body.append(Pdf.page_break).append(Pdf.heading(1, "Bibliography")).append(
+			Pdf.bibliography([
+				{ target: "service-policy", text: "Payments Reliability. Service-level policy, revision 3.2." },
+				{ target: "recovery-checklist", text: "Payments Reliability. Recovery checklist, revision 2.4." },
+			]),
 		)
 	} else {
 		body
@@ -706,8 +714,8 @@ accent_band = Pdf.decoration({
 	drawing: Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 10, width: 56, height: 6 }), color: teal }).rectangle({ bounds: Layout.rect({ x: 60, y: 10, width: 18, height: 6 }), color: rust }).rectangle({ bounds: { origin: Layout.point({ x: 0, y: 0 }), size: { height: 0.6, width: Layout.Unit.points(measure) } }, color: mist }),
 })
 
-contents : Pdf.Options, Font.FaceId, Bool -> Try(List(Document.Block), Pdf.Error)
-contents = |options, mono, generated| {
+contents : Pdf.Options, Font.FaceId, Bool, Bool -> Try(List(Document.Block), Pdf.Error)
+contents = |options, mono, generated, bibliography| {
 	cover = [
 		accent_band,
 		Pdf.title("Payments platform on-call runbook"),
@@ -894,7 +902,17 @@ contents = |options, mono, generated| {
 		]),
 		Pdf.section([
 			Pdf.destination_heading({ name: "review", level: 1, text: "6 After the incident" }),
-			Pdf.paragraph("Close the incident only when the metrics have been healthy for thirty minutes. Within two business days:"),
+			if bibliography {
+				Pdf.rich_paragraph([
+					Pdf.text("Before closing the incident, complete the "),
+					Pdf.citation({ target: "recovery-checklist", text: "Recovery checklist" }),
+					Pdf.text(" and compare the result with the "),
+					Pdf.citation({ target: "service-policy", text: "Service-level policy" }),
+					Pdf.text(". Within two business days:"),
+				])
+			} else {
+				Pdf.paragraph("Close the incident only when the metrics have been healthy for thirty minutes. Within two business days:")
+			},
 			Pdf.bullet_list([
 				Pdf.list_item([Pdf.paragraph("write the timeline from the incident channel;")]),
 				Pdf.list_item([Pdf.paragraph("hold a blameless review with everyone who was paged;")]),

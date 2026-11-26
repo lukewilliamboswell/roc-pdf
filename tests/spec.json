@@ -54,7 +54,8 @@
     "table_paint_frames",
     "contents_entries",
     "generated_contents",
-    "default_fonts"
+    "default_fonts",
+    "bibliography"
   ],
   "post_update_checks": [
     "contracts",
@@ -82,7 +83,8 @@
     "table_paint_frames",
     "contents_entries",
     "generated_contents",
-    "default_fonts"
+    "default_fonts",
+    "bibliography"
   ],
   "validation": {
     "sources": [
@@ -190,6 +192,9 @@
     },
     {
       "name": "generated_contents"
+    },
+    {
+      "name": "bibliography"
     }
   ],
   "families": [
@@ -436,6 +441,10 @@
     {
       "name": "generated_contents",
       "group": "generated_contents"
+    },
+    {
+      "name": "bibliography",
+      "group": "bibliography"
     }
   ],
   "cases": [
@@ -37499,6 +37508,206 @@
         "pdfua2",
         "structure_semantics",
         "authored_index"
+      ]
+    },
+    {
+      "name": "Bibliography graph x2",
+      "scenario_revision": "bibliography-v1",
+      "family": "bibliography",
+      "snapshot": "tests/bibliography/graph-2.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "bibliography_citations": 2
+      },
+      "work_counters": [
+        "pages",
+        "authored_blocks",
+        "authored_citations",
+        "structure_reference_edges",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 2459,
+          "allocated_bytes": 7056890,
+          "work": {
+            "pages": 2,
+            "authored_blocks": 6,
+            "authored_citations": 2,
+            "structure_reference_edges": 4,
+            "output_bytes": 19086
+          }
+        },
+        "x64musl": {
+          "allocations": 2459,
+          "allocated_bytes": 7056890,
+          "work": {
+            "pages": 2,
+            "authored_blocks": 6,
+            "authored_citations": 2,
+            "structure_reference_edges": 4,
+            "output_bytes": 19086
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "bibliography"
+      ]
+    },
+    {
+      "name": "Bibliography graph x20",
+      "scenario_revision": "bibliography-v1",
+      "family": "bibliography",
+      "snapshot": "tests/bibliography/graph-20.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "bibliography_citations": 20
+      },
+      "work_counters": [
+        "pages",
+        "authored_blocks",
+        "authored_citations",
+        "structure_reference_edges",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 3919,
+          "allocated_bytes": 9713266,
+          "work": {
+            "pages": 2,
+            "authored_blocks": 24,
+            "authored_citations": 20,
+            "structure_reference_edges": 40,
+            "output_bytes": 20757
+          }
+        },
+        "x64musl": {
+          "allocations": 3919,
+          "allocated_bytes": 9713266,
+          "work": {
+            "pages": 2,
+            "authored_blocks": 24,
+            "authored_citations": 20,
+            "structure_reference_edges": 40,
+            "output_bytes": 20757
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "bibliography"
+      ]
+    },
+    {
+      "name": "Bibliography graph WTPDF",
+      "scenario_revision": "bibliography-v1",
+      "family": "bibliography",
+      "snapshot": "tests/bibliography/graph-wtpdf.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "bibliography_citations": 2
+      },
+      "work_counters": [
+        "pages",
+        "authored_blocks",
+        "authored_citations",
+        "structure_reference_edges",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 2461,
+          "allocated_bytes": 7060484,
+          "work": {
+            "pages": 2,
+            "authored_blocks": 6,
+            "authored_citations": 2,
+            "structure_reference_edges": 4,
+            "output_bytes": 19354
+          }
+        },
+        "x64musl": {
+          "allocations": 2461,
+          "allocated_bytes": 7060484,
+          "work": {
+            "pages": 2,
+            "authored_blocks": 6,
+            "authored_citations": 2,
+            "structure_reference_edges": 4,
+            "output_bytes": 19354
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "bibliography",
+        "wtpdf_accessibility"
+      ]
+    },
+    {
+      "name": "Bibliography atomic diagnostics",
+      "scenario_revision": "bibliography-v1",
+      "family": "bibliography",
+      "snapshot": "tests/bibliography/graph-2.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "bibliography_citations": 2
+      },
+      "work_counters": [
+        "pages",
+        "authored_blocks",
+        "authored_citations",
+        "structure_reference_edges",
+        "output_bytes",
+        "rejected_deliveries"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 3708,
+          "allocated_bytes": 7302978,
+          "work": {
+            "pages": 2,
+            "authored_blocks": 6,
+            "authored_citations": 2,
+            "structure_reference_edges": 4,
+            "output_bytes": 19086,
+            "rejected_deliveries": 16
+          }
+        },
+        "x64musl": {
+          "allocations": 3708,
+          "allocated_bytes": 7302978,
+          "work": {
+            "pages": 2,
+            "authored_blocks": 6,
+            "authored_citations": 2,
+            "structure_reference_edges": 4,
+            "output_bytes": 19086,
+            "rejected_deliveries": 16
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "bibliography"
       ]
     }
   ]

@@ -753,6 +753,17 @@ Pdf :: [].{
 	generated_contents = |props| Document.generated_contents(props)
 
 	## Sort authored terms and link each location to its named destination.
+	BibliographyEntry : Document.BibliographyEntry
+
+	## An ordered section of authored entries. Each target is a document-wide
+	## destination name and can be cited before or after this section.
+	bibliography : List(BibliographyEntry) -> Document.Block
+	bibliography = |entries| Document.bibliography(entries)
+
+	## Inline citation text linked to its authored bibliography entry.
+	citation : { target : Str, text : Str } -> Inline
+	citation = |entry| Document.citation(entry)
+
 	IndexProps : Document.IndexProps
 	index : IndexProps -> Document.Block
 	index = |props| Document.index(props)
@@ -1976,6 +1987,9 @@ pipeline_error_at = |error, doc, paths| match error {
 	Fragments(Navigation(navigation)) => InvalidNavigation(navigation)
 	Output(Structure(Navigation(navigation))) => InvalidNavigation(navigation)
 	Semantics(ContainerDepthExceeded({ attempted, group, limit })) => InvalidDocument(container_batch(BudgetExceeded, "semantics.container_depth", "A container is nested ${attempted.to_str()} levels deep; the facade accepts at most ${limit.to_str()} nested part, section, and division levels.", group_path(Document.normalize(doc).groups, group)))
+	Semantics(BibliographyEmpty({ group })) => InvalidDocument(container_batch(InvalidRelationship, "bibliography.empty", "A bibliography needs at least one entry.", group_path(Document.normalize(doc).groups, group)))
+	Semantics(BibliographyEntry({ block, reason })) => located_error(doc, InvalidRelationship, "bibliography.entry", reason, [bibliography_entry_path(Document.normalize(doc), block)])
+	Semantics(BibliographyCitation({ block, inline, reason })) => inline_error_at(doc, paths, block, AtInline(inline), InvalidRelationship, "bibliography.citation", reason)
 	Semantics(EmptyContainer({ group })) => InvalidDocument(container_batch(InvalidRelationship, "semantics.empty_container", "A part, section, or division contains no semantic block; it would become an empty grouping element.", group_path(Document.normalize(doc).groups, group)))
 	Semantics(HeadingSkip({ block, previous })) => located_error(doc, InvalidRelationship, "semantics.heading_skip", "A heading is more than one level deeper than the heading before it; heading levels must not skip a level.", [diagnostic_leaf_path(doc, paths, previous), diagnostic_leaf_path(doc, paths, block)])
 	Semantics(FigureAlternativeEmpty({ block })) => located_error(doc, InvalidRelationship, "document.figure_alternative_empty", "A figure's alternative text is empty; every figure needs alternative text that conveys what it communicates.", [diagnostic_leaf_path(doc, paths, block)])
@@ -2294,6 +2308,13 @@ scalar_hex = |scalar| {
 
 ## Reference failures retain the authored inline identity. Generic layout,
 ## shape and navigation failures already unwrap to their established mapper.
+bibliography_entry_path : Document.NormalizedAuthoring, U64 -> Str
+bibliography_entry_path = |authoring, block| {
+	leaf = authoring.blocks.get(block) ?? crash "validated bibliography entry block escaped"
+	entry = group_record(authoring.groups, leaf.parent)
+	"${group_path(authoring.groups, entry.parent - 1)}.entries[${entry.position.to_str()}]"
+}
+
 reference_error : Document, KernelFacadeReferences.Error -> Pdf.Error
 reference_error = |doc, error| match error {
 	UnknownDestination({ reference }) => reference_diagnostic(doc, reference, InvalidRelationship, "navigation.reference_destination", "The page reference names no declared destination.")
@@ -3052,6 +3073,7 @@ child_path = |groups, parent, position| {
 	} else {
 		record = group_record(groups, parent)
 		match record.kind {
+			Container(BibliographyItem) => return "${chain_path(groups, record.parent)}.entries[${record.position.to_str()}]"
 			ContentsItem => {
 				list = group_record(groups, record.parent)
 				match list.kind {
@@ -5015,7 +5037,7 @@ build_report_at = |normalized, collected, budget, profile, path_source, attachme
 					while $inline < rich.inlines + rich.length {
 						match normalized.inlines.get($inline) {
 							Ok(inline) => match inline.kind {
-								Link(_) | InternalLink(_) => {
+								Link(_) | InternalLink(_) | Citation(_) => {
 									$obligations = $obligations.append({ obligation: LinkPurposeMeaningful, path: inline_path_from(normalized, $index, AtInline($inline), inline_root) })
 								}
 								InLanguage(tag) => {
@@ -5177,7 +5199,7 @@ count_inline_entries = |normalized| {
 	var $expansions = 0
 	for inline in normalized.inlines {
 		match inline.kind {
-			Link(_) | InternalLink(_) => {
+			Link(_) | InternalLink(_) | Citation(_) => {
 				$links = $links + 1
 			}
 			InLanguage(_) => {
@@ -5222,6 +5244,10 @@ leaf_role = |normalized, record| {
 	match record.kind {
 		Bullet(_) => "LI"
 		DestinationHeading({ level, name: _ }) => "H${level.to_str()}"
+		DestinationParagraph(_) if record.parent > 0 => match normalized.groups.get(record.parent - 1) {
+			Ok({ kind: Container(BibliographyItem), .. }) => "BibEntry"
+			_ => "P"
+		}
 		DestinationParagraph(_) => "P"
 		EmptyCell => "TD"
 		Figure(_) => "Figure"

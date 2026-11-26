@@ -43,6 +43,9 @@ KernelFacadeSemantics :: [].{
 
 		## A custom block's name is empty.
 		CustomName({ custom : U64 }),
+		BibliographyEmpty({ group : U64 }),
+		BibliographyEntry({ block : U64, reason : Str }),
+		BibliographyCitation({ block : U64, inline : U64, reason : Str }),
 		EmptyContainer({ group : U64 }),
 
 		## A decoration's drawing is not a supported flow drawing.
@@ -861,6 +864,13 @@ plan_blocks = |authoring, limits| {
 					attempted_content = checked_add($content_count, 1)?
 					check_at(attempted_nodes, limits.max_nodes, Nodes, $block_index)?
 					check_at(attempted_content, limits.max_content_spine, ContentSpine, $block_index)?
+					if is_bibliography(group.kind) {
+						if group.first_block == group.block_end {
+							return Err(BibliographyEmpty({ group: $next_group }))
+						}
+						$attribute_count = checked_add($attribute_count, 1)?
+						check_at($attribute_count + $relationship_count, KernelSemantics.Limits.attribute_limit(limits.semantics), Attributes, group.first_block)?
+					}
 					$group_nodes = $group_nodes.append($next_node)
 					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, group.parent) })
 					$next_node = attempted_nodes
@@ -2239,7 +2249,7 @@ check_rich = |inlines, rich, block, max_depth| {
 					return Err(InlineDepthExceeded({ attempted: record.depth, block, inline: $index, limit: max_depth }))
 				}
 				linked = match kind {
-					Link(_) | InternalLink(_) => True
+					Link(_) | InternalLink(_) | Citation(_) => True
 					_ => False
 				}
 				if record.leaf_end == record.first_leaf {
@@ -2252,6 +2262,10 @@ check_rich = |inlines, rich, block, max_depth| {
 					$links = $links + 1
 				}
 				match kind {
+					Citation(_) => match list_at(inlines, $index + 1).kind {
+						Text({ text, .. }) if text.trim().is_empty() => return Err(BibliographyCitation({ block, inline: $index, reason: "A citation needs visible text." }))
+						_ => {}
+					}
 					InLanguage(tag) => if !KernelSemantics.language_tag_valid(tag) {
 						return Err(InvalidInlineLanguage({ block, inline: $index }))
 					}
@@ -2283,7 +2297,7 @@ inside_link = |inlines, parent| {
 	while $cursor != 0 and !$found {
 		record = list_at(inlines, $cursor - 1)
 		$found = match record.kind {
-			Link(_) | InternalLink(_) => True
+			Link(_) | InternalLink(_) | Citation(_) => True
 			_ => False
 		}
 		$cursor = record.parent
@@ -2302,7 +2316,7 @@ append_rich_links = |links, inlines, rich, paragraph_node, first_occurrence| {
 		record = list_at(inlines, $index)
 		target = match record.kind {
 			Link(uri) => Linked(Uri(uri))
-			InternalLink(destination) => Linked(InternalDestination(destination))
+			InternalLink(destination) | Citation(destination) => Linked(InternalDestination(destination))
 			_ => NotLinked
 		}
 		match target {
@@ -2398,7 +2412,14 @@ build_components = |authoring, planning, source_plan| {
 					if children == 0 {
 						return Err(EmptyContainer({ group: $group }))
 					}
-					$nodes = list_set($nodes, node_index, make_node(node_index, ParentNode(parent_node(group.parent, planning.group_nodes)), container_role(kind), span, Inherited))
+					node = make_node(node_index, ParentNode(parent_node(group.parent, planning.group_nodes)), container_role(kind), span, Inherited)
+					var $resolved = node
+					if kind == Bibliography {
+						attribute = $attributes.len()
+						$attributes = $attributes.append({ applicability: AllRoles, name: Standard("role"), owner: Aria11, value: Name("doc-bibliography") })
+						$resolved = { ..node, attributes: Semantics.IndexRange.from_start_and_length({ start: attribute, length: 1 }) }
+					}
+					$nodes = list_set($nodes, node_index, $resolved)
 				}
 
 				ContentsItem | ContentsList | GeneratedContentsList | IndexList => {
@@ -2587,6 +2608,10 @@ build_components = |authoring, planning, source_plan| {
 							Container(FormContainer) => "Lbl"
 							_ => "P"
 						}
+						DestinationParagraph(_) if block.parent > 0 => match list_at(groups, block.parent - 1).kind {
+							Container(BibliographyItem) => "BibEntry"
+							_ => "P"
+						}
 						Paragraph | DestinationParagraph(_) => "P"
 						Title => "Title"
 						_ => ""
@@ -2767,6 +2792,7 @@ build_components = |authoring, planning, source_plan| {
 		$relationships = $relationships.append(FootnoteReference({ note: list_at(planning.note_nodes, target), citation: list_at(planning.citation_nodes, $citation) }))
 		$citation = $citation + 1
 	}
+	relationships = bibliography_links(authoring, $ownership, planning, $nodes, $relationships)?
 	components = {
 		attributes: $attributes,
 		content_spine: $content,
@@ -2774,7 +2800,7 @@ build_components = |authoring, planning, source_plan| {
 		namespaces: if ($nodes.any(|node| node.role.namespace.index() == 1)) standard_namespaces_with_pdf17 else standard_namespaces,
 		nodes: $nodes,
 		literals: $occurrences,
-		relationships: $relationships,
+		relationships,
 		text_properties: $properties,
 	}
 	Ok({ block_ownership: $ownership, components })
@@ -2783,6 +2809,144 @@ build_components = |authoring, planning, source_plan| {
 is_footnote_block : List(Document.NormalizedFootnote), U64 -> Bool
 is_footnote_block = |notes, block| {
 	!notes.is_empty() and block >= list_at(notes, 0).block and block - list_at(notes, 0).block < notes.len()
+}
+
+is_bibliography : Document.NormalizedGroupKind -> Bool
+is_bibliography = |kind| match kind {
+	Container(Bibliography) => True
+	_ => False
+}
+
+BibliographyTarget : { block : U64, bytes : List(U8), node : Semantics.NodeId }
+
+## Resolve the explicitly marked citation links from their logical owner
+## and exact normalized occurrence. All lookups are on authored identities.
+bibliography_links : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Planning, List(Semantics.Node), List(Semantics.Relationship) -> Try(List(Semantics.Relationship), KernelFacadeSemantics.Error)
+bibliography_links = |authoring, ownership, planning, nodes, relationships| {
+	if !authoring.groups.any(|group| is_bibliography(group.kind)) and !authoring.inlines.any(
+		|inline| match inline.kind {
+			Citation(_) => True
+			_ => False
+		},
+	) {
+		return Ok(relationships)
+	}
+	var $entry_ids = []
+	var $block = 0
+	var $destination = 0
+	for item in ownership {
+		match item {
+			TextBlock({ body, .. }) => {
+				while $destination < planning.destinations.len() and list_at(planning.destinations, $destination).anchor.index() < body.index() {
+					$destination = $destination + 1
+				}
+				match planning.destinations.get($destination) {
+					Ok(record) if record.anchor == body and list_at(nodes, record.target.index()).role.local_name == "BibEntry" => {
+						bytes = record.name.to_utf8()
+						if bytes.is_empty() or bytes.len() > 64 or !bytes.all(|byte| byte >= 0x21 and byte <= 0x7e) {
+							return Err(BibliographyEntry({ block: $block, reason: "An entry target must contain one to 64 printable ASCII bytes without spaces." }))
+						}
+						if list_at(authoring.blocks, $block).text.trim().is_empty() {
+							return Err(BibliographyEntry({ block: $block, reason: "A bibliography entry needs visible text." }))
+						}
+						$entry_ids = $entry_ids.append({ block: $block, bytes, node: record.target })
+					}
+					_ => {}
+				}
+			}
+			_ => {}
+		}
+		$block = $block + 1
+	}
+	entry_ids = $entry_ids.sort_with(
+		|left, right| match compare_bibliography_names(left.bytes, right.bytes) {
+			Same => if (left.block < right.block) Before else if (left.block > right.block) After else Same
+			order => order
+		},
+	)
+	var $entry = 1
+	while $entry < entry_ids.len() {
+		current = list_at(entry_ids, $entry)
+		if list_at(entry_ids, $entry - 1).bytes == current.bytes {
+			return Err(BibliographyEntry({ block: current.block, reason: "An earlier bibliography entry already uses this target." }))
+		}
+		$entry = $entry + 1
+	}
+	for destination in planning.destinations {
+		if list_at(nodes, destination.target.index()).role.local_name != "BibEntry" and destination.name.count_utf8_bytes() <= 64 {
+			match bibliography_target(entry_ids, destination.name.to_utf8()) {
+				Ok(entry) => return Err(BibliographyEntry({ block: entry.block, reason: "The bibliography target is already a document destination." }))
+				Err(Missing) => {}
+			}
+		}
+	}
+	var $edges = relationships
+	var $link = 0
+	$block = 0
+	for item in ownership {
+		match (item, list_at(authoring.blocks, $block).kind) {
+			(RichTextBlock({ occurrences, .. }), RichParagraph(paragraph)) => {
+				rich = list_at(authoring.rich_paragraphs, paragraph)
+				var $inline = rich.inlines
+				while $inline < rich.inlines + rich.length {
+					record = list_at(authoring.inlines, $inline)
+					match record.kind {
+						Citation(name) => {
+							first = occurrences.start() + record.first_leaf
+							target = bibliography_target(entry_ids, name.to_utf8()) ? |_| BibliographyCitation({ block: $block, inline: $inline, reason: "The citation must name a declared bibliography entry." })
+							while $link < planning.links.len() and list_at(planning.links, $link).occurrences.start() < first {
+								$link = $link + 1
+							}
+							link = planning.links.get($link) ? |_| BibliographyCitation({ block: $block, inline: $inline, reason: "The citation has no owned link." })
+							if link.occurrences.start() != first {
+								return Err(BibliographyCitation({ block: $block, inline: $inline, reason: "The citation has no owned link." }))
+							}
+							$edges = $edges.append(BibliographyReference({ entry: target.node, citation: link.node }))
+						}
+						_ => {}
+					}
+					$inline = $inline + 1
+				}
+			}
+			_ => {}
+		}
+		$block = $block + 1
+	}
+	Ok($edges)
+}
+
+bibliography_target : List(BibliographyTarget), List(U8) -> Try(BibliographyTarget, [Missing])
+bibliography_target = |entry_ids, name| {
+	var $low = 0
+	var $high = entry_ids.len()
+	while $low < $high {
+		middle = $low + ($high - $low) // 2
+		entry = list_at(entry_ids, middle)
+		match compare_bibliography_names(entry.bytes, name) {
+			Before => {
+				$low = middle + 1
+			}
+			After => {
+				$high = middle
+			}
+			Same => return Ok(entry)
+		}
+	}
+	Err(Missing)
+}
+
+compare_bibliography_names : List(U8), List(U8) -> [Before, Same, After]
+compare_bibliography_names = |left, right| {
+	var $index = 0
+	while $index < U64.min(left.len(), right.len()) {
+		a = list_at(left, $index)
+		b = list_at(right, $index)
+		if a != b {
+			return if (a < b) Before else After
+		}
+		$index = $index + 1
+	}
+	if (left.len() < right.len()) Before else if (left.len() > right.len()) After else Same
 }
 
 ## Pending values cannot be represented as a Semantics.Store: this private
@@ -3254,7 +3418,7 @@ inline_role = |kind| match kind {
 	Code => "Code"
 	Emphasis => "Em"
 	Expansion(_) | InLanguage(_) => "Span"
-	InternalLink(_) | Link(_) => "Link"
+	InternalLink(_) | Link(_) | Citation(_) => "Link"
 	Quote => "Quote"
 	IndexReference => "Reference"
 	Strong => "Strong"
@@ -3290,7 +3454,8 @@ container_role = |kind| match kind {
 	Division => "Div"
 	FormContainer => "Form"
 	Part => "Part"
-	Section => "Sect"
+	Section | Bibliography => "Sect"
+	BibliographyItem => "P"
 }
 
 parent_node : U64, List(U64) -> Semantics.NodeId
@@ -3333,7 +3498,7 @@ standard_namespaces_with_pdf17 = [
 ## These roles retain their PDF 1.7 standard namespace in PDF 2.0.
 ## Every other facade role is in the PDF 2.0 namespace.
 role_namespace : Str -> Semantics.NamespaceId
-role_namespace = |role| if (role == "Code" or role == "Quote" or role == "TOC" or role == "TOCI" or role == "Index" or role == "Reference") Semantics.NamespaceId.from_index(1) else Semantics.NamespaceId.from_index(0)
+role_namespace = |role| if (role == "Code" or role == "Quote" or role == "TOC" or role == "TOCI" or role == "Index" or role == "Reference" or role == "BibEntry") Semantics.NamespaceId.from_index(1) else Semantics.NamespaceId.from_index(0)
 
 make_node : U64, Semantics.NodeParent, Str, Semantics.IndexRange, Semantics.Language -> Semantics.Node
 make_node = |index, parent, role, content, language| {

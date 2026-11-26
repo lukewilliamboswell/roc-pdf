@@ -1,0 +1,4 @@
+{"name":"Bibliography graph x2","schema_version":1,"case":{"Graph":{"count":2,"wtpdf":false}}}
+{"name":"Bibliography graph x20","schema_version":1,"case":{"Graph":{"count":20,"wtpdf":false}}}
+{"name":"Bibliography graph WTPDF","schema_version":1,"case":{"Graph":{"count":2,"wtpdf":true}}}
+{"name":"Bibliography atomic diagnostics","schema_version":1,"case":"Atomic"}

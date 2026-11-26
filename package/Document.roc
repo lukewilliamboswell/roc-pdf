@@ -247,6 +247,7 @@ Keep : [Preferred, Required]
 ## semantic role it becomes; presentation is Theme policy. Nesting is data,
 ## normalized with an explicit frame stack rather than recursion.
 DocumentInline :: [
+	Citation({ target : Str, text : Str }),
 	Code(Str),
 	Emphasis(List(DocumentInline)),
 	Expansion({ expanded : Str, text : Str }),
@@ -326,6 +327,8 @@ GeneratedContentsProps := {
 	page_width : Layout.Unit ?? 36,
 	scope : GeneratedContentsScope ?? WholeDocument,
 }
+
+BibliographyEntry : { target : Str, text : Str }
 
 IndexEntry : { term : Str, destinations : List(Str) }
 
@@ -495,7 +498,7 @@ ValidatedDrawing : [InvalidDrawing(Str), ValidDrawing(FlowDrawing)]
 ## The PDF 2.0 grouping element a container block becomes: `Part`, `Sect`,
 ## or `Div`. Grouping has no visual effect; children keep their own roles,
 ## so headings inside a section remain explicit `H1`..`H6`.
-ContainerKind : [Division, FormContainer, Part, Section]
+ContainerKind : [Bibliography, BibliographyItem, Division, FormContainer, Part, Section]
 
 ## Explicit widths for sequential flow across two columns.
 ColumnFlow := {
@@ -1106,6 +1109,7 @@ NormalizedGroupKind := [FigureAnchor, Source(U64), Container(ContainerKind), Con
 ## content. It holds no text and no children; semantic planning rejects it,
 ## because page fields are page furniture only.
 NormalizedInlineKind := [
+	Citation(Str),
 	Code,
 	IndexReference,
 	Emphasis,
@@ -1882,6 +1886,22 @@ Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : D
 
 	generated_contents : GeneratedContentsProps -> DocumentBlock
 	generated_contents = |props| DocumentBlock.GeneratedContents(Box.box(props))
+
+	BibliographyEntry : BibliographyEntry
+
+	bibliography : List(BibliographyEntry) -> DocumentBlock
+	bibliography = |entries| DocumentBlock.Container({
+		kind: Bibliography,
+		contents: entries.map(
+			|entry| DocumentBlock.Container({
+				kind: BibliographyItem,
+				contents: [DocumentBlock.DestinationParagraph({ name: entry.target, text: entry.text })],
+			}),
+		),
+	})
+
+	citation : { target : Str, text : Str } -> DocumentInline
+	citation = |entry| DocumentInline.Citation(entry)
 
 	index : IndexProps -> DocumentBlock
 	index = |props| DocumentBlock.Index(Box.box(props))
@@ -3781,6 +3801,12 @@ append_rich = |state, contents, parent, position| {
 					$inlines = $inlines.append(inline_element(top, slot, Link(uri), nested.len(), $elements, $leaves))
 					$frames = $frames.append({ breaks: 0, depth: top.depth + 1, items: nested, language: top.language, next: 0, owner: index + 1 })
 					$elements = $elements + 1
+				}
+				Citation({ target, text }) => {
+					nested = [DocumentInline.Text(text)]
+					$inlines = $inlines.append(inline_element(top, slot, Citation(target), 1, $elements, $leaves))
+					$elements = $elements + 1
+					$frames = $frames.append({ breaks: 0, depth: top.depth + 1, items: nested, language: top.language, next: 0, owner: index + 1 })
 				}
 				InternalLink({ contents: nested, destination }) => {
 					$inlines = $inlines.append(inline_element(top, slot, InternalLink(destination), nested.len(), $elements, $leaves))

@@ -1175,6 +1175,17 @@ only presentation. The reference resolver carries the destination's
 semantic node identity alongside the visible resolved page label, so the
 structure reference and both link actions identify the same authored target.
 
+An authored bibliography assigns a stable destination to each entry and
+records citation identities through normalized inline ownership. Graph
+resolution validates the citation's exact entry before shaping. Each
+relationship supplies the forward structure reference and a reciprocal
+entry backlink. Entry backlinks follow authored citation order. The
+interactive citation uses the same entry's committed layout destination.
+A PDF 2.0 Sect owns the ARIA 1.1 `doc-bibliography` role. Each ordered P
+child encloses one PDF 1.7 BibEntry. See ISO 32000-2 §14.7.2 Table 355
+and WTPDF 1.0 §§8.2.5.31 and 8.2.6.4.
+
+
 An authored index sorts exact term bytes before normalization. It keeps each
 term's authored index and destination order. One PDF 1.7 `Index` owns term
 paragraphs. Each location has a PDF 1.7 `Reference` owning its link.

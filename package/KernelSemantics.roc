@@ -1084,6 +1084,7 @@ check_attribute = |attribute, role| {
 			}
 		}
 		# ISO 32000-2 §14.8.5.4, Layout attributes.
+		Aria11 => if (role == 3 and name == "role" and attribute.applicability == AllRoles and attribute.value == Name("doc-bibliography")) AttributeBit(256) else InvalidAttributeCheck
 		Layout => if name != "WritingMode" or attribute.applicability != AllRoles {
 			InvalidAttributeCheck
 		} else {
@@ -1155,8 +1156,12 @@ validate_relationships = |store| {
 	var $last_contents_item = 0
 	var $last_index_item = 0
 	var $last_citation = 0
+	var $last_bibliography_citation = 0
 	while $index < store.relationships.len() {
 		valid = match list_at(store.relationships, $index) {
+			BibliographyReference({ entry, citation }) =>
+				citation.index() > $last_bibliography_citation and entry.index() < store.nodes.len() and citation.index() < store.nodes.len() and
+					list_at(store.nodes, entry.index()).role.local_name == "BibEntry" and list_at(store.nodes, citation.index()).role.local_name == "Link"
 			HeaderFor({ cell, header }) => header_relation_valid(store, $owners, cell.index(), header.index())
 			CaptionFor({ caption, target }) => caption_relation_valid(store, caption.index(), target.index())
 			LabelFor({ label, target }) => label_relation_valid(store, label.index(), target.index())
@@ -1177,6 +1182,9 @@ validate_relationships = |store| {
 			}
 			IndexTarget({ item, target: _ }) => {
 				$last_index_item = item.index()
+			}
+			BibliographyReference({ citation, .. }) => {
+				$last_bibliography_citation = citation.index()
 			}
 			_ => {}
 		}
@@ -1414,6 +1422,8 @@ role_index = |name| {
 		role_toci
 	} else if name == "Index" {
 		role_index_group
+	} else if name == "BibEntry" {
+		role_bibentry
 	} else if name == "Reference" {
 		role_reference
 	} else if name == "DocumentFragment" {
@@ -1449,10 +1459,13 @@ role_index_group = 31
 role_reference : U64
 role_reference = 32
 
+role_bibentry : U64
+role_bibentry = 34
+
 ## The namespace index that owns a role: Code, Quote, TOC and TOCI are PDF 1.7
 ## standard types (namespace 1); every other accepted role is PDF 2.0.
 role_namespace : U64 -> U64
-role_namespace = |role| if (role == role_code or role == role_quote or role == role_toc or role == role_toci or role == role_index_group or role == role_reference) 1 else 0
+role_namespace = |role| if (role == role_code or role == role_quote or role == role_toc or role == role_toci or role == role_index_group or role == role_reference or role == role_bibentry) 1 else 0
 
 role_h : U64
 role_h = 6
@@ -1566,7 +1579,7 @@ containment_row = |parent| match parent {
 	7 => 2074632
 
 	## P: L, Lbl, Figure, Link, Span, Em, Strong, Code, Quote, Table
-	8 => (4172288.U64).bitwise_or(role_bit(role_reference))
+	8 => (4172288.U64).bitwise_or(role_bit(role_reference)).bitwise_or(role_bit(role_bibentry))
 
 	## L: L, LI, Caption
 	9 => 17920

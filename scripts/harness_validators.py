@@ -19,6 +19,7 @@ from check_generated_handbook import validate_flow_fixture, validate_generated_f
 from check_arabic_invoice import check as check_arabic_invoice
 from check_hindi_statement import check as check_hindi_statement
 from check_thai_notice import check as check_thai_notice, check_scale as check_thai_scale
+from check_bibliography import check as check_bibliography
 from check_bilingual_invoice import check as check_bilingual_invoice
 from check_inter_latin import validate_inter_latin_pdf
 from check_columns import validate_columns_pdf
@@ -177,6 +178,7 @@ VALIDATORS: dict[str, Validator] = {
     "hindi_statement": _dimensioned(lambda pdf, _: check_hindi_statement(pdf), "logical text, glyph positions and language scopes"),
     "thai_notice": _dimensioned(lambda pdf, _: check_thai_notice(pdf), "logical text, glyph positions and language scopes"),
     "thai_dictionary_scale": _dimensioned(check_thai_scale, "logical Thai dictionary word and ordered line positions at scale"),
+    "bibliography": _dimensioned(check_bibliography, "authored bibliography order, namespaces, citation actions and reciprocal references"),
     "bilingual_invoice": _dimensioned(lambda pdf, _: check_bilingual_invoice(pdf), "bilingual invoice logical text, writing modes, paint positions and language scopes"),
     "inter_latin": _dimensioned(validate_inter_latin_pdf, "exact kerned positions, ligature and literal mapping, wrap ownership and scope color"),
     "columns": _dimensioned(validate_columns_pdf, "authored source and semantic ownership across unequal-width columns and pages"),
@@ -280,6 +282,7 @@ PREFLIGHT_CHECKS["generated_contents"] = PreflightCheck("check_generated_handboo
 PREFLIGHT_CHECKS["contents_entries"] = PreflightCheck("check_contents_entries.py", True)
 PREFLIGHT_CHECKS["destination_references"] = PreflightCheck("check_destination_references.py", True)
 PREFLIGHT_CHECKS["source_blocks"] = PreflightCheck("check_source_blocks.py", True)
+PREFLIGHT_CHECKS["bibliography"] = PreflightCheck("check_bibliography.py", True)
 PREFLIGHT_CHECKS["bilingual_invoice"] = PreflightCheck("check_bilingual_invoice.py", True)
 PREFLIGHT_CHECKS["inter_latin"] = PreflightCheck("check_inter_latin.py", True)
 PREFLIGHT_CHECKS["columns"] = PreflightCheck("check_columns.py", True)

@@ -98,6 +98,15 @@ at the end of an ordinary single-column document. The note stays on its
 first citation's page. Later citations link to the same note. See the
 [footnote authoring guide](authoring.adoc#authoring-footnotes).
 
+## Bibliography and anchored figures
+
+Link authored citations to an explicitly ordered bibliography with return
+links to the citing passages. See the [bibliography guide](authoring.adoc#authoring-bibliography).
+
+Keep a paragraph with its captioned figure when composing a page.
+The [anchored figure guide](authoring.adoc#authoring-anchored-figures)
+explains placement and fit diagnostics.
+
 ## Compiler
 
 This development branch uses Roc `nightly-2026-11-25-d5a4f1e`.

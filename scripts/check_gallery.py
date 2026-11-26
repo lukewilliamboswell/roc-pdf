@@ -96,6 +96,7 @@ CASES = {
     "operations-handbook": (
         Case(("generated",), "operations-handbook-generated.pdf"),
         Case(("index",), "operations-handbook-index.pdf"),
+        Case(("bibliography",), "operations-handbook-bibliography.pdf"),
         Case(("flow-short",), "operations-handbook-flow-short.pdf", facts=("A-1 on physical page 1",)),
         Case(("flow-long",), "operations-handbook-flow-long.pdf", facts=("RECOVERY-CHECKS-2 on physical page 2",)),
         Case(("footnotes",), "operations-handbook-footnotes.pdf"),
@@ -294,8 +295,10 @@ def main() -> None:
                 print(f"PASS {name}/main.roc -> {pdf_name} ({len(generated)} bytes)", flush=True)
                 check_cases(name, source, example, output)
                 if name == "operations-handbook":
+                    from check_bibliography import check as check_bibliography
                     check_generated_handbook(example)
                     validate_topology((example / "operations-handbook-topology.pdf").read_bytes())
+                    check_bibliography((example / "operations-handbook-bibliography.pdf").read_bytes(), {"bibliography_citations": 2})
                 check_features(name, example)
                 if name == "designed-brief":
                     validate_designed_brief_pdf(generated, {"pages": 1})

@@ -792,6 +792,33 @@ whole document. `prepare_with_report` adds a `PageScopeApplied` outcome for
 each accepted scoped page, with its authored path, label, and
 `Opening | Continuation` placement.
 
+[#authoring-bibliography]
+== Cite bibliography entries
+
+Add inline citation text with `Pdf.citation({ target, text })`. Supply the
+entries once with `Pdf.bibliography`, in the order readers should encounter
+them. Targets are document-wide and support one to 64 printable ASCII bytes
+without spaces. Use meaningful visible citation and entry text.
+
+[source,roc]
+----
+Pdf.rich_paragraph([
+    Pdf.text("Review the "),
+    Pdf.citation({ target: "checklist", text: "Recovery checklist" }),
+    Pdf.text(" before closing the incident."),
+])
+
+Pdf.bibliography([
+    { target: "checklist", text: "Payments Reliability. Recovery checklist, revision 2.4." },
+])
+----
+
+A citation links to the entry and shares its destination's page and
+structure coordinates. Each entry exposes every citation as a tagged
+backlink in logical order. Missing or duplicate targets give a
+diagnostic at the authored citation or entry. The xref:gallery.adoc#handbook-bibliography[operations handbook]
+has a runnable bibliography appendix.
+
 [#authoring-preformatted-source-blocks]
 == Preformatted source blocks
 

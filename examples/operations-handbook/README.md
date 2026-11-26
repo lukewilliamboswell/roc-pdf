@@ -81,3 +81,13 @@ to the same note. The note's return link goes to its first citation.
 
 [PDF output](operations-handbook-footnotes.pdf) ·
 [Preview of the citation page](footnotes-preview.png)
+
+## Bibliography appendix
+
+Run `roc run main.roc bibliography` to write `operations-handbook.pdf`
+with the explicitly ordered bibliography. “After the incident” links
+to the recovery checklist and service-level policy. The appendix lists
+the service-level policy first. Each entry also carries a tagged
+backlink to its citation.
+
+[Bibliography PDF](operations-handbook-bibliography.pdf) · [Appendix preview](preview-bibliography.png)
