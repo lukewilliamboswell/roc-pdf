@@ -21,6 +21,8 @@ below the legal height. Solve verifies the checked body-plus-note fit
 inequality. The public handbook fixture exercises forced page breaks and
 confirms both buffered and chunked output reject absent, repeated, misplaced,
 oversized, uncited and malformed declarations atomically.
+The dedicated LLVM fuzz suite retains six named inputs, including a
+repeated citation after a break and rejection when its whole note cannot fit.
 
 All four PDF snapshots pass Arlington 1.30.2 and veraPDF 1.30.2 explicit
 `4` and `ua2`. The declared WTPDF PDF also passes `wt1a`. The independent

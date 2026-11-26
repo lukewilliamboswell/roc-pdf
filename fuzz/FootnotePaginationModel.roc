@@ -122,8 +122,17 @@ agrees = |world| {
 			if KernelPageLayout.Plan.pages(result).len() != ends.len() {
 				return False
 			}
-			for fragment in KernelPageLayout.Plan.fragments(result) {
+			fragments = KernelPageLayout.Plan.fragments(result)
+			if fragments.len() != $blocks.len() {
+				return False
+			}
+			var $seen = List.repeat(False, $blocks.len())
+			for fragment in fragments {
 				source = fragment.lines.start()
+				if ($seen.get(source) ?? True) or fragment.lines.length() != 1 {
+					return False
+				}
+				$seen = $seen.set(source, True) ?? crash "model source index"
 				anchor = if source < body {
 					source
 				} else if source == body and a < body {

@@ -105,7 +105,7 @@ TARGETS = (
     Target("facade_output_equivalence", 4096, "document_suite"),
     Target("associated_files", 256, "document_suite"),
     Target("fixed_figure", 32, "fixed_figure"),
-    Target("first_citation_footnotes", 48, "document_suite"),
+    Target("first_citation_footnotes", 48, "footnote_suite"),
     Target("fillable_text_fields", 48, "document_suite"),
     Target("fillable_checkboxes", 48, "document_suite"),
     Target("table_spans", 128, "document_suite"),
