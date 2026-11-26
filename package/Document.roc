@@ -587,7 +587,7 @@ add_fixed_count = |start, length, limit, dimension|
 	KernelSpan.end_within(start, length, limit).map_err(
 		|_| {
 			ending = start.plus_wrap(length)
-			LimitExceeded({ dimension, attempted: if (ending < start) 0xFFFFFFFFFFFFFFFF else ending, limit })
+			LimitExceeded({ dimension, attempted: if (ending < start) U64.highest else ending, limit })
 		},
 	)
 
@@ -1418,8 +1418,8 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 			templates,
 		}
 
-	## Construct an explicitly framed document. Preparation rejects it with the
-	## `layout.custom` feature until fixed-layout lowering is executable.
+	## Construct a document from pages with explicit sizes and frames. The
+	## placement sequence supplies the authored semantic order across each page.
 	from_fixed_pages : { language : Str, pages : List(FixedPage), title : Str } -> Document
 	from_fixed_pages = |{ language: input_language, pages, title: document_title }|
 		Document.{

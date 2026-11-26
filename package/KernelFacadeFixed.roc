@@ -116,7 +116,7 @@ fit_block = |block, frame, at, shaped| match block {
 		leading = leading_raw.to_u64_wrap()
 		maximum = frame.size.height.raw().to_u64_wrap()
 		if lines.length() > maximum // leading {
-			actual = if (lines.length() > 0xFFFFFFFFFFFFFFFF // leading) 0xFFFFFFFFFFFFFFFF else lines.length() * leading
+			actual = if (lines.length() > U64.highest // leading) U64.highest else lines.length() * leading
 			return Err(LineBoxesTooTall({ page: at.page, placement: at.placement, actual, maximum }))
 		}
 		var $size = 0
