@@ -3,6 +3,7 @@ import Color
 import Conformance
 import Font
 import Image
+import KernelContentsSelection
 import KernelSourceText
 import KernelSpan
 import Layout
@@ -37,6 +38,8 @@ DocumentBlock :: [
 	Paragraph(Str),
 	RichParagraph(List(DocumentInline)),
 	ContentsEntry(Box(ContentsEntryProps)),
+	GeneratedContents(Box(GeneratedContentsProps)),
+	GeneratedEntries(List(DocumentBlock)),
 	Columns(Box(ColumnFlow)),
 
 	## Blocks whose inline colors a `Theme.Scope` overrides, boxed so the
@@ -290,6 +293,32 @@ ContentsEntryProps := {
 	gap : Layout.Unit ?? 6,
 	leader : [NoLeader, Dots] ?? NoLeader,
 }.{}
+
+## Select anchored headings in document order and use fixed-width linked
+## page fields. Depth is absolute for a whole document and relative under
+## a named heading. Overrides name destination identities, not title text.
+GeneratedContentsScope : [Under(Str), WholeDocument]
+
+GeneratedContentsTitle : { target : Str, title : Str }
+
+GeneratedContentsProps := {
+	depth : U8 ?? 6,
+	gap : Layout.Unit ?? 6,
+	indent_step : Layout.Unit ?? 12,
+	leader : [NoLeader, Dots] ?? NoLeader,
+	numbering : PageReferenceNumbering ?? Physical,
+	overrides : List(GeneratedContentsTitle) ?? [],
+	page_width : Layout.Unit ?? 36,
+	scope : GeneratedContentsScope ?? WholeDocument,
+}
+
+GeneratedContentsError : [
+	BlockScanLimit({ limit : U64 }),
+	EntryLimit({ limit : U64, position : U64 }),
+	Indent({ position : U64 }),
+	RequestLimit({ limit : U64, position : U64 }),
+	Selection({ error : KernelContentsSelection.Error, position : U64 }),
+]
 
 ## Sparse geometry facts, kept separately from the TOC/TOCI structure spine.
 NormalizedContentsEntry : { block : U64, indent : Layout.Unit, gap : Layout.Unit, leader : [NoLeader, Dots], reference : U64 }
@@ -912,7 +941,7 @@ TableSection : [Body, Footer, Header]
 ##
 ## `Custom` is a custom block (payload: its `customs` index): a `Div` of its
 ## paragraphs for semantics and one unsplittable unit for layout.
-NormalizedGroupKind := [Source(U64), Container(ContainerKind), ContentsItem, ContentsList, Custom(U32), Callout(U32), FigureGroup(U32), ItemList(U32), KeepTogether, KeepWithNext(Keep), LeadRegion, ListItem(U32), PageScope(U32), Scope(U32), Table(U32), TableRow(TableSection)]
+NormalizedGroupKind := [Source(U64), Container(ContainerKind), ContentsItem, ContentsList, GeneratedContentsList, Custom(U32), Callout(U32), FigureGroup(U32), ItemList(U32), KeepTogether, KeepWithNext(Keep), LeadRegion, ListItem(U32), PageScope(U32), Scope(U32), Table(U32), TableRow(TableSection)]
 
 ## The semantic role of one normalized inline. Text leaves hold their exact
 ## authored string and its byte range in the paragraph's concatenated text.
@@ -1319,6 +1348,8 @@ Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : D
 	PageScopeProps : PageScopeProps
 	NormalizedRegion : NormalizedRegion
 	PageReferenceProps : PageReferenceProps
+	GeneratedContentsError : GeneratedContentsError
+	GeneratedContentsProps : GeneratedContentsProps
 	ContentsEntryProps : ContentsEntryProps
 	NormalizedContentsEntry : NormalizedContentsEntry
 	PageReferenceNumbering : PageReferenceNumbering
@@ -1662,6 +1693,30 @@ Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : D
 
 	contents_entry : ContentsEntryProps -> DocumentBlock
 	contents_entry = |props| DocumentBlock.ContentsEntry(Box.box(props))
+
+	generated_contents : GeneratedContentsProps -> DocumentBlock
+	generated_contents = |props| DocumentBlock.GeneratedContents(Box.box(props))
+
+	## Resolve generated entries before the ordinary normalization pass.
+	## Documents without a request keep their authored blocks unchanged.
+	resolve_generated_contents : Document -> Try(Document, GeneratedContentsError)
+	resolve_generated_contents = |document| match document.authoring {
+		Simple(simple) => {
+			if !simple.contents.any(
+				|block| match block {
+					GeneratedContents(_) => True
+					_ => False
+				},
+			) {
+				return Ok(document)
+			}
+			headings = collect_contents_headings(simple.contents)?
+			contents = resolve_contents_blocks(simple.contents, headings)?
+			Document.(fields) = document
+			Ok(Document.{ ..fields, authoring: Simple({ ..simple, contents }) })
+		}
+		_ => Ok(document)
+	}
 
 	## An unordered list; each item's label is a generated bullet.
 	bullet_list : List(DocumentListItem) -> DocumentBlock
@@ -2086,6 +2141,110 @@ normalize_column_flow = |spec, language, metadata_title| {
 	Ok({ authoring: finish_reference_chunks(normalized), first: spec.first, gutter: spec.gutter, kept: $kept, second: spec.second })
 }
 
+max_contents_scan : U64
+max_contents_scan = 32768
+
+max_generated_entries : U64
+max_generated_entries = 4096
+
+collect_contents_headings : List(DocumentBlock) -> Try(List(KernelContentsSelection.Heading), GeneratedContentsError)
+collect_contents_headings = |blocks| {
+	var $pending = [{ blocks, next: 0 }]
+	var $headings = []
+	var $visits = 0
+	while !$pending.is_empty() {
+		last = $pending.len() - 1
+		top = list_at($pending, last)
+		if top.next == top.blocks.len() {
+			$pending = $pending.drop_last(1)
+		} else {
+			if $visits == max_contents_scan {
+				return Err(BlockScanLimit({ limit: max_contents_scan }))
+			}
+			block = list_at(top.blocks, top.next)
+			$pending = list_set($pending, last, { ..top, next: top.next + 1 })
+			match block {
+				DestinationHeading({ name, level, text }) => {
+					$headings = $headings.append({ level, target: Named(name), title: text })
+				}
+				Heading({ level, text }) => {
+					$headings = $headings.append({ level, target: NoTarget, title: text })
+				}
+				_ => {
+					children = heading_children(block)
+					if !children.is_empty() {
+						$pending = $pending.append({ blocks: children, next: 0 })
+					}
+				}
+			}
+			$visits = $visits + 1
+		}
+	}
+	Ok($headings)
+}
+
+heading_children : DocumentBlock -> List(DocumentBlock)
+heading_children = |block| match block {
+	Container({ contents, .. }) | KeepTogether(contents) | KeepWithNext({ contents, .. }) => contents
+	PageScope(value) => Box.unbox(value).contents
+	Scoped(value) => Box.unbox(value).contents
+	Callout(value) => Box.unbox(value).contents
+	ListBlock({ items, .. }) => item_blocks(items)
+	_ => []
+}
+
+resolve_contents_blocks : List(DocumentBlock), List(KernelContentsSelection.Heading) -> Try(List(DocumentBlock), GeneratedContentsError)
+resolve_contents_blocks = |blocks, headings| {
+	var $resolved = List.with_capacity(blocks.len())
+	var $entries = 0
+	var $requests = 0
+	for block in blocks {
+		position = $resolved.len()
+		match block {
+			GeneratedContents(spec) => {
+				if $requests == 16 {
+					return Err(RequestLimit({ limit: 16, position }))
+				}
+				$requests = $requests + 1
+				props = Box.unbox(spec)
+				{ entries, .. } = KernelContentsSelection.select(headings, { depth: props.depth, overrides: props.overrides, scope: props.scope }) ? |error| Selection({ error, position })
+				if entries.len() > max_generated_entries - $entries {
+					return Err(EntryLimit({ limit: max_generated_entries, position }))
+				}
+				$entries = $entries + entries.len()
+				converted = build_generated_entries(entries, props) ? |_| Indent({ position: position })
+				$resolved = $resolved.append(DocumentBlock.GeneratedEntries(converted))
+			}
+			_ => {
+				$resolved = $resolved.append(block)
+			}
+		}
+	}
+	Ok($resolved)
+}
+
+build_generated_entries : List(KernelContentsSelection.Entry), GeneratedContentsProps -> Try(List(DocumentBlock), [InvalidIndent])
+build_generated_entries = |entries, props| {
+	if props.indent_step.raw() < 0 {
+		return Err(InvalidIndent)
+	}
+	var $blocks = List.with_capacity(entries.len())
+	for entry in entries {
+		indent = I64.times_try((entry.depth - 1).to_i64(), props.indent_step.raw()) ? |_| InvalidIndent
+		reference = PageReferenceProps.{ destination: entry.target, width: props.page_width, numbering: props.numbering }
+		$blocks = $blocks.append(
+			Document.contents_entry({
+				title: [Document.plain_text(entry.title)],
+				indent: Layout.Unit.from_raw(indent),
+				gap: props.gap,
+				leader: props.leader,
+				reference,
+			}),
+		)
+	}
+	Ok($blocks)
+}
+
 first_unavailable_block : List(DocumentBlock) -> [Available, UnavailableFeature({ feature : AuthoringFeature, summary : Str })]
 first_unavailable_block = |blocks| {
 	var $index = 0
@@ -2199,6 +2358,7 @@ unavailable_leaf : DocumentBlock -> [Available, UnavailableFeature({ feature : A
 unavailable_leaf = |block| match block {
 	Unavailable({ feature, summary }) => UnavailableFeature({ feature, summary })
 	Columns(_) => UnavailableFeature({ feature: MultiColumnLayout, summary: "The column flow must be the only top-level block." })
+	GeneratedContents(_) => UnavailableFeature({ feature: GeneratedReferences, summary: "Place generated contents at the top level of the document." })
 	_ => Available
 }
 
@@ -2309,13 +2469,20 @@ normalize_simple = |simple, initial| {
 	var $block_index = 0
 	while $block_index < simple.contents.len() {
 		block = list_at(simple.contents, $block_index)
-		if is_contents_entry(block) {
-			end = contents_list_end(simple.contents, $block_index + 1)
-			$state = append_contents_list($state, simple.contents, 0, 0, $block_index, end)
-			$block_index = end
-		} else {
-			$state = if (is_grouping(block)) append_group($state, block, $block_index) else append_leaf($state, block, 0, $block_index)
-			$block_index = $block_index + 1
+		match block {
+			GeneratedEntries(entries) => {
+				$state = append_contents_list_at($state, entries, 0, 0, 0, entries.len(), { position: $block_index, kind: GeneratedContentsList })
+				$block_index = $block_index + 1
+			}
+			ContentsEntry(_) => {
+				end = contents_list_end(simple.contents, $block_index + 1)
+				$state = append_contents_list($state, simple.contents, 0, 0, $block_index, end)
+				$block_index = end
+			}
+			_ => {
+				$state = if (is_grouping(block)) append_group($state, block, $block_index) else append_leaf($state, block, 0, $block_index)
+				$block_index = $block_index + 1
+			}
 		}
 	}
 	finish_simple_authoring($state, simple.language, simple.metadata_title)
@@ -2376,8 +2543,11 @@ contents_list_end = |blocks, start| {
 ## Consecutive authored entries under one parent make one semantic TOC.
 ## Position stays the authored sibling index, including for diagnostics.
 append_contents_list : SimpleState, List(DocumentBlock), U64, U64, U64, U64 -> SimpleState
-append_contents_list = |state, blocks, parent, depth, first, end| {
-	var $state = open_group(state, ContentsList, parent, depth, first)
+append_contents_list = |state, blocks, parent, depth, first, end| append_contents_list_at(state, blocks, parent, depth, first, end, { position: first, kind: ContentsList })
+
+append_contents_list_at : SimpleState, List(DocumentBlock), U64, U64, U64, U64, { position : U64, kind : NormalizedGroupKind } -> SimpleState
+append_contents_list_at = |state, blocks, parent, depth, first, end, list| {
+	var $state = open_group(state, list.kind, parent, depth, list.position)
 	group = $state.groups.len()
 	var $position = first
 	while $position < end {
@@ -2563,7 +2733,7 @@ append_leaf = |state, block, parent, position| match block {
 	Title(text) => { ..state, blocks: state.blocks.append({ kind: Title, parent, text }) }
 
 	## Preparation rejects this branch before normalization.
-	Unavailable({ feature: _, summary: _ }) | Columns(_) => { ..state, blocks: state.blocks.append({ kind: Paragraph, parent, text: "" }) }
+	Unavailable({ feature: _, summary: _ }) | Columns(_) | GeneratedContents(_) | GeneratedEntries(_) => { ..state, blocks: state.blocks.append({ kind: Paragraph, parent, text: "" }) }
 }
 
 ## The parser owns the canonical byte buffer once. Leaf text stays empty:

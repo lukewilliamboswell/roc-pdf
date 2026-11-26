@@ -731,6 +731,12 @@ Pdf :: [].{
 	contents_entry : ContentsEntryProps -> Document.Block
 	contents_entry = |props| Document.contents_entry(props)
 
+	## Generate linked TOC entries from anchored headings in the chosen scope.
+	GeneratedContentsProps : Document.GeneratedContentsProps
+
+	generated_contents : GeneratedContentsProps -> Document.Block
+	generated_contents = |props| Document.generated_contents(props)
+
 	## Plain inline text in the surrounding language and role.
 	text : Str -> Inline
 	text = |value| Document.plain_text(value)
@@ -1005,11 +1011,12 @@ Pdf :: [].{
 				return Ok(Prepared.(prepared.plan))
 			}
 		}
-		match Document.first_unavailable(doc) {
+		resolved = Document.resolve_generated_contents(doc) ? generated_contents_error
+		match Document.first_unavailable(resolved) {
 			Available => {}
 			UnavailableFeature({ feature, summary }) => return Err(InvalidDocument(unavailable_batch(feature, summary)))
 		}
-		plan = build_plan(doc, options)?
+		plan = build_plan(resolved, options)?
 		Ok(Prepared.(plan))
 	}
 
@@ -1035,11 +1042,12 @@ Pdf :: [].{
 				return Ok({ prepared: Prepared.(plan), report })
 			}
 		}
-		match Document.first_unavailable(doc) {
+		resolved = Document.resolve_generated_contents(doc) ? generated_contents_error
+		match Document.first_unavailable(resolved) {
 			Available => {}
 			UnavailableFeature({ feature, summary }) => return Err(InvalidDocument(unavailable_batch(feature, summary)))
 		}
-		{ facts, normalized, plan } = build_reporting_plan(doc, options)?
+		{ facts, normalized, plan } = build_reporting_plan(resolved, options)?
 		report = build_report_at(normalized, facts, budget, options.profile, FlowReportPaths, Document.associated_files(doc).len())?
 		Ok({ prepared: Prepared.(plan), report })
 	}
@@ -1168,6 +1176,28 @@ build_fixed_plan = |doc, fixed, options, request| {
 	plan = KernelFacadeOutput.Plan.structure(output)
 	validate_lowered_plan(claims, xmp, plan)?
 	Ok({ facts: KernelFacadePipeline.Plan.facts(pipeline), normalized: planned.authoring, plan: KernelStructure.Plan.with_compression(plan, deflate_level(options.compression)) })
+}
+
+generated_contents_error : Document.GeneratedContentsError -> Pdf.Error
+generated_contents_error = |problem| {
+	located = |position, code, message, suffix| fixed_error(code, "document.generated_contents", message, "contents[${position.to_str()}]${suffix}")
+	match problem {
+		BlockScanLimit({ limit }) => fixed_error(BudgetExceeded, "document.generated_contents", "Collecting headings exceeded the ${limit.to_str()}-block scan limit.", "contents")
+		EntryLimit({ limit, position }) => located(position, BudgetExceeded, "Generated contents exceeded the ${limit.to_str()}-entry document limit.", "")
+		RequestLimit({ limit, position }) => located(position, BudgetExceeded, "Use at most ${limit.to_str()} generated contents blocks.", "")
+		Indent({ position }) => located(position, LayoutConstraintViolated, "Use a nonnegative representable indentation step.", ".indent_step")
+		Selection({ error, position }) => match error {
+			EmptySelection => located(position, InvalidRelationship, "The selected scope and depth contain no anchored headings.", ".scope")
+			InvalidDepth => located(position, InvalidRelationship, "Select a depth from 1 to 6.", ".depth")
+			InvalidHeading(_) => located(position, InvalidRelationship, "A heading in the generated contents scope has a level outside 1–6.", ".scope")
+			MissingScope => located(position, InvalidRelationship, "The scope names a missing heading destination.", ".scope")
+			RepeatedScope => located(position, InvalidRelationship, "The scope name identifies more than one heading.", ".scope")
+			OverrideLimit({ limit }) => located(position, BudgetExceeded, "Use at most ${limit.to_str()} title overrides.", ".overrides")
+			EmptyOverride({ index }) => located(position, InvalidRelationship, "A title override needs a target and a title.", ".overrides[${index.to_str()}]")
+			RepeatedOverride({ index }) => located(position, InvalidRelationship, "An earlier override already names this target.", ".overrides[${index.to_str()}]")
+			UnusedOverride({ index }) => located(position, InvalidRelationship, "The target is outside the selected headings.", ".overrides[${index.to_str()}]")
+		}
+	}
 }
 
 column_block_path : U64 -> Str
@@ -2828,7 +2858,13 @@ child_path = |groups, parent, position| {
 	} else {
 		record = group_record(groups, parent)
 		match record.kind {
-			ContentsItem => group_record(groups, record.parent).parent
+			ContentsItem => {
+				list = group_record(groups, record.parent)
+				match list.kind {
+					GeneratedContentsList => return "${chain_path(groups, record.parent)}.entries[${record.position.to_str()}]"
+					_ => list.parent
+				}
+			}
 			_ => parent
 		}
 	}
@@ -5406,4 +5442,50 @@ expect {
 				and has_fixed_style_error(Pdf.prepare_with_report(doc, { options: options }))
 		},
 	)
+}
+
+# Generated entries use their block and entry path and preserve the authored
+# addresses that follow them. Duplicate visible text has separate targets.
+expect {
+	doc = Pdf.document({
+		title: "Generated contents",
+		language: "en-AU",
+		contents: [
+			Pdf.generated_contents({ depth: 1, scope: Under("root"), overrides: [{ target: "second", title: "Follow-up checks" }] }),
+			Pdf.page_break,
+			Pdf.destination_heading({ name: "root", level: 1, text: "Procedure" }),
+			Pdf.destination_heading({ name: "first", level: 2, text: "Recovery checks" }),
+			Pdf.page_break,
+			Pdf.destination_heading({ name: "second", level: 2, text: "Recovery checks" }),
+			Pdf.heading(1, "Appendix"),
+			Pdf.destination_heading({ name: "excluded", level: 2, text: "Other checks" }),
+		],
+	})
+	{ prepared, report } = Pdf.prepare_with_report(doc, {})?
+	Pdf.to_bytes_prepared(prepared)? == Pdf.to_bytes(doc)? and
+		report.facts.blocks.map(|block| block.path) == [
+			"contents[0].entries[0]",
+			"contents[0].entries[1]",
+			"contents[2]",
+			"contents[3]",
+			"contents[5]",
+			"contents[6]",
+			"contents[7]",
+		]
+}
+
+expect {
+	doc = Pdf.document({
+		title: "Missing scope",
+		language: "en-AU",
+		contents: [
+			Pdf.generated_contents({ scope: Under("missing") }),
+			Pdf.destination_heading({ name: "root", level: 1, text: "Recovery" }),
+		],
+	})
+	rejects = |result| match result {
+		Err(InvalidDocument({ diagnostics: [{ feature: Feature("document.generated_contents"), details: ["contents[0].scope"], .. }], .. })) => True
+		_ => False
+	}
+	rejects(Pdf.to_bytes(doc)) and rejects(Pdf.to_chunks(doc))
 }

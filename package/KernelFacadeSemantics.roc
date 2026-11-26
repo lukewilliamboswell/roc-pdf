@@ -797,7 +797,7 @@ plan_blocks = |authoring, limits| {
 					$block_index = group.block_end
 					$next_group = group.group_end - 1
 				}
-				Container(_) | ContentsItem | ContentsList | Custom(_) | Callout(_) | LeadRegion | FigureGroup(_) => {
+				Container(_) | ContentsItem | ContentsList | GeneratedContentsList | Custom(_) | Callout(_) | LeadRegion | FigureGroup(_) => {
 					if in_item {
 						match group.kind {
 							ContentsList | FigureGroup(_) | Callout(_) => {}
@@ -2276,9 +2276,9 @@ build_components = |authoring, planning, source_plan| {
 					$nodes = list_set($nodes, node_index, make_node(node_index, ParentNode(parent_node(group.parent, planning.group_nodes)), container_role(kind), span, Inherited))
 				}
 
-				ContentsItem | ContentsList => {
+				ContentsItem | ContentsList | GeneratedContentsList => {
 					role = match group.kind {
-						ContentsList => "TOC"
+						ContentsList | GeneratedContentsList => "TOC"
 						_ => "TOCI"
 					}
 					$nodes = list_set($nodes, node_index, make_node(node_index, ParentNode(parent_node(group.parent, planning.group_nodes)), role, span, Inherited))
@@ -2381,7 +2381,7 @@ build_components = |authoring, planning, source_plan| {
 					$index = group.block_end
 					$next_group = group.group_end - 1
 				}
-				Container(_) | ContentsItem | ContentsList | Custom(_) | Callout(_) | ItemList(_) | LeadRegion | FigureGroup(_) => {
+				Container(_) | ContentsItem | ContentsList | GeneratedContentsList | Custom(_) | Callout(_) | ItemList(_) | LeadRegion | FigureGroup(_) => {
 					$next_node = checked_add($next_node, 1)?
 				}
 				KeepTogether | KeepWithNext(_) | PageScope(_) | Scope(_) => {}

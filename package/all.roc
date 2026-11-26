@@ -17,6 +17,7 @@ package
 		KernelColor,
 		KernelColumnLayout,
 		KernelContent,
+		KernelContentsSelection,
 		KernelDeflate,
 		KernelDiscretionaryHyphen,
 		KernelEmit,
