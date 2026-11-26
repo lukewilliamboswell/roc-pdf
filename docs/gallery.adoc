@@ -15,9 +15,7 @@ https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/tax-invoice/REA
 [#invoice-with-data]
 == Invoice with associated data
 
-image::images/invoice-with-data.png[Tax invoice with associated XML data]
-
-https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/invoice-with-data[Run the invoice and extract its XML] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/invoice-with-data/invoice-with-data.pdf[PDF output]
+https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/invoice-with-data[Run the invoice and extract its XML] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/invoice-with-data/invoice-with-data.pdf[PDF output] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/invoice-with-data/preview.png[Preview]
 
 == Business report
 
@@ -44,9 +42,7 @@ https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/remittance-advi
 [#pilot-findings]
 == Pilot findings
 
-image::images/pilot-findings.png[Pilot findings laid out in two columns]
-
-https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/pilot-findings[Runnable pilot article] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/pilot-findings/pilot-findings.pdf[PDF output]
+https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/pilot-findings[Runnable two-column article] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/pilot-findings/pilot-findings.pdf[PDF output] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/pilot-findings/preview.png[Preview]
 
 == More authoring examples
 
