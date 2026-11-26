@@ -53,10 +53,9 @@ The first release is judged by correctness: complete business documents that
 author through public APIs, lay out predictably, report actionable diagnostics,
 and pass the project-owned checks for the supported output profiles.
 
-Before fixing the remaining business-authoring representations, record three
-versioned reference documents and their ordinary/adverse content variants.
-They are authored entirely through the release package's public surfaces;
-private fixture constructors cannot satisfy product acceptance.
+The [reference document contract](docs/contributors/reference-documents.md)
+defines the business-document fixtures, their adverse variants, and the text
+and layout policies used by the public facade.
 
 | Reference document | Required authoring and behavior | Representative adverse variations |
 | --- | --- | --- |
@@ -73,79 +72,32 @@ acceptable layout under an explicitly selected policy or a specific structured
 error with no bytes. A valid-looking reference with short placeholder content
 alone is insufficient.
 
-Gate 6 delivers this bounded business-authoring scope, including ordinary table
-continuation and page templates brought forward from the former broad Gate 8
-scope. It does not require general floats, footnotes, indexes, arbitrary fixed
-pages, or advanced writing modes. A separately authored bounded chart or
-callout exercises the custom-block seam before that subset becomes stable.
-General custom pagination remains Gate 8.
+The bounded business-authoring scope includes ordinary table continuation,
+page templates, bounded flow figures and a measured custom-block seam.
+General custom pagination, floats, footnotes and indexes are Gate 8
+capabilities.
 
-Issue #45 supplies a bounded source-document use case for line-based
-continuation. Preformatted source blocks are assigned to a separate Gate 6
-extension slice, reusing its text, single-column pagination and artifact-panel
-foundations. This explicitly brings that bounded capability forward from
-Gate 8; general custom-block fragmentation remains there. The new slice is
-closed with its own public API, whitespace, typography, wrapping, continuation,
-conformance and allocation/scale evidence in
-[preformatted source blocks](docs/contributors/performance/source-blocks.md). This includes
-the strict 357-case integration suite, focused arm64mac/x64musl equality,
-PDF/A-4 and Arlington checks, independent readers and scale pairs. General
-custom callbacks are inapplicable to this native bounded path. Human reader
-and assistive-technology review were not performed and are optional. Gate 6's
-historical closure did not substitute for this evidence; the extension makes
-no Gate 7 or PDF/UA-2 claim.
+### Bounded manual authoring
 
-Issue #47 extends that same bounded Gate 6 source path with foreground-only
-original-UTF-8 ranges for external highlighters. This is a separate evidence
-slice: original-to-canonical endpoint mapping, grapheme-safe range rejection,
-paint-only layout invariance, shared-source ownership, token-scale pairs and
-colour-sensitive independent reader/conformance checks are recorded in
-[source foreground ranges](docs/contributors/performance/source-foregrounds.md). It adds no
-language parser, token semantics, font changes or new conformance claim.
+The facade supports authored contents entries with wrapped linked titles,
+a shared page-number column and optional decorative leaders. Fixed-width
+destination references select decimal page numbers or configured PDF page
+labels, which can also appear in furniture. Page scopes are nonnested
+full-body-page regions with independently authored opening and continuation
+templates and short running labels. The
+[manual-composition evidence](docs/contributors/performance/manual-composition.md)
+and [contents-entry checks](docs/contributors/performance/contents-entries.md)
+exercise these capabilities through the public facade.
 
-Gate 7 established the default combined profile and tested these references
-through public authoring. Each additional feature records which declarations
-it supports, the associated preparation checks, and focused fixture evidence.
+List items can contain source blocks, captioned figures, ordinary tables
+and bounded callouts after the lead paragraph. Items preserve logical
+identity across pages. Native callouts measure and continue at legal
+content boundaries, with a decorative rectangular panel on each fragment.
+The measured custom-block API has its own unsplittable contract.
 
-### Bounded manual-authoring extensions (issues #49–#53)
-
-Issue #65 adds bounded authored contents entries to that destination-reference
-path: wrapped linked titles, a common terminal page column and optional
-decorative leaders. It does not collect headings or generate a contents tree,
-and does not close Gate 8's general generated-content/stabilization capability.
-Its geometry, semantic ownership and scale evidence is recorded separately in
-[contents entries](docs/contributors/performance/contents-entries.md).
-
-The following selected Gate 8 capabilities are brought forward as dependency-
-gated Gate 6 extensions. Each has its own public API, diagnostic, structural,
-allocation and scale evidence.
-
-- #49: fixed-width, selectable inline destination-page references, explicitly
-  choosing physical decimal numbers or configured PDF page labels; matching
-  page-label furniture. General generated TOCs, counters and flow-changing
-  references remain Gate 8.
-- #50: explicit, nonnested, full-body-page scopes with short running labels
-  and separately declared opening/continuation frames. Midpage scope changes
-  and geometry derived from resolved furniture remain unsupported.
-- #52: source blocks, captioned figures, ordinary tables and bounded callouts
-  after a list item's lead paragraph, retaining one logical item across pages.
-- #53: native data-only callouts with automatic height, bounded rich nesting
-  and line continuation; rectangular artifact panels repeat per fragment.
-  The measured, unsplittable custom-block contract remains separate.
-- #51: a worked preparation-time vector adapter over the existing public
-  drawing/figure API, with a declared Mermaid/SVG subset, checked text and
-  geometry, and explicit rejection of unsupported visible features. General
-  browser SVG/HTML rendering remains outside the package.
-
-Implementation order is explicit parent frames and continuation contracts,
-rich list bodies, rich callout fragmentation, destination references, scoped
-templates, then combined-manual closure. Independent work may proceed against
-frozen contracts; closure requires integration evidence. The declared bounded
-extensions #49–#53 are closed. Their [implementation, ownership and closure
-record](docs/contributors/performance/manual-composition.md) includes the complete 409-case
-native comparison and strict affected replay, strict 409-case Linux integration,
-cross-target PDF byte equality, independent feature checks and pinned
-profile/object-model validation for those extensions.
+The [diagram adapter](examples/vector-diagrams/README.md) exercises checked,
+bounded Mermaid/SVG conversion at authoring time through the public
+drawing API. General SVG or HTML rendering is outside the package.
 
 ### Performance intent
 
@@ -168,7 +120,7 @@ benchmark product targets, and no controlled timing or memory jobs are
 required. Timing or memory figures that existing instrumentation happens to
 report are diagnostic context, not acceptance thresholds.
 
-## Capability readiness and historical closure
+## Capability readiness
 
 Every implemented slice records the following dimensions independently, with
 evidence links. Each dimension is unavailable, representable-only, executable
@@ -183,51 +135,6 @@ path; a private compiler primitive may instead justify having no direct facade.
 | Advanced integration | A supported public boundary exercised by a separately authored consumer, where applicable |
 | Profile support | Implemented checks, emitted declarations, and focused tests for the supported subset |
 | Reader and AT behavior | Optional: declared observable tasks on pinned readers and assistive technology, recorded where performed; an unperformed review is recorded as such and does not block closure |
-
-The existing Gate 2, 3, and 4 closure records remain historical evidence for
-their stated subsets. This roadmap revision does not reopen those records,
-make pending APIs executable, or establish new conformance claims. Gate 3
-closed its declared text/facade subset; Gate 4 closed the `Standard` visual
-compiler with narrower public authoring. Gate 5 closed static PDF/A-4 and made
-`Archive` the default facade profile, with `Standard` as an explicit opt-out;
-Gate 6 closed business authoring and the core tagged vocabulary. Gate 7 made
-`AccessibleArchive` the facade default. Each
-future slice records the readiness dimensions above.
-
-## Work following the Gate 4 milestone
-
-1. Record the reference documents, text-support matrix, and layout policies
-   before fixing remaining business-authoring representations. Early reader/AT
-   observations are optional. This is release planning and exploratory
-   evidence, not a new conformance claim. The reference documents, text-support
-   matrix, and layout policies are recorded in
-   [docs/contributors/reference-documents.md](docs/contributors/reference-documents.md)
-   (now `reference-documents-v3`).
-2. Continue Gate 6 business-authoring/semantic slices from the shared Gate 4
-   foundation; Gate 5 archival closure is recorded below. Deliver each public
-   feature through authoring, layout, diagnostics, and applicable evidence, and
-   declare its static PDF/A-4 eligibility as it joins the `Archive` whitelist.
-   The semantic-foundation slice
-   ([docs/contributors/performance/semantic-foundation.md](docs/contributors/performance/semantic-foundation.md))
-   makes `Pdf.part`, `Pdf.section`, and `Pdf.division` executable over a dense
-   nested authoring tree, widens the kernel vocabulary with an ISO/TS 32005
-   Table 5 containment checker, lowers node languages, element identifiers
-   with the IDTree, typed Table and List attributes, and node text properties,
-   and declares `/DisplayDocTitle` for every tagged facade document. It closes
-   no Gate 6 capability as a whole and makes no PDF/UA-2 claim.
-   The rich-inline slice
-   ([docs/contributors/performance/rich-inline.md](docs/contributors/performance/rich-inline.md))
-   makes `Pdf.rich_paragraph` and its inline constructors executable:
-   `Em`, `Strong`, `Code`, `Quote`, `Link`, language `Span`s with `/Lang`, and
-   expansion `Span`s with `/E`, shaped and broken as one paragraph text with
-   theme-colored runs, inline link annotations that wrap across lines, and
-   located `semantics.*` and `text.*` diagnostics. Explicit line breaks and a
-   distinct face per inline role remain open; it closes no Gate 6 capability
-   as a whole and makes no PDF/UA-2 claim.
-3. Establish the combined profile, report the author obligations, and verify
-   the reference business documents through the public facade.
-4. Select Gate 8 and 9 expansions from demonstrated application needs, retaining
-   complete conformance and performance evidence for each accepted subset.
 
 ## Capability map
 
@@ -550,17 +457,11 @@ within an early correctness gate.
 - A million-command stress fixture has bounded stack use, linear visits, and no
   payload duplication per placement.
 
-### Closure status
-
-Gate 2 is closed. The capability, negative, exact-structure, renderer, and
-performance aggregation is recorded in
-`docs/contributors/performance/tagged-visual-closure.md`. This closes the private minimal tagged
-visual kernel only; it does not make Gate 3 authoring or later conformance
-profiles available.
+The [tagged visual checks](docs/contributors/performance/tagged-visual-closure.md)
+cover exact structure, renderer comparisons, rejection and scale for this
+compiler boundary.
 
 ## Gate 3: searchable international text and useful layout
-
-This is the first genuinely useful public document milestone.
 
 ### Capabilities
 
@@ -613,36 +514,22 @@ This is the first genuinely useful public document milestone.
 
 ### Upstream Unicode coordination
 
-The preferred pure Roc Unicode building blocks are tracked as independently
-resolvable issues in [`roc-lang/unicode`](https://github.com/roc-lang/unicode).
-These links coordinate reusable dependency work; they do not replace this
-roadmap's capability gates or evidence. Before adopting any result, pin its
-exact release asset or revision and digest, record its Unicode data provenance,
-and verify the applicable correctness, ownership, allocation, and deterministic
-work requirements locally.
+Use pure Roc Unicode algorithms from [roc-lang/unicode](https://github.com/roc-lang/unicode)
+for scalar analysis, grapheme ranges, line breaks, bidirectional resolution,
+script properties and itemization, and case mappings. The
+[analysis dependency record](docs/contributors/performance/unicode-analysis.md)
+pins Unicode 18.0.0, the package revision, the data manifest and the
+separately versioned script-itemization policy. Review correctness, ownership,
+allocations and deterministic work when adopting a new revision.
 
-| Upstream issue | Reusable boundary |
-| --- | --- |
-| [#36: Unicode 17 upgrade and auditable versioning](https://github.com/roc-lang/unicode/issues/36) | One synchronized Unicode/UCD/UAX data version, source manifest, deterministic generation, and public version identity. |
-| [#35: Unicode 17 extended-grapheme conformance](https://github.com/roc-lang/unicode/issues/35) | Complete un-tailored UAX #29 grapheme boundaries, regressions, official conformance tests, and fuzzing. |
-| [#37: zero-copy grapheme byte ranges](https://github.com/roc-lang/unicode/issues/37) | Source-preserving UTF-8 boundary ranges and an allocation-conscious walk API for cluster-based font selection. |
-| [#38: Unicode 17 line-break opportunities](https://github.com/roc-lang/unicode/issues/38) | UAX #14 boundary analysis, explicit tailoring, and validated seams for separately versioned complex-context analyzers and hyphenators. |
-| [#39: Unicode 17 bidirectional analysis](https://github.com/roc-lang/unicode/issues/39) | UAX #9 levels, logical and visual mappings, directional runs, per-line reordering, brackets, and mirroring facts. |
-| [#41: Script and Script_Extensions](https://github.com/roc-lang/unicode/issues/41) | Normative Unicode script properties plus an explicitly named, non-normative script-itemization policy. |
-| [#42: panic-free, resource-bounded public APIs](https://github.com/roc-lang/unicode/issues/42) | Typed failure, checked limits, bounded traversal, adversarial tests, fuzzing, and documented allocation/copy/retention behavior. |
-| [#43: bounded shaping-oriented Unicode properties](https://github.com/roc-lang/unicode/issues/43) | Generated UCD properties needed by independent text engines without moving OpenType parsing or shaping into the Unicode package. |
-| [#52: Unicode 17 full case mapping with source-range facts](https://github.com/roc-lang/unicode/issues/52) | Version-pinned full lower/upper/title mappings and case folding, with explicit policy, bounded failures, and source-to-output range facts for presentation and extraction. |
-
-Language-specific hyphenation data remains a separate licensed and pinned
-dependency. OpenType parsing, GSUB/GPOS processing, glyph selection, and shaping
-remain separate pure Roc components; the upstream Unicode issues provide facts
-and analysis boundaries rather than those font-specific behaviors.
+Language-specific hyphenation data is independently licensed and pinned.
+OpenType parsing, GSUB/GPOS, glyph selection and shaping are separate from
+the Unicode analysis boundary.
 
 ### Text capability planning for the production release
 
-Gate 3's existing closure remains limited to its declared supported subset.
-Before expanding business authoring, publish a versioned matrix with explicit
-rows for:
+Maintain a [declared support matrix](docs/contributors/reference-documents.md#declared-production-text-support)
+with explicit rows for:
 
 - Scripts and language-sensitive shaping behavior.
 - Font formats, exact font instances, and supported OpenType features.
@@ -656,13 +543,9 @@ pure Roc dependency or owning component, pinned data, positive/negative
 evidence, rendering/extraction expectations, and performance limits. A font
 containing a character cannot close the facade shaping/layout column.
 
-Choose the initial release rows from actual names, addresses, prose, formatted
-amounts, and mixed-language content in the reference documents. State supported
-and unsupported cases explicitly; neither the label "international text" nor
-upstream Unicode coordination promises unimplemented typography. Existing
-coverage may satisfy a row only with its recorded evidence. Required additions
-are Gate 6 business-release dependencies; further typography stays in Gates 8
-and 9.
+Use names, addresses, prose, formatted amounts and mixed-language content
+from reference documents when selecting new rows. Broader typography belongs
+to Gates 8 and 9.
 
 Shaping/layout integration tests exercise safe splits, context-sensitive
 reshaping after a selected break, changed advances and fit rechecking, per-line
@@ -672,7 +555,7 @@ test-only HarfBuzz comparison corpus where appropriate; native tooling is never
 a production dependency or a majority-vote oracle. UAX #14 supplies break
 opportunities, not the line-fitting algorithm, and shaping boundaries may
 require reshaping after a break. See the
-[Unicode line-breaking contract](https://www.unicode.org/reports/tr14/tr14-55.html)
+[Unicode line-breaking contract](https://www.unicode.org/reports/tr14/tr14-57.html)
 and [HarfBuzz boundary facts](https://harfbuzz.github.io/harfbuzz-hb-buffer.html#hb-glyph-flags-t).
 
 ### Gate evidence
@@ -720,15 +603,10 @@ and [HarfBuzz boundary facts](https://harfbuzz.github.io/harfbuzz-hb-buffer.html
   pagination cases meet their declared operation-count bounds; accepted page
   scenes are materialized once.
 
-### Closure status
-
-Gate 3 is closed. The capability, negative, extraction, rendering, retention,
-cache, and adversarial-bound aggregation is recorded in
-`docs/contributors/performance/text-layout-closure.md`. This closes the
-public single- and multi-face authoring boundary described above; it does not
-make Gate 4 graphics, the `Archive` or `AccessibleArchive` profiles, automatic
-hyphenation, or shaping beyond the declared boundary available. Those continue
-to fail transactionally.
+The [text and layout checks](docs/contributors/performance/text-layout-closure.md)
+cover the declared single- and multi-face boundaries from source facts through
+extraction and placement. See the text-support matrix for currently supported
+shaping and layout.
 
 ## Gate 4: production visual document model
 
@@ -794,28 +672,10 @@ The initial profile does not include CMYK, Separation/DeviceN/spot color,
 overprint, luminosity masks, non-Normal blending, rollover/down annotation
 appearances, or annotation types other than links.
 
-### Closure status
-
-Gate 4 is closed for the `Pdf20`/`Standard` production-visual compiler. The
-slice-by-slice evidence and final boundary audit are aggregated in
-`docs/contributors/performance/production-visual-closure.md`. This closes forms, resource
-identity and closure, raster/JPEG and color leaves, transparency and masks,
-shadings and patterns, font leaves, metadata/output intent, and navigation.
-
-Closure exposes ownership-safe authoring values for typed image sources,
-opaque drawings, meaningful figures with required alternative text, and
-content-first fixed pages. A post-closure authoring slice now executes the
-narrowest complete meaningful figure under `Standard`: exactly one validated
-packed-raster or JPEG image command, a positive placement, non-empty
-alternative text serialized as `/Alt`, and an optional caption owned by the
-same semantic occurrence and layout fragment. Positive packed-raster evidence,
-atomic invalid-resource/drawing evidence, deterministic bytes, structural
-image/Figure inspection, and exact allocation/work evidence are required for
-this slice. Gate 6 covers the broader tagged vocabulary and optional human
-accessibility review.
-
-Current public drawing and fixed-page scope is recorded under Gates 6 and 8.
-Raw stores and PDF object identities remain outside the common path.
+The [visual compiler evidence](docs/contributors/performance/production-visual-closure.md)
+covers resource and graphics validation, exact emission and scale for
+`Standard`. Public drawing, flow figure and fixed-page limits are specified
+under Gates 6 and 8.
 
 ## Gate 5: static PDF/A-4
 
@@ -833,9 +693,6 @@ Raw stores and PDF object identities remain outside the common path.
   multimedia, 3D, and attachments under package policy. Supported URI link actions remain
   annotation data rather than rendering dependencies.
 - Keep PDF/A-4f and PDF/A-4e outside this capability.
-- Advance `Pdf.Options.default` to public profile `Archive`, whose claim set is
-  `Pdf20 + StaticPdfA4`; failure returns a structured error and never falls
-  back to `Standard`/ordinary PDF 2.0.
 
 ### Evidence and status
 
@@ -844,15 +701,12 @@ checks the supported-feature whitelist, selected text, resource closure and
 sealed-plan metadata. Fixtures exercise accepted Archive and Standard output,
 identification and unchanged page appearance, plus atomic rejection. The
 [archive implementation record](docs/contributors/performance/static-pdfa4.md)
-describes the supported path and its historical evidence.
+describes the supported path.
 
 ## Gate 6: business authoring and core PDF/UA-2 vocabulary
 
-This gate closes the public authoring needed by the reference invoice, report,
-and letter, together with its semantic vocabulary. It uses Gate 4's visual
-compiler and does not depend on Gate 8's general composition features. Gate 5
-established the Archive profile. Gate 7 established the combined default.
-Closing Gate 6 alone does not make a PDF/UA-2 or combined-profile claim.
+This gate defines the business authoring and semantic vocabulary used by the
+reference invoice, report and letter.
 
 ### Capabilities
 
@@ -876,16 +730,12 @@ Closing Gate 6 alone does not make a PDF/UA-2 or combined-profile claim.
   plus one separately authored chart or callout exercising the custom-block
   seam. Its supported measurement and fragmentation contract is explicit;
   neither PDF operators nor arbitrary custom pagination become public.
-  Bounded text labels inside those drawings (`Scene.Drawing.text`: one
-  shaped line per label in the body face, or with `Scene.Drawing.text_in`
-  in the style face of an inline role, aligned to an anchor, scaled
-  with its figure, proved inside its drawing, and painted as `Decoration`
-  artifact text) are part of this subset. They were moved forward from
-  Gate 8's vector-scene integration because the gallery's charts and
-  diagrams need real axis, tick, and legend text, and they reuse the
-  closed artifact-text path of page furniture without any new composition,
-  fragmentation, or structure; labels in decorations and under ordered
-  font policies remain outside it.
+  Drawing labels occupy one shaped line in the body face
+  (`Scene.Drawing.text`) or an inline role face (`Scene.Drawing.text_in`).
+  Each intrinsic label stays within the drawing, scales with it, and belongs
+  to the Figure. The bounded decoration API and ordered font policies
+  exclude drawing labels.
+
 - Typed mandatory layout constraints and ranked preferences, including
   oversize-content and unbreakable-token behavior, supported wrapping and
   splitting, required/preferred keeps, deterministic tie breaks, and bounded
@@ -896,9 +746,10 @@ Closing Gate 6 alone does not make a PDF/UA-2 or combined-profile claim.
   measured wrapping with a declared oversized-token policy, and continuation
   between visual lines. Optional padded panels repeat as decoration artifacts
   on each page fragment; Code semantics and source order remain logical facts.
-  This extension slice is closed by its own
-  [public, conformance and performance evidence](docs/contributors/performance/source-blocks.md),
-  distinct from the historical business-authoring closure below.
+  Foreground ranges preserve the source, wrapping and semantic ownership.
+  [Source-block evidence](docs/contributors/performance/source-blocks.md) and
+  [foreground-range evidence](docs/contributors/performance/source-foregrounds.md)
+  exercise these contracts.
 - The declared production text-support matrix and any additions needed by the
   reference documents, including bounded boundary reshaping and final fit
   verification where applicable.
@@ -1004,100 +855,10 @@ Closing Gate 6 alone does not make a PDF/UA-2 or combined-profile claim.
 Unsupported semantic constructs are rejected; they are never flattened into
 paragraphs or figures.
 
-### Closure status
-
-Gate 6 is **closed**
-([docs/contributors/performance/business-authoring-closure.md](docs/contributors/performance/business-authoring-closure.md)).
-The reference invoice, report, and letter are gallery programs through the
-public API, and `tests/reference_documents` prepares them and every adverse
-variant of `reference-documents-v10`: each accepted variant's policy outcome
-is checked through the preparation report (with a control for each placement
-variant), and each rejected variant returns its stable diagnostic and no
-bytes. The closure record reviews every gate-evidence bullet: all
-non-optional bullets are satisfied, and the optional human and
-assistive-technology review was not performed. The closure sweep ran veraPDF
-PDF/A-4 (zero failures on 83 Archive snapshots and 10 gallery PDFs), the
-Docker Arlington lane (230 files), the independent structure checkers, a
-second structure-extraction path through PDFBox, `/SD` + `/D` resolution to
-authored headings, and MuPDF and PDFium renders. It fixed four defects:
-`Code` and `Quote` now belong to the PDF 1.7 standard namespace, destination
-headings keep with their next block, `semantics.heading_skip` is returned,
-and table semantics no longer copy the document's node lists once per table.
-Closing Gate 6 makes no PDF/UA-2 or combined-profile claim.
-
-The following public authoring has `Archive` profile evidence, with exact
-allocation, work, and allocated-byte ceilings, scale
-pairs, zero-failure veraPDF PDF/A-4 and Arlington evidence, and an
-independent structure checker. Each record lists its own open issues:
-
-- Reference contract: [docs/contributors/reference-documents.md](docs/contributors/reference-documents.md)
-  (`reference-documents-v10`) defines the invoice, report, and letter,
-  their adverse variants, the text-support matrix, and the layout-policy
-  vocabulary.
-- Semantic foundation, containers, `/Lang`/`/ID`/`/IDTree`/`/A`, and
-  DisplayDocTitle: `docs/contributors/performance/semantic-foundation.md`.
-- Rich inline content, nested language, and inline links:
-  `docs/contributors/performance/rich-inline.md`.
-- Bullet and numbered lists, explicit breaks, spacers, and typed required or
-  ranked keeps: `docs/contributors/performance/layout-policies.md`.
-- Ordinary tables with repeated header artifacts, column spans, scopes, and
-  `Headers`: `docs/contributors/performance/tables.md`.
-- First-page and continuation-page templates, furniture, and stabilized
-  page and total-page fields: `docs/contributors/performance/page-templates.md`.
-- Flow figures of bounded vector, raster, grouped, and multi-command
-  drawings, explicit `ScaleToFit`, `Pdf.decoration` artifacts, and captions
-  as `Sect > (Figure, Caption)` with `CaptionFor`:
-  `docs/contributors/performance/flow-figures.md`. Its open issues: applied scales are
-  not yet reported (the preparation report), figures are start-aligned with
-  body-style captions, only translated groups exist, a decoration binds to
-  the next flow block and never paints behind text, and `ScaleToFit` fits
-  the smaller template frame.
-- The open issues the references needed (open-issues slice): furniture
-  text under ordered font policies (page-templates.md), a caller face per
-  inline role such as a monospace `Code` (rich-inline.md), list label
-  columns widened for wide labels and a U+0020 separator for explicit line
-  breaks (layout-policies.md), per-cell alignment with `cell.aligned`
-  (tables.md), located `text.coverage_missing`/`text.unsupported_script`/
-  `text.unsupported_cluster` for every remaining coverage failure
-  (rich-inline.md), and removal of the unreachable facade artifact-block
-  plumbing (page-templates.md). Still open from those records: a role face
-  is style-faces only (`text.inline_font_policy` under a policy), and
-  figures remain start-aligned with body-style captions. (The earlier note
-  that spaces beside a Han cluster itemize as Han is superseded: they are
-  Common runs on the first covering face, as REP-A5 shows.)
-- The custom-block seam and the preparation report (S9):
-  `Pdf.custom_block`, exercised by the separately authored "Key figures"
-  callout (`tests/custom_block/Callout.roc`), and `Pdf.prepare_with_report`
-  with separate facts and obligations, applied figure scales, relaxations,
-  repeated headers, and an explicit budget:
-  `docs/contributors/performance/custom-block-report.md`. Extensions can measure content
-  height with `Pdf.measure_custom_content` (examples-showcase follow-up), so
-  callouts hold wrapped rich paragraphs. Its open issues: only
-  `Unsplittable` fragmentation, probe work stops at text, and inline report
-  paths scan line breaks. (The `Quote`/`Code` 8.2.4 finding is resolved by
-  the closure.)
-- Linear lowering and emission, plus the allocated-byte guard:
-  `docs/contributors/performance/lowering-uniqueness.md` and
-  `docs/contributors/performance/emission-linearity.md`. The Roc compiler defects behind
-  them are reported upstream (roc-lang/roc #11821-#11827).
-- The CIDSystemInfo ASCII-string regression:
-  `docs/contributors/performance/cid-system-info-ascii.md`.
-
-- The gallery's API gaps: odd-length Macintosh `name` records and fonts
-  without TrueType hinting tables (`font-inspection.md`,
-  `font-subsetting.md`); specific located diagnostics in place of the
-  `UnsupportedAuthoringContent` catch-all (`facade-diagnostics.md`);
-  title and heading faces and per-level heading styles
-  (`block-faces.md`); shared text shaped per occurrence, inline role
-  scales, link color and underline, and scoped inline colors
-  (`rich-inline.md`); the built-in face through
-  `Font.Registry.register_built_in` (`caller-font-registration.md`); and
-  bounded text labels inside drawings (`drawing-labels.md`).
-- Reference documents and closure (S10): the gallery programs
-  `examples/tax-invoice/main.roc`, `examples/business-report/main.roc`, and
-  `examples/warranty-letter/main.roc`, the `tests/reference_documents` family, the
-  structure-extraction and reference-document checkers, and the closure
-  review: `docs/contributors/performance/business-authoring-closure.md`.
+The [business-authoring evidence](docs/contributors/performance/business-authoring-closure.md)
+links the public fixtures, independent checks and scale baselines. See the
+[authoring guide](docs/authoring.adoc) for supported combinations and
+diagnostics.
 
 ## Gate 7: business documents and the combined default
 
@@ -1122,11 +883,8 @@ separate scope, funding, and ownership. Discuss proposals in
 
 ## Gate 8: advanced document composition
 
-These features extend an already usable business-document release. Ordinary
-table continuation, repeated headers, single-column page templates, bounded
-flow figures, page/total-page numbers, and the separately evidenced bounded
-source-block extension are assigned to Gate 6; they do not
-wait for the broader algorithms below.
+These capabilities extend the single-column flow, ordinary tables, bounded
+figures, page references and source blocks described under Gate 6.
 
 ### Capabilities
 
@@ -1144,8 +902,8 @@ wait for the broader algorithms below.
 - Broader explicitly declared script/font coverage and vertical writing where
   the shaping and layout boundary supports them.
 - Broader public composition with reusable Form XObjects, transparency,
-  gradients, and patterns, building on their independently closed Gate 4
-  compiler subsets and Gate 6's bounded flow-figure use.
+  gradients, and patterns using the Gate 4 compiler and the Gate 6 flow-figure
+  boundary.
 
 ### Gate evidence
 
