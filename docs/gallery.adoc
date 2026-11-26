@@ -10,6 +10,8 @@ image::images/tax-invoice.png[Tax invoice preview]
 
 https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/tax-invoice/main.roc[Runnable invoice source] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/tax-invoice/tax-invoice.pdf[PDF output]
 
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/tax-invoice/README.md[Run the long-description layout variants.]
+
 [#invoice-with-data]
 == Invoice with associated data
 
@@ -22,6 +24,8 @@ https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/invoice-with-da
 image::images/business-report.png[Business report preview]
 
 https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/business-report/main.roc[Runnable report source] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/business-report/business-report.pdf[PDF output]
+
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/business-report/README.md[Run the preparation report and heat-map variants.]
 
 == Prepared vector diagrams
 
@@ -43,3 +47,12 @@ https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/remittance-advi
 image::images/pilot-findings.png[Pilot findings laid out in two columns]
 
 https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/pilot-findings[Runnable pilot article] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/pilot-findings/pilot-findings.pdf[PDF output]
+
+== More authoring examples
+
+* https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/operations-handbook/README.md[On-call handbook] for authored contents, chapter templates and a continued numbered instruction.
+* https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/source-blocks/README.md[Highlighted YAML] for caller-supplied UTF-8 ranges and an invalid-boundary example.
+* https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/ordered-han/README.md[Latin and Han receiving note] for explicit coverage order and language spans.
+* https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/field-guide/README.md[Pocket field guide] for custom pages and layout preferences.
+* https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/chunked-export/README.md[Cold-chain telemetry] for direct sink writes and compression choices.
+* https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/audit-log/README.md[Audit log] for compact text batches and explicit output profiles.

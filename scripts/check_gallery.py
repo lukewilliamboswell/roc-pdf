@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+from dataclasses import dataclass
 import functools
 import hashlib
 import http.server
@@ -18,6 +19,7 @@ import threading
 from pathlib import Path
 
 from check_drawing_labels import artifact_and_tagged_text
+from check_gallery_features import check_features
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,6 +29,7 @@ PACKAGE_DEPENDENCY = 'pdf: "../../package/main.roc",'
 # Each example is a directory holding its app root `main.roc`, the assets it
 # imports, the PDF it writes (named after the directory), and a preview.
 EXAMPLES = (
+    "audit-log",
     "brand-brief",
     "business-report",
     "chunked-export",
@@ -35,6 +38,7 @@ EXAMPLES = (
     "font-families",
     "invoice-with-data",
     "operations-handbook",
+    "ordered-han",
     "pilot-findings",
     "product-brief",
     "quarterly-report",
@@ -46,6 +50,79 @@ EXAMPLES = (
     "warranty-letter",
 )
 LOCAL_IMPORT = re.compile(r'^import "([^"]+)"', re.MULTILINE)
+
+
+@dataclass(frozen=True)
+class Case:
+    args: tuple[str, ...]
+    snapshot: str | None = None
+    diagnosis: str | None = None
+    facts: tuple[str, ...] = ()
+
+
+CASES = {
+    "audit-log": (
+        Case(("archive",), "audit-log-archive.pdf"),
+        Case(("standard",), "audit-log-standard.pdf"),
+        Case(("invalid",), diagnosis="semantics.heading_level at contents[1]"),
+    ),
+    "business-report": (
+        Case(("report",), "business-report.pdf", facts=("Language en-AU", "repeated header", "alternative:", "Author check")),
+        Case(("report-budget",), "business-report.pdf", facts=("Language en-AU", "repeated header")),
+        Case(("report-tiny",), diagnosis="report.budget_exceeded"),
+        Case(("heat-map",), "business-report-heat-map.pdf", facts=("figure on page 5", "applied figure scale 731 per thousand")),
+        Case(("heat-exact",), diagnosis="document.figure_oversize at contents[7].contents[2]"),
+        Case(("heat-high-floor",), diagnosis="below its ScaleToFit floor of 90%"),
+    ),
+    "chunked-export": tuple(
+        Case((compression, delivery), f"chunked-export{suffix}.pdf")
+        for compression, suffix in (("balanced", ""), ("smallest", "-smallest"), ("fastest", "-fastest"))
+        for delivery in ("share", "own", "buffered")
+    ),
+    "field-guide": (
+        Case(("pocket",), "field-guide-pocket.pdf", facts=("Preferred species note keep relaxed",)),
+    ),
+    "ordered-han": (
+        Case(("latin-only",), diagnosis="text.coverage_missing at contents[1].inlines[1].inlines[0]"),
+    ),
+    "source-blocks": (
+        Case(("plain",), "source-blocks-plain.pdf"),
+        Case(("bad-range",), diagnosis="source.foreground_range at contents[2]"),
+    ),
+    "tax-invoice": (
+        Case(("split",), "tax-invoice-split.pdf", facts=("Repeated header", "Continued row contents[4].contents[1].table.body_rows[30]")),
+        Case(("keep",), diagnosis="layout.oversize_row at contents[4].contents[1].table.body_rows[30]"),
+    ),
+}
+
+
+def check_cases(name: str, source: Path, example: Path, output: Path) -> None:
+    generated = output / f"{name}.pdf"
+    sentinel = b"gallery check: existing output must survive a rejected document"
+    for case in CASES.get(name, ()):
+        label = f"{name}/main.roc {' '.join(case.args)}"
+        command = [ROC, "run", str(source), *case.args]
+        result = subprocess.run(command, cwd=output, capture_output=True, text=True)
+        if case.diagnosis is not None:
+            if result.returncode != 1 or case.diagnosis not in result.stderr or generated.exists():
+                raise SystemExit(f"{label}: expected a rejected document and no new file\n{result.stderr}")
+            generated.write_bytes(sentinel)
+            try:
+                repeat = subprocess.run(command, cwd=output, capture_output=True, text=True)
+                if (repeat.returncode != 1 or case.diagnosis not in repeat.stderr
+                        or not generated.is_file() or generated.read_bytes() != sentinel):
+                    raise SystemExit(f"{label}: rejected document changed an existing output file")
+            finally:
+                generated.unlink(missing_ok=True)
+        else:
+            if result.returncode != 0 or not generated.is_file():
+                raise SystemExit(f"{label}: generation failed\n{result.stderr}")
+            if not all(fact in result.stdout for fact in case.facts):
+                raise SystemExit(f"{label}: missing expected review facts\n{result.stdout}")
+            if generated.read_bytes() != (example / case.snapshot).read_bytes():
+                raise SystemExit(f"{label}: generated PDF differs from {case.snapshot}")
+            generated.unlink()
+        print(f"PASS {label}", flush=True)
 
 
 class BundleRequestHandler(http.server.SimpleHTTPRequestHandler):
@@ -92,7 +169,7 @@ def bundled_example(example: Path, destination: Path, bundle_url: str) -> Path:
         resolved = (example / imported).resolve()
         if not resolved.is_relative_to(example.resolve()) or not resolved.is_file():
             raise SystemExit(f"{example.name}: import {imported!r} is not a file inside the example directory")
-    shutil.copytree(example, destination, ignore=shutil.ignore_patterns("*.pdf", "preview.png", "node_modules"))
+    shutil.copytree(example, destination, ignore=shutil.ignore_patterns("*.pdf", "preview*.png", "node_modules"))
     (destination / "main.roc").write_text(
         text.replace(PACKAGE_DEPENDENCY, f'pdf: "{bundle_url}",'),
         encoding="utf-8",
@@ -104,6 +181,7 @@ def bundled_example(example: Path, destination: Path, bundle_url: str) -> Path:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--bundle-path", type=Path)
+    parser.add_argument("--example", action="append", choices=EXAMPLES, help="Limit the check to selected examples")
     parser.add_argument("--update", action="store_true", help="Regenerate reviewed PDFs and Poppler previews, updating their provenance")
     parser.add_argument("--update-reason", help="Architectural cause reviewed before accepting changed gallery output")
     parser.add_argument("--report", type=Path, default=ROOT / ".roc-pdf-tmp/gallery-update-report.json")
@@ -145,7 +223,7 @@ def main() -> None:
         temporary_path = Path(temporary)
         server_context = BundleServer(bundle) if bundle is not None else contextlib.nullcontext()
         with server_context as server:
-            for name in EXAMPLES:
+            for name in args.example or EXAMPLES:
                 example = GALLERY / name
                 pdf_name = f"{name}.pdf"
                 source = example / "main.roc"
@@ -188,6 +266,8 @@ def main() -> None:
                     raise SystemExit(f"{name}: generated PDF differs from {pdf_name}")
                 generated_path.unlink()
                 print(f"PASS {name}/main.roc -> {pdf_name} ({len(generated)} bytes)", flush=True)
+                check_cases(name, source, example, output)
+                check_features(name, example)
             if server is not None and server.get_requests == 0:
                 raise SystemExit("gallery never requested the served package bundle")
     if args.update:

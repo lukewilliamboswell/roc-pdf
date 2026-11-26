@@ -16,19 +16,13 @@ import "fonts/SourceSans3-Bold.ttf" as bold_bytes : List(U8)
 import "fonts/SourceSans3-It.ttf" as italic_bytes : List(U8)
 import "fonts/SourceCodePro-Regular.ttf" as mono_bytes : List(U8)
 
-## An on-call runbook for a payments platform: running headers and footers
-## with `Page N of M`, an outline over numbered sections, a severity matrix
-## and an escalation table with shaded levels and striped rows, numbered
-## procedures with nested steps and inline commands, warning and note
-## callouts and dark console panels authored through the custom-block seam
-## and measured by the package, a vector service-topology diagram, and
-## appendices of commands and procedure drills (a drill never run leaves
-## its cell empty).
+## An on-call runbook with authored contents, chapter templates and
+## a continuing rollback instruction containing rich blocks.
 main! = |_args| {
 	fonts = register_fonts({})?
 	options : Pdf.Options
 	options = { theme: theme(fonts), fonts: Registered(fonts.registry) }
-	blocks = contents(options).map_err(|err| PdfFailed(err))?
+	blocks = contents(options, fonts.mono).map_err(|err| PdfFailed(err))?
 	document = Pdf.document({
 		contents: blocks,
 		language: "en-AU",
@@ -38,12 +32,43 @@ main! = |_args| {
 		created: Explicit("2026-09-30T00:00:00Z"),
 		modified: Explicit("2026-09-30T00:00:00Z"),
 	})
-	bytes = Pdf.to_bytes_with(document, options).map_err(|err| PdfFailed(err))?
+	# The appendix starts on its own page scope. Resolve its destination
+	# once, then configure the label range at that physical page index.
+	# The reference fields and footer have reserved widths in both passes.
+	first_pass = Pdf.prepare_with_report(document, { options: options }).map_err(|err| PdfFailed(err))?
+	appendix = appendix_page(first_pass.report).map_err(|_| MissingAppendixPage)?
+	labelled_document = document.with_page_labels([
+		{ prefix: "", start_number: 1, start_page: 0, style: DecimalArabic },
+		{ prefix: "A-", start_number: 1, start_page: appendix - 1, style: DecimalArabic },
+	])
+	final = Pdf.prepare_with_report(labelled_document, { options: options }).map_err(|err| PdfFailed(err))?
+	labelled_appendix = appendix_page(final.report).map_err(|_| MissingAppendixPage)?
+	if labelled_appendix != appendix {
+		return Err(AppendixMoved)
+	}
+	for outcome in final.report.facts.outcomes {
+		match outcome {
+			CalloutFragmentPlaced({ name: "Post-rollback observation", page, part, .. }) => Stdout.line!("Post-rollback observation: ${Str.inspect(part)} on page ${page.to_str()}").map_err(|err| OutputFailed(err))?
+			_ => {}
+		}
+	}
+	bytes = Pdf.to_bytes_prepared(final.prepared).map_err(|err| PdfFailed(err))?
 	output : Path
 	output = "operations-handbook.pdf"
 	output.write_bytes!(bytes).map_err(|err| WriteFailed(err))?
 	Stdout.line!("Wrote operations-handbook.pdf").map_err(|err| OutputFailed(err))?
 	Ok({})
+}
+
+appendix_page : Pdf.Report -> Try(U64, [NoAppendix])
+appendix_page = |report| {
+	for outcome in report.facts.outcomes {
+		match outcome {
+			PageReferenceResolved({ destination: "commands", page, .. }) => return Ok(page)
+			_ => {}
+		}
+	}
+	Err(NoAppendix)
 }
 
 Faces : { regular : Font.FaceId, bold : Font.FaceId, italic : Font.FaceId, mono : Font.FaceId, registry : Font.Registry }
@@ -121,7 +146,7 @@ theme = |faces| {
 ## continuation pages.
 
 page_of : Pdf.Inline
-page_of = Pdf.reserved_width({ width: 72, align: End, contents: [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)] })
+page_of = Pdf.reserved_width({ width: 62, align: End, contents: [Pdf.text("Page "), Pdf.page_label] })
 
 footer : Pdf.Region
 footer = Pdf.region({
@@ -143,6 +168,21 @@ templates = {
 		footer,
 		gap: 14,
 	}),
+}
+
+chapter : Str, List(Document.Block) -> Document.Block
+chapter = |label, body| {
+	section_header = Pdf.region({ height: 22, start: [Pdf.furniture_text([Pdf.reserved_width({ width: 240, align: Start, contents: [Pdf.running_label] })])], backdrop: Backdrop(header_rule), slot_inset: 3 })
+	Pdf.page_scope(
+		{
+			running_label: Label(label),
+			page_templates: Templates({
+				opening: Pdf.page_template({ footer, gap: 14 }),
+				continuation: Pdf.page_template({ header: section_header, footer, gap: 14 }),
+			}),
+		},
+		body,
+	)
 }
 
 outline : List(Document.OutlineEntry)
@@ -426,7 +466,13 @@ contact_row = |after, role, who, channel| Pdf.row([
 	Pdf.header_cell(Row, [Pdf.text(after)]),
 	Pdf.cell([Pdf.strong([Pdf.text(role)])]),
 	Pdf.cell([Pdf.text(who)]),
-	Pdf.cell([Pdf.code(channel)]),
+	Pdf.cell(
+		if (channel == "page: dba-oncall") [
+			Pdf.code(channel),
+			Pdf.text(" · commands p. "),
+			Pdf.page_reference({ destination: "commands", width: 28, numbering: PageLabel }),
+		] else [Pdf.code(channel)],
+	),
 ])
 
 escalation_table : Document.Block
@@ -544,181 +590,245 @@ accent_band = Pdf.decoration({
 	drawing: Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 10, width: 56, height: 6 }), color: teal }).rectangle({ bounds: Layout.rect({ x: 60, y: 10, width: 18, height: 6 }), color: rust }).rectangle({ bounds: { origin: Layout.point({ x: 0, y: 0 }), size: { height: 0.6, width: Layout.Unit.points(measure) } }, color: mist }),
 })
 
-contents : Pdf.Options -> Try(List(Document.Block), Pdf.Error)
-contents = |options| Ok([
-	accent_band,
-	Pdf.title("Payments platform on-call runbook"),
-	Pdf.rich_paragraph([
-		Pdf.emphasis([Pdf.text("Runbook PAY-OPS-004, revision 4.2 · Owner: Payments Reliability · Reviewed 30 September 2026")]),
-	]),
-	callout(
-		options,
-		"At a glance",
-		note_style,
-		[
-			labelled("Bridge", [Pdf.text("Join "), Pdf.code("#inc-payments"), Pdf.text(" and the standing video bridge before anything else.")]),
-			labelled("Dashboards", [Pdf.inline_link([Pdf.text("grafana.example/d/payments-overview")], "https://grafana.example/d/payments-overview")]),
-			labelled("Status page", [Pdf.text("Customer updates go out through the support duty manager only.")]),
-		],
-	)?,
-	Pdf.section([
-		Pdf.destination_heading({ name: "scope", level: 1, text: "1 Scope and on-call duties" }),
+contents : Pdf.Options, Font.FaceId -> Try(List(Document.Block), Pdf.Error)
+contents = |options, mono| {
+	cover = [
+		accent_band,
+		Pdf.title("Payments platform on-call runbook"),
 		Pdf.rich_paragraph([
-			Pdf.text("This runbook covers the card, wallet, and bank-transfer paths of the payments platform in both production regions. It tells the on-call engineer "),
-			Pdf.strong([Pdf.text("what to check, in what order, and when to escalate")]),
-			Pdf.text(". It does not replace judgement: if a step makes things worse, stop and escalate using "),
-			Pdf.inline_internal_link([Pdf.text("section 5")], "escalation"),
-			Pdf.text("."),
+			Pdf.emphasis([Pdf.text("Runbook PAY-OPS-004, revision 4.2 · Owner: Payments Reliability · Reviewed 30 September 2026")]),
 		]),
-		Pdf.bullet_list([
-			Pdf.list_item([Pdf.paragraph("Acknowledge every page within five minutes, day or night.")]),
-			Pdf.list_item([
-				Pdf.rich_paragraph([Pdf.text("Keep a laptop with a working "), Pdf.expansion({ text: "VPN", expanded: "virtual private network" }), Pdf.text(" and hardware key within reach.")]),
+		callout(
+			options,
+			"At a glance",
+			note_style,
+			[
+				labelled("Bridge", [Pdf.text("Join "), Pdf.code("#inc-payments"), Pdf.text(" and the standing video bridge before anything else.")]),
+				labelled("Dashboards", [Pdf.inline_link([Pdf.text("grafana.example/d/payments-overview")], "https://grafana.example/d/payments-overview")]),
+				labelled("Status page", [Pdf.text("Customer updates go out through the support duty manager only.")]),
+			],
+		)?,
+		Pdf.heading(1, "Contents"),
+		Pdf.contents_entry({ title: [Pdf.text("4 Incident response procedure: how the on-call engineer should stabilise the system, review the last change and restore normal service before handing the incident back to the duty manager")], reference: { destination: "response", width: 28, numbering: PageLabel } }),
+		Pdf.contents_entry({ title: [Pdf.text("4.2 Rolling back a release")], reference: { destination: "rollback", width: 28, numbering: PageLabel }, indent: 20, leader: Dots }),
+		Pdf.contents_entry({ title: [Pdf.text("5 Escalation")], reference: { destination: "escalation", width: 28, numbering: PageLabel } }),
+		Pdf.contents_entry({ title: [Pdf.text("Appendix A. Command reference")], reference: { destination: "commands", width: 28, numbering: PageLabel } }),
+	]
+	duties = [
+		Pdf.section([
+			Pdf.destination_heading({ name: "scope", level: 1, text: "1 Scope and on-call duties" }),
+			Pdf.rich_paragraph([
+				Pdf.text("This runbook covers the card, wallet, and bank-transfer paths of the payments platform in both production regions. It tells the on-call engineer "),
+				Pdf.strong([Pdf.text("what to check, in what order, and when to escalate")]),
+				Pdf.text(". It does not replace judgement: if a step makes things worse, stop and escalate using "),
+				Pdf.inline_internal_link([Pdf.text("section 5")], "escalation"),
+				Pdf.text("."),
 			]),
-			Pdf.list_item([
-				Pdf.paragraph("Hand over at 09:00 local time with a written summary:"),
-				Pdf.bullet_list([
-					Pdf.list_item([Pdf.paragraph("open incidents and their current severity;")]),
-					Pdf.list_item([Pdf.paragraph("changes frozen, rolled back, or still in flight.")]),
+			Pdf.bullet_list([
+				Pdf.list_item([Pdf.paragraph("Acknowledge every page within five minutes, day or night.")]),
+				Pdf.list_item([
+					Pdf.rich_paragraph([Pdf.text("Keep a laptop with a working "), Pdf.expansion({ text: "VPN", expanded: "virtual private network" }), Pdf.text(" and hardware key within reach.")]),
+				]),
+				Pdf.list_item([
+					Pdf.paragraph("Hand over at 09:00 local time with a written summary:"),
+					Pdf.bullet_list([
+						Pdf.list_item([Pdf.paragraph("open incidents and their current severity;")]),
+						Pdf.list_item([Pdf.paragraph("changes frozen, rolled back, or still in flight.")]),
+					]),
 				]),
 			]),
 		]),
-	]),
-	Pdf.section([
-		Pdf.destination_heading({ name: "topology", level: 1, text: "2 Service topology" }),
-		Pdf.paragraph("Every payment enters through the edge, is authorised by the payments API, and is written to the ledger before any acquirer is told to capture funds. Figure 1 shows the tiers you will meet during an incident."),
-		Pdf.figure({ drawing: topology, alt: "Diagram of the payments request path. Traffic flows left to right from the edge load balancer (1) through the API gateway (2) and payments API (3) to the acquirer adapters (4). The payments API writes to the ledger database (5), and the adapters publish to the settlement queue (6), which the settlement worker (7) consumes before reconciling against the ledger.", caption: Pdf.caption("Figure 1. Request path through the production zone (shaded)") }),
-		Pdf.numbered_list(
-			{},
-			[
-				rich_step([Pdf.strong([Pdf.text("Edge load balancer")]), Pdf.text(" terminates TLS and applies rate limits.")]),
-				rich_step([Pdf.strong([Pdf.text("API gateway")]), Pdf.text(" authenticates merchants and routes by region.")]),
-				rich_step([Pdf.strong([Pdf.text("Payments API")]), Pdf.text(" validates, deduplicates, and authorises each payment.")]),
-				rich_step([Pdf.strong([Pdf.text("Acquirer adapters")]), Pdf.text(" speak each bank's protocol and own the retries.")]),
-				rich_step([Pdf.strong([Pdf.text("Ledger database")]), Pdf.text(" is the system of record; a primary with two replicas.")]),
-				rich_step([Pdf.strong([Pdf.text("Settlement queue")]), Pdf.text(" buffers captures for the nightly settlement run.")]),
-				rich_step([Pdf.strong([Pdf.text("Settlement worker")]), Pdf.text(" drains the queue and reconciles against the ledger.")]),
-			],
-		),
-	]),
-	Pdf.section([
-		Pdf.destination_heading({ name: "severity", level: 1, text: "3 Severity levels" }),
-		Pdf.paragraph("Declare the severity as soon as the impact is understood, and change it as soon as the impact changes. Response targets run from the moment the page fires, not from acknowledgement."),
-		severity_table,
-	]),
-	Pdf.section([
-		Pdf.destination_heading({ name: "response", level: 1, text: "4 Incident response procedure" }),
-		Pdf.paragraph("Work through the steps in order. Record every action, with the time, in the incident channel as you take it: the timeline is written from those messages."),
 		Pdf.section([
-			Pdf.destination_heading({ name: "triage", level: 2, text: "4.1 Triage" }),
+			Pdf.destination_heading({ name: "topology", level: 1, text: "2 Service topology" }),
+			Pdf.paragraph("Every payment enters through the edge, is authorised by the payments API, and is written to the ledger before any acquirer is told to capture funds. Figure 1 shows the tiers you will meet during an incident."),
+			Pdf.figure({ drawing: topology, alt: "Diagram of the payments request path. Traffic flows left to right from the edge load balancer (1) through the API gateway (2) and payments API (3) to the acquirer adapters (4). The payments API writes to the ledger database (5), and the adapters publish to the settlement queue (6), which the settlement worker (7) consumes before reconciling against the ledger.", caption: Pdf.caption("Figure 1. Request path through the production zone (shaded)") }),
 			Pdf.numbered_list(
 				{},
 				[
-					rich_step([Pdf.text("Acknowledge the page and open the incident with "), Pdf.code("/incident open payments"), Pdf.text(".")]),
-					step("Check the overview dashboard for the three golden signals: authorisation rate, p99 latency, and error rate."),
-					Pdf.list_item([
-						Pdf.paragraph("Decide whether the fault is ours or upstream:"),
-						Pdf.numbered_list(
-							{ style: LowerAlpha },
-							[
-								step("if one acquirer is failing, disable it and let routing fail over;"),
-								step("if every acquirer is failing, suspect the payments API or the ledger;"),
-								step("if only one region is failing, drain it at the edge."),
-							],
-						),
-					]),
-					rich_step([Pdf.text("Declare the severity using "), Pdf.inline_internal_link([Pdf.text("Table 1")], "severity"), Pdf.text(" and page the next level if the target is at risk.")]),
+					rich_step([Pdf.strong([Pdf.text("Edge load balancer")]), Pdf.text(" terminates TLS and applies rate limits.")]),
+					rich_step([Pdf.strong([Pdf.text("API gateway")]), Pdf.text(" authenticates merchants and routes by region.")]),
+					rich_step([Pdf.strong([Pdf.text("Payments API")]), Pdf.text(" validates, deduplicates, and authorises each payment.")]),
+					rich_step([Pdf.strong([Pdf.text("Acquirer adapters")]), Pdf.text(" speak each bank's protocol and own the retries.")]),
+					rich_step([Pdf.strong([Pdf.text("Ledger database")]), Pdf.text(" is the system of record; a primary with two replicas.")]),
+					rich_step([Pdf.strong([Pdf.text("Settlement queue")]), Pdf.text(" buffers captures for the nightly settlement run.")]),
+					rich_step([Pdf.strong([Pdf.text("Settlement worker")]), Pdf.text(" drains the queue and reconciles against the ledger.")]),
 				],
 			),
-			console(
-				options,
-				[
-					"$ kubectl -n payments get pods -l tier=api -o wide",
-					"$ kubectl -n payments logs deploy/payments-api --since=15m",
-					"$ payctl acquirer status --region ap-southeast-2",
-				],
-			)?,
 		]),
 		Pdf.section([
-			Pdf.destination_heading({ name: "rollback", level: 2, text: "4.2 Rolling back a release" }),
-			Pdf.rich_paragraph([
-				Pdf.text("Most incidents start within an hour of a deploy. If the timing fits, "),
-				Pdf.strong([Pdf.text("roll back first and investigate afterwards")]),
-				Pdf.text("."),
+			Pdf.destination_heading({ name: "severity", level: 1, text: "3 Severity levels" }),
+			Pdf.paragraph("Declare the severity as soon as the impact is understood, and change it as soon as the impact changes. Response targets run from the moment the page fires, not from acknowledgement."),
+			severity_table,
+		]),
+
+	]
+	procedure = [
+		Pdf.section([
+			Pdf.destination_heading({ name: "response", level: 1, text: "4 Incident response procedure" }),
+			Pdf.paragraph("Work through the steps in order. Record every action, with the time, in the incident channel as you take it: the timeline is written from those messages."),
+			Pdf.section([
+				Pdf.destination_heading({ name: "triage", level: 2, text: "4.1 Triage" }),
+				Pdf.numbered_list(
+					{},
+					[
+						rich_step([Pdf.text("Acknowledge the page and open the incident with "), Pdf.code("/incident open payments"), Pdf.text(".")]),
+						step("Check the overview dashboard for the three golden signals: authorisation rate, p99 latency, and error rate."),
+						Pdf.list_item([
+							Pdf.paragraph("Decide whether the fault is ours or upstream:"),
+							Pdf.numbered_list(
+								{ style: LowerAlpha },
+								[
+									step("if one acquirer is failing, disable it and let routing fail over;"),
+									step("if every acquirer is failing, suspect the payments API or the ledger;"),
+									step("if only one region is failing, drain it at the edge."),
+								],
+							),
+						]),
+						rich_step([Pdf.text("Declare the severity using "), Pdf.inline_internal_link([Pdf.text("Table 1")], "severity"), Pdf.text(" and page the next level if the target is at risk.")]),
+					],
+				),
+				console(
+					options,
+					[
+						"$ kubectl -n payments get pods -l tier=api -o wide",
+						"$ kubectl -n payments logs deploy/payments-api --since=15m",
+						"$ payctl acquirer status --region ap-southeast-2",
+					],
+				)?,
 			]),
-			Pdf.numbered_list(
-				{},
-				[
-					rich_step([Pdf.text("Freeze deploys with "), Pdf.code("payctl freeze --reason INC"), Pdf.text(".")]),
-					rich_step([Pdf.text("Find the last good revision with "), Pdf.code("kubectl rollout history"), Pdf.text(".")]),
-					rich_step([Pdf.text("Roll back with "), Pdf.code("kubectl rollout undo --to-revision=N"), Pdf.text(" and watch the pods restart.")]),
-					step("Confirm the authorisation rate has recovered for ten minutes before you lift the freeze."),
-				],
-			),
-			callout(
-				options,
-				"Warning",
-				warning_style,
-				[
-					labelled("Warning", [Pdf.text("Never roll back across a ledger schema migration.")]),
-					Pdf.rich_paragraph([Pdf.text("Check "), Pdf.code("payctl migrations --pending"), Pdf.text(" first. If a migration ran, escalate to the database specialist.")]),
-				],
-			)?,
+			Pdf.section([
+				Pdf.destination_heading({ name: "rollback", level: 2, text: "4.2 Rolling back a release" }),
+				Pdf.rich_paragraph([
+					Pdf.text("Most incidents start within an hour of a deploy. If the timing fits, "),
+					Pdf.strong([Pdf.text("roll back first and investigate afterwards")]),
+					Pdf.text(". The command reference starts on page "),
+					Pdf.page_reference({ destination: "commands", width: 28, numbering: PageLabel }),
+					Pdf.text("."),
+				]),
+				Pdf.numbered_list(
+					{},
+					[
+						rich_step([Pdf.text("Freeze deploys with "), Pdf.code("payctl freeze --reason INC"), Pdf.text(".")]),
+						rich_step([Pdf.text("Find the last good revision with "), Pdf.code("kubectl rollout history"), Pdf.text(".")]),
+						rollback_step(mono),
+						step("Confirm the authorisation rate has recovered for ten minutes before you lift the freeze."),
+					],
+				),
+				callout(
+					options,
+					"Warning",
+					warning_style,
+					[
+						labelled("Warning", [Pdf.text("Never roll back across a ledger schema migration.")]),
+						Pdf.rich_paragraph([Pdf.text("Check "), Pdf.code("payctl migrations --pending"), Pdf.text(" first. If a migration ran, escalate to the database specialist.")]),
+					],
+				)?,
+			]),
+			Pdf.section([
+				Pdf.destination_heading({ name: "failover", level: 2, text: "4.3 Database failover" }),
+				Pdf.paragraph("Fail the ledger over only when the primary is unreachable for more than two minutes and the incident commander agrees. Failover is automatic in most cases; these steps are for when it is not."),
+				Pdf.numbered_list(
+					{},
+					[
+						step("Confirm replication lag on both replicas is below one second."),
+						rich_step([Pdf.text("Promote the healthier replica with "), Pdf.code("ledgerctl promote --replica"), Pdf.text(".")]),
+						step("Repoint the payments API by restarting it; it resolves the primary at start-up."),
+						step("Fence the old primary so it cannot accept writes if it returns."),
+					],
+				),
+				console(
+					options,
+					[
+						"$ ledgerctl replicas --lag",
+						"$ ledgerctl promote --replica ledger-2 --confirm",
+						"$ kubectl -n payments rollout restart deploy/payments-api",
+					],
+				)?,
+				callout(
+					options,
+					"Note",
+					note_style,
+					[
+						labelled("Note", [Pdf.text("A failover loses no committed payment: writes are synchronous to one replica.")]),
+					],
+				)?,
+			]),
+		]),
+
+	]
+	follow_up = [
+		Pdf.section([
+			Pdf.destination_heading({ name: "escalation", level: 1, text: "5 Escalation" }),
+			Pdf.paragraph("Escalate on the clock, not on a feeling. If an incident is still open at the time shown, page the next role even if you believe a fix is close."),
+			escalation_table,
 		]),
 		Pdf.section([
-			Pdf.destination_heading({ name: "failover", level: 2, text: "4.3 Database failover" }),
-			Pdf.paragraph("Fail the ledger over only when the primary is unreachable for more than two minutes and the incident commander agrees. Failover is automatic in most cases; these steps are for when it is not."),
-			Pdf.numbered_list(
-				{},
-				[
-					step("Confirm replication lag on both replicas is below one second."),
-					rich_step([Pdf.text("Promote the healthier replica with "), Pdf.code("ledgerctl promote --replica"), Pdf.text(".")]),
-					step("Repoint the payments API by restarting it; it resolves the primary at start-up."),
-					step("Fence the old primary so it cannot accept writes if it returns."),
-				],
-			),
-			console(
-				options,
-				[
-					"$ ledgerctl replicas --lag",
-					"$ ledgerctl promote --replica ledger-2 --confirm",
-					"$ kubectl -n payments rollout restart deploy/payments-api",
-				],
-			)?,
-			callout(
-				options,
-				"Note",
-				note_style,
-				[
-					labelled("Note", [Pdf.text("A failover loses no committed payment: writes are synchronous to one replica.")]),
-				],
-			)?,
+			Pdf.destination_heading({ name: "review", level: 1, text: "6 After the incident" }),
+			Pdf.paragraph("Close the incident only when the metrics have been healthy for thirty minutes. Within two business days:"),
+			Pdf.bullet_list([
+				Pdf.list_item([Pdf.paragraph("write the timeline from the incident channel;")]),
+				Pdf.list_item([Pdf.paragraph("hold a blameless review with everyone who was paged;")]),
+				Pdf.list_item([Pdf.rich_paragraph([Pdf.text("file follow-up actions against the "), Pdf.code("PAY-REL"), Pdf.text(" board with an owner and a date;")])]),
+				Pdf.list_item([Pdf.paragraph("update this runbook if any step was wrong, missing, or slow.")]),
+			]),
+			Pdf.rich_paragraph([Pdf.text("Suggest changes to this runbook in "), Pdf.code("#payments-reliability"), Pdf.text(".")]),
 		]),
-	]),
-	Pdf.section([
-		Pdf.destination_heading({ name: "escalation", level: 1, text: "5 Escalation" }),
-		Pdf.paragraph("Escalate on the clock, not on a feeling. If an incident is still open at the time shown, page the next role even if you believe a fix is close."),
-		escalation_table,
-	]),
-	Pdf.section([
-		Pdf.destination_heading({ name: "review", level: 1, text: "6 After the incident" }),
-		Pdf.paragraph("Close the incident only when the metrics have been healthy for thirty minutes. Within two business days:"),
-		Pdf.bullet_list([
-			Pdf.list_item([Pdf.paragraph("write the timeline from the incident channel;")]),
-			Pdf.list_item([Pdf.paragraph("hold a blameless review with everyone who was paged;")]),
-			Pdf.list_item([Pdf.rich_paragraph([Pdf.text("file follow-up actions against the "), Pdf.code("PAY-REL"), Pdf.text(" board with an owner and a date;")])]),
-			Pdf.list_item([Pdf.paragraph("update this runbook if any step was wrong, missing, or slow.")]),
+
+	]
+	appendices = [
+		Pdf.section([
+			Pdf.destination_heading({ name: "commands", level: 1, text: "Appendix A. Command reference" }),
+			Pdf.keep_with_next(Required, Pdf.paragraph("Every command below is read-only unless it is marked as a write. Run writes only while the incident is open and announced in the channel.")),
+			command_table,
 		]),
-		Pdf.rich_paragraph([Pdf.text("Suggest changes to this runbook in "), Pdf.code("#payments-reliability"), Pdf.text(".")]),
-	]),
-	Pdf.section([
-		Pdf.destination_heading({ name: "commands", level: 1, text: "Appendix A. Command reference" }),
-		Pdf.keep_with_next(Required, Pdf.paragraph("Every command below is read-only unless it is marked as a write. Run writes only while the incident is open and announced in the channel.")),
-		command_table,
-	]),
-	Pdf.section([
-		Pdf.destination_heading({ name: "drills", level: 1, text: "Appendix B. Procedure drills" }),
-		Pdf.paragraph("Each procedure is rehearsed in the staging region on the schedule below. A procedure with no drill date has not been rehearsed since it was added; run it with its owner before you rely on it."),
-		drill_table,
-	]),
+		Pdf.section([
+			Pdf.destination_heading({ name: "drills", level: 1, text: "Appendix B. Procedure drills" }),
+			Pdf.paragraph("Each procedure is rehearsed in the staging region on the schedule below. A procedure with no drill date has not been rehearsed since it was added; run it with its owner before you rely on it."),
+			drill_table,
+		]),
+	]
+	Ok(
+		cover.append(
+			Pdf.part([
+				chapter("On-call duties", duties),
+				chapter("Incident response", procedure),
+				chapter("Escalation and review", follow_up),
+			]),
+		).append(Pdf.part([chapter("Appendices", appendices)])),
+	)
+}
+
+rollback_step : Font.FaceId -> Pdf.ListItem
+rollback_step = |mono| Pdf.list_item([
+	Pdf.paragraph("Roll back to the approved revision and watch the pods restart."),
+	Pdf.source_block({
+		face: Face(mono),
+		text: "$ kubectl -n payments rollout undo deploy/payments-api --to-revision=N\n$ kubectl -n payments rollout status deploy/payments-api\n",
+		background: Background("#E8F5F6"),
+	}),
+	Pdf.table({
+		caption: Pdf.caption("Recovery checks"),
+		columns: [{ width: Share(1), align: Start }, { width: Share(2), align: Start }],
+		header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Signal")]), Pdf.header_cell(Column, [Pdf.text("Required result")])])],
+		body_rows: [
+			Pdf.row([Pdf.header_cell(Row, [Pdf.text("Pods")]), Pdf.cell([Pdf.text("All regional replicas ready.")])]),
+			Pdf.row([Pdf.header_cell(Row, [Pdf.text("Latency")]), Pdf.cell([Pdf.text("Below the alert threshold for ten minutes.")])]),
+			Pdf.row([Pdf.header_cell(Row, [Pdf.text("Ledger")]), Pdf.cell([Pdf.text("No increase in outstanding settlements.")])]),
+		],
+	}),
+	Pdf.callout({
+		name: "Post-rollback observation",
+		padding: 12,
+		panel: { fill: Fill("#EEF4E8"), border: Border({ color: teal, width: 0.6 }) },
+		contents: observation_notes,
+	}),
 ])
+
+observation_notes = ["First five minutes", "Next five minutes", "Handover"].map(
+	|window| [
+		Pdf.rich_paragraph([Pdf.strong([Pdf.text(window)]), Pdf.text(" · Record these observations while the incident remains open.")]),
+		Pdf.paragraph("Check the authorisation rate and p99 latency for card and wallet payments in each production region. Compare each series with its value before the affected deployment. Mark the beginning and end of the review window in the incident channel."),
+		Pdf.paragraph("Check the regional replicas and queue depth. Where a replica has restarted, record whether it has rejoined its region. Capture the age of the oldest settlement event and tell the database specialist if backlog age is still increasing."),
+		Pdf.paragraph("Record the approved revision and the time it became ready. Add the dashboard views behind these decisions to the incident timeline. Ask the secondary on-call engineer to confirm the observations before handing back control."),
+	],
+).join()

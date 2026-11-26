@@ -2,7 +2,10 @@
 = Composing a technical manual
 
 Use ordinary `Pdf` blocks to combine chapter text, numbered instructions,
-tables, callouts and diagrams in one document.
+tables, callouts and diagrams in one document. The
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/operations-handbook/README.md[runnable on-call handbook] combines
+authored contents, chapter scopes, restarted appendix labels and a
+numbered rollback item that continues across pages.
 
 [#manual-composition-print-page-numbers-in-a-table-of-contents]
 == Print page numbers in a table of contents

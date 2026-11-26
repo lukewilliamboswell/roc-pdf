@@ -12,20 +12,41 @@ examples/<name>/
   fonts/        the fonts it registers, with their license texts
 ```
 
-Use the compiler pinned in [`.roc-version`](../.roc-version). See the [release notes](../docs/releases) for published package and compiler pins.
+Use the Roc compiler named in [`.roc-version`](../.roc-version) for a checkout.
+If you use a published bundle, follow its [release instructions](https://github.com/lukewilliamboswell/roc-pdf/releases).
 
 Run an example from its directory, where it writes its PDF:
 
 ```sh
 cd examples/product-brief
-roc main.roc
+roc run main.roc
 ```
 
 An example imports only files inside its own directory, so the directory
 works unchanged against the released package bundle once the `pdf`
 dependency names the bundle URL. `scripts/check_gallery.py` regenerates
-every PDF and checks that it equals the committed bytes, and with
-`--bundle-path` it does the same against a served bundle.
+the default and variant PDFs and checks their committed bytes. Use
+`--bundle-path` to check the same programs against a served bundle.
+
+## Run a variant
+
+- [Operations handbook](operations-handbook/README.md) links authored contents
+  to chapter and appendix page labels, and keeps rich blocks inside a
+  continued numbered rollback step.
+- [Source highlighting](source-blocks/README.md) colors original UTF-8 ranges
+  without changing selectable YAML or pagination.
+- [Tax invoice](tax-invoice/README.md) compares `KeepRows` and `SplitRows` on
+  the same long description.
+- [Business report](business-report/README.md) prints a preparation report and
+  checks the fit of a packed RGB heat map.
+- [Ordered Latin and Han fonts](ordered-han/README.md) covers tagged body
+  text, running furniture, and a numeric cell.
+- [Chunked export](chunked-export/README.md) streams to a file and compares
+  compression and retention choices.
+- [Pocket field guide](field-guide/README.md) uses custom pages and contrasts
+  a preferred species note keep with a required survey sheet.
+- [Audit log](audit-log/README.md) appends compact text batches and selects
+  PDF output profiles.
 
 <table>
 <tr>
@@ -51,6 +72,10 @@ every PDF and checks that it equals the committed bytes, and with
 <tr>
 <td><a href="font-families/font-families.pdf"><img src="font-families/preview.png" alt="Built-in font families preview"></a><br><a href="font-families/main.roc">Built-in font families source</a></td>
 <td><a href="vector-diagrams/vector-diagrams.pdf"><img src="vector-diagrams/preview.png" alt="Prepared vector diagrams preview"></a><br><a href="vector-diagrams/main.roc">Prepared vector diagrams source</a></td>
+<td><a href="ordered-han/ordered-han.pdf"><img src="ordered-han/preview.png" alt="Ordered Latin and Han handover note preview"></a><br><a href="ordered-han/main.roc">Ordered Latin and Han source</a></td>
+</tr>
+<tr>
+<td><a href="audit-log/audit-log.pdf"><img src="audit-log/preview.png" alt="Dispatch audit log preview"></a><br><a href="audit-log/main.roc">Audit log source</a></td>
 </tr>
 </table>
 
@@ -58,12 +83,12 @@ every PDF and checks that it equals the committed bytes, and with
 | --- | --- | --- |
 | [Quarterly report](quarterly-report/main.roc) | Noto Serif | a members' report for a regional cooperative: a cover band in the first-page header with its mark placed as a group, a navy key-figures callout in white text and a tinted diary callout, both measured by the package, a striped KPI scorecard with tinted status cells, a monthly revenue table beside its chart, and a segment table with a shaded totals footer, two labelled vector charts built from `Scene` groups (the targets chart kept with its notes), and running headers inset above a hairline backdrop with `Page N of M` |
 | [Brand brief](brand-brief/main.roc) | Public Sans, Source Code Pro | brand guidelines: headers inset above a region backdrop rule beside the mark and edition line, a palette strip and section bands as spaced decorations, measured "At a glance" callouts on a Mist panel and in white on Indigo, vector figures of named colour swatches and logo placements, tables with shaded headers, hairline body rules, and shaded spanning group rows, rich inline content, lists, links, and an outline over named destinations |
-| [Field guide](field-guide/main.roc) | Literata | a pocket guide to estuary shorebirds: a labelled vector habitat cross-section and named bird plates, species accounts that are outline destinations and cross-reference one another, identification lists, a survey sheet kept whole on one page (a details table and a checklist, ruled between columns and framed, whose blank cells are empty `TD`s for the surveyor), measured callouts whose lines wrap, spaced dividers, page labels, and running furniture inset above a ruled backdrop |
+| [Field guide](field-guide/main.roc) | Literata | an estuary shorebird guide: a labelled vector habitat cross-section and named bird plates, species accounts that are outline destinations and cross-reference one another, identification lists, a survey sheet kept whole on one page (a details table and a checklist, ruled between columns and framed, whose blank cells are empty `TD`s for the surveyor), measured callouts whose lines wrap, spaced dividers, page labels, and running furniture inset above a ruled backdrop |
 | [Built-in font families](font-families/main.roc) | Inter, Merriweather, Fira Code | Inter kerning and selectable arrow spellings, all ten packaged static faces through explicit family choices, genuine bold/italic/combined emphasis, a four-style serif quotation, exact Command-K in sans/mono roles and default-source typography without file loading or registry setup |
 | [Furniture typography](furniture-typography/main.roc) | Packaged face | a two-page document with an 11/15 pt body, independent 8/10 pt gray running text, and current/total-page fields in a reserved footer width |
 | [Prepared vector diagrams](vector-diagrams/main.roc) | Inter | an authoring-time Mermaid/SVG adapter producing public drawing commands, curved connectors, arrowheads, multiline searchable labels, exact registered font bytes and explicit Figure alternative text/caption |
-| [Source blocks](source-blocks/main.roc) | Packaged face, Source Code Pro | a deployment recipe with local 9/12 pt source typography, indentation and empty lines, and a padded background continuing at visual-line boundaries across pages |
-| [Operations handbook](operations-handbook/main.roc) | Source Sans 3, Source Code Pro | an on-call runbook: `Page N of M` furniture, an outline over numbered sections, severity and escalation tables with tinted severity levels, striped rows, and hairline rules, numbered procedures with nested steps and inline commands, measured warning and note callouts and dark command panels with light code, a vector service-topology diagram with named tiers, and appendices of commands (whose hyphenated flags never break) and procedure drills (an undrilled procedure leaves its cell empty) |
+| [Source blocks](source-blocks/main.roc) | Packaged face, Source Code Pro | a YAML deployment recipe with independent source typography and a padded background that continues across pages |
+| [Operations handbook](operations-handbook/main.roc) | Source Sans 3, Source Code Pro | an on-call runbook with an outline, severity and escalation tables, nested numbered procedures, a vector topology diagram, and appendices of commands and procedure drills |
 | [Business letter](warranty-letter/main.roc) | Literata | the reference business letter: a letterhead whose mark sits above a navy and brass rule as furniture, with the sender's name in Bold and address in slate as semantic blocks in the first-page lead region, a centered footer below a hairline, continuation headers with `Page N of M` inset above a hairline, an unsplittable signature block, an italic enclosure title, and an explicit break before a shaded, ruled covered-items schedule; no visible title, with the metadata title displayed |
 | [Release notes](release-notes/main.roc) | Noto Sans, Source Code Pro | release notes on US Letter: a decorative version banner spaced from the title, a night-blue highlights callout and a breaking-change callout, both measured by the package, versioned sections in the outline, change lists with inline code and underlined issue links, a labelled latency chart, a striped compatibility table with strong new versions and a table of changed flags, both leaving a release's missing entry as an empty cell, and running furniture |
 | [Business report](business-report/main.roc) | Source Sans 3, Source Code Pro | the reference business report: a navy cover band with the reversed mark, outline and link destinations for numbered sections, rich inline content with expansions, code, and a French quotation, nested lists, a "Key figures" callout with Bold labels through the custom-block seam (measured by the extension), a captioned bar chart whose axis values, bar values, region names, and legend are real drawing labels, a captioned JPEG photograph, a revenue table with a shaded total, and a striped 40-row register that continues with its header repeated |
@@ -104,6 +129,5 @@ region `backdrop` beside the slots' furniture, with the header text
 lifted clear of the rule by the region's `slot_inset`, and dividers and
 banners keep their gaps through a decoration's `above` and `below`.
 
-Fonts are retained byte-for-byte from their upstream releases under OFL-1.1;
-[vendor/README.md](../vendor/README.md) records each archive, and
-`assets/provenance.json` records each file.
+The [font notices](../vendor/README.md) and [asset manifest](../assets/provenance.json)
+record the OFL fonts, including the small derived Han face.

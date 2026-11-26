@@ -1037,6 +1037,66 @@
       }
     },
     {
+      "id": "example-audit-log-archive-pdf",
+      "path": "examples/audit-log/audit-log-archive.pdf",
+      "kind": "expected_pdf",
+      "bytes": 21303,
+      "sha256": "a60b1516ecc7af0213ec8556267358e836e3276033336afc57c4db1ab2c8dc06",
+      "license": "UPL-1.0 and attributed embedded assets",
+      "attribution": "examples/audit-log/README.md",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "examples/audit-log/main.roc"
+      }
+    },
+    {
+      "id": "example-audit-log-pdf",
+      "path": "examples/audit-log/audit-log.pdf",
+      "kind": "expected_pdf",
+      "bytes": 21420,
+      "sha256": "f811730886e20a02a450561e12c9be0b7c37c5db60d58d7e48a570d43c30b127",
+      "license": "UPL-1.0 and attributed embedded assets",
+      "attribution": "examples/audit-log/README.md",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "examples/audit-log/main.roc"
+      }
+    },
+    {
+      "id": "example-audit-log-preview",
+      "path": "examples/audit-log/preview.png",
+      "kind": "image",
+      "bytes": 162914,
+      "sha256": "e02f5b617c42ddacab50f96489ef2bc33ee74faf7a18c6d8144c05fba112fd39",
+      "license": "UPL-1.0",
+      "attribution": "Page 1 of the gallery PDF rendered with Poppler 26.07.0 at 96 dpi.",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "examples/audit-log/main.roc"
+      }
+    },
+    {
+      "id": "example-audit-log-standard-pdf",
+      "path": "examples/audit-log/audit-log-standard.pdf",
+      "kind": "expected_pdf",
+      "bytes": 21190,
+      "sha256": "59dcb2567fd38546147731b4f16556889c958156eccf0d7cabca74a575e1f88f",
+      "license": "UPL-1.0 and attributed embedded assets",
+      "attribution": "examples/audit-log/README.md",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "examples/audit-log/main.roc"
+      }
+    },
+    {
       "id": "example-brand-brief-pdf",
       "path": "examples/brand-brief/brand-brief.pdf",
       "kind": "expected_pdf",
@@ -1146,6 +1206,21 @@
       }
     },
     {
+      "id": "example-business-report-heat-map-pdf",
+      "path": "examples/business-report/business-report-heat-map.pdf",
+      "kind": "expected_pdf",
+      "bytes": 107568,
+      "sha256": "3b032774aeece4273acd4bbba20f1d86e75fd54fdee075ad6fd3c4f2135a8526",
+      "license": "UPL-1.0 and attributed embedded assets",
+      "attribution": "examples/business-report/README.md",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "examples/business-report/main.roc"
+      }
+    },
+    {
       "id": "example-business-report-pdf",
       "path": "examples/business-report/business-report.pdf",
       "kind": "expected_pdf",
@@ -1168,6 +1243,21 @@
       "sha256": "047d0700238b74d0e021d34007d4dc0bdea77c1817195778120391baad4a50e9",
       "license": "UPL-1.0",
       "attribution": "First-page preview rendered from the generated gallery PDF with Poppler 26.07.0.",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "examples/business-report/main.roc"
+      }
+    },
+    {
+      "id": "example-business-report-preview-heat-map",
+      "path": "examples/business-report/preview-heat-map.png",
+      "kind": "image",
+      "bytes": 33611,
+      "sha256": "2a0c53f1b57fa80c5413fe8f14a593fbcdf96ba515cd123efeea7d2b5397c241",
+      "license": "UPL-1.0",
+      "attribution": "Page 5 of the gallery PDF rendered with Poppler 26.07.0 at 96 dpi.",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -1240,6 +1330,21 @@
       }
     },
     {
+      "id": "example-chunked-export-fastest-pdf",
+      "path": "examples/chunked-export/chunked-export-fastest.pdf",
+      "kind": "expected_pdf",
+      "bytes": 49294,
+      "sha256": "705f438ed1fb5cc3126ef4e682e9ad010dcc56a6db7e8762427a16f90068d177",
+      "license": "UPL-1.0 and attributed embedded assets",
+      "attribution": "examples/chunked-export/README.md",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "examples/chunked-export/main.roc"
+      }
+    },
+    {
       "id": "example-chunked-export-pdf",
       "path": "examples/chunked-export/chunked-export.pdf",
       "kind": "expected_pdf",
@@ -1262,6 +1367,21 @@
       "sha256": "a37c34170e4afffd96a668a9028409d4ea4cbb562e849f2972e9fc52459b06e6",
       "license": "UPL-1.0",
       "attribution": "First-page preview rendered from the generated gallery PDF with Poppler 26.07.0.",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "examples/chunked-export/main.roc"
+      }
+    },
+    {
+      "id": "example-chunked-export-smallest-pdf",
+      "path": "examples/chunked-export/chunked-export-smallest.pdf",
+      "kind": "expected_pdf",
+      "bytes": 44108,
+      "sha256": "941b8e99a39df549d0b3e75f96fecabc1ae4a65c57cc13774dd2aeab00201f64",
+      "license": "UPL-1.0 and attributed embedded assets",
+      "attribution": "examples/chunked-export/README.md",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -1365,6 +1485,21 @@
       }
     },
     {
+      "id": "example-field-guide-pocket-pdf",
+      "path": "examples/field-guide/field-guide-pocket.pdf",
+      "kind": "expected_pdf",
+      "bytes": 53081,
+      "sha256": "128746aa80e3f7d4a980f82d9dd8f0c6b172b38657c8d5386755dcb2434ee60c",
+      "license": "UPL-1.0 and attributed embedded assets",
+      "attribution": "examples/field-guide/README.md",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "examples/field-guide/main.roc"
+      }
+    },
+    {
       "id": "example-field-guide-preview",
       "path": "examples/field-guide/preview.png",
       "kind": "image",
@@ -1372,6 +1507,21 @@
       "sha256": "8bc6a04bbc737a2a604ef811489aaa4b1a24025a9747c452df051d3e3a829dc0",
       "license": "UPL-1.0",
       "attribution": "First-page preview rendered from the generated gallery PDF with Poppler 26.07.0.",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "examples/field-guide/main.roc"
+      }
+    },
+    {
+      "id": "example-field-guide-preview-pocket",
+      "path": "examples/field-guide/preview-pocket.png",
+      "kind": "image",
+      "bytes": 57473,
+      "sha256": "376fe25881d8082f7aeb083b1b0475206ded604bc940fc963abf2970d17df75a",
+      "license": "UPL-1.0",
+      "attribution": "Page 1 of the gallery PDF rendered with Poppler 26.07.0 at 96 dpi.",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -1473,8 +1623,8 @@
       "id": "example-operations-handbook-pdf",
       "path": "examples/operations-handbook/operations-handbook.pdf",
       "kind": "expected_pdf",
-      "bytes": 60567,
-      "sha256": "2aab89bcbc208105c01a7c83eb27652a135b7e87ef941fdab11dcb11cd80be03",
+      "bytes": 67135,
+      "sha256": "02da9f93de234005bfc4d3491404c8b2b3ace190188adc4681c1342e72754f32",
       "license": "UPL-1.0",
       "attribution": "Generated by the roc-pdf public gallery; contains the packaged attributed font and ICC profile.",
       "modification_permitted": true,
@@ -1488,8 +1638,8 @@
       "id": "example-operations-handbook-preview",
       "path": "examples/operations-handbook/preview.png",
       "kind": "image",
-      "bytes": 166578,
-      "sha256": "fbeeb182b0f2667b32a7523e85cf23a9edb5af4ff55431b137955893897d6afa",
+      "bytes": 65884,
+      "sha256": "15b99569db696669c831ac123c09a126c081bd14aa41ce4f4d867d65fc513707",
       "license": "UPL-1.0",
       "attribution": "First-page preview rendered from the generated gallery PDF with Poppler 26.07.0.",
       "modification_permitted": true,
@@ -1561,6 +1711,51 @@
         "kind": "external",
         "source_url": "https://github.com/adobe-fonts/source-sans/releases/download/3.052R/TTF-source-sans-3.052R.zip",
         "upstream_revision": "3.052R"
+      }
+    },
+    {
+      "id": "example-ordered-han-pdf",
+      "path": "examples/ordered-han/ordered-han.pdf",
+      "kind": "expected_pdf",
+      "bytes": 15192,
+      "sha256": "750013d61911319dea3a7831e9808ad15f0284615c833acf2281bb66bf83a651",
+      "license": "UPL-1.0 and attributed embedded assets",
+      "attribution": "examples/ordered-han/README.md",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "examples/ordered-han/main.roc"
+      }
+    },
+    {
+      "id": "example-ordered-han-preview",
+      "path": "examples/ordered-han/preview.png",
+      "kind": "image",
+      "bytes": 20129,
+      "sha256": "157134cd50d5c3668d75050bd9bd50a35123ddd6ef6d4820c235ac929135c98e",
+      "license": "UPL-1.0",
+      "attribution": "Page 1 of the gallery PDF rendered with Poppler 26.07.0 at 96 dpi.",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "examples/ordered-han/main.roc"
+      }
+    },
+    {
+      "id": "example-ordered-han-receiving-regular",
+      "path": "examples/ordered-han/fonts/ReceivingHan-Regular.ttf",
+      "kind": "font",
+      "bytes": 3068,
+      "sha256": "a0e15c40f4424b1e900719c7a5b686e0572f57a4bcd86f11d433e1f563a2cbad",
+      "license": "OFL-1.1",
+      "attribution": "examples/ordered-han/fonts/OFL.txt",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "scripts/build_cjk_font_fixture.py"
       }
     },
     {
@@ -1847,10 +2042,25 @@
       "id": "example-source-blocks-pdf",
       "path": "examples/source-blocks/source-blocks.pdf",
       "kind": "expected_pdf",
-      "bytes": 25136,
-      "sha256": "cfa47733c4ac3c526ebc69ab6f02f89c1bdbf339338ba3b70ee4eaec7a639fc2",
+      "bytes": 25887,
+      "sha256": "5282bffbcdeb1dd25d50e072c2b61532e4bf0b839d7d45e0e793f73e2403e035",
       "license": "UPL-1.0",
       "attribution": "Generated by the roc-pdf public source-block example; contains separately attributed packaged and Source Code Pro fonts and the ICC profile.",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "examples/source-blocks/main.roc"
+      }
+    },
+    {
+      "id": "example-source-blocks-plain-pdf",
+      "path": "examples/source-blocks/source-blocks-plain.pdf",
+      "kind": "expected_pdf",
+      "bytes": 25839,
+      "sha256": "dd9f49a2010ea4191e7c07667bddccf3554f63c464f9a9bc7aa3d6f3c5204a33",
+      "license": "UPL-1.0 and attributed embedded assets",
+      "attribution": "examples/source-blocks/README.md",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -1862,10 +2072,25 @@
       "id": "example-source-blocks-preview",
       "path": "examples/source-blocks/preview.png",
       "kind": "image",
-      "bytes": 72862,
-      "sha256": "0961b0d1e421db9542b903b2aa1ade853a97c71f4fb69ea4e47e9c8028e71b8d",
+      "bytes": 44098,
+      "sha256": "81f4138cfea528b9ca6e27e5d8db7dce35889b6fd1b167e93516b65ed3e6b16f",
       "license": "UPL-1.0",
       "attribution": "First-page preview rendered from the generated source-block PDF with Poppler 26.07.0.",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "examples/source-blocks/main.roc"
+      }
+    },
+    {
+      "id": "example-source-blocks-preview-plain",
+      "path": "examples/source-blocks/preview-plain.png",
+      "kind": "image",
+      "bytes": 43877,
+      "sha256": "6c462789e96f5f712c4560a0a7535792dad7af96346078b178686ff0949e0360",
+      "license": "UPL-1.0",
+      "attribution": "Page 1 of the gallery PDF rendered with Poppler 26.07.0 at 96 dpi.",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -1920,6 +2145,21 @@
       }
     },
     {
+      "id": "example-tax-invoice-preview-split",
+      "path": "examples/tax-invoice/preview-split.png",
+      "kind": "image",
+      "bytes": 121578,
+      "sha256": "3e10a0a500cfe74b022b5efdbe971deee9c7bbd3706ea6041b0ab694fd9ae0b6",
+      "license": "UPL-1.0",
+      "attribution": "Page 4 of the gallery PDF rendered with Poppler 26.07.0 at 96 dpi.",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "examples/tax-invoice/main.roc"
+      }
+    },
+    {
       "id": "example-tax-invoice-source-sans3-bold-font",
       "path": "examples/tax-invoice/fonts/SourceSans3-Bold.ttf",
       "kind": "font",
@@ -1949,6 +2189,21 @@
         "kind": "external",
         "source_url": "https://github.com/adobe-fonts/source-sans/releases/download/3.052R/TTF-source-sans-3.052R.zip",
         "upstream_revision": "3.052R"
+      }
+    },
+    {
+      "id": "example-tax-invoice-split-pdf",
+      "path": "examples/tax-invoice/tax-invoice-split.pdf",
+      "kind": "expected_pdf",
+      "bytes": 36557,
+      "sha256": "f3056f268300e73fe359a233881299a4389c9ef57537a411256d7cb185bdf67e",
+      "license": "UPL-1.0 and attributed embedded assets",
+      "attribution": "examples/tax-invoice/README.md",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "examples/tax-invoice/main.roc"
       }
     },
     {

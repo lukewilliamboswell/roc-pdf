@@ -140,3 +140,15 @@ the default metrics-only path.
 
 See the https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/font-families[font specimen]
 and https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/product-brief[wrapped paragraph example].
+
+[#ordered-latin-and-han-coverage]
+== Cover Latin and Han with an ordered font policy
+
+Register the faces and pass their IDs in coverage order to
+`registry.with_policy`. Set `theme.font_selection: Policy(policy)` and
+carry the returned registry through `Pdf.Options.fonts`. Keep the language
+of a Han phrase explicit with `Pdf.in_language`. The
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/ordered-han/README.md[receiving handover example] uses packaged
+Inter followed by a static Han subset in a paragraph, the running header,
+and a table. Run its Latin-only variant to see a located missing-coverage
+diagnostic.

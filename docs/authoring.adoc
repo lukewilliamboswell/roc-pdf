@@ -406,6 +406,9 @@ the orphan minimum (R4), and the widow minimum (R5), choosing the latest best br
 break can satisfy is relaxed deterministically and recorded as a layout
 outcome in the report returned by `Pdf.prepare_with_report`.
 
+Run the https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/tax-invoice/README.md[invoice policy variants] to compare a
+split row with the diagnostic for the same oversized row under `KeepRows`.
+
 For deferred or repeated emission, prepare once. `Pdf.Prepared` is opaque: a
 successful value has passed validation and is ready for emission.
 
@@ -415,6 +418,13 @@ prepared = Pdf.prepare(document, {})?
 buffered = Pdf.to_bytes_prepared(prepared)?
 encoder = Pdf.to_chunks_prepared(prepared, Pdf.ChunkRetention.ShareUnchangedResources)?
 ----
+
+A file sink can write each result of `Pdf.next_chunk` before requesting
+the next. Use `ShareUnchangedResources` for a sink that consumes chunks
+promptly. Use `OwnChunks` if it queues or retains chunks and needs owned
+buffers. The https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/chunked-export/README.md[streaming telemetry example]
+opens a file only after preparation and checks both modes against buffered
+output for each compression choice.
 
 Theme colors can be sRGB hex literals where a `Color.SourceValue` is
 expected (`navy : Color.SourceValue` then `navy = "#183454"`, checked at
@@ -430,7 +440,9 @@ height })` in whole points from 3 to 14,400 pt a side (`layout.page_size`
 otherwise). Margins and templates apply unchanged, so the body frame of a
 landscape page is wider; margins that leave no body frame are
 `layout.page_margin`. Every page in a flowing document must use the same
-size and orientation.
+size and orientation. The https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/field-guide/README.md[pocket field guide]
+uses custom pages, smaller drawings and a preferred keep alongside a
+required survey-sheet group.
 
 The options' `compression` trades file size against generation time. Every
 choice writes the same pages, text, tagged structure, and profile declarations.
@@ -675,6 +687,10 @@ located `source.budget` error; later source blocks are not materialized.
 Unsupported glyphs reject; there is no font substitution. https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/source-blocks/main.roc[The source-block example]
 shows a block continuing over pages with ordinary paragraphs before and after.
 
+Run the https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/source-blocks/README.md[highlighted YAML example] with and
+without colors to compare the same selectable text, spacing and pagination.
+Its invalid range demonstrates a located UTF-8 boundary error.
+
 [#authoring-themes-and-options]
 == Themes and options
 
@@ -801,6 +817,10 @@ drawing's height), and `layer: Behind` paints the drawing before the page's
 text, such as a band behind a heading. Drawings are
 validated at their authored path (`document.figure_drawing`,
 `layout.decoration_drawing`).
+
+The https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/business-report/README.md[receiving heat map] generates packed
+RGB pixels, then uses one oversized drawing to demonstrate exact fit, a
+permitted scale, and a rejected scale floor.
 
 [#authoring-column-flow]
 == Flow paragraphs through two columns
@@ -1011,6 +1031,10 @@ The budget applies only to the report. A report that exceeds either limit
 returns `report.budget_exceeded` without a report or prepared document. On
 success, `Pdf.to_bytes_prepared(limited.prepared)` emits the same bytes as
 ordinary preparation with the same document options.
+
+The https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/business-report/README.md[report review mode] prints figure
+locations, repeated headers and author checks before emitting the prepared
+PDF. It includes a tighter report budget and an exhausted-budget example.
 
 [#authoring-supported-features]
 == Supported features

@@ -18,3 +18,6 @@ The Inter specimen turns on `theme.latin_shaping: InterLatin` for the plain
 paragraphs. Copy the first arrow into a text editor to get `->` and the
 second to get `→`. Both draw the same Inter glyph. The `AV` specimen uses
 Inter’s kerning adjustment between the two letters.
+
+For a coverage policy over packaged Inter and a caller Han face, run the
+[ordered font companion](../ordered-han/README.md).
