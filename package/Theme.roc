@@ -44,7 +44,7 @@ Theme := {
 	headings : Headings ?? {},
 	inline : InlineRoles ?? {},
 	latin_shaping : [InterLatin, NominalGlyphs] ?? NominalGlyphs,
-	international_text : [ArabicLatin, HebrewLatin, OrdinaryText] ?? OrdinaryText,
+	international_text : [ArabicLatin, HebrewLatin, HindiLatin, OrdinaryText] ?? OrdinaryText,
 	link : LinkStyle ?? {},
 	page_margin : PageMargin ?? {},
 	paragraph_spacing : Layout.Unit ?? 8,

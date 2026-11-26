@@ -2071,9 +2071,10 @@ pipeline_error_at = |error, doc, paths| match error {
 	Shape(InternationalShape({ block, cause })) => {
 		path = [diagnostic_leaf_path(doc, paths, block)]
 		match cause {
-			Coverage({ cause: NoCoverage({ scalar, scalar_index }), .. }) => located_error(doc, FontCoverageMissing, "text.international_coverage", "No selected face covers U+${scalar_hex(scalar)} at scalar ${scalar_index.to_str()}.", path)
+			Coverage({ cause: NoCoverage({ scalar, scalar_index }), .. }) => located_error(doc, FontCoverageMissing, "text.international_coverage", "No selected face covers the grapheme beginning with U+${scalar_hex(scalar)} at scalar ${scalar_index.to_str()}.", path)
 			LimitExceeded(_) | Shape({ cause: GlyphLimit(_), .. }) | Shape({ cause: ShapeBudget(_), .. }) => located_error(doc, BudgetExceeded, "text.international_budget", "International text exceeded its shaping or layout budget.", path)
 			Paragraph({ cause: UnsupportedControl({ scalar, scalar_index }), .. }) => located_error(doc, FeatureUnavailable, "text.international_control", "The selected repertoire excludes bidi control U+${scalar_hex(scalar)} at scalar ${scalar_index.to_str()}.", path)
+			Paragraph({ cause: UnsupportedLanguage({ scalar_index, script }), .. }) => located_error(doc, FeatureUnavailable, "text.international_language", "The effective language for script ${script} at scalar ${scalar_index.to_str()} is outside the selected repertoire.", path)
 			Paragraph({ cause: UnsupportedJoiningBoundary({ scalar_index }), .. }) => located_error(doc, FeatureUnavailable, "text.international_joining_boundary", "An inline boundary splits an Arabic joining word at scalar ${scalar_index.to_str()}.", path)
 			Paragraph({ cause: UnsupportedCluster({ scalar_index }), .. }) => located_error(doc, FeatureUnavailable, "text.international_cluster", "The selected repertoire excludes the grapheme at scalar ${scalar_index.to_str()}.", path)
 			Paragraph({ cause: UnsupportedScript({ script, scalar_index }), .. }) => located_error(doc, FeatureUnavailable, "text.international_script", "The selected repertoire excludes script ${script} at scalar ${scalar_index.to_str()}.", path)

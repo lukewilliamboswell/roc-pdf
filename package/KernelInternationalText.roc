@@ -9,7 +9,7 @@ import unicode.Scalar
 ## come from the author's occurrences. UAX #24 script facts come from
 ## KernelUnicode's explicitly itemized runs.
 KernelInternationalText :: [].{
-	Repertoire : [UnpointedArabicLatin, UnpointedHebrewLatin]
+	Repertoire : [ModernHindiLatin, UnpointedArabicLatin, UnpointedHebrewLatin]
 
 	Limits : { max_clusters : U64, max_items : U64, max_scalars : U64 }
 
@@ -19,6 +19,7 @@ KernelInternationalText :: [].{
 		ItemLimit({ attempted : U64, limit : U64 }),
 		UnsupportedCluster({ scalar_index : U64 }),
 		UnsupportedJoiningBoundary({ scalar_index : U64 }),
+		UnsupportedLanguage({ scalar_index : U64, script : Str }),
 		UnsupportedControl({ scalar : U32, scalar_index : U64 }),
 		UnsupportedScalar({ scalar : U32, scalar_index : U64 }),
 		UnsupportedScript({ script : Str, scalar_index : U64 }),
@@ -39,7 +40,7 @@ KernelInternationalText :: [].{
 
 	Work : { clusters : U64, items : U64, occurrences : U64, script_runs : U64 }
 
-	Plan : { bidi : KernelBidiBoundary.Paragraph, items : List(Item), scalars : List(ScalarAt), work : Work }
+	Plan : { bidi : KernelBidiBoundary.Paragraph, graphemes : List(KernelUnicode.UnicodeRange), items : List(Item), scalars : List(ScalarAt), work : Work }
 
 	## Form maximal items within one resolved embedding level, one script
 	## and one authored occurrence. Every boundary comes from the earlier
@@ -60,7 +61,7 @@ KernelInternationalText :: [].{
 		if analysis.work.scalar_visits != bidi.entries.len() or bidi.logical_source.utf8_bytes.length() != source.count_utf8_bytes() {
 			return Err(FactMismatch({ scalar_index: 0 }))
 		}
-		if cluster_count != analysis.work.scalar_visits {
+		if repertoire != ModernHindiLatin and cluster_count != analysis.work.scalar_visits {
 			index = first_multi_scalar(analysis.graphemes)
 			return Err(UnsupportedCluster({ scalar_index: index }))
 		}
@@ -72,7 +73,7 @@ KernelInternationalText :: [].{
 		}
 
 		var $items = []
-		var $scalars = List.with_capacity(cluster_count)
+		var $scalars = List.with_capacity(analysis.work.scalar_visits)
 		var $original = list_at(occurrences, 0)
 		var $original_scalar_end = end($original.source.scalars)?
 		var $original_byte_end = end($original.source.utf8_bytes)?
@@ -88,14 +89,17 @@ KernelInternationalText :: [].{
 		var $item_byte = 0
 		var $byte = 0
 		var $index = 0
+		var $cluster_index = 0
 		for located in Scalar.iter(source) {
-			if $index >= cluster_count {
+			if $index >= analysis.work.scalar_visits or $cluster_index >= cluster_count {
 				return Err(FactMismatch({ scalar_index: $index }))
 			}
 			byte_start = ByteRange.start(located.byte_range)
 			byte_end = ByteRange.end(located.byte_range)
-			cluster = list_at(analysis.graphemes, $index)
-			if located.scalar_index != $index or byte_start != $byte or cluster.scalar_start != $index or cluster.scalar_end != $index + 1 or cluster.byte_start != byte_start or cluster.byte_end != byte_end {
+			cluster = list_at(analysis.graphemes, $cluster_index)
+			at_cluster_start = $index == cluster.scalar_start
+			at_cluster_end = $index + 1 == cluster.scalar_end
+			if located.scalar_index != $index or byte_start != $byte or $index < cluster.scalar_start or $index >= cluster.scalar_end or (at_cluster_start and cluster.byte_start != byte_start) or (at_cluster_end and cluster.byte_end != byte_end) {
 				return Err(FactMismatch({ scalar_index: $index }))
 			}
 			value = Scalar.to_u32(located.scalar)
@@ -112,6 +116,9 @@ KernelInternationalText :: [].{
 			# without reshaping a neighboring word.
 			space = value == 0x20 or value == 0xa0
 			if $index > 0 and (next_original or next_script or level != $level or space != $space) {
+				if !at_cluster_start {
+					return Err(UnsupportedCluster({ scalar_index: cluster.scalar_start }))
+				}
 				check_items($items.len(), limits.max_items)?
 				$items = $items.append(item($original, $script.script, $level, $item_start, $index, $item_byte, byte_start))
 				$item_start = $index
@@ -147,6 +154,11 @@ KernelInternationalText :: [].{
 			if !supported_script(repertoire, $script.script) {
 				return Err(UnsupportedScript({ script: $script.script, scalar_index: $index }))
 			}
+			if next_original or next_script or $index == 0 {
+				if $script.script == "Deva" and !language_is($original.language, "hi") {
+					return Err(UnsupportedLanguage({ scalar_index: $index, script: $script.script }))
+				}
+			}
 			if !supported_scalar(repertoire, value) {
 				return Err(UnsupportedScalar({ scalar: value, scalar_index: $index }))
 			}
@@ -158,13 +170,16 @@ KernelInternationalText :: [].{
 			$space = space
 			$byte = byte_end
 			$index = $index + 1
+			if at_cluster_end {
+				$cluster_index = $cluster_index + 1
+			}
 		}
-		if $index != cluster_count or $original.source.scalars.start() > $item_start or $original_scalar_end != $index or $original_byte_end != $byte or $occurrence_index + 1 != occurrences.len() or $script_index + 1 != analysis.script_runs.len() or $script.range.scalar_end != $index or $script.range.byte_end != $byte {
+		if $index != analysis.work.scalar_visits or $cluster_index != cluster_count or $original.source.scalars.start() > $item_start or $original_scalar_end != $index or $original_byte_end != $byte or $occurrence_index + 1 != occurrences.len() or $script_index + 1 != analysis.script_runs.len() or $script.range.scalar_end != $index or $script.range.byte_end != $byte {
 			return Err(FactMismatch({ scalar_index: $index }))
 		}
 		check_items($items.len(), limits.max_items)?
 		$items = $items.append(item($original, $script.script, $level, $item_start, $index, $item_byte, $byte))
-		Ok({ bidi, items: $items, scalars: $scalars, work: { clusters: cluster_count, items: $items.len(), occurrences: occurrences.len(), script_runs: analysis.script_runs.len() } })
+		Ok({ bidi, graphemes: analysis.graphemes, items: $items, scalars: $scalars, work: { clusters: cluster_count, items: $items.len(), occurrences: occurrences.len(), script_runs: analysis.script_runs.len() } })
 	}
 }
 
@@ -185,7 +200,14 @@ check_items : U64, U64 -> Try({}, KernelInternationalText.Error)
 check_items = |count, limit| if (count >= limit) Err(ItemLimit({ attempted: count + 1, limit })) else Ok({})
 
 supported_script : KernelInternationalText.Repertoire, Str -> Bool
-supported_script = |repertoire, script| script == "Latn" or script == "Zyyy" or (if (repertoire == UnpointedArabicLatin) script == "Arab" else script == "Hebr")
+supported_script = |repertoire, script| {
+	selected = match repertoire {
+		ModernHindiLatin => "Deva"
+		UnpointedArabicLatin => "Arab"
+		UnpointedHebrewLatin => "Hebr"
+	}
+	script == "Latn" or script == "Zyyy" or script == selected
+}
 
 supported_scalar : KernelInternationalText.Repertoire, U32 -> Bool
 supported_scalar = |repertoire, value| {
@@ -193,10 +215,20 @@ supported_scalar = |repertoire, value| {
 		True
 	} else {
 		match repertoire {
+			ModernHindiLatin => (value >= 0x901 and value <= 0x903) or (value >= 0x905 and value <= 0x939) or (value >= 0x93a and value <= 0x94d) or (value >= 0x958 and value <= 0x96f)
 			UnpointedArabicLatin => arabic_letter(value) or (value >= 0x660 and value <= 0x669) or value == 0x60c or value == 0x61b or value == 0x61f
 			UnpointedHebrewLatin => (value >= 0x5d0 and value <= 0x5ea) or value == 0x5f3 or value == 0x5f4
 		}
 	}
+}
+
+language_is : Semantics.Language, Str -> Bool
+language_is = |language, base| match language {
+	Language(tag) => {
+		lower = tag.with_ascii_lowercased()
+		lower == base or lower.starts_with("${base}-")
+	}
+	Inherited => False
 }
 
 arabic_letter : U32 -> Bool

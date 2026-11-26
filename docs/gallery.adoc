@@ -29,6 +29,14 @@ payment wording precedes `AED 2,400.00` in the logical text.
 
 https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/arabic-invoice[Run the Arabic invoice] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/arabic-invoice/preview.png[First-page preview] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/arabic-invoice/arabic-invoice.pdf[PDF output]
 
+[#hindi-statement]
+== Hindi and Latin account statement
+
+The statement uses a conjunct, a pre-base dependent vowel, and a
+positioned below-base mark. Its activity cell includes a Latin reference.
+
+https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/hindi-statement[Run the Hindi statement] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/hindi-statement/preview.png[First-page preview] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/hindi-statement/hindi-statement.pdf[PDF output]
+
 [#invoice-with-data]
 == Invoice with associated data
 

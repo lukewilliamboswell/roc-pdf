@@ -18,6 +18,7 @@ import pdf.Text
 import "../assets/IBMPlexSansHebrew-Rtl-Fixture.ttf" as hebrew_bytes : List(U8)
 import "../../examples/bilingual-invoice/fonts/IBMPlexSansHebrew-Regular.ttf" as invoice_hebrew : List(U8)
 import "../../examples/arabic-invoice/fonts/IBMPlexSansArabic-Regular.ttf" as invoice_arabic : List(U8)
+import "../../examples/hindi-statement/fonts/IBMPlexSansDevanagari-Regular.ttf" as statement_hindi : List(U8)
 
 main! = |_| { bytes: [], work: [] }
 
@@ -192,4 +193,21 @@ expect {
 	ranges = shaped.clusters.map(|entry| (entry.glyphs.start(), entry.source.utf8_bytes.start(), entry.source.utf8_bytes.length()))
 	glyphs == [(906, 555, 0, 0, 0), (1078, 564, 0, 0, 0), (359, 827, 0, 0, 0), (477, 269, 0, 0, 0), (286, 224, 0, 0, 0)] and
 		ranges == [(4, 0, 2), (3, 2, 2), (2, 4, 2), (1, 6, 4), (0, 10, 2)]
+}
+
+## HarfBuzz 14.6.0, IBM Plex Sans Devanagari Regular, Deva/hi/LTR,
+## default dev2 features. The pre-base vowel reorders, while source
+## intervals still own all four consonant/matra contributors to the conjunct.
+expect {
+	font = KernelFont.inspect(statement_hindi, KernelFont.Limits.make({ max_bytes: 1000000, max_cmap_mappings: 3000, max_glyphs: 3000, max_tables: 128 }))?
+	face = KernelInternationalShape.prepare(font)?
+	provider = KernelInternationalShape.program(face, { direction: LeftToRight, language: Language("hi"), script: "Deva" })
+	scalars : List(KernelInternationalText.ScalarAt)
+	scalars = [0x935, 0x93f, 0x924, 0x94d, 0x924, 0x940, 0x92f].map_with_index(|scalar, index| { scalar, offset: index * 3 })
+	title = { ..item, direction: LeftToRight, level: 0, script: "Deva", language: Language("hi"), source: { scalars: range(0, 7), utf8_bytes: range(0, 21) } }
+	shaped = KernelInternationalShape.shape(provider, title, scalars, 5)?
+	glyphs = shaped.glyphs.map(|glyph| (glyph.id, glyph.advance.x, glyph.advance.y, glyph.offset.x, glyph.offset.y))
+	ranges = shaped.clusters.map(|entry| (entry.glyphs.start(), entry.glyphs.length(), entry.source.scalars.start(), entry.source.scalars.length()))
+	glyphs == [(928, 310, 0, 0, 0), (883, 624, 0, 0, 0), (857, 730, 0, 0, 0), (944, 310, 0, 0, 0), (893, 683, 0, 0, 0)] and
+		ranges == [(0, 2, 0, 2), (2, 2, 2, 4), (4, 1, 6, 1)]
 }

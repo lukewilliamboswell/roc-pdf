@@ -191,3 +191,13 @@ and lam-alef ligatures preserve the authored text.
 Place each Arabic word in one inline span. Vowel marks, Arabic presentation
 forms, and explicit joining controls give a located error. The same flow,
 font-selection and layout limits as the Hebrew and Latin mode apply.
+
+[#hindi-and-latin]
+== Set Hindi alongside Latin
+
+Enable `theme.international_text: HindiLatin` with an ordered font policy
+over the packaged static Inter Regular and the exact IBM Plex Sans
+Devanagari Regular supplied with the xref:gallery.adoc#hindi-statement[Hindi
+statement]. Devanagari text must have an effective `hi` language tag.
+Use `Pdf.in_language("hi", ...)` inside a document with another language.
+Keep each grapheme within one authored inline.

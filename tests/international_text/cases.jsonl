@@ -6,3 +6,6 @@
 {"name":"Arabic Latin invoice","schema_version":1,"case":{"Arabic":{"wtpdf":false}}}
 {"name":"Arabic Latin invoice WTPDF","schema_version":1,"case":{"Arabic":{"wtpdf":true}}}
 {"name":"Arabic Latin atomic diagnostics","schema_version":1,"case":"ArabicAtomic"}
+{"name":"Hindi Latin statement","schema_version":1,"case":{"Hindi":{"wtpdf":false}}}
+{"name":"Hindi Latin statement WTPDF","schema_version":1,"case":{"Hindi":{"wtpdf":true}}}
+{"name":"Hindi Latin atomic diagnostics","schema_version":1,"case":"HindiAtomic"}

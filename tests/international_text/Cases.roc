@@ -1,16 +1,19 @@
 import invoice.Invoice
+import hindi.Statement
 import arabic.Invoice as ArabicInvoice
 import pdf.Document
 import pdf.Pdf
 
 Cases :: [].{
-	Case : [Arabic({ wtpdf : Bool }), ArabicAtomic, Atomic, Invoice({ wtpdf : Bool }), Wrap({ count : U64 })]
+	Case : [Arabic({ wtpdf : Bool }), ArabicAtomic, Atomic, Hindi({ wtpdf : Bool }), HindiAtomic, Invoice({ wtpdf : Bool }), Wrap({ count : U64 })]
 
 	run : Case -> { bytes : List(U8), work : List(U64) }
 	run = |case| {
 		result = match case {
 			Arabic({ wtpdf }) => encode(ArabicInvoice.document({}), selected_profile(require_fixture(ArabicInvoice.options({})), wtpdf), 0)
 			ArabicAtomic => arabic_atomic(require_fixture(ArabicInvoice.options({})))
+			Hindi({ wtpdf }) => encode(Statement.document({}), selected_profile(require_fixture(Statement.options({})), wtpdf), 0)
+			HindiAtomic => hindi_atomic(require_fixture(Statement.options({})))
 			Invoice({ wtpdf }) => encode(Invoice.document({}), selected_profile(require_fixture(Invoice.options({})), wtpdf), 0)
 			Wrap({ count }) => encode(wrap_document(count), require_fixture(Invoice.options({})), count)
 			Atomic => atomic(require_fixture(Invoice.options({})))
@@ -135,4 +138,27 @@ arabic_atomic = |options| {
 	}
 	result = encode(ArabicInvoice.document({}), options, 0)?
 	Ok({ ..result, work: result.work.append(cases.len() * 2) })
+}
+
+hindi_atomic : Pdf.Options -> Try({ bytes : List(U8), work : List(U64) }, Pdf.Error)
+hindi_atomic = |options| {
+	cases = [
+		{ example: Pdf.paragraph("जमा शेष"), language: "mr", diagnosis: "text.international_language", path: "contents[0]" },
+		{ example: Pdf.paragraph("रक्कम ৳"), language: "hi", diagnosis: "text.international_script", path: "contents[0]" },
+		{ example: Pdf.rich_paragraph([Pdf.text("वि"), Pdf.strong([Pdf.text("त्")]), Pdf.text("तीय")]), language: "hi", diagnosis: "text.unsupported_cluster", path: "contents[0].inlines[1].inlines[0]" },
+	]
+	for case in cases {
+		document = Pdf.document({ title: "Unsupported Hindi text", language: case.language, contents: [case.example] })
+		if !reported_at(Pdf.to_bytes_with(document, options), case.diagnosis, case.path) or !reported_at(Pdf.to_chunks_with(document, options), case.diagnosis, case.path) {
+			crash "HINDI_REJECTION_NOT_ATOMIC_OR_LOCATED"
+		}
+	}
+	result = encode(Statement.document({}), options, 0)?
+	Ok({ ..result, work: result.work.append(cases.len() * 2) })
+}
+
+reported_at : Try(a, Pdf.Error), Str, Str -> Bool
+reported_at = |result, name, path| match result {
+	Err(InvalidDocument({ diagnostics: [{ feature: Feature(feature), details: [source_path], .. }], .. })) => feature == name and source_path == path
+	_ => False
 }

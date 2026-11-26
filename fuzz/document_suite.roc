@@ -30,6 +30,7 @@ import WidgetFormsModel
 import GroupingContainmentModel
 import HeadingFamilyModel
 import InterLatinModel
+import InternationalLineModel
 import LinkRegionModel
 import OutlineModel
 import PageBreakModel

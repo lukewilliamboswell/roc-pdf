@@ -1006,6 +1006,14 @@ same line. The [supplier invoice](examples/arabic-invoice/README.md) exercises
 logical names and Latin amounts with an effective Arabic language scope.
 Marks and joining across inline boundaries require additional evidence.
 
+### Hindi and Latin flow
+
+The `HindiLatin` option admits modern Hindi using exact static Inter Regular
+and IBM Plex Sans Devanagari Regular. The [Hindi statement](examples/hindi-statement/README.md)
+exercises a conjunct, dependent vowels, below-base positioning and Latin
+references. Face selection preserves whole graphemes. The fixture checks
+language, logical extraction, visible positions and a located inline split.
+
 ## Gate 9: extended modern accessibility vocabulary
 
 ### Capabilities

@@ -31430,6 +31430,157 @@
       ]
     },
     {
+      "name": "Hindi Latin statement",
+      "scenario_revision": "hindi-latin-v1",
+      "family": "international_text",
+      "snapshot": "tests/international_text/hindi-statement.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "paragraphs": 0
+      },
+      "work_counters": [
+        "pages",
+        "authored_blocks",
+        "owned_fragments",
+        "wrapped_paragraphs",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 12904,
+          "allocated_bytes": 11860053,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 10,
+            "owned_fragments": 36,
+            "wrapped_paragraphs": 0,
+            "output_bytes": 18445
+          }
+        },
+        "x64musl": {
+          "allocations": 12904,
+          "allocated_bytes": 11860053,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 10,
+            "owned_fragments": 36,
+            "wrapped_paragraphs": 0,
+            "output_bytes": 18445
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "hindi_statement"
+      ]
+    },
+    {
+      "name": "Hindi Latin statement WTPDF",
+      "scenario_revision": "hindi-latin-v1",
+      "family": "international_text",
+      "snapshot": "tests/international_text/hindi-statement-wtpdf.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "paragraphs": 0
+      },
+      "work_counters": [
+        "pages",
+        "authored_blocks",
+        "owned_fragments",
+        "wrapped_paragraphs",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 12906,
+          "allocated_bytes": 11863645,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 10,
+            "owned_fragments": 36,
+            "wrapped_paragraphs": 0,
+            "output_bytes": 18712
+          }
+        },
+        "x64musl": {
+          "allocations": 12906,
+          "allocated_bytes": 11863645,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 10,
+            "owned_fragments": 36,
+            "wrapped_paragraphs": 0,
+            "output_bytes": 18712
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "wtpdf_accessibility",
+        "hindi_statement"
+      ]
+    },
+    {
+      "name": "Hindi Latin atomic diagnostics",
+      "scenario_revision": "hindi-latin-v1",
+      "family": "international_text",
+      "snapshot": "tests/international_text/hindi-statement.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "paragraphs": 0
+      },
+      "work_counters": [
+        "pages",
+        "authored_blocks",
+        "owned_fragments",
+        "wrapped_paragraphs",
+        "output_bytes",
+        "rejected_deliveries"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 14460,
+          "allocated_bytes": 19127093,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 10,
+            "owned_fragments": 36,
+            "wrapped_paragraphs": 0,
+            "output_bytes": 18445,
+            "rejected_deliveries": 6
+          }
+        },
+        "x64musl": {
+          "allocations": 14460,
+          "allocated_bytes": 19127093,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 10,
+            "owned_fragments": 36,
+            "wrapped_paragraphs": 0,
+            "output_bytes": 18445,
+            "rejected_deliveries": 6
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "hindi_statement"
+      ]
+    },
+    {
       "name": "Hebrew Latin invoice",
       "scenario_revision": "hebrew-latin-v1",
       "family": "international_text",

@@ -40,6 +40,7 @@ EXAMPLES = (
     "field-guide",
     "furniture-typography",
     "font-families",
+    "hindi-statement",
     "invoice-with-data",
     "operations-handbook",
     "ordered-han",

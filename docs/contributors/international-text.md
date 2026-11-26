@@ -79,3 +79,37 @@ negative setup measurement (+2.9% allocated bytes), with identical PDFs and
 work and unchanged positive baselines. Arlington 1.30.2 accepts both Arabic
 snapshots. Explicit veraPDF `4` and `ua2` accept both. Explicit `wt1a` accepts
 the WTPDF snapshot.
+
+## Hindi and Latin
+
+The Hindi statement checks a conjunct and pre-base vowel in `वित्तीय`
+and a below-base mark in `कृपया`. Layout uses the exact static IBM Plex
+Sans Devanagari Regular and the font's OpenType `dev2` features with
+Deva, hi and left-to-right direction. Coverage planning keeps each
+Unicode grapheme together. The provider may merge contributors into a
+single cluster and reorder glyphs according to the script's OpenType
+stages. The adapter and the emitted PDF are independently compared to
+HarfBuzz 14.6.0 for these choices and positions. Tagged language and exact
+logical source remain intact. An inline divide inside a conjunct is
+located before paint, and unsupported script or effective language
+gives a separate diagnostic.
+
+The two one-page cases use 12,904 and 12,906 allocations, and 11,860,053
+and 11,863,645 allocated bytes. Each has ten authored blocks and 36 owned
+fragments. The atomic rejection case checks six deliveries and one
+accepted statement, using 14,460 allocations and 19,127,093 bytes.
+Arlington 1.30.2 and explicit veraPDF `4` and `ua2` accept the two PDFs.
+Explicit `wt1a` accepts the WTPDF snapshot.
+
+## Committed-line model
+
+The bounded model in `fuzz/InternationalLineModel.roc` exhausts 37
+states at depth three using four independently authored paragraph-level
+cases. It retains base direction, bracket and digit contexts, an optional
+authored style boundary and one of three exact committed line ranges.
+The production analysis and line stages must agree with hand-derived
+paragraph levels and independent L1 trailing-space resets and L2 run
+reversals. It checks line levels, visual cluster order and logical
+ranges, with witnesses for an earlier committed cut on both base
+directions. The Hebrew invoice checks the corresponding ordered owner
+and paint facts through the public compiler and archived PDF.

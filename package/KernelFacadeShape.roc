@@ -1888,7 +1888,12 @@ build_international_plan = |authoring, owners, store, sources, ordered, theme, l
 		return Err(InternationalSurface)
 	}
 	preparation = prepare_plan(authoring, owners, store, sources, limits.max_requests, theme, PolicySelectsFaces)?
-	repertoire = if (theme.international_text == ArabicLatin) UnpointedArabicLatin else UnpointedHebrewLatin
+	repertoire = match theme.international_text {
+		ArabicLatin => UnpointedArabicLatin
+		HindiLatin => ModernHindiLatin
+		HebrewLatin => UnpointedHebrewLatin
+		OrdinaryText => return Err(InternationalSurface)
+	}
 	policy = KernelInternationalSelection.for_repertoire(ordered.registry, ordered.policy, repertoire) ? InternationalPolicy
 	var $origins = List.with_capacity(preparation.requests.len())
 	var $inputs = List.with_capacity(preparation.requests.len())

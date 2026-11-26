@@ -5,6 +5,7 @@ import argparse
 from collections import defaultdict
 from dataclasses import dataclass
 from decimal import Decimal
+from fractions import Fraction
 from pathlib import Path
 import re
 
@@ -13,8 +14,10 @@ from check_rich_inline import page_marked_text
 from check_structure_semantics import (
     Document, Ref, check_structure_semantics, element_children, page_order, text_string,
 )
+from check_source_blocks import widths
 from check_technical_manual import sequences
 from pdf_layout import twin
+from text_positions import glyph_positions
 
 HEBREW_ADDRESS = "נועה לוי רחוב הרצל 24 תל אביב"
 ADDRESS = f"{HEBREW_ADDRESS} (PO-1042) ישראל"
@@ -33,6 +36,8 @@ class Mark:
     x: Decimal
     y: Decimal
     font: str
+    replaced: bool
+    positions: tuple[tuple[Fraction, Fraction], ...]
 
 
 @dataclass
@@ -58,6 +63,7 @@ def read_international_page(pdf: bytes) -> tuple[dict[str, list[Owned]], list[Ma
     stream = doc.stream(int(page_obj["Contents"]))
     displayed = dict(page_marked_text(doc, page))
     fonts = page_obj["Resources"]["Font"]
+    metrics = {name.encode(): widths(doc, int(font)) for name, font in fonts.items()}
     marks = {}
     for sequence in sequences(stream):
         identity = MCID.fullmatch(sequence.props)
@@ -73,7 +79,8 @@ def read_international_page(pdf: bytes) -> tuple[dict[str, list[Owned]], list[Ma
         require(position is not None and face is not None, "missing text position or face")
         x, y = [Decimal(item.decode()) for item in position.groups()]
         raw_name = doc.get(int(fonts[face[1].decode()]))["BaseFont"]
-        marks[mcid] = Mark(logical, glyphs, x, y, raw_name.split("+")[-1])
+        positions = tuple((gx, gy) for _, _, gx, gy in glyph_positions(body, metrics))
+        marks[mcid] = Mark(logical, glyphs, x, y, raw_name.split("+")[-1], bool(replacement), positions)
 
     entries: dict[str, list[Owned]] = defaultdict(list)
     owned_mcids = []
