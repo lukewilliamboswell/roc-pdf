@@ -25,8 +25,7 @@ Fixture :: [].{
 			title: "text-layout generated-label negative",
 		})
 		plan = KernelFacadeSemantics.Plan.build(Document.normalize(document), semantic_limits) ? |_| EvidenceFailure
-		preliminary = KernelFacadeSemantics.Plan.preliminary(plan)
-		store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary))
+		store = KernelFacadeSemantics.Plan.flow_text(plan)
 		label = match list_at(KernelFacadeSemantics.Plan.block_ownership(plan), 0) {
 			TextBlock({ body: _, label: Label(occurrence), level: _ }) => occurrence.index()
 			_ => return Err(EvidenceFailure)

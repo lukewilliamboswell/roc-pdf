@@ -17,7 +17,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_URL = "https://github.com/lukewilliamboswell/roc-pdf/blob/main/"
 ASSETS = {f"images/{name}.png": f"examples/{name}/preview.png"
-          for name in ("tax-invoice", "business-report", "vector-diagrams")}
+          for name in ("tax-invoice", "business-report", "vector-diagrams", "remittance-advice")}
 
 
 def version_key(version: str) -> tuple[int, int, int, int]:
@@ -76,6 +76,11 @@ def prepare(destination: Path, revision: str, release_version: str | None = None
                         f"Bundle SHA-256: `{sha}`.", "", f"Compiler: `{compiler}`.", ""])
         record(ROOT / ".roc-version")
     listing.extend(["== Source release notes", ""])
+    draft = ROOT / "docs/unreleased.md"
+    if release_version is None and draft.is_file():
+        relative = draft.relative_to(ROOT).as_posix()
+        listing.append(f"* https://github.com/lukewilliamboswell/roc-pdf/blob/{revision}/{relative}[Unreleased]")
+        record(draft)
     for source in releases:
         relative = source.relative_to(ROOT).as_posix()
         listing.append(f"* https://github.com/lukewilliamboswell/roc-pdf/blob/{revision}/{relative}[{source.stem}]")

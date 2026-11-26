@@ -71,7 +71,7 @@ FORBIDDEN_KEYS = (
     b"Encrypt", b"JS", b"JavaScript", b"AA", b"OCProperties", b"OC", b"AcroForm", b"XFA",
     b"NeedAppearances", b"NeedsRendering", b"EmbeddedFiles", b"AF", b"Alternates", b"OPI",
     b"TR", b"TR2", b"HT", b"HTO", b"Requirements", b"PresSteps", b"AlternatePresentations",
-    b"Perms", b"PieceInfo", b"FFilter", b"FDecodeParms", b"DestOutputProfileRef", b"Ref",
+    b"Perms", b"PieceInfo", b"FFilter", b"FDecodeParms", b"DestOutputProfileRef",
 )
 FORBIDDEN_FILTERS = (b"LZWDecode", b"JPXDecode", b"JBIG2Decode", b"Crypt", b"RunLengthDecode", b"CCITTFaxDecode", b"ASCIIHexDecode", b"ASCII85Decode")
 ACTION_TYPES = (
@@ -184,6 +184,8 @@ def check_resources(bodies: dict[int, bytes]) -> None:
         dictionary = dictionary_part(body)
         for name, pattern in FORBIDDEN_PATTERNS:
             require(pattern.search(dictionary) is None, f"object {number}: package-excluded key /{name.decode()}")
+        if dictionary != body:
+            require(key_pattern(b"Ref").search(dictionary) is None, f"object {number}: reference XObject is not permitted")
         for name in FORBIDDEN_FILTERS:
             require(key_pattern(name).search(dictionary) is None, f"object {number}: filter /{name.decode()} is not permitted")
         require(b"/Interpolate true" not in dictionary, f"object {number}: image interpolation is not permitted")
@@ -253,7 +255,7 @@ def self_test() -> None:
         ("filtered metadata", replace_first(report, b"/Subtype /XML /Type /Metadata", b"/Filterx /XML /Type /Metadata")),
         ("hidden link", replace_first(navigation, b"/F 4 ", b"/F 6 ")),
         ("forbidden action", replace_first(navigation, b"/S /URI ", b"/S /NOP ")),
-        ("excluded key", replace_first(report, b"/Lang ", b"/Ref  ")),
+        ("excluded key", replace_first(report, b"/Lang ", b"/AF   ")),
         ("simple font", replace_first(report, b"/Subtype /Type0", b"/Subtype /Type1")),
     ]
     for label, mutation in mutations:

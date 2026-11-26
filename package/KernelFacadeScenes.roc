@@ -69,6 +69,7 @@ KernelFacadeScenes :: [].{
 		styles : List(KernelFacadeShape.RunStyle),
 		text_runs : U64,
 	}
+	FixedSheets : { pages : List(Document.FixedPagePlan), artifacts : List(Document.FixedRect) }
 	Work : {
 		color_checks : U64,
 		command_writes : U64,
@@ -95,13 +96,21 @@ KernelFacadeScenes :: [].{
 	}
 	Plan :: { paint_phases : List(Text.PaintPhase), colors : KernelColor.Plan, images : Image.SourceStore, ownership : KernelTextOwnership.Plan, scene : KernelScene.Plan, work : Work }.{
 		build : KernelFacadeFragments.Plan, Layout.Size, Limits -> Try(Plan, Error)
-		build = |fragments, page_size, limits| build_plan(fragments, page_size, empty_authoring, NoIntentProfile, limits)
+		build = |fragments, page_size, limits| build_plan(fragments, page_size, empty_authoring, FlowSheets, NoIntentProfile, limits)
 
 		build_with_intent : KernelFacadeFragments.Plan, Layout.Size, IntentProfile, Limits -> Try(Plan, Error)
-		build_with_intent = |fragments, page_size, intent, limits| build_plan(fragments, page_size, empty_authoring, intent, limits)
+		build_with_intent = |fragments, page_size, intent, limits| build_plan(fragments, page_size, empty_authoring, FlowSheets, intent, limits)
 
 		build_authoring_with_intent : KernelFacadeFragments.Plan, Layout.Size, Document.NormalizedAuthoring, IntentProfile, Limits -> Try(Plan, Error)
-		build_authoring_with_intent = |fragments, page_size, authoring, intent, limits| build_plan(fragments, page_size, authoring, intent, limits)
+		build_authoring_with_intent = |fragments, page_size, authoring, intent, limits| build_plan(fragments, page_size, authoring, FlowSheets, intent, limits)
+
+		## Fixed sheets supply their validated boxes and page-coordinate artwork.
+		## The text plan already carries physical paint order and fragment identity.
+		build_fixed : KernelFacadeFragments.Plan, FixedSheets, IntentProfile, Limits -> Try(Plan, Error)
+		build_fixed = |fragments, sheets, intent, limits| match sheets.pages.get(0) {
+			Ok(first) => build_plan(fragments, first.size, empty_authoring, ExplicitSheets(sheets), intent, limits)
+			Err(_) => Err(InvalidPageSize)
+		}
 
 		build_prepared : KernelTextSemantics.Plan, Prepared, Limits -> Try(Plan, Error)
 		build_prepared = |semantics, prepared, limits| build_validated(
@@ -119,6 +128,7 @@ KernelFacadeScenes :: [].{
 				styles: prepared.styles,
 				text: prepared.text,
 			},
+			FlowSheets,
 			NoIntentProfile,
 			limits,
 			[],
@@ -184,8 +194,10 @@ no_flow = { decorations: [], figure_scales: [], panels: [] }
 empty_authoring : Document.NormalizedAuthoring
 empty_authoring = { blocks: [], cells: [], customs: [], callouts: [], decorations: [], figures: [], groups: [], inlines: [], language: "", line_breaks: [], lists: [], metadata_title: "", outline: [], page_breaks: [], page_scopes: [], page_labels: [], rich_paragraphs: [], scopes: [], source_foregrounds: [], source_lines: [], sources: [], spacers: [], tables: [], templates: NoTemplates }
 
-build_plan : KernelFacadeFragments.Plan, Layout.Size, Document.NormalizedAuthoring, KernelFacadeScenes.IntentProfile, KernelFacadeScenes.Limits -> Try(KernelFacadeScenes.Plan, KernelFacadeScenes.Error)
-build_plan = |fragment_plan, page_size, authoring, intent, limits| {
+SheetGeometry : [FlowSheets, ExplicitSheets(KernelFacadeScenes.FixedSheets)]
+
+build_plan : KernelFacadeFragments.Plan, Layout.Size, Document.NormalizedAuthoring, SheetGeometry, KernelFacadeScenes.IntentProfile, KernelFacadeScenes.Limits -> Try(KernelFacadeScenes.Plan, KernelFacadeScenes.Error)
+build_plan = |fragment_plan, page_size, authoring, geometry, intent, limits| {
 	text_plan = KernelFacadeFragments.Plan.text(fragment_plan)
 	text = KernelFacadeText.Plan.text(text_plan)
 	prepared = {
@@ -201,16 +213,16 @@ build_plan = |fragment_plan, page_size, authoring, intent, limits| {
 		styles: KernelFacadeText.Plan.styles(text_plan),
 		text,
 	}
-	build_validated(KernelFacadeFragments.Plan.semantics(fragment_plan), prepared, intent, limits, KernelFacadeText.Plan.paint_phases(text_plan))
+	build_validated(KernelFacadeFragments.Plan.semantics(fragment_plan), prepared, geometry, intent, limits, KernelFacadeText.Plan.paint_phases(text_plan))
 }
 
-build_validated : KernelTextSemantics.Plan, InternalPrepared, KernelFacadeScenes.IntentProfile, KernelFacadeScenes.Limits, List(Text.PaintPhase) -> Try(KernelFacadeScenes.Plan, KernelFacadeScenes.Error)
-build_validated = |semantics, prepared, intent, limits, paint_phases| {
+build_validated : KernelTextSemantics.Plan, InternalPrepared, SheetGeometry, KernelFacadeScenes.IntentProfile, KernelFacadeScenes.Limits, List(Text.PaintPhase) -> Try(KernelFacadeScenes.Plan, KernelFacadeScenes.Error)
+build_validated = |semantics, prepared, geometry, intent, limits, paint_phases| {
 	text = prepared.text
 	semantic_store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(semantics))
 	arena_prepared = prepare_arena(prepared)
 	figure_by_occurrence = if (prepared.authoring.figures.is_empty()) [] else index_figures(semantic_store, prepared.authoring.figures.len())?
-	arena = build_arena_with_intent({ ..arena_prepared, figure_by_occurrence }, intent, limits)?
+	arena = build_arena_with_intent({ ..arena_prepared, figure_by_occurrence }, geometry, intent, limits)?
 	colors = KernelColor.Plan.build(arena.colors, limits.color) ? Color
 	scene = KernelScene.Plan.build(arena.scenes, KernelScene.Resources.with_text({ color_spaces: arena.colors.spaces.len(), images: arena.images.resources.len(), text_runs: text.runs.len() }), limits.scene) ? Scene
 	ownership = (if (prepared.artifact_runs.is_empty()) KernelTextOwnership.Plan.build(semantics, scene, text) else KernelTextOwnership.Plan.build_with_artifact_text(semantics, scene, text)) ? Ownership
@@ -249,15 +261,26 @@ build_arena = |prepared, limits| build_arena_with_intent(
 		run_unicode: List.repeat(OccurrenceText(Semantics.OccurrenceId.from_index(0)), prepared.text_runs),
 		styles: prepared.styles,
 	},
+	FlowSheets,
 	NoIntentProfile,
 	limits,
 )
 
-build_arena_with_intent : InternalArenaPrepared, KernelFacadeScenes.IntentProfile, KernelFacadeScenes.Limits -> Try(KernelFacadeScenes.Arena, KernelFacadeScenes.Error)
-build_arena_with_intent = |prepared, intent, limits| {
+build_arena_with_intent : InternalArenaPrepared, SheetGeometry, KernelFacadeScenes.IntentProfile, KernelFacadeScenes.Limits -> Try(KernelFacadeScenes.Arena, KernelFacadeScenes.Error)
+build_arena_with_intent = |prepared, geometry, intent, limits| {
 	if prepared.page_size.width <= 0 or prepared.page_size.height <= 0 {
 		return Err(InvalidPageSize)
 	}
+	{ pages: fixed_pages, artifacts: fixed_artifacts } = match geometry {
+		FlowSheets => { pages: [], artifacts: [] }
+		ExplicitSheets(sheets) => {
+			if sheets.pages.len() != prepared.pages.len() {
+				return Err(InvalidPage({ page: sheets.pages.len() }))
+			}
+			sheets
+		}
+	}
+	fixed_count = fixed_artifacts.len()
 	run_count = prepared.run_unicode.len()
 	rule_count = prepared.rules.len()
 
@@ -273,8 +296,8 @@ build_arena_with_intent = |prepared, intent, limits| {
 	decoration_count = prepared.flow.decorations.len()
 	panel_count = prepared.flow.panels.len()
 	panel_groups = prepared.flow.panels.count_if(|paint| !list_at(flow.panels, paint.custom).commands.is_empty())
-	command_count = checked_add(checked_add(checked_add(checked_times(run_count, 2)?, flow.commands)?, rule_count)?, furniture_counts.commands)?
-	group_count = checked_add(checked_add(checked_add(checked_add(run_count, rule_count)?, paint_count)?, decoration_count)?, panel_groups)?
+	command_count = checked_add(checked_add(checked_add(checked_add(checked_times(run_count, 2)?, flow.commands)?, rule_count)?, furniture_counts.commands)?, fixed_count)?
+	group_count = checked_add(checked_add(checked_add(checked_add(checked_add(run_count, rule_count)?, paint_count)?, decoration_count)?, panel_groups)?, fixed_count)?
 	check_limit(command_count, limits.max_commands, Commands)?
 	check_limit(group_count, limits.max_groups, Groups)?
 	check_limit(group_count, limits.max_page_group_edges, PageGroupEdges)?
@@ -293,22 +316,24 @@ build_arena_with_intent = |prepared, intent, limits| {
 	has_gray_images = flow.images.any(|image| source_is_gray(image)) or furniture.images.any(|image| source_is_gray(image))
 	use_srgb = match intent {
 		NoIntentProfile => False
-		PackagedSrgbIntent => has_nonblack_srgb(prepared.styles) or has_rgb_images or prepared.rules.any(|rule| nonblack(rule.color)) or furniture_counts.nonblack or flow.nonblack
+		PackagedSrgbIntent => has_nonblack_srgb(prepared.styles) or has_rgb_images or prepared.rules.any(|rule| nonblack(rule.color)) or furniture_counts.nonblack or flow.nonblack or fixed_artifacts.any(|artifact| nonblack(artifact.color))
 	}
 
 	## Every flow path's paint is proven convertible before any scene
 	## accumulator grows, so painting never exits on an error.
 	check_flow_colors(prepared.authoring, intent, use_srgb) ? |_| UnsupportedColor({ run: 0 })
-	color_checks = match intent {
+	text_color_checks = match intent {
 		NoIntentProfile => run_count
 		PackagedSrgbIntent => checked_add(run_count, run_count)?
 	}
+	color_checks = checked_add(text_color_checks, fixed_count)?
 	var $commands = List.with_capacity(command_count)
 	var $groups = List.with_capacity(group_count)
 	var $page_groups = List.with_capacity(group_count)
-	path_count = checked_add(checked_add(rule_count, furniture_counts.paths)?, flow.paths)?
+	path_count = checked_add(checked_add(checked_add(rule_count, furniture_counts.paths)?, flow.paths)?, fixed_count)?
 	var $paths = if (path_count == 0) [] else List.with_capacity(path_count)
-	var $path_segments = if (path_count == 0) [] else List.with_capacity(checked_add(checked_add(rule_count, furniture_counts.segments)?, flow.segments)?)
+	var $path_segments = if (path_count == 0) [] else List.with_capacity(checked_add(checked_add(checked_add(rule_count, furniture_counts.segments)?, flow.segments)?, fixed_count)?)
+	var $fixed_cursor = 0
 	var $paint_cursor = 0
 	var $decoration_cursor = 0
 	var $panel_cursor = 0
@@ -326,13 +351,26 @@ build_arena_with_intent = |prepared, intent, limits| {
 		}
 		paint_start = $page_groups.len()
 		page_end = checked_add(page.runs.start(), page.runs.length())?
+		sheet = match fixed_pages.get($page_index) {
+			Err(_) => { box: page_box, overlay_end: 0, underlay_end: 0 }
+			Ok(fixed) => {
+				if fixed.underlays.start() != $fixed_cursor or !range_fits(fixed.underlays, fixed_count) or !range_fits(fixed.overlays, fixed_count) {
+					return Err(InvalidPage({ page: $page_index }))
+				}
+				underlay_end = fixed.underlays.start() + fixed.underlays.length()
+				if fixed.overlays.start() != underlay_end {
+					return Err(InvalidPage({ page: $page_index }))
+				}
+				{ box: { ..page_box, size: fixed.size }, overlay_end: fixed.overlays.start() + fixed.overlays.length(), underlay_end }
+			}
+		}
 
 		## One loop per page paints the page's text placements and then its
 		## table rules. Two consecutive inner loops over the same accumulators
 		## copied `$commands`, `$groups`, and `$page_groups` once per page: the
 		## first loop's exit state reached the second loop's entry through an
 		## aggregate that still held them (docs/contributors/performance/emission-linearity.md).
-		while ($panel_cursor < panel_count and list_at(prepared.flow.panels, $panel_cursor).page == $page_index) or $placement_cursor < page_end or ($rule_cursor < rule_count and list_at(prepared.rules, $rule_cursor).page == $page_index) or ($decoration_cursor < decoration_count and list_at(prepared.flow.decorations, $decoration_cursor).page == $page_index) or ($paint_cursor < paint_count and list_at(furniture.paints, $paint_cursor).page == $page_index) {
+		while $fixed_cursor < sheet.overlay_end or ($panel_cursor < panel_count and list_at(prepared.flow.panels, $panel_cursor).page == $page_index) or $placement_cursor < page_end or ($rule_cursor < rule_count and list_at(prepared.rules, $rule_cursor).page == $page_index) or ($decoration_cursor < decoration_count and list_at(prepared.flow.decorations, $decoration_cursor).page == $page_index) or ($paint_cursor < paint_count and list_at(furniture.paints, $paint_cursor).page == $page_index) {
 			## A template region's backdrops paint first on their page,
 			## through the furniture branch below, behind everything else.
 			backdrop_ready = $paint_cursor < paint_count and list_at(furniture.paints, $paint_cursor).page == $page_index and list_at(furniture.paints, $paint_cursor).behind
@@ -340,7 +378,25 @@ build_arena_with_intent = |prepared, intent, limits| {
 			## In-flow decorations that paint behind the text come next,
 			## through the decoration branch below.
 			behind_ready = !backdrop_ready and $decoration_cursor < decoration_count and list_at(prepared.flow.decorations, $decoration_cursor).page == $page_index and list_at(prepared.flow.decorations, $decoration_cursor).behind
-			if !backdrop_ready and !behind_ready and $panel_cursor < panel_count and list_at(prepared.flow.panels, $panel_cursor).page == $page_index {
+			if $fixed_cursor < sheet.underlay_end or ($fixed_cursor < sheet.overlay_end and $placement_cursor == page_end) {
+				rect = list_at(fixed_artifacts, $fixed_cursor)
+				kind : Scene.PageArtifactKind
+				kind = match rect.kind {
+					Background => Background
+					Decoration => Decoration
+					_ => return Err(InvalidPage({ page: $page_index }))
+				}
+				fill = paint_color(rect.color, intent, use_srgb) ? |_| UnsupportedColor({ run: $placement_cursor })
+				path = Scene.PathId.from_index($paths.len())
+				$paths = $paths.append({ id: path, segments: Semantics.IndexRange.from_start_and_length({ start: $path_segments.len(), length: 1 }) })
+				$path_segments = $path_segments.append(Rectangle(rect.bounds))
+				command = $commands.len()
+				$commands = $commands.append(DrawPath({ path, style: { fill: SolidFill({ color: fill, rule: Nonzero }), stroke: NoStroke } }))
+				group = Scene.GroupId.from_index($groups.len())
+				$groups = $groups.append({ commands: Semantics.IndexRange.from_start_and_length({ start: command, length: 1 }), id: group, owner: PageArtifact(kind) })
+				$page_groups = $page_groups.append(group)
+				$fixed_cursor = $fixed_cursor + 1
+			} else if !backdrop_ready and !behind_ready and $panel_cursor < panel_count and list_at(prepared.flow.panels, $panel_cursor).page == $page_index {
 				## A custom block's panel paints first on its page, behind
 				## the text it frames: one `Decoration` page-artifact group,
 				## a transform to its measured box's bottom-left corner
@@ -630,8 +686,9 @@ build_arena_with_intent = |prepared, intent, limits| {
 				$paint_cursor = $paint_cursor + 1
 			}
 		}
+		box = sheet.box
 		$pages = $pages.append({
-			boxes: { art: page_box, bleed: page_box, crop: page_box, media: page_box, trim: page_box },
+			boxes: { art: box, bleed: box, crop: box, media: box, trim: box },
 			id: page.id,
 			paint_order: Semantics.IndexRange.from_start_and_length({ start: paint_start, length: $page_groups.len() - paint_start }),
 			rotation: Rotate0,
@@ -641,7 +698,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 	if $placement_cursor != run_count {
 		return Err(InvalidPlacement({ placement: $placement_cursor }))
 	}
-	if $painted_figures.any(|painted| !painted) or $decoration_cursor != decoration_count or $panel_cursor != panel_count {
+	if $painted_figures.any(|painted| !painted) or $decoration_cursor != decoration_count or $panel_cursor != panel_count or $fixed_cursor != fixed_count {
 		return Err(InvalidPlacement({ placement: $placement_cursor }))
 	}
 	gray_space = {
@@ -704,6 +761,8 @@ build_arena_with_intent = |prepared, intent, limits| {
 	)
 }
 
+## The semantic stage puts a Figure's drawing anchor first in its spine.
+## Later occurrences in that spine are ordinary positioned label text.
 index_figures : Semantics.Store, U64 -> Try(List([Figure(U64), NoFigure]), KernelFacadeScenes.Error)
 index_figures = |store, figure_count| {
 	var $by_occurrence = List.repeat(NoFigure, store.occurrences.len())
@@ -712,7 +771,7 @@ index_figures = |store, figure_count| {
 	while $node_index < store.nodes.len() {
 		node = list_at(store.nodes, $node_index)
 		if node.role.local_name == "Figure" {
-			if $figure >= figure_count or node.content.length() != 1 or node.content.start() >= store.content_spine.len() {
+			if $figure >= figure_count or node.content.length() == 0 or node.content.start() >= store.content_spine.len() {
 				return Err(InvalidPlacement({ placement: $node_index }))
 			}
 			occurrence = match list_at(store.content_spine, node.content.start()) {
@@ -815,9 +874,9 @@ flow_facts = |authoring, paints| {
 	Ok({ commands: $commands, decorations: $decorations, figures: $figures, images: $images, nonblack: $nonblack, panels: $panels, paths: $paths, segments: $segments })
 }
 
-## A drawing's paths and images: its text labels are artifact text runs,
-## shaped and placed by `KernelFacadeLabels` and painted with the page's
-## text. A drawing without labels keeps its command list as is.
+## The graphic commands for a drawing. Its labels are shaped and placed
+## by `KernelFacadeLabels` and painted with the page text. A drawing
+## without labels reuses its command list.
 without_labels : Document.FlowDrawing -> Document.FlowDrawing
 without_labels = |drawing| {
 	labelled = drawing.commands.any(

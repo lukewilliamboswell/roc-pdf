@@ -10,11 +10,13 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from provision_extended_tools import archive_path
+
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "scripts" / "StrictPdfCheck.java"
 PDFBOX_VERSION = "3.0.8"
-VENDORED_JAR = ROOT / "vendor" / "pdfbox" / f"pdfbox-app-{PDFBOX_VERSION}.jar"
+VENDORED_JAR = archive_path("pdfbox")
 PDFBOX_SHA512 = (
     "768847238f683568507bf73570a2b6fedcbe58b25c7b4f97fba536ba110b290fe"
     "96ba065aed58629d41fb94857d76bc1978c2f31d294b553c69f287f71ee9600"

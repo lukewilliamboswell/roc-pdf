@@ -1276,7 +1276,7 @@ run_negatives = |runtime_context| {
 	## the exact typed error and no bytes.
 	facade_title = if (guard == 0) "Navigation negative" else "guarded"
 	facade_document = Pdf.document({ contents: [Pdf.internal_link({ text: "Broken", destination: "missing" })], language: "en-AU", title: facade_title })
-	match Pdf.to_bytes(facade_document) {
+	match Pdf.to_bytes_with(facade_document, { profile: Archive }) {
 		Err(InvalidNavigation(UnknownDestinationName({ annotation: 0 }))) => {}
 		_ => return Err(MissingRejection(32))
 	}

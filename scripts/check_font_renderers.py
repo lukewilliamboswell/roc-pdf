@@ -33,6 +33,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from provision_extended_tools import archive_path
+
 from check_visual_renderers import Raster, read_ppm
 from check_fonts import FontFacts
 
@@ -42,7 +44,7 @@ FACTS_SNAPSHOT = ROOT / "tests" / "font_leaves" / "font_leaf_facts.pdf"
 SHARE_100_SNAPSHOT = ROOT / "tests" / "font_leaves" / "font_leaves_share_100.pdf"
 DEDUPE_8_SNAPSHOT = ROOT / "tests" / "font_leaves" / "font_leaves_dedupe_8.pdf"
 DISTINCT_8_SNAPSHOT = ROOT / "tests" / "font_leaves" / "font_leaves_distinct_8.pdf"
-PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
+PDFBOX_JAR = archive_path("pdfbox")
 RENDER_SOURCE = ROOT / "scripts" / "PdfBoxRender.java"
 EXTRACT_SOURCE = ROOT / "scripts" / "PdfBoxTextExtract.java"
 FONTTOOLS_VERSION = "4.61.1"
@@ -188,7 +190,7 @@ def revalidate_subsets(label: str, snapshot: Path, expected_pages: int) -> None:
 
 def check_renderers(renderer: Path, working_directory: Path | None, mutool: Path | None) -> None:
     require(renderer.is_file(), f"PDFium renderer does not exist: {renderer}")
-    require(PDFBOX_JAR.is_file(), f"vendored PDFBox JAR does not exist: {PDFBOX_JAR}")
+    require(PDFBOX_JAR.is_file(), f"cached PDFBox JAR does not exist: {PDFBOX_JAR}")
     if mutool is not None:
         require(mutool.is_file(), f"mutool does not exist: {mutool}")
 
@@ -306,7 +308,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--pdfium-renderer", type=Path)
     parser.add_argument("--pdfium-working-directory", type=Path)
-    parser.add_argument("--mutool", type=Path, help="mutool built from vendor/mupdf/mupdf-1.28.2-source.tgz")
+    parser.add_argument("--mutool", type=Path, help="mutool from the pinned local MuPDF cache")
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
     if args.self_test:

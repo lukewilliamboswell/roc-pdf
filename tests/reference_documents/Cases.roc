@@ -11,6 +11,7 @@ Cases :: [].{
 		InvoiceSplitRow({ context : U64 }),
 		InvoiceTotalsCarry({ context : U64 }),
 		InvoiceRows({ rows : U64 }),
+		StatementBatch({ accounts : U64 }),
 		ReportHeadingKeep({ context : U64 }),
 		ReportFigureCaption({ context : U64 }),
 		ReportTableBreak({ context : U64 }),
@@ -33,6 +34,7 @@ Cases :: [].{
 			InvoiceSplitRow({ context }) => Fixture.invoice_split_row(context)
 			InvoiceTotalsCarry({ context }) => Fixture.invoice_totals_carry(context)
 			InvoiceRows({ rows }) => Fixture.invoice_rows(rows)
+			StatementBatch({ accounts }) => Fixture.statement_batch(accounts)
 			ReportHeadingKeep({ context }) => Fixture.report_heading_keep(context)
 			ReportFigureCaption({ context }) => Fixture.report_figure_caption(context)
 			ReportTableBreak({ context }) => Fixture.report_table_break(context)

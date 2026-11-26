@@ -332,11 +332,8 @@ zero channel tolerance; the text-in-form fixture reproduces the text-layout text
 ink metrics and extracts exactly its logical text, and the artifact-only
 showcase extracts nothing.
 
-MuPDF 1.28.2 is vendored as its exact upstream source archive
-(`vendor/mupdf/`), and veraPDF greenfield 1.30.2 as its signed upstream
-installer (`vendor/verapdf/`); `scripts/provision_extended_tools.py` verifies
-both against `assets/provenance.json` and builds/installs them without
-network access. With `--mutool`, the renderer checker runs MuPDF as the
+MuPDF and veraPDF are optional local tools. Provision the required tool with
+`scripts/provision_extended_tools.py --only mupdf` or `--only verapdf`. With `--mutool`, the renderer checker runs MuPDF as the
 extended-diversity third renderer: it matches the same independent rasters
 with zero tolerance through its pinned CalGray handling (MuPDF displays the
 linear CalGray luminance ISO 32000-2 defines through the sRGB transfer curve

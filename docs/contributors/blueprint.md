@@ -37,12 +37,8 @@ audit for private `Kernel` types needs it and the Ubuntu runners do not ship
 it; `scripts/docs.sh` now refuses to run without it. Inside a task the fetched Zig comes
 first on `PATH`, so `ZIG` no longer needs to be set.
 
-PDFBox 3.0.8 and veraPDF 1.30.2 remain independent vendored test oracles.
-CI provisions veraPDF and its corpus from verified bytes without a network
-fallback. Arlington runs in its digest-pinned service container. PDFium and
-MuPDF extended reader lanes retain their existing provisioning; see the
-[tool and publication audit](automation-publication.md). These are test tools,
-never production dependencies.
+CI uses project-owned PDF checks. To run an independent validator or reader
+locally, follow the [optional review setup](testing.md#optional-local-pdf-review).
 
 ## Tasks
 
@@ -86,8 +82,8 @@ previews and the report before committing them. An update does not change
 test-case allocation, byte, work or snapshot baselines.
 
 `blueprint workflow check` is the local package-check sequence. The reusable
-GitHub checks workflow additionally validates independent profiles/Arlington,
-the native manual/API and the exact bundle/examples/docs archives. The fuzz
+GitHub checks workflow additionally checks the native manual/API and the
+exact bundle/examples/docs archives. The fuzz
 campaign remains separate.
 
 ## CI

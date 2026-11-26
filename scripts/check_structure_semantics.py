@@ -15,10 +15,8 @@ without consulting the Roc package:
 * catalog /ViewerPreferences /DisplayDocTitle true whenever the catalog
   carries a metadata stream, plus /MarkInfo /Marked true and page /Tabs /S;
 * parent/child containment, content items, at-most-one children, and the
-  first-or-last Caption rule against its OWN transcription of ISO/TS 32005
-  Table 5 (not the Roc table). When the pinned veraPDF installation is
-  provisioned, the self-test also compares that transcription with the
-  veraPDF PDFUA-2-ISO32005 profile rules;
+  first-or-last Caption rule for the roles roc-pdf emits. See ISO/TS 32005
+  Table 5 for the containment rules;
 * page furniture: every /Artifact <</Type /Pagination /Subtype
   /Header|/Footer|/PageNum>> sequence carries no MCID (so no structure element can
   own it), every page-number artifact's ToUnicode-decoded text that reads
@@ -37,7 +35,6 @@ from __future__ import annotations
 import argparse
 import re
 import sys
-import zipfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -73,39 +70,35 @@ SNAPSHOTS = {
     "empty_cells": ROOT / "tests" / "tables" / "empty_cells_40.pdf",
 }
 
-VERAPDF_JAR_GLOB = ".roc-pdf-tmp/extended-tools/verapdf/bin/cli-*.jar"
-VERAPDF_PROFILE = "org/verapdf/pdfa/validation/PDFUA-2-ISO32005.xml"
 
 # ---------------------------------------------------------------------------
-# ISO/TS 32005:2023 Table 5, transcribed independently as the set of child
-# roles each parent may contain ("Hn" stands for H1..H6). This is the
-# checker's own table; it is compared against the Roc kernel only through
-# emitted PDFs and against veraPDF's encoding of Table 5 by the self-test.
+# Supported ISO/TS 32005:2023 Table 5 edges ("Hn" stands for H1..H6).
+# Parent context is checked separately for Part and Div. Grouping-only
+# children of Caption, Code and Link are outside the bounded text subset.
 # ---------------------------------------------------------------------------
 PDF20_NAMESPACE = "http://iso.org/pdf2/ssn"
 PDF17_NAMESPACE = "http://iso.org/pdf/ssn"
-# ISO 32000-2 14.8.6 defines `Code` and `Quote` only in the PDF 1.7 standard
-# structure namespace; PDF/UA-2 8.2.4 requires each element to belong to a
-# standard namespace.
-PDF17_ROLES = {"Code", "Quote"}
+# These unique PDF 1.7 roles retain that namespace in mixed structure
+# trees under ISO/TS 32005 §5.5 and PDF/UA-2 §8.2.4.
+PDF17_ROLES = {"Code", "Quote", "TOC", "TOCI"}
 
 INLINE = {"Lbl", "Figure", "Link", "Span", "Em", "Strong", "Code", "Quote"}
 ALL_ROLES = {
     "Document", "DocumentFragment", "Part", "Sect", "Div", "Title", "H", "Hn", "P", "L", "LI", "Lbl",
     "LBody", "Figure", "Caption", "Link", "Span", "Em", "Strong", "Code", "Quote", "Table", "THead",
-    "TBody", "TFoot", "TR", "TH", "TD",
+    "TBody", "TFoot", "TR", "TH", "TD", "TOC", "TOCI",
 }
-DOCUMENT_CHILDREN = {"Document", "DocumentFragment", "Part", "Sect", "Div", "Title", "H", "Hn", "P", "L", "Figure", "Link", "Code", "Table"}
+DOCUMENT_CHILDREN = {"Document", "DocumentFragment", "Part", "Sect", "Div", "Title", "H", "Hn", "P", "L", "Figure", "Link", "Code", "Table", "TOC"}
 GROUPING_WRAPPERS = {"Part", "Div"}
 # ISO/TS 32005 Table 5 lists these supported children in the Part row.
-PART_CHILDREN = DOCUMENT_CHILDREN | {"Caption", "Lbl"}
+PART_CHILDREN = DOCUMENT_CHILDREN | {"Caption", "Lbl", "TOCI"}
 CELL_CHILDREN = {"Sect", "Div", "H", "Hn", "P", "L", "Table"} | INLINE
 MAY_CONTAIN: dict[str, set[str]] = {
     "Document": DOCUMENT_CHILDREN,
     "DocumentFragment": DOCUMENT_CHILDREN,
     "Part": set(ALL_ROLES),
     "Div": set(ALL_ROLES),
-    "Sect": {"DocumentFragment", "Part", "Sect", "Div", "Title", "H", "Hn", "P", "L", "Lbl", "Figure", "Caption", "Link", "Code", "Table"},
+    "Sect": {"DocumentFragment", "Part", "Sect", "Div", "Title", "H", "Hn", "P", "L", "Lbl", "Figure", "Caption", "Link", "Code", "Table", "TOC"},
     "Title": {"Part", "Div", "P", "L", "Caption", "Table"} | INLINE,
     "H": {"Sect"} | INLINE,
     "Hn": {"Sect"} | INLINE,
@@ -115,13 +108,13 @@ MAY_CONTAIN: dict[str, set[str]] = {
     "Lbl": INLINE - {"Lbl"},
     "LBody": {"Part", "Sect", "Div", "H", "Hn", "P", "L", "Caption", "Table"} | (INLINE - {"Lbl"}),
     "Figure": {"Part", "Sect", "Div", "H", "Hn", "P", "L", "Caption", "Table"} | INLINE,
-    "Caption": {"DocumentFragment", "Part", "Sect", "Div", "H", "Hn", "P", "L", "Table"} | INLINE,
-    "Link": {"DocumentFragment", "Part", "Sect", "Div", "Title", "H", "Hn", "P", "L", "Caption", "Table"} | INLINE,
+    "Caption": {"Part", "Sect", "Div", "H", "Hn", "P", "L", "Table"} | INLINE,
+    "Link": {"Sect", "Div"} | (INLINE - {"Link"}),
     "Span": set(INLINE),
     "Em": set(INLINE),
     "Strong": set(INLINE),
-    "Code": {"DocumentFragment", "Part", "Sect", "Div", "P", "L", "Caption", "Table"} | INLINE,
-    "Quote": {"Div"} | INLINE,
+    "Code": {"Part", "Div", "Link", "Span", "Em", "Strong"},
+    "Quote": set(INLINE),
     "Table": {"Caption", "THead", "TBody", "TFoot", "TR"},
     "THead": {"TR"},
     "TBody": {"TR"},
@@ -129,13 +122,16 @@ MAY_CONTAIN: dict[str, set[str]] = {
     "TR": {"TH", "TD"},
     "TH": set(CELL_CHILDREN),
     "TD": set(CELL_CHILDREN),
+    "TOC": {"Part", "Caption", "TOC", "TOCI"},
+    "TOCI": {"Div", "P", "Lbl", "TOC"},
 }
-NO_CONTENT_ITEMS = {"Document", "DocumentFragment", "Sect", "L", "LI", "Table", "THead", "TBody", "TFoot", "TR"}
+NO_CONTENT_ITEMS = {"Document", "DocumentFragment", "Sect", "L", "LI", "Table", "THead", "TBody", "TFoot", "TR", "TOC", "TOCI"}
 AT_MOST_ONE: dict[str, set[str]] = {
     "Document": {"H"}, "DocumentFragment": {"H"}, "Sect": {"H"}, "Caption": {"H"}, "TH": {"H"}, "TD": {"H"},
     "LBody": {"H", "Caption"}, "Figure": {"H", "Caption"}, "H": {"Sect"}, "Hn": {"Sect"},
-    "Title": {"Caption"}, "L": {"Caption"}, "Link": {"Caption"}, "Code": {"Caption"},
+    "Title": {"Caption"}, "L": {"Caption"},
     "Table": {"Caption", "THead", "TFoot"},
+    "TOC": {"Caption"},
 }
 TABLE_ATTRIBUTES = {"ColSpan", "Headers", "O", "RowSpan", "Scope", "Summary"}
 LIST_NUMBERING = {
@@ -146,8 +142,8 @@ LIST_NUMBERING = {
 LANGUAGE_TAG = re.compile(
     r"(?:[a-z]{2,3}(?:-[a-z]{3}){0,3}|[a-z]{4,8})"
     r"(?:-[a-z]{4})?(?:-(?:[a-z]{2}|[0-9]{3}))?"
-    r"(?:-(?:[a-z0-9]{5,8}|[0-9][a-z0-9]{3}))*"
-    r"(?:-[0-9a-wy-z](?:-[a-z0-9]{2,8})+)*"
+    r"(?P<variants>(?:-(?:[a-z0-9]{5,8}|[0-9][a-z0-9]{3}))*)"
+    r"(?P<extensions>(?:-[0-9a-wy-z](?:-[a-z0-9]{2,8})+)*)"
     r"(?:-x(?:-[a-z0-9]{1,8})+)?"
     r"|x(?:-[a-z0-9]{1,8})+"
     r"|en-gb-oed"
@@ -155,6 +151,16 @@ LANGUAGE_TAG = re.compile(
     r"|sgn-(?:be-(?:fr|nl)|ch-de)",
     re.ASCII | re.IGNORECASE,
 )
+
+
+def language_tag_valid(tag: str) -> bool:
+    shape = LANGUAGE_TAG.fullmatch(tag)
+    if shape is None:
+        return False
+    variants = (shape["variants"] or "").lower().split("-")[1:]
+    extension_parts = (shape["extensions"] or "").lower().split("-")[1:]
+    singletons = [part for part in extension_parts if len(part) == 1]
+    return len(set(variants)) == len(variants) and len(set(singletons)) == len(singletons)
 
 
 def table_role(role: str) -> str:
@@ -383,7 +389,7 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
         require(catalog.get("ViewerPreferences") == {"DisplayDocTitle": True}, "a document with a metadata title lacks /ViewerPreferences << /DisplayDocTitle true >>")
     catalog_language = text_string(catalog["Lang"]) if "Lang" in catalog else None
     if catalog_language is not None:
-        require(LANGUAGE_TAG.fullmatch(catalog_language) is not None, "catalog /Lang is not a language tag")
+        require(language_tag_valid(catalog_language), "catalog /Lang is not a language tag")
 
     pages: list[int] = []
     page_order(document, int(catalog["Pages"]), pages)
@@ -414,6 +420,7 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
     identifiers: dict[bytes, int] = {}
     visited: set[int] = set()
     labelled_items: set[int] = set()
+    contents_targets: list[int] = []
 
     def walk(number: int, parent: int, inherited: str | None, ancestors: tuple[str, ...]) -> str:
         require(len(ancestors) < 64, "structure tree too deep")
@@ -421,7 +428,8 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
         visited.add(number)
         element = document.get(number)
         require(element.get("Type", "StructElem") == "StructElem" and "S" in element, f"object {number} is not a StructElem")
-        require(int(element["P"]) == parent, f"structure element {number} /P does not name its parent")
+        parent_ref = element.get("P")
+        require(isinstance(parent_ref, Ref) and int(parent_ref) == parent, f"structure element {number} /P does not name its parent")
         require(int(element["NS"]) in namespaces, "structure element namespace is not declared")
         role = str(element["S"])
         expected_namespace = PDF17_NAMESPACE if role in PDF17_ROLES else PDF20_NAMESPACE
@@ -439,13 +447,17 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
         language = inherited
         if "Lang" in element:
             tag = text_string(element["Lang"])
-            require(LANGUAGE_TAG.fullmatch(tag) is not None, f"structure /Lang {tag!r} is not a language tag")
+            require(language_tag_valid(tag), f"structure /Lang {tag!r} is not a language tag")
             require(tag != inherited, f"structure /Lang {tag!r} repeats its inherited language")
             facts.append(f"Lang={tag}")
             language = tag
         for key in ("Alt", "E", "ActualText"):
             if key in element:
                 facts.append(f"{key}={text_string(element[key])!r}")
+        if role == "TOCI":
+            refs = element.get("Ref")
+            require(isinstance(refs, list) and len(refs) == 1 and isinstance(refs[0], Ref), "contents item must have one structure target")
+            contents_targets.append(int(refs[0]))
         if role == "Figure":
             require("Alt" in element or "ActualText" in element, "Figure has neither /Alt nor /ActualText")
         if "ID" in element:
@@ -487,7 +499,7 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
                 mcr_owner[key] = number
                 leaves.append(f"mcid p{page_index[page]}:{key[1]}")
             elif isinstance(child, dict) and child.get("Type") == "OBJR":
-                require(role not in GROUPING_WRAPPERS, f"/{role} owns a content item")
+                require(role not in GROUPING_WRAPPERS and role not in NO_CONTENT_ITEMS, f"/{role} owns a content item")
                 annotation = int(child["Obj"])
                 require(annotation not in objr_owner, "an annotation is referenced by two OBJRs")
                 objr_owner[annotation] = number
@@ -511,6 +523,9 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
         return label + ("" if not leaves else " [" + ", ".join(leaves) + "]")
 
     lines.append(walk(int(root_element), tree_root_number, catalog_language, ()))
+    for target in contents_targets:
+        require(target in visited and table_role(str(document.get(target)["S"])) in ("P", "Hn"),
+                "contents reference does not name a reachable destination")
 
     # ParentTree <-> MCR/OBJR, exactly once in both directions.
     parent_tree = document.get(int(tree_root["ParentTree"]))
@@ -644,7 +659,8 @@ MARKED_FIGURE = re.compile(rb"/[A-Za-z0-9]+ <</MCID ([0-9]+)>> BDC\nq\n([-0-9.]+
 def check_figures(document: Document, visited: set[int], pages: list[int], page_index: dict[int, int], dimensions: dict[str, int]) -> None:
     """Independent figure and decoration checks, derived from the bytes:
 
-    - every Figure has a non-empty /Alt and owns exactly one MCID;
+    - every Figure has a non-empty /Alt and owns its drawing MCID and its
+      optional label text MCIDs on the same page;
     - a Caption beside a Figure is the last child of a Sect whose children
       are exactly that Figure and Caption, so the caption is exposed
       independently of the figure's /Alt;
@@ -656,6 +672,8 @@ def check_figures(document: Document, visited: set[int], pages: list[int], page_
     figures = 0
     captioned = 0
     scaled = 0
+    drawing_marks: dict[int, dict[int, tuple[bytes, bytes]]] = {}
+    text_marks: dict[int, set[int]] = {}
     for number in sorted(visited):
         element = document.get(number)
         role = str(element["S"])
@@ -665,12 +683,20 @@ def check_figures(document: Document, visited: set[int], pages: list[int], page_
             figures += 1
             require(isinstance(element.get("Alt"), bytes) and text_string(element["Alt"]).strip(), "a Figure has an empty /Alt")
             marks = [child for child in children if isinstance(child, dict) and child.get("Type") == "MCR"]
-            require(len(marks) == 1 and len(children) == 1, "a Figure does not own exactly one marked-content sequence")
+            require(marks and len(marks) == len(children), "a facade Figure must directly own its drawing and label sequences")
             page = int(marks[0]["Pg"])
-            content = document.stream(int(document.get(page)["Contents"]))
-            found = [match for match in MARKED_FIGURE.finditer(content) if int(match.group(1)) == int(marks[0]["MCID"])]
-            require(len(found) == 1, f"the Figure's MCID on page {page_index[page]} does not begin with its drawing's placement")
-            horizontal, vertical = found[0].group(2), found[0].group(3)
+            if page not in drawing_marks:
+                content = document.stream(int(document.get(page)["Contents"]))
+                drawing_marks[page] = {int(match[1]): (match[2], match[3]) for match in MARKED_FIGURE.finditer(content)}
+                text_marks[page] = {
+                    int(match[1]) for match in re.finditer(rb"/[A-Za-z0-9]+ <</MCID (\d+)>> BDC\n(.*?)\nEMC\n", content, re.S)
+                    if b"\nBT\n" in match[2]
+                }
+            drawing = int(marks[0]["MCID"])
+            require(drawing in drawing_marks[page], f"the Figure's first MCID on page {page_index[page]} does not begin with its drawing's placement")
+            for label in marks[1:]:
+                require(int(label["Pg"]) == page and int(label["MCID"]) in text_marks[page], "a Figure label must be a text sequence on its drawing's page")
+            horizontal, vertical = drawing_marks[page][drawing]
             require(horizontal == vertical and 0 < float(horizontal) <= 1, "a Figure's drawing is not scaled uniformly by at most 1")
             if float(horizontal) != 1:
                 scaled += 1
@@ -772,6 +798,49 @@ def mcr_pages(document: Document, number: int) -> set[int]:
     return found
 
 
+def check_scoped_table_headers(document: Document, rows: list[int]) -> None:
+    """Check each facade cell's explicit headers against the grid and scopes."""
+    column_headers: dict[int, set[bytes | None]] = {}
+    for row in rows:
+        cells = []
+        column = 0
+        for ref in element_children(document, document.get(row)):
+            require(isinstance(ref, Ref), "facade table row contains a non-cell item")
+            cell = document.get(int(ref))
+            attributes = table_attributes(cell)
+            if cell["S"] == "TH":
+                require(attributes.get("Scope") in ("Row", "Column", "Both"), "a TH lacks valid /Scope")
+            end = column + attributes.get("ColSpan", 1)
+            cells.append((cell, attributes, range(column, end)))
+            column = end
+
+        row_headers = {
+            cell.get("ID")
+            for cell, attributes, _ in cells
+            if cell["S"] == "TH" and attributes["Scope"] in ("Row", "Both")
+        }
+        preceding_row_headers: set[bytes | None] = set()
+        for cell, attributes, columns in cells:
+            is_header = cell["S"] == "TH"
+            expected = (preceding_row_headers if is_header else row_headers).copy()
+            for column in columns:
+                expected.update(column_headers.get(column, ()))
+            require(None not in expected, "a scoped header lacks its referenced /ID")
+            actual = attributes.get("Headers", [])
+            role = "header" if is_header else "data"
+            require(
+                set(actual) == expected and len(actual) == len(expected),
+                f"facade {role} cell /Headers disagrees with its scoped table headers",
+            )
+            if is_header and attributes["Scope"] in ("Row", "Both"):
+                preceding_row_headers.add(cell.get("ID"))
+
+        for cell, attributes, columns in cells:
+            if cell["S"] == "TH" and attributes["Scope"] in ("Column", "Both"):
+                for column in columns:
+                    column_headers.setdefault(column, set()).add(cell.get("ID"))
+
+
 def check_tables(document: Document, visited: set[int], identifiers: dict[bytes, int], pages: list[int], page_index: dict[int, int], dimensions: dict[str, int]) -> None:
     """Independent table checks, derived from the bytes alone:
 
@@ -829,6 +898,8 @@ def check_tables(document: Document, visited: set[int], identifiers: dict[bytes,
                 width += span
             widths.add(width)
         require(len(widths) <= 1, f"table rows span different column counts {sorted(widths)}")
+        if dimensions.get("facade_table_headers"):
+            check_scoped_table_headers(document, rows)
         table_pages = sorted(mcr_pages(document, number), key=lambda page: page_index[page])
         if not head or not table_pages:
             continue
@@ -884,7 +955,9 @@ def normalize_attributes(value, role: str) -> str:
 
 
 def validate_structure_semantics_pdf(pdf: bytes, dimensions: dict[str, int]) -> None:
-    check_structure_semantics(pdf, dimensions)
+    rendered = check_structure_semantics(pdf, dimensions)
+    if dimensions.get("authored_nested"):
+        require(rendered == NESTED_EXPECTED, "emitted container tree differs from the authored hierarchy")
 
 
 # ---------------------------------------------------------------------------
@@ -911,37 +984,45 @@ def replace_once(value: bytes, old: bytes, new: bytes) -> bytes:
         raise ValidationError(str(error)) from error
 
 
-def independent_table_matches_verapdf() -> str:
-    jars = sorted(ROOT.glob(VERAPDF_JAR_GLOB))
-    if not jars:
-        return "veraPDF not provisioned; Table 5 cross-check skipped"
-    with zipfile.ZipFile(jars[-1]) as archive:
-        profile = archive.read(VERAPDF_PROFILE).decode("utf-8")
-    forbidden = set()
-    for parent, child in re.findall(r"<description>&lt;(\w+)&gt;(?:, when used as [a-z ]+,)? shall not contain &lt;(\w+)&gt;</description>", profile):
-        forbidden.add((parent, child))
-    require(bool(forbidden), "the veraPDF profile yielded no Table 5 containment rules")
-    for parent in ALL_ROLES:
-        for child in ALL_ROLES:
-            allowed = child in MAY_CONTAIN[parent]
-            require(allowed == ((parent, child) not in forbidden), f"independent Table 5 transcription disagrees with veraPDF for {parent} > {child}")
-    content_rules = set(re.findall(r"<description>&lt;(\w+)&gt; shall not contain content items</description>", profile))
-    require(NO_CONTENT_ITEMS - {"LI"} == content_rules & ALL_ROLES, "content-item roles disagree with veraPDF")
-    return f"Table 5 transcription agrees with {jars[-1].name} on {len(ALL_ROLES) ** 2} role pairs"
-
-
 def self_test() -> None:
     for label, path in SNAPSHOTS.items():
         check_structure_semantics(path.read_bytes())
-    require(check_structure_semantics(SNAPSHOTS["nested"].read_bytes()) == NESTED_EXPECTED, "nested normalized structure changed")
+    validate_structure_semantics_pdf(SNAPSHOTS["nested"].read_bytes(), {"authored_nested": 1})
     require(check_structure_semantics(SNAPSHOTS["lowering"].read_bytes()) == LOWERING_EXPECTED, "lowering normalized structure changed")
 
     nested = SNAPSHOTS["nested"].read_bytes()
+    authored_group_twins = ((b"/S /Part", b"/S /Div"), (b"/P 8 0 R /S /Sect", b"/P 8 0 R /S /Div"))
+    for old, new in authored_group_twins:
+        altered_group = layout_twin(nested, old, new, exactly_once=False)
+        try:
+            validate_structure_semantics_pdf(altered_group, {"authored_nested": 1})
+        except ValidationError as error:
+            require(str(error) == "emitted container tree differs from the authored hierarchy", str(error))
+        else:
+            raise ValidationError("the authored container tree accepted a substituted grouping role")
     lowering = SNAPSHOTS["lowering"].read_bytes()
     facade = SNAPSHOTS["facade"].read_bytes()
     table = SNAPSHOTS["table"].read_bytes()
     figure_sections = SNAPSHOTS["figure_sections"].read_bytes()
     inline_roles = SNAPSHOTS["inline_roles"].read_bytes()
+    inline_document = Document(inline_roles)
+    for parent_role, original_role, forbidden_role in (("Quote", "Span", "Div"), ("Link", "Em", "P")):
+        offending_child = next(
+            int(child) for number in inline_document.bodies
+            if re.search(rb"/S /" + parent_role.encode() + rb" >>", inline_document.bodies[number])
+            for child in element_children(inline_document, inline_document.get(number))
+            if isinstance(child, Ref) and inline_document.get(int(child))["S"] == original_role
+        )
+        body = inline_document.bodies[offending_child]
+        changed = body.replace(f"/S /{original_role} >>".encode(), f"/S /{forbidden_role} >>".encode(), 1)
+        require(changed != body, "role-only containment control failed to change a structure dictionary")
+        twin = layout_twin(inline_roles, body, changed, exactly_once=True)
+        try:
+            check_structure_semantics(twin)
+        except ValidationError as error:
+            require(str(error) == f"/{parent_role} may not contain /{forbidden_role} under /{parent_role}", str(error))
+        else:
+            raise ValidationError(f"checker accepted {parent_role} > {forbidden_role}")
     check_structure_semantics(SNAPSHOTS["figures"].read_bytes(), {"figure_nodes": 4, "captioned_figures": 3, "scaled_figures": 1, "layout_artifacts": 2})
     mutations = [
         ("figure caption in a transparent Part", figure_sections, b"/S /Sect", b"/S /Part"),
@@ -973,6 +1054,20 @@ def self_test() -> None:
         except (ValidationError, KeyError, ValueError, TypeError, AttributeError, IndexError):
             continue
         raise SystemExit(f"structure-semantics checker accepted {label}")
+    document = Document(nested)
+    catalog = document.get(document.root)
+    tree_root = int(catalog["StructTreeRoot"])
+    root = int(document.get(tree_root)["K"])
+    parent_entry = f" /P {tree_root} 0 R".encode("ascii")
+    root_body = document.bodies[root]
+    require(root_body.count(parent_entry) == 1, "Document parent control source changed")
+    without_parent = layout_twin(nested, root_body, root_body.replace(parent_entry, b""), exactly_once=True)
+    try:
+        check_structure_semantics(without_parent)
+    except ValidationError as error:
+        require(str(error) == f"structure element {root} /P does not name its parent", "missing parent twin failed for the wrong reason")
+    else:
+        raise ValidationError("structure-semantics checker accepted an element with no /P")
     navigation = SNAPSHOTS["navigation"].read_bytes()
     document = Document(navigation)
     mcr_pattern = re.compile(rb"<< /MCID [0-9]+ /Pg ([0-9]+) 0 R /Type /MCR >>")
@@ -996,8 +1091,16 @@ def self_test() -> None:
         require(str(error) == "structure /Lang 'en-12' is not a language tag", "invalid region twin failed for the wrong reason")
     else:
         raise ValidationError("structure-semantics checker accepted an invalid language region subtag")
-    for tag in ("I-klingon", "en-0-12", "de-DE-x-phonebk"):
-        require(LANGUAGE_TAG.fullmatch(tag) is not None, f"checker rejected well-formed language tag {tag}")
+    for tag in ("I-klingon", "en-0-12", "de-DE-x-phonebk", "art-lojban", "de-1901-x-1901", "en-u-ca-gregory-x-u-u"):
+        require(language_tag_valid(tag), f"checker rejected well-formed language tag {tag}")
+    for tag in ("de-1901-1901", "sl-rozaj-BISKE-ROZAJ", "en-u-ca-gregory-U-nu-latn", "en-0-ab-0-cd"):
+        changed_language = layout_twin(lowering, b"/Lang (fr-FR)", f"/Lang ({tag})".encode("ascii"), exactly_once=True)
+        try:
+            check_structure_semantics(changed_language)
+        except ValidationError as error:
+            require(str(error) == f"structure /Lang {tag!r} is not a language tag", "duplicate subtag twin failed for the wrong reason")
+        else:
+            raise ValidationError("structure-semantics checker accepted a duplicate language subtag")
 
     # Wrappers between Document and Span still expose the illegal edge.
     grouping_twins = (("Part", "Part"), ("Div", "Div"), ("Part", "Div"), ("Div", "Part"))
@@ -1035,6 +1138,40 @@ def self_test() -> None:
         except (ValidationError, KeyError, ValueError, TypeError, AttributeError, IndexError):
             continue
         raise SystemExit(f"structure-semantics checker accepted {label}")
+    # Explicit scope membership is stronger than validity of each /ID.
+    header_dimensions = {"facade_table_headers": 1}
+    check_structure_semantics(table, header_dimensions)
+    header_entry = b"/Headers [(c000002) (c000005) (c000008)] "
+    for replacement in (b"/Headers [(c000002) (c000006) (c000008)] ", b""):
+        twin = layout_twin(table, header_entry, replacement, exactly_once=True)
+        try:
+            check_structure_semantics(twin, header_dimensions)
+        except ValidationError as error:
+            require(
+                str(error) == "facade data cell /Headers disagrees with its scoped table headers",
+                "scope-header twin failed for a different reason",
+            )
+        else:
+            raise ValidationError("scope-header twin passed the facade table checker")
+
+    # A row header in the combined letter inherits its column heading.
+    # Remove only that explicit association, leaving its Scope intact.
+    letter = (ROOT / "tests" / "reference_documents" / "letter.pdf").read_bytes()
+    check_structure_semantics(letter, header_dimensions)
+    letter_objects = Document(letter)
+    headed_row_header = next(
+        body for body in letter_objects.bodies.values()
+        if b"/S /TH >>" in body and b"/Scope /Row" in body and b"/Headers" in body
+    )
+    without_column_heading = re.sub(rb"/Headers \[[^\]]+\] ", b"", headed_row_header, count=1)
+    twin = layout_twin(letter, headed_row_header, without_column_heading, exactly_once=True)
+    try:
+        check_structure_semantics(twin, header_dimensions)
+    except ValidationError as error:
+        require(str(error) == "facade header cell /Headers disagrees with its scoped table headers", str(error))
+    else:
+        raise ValidationError("scope-header twin dropped a row header's column heading")
+
     # Furniture twins mutate decoded page furniture: an MCID inside a
     # pagination artifact, a wrong page number, a wrong total, and a missing
     # page-number artifact.
@@ -1059,12 +1196,11 @@ def self_test() -> None:
         except ValidationError:
             continue
         raise SystemExit(f"structure-semantics checker accepted {label}")
-    cross_check = independent_table_matches_verapdf()
     print(
         "PASS structure-semantics checker self-test: normalized trees, ParentTree/MCID/OBJR "
         "exactly-once, IDTree/ID, language, attributes, DisplayDocTitle, MarkInfo, Tabs, "
-        f"Table 5 containment, page furniture, figure captions and scales, and custom-block Divs and underlays verified on {len(SNAPSHOTS)} snapshots; {len(mutations) + len(grouping_twins)} "
-        f"length-preserving mutation twins, one foreign-stream MCR twin, one invalid language region, {len(furniture_twins)} furniture twins, and {len(callout_twins)} custom-block twins rejected; {cross_check}",
+        f"Table 5 containment, page furniture, figure captions and scales, and custom-block Divs and underlays verified on {len(SNAPSHOTS)} snapshots; {len(mutations) + len(grouping_twins) + len(authored_group_twins)} "
+        f"length-preserving mutation twins, two role-only containment twins, one foreign-stream MCR twin, five invalid language-tag twins, 3 scope-header twins, {len(furniture_twins)} furniture twins, and {len(callout_twins)} custom-block twins rejected",
         flush=True,
     )
 

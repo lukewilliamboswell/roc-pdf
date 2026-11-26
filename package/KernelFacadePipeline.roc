@@ -1,6 +1,7 @@
 import Document
 import Font
 import KernelFacadeFragments
+import KernelFacadeFixed
 import KernelFacadeFurniture
 import KernelFacadeLabels
 import KernelFacadeLines
@@ -46,6 +47,7 @@ KernelFacadePipeline :: [].{
 		Shape(KernelFacadeShape.Error),
 		Text(KernelFacadeText.Error),
 	]
+	FixedError : [Pipeline(Error), Placement(KernelFacadeFixed.Error)]
 	Stage : [FragmentsReady, LinesReady, OutputReady, PagesReady, ScenesReady, SemanticsReady, ShapeReady, TextReady]
 
 	Limits :: {
@@ -159,6 +161,11 @@ KernelFacadePipeline :: [].{
 		build_styled_reporting : Document.NormalizedAuthoring, KernelFacadeShape.StyledFaces, Theme, Layout.Size, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, Limits -> Try(Plan, Error)
 		build_styled_reporting = |authoring, styled, theme, page_size, descriptor, input_facts, limits| build_ordered_pipeline(authoring, Styled(styled), theme, page_size, descriptor, input_facts, Collect, limits)
 
+		## Fixed preparation has separate physical placement rules while sharing
+		## semantic ownership, shaping, tagged lowering and profile output.
+		build_fixed : Document.NormalizedAuthoring, Document.NormalizedFixed, KernelFacadeShape.FontSelection, Theme, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelFacadeReport.Request, Limits -> Try(Plan, FixedError)
+		build_fixed = |authoring, fixed, selection, theme, descriptor, input_facts, request, limits| build_fixed_pipeline(authoring, fixed, selection, theme, descriptor, input_facts, request, limits)
+
 		output : Plan -> KernelFacadeOutput.Plan
 		output = |plan| plan.output
 
@@ -177,6 +184,74 @@ KernelFacadePipeline :: [].{
 ## faces.
 MultiFace : [Policy({ policy : Font.PolicyId, registry : Font.Registry }), Styled(KernelFacadeShape.StyledFaces)]
 
+build_fixed_pipeline : Document.NormalizedAuthoring, Document.NormalizedFixed, KernelFacadeShape.FontSelection, Theme, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelFacadeReport.Request, KernelFacadePipeline.Limits -> Try(KernelFacadePipeline.Plan, KernelFacadePipeline.FixedError)
+build_fixed_pipeline = |authoring, fixed, selection, theme, descriptor, facts, request, limits| {
+	semantics = KernelFacadeSemantics.Plan.build(authoring, limits.semantics) ? |error| Pipeline(Semantics(error))
+	preliminary = KernelFacadeSemantics.Plan.preliminary(semantics)
+	owners = KernelFacadeSemantics.Plan.block_ownership(semantics)
+	flow_text = KernelFacadeSemantics.Plan.flow_text(semantics)
+	sources = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics))
+	shape = (
+		match selection {
+			Single(font) => KernelFacadeShape.Plan.build(authoring, owners, flow_text, sources, font, theme, limits.shape)
+			Styled(styled) => KernelFacadeShape.Plan.build_styled(authoring, owners, flow_text, sources, styled, theme, limits.shape)
+			Ordered(ordered) => KernelFacadeShape.Plan.build_ordered(authoring, owners, flow_text, sources, ordered, theme, limits.shape)
+		}
+	) ? |error| Pipeline(Shape(error))
+	view = Document.NormalizedFixed.view(fixed)
+	lines = KernelFacadeLines.Plan.build_fixed(authoring, shape, sources, view.frames, limits.lines) ? |error| Pipeline(Lines(error))
+	{ positioned, work: placement_work } = KernelFacadeFixed.position(fixed, shape, lines, { max_pieces: KernelFacadeText.Limits.max_placements(limits.text) }) ? Placement
+	text = KernelFacadeText.Plan.build_positioned(positioned, [], { decorations: [], figure_scales: [], panels: [] }, limits.text) ? |error| Pipeline(Text(error))
+	fragments = KernelFacadeFragments.Plan.build(preliminary, text, limits.fragments, limits.fragment_semantics) ? |error| Pipeline(Fragments(error))
+	scenes = KernelFacadeScenes.Plan.build_fixed(fragments, { pages: view.pages, artifacts: view.artifacts }, intent_profile(facts), limits.scenes) ? |error| Pipeline(Scenes(error))
+	output = (
+		match selection {
+			Single(font) => KernelFacadeOutput.Plan.build_with_facts(scenes, font, descriptor, facts, limits.output)
+			Styled(_) | Ordered(_) => KernelFacadeOutput.Plan.build_multi_with_facts(scenes, KernelFacadeShape.Plan.fonts(shape), descriptor, facts, limits.output)
+		}
+	) ? |error| Pipeline(Output(error))
+	fragment_table = KernelFacadeFragments.Plan.fragments(fragments)
+	final_text = KernelFacadeText.Plan.text(KernelFacadeFragments.Plan.text(fragments))
+	report_facts = match request {
+		NoCollect => NoFacts
+		Collect => Facts(KernelFacadeReport.collect({ callouts: [], panels: [], references: [], relaxations: [], repeats: [], scales: [], scope_pages: [], source_fragments: [], splits: [] }, owners, KernelFacadeSemantics.Plan.figure_labels(semantics), fragment_table, final_text, view.pages.len()))
+	}
+	batch = KernelFacadeLines.Plan.line(lines)
+	shaped = KernelFacadeShape.Plan.shape(shape)
+	Ok(
+		KernelFacadePipeline.Plan.{
+			facts: report_facts,
+			output,
+			work: {
+				blocks: authoring.blocks.len(),
+				callout_ancestors: 0,
+				callout_contexts: 0,
+				callout_fragments: 0,
+				callout_updates: 0,
+				field_resolutions: 0,
+				final_runs: final_text.runs.len(),
+				fragments: fragment_table.len(),
+				furniture_items: 0,
+				line_candidate_visits: KernelLineLayout.BatchPlan.work(batch).candidate_visits,
+				lines: placement_work.line_visits,
+				objects: KernelFacadeOutput.Plan.work(output).objects,
+				occurrences: KernelFacadeSemantics.Plan.work(semantics).occurrence_writes,
+				page_candidate_visits: placement_work.placements,
+				pages: view.pages.len(),
+				reference_passes: 0,
+				scene_commands: KernelFacadeScenes.Plan.work(scenes).command_writes,
+				scope_visits: 0,
+				shape_metric_reads: shaped.work.metric_reads,
+				shaped_runs: shaped.store.runs.len(),
+				source_foreground_ranges: 0,
+				source_paint_clusters: 0,
+				source_paint_ranges: 0,
+				template_region_visits: 0,
+			},
+		},
+	)
+}
+
 Upstream := {
 	descriptor : KernelPdfFont.Descriptor,
 	font : KernelFont.Inspection,
@@ -184,6 +259,7 @@ Upstream := {
 	limits : KernelFacadePipeline.Limits,
 	navigation : KernelFacadeFragments.NavigationAuthoring,
 	ownership : List(KernelFacadeSemantics.BlockOwnership),
+	figure_labels : KernelFacadeSemantics.FigureLabels,
 	page_size : Layout.Size,
 	preliminary : KernelTextSemantics.Plan,
 	text : KernelFacadeText.Plan,
@@ -232,7 +308,7 @@ build_plan = |authoring, font, theme, page_size, descriptor, facts, request, lim
 	fragments = KernelFacadeFragments.Plan.build_with_navigation(upstream.preliminary, upstream.text, upstream.navigation, limits.fragments, limits.fragment_semantics, limits.navigation) ? Fragments
 	report_facts = match upstream.layout_facts {
 		NoLayoutFacts => NoFacts
-		LayoutFacts(layout_facts) => Facts(KernelFacadeReport.collect(layout_facts, upstream.ownership, KernelFacadeFragments.Plan.fragments(fragments), KernelFacadeText.Plan.text(KernelFacadeFragments.Plan.text(fragments)), upstream.work.pages))
+		LayoutFacts(layout_facts) => Facts(KernelFacadeReport.collect(layout_facts, upstream.ownership, upstream.figure_labels, KernelFacadeFragments.Plan.fragments(fragments), KernelFacadeText.Plan.text(KernelFacadeFragments.Plan.text(fragments)), upstream.work.pages))
 	}
 	scenes = KernelFacadeScenes.Plan.build_authoring_with_intent(fragments, page_size, authoring, intent_profile(facts), limits.scenes) ? Scenes
 	output = KernelFacadeOutput.Plan.build_with_navigation(scenes, font, descriptor, facts, navigation_input(fragments, limits.navigation), limits.output) ? Output
@@ -264,8 +340,8 @@ build_ordered_pipeline = |authoring, multi, theme, page_size, descriptor, facts,
 	source_store = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics))
 	shape = (
 		match multi {
-			Policy(ordered) => KernelFacadeShape.Plan.build_ordered(KernelFacadeSemantics.Plan.authoring(semantics), KernelFacadeSemantics.Plan.block_ownership(semantics), KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary)), source_store, ordered, theme, limits.shape)
-			Styled(styled) => KernelFacadeShape.Plan.build_styled(KernelFacadeSemantics.Plan.authoring(semantics), KernelFacadeSemantics.Plan.block_ownership(semantics), KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary)), source_store, styled, theme, limits.shape)
+			Policy(ordered) => KernelFacadeShape.Plan.build_ordered(KernelFacadeSemantics.Plan.authoring(semantics), KernelFacadeSemantics.Plan.block_ownership(semantics), KernelFacadeSemantics.Plan.flow_text(semantics), source_store, ordered, theme, limits.shape)
+			Styled(styled) => KernelFacadeShape.Plan.build_styled(KernelFacadeSemantics.Plan.authoring(semantics), KernelFacadeSemantics.Plan.block_ownership(semantics), KernelFacadeSemantics.Plan.flow_text(semantics), source_store, styled, theme, limits.shape)
 		}
 	) ? Shape
 	furniture_selection = match multi {
@@ -291,12 +367,12 @@ build_ordered_pipeline = |authoring, multi, theme, page_size, descriptor, facts,
 
 	## The laid-out record is destructured at once so its plans stay uniquely
 	## owned by the stages that consume them.
-	{ pages, text: unlabelled, work: laid_work } = lay_out(authoring, shape, lines, page_size, theme, furniture_selection, source_store.len(), limits)?
+	{ pages, text: unlabelled, work: laid_work } = lay_out(authoring, shape, lines, page_size, theme, furniture_selection, KernelFacadeSemantics.Plan.semantic_source_count(semantics), limits)?
 	label_fonts = match multi {
 		Policy(_) => PolicyLabels
 		Styled(styled) => LabelFonts(StyledFonts({ fonts: KernelFacadeShape.Plan.fonts(shape), instances: KernelFacadeShape.Plan.label_instances(shape, styled) }))
 	}
-	labelled = label_text(authoring, unlabelled, preliminary, label_fonts, source_store.len(), limits)?
+	labelled = label_text(semantics, unlabelled, label_fonts, limits)?
 	text = KernelFacadeText.Plan.with_source_foregrounds(labelled, authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), limits.text) ? Text
 	layout_facts = match request {
 		Collect => LayoutFacts(KernelFacadeReport.layout(pages))
@@ -316,7 +392,7 @@ build_ordered_pipeline = |authoring, multi, theme, page_size, descriptor, facts,
 	page_total = KernelPageLayout.Plan.pages(KernelFacadePages.Plan.page(pages)).len()
 	report_facts = match layout_facts {
 		NoLayoutFacts => NoFacts
-		LayoutFacts(value) => Facts(KernelFacadeReport.collect(value, KernelFacadeSemantics.Plan.block_ownership(semantics), KernelFacadeFragments.Plan.fragments(fragments), KernelFacadeText.Plan.text(KernelFacadeFragments.Plan.text(fragments)), page_total))
+		LayoutFacts(value) => Facts(KernelFacadeReport.collect(value, KernelFacadeSemantics.Plan.block_ownership(semantics), KernelFacadeSemantics.Plan.figure_labels(semantics), KernelFacadeFragments.Plan.fragments(fragments), KernelFacadeText.Plan.text(KernelFacadeFragments.Plan.text(fragments)), page_total))
 	}
 	scenes = KernelFacadeScenes.Plan.build_authoring_with_intent(fragments, page_size, authoring, intent_profile(facts), limits.scenes) ? Scenes
 	output = KernelFacadeOutput.Plan.build_multi_with_navigation(scenes, output_fonts, descriptor, facts, navigation_input(fragments, limits.navigation), limits.output) ? Output
@@ -378,7 +454,7 @@ build_references = |authoring, selection, theme, page_size, descriptor, facts, r
 	view = KernelFacadeReferences.Plan.view(referenced)
 	semantics = view.semantics
 	preliminary = KernelFacadeSemantics.Plan.preliminary(semantics)
-	source_count = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics)).len()
+	source_count = KernelFacadeSemantics.Plan.semantic_source_count(semantics)
 	measured = KernelFacadePages.Measured.view(view.measured)
 	page_count_value = KernelPageLayout.Choice.pages(measured.choice).len()
 	page_work = KernelPageLayout.Choice.work(measured.choice)
@@ -397,7 +473,7 @@ build_references = |authoring, selection, theme, page_size, descriptor, facts, r
 		Ordered(_) => PolicyLabels
 		Styled(styled) => LabelFonts(StyledFonts({ fonts: KernelFacadeShape.Plan.fonts(view.shape), instances: KernelFacadeShape.Plan.label_instances(view.shape, styled) }))
 	}
-	labelled = label_text(authoring, furniture_result.text, preliminary, label_selection, source_count, limits)?
+	labelled = label_text(semantics, furniture_result.text, label_selection, limits)?
 	text = KernelFacadeText.Plan.with_source_foregrounds(labelled, authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), limits.text) ? Text
 	base_fonts = match selection {
 		Single(font) => [font]
@@ -415,7 +491,7 @@ build_references = |authoring, selection, theme, page_size, descriptor, facts, r
 		NoCollect => NoFacts
 		Collect => {
 			layout = KernelFacadeReport.layout_measured(view.measured, view.paint, view.resolved)
-			Facts(KernelFacadeReport.collect(layout, KernelFacadeSemantics.Plan.block_ownership(semantics), KernelFacadeFragments.Plan.fragments(fragments), KernelFacadeText.Plan.text(KernelFacadeFragments.Plan.text(fragments)), page_count_value))
+			Facts(KernelFacadeReport.collect(layout, KernelFacadeSemantics.Plan.block_ownership(semantics), KernelFacadeSemantics.Plan.figure_labels(semantics), KernelFacadeFragments.Plan.fragments(fragments), KernelFacadeText.Plan.text(KernelFacadeFragments.Plan.text(fragments)), page_count_value))
 		}
 	}
 	scenes = KernelFacadeScenes.Plan.build_authoring_with_intent(fragments, page_size, authoring, intent_profile(facts), limits.scenes) ? Scenes
@@ -550,9 +626,8 @@ probe_early = |authoring, font, theme, page_size, limits, stage| {
 	if stage == SemanticsReady {
 		return Ok(work)
 	}
-	preliminary = KernelFacadeSemantics.Plan.preliminary(semantics)
 	source_store = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics))
-	shape = KernelFacadeShape.Plan.build(KernelFacadeSemantics.Plan.authoring(semantics), KernelFacadeSemantics.Plan.block_ownership(semantics), KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary)), source_store, font, theme, limits.shape) ? Shape
+	shape = KernelFacadeShape.Plan.build(KernelFacadeSemantics.Plan.authoring(semantics), KernelFacadeSemantics.Plan.block_ownership(semantics), KernelFacadeSemantics.Plan.flow_text(semantics), source_store, font, theme, limits.shape) ? Shape
 	shape_work = { ..work, shaped_runs: KernelFacadeShape.Plan.shape(shape).store.runs.len(), shape_metric_reads: KernelFacadeShape.Plan.shape(shape).work.metric_reads }
 	if stage == ShapeReady {
 		return Ok(shape_work)
@@ -580,13 +655,13 @@ probe_ordered_plan = |authoring, ordered, theme, page_size, limits| {
 	semantics = KernelFacadeSemantics.Plan.build(authoring, limits.semantics) ? Semantics
 	preliminary = KernelFacadeSemantics.Plan.preliminary(semantics)
 	source_store = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics))
-	shape = KernelFacadeShape.Plan.build_ordered(KernelFacadeSemantics.Plan.authoring(semantics), KernelFacadeSemantics.Plan.block_ownership(semantics), KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary)), source_store, ordered, theme, limits.shape) ? Shape
+	shape = KernelFacadeShape.Plan.build_ordered(KernelFacadeSemantics.Plan.authoring(semantics), KernelFacadeSemantics.Plan.block_ownership(semantics), KernelFacadeSemantics.Plan.flow_text(semantics), source_store, ordered, theme, limits.shape) ? Shape
 	selection = PolicyFaces({ faces: KernelFacadeShape.Plan.selected_faces(shape), fonts: KernelFacadeShape.Plan.fonts(shape), policy: ordered.policy, registry: ordered.registry })
 	shaped_runs = KernelFacadeShape.Plan.shape(shape).store.runs.len()
 	lines = KernelFacadeLines.Plan.build_ordered_authoring(authoring, shape, source_store, page_size, theme, limits.lines) ? Lines
 	line_count = KernelLineLayout.BatchPlan.lines(KernelFacadeLines.Plan.line(lines)).len()
-	{ pages, text: unlabelled, work: laid_work } = lay_out(authoring, shape, lines, page_size, theme, selection, source_store.len(), limits)?
-	labelled = label_text(authoring, unlabelled, preliminary, PolicyLabels, source_store.len(), limits)?
+	{ pages, text: unlabelled, work: laid_work } = lay_out(authoring, shape, lines, page_size, theme, selection, KernelFacadeSemantics.Plan.semantic_source_count(semantics), limits)?
+	labelled = label_text(semantics, unlabelled, PolicyLabels, limits)?
 	text = KernelFacadeText.Plan.with_source_foregrounds(labelled, authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), limits.text) ? Text
 	page_count_value = KernelPageLayout.Plan.pages(KernelFacadePages.Plan.page(pages)).len()
 	final_runs = KernelFacadeText.Plan.text(text).runs.len()
@@ -624,13 +699,13 @@ build_upstream = |authoring, font, theme, page_size, descriptor, request, limits
 	semantics = KernelFacadeSemantics.Plan.build(authoring, limits.semantics) ? Semantics
 	preliminary = KernelFacadeSemantics.Plan.preliminary(semantics)
 	source_store = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics))
-	shape = KernelFacadeShape.Plan.build(KernelFacadeSemantics.Plan.authoring(semantics), KernelFacadeSemantics.Plan.block_ownership(semantics), KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary)), source_store, font, theme, limits.shape) ? Shape
+	shape = KernelFacadeShape.Plan.build(KernelFacadeSemantics.Plan.authoring(semantics), KernelFacadeSemantics.Plan.block_ownership(semantics), KernelFacadeSemantics.Plan.flow_text(semantics), source_store, font, theme, limits.shape) ? Shape
 	lines = KernelFacadeLines.Plan.build_authoring(authoring, shape, source_store, page_size, theme, limits.lines) ? Lines
 
 	## The laid-out record is destructured at once so its plans stay uniquely
 	## owned by the stages that consume them.
-	{ pages, text: unlabelled, work: laid_work } = lay_out(authoring, shape, lines, page_size, theme, SingleFace(font), source_store.len(), limits)?
-	labelled = label_text(authoring, unlabelled, preliminary, LabelFonts(SingleFont(font)), source_store.len(), limits)?
+	{ pages, text: unlabelled, work: laid_work } = lay_out(authoring, shape, lines, page_size, theme, SingleFace(font), KernelFacadeSemantics.Plan.semantic_source_count(semantics), limits)?
+	labelled = label_text(semantics, unlabelled, LabelFonts(SingleFont(font)), limits)?
 	text = KernelFacadeText.Plan.with_source_foregrounds(labelled, authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), limits.text) ? Text
 	collected = match request {
 		Collect => { layout: LayoutFacts(KernelFacadeReport.layout(pages)), ownership: KernelFacadeSemantics.Plan.block_ownership(semantics) }
@@ -644,6 +719,7 @@ build_upstream = |authoring, font, theme, page_size, descriptor, request, limits
 		descriptor,
 		font,
 		layout_facts: collected.layout,
+		figure_labels: KernelFacadeSemantics.Plan.figure_labels(semantics),
 		limits,
 		navigation: navigation_authoring(semantics, authoring, theme),
 		ownership: collected.ownership,
@@ -737,8 +813,9 @@ lay_out = |authoring, shape, lines, page_size, theme, selection, source_base, li
 ## Drawing labels are shaped once the final text plan places their
 ## drawings: after the furniture, with sources after the furniture's. A
 ## document without labels returns its plan untouched.
-label_text : Document.NormalizedAuthoring, KernelFacadeText.Plan, KernelTextSemantics.Plan, [LabelFonts(KernelFacadeLabels.Fonts), PolicyLabels], U64, KernelFacadePipeline.Limits -> Try(KernelFacadeText.Plan, KernelFacadePipeline.Error)
-label_text = |authoring, text, preliminary, selection, source_count, limits| {
+label_text : KernelFacadeSemantics.Plan, KernelFacadeText.Plan, [LabelFonts(KernelFacadeLabels.Fonts), PolicyLabels], KernelFacadePipeline.Limits -> Try(KernelFacadeText.Plan, KernelFacadePipeline.Error)
+label_text = |semantics, text, selection, limits| {
+	authoring = KernelFacadeSemantics.Plan.authoring(semantics)
 	if !KernelFacadeLabels.has_labels(authoring) {
 		return Ok(text)
 	}
@@ -750,8 +827,8 @@ label_text = |authoring, text, preliminary, selection, source_count, limits| {
 		NoFurniture => 0
 		WithFurniture(furniture) => KernelFacadeFurniture.Plan.sources(furniture).len()
 	}
-	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary))
-	built = KernelFacadeLabels.build(authoring, text, store, fonts, Language(authoring.language), source_count + furniture_sources, label_limits) ? Labels
+	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(semantics)))
+	built = KernelFacadeLabels.build(authoring, text, KernelFacadeSemantics.Plan.block_ownership(semantics), KernelFacadeSemantics.Plan.figure_labels(semantics), fonts, Language(authoring.language), store.text_sources.len() + furniture_sources, label_limits) ? Labels
 	match built {
 		NoLabels => Ok(text)
 		Labels(plan) => Ok(KernelFacadeText.Plan.with_labels(text, plan.pieces, plan.store, plan.sources, limits.text) ? Text)

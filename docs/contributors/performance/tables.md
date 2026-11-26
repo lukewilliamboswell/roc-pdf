@@ -82,14 +82,28 @@ before its inline elements. `place_table` writes the content spine in the
 same preorder, reusing `place_rich` for cell content with the cell role
 (`TH` or `TD`) instead of `P`.
 
-**Associations.** A data cell's `Headers` are the `Column`- or
-`Both`-scoped header cells of earlier rows in the columns it spans (a
-per-column list, merged and deduplicated only for spanning cells), then the
-`Row`- or `Both`-scoped header cells of its own row. Header cells carry no
-`Headers`. Every cell carries the identifier `c` plus its one-based cell
-ordinal in six digits, so identifier order is store order and the IDTree
-lowers without sorting. Each `Headers` entry is also a `HeaderFor`
-relationship, stored grouped by cell in node order.
+**Associations.** A cell's `Headers` include the `Column`- or
+`Both`-scoped headers in earlier rows that overlap its spanned columns.
+A spanning target takes headers covering its first column and headers
+starting in its later columns. These sets are disjoint. Data cells also
+name all `Row`- or `Both`-scoped headers of their row, while header cells
+use a forward row cursor to name preceding row headers.
+Header-to-header references thus always point to earlier cells. Every cell
+carries a generated identifier in table order. Each `Headers` entry has
+one `HeaderFor` relationship in the same order.
+
+The symbolic pass charges the document’s existing combined attribute and
+relationship budget before writing a cell’s association entries. A spanning
+cell counts each qualifying header once from the disjoint column lists,
+then merges those same entries in authored order. The builder only keeps
+separate column-start lists after a column header spans multiple columns.
+It reports `document.content_limit` at the authored table when the budget
+would be exceeded. Package tests pin the exact boundary for dense column
+headers and for a spanning header and target across two consecutive tables.
+Keeping the separate column-start index adds 14 allocations and 800
+allocated bytes in the two-header-row spans case. The scoped table paint
+spanning case adds four allocations and 272 allocated bytes. Both stay
+within their existing ceilings and preserve their PDFs and work vectors.
 
 ISO 32000-2:2020+EC3 §14.8.4.8.3 and Table 371 allow mixed header and data
 cells in a row and describe optional processor lookup when a cell omits
@@ -100,7 +114,7 @@ association order and target selection follow the policy above.
 [PDF Association structure attribute reference](https://pdfa.org/download-area/cheat-sheets/StructureAttributes.pdf).
 
 `fuzz/TableHeaderModel.roc` enumerates three-column, three-row authored grids
-and rescans authored rectangles for each data cell. It checks attached Table
+and rescans authored rectangles for each data or header cell. It checks attached Table
 attributes, ordered identifiers, and typed associations across row sections.
 `scripts/check_structure_semantics.py` checks the emitted byte-string shape
 and resolves identifiers to `TH` elements through the IDTree.
@@ -321,11 +335,29 @@ tables snapshot; the only failure is the PDF/UA identification the package
 does not claim (clause 5).
 
 **Rendering.** PDFium (page 2 of the invoice x50 case, extracted with the
-vendored qpdf, because the adapter renders one page) paints the repainted
+qpdf, because the adapter renders one page) paints the repainted
 header row and its rule above the continued rows; MuPDF renders every page
 of the invoice, split-rows, and footer-carry cases the same way.
 
 ## Reviewed rebaselines
+
+### Complete header-cell associations
+
+The authored grid model covers 1,155 states with mixed row and column
+scopes, spanning headers, ordered associations and header-to-header
+references. The combined warranty letter has an explicit column heading on
+each affected row header. The file oracle rejects removing that association
+while retaining the row header's own Scope. It also retains the missing
+and wrong-column data-header controls.
+
+In the invoice table scale pair, the 50- and 500-row cases add 62 and 512
+header associations and 348 and 3,047 allocations respectively. Their
+allocated bytes increase by 90,096 and 734,575 within the existing ceilings.
+The extra work comes from storing the new typed edges and lowering their
+byte strings, attribute dictionaries and newly referenced identifiers.
+The regression comparison checks that these fields account for the
+structure changes and that decoded page programs, existing data-cell
+associations and XMP remain identical.
 
 Every delta comes from a cold-cache, full-order run; causes were confirmed by
 same-cache A/B builds.

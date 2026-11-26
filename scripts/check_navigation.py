@@ -64,7 +64,7 @@ from check_pdf_structure import (
 )
 from check_forms import replace_once
 from check_structure_semantics import Ref, parse_object
-from pdf_layout import twin as layout_twin
+from pdf_layout import mutate, planned_bodies, twin as layout_twin
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -87,6 +87,7 @@ SNAPSHOTS = {
     "facade_negative": ROOT / "tests" / "navigation_facade" / "navigation_facade_negative.pdf",
 }
 
+GOTO_LINK_ACTION = re.compile(rb"<< /D \[[^\]]+\] /S /GoTo /SD \[[^\]]+\] /Type /Action >>(?= /(?:AP|BS))")
 NUMBER = rb"-?\d+(?:\.\d+)?"
 DEST_ARRAY = re.compile(
     rb"\[(\d+) 0 R /XYZ (" + NUMBER + rb") (" + NUMBER + rb") null\]"
@@ -266,7 +267,7 @@ def check_annotation(structure_page, bodies, pages, structure_elements, number: 
             "URI action must carry printable ASCII URI bytes",
         )
         require(re.search(rb"%(?![0-9A-Fa-f]{2})", uri) is None, "URI action has a malformed percent escape")
-        destination = None
+        destination = uri
     else:
         require(b"/S /GoTo" in action, "unknown action type")
         d_match = re.search(rb"/D " + DEST_ARRAY.pattern, action)
@@ -289,7 +290,7 @@ def check_annotation(structure_page, bodies, pages, structure_elements, number: 
             "paired /D and /SD carry different coordinates",
         )
         require(structure_page(sd_target) == d_target, "GoTo /SD and /D resolve to different pages")
-        destination = (d_target, parse_number(d_x), parse_number(d_y))
+        destination = (sd_target, parse_number(sd_x), parse_number(sd_y))
     if b"/AP" in body:
         appearance = dictionary_ref(body, b"AP << /N")
         form = bodies[appearance]
@@ -306,7 +307,7 @@ def check_annotation(structure_page, bodies, pages, structure_elements, number: 
     return struct_parent, destination
 
 
-def check_parent_tree(bodies, root, annotation_pages, struct_parents):
+def check_parent_tree(bodies, root, annotation_pages, struct_parents, annotation_targets):
     catalog = bodies[root]
     tree_root = dictionary_ref(catalog, b"StructTreeRoot")
     structure_root = bodies[tree_root]
@@ -322,9 +323,12 @@ def check_parent_tree(bodies, root, annotation_pages, struct_parents):
         for k, v in entries
         if not v.startswith(b"[")
     }
+    target_by_owner = {}
     for annotation, key in struct_parents.items():
         require(key in scalar, f"annotation StructParent {key} missing from ParentTree")
         element = scalar[key]
+        target = annotation_targets[annotation]
+        require(target_by_owner.setdefault(element, target) == target, "one logical link has different annotation targets")
         element_body = bodies[element]
         require(is_structure_element(element_body), "ParentTree row is not a StructElem")
         objr = re.findall(
@@ -545,15 +549,17 @@ def check_navigation(pdf: bytes, expectations: dict[str, int]) -> None:
         number for number, body in bodies.items() if b"/Type /StructElem" in body
     }
     struct_parents = {}
+    annotation_targets = {}
     structure_page = structure_page_lookup(bodies)
     for number in ordered:
-        key, _destination = check_annotation(
+        key, destination = check_annotation(
             structure_page, bodies, pages, structure_elements, number, annotation_pages[number]
         )
         require(key not in struct_parents.values(), "duplicate /StructParent key")
         struct_parents[number] = key
+        annotation_targets[number] = destination
     if struct_parents:
-        check_parent_tree(bodies, root, annotation_pages, struct_parents)
+        check_parent_tree(bodies, root, annotation_pages, struct_parents, annotation_targets)
     named = check_name_tree(bodies, root, pages, structure_page)
     outline_items = check_outline(bodies, root, named)
     label_ranges = check_page_labels(bodies, root)
@@ -589,6 +595,24 @@ def validate_navigation_pdf(pdf: bytes, dimensions: dict[str, int]) -> None:
     check_navigation(pdf, expectations)
 
 
+def split_link_actions(pdf: bytes) -> tuple[bytes, bytes]:
+    """Read the two authored targets in the public cross-page link fixture."""
+    _, bodies = planned_bodies(pdf)
+    actions = []
+    for number in sorted(bodies):
+        body = bodies[number]
+        if not body.endswith(b"/Subtype /Link /Type /Annot >>\nendobj\n"):
+            continue
+        match = GOTO_LINK_ACTION.search(body)
+        if match is not None:
+            actions.append(match.group(0))
+    require(
+        len(actions) == 3 and actions[0] == actions[1] and actions[0] != actions[2],
+        "expected two fragmented Overview actions followed by the distinct Results action",
+    )
+    return actions[0], actions[2]
+
+
 def self_test() -> None:
     for label, path in SNAPSHOTS.items():
         pdf = path.read_bytes()
@@ -614,6 +638,18 @@ def self_test() -> None:
             require(message in str(error), "URI action twin rejected for a different reason")
         else:
             raise SystemExit(f"navigation checker accepted URI action that {message}")
+
+    facade = SNAPSHOTS["facade"].read_bytes()
+    overview, results = split_link_actions(facade)
+    external = b"<< /S /URI /Type /Action /URI (https://example.org/overview) >>"
+    for other_target in (results, external):
+        twin = mutate(facade, overview, other_target, scope="objects", occurrences=2, first_only=True)
+        try:
+            check_navigation(twin, {})
+        except ValidationError as error:
+            require(str(error) == "one logical link has different annotation targets", "split link rejected for a different reason")
+        else:
+            raise ValidationError("navigation checker accepted a split link with mismatched targets")
 
     wide = SNAPSHOTS["outline_wide_64"].read_bytes()
     _, wide_objects = object_slices(wide)
@@ -688,7 +724,7 @@ def self_test() -> None:
         "actions, keyboard-ordered /Annots, OBJR/ParentTree linkage, the "
         "named-destination registry, outline preorder counts, page labels, "
         f"and appearance geometry verified on {len(SNAPSHOTS)} snapshots; "
-        f"{len(mutations) + len(page_mismatches) + len(uri_mutations)} mutation twins rejected",
+        f"{len(mutations) + len(page_mismatches) + len(uri_mutations) + 2} mutation twins rejected",
         flush=True,
     )
 

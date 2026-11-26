@@ -3,6 +3,7 @@ import Conformance
 import Font
 import Image
 import KernelSourceText
+import KernelSpan
 import Layout
 import Metadata
 import Scene
@@ -266,7 +267,7 @@ ContentsEntryProps := {
 	leader : [NoLeader, Dots] ?? NoLeader,
 }.{}
 
-## Sparse geometry facts, kept separately from the ordinary P/Link spine.
+## Sparse geometry facts, kept separately from the TOC/TOCI structure spine.
 NormalizedContentsEntry : { block : U64, indent : Layout.Unit, gap : Layout.Unit, leader : [NoLeader, Dots], reference : U64 }
 
 ReservedAlign := [CenterReserved, EndReserved, StartReserved]
@@ -444,6 +445,7 @@ FixedPage := {
 	artifacts_after : List(FixedArtifact),
 	artifacts_before : List(FixedArtifact),
 	placements : List(FixedPlacement),
+	paint_order : [Authored, Explicit(List(U64))] ?? Authored,
 	size : Layout.Size,
 }
 
@@ -451,19 +453,315 @@ FixedPage := {
 ## drawings must be classified as before- or after-content artifacts.
 FixedPageBuilder :: FixedPage.{
 	start : Layout.Size -> FixedPageBuilder
-	start = |size| FixedPageBuilder.{ artifacts_after: [], artifacts_before: [], placements: [], size }
+	start = |size| FixedPageBuilder.{ artifacts_after: [], artifacts_before: [], placements: [], paint_order: Authored, size }
 
 	background : FixedPageBuilder, Scene.Drawing -> FixedPageBuilder
-	background = |FixedPageBuilder.{ artifacts_after, artifacts_before, placements, size }, drawing| FixedPageBuilder.{ artifacts_after, artifacts_before: artifacts_before.append({ drawing, kind: Background }), placements, size }
+	background = |FixedPageBuilder.{ artifacts_after, artifacts_before, placements, paint_order, size }, drawing| FixedPageBuilder.{ artifacts_after, artifacts_before: artifacts_before.append({ drawing, kind: Background }), placements, paint_order, size }
 
 	place : FixedPageBuilder, { block : DocumentBlock, frame : Layout.Rect } -> FixedPageBuilder
-	place = |FixedPageBuilder.{ artifacts_after, artifacts_before, placements, size }, { block, frame }| FixedPageBuilder.{ artifacts_after, artifacts_before, placements: placements.append({ block, frame }), size }
+	place = |FixedPageBuilder.{ artifacts_after, artifacts_before, placements, paint_order, size }, { block, frame }| FixedPageBuilder.{ artifacts_after, artifacts_before, placements: placements.append({ block, frame }), paint_order, size }
 
 	overlay : FixedPageBuilder, { kind : PageArtifactKind, drawing : Scene.Drawing } -> FixedPageBuilder
-	overlay = |FixedPageBuilder.{ artifacts_after, artifacts_before, placements, size }, { kind, drawing }| FixedPageBuilder.{ artifacts_after: artifacts_after.append({ drawing, kind }), artifacts_before, placements, size }
+	overlay = |FixedPageBuilder.{ artifacts_after, artifacts_before, placements, paint_order, size }, { kind, drawing }| FixedPageBuilder.{ artifacts_after: artifacts_after.append({ drawing, kind }), artifacts_before, placements, paint_order, size }
+
+	## Select an explicit page-local paint sequence while placements retain their authored reading order.
+	with_paint_order : FixedPageBuilder, List(U64) -> FixedPageBuilder
+	with_paint_order = |FixedPageBuilder.(page), order| FixedPageBuilder.({ ..page, paint_order: Explicit(order) })
 
 	finish : FixedPageBuilder -> FixedPage
-	finish = |FixedPageBuilder.{ artifacts_after, artifacts_before, placements, size }| { artifacts_after, artifacts_before, placements, size }
+	finish = |FixedPageBuilder.{ artifacts_after, artifacts_before, placements, paint_order, size }| { artifacts_after, artifacts_before, placements, paint_order, size }
+}
+
+FixedArtifactLayer := [Underlay, Overlay]
+
+FixedLimits : { max_pages : U64, max_placements : U64, max_rectangles : U64 }
+
+FixedError : [
+	NoPages,
+	InvalidPageSize({ page : U64 }),
+	EmptyPage({ page : U64 }),
+	LimitExceeded({ dimension : [Pages, Placements, Rectangles], attempted : U64, limit : U64 }),
+	UnsupportedDocumentOption([Templates, Outline, PageLabels]),
+	UnsupportedPlacement({ page : U64, placement : U64 }),
+	UnsupportedInline({ page : U64, placement : U64 }),
+	InvalidFrame({ page : U64, placement : U64 }),
+	PaintOrderLength({ page : U64, actual : U64, expected : U64 }),
+	PaintOrderIndex({ page : U64, index : U64, placement : U64 }),
+	DuplicatePaintPlacement({ page : U64, index : U64, placement : U64 }),
+	UnsupportedArtifactKind({ page : U64, layer : FixedArtifactLayer, artifact : U64 }),
+	UnsupportedArtifact({ page : U64, layer : FixedArtifactLayer, artifact : U64, command : U64 }),
+	InvalidArtifactRect({ page : U64, layer : FixedArtifactLayer, artifact : U64, command : U64, segment : U64 }),
+]
+
+FixedPagePlan : {
+	size : Layout.Size,
+	placements : Semantics.IndexRange,
+	paint : Semantics.IndexRange,
+	underlays : Semantics.IndexRange,
+	overlays : Semantics.IndexRange,
+}
+
+FixedRect : { kind : PageArtifactKind, bounds : Layout.Rect, color : Color.SourceValue }
+
+NormalizedFixed :: {
+	authoring : NormalizedAuthoring,
+	pages : List(FixedPagePlan),
+	frames : List(Layout.Rect),
+	paint_order : List(U64),
+	artifacts : List(FixedRect),
+}.{
+	view = |NormalizedFixed.(value)| value
+}
+
+normalize_fixed_pages : { language : Str, metadata_title : Str, pages : List(FixedPage) }, FixedLimits -> Try(NormalizedFixed, FixedError)
+normalize_fixed_pages = |fixed, limits| {
+	if fixed.pages.is_empty() {
+		return Err(NoPages)
+	}
+	if fixed.pages.len() > limits.max_pages {
+		return Err(LimitExceeded({ dimension: Pages, attempted: fixed.pages.len(), limit: limits.max_pages }))
+	}
+	var $placements = 0
+	var $rectangles = 0
+	var $page = 0
+	for page in fixed.pages {
+		placement_count = page.placements.len()
+		if !fixed_page_side(page.size.width) or !fixed_page_side(page.size.height) {
+			return Err(InvalidPageSize({ page: $page }))
+		}
+		if placement_count == 0 {
+			return Err(EmptyPage({ page: $page }))
+		}
+		$placements = add_fixed_count($placements, placement_count, limits.max_placements, Placements)?
+		validate_fixed_placements(page, $page)?
+		validate_fixed_paint_order(page.paint_order, placement_count, $page)?
+		$rectangles = validate_fixed_artifacts(page.artifacts_before, page.size, $page, Underlay, $rectangles, limits.max_rectangles)?
+		$rectangles = validate_fixed_artifacts(page.artifacts_after, page.size, $page, Overlay, $rectangles, limits.max_rectangles)?
+		$page = $page + 1
+	}
+	var $page_plans = List.with_capacity(fixed.pages.len())
+	var $frames = List.with_capacity($placements)
+	var $paint_order = List.with_capacity($placements)
+	var $artifacts = List.with_capacity($rectangles)
+	var $state = empty_state
+	for page in fixed.pages {
+		placement_base = $frames.len()
+		placement_count = page.placements.len()
+		$paint_order = append_fixed_paint_order($paint_order, page.paint_order, placement_base, placement_count)
+		var $placement = 0
+		for placement in page.placements {
+			$frames = $frames.append(placement.frame)
+			$state = append_leaf($state, placement.block, 0, placement_base + $placement)
+			$placement = $placement + 1
+		}
+		underlay_base = $artifacts.len()
+		$artifacts = append_fixed_artifacts($artifacts, page.artifacts_before)
+		overlay_base = $artifacts.len()
+		$artifacts = append_fixed_artifacts($artifacts, page.artifacts_after)
+		$page_plans = $page_plans.append({
+			size: page.size,
+			placements: fixed_range(placement_base, placement_count),
+			paint: fixed_range(placement_base, placement_count),
+			underlays: fixed_range(underlay_base, overlay_base - underlay_base),
+			overlays: fixed_range(overlay_base, $artifacts.len() - overlay_base),
+		})
+	}
+	Ok(
+		NormalizedFixed.(
+			{
+				authoring: finish_simple_authoring($state, fixed.language, fixed.metadata_title),
+				pages: $page_plans,
+				frames: $frames,
+				paint_order: $paint_order,
+				artifacts: $artifacts,
+			},
+		),
+	)
+}
+
+fixed_range : U64, U64 -> Semantics.IndexRange
+fixed_range = |start, length| Semantics.IndexRange.from_start_and_length({ start, length })
+
+add_fixed_count : U64, U64, U64, [Pages, Placements, Rectangles] -> Try(U64, FixedError)
+add_fixed_count = |start, length, limit, dimension|
+	KernelSpan.end_within(start, length, limit).map_err(
+		|_| {
+			ending = start.plus_wrap(length)
+			LimitExceeded({ dimension, attempted: if (ending < start) U64.highest else ending, limit })
+		},
+	)
+
+fixed_page_side : Layout.Unit -> Bool
+fixed_page_side = |unit| {
+	side = unit.raw()
+	side >= 3000 and side <= 14400000 and side % 1000 == 0
+}
+
+fixed_rect_fits : Layout.Rect, Layout.Size -> Bool
+fixed_rect_fits = |rect, size| {
+	x = rect.origin.x.raw()
+	y = rect.origin.y.raw()
+	width = rect.size.width.raw()
+	height = rect.size.height.raw()
+	x >= 0 and y >= 0 and width > 0 and height > 0
+		and KernelSpan.end_within(x.to_u64_wrap(), width.to_u64_wrap(), size.width.raw().to_u64_wrap()).is_ok()
+		and KernelSpan.end_within(y.to_u64_wrap(), height.to_u64_wrap(), size.height.raw().to_u64_wrap()).is_ok()
+}
+
+validate_fixed_placements : FixedPage, U64 -> Try({}, FixedError)
+validate_fixed_placements = |page, page_index| {
+	var $index = 0
+	for placement in page.placements {
+		if !fixed_rect_fits(placement.frame, page.size) {
+			return Err(InvalidFrame({ page: page_index, placement: $index }))
+		}
+		match placement.block {
+			Title(_) | Heading(_) | Paragraph(_) => {}
+			RichParagraph(inlines) => {
+				if !fixed_rich_supported(inlines) {
+					return Err(UnsupportedInline({ page: page_index, placement: $index }))
+				}
+			}
+			_ => return Err(UnsupportedPlacement({ page: page_index, placement: $index }))
+		}
+		$index = $index + 1
+	}
+	Ok({})
+}
+
+fixed_rich_supported : List(DocumentInline) -> Bool
+fixed_rich_supported = |inlines| {
+	var $stack = [{ inlines, next: 0 }]
+	while !$stack.is_empty() {
+		depth = $stack.len() - 1
+		frame = list_at($stack, depth)
+		if frame.next == frame.inlines.len() {
+			$stack = $stack.drop_last(1)
+		} else {
+			inline = list_at(frame.inlines, frame.next)
+			$stack = list_set($stack, depth, { ..frame, next: frame.next + 1 })
+			match inline {
+				Code(_) | Expansion(_) | LineBreak | Text(_) => {}
+				Emphasis(children) | Strong(children) | Quote(children) => {
+					$stack = $stack.append({ inlines: children, next: 0 })
+				}
+				InLanguage({ contents, .. }) => {
+					$stack = $stack.append({ inlines: contents, next: 0 })
+				}
+				_ => return False
+			}
+		}
+	}
+	True
+}
+
+validate_fixed_artifacts : List(FixedArtifact), Layout.Size, U64, FixedArtifactLayer, U64, U64 -> Try(U64, FixedError)
+validate_fixed_artifacts = |artifacts, size, page, layer, start, limit| {
+	var $count = start
+	var $artifact = 0
+	for artifact in artifacts {
+		match (layer, artifact.kind) {
+			(Underlay, Background) | (Overlay, Decoration) => {}
+			_ => return Err(UnsupportedArtifactKind({ page, layer, artifact: $artifact }))
+		}
+		commands = artifact.drawing.commands()
+		if commands.is_empty() {
+			return Err(UnsupportedArtifact({ page, layer, artifact: $artifact, command: 0 }))
+		}
+		var $command = 0
+		for command in commands {
+			match command {
+				AuthorPath({ path, style: { fill: AuthorSolidFill(_), stroke: AuthorNoStroke } }) => {
+					if path.is_empty() {
+						return Err(UnsupportedArtifact({ page, layer, artifact: $artifact, command: $command }))
+					}
+					$count = add_fixed_count($count, path.len(), limit, Rectangles)?
+					var $segment = 0
+					for segment in path {
+						match segment {
+							Rectangle(rect) => {
+								if !fixed_rect_fits(rect, size) {
+									return Err(InvalidArtifactRect({ page, layer, artifact: $artifact, command: $command, segment: $segment }))
+								}
+							}
+							_ => return Err(UnsupportedArtifact({ page, layer, artifact: $artifact, command: $command }))
+						}
+						$segment = $segment + 1
+					}
+				}
+				_ => return Err(UnsupportedArtifact({ page, layer, artifact: $artifact, command: $command }))
+			}
+			$command = $command + 1
+		}
+		$artifact = $artifact + 1
+	}
+	Ok($count)
+}
+
+append_fixed_artifacts : List(FixedRect), List(FixedArtifact) -> List(FixedRect)
+append_fixed_artifacts = |rectangles, artifacts| {
+	var $rectangles = rectangles
+	for artifact in artifacts {
+		for command in artifact.drawing.commands() {
+			match command {
+				AuthorPath({ path, style: { fill: AuthorSolidFill(color), stroke: AuthorNoStroke } }) => {
+					for segment in path {
+						match segment {
+							Rectangle(bounds) => {
+								$rectangles = $rectangles.append({ kind: artifact.kind, bounds, color })
+							}
+							_ => crash "validated fixed artifact segment"
+						}
+					}
+				}
+				_ => crash "validated fixed artifact command"
+			}
+		}
+	}
+	$rectangles
+}
+
+validate_fixed_paint_order : [Authored, Explicit(List(U64))], U64, U64 -> Try({}, FixedError)
+validate_fixed_paint_order = |selection, count, page| match selection {
+	Authored => Ok({})
+	Explicit(order) => {
+		if order.len() != count {
+			return Err(PaintOrderLength({ page, actual: order.len(), expected: count }))
+		}
+		var $seen = List.repeat(False, count)
+		var $index = 0
+		for placement in order {
+			if placement >= count {
+				return Err(PaintOrderIndex({ page, index: $index, placement }))
+			}
+			if list_at($seen, placement) {
+				return Err(DuplicatePaintPlacement({ page, index: $index, placement }))
+			}
+			$seen = list_set($seen, placement, True)
+			$index = $index + 1
+		}
+		Ok({})
+	}
+}
+
+append_fixed_paint_order : List(U64), [Authored, Explicit(List(U64))], U64, U64 -> List(U64)
+append_fixed_paint_order = |output, selection, start, count| {
+	var $output = output
+	match selection {
+		Authored => {
+			var $index = 0
+			while $index < count {
+				$output = $output.append(start + $index)
+				$index = $index + 1
+			}
+		}
+		Explicit(order) => {
+			for placement in order {
+				$output = $output.append(start + placement)
+			}
+		}
+	}
+	$output
 }
 
 NormalizedBlockKind := [
@@ -568,7 +866,7 @@ TableSection : [Body, Footer, Header]
 ##
 ## `Custom` is a custom block (payload: its `customs` index): a `Div` of its
 ## paragraphs for semantics and one unsplittable unit for layout.
-NormalizedGroupKind := [Source(U64), Container(ContainerKind), Custom(U32), Callout(U32), FigureGroup(U32), ItemList(U32), KeepTogether, KeepWithNext(Keep), LeadRegion, ListItem(U32), PageScope(U32), Scope(U32), Table(U32), TableRow(TableSection)]
+NormalizedGroupKind := [Source(U64), Container(ContainerKind), ContentsItem, ContentsList, Custom(U32), Callout(U32), FigureGroup(U32), ItemList(U32), KeepTogether, KeepWithNext(Keep), LeadRegion, ListItem(U32), PageScope(U32), Scope(U32), Table(U32), TableRow(TableSection)]
 
 ## The semantic role of one normalized inline. Text leaves hold their exact
 ## authored string and its byte range in the paragraph's concatenated text.
@@ -912,6 +1210,12 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	ContainerKind : ContainerKind
 	Feature : AuthoringFeature
 	FixedArtifact : FixedArtifact
+	FixedArtifactLayer : FixedArtifactLayer
+	FixedError : FixedError
+	FixedLimits : FixedLimits
+	FixedPagePlan : FixedPagePlan
+	FixedRect : FixedRect
+	NormalizedFixed : NormalizedFixed
 	FixedPage : FixedPage
 	FixedPageBuilder : FixedPageBuilder
 	FixedPlacement : FixedPlacement
@@ -1114,8 +1418,8 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 			templates,
 		}
 
-	## Construct an explicitly framed document. Preparation rejects it with the
-	## `layout.custom` feature until fixed-layout lowering is executable.
+	## Construct a document from pages with explicit sizes and frames. The
+	## placement sequence supplies the authored semantic order across each page.
 	from_fixed_pages : { language : Str, pages : List(FixedPage), title : Str } -> Document
 	from_fixed_pages = |{ language: input_language, pages, title: document_title }|
 		Document.{
@@ -1466,13 +1770,33 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 			}
 		}
 		match document.authoring {
-			Fixed(_) => UnavailableFeature({ feature: CustomLayout, summary: "Fixed-page layout is represented by this API but is not executable in this release." })
-			Compact(_) => Available
+			Fixed(_) | Compact(_) => Available
 			Simple(simple) => first_unavailable_block(simple.contents)
 		}
 	}
 
-	## Both authoring front ends lower once to the same flat text/block store.
+	## Validate fixed geometry and the bounded vocabulary before producing the
+	## same normalized, authored-order semantic and text input as flow authoring.
+	normalize_fixed : Document, FixedLimits -> Try([Flow, Fixed(NormalizedFixed)], FixedError)
+	normalize_fixed = |document, limits| match document.authoring {
+		Fixed(fixed) => {
+			if document.has_templates() {
+				return Err(UnsupportedDocumentOption(Templates))
+			}
+			if !document.outline.is_empty() {
+				return Err(UnsupportedDocumentOption(Outline))
+			}
+			if !document.page_labels.is_empty() {
+				return Err(UnsupportedDocumentOption(PageLabels))
+			}
+			plan = normalize_fixed_pages(fixed, limits)?
+			Ok(Fixed(plan))
+		}
+		_ => Ok(Flow)
+	}
+
+	## Both flow authoring front ends lower once to the same flat text/block
+	## store. Fixed-page callers use `normalize_fixed` for the frame sidecar.
 	## String payloads remain shared values; block and list identity are scalar facts.
 	normalize : Document -> NormalizedAuthoring
 
@@ -1850,43 +2174,84 @@ normalize_simple = |simple, initial| {
 	var $block_index = 0
 	while $block_index < simple.contents.len() {
 		block = list_at(simple.contents, $block_index)
-		$state = if (is_grouping(block)) append_group($state, block, $block_index) else append_leaf($state, block, 0, $block_index)
-		$block_index = $block_index + 1
+		if is_contents_entry(block) {
+			end = contents_list_end(simple.contents, $block_index + 1)
+			$state = append_contents_list($state, simple.contents, 0, 0, $block_index, end)
+			$block_index = end
+		} else {
+			$state = if (is_grouping(block)) append_group($state, block, $block_index) else append_leaf($state, block, 0, $block_index)
+			$block_index = $block_index + 1
+		}
 	}
-	{
-		blocks: $state.blocks,
-		contents_entries: $state.contents_entries,
-		cells: $state.cells,
-		customs: $state.customs,
-		callouts: $state.callouts,
-		decorations: $state.decorations,
-		figures: $state.figures,
-		groups: $state.groups,
-		inlines: $state.inlines,
-		page_references: $state.page_references,
-		language: simple.language,
-		line_breaks: $state.line_breaks,
-		lists: $state.lists,
-		metadata_title: simple.metadata_title,
-		outline: [],
-		page_breaks: $state.page_breaks,
-		page_scopes: $state.page_scopes,
-		page_labels: [],
-		rich_paragraphs: $state.rich_paragraphs,
-		scopes: $state.scopes,
-		sources: $state.sources,
-		source_foregrounds: $state.source_foregrounds,
-		source_lines: $state.source_lines,
-		spacers: $state.spacers,
-		tables: $state.tables,
-		templates: NoTemplates,
-	}
+	finish_simple_authoring($state, simple.language, simple.metadata_title)
+}
+
+finish_simple_authoring : SimpleState, Str, Str -> NormalizedAuthoring
+finish_simple_authoring = |state, language, metadata_title| {
+	blocks: state.blocks,
+	contents_entries: state.contents_entries,
+	cells: state.cells,
+	customs: state.customs,
+	callouts: state.callouts,
+	decorations: state.decorations,
+	figures: state.figures,
+	groups: state.groups,
+	inlines: state.inlines,
+	page_references: state.page_references,
+	language: language,
+	line_breaks: state.line_breaks,
+	lists: state.lists,
+	metadata_title: metadata_title,
+	outline: [],
+	page_breaks: state.page_breaks,
+	page_scopes: state.page_scopes,
+	page_labels: [],
+	rich_paragraphs: state.rich_paragraphs,
+	scopes: state.scopes,
+	sources: state.sources,
+	source_foregrounds: state.source_foregrounds,
+	source_lines: state.source_lines,
+	spacers: state.spacers,
+	tables: state.tables,
+	templates: NoTemplates,
 }
 
 is_grouping : DocumentBlock -> Bool
 is_grouping = |block| match block {
 	Container(_) | Custom(_) | Callout(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) | PageScope(_) | Scoped(_) => True
 	_ => False
+}
+
+is_contents_entry : DocumentBlock -> Bool
+is_contents_entry = |block| match block {
+	ContentsEntry(_) => True
+	_ => False
+}
+
+contents_list_end : List(DocumentBlock), U64 -> U64
+contents_list_end = |blocks, start| {
+	var $end = start
+	while $end < blocks.len() and is_contents_entry(list_at(blocks, $end)) {
+		$end = $end + 1
+	}
+	$end
+}
+
+## Consecutive authored entries under one parent make one semantic TOC.
+## Position stays the authored sibling index, including for diagnostics.
+append_contents_list : SimpleState, List(DocumentBlock), U64, U64, U64, U64 -> SimpleState
+append_contents_list = |state, blocks, parent, depth, first, end| {
+	var $state = open_group(state, ContentsList, parent, depth, first)
+	group = $state.groups.len()
+	var $position = first
+	while $position < end {
+		$state = open_group($state, ContentsItem, group, depth, $position)
+		item = $state.groups.len()
+		$state = append_leaf($state, list_at(blocks, $position), item, $position)
+		$state = close_group($state, item - 1)
+		$position = $position + 1
+	}
+	close_group($state, group - 1)
 }
 
 ## A frame of the group walk: the children of group `group` (encoded
@@ -1933,7 +2298,11 @@ walk_group = |opened_state, opened_frame| {
 				$frames = $frames.append({ blocks: contents, depth: top.depth, group: $state.groups.len(), items: [], list_depth: top.list_depth, listing: False, next: 0 })
 			} else {
 				child = list_at(top.blocks, top.next)
-				if is_grouping(child) {
+				if is_contents_entry(child) {
+					end = contents_list_end(top.blocks, top.next + 1)
+					$state = append_contents_list($state, top.blocks, top.group, top.depth, top.next, end)
+					$frames = list_set($frames, $frames.len() - 1, { ..top, next: end })
+				} else if is_grouping(child) {
 					nested = open_block_group($state, child, top.group, top.depth, top.list_depth, top.next)
 					$state = nested.state
 					$frames = $frames.append(nested.frame)

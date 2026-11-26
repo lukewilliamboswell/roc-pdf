@@ -44,6 +44,8 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from provision_extended_tools import archive_path
+
 from check_visual_renderers import Raster, read_ppm
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -52,7 +54,7 @@ REPEAT_SNAPSHOT = ROOT / "tests" / "forms" / "forms_repeat_1000.pdf"
 DAG_SNAPSHOT = ROOT / "tests" / "forms" / "forms_dag_8.pdf"
 DEEP_SNAPSHOT = ROOT / "tests" / "forms" / "forms_deep_64.pdf"
 TEXT_SNAPSHOT = ROOT / "tests" / "form_text" / "form_text.pdf"
-PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
+PDFBOX_JAR = archive_path("pdfbox")
 RENDER_SOURCE = ROOT / "scripts" / "PdfBoxRender.java"
 EXTRACT_SOURCE = ROOT / "scripts" / "PdfBoxTextExtract.java"
 SIZE = 100
@@ -311,7 +313,7 @@ def extract_text(classes: Path, snapshot: Path) -> str:
 
 def check_renderers(renderer: Path, working_directory: Path | None, mutool: Path | None) -> None:
     require(renderer.is_file(), f"PDFium renderer does not exist: {renderer}")
-    require(PDFBOX_JAR.is_file(), f"vendored PDFBox JAR does not exist: {PDFBOX_JAR}")
+    require(PDFBOX_JAR.is_file(), f"cached PDFBox JAR does not exist: {PDFBOX_JAR}")
     if mutool is not None:
         require(mutool.is_file(), f"mutool does not exist: {mutool}")
     with tempfile.TemporaryDirectory(prefix="roc-pdf-render-") as temporary_name:
@@ -433,7 +435,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--pdfium-renderer", type=Path)
     parser.add_argument("--pdfium-working-directory", type=Path)
-    parser.add_argument("--mutool", type=Path, help="mutool built from vendor/mupdf/mupdf-1.28.2-source.tgz")
+    parser.add_argument("--mutool", type=Path, help="mutool from the pinned local MuPDF cache")
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
     if args.self_test:

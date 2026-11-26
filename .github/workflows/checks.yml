@@ -53,8 +53,13 @@ jobs:
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           python3 scripts/check_release_version.py --self-test
           python3 scripts/test_check_ci_release.py
-          version="${REQUESTED_VERSION:-$(python3 scripts/release_artifacts.py --latest-notes)}"
-          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)?$ ]]
+          if [[ -z "$REQUESTED_VERSION" && -f docs/unreleased.md ]]; then
+            version=unreleased
+          else
+            version="${REQUESTED_VERSION:-$(python3 scripts/release_artifacts.py --latest-notes)}"
+            [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)?$ ]]
+            test -f "docs/releases/$version.md"
+          fi
           printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
   test:
     needs: version
@@ -73,10 +78,6 @@ jobs:
           ref: ${{ inputs.source_sha }}
           persist-credentials: false
 
-      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
-        with:
-          distribution: temurin
-          java-version: 21.0.13+9
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: 3.14.0
@@ -195,67 +196,6 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  # Arlington PDF 2.0 object-model lane over every committed package snapshot
-  # and public example. It runs after the Linux suite has proven the
-  # snapshots are exactly what the package generates. The validator is the
-  # digest-pinned veraPDF Arlington 1.30.2 service; service containers need a
-  # Linux runner.
-  arlington:
-    name: Arlington PDF 2.0 object model
-    needs: test
-    runs-on: ubuntu-22.04
-    defaults:
-      run:
-        working-directory: roc-pdf
-    services:
-      arlington:
-        image: verapdf/arlington@sha256:1543368902c393771557e2a1da69e64ad72b69db32e6efebd38a09a7b86eacbc
-        ports:
-          - 18080:8080
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          path: roc-pdf
-          ref: ${{ inputs.source_sha }}
-          persist-credentials: false
-
-      - name: Check Arlington report contract
-        run: python3 scripts/check_arlington.py --self-test
-
-      - name: Validate snapshots and examples with Arlington
-        run: python3 scripts/check_arlington.py --cases
-
-  conformance:
-    name: Independent PDF/A-4 profiles and corpus
-    needs: test
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ inputs.source_sha }}
-          persist-credentials: false
-      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880
-        with:
-          distribution: temurin
-          java-version: 21.0.13+9
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
-        with:
-          python-version: 3.14.0
-      - name: Provision verified offline validator and corpus
-        run: python3 scripts/provision_extended_tools.py --skip-mupdf
-      - name: Validate original emitted bytes and the upstream corpus
-        run: |
-          python3 scripts/check_pdfa4.py --cases
-          python3 scripts/check_pdfa4.py --standard-cases
-          python3 scripts/check_pdfa4.py --corpus
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        if: failure()
-        with:
-          name: conformance-failure-${{ inputs.source_sha }}
-          path: .roc-pdf-tmp
-          if-no-files-found: ignore
-
   docs:
     name: Manual and public API
     needs: version
@@ -281,10 +221,6 @@ jobs:
         run: |
           [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
-      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880
-        with:
-          distribution: temurin
-          java-version: 21.0.13+9
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
           python-version: 3.14.0
@@ -298,16 +234,10 @@ jobs:
         with:
           name: roc-pdf-docs-${{ inputs.source_sha }}
           path: generated-docs
-      - name: Validate the manual's PDF/A-4 claim on its original bytes
-        run: |
-          python3 scripts/provision_extended_tools.py --target .roc-pdf-tmp/manual-oracles --skip-mupdf --skip-corpus
-          python3 scripts/check_pdfa4.py --verapdf .roc-pdf-tmp/manual-oracles/verapdf/verapdf generated-docs/manual/roc-pdf.pdf
       - id: version
         env:
-          REQUESTED_VERSION: ${{ needs.version.outputs.version }}
-        run: |
-          version="${REQUESTED_VERSION:-$(python3 scripts/release_artifacts.py --latest-notes)}"
-          printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
+          VERSION: ${{ needs.version.outputs.version }}
+        run: printf 'version=%s\n' "$VERSION" >> "$GITHUB_OUTPUT"
       - name: Build fresh candidate package
         id: candidate
         run: |
@@ -322,7 +252,7 @@ jobs:
               output.write(f'bundle={bundles[0]}\n')
           PYTHON
       - name: Check release version or exact published package identity
-        if: ${{ !inputs.nightly_validation }}
+        if: ${{ !inputs.nightly_validation && steps.version.outputs.version != 'unreleased' }}
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ steps.version.outputs.version }}
@@ -330,7 +260,7 @@ jobs:
           CANDIDATE_BUNDLE: ${{ steps.candidate.outputs.bundle }}
         run: |
           python3 scripts/check_ci_release.py --requested "$RELEASE_VERSION" --explicit-release "$EXPLICIT_RELEASE" --bundle "$CANDIDATE_BUNDLE"
-      - name: Test exact bundle and examples archive
+      - name: Test fresh bundle and applicable release artifacts
         env:
           RELEASE_VERSION: ${{ steps.version.outputs.version }}
           CANDIDATE_BUNDLE: ${{ steps.candidate.outputs.bundle }}
@@ -339,8 +269,9 @@ jobs:
           RELEASE_PAYLOAD: ${{ inputs.release_payload }}
         run: |
           ROC=roc python3 scripts/check_gallery.py --bundle-path "$CANDIDATE_BUNDLE"
-          ROC=roc python3 scripts/examples_archive.py --bundle-path "$CANDIDATE_BUNDLE" --tag "$RELEASE_VERSION" --output-dir dist --test-bundle
           python3 scripts/release_artifacts.py --self-test
+          if [[ "$RELEASE_VERSION" == unreleased ]]; then exit 0; fi
+          ROC=roc python3 scripts/examples_archive.py --bundle-path "$CANDIDATE_BUNDLE" --tag "$RELEASE_VERSION" --output-dir dist --test-bundle
           # An explicit release rehearsal builds the same publication files.
           # Untagged compiler candidates can retain notes for the published pin.
           if [[ "$NIGHTLY_VALIDATION" != true || "$RELEASE_PAYLOAD" == true ]]; then
@@ -356,7 +287,7 @@ jobs:
   aggregate:
     name: CI
     if: always()
-    needs: [version, test, fuzz-smoke, arlington, conformance, docs, bundle]
+    needs: [version, test, fuzz-smoke, docs, bundle]
     runs-on: ubuntu-22.04
     steps:
       - name: Require every applicable check

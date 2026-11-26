@@ -94,7 +94,7 @@ scoped_table_evidence = |count, mode| {
 	$contents = $contents.append(Pdf.destination_heading({ name: "end", level: 1, text: "End target" }))
 	theme : Theme
 	theme = { face: registered.face, headings: { all: { face: Face(registered.face) } }, body: { size: 10, leading: 14 }, table: { header_color: Themed(Theme.black), row_header_color: Themed(Theme.black), row_gap: 6, header_fill: if (mode == 0 or mode == 5) Fill("#cbd9e4") else NoFill, body_fills: { odd: if (mode == 0 or mode == 5) Fill("#eef2f5") else NoFill, even: if (mode == 0 or mode == 5) Fill("#e1e8ef") else NoFill }, column_rule: if (mode == 0 or mode == 2 or mode == 4 or mode == 5) Rule({ color: Theme.black, width: 0.5 }) else NoRule, frame: if (mode == 0 or mode == 5) Rule({ color: Theme.black, width: 0.5 }) else NoRule, rule: if (mode == 3) Rule({ color: Theme.black, width: 0.5 }) else NoRule, body_rule: if (mode == 3) Rule({ color: Theme.black, width: 0.5 }) else NoRule } }
-	prepared_evidence_styled(Pdf.document({ title: "Scoped table paint footprints", language: "en", contents: $contents }), { face: registered.face, registry: registered.registry }, count, theme)
+	prepared_evidence_styled(Pdf.document({ title: "Scoped table paint footprints", language: "en", contents: $contents }), { face: registered.face, registry: registered.registry }, count, theme, if (mode == 0) AccessibleArchive else Archive)
 }
 
 ownership_evidence : U64, Bool -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Error)
@@ -116,7 +116,7 @@ ownership_evidence = |count, shared| {
 		$contents = $contents.append(block)
 		$index = $index + 1
 	}
-	prepared_evidence(Pdf.document({ title: "Shared rich callout ownership", language: "en", contents: $contents }), { face: registered.face, registry: registered.registry }, count)
+	prepared_evidence(Pdf.document({ title: "Shared rich callout ownership", language: "en", contents: $contents }), { face: registered.face, registry: registered.registry }, count, Archive)
 }
 
 zero_padding_evidence : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Error)
@@ -132,7 +132,7 @@ zero_padding_evidence = |context| {
 		$row = $row + 1
 	}
 	document = Pdf.document({ title: "Zero-padding callout table continuation", language: "en", contents: [Pdf.callout({ name: "Flush table panel", padding: 0, panel: { fill: Fill("#eef0f2"), border: NoBorder }, contents: [Pdf.table({ caption: Pdf.caption("Continued table with a flush panel"), columns: [{ width: Fixed(60), align: Start }, { width: Share(1), align: Start }], header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Row")]), Pdf.header_cell(Column, [Pdf.text("Detail")])])], body_rows: $rows, row_split: SplitRows })] })] })
-	prepared_evidence_styled(document, { face: registered.face, registry: registered.registry }, 80, { face: registered.face, table: { header_color: Themed(Theme.black), row_header_color: Themed(Theme.black), header_fill: Fill("#dbe4e9"), body_fills: { even: Fill("#e3e9ee") }, frame: Rule({ color: Theme.black, width: 0.5 }), column_rule: Rule({ color: Theme.black, width: 0.5 }) } })
+	prepared_evidence_styled(document, { face: registered.face, registry: registered.registry }, 80, { face: registered.face, table: { header_color: Themed(Theme.black), row_header_color: Themed(Theme.black), header_fill: Fill("#dbe4e9"), body_fills: { even: Fill("#e3e9ee") }, frame: Rule({ color: Theme.black, width: 0.5 }), column_rule: Rule({ color: Theme.black, width: 0.5 }) } }, Archive)
 }
 
 negative_evidence : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Error)
@@ -142,7 +142,7 @@ negative_evidence = |context| {
 	}
 	registered = Font.Registry.empty.register({ bytes: KernelBuiltInFont.bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: Font.ValidationLimits.default }) ? |_| FontFailure
 	options : Pdf.Options
-	options = { theme: { headings: { all: { face: Face(registered.face) } } }, fonts: Registered(registered.registry) }
+	options = { profile: Archive, theme: { headings: { all: { face: Face(registered.face) } } }, fonts: Registered(registered.registry) }
 	make = |block| Pdf.document({ title: "Rich flow diagnostic contracts", language: "en", contents: [block] })
 	valid = [Pdf.paragraph("A valid note.")]
 	var $deep = Pdf.paragraph("Too deep")
@@ -259,7 +259,7 @@ callout_evidence = |count| {
 		)
 		$index = $index + 1
 	}
-	prepared_evidence(Pdf.document({ title: "Rich continued callouts", language: "en", contents: $contents }), { face: registered.face, registry: registered.registry }, count)
+	prepared_evidence(Pdf.document({ title: "Rich continued callouts", language: "en", contents: $contents }), { face: registered.face, registry: registered.registry }, count, AccessibleArchive)
 }
 
 paragraph_evidence : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Error)
@@ -274,7 +274,7 @@ paragraph_evidence = |count| {
 		$contents = $contents.append(Pdf.rich_paragraph([Pdf.strong([Pdf.text("Note ${($index + 1).to_str()}. ")]), Pdf.text(Str.repeat("This wrapped paragraph belongs to one logical callout. ", 6))]))
 		$index = $index + 1
 	}
-	prepared_evidence(Pdf.document({ title: "Paragraph callout continuation", language: "en", contents: [Pdf.paragraph("Before the callout."), Pdf.callout({ name: "Long note", contents: $contents }), Pdf.paragraph("After the callout.")] }), { face: registered.face, registry: registered.registry }, count)
+	prepared_evidence(Pdf.document({ title: "Paragraph callout continuation", language: "en", contents: [Pdf.paragraph("Before the callout."), Pdf.callout({ name: "Long note", contents: $contents }), Pdf.paragraph("After the callout.")] }), { face: registered.face, registry: registered.registry }, count, Archive)
 }
 
 probe_facts : Document -> Try(KernelMetadata.PlanFacts, Fixture.Error)
@@ -284,18 +284,18 @@ probe_facts = |document| {
 	Ok(WithDocumentFacts({ condition_identifier: KernelMetadata.srgb_condition_identifier, profile: Color.ProfileId.from_index(0), registry_name: KernelMetadata.icc_registry_name, language: validated.facts.language, xmp: KernelXmp.Packet.bytes(xmp) }))
 }
 
-prepared_evidence : Document, { registry : Font.Registry, face : Font.FaceId }, U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Error)
-prepared_evidence = |document, registered, count| {
+prepared_evidence : Document, { registry : Font.Registry, face : Font.FaceId }, U64, Pdf.Profile -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Error)
+prepared_evidence = |document, registered, count, profile| {
 	theme : Theme
 	# Strong children use genuine Inter Bold beside the retained regular
 	# fixture body. This is an explicit mixed-family authoring choice.
 	theme = { face: registered.face, inline: { strong: { font: Family(BuiltIn(Sans)) } }, table: { header_color: Themed(Theme.black), row_header_color: Themed(Theme.black) } }
-	prepared_evidence_styled(document, registered, count, theme)
+	prepared_evidence_styled(document, registered, count, theme, profile)
 }
 
-prepared_evidence_styled : Document, { registry : Font.Registry, face : Font.FaceId }, U64, Theme -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Error)
-prepared_evidence_styled = |document, registered, count, theme| {
-	{ prepared, report } = Pdf.prepare_with_report(document, { theme, fonts: Registered(registered.registry) }) ? PdfFailure
+prepared_evidence_styled : Document, { registry : Font.Registry, face : Font.FaceId }, U64, Theme, Pdf.Profile -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Error)
+prepared_evidence_styled = |document, registered, count, theme, profile| {
+	{ prepared, report } = Pdf.prepare_with_report(document, { theme, fonts: Registered(registered.registry), profile }) ? PdfFailure
 	bytes = Pdf.to_bytes_prepared(prepared) ? PdfFailure
 	resolved = KernelFacadeFonts.resolve(Document.normalize(document), { origin: Caller, registry: registered.registry, theme }) ? |_| FontFailure
 	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(resolved.authoring, resolved.fonts, resolved.theme, page_size, descriptor, probe_facts(document)?, pipeline_limits) ? |_| PipelineFailure
@@ -343,7 +343,7 @@ list_evidence = |count| {
 	document = Pdf.document({ title: "Rich numbered procedures", language: "en", contents: [Pdf.numbered_list({ start: 100 }, $items)] })
 	theme : Theme
 	theme = { face: registered.face, table: { header_color: Themed(Theme.black), row_header_color: Themed(Theme.black) } }
-	{ prepared, report } = Pdf.prepare_with_report(document, { theme, fonts: Registered(registered.registry) }) ? PdfFailure
+	{ prepared, report } = Pdf.prepare_with_report(document, { profile: Archive, theme, fonts: Registered(registered.registry) }) ? PdfFailure
 	bytes = Pdf.to_bytes_prepared(prepared) ? PdfFailure
 	font = registered.registry.prepared_face(registered.face) ? |_| FontFailure
 	styled = { faces: [registered.face], fonts: [font], inline_faces: [], face_indexes: [], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }

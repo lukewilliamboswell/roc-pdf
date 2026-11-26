@@ -20,6 +20,7 @@ import GraphicsTransformModel
 import ContinuationPaginationModel
 import DenseSpanProof
 import DocumentBuilderModel
+import FixedPageOrderModel
 import GroupingContainmentModel
 import HeadingFamilyModel
 import LinkRegionModel

@@ -63,13 +63,10 @@ evidence = |count| {
 		number = $chapter + 1
 		name = "chapter-${number.to_str()}"
 		$contents = $contents.append(
-			Pdf.rich_paragraph([
-				Pdf.inline_internal_link([Pdf.text("Procedure ${number.to_str()}")], name),
-				Pdf.text(" — label "),
-				Pdf.page_reference({ destination: name, width: 44, numbering: PageLabel, align: End }),
-				Pdf.text("; physical "),
-				Pdf.page_reference({ destination: name, width: 24, numbering: Physical, align: End }),
-			]),
+			Pdf.contents_entry({
+				title: [Pdf.text("Procedure ${number.to_str()}")],
+				reference: { destination: name, width: 44, numbering: PageLabel },
+			}),
 		)
 		$outline = $outline.append({ depth: 0, destination: name, open: True, title: "Procedure ${number.to_str()}" })
 		$chapter = $chapter + 1
@@ -122,7 +119,7 @@ evidence = |count| {
 	document = Pdf.document({ title: "Integrated technical manual", language: "en", contents: $contents, outline: $outline, page_labels: [{ prefix: "M-", start_number: 1, start_page: 0, style: DecimalArabic }], page_templates: Templates({ first: Pdf.first_page_template({ footer: footer("FRONT"), gap: 8 }), continuation: Pdf.page_template({ footer: footer("FRONT"), gap: 8 }) }) })
 	theme : Theme
 	theme = { face, headings: { all: { face: Face(face) } }, table: { header_color: Themed(Theme.black), row_header_color: Themed(Theme.black), header_fill: Fill("#dbe4e9"), body_fills: { even: Fill("#e3e9ee") }, frame: Rule({ color: Theme.black, width: 0.5 }), column_rule: Rule({ color: Theme.black, width: 0.5 }) } }
-	prepared = Pdf.prepare_with_report(document, { theme, fonts: Registered(registered.registry) }) ? PdfFailure
+	prepared = Pdf.prepare_with_report(document, { profile: AccessibleArchive, theme, fonts: Registered(registered.registry) }) ? PdfFailure
 	bytes = Pdf.to_bytes_prepared(prepared.prepared) ? PdfFailure
 	font = registered.registry.prepared_face(face) ? |_| FontFailure
 	styled = { faces: [face], fonts: [font], inline_faces: [], face_indexes: [], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
@@ -134,7 +131,7 @@ evidence = |count| {
 probe_facts : Document -> Try(KernelMetadata.PlanFacts, Fixture.Error)
 probe_facts = |document| {
 	validated = KernelMetadata.validate({ created: Omitted, modified: Omitted, title: Document.metadata_title(document), language: Document.language(document) }, KernelMetadata.Limits.make({ max_language_bytes: 64, max_title_bytes: 2048 })) ? |_| PipelineFailure
-	xmp = KernelXmp.Packet.build_identified(validated.facts, PdfA4Identification, 16384) ? |_| PipelineFailure
+	xmp = KernelXmp.Packet.build_identified(validated.facts, AccessibleArchiveIdentification, 16384) ? |_| PipelineFailure
 	Ok(WithDocumentFacts({ condition_identifier: KernelMetadata.srgb_condition_identifier, profile: Color.ProfileId.from_index(0), registry_name: KernelMetadata.icc_registry_name, language: validated.facts.language, xmp: KernelXmp.Packet.bytes(xmp) }))
 }
 

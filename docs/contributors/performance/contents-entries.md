@@ -5,11 +5,12 @@ page column to the existing exact destination-reference path. This is an authore
 layout primitive, not automatic heading collection, an index or general reference
 stabilization.
 
-`Pdf.contents_entry` lowers once into an ordinary rich paragraph with two internal
-links and one real logical separator. A sparse normalized arena records each
-entry's block, reference identity, indentation, gap and leader choice. The title
-cannot contain another reference or link; the page field is the entry's final
-reference. No semantics are recovered from geometry.
+Consecutive `Pdf.contents_entry` blocks under one authored parent normalize
+to a single PDF 1.7 `TOC`. Each `TOCI` owns the rich paragraph with its two
+internal links and logical separator. The normalized arena records each entry's
+block, reference identity, indentation, gap and leader choice. The page field
+is the final reference. Reference resolution carries the target's semantic node
+alongside the page value, providing the `TOCI /Ref` independently of paint.
 
 Measurement wraps only the title clusters at the available frame width less its
 indentation, field width and gap. The normalizer's separator and reference atom
@@ -49,32 +50,27 @@ leader clearance/ownership. Displacing a page-number origin by two points must
 fail its mutation self-test. The ordinary PDF/A-4 and structure validators remain
 part of each fixture's registered acceptance set.
 
-Exact allocation and deterministic work observations under the pinned dev
-compiler are recorded in `tests/spec.json`; existing reference snapshots are
-retained as regressions. The new `contents_rows` and `leader_dots` counters make
-entry and decoration scale visible alongside existing item, row, mapping and
-reference-fit work counters.
+The accepted files are registered for explicit PDF/A-4 and PDF/UA-2
+validation. The structural oracle also removes one entry's `/Ref` and checks
+that the missing relationship fails even when both of its annotations still
+point to the correct destination.
 
-Initial native arm64mac observations on `nightly-2026-10-27-de79a0f`, dev
-optimization, Zig 0.16.0 ReleaseFast host:
+The pinned allocation and determinism harness records the exact work vector
+in [tests/spec.json](../../../tests/spec.json). The new semantic wrappers and
+`/Ref` values add a linear number of nodes and references. Normalization
+processes each entry once, and one indexed target per entry moves through
+resolution and object lowering. Line measurement, wrapping, page field and
+leader counters are unchanged. The negative case measures the same eleven
+public rejections under the same authored locations. Its larger count comes
+from preparing the TOC and item nodes for the rejected requests.
 
-| Entries | Exact allocations | Allocated bytes | Measured items | Wrapped item visits | Contents rows | Dots |
+| Entries | Exact arm64mac allocations | Allocated bytes | Measured items | Wrapped item visits | Contents rows | Dots |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 2 | 1,204 | 3,399,297 | 317 | 331 | 2 | 125 |
-| 80 | 10,092 | 34,971,089 | 8,657 | 8,983 | 80 | 6,322 |
-| 1 tall | 1,845 | 21,919,647 | 11,916 | 12,494 | 1 | 0 |
+| 2 | 1,606 | 4,315,250 | 317 | 331 | 2 | 125 |
+| 80 | 11,218 | 37,060,186 | 8,657 | 8,983 | 80 | 6,322 |
+| 1 tall | 2,226 | 22,162,693 | 11,916 | 12,494 | 1 | 0 |
 
-The scale pair has different title lengths and leader intervals; its explicit
-item/dot counts describe the work more precisely than entry count alone. Wrap
-visits remain below twice the input items, the terminal-row count is exactly
-the entry count, and the many-dot case pays for its bounded decoration arena.
-The tall entry retains one semantic title link across three contents pages;
-its reference occurs once on the last title line. All eleven atomic negatives
-use 1,159 allocations and 178,597 allocated bytes.
-
-All six pre-existing destination-reference cases retain exact allocation/work
-values and byte-identical PDFs under the same build. The empty sparse metadata
-and no-leader branch add no allocations to those cases. New x64musl expectations
-use the native exact-event/work values and await the normal Linux CI replay;
-these native observations are not a claim that cross-target requested bytes
-were measured locally.
+The pair varies title lengths and leader intervals. Wrap visits stay below
+twice the measured items and the terminal row count equals the entry count.
+The tall entry retains one title link and one structure item across three
+contents pages. Its page reference occurs on the final title line.

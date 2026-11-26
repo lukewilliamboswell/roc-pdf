@@ -9,13 +9,13 @@ belongs in [feature-roadmap.md](feature-roadmap.md).
 
 The package is generation-only. It does not read, edit, repair, incrementally
 update, or convert existing PDFs. Its production destination is accessible,
-self-contained business documents combining a closed static subset of PDF/A-4
-with PDF/UA-2. Legacy PDF output is outside the design. This is the intended
-end state; the roadmap records which capabilities and claims are executable.
+self-contained business documents with tagged PDF 2.0 output and declarations
+for the selected profiles. The roadmap records the supported authoring and
+validation paths.
 
 The production implementation and all of its runtime dependencies are pure
-Roc. Python and native PDF tools are independent test oracles; they are not
-linked into or invoked by the package. The package depends on two pure-Roc
+Roc. Python checks run on generated files, and independent native PDF tools
+are available for optional local review. The package depends on two pure-Roc
 packages, each pinned by an immutable release URL: `roc-lang/unicode` for
 Unicode analysis, and `roc-deflate` for DEFLATE compression (a port of
 libdeflate). The DEFLATE dependency is currently the release candidate of a
@@ -41,7 +41,7 @@ features such as floats, footnotes, indexes, and advanced writing modes are
 separate expansions rather than prerequisites for this release.
 
 Correctness comes first. Product readiness requires usable authoring,
-predictable layout, actionable diagnostics, and conformance evidence on those
+predictable layout, actionable diagnostics, and executable evidence on those
 documents. Internal compiler support alone does not establish public
 availability or release readiness. Exact allocation and deterministic work
 evidence remains required alongside these outcomes; its purpose is to catch
@@ -58,50 +58,23 @@ not permit unreviewed byte, allocation, or capability changes.
 
 ## Standards basis
 
-The implementation is defined against a pinned standards corpus, not the
-informal label "PDF 2.0":
+The implementation targets PDF 2.0 and supports selected standards rules on a
+best-effort basis. Record editions, clauses, tables and applicable errata near
+the implementation or focused test. Keep the rule's scope and the package's
+chosen constraints explicit. Use validator findings to investigate
+discrepancies and add focused regressions.
 
-- ISO 32000-2:2020, including the resolved errata artifact named in the
-  conformance ledger. The initial baseline is Errata Collection 3, identified
-  there by source revision, retrieval date, and cryptographic digest rather
-  than by its mutable download URL alone. This collection incorporates the
-  ISO-approved structure-destination clarifications from
-  [issue 140](https://github.com/pdf-association/pdf-issues/issues/140) and
-  [issue 162](https://github.com/pdf-association/pdf-issues/issues/162); both
-  resolutions are pinned as individual ledger requirements rather than being
-  assumed from the collection label.
-- ISO 19005-4:2020 and its resolved errata for PDF/A-4.
-- ISO 14289-2:2024 for PDF/UA-2.
-- ISO/TS 32005:2023 and its resolved errata for the containment of structure
-  elements from the PDF 1.7 and PDF 2.0 standard namespaces.
-- WTPDF 1.0 when WTPDF accessibility or reuse is claimed.
+The PDF writer references ISO 32000-2:2020, including the applicable resolved
+errata. Archive output also references ISO 19005-4:2020. Tagged accessibility
+uses ISO 14289-2:2024 and ISO/TS 32005:2023 for structure-element containment.
+The optional WTPDF accessibility declaration follows WTPDF 1.0. Implementation
+and test references identify the provisions used for each feature.
 
-The ledger also pins every applicable normative dependency and data version,
-including the Unicode Standard and Unicode Character Database, Unicode
-Standard Annex #9 for bidirectional text, Unicode Standard Annex #14 for line
-breaking, Unicode Standard Annex #29 for text segmentation, BCP 47/RFC 5646,
-OpenType, ICC, XMP/XML, JPEG, and DEFLATE specifications. Any hyphenation
-pattern set is a separately pinned, licensed data dependency with language,
-revision, digest, and provenance; no unversioned system dictionary participates
-in deterministic layout.
-
-The PDF Association maintains an archive of ISO 32000-2's
-[normative references](https://pdfa.org/pdf-2-0/). A pure implementation does
-not make those dependencies implicit.
-
-ISO 32000-2:2020 replaces the 2017 edition and contains corrections and
-clarifications discovered during early PDF 2.0 implementation. The PDF
-Association publishes the current corrected text and errata information in its
-[ISO 32000-2 resource](https://pdfa.org/resource/iso-32000-2/).
-The corresponding maintained entry points are
-[PDF/A-4](https://pdfa.org/resource/iso-19005-4-pdf-a-4/),
-[PDF/UA-2](https://pdfa.org/iso-14289-2-pdfua-2/),
-[ISO/TS 32005](https://www.iso.org/standard/45878.html), and
-[WTPDF](https://pdfa.org/wtpdf/).
-
-Standards and errata updates are reviewed changes to the package. Each update
-changes the conformance ledger explicitly; validator upgrades must not silently
-change the normative baseline.
+Pin versions for data dependencies used by algorithms, such as Unicode data,
+UAX #9, UAX #14, UAX #29, BCP 47 language tags, and font, color and image
+formats. A separately licensed data set such as hyphenation patterns carries
+its language, source revision, digest and provenance. Deterministic layout
+never uses an unversioned system dictionary.
 
 ## Scope and claims
 
@@ -117,12 +90,10 @@ The package supports distinct, composable claims:
 - `PdfA4f`: a possible future attachment-bearing profile, separate from the
   base static profile.
 
-These are not successive values in a maturity enum. PDF/A-4 concerns durable
-static appearance; PDF/UA-2 concerns accessibility; WTPDF reuse is a further,
-orthogonal claim. A file may combine compatible claims only when the package
-has a validator and test matrix for that exact combination. The relationship
-between PDF/UA-2 and WTPDF is summarized in the PDF Association's
-[Tagged PDF Q&A](https://pdfa.org/resource/tagged-pdf-q-a/).
+PDF/A-4 declarations address durable static appearance. PDF/UA-2 concerns
+accessibility, and WTPDF reuse would add separate requirements. A supported
+profile combination selects its metadata declarations and the implemented
+preparation checks for those declarations.
 
 The package's `StaticPdfA4` profile is intentionally narrower than everything
 ISO 19005-4 may permit. It rejects interactive forms, JavaScript, optional content,
@@ -131,16 +102,20 @@ and incremental updates. Supported URI link actions remain ordinary annotation
 data. These are package policy exclusions, not claims that every such construct
 is universally prohibited by PDF/A-4.
 
-Passing machine validation does not establish that a document is useful to a
-person with a disability. PDF/UA-2 cannot determine whether author-supplied
-alternative text is truthful, whether reading order is meaningful, or whether
-the content meets every WCAG requirement. The package may establish mechanical
-conformance and make author obligations explicit; it must not claim to certify
-semantic quality.
+Archive preparation checks the supported-feature whitelist, closed resources
+and metadata. Accessible archive preparation adds checks such as specific
+language, tagged structure and ownership, and document title display.
+Document semantics still rely on author-supplied facts. A preparation report
+can locate judgments such as truthful alternatives and meaningful reading
+order for review.
+
+Standards support is best effort. Independent certification is a separately
+scoped and funded undertaking with explicit ownership. Discuss a proposed
+certification effort in [GitHub Issues](https://github.com/lukewilliamboswell/roc-pdf/issues).
 
 Four policy categories remain distinct:
 
-- Standards requirements determine whether a requested conformance claim holds.
+- Standards requirements guide the applicable writer checks and declarations.
 - Package exclusions bound supported generation, regardless of whether a
   standard would permit a feature.
 - Authoring policies express explicit document constraints and preferences,
@@ -330,6 +305,13 @@ Old versions of a growing scene list are not rollback checkpoints. Paragraph
 analysis, table grids, cell measurements, and other invariant work are computed
 once per exact input and reused by explicit cache entries.
 
+Fixed-page preparation carries the authored sheet sizes and frame bounds
+alongside the logical block arena. It checks fit before positioning. A
+validated per-page permutation determines physical placement order, and
+separate typed ranges carry artwork before and after that content. Fragment
+ownership still consumes the authored occurrence identities, and tagged
+lowering follows the semantic spine to derive reading order.
+
 Each layout algorithm declares its worst-case complexity and exact cache keys.
 Line breaking does not rescan a paragraph for every candidate; pagination
 resumes from its continuation; keep/backtracking rules do not permit exponential
@@ -514,9 +496,9 @@ Pdf :: [].{
 }
 ```
 
-The public profile names map to conformance claims exactly as follows:
+The public profiles select the following declaration sets and checks:
 
-| `Pdf.Profile` | Required claim set | Meaning |
+| `Pdf.Profile` | Internal claim set | Emitted profile information |
 | --- | --- | --- |
 | `AccessibleArchive` | `Pdf20 + StaticPdfA4 + PdfUa2` | Self-contained accessible archive; WTPDF accessibility is declared only through its separately validated declaration capability |
 | `Archive` | `Pdf20 + StaticPdfA4` | Self-contained static archive without a PDF/UA-2 claim |
@@ -691,9 +673,8 @@ visible and carry the fields required by that choice.
 
 `Pdf.to_bytes` is equivalent to `Pdf.to_bytes_with(document,
 Pdf.Options.default)`. This section states the enduring production defaults.
-During delivery, the roadmap advances the default only to a public
-profile whose complete claim set has been implemented and validated; an
-unfinished claim is never selected implicitly. The enduring defaults are:
+The roadmap records the evidence for the supported subset of the default
+profile. The defaults are:
 
 - PDF version 2.0 only; no legacy output.
 - `AccessibleArchive`, requiring the combined `Pdf20 + StaticPdfA4 + PdfUa2`
@@ -701,9 +682,7 @@ unfinished claim is never selected implicitly. The enduring defaults are:
 - Tagged output derived from the typed document structure.
 - Canonical XMP whose `dc:title` agrees with the authored metadata title, and
   catalog `/ViewerPreferences << /DisplayDocTitle true >>`.
-- The required catalog `/MarkInfo` and page `/Tabs` values for the selected
-  tagged and PDF/UA-2 claims, as defined clause-by-clause in the conformance
-  ledger.
+- Catalog `/MarkInfo` and page `/Tabs` checks for tagged and PDF/UA-2 output.
 - Embedded and deterministically subsetted selected fonts with known embedding
   rights. The default theme selects the small packaged face; an overriding
   theme may select a validated caller-provided face. There is no system-font
@@ -1078,6 +1057,11 @@ indentation/leader facts; line measurement commits the title rows and terminal
 field offset. Reference resolution consumes those rows without wrapping again.
 Decorative leaders are bounded geometric page artifacts derived from that
 committed final-row interval, never generated text or inferred semantics.
+Consecutive authored entries under the same container form one PDF 1.7
+`TOC`. Each entry owns one `TOCI` and its linked paragraph. Indentation affects
+only presentation. The reference resolver carries the destination's
+semantic node identity alongside the visible resolved page label, so the
+structure reference and both link actions identify the same authored target.
 
 Paragraph analysis, measurement shaping, break selection, final boundary
 shaping, and per-line bidirectional placement are explicit operations inside
@@ -1201,26 +1185,26 @@ by default or independently selected by the theme. Its size and face govern
 shaping and reserved-field measurement; its leading governs slot stacking.
 These presentation facts never alter artifact ownership or body typography.
 
-Page-content artifact text is the one other source. Page furniture and text
-labels inside drawings, both resolved after pagination, are shaped from
-artifact text sources appended to the same dense Unicode store after the
-semantic sources (furniture sources, then label sources). A drawing label
-(`Scene.Drawing.text`) is shaped whole in the body face, or in an inline
-role's style face (`Scene.Drawing.text_in`, whose face joins the output fonts
-through shaping's face selection like any run's), by the same shaper as
-body text, scaled with its figure, proved to lie inside its drawing, and
-painted as `Decoration` artifact text; it is never outlined or rasterized. In
-a figure it is part of the figure's visual presentation: the `Figure`
-element's `/Alt` is what assistive technology reads, so conveying what the
-labels say is part of the author's alternative-text obligation, and the
-labels stay extractable through `ToUnicode`. Decorations take no labels (they
-paint after the page's text), and furniture drawings take none (furniture
-text is their text path). An artifact run names its
-source rather than an occurrence, belongs to no structure element, carries no
-semantic text property, and may be painted only by a page-artifact
-`OwnedGroup`; a layout fragment that paints artifact text is an ownership
-error. Its `ToUnicode` entries come from its source exactly as an
-occurrence's do.
+The facade assigns a figure drawing's graphic anchor followed by one text
+occurrence per intrinsic label to the same `Figure` element. The label source
+bank is separate from flow text shaping so coverage is checked in each label’s
+selected face. Labels paint after the page’s other text, with size and position
+scaled by the figure’s applied scale. Their fragments retain their own logical
+order in the Figure’s content spine independently of page paint order. The
+Figure’s authored alternative description and optional Caption keep their own
+semantics.
+
+Page-content artifact text is the one other source. Page furniture and labels
+on custom-block panels use artifact text sources appended after the semantic
+sources. An artifact run names its source and is painted by a page-artifact
+`OwnedGroup`. A layout fragment that paints artifact text is an ownership
+error. Both semantic and artifact runs derive `ToUnicode` from their exact
+source text.
+
+Drawing labels are shaped whole in the body face (`Scene.Drawing.text`) or an
+inline role’s selected style face (`Scene.Drawing.text_in`). Their shaped
+extents must lie inside the drawing. Decorations take no labels because they
+paint after the page text. Furniture drawings use the furniture text path.
 
 PDF text lowering requires `ActualText` for right-to-left runs, explicit
 source-to-presentation transformations, reordered or contextual clusters, and
@@ -1442,11 +1426,17 @@ Validation occurs at three explicit boundaries:
    constructs before sealing the plan for serialization.
 
 The static profile is implemented as a whitelist of supported constructs.
-Adding a feature requires declaring its profile eligibility and conformance
-rules; absence from the whitelist is rejection, not best-effort output.
+Adding a feature requires declaring its profile eligibility and testing the
+implemented rules. Preparation rejects features outside the whitelist before
+emission.
 
-Conformance metadata is emitted only for claims requested by the author and
-successfully validated. A declaration is not itself proof of conformance.
+The facade's theme and layout controls determine presentation. The author
+provides meaning through typed content, roles, properties and alternatives.
+A feature that supports independent semantic layout properties must carry
+them as typed author facts through validation and lowering.
+
+Profile identification is emitted for the selected declarations after the
+implemented preparation checks pass.
 
 Diagnostics are deterministic structured values containing a stable project
 code, document/resource location, applicable internal requirement IDs,
@@ -1705,21 +1695,12 @@ through validated data types, not private representation coupling.
 
 ## Enduring test architecture
 
-Five claims are tested independently:
-
-1. Readers accept the bytes.
-2. Independent renderers produce the intended appearance.
-3. The file and object model satisfy ISO 32000-2.
-4. The file satisfies each declared PDF/A-4, PDF/UA-2, or WTPDF profile.
-5. Human users can navigate and understand the authored semantics.
-
-The first four claims are mandatory machine-checked evidence. The fifth is
-recorded through optional human review where performed; it never substitutes
-for, or blocks, the mechanical claims.
-
-No tool is the specification or the sole oracle. Python invokes a compiled Roc
-scenario application and then runs layered checks against the original,
-unmodified bytes:
+Project-owned tests exercise byte structure, metadata declarations, text and
+semantic order, geometry, resource closure, transactional rejection and exact
+performance evidence. Assertions run on the original Roc output and compare
+facts to the authored fixture. Reader and assistive-technology review is
+optional. Independent PDF validators and readers are opt-in local tools.
+Their findings can become focused regressions in the project-owned suite.
 
 ```text
 typed versioned scenario
@@ -1731,39 +1712,18 @@ compiled Roc generator
     v
 PDF bytes + normalized generation report
           |
-          +-- exact byte/file checks
-          +-- independent parsing and object inspection
-          +-- Arlington schema checks
-          +-- independent rendering and text extraction
-          +-- explicit veraPDF profile validation
-          +-- normalized semantic-spine inspection
-          +-- normalized occurrence-to-fragment inspection
-          `-- optional human accessibility review
+          +-- exact bytes, object and file structure
+          +-- metadata and supported profile declarations
+          +-- normalized semantic spine and fragment ownership
+          `-- optional local independent readers and validators
 ```
 
-Tools do not rewrite or repair a file before it is checked. Parser recovery and
-warnings fail tests. Tool disagreements retain original bytes and raw reports,
-are minimized to a semantic scenario, and are decided against the pinned
-standard and errata. Known tool defects live in a version-scoped exception
-ledger; majority behavior does not define correctness.
-
-Committed machine-readable files are maintained inputs to checks: allocation
-and work baselines, provenance, tool locks, conformance ledgers and deterministic
-scenarios. Generated run reports, settings before/after dumps, review screenshots and
-one-off review receipts belong in ignored `.roc-pdf-tmp/` directories or CI
-artifacts. Curated evidence summaries record the measured source/tool identities,
-commands, outcomes and evidence locations. Historical raw reports may remain
-available through immutable Git links without occupying the current source tree;
-this does not relax independent validation or baseline review.
-
-The test suite maintains a machine-readable conformance ledger. Each internal
-requirement records the relevant standard clauses, applicable capabilities,
-machine and human verification status, positive and negative scenarios, and
-external validator rule identifiers. The prose examples in this architecture
-are not an exhaustive checklist: mechanical requirements such as XMP
-`dc:title`, `/ViewerPreferences /DisplayDocTitle`, `/MarkInfo`, and page `/Tabs`
-are implemented because their pinned clauses appear in the ledger, not merely
-because they are named here.
+Keep allocation and work baselines, provenance, tool locks and deterministic
+scenarios as maintainable inputs. Store raw review reports and screenshots in
+ignored scratch directories or CI artifacts. Place edition and clause
+references beside implementations of such checks as XMP `dc:title`,
+`/ViewerPreferences /DisplayDocTitle`, `/MarkInfo` and page `/Tabs`. Document
+fixture expectations in the test that exercises them.
 
 Every public API example is also a compile fixture checked with the Roc version
 pinned by the package. Documentation must not preserve obsolete module,
@@ -1774,7 +1734,7 @@ not leak into the common path accidentally.
 Every feature fixture has a small semantic source, selected capabilities,
 expected generation result, normalized content spine, occurrence-to-fragment
 map, lowered structure order, text and reading order, visual assertions,
-validator expectations, optional human checks, asset provenance, and
+profile expectations, optional human checks, asset provenance, and
 an atomic negative twin. Validation failure is transactional and produces no
 partial PDF.
 
@@ -1784,10 +1744,9 @@ includes ordinary and adverse content variation, typography and pagination,
 diagnostic usefulness, and scale cases whose work counters show no super-linear
 growth. Reader interaction and assistive-technology tasks are optional human
 review. They complement atomic feature evidence rather than replace it.
-Exploratory reader/AT findings may inform contracts; the release protocol
-records human-verifiable obligations, and performing that review is optional.
-A separately
-authored extension fixture must exercise the bounded custom-block contract
+Record content-dependent obligations beside authoring guidance and report
+contracts. A separately authored extension fixture must exercise the bounded
+custom-block contract
 before that integration surface is declared stable.
 
 Determinism tests compare byte hashes across supported operating systems and
@@ -1881,14 +1840,9 @@ not evidence about its property, and a raw-byte inspector reached from an empty
 corpus never leaves its reject paths, so the raw-byte targets carry seed corpora
 and every target is executed rather than merely type-checked. The bounded
 search campaign is a separate scheduled job on the default branch, never a
-pull-request check, so its cost does not grow the ordinary lane. The complete local suite remains the authoritative
-feature-evidence path and is run through `./scripts/test.py`; release validation
-also runs that suite from scratch. That full evidence path uses PDFium and
-PDFBox as independent reader/render/extraction paths. PDF.js adds browser
-text-, annotation-, and structure-layer coverage. MuPDF or Poppler extends
-graphics diversity; Ghostscript is used for declared advanced color and print
-capabilities. These engines have distinct configured expectations and do not
-vote on correctness.
+pull-request check, so its cost does not grow the ordinary lane. The local
+suite and CI use project-owned checks through `./scripts/test.py`. Local
+independent tools operate on the same original output when enabled.
 
 Contributor and CI tooling is declared in `Blueprint.roc` and locked in
 `Blueprint.lock` without a package provider: fixed tools such as Zig are
@@ -1898,17 +1852,9 @@ test, fuzz, gallery, bundle and docs scripts are exposed as named tasks
 `.roc-version` remains its single pin, because allocation baselines are exact
 for one compiler build and the nightly updater changes only that file.
 
-veraPDF is invoked with the explicit `4`, `ua2`, and `wt1a` profiles as
-applicable rather than relying only on metadata autodetection. The validator
-executable and validation-profile revisions are pinned independently.
-
-veraPDF formalizes PDF/A-4, PDF/UA-2, and WTPDF rules, but its PDF/UA checks are
-limited to machine-verifiable requirements. This limitation is why
-human-verifiable requirements are recorded architecturally as explicit author
-obligations and review protocols rather than left implicit. Performing the
-human review is optional; it neither replaces machine validation nor lets the
-package claim to certify semantic quality.
-[veraPDF validation documentation](https://docs.verapdf.org/validation/)
+When using veraPDF locally, select the intended `4`, `ua2` or `wt1a` profile
+explicitly. Record which tool and version produced an observation. Machine
+checks and authored human review address different requirements.
 
 ## Security and resource policy
 
@@ -1943,7 +1889,7 @@ deterministic assets.
 - **Coordinate-based reading-order inference:** paint geometry is ambiguous and
   can legitimately disagree with logical order.
 - **Public dictionaries or content operators:** arbitrary injection defeats
-  package-level conformance guarantees.
+  the writer’s supported profile checks.
 - **Object IDs assigned while authoring:** this makes bytes construction-order
   dependent and confuses semantic identity with serialization identity.
 - **Recursive authoring trees as normalized storage:** allocation-per-node

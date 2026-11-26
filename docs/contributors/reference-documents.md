@@ -58,7 +58,7 @@ dollars (AUD) and include 10% GST where stated. The document language is
   logical reading order.
 - Structure trees use PDF 2.0 standard roles. `⏎` marks an authored
   `Pdf.line_break` inside one paragraph. `Headers →` lists the header cells a
-  data cell's `Headers` attribute references.
+  cell's `Headers` attribute references.
 
 ## Multi-page invoice
 
@@ -654,7 +654,7 @@ rules.
 | LET-A3a | Lead region height 640 pt | defaults | `layout.template_body_space` naming the first-page template, each region height, and the remaining body height (less than one body line). Detected before flow. No bytes. |
 | LET-A3b | Letterhead with twelve lines in the 64 pt lead region | defaults | `layout.template_region_overflow` naming the lead region (`templates.first.lead`), with the content and reserved heights in the message. No bytes. |
 | LET-A3c | Continuation header slot texts whose combined widths exceed the region width | defaults | `layout.template_region_overflow` naming the region and slots. No bytes. |
-| LET-A4 | The ordinary letter (no visible title) under `Archive` and, from Gate 7, `AccessibleArchive` | profile | Accepted. No diagnostic requires a visible title. Gate 6 evidence checks XMP `dc:title` equals the metadata title and the catalog sets `DisplayDocTitle true`. Until Gate 7, `AccessibleArchive` still reports `profile.accessible_archive`. |
+| LET-A4 | The ordinary letter with a metadata title and no visible title under `AccessibleArchive` | profile | Accepted. The independent reference checker verifies the authored XMP title, the catalog title-display preference, and the absence of a visible `Title` element. The combined-profile lane validates the original bytes with both profiles. |
 | LET-A5 | Empty metadata title | defaults | The existing typed metadata error. No bytes. |
 | LET-A6 | Signature block taller than a continuation body (e.g. a 700 pt spacer) | defaults | `layout.keep_conflict` naming the keep group and its first and last members. No bytes. |
 | LET-A7 | `Pdf.page_number` used inside a body paragraph | defaults | `document.generated_reference` (`FeatureUnavailable`, Gate 8). Page fields are furniture-only in v1. No bytes. |
@@ -980,15 +980,12 @@ letters are bijective base 26 (`z.`, `aa.`). Each `L` declares its
   above the first footer row when a body row precedes it on the page, across
   the table width, as a `Decoration` artifact; it must fit inside the gap
   (`layout.table_rule`). Header-row shading is not offered in v1.
-- `Headers` associations are derived from declared scopes, never geometry:
-  a data cell references the `Column`- or `Both`-scoped header cells of
-  earlier rows in the columns it spans (all header rows, including spanning
-  cells), in ascending cell order without repeats, then the `Row`- or
-  `Both`-scoped header cells of its own row. Header cells carry no
-  `Headers`. Every cell carries a generated element identifier (`c` and its
-  one-based cell ordinal in six digits, so identifier order is cell order),
-  and each `Headers` entry is also a typed `HeaderFor` relationship; the
-  kernel rejects any disagreement between the two.
+- Declared scopes determine `Headers` associations. Each cell references
+  the overlapping column-scoped header cells of earlier rows in ascending
+  cell order without repeats. A data cell also references all row-scoped
+  headers on its row. A header cell references only preceding row-scoped
+  headers on its row. Each entry has a typed `HeaderFor` relationship and
+  resolves through the IDTree to the generated header identifier.
 
 ### Page and total-page fields
 
@@ -1342,54 +1339,43 @@ custom block across pages is not offered in v1.
 
 ### Preparation report
 
-```roc
-prepare_with_report : Document, Options -> Try({ prepared : Prepared, report : Report }, Error)
-prepare_with_report_budget : Document, Options, ReportBudget -> Try({ prepared : Prepared, report : Report }, Error)
-Report : { facts : ReportFacts, obligations : List(ReportObligation) }
-ReportFacts : {
-    alternatives : List({ kind : [Alternative, Expansion, Language], path : Str, text : Str }),
-    blocks : List({ first_page : U64, fragments : U64, last_page : U64, path : Str, role : Str }),
-    coverage : List({ font : U64, path : Str, scalars : U64, script : Str }),
-    language : Str,
-    outcomes : List(ReportOutcome),
-    pages : List({ fragments : U64, page : U64 }),
-    title : Str,
-}
-ReportOutcome : [
-    CustomBlockPlaced({ height : Layout.Unit, name : Str, page : U64, path : Str }),
-    FigureScale({ fit : [Exact, ScaleToFit], path : Str, scale : U64 }),
-    PreferenceRelaxed({ page : U64, path : Str, preference : [AuthorKeep, FooterCarry, HeadingKeep, Orphan, Widow] }),
-    RepeatedHeader({ page : U64, path : Str, rows : U64 }),
-    RowContinued({ page : U64, path : Str }),
-]
-ReportObligation : { obligation : [AlternativeTextMeaningful, ExpansionAccurate, LanguageAccurate, LinkPurposeMeaningful, ReadingOrderMeaningful, TableHeadersMeaningful], path : Str }
-ReportBudget : { max_entries : U64, max_text_bytes : U64 }
-```
+`Pdf.prepare_with_report(document, options)` returns the prepared plan and a
+read-only `Pdf.Report`. The budget defaults to 65,536 entries and 4 MiB of
+text. Use `prepare_with_report_budget(document, { options, budget })` to set
+either limit. A report that exceeds a limit returns `report.budget_exceeded`.
 
-These are executable with these names and shapes (custom-block slice,
-`reference-documents-v9`). Mechanical facts (`facts`) and human-review
-obligations (`obligations`) are separate fields. Every observation carries
-the authored path diagnostics use; pages count from 1; `blocks` is the
-logical reading order of leaf blocks; a figure scale is in thousandths.
-`prepare_with_report` uses a budget of 65,536 entries and 4 MiB of text.
-The prepared document is the one `prepare` returns, so its bytes are
-identical. `ExpansionAccurate` joins the obligation vocabulary with this
-version; `LinkPurposeMeaningful` and `LanguageAccurate` are no longer only
-proposed. Obligations are one `ReadingOrderMeaningful` and one
-`LanguageAccurate` for the document (path `document`), one
-`ReadingOrderMeaningful` per custom block, and one per figure, table, link,
-nested language, and expansion.
+`report.facts` records the authored metadata title, language, figure
+alternatives, and inline expansions or language changes. It also shows leaf
+blocks in reading order, page and fragment counts, selected text coverage,
+and layout outcomes such as applied figure scales and table continuation.
+Pages count from one and figure scales are in thousandths. Locations use
+the same authored paths as diagnostics. The plan produces the same bytes as
+ordinary preparation with the same inputs.
 
-The report is bounded and read-only. It contains authored locations (block
-paths), per-page fragment summaries, logical reading order, authored
-alternatives and expansions, author assertions, layout-policy outcomes
-(relaxed preferences, applied figure scales, row splits, repeated headers),
-selected font and script coverage, and human-review obligations
-(`AlternativeTextMeaningful`, `ReadingOrderMeaningful`,
-`TableHeadersMeaningful`, and proposed `LinkPurposeMeaningful` and
-`LanguageAccurate`). It exposes no PDF object identity and retains no discarded
-compiler stage or resource payload. Exceeding the report budget is an explicit
-error, never silent omission.
+`report.obligations` contains `{ path, obligation }` entries for human review.
+The document always carries `ReadingOrderMeaningful` and `LanguageAccurate`.
+The report also records `ReadingOrderMeaningful` for each custom block and
+callout, `AlternativeTextMeaningful` for each figure, `TableHeadersMeaningful`
+for each table, `LinkPurposeMeaningful` for each authored link,
+`LanguageAccurate` for each nested language, and `ExpansionAccurate` for each
+abbreviation expansion.
+
+Combined-profile preparation adds these obligations.
+
+| Obligation | Authored location | What the reviewer verifies |
+| --- | --- | --- |
+| `DocumentTitleAccurate` | `title` | The metadata title identifies the document. |
+| `StructureMeaningful` | `document` | Roles, hierarchy, headings, lists, captions and other relationships convey the intended meaning. Check that text, structure or alternatives fully express any meaning the visual treatment also suggests. |
+| `ArtifactClassificationMeaningful` | `document` | Artifacts are nonessential and retain meaningful grouping and order where applicable. |
+| `PageLabelsAccurate` | `document` | The page labels match the page numbering readers perceive. |
+| `TextEquivalentAccurate` | `document` | Unicode text and supplied replacements convey the intended text. |
+| `FontEmbeddingRightsConfirmed` | `document` | The licenses for the selected fonts allow embedding for unrestricted rendering. |
+| `OutlineMeaningful` | `outline`, when authored | Outline text and hierarchy describe their destinations. |
+| `AnnotationOrderMeaningful` | `document`, when links are authored | Annotation order and presentation match the intended navigation. |
+
+Supplying metadata and semantic content records the author's claims about
+those values. Preparation validates the mechanical requirements. Review
+follows the [accessibility review protocol](accessibility-review.md).
 
 ## Scale workloads
 
@@ -1417,6 +1403,29 @@ the field; new names are introduced by the slice that implements them.
 | | | destination-name resolution `comparison_work` | `n log n` |
 | Letter pages | 20 / 200 body paragraphs (6 / 36 pages; amended in `reference-documents-v6` from 1 / 10 pages so the continuation template and two-digit page fields scale) | `lines`, `pages`, `fragments`, furniture items shaped, field resolutions | linear |
 | | | stabilization passes | constant (2) |
+| Statement batch | 10 / 100 customer accounts, one section, one table and one page per account | pages, fragments, report blocks, obligations, coverage | linear |
+
+The reference fixture checks the ordinary documents and adverse variants
+through the same public preparation options. The statement batch exercises
+the separate WTPDF accessibility declaration. The test harness checks exact
+allocation counts and deterministic counters, and
+[`check_reference_documents.py`](../../scripts/check_reference_documents.py)
+asserts linear growth across the four recorded pairs. The report coverage
+bound includes three additional runs for each repeated header in the large
+case, corresponding to its three authored columns.
+
+The combined profile adds 116–121 bytes to each existing reference file
+through the XMP declaration and its resulting cross-reference offsets.
+PDFBox 3.0.8 independently rendered and extracted all 165 pages of the 20
+accepted reference documents and variants. Its raster and text output was
+identical to the respective Archive fixtures in
+[the Gate 6 reference baseline](https://github.com/lukewilliamboswell/roc-pdf/tree/5492de12ca7fc008cc65c097e4862099412b7206/tests/reference_documents).
+The existing accepted cases retain their exact allocation counts. The
+negative carrier adds one allocation for the authored `options.wtpdf`
+diagnostic path and retains its count of rejected inputs. The new batches
+record 3,428 and 22,773 allocations for 10 and 100 accounts in the pinned
+native harness.
+
 
 ## Optional human review tasks
 

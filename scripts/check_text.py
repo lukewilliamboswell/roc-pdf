@@ -10,6 +10,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from provision_extended_tools import archive_path
+
 from pdf_layout import mutate, occurrences
 from text_positions import legacy_to_tj, shown_cids
 from check_pdf_structure import (
@@ -28,7 +30,7 @@ from check_pdf_structure import (
 
 ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT = ROOT / "tests" / "visible_text" / "text.pdf"
-PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
+PDFBOX_JAR = archive_path("pdfbox")
 PDFBOX_SOURCE = ROOT / "scripts" / "PdfBoxTextExtract.java"
 EXPECTED_TEXT = "Café PDF\n".encode()
 LEGACY_EXPECTED_CONTENT = (
@@ -170,7 +172,7 @@ def validate_text_pdf(pdf: bytes) -> None:
 
 
 def check_pdfbox_extraction(pdf: Path) -> None:
-    require(PDFBOX_JAR.is_file(), f"vendored PDFBox JAR does not exist: {PDFBOX_JAR}")
+    require(PDFBOX_JAR.is_file(), f"cached PDFBox JAR does not exist: {PDFBOX_JAR}")
     with tempfile.TemporaryDirectory(prefix="roc-pdf-extract-") as temporary_name:
         classes = Path(temporary_name) / "classes"
         classes.mkdir()

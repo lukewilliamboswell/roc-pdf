@@ -2,15 +2,20 @@
 
 A release dispatch records one full commit SHA from `main`, runs the complete
 applicable checks at that SHA, then publishes the tested artifacts once.
-`.roc-version` remains the only package compiler pin. Publishing a version does
-not expand any conformance or Gate 7 claim.
+`.roc-version` is the package compiler pin.
+
+Keep working release notes in [`docs/unreleased.md`](../../unreleased.md).
+While that draft exists, ordinary CI verifies the package and bundled gallery
+and builds an Unreleased manual. Version comparison and publication artifacts
+are checked when a release version is selected.
 
 ## Prepare and validate
 
-1. Author `docs/releases/<version>.md` with the pinned nightly and literal
+1. Move the changes being released into `docs/releases/<version>.md` and add
+   the pinned nightly and literal
    `{package-url}` and `{bundle-sha256}` placeholders. Describe user-visible
    behavior and migration; keep the authored placeholders in Git.
-2. The PR checks choose the highest authored notes version and build the
+2. Without a working draft, the PR checks choose the highest authored notes version and build the
    package, examples archive, API/manual archive and PDF. They test the actual
    bundle/archive consumers, render notes with the resulting URL/digest, and
    run `roc bump --old <latest-final-bundle> --expect <version>` under the
@@ -22,12 +27,11 @@ not expand any conformance or Gate 7 claim.
    then applies; a patch release cannot claim an unproved API comparison.
 3. Merge only after applicable checks pass. Dispatch the release workflow on
    `main` with that authored version and `nightly_validation: true` for an
-   end-to-end dry run. This repeats the full Linux/macOS checks, independent
-   profile/object-model checks and documentation/archive checks on the recorded
-   event SHA and builds the complete publication payload for the explicit
-   version. It publishes nothing. Compiler-candidate validation also accepts a branch and
-   an omitted tag, deriving the highest authored version; this compatibility
-   mode does not establish publication eligibility or an API version verdict.
+   end-to-end dry run. This repeats the full Linux/macOS tests and
+   documentation/archive checks on the recorded SHA and builds the complete
+   publication payload for the explicit version. A compiler-only rehearsal
+   can also run on a branch with the tag omitted, using the ordinary CI
+   version selection.
 4. Review the same-run `roc-pdf-release-<sha>` artifact: its manifest records
    the compiler, commit, exact names, lengths and SHA-256 values of all four
    deliverables. Rendered notes are also hash-bound. No source file is rewritten.

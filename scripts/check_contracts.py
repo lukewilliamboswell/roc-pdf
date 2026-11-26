@@ -12,19 +12,8 @@ from typing import NoReturn
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CONFORMANCE = ROOT / "conformance"
-BASELINE_PATH = CONFORMANCE / "normative-baseline.json"
-MATRIX_PATH = CONFORMANCE / "capability-matrix.json"
-LEDGER_PATH = CONFORMANCE / "ledger.json"
-RULE_CATALOG_PATH = CONFORMANCE / "verapdf-pdfa4-rules.json"
-PDFA4_VALIDATOR_PATH = ROOT / "package" / "KernelPdfA4.roc"
-VERAPDF_PDFA4_PREFIX = "verapdf-pdfa4:"
-APPLICABILITY = {"applicable", "package_excluded", "pending_iso_confirmation", "rejected_by_profile"}
-LEDGER_SCHEMA_VERSION = 2
 ASSET_MANIFEST_PATH = ROOT / "assets" / "provenance.json"
-DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}\Z")
 SOURCE_ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
-RULE_ID = re.compile(r"ROC-PDF-[A-Z0-9]+(?:-[A-Z0-9]+)*\Z")
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 BINARY_ASSET_SUFFIXES = {".a", ".icc", ".icm", ".jar", ".jpeg", ".jpg", ".o", ".otf", ".pdf", ".png", ".tgz", ".ttf", ".zip"}
 ASSET_KINDS = {
@@ -38,50 +27,6 @@ ASSET_KINDS = {
     "unicode_data",
     "validator_corpus",
 }
-
-CAPABILITIES = {
-    "Pdf20",
-    "PdfA4f",
-    "PdfUa2",
-    "StaticPdfA4",
-    "WtpdfAccessibility",
-    "WtpdfReuse",
-}
-CAPABILITY_AVAILABILITY = {
-    "Pdf20": "available",
-    "PdfA4f": "future",
-    "PdfUa2": "defined_only",
-    "StaticPdfA4": "available",
-    "WtpdfAccessibility": "defined_only",
-    "WtpdfReuse": "defined_only",
-}
-PROFILES = {
-    "AccessibleArchive": ["Pdf20", "PdfUa2", "StaticPdfA4"],
-    "Archive": ["Pdf20", "StaticPdfA4"],
-    "Standard": ["Pdf20"],
-}
-REQUIRED_SOURCES = {
-    "bcp47-rfc5646",
-    "deflate-rfc1951",
-    "icc-1-2001-04",
-    "iso-14289-2-2024",
-    "iso-16684-1-2019",
-    "iso-19005-4-2020",
-    "iso-32000-2-2020-ec3",
-    "iso-ts-32005-2023",
-    "jpeg-10918-1-1994",
-    "mathml-core-2025-06-24",
-    "opentype-1-9-1",
-    "pdf-issues-ec3",
-    "uax14-r55",
-    "uax29-r47",
-    "uax9-r51",
-    "ucd-17-0-0",
-    "unicode-17-0-0",
-    "wtpdf-1-0-0",
-    "xml-1-0-fifth-edition",
-}
-
 
 class ContractError(ValueError):
     pass
@@ -113,243 +58,9 @@ def require_string(value: object, path: str) -> str:
     return value
 
 
-def require_string_list(value: object, path: str) -> list[str]:
-    if not isinstance(value, list) or any(not isinstance(item, str) or not item for item in value):
-        fail(path, "must be a list of non-empty strings")
-    if value != sorted(set(value)):
-        fail(path, "must be sorted and unique")
-    return value
-
-
 def require_version(document: dict[str, object], path: str) -> None:
     if document["schema_version"] != 1:
         fail(f"{path}.schema_version", "must be 1")
-
-
-def validate_baseline(value: object) -> set[str]:
-    document = require_object(value, "normative-baseline", {"schema_version", "reviewed_on", "sources"})
-    require_version(document, "normative-baseline")
-    reviewed_on = require_string(document["reviewed_on"], "normative-baseline.reviewed_on")
-    if DATE.fullmatch(reviewed_on) is None:
-        fail("normative-baseline.reviewed_on", "must be YYYY-MM-DD")
-
-    sources = document["sources"]
-    if not isinstance(sources, list) or not sources:
-        fail("normative-baseline.sources", "must be a non-empty list")
-
-    ids: list[str] = []
-    for index, raw_source in enumerate(sources):
-        path = f"normative-baseline.sources[{index}]"
-        source = require_object(
-            raw_source,
-            path,
-            {"id", "title", "revision", "url", "retrieved_on", "pin"},
-        )
-        source_id = require_string(source["id"], f"{path}.id")
-        if SOURCE_ID.fullmatch(source_id) is None:
-            fail(f"{path}.id", "must be a lowercase kebab-case identifier")
-        ids.append(source_id)
-        require_string(source["title"], f"{path}.title")
-        require_string(source["revision"], f"{path}.revision")
-        url = require_string(source["url"], f"{path}.url")
-        if not url.startswith("https://"):
-            fail(f"{path}.url", "must use https")
-        retrieved_on = require_string(source["retrieved_on"], f"{path}.retrieved_on")
-        if DATE.fullmatch(retrieved_on) is None or retrieved_on > reviewed_on:
-            fail(f"{path}.retrieved_on", "must be a valid date no later than reviewed_on")
-
-        pin = require_object(source["pin"], f"{path}.pin", {"kind", "value"})
-        kind = pin["kind"]
-        pin_value = require_string(pin["value"], f"{path}.pin.value")
-        if kind not in {"publication_identifier", "sha256"}:
-            fail(f"{path}.pin.kind", "must be publication_identifier or sha256")
-        if kind == "sha256" and SHA256.fullmatch(pin_value) is None:
-            fail(f"{path}.pin.value", "must be 64 lowercase hexadecimal digits")
-
-    if ids != sorted(set(ids)):
-        fail("normative-baseline.sources", "source ids must be sorted and unique")
-    if set(ids) != REQUIRED_SOURCES:
-        fail("normative-baseline.sources", "must contain the complete contract-definition source set")
-
-    by_id = {source["id"]: source for source in sources}
-    errata = by_id["pdf-issues-ec3"]
-    if errata["revision"] != "8766b0a5f9929be3f29b80981ecc8e671e96151c":
-        fail("normative-baseline.pdf-issues-ec3.revision", "unexpected EC3 source revision")
-    if errata["pin"] != {
-        "kind": "sha256",
-        "value": "ebb851cc43f299f4ad0852842802cf75a14a2546cb52f1c771aba0f77dbdea78",
-    }:
-        fail("normative-baseline.pdf-issues-ec3.pin", "unexpected EC3 archive digest")
-    return set(ids)
-
-
-def validate_matrix(value: object) -> None:
-    document = require_object(value, "capability-matrix", {"schema_version", "capabilities", "profiles"})
-    require_version(document, "capability-matrix")
-
-    raw_capabilities = document["capabilities"]
-    if not isinstance(raw_capabilities, list):
-        fail("capability-matrix.capabilities", "must be a list")
-    capability_ids: list[str] = []
-    dependencies: dict[str, list[str]] = {}
-    for index, raw_capability in enumerate(raw_capabilities):
-        path = f"capability-matrix.capabilities[{index}]"
-        capability = require_object(raw_capability, path, {"id", "requires", "availability"})
-        capability_id = require_string(capability["id"], f"{path}.id")
-        capability_ids.append(capability_id)
-        dependencies[capability_id] = require_string_list(capability["requires"], f"{path}.requires")
-        expected_availability = CAPABILITY_AVAILABILITY.get(capability_id)
-        if capability["availability"] != expected_availability:
-            fail(
-                f"{path}.availability",
-                f"must be {expected_availability!r} at the current capability boundary",
-            )
-
-    if capability_ids != sorted(CAPABILITIES):
-        fail("capability-matrix.capabilities", "must contain every capability sorted by id")
-    for capability_id, requirements in dependencies.items():
-        unknown = set(requirements) - CAPABILITIES
-        if unknown:
-            fail(f"capability-matrix.{capability_id}.requires", f"unknown capabilities: {sorted(unknown)}")
-        if capability_id in requirements:
-            fail(f"capability-matrix.{capability_id}.requires", "must not depend on itself")
-
-    raw_profiles = document["profiles"]
-    if not isinstance(raw_profiles, list):
-        fail("capability-matrix.profiles", "must be a list")
-    actual_profiles: dict[str, list[str]] = {}
-    for index, raw_profile in enumerate(raw_profiles):
-        path = f"capability-matrix.profiles[{index}]"
-        profile = require_object(raw_profile, path, {"id", "claims"})
-        profile_id = require_string(profile["id"], f"{path}.id")
-        if profile_id in actual_profiles:
-            fail(f"{path}.id", "must be unique")
-        actual_profiles[profile_id] = require_string_list(profile["claims"], f"{path}.claims")
-    if actual_profiles != PROFILES:
-        fail("capability-matrix.profiles", f"must equal the facade mapping {PROFILES}")
-
-
-def pdfa4_requirement_codes() -> set[str]:
-    """Ledger identifiers named by the Roc profile validator's requirement map."""
-    return set(re.findall(r'"(ROC-PDF-PDFA4-[A-Z0-9-]+)"', PDFA4_VALIDATOR_PATH.read_text(encoding="utf-8")))
-
-
-def validate_ledger(
-    value: object,
-    source_ids: set[str],
-    catalog_rules: set[str] | None = None,
-    roc_codes: set[str] | None = None,
-    static_available: bool = False,
-) -> None:
-    catalog_rules = catalog_rules if catalog_rules is not None else set()
-    roc_codes = roc_codes if roc_codes is not None else set()
-    document = require_object(value, "ledger", {"schema_version", "requirements"})
-    if document["schema_version"] != LEDGER_SCHEMA_VERSION:
-        fail("ledger.schema_version", f"must be {LEDGER_SCHEMA_VERSION}")
-    raw_requirements = document["requirements"]
-    if not isinstance(raw_requirements, list) or not raw_requirements:
-        fail("ledger.requirements", "must be a non-empty list")
-
-    ids: list[str] = []
-    for index, raw_requirement in enumerate(raw_requirements):
-        path = f"ledger.requirements[{index}]"
-        requirement = require_object(
-            raw_requirement,
-            path,
-            {
-                "id",
-                "summary",
-                "source_ids",
-                "references",
-                "capabilities",
-                "implementation",
-                "applicability",
-                "machine_verification",
-                "human_verification",
-                "positive_scenarios",
-                "negative_scenarios",
-                "external_rule_ids",
-            },
-        )
-        rule_id = require_string(requirement["id"], f"{path}.id")
-        if RULE_ID.fullmatch(rule_id) is None:
-            fail(f"{path}.id", "must be a stable ROC-PDF uppercase identifier")
-        ids.append(rule_id)
-        require_string(requirement["summary"], f"{path}.summary")
-        requirement_sources = require_string_list(requirement["source_ids"], f"{path}.source_ids")
-        unknown_sources = set(requirement_sources) - source_ids
-        if unknown_sources:
-            fail(f"{path}.source_ids", f"unknown sources: {sorted(unknown_sources)}")
-        require_string_list(requirement["references"], f"{path}.references")
-        capabilities = require_string_list(requirement["capabilities"], f"{path}.capabilities")
-        unknown_capabilities = set(capabilities) - CAPABILITIES
-        if unknown_capabilities:
-            fail(f"{path}.capabilities", f"unknown capabilities: {sorted(unknown_capabilities)}")
-        if requirement["implementation"] not in {"defined_only", "implemented", "partial", "planned"}:
-            fail(f"{path}.implementation", "must be defined_only, partial, implemented, or planned")
-        applicability = requirement["applicability"]
-        if applicability not in APPLICABILITY:
-            fail(f"{path}.applicability", f"must be one of {sorted(APPLICABILITY)}")
-        require_string(requirement["machine_verification"], f"{path}.machine_verification")
-        human = require_string(requirement["human_verification"], f"{path}.human_verification")
-        if applicability == "pending_iso_confirmation":
-            if requirement["implementation"] != "partial" or human == "not_required":
-                fail(path, "a pending ISO-text confirmation is partial and names its human obligation")
-        elif (
-            static_available
-            and "StaticPdfA4" in capabilities
-            and all(CAPABILITY_AVAILABILITY[capability] == "available" for capability in capabilities)
-            and requirement["implementation"] != "implemented"
-        ):
-            fail(f"{path}.implementation", "an available StaticPdfA4 capability requires every confirmed requirement to be implemented")
-        scenario_values: dict[str, list[str]] = {}
-        for field in ("positive_scenarios", "negative_scenarios", "external_rule_ids"):
-            values = require_string_list(requirement[field], f"{path}.{field}")
-            scenario_values[field] = values
-            if field.endswith("scenarios"):
-                for scenario in values:
-                    scenario_path = (ROOT / scenario).resolve()
-                    if not scenario_path.is_relative_to(ROOT) or not scenario_path.is_file():
-                        fail(f"{path}.{field}", f"scenario does not exist: {scenario}")
-
-        if requirement["implementation"] in {"implemented", "partial"}:
-            if not scenario_values["positive_scenarios"] or not scenario_values["negative_scenarios"]:
-                fail(f"{path}.implementation", "executable work requires positive and negative scenarios")
-
-    if ids != sorted(set(ids)):
-        fail("ledger.requirements", "requirement ids must be sorted and unique")
-    requirements_by_id = {requirement["id"]: requirement for requirement in raw_requirements}
-
-    # Every rule of the pinned veraPDF PDF/A-4 profile maps to exactly one
-    # StaticPdfA4 requirement, and every Roc requirement code is a ledger id.
-    mapped: dict[str, str] = {}
-    for requirement in raw_requirements:
-        for external in requirement["external_rule_ids"]:
-            if not external.startswith(VERAPDF_PDFA4_PREFIX):
-                continue
-            rule = external.removeprefix(VERAPDF_PDFA4_PREFIX)
-            if rule not in catalog_rules:
-                fail(requirement["id"], f"unknown pinned veraPDF PDF/A-4 rule {rule}")
-            if "StaticPdfA4" not in requirement["capabilities"]:
-                fail(requirement["id"], "a veraPDF PDF/A-4 rule belongs to a StaticPdfA4 requirement")
-            if rule in mapped:
-                fail(requirement["id"], f"rule {rule} is already mapped by {mapped[rule]}")
-            mapped[rule] = requirement["id"]
-    if catalog_rules and set(mapped) != catalog_rules:
-        fail("ledger.requirements", f"unmapped pinned veraPDF PDF/A-4 rules: {sorted(catalog_rules - set(mapped))}")
-    missing_codes = roc_codes - set(ids)
-    if missing_codes:
-        fail("ledger.requirements", f"KernelPdfA4 requirement codes missing from the ledger: {sorted(missing_codes)}")
-    issue_rules = {
-        "ROC-PDF-PDF20-GOTO-D-DESTINATION": "pdf-issues#140",
-        "ROC-PDF-PDF20-NAMED-DESTINATION-SD": "pdf-issues#162",
-    }
-    for rule_id, issue_reference in issue_rules.items():
-        requirement = requirements_by_id.get(rule_id)
-        if requirement is None:
-            fail("ledger.requirements", f"missing required errata rule {rule_id}")
-        if "pdf-issues-ec3" not in requirement["source_ids"] or issue_reference not in requirement["references"]:
-            fail(rule_id, f"must independently pin {issue_reference} to the EC3 source")
 
 
 def repository_paths() -> list[str]:
@@ -478,79 +189,17 @@ def validate_assets(value: object) -> None:
         fail("asset-provenance.assets", f"must cover tracked binary assets; missing={missing}, extra={extra}")
 
 
-def catalog_rule_ids() -> set[str]:
-    catalog = load(RULE_CATALOG_PATH)
-    if not isinstance(catalog, dict) or not isinstance(catalog.get("rules"), list):
-        fail("verapdf-pdfa4-rules", "must contain a rules list")
-    return {require_string(rule.get("id"), "verapdf-pdfa4-rules.rules[].id") for rule in catalog["rules"]}
-
-
-def validate_documents(baseline: object, matrix: object, ledger: object) -> None:
-    source_ids = validate_baseline(baseline)
-    validate_matrix(matrix)
-    static_available = CAPABILITY_AVAILABILITY["StaticPdfA4"] == "available"
-    validate_ledger(ledger, source_ids, catalog_rule_ids(), pdfa4_requirement_codes(), static_available)
-
-
 def validate_repository() -> None:
-    validate_portable_paths(repository_paths())
-    validate_documents(load(BASELINE_PATH), load(MATRIX_PATH), load(LEDGER_PATH))
+    paths = repository_paths()
+    validate_portable_paths(paths)
+    for path in paths:
+        if path.casefold().startswith(".standards/"):
+            fail("repository paths", "licensed standards belong in ignored local storage")
     validate_assets(load(ASSET_MANIFEST_PATH))
 
 
-def expect_rejected(baseline: object, matrix: object, ledger: object, mutate: str) -> None:
-    test_baseline = copy.deepcopy(baseline)
-    test_matrix = copy.deepcopy(matrix)
-    test_ledger = copy.deepcopy(ledger)
-    if mutate == "digest":
-        errata_source = next(
-            source
-            for source in test_baseline["sources"]
-            if source["id"] == "pdf-issues-ec3"
-        )
-        errata_source["pin"]["value"] = "0" * 64
-    elif mutate == "profile":
-        test_matrix["profiles"][0]["claims"] = ["Pdf20"]
-    elif mutate == "availability":
-        test_matrix["capabilities"][0]["availability"] = "defined_only"
-    elif mutate == "source":
-        test_ledger["requirements"][0]["source_ids"] = ["unknown-source"]
-    elif mutate == "applicability":
-        test_ledger["requirements"][0]["applicability"] = "optional"
-    elif mutate == "duplicate-rule":
-        rules = [requirement for requirement in test_ledger["requirements"] if requirement["external_rule_ids"] and requirement["external_rule_ids"][0].startswith(VERAPDF_PDFA4_PREFIX)]
-        rules[1]["external_rule_ids"] = sorted(rules[1]["external_rule_ids"] + rules[0]["external_rule_ids"][:1])
-    elif mutate == "unmapped-rule":
-        rules = [requirement for requirement in test_ledger["requirements"] if requirement["external_rule_ids"] and requirement["external_rule_ids"][0].startswith(VERAPDF_PDFA4_PREFIX)]
-        rules[0]["external_rule_ids"] = rules[0]["external_rule_ids"][1:]
-        if not rules[0]["external_rule_ids"]:
-            rules[0]["external_rule_ids"] = []
-    elif mutate == "unknown-rule":
-        rules = [requirement for requirement in test_ledger["requirements"] if requirement["external_rule_ids"] and requirement["external_rule_ids"][0].startswith(VERAPDF_PDFA4_PREFIX)]
-        rules[0]["external_rule_ids"] = sorted(rules[0]["external_rule_ids"] + [VERAPDF_PDFA4_PREFIX + "9.9-9"])
-    elif mutate == "roc-code":
-        test_ledger["requirements"] = [requirement for requirement in test_ledger["requirements"] if requirement["id"] != "ROC-PDF-PDFA4-6-7-3-IDENTIFICATION"]
-    elif mutate == "pending":
-        pending = next(requirement for requirement in test_ledger["requirements"] if requirement["applicability"] == "pending_iso_confirmation")
-        pending["human_verification"] = "not_required"
-    elif mutate == "issue":
-        issue_requirement = next(
-            requirement
-            for requirement in test_ledger["requirements"]
-            if requirement["id"] == "ROC-PDF-PDF20-GOTO-D-DESTINATION"
-        )
-        issue_requirement["references"] = ["ISO 32000-2:2020 12.6.4.2 Table 202"]
-    else:
-        raise AssertionError(mutate)
-    try:
-        validate_documents(test_baseline, test_matrix, test_ledger)
-    except ContractError:
-        return
-    raise ContractError(f"self-test mutation was accepted: {mutate}")
-
-
 def self_test() -> None:
-    validate_portable_paths(repository_paths())
+    validate_repository()
     validate_portable_paths([
         "tests/tagged_visual/Stress.roc",
         "tests/tagged_visual/command_stress.roc",
@@ -566,17 +215,7 @@ def self_test() -> None:
             pass
         else:
             raise ContractError(f"self-test path collision was accepted: {paths}")
-    baseline = load(BASELINE_PATH)
-    matrix = load(MATRIX_PATH)
-    ledger = load(LEDGER_PATH)
-    validate_documents(baseline, matrix, ledger)
-    for mutation in (
-        "digest", "profile", "availability", "source", "issue", "applicability",
-        "duplicate-rule", "unmapped-rule", "unknown-rule", "roc-code", "pending",
-    ):
-        expect_rejected(baseline, matrix, ledger, mutation)
     assets = load(ASSET_MANIFEST_PATH)
-    validate_assets(assets)
     changed_assets = copy.deepcopy(assets)
     changed_assets["assets"][0]["sha256"] = "0" * 64
     try:

@@ -48,7 +48,7 @@ Fixture :: [].{
 				.append(Pdf.rich_paragraph([Pdf.strong([Pdf.code("Fira bold")])]))
 				.append(Pdf.source_block({ text: "source = 42 ⌘K" })),
 		})
-		evidence(doc, { options: Pdf.Options.{ theme }, origin: Packaged, registry: Font.Registry.empty })
+		evidence(doc, { options: Pdf.Options.{ profile: Archive, theme }, origin: Packaged, registry: Font.Registry.empty })
 	}
 
 	exact_override : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
@@ -59,7 +59,7 @@ Fixture :: [].{
 		faces = RocFont.register(Font.Registry.empty, Font.ValidationLimits.default) ? Font
 		theme = Theme.{ family: BuiltIn(Mono), inline: { emphasis: { font: Face(faces.emphasis) }, strong_emphasis: { font: Face(faces.strong_emphasis) } } }
 		doc = Pdf.document({ title: "Explicit exact font styles ${context.to_str()}", language: "en", contents: [Pdf.paragraph("Mono regular"), Pdf.rich_paragraph([Pdf.emphasis([Pdf.code("Exact italic override")])]), Pdf.rich_paragraph([Pdf.strong([Pdf.emphasis([Pdf.text("Exact combined override")])])]), Pdf.rich_paragraph([Pdf.emphasis([Pdf.strong([Pdf.text("Exact combined reverse")])])])] })
-		evidence(doc, { options: Pdf.Options.{ fonts: Registered(faces.registry), theme }, origin: Caller, registry: faces.registry })
+		evidence(doc, { options: Pdf.Options.{ profile: Archive, fonts: Registered(faces.registry), theme }, origin: Caller, registry: faces.registry })
 	}
 
 	scale : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
@@ -75,7 +75,7 @@ Fixture :: [].{
 			$index = $index + 1
 		}
 		doc = Pdf.document({ title: "Font demand scale", language: "en", contents: $contents })
-		evidence(doc, { options: Pdf.Options.default, origin: Packaged, registry: Font.Registry.empty })
+		evidence(doc, { options: Pdf.Options.{ profile: Archive }, origin: Packaged, registry: Font.Registry.empty })
 	}
 
 	negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
@@ -89,17 +89,17 @@ Fixture :: [].{
 		mono_italic = Pdf.document({ title: "Missing family italic", language: "en", contents: lead.append(Pdf.rich_paragraph([Pdf.emphasis([Pdf.text("italic mono")])])) })
 		serif_symbol = Pdf.document({ title: "Missing serif coverage", language: "en", contents: lead.append(Pdf.paragraph("Missing command: ⌘")) })
 		missing_source = Pdf.document({ title: "Missing source style", language: "en", contents: lead.append(Pdf.source_block({ face: BuiltIn({ family: Mono, style: Italic }), text: "source = 42" })) })
-		check_rejection(code_italic, { options: Pdf.Options.default, code: FeatureUnavailable, feature: "text.style_unavailable", location: AtPath("contents[2].inlines[0]") })?
-		check_rejection(code_combined, { options: Pdf.Options.default, code: FeatureUnavailable, feature: "text.style_unavailable", location: AtPath("contents[2].inlines[0]") })?
-		check_rejection(mono_italic, { options: Pdf.Options.{ theme: { family: BuiltIn(Mono) } }, code: FeatureUnavailable, feature: "text.style_unavailable", location: AtPath("contents[2].inlines[0]") })?
-		check_rejection(serif_symbol, { options: Pdf.Options.{ theme: { family: BuiltIn(Serif) } }, code: FontCoverageMissing, feature: "text.coverage_missing", location: AtPath("contents[2]") })?
-		check_rejection(missing_source, { options: Pdf.Options.default, code: FeatureUnavailable, feature: "text.style_unavailable", location: AtPath("contents[2]") })?
+		check_rejection(code_italic, { options: Pdf.Options.{ profile: Archive }, code: FeatureUnavailable, feature: "text.style_unavailable", location: AtPath("contents[2].inlines[0]") })?
+		check_rejection(code_combined, { options: Pdf.Options.{ profile: Archive }, code: FeatureUnavailable, feature: "text.style_unavailable", location: AtPath("contents[2].inlines[0]") })?
+		check_rejection(mono_italic, { options: Pdf.Options.{ profile: Archive, theme: { family: BuiltIn(Mono) } }, code: FeatureUnavailable, feature: "text.style_unavailable", location: AtPath("contents[2].inlines[0]") })?
+		check_rejection(serif_symbol, { options: Pdf.Options.{ profile: Archive, theme: { family: BuiltIn(Serif) } }, code: FontCoverageMissing, feature: "text.coverage_missing", location: AtPath("contents[2]") })?
+		check_rejection(missing_source, { options: Pdf.Options.{ profile: Archive }, code: FeatureUnavailable, feature: "text.style_unavailable", location: AtPath("contents[2]") })?
 		custom = Font.Registry.empty.register({ bytes: caller_bytes, registration: { provision: BuiltIn, scripts: ["Latn"] }, limits: Font.ValidationLimits.default }) ? Font
 		custom_doc = Pdf.document({ title: "Missing caller style", language: "en", contents: [Pdf.paragraph("Café PDF"), Pdf.rich_paragraph([Pdf.text("Café")]), Pdf.rich_paragraph([Pdf.strong([Pdf.text("Café")])])] })
-		check_rejection(custom_doc, { options: Pdf.Options.{ fonts: Registered(custom.registry), theme: { family: Registered({ regular: custom.face }) } }, code: FeatureUnavailable, feature: "text.style_unavailable", location: AtPath("contents[2].inlines[0]") })?
+		check_rejection(custom_doc, { options: Pdf.Options.{ profile: Archive, fonts: Registered(custom.registry), theme: { family: Registered({ regular: custom.face }) } }, code: FeatureUnavailable, feature: "text.style_unavailable", location: AtPath("contents[2].inlines[0]") })?
 		policy_doc = Pdf.document({ title: "Ordered policy rejects exact combined overrides", language: "en", contents: [Pdf.paragraph("Café PDF"), Pdf.rich_paragraph([Pdf.strong([Pdf.emphasis([Pdf.text("Café")])])])] })
-		family_options = Pdf.Options.{ fonts: Registered(custom.registry), theme: { face: custom.face, font_selection: Policy(custom.policy), inline: { strong_emphasis: { font: Family(BuiltIn(Mono)) } } } }
-		face_options = Pdf.Options.{ fonts: Registered(custom.registry), theme: { face: custom.face, font_selection: Policy(custom.policy), inline: { strong_emphasis: { font: Face(custom.face) } } } }
+		family_options = Pdf.Options.{ profile: Archive, fonts: Registered(custom.registry), theme: { face: custom.face, font_selection: Policy(custom.policy), inline: { strong_emphasis: { font: Family(BuiltIn(Mono)) } } } }
+		face_options = Pdf.Options.{ profile: Archive, fonts: Registered(custom.registry), theme: { face: custom.face, font_selection: Policy(custom.policy), inline: { strong_emphasis: { font: Face(custom.face) } } } }
 		check_rejection(policy_doc, { options: family_options, code: FeatureUnavailable, feature: "text.inline_font_policy", location: DocumentScope })?
 		check_rejection(policy_doc, { options: face_options, code: FeatureUnavailable, feature: "text.inline_font_policy", location: DocumentScope })?
 		labelled = Scene.Drawing.empty
@@ -112,7 +112,7 @@ Fixture :: [].{
 		# The earlier panel must retain its role's owner even though the
 		# resolver visits figure blocks before its separate panel traversal.
 		earlier_panel = Pdf.document({ title: "First drawing style owner", language: "en", contents: [Pdf.paragraph("Lead paragraph"), panel, figure] })
-		mono_options = Pdf.Options.{ theme: { family: BuiltIn(Mono) } }
+		mono_options = Pdf.Options.{ profile: Archive, theme: { family: BuiltIn(Mono) } }
 		check_rejection(later_figure, { options: mono_options, code: FeatureUnavailable, feature: "text.style_unavailable", location: AtDrawingLabel({ path: "contents[1]", label: 1 }) })?
 		check_rejection(earlier_panel, { options: mono_options, code: FeatureUnavailable, feature: "text.style_unavailable", location: AtDrawingLabel({ path: "contents[1]", label: 1 }) })?
 		Ok({ bytes: [], work: [10, 8, 2, 0] })

@@ -109,9 +109,9 @@ KernelFacadeReport :: [].{
 	## Final block spans, per-page fragment counts, and text coverage, from
 	## the semantic block ownership, the final layout fragments, and the
 	## final text runs. O(blocks + occurrences + fragments + runs).
-	collect : LayoutFacts, List(KernelFacadeSemantics.BlockOwnership), List(Semantics.LayoutFragment), Text.Store, U64 -> Facts
-	collect = |layout_facts, ownership, fragments, text, page_count| {
-		owners = occurrence_owners(ownership)
+	collect : LayoutFacts, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FigureLabels, List(Semantics.LayoutFragment), Text.Store, U64 -> Facts
+	collect = |layout_facts, ownership, figures, fragments, text, page_count| {
+		owners = occurrence_owners(ownership, figures)
 		none = U64.highest
 		var $blocks = List.repeat({ first_page: none, fragments: 0, last_page: 0 }, ownership.len())
 		var $pages = List.repeat(0, page_count)
@@ -163,8 +163,8 @@ KernelFacadeReport :: [].{
 
 ## The leaf block that owns each semantic occurrence: a block's body or
 ## rich occurrences and its generated label.
-occurrence_owners : List(KernelFacadeSemantics.BlockOwnership) -> List(U64)
-occurrence_owners = |ownership| {
+occurrence_owners : List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FigureLabels -> List(U64)
+occurrence_owners = |ownership, figures| {
 	var $count = 0
 	for owned in ownership {
 		end = match owned {
@@ -174,7 +174,11 @@ occurrence_owners = |ownership| {
 		}
 		$count = U64.max($count, end)
 	}
-	var $owners = List.repeat(U64.highest, $count)
+	figure_count = match figures {
+		NoFigureLabels => 0
+		FigureLabels(labels) => labels.owners.len()
+	}
+	var $owners = List.repeat(U64.highest, $count + figure_count)
 	var $block = 0
 	for owned in ownership {
 		match owned {
@@ -203,6 +207,19 @@ occurrence_owners = |ownership| {
 			EmptySourceLine | ContentlessCell => {}
 		}
 		$block = $block + 1
+	}
+	match figures {
+		NoFigureLabels => {}
+		FigureLabels(labels) => {
+			if labels.first != $count {
+				crash "reported Figure label order escaped"
+			}
+			var $occurrence = labels.first
+			for block in labels.owners {
+				$owners = list_set($owners, $occurrence, block)
+				$occurrence = $occurrence + 1
+			}
+		}
 	}
 	$owners
 }

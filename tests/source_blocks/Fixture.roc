@@ -75,7 +75,7 @@ Fixture :: [].{
 	wrapping : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
 	wrapping = |context| evidence({ text: wrap_text, scale: context })
 	unicode : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
-	unicode = |context| evidence({ text: unicode_text, scale: context })
+	unicode = |context| evidence({ text: unicode_text, scale: context, profile: AccessibleArchive })
 	negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
 	negatives = |context| evidence({ text: short_text, scale: context, negative: True })
 }
@@ -118,10 +118,10 @@ faces = |han| {
 	Ok({ body: body.face, mono: mono.face, registry: mono.registry })
 }
 
-EvidenceProps :: { text : Str, spacer : I64 ?? 0, scale : U64 ?? 0, negative : Bool ?? False, defaults : Bool ?? False, han : Bool ?? False, source_only : Bool ?? False, same_body : Bool ?? False, foregrounds : List(Pdf.SourceForeground) ?? [], foreground_negative : Bool ?? False, highlighted : Bool ?? False, repeat_source : Bool ?? False, source_body : Bool ?? False }
+EvidenceProps :: { text : Str, profile : Pdf.Profile ?? Archive, spacer : I64 ?? 0, scale : U64 ?? 0, negative : Bool ?? False, defaults : Bool ?? False, han : Bool ?? False, source_only : Bool ?? False, same_body : Bool ?? False, foregrounds : List(Pdf.SourceForeground) ?? [], foreground_negative : Bool ?? False, highlighted : Bool ?? False, repeat_source : Bool ?? False, source_body : Bool ?? False }
 
 evidence : EvidenceProps -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Error)
-evidence = |EvidenceProps.{ text, spacer, scale, negative, defaults, han, source_only, same_body, foregrounds, foreground_negative, highlighted, repeat_source, source_body }| {
+evidence = |EvidenceProps.{ text, profile, spacer, scale, negative, defaults, han, source_only, same_body, foregrounds, foreground_negative, highlighted, repeat_source, source_body }| {
 	if scale > 1000 {
 		return Err(InvalidCase)
 	}
@@ -140,7 +140,7 @@ evidence = |EvidenceProps.{ text, spacer, scale, negative, defaults, han, source
 	theme : Theme
 	theme = { face: if (same_body) registered.mono else registered.body, body: { size: 11, leading: 15 }, furniture: Own({ size: 8, leading: 10 }), paragraph_spacing: 8 }
 	options : Pdf.Options
-	options = { theme, fonts: Registered(registered.registry) }
+	options = { theme, fonts: Registered(registered.registry), profile }
 	{ prepared, report } = Pdf.prepare_with_report(document, options) ? PdfFailure
 	bytes = Pdf.to_bytes_prepared(prepared) ? PdfFailure
 	reported = if (highlighted) source_report_counts(report) else report_evidence(report, text, source_only)?
@@ -189,7 +189,7 @@ evidence = |EvidenceProps.{ text, spacer, scale, negative, defaults, han, source
 			reject({ ..props, tabs: ExpandTo(0) }, "source.tab_width"),
 			reject({ ..props, text: wrap_text, wrap: RejectLongToken }, "layout.unbreakable_token"),
 			reject({ ..props, text: long_text(100), fragmentation: Unsplittable }, "source.oversize"),
-			source_rejected(Pdf.to_bytes_with(document, { theme: theme }), "source.face"),
+			source_rejected(Pdf.to_bytes_with(document, { profile: Archive, theme: theme }), "source.face"),
 			source_rejected(Pdf.to_bytes_with(document, policy_options), "source.font_policy"),
 			reject({ ..props, leading: 8 }, "source.style"),
 			reject({ ..props, padding: -1 }, "source.style"),
@@ -274,7 +274,7 @@ multiple_evidence = |context| {
 	document = Pdf.document({ title: "Independent source placements", language: "en", contents: [first, Pdf.paragraph("Between source blocks."), second, first] })
 	theme : Theme
 	theme = { body: { size: 11, leading: 15 } }
-	{ prepared, report } = Pdf.prepare_with_report(document, { theme, fonts: Registered(registered.registry) }) ? PdfFailure
+	{ prepared, report } = Pdf.prepare_with_report(document, { profile: Archive, theme, fonts: Registered(registered.registry) }) ? PdfFailure
 	bytes = Pdf.to_bytes_prepared(prepared) ? PdfFailure
 	expected = [{ path: "contents[0]", count: 3 }, { path: "contents[2]", count: 4 }, { path: "contents[3]", count: 3 }]
 	var $index = 0
@@ -449,7 +449,7 @@ foreground_evidence = |kind, lines, colored| {
 			Ok(value) => value
 			Err(_) => crash "foreground fixture UTF8"
 		}
-		return evidence({ text, scale: lines, highlighted: True, foregrounds: $ranges })
+		return evidence({ text, scale: lines, highlighted: True, foregrounds: $ranges, profile: AccessibleArchive })
 	}
 	Err(InvalidCase)
 }

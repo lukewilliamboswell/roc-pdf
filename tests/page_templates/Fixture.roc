@@ -94,8 +94,8 @@ import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 ## - `atomic_negatives`: every template rejection with its stable dotted
 ##   code and template path, and no bytes.
 ##
-## Bytes always come from `Pdf.to_bytes_with` (the default `Archive`
-## profile). Work comes from one additional facade pipeline probe, through
+## Bytes always come from `Pdf.to_bytes_with` with an explicit profile.
+## Work comes from one additional facade pipeline probe, through
 ## pagination, furniture, text, and fragments, over the same normalized
 ## authoring.
 Fixture :: [].{
@@ -111,7 +111,7 @@ Fixture :: [].{
 		if pages != 3 and pages != 30 {
 			return Err(InvalidScale)
 		}
-		evidence(page_labels_document(pages, 72, False), report_theme)
+		evidence(page_labels_document(pages, 72, False), report_theme, Archive)
 	}
 
 	letter : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
@@ -120,7 +120,7 @@ Fixture :: [].{
 			return Err(InvalidScale)
 		}
 		field_width = if (paragraphs > 60) 96 else 72
-		evidence(letter_document(paragraphs, field_width), letter_theme)
+		evidence(letter_document(paragraphs, field_width), letter_theme, Archive)
 	}
 
 	report : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
@@ -128,7 +128,7 @@ Fixture :: [].{
 		if sections == 0 or sections > 100 {
 			return Err(InvalidScale)
 		}
-		evidence(report_document(sections), report_theme)
+		evidence(report_document(sections), report_theme, Archive)
 	}
 
 	ordered : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
@@ -140,10 +140,10 @@ Fixture :: [].{
 	}
 
 	numbering : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
-	numbering = |context| evidence(numbering_document(context), report_theme)
+	numbering = |context| evidence(numbering_document(context), report_theme, Archive)
 
 	images : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
-	images = |context| evidence(images_document(context), report_theme)
+	images = |context| evidence(images_document(context), report_theme, Archive)
 
 	atomic_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	atomic_negatives = |context| run_negatives(context)
@@ -450,7 +450,7 @@ run_ordered : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Evidenc
 run_ordered = |sections| {
 	ordered = ordered_faces(sections)?
 	theme = { ..report_theme, font_selection: Policy(ordered.policy) }
-	options = Pdf.Options.{ theme: theme, fonts: Registered(ordered.registry) }
+	options = Pdf.Options.{ profile: Archive, theme: theme, fonts: Registered(ordered.registry) }
 	document = report_with_header(sections, "Quarterly operations report · Q1 FY2027 · Office中")
 	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
 	flow = KernelFacadePipeline.probe_ordered(Document.normalize(document), ordered, theme, page_size, pipeline_limits) ? |_| EvidenceFailure
@@ -478,9 +478,9 @@ run_ordered = |sections| {
 	})
 }
 
-evidence : Document, Theme -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
-evidence = |document, theme| {
-	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ theme: theme }) ? |_| EvidenceFailure
+evidence : Document, Theme, Pdf.Profile -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+evidence = |document, theme, profile| {
+	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ theme: theme, profile }) ? |_| EvidenceFailure
 	font = KernelFont.inspect(KernelBuiltInFont.bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
 	flow = KernelFacadePipeline.probe(Document.normalize(document), font, theme, page_size, descriptor, pipeline_limits, FragmentsReady) ? |_| EvidenceFailure
 	Ok({
@@ -505,7 +505,7 @@ descriptor : KernelPdfFont.Descriptor
 descriptor = { flags: 32, italic_angle: 0, stem_v: 80 }
 
 rejects : Document, Conformance.DiagnosticCode, Str, List(Str) -> U64
-rejects = |document, expected_code, expected_feature, expected_paths| match Pdf.to_bytes_with(document, Pdf.Options.{ theme: letter_theme }) {
+rejects = |document, expected_code, expected_feature, expected_paths| match Pdf.to_bytes_with(document, Pdf.Options.{ profile: Archive, theme: letter_theme }) {
 	Err(InvalidDocument({ diagnostics: [{ code, details, feature: Feature(feature), location: Document, stage: AuthoringValidation, .. }], truncation: Complete, .. })) => if (code == expected_code and feature == expected_feature and details == expected_paths) 1 else 0
 	_ => 0
 }
@@ -557,7 +557,7 @@ run_negatives = |context| {
 	if passed != checks.len() {
 		return Err(MissingRejection(passed))
 	}
-	carrier = Pdf.to_bytes_with(templated([Pdf.title("Template carrier"), Pdf.paragraph("A valid templated page.")], simple(text_header, text_header)), Pdf.Options.{ theme: letter_theme }) ? |_| EvidenceFailure
+	carrier = Pdf.to_bytes_with(templated([Pdf.title("Template carrier"), Pdf.paragraph("A valid templated page.")], simple(text_header, text_header)), Pdf.Options.{ profile: Archive, theme: letter_theme }) ? |_| EvidenceFailure
 	Ok({ bytes: carrier, work: [passed, carrier.len()] })
 }
 
@@ -567,7 +567,7 @@ run_page_sizes : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Evid
 run_page_sizes = |context| {
 	title = if (context == 0) "Landscape ledger" else "guarded"
 	landscape = { height: Layout.Unit.from_raw(595000), width: Layout.Unit.from_raw(842000) }
-	options = |size| Pdf.Options.{ theme: report_theme, page_size: size }
+	options = |size| Pdf.Options.{ profile: Archive, theme: report_theme, page_size: size }
 	heading_cell = |value| Pdf.header_cell(Column, [Pdf.text(value)])
 	var $rows = []
 	var $index = 0
@@ -652,7 +652,7 @@ run_furniture_groups = |context| {
 			first: Pdf.first_page_template({ footer, gap: 12, header }),
 		}),
 	})
-	evidenced = evidence(document, report_theme)?
+	evidenced = evidence(document, report_theme, Archive)?
 	var $deep = mark
 	var $depth = 0
 	while $depth < 9 {
@@ -706,7 +706,7 @@ run_backdrops = |pages| {
 		title: "Backdrops (${pages.to_str()} pages)",
 		page_templates: Templates(backdrop_templates(483)),
 	})
-	evidenced = evidence(document, report_theme)?
+	evidenced = evidence(document, report_theme, Archive)?
 	body = [Pdf.paragraph("Body.")]
 	templated = |templates| Pdf.document({
 		contents: body,
@@ -766,7 +766,7 @@ run_slot_inset = |context| {
 		page_templates: Templates(templates),
 	})
 	document = inset_document(inset_templates(3, 4))
-	evidenced = evidence(document, report_theme)?
+	evidenced = evidence(document, report_theme, Archive)?
 	inset = inset_plan(document, report_theme)?
 	plain = inset_plan(inset_document(inset_templates(0, 0)), report_theme)?
 	inset_pieces = KernelFacadeFurniture.Plan.pieces(inset)
@@ -940,7 +940,7 @@ run_typography = |pages| {
 		}
 		Pdf.document({ contents: $contents, language: "en-AU", title: "Independent furniture typography", page_templates: Templates({ first: Pdf.first_page_template({ header, footer }), continuation: Pdf.page_template({ header, footer }) }) })
 	}
-	options = Pdf.Options.{ theme, fonts: Registered(mono.registry) }
+	options = Pdf.Options.{ profile: Archive, theme, fonts: Registered(mono.registry) }
 	document = make(10, 70)
 	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
 	body_font = mono.registry.prepared_face(body.face) ? |_| EvidenceFailure
@@ -987,7 +987,7 @@ chapter_evidence = |count, mode| {
 	}
 	$contents = $contents.append(Pdf.paragraph("Unscoped ending resets the chapter label."))
 	doc = Pdf.document({ contents: $contents, language: "en-AU", title: "Chapter scope evidence", page_templates: if (mode == 1) NoTemplates else Templates({ first: Pdf.first_page_template({ footer, gap: 10, lead: Pdf.lead_region(40, [Pdf.paragraph("Semantic document lead")]) }), continuation: Pdf.page_template({ footer, gap: 10, header }) }) })
-	reported = Pdf.prepare_with_report(doc, Pdf.Options.{ theme: report_theme }) ? |error| crash Str.inspect(error)
+	reported = Pdf.prepare_with_report(doc, Pdf.Options.{ profile: Archive, theme: report_theme }) ? |error| crash Str.inspect(error)
 	var $scopes = 0
 	var $openings = 0
 	for outcome in reported.report.facts.outcomes {
@@ -1004,7 +1004,7 @@ chapter_evidence = |count, mode| {
 	if $openings != count or $scopes <= count {
 		crash "unexpected scope facts ${$openings.to_str()} / ${$scopes.to_str()}"
 	}
-	result = evidence(doc, report_theme)?
+	result = evidence(doc, report_theme, if (mode == 0) AccessibleArchive else Archive)?
 	font = KernelFont.inspect(KernelBuiltInFont.bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
 	flow = KernelFacadePipeline.probe(Document.normalize(doc), font, report_theme, page_size, descriptor, pipeline_limits, FragmentsReady) ? |_| EvidenceFailure
 	Ok({ bytes: result.bytes, work: result.work.append($scopes).append($openings).append(flow.scope_visits).append(flow.template_region_visits) })
@@ -1033,6 +1033,6 @@ run_chapter_negatives = |context| {
 	if $passed != checks.len() {
 		crash "chapter rejections ${$passed.to_str()} / ${checks.len().to_str()} ${Str.inspect(checks)}"
 	}
-	result = evidence(document([paragraph]), letter_theme)?
+	result = evidence(document([paragraph]), letter_theme, Archive)?
 	Ok({ bytes: result.bytes, work: result.work.append($passed) })
 }

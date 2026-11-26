@@ -19,11 +19,9 @@ recorded in `.roc-version` (`nightly-2026-09-30-df1f747`, a local ReleaseFast
 build of Roc commit `df1f747ebb`). The optional human and assistive-technology
 review was **not performed**; it is optional and never blocks closure.
 
-The decision makes no PDF/UA-2 or combined-profile claim: `PdfUa2` stays
-`defined_only`, `AccessibleArchive` still reports `profile.accessible_archive`
-(LET-A4), and the combined product is Gate 7. Closing the gate also does not
-make the branch mergeable: the pinned tag is not a published nightly, so CI
-cannot provision it (see [Open issues](#open-issues)).
+This evidence covers the Gate 6 authoring subset under `Archive`. See
+[Gate 7](../../../feature-roadmap.md#gate-7-business-document-production-release-and-combined-closure)
+for the combined product evidence.
 
 ## What S10 adds
 
@@ -168,7 +166,7 @@ Run on 2026-09-30 against the committed snapshots and gallery.
   snapshots and 10 gallery PDFs fail only clause 5 (no PDF/UA
   identification, as expected without a claim). No 8.2.4 finding remains.
 - **Arlington 1.30.2** (`check_arlington.py --cases` against the digest-pinned
-  `verapdf/arlington` service in Docker, as CI runs it): 230 case files
+  `verapdf/arlington` service in Docker): 230 case files
   compliant with zero failed rules and checks; the one recorded exception
   failed exactly as recorded.
 - **Independent structure checkers**: `check_structure_semantics.py`

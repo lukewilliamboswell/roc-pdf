@@ -209,7 +209,7 @@ run_labels = |count| {
 	policy_rejected = match Font.Registry.empty.register_built_in(if (count > 0) Font.ValidationLimits.default else Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })) {
 		Err(_) => 0
 		Ok(registered) => {
-			options = Pdf.Options.{ theme: { ..report_theme, font_selection: Policy(registered.policy) }, fonts: Registered(registered.registry) }
+			options = Pdf.Options.{ profile: Archive, theme: { ..report_theme, font_selection: Policy(registered.policy) }, fonts: Registered(registered.registry) }
 			match Pdf.to_bytes_with(document_of([Pdf.paragraph("Lead"), figure(labelled("Mark"))]), options) {
 				Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature("text.drawing_label_policy"), .. }], .. })) => 1
 				_ => 0
@@ -230,7 +230,7 @@ label_face_options = |context| {
 	strong = body.registry.register({ bytes: caller_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: limits }) ? |_| EvidenceFailure
 	code = strong.registry.register({ bytes: mono_font_bytes, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits: limits }) ? |_| EvidenceFailure
 	theme = { ..report_theme, face: body.face, title: { ..report_theme.title, face: Face(body.face) }, inline: { ..report_theme.inline, code: { ..report_theme.inline.code, font: Face(code.face) }, strong: { ..report_theme.inline.strong, font: Face(strong.face) } } }
-	Ok(Pdf.Options.{ theme: theme, fonts: Registered(code.registry) })
+	Ok(Pdf.Options.{ profile: Archive, theme: theme, fonts: Registered(code.registry) })
 }
 
 ## A chart titled in the `Strong` face, with tick values in the `Code`
@@ -486,7 +486,7 @@ bound_diagnostic_bytes = {
 	solid = Scene.solid_fill(oak)
 	mark = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 20, height: 20 }), color: oak })
 	curve = mark.path({ path: Scene.PathBuilder.start.move_to(Layout.point({ x: 0, y: 0 })).cubic_to({ control_1: Layout.point({ x: -4, y: 5 }), control_2: Layout.point({ x: -4, y: 15 }), end: Layout.point({ x: 0, y: 20 }) }).close().finish(), style: solid })
-	Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.title("Drawing bounds"), Pdf.figure({ drawing: Scene.Drawing.empty.group({ offset: Layout.point({ x: 4, y: 0 }), drawing: curve }), alt: "A curved mark moved inside the origin", caption: Pdf.no_caption })], language: "en-AU", title: "Drawing bounds" }), Pdf.Options.{ theme: report_theme })
+	Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.title("Drawing bounds"), Pdf.figure({ drawing: Scene.Drawing.empty.group({ offset: Layout.point({ x: 4, y: 0 }), drawing: curve }), alt: "A curved mark moved inside the origin", caption: Pdf.no_caption })], language: "en-AU", title: "Drawing bounds" }), Pdf.Options.{ profile: Archive, theme: report_theme })
 }
 
 run_bound_diagnostics : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
@@ -502,7 +502,7 @@ run_bound_diagnostics = |context| {
 		Err(InvalidDocument({ diagnostics: [{ message, .. }], .. })) => message
 		_ => ""
 	}
-	options = Pdf.Options.{ theme: report_theme }
+	options = Pdf.Options.{ profile: Archive, theme: report_theme }
 	figure = |drawing| message_of(Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.figure({ drawing: drawing, alt: "A mark", caption: Pdf.no_caption })], language: "en-AU", title: "Bounds" }), options))
 	decoration = |drawing| message_of(Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.decoration({ drawing: drawing }), Pdf.paragraph("Body")], language: "en-AU", title: "Bounds" }), options))
 	furniture = |drawing| {
@@ -575,7 +575,7 @@ run_spaced_decorations = |count| {
 ## probe through scenes over the same normalized authoring.
 evidence : Document -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 evidence = |document| {
-	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ theme: report_theme }) ? |_| EvidenceFailure
+	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ profile: Archive, theme: report_theme }) ? |_| EvidenceFailure
 	font = KernelFont.inspect(KernelBuiltInFont.bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
 	normalized = Document.normalize(document)
 	figures = normalized.figures.len()
@@ -602,7 +602,7 @@ descriptor : KernelPdfFont.Descriptor
 descriptor = { flags: 32, italic_angle: 0, stem_v: 80 }
 
 rejects : Document, Conformance.DiagnosticCode, Str, List(Str) -> U64
-rejects = |document, expected_code, expected_feature, expected_paths| match Pdf.to_bytes_with(document, Pdf.Options.{ theme: report_theme }) {
+rejects = |document, expected_code, expected_feature, expected_paths| match Pdf.to_bytes_with(document, Pdf.Options.{ profile: Archive, theme: report_theme }) {
 	Err(InvalidDocument({ diagnostics: [{ code, details, feature: Feature(feature), location: Document, stage: AuthoringValidation, .. }], truncation: Complete, .. })) => if (code == expected_code and feature == expected_feature and details == expected_paths) 1 else 0
 	_ => 0
 }
@@ -651,7 +651,7 @@ run_negatives = |context| {
 	if passed != checks.len() {
 		return Err(MissingRejection(passed))
 	}
-	carrier = Pdf.to_bytes_with(document([Pdf.title("Figure carrier"), Pdf.figure({ drawing: leaf_mark, alt: "The Harbour & Finch leaf mark", caption: Pdf.no_caption })]), Pdf.Options.{ theme: report_theme }) ? |_| EvidenceFailure
+	carrier = Pdf.to_bytes_with(document([Pdf.title("Figure carrier"), Pdf.figure({ drawing: leaf_mark, alt: "The Harbour & Finch leaf mark", caption: Pdf.no_caption })]), Pdf.Options.{ profile: Archive, theme: report_theme }) ? |_| EvidenceFailure
 	Ok({ bytes: carrier, work: [passed, carrier.len()] })
 }
 

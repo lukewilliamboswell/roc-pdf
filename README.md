@@ -8,11 +8,16 @@ facade; roc-pdf owns pagination, font embedding and deterministic output.
 [API reference](https://lukewilliamboswell.github.io/roc-pdf/) ·
 [Latest release](https://github.com/lukewilliamboswell/roc-pdf/releases/latest)
 
-Default `Archive` output claims static PDF/A-4. Unsupported content returns
-structured diagnostics without font substitution or profile downgrade.
-PDF/UA-2 is not currently claimed. See the
-[authoring guide](docs/authoring.adoc#authoring-supported-features) for supported
-content, profiles and limits.
+The default `AccessibleArchive` profile writes PDF/A-4 and PDF/UA-2
+declarations for supported documents. The package checks the supported
+structure, metadata, and embedded resources before it writes any bytes.
+Standards support is best effort. See the
+[output profile guide](docs/authoring.adoc#authoring-output-profiles)
+for other profiles and the WTPDF accessibility declaration.
+
+If your project needs independent certification, open a
+[GitHub issue](https://github.com/lukewilliamboswell/roc-pdf/issues) to
+discuss the scope, funding, and who would own the work.
 
 <table>
 <tr>

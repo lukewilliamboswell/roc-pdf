@@ -10,9 +10,10 @@ Run all targets with the repository's pinned Roc compiler:
 ./scripts/fuzz.py --jobs 1
 ```
 
-The nine properties share two executables: `font_suite.roc` contains font
+`font_suite.roc` contains font
 inspection, repair and subsetting; `document_suite.roc` contains JPEG inspection,
-facade output and structure, navigation, registry and theme properties. Each
+facade output and structure, navigation, registry and theme properties. The
+standalone `profile_output.roc` exercises profile selection and atomic errors. Each
 suite builds once, including when several selected properties share it.
 `--targets` still selects individual properties. The harness verifies the
 executable's inventory and invokes each property with its own `--target`,
@@ -104,6 +105,11 @@ provenance entry. Existing tracked corpora are never mutated in place.
 
 ## Properties
 
+- `profile_output`: checks emitted PDF/A-4, PDF/UA-2 and WTPDF identifiers
+  against the requested profile across compression settings, and compares
+  buffered and chunked output. Incompatible WTPDF requests, blank accessible
+  archives and unspecified natural language must return the same located
+  diagnostic through preparation and both export entry points.
 - `font_inspector_mutation`: successful bounded TrueType inspection preserves
   independently checked directory, coverage, glyph, component and work facts.
 - `font_inspector_repair`: independent checksum restoration lets bounded table

@@ -32,12 +32,10 @@ Scene :: [].{
 	## of an inline role, by the same pipeline as body text, never outlined
 	## or rasterized, and must lie inside its drawing.
 	##
-	## Label text is page-artifact text (`Decoration`): it is extractable
-	## and searchable through its Unicode mapping, but it belongs to no
-	## structure element. In a figure, the figure's alternative text is
-	## what assistive technology reads, so it must convey what the labels
-	## say; in a decoration or a custom block's panel the labels are
-	## decoration like the rest of the drawing.
+	## Labels in a figure belong to its Figure structure element in drawing
+	## order. Provide alternative text that explains the figure and any
+	## labels needed to understand it. Labels on a custom block's panel are
+	## decoration artifacts. Both kinds have searchable Unicode text.
 	##
 	## `align` is `Start` and `color` black unless given.
 	Label := {

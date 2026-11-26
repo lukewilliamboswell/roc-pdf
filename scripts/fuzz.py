@@ -9,7 +9,7 @@ error handling, and invariant preservation; they do not make a security claim.
 to every `fuzz/*.roc` source, which runs the `expect`s a target retains but
 never executes the property against generated input. This lane does that.
 
-Properties share two suites built with `--fuzz` for libFuzzer coverage
+Property suites build with `--fuzz` for libFuzzer coverage
 instrumentation. Each property runs separately against its seed corpus.
 A crash, a per-input timeout, a memory-limit
 breach, or a run that outlives its hard deadline fails the lane; every target
@@ -107,6 +107,7 @@ TARGETS = (
     Target("navigation_property", 4096, "document_suite"),
     Target("registry_property", 4096, "document_suite"),
     Target("theme_options", 4096, "document_suite"),
+    Target("profile_output", 32, "profile_output"),
 )
 
 

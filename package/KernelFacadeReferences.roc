@@ -101,8 +101,8 @@ build_plan : Document.NormalizedAuthoring, KernelFacadeShape.FontSelection, Them
 build_plan = |authoring, selection, theme, page_size, flow, limits| {
 	symbolic = KernelFacadeSemantics.Symbolic.build(authoring, limits.semantics) ? Semantics
 	spine = KernelFacadeSemantics.Symbolic.view(symbolic)
-	occurrences = checked_add(spine.literals.len(), spine.pending.len())?
-	registry = KernelNavigation.Registry.build(spine.destinations, { forms: 0, nodes: spine.nodes.len(), occurrences, pages: 0, semantic_annotations: 0 }, limits.navigation) ? Navigation
+	flow_occurrences = checked_add(spine.literals.len(), spine.pending.len())?
+	registry = KernelNavigation.Registry.build(spine.destinations, { forms: 0, nodes: spine.nodes.len(), occurrences: KernelFacadeSemantics.Symbolic.occurrence_count(symbolic), pages: 0, semantic_annotations: 0 }, limits.navigation) ? Navigation
 	literal_shape = KernelFacadeReferenceShape.Plan.build(authoring, spine.literals, KernelFacadeSources.Plan.sources(spine.sources), selection, theme, limits.shape) ? Shape
 	literal = KernelFacadeReferenceShape.Plan.view(literal_shape)
 	lines = KernelFacadeReferenceLines.Plan.build(spine, literal_shape, page_size, theme, limits.lines) ? Lines
@@ -111,19 +111,19 @@ build_plan = |authoring, selection, theme, page_size, flow, limits| {
 	pages = KernelPageLayout.Choice.pages(KernelFacadePages.Measured.view(measured).choice).len()
 	paint = KernelFacadePages.Measured.paint(measured, authoring, measured_lines.input, measured_lines.visible_advances, page_size, theme, limits.pages) ? Pages
 	labels = KernelNavigation.LabelPlan.build(authoring.page_labels, pages, limits.navigation) ? Navigation
-	committed = commit_literal_anchors(occurrences, measured_lines, literal, paint.rows)?
+	committed = commit_literal_anchors(flow_occurrences, measured_lines, literal, paint.rows)?
 	resolved = resolve_labels(authoring, registry, labels, committed.anchors, limits.max_reference_bytes)?
-	finalized = KernelFacadeSemantics.Symbolic.finalize_with_contexts(symbolic, resolved.values) ? Semantics
+	finalized = KernelFacadeSemantics.Symbolic.finalize_with_contexts(symbolic, resolved.values, resolved.contents_targets) ? Semantics
 	semantics = finalized.plan
 	final_shape = KernelFacadeReferenceShape.Plan.build(authoring, finalized.contexts, KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics)), selection, theme, limits.shape) ? Shape
 	final = KernelFacadeReferenceShape.Plan.view(final_shape)
-	shape = KernelFacadeReferenceShape.Plan.final_shape(final_shape, authoring, spine.block_ownership, occurrences) ? Shape
+	shape = KernelFacadeReferenceShape.Plan.final_shape(final_shape, authoring, spine.block_ownership, flow_occurrences) ? Shape
 	mapping = map_literal_clusters(literal, final)?
 	positioned = position_items(authoring, spine.pending, measured_lines, literal, final, mapping.entries, paint.rows, committed.anchors)?
 	leaders = contents_rules(measured_lines.contents, paint.rows, theme, KernelLineLayout.BatchLimits.max_items(KernelFacadeLines.Limits.values(limits.lines).line))?
 	rules = merge_contents_rules(paint.rules, leaders.rules)
 	positioned_text = KernelFacadeText.Plan.build_positioned({ shape: final.store, styles: final.styles, lines: positioned.lines, origins: Origins(final.origins), pages, pieces: positioned.pieces }, rules, paint.flow, limits.text) ? Text
-	separated = KernelFacadeText.Plan.with_occurrence_separators(positioned_text, finalized.separators, occurrences, limits.text) ? Text
+	separated = KernelFacadeText.Plan.with_occurrence_separators(positioned_text, finalized.separators, flow_occurrences, limits.text) ? Text
 	text = separated.plan
 	Ok(
 		KernelFacadeReferences.Plan.{
@@ -198,9 +198,11 @@ commit_literal_anchors = |occurrences, lines, shape, rows| {
 	Ok({ anchors: $anchors, visits: $visits })
 }
 
-resolve_labels : Document.NormalizedAuthoring, KernelNavigation.Registry, KernelNavigation.LabelPlan, List(KernelNavigation.CommittedAnchor), U64 -> Try({ values : List(Str), facts : List(KernelFacadeReferences.Resolved), steps : U64, bytes : U64 }, KernelFacadeReferences.Error)
+resolve_labels : Document.NormalizedAuthoring, KernelNavigation.Registry, KernelNavigation.LabelPlan, List(KernelNavigation.CommittedAnchor), U64 -> Try({ values : List(Str), facts : List(KernelFacadeReferences.Resolved), contents_targets : List(Semantics.NodeId), steps : U64, bytes : U64 }, KernelFacadeReferences.Error)
 resolve_labels = |authoring, registry, labels, anchors, max_bytes| {
 	destinations = KernelNavigation.Registry.destinations(registry)
+	var $contents_targets = []
+	var $contents_index = 0
 	var $values = List.with_capacity(authoring.page_references.len())
 	var $facts = List.with_capacity(authoring.page_references.len())
 	var $steps = 0
@@ -213,6 +215,10 @@ resolve_labels = |authoring, registry, labels, anchors, max_bytes| {
 		destination = match found.result {
 			Missing => return Err(UnknownDestination({ reference: $reference }))
 			Found(id) => list_at(destinations, id.index())
+		}
+		if $contents_index < authoring.contents_entries.len() and list_at(authoring.contents_entries, $contents_index).reference == $reference {
+			$contents_targets = $contents_targets.append(destination.target)
+			$contents_index = $contents_index + 1
 		}
 		anchor = match list_at(anchors, destination.anchor.index()) {
 			Unplaced => return Err(MissingAnchor({ reference: $reference }))
@@ -233,7 +239,7 @@ resolve_labels = |authoring, registry, labels, anchors, max_bytes| {
 		$facts = $facts.append({ reference: $reference, physical_page: checked_add(anchor.page.index(), 1)?, value })
 		$reference = $reference + 1
 	}
-	Ok({ values: $values, facts: $facts, steps: $steps, bytes: $bytes })
+	Ok({ values: $values, facts: $facts, contents_targets: $contents_targets, steps: $steps, bytes: $bytes })
 }
 
 ## The final title row is explicit measurement evidence. Paint bounded small

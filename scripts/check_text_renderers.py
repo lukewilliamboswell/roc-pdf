@@ -8,6 +8,8 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from provision_extended_tools import archive_path
+
 from check_visual_renderers import Raster, read_ppm
 
 
@@ -24,7 +26,7 @@ RTL_TEXT_SNAPSHOT = ROOT / "tests" / "actual_text" / "rtl_text.pdf"
 CASE_TEXT_SNAPSHOT = ROOT / "tests" / "actual_text" / "case_text.pdf"
 SOFT_HYPHEN_SNAPSHOT = ROOT / "tests" / "actual_text" / "soft_hyphen.pdf"
 EXTERNAL_DISCRETIONARY_HYPHEN_SNAPSHOT = ROOT / "tests" / "actual_text" / "external_discretionary_hyphen.pdf"
-PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
+PDFBOX_JAR = archive_path("pdfbox")
 PDFBOX_SOURCE = ROOT / "scripts" / "PdfBoxRender.java"
 
 
@@ -137,7 +139,7 @@ def check_renderers(
     pdfium_expected: InkMetrics,
 ) -> None:
     require(renderer.is_file(), f"PDFium renderer does not exist: {renderer}")
-    require(PDFBOX_JAR.is_file(), f"vendored PDFBox JAR does not exist: {PDFBOX_JAR}")
+    require(PDFBOX_JAR.is_file(), f"cached PDFBox JAR does not exist: {PDFBOX_JAR}")
     with tempfile.TemporaryDirectory(prefix="roc-pdf-render-") as temporary_name:
         temporary = Path(temporary_name)
         classes = temporary / "classes"

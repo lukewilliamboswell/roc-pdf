@@ -263,15 +263,14 @@ heading_chain_document = |count| {
 
 evidence : Document, Theme -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 evidence = |document, theme| {
-	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ theme: theme }) ? |_| EvidenceFailure
+	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ profile: Archive, theme: theme }) ? |_| EvidenceFailure
 	authoring = Document.normalize(document)
 	semantics = KernelFacadeSemantics.Plan.build(authoring, semantic_limits) ? |_| EvidenceFailure
 	work = KernelFacadeSemantics.Plan.work(semantics)
-	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(semantics)))
 	semantic_work = KernelSemantics.Plan.work(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(semantics)))
 	source_store = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics))
 	font = KernelFont.inspect(KernelBuiltInFont.bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
-	shape = KernelFacadeShape.Plan.build(authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), store, source_store, font, theme, shape_limits) ? |_| EvidenceFailure
+	shape = KernelFacadeShape.Plan.build(authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), KernelFacadeSemantics.Plan.flow_text(semantics), source_store, font, theme, shape_limits) ? |_| EvidenceFailure
 	lines = KernelFacadeLines.Plan.build(authoring, shape, source_store, page_size, theme, line_limits) ? |_| EvidenceFailure
 	pages = KernelFacadePages.Plan.build(authoring, shape, lines, page_size, theme, page_limits) ? |_| EvidenceFailure
 	page_work = KernelFacadePages.Plan.work(pages).page
@@ -303,7 +302,7 @@ page_size : Layout.Size
 page_size = { height: Layout.Unit.from_raw(842000), width: Layout.Unit.from_raw(595000) }
 
 rejects : Document, Conformance.DiagnosticCode, Str, List(Str) -> U64
-rejects = |document, expected_code, expected_feature, expected_paths| match Pdf.to_bytes(document) {
+rejects = |document, expected_code, expected_feature, expected_paths| match Pdf.to_bytes_with(document, { profile: Archive }) {
 	Err(InvalidDocument({ diagnostics: [{ code, details, feature: Feature(feature), location: Document, stage: AuthoringValidation, .. }], truncation: Complete, .. })) => if (code == expected_code and feature == expected_feature and details == expected_paths) 1 else 0
 	_ => 0
 }
@@ -376,8 +375,8 @@ run_negatives = |context| {
 	}
 
 	## The deepest accepted list nesting is the facade bound itself.
-	boundary = Pdf.to_bytes(document([Pdf.title("Boundary"), Pdf.bullet_list([nest_lists(4 + offset)])])) ? |_| EvidenceFailure
-	carrier = Pdf.to_bytes(document([Pdf.title("Layout carrier"), Pdf.bullet_list([item("A valid list item.")])])) ? |_| EvidenceFailure
+	boundary = Pdf.to_bytes_with(document([Pdf.title("Boundary"), Pdf.bullet_list([nest_lists(4 + offset)])]), { profile: Archive }) ? |_| EvidenceFailure
+	carrier = Pdf.to_bytes_with(document([Pdf.title("Layout carrier"), Pdf.bullet_list([item("A valid list item.")])]), { profile: Archive }) ? |_| EvidenceFailure
 	Ok({ bytes: carrier, work: [passed, boundary.len(), carrier.len()] })
 }
 

@@ -3,11 +3,13 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from check_profile_declarations import validate_claims
 from check_default_fonts import validate_default_fonts_pdf
 from check_contents_entries import validate_contents_entries_pdf
 from check_destination_references import validate_destination_references_pdf
 from check_chapter_templates import validate_chapter_templates_pdf
 from check_vector_diagrams import validate_vector_diagrams_pdf
+from check_fixed_pages import validate_fixed_pages_pdf
 from check_actual_text import EXPECTED_CONTENT as ACTUAL_TEXT_CONTENT
 from check_actual_text import validate_actual_text_pdf
 from check_caller_facade import validate_caller_facade_pdf, validate_unhinted_caller_pdf
@@ -54,6 +56,10 @@ from check_tagged_visual import validate_tagged_visual_pdf
 from check_text import EXPECTED_CONTENT as TEXT_CONTENT
 from check_text import decoded_stream, only_object, validate_text_pdf
 from check_transparency import validate_transparency_pdf
+
+
+# Claim IDs select project-owned output checks and label local oracle inputs.
+PROFILE_VALIDATORS = {"pdfua2": "pdfa4", "wtpdf_accessibility": "pdfua2"}
 
 
 Reporter = Callable[[str], None]
@@ -147,6 +153,7 @@ VALIDATORS: dict[str, Validator] = {
     "default_fonts": _dimensioned(validate_default_fonts_pdf, "genuine static family/style programs, exact selected glyph outlines and searchable source text"),
     "contents_entries": _dimensioned(validate_contents_entries_pdf, "aligned contents columns, wrapped titles, linked exact page references and decorative leaders"),
     "destination_references": _dimensioned(validate_destination_references_pdf, "printed reference Unicode agrees with emitted destinations and page labels, fixed advances, semantic owners and explicit annotations"),
+    "fixed_pages": _dimensioned(validate_fixed_pages_pdf, "fixed frame geometry, independent structure and stream order, and exact background/overlay ownership"),
     "vector_diagrams": _dimensioned(validate_vector_diagrams_pdf, "exact prepared-vector Unicode labels, caption/Alt ownership and cubic/arrowhead paths"),
     "page_labels": _dimensioned(validate_page_labels_pdf, "visible labels match emitted PDF label ranges; repeated labels remain artifacts"),
     "pdf_structure": _pdf_structure_with(None),
@@ -167,8 +174,8 @@ VALIDATORS: dict[str, Validator] = {
     "rtl_text": _simple(validate_rtl_pdf, "resolved visual order, mirrored presentation, logical ActualText, CID, and Unicode mapping facts"),
     "multiface_facade": _simple(validate_multiface_facade_pdf, "independent offsets, lengths, xref, dense two-font resources, visual-order paint segments, CID, and per-font Unicode mapping facts"),
     "caller_facade": _simple(validate_caller_facade_pdf, "independent offsets, lengths, xref, public caller source identity, three placements, Type 0 font, CID, and Unicode mapping facts"),
-    "drawing_labels": _simple(validate_drawing_labels_pdf, "every drawing label shown as Layout artifact text decoding through ToUnicode to its exact string, and none tagged"),
-    "drawing_label_faces": _simple(validate_drawing_label_faces_pdf, "labels decoded per font: region names and a title repeat in the body face, the title in a second face and tick values in a third, neither role face setting tagged text"),
+    "drawing_labels": _dimensioned(lambda pdf, dimensions: validate_drawing_labels_pdf(pdf, dimensions.get("labelled_figures")), "exact Figure label Unicode and ownership in drawing order, and panel label as Layout artifact"),
+    "drawing_label_faces": _dimensioned(lambda pdf, dimensions: validate_drawing_label_faces_pdf(pdf, dimensions.get("labelled_figures")), "exact Figure label Unicode, ownership and authored face selection"),
     "link_underlines": _simple(validate_link_underlines_pdf, "every link line quadrilateral has a Layout artifact underline inside its extent, and underlines exist"),
     "unhinted_caller_font": _simple(validate_unhinted_caller_pdf, "caller facade facts plus an embedded subset of exactly the ten required TrueType tables, no hinting table"),
     "fonts": _dimensioned(validate_fonts_pdf, "canonical Type 0 bundles, verified embedded subsets, identity CID maps, ToUnicode facts, exact per-stream /Font dictionaries, and placement-site ownership"),
@@ -212,30 +219,25 @@ class PreflightCheck:
 PREFLIGHT_CHECKS: dict[str, PreflightCheck] = {
     name.removeprefix("check_").removesuffix(".py"): PreflightCheck(name)
     for name in (
-        "check_arlington.py", "check_pdfbox.py", "check_tagged_visual.py", "check_visual_renderers.py",
+        "check_tagged_visual.py", "check_visual_renderers.py",
         "check_text.py", "check_caller_text.py", "check_caller_facade.py", "check_facade_output.py",
         "check_generated_labels.py", "check_actual_text.py", "check_supplementary_text.py", "check_cjk_text.py",
         "check_ligature.py", "check_multiface_facade.py", "check_case_text.py", "check_combining.py",
         "check_rtl.py", "check_multiface_text.py", "check_soft_hyphen.py", "check_external_discretionary_hyphen.py",
-        "check_text_renderers.py", "check_forms.py", "check_form_renderers.py", "check_color_images.py",
-        "check_color_image_renderers.py", "check_transparency.py", "check_transparency_renderers.py",
-        "check_soft_masks.py", "check_soft_mask_renderers.py", "check_shadings.py", "check_shading_renderers.py",
-        "check_font_renderers.py", "check_metadata.py", "check_metadata_renderers.py",
-        "check_navigation.py", "check_navigation_renderers.py", "check_link_underlines.py", "check_drawing_labels.py", "extract_verapdf_rules.py",
-        "build_verapdf_corpus_subset.py", "roc_diagnostics.py",
+        "check_forms.py", "check_color_images.py",
+        "check_transparency.py", "check_transparency_renderers.py",
+        "check_soft_masks.py", "check_shadings.py", "check_shading_renderers.py",
+        "check_metadata.py", "check_metadata_renderers.py",
+        "check_navigation.py", "check_link_underlines.py", "check_drawing_labels.py", "roc_diagnostics.py",
     )
 }
-# The static PDF/A-4 self-tests read Archive and Standard snapshots, which are
-# in flux during --update-snapshots; they run again as post-update checks.
 PREFLIGHT_CHECKS["pdfa4_structure"] = PreflightCheck("check_pdfa4_structure.py", True)
-PREFLIGHT_CHECKS["pdfa4"] = PreflightCheck("check_pdfa4.py", True)
-PREFLIGHT_CHECKS["archive_renderers"] = PreflightCheck("check_archive_renderers.py", True)
+PREFLIGHT_CHECKS["profile_declarations"] = PreflightCheck("check_profile_declarations.py", True)
 PREFLIGHT_CHECKS["contracts"] = PreflightCheck("check_contracts.py", True)
 PREFLIGHT_CHECKS["pdf_structure"] = PreflightCheck("check_pdf_structure.py", True)
 # The font self-test validates the committed font-leaf snapshots' exact
 # descendant dictionaries, which are also in flux during --update-snapshots.
 PREFLIGHT_CHECKS["default_fonts"] = PreflightCheck("check_default_fonts.py", True)
-PREFLIGHT_CHECKS["roc_font"] = PreflightCheck("check_roc_font.py", True)
 PREFLIGHT_CHECKS["fonts"] = PreflightCheck("check_fonts.py", True)
 # The structure-semantics self-test reads committed facade and container
 # snapshots, which are in flux during --update-snapshots.
@@ -248,20 +250,23 @@ PREFLIGHT_CHECKS["technical_manual"] = PreflightCheck("check_technical_manual.py
 PREFLIGHT_CHECKS["contents_entries"] = PreflightCheck("check_contents_entries.py", True)
 PREFLIGHT_CHECKS["destination_references"] = PreflightCheck("check_destination_references.py", True)
 PREFLIGHT_CHECKS["source_blocks"] = PreflightCheck("check_source_blocks.py", True)
+PREFLIGHT_CHECKS["fixed_pages"] = PreflightCheck("check_fixed_pages.py", True)
 PREFLIGHT_CHECKS["vector_diagrams"] = PreflightCheck("check_vector_diagrams.py", True)
 PREFLIGHT_CHECKS["source_foregrounds"] = PreflightCheck("check_source_foregrounds.py", True)
-# Both reference-document self-tests read the reference and gallery
+# The reference-document self-test reads the reference and gallery
 # snapshots, which are in flux during --update-snapshots.
-PREFLIGHT_CHECKS["structure_extraction"] = PreflightCheck("check_structure_extraction.py", True)
 PREFLIGHT_CHECKS["reference_documents"] = PreflightCheck("check_reference_documents.py", True)
 
 
 def validate_registry_ids(validators: tuple[str, ...], field: str) -> None:
     if len(validators) != len(set(validators)):
         raise SystemExit(f"{field}: validators must be unique")
-    unknown = set(validators) - VALIDATORS.keys()
+    unknown = set(validators) - VALIDATORS.keys() - PROFILE_VALIDATORS.keys()
     if unknown:
         raise SystemExit(f"{field}: unknown validator(s): {', '.join(sorted(unknown))}")
+    for selected, required in PROFILE_VALIDATORS.items():
+        if selected in validators and required not in validators:
+            raise SystemExit(f"{field}: {selected} requires {required}")
 
 
 def validate_preflight_ids(checks: tuple[str, ...], field: str) -> None:
@@ -275,7 +280,15 @@ def validate_preflight_ids(checks: tuple[str, ...], field: str) -> None:
 def run_validators(
     validator_ids: tuple[str, ...], data: bytes, dimensions: dict[str, int], report: Reporter
 ) -> None:
+    if "pdfua2" in validator_ids:
+        dimensions = {**dimensions, "facade_table_headers": 1}
+        wtpdf = "wtpdf_accessibility" in validator_ids
+        validate_claims(data, wtpdf=wtpdf)
+        report("independent inspection of PDF/UA-2 and applicable WTPDF identification and embedded font bundles")
+        if "structure_semantics" not in validator_ids:
+            VALIDATORS["structure_semantics"](data, dimensions, report)
     for validator_id in validator_ids:
-        VALIDATORS[validator_id](data, dimensions, report)
+        if validator_id not in PROFILE_VALIDATORS:
+            VALIDATORS[validator_id](data, dimensions, report)
 
 PREFLIGHT_CHECKS["chapter_templates"] = PreflightCheck("check_chapter_templates.py", True)

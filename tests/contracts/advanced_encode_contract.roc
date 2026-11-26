@@ -33,7 +33,7 @@ expect {
 		and policy.compression.streams.smallest == LibdeflateLevel(10)
 		and policy.compression.object_streams.max_objects == 400
 		and policy.compression.xref == FlateUpPredictor
-		and Metadata.authoring.visible_title == RequiredForAccessibleArchive
+		and Metadata.authoring.visible_title == AuthoredWhenPresent
 }
 
 main! : List(Str) => { bytes : List(U8), work : List(U64) }

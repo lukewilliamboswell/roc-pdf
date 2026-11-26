@@ -32,6 +32,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from provision_extended_tools import archive_path
+
 from check_visual_renderers import Raster, read_ppm
 from check_form_renderers import compile_java, render_mutool, require
 
@@ -39,7 +41,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SHOWCASE_SNAPSHOT = ROOT / "tests" / "metadata" / "metadata.pdf"
 SHARE_SNAPSHOT = ROOT / "tests" / "metadata" / "metadata_share_64.pdf"
 FACADE_SNAPSHOT = ROOT / "tests" / "metadata_facade" / "metadata_facade.pdf"
-PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
+PDFBOX_JAR = archive_path("pdfbox")
 SIZE = 100
 
 ## Exact per-engine codes for the showcase regions. Ideal float values from
@@ -222,7 +224,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--pdfium-renderer", type=Path)
     parser.add_argument("--pdfium-working-directory", type=Path)
-    parser.add_argument("--mutool", type=Path, help="mutool built from vendor/mupdf/mupdf-1.28.2-source.tgz")
+    parser.add_argument("--mutool", type=Path, help="mutool from the pinned local MuPDF cache")
     parser.add_argument("--self-test", action="store_true")
     arguments = parser.parse_args()
     if arguments.self_test:

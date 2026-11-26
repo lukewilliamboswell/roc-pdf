@@ -10,6 +10,8 @@ import subprocess
 from fractions import Fraction
 from pathlib import Path
 
+from provision_extended_tools import archive_path
+
 from check_pdf_structure import ValidationError, require
 from check_rich_inline import page_marked_text, text_string, to_unicode
 from check_visual_renderers import read_ppm
@@ -172,7 +174,7 @@ def reader_check(mutool: Path | None, pdfium: Path | None) -> None:
     output = ROOT / '.roc-pdf-tmp' / 'source-foreground-readers'
     classes = output / 'classes'
     classes.mkdir(parents=True, exist_ok=True)
-    jar = ROOT / 'vendor/pdfbox/pdfbox-app-3.0.8.jar'
+    jar = archive_path("pdfbox")
     def run(command: list[str]) -> bytes:
         result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=180)
         require(result.returncode == 0 and not result.stderr.strip(), f'reader failed: {command}: {result.stderr.decode(errors="replace")}')

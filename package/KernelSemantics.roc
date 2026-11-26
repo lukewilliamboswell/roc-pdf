@@ -78,6 +78,9 @@ KernelSemantics :: [].{
 			max_semantic_depth : U64,
 		} -> Limits
 		make = |limits| Limits.(limits)
+
+		attribute_limit : Limits -> U64
+		attribute_limit = |Limits.(limits)| limits.max_attributes
 	}
 
 	Work : {
@@ -610,7 +613,7 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 														match item {
 															AnnotationOccurrence(annotation_id) => if !navigation {
 																return Err(UnsupportedAnnotation({ content: $content_index }))
-															} else if role == role_part or role == role_div {
+															} else if role == role_part or role == role_div or forbids_content_items(role) {
 																return Err(IllegalContentItem({ content: $content_index, node: node_index }))
 															} else {
 																annotation_index = annotation_id.index()
@@ -818,14 +821,29 @@ valid_language_tag = |tag| {
 	var $length = 0
 	var $letters = 0
 	var $first = 0
+	var $packed = 0
+	var $singletons = 0
+	var $variants = []
 	for byte in Str.iter_utf8(tag) {
 		if byte == 45 {
 			$phase = next_language_subtag($phase, $length, $letters, $first)
 			if $phase == Invalid {
 				return grandfathered_language_tag(tag)
 			}
+			if $phase == ExtensionStart {
+				index = if ($first <= 57) $first - 48 else $first - 87
+				bit = U64.shl_wrap(1, index)
+				if U64.bitwise_and($singletons, bit) != 0 {
+					return False
+				}
+				$singletons = U64.bitwise_or($singletons, bit)
+			}
+			if $phase == Variants and is_language_variant($length, $first) {
+				$variants = $variants.append($packed)
+			}
 			$length = 0
 			$letters = 0
+			$packed = 0
 		} else {
 			folded = byte.bitwise_or(32)
 			letter = folded >= 97 and folded <= 122
@@ -836,15 +854,38 @@ valid_language_tag = |tag| {
 				$first = folded
 			}
 			$length = $length + 1
+			$packed = $packed.shl_wrap(8).bitwise_or(folded.to_u64())
 			if letter {
 				$letters = $letters + 1
 			}
 		}
 	}
-	match next_language_subtag($phase, $length, $letters, $first) {
-		Core(_) | Variants | Extension | Private => True
+	$phase = next_language_subtag($phase, $length, $letters, $first)
+	if $phase == Variants and is_language_variant($length, $first) {
+		$variants = $variants.append($packed)
+	}
+	match $phase {
+		Core(_) | Variants | Extension | Private => unique_language_variants($variants)
 		_ => grandfathered_language_tag(tag)
 	}
+}
+
+## A packed subtag has at most eight nonzero ASCII bytes. Sorting the
+## variant keys once avoids rescanning an unbounded inline tag for duplicates.
+unique_language_variants : List(U64) -> Bool
+unique_language_variants = |variants| {
+	if variants.len() < 2 {
+		return True
+	}
+	sorted = variants.sort_with(|left, right| if (left < right) Before else if (left > right) After else Same)
+	var $previous = 0
+	for variant in sorted {
+		if variant == $previous {
+			return False
+		}
+		$previous = variant
+	}
+	True
 }
 
 next_language_subtag : LanguageSubtag, U8, U8, U8 -> LanguageSubtag
@@ -883,7 +924,7 @@ next_language_subtag = |phase, length, letters, first| {
 
 language_variant_or_singleton : U8, U8 -> LanguageSubtag
 language_variant_or_singleton = |length, first| {
-	if length >= 5 or (length == 4 and first >= 48 and first <= 57) {
+	if is_language_variant(length, first) {
 		Variants
 	} else if length == 1 {
 		if (first == 120) PrivateStart else ExtensionStart
@@ -891,6 +932,9 @@ language_variant_or_singleton = |length, first| {
 		Invalid
 	}
 }
+
+is_language_variant : U8, U8 -> Bool
+is_language_variant = |length, first| length >= 5 or (length == 4 and first >= 48 and first <= 57)
 
 # Only the irregular grandfathered alternatives need a fallback. Their fixed
 # spellings all fit in Roc's inline short string even after ASCII case folding.
@@ -1090,19 +1134,37 @@ validate_relationships = |store| {
 		$node_index = $node_index + 1
 	}
 	var $index = 0
+	var $last_contents_item = 0
 	while $index < store.relationships.len() {
 		valid = match list_at(store.relationships, $index) {
 			HeaderFor({ cell, header }) => header_relation_valid(store, $owners, cell.index(), header.index())
 			CaptionFor({ caption, target }) => caption_relation_valid(store, caption.index(), target.index())
 			LabelFor({ label, target }) => label_relation_valid(store, label.index(), target.index())
+			ContentsTarget({ item, target }) => item.index() > $last_contents_item and contents_relation_valid(store, item.index(), target.index())
 			_ => False
 		}
 		if !valid {
 			return Err(InvalidRelationship({ relationship: $index }))
 		}
+		match list_at(store.relationships, $index) {
+			ContentsTarget({ item, target: _ }) => {
+				$last_contents_item = item.index()
+			}
+			_ => {}
+		}
 		$index = $index + 1
 	}
 	Ok(store.relationships.len())
+}
+
+contents_relation_valid : Semantics.Store, U64, U64 -> Bool
+contents_relation_valid = |store, item, target| {
+	if item >= store.nodes.len() or target >= store.nodes.len() {
+		False
+	} else {
+		role = role_index(list_at(store.nodes, target).role.local_name)
+		list_at(store.nodes, item).role.local_name == "TOCI" and (role == role_p or role == role_hn)
+	}
 }
 
 ## `/Headers` and `HeaderFor` state the same associations. `HeaderFor`
@@ -1304,6 +1366,10 @@ role_index = |name| {
 		23
 	} else if name == "TFoot" {
 		24
+	} else if name == "TOC" {
+		role_toc
+	} else if name == "TOCI" {
+		role_toci
 	} else if name == "DocumentFragment" {
 		role_document_fragment
 	} else if name == "H" {
@@ -1325,10 +1391,16 @@ role_code = 19
 role_quote : U64
 role_quote = 20
 
-## The namespace index that owns a role: `Code` and `Quote` are PDF 1.7
+role_toc : U64
+role_toc = 28
+
+role_toci : U64
+role_toci = 29
+
+## The namespace index that owns a role: Code, Quote, TOC and TOCI are PDF 1.7
 ## standard types (namespace 1); every other accepted role is PDF 2.0.
 role_namespace : U64 -> U64
-role_namespace = |role| if (role == role_code or role == role_quote) 1 else 0
+role_namespace = |role| if (role == role_code or role == role_quote or role == role_toc or role == role_toci) 1 else 0
 
 role_h : U64
 role_h = 6
@@ -1369,9 +1441,10 @@ role_div = 4
 ## Annex L.2 and ISO/TS 32005 Table 5 list the child roles whose rules a
 ## Part can inherit. For the supported subset these are Document,
 ## DocumentFragment, Part, Div, Sect, Title, H, Hn, P, L, Lbl, Figure,
-## Caption, Link, Code, and Table.
+## Caption, Link, Code, Table, TOC and TOCI. A TOCI can pass the
+## inherited containment row only when the surrounding element is a TOC.
 part_children : U64
-part_children = 2681855
+part_children = 807988223
 
 unknown_role : U64
 unknown_role = 63
@@ -1403,29 +1476,29 @@ role_enabled = |role, namespace, is_root, text_enabled, navigation| {
 
 ## ISO/TS 32005:2023 Table 5 parent/child containment, restricted to the
 ## roles above. Bit `c` of row `p` is set when a `p` element may contain a
-## `c` element. The rows were transcribed from the pinned veraPDF 1.30.2
-## `PDFUA-2-ISO32005.xml` profile, whose rules "Table 5. <Parent>-<Child>"
-## encode each forbidden pair; every pair not forbidden there is permitted.
-## `scripts/check_structure_semantics.py` holds an independent transcription
-## that its self-test compares against the same profile.
+## `c` element in the bounded text subset. Caption, Code and Link
+## grouping-only child edges are outside this subset. Part and Div
+## inherit their containing role's row in validate_graph.
+## The independent checker records differences from the pinned validator
+## rules alongside the published Table 5 reconciliation.
 containment_row : U64 -> U64
 containment_row = |parent| match parent {
 
 	## Document: Document, DocumentFragment, Part, Sect, Div, Title, H, Hn, P, L, Figure, Link, Code, Table
-	0 => 2663423
+	0 => 271098879
 
 	## DocumentFragment: same as Document
-	1 => 2663423
+	1 => 271098879
 
 	## Part and Div use contextual rows in validate_graph. These are
 	## the static rows of the pinned veraPDF pairwise profile.
-	2 => 268435455
+	2 => 1073741823
 
 	## Sect: DocumentFragment, Part, Sect, Div, Title, H, Hn, P, L, Lbl, Figure, Caption, Link, Code, Table
-	3 => 2681854
+	3 => 271117310
 
 	## Div: all supported roles are listed conditionally in Table 5.
-	4 => 268435455
+	4 => 1073741823
 
 	## Title: Part, Div, P, L, Lbl, Figure, Caption, Link, Span, Em, Strong, Code, Quote, Table
 	5 => 4188948
@@ -1452,22 +1525,22 @@ containment_row = |parent| match parent {
 	## Figure: Part, Sect, Div, H, Hn, P, L, Lbl, Figure, Caption, Link, Span, Em, Strong, Code, Quote, Table
 	13 => 4189148
 
-	## Caption: DocumentFragment, Part, Sect, Div, H, Hn, P, L, Lbl, Figure, Link, Span, Em, Strong, Code, Quote, Table
-	14 => 4172766
+	## Caption: Part, Sect, Div, H, Hn, P, L, Lbl, Figure, Link, Span, Em, Strong, Code, Quote, Table
+	14 => 4172764
 
-	## Link: DocumentFragment, Part, Sect, Div, Title, H, Hn, P, L, Lbl, Figure, Caption, Link, Span, Em, Strong, Code, Quote, Table
-	15 => 4189182
+	## Link: Sect, Div, Lbl, Figure, Span, Em, Strong, Code, Quote
+	15 => 2041880
 
 	## Span, Em, Strong: Lbl, Figure, Link, Span, Em, Strong, Code, Quote
 	16 => 2074624
 	17 => 2074624
 	18 => 2074624
 
-	## Code: DocumentFragment, Part, Sect, Div, P, L, Lbl, Figure, Caption, Link, Span, Em, Strong, Code, Quote, Table
-	19 => 4188958
+	## Code: Part, Div, Link, Span, Em, Strong
+	19 => 491540
 
-	## Quote: Div, Lbl, Figure, Link, Span, Em, Strong, Code, Quote
-	20 => 2074640
+	## Quote: Lbl, Figure, Link, Span, Em, Strong, Code, Quote
+	20 => 2074624
 
 	## Table: Caption, THead, TBody, TFoot, TR
 	21 => 62930944
@@ -1483,6 +1556,12 @@ containment_row = |parent| match parent {
 	## TH, TD: Sect, Div, H, Hn, P, L, Lbl, Figure, Link, Span, Em, Strong, Code, Quote, Table
 	26 => 4172760
 	27 => 4172760
+
+	## TOC: Part, Caption, TOC, TOCI
+	28 => 805322756
+
+	## TOCI: Div, P, Lbl, TOC
+	29 => 268437776
 	_ => 0
 }
 
@@ -1493,12 +1572,12 @@ may_contain = |parent, child| containment_row(parent).bitwise_and(role_bit(child
 ## DocumentFragment, Sect, L, Table, THead, TBody, TFoot, and TR, plus
 ## PDF/UA-2 8.2.5.25: real content in LI is enclosed in Lbl or LBody.
 forbids_content_items : U64 -> Bool
-forbids_content_items = |role| role == role_document or role == 1 or role == 3 or role == role_l or role == 10 or role == role_table or role == 22 or role == 23 or role == 24 or role == 25
+forbids_content_items = |role| role == role_document or role == 1 or role == 3 or role == role_l or role == 10 or role == role_table or role == 22 or role == 23 or role == 24 or role == 25 or role == role_toc or role == role_toci
 
 ## Table 5 "<X> shall contain at most one <Y>" rules as child-role masks:
 ## one generic H in Document, DocumentFragment, Sect, LBody, Figure, Caption,
 ## TH, and TD; one Sect in H and Hn; one Caption in Title, L, LBody, Figure,
-## Link, Code, and Table; and one THead and one TFoot in Table.
+## and Table; and one THead and one TFoot in Table.
 at_most_one_children : U64 -> U64
 at_most_one_children = |parent| match parent {
 	0 => role_bit(6)
@@ -1511,11 +1590,10 @@ at_most_one_children = |parent| match parent {
 	12 => role_bit(6).bitwise_or(role_bit(role_caption))
 	13 => role_bit(6).bitwise_or(role_bit(role_caption))
 	14 => role_bit(6)
-	15 => role_bit(role_caption)
-	19 => role_bit(role_caption)
 	21 => role_bit(role_caption).bitwise_or(role_bit(22)).bitwise_or(role_bit(24))
 	26 => role_bit(6)
 	27 => role_bit(6)
+	28 => role_bit(role_caption)
 	_ => 0
 }
 
@@ -1826,8 +1904,9 @@ expect {
 	KernelSemantics.Plan.work(plan).annotation_visits == 2 and rejected
 }
 
-# Annex L also excludes object reference content items directly in Part and Div.
-expect ["Part", "Div"].all(
+# An object reference is also a direct content item. Groupings and L
+# reject it at the same graph boundary as ordinary content occurrences.
+expect ["Part", "Div", "L"].all(
 	|local_name| {
 		node = list_at(navigation_store.nodes, 1)
 		nodes = list_set(navigation_store.nodes, 1, { ..node, role: { ..node.role, local_name } })
@@ -2019,8 +2098,16 @@ expect {
 		("TD", "P"),
 		("TH", "Span"),
 		("Caption", "P"),
+		("Code", "Em"),
+		("Link", "Quote"),
 	]
 	illegal = [
+		("Caption", "DocumentFragment"),
+		("Code", "P"),
+		("Code", "Code"),
+		("Link", "Link"),
+		("Link", "P"),
+		("Quote", "Div"),
 		("Sect", "Document"),
 		("Sect", "LI"),
 		("Sect", "Span"),
@@ -2056,6 +2143,26 @@ expect {
 		("Figure", "Title"),
 	]
 	legal.all(|(parent, child)| allows(parent, child)) and illegal.all(|(parent, child)| !allows(parent, child))
+}
+
+# PDF 1.7 roles keep their namespace in the mixed tree. A TOCI can pass
+# through a Part in TOC context, and Code can own inline Span content.
+# Changing only that child role to P yields an illegal Code edge.
+expect {
+	pdf17 = { id: Semantics.NamespaceId.from_index(1), kind: Pdf17, uri: "http://iso.org/pdf/ssn" }
+	limits = KernelSemantics.Limits.make({ max_attributes: 16, max_content_spine: 64, max_fragments: 0, max_namespaces: 2, max_nodes: 32, max_occurrences: 1, max_semantic_depth: 16 })
+	build = |shape, owner| {
+		base = shaped_store(shape, owner)
+		nodes = base.nodes.map(|node| { ..node, role: { ..node.role, namespace: Semantics.NamespaceId.from_index(role_namespace(role_index(node.role.local_name))) } })
+		KernelSemantics.Plan.build_text_validated({ ..base, namespaces: base.namespaces.append(pdf17), nodes }, [], 1, 1, limits)
+	}
+	contents = [{ parent: 0, role: "Document" }, { parent: 0, role: "TOC" }, { parent: 1, role: "Part" }, { parent: 2, role: "TOCI" }, { parent: 3, role: "P" }]
+	code = [{ parent: 0, role: "Document" }, { parent: 0, role: "P" }, { parent: 1, role: "Code" }, { parent: 2, role: "Span" }]
+	bad = list_set(code, 3, { parent: 2, role: "P" })
+	build(contents, 4).is_ok() and build(code, 3).is_ok() and match build(bad, 3) {
+		Err(IllegalContainment({ child: 3, parent: 2 })) => True
+		_ => False
+	}
 }
 
 # Nested grouping elements validate with one containment check per edge.
@@ -2276,8 +2383,8 @@ expect {
 
 # RFC 5646 subtag order, field boundaries, and grandfathered alternatives.
 expect {
-	good = ["en", "es-419", "de-CH-1901", "sl-rozaj-biske-1994", "abcd-Latn", "abcdefgh", "zh-cmn-Hans-CN", "zh-cmn-hak-nan-Hant-TW", "en-a-foo-u-nu-latn-x-note", "en-0-12", "x-1", "de-DE-x-phonebk", "en-GB-oed", "I-ENOCHIAN", "SGN-be-fr", "zh-min-nan"]
-	bad = ["", "a", "en-12", "en-1a23-CH", "en-US-Latn", "en-Latn-Cyrl", "en-US-GB", "zh-cmn-hak-nan-wuu", "abcd-cmn", "abcdef-cmn", "en-a", "en-a-x-p", "en-x", "en-u-ab-x", "x", "x-ab--c", "en-abcdefghi", "en-À", "en-GB-oed-extra", "i-klingon-extra"]
+	good = ["en", "es-419", "de-CH-1901", "sl-rozaj-biske-1994", "abcd-Latn", "abcdefgh", "zh-cmn-Hans-CN", "zh-cmn-hak-nan-Hant-TW", "en-a-foo-u-nu-latn-x-note", "en-0-12", "x-1", "de-DE-x-phonebk", "en-GB-oed", "I-ENOCHIAN", "SGN-be-fr", "zh-min-nan", "art-lojban", "en-u-ca-gregory-x-u-u", "de-1901-u-nu-latn-x-1901", "en-u-nu-latn-0-ab"]
+	bad = ["", "a", "en-12", "en-1a23-CH", "en-US-Latn", "en-Latn-Cyrl", "en-US-GB", "zh-cmn-hak-nan-wuu", "abcd-cmn", "abcdef-cmn", "en-a", "en-a-x-p", "en-x", "en-u-ab-x", "x", "x-ab--c", "en-abcdefghi", "en-À", "en-GB-oed-extra", "i-klingon-extra", "de-1901-1901", "sl-rozaj-BISKE-ROZAJ", "en-u-ca-gregory-U-nu-latn", "en-0-ab-0-cd"]
 	good.all(valid_language_tag) and bad.all(|tag| !valid_language_tag(tag))
 }
 

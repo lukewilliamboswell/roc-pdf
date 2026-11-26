@@ -361,6 +361,30 @@ no other findings.
   canonical form from the shared pipeline, closure-checked in both graph
   runs, geometry-checked against the rect, and text-rejected.
 
+## Combined accessible archive
+
+The navigation facade output and determinism cases explicitly select
+`AccessibleArchive`. The provided overview link crosses a page boundary:
+two annotation objects and two ParentTree keys resolve to one logical Link,
+and both actions identify the authored Overview target. The captured named
+Results destination provides the control target. Changing one fragment's
+paired `/SD` and `/D` fails veraPDF rule 8.2.5.20-2. The independent
+navigation check also rejects replacing that fragment's action with an
+external URI under the same owner. veraPDF 1.30.2 does not catch that
+mixed-action variant.
+
+The profile adds PDF/UA-2 identification to XMP and validates the authored
+strings and final tagged plan before emission. It leaves navigation content,
+placement, and the structural and geometric destinations byte-equivalent
+after decoding. The pinned arm64mac and x64musl runs emit identical bytes and record 1,629
+allocations for one generation and 3,257 for two, one extra allocation per
+document. The independent XML and
+structure checks inspect the new identification and the same expected
+navigation. The shared PDF grows from 20,619 to 20,737 bytes. The original
+allocated-byte references still apply and both measured cases are within
+their 110% ceilings. Find both cases under `navigation-annotations-v2` in the
+[test specification](../../../tests/spec.json).
+
 ## Reviewed rebaselines
 
 All 200 pre-existing snapshots are byte-identical; only allocation counts

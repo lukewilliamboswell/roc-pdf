@@ -1,9 +1,9 @@
 Conformance :: [].{
 
-	## Public profiles are exact claim sets, not fallback levels.
+	## Public profiles select declarations and package checks.
 	Profile : [AccessibleArchive, Archive, Standard]
 
-	## Orthogonal claims remain independently selectable and auditable.
+	## Capabilities name the declarations used by profile and diagnostic APIs.
 	Capability : [Pdf20, PdfA4f, PdfUa2, StaticPdfA4, WtpdfAccessibility, WtpdfReuse]
 
 	ClaimSet : {

@@ -32,11 +32,13 @@ import tempfile
 import zlib
 from pathlib import Path
 
+from provision_extended_tools import archive_path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from pdf_layout import flatten, mutate as layout_mutate, occurrences
 from check_pdf_structure import STRING, TO_UNICODE_BLOCK, ValidationError, require, to_unicode_mappings  # noqa: E402
-from check_structure_semantics import Document, Parser, Ref, element_children, page_order, text_string  # noqa: E402
+from check_structure_semantics import Document, Parser, Ref, check_structure_semantics, element_children, page_order, text_string  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 MIXED = ROOT / "tests" / "rich_inline" / "mixed.pdf"
@@ -45,7 +47,7 @@ PARAGRAPHS = ROOT / "tests" / "rich_inline" / "paragraphs_10.pdf"
 BREAKS = ROOT / "tests" / "layout_policies" / "breaks.pdf"
 CODE_FACE = ROOT / "tests" / "rich_inline" / "code_face.pdf"
 ORDERED_FURNITURE = ROOT / "tests" / "page_templates" / "ordered.pdf"
-PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
+PDFBOX_JAR = archive_path("pdfbox")
 PDFBOX_SOURCE = ROOT / "scripts" / "PdfBoxTextExtract.java"
 
 INLINE_ROLES = {"Em", "Strong", "Code", "Quote", "Span", "Link"}
@@ -184,14 +186,13 @@ def render(pdf: bytes, dimensions: dict[str, int] | None = None) -> list[str]:
     pages: list[int] = []
     page_order(document, int(catalog["Pages"]), pages)
     marked: dict[tuple[int, int], str] = {}
-    paint_order: list[str] = []
     for page in pages:
         for mcid, text in page_marked_text(document, page):
             require(text, f"MCID {mcid} on page {pages.index(page)} shows no text")
             marked[(page, mcid)] = text
-            paint_order.append(text)
     counts = Inline()
     logical_order: list[str] = []
+    figure_labels: set[tuple[int, int]] = set()
     blocks: list[str] = []
 
     def walk(number: int) -> str:
@@ -208,13 +209,18 @@ def render(pdf: bytes, dimensions: dict[str, int] | None = None) -> list[str]:
         children = element_children(document, element)
         pieces: list[str] = []
         annotations: list[str] = []
-        for child in children:
+        for index, child in enumerate(children):
             if isinstance(child, Ref):
                 pieces.append(walk(int(child)))
             elif isinstance(child, dict) and child.get("Type") == "MCR":
                 key = (int(child["Pg"]), int(child["MCID"]))
                 require(key in marked, "a structure MCR names an MCID with no shown text")
-                logical_order.append(marked[key])
+                if role == "Figure" and index > 0:
+                    # Intrinsic label paint is placed independently from the
+                    # reading order of the owning Figure and nearby text.
+                    figure_labels.add(key)
+                else:
+                    logical_order.append(marked[key])
                 pieces.append(marked[key])
             elif isinstance(child, dict) and child.get("Type") == "OBJR":
                 annotation = document.get(int(child["Obj"]))
@@ -242,6 +248,7 @@ def render(pdf: bytes, dimensions: dict[str, int] | None = None) -> list[str]:
 
     tree_root = document.get(int(catalog["StructTreeRoot"]))
     walk(int(tree_root["K"]))
+    paint_order = (text for key, text in marked.items() if key not in figure_labels)
     require("".join(logical_order) == "".join(paint_order), "structure order and paint order disagree on the shown text")
     expected_inline = dimensions.get("inline_elements")
     if expected_inline is not None:
@@ -253,7 +260,11 @@ def render(pdf: bytes, dimensions: dict[str, int] | None = None) -> list[str]:
 
 
 def validate_rich_inline_pdf(pdf: bytes, dimensions: dict[str, int]) -> None:
-    render(pdf, dimensions)
+    authored = render(pdf, dimensions)
+    if dimensions.get("mixed_inline"):
+        require(authored == MIXED_EXPECTED, "mixed inline roles, text or language disagree with authoring")
+    if dimensions.get("ordered_multiface"):
+        require(authored == ORDERED_EXPECTED, "ordered inline roles, text or language disagree with authoring")
     if dimensions.get("code_role_fonts"):
         validate_combined_code_font(pdf)
     repeated = dimensions.get("repeated_segments")
@@ -332,7 +343,7 @@ def mutate(value: bytes, old: bytes, new: bytes) -> bytes:
 
 
 def check_pdfbox_extraction(pdf: Path) -> None:
-    require(PDFBOX_JAR.is_file(), f"vendored PDFBox JAR does not exist: {PDFBOX_JAR}")
+    require(PDFBOX_JAR.is_file(), f"cached PDFBox JAR does not exist: {PDFBOX_JAR}")
     with tempfile.TemporaryDirectory(prefix="roc-pdf-rich-inline-") as temporary_name:
         classes = Path(temporary_name) / "classes"
         classes.mkdir()
@@ -464,6 +475,49 @@ def self_test() -> None:
             rejected += 1
             continue
         raise SystemExit(f"rich-inline checker accepted {label}")
+    for original, replacement in (
+        (b"/S /Title >>", b"/S /P >>"),
+        (b"/S /P >>", b"/S /Code >>"),
+        (b"/S /Lbl >>", b"/S /Span >>"),
+        (b"/S /Em >>", b"/S /Strong >>"),
+        (b"/S /Strong >>", b"/S /Em >>"),
+        (b"/S /Quote >>", b"/S /Span >>"),
+        (b"/S /Code >>", b"/S /Span >>"),
+        (b"/Lang (fr)", b"/Lang (it)"),
+    ):
+        twin = layout_mutate(mixed, original, replacement, scope="objects", occurrences=None, first_only=True)
+        try:
+            validate_rich_inline_pdf(twin, {"mixed_inline": 1})
+        except ValidationError as error:
+            require(str(error) == "mixed inline roles, text or language disagree with authoring", str(error))
+        else:
+            raise ValidationError(f"mixed inline oracle accepted replacing {original!r} with {replacement!r}")
+        rejected += 1
+    wrong_owner = layout_mutate(mixed, b"/O /List", b"/O /Table", scope="objects")
+    try:
+        check_structure_semantics(wrong_owner)
+    except ValidationError as error:
+        require(str(error) == "unknown Table attribute", str(error))
+    else:
+        raise ValidationError("mixed inline oracle accepted a Table-owned ListNumbering attribute")
+    rejected += 1
+
+    # Styling the authored Strong content does not supply a Layout attribute.
+    # Inject one while keeping the equivalent authored structure and text.
+    styled = Document(mixed)
+    strong = [number for number, body in styled.bodies.items() if b"/S /Strong >>" in body]
+    require(strong and all("A" not in styled.get(number) for number in strong), "style-only Strong roles gained a structure attribute")
+    strong_body = styled.bodies[strong[0]]
+    style_as_semantics = strong_body.replace(b"<<", b"<< /A << /Color [0.5 0 0] /O /Layout >>", 1)
+    twin = layout_mutate(mixed, strong_body, style_as_semantics, scope="objects")
+    try:
+        check_structure_semantics(twin)
+    except ValidationError as error:
+        require(str(error) == "unsupported attribute owner 'Layout'", str(error))
+    else:
+        raise ValidationError("mixed inline checker accepted a paint style projected as a Layout attribute")
+    rejected += 1
+
     for name in ("repeated_segments", "repeated_ordered_segments"):
         for count in (10, 50):
             repeated = (ROOT / "tests" / "rich_inline" / f"{name}_{count}.pdf").read_bytes()

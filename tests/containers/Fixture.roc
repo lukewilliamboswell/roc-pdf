@@ -19,21 +19,22 @@ import pdf.Scene
 ## - `atomic_negatives`: container depth, empty containers, and nested
 ##   unavailable or invalid blocks reject with stable diagnostics and no bytes.
 ##
-## Bytes always come from `Pdf.to_bytes` (the default `Archive` profile). The
-## work vector comes from one additional semantic planning pass over the same
+## The nested fixture exports through the combined archive profile. The scale
+## pair exports through the static Archive profile. The work vector comes
+## from one additional semantic planning pass over the same
 ## normalized authoring with the facade's container and semantic limits.
 Fixture :: [].{
 	EvidenceError : [EvidenceFailure, InvalidScale, MissingRejection(U64)]
 
 	nested : {} -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
-	nested = |_| evidence(nested_document({}))
+	nested = |_| evidence(nested_document({}), AccessibleArchive)
 
 	sections : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	sections = |count| {
 		if count == 0 or count > 1000 {
 			return Err(InvalidScale)
 		}
-		evidence(section_document(count))
+		evidence(section_document(count), Archive)
 	}
 
 	atomic_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
@@ -85,9 +86,9 @@ section_document = |count| {
 	Pdf.document({ contents: $contents, language: "en-AU", title: "Sectioned report" })
 }
 
-evidence : Document -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
-evidence = |document| {
-	bytes = Pdf.to_bytes(document) ? |_| EvidenceFailure
+evidence : Document, Pdf.Profile -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+evidence = |document, profile| {
+	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ profile }) ? |_| EvidenceFailure
 	plan = KernelFacadeSemantics.Plan.build(Document.normalize(document), semantic_limits) ? |_| EvidenceFailure
 	work = KernelFacadeSemantics.Plan.work(plan)
 	semantic_work = KernelSemantics.Plan.work(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(plan)))
@@ -141,7 +142,7 @@ nest = |block, depth| {
 }
 
 rejects : Document, Conformance.DiagnosticCode, Str, Str -> U64
-rejects = |document, expected_code, expected_feature, expected_path| match Pdf.to_bytes(document) {
+rejects = |document, expected_code, expected_feature, expected_path| match Pdf.to_bytes_with(document, { profile: Archive }) {
 	Err(InvalidDocument({ diagnostics: [{ code, details, feature: Feature(feature), location: Document, stage: AuthoringValidation, .. }], truncation: Complete, .. })) => if (code == expected_code and feature == expected_feature and details == (if (expected_path.is_empty()) [] else [expected_path])) 1 else 0
 	_ => 0
 }
@@ -168,7 +169,7 @@ run_negatives = |context| {
 	}
 
 	## The deepest accepted nesting is the facade bound itself.
-	boundary = Pdf.to_bytes(document([Pdf.title("Boundary"), nest(Pdf.paragraph("Leaf"), 16 + offset)])) ? |_| EvidenceFailure
-	carrier = Pdf.to_bytes(document([Pdf.title("Container carrier"), Pdf.section([Pdf.heading(1, "Carrier"), Pdf.paragraph("A valid grouped document.")])])) ? |_| EvidenceFailure
+	boundary = Pdf.to_bytes_with(document([Pdf.title("Boundary"), nest(Pdf.paragraph("Leaf"), 16 + offset)]), { profile: Archive }) ? |_| EvidenceFailure
+	carrier = Pdf.to_bytes_with(document([Pdf.title("Container carrier"), Pdf.section([Pdf.heading(1, "Carrier"), Pdf.paragraph("A valid grouped document.")])]), { profile: Archive }) ? |_| EvidenceFailure
 	Ok({ bytes: carrier, work: [passed, boundary.len(), carrier.len()] })
 }

@@ -13,7 +13,7 @@ import pdf.Theme
 import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 
 ## The reference invoice, report, and letter and every adverse variant of
-## `reference-documents-v12`, authored only through the public `Pdf`,
+## `reference-documents-v13`, authored only through the public `Pdf`,
 ## `Scene`, `Layout`, `Theme`, and `Font` surface (the report's callout
 ## through the separately authored `Callout` extension).
 ##
@@ -29,7 +29,7 @@ import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 ## - `atomic_negatives`: every rejected variant with its stable code and
 ##   authored paths, no prepared document, and no bytes.
 ## - Scale pairs: invoice rows 50/500 (INV-A3 is the large case), report
-##   sections 10/100, and letter paragraphs 20/200.
+##   sections 10/100, letter paragraphs 20/200, and statement accounts 10/100.
 ##
 ## Work comes from the report's own counts: pages, fragments, reading-order
 ## blocks, outcomes, repeated headers, relaxations, obligations, coverage
@@ -94,6 +94,38 @@ Fixture :: [].{
 		evidence(Invoice.document({ ..Invoice.ordinary, rows, field_width: 60 }), invoice_options(rows % 1)?, |observed| rows_observations(observed, rows))
 	}
 
+	## A batch of one-page customer statements, with one semantic section and
+	## one table per account. The scale dimension is the number of accounts.
+	statement_batch : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	statement_batch = |count| {
+		if count == 0 or count > 100 {
+			return Err(InvalidScale)
+		}
+		var $blocks = List.with_capacity(count * 2)
+		var $index = 0
+		while $index < count {
+			if $index > 0 {
+				$blocks = $blocks.append(Pdf.page_break)
+			}
+			number = ($index + 1001).to_str()
+			$blocks = $blocks.append(
+				Pdf.section([
+					Pdf.heading(1, "Account ${number}"),
+					Pdf.paragraph("Statement period: 1 to 30 September 2026"),
+					statement_transactions,
+					Pdf.paragraph("Balance due: AUD 175.00"),
+				]),
+			)
+			$index = $index + 1
+		}
+		options = invoice_options(count % 1)?
+		evidence(
+			Pdf.document({ contents: $blocks, language: "en-AU", title: "September 2026 account statements" }),
+			{ ..options, wtpdf: DeclareAccessibility },
+			|observed| [observed.facts.pages.len() == count],
+		)
+	}
+
 	## REP-A1: section 2's heading falls on the last line of a page.
 	report_heading_keep : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	report_heading_keep = |context| {
@@ -125,7 +157,7 @@ Fixture :: [].{
 	report_ordered = |context| {
 		faces = register_faces(context) ? |_| EvidenceFailure("register faces")
 		options : Pdf.Options
-		options = { theme: { ..Report.single_face_theme(faces.latin), font_selection: Policy(faces.policy) }, fonts: Registered(faces.registry) }
+		options = { profile: AccessibleArchive, theme: { ..Report.single_face_theme(faces.latin), font_selection: Policy(faces.policy) }, fonts: Registered(faces.registry) }
 		extra = [Pdf.text(" The Shanghai office marks approved stock with "), Pdf.in_language("zh-Hans", [Pdf.text("中")]), Pdf.text(" on every board.")]
 		evidence(Report.document({ ..Report.ordinary, timber_extra: extra, figure1: Report.unlabelled_chart_figure }), options, ordered_observations)
 	}
@@ -168,16 +200,27 @@ Fixture :: [].{
 	atomic_negatives = |context| run_negatives(context)
 }
 
+statement_transactions : Document.Block
+statement_transactions = Pdf.table({
+	caption: Pdf.caption("Transactions"),
+	columns: [{ width: Share(1), align: Start }, { width: Share(1), align: End }],
+	header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Description")]), Pdf.header_cell(Column, [Pdf.text("Amount")])])],
+	body_rows: [
+		Pdf.row([Pdf.header_cell(Row, [Pdf.text("Opening balance")]), Pdf.cell([Pdf.text("200.00")])]),
+		Pdf.row([Pdf.header_cell(Row, [Pdf.text("Payment received")]), Pdf.cell([Pdf.text("−25.00")])]),
+	],
+})
+
 ## The reference documents' options, their faces registered at run time
 ## (`guard` is the case's runtime zero).
 invoice_options : U64 -> Try(Pdf.Options, Fixture.EvidenceError)
-invoice_options = |guard| Ok(Invoice.options(Invoice.register(guard) ? |_| EvidenceFailure("register invoice faces")))
+invoice_options = |guard| Ok({ ..Invoice.options(Invoice.register(guard) ? |_| EvidenceFailure("register invoice faces")), profile: AccessibleArchive })
 
 report_options : U64 -> Try(Pdf.Options, Fixture.EvidenceError)
-report_options = |guard| Ok(Report.options(Report.register(guard) ? |_| EvidenceFailure("register report faces")))
+report_options = |guard| Ok({ ..Report.options(Report.register(guard) ? |_| EvidenceFailure("register report faces")), profile: AccessibleArchive })
 
 letter_options : U64 -> Try(Pdf.Options, Fixture.EvidenceError)
-letter_options = |guard| Ok(Letter.options(Letter.register(guard) ? |_| EvidenceFailure("register letter faces")))
+letter_options = |guard| Ok({ ..Letter.options(Letter.register(guard) ? |_| EvidenceFailure("register letter faces")), profile: AccessibleArchive })
 
 long_description : Str
 long_description = "Ergonomic task chair with a breathable mesh back, adjustable lumbar support, four-dimensional armrests, a synchronised tilt mechanism with five locking positions, seat depth adjustment, a class four gas lift, a polished aluminium base, and dual-wheel castors suited to both carpet and hard floors, supplied fully assembled, labelled by workstation, and delivered to each level of the fit-out."
@@ -305,8 +348,8 @@ has_role = |report, path, role| {
 	block.role == role and block.fragments > 0
 }
 
-has_obligation : Pdf.Report, Str, [AlternativeTextMeaningful, ExpansionAccurate, LanguageAccurate, LinkPurposeMeaningful, ReadingOrderMeaningful, TableHeadersMeaningful] -> Bool
-has_obligation = |report, path, obligation| report.obligations.any(|entry| entry.path == path and entry.obligation == obligation)
+has_obligation : Pdf.Report, Pdf.ReportObligation -> Bool
+has_obligation = |report, expected| report.obligations.any(|entry| entry.path == expected.path and entry.obligation == expected.obligation)
 
 has_alternative : Pdf.Report, Str, Str -> Bool
 has_alternative = |report, path, text| report.facts.alternatives.any(|entry| entry.path == path and entry.text == text)
@@ -390,9 +433,9 @@ invoice_observations = |report| {
 		first_page(report, "contents[5].contents[0]") == first_page(report, "contents[5].contents[1]"),
 		relaxations(report) == 0,
 		has_alternative(report, "${items_table}.table.body_rows[3].cells[1].inlines[0]", "fr"),
-		has_obligation(report, "contents[5].contents[2].inlines[1]", LinkPurposeMeaningful),
-		has_obligation(report, items_table, TableHeadersMeaningful),
-		has_obligation(report, "contents[2]", TableHeadersMeaningful),
+		has_obligation(report, { path: "contents[5].contents[2].inlines[1]", obligation: LinkPurposeMeaningful }),
+		has_obligation(report, { path: items_table, obligation: TableHeadersMeaningful }),
+		has_obligation(report, { path: "contents[2]", obligation: TableHeadersMeaningful }),
 	]
 }
 
@@ -422,11 +465,11 @@ report_observations = |report, theme| {
 		relaxations(report) == 0,
 		has_alternative(report, "contents[1].inlines[1]", "financial year 2027"),
 		has_alternative(report, "contents[3].contents[1].inlines[1]", "Goods and Services Tax"),
-		has_obligation(report, figure_one, AlternativeTextMeaningful) and has_obligation(report, figure_two, AlternativeTextMeaningful),
-		has_obligation(report, "contents[2].contents[1].inlines[5]", LinkPurposeMeaningful),
-		has_obligation(report, "contents[5].contents[1].inlines[1]", LinkPurposeMeaningful),
-		has_obligation(report, table_one, TableHeadersMeaningful) and has_obligation(report, table_two, TableHeadersMeaningful),
-		has_obligation(report, "contents[4].contents[3].contents[0].inlines[1]", LanguageAccurate) or has_obligation(report, "contents[4].contents[3].contents[1].inlines[1]", LanguageAccurate),
+		has_obligation(report, { path: figure_one, obligation: AlternativeTextMeaningful }) and has_obligation(report, { path: figure_two, obligation: AlternativeTextMeaningful }),
+		has_obligation(report, { path: "contents[2].contents[1].inlines[5]", obligation: LinkPurposeMeaningful }),
+		has_obligation(report, { path: "contents[5].contents[1].inlines[1]", obligation: LinkPurposeMeaningful }),
+		has_obligation(report, { path: table_one, obligation: TableHeadersMeaningful }) and has_obligation(report, { path: table_two, obligation: TableHeadersMeaningful }),
+		has_obligation(report, { path: "contents[4].contents[3].contents[0].inlines[1]", obligation: LanguageAccurate }) or has_obligation(report, { path: "contents[4].contents[3].contents[1].inlines[1]", obligation: LanguageAccurate }),
 	]
 }
 
@@ -445,7 +488,7 @@ letter_observations = |report| {
 		first_page(report, "${signature}.contents[0]") == last_page(report, "${signature}.contents[3]"),
 		first_page(report, "contents[17].contents[0]") == 3,
 		relaxations(report) == 0,
-		has_obligation(report, "document", ReadingOrderMeaningful),
+		has_obligation(report, { path: "document", obligation: ReadingOrderMeaningful }),
 	]
 }
 
@@ -555,7 +598,7 @@ ordered_observations = |report| {
 		report.facts.coverage.any(|covered| covered.path == timber and covered.script == "Hani" and covered.scalars == 1),
 		report.facts.coverage.any(|covered| covered.path == timber and covered.script == "Latn"),
 		has_alternative(report, "${timber}.inlines[6]", "zh-Hans"),
-		has_obligation(report, "${timber}.inlines[6]", LanguageAccurate),
+		has_obligation(report, { path: "${timber}.inlines[6]", obligation: LanguageAccurate }),
 	]
 }
 
@@ -702,8 +745,8 @@ run_negatives = |guard| {
 		## LET-A3c: continuation header slots wider than the region.
 		(letter_with({ ..Letter.ordinary, continuation_start: "Northstar Regional Housing and Community Cooperative Ltd · 21 September 2026" }), letter_faces, Code(LayoutConstraintViolated, "layout.template_region_overflow", ["templates.continuation.header"])),
 
-		## LET-A4: the letter under AccessibleArchive before Gate 7.
-		(letter_with(Letter.ordinary), { ..letter_faces, profile: AccessibleArchive }, Code(FeatureUnavailable, "profile.accessible_archive", [])),
+		## WTPDF is an explicit declaration on the combined profile.
+		(letter_with(Letter.ordinary), { ..letter_faces, profile: Archive, wtpdf: DeclareAccessibility }, Code(ProfileRequirementViolated, "profile.wtpdf_accessibility", ["options.wtpdf"])),
 
 		## LET-A5: an empty metadata title.
 		(letter_with({ ..Letter.ordinary, title: "" }), letter_faces, Metadata),

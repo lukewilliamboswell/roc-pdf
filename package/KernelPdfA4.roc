@@ -34,11 +34,10 @@ import KernelXmp
 KernelPdfA4 :: [].{
 	Claim : [NoArchiveClaim, StaticPdfA4Claim]
 
-	## One tag per ledger requirement with a runtime check. Requirements that
+	## One tag per requirement with a runtime check. Requirements that
 	## hold by construction (file header, cross-reference streams, string and
 	## indirect-object syntax, predefined CMaps, width agreement, and glyph
-	## coverage) are pinned by their owning module's expects and recorded in
-	## the conformance ledger rather than re-derived here.
+	## coverage) are checked in their owning modules.
 	Requirement : [
 		ActualTextPrivateUse,
 		Actions,
@@ -72,7 +71,7 @@ KernelPdfA4 :: [].{
 		ToUnicodeValues,
 	]
 
-	## The stable conformance-ledger identifier for each requirement.
+	## Stable diagnostic identifier for each requirement.
 	requirement_code : Requirement -> Str
 	requirement_code = |requirement| match requirement {
 		ActualTextPrivateUse => "ROC-PDF-PDFA4-6-2-10-8-ACTUAL-TEXT"
@@ -213,13 +212,6 @@ KernelPdfA4 :: [].{
 	## Lowered-plan validation over the sealed store before serialization.
 	validate_lowered : Claim, LoweredInput -> Try(LoweredWork, Violation)
 	validate_lowered = |claim, input| check_lowered(claim, input)
-
-	## The identification a claim requires in its canonical packet.
-	identification : Claim -> KernelXmp.Identification
-	identification = |claim| match claim {
-		NoArchiveClaim => NoIdentification
-		StaticPdfA4Claim => PdfA4Identification
-	}
 }
 
 check_text : KernelPdfA4.Claim, KernelPdfA4.TextFacts -> Try(KernelPdfA4.TextWork, KernelPdfA4.Violation)
@@ -380,7 +372,7 @@ empty_summary = {
 
 check_lowered : KernelPdfA4.Claim, KernelPdfA4.LoweredInput -> Try(KernelPdfA4.LoweredWork, KernelPdfA4.Violation)
 check_lowered = |claim, input| {
-	if KernelXmp.Packet.identification(input.packet) != KernelPdfA4.identification(claim) {
+	if KernelXmp.declares_archive(KernelXmp.Packet.identification(input.packet)) != (claim == StaticPdfA4Claim) {
 		return Err({ position: 0, requirement: Identification })
 	}
 	match claim {
@@ -592,7 +584,12 @@ forbidden_key = |key, kind| match key {
 	Ht => Forbidden(GraphicsState)
 	Hto => Forbidden(GraphicsState)
 	Alternates => Forbidden(ImageDictionary)
-	Ref => Forbidden(ReferenceXObject)
+	Ref => match kind {
+		StreamDictionary => Forbidden(ReferenceXObject)
+		# ISO 19005-4 bans reference XObjects. Structure elements have
+		# a distinct /Ref entry for relationships, including TOCI targets.
+		PlainDictionary => Allowed
+	}
 	AcroForm => Forbidden(InteractiveForms)
 	NeedAppearances => Forbidden(InteractiveForms)
 	NeedsRendering => Forbidden(InteractiveForms)
@@ -741,7 +738,7 @@ is_stream = |store, value| match resolve_stream(store, value) {
 	NotStream => False
 }
 
-## The catalog must carry exactly the claim's canonical metadata stream, one
+## The catalog must carry exactly the selected canonical metadata stream, one
 ## PDF/A output intent with an embedded monitor or output profile, and no
 ## pre-2.0 version override.
 check_catalog : KernelObject.Store, List(NameClass), KernelObject.ObjectId, List(U8) -> Try(U64, KernelPdfA4.Violation)

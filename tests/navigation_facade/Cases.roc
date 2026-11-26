@@ -69,14 +69,15 @@ facade : U64, Bool -> { bytes : List(U8), work : List(U64) }
 facade = |context, twice| {
 	guard = U64.mod_by(context, 1)
 	document = build_document(guard)
-	first = match Pdf.to_bytes(document) {
+	options = Pdf.Options.{ profile: Pdf.Profile.AccessibleArchive }
+	first = match Pdf.to_bytes_with(document, options) {
 		Ok(bytes) => bytes
 		Err(error) => {
 			crash "production-visual navigation facade generation failed: ${Str.inspect(error)}"
 		}
 	}
 	if twice {
-		second = match Pdf.to_bytes(build_document(guard)) {
+		second = match Pdf.to_bytes_with(build_document(guard), options) {
 			Ok(bytes) => bytes
 			Err(_) => {
 				crash "production-visual navigation facade regeneration failed"
@@ -97,7 +98,7 @@ run_negatives : U64 -> U64
 run_negatives = |guard| {
 	base_title = if (guard == 0) "Navigation negatives" else "guarded"
 	document = |contents| Pdf.document({ contents, language: "en-AU", title: base_title })
-	expect_rejection = |doc, matches| match Pdf.to_bytes(doc) {
+	expect_rejection = |doc, matches| match Pdf.to_bytes_with(doc, { profile: Archive }) {
 		Err(InvalidNavigation(error)) => if (matches(error)) 1 else 0
 		_ => 0
 	}
@@ -159,7 +160,7 @@ negatives = |context| {
 		language: "en-AU",
 		title: carrier_title,
 	})
-	bytes = match Pdf.to_bytes(carrier) {
+	bytes = match Pdf.to_bytes_with(carrier, { profile: Archive }) {
 		Ok(value) => value
 		Err(_) => {
 			crash "production-visual navigation facade carrier failed"

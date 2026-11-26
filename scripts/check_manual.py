@@ -8,6 +8,8 @@ from html.parser import HTMLParser
 import json
 import os
 from pathlib import Path
+
+from provision_extended_tools import archive_path
 import re
 import subprocess
 import tempfile
@@ -15,6 +17,7 @@ from urllib.parse import unquote, urlsplit
 
 from check_structure_semantics import Document
 from check_vector_diagrams import read_png
+from prepare_manual import ASSETS
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -157,17 +160,16 @@ def check(site: Path, source: Path, pdf: Path | None, review: Path | None = None
             if target.fragment and linked.suffix == ".md":
                 anchors = re.findall(r'<a id="([^"]+)"', linked.read_text())
                 assert unquote(target.fragment) in anchors, f"missing Markdown anchor in {path.name}: {href}"
-    if pdf:
-        jar = ROOT / "vendor/pdfbox/pdfbox-app-3.0.8.jar"
+    if pdf and review:
+        jar = archive_path("pdfbox")
         with tempfile.TemporaryDirectory() as directory:
             subprocess.run(["javac", "-cp", str(jar), "-d", directory,
                             str(ROOT / "scripts/ManualTextExtract.java")], check=True)
             command = ["java", "-Djava.awt.headless=true", "-cp", f"{directory}{os.pathsep}{jar}", "ManualTextExtract", str(pdf)]
-            if review:
-                review.mkdir(parents=True, exist_ok=True)
-                for previous in review.glob("pdf-page-*.png"):
-                    previous.unlink()
-                command.append(str(review))
+            review.mkdir(parents=True, exist_ok=True)
+            for previous in review.glob("pdf-page-*.png"):
+                previous.unlink()
+            command.append(str(review))
             extracted = subprocess.check_output(command, text=True)
         # Remove only known running furniture at the edges of each page;
         # leave identical authored body occurrences intact.
@@ -191,10 +193,11 @@ def check(site: Path, source: Path, pdf: Path | None, review: Path | None = None
         raw_actual = compact(extracted)
         for code in all_code:
             assert compact(code) in actual, f"independent PDF reader lost source text: {code[:100]!r}"
-        for text in ("Runnable document gallery", "Invoice", "Business report", "Supported features"):
+        for text in ("Runnable document gallery", "Invoice", "Business report", "Remittance advice", "Supported features"):
             assert compact(text) in actual, f"PDF lost {text}"
-        # The manual embeds the three original RGB previews, with no lossy
-        # preparation or omitted figures. Check exact decoded pixel content.
+    if pdf:
+        # The manual embeds every registered RGB preview. Check exact decoded
+        # pixel content against the authored assets.
         document = Document(pdf.read_bytes())
         images = []
         tables = []
@@ -205,8 +208,8 @@ def check(site: Path, source: Path, pdf: Path | None, review: Path | None = None
             if isinstance(value, dict) and value.get("S") == "Table":
                 tables.append(number)
         expected_images = []
-        for name in ("tax-invoice", "business-report", "vector-diagrams"):
-            image = read_png(ROOT / f"examples/{name}/preview.png")
+        for path in ASSETS.values():
+            image = read_png(ROOT / path)
             expected_images.append((image.width, image.height, hashlib.sha256(image.pixels).hexdigest()))
         assert sorted(images) == sorted(expected_images), "PDF figure pixels differ from prepared source previews"
         assert len(tables) == table_count, "manual tables lost semantic ownership"
@@ -224,13 +227,12 @@ def check(site: Path, source: Path, pdf: Path | None, review: Path | None = None
                     pending.extend(reversed(node.get("K", [])))
             actual_table_shapes.append(tuple(rows))
         assert sorted(actual_table_shapes) == sorted(expected_table_shapes), "PDF table rows/cells differ from the authored grids"
-        for cell in table_cells:
-            # Initial headers can also sit at the page edge; their source
-            # text must remain in raw extraction even when repeated headers
-            # are removed to join a continued body cell.
-            assert compact(cell) in actual or compact(cell) in raw_actual, f"PDF lost table cell: {cell}"
         if review:
-            review.mkdir(parents=True, exist_ok=True)
+            for cell in table_cells:
+                # Initial headers can also sit at the page edge; their source
+                # text must remain in raw extraction even when repeated headers
+                # are removed to join a continued body cell.
+                assert compact(cell) in actual or compact(cell) in raw_actual, f"PDF lost table cell: {cell}"
             java = subprocess.run(["java", "-version"], text=True, capture_output=True, check=True)
             (review / "pdf-report.json").write_text(json.dumps({
                 "pdf_sha256": hashlib.sha256(pdf.read_bytes()).hexdigest(),
@@ -240,7 +242,7 @@ def check(site: Path, source: Path, pdf: Path | None, review: Path | None = None
                 "rendered_review_pages": {path.name: hashlib.sha256(path.read_bytes()).hexdigest()
                                           for path in sorted(review.glob("pdf-page-*.png"))},
             }, indent=2) + "\n")
-    print(f"PASS manual: {len(pages)} pages, {len(all_code)} exact source blocks, links, Markdown, asset digests" + ("; PDFBox source/table text, tagged table and three exact RGB figures" if pdf else ""))
+    print(f"PASS manual: {len(pages)} pages, {len(all_code)} exact source blocks, links, Markdown, asset digests" + (f"; tagged tables and {len(images)} exact RGB figures" if pdf else ""))
 
 
 def main() -> None:
@@ -250,6 +252,8 @@ def main() -> None:
     parser.add_argument("--pdf", type=Path)
     parser.add_argument("--review", type=Path, help="Retain independent PDFBox contents/figure preview images")
     args = parser.parse_args()
+    if args.review and not args.pdf:
+        parser.error("--review requires --pdf")
     check(args.site, args.source, args.pdf, args.review)
 
 

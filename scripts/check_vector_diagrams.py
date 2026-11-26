@@ -3,19 +3,22 @@
 from __future__ import annotations
 
 import argparse
-from collections import Counter
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
+
+from provision_extended_tools import archive_path
 import struct
 import subprocess
 import tempfile
 import zlib
 
-from check_drawing_labels import artifact_and_tagged_text
+from check_drawing_labels import artifact_and_tagged_text, figures_with_text
 from check_pdf_structure import ValidationError, require
-from check_structure_semantics import Document, page_order, text_string
+from check_structure_semantics import Document, page_order
+from pdf_layout import twin
 from check_visual_renderers import Raster, read_ppm
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -28,13 +31,16 @@ ALT = 'Café: receive an order, check stock or order timber, then dispatch.'
 
 def validate_vector_diagrams_pdf(pdf: bytes, dimensions: dict[str, int]) -> None:
     count = dimensions['diagrams']
+    figures = figures_with_text(pdf)
+    require(len(figures) == count, 'prepared vector Figure count changed')
+    for alternative, labels, fonts in figures:
+        require(alternative == ALT, 'Figure Alt changed')
+        require(labels == LABELS, 'Figure label Unicode or authored order changed')
+        require(all(names == {'Inter-Regular'} for names in fonts), 'prepared labels use an unexpected face')
     artifacts, tagged = artifact_and_tagged_text(pdf)
-    require(Counter(artifacts) == Counter({label: count for label in LABELS}), 'exact Unicode label multiplicity changed')
-    require(not set(LABELS).intersection(tagged), 'figure labels leaked into logical reading order')
+    require(not artifacts, 'prepared vector labels entered Layout artifacts')
     require(tagged.count('Order processing') == count, 'visible caption multiplicity changed')
     document = Document(pdf)
-    figures = [document.get(number) for number in document.bodies if isinstance(document.get(number), dict) and document.get(number).get('S') == 'Figure']
-    require(len(figures) == count and all(text_string(figure['Alt']) == ALT for figure in figures), 'Figure Alt ownership changed')
     pages: list[int] = []
     page_order(document, int(document.get(document.root)['Pages']), pages)
     for page in pages:
@@ -101,7 +107,7 @@ def compare_render() -> None:
     reference = read_png(PREPARATION / 'reference.png')
     with tempfile.TemporaryDirectory(prefix='vector-render-') as name:
         temporary = Path(name)
-        jar = ROOT / 'vendor/pdfbox/pdfbox-app-3.0.8.jar'
+        jar = archive_path("pdfbox")
         subprocess.run(['javac', '-Xlint:all', '-Werror', '-encoding', 'UTF-8', '-cp', str(jar), '-d', str(temporary), str(ROOT/'scripts/PdfBoxRender.java')], check=True, capture_output=True)
         output = temporary / 'pdfbox.ppm'
         subprocess.run(['java', '-Djava.awt.headless=true', '-cp', f'{temporary}{os.pathsep}{jar}', 'PdfBoxRender', str(SNAPSHOT), str(output), '96'], check=True, capture_output=True)
@@ -134,12 +140,27 @@ def self_test() -> None:
         pass
     else:
         raise AssertionError('vector checker accepted missing diagrams')
-    compare_render()
-    print('PASS prepared vector source provenance, exact Unicode/ownership and independent Chrome/PDFBox rendering')
+    data = SNAPSHOT.read_bytes()
+    document = Document(data)
+    [body] = [body for body in document.bodies.values() if b' /S /Figure >>' in body]
+    match = re.search(rb'/K \[([0-9]+) ([0-9]+) ([0-9]+) ', body)
+    require(match is not None, 'missing ordered drawing and label marks')
+    swapped = match.expand(rb'/K [\g<1> \g<3> \g<2> ')
+    changed = twin(data, body, body.replace(match.group(), swapped), exactly_once=True)
+    try:
+        validate_vector_diagrams_pdf(changed, {'diagrams': 1})
+    except ValidationError as error:
+        require(str(error) == 'Figure label Unicode or authored order changed', 'label-order twin failed for the wrong reason')
+    else:
+        raise ValidationError('vector checker accepted two swapped Figure label marks')
+    print('PASS prepared vector source provenance, exact Unicode/ownership')
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--self-test', action='store_true')
-    parser.parse_args()
+    parser.add_argument('--render', action='store_true', help='compare the local PDFBox render with the reference preview')
+    args = parser.parse_args()
     self_test()
+    if args.render:
+        compare_render()

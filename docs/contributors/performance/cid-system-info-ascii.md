@@ -1,7 +1,7 @@
-# CIDSystemInfo ASCII strings and the Arlington case lane
+# CIDSystemInfo ASCII strings
 
-This change fixes a `Pdf20` object-model defect that predates Gate 5 and adds
-the Arlington lane that found it to Linux CI.
+The CIDFont writer emits `/Registry` and `/Ordering` as ASCII byte strings.
+The font checker inspects those bytes directly.
 
 ## Cause
 
@@ -169,11 +169,7 @@ written by the test platform, not package output, and it must fail exactly
   rules and checks: 1,488,630 passed rules and 798,668 object checks in
   total. The placeholder fails exactly its recorded rule.
 
-The new `arlington` job in `.github/workflows/ci.yml` runs this lane on Linux
-after the test job, with the pinned image as a service container on port
-18080. `docs/contributors/performance/arlington.md` and the
-`ROC-PDF-PDF20-EMISSION-XREF` ledger entry now describe this lane. Before it,
-no CI job had run Arlington since CI was trimmed.
+For another local run, follow the [Arlington setup](arlington.md).
 
 ## Validation
 

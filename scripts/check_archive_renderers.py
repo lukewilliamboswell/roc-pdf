@@ -25,6 +25,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from provision_extended_tools import archive_path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from pdf_layout import planned_bodies
@@ -33,7 +35,7 @@ from check_visual_renderers import Raster, read_ppm  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 ARCHIVE = ROOT / "tests" / "archive"
-PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
+PDFBOX_JAR = archive_path("pdfbox")
 A4 = (595, 842)
 MIN_INK = 200
 
@@ -168,7 +170,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--pdfium-renderer", type=Path)
     parser.add_argument("--pdfium-working-directory", type=Path)
-    parser.add_argument("--mutool", type=Path, help="mutool built from vendor/mupdf/mupdf-1.28.2-source.tgz")
+    parser.add_argument("--mutool", type=Path, help="mutool from the pinned local MuPDF cache")
     parser.add_argument("--self-test", action="store_true")
     arguments = parser.parse_args()
     if arguments.self_test:

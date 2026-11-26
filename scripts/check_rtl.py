@@ -140,7 +140,7 @@ def validate_rtl_pdf(pdf: bytes) -> None:
 
 
 def check_pdfbox_extraction(pdf: Path) -> None:
-    require(PDFBOX_JAR.is_file(), f"vendored PDFBox JAR does not exist: {PDFBOX_JAR}")
+    require(PDFBOX_JAR.is_file(), f"cached PDFBox JAR does not exist: {PDFBOX_JAR}")
     with tempfile.TemporaryDirectory(prefix="roc-pdf-rtl-") as temporary_name:
         classes = Path(temporary_name) / "classes"
         classes.mkdir()

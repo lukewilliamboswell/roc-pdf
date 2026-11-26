@@ -1,17 +1,23 @@
-# Vendored dependencies
+# Dependency notices and assets
 
-This directory retains small, redistributable release artifacts used by the
-repository's independent test oracles, plus reviewed production data assets.
-Tool archives remain test-only. Production assets are imported into pure Roc
-package data at compile time and never loaded through a native or runtime file
-dependency.
+This directory records notices for optional independent PDF test oracles and
+retains reviewed production assets. Production font and colour data are
+compiled into the pure Roc package. The repository contract checker verifies
+tracked binary assets against `assets/provenance.json`.
 
-CI consumes the checked-in bytes directly and never downloads a replacement
-when an artifact is missing or has the wrong digest. Every binary is covered
-by `assets/provenance.json`, including its exact byte length, SHA-256 digest,
-immutable origin, license, attribution, and redistribution decision. The
-repository contract checker hashes every tracked binary before Roc allocation
-measurements begin.
+For local reproduction, explicitly provision the pinned test archives with
+`python3 scripts/provision_extended_tools.py --only TOOL`. Repeat `--only` to
+select multiple tools. The default archive cache is
+`.roc-pdf-tmp/extended-tools/downloads/`. The script checks size and SHA-256
+before retaining a download or using cached bytes. Pass `--offline` to
+require a verified local cache.
+
+The tool names are `mupdf` (builds mutool), `pdfbox` (standalone JAR),
+`pdfium` and `qpdf` (Linux x64 archives), and `verapdf` (installs the
+greenfield validator). Exact upstream versions, sources, hashes and licenses
+are listed in [the oracle pins](../assets/local-oracles.json). The
+[veraPDF corpus notice](verapdf-corpus/NOTICE.md) links the upstream test files
+for corpus investigations.
 
 ## Package dependencies
 
@@ -45,12 +51,6 @@ regenerated and reviewed, and `docs/contributors/performance/output-size.md` rec
 size and work movement.
 
 ## Retained artifacts
-
-Current retained tools are:
-
-- Apache PDFBox 3.0.8's standalone application JAR;
-- qpdf 12.3.2's Linux x86-64 binary archive; and
-- PDFium Chromium 7988's Linux x64 archive.
 
 Retained font inputs include:
 
@@ -107,11 +107,11 @@ the font validator rejected odd-length Macintosh-platform `name` records
 `cvt `, `fpgm`, `gasp`, and `prep` hinting tables (Fraunces 1.000, the Source
 Serif 4 desktop TTFs, unhinted Noto; `docs/contributors/performance/font-subsetting.md`).
 
-Keep upstream tool archives and source font files byte-for-byte intact. To update one, review its license
-and bundled notices, download the exact immutable release, verify the upstream
-digest, replace the artifact and attribution together, update the provenance
-record and CI reference, run `./scripts/test.py`, and commit the whole upgrade
-atomically. Do not use Git LFS or add a download fallback.
+Keep source font files byte-for-byte intact. When upgrading a test oracle,
+review the upstream license and notices, verify the new immutable release,
+update its oracle pin and attribution together, and rerun the affected
+evidence. Source-font upgrades also update the tracked binary and its
+provenance record in the same change.
 
 Whole Roc/Zig toolchains, JDK distributions, and container images are too
 large and platform-specific for Git. Hermetic deployments should preload those

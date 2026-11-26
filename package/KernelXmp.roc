@@ -14,11 +14,10 @@
 # - Text content escapes exactly `&`, `<`, and `>`; validation has already
 #   rejected scalars XML 1.0 cannot represent, and no other substitution or
 #   whitespace policy applies.
-# - A packet built for a validated static PDF/A-4 claim additionally declares
-#   the PDF/A Identification schema (`pdfaid:part` 4, `pdfaid:rev` 2020). Its
-#   namespace URI sorts last, so the declaration follows `xmlns:dc` and the two
-#   properties follow `dc:title`. An unidentified packet is byte-identical to
-#   the packet this policy produced before the identification existed.
+# - Identification properties come from the exact requested claims. The
+#   optional declaration for WTPDF accessibility follows WTPDF 1.0 6.1.3
+#   with the corrected declaration URI. Namespace order for the whole
+#   packet is XMP, PDF Declarations, Dublin Core, PDF/A, then PDF/UA.
 # - Indentation is one tab per element depth with single newlines; the packet
 #   carries no trailing newline. There are no XMP identifiers: deterministic
 #   document identity remains the trailer `/ID` digest, which hashes the
@@ -37,12 +36,14 @@ KernelXmp :: [].{
 
 	Work : { packet_bytes : U64, properties : U64, title_escapes : U64 }
 
-	## The PDF/A Identification schema *is* the conformance declaration, so it
-	## is a typed input rather than a metadata fact: only a caller that holds a
-	## requested static PDF/A-4 claim selects `PdfA4Identification`, and the
-	## lowered-plan validator checks the packet's identification against that
-	## same claim before any byte is emitted.
-	Identification : [NoIdentification, PdfA4Identification]
+	## Typed declarations are separate from authored metadata facts.
+	Identification : [NoIdentification, PdfA4Identification, AccessibleArchiveIdentification, AccessibleArchiveWithWtpdf]
+
+	declares_archive : Identification -> Bool
+	declares_archive = |identification| match identification {
+		NoIdentification => False
+		PdfA4Identification | AccessibleArchiveIdentification | AccessibleArchiveWithWtpdf => True
+	}
 
 	Packet :: { bytes : List(U8), identification : Identification, work : Work }.{
 		build : KernelMetadata.Facts, U64 -> Try(Packet, Error)
@@ -84,15 +85,19 @@ build_packet = |facts, identification, max_bytes| {
 	has_timestamps = timestamp_len > 0
 	namespace_len = if (has_timestamps) xmp_namespace.len() else 0
 
-	## The identification segments are materialized only for an identified
-	## packet, so the unidentified packet's bytes and allocations are unchanged.
-	identified = match identification {
-		NoIdentification => NotIdentified
-		PdfA4Identification => Identified({ namespace: Str.to_utf8(pdfaid_namespace_attribute), properties: Str.to_utf8(pdfaid_properties) })
+	## The optional segments materialize only for claims that emit them.
+	archive = if KernelXmp.declares_archive(identification) {
+		Identified({ namespace: Str.to_utf8(pdfaid_namespace_attribute), properties: Str.to_utf8(pdfaid_properties) })
+	} else {
+		NotIdentified
 	}
-	identification_len = match identified {
-		NotIdentified => 0
-		Identified({ namespace, properties }) => namespace.len() + properties.len()
+	accessibility = match identification {
+		AccessibleArchiveIdentification | AccessibleArchiveWithWtpdf => Identified({ namespace: Str.to_utf8(pdfuaid_namespace_attribute), properties: Str.to_utf8(pdfuaid_properties) })
+		_ => NotIdentified
+	}
+	declaration = match identification {
+		AccessibleArchiveWithWtpdf => Identified({ namespace: Str.to_utf8(pdfd_namespace_attribute), properties: Str.to_utf8(wtpdf_accessibility_properties) })
+		_ => NotIdentified
 	}
 
 	escapes = facts.title_escapes
@@ -104,7 +109,9 @@ build_packet = |facts, identification, max_bytes| {
 		+ head_rest.len()
 		+ namespace_len
 		+ dc_namespace.len()
-		+ identification_len
+		+ identification_length(archive)
+		+ identification_length(accessibility)
+		+ identification_length(declaration)
 		+ description_end.len()
 		+ timestamp_len
 		+ language_head.len()
@@ -126,37 +133,33 @@ build_packet = |facts, identification, max_bytes| {
 	if has_timestamps {
 		$out = $out.concat(xmp_namespace)
 	}
+	$out = append_namespace($out, declaration)
 	$out = $out.concat(dc_namespace)
-	match identified {
-		NotIdentified => {}
-		Identified(segments) => {
-			$out = $out.concat(segments.namespace)
-		}
-	}
+	$out = append_namespace($out, archive)
+	$out = append_namespace($out, accessibility)
 	$out = $out.concat(description_end)
 	$out = append_segments($out, created)
 	$out = append_segments($out, modified)
+	$out = append_properties($out, declaration)
 	$out = $out.concat(language_head)
 	$out = $out.concat(language_bytes)
 	$out = $out.concat(language_tail)
 	$out = $out.concat(title_head)
 	$out = append_escaped($out, title_bytes)
 	$out = $out.concat(title_tail)
-	match identified {
-		NotIdentified => {}
-		Identified(segments) => {
-			$out = $out.concat(segments.properties)
-		}
-	}
+	$out = append_properties($out, archive)
+	$out = append_properties($out, accessibility)
 	$out = $out.concat(tail)
 
 	if $out.len() != total {
 		crash "canonical XMP length invariant failed"
 	}
 
-	identification_properties = match identified {
-		NotIdentified => 0
-		Identified(_) => 2
+	identification_properties = match identification {
+		NoIdentification => 0
+		PdfA4Identification => 2
+		AccessibleArchiveIdentification => 4
+		AccessibleArchiveWithWtpdf => 5
 	}
 	properties = 2 + segment_count(created) + segment_count(modified) + identification_properties
 	Ok(
@@ -169,6 +172,24 @@ build_packet = |facts, identification, max_bytes| {
 }
 
 IdentificationSegments : [Identified({ namespace : List(U8), properties : List(U8) }), NotIdentified]
+
+identification_length : IdentificationSegments -> U64
+identification_length = |segments| match segments {
+	NotIdentified => 0
+	Identified({ namespace, properties }) => namespace.len() + properties.len()
+}
+
+append_namespace : List(U8), IdentificationSegments -> List(U8)
+append_namespace = |out, segments| match segments {
+	NotIdentified => out
+	Identified({ namespace, .. }) => out.concat(namespace)
+}
+
+append_properties : List(U8), IdentificationSegments -> List(U8)
+append_properties = |out, segments| match segments {
+	NotIdentified => out
+	Identified({ properties, .. }) => out.concat(properties)
+}
 
 TimestampSegments : [NoTimestamp, Timestamp({ close : List(U8), open : List(U8), value : List(U8) })]
 
@@ -242,6 +263,18 @@ pdfaid_namespace_attribute = " xmlns:pdfaid=\"http://www.aiim.org/pdfa/ns/id/\""
 
 pdfaid_properties : Str
 pdfaid_properties = "\t\t\t<pdfaid:part>4</pdfaid:part>\n\t\t\t<pdfaid:rev>2020</pdfaid:rev>\n"
+
+pdfuaid_namespace_attribute : Str
+pdfuaid_namespace_attribute = " xmlns:pdfuaid=\"http://www.aiim.org/pdfua/ns/id/\""
+
+pdfuaid_properties : Str
+pdfuaid_properties = "\t\t\t<pdfuaid:part>2</pdfuaid:part>\n\t\t\t<pdfuaid:rev>2024</pdfuaid:rev>\n"
+
+pdfd_namespace_attribute : Str
+pdfd_namespace_attribute = " xmlns:pdfd=\"http://pdfa.org/declarations/\""
+
+wtpdf_accessibility_properties : Str
+wtpdf_accessibility_properties = "\t\t\t<pdfd:declarations>\n\t\t\t\t<rdf:Bag>\n\t\t\t\t\t<rdf:li rdf:parseType=\"Resource\">\n\t\t\t\t\t\t<pdfd:conformsTo>http://pdfa.org/declarations/wtpdf#accessibility1.0</pdfd:conformsTo>\n\t\t\t\t\t</rdf:li>\n\t\t\t\t</rdf:Bag>\n\t\t\t</pdfd:declarations>\n"
 
 language_open : Str
 language_open = "\t\t\t<dc:language>\n\t\t\t\t<rdf:Bag>\n\t\t\t\t\t<rdf:li>"

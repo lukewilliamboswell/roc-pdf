@@ -136,27 +136,33 @@ reviewable without repeatedly rerunning the suite for its next mismatch.
 The [accepted compiler/dependency profile](performance/toolchain-profile.md)
 records current native provenance, controlled comparisons and reviewed outliers.
 
-## Static PDF/A-4 lanes
+## Profile fixtures
 
-Every `Archive` snapshot declares the `pdfa4` validator
-(`scripts/check_pdfa4_structure.py`), which re-derives the static profile
-facts from the bytes. The external lanes run on demand, after
-`scripts/provision_extended_tools.py` has laid down veraPDF, MuPDF, and the
-vendored upstream corpus:
+Register snapshots with `pdfa4` for the PDF/A-4 declaration, `pdfua2` for
+combined output, and `wtpdf_accessibility` when the case requests the WTPDF
+accessibility declaration. The project-owned harness inspects emitted XMP and
+applicable structure and resource facts, and compares the original output
+against the same PDF snapshot on each supported target. Use atomic source
+rejections and focused mutations to prove the checks distinguish altered
+objects or metadata.
+
+## Optional local PDF review
+
+Provision the independent tools you want to use. Selected downloads are
+verified and cached under `.roc-pdf-tmp/extended-tools/downloads`. Pass
+`--offline` to verify and use already-cached archives.
 
 ```sh
-python3 scripts/check_pdfa4.py --cases           # Archive snapshots: zero failed checks
-python3 scripts/check_pdfa4.py --standard-cases  # Standard snapshots: only deliberate omissions
-python3 scripts/check_pdfa4.py --corpus          # upstream veraPDF PDF/A-4 corpus verdicts
-python3 scripts/check_archive_renderers.py --pdfium-renderer PATH --mutool PATH
+python3 scripts/provision_extended_tools.py --only verapdf
+python3 scripts/check_pdfa4.py --cases
+python3 scripts/check_accessible_archive.py --cases
 ```
 
-The veraPDF lane always passes the explicit `--flavour 4`. Parser warnings or
-task exceptions in package output are failures. Corpus validator defects may
-only be recorded in `conformance/verapdf-exceptions.json`, with an upstream
-reference. The ledger must map every rule of the pinned profile
-(`conformance/verapdf-pdfa4-rules.json`, extracted from the vendored
-installer) exactly once; `scripts/check_contracts.py` enforces this.
+The Archive runner selects veraPDF profile `4`. The combined runner checks
+`4` and `ua2` on the original bytes and `wt1a` on the cases declaring WTPDF
+accessibility. Third-party results supplement local review. CI runs the
+project-owned checks. Report tool versions and keep generated controls and
+review output in ignored scratch storage.
 
 ## Designing correctness oracles
 
@@ -246,13 +252,12 @@ The smoke mode is the default and is what every pull request runs:
 ./scripts/fuzz.py            # or: blueprint run fuzz
 ```
 
-It builds two shared suites with `roc build --fuzz --specialize=yes --no-cache` for libFuzzer
-coverage instrumentation, then invokes each property independently through
-`--target`. It replays the target's seed corpus and up to 64 further inputs
-from a fixed seed, with `--time=1` capping the workload at one second per
-target. Suites build in parallel (`--jobs`, by default as many 6 GB builds as
-memory allows) and run one at a time. Its purpose is that every target keeps building and its property keeps
-executing between campaigns; it makes no claim about search coverage.
+It builds the selected suites with `roc build --fuzz --specialize=yes --no-cache`
+for libFuzzer coverage instrumentation. Each property runs independently through
+`--target`, checking its examples and exploring up to 64 more inputs from a
+fixed seed. The exploration budget is one second per target. Suites build in
+parallel (`--jobs`, by default as many 6 GB builds as memory allows). Smoke runs
+keep every property building and executing between campaigns.
 
 The campaign mode is the bounded search, 2000 executions per target by default:
 
@@ -283,6 +288,12 @@ A target's corpus is what decides whether its property is exercised at all. An
 inspector reached only by raw byte mutation will spend an entire campaign in
 its reject paths unless valid inputs are seeded, leaving the accept-path
 invariants unevaluated.
+
+For authored documents, prefer a typed generator and a few examples that
+exercise distinct success and failure paths. The profile-output target varies
+the requested profile, compression and authored content. It checks document
+identifiers, compares buffered and chunked output, and checks that preparation
+and export agree on located rejections.
 
 Minimized reproductions are retained as `fuzz_seed` assets under `tests/assets/`
 with provenance, and promoted to atomic regression tests beside the code they

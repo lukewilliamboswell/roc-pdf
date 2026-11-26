@@ -13,6 +13,7 @@ import KernelFontPlan
 import KernelMetadata
 import KernelNavigation
 import KernelPdfA4
+import KernelPdfUa2
 import KernelSrgbProfile
 import KernelXmp
 import Metadata
@@ -55,6 +56,12 @@ import Theme
 
 Pdf :: [].{
 	Profile := [AccessibleArchive, Archive, Standard].{
+		is_eq : _
+	}
+
+	## Opt into the WTPDF 1.0 accessibility declaration with AccessibleArchive.
+	## The package checks the supported output rules on a best-effort basis.
+	WtpdfDeclaration := [DeclareAccessibility, NoWtpdfDeclaration].{
 		is_eq : _
 	}
 
@@ -366,13 +373,29 @@ Pdf :: [].{
 		SourceFragmentPlaced({ page : U64, part : [First, Last, Middle, Whole], path : Str, rect : Layout.Rect, visual_lines : { count : U64, first : U64 } }),
 	]
 
-	## One human-review obligation at an authored location: whether a
-	## figure's alternative text conveys what it communicates, whether the
-	## reading order of the document (`document`) and of each custom block
-	## is meaningful, whether a table's header cells head their data, whether
-	## a link's text states its purpose, whether a declared language covers
-	## exactly its text, and whether an expansion is accurate.
-	ReportObligation : { obligation : [AlternativeTextMeaningful, ExpansionAccurate, LanguageAccurate, LinkPurposeMeaningful, ReadingOrderMeaningful, TableHeadersMeaningful], path : Str }
+	## A human-review obligation at an authored location. Combined-profile
+	## preparation adds document-level checks for semantics, title, text
+	## equivalence, artifact classification, page labels and embedding rights,
+	## with outline and annotation order obligations where applicable.
+	ReportObligation : {
+		obligation : [
+			AlternativeTextMeaningful,
+			AnnotationOrderMeaningful,
+			ArtifactClassificationMeaningful,
+			DocumentTitleAccurate,
+			ExpansionAccurate,
+			FontEmbeddingRightsConfirmed,
+			LanguageAccurate,
+			LinkPurposeMeaningful,
+			OutlineMeaningful,
+			PageLabelsAccurate,
+			ReadingOrderMeaningful,
+			StructureMeaningful,
+			TableHeadersMeaningful,
+			TextEquivalentAccurate,
+		],
+		path : Str,
+	}
 
 	## The report's explicit budget: its total entry count (65,536 unless
 	## given) and the bytes of its materialized paths and texts (4 MiB
@@ -430,10 +453,10 @@ Pdf :: [].{
 	## `Pdf.to_bytes_with(document, { page_size: Letter, theme, fonts:
 	## Registered(registry) })`.
 	##
-	## The production default selects the most complete public profile whose
-	## claim set is implemented and validated: `Archive` (PDF 2.0 plus static
-	## PDF/A-4). `AccessibleArchive` becomes the default only when its combined
-	## claim closes; `Standard` is an explicit opt-out, never a fallback.
+	## `AccessibleArchive` declares PDF/A-4 and PDF/UA-2 by default. `Archive`
+	## declares PDF/A-4. `Standard` writes PDF 2.0 without either declaration.
+	## Request WTPDF accessibility with `wtpdf: DeclareAccessibility`.
+	## These options select the package's best-effort checks and declarations.
 	## `fonts` is the complete public caller-resource boundary: a
 	## `Registered` registry carries the original immutable font bytes and
 	## the once-produced inspection facts, and the theme selects only the
@@ -446,8 +469,9 @@ Pdf :: [].{
 		compression : Compression ?? Balanced,
 		fonts : FontSource ?? BuiltIn,
 		page_size : PageSize ?? A4,
-		profile : Profile ?? Archive,
+		profile : Profile ?? AccessibleArchive,
 		theme : Theme ?? {},
+		wtpdf : WtpdfDeclaration ?? NoWtpdfDeclaration,
 	}.{
 
 		## Every option at its default.
@@ -478,8 +502,9 @@ Pdf :: [].{
 	document : DocumentProps -> Document
 	document = |DocumentProps.{ contents, created, language, modified, outline, page_labels, page_templates, title: input_title }| Document.from_props({ contents, created, language, modified, outline, page_labels, templates: page_templates, title: input_title })
 
-	## Build an explicitly framed document. The stable shape is available now;
-	## preparation reports `layout.custom` until its lowering closes.
+	## Build a document whose pages supply their own sizes and text frames.
+	## Placements declare reading order. The page builder can choose a separate
+	## paint order for that page.
 	fixed_document : { language : Str, pages : List(Document.FixedPage), title : Str } -> Document
 	fixed_document = |input| Document.from_fixed_pages(input)
 
@@ -574,10 +599,12 @@ Pdf :: [].{
 
 	## Own a drawing as meaningful figure content (`Figure`) with required,
 	## non-empty alternative text (`/Alt`). The drawing may hold any number
-	## of images and solid paths, grouped with `Scene.Drawing.group`, all at
+	## of images, solid paths, and text labels, grouped with
+	## `Scene.Drawing.group`, all at
 	## or beyond its bottom-left origin; its extent is the union of its
 	## commands. It is placed start-aligned in the flow at its authored size,
-	## as one unsplittable unit together with its caption. A caption becomes
+	## as one unsplittable unit together with its caption. The Figure owns
+	## its drawing labels in drawing order. A caption becomes
 	## a visible `Caption` beside the `Figure` in a `Sect`, related to it by
 	## `CaptionFor`, so assistive technology reads it independently of the
 	## alternative text. A figure wider than the flow region, or taller with
@@ -902,11 +929,9 @@ Pdf :: [].{
 	reserved_width : { width : Layout.Unit, align : Align, contents : List(Inline) } -> Inline
 	reserved_width = |{ width, align, contents }| Document.reserved_width({ width: width, align: align, contents: contents })
 
-	## The default profile is `Archive`: content follows the completed typed
-	## facade pipeline and passes static PDF/A-4 profile and lowered-plan
-	## validation before any byte exists. `Standard` is an explicit opt-out.
-	## AccessibleArchive remains unavailable until its combined capability
-	## closes; a document that cannot meet the requested claim is an error.
+	## Generate combined PDF/A-4 and PDF/UA-2 with `Options.default`.
+	## Use `to_bytes_with` to select another profile explicitly.
+	## A document that cannot meet its requested claim returns an error.
 	to_bytes : Document -> Try(List(U8), Error)
 	to_bytes = |doc| to_bytes_with(doc, Options.default)
 
@@ -921,6 +946,13 @@ Pdf :: [].{
 	## caches and exposes no PDF object internals.
 	prepare : Document, Options -> Try(Prepared, Error)
 	prepare = |doc, options| {
+		match Document.normalize_fixed(doc, standard_fixed_limits) ? fixed_authoring_error {
+			Flow => {}
+			Fixed(fixed) => {
+				prepared = build_fixed_plan(doc, fixed, options, NoCollect)?
+				return Ok(Prepared.(prepared.plan))
+			}
+		}
 		match Document.first_unavailable(doc) {
 			Available => {}
 			UnavailableFeature({ feature, summary }) => return Err(InvalidDocument(unavailable_batch(feature, summary)))
@@ -939,12 +971,20 @@ Pdf :: [].{
 	## `prepare_with_report` under an explicit report budget.
 	prepare_with_report_budget : Document, { options : Options, budget : ReportBudget } -> Try({ prepared : Prepared, report : Report }, Error)
 	prepare_with_report_budget = |doc, { options, budget }| {
+		match Document.normalize_fixed(doc, standard_fixed_limits) ? fixed_authoring_error {
+			Flow => {}
+			Fixed(fixed) => {
+				{ facts, normalized, plan } = build_fixed_plan(doc, fixed, options, Collect)?
+				report = build_report_at(normalized, facts, budget, options.profile, FixedReportPaths(Document.NormalizedFixed.view(fixed).pages))?
+				return Ok({ prepared: Prepared.(plan), report })
+			}
+		}
 		match Document.first_unavailable(doc) {
 			Available => {}
 			UnavailableFeature({ feature, summary }) => return Err(InvalidDocument(unavailable_batch(feature, summary)))
 		}
 		{ facts, normalized, plan } = build_reporting_plan(doc, options)?
-		report = build_report(normalized, facts, budget)?
+		report = build_report(normalized, facts, budget, options.profile)?
 		Ok({ prepared: Prepared.(plan), report })
 	}
 
@@ -987,16 +1027,100 @@ Pdf :: [].{
 	}
 }
 
+fixed_error : Conformance.DiagnosticCode, Str, Str, Str -> Pdf.Error
+fixed_error = |code, feature, message, path| InvalidDocument(located_batch(code, feature, message, [path]))
+
+fixed_authoring_error : Document.FixedError -> Pdf.Error
+fixed_authoring_error = |error| match error {
+	NoPages => fixed_error(LayoutConstraintViolated, "layout.fixed.empty", "A fixed document requires at least one page.", "pages")
+	InvalidPageSize({ page }) => fixed_error(LayoutConstraintViolated, "layout.fixed.page_size", "A fixed page needs whole-point sides from 3 to 14400 pt.", "${fixed_page_path(page)}.size")
+	EmptyPage({ page }) => fixed_error(LayoutConstraintViolated, "layout.fixed.empty_page", "A fixed page requires at least one semantic placement.", "${fixed_page_path(page)}.placements")
+	LimitExceeded({ dimension, attempted, limit }) => {
+		name = match dimension {
+			Pages => "pages"
+			Placements => "placements"
+			Rectangles => "artwork rectangles"
+		}
+		fixed_error(BudgetExceeded, "layout.fixed.budget", "The fixed document needs ${attempted.to_str()} ${name}, but its limit is ${limit.to_str()}.", "pages")
+	}
+	UnsupportedDocumentOption(option) => {
+		path = match option {
+			Templates => "templates"
+			Outline => "outline"
+			PageLabels => "page_labels"
+		}
+		fixed_error(FeatureUnavailable, "layout.fixed.document_option", "This document option is unavailable for fixed pages.", path)
+	}
+	UnsupportedPlacement({ page, placement }) => fixed_error(FeatureUnavailable, "layout.fixed.block", "A fixed placement accepts a title, numbered heading, paragraph or rich paragraph.", fixed_placement_path(page, placement))
+	UnsupportedInline({ page, placement }) => fixed_error(FeatureUnavailable, "layout.fixed.inline", "Links and generated fields are unavailable in fixed placements.", fixed_placement_path(page, placement))
+	InvalidFrame({ page, placement }) => fixed_error(LayoutConstraintViolated, "layout.fixed.frame", "The frame needs positive sides and must fit entirely within its page.", "${fixed_placement_path(page, placement)}.frame")
+	PaintOrderLength({ page, actual, expected }) => fixed_error(LayoutConstraintViolated, "layout.fixed.paint_order", "The paint order needs ${expected.to_str()} entries, but it contains ${actual.to_str()}.", "${fixed_page_path(page)}.paint_order")
+	PaintOrderIndex({ page, index, placement }) => fixed_error(LayoutConstraintViolated, "layout.fixed.paint_order", "Paint order entry ${index.to_str()} names placement ${placement.to_str()}, which is outside this page.", "${fixed_page_path(page)}.paint_order[${index.to_str()}]")
+	DuplicatePaintPlacement({ page, index, placement }) => fixed_error(LayoutConstraintViolated, "layout.fixed.paint_order", "Paint order entry ${index.to_str()} repeats placement ${placement.to_str()}.", "${fixed_page_path(page)}.paint_order[${index.to_str()}]")
+	UnsupportedArtifactKind({ page, layer, artifact }) => fixed_error(FeatureUnavailable, "layout.fixed.artifact", "Fixed pages accept Background underlays and Decoration overlays.", "${fixed_artifact_path(page, layer, artifact)}.kind")
+	UnsupportedArtifact({ page, layer, artifact, command }) => fixed_error(FeatureUnavailable, "layout.fixed.artifact", "Fixed page artwork accepts solid filled rectangles.", "${fixed_artifact_path(page, layer, artifact)}.drawing.commands[${command.to_str()}]")
+	InvalidArtifactRect({ page, layer, artifact, command, segment }) => fixed_error(LayoutConstraintViolated, "layout.fixed.artifact_bounds", "An artwork rectangle needs positive sides and must fit entirely within its page.", "${fixed_artifact_path(page, layer, artifact)}.drawing.commands[${command.to_str()}].segments[${segment.to_str()}]")
+}
+
+fixed_pipeline_error : KernelFacadePipeline.FixedError, Document, DiagnosticPaths, { authoring : Document.NormalizedAuthoring, fonts : KernelFacadeShape.FontSelection, theme : Theme } -> Pdf.Error
+fixed_pipeline_error = |error, doc, paths, planned| match error {
+	Pipeline(Lines(FixedUnbreakable({ block, available }))) => fixed_error(LayoutConstraintViolated, "layout.fixed.text_width", "An unbreakable text segment exceeds the frame's ${signed_points_text(available.raw())} of width.", diagnostic_leaf_path(doc, paths, block))
+	Pipeline(problem) => match planned.fonts {
+		Single(_) => pipeline_error_at(problem, doc, paths)
+		Styled(styled) => font_pipeline_error_at(problem, { doc, styled, theme: planned.theme, sources: planned.authoring.sources }, paths)
+		Ordered(ordered) => ordered_pipeline_error_at(problem, ordered.policy, doc, paths)
+	}
+	Placement(LineTooWide({ page, placement, actual, maximum })) => fixed_error(LayoutConstraintViolated, "layout.fixed.text_width", "A line needs ${signed_points_text(actual.raw())} of width but the frame has ${signed_points_text(maximum.raw())}.", fixed_placement_path(page, placement))
+	Placement(LineBoxesTooTall({ page, placement, actual, maximum })) => fixed_error(LayoutConstraintViolated, "layout.fixed.text_height", "The line boxes need ${points_text(actual)} of height but the frame has ${points_text(maximum)}.", fixed_placement_path(page, placement))
+	Placement(InvalidTextStyle({ page, placement })) => fixed_error(LayoutConstraintViolated, "layout.fixed.text_style", "Use a positive text size and set leading at least as large as the text size for this placement.", fixed_placement_path(page, placement))
+	Placement(PieceLimit({ attempted, limit })) => fixed_error(BudgetExceeded, "layout.fixed.budget", "Fixed text needs ${attempted.to_str()} positioned pieces, but the limit is ${limit.to_str()}.", "pages")
+	Placement(InvalidPlan) => fixed_error(InternalInvariant, "pipeline.fixed.placement", "The fixed layout stage received inconsistent accepted facts.", "pages")
+}
+
+## An accepted fixed document uses the same profile and resource boundary.
+## Its page sizes and frames were proved by fixed normalization; flow page
+## size and body margins do not participate.
+build_fixed_plan : Document, Document.NormalizedFixed, Pdf.Options, KernelFacadeReport.Request -> Try({ facts : [Facts(KernelFacadeReport.Facts), NoFacts], normalized : Document.NormalizedAuthoring, plan : KernelStructure.Plan }, Pdf.Error)
+build_fixed_plan = |doc, fixed, options, request| {
+	claims = validate_profile_request(doc, options)?
+	validate_theme(options.theme)?
+	view = Document.NormalizedFixed.view(fixed)
+	authoring = view.authoring
+	path_scope = FixedPaths({ authoring, pages: view.pages })
+	validated = KernelMetadata.validate(
+		{ created: Document.created(doc), language: authoring.language, modified: Document.modified(doc), title: authoring.metadata_title },
+		standard_metadata_limits,
+	) ? InvalidMetadata
+	xmp = KernelXmp.Packet.build_identified(validated.facts, claims.identification, standard_xmp_bytes) ? |_| InternalGenerationFailure
+	facts = WithDocumentFacts({
+		condition_identifier: KernelMetadata.srgb_condition_identifier,
+		profile: Color.ProfileId.from_index(0),
+		registry_name: KernelMetadata.icc_registry_name,
+		language: validated.facts.language,
+		xmp: KernelXmp.Packet.bytes(xmp),
+	})
+	if options.profile == AccessibleArchive {
+		validate_accessible_authoring_at(authoring, path_scope)?
+	}
+	planned = resolve_font_plan_at(authoring, { options, doc }, path_scope)?
+	pipeline = KernelFacadePipeline.Plan.build_fixed(planned.authoring, fixed, planned.fonts, planned.theme, standard_font_descriptor, facts, request, standard_pipeline_limits) ? |error| fixed_pipeline_error(error, doc, path_scope, planned)
+	output = KernelFacadePipeline.Plan.output(pipeline)
+	_text_work = KernelPdfA4.validate_text(claims.archive, KernelFacadeOutput.Plan.text_facts(output)) ? |violation| InvalidDocument(profile_batch(violation, ProfileValidation))
+	plan = KernelFacadeOutput.Plan.structure(output)
+	validate_lowered_plan(claims, xmp, plan)?
+	Ok({ facts: KernelFacadePipeline.Plan.facts(pipeline), normalized: planned.authoring, plan: KernelStructure.Plan.with_compression(plan, deflate_level(options.compression)) })
+}
+
 build_plan : Document, Pdf.Options -> Try(KernelStructure.Plan, Pdf.Error)
 build_plan = |doc, options| {
-	claim = validate_profile_request(options)?
+	claims = validate_profile_request(doc, options)?
 	validate_theme(options.theme)?
 	validate_page_size(options.page_size)?
 	validate_body_frame(options.page_size, options.theme)?
 
 	## The authored metadata facts validate once and the canonical XMP packet
-	## serializes once, identified exactly when the requested profile claims
-	## static PDF/A-4; every later stage consumes the same validated values.
+	## serializes once with exactly the requested declarations. Every later
+	## stage consumes the same validated values.
 	validated = KernelMetadata.validate(
 		{
 			created: Document.created(doc),
@@ -1006,7 +1130,7 @@ build_plan = |doc, options| {
 		},
 		standard_metadata_limits,
 	) ? InvalidMetadata
-	xmp = KernelXmp.Packet.build_identified(validated.facts, KernelPdfA4.identification(claim), standard_xmp_bytes) ? |_| InternalGenerationFailure
+	xmp = KernelXmp.Packet.build_identified(validated.facts, claims.identification, standard_xmp_bytes) ? |_| InternalGenerationFailure
 	if Document.block_count(doc) == 0 and Document.has_templates(doc) {
 		return Err(furniture_error(BodyEmpty))
 	}
@@ -1023,7 +1147,7 @@ build_plan = |doc, options| {
 				xmp: KernelXmp.Packet.bytes(xmp),
 			},
 		) ? |_| InternalGenerationFailure
-		validate_lowered_plan(claim, xmp, plan)?
+		validate_lowered_plan(claims, xmp, plan)?
 		return Ok(KernelStructure.Plan.with_compression(plan, deflate_level(options.compression)))
 	}
 	facts = WithDocumentFacts({
@@ -1035,7 +1159,11 @@ build_plan = |doc, options| {
 	})
 	font_page_size = options.page_size
 	font_compression = options.compression
-	planned = resolve_font_plan(Document.normalize(doc), { options: options, doc: doc })?
+	authoring = Document.normalize(doc)
+	if options.profile == AccessibleArchive {
+		validate_accessible_authoring(authoring)?
+	}
+	planned = resolve_font_plan(authoring, { options: options, doc: doc })?
 	font_selection = planned.fonts
 	font_theme = planned.theme
 	font_sources = planned.authoring.sources
@@ -1046,9 +1174,9 @@ build_plan = |doc, options| {
 		Ordered(ordered) => KernelFacadePipeline.Plan.build_ordered_with_facts(normalized, ordered, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| ordered_pipeline_error(error, ordered.policy, doc)
 	}
 	output = KernelFacadePipeline.Plan.output(pipeline)
-	_text_work = KernelPdfA4.validate_text(claim, KernelFacadeOutput.Plan.text_facts(output)) ? |violation| InvalidDocument(profile_batch(violation, ProfileValidation))
+	_text_work = KernelPdfA4.validate_text(claims.archive, KernelFacadeOutput.Plan.text_facts(output)) ? |violation| InvalidDocument(profile_batch(violation, ProfileValidation))
 	plan = KernelFacadeOutput.Plan.structure(output)
-	validate_lowered_plan(claim, xmp, plan)?
+	validate_lowered_plan(claims, xmp, plan)?
 	Ok(KernelStructure.Plan.with_compression(plan, deflate_level(font_compression)))
 }
 
@@ -1119,14 +1247,14 @@ measure_content = |options, contents, language, width| {
 ## returned for the report's path materialization.
 build_reporting_plan : Document, Pdf.Options -> Try({ facts : [Facts(KernelFacadeReport.Facts), NoFacts], normalized : Document.NormalizedAuthoring, plan : KernelStructure.Plan }, Pdf.Error)
 build_reporting_plan = |doc, options| {
-	claim = validate_profile_request(options)?
+	claims = validate_profile_request(doc, options)?
 	validate_theme(options.theme)?
 	validate_page_size(options.page_size)?
 	validate_body_frame(options.page_size, options.theme)?
 
 	## The authored metadata facts validate once and the canonical XMP packet
-	## serializes once, identified exactly when the requested profile claims
-	## static PDF/A-4; every later stage consumes the same validated values.
+	## serializes once with exactly the requested declarations. Every later
+	## stage consumes the same validated values.
 	validated = KernelMetadata.validate(
 		{
 			created: Document.created(doc),
@@ -1136,7 +1264,7 @@ build_reporting_plan = |doc, options| {
 		},
 		standard_metadata_limits,
 	) ? InvalidMetadata
-	xmp = KernelXmp.Packet.build_identified(validated.facts, KernelPdfA4.identification(claim), standard_xmp_bytes) ? |_| InternalGenerationFailure
+	xmp = KernelXmp.Packet.build_identified(validated.facts, claims.identification, standard_xmp_bytes) ? |_| InternalGenerationFailure
 	if Document.block_count(doc) == 0 and Document.has_templates(doc) {
 		return Err(furniture_error(BodyEmpty))
 	}
@@ -1153,7 +1281,7 @@ build_reporting_plan = |doc, options| {
 				xmp: KernelXmp.Packet.bytes(xmp),
 			},
 		) ? |_| InternalGenerationFailure
-		validate_lowered_plan(claim, xmp, plan)?
+		validate_lowered_plan(claims, xmp, plan)?
 		return Ok({ facts: NoFacts, normalized: Document.normalize(doc), plan: KernelStructure.Plan.with_compression(plan, deflate_level(options.compression)) })
 	}
 	facts = WithDocumentFacts({
@@ -1165,7 +1293,11 @@ build_reporting_plan = |doc, options| {
 	})
 	font_page_size = options.page_size
 	font_compression = options.compression
-	planned = resolve_font_plan(Document.normalize(doc), { options: options, doc: doc })?
+	authoring = Document.normalize(doc)
+	if options.profile == AccessibleArchive {
+		validate_accessible_authoring(authoring)?
+	}
+	planned = resolve_font_plan(authoring, { options: options, doc: doc })?
 	font_selection = planned.fonts
 	font_theme = planned.theme
 	font_sources = planned.authoring.sources
@@ -1176,19 +1308,150 @@ build_reporting_plan = |doc, options| {
 		Ordered(ordered) => KernelFacadePipeline.Plan.build_ordered_reporting(normalized, ordered, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| ordered_pipeline_error(error, ordered.policy, doc)
 	}
 	output = KernelFacadePipeline.Plan.output(pipeline)
-	_text_work = KernelPdfA4.validate_text(claim, KernelFacadeOutput.Plan.text_facts(output)) ? |violation| InvalidDocument(profile_batch(violation, ProfileValidation))
+	_text_work = KernelPdfA4.validate_text(claims.archive, KernelFacadeOutput.Plan.text_facts(output)) ? |violation| InvalidDocument(profile_batch(violation, ProfileValidation))
 	plan = KernelFacadeOutput.Plan.structure(output)
-	validate_lowered_plan(claim, xmp, plan)?
+	validate_lowered_plan(claims, xmp, plan)?
 	Ok({ facts: KernelFacadePipeline.Plan.facts(pipeline), normalized, plan: KernelStructure.Plan.with_compression(plan, deflate_level(font_compression)) })
 }
 
 ## Lowered-plan validation runs on every prepared plan before it is wrapped:
 ## an unclaimed plan checks only that its packet declares no identification,
 ## and a claimed plan is checked against the full static whitelist.
-validate_lowered_plan : KernelPdfA4.Claim, KernelXmp.Packet, KernelStructure.Plan -> Try({}, Pdf.Error)
-validate_lowered_plan = |claim, packet, plan| {
-	_work = KernelPdfA4.validate_lowered(claim, { packet, root: KernelStructure.Plan.root(plan), sealed: KernelStructure.Plan.sealed(plan) }) ? |violation| InvalidDocument(profile_batch(violation, LoweredPlanValidation))
+validate_lowered_plan : ProfileClaims, KernelXmp.Packet, KernelStructure.Plan -> Try({}, Pdf.Error)
+validate_lowered_plan = |claims, packet, plan| {
+	if KernelXmp.Packet.identification(packet) != claims.identification {
+		return Err(InternalGenerationFailure)
+	}
+	_work = KernelPdfA4.validate_lowered(claims.archive, { packet, root: KernelStructure.Plan.root(plan), sealed: KernelStructure.Plan.sealed(plan) }) ? |violation| InvalidDocument(profile_batch(violation, LoweredPlanValidation))
+	match claims.identification {
+		AccessibleArchiveIdentification | AccessibleArchiveWithWtpdf => KernelPdfUa2.validate_lowered(KernelStructure.Plan.sealed(plan), KernelStructure.Plan.root(plan)).map_err(|violation| InvalidDocument(accessibility_plan_batch(violation)))
+		_ => Ok({})
+	}
+}
+
+accessibility_plan_batch : KernelPdfUa2.Violation -> Conformance.DiagnosticBatch
+accessibility_plan_batch = |{ position, requirement }| {
+	clause = KernelPdfUa2.clause(requirement)
+	message = "AccessibleArchive requires that ${KernelPdfUa2.summary(requirement)} (${clause}). No PDF bytes were emitted."
+	{
+		detail_bytes: message.count_utf8_bytes(),
+		diagnostics: [
+			{
+				clause_references: [clause],
+				code: ProfileRequirementViolated,
+				details: [],
+				feature: Feature("profile.accessible_archive"),
+				location: if (requirement == PageTabs) Page(position) else Document,
+				message,
+				requirement_ids: [KernelPdfUa2.requirement_code(requirement)],
+				stage: LoweredPlanValidation,
+			},
+		],
+		truncation: Complete,
+	}
+}
+
+validate_accessible_authoring : Document.NormalizedAuthoring -> Try({}, Pdf.Error)
+validate_accessible_authoring = |authoring| validate_accessible_authoring_at(authoring, FlowPaths)
+
+validate_accessible_authoring_at : Document.NormalizedAuthoring, DiagnosticPaths -> Try({}, Pdf.Error)
+validate_accessible_authoring_at = |authoring, paths| {
+	if KernelPdfUa2.language_placeholder(authoring.language) {
+		return Err(accessibility_language("language"))
+	}
+	var $index = 0
+	for entry in authoring.outline {
+		match KernelPdfUa2.private_use_offset(entry.title) {
+			PrivateUse(offset) => return Err(accessibility_private_use("outline[${$index.to_str()}].title", offset))
+			NoPrivateUse => {}
+		}
+		$index = $index + 1
+	}
+	$index = 0
+	for label in authoring.page_labels {
+		match KernelPdfUa2.private_use_offset(label.prefix) {
+			PrivateUse(offset) => return Err(accessibility_private_use("page_labels[${$index.to_str()}].prefix", offset))
+			NoPrivateUse => {}
+		}
+		$index = $index + 1
+	}
+	$index = 0
+	for block in authoring.blocks {
+		match block.kind {
+			Figure(figure_index) => {
+				figure = authoring.figures.get(figure_index) ?? crash "normalized figure identity escaped"
+				match KernelPdfUa2.private_use_offset(figure.alternative) {
+					PrivateUse(offset) => return Err(accessibility_private_use(leaf_path_normalized(authoring, $index), offset))
+					NoPrivateUse => {}
+				}
+			}
+			RichParagraph(paragraph) => {
+				rich = authoring.rich_paragraphs.get(paragraph) ?? crash "normalized rich paragraph identity escaped"
+				var $inline = rich.inlines
+				while $inline < rich.inlines + rich.length {
+					kind = (authoring.inlines.get($inline) ?? crash "normalized inline identity escaped").kind
+					match kind {
+						InLanguage(tag) if KernelPdfUa2.language_placeholder(tag) and KernelSemantics.language_tag_valid(tag) => return Err(accessibility_language(authoring_inline_path(authoring, paths, $index, AtInline($inline))))
+						Expansion(text) => match KernelPdfUa2.private_use_offset(text) {
+							PrivateUse(offset) => return Err(accessibility_private_use(authoring_inline_path(authoring, paths, $index, AtInline($inline)), offset))
+							NoPrivateUse => {}
+						}
+						_ => {}
+					}
+					$inline = $inline + 1
+				}
+			}
+			_ => {}
+		}
+		$index = $index + 1
+	}
 	Ok({})
+}
+
+accessibility_language : Str -> Pdf.Error
+accessibility_language = |path| {
+	requirement : KernelPdfUa2.Requirement
+	requirement = DocumentLanguage
+	clause = KernelPdfUa2.clause(requirement)
+	message = "AccessibleArchive needs a language tag that identifies a specific natural language (${clause})."
+	InvalidDocument({
+		detail_bytes: message.count_utf8_bytes() + path.count_utf8_bytes(),
+		diagnostics: [
+			{
+				clause_references: [clause],
+				code: ProfileRequirementViolated,
+				details: [path],
+				feature: Feature("profile.accessible_archive.language"),
+				location: Document,
+				message,
+				requirement_ids: [KernelPdfUa2.requirement_code(requirement)],
+				stage: AuthoringValidation,
+			},
+		],
+		truncation: Complete,
+	})
+}
+
+accessibility_private_use : Str, U64 -> Pdf.Error
+accessibility_private_use = |path, offset| {
+	clause = "ISO 14289-2:2024 8.6"
+	message = "AccessibleArchive requires human-readable PDF strings to exclude Private Use Area characters. Replace the character at UTF-8 byte ${offset.to_str()} (${clause})."
+	InvalidDocument({
+		detail_bytes: message.count_utf8_bytes() + path.count_utf8_bytes(),
+		diagnostics: [
+			{
+				clause_references: [clause],
+				code: ProfileRequirementViolated,
+				details: [path],
+				feature: Feature("profile.accessible_archive.private_use_text"),
+				location: Document,
+				message,
+				requirement_ids: ["ROC-PDF-PDFUA2-8-6-TEXT-STRINGS"],
+				stage: AuthoringValidation,
+			},
+		],
+		truncation: Complete,
+	})
 }
 
 profile_batch : KernelPdfA4.Violation, Conformance.ValidationStage -> Conformance.DiagnosticBatch
@@ -1228,7 +1491,10 @@ font_style_message = |{ style, family }| {
 
 ## Font intent resolves once, before any shaping or page-reference measurement.
 resolve_font_plan : Document.NormalizedAuthoring, { options : Pdf.Options, doc : Document } -> Try({ authoring : Document.NormalizedAuthoring, fonts : KernelFacadeShape.FontSelection, theme : Theme }, Pdf.Error)
-resolve_font_plan = |authoring, { options, doc }| {
+resolve_font_plan = |authoring, input| resolve_font_plan_at(authoring, input, FlowPaths)
+
+resolve_font_plan_at : Document.NormalizedAuthoring, { options : Pdf.Options, doc : Document }, DiagnosticPaths -> Try({ authoring : Document.NormalizedAuthoring, fonts : KernelFacadeShape.FontSelection, theme : Theme }, Pdf.Error)
+resolve_font_plan_at = |authoring, { options, doc }, paths| {
 	match options.theme.font_selection {
 		Policy(_) => {
 			if options.theme.family != FromOptions {
@@ -1249,8 +1515,8 @@ resolve_font_plan = |authoring, { options, doc }| {
 				StyleUnavailable({ block, inline, style, family }) => {
 					message = font_style_message({ style, family })
 					match inline {
-						AtInline(_) => inline_error(doc, block, inline, FeatureUnavailable, "text.style_unavailable", message)
-						NoInline => located_error(doc, FeatureUnavailable, "text.style_unavailable", message, [leaf_path(doc, block)])
+						AtInline(_) => inline_error_at(doc, paths, block, inline, FeatureUnavailable, "text.style_unavailable", message)
+						NoInline => located_error(doc, FeatureUnavailable, "text.style_unavailable", message, [diagnostic_leaf_path(doc, paths, block)])
 					}
 				}
 				DrawingStyleUnavailable({ owner, label, style, family }) => {
@@ -1341,9 +1607,12 @@ append_source_fonts = |{ faces, fonts, inline_faces, face_indexes, roles }, regi
 ## Coverage errors retain the exact selected font's validated identity.
 ## Names are explanatory only; selection never depends on them.
 font_pipeline_error : KernelFacadePipeline.Error, { doc : Document, styled : KernelFacadeShape.StyledFaces, theme : Theme, sources : List(Document.NormalizedSource) } -> Pdf.Error
-font_pipeline_error = |error, { doc, styled, theme, sources }| match error {
+font_pipeline_error = |error, input| font_pipeline_error_at(error, input, FlowPaths)
+
+font_pipeline_error_at : KernelFacadePipeline.Error, { doc : Document, styled : KernelFacadeShape.StyledFaces, theme : Theme, sources : List(Document.NormalizedSource) }, DiagnosticPaths -> Pdf.Error
+font_pipeline_error_at = |error, { doc, styled, theme, sources }, paths| match error {
 	Shape(UnsupportedText({ block, inline, reason: Coverage(scalar), scalars })) => {
-		normalized = Document.normalize(doc)
+		normalized = diagnostic_authoring(doc, paths)
 		face = match inline {
 			AtInline(index) => list_at_face(styled.inline_faces, index)
 			NoInline => match list_at_block(normalized.blocks, block).kind {
@@ -1375,11 +1644,11 @@ font_pipeline_error = |error, { doc, styled, theme, sources }| match error {
 		at = "scalars ${scalars.start().to_str()} to ${(scalars.start() + scalars.length()).to_str()}"
 		message = "Selected font ${name} (face ${face.index().to_str()}) does not cover U+${scalar_hex(scalar)} at ${at}; no face is substituted."
 		match inline {
-			AtInline(_) => inline_error(doc, block, inline, FontCoverageMissing, "text.coverage_missing", message)
-			NoInline => located_error(doc, FontCoverageMissing, "text.coverage_missing", message, [leaf_path(doc, block)])
+			AtInline(_) => inline_error_at(doc, paths, block, inline, FontCoverageMissing, "text.coverage_missing", message)
+			NoInline => located_error(doc, FontCoverageMissing, "text.coverage_missing", message, [diagnostic_leaf_path(doc, paths, block)])
 		}
 	}
-	_ => pipeline_error(error, doc)
+	_ => pipeline_error_at(error, doc, paths)
 }
 
 list_at_block : List(Document.NormalizedBlock), U64 -> Document.NormalizedBlock
@@ -1398,11 +1667,14 @@ list_at_u64 = |values, index| match values.get(index) {
 ## boundaries of the convenience path map to the planner's typed
 ## unsupported-shaping fact. Everything else keeps the authored-content error.
 ordered_pipeline_error : KernelFacadePipeline.Error, Font.PolicyId, Document -> Pdf.Error
-ordered_pipeline_error = |error, policy, doc| match error {
+ordered_pipeline_error = |error, policy, doc| ordered_pipeline_error_at(error, policy, doc, FlowPaths)
+
+ordered_pipeline_error_at : KernelFacadePipeline.Error, Font.PolicyId, Document, DiagnosticPaths -> Pdf.Error
+ordered_pipeline_error_at = |error, policy, doc, paths| match error {
 	Shape(FontSelectionRejected(errors)) => InvalidFontSelection(errors)
 	Shape(PolicyInvalid(_)) => InvalidFontSelection([InvalidPolicy(policy)])
 	Shape(UndeclaredScript({ script, source })) => InvalidFontSelection([UnsupportedBuiltInShaping({ cluster: source, script: Font.Script.from_iso15924(script) })])
-	_ => pipeline_error(error, doc)
+	_ => pipeline_error_at(error, doc, paths)
 }
 
 ## Author-facing navigation rejections surface with their exact typed cause;
@@ -1411,22 +1683,25 @@ ordered_pipeline_error = |error, policy, doc| match error {
 ## normalized arena is rebuilt only on that rejection path, so the success
 ## path still hands its single normalized value to the pipeline uniquely.
 pipeline_error : KernelFacadePipeline.Error, Document -> Pdf.Error
-pipeline_error = |error, doc| match error {
+pipeline_error = |error, doc| pipeline_error_at(error, doc, FlowPaths)
+
+pipeline_error_at : KernelFacadePipeline.Error, Document, DiagnosticPaths -> Pdf.Error
+pipeline_error_at = |error, doc, paths| match error {
 	References(problem) => reference_error(doc, problem)
 	Fragments(Navigation(navigation)) => InvalidNavigation(navigation)
 	Output(Structure(Navigation(navigation))) => InvalidNavigation(navigation)
 	Semantics(ContainerDepthExceeded({ attempted, group, limit })) => InvalidDocument(container_batch(BudgetExceeded, "semantics.container_depth", "A container is nested ${attempted.to_str()} levels deep; the facade accepts at most ${limit.to_str()} nested part, section, and division levels.", group_path(Document.normalize(doc).groups, group)))
 	Semantics(EmptyContainer({ group })) => InvalidDocument(container_batch(InvalidRelationship, "semantics.empty_container", "A part, section, or division contains no semantic block; it would become an empty grouping element.", group_path(Document.normalize(doc).groups, group)))
-	Semantics(HeadingSkip({ block, previous })) => located_error(doc, InvalidRelationship, "semantics.heading_skip", "A heading is more than one level deeper than the heading before it; heading levels must not skip a level.", [leaf_path(doc, previous), leaf_path(doc, block)])
-	Semantics(FigureAlternativeEmpty({ block })) => located_error(doc, InvalidRelationship, "document.figure_alternative_empty", "A figure's alternative text is empty; every figure needs alternative text that conveys what it communicates.", [leaf_path(doc, block)])
-	Semantics(FigureCaptionEmpty({ block })) => located_error(doc, InvalidRelationship, "document.figure_caption_empty", "A figure caption is empty; use no_caption for a figure without a visible caption.", [leaf_path(doc, block)])
-	Semantics(FigureDrawing({ block, reason })) => located_error(doc, InvalidRelationship, "document.figure_drawing", "A figure's drawing is not a supported flow drawing: ${reason}.", [leaf_path(doc, block)])
-	Semantics(FigureFitInvalid({ block })) => located_error(doc, InvalidRelationship, "document.figure_fit", "A ScaleToFit floor is above 100 percent; a figure is never enlarged.", [leaf_path(doc, block)])
+	Semantics(HeadingSkip({ block, previous })) => located_error(doc, InvalidRelationship, "semantics.heading_skip", "A heading is more than one level deeper than the heading before it; heading levels must not skip a level.", [diagnostic_leaf_path(doc, paths, previous), diagnostic_leaf_path(doc, paths, block)])
+	Semantics(FigureAlternativeEmpty({ block })) => located_error(doc, InvalidRelationship, "document.figure_alternative_empty", "A figure's alternative text is empty; every figure needs alternative text that conveys what it communicates.", [diagnostic_leaf_path(doc, paths, block)])
+	Semantics(FigureCaptionEmpty({ block })) => located_error(doc, InvalidRelationship, "document.figure_caption_empty", "A figure caption is empty; use no_caption for a figure without a visible caption.", [diagnostic_leaf_path(doc, paths, block)])
+	Semantics(FigureDrawing({ block, reason })) => located_error(doc, InvalidRelationship, "document.figure_drawing", "A figure's drawing is not a supported flow drawing: ${reason}.", [diagnostic_leaf_path(doc, paths, block)])
+	Semantics(FigureFitInvalid({ block })) => located_error(doc, InvalidRelationship, "document.figure_fit", "A ScaleToFit floor is above 100 percent; a figure is never enlarged.", [diagnostic_leaf_path(doc, paths, block)])
 	Semantics(DecorationDrawing({ decoration, reason })) => flow_item_error(doc, DecorationItem(decoration), InvalidRelationship, "layout.decoration_drawing", "A decoration's drawing is not a supported flow drawing: ${reason}.")
 	Semantics(DecorationPosition({ decoration })) => flow_item_error(doc, DecorationItem(decoration), LayoutConstraintViolated, "layout.decoration_position", "A decoration is placed above the next flow block and moves with it, so it needs a following flow block and cannot appear in a lead region.")
 	Semantics(ListItemDecoration({ decoration })) => flow_item_error(doc, DecorationItem(decoration), InvalidRelationship, "semantics.list_item_content", "A decoration cannot appear inside a list item.")
-	Pages(FigureOversize({ block, frame_height, frame_width, height, width })) => located_error(doc, LayoutConstraintViolated, "document.figure_oversize", "A figure's drawing is ${points_text(width)} wide and ${points_text(height)} tall, but the flow region is ${points_text(frame_width)} wide and ${points_text(frame_height)} tall for the figure with its caption and any decoration above it; a figure is never clipped or shrunk unless its fit is ScaleToFit.", [leaf_path(doc, block)])
-	Pages(FigureScaleFloor({ block, floor, scale })) => located_error(doc, LayoutConstraintViolated, "document.figure_oversize", "A figure fits the flow region only at ${percent_text(scale)} of its size, below its ScaleToFit floor of ${floor.to_str()}%.", [leaf_path(doc, block)])
+	Pages(FigureOversize({ block, frame_height, frame_width, height, width })) => located_error(doc, LayoutConstraintViolated, "document.figure_oversize", "A figure's drawing is ${points_text(width)} wide and ${points_text(height)} tall, but the flow region is ${points_text(frame_width)} wide and ${points_text(frame_height)} tall for the figure with its caption and any decoration above it; a figure is never clipped or shrunk unless its fit is ScaleToFit.", [diagnostic_leaf_path(doc, paths, block)])
+	Pages(FigureScaleFloor({ block, floor, scale })) => located_error(doc, LayoutConstraintViolated, "document.figure_oversize", "A figure fits the flow region only at ${percent_text(scale)} of its size, below its ScaleToFit floor of ${floor.to_str()}%.", [diagnostic_leaf_path(doc, paths, block)])
 	Semantics(CustomContent({ child, custom })) => custom_content_error(doc, custom, child)
 	Semantics(CustomDrawing({ custom, reason })) => custom_error(doc, custom, InvalidRelationship, "layout.custom_block_drawing", "A custom block's panel is not a supported panel drawing: ${reason}.")
 	Semantics(CustomName({ custom })) => custom_error(doc, custom, InvalidRelationship, "semantics.custom_block_name", "A custom block's name is empty; the name identifies the block in diagnostics and the preparation report.")
@@ -1435,16 +1710,25 @@ pipeline_error = |error, doc| match error {
 	Pages(CustomOversize({ custom, frame_height, height })) => custom_error(doc, custom, LayoutConstraintViolated, "layout.oversize_block", "A custom block is unsplittable and needs ${points_text(height)}, but a page flow region holds at most ${points_text(frame_height)}; it is never split, clipped, or shrunk.")
 	Pages(CustomMeasureShort({ available, content, custom })) => custom_error(doc, custom, LayoutConstraintViolated, "layout.custom_block_measure", "A custom block's content needs ${points_text(content)}, but its measured height less twice its inset leaves ${points_text(available)}; the extension must measure the block at least that tall.")
 	Pages(DecorationOversize({ decoration, frame_height, frame_width, height, width })) => flow_item_error(doc, DecorationItem(decoration), LayoutConstraintViolated, "layout.oversize_block", "A decoration is ${points_text(width)} wide and ${points_text(height)} tall, but the flow region is ${points_text(frame_width)} wide and at most ${points_text(frame_height)} tall; a decoration is never clipped or shrunk.")
-	Semantics(EmptyRichParagraph({ block })) => inline_error(doc, block, NoInline, InvalidRelationship, "semantics.inline_empty", "A rich paragraph contains no text.")
-	Semantics(TableCellEmpty({ block })) => located_error(doc, InvalidRelationship, "table.cell_empty", "A table cell's content holds no text; write an empty cell as Pdf.cell([]).", [leaf_path(doc, block)])
+	Semantics(EmptyRichParagraph({ block })) => inline_error_at(doc, paths, block, NoInline, InvalidRelationship, "semantics.inline_empty", "A rich paragraph contains no text.")
+	Semantics(TableCellEmpty({ block })) => located_error(doc, InvalidRelationship, "table.cell_empty", "A table cell's content holds no text; write an empty cell as Pdf.cell([]).", [diagnostic_leaf_path(doc, paths, block)])
 	Semantics(TableEmpty({ group })) => group_error(doc, group, InvalidRelationship, "table.empty", "A table needs at least one column, one body row, and one cell with content.")
 	Semantics(TableGridMismatch({ columns, group, spanned })) => group_error(doc, group, InvalidRelationship, "table.grid_mismatch", "A table row spans ${spanned.to_str()} columns but the table declares ${columns.to_str()}; every row's column spans must sum to the column count and each span must be at least one.")
 	Semantics(TableHeaderMissing({ group })) => group_error(doc, group, InvalidRelationship, "table.header_missing", "A table declares no header cell; at least one cell must be a header_cell with a declared scope.")
-	Semantics(TableRowSpan({ block })) => located_error(doc, FeatureUnavailable, "table.row_span", "A table cell spans rows; row spans are scheduled for Gate 8 and only column spans are supported.", [leaf_path(doc, block)])
-	Semantics(BlockLimitExceeded({ attempted, block, dimension, limit })) => located_error(doc, BudgetExceeded, "document.content_limit", "The document needs ${attempted.to_str()} ${dimension_name(dimension)} but the facade accepts at most ${limit.to_str()}.", if (block < Document.normalize(doc).blocks.len()) [member_path(doc, Document.normalize(doc), block)] else [])
+	Semantics(TableRowSpan({ block })) => located_error(doc, FeatureUnavailable, "table.row_span", "A table cell spans rows; row spans are scheduled for Gate 8 and only column spans are supported.", [diagnostic_leaf_path(doc, paths, block)])
+	Semantics(BlockLimitExceeded({ attempted, block, dimension, limit })) => located_error(
+		doc,
+		BudgetExceeded,
+		"document.content_limit",
+		"The document needs ${attempted.to_str()} ${dimension_name(dimension)} but the facade accepts at most ${limit.to_str()}.",
+		match paths {
+			FlowPaths => if (block < Document.normalize(doc).blocks.len()) [member_path(doc, Document.normalize(doc), block)] else []
+			FixedPaths(fixed) => if (block < fixed.authoring.blocks.len()) [fixed_block_path(fixed.pages, block)] else []
+		},
+	)
 	Lines(Tables(TableWidth({ available, group, required }))) => group_error(doc, group, LayoutConstraintViolated, "layout.table_width", "A table's fixed column widths and column minimums need ${points_text(required)} but the table has ${points_text(available)}; content is never shrunk or clipped.")
-	Lines(Tables(UnbreakableToken({ available, block, token, width }))) => located_error(doc, LayoutConstraintViolated, "layout.unbreakable_token", "A table cell holds text with no break opportunity (scalars ${token.start().to_str()} to ${(token.start() + token.length()).to_str()}) that is ${points_text(width)} wide, but its column gives it at most ${points_text(available)}; there is no emergency breaking.", [leaf_path(doc, block)])
-	Lines(Tables(UnbreakableItems({ available, block, items, width }))) => located_error(doc, LayoutConstraintViolated, "layout.unbreakable_reference_items", "A table cell has an unbreakable measured item span ${items.start().to_str()} to ${(items.start() + items.length()).to_str()} of width ${points_text(width)}, but its columns provide ${points_text(available)}.", [leaf_path(doc, block)])
+	Lines(Tables(UnbreakableToken({ available, block, token, width }))) => located_error(doc, LayoutConstraintViolated, "layout.unbreakable_token", "A table cell holds text with no break opportunity (scalars ${token.start().to_str()} to ${(token.start() + token.length()).to_str()}) that is ${points_text(width)} wide, but its column gives it at most ${points_text(available)}; there is no emergency breaking.", [diagnostic_leaf_path(doc, paths, block)])
+	Lines(Tables(UnbreakableItems({ available, block, items, width }))) => located_error(doc, LayoutConstraintViolated, "layout.unbreakable_reference_items", "A table cell has an unbreakable measured item span ${items.start().to_str()} to ${(items.start() + items.length()).to_str()} of width ${points_text(width)}, but its columns provide ${points_text(available)}.", [diagnostic_leaf_path(doc, paths, block)])
 	Pages(TableLayout({ error: LeadOverflow({ available, required }), groups: _, units: _ })) => lead_overflow_error(available, required)
 	Pages(TableLayout({ error: layout_error, groups: sources, units })) => table_layout_error(doc, layout_error, sources, units)
 	Pages(TableRuleWidth({ gap, rule, width })) => {
@@ -1461,15 +1745,15 @@ pipeline_error = |error, doc| match error {
 		}
 		located_error(doc, LayoutConstraintViolated, "layout.table_rule", "The theme's ${name} is ${points_text(width)} wide but ${space} is ${points_text(gap)}.", [])
 	}
-	Semantics(EmptyInline({ block, inline })) => inline_error(doc, block, AtInline(inline), InvalidRelationship, "semantics.inline_empty", "An inline is empty: inline text, code, and expansions need text, and every inline element must contain text.")
-	Semantics(EmptyLinkText({ block, inline })) => inline_error(doc, block, AtInline(inline), InvalidRelationship, "semantics.link_text_empty", "A link has no text content to announce as its purpose.")
-	Semantics(NestedLink({ block, inline })) => inline_error(doc, block, AtInline(inline), InvalidRelationship, "semantics.nested_link", "A link contains another link.")
-	Semantics(InlineDepthExceeded({ attempted, block, inline, limit })) => inline_error(doc, block, AtInline(inline), BudgetExceeded, "semantics.inline_depth", "An inline element is nested ${attempted.to_str()} levels deep; rich paragraphs accept at most ${limit.to_str()} nested inline elements.")
-	Semantics(InvalidInlineLanguage({ block, inline })) => inline_error(doc, block, AtInline(inline), InvalidLanguage, "semantics.language_tag", "An in_language tag is not a well-formed BCP 47 language tag.")
-	Semantics(InvalidInlineUri({ block, error: uri_error, inline })) => inline_error(doc, block, AtInline(inline), InvalidRelationship, "semantics.link_uri", "An inline link URI is not a valid absolute URI (${uri_problem(uri_error)}).")
-	Shape(UnsupportedInlineScript({ block, inline, script })) => inline_error(doc, block, AtInline(inline), FontCoverageMissing, "text.unsupported_script", "Inline text uses the script ${script}, which the convenience text path does not shape.")
-	Shape(InlineClusterBoundary({ block, inline })) => inline_error(doc, block, AtInline(inline), FontCoverageMissing, "text.unsupported_cluster", "An inline boundary falls inside a multi-scalar grapheme cluster, which the convenience shaper does not support.")
-	Semantics(LineBreakPosition({ block, line_break })) => line_break_error(doc, block, line_break)
+	Semantics(EmptyInline({ block, inline })) => inline_error_at(doc, paths, block, AtInline(inline), InvalidRelationship, "semantics.inline_empty", "An inline is empty: inline text, code, and expansions need text, and every inline element must contain text.")
+	Semantics(EmptyLinkText({ block, inline })) => inline_error_at(doc, paths, block, AtInline(inline), InvalidRelationship, "semantics.link_text_empty", "A link has no text content to announce as its purpose.")
+	Semantics(NestedLink({ block, inline })) => inline_error_at(doc, paths, block, AtInline(inline), InvalidRelationship, "semantics.nested_link", "A link contains another link.")
+	Semantics(InlineDepthExceeded({ attempted, block, inline, limit })) => inline_error_at(doc, paths, block, AtInline(inline), BudgetExceeded, "semantics.inline_depth", "An inline element is nested ${attempted.to_str()} levels deep; rich paragraphs accept at most ${limit.to_str()} nested inline elements.")
+	Semantics(InvalidInlineLanguage({ block, inline })) => inline_error_at(doc, paths, block, AtInline(inline), InvalidLanguage, "semantics.language_tag", "An in_language tag has invalid BCP 47 structure.")
+	Semantics(InvalidInlineUri({ block, error: uri_error, inline })) => inline_error_at(doc, paths, block, AtInline(inline), InvalidRelationship, "semantics.link_uri", "An inline link URI is not a valid absolute URI (${uri_problem(uri_error)}).")
+	Shape(UnsupportedInlineScript({ block, inline, script })) => inline_error_at(doc, paths, block, AtInline(inline), FontCoverageMissing, "text.unsupported_script", "Inline text uses the script ${script}, which the convenience text path does not shape.")
+	Shape(InlineClusterBoundary({ block, inline })) => inline_error_at(doc, paths, block, AtInline(inline), FontCoverageMissing, "text.unsupported_cluster", "An inline boundary falls inside a multi-scalar grapheme cluster, which the convenience shaper does not support.")
+	Semantics(LineBreakPosition({ block, line_break })) => line_break_error_at(doc, paths, block, line_break)
 	Lines(SourceTokenTooWide({ available, line, scalars, source })) => source_error(doc, source, LayoutConstraintViolated, "layout.unbreakable_token", "Source logical line ${(line + 1).to_str()} has a token at scalars ${scalars.start().to_str()} to ${(scalars.start() + scalars.length()).to_str()} wider than ${points_text(available)}. Select Wrap to permit grapheme boundaries, or supply a wider content box; a glyph wider than the box still rejects.")
 	Lines(SourceContentWidth({ available, padding, source })) => source_error(doc, source, LayoutConstraintViolated, "source.content_width", "The source block has ${points_text(padding)} padding on each side, leaving no positive content width inside ${points_text(available)}.")
 	Semantics(SourceStyle({ source })) => source_error(doc, source, LayoutConstraintViolated, "source.style", "A source block needs a positive size, leading at least its size, and nonnegative padding.")
@@ -1484,7 +1768,7 @@ pipeline_error = |error, doc| match error {
 	}
 	Semantics(CalloutStyle({ group })) => group_error(doc, group, LayoutConstraintViolated, "layout.callout_style", "A callout needs a name, nonnegative padding, a fill or border, and any border must be positive and no wider than its padding; callouts cannot appear in the lead region.")
 	Semantics(CalloutContent({ group })) => group_error(doc, group, InvalidRelationship, "semantics.callout_content", "A callout holds paragraphs, lists, source blocks, figures, tables, and nested callouts.")
-	Semantics(CalloutBlock({ block })) => located_error(doc, InvalidRelationship, "semantics.callout_content", "This block kind cannot appear in a callout.", [leaf_path(doc, block)])
+	Semantics(CalloutBlock({ block })) => located_error(doc, InvalidRelationship, "semantics.callout_content", "This block kind cannot appear in a callout.", [diagnostic_leaf_path(doc, paths, block)])
 	Semantics(CalloutFlow({ group, position })) => {
 		normalized = Document.normalize(doc)
 		located_error(doc, InvalidRelationship, "semantics.callout_content", "Explicit breaks, spacers and free decorations cannot appear in a callout.", ["${group_path(normalized.groups, group)}.contents[${position.to_str()}]"])
@@ -1497,29 +1781,29 @@ pipeline_error = |error, doc| match error {
 	Semantics(ListDepthExceeded({ attempted, group, limit })) => group_error(doc, group, BudgetExceeded, "semantics.list_depth", "A list is nested ${attempted.to_str()} levels deep; the facade accepts at most ${limit.to_str()} nested lists.")
 	Semantics(ListItemStart({ group })) => group_error(doc, group, InvalidRelationship, "semantics.list_item_content", "A list item must begin with a paragraph or rich paragraph, which its label paints beside.")
 	Semantics(ListItemGroup({ group })) => group_error(doc, group, InvalidRelationship, "semantics.list_item_content", "A list item holds paragraphs, rich paragraphs, nested lists, source blocks, figures, tables, and callouts.")
-	Semantics(ListItemBlock({ block })) => located_error(doc, InvalidRelationship, "semantics.list_item_content", "A list item holds paragraphs, rich paragraphs, nested lists, source blocks, figures, tables, and callouts.", [leaf_path(doc, block)])
+	Semantics(ListItemBlock({ block })) => located_error(doc, InvalidRelationship, "semantics.list_item_content", "A list item holds paragraphs, rich paragraphs, nested lists, source blocks, figures, tables, and callouts.", [diagnostic_leaf_path(doc, paths, block)])
 	Semantics(ListItemBreak({ page_break })) => flow_item_error(doc, PageBreakItem(page_break), InvalidRelationship, "semantics.list_item_content", "A page break cannot appear inside a list item.")
 	Semantics(ListItemSpacer({ spacer })) => flow_item_error(doc, SpacerItem(spacer), InvalidRelationship, "semantics.list_item_content", "A spacer cannot appear inside a list item.")
 	Semantics(NegativeSpacer({ spacer })) => flow_item_error(doc, SpacerItem(spacer), LayoutConstraintViolated, "layout.spacer_negative", "A spacer has a negative height; spacing never overlaps content.")
 	Semantics(ListNumbering({ group })) => group_error(doc, group, InvalidRelationship, "semantics.list_numbering", "A generated list number cannot be written in its style: letters and Roman numerals start at 1, and Roman numerals stop at 3999.")
-	Shape(UnsupportedText({ block, inline, reason, scalars })) => unsupported_text_error(doc, block, inline, reason, scalars)
+	Shape(UnsupportedText({ block, inline, reason, scalars })) => unsupported_text_error(doc, paths, block, inline, reason, scalars)
 	Lines(LabelTooWide({ available, block, width })) => label_width_error(doc, block, width, available)
 	Pages(PageBreakPosition({ page_break })) => flow_item_error(doc, PageBreakItem(page_break), LayoutConstraintViolated, "layout.page_break_position", "A page break must separate two flow blocks; a break first, last, or directly after another would produce an empty page.")
 	Pages(PageLayout(KeepConflict(conflict))) => keep_conflict_error(doc, conflict)
 	Pages(PageLayout(Oversize({ available, block, required }))) => oversize_error(doc, block, required, available)
 	Pages(PageLayout(LimitExceeded({ attempted, dimension: Pages, limit }))) => located_error(doc, BudgetExceeded, "document.content_limit", "The document needs ${attempted.to_str()} pages but the facade accepts at most ${limit.to_str()}.", [])
 	Pages(PageLayout(LeadOverflow({ available, required }))) => lead_overflow_error(available, required)
-	Semantics(PageReference({ block, inline, reason })) => inline_error(doc, block, AtInline(inline), InvalidRelationship, "document.page_reference", reason)
-	Semantics(ContentsEntry({ block, reason })) => located_error(doc, InvalidRelationship, "document.contents_entry", reason, [leaf_path(doc, block)])
-	Semantics(FurnitureInline({ block, inline })) => inline_error(doc, block, AtInline(inline), FeatureUnavailable, "document.generated_reference", "Page-number, page-label, total-page and running-label fields belong in page furniture. Use page_reference for a fixed-width destination reference in body content.")
+	Semantics(PageReference({ block, inline, reason })) => inline_error_at(doc, paths, block, AtInline(inline), InvalidRelationship, "document.page_reference", reason)
+	Semantics(ContentsEntry({ block, reason })) => located_error(doc, InvalidRelationship, "document.contents_entry", reason, [diagnostic_leaf_path(doc, paths, block)])
+	Semantics(FurnitureInline({ block, inline })) => inline_error_at(doc, paths, block, AtInline(inline), FeatureUnavailable, "document.generated_reference", "Page-number, page-label, total-page and running-label fields belong in page furniture. Use page_reference for a fixed-width destination reference in body content.")
 	Furniture(ScopeInvalid({ group, reason })) => group_error(doc, group, InvalidRelationship, "layout.page_scope", reason)
 	Furniture(furniture) => furniture_error(furniture)
 	ReferenceCycle({ first_seen_pass, repeated_at_pass }) => located_error(doc, LayoutCycle, "layout.reference_cycle", "Reference stabilization repeated the state of pass ${first_seen_pass.to_str()} at pass ${repeated_at_pass.to_str()}; no attempted state is accepted.", [])
 	ReferenceBudget({ passes }) => located_error(doc, BudgetExceeded, "layout.budget_exhausted", "Reference stabilization did not repeat a state within its budget of ${passes.to_str()} passes; no attempted state is accepted.", [])
-	Semantics(UnsupportedHeadingLevel({ block, level })) => located_error(doc, InvalidRelationship, "semantics.heading_level", "A heading has level ${level.to_str()}; headings have levels 1 to 6 (H1 to H6).", [leaf_path(doc, block)])
+	Semantics(UnsupportedHeadingLevel({ block, level })) => located_error(doc, InvalidRelationship, "semantics.heading_level", "A heading has level ${level.to_str()}; headings have levels 1 to 6 (H1 to H6).", [diagnostic_leaf_path(doc, paths, block)])
 	Semantics(EmptyLanguage) => located_error(doc, InvalidLanguage, "document.language_empty", "The document language is empty; it must be a BCP 47 language tag.", [])
 	Semantics(EmptyMetadataTitle) => located_error(doc, InvalidRelationship, "document.title_empty", "The document's metadata title is empty.", [])
-	Shape(UnsupportedThemeFace({ block, face })) => located_error(doc, FeatureUnavailable, "text.theme_face", "A block's style selects face ${face.to_str()}, which is not one of the faces this document's font selection prepared.", [leaf_path(doc, block)])
+	Shape(UnsupportedThemeFace({ block, face })) => located_error(doc, FeatureUnavailable, "text.theme_face", "A block's style selects face ${face.to_str()}, which is not one of the faces this document's font selection prepared.", [diagnostic_leaf_path(doc, paths, block)])
 	Shape(ShapeFailure) => located_error(doc, FontCoverageMissing, "text.shaping_failed", "The selected faces could not shape the document's text, and no single text run was identified as the cause; no face is substituted.", [])
 	Scenes(UnsupportedColor({ run })) => located_error(doc, FeatureUnavailable, "color.unsupported", "Text run ${run.to_str()} is painted in a color the selected profile's output intent cannot represent; no color is converted.", [])
 	Output(Images(image)) => image_error(image)
@@ -1618,23 +1902,23 @@ stage_error = |error| {
 ## inline with the failing cluster's scalars. A script outside the path's
 ## set is reported before a multi-scalar cluster, and both before coverage,
 ## so the author sees the fundamental cause; no face is substituted.
-unsupported_text_error : Document, U64, [AtInline(U64), NoInline], [Cluster, Coverage(U32), Script(Str)], Semantics.IndexRange -> Pdf.Error
-unsupported_text_error = |doc, block, inline, reason, scalars| {
+unsupported_text_error : Document, DiagnosticPaths, U64, [AtInline(U64), NoInline], [Cluster, Coverage(U32), Script(Str)], Semantics.IndexRange -> Pdf.Error
+unsupported_text_error = |doc, paths, block, inline, reason, scalars| {
 	at = "scalars ${scalars.start().to_str()} to ${(scalars.start() + scalars.length()).to_str()}"
 	(feature, message) = match reason {
 		Script(script) => ("text.unsupported_script", "Text at ${at} uses the script ${if (script.is_empty()) "Unknown" else script}, which the selected text path does not shape.")
 		Cluster => ("text.unsupported_cluster", "Text at ${at} is a multi-scalar grapheme cluster, which the convenience shaper does not support.")
 		Coverage(scalar) => ("text.coverage_missing", "No selected face covers U+${scalar_hex(scalar)} at ${at}; no face is substituted.")
 	}
-	normalized = Document.normalize(doc)
+	normalized = diagnostic_authoring(doc, paths)
 	rich = match normalized.blocks.get(block) {
 		Ok({ kind: RichParagraph(_), .. }) => True
 		_ => False
 	}
 	if rich {
-		inline_error(doc, block, inline, FontCoverageMissing, feature, message)
+		inline_error_at(doc, paths, block, inline, FontCoverageMissing, feature, message)
 	} else {
-		located_error(doc, FontCoverageMissing, feature, message, [leaf_path(doc, block)])
+		located_error(doc, FontCoverageMissing, feature, message, [diagnostic_leaf_path(doc, paths, block)])
 	}
 }
 
@@ -1723,6 +2007,7 @@ furniture_error = |error| {
 
 dimension_name : KernelFacadeSemantics.Dimension -> Str
 dimension_name = |dimension| match dimension {
+	Attributes => "typed attributes and relationships"
 	ContentSpine => "content-spine items"
 	Nodes => "structure elements"
 	Occurrences => "content occurrences"
@@ -1872,15 +2157,15 @@ flow_item_error = |doc, item, diagnostic, feature, message| {
 
 ## A line break with no text on one side, located by its paragraph path and
 ## its authored inline position.
-line_break_error : Document, U64, U64 -> Pdf.Error
-line_break_error = |doc, block, line_break| {
-	normalized = Document.normalize(doc)
+line_break_error_at : Document, DiagnosticPaths, U64, U64 -> Pdf.Error
+line_break_error_at = |doc, paths, block, line_break| {
+	normalized = diagnostic_authoring(doc, paths)
 	record = match normalized.line_breaks.get(line_break) {
 		Ok(value) => value
 		Err(OutOfBounds) => crash "normalized line break path escaped"
 	}
 	owner = if (record.parent == 0) NoInline else AtInline(record.parent - 1)
-	path = "${inline_path(normalized, block, owner)}.inlines[${record.position.to_str()}]"
+	path = "${authoring_inline_path(normalized, paths, block, owner)}.inlines[${record.position.to_str()}]"
 	located_error(doc, InvalidRelationship, "semantics.line_break_position", "A line break must separate text inside its paragraph; it cannot begin or end the paragraph or follow another line break.", [path])
 }
 
@@ -2071,13 +2356,59 @@ located_batch = |diagnostic, feature, message, paths| {
 	}
 }
 
+## Fixed normalization preserves page-local addresses separately from
+## the logical, page-major semantic block arena.
+DiagnosticPaths : [FlowPaths, FixedPaths({ authoring : Document.NormalizedAuthoring, pages : List(Document.FixedPagePlan) })]
+
+diagnostic_authoring : Document, DiagnosticPaths -> Document.NormalizedAuthoring
+diagnostic_authoring = |doc, paths| match paths {
+	FlowPaths => Document.normalize(doc)
+	FixedPaths(fixed) => fixed.authoring
+}
+
+diagnostic_leaf_path : Document, DiagnosticPaths, U64 -> Str
+diagnostic_leaf_path = |doc, paths, block| match paths {
+	FlowPaths => leaf_path(doc, block)
+	FixedPaths(fixed) => fixed_block_path(fixed.pages, block)
+}
+
+fixed_page_path : U64 -> Str
+fixed_page_path = |page| "pages[${page.to_str()}]"
+
+fixed_placement_path : U64, U64 -> Str
+fixed_placement_path = |page, placement| "${fixed_page_path(page)}.placements[${placement.to_str()}]"
+
+fixed_block_path : List(Document.FixedPagePlan), U64 -> Str
+fixed_block_path = |pages, block| {
+	var $page = 0
+	for record in pages {
+		range = record.placements
+		if block >= range.start() and block - range.start() < range.length() {
+			return fixed_placement_path($page, block - range.start())
+		}
+		$page = $page + 1
+	}
+	crash "fixed semantic block escaped its validated page spans"
+}
+
+fixed_artifact_path : U64, Document.FixedArtifactLayer, U64 -> Str
+fixed_artifact_path = |page, layer, artifact| {
+	field = match layer {
+		Underlay => "artifacts_before"
+		Overlay => "artifacts_after"
+	}
+	"${fixed_page_path(page)}.${field}[${artifact.to_str()}]"
+}
+
 ## The authored path of normalized leaf `block`, recovered by walking the
 ## authored tree in normalization order on the rejection path only. Groups
 ## name their children `contents[k]`, a list its `items[k]`, and a keep
 ## with next its single `block`.
 leaf_path : Document, U64 -> Str
-leaf_path = |doc, block| {
-	normalized = Document.normalize(doc)
+leaf_path = |doc, block| leaf_path_normalized(Document.normalize(doc), block)
+
+leaf_path_normalized : Document.NormalizedAuthoring, U64 -> Str
+leaf_path_normalized = |normalized, block| {
 	record = match normalized.blocks.get(block) {
 		Ok(value) => value
 		Err(OutOfBounds) => crash "normalized leaf path escaped"
@@ -2152,7 +2483,7 @@ leaf_position = |normalized, block, parent| {
 			_ => False
 		}
 		if group.parent == parent and group.block_end <= block and !lead {
-			$position = $position + 1
+			$position = $position + authored_group_width(group)
 		}
 	}
 	for record in normalized.page_breaks {
@@ -2189,6 +2520,13 @@ uri_problem = |error| match error {
 	_ => "it is malformed"
 }
 
+## The semantic TOC wrapper covers multiple independently authored blocks.
+authored_group_width : Document.NormalizedGroup -> U64
+authored_group_width = |group| match group.kind {
+	ContentsList => group.block_end - group.first_block
+	_ => 1
+}
+
 ## A rich-inline rejection located by the authored block path of its
 ## paragraph and, below it, the authored inline positions, such as
 ## `contents[2].inlines[1].inlines[0]`. Like the container paths, the
@@ -2200,7 +2538,22 @@ inline_error = |doc, block, inline, diagnostic, feature, message| {
 }
 
 inline_path : Document.NormalizedAuthoring, U64, [AtInline(U64), NoInline] -> Str
-inline_path = |normalized, block_index, inline| {
+inline_path = |normalized, block, inline| inline_path_from(normalized, block, inline, FlowInlineRoot)
+
+inline_error_at : Document, DiagnosticPaths, U64, [AtInline(U64), NoInline], Conformance.DiagnosticCode, Str, Str -> Pdf.Error
+inline_error_at = |doc, paths, block, inline, diagnostic, feature, message| match paths {
+	FlowPaths => inline_error(doc, block, inline, diagnostic, feature, message)
+	FixedPaths(fixed) => InvalidDocument(container_batch(diagnostic, feature, message, authoring_inline_path(fixed.authoring, paths, block, inline)))
+}
+
+authoring_inline_path : Document.NormalizedAuthoring, DiagnosticPaths, U64, [AtInline(U64), NoInline] -> Str
+authoring_inline_path = |normalized, paths, block, inline| match paths {
+	FlowPaths => inline_path(normalized, block, inline)
+	FixedPaths(fixed) => inline_path_from(normalized, block, inline, FixedInlineRoot(fixed_block_path(fixed.pages, block)))
+}
+
+inline_path_from : Document.NormalizedAuthoring, U64, [AtInline(U64), NoInline], [FlowInlineRoot, FixedInlineRoot(Str)] -> Str
+inline_path_from = |normalized, block_index, inline, root| {
 	block = match normalized.blocks.get(block_index) {
 		Ok(value) => value
 		Err(OutOfBounds) => crash "normalized rich block path escaped"
@@ -2225,7 +2578,10 @@ inline_path = |normalized, block_index, inline| {
 		$positions = $positions.append(authored_inline_position(normalized.line_breaks, paragraph, record.parent, record.position))
 		$cursor = record.parent
 	}
-	var $path = child_path(normalized.groups, block.parent, position)
+	var $path = match root {
+		FlowInlineRoot => child_path(normalized.groups, block.parent, position)
+		FixedInlineRoot(path) => path
+	}
 	var $index = $positions.len()
 	while $index > 0 {
 		segment = match $positions.get($index - 1) {
@@ -2261,10 +2617,21 @@ group_path = |groups, group| chain_path(groups, group + 1)
 
 ## The path of the child at authored `position` of group code `parent`.
 child_path : List(Document.NormalizedGroup), U64, U64 -> Str
-child_path = |groups, parent, position| if parent == 0 {
-	"contents[${position.to_str()}]"
-} else {
-	"${chain_path(groups, parent)}.${child_segment(groups, parent, position)}"
+child_path = |groups, parent, position| {
+	authored = if parent == 0 {
+		0
+	} else {
+		record = group_record(groups, parent)
+		match record.kind {
+			ContentsItem => group_record(groups, record.parent).parent
+			_ => parent
+		}
+	}
+	if authored == 0 {
+		"contents[${position.to_str()}]"
+	} else {
+		"${chain_path(groups, authored)}.${child_segment(groups, authored, position)}"
+	}
 }
 
 ## The path of group code `code`, from the outermost group inwards.
@@ -2527,14 +2894,23 @@ check_scale = |theme, role, name| match Theme.inline_scale(theme, role) {
 	_ => Ok({})
 }
 
-## The requested claim is derived from the public profile's exact claim set.
-## A profile whose claim set includes an unfinished capability is rejected
-## before any work; it never falls back to a narrower claim set.
-validate_profile_request : Pdf.Options -> Try(KernelPdfA4.Claim, Pdf.Error)
-validate_profile_request = |options| {
+ProfileClaims : { archive : KernelPdfA4.Claim, identification : KernelXmp.Identification }
+
+validate_profile_request : Document, Pdf.Options -> Try(ProfileClaims, Pdf.Error)
+validate_profile_request = |doc, options| {
+	if options.wtpdf == DeclareAccessibility and options.profile != AccessibleArchive {
+		return Err(InvalidDocument(located_batch(ProfileRequirementViolated, "profile.wtpdf_accessibility", "Select AccessibleArchive to request the WTPDF accessibility declaration.", ["options.wtpdf"])))
+	}
 	match options.profile {
-		AccessibleArchive => Err(Pdf.Error.InvalidDocument(unavailable_batch(AccessibleArchiveProfile, "The AccessibleArchive profile requires the unfinished combined PDF/A-4 and PDF/UA-2 capability.")))
-		Archive | Standard => Ok(if (Pdf.claims_for_profile(options.profile).static_pdf_a4) StaticPdfA4Claim else NoArchiveClaim)
+		AccessibleArchive => {
+			if Document.block_count(doc) == 0 {
+				return Err(InvalidDocument(located_batch(ProfileRequirementViolated, "profile.accessible_archive.empty_structure", "AccessibleArchive requires a tagged document. Add semantic content or explicitly select Archive for a blank page.", ["contents"])))
+			}
+			identification = if (options.wtpdf == DeclareAccessibility) AccessibleArchiveWithWtpdf else AccessibleArchiveIdentification
+			Ok({ archive: StaticPdfA4Claim, identification })
+		}
+		Archive => Ok({ archive: StaticPdfA4Claim, identification: PdfA4Identification })
+		Standard => Ok({ archive: NoArchiveClaim, identification: NoIdentification })
 	}
 }
 
@@ -2705,6 +3081,9 @@ facade_blocks = 16384
 
 facade_runs : U64
 facade_runs = 65536
+
+standard_fixed_limits : Document.FixedLimits
+standard_fixed_limits = { max_pages: 1024, max_placements: facade_blocks, max_rectangles: 1000000 }
 
 standard_pipeline_limits : KernelFacadePipeline.Limits
 standard_pipeline_limits = KernelFacadePipeline.Limits.make({
@@ -2984,14 +3363,6 @@ expect match Pdf.to_bytes(Pdf.document({ contents: [Pdf.paragraph("Lead"), Pdf.r
 	_ => False
 }
 
-# Empty default documents emit one structural PDF 2.0 page.
-expect {
-	document = Pdf.document({ contents: [], language: "en-AU", title: "Blank" })
-	bytes = Pdf.to_bytes(document)?
-
-	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n")
-}
-
 # The explicit Standard option takes the same authored-content path.
 expect {
 	document = Pdf.document({
@@ -3005,15 +3376,18 @@ expect {
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 667
 }
 
-# The default is exactly `to_bytes_with(document, Options.default)`, and
-# that default claims static PDF/A-4.
+# The default and a partial options record select the exact combined profile.
 expect {
 	document = Pdf.document({ contents: [Pdf.paragraph("Default")], language: "en-AU", title: "Default" })
 	implicit = Pdf.to_bytes(document)?
-	explicit = Pdf.to_bytes_with(document, Pdf.Options.default)?
-	archive = Pdf.to_bytes_with(document, Pdf.Options.{ profile: Pdf.Profile.Archive })?
+	default = Pdf.to_bytes_with(document, Pdf.Options.default)?
+	empty_options = Pdf.to_bytes_with(document, {})?
+	combined = Pdf.to_bytes_with(document, { profile: AccessibleArchive })?
 
-	implicit == explicit and implicit == archive and contains_bytes(implicit, Str.to_utf8("<pdfaid:part>4</pdfaid:part>"))
+	implicit == default and implicit == empty_options and implicit == combined and
+		contains_bytes(implicit, Str.to_utf8("<pdfaid:part>4</pdfaid:part>")) and
+			contains_bytes(implicit, Str.to_utf8("<pdfuaid:part>2</pdfuaid:part>")) and
+				!contains_bytes(implicit, Str.to_utf8("http://pdfa.org/declarations/wtpdf#accessibility1.0"))
 }
 
 profile_document : Document
@@ -3051,26 +3425,55 @@ expect {
 expect {
 	document = Pdf.document({ contents: [], language: "en-AU", title: "Archive" })
 	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ profile: Pdf.Profile.Archive })?
+	default_rejected = match Pdf.to_bytes(document) {
+		Err(InvalidDocument({ diagnostics: [{ feature: Feature("profile.accessible_archive.empty_structure"), .. }], .. })) => True
+		_ => False
+	}
 
-	contains_bytes(bytes, Str.to_utf8("<pdfaid:rev>2020</pdfaid:rev>"))
+	default_rejected and bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and contains_bytes(bytes, Str.to_utf8("<pdfaid:rev>2020</pdfaid:rev>"))
 }
 
-# AccessibleArchive remains unavailable rather than dropping its UA claim.
+# The combined profile supports a metadata title without a visible title
+# and declares WTPDF accessibility only on explicit request.
 expect {
-	document = Pdf.document({ contents: [], language: "en-AU", title: "Accessible" })
-	options = Pdf.Options.{ profile: Pdf.Profile.AccessibleArchive }
+	combined = Pdf.to_bytes(profile_document)?
+	declared = Pdf.to_bytes_with(profile_document, { wtpdf: DeclareAccessibility })?
+	ua = Str.to_utf8("<pdfuaid:part>2</pdfuaid:part>")
+	wtpdf = Str.to_utf8("<pdfd:conformsTo>http://pdfa.org/declarations/wtpdf#accessibility1.0</pdfd:conformsTo>")
 
-	match Pdf.to_bytes_with(document, options) {
-		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature(code), message, .. }], .. })) => code == "profile.accessible_archive" and message.contains("Gate 7")
+	contains_bytes(combined, profile_marker) and contains_bytes(combined, ua) and !contains_bytes(combined, wtpdf)
+		and contains_bytes(declared, profile_marker) and contains_bytes(declared, ua) and contains_bytes(declared, wtpdf)
+}
+
+# An incompatible WTPDF request fails both buffered and chunked entry points.
+expect [Pdf.Profile.Archive, Pdf.Profile.Standard].all(
+	|profile| {
+		options = Pdf.Options.{ profile, wtpdf: DeclareAccessibility }
+		match (Pdf.to_bytes_with(profile_document, options), Pdf.to_chunks_with(profile_document, options)) {
+			(Err(InvalidDocument({ diagnostics: [{ code: ProfileRequirementViolated, feature: Feature("profile.wtpdf_accessibility"), .. }], .. })), Err(InvalidDocument({ diagnostics: [{ code: ProfileRequirementViolated, feature: Feature("profile.wtpdf_accessibility"), .. }], .. }))) => True
+			_ => False
+		}
+	},
+)
+
+# An authored private-use scalar in a text string can reach ordinary Archive
+# output. The accessibility profile rejects it at the precise authoring path.
+expect {
+	drawing = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 20, height: 20 }), color: Color.srgb8({ red: 0, green: 0, blue: 0 }) })
+	doc = Pdf.document({ contents: [Pdf.figure({ drawing, alt: "Mark \u(E000)", caption: Pdf.no_caption })], language: "en", title: "Private use witness" })
+	archive = Pdf.to_bytes_with(doc, { profile: Archive })?
+	combined = Pdf.to_chunks_with(doc, { profile: AccessibleArchive })
+	!archive.is_empty() and match combined {
+		Err(InvalidDocument({ diagnostics: [{ code: ProfileRequirementViolated, stage: AuthoringValidation, details: ["contents[0]"], requirement_ids: ["ROC-PDF-PDFUA2-8-6-TEXT-STRINGS"], .. }], .. })) => True
 		_ => False
 	}
 }
 
-# Chunked facade output is byte-identical with buffered output.
+# Blank Archive chunked output is byte-identical with buffered output.
 expect {
 	document = Pdf.document({ contents: [], language: "en-AU", title: "Blank" })
-	expected = Pdf.to_bytes(document)?
-	var $encoder = Pdf.to_chunks(document)?
+	expected = Pdf.to_bytes_with(document, { profile: Archive })?
+	var $encoder = Pdf.to_chunks_with(document, { profile: Archive })?
 	var $actual = []
 	var $done = False
 	while $done == False {
@@ -3292,7 +3695,7 @@ expect {
 ## White-box twins over a realistic claimed plan: text, an alpha raster
 ## figure, URI and internal links, an outline, and page labels. Each twin
 ## differs from the prepared plan in exactly one lowered fact or one prepared
-## text fact and must be rejected with its own ledger requirement.
+## text fact and must be rejected with its own requirement code.
 archive_twin_document : Document
 archive_twin_document = {
 	image = Image.Source.rgb8({
@@ -3436,6 +3839,30 @@ archive_twin_rewrite = |key, value| |store| {
 }
 
 # The unmutated claimed plan is eligible.
+accessible_twin_lowered : KernelStructure.Plan, (KernelObject.Store -> KernelObject.Store) -> Try({}, KernelPdfUa2.Violation)
+accessible_twin_lowered = |plan, mutate| {
+	store = mutate(KernelSeal.Plan.store(KernelStructure.Plan.sealed(plan)))
+	builder = KernelObject.init(archive_twin_store_limits)
+	sealed = KernelSeal.seal({ ..builder, store }) ?? crash "accessibility twin broke the sealed store shape"
+	KernelPdfUa2.validate_lowered(sealed, KernelStructure.Plan.root(plan))
+}
+
+# The lowered checks discriminate atomic mutations from the same accepted
+# public accessibility plan, independently of archive validation.
+expect {
+	Pdf.Prepared.(plan) = Pdf.prepare(archive_twin_document, { profile: AccessibleArchive })?
+	violates = |change, wanted| match accessible_twin_lowered(plan, change) {
+		Err({ requirement, .. }) => requirement == wanted
+		Ok(_) => False
+	}
+	accessible_twin_lowered(plan, |store| store) == Ok({})
+		and violates(archive_twin_rewrite("Marked", Boolean(False)), Marked)
+		and violates(archive_twin_rename("StructTreeRoot", "DisabledStructTreeRoot"), StructureRoot)
+		and violates(archive_twin_rename("Lang", "DisabledLang"), DocumentLanguage)
+		and violates(archive_twin_rewrite("DisplayDocTitle", Boolean(False)), DisplayTitle)
+		and violates(archive_twin_rename("Tabs", "DisabledTabs"), PageTabs)
+}
+
 expect archive_twin_lowered(|store| store) == Accepted
 
 # Annotation flags: a hidden or unprintable link is rejected.
@@ -3475,11 +3902,13 @@ expect archive_twin_lowered(archive_twin_rename("Lang", "AF")) == Rejected(Embed
 
 expect archive_twin_lowered(archive_twin_rename("Lang", "PresSteps")) == Rejected(Presentations)
 
-expect archive_twin_lowered(archive_twin_rename("Lang", "Ref")) == Rejected(ReferenceXObject)
-
 expect archive_twin_lowered(archive_twin_rename("Lang", "TR")) == Rejected(GraphicsState)
 
 expect archive_twin_lowered(archive_twin_rename("Lang", "NeedsRendering")) == Rejected(InteractiveForms)
+
+# A stream /Ref is excluded. Structure relationship /Ref belongs to an
+# ordinary StructElem dictionary and is covered by the TOCI fixtures.
+expect archive_twin_lowered(archive_twin_rename("Width", "Ref")) == Rejected(ReferenceXObject)
 
 # Stream dictionaries must not reference external file data.
 expect archive_twin_lowered(archive_twin_rename("Length1", "FFilter")) == Rejected(StreamExternal)
@@ -3750,8 +4179,13 @@ report_figure_invariant = |detail| InvalidDocument(located_batch(InternalInvaria
 ## Exceeding either is `report.budget_exceeded`: an explicit error, never
 ## a report with fewer entries or obligations. Leaf paths are computed in
 ## one linear pass; each is shared by that leaf's entries.
-build_report : Document.NormalizedAuthoring, [Facts(KernelFacadeReport.Facts), NoFacts], Pdf.ReportBudget -> Try(Pdf.Report, Pdf.Error)
-build_report = |normalized, collected, budget| {
+build_report : Document.NormalizedAuthoring, [Facts(KernelFacadeReport.Facts), NoFacts], Pdf.ReportBudget, Pdf.Profile -> Try(Pdf.Report, Pdf.Error)
+build_report = |normalized, collected, budget, profile| build_report_at(normalized, collected, budget, profile, FlowReportPaths)
+
+ReportPaths : [FlowReportPaths, FixedReportPaths(List(Document.FixedPagePlan))]
+
+build_report_at : Document.NormalizedAuthoring, [Facts(KernelFacadeReport.Facts), NoFacts], Pdf.ReportBudget, Pdf.Profile, ReportPaths -> Try(Pdf.Report, Pdf.Error)
+build_report_at = |normalized, collected, budget, profile, path_source| {
 	validate_report_figures(normalized, collected)?
 	facts = match collected {
 		Facts(value) => value
@@ -3759,14 +4193,21 @@ build_report = |normalized, collected, budget| {
 	}
 	inline_counts = count_inline_entries(normalized)
 	link_blocks = count_link_blocks(normalized)
-	obligation_count = 2 + normalized.figures.len() + normalized.tables.len() + normalized.customs.len() + normalized.callouts.len() + link_blocks + inline_counts.links + inline_counts.languages + inline_counts.expansions
+	combined = profile == AccessibleArchive
+	outline_review = combined and !normalized.outline.is_empty()
+	annotation_review = combined and (link_blocks > 0 or inline_counts.links > 0 or !normalized.contents_entries.is_empty())
+	profile_obligations = if (combined) accessible_document_obligations.len() else 0
+	obligation_count = 2 + profile_obligations + (if (outline_review) 1 else 0) + (if (annotation_review) 1 else 0) + normalized.figures.len() + normalized.tables.len() + normalized.customs.len() + normalized.callouts.len() + link_blocks + inline_counts.links + inline_counts.languages + inline_counts.expansions
 	alternative_count = normalized.figures.len() + inline_counts.languages + inline_counts.expansions
 	outcome_count = facts.layout.references.len() + facts.layout.scope_pages.len() + facts.layout.callouts.len() + facts.layout.relaxations.len() + normalized.figures.len() + facts.layout.repeats.len() + facts.layout.splits.len() + facts.layout.panels.len() + facts.layout.source_fragments.len()
 	entries = facts.pages.len() + normalized.blocks.len() + alternative_count + outcome_count + facts.coverage.len() + obligation_count
 	if entries > budget.max_entries {
 		return Err(report_budget_error("entries", entries, budget.max_entries))
 	}
-	paths = leaf_paths(normalized)
+	paths = match path_source {
+		FlowReportPaths => leaf_paths(normalized)
+		FixedReportPaths(pages) => fixed_report_paths(pages, normalized.blocks.len())
+	}
 	path_at = |block| match paths.get(block) {
 		Ok(value) => value
 		Err(OutOfBounds) => crash "report leaf path escaped"
@@ -3814,6 +4255,17 @@ build_report = |normalized, collected, budget| {
 	var $obligations = List.with_capacity(obligation_count)
 	$obligations = $obligations.append({ obligation: ReadingOrderMeaningful, path: "document" })
 	$obligations = $obligations.append({ obligation: LanguageAccurate, path: "document" })
+	if combined {
+		for obligation in accessible_document_obligations {
+			$obligations = $obligations.append(obligation)
+		}
+	}
+	if outline_review {
+		$obligations = $obligations.append({ obligation: OutlineMeaningful, path: "outline" })
+	}
+	if annotation_review {
+		$obligations = $obligations.append({ obligation: AnnotationOrderMeaningful, path: "document" })
+	}
 
 	## Figures, in figure order, with their alternative text, their fit
 	## outcome, and their alternative-text obligation.
@@ -3842,20 +4294,24 @@ build_report = |normalized, collected, budget| {
 			}
 			RichParagraph(paragraph) => match normalized.rich_paragraphs.get(paragraph) {
 				Ok(rich) => {
+					inline_root = match path_source {
+						FlowReportPaths => FlowInlineRoot
+						FixedReportPaths(_) => FixedInlineRoot(path_at($index))
+					}
 					var $inline = rich.inlines
 					while $inline < rich.inlines + rich.length {
 						match normalized.inlines.get($inline) {
 							Ok(inline) => match inline.kind {
 								Link(_) | InternalLink(_) => {
-									$obligations = $obligations.append({ obligation: LinkPurposeMeaningful, path: inline_path(normalized, $index, AtInline($inline)) })
+									$obligations = $obligations.append({ obligation: LinkPurposeMeaningful, path: inline_path_from(normalized, $index, AtInline($inline), inline_root) })
 								}
 								InLanguage(tag) => {
-									path = inline_path(normalized, $index, AtInline($inline))
+									path = inline_path_from(normalized, $index, AtInline($inline), inline_root)
 									$alternatives = $alternatives.append({ kind: Language, path, text: tag })
 									$obligations = $obligations.append({ obligation: LanguageAccurate, path })
 								}
 								Expansion(expanded) => {
-									path = inline_path(normalized, $index, AtInline($inline))
+									path = inline_path_from(normalized, $index, AtInline($inline), inline_root)
 									$alternatives = $alternatives.append({ kind: Expansion, path, text: expanded })
 									$obligations = $obligations.append({ obligation: ExpansionAccurate, path })
 								}
@@ -3949,6 +4405,16 @@ build_report = |normalized, collected, budget| {
 	}
 	Ok(report)
 }
+
+accessible_document_obligations : List(Pdf.ReportObligation)
+accessible_document_obligations = [
+	{ obligation: DocumentTitleAccurate, path: "title" },
+	{ obligation: StructureMeaningful, path: "document" },
+	{ obligation: ArtifactClassificationMeaningful, path: "document" },
+	{ obligation: PageLabelsAccurate, path: "document" },
+	{ obligation: TextEquivalentAccurate, path: "document" },
+	{ obligation: FontEmbeddingRightsConfirmed, path: "document" },
+]
 
 report_budget_error : Str, U64, U64 -> Pdf.Error
 report_budget_error = |dimension, required, limit| InvalidDocument(located_batch(BudgetExceeded, "report.budget_exceeded", "The preparation report needs ${required.to_str()} ${dimension} but its budget allows ${limit.to_str()}; no report entry or obligation is omitted to fit, so no report and no prepared document are returned.", []))
@@ -4052,6 +4518,24 @@ leaf_role = |normalized, record| {
 	}
 }
 
+fixed_report_paths : List(Document.FixedPagePlan), U64 -> List(Str)
+fixed_report_paths = |pages, blocks| {
+	var $paths = List.with_capacity(blocks)
+	var $page = 0
+	for record in pages {
+		var $placement = 0
+		while $placement < record.placements.length() {
+			$paths = $paths.append(fixed_placement_path($page, $placement))
+			$placement = $placement + 1
+		}
+		$page = $page + 1
+	}
+	if $paths.len() != blocks {
+		crash "fixed report paths do not cover the logical blocks"
+	}
+	$paths
+}
+
 ## Every leaf's authored path in one pass, O(blocks + groups log groups +
 ## flow items + path lengths): the linear form of `leaf_path`. A plain
 ## leaf's position counts the earlier leaves (a legacy bullet list once)
@@ -4069,7 +4553,7 @@ leaf_paths = |normalized| {
 			_ => False
 		}
 		if !lead {
-			$closed = $closed.append({ end: group.block_end, parent: group.parent })
+			$closed = $closed.append({ end: group.block_end, group: $group_index })
 		}
 		$group_index = $group_index + 1
 	}
@@ -4085,8 +4569,8 @@ leaf_paths = |normalized| {
 	var $block = 0
 	for record in normalized.blocks {
 		while $group_cursor < ends.len() and at(ends, $group_cursor).end <= $block {
-			parent = at(ends, $group_cursor).parent
-			$siblings = set_at($siblings, parent, at($siblings, parent) + 1)
+			group = at(groups, at(ends, $group_cursor).group)
+			$siblings = set_at($siblings, group.parent, at($siblings, group.parent) + authored_group_width(group))
 			$group_cursor = $group_cursor + 1
 		}
 		while $break_cursor < normalized.page_breaks.len() and at(normalized.page_breaks, $break_cursor).block <= $block {
@@ -4437,7 +4921,7 @@ expect {
 	drawing = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 20, height: 20 }), color: Color.srgb8({ blue: 0, green: 0, red: 0 }) })
 	normalized = Document.normalize(Pdf.document({ contents: [Pdf.figure({ drawing, alt: "First", caption: Pdf.no_caption }), Pdf.figure({ drawing, alt: "Second", caption: Pdf.no_caption, fit: ScaleToFit({ minimum_percent: 50 }) })], language: "en", title: "Report facts" }))
 	facts = { blocks: [], coverage: [], layout: { references: [], scope_pages: [], callouts: [], panels: [], relaxations: [], repeats: [], scales: [1000, 500], source_fragments: [], splits: [] }, pages: [2] }
-	match build_report(normalized, Facts(facts), default_report_budget) {
+	match build_report(normalized, Facts(facts), default_report_budget, Archive) {
 		Ok(report) => report.facts.outcomes == [FigureScale({ fit: Exact, path: "contents[0]", scale: 1000 }), FigureScale({ fit: ScaleToFit, path: "contents[1]", scale: 500 })] and report.obligations.count_if(|entry| entry.obligation == AlternativeTextMeaningful) == 2
 		Err(_) => False
 	}
@@ -4446,8 +4930,93 @@ expect {
 # The legitimate empty-document NoFacts path keeps its one-page report.
 expect {
 	normalized = Document.normalize(Pdf.document({ contents: [], language: "en", title: "Empty report" }))
-	match build_report(normalized, NoFacts, default_report_budget) {
+	match build_report(normalized, NoFacts, default_report_budget, Archive) {
 		Ok(report) => report.facts.pages == [{ page: 1, fragments: 1 }] and report.facts.blocks.is_empty() and report.facts.outcomes.is_empty() and report.obligations.len() == 2
 		Err(_) => False
 	}
+}
+
+# Combined-profile review obligations are included in the preparation budget.
+# A report with enough room for the Archive entries alone fails atomically.
+expect {
+	archive = Pdf.prepare_with_report(archive_twin_document, { profile: Archive })?
+	combined = Pdf.prepare_with_report(archive_twin_document, { profile: AccessibleArchive })?
+	report = combined.report
+	facts = archive.report.facts
+	archive_entries = facts.alternatives.len() + facts.blocks.len() + facts.coverage.len() + facts.outcomes.len() + facts.pages.len() + archive.report.obligations.len()
+	over_budget = match Pdf.prepare_with_report_budget(archive_twin_document, { options: { profile: AccessibleArchive }, budget: { max_entries: archive_entries } }) {
+		Err(InvalidDocument({ diagnostics: [{ feature: Feature("report.budget_exceeded"), .. }], .. })) => True
+		_ => False
+	}
+	report.obligations.len() == archive.report.obligations.len() + 8
+		and accessible_document_obligations.all(|obligation| report.obligations.contains(obligation))
+		and report.obligations.contains({ obligation: OutlineMeaningful, path: "outline" })
+		and report.obligations.contains({ obligation: AnnotationOrderMeaningful, path: "document" })
+		and over_budget
+}
+
+fixed_report_document : Str -> Document
+fixed_report_document = |tag| {
+	first = Pdf.fixed_page({ width: 200, height: 170 })
+		.place({ block: Pdf.title("Fixed report"), frame: Layout.rect({ x: 10, y: 115, width: 180, height: 40 }) })
+		.place({ block: Pdf.paragraph("First page body"), frame: Layout.rect({ x: 10, y: 60, width: 180, height: 40 }) })
+		.with_paint_order([1, 0])
+	second = Pdf.fixed_page({ width: 220, height: 160 })
+		.place({ block: Pdf.rich_paragraph([Pdf.in_language(tag, [Pdf.text("Bonjour")])]), frame: Layout.rect({ x: 12, y: 95, width: 196, height: 36 }) })
+	Pdf.fixed_document({ language: "en-AU", title: "Fixed preparation report", pages: [first.finish(), second.finish()] })
+}
+
+# The same fixed plan emits through buffered, chunked and reporting calls.
+# Addresses follow authored placements even when the first page paints in
+# reverse order and the second page has different dimensions.
+expect {
+	doc = fixed_report_document("fr")
+	options = Pdf.Options.default
+	buffered = Pdf.to_bytes(doc)?
+	chunked = collect_chunks(Pdf.to_chunks(doc)?)
+	reported = Pdf.prepare_with_report(doc, options)?
+	reported_bytes = Pdf.to_bytes_prepared(reported.prepared)?
+	facts = reported.report.facts
+	paths = facts.blocks.map(|block| block.path)
+	pages = facts.blocks.map(|block| (block.first_page, block.last_page))
+	over_budget = match Pdf.prepare_with_report_budget(doc, { options, budget: { max_entries: 0 } }) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("report.budget_exceeded"), .. }], .. })) => True
+		_ => False
+	}
+	buffered == chunked.bytes and buffered == reported_bytes
+		and paths == ["pages[0].placements[0]", "pages[0].placements[1]", "pages[1].placements[0]"]
+		and pages == [(1, 1), (1, 1), (2, 2)]
+		and facts.pages.len() == 2
+		and facts.alternatives.contains({ kind: Language, path: "pages[1].placements[0].inlines[0]", text: "fr" })
+		and reported.report.obligations.contains({ obligation: LanguageAccurate, path: "pages[1].placements[0].inlines[0]" })
+		and over_budget
+}
+
+expect {
+	doc = fixed_report_document("und")
+	options = Pdf.Options.default
+	has_fixed_language_error = |result| match result {
+		Err(InvalidDocument({ diagnostics: [{ code: ProfileRequirementViolated, feature: Feature("profile.accessible_archive.language"), details: ["pages[1].placements[0].inlines[0]"], .. }], .. })) => True
+		_ => False
+	}
+	has_fixed_language_error(Pdf.to_bytes(doc))
+		and has_fixed_language_error(Pdf.to_chunks_with(doc, options))
+		and has_fixed_language_error(Pdf.prepare_with_report(doc, options))
+}
+
+expect {
+	doc = fixed_report_document("fr")
+	has_fixed_style_error = |result| match result {
+		Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, feature: Feature("layout.fixed.text_style"), details: ["pages[0].placements[1]"], stage: AuthoringValidation, .. }], .. })) => True
+		_ => False
+	}
+	[9, 0].all(
+		|leading| {
+			options : Pdf.Options
+			options = { theme: { body: { size: 11, leading } } }
+			has_fixed_style_error(Pdf.to_bytes_with(doc, options))
+				and has_fixed_style_error(Pdf.to_chunks_with(doc, options))
+				and has_fixed_style_error(Pdf.prepare_with_report(doc, options))
+		},
+	)
 }

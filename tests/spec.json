@@ -3,10 +3,7 @@
   "protocol_version": 2,
   "preflight_checks": [
     "contracts",
-    "arlington",
-    "pdfbox",
     "tagged_visual",
-    "visual_renderers",
     "text",
     "caller_text",
     "caller_facade",
@@ -23,69 +20,54 @@
     "multiface_text",
     "soft_hyphen",
     "external_discretionary_hyphen",
-    "text_renderers",
     "forms",
-    "form_renderers",
     "color_images",
-    "color_image_renderers",
     "transparency",
-    "transparency_renderers",
     "soft_masks",
-    "soft_mask_renderers",
     "shadings",
-    "shading_renderers",
     "fonts",
-    "font_renderers",
     "metadata",
-    "metadata_renderers",
     "navigation",
-    "navigation_renderers",
     "link_underlines",
     "drawing_labels",
     "pdf_structure",
     "pdfa4_structure",
-    "extract_verapdf_rules",
-    "pdfa4",
-    "build_verapdf_corpus_subset",
-    "archive_renderers",
+    "profile_declarations",
     "structure_semantics",
     "rich_inline",
     "roc_diagnostics",
-    "structure_extraction",
     "reference_documents",
     "source_blocks",
     "source_foregrounds",
     "chapter_templates",
+    "fixed_pages",
     "vector_diagrams",
     "rich_flow",
     "technical_manual",
     "destination_references",
     "table_paint_frames",
     "contents_entries",
-    "roc_font",
     "default_fonts"
   ],
   "post_update_checks": [
     "contracts",
     "pdf_structure",
     "pdfa4_structure",
-    "pdfa4",
-    "archive_renderers",
+    "profile_declarations",
     "fonts",
     "structure_semantics",
     "rich_inline",
-    "structure_extraction",
     "reference_documents",
     "source_blocks",
     "source_foregrounds",
     "chapter_templates",
+    "fixed_pages",
     "vector_diagrams",
     "rich_flow",
     "technical_manual",
     "destination_references",
     "table_paint_frames",
     "contents_entries",
-    "roc_font",
     "default_fonts"
   ],
   "validation": {
@@ -279,6 +261,10 @@
     {
       "name": "destination_references",
       "group": "pages"
+    },
+    {
+      "name": "fixed_pages",
+      "group": "public"
     },
     {
       "name": "vector_diagrams",
@@ -7021,7 +7007,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 791,
-          "allocated_bytes": 2536525,
+          "allocated_bytes": 2536642,
           "work": {
             "latin_input_bytes": 7816,
             "cjk_input_bytes": 2104,
@@ -7034,12 +7020,12 @@
             "policies": 3,
             "policy_faces": 2,
             "authored_blocks": 1,
-            "output_bytes": 9827
+            "output_bytes": 9944
           }
         },
         "x64musl": {
           "allocations": 791,
-          "allocated_bytes": 2536525,
+          "allocated_bytes": 2536642,
           "work": {
             "latin_input_bytes": 7816,
             "cjk_input_bytes": 2104,
@@ -7052,14 +7038,15 @@
             "policies": 3,
             "policy_faces": 2,
             "authored_blocks": 1,
-            "output_bytes": 9827
+            "output_bytes": 9944
           }
         }
       },
       "retention": null,
       "validators": [
         "multiface_facade",
-        "pdfa4"
+        "pdfa4",
+        "pdfua2"
       ]
     },
     {
@@ -7091,7 +7078,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 1527,
-          "allocated_bytes": 5065257,
+          "allocated_bytes": 5065491,
           "work": {
             "input_bytes": 9920,
             "retained_input_bytes": 9920,
@@ -7101,14 +7088,14 @@
             "instances": 2,
             "policies": 3,
             "documents": 2,
-            "first_output_bytes": 9827,
-            "second_output_bytes": 9827,
+            "first_output_bytes": 9944,
+            "second_output_bytes": 9944,
             "selected_source_bytes": 9920
           }
         },
         "x64musl": {
           "allocations": 1527,
-          "allocated_bytes": 5065257,
+          "allocated_bytes": 5065491,
           "work": {
             "input_bytes": 9920,
             "retained_input_bytes": 9920,
@@ -7118,8 +7105,8 @@
             "instances": 2,
             "policies": 3,
             "documents": 2,
-            "first_output_bytes": 9827,
-            "second_output_bytes": 9827,
+            "first_output_bytes": 9944,
+            "second_output_bytes": 9944,
             "selected_source_bytes": 9920
           }
         }
@@ -7127,7 +7114,8 @@
       "retention": null,
       "validators": [
         "multiface_facade",
-        "pdfa4"
+        "pdfa4",
+        "pdfua2"
       ]
     },
     {
@@ -7160,7 +7148,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 1579,
-          "allocated_bytes": 5072898,
+          "allocated_bytes": 5073132,
           "work": {
             "registries": 2,
             "input_bytes": 19840,
@@ -7172,13 +7160,13 @@
             "instances": 4,
             "policies": 6,
             "documents": 2,
-            "first_output_bytes": 9827,
-            "second_output_bytes": 9827
+            "first_output_bytes": 9944,
+            "second_output_bytes": 9944
           }
         },
         "x64musl": {
           "allocations": 1579,
-          "allocated_bytes": 5072898,
+          "allocated_bytes": 5073132,
           "work": {
             "registries": 2,
             "input_bytes": 19840,
@@ -7190,15 +7178,16 @@
             "instances": 4,
             "policies": 6,
             "documents": 2,
-            "first_output_bytes": 9827,
-            "second_output_bytes": 9827
+            "first_output_bytes": 9944,
+            "second_output_bytes": 9944
           }
         }
       },
       "retention": null,
       "validators": [
         "multiface_facade",
-        "pdfa4"
+        "pdfa4",
+        "pdfua2"
       ]
     },
     {
@@ -19470,7 +19459,7 @@
     },
     {
       "name": "production-visual navigation authored facade output",
-      "scenario_revision": "navigation-annotations-v1",
+      "scenario_revision": "navigation-annotations-v2",
       "family": "navigation_facade",
       "snapshot": "tests/navigation_facade/navigation_facade.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -19488,29 +19477,30 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1628,
+          "allocations": 1629,
           "allocated_bytes": 6345881,
           "work": {
-            "output_bytes": 20619
+            "output_bytes": 20737
           }
         },
         "x64musl": {
-          "allocations": 1628,
+          "allocations": 1629,
           "allocated_bytes": 6345881,
           "work": {
-            "output_bytes": 20619
+            "output_bytes": 20737
           }
         }
       },
       "retention": null,
       "validators": [
         "navigation",
-        "pdfa4"
+        "pdfa4",
+        "pdfua2"
       ]
     },
     {
       "name": "production-visual navigation facade determinism",
-      "scenario_revision": "navigation-annotations-v1",
+      "scenario_revision": "navigation-annotations-v2",
       "family": "navigation_facade",
       "snapshot": "tests/navigation_facade/navigation_facade.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -19529,26 +19519,27 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 3255,
+          "allocations": 3257,
           "allocated_bytes": 12691754,
           "work": {
             "byte_identical": 1,
-            "output_bytes": 20619
+            "output_bytes": 20737
           }
         },
         "x64musl": {
-          "allocations": 3255,
+          "allocations": 3257,
           "allocated_bytes": 12691754,
           "work": {
             "byte_identical": 1,
-            "output_bytes": 20619
+            "output_bytes": 20737
           }
         }
       },
       "retention": null,
       "validators": [
         "navigation",
-        "pdfa4"
+        "pdfa4",
+        "pdfua2"
       ]
     },
     {
@@ -19961,7 +19952,7 @@
     },
     {
       "name": "static PDF/A-4 facade atomic negatives",
-      "scenario_revision": "static-pdfa4-v2-covered-bom",
+      "scenario_revision": "static-pdfa4-v3-combined-blank",
       "family": "archive",
       "snapshot": "tests/archive/archive_facade_negative.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -19976,16 +19967,16 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1914,
-          "allocated_bytes": 4304835,
+          "allocations": 1915,
+          "allocated_bytes": 4304847,
           "work": {
             "negatives_rejected": 6,
             "output_bytes": 9986
           }
         },
         "x64musl": {
-          "allocations": 1914,
-          "allocated_bytes": 4304835,
+          "allocations": 1915,
+          "allocated_bytes": 4304847,
           "work": {
             "negatives_rejected": 6,
             "output_bytes": 9986
@@ -20069,11 +20060,12 @@
     },
     {
       "name": "semantic foundation nested public containers",
-      "scenario_revision": "semantic-foundation-v1",
+      "scenario_revision": "semantic-foundation-v2",
       "family": "containers",
       "snapshot": "tests/containers/nested.pdf",
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
+        "authored_nested": 1,
         "pages": 1,
         "container_depth": 4,
         "structure_elements": 28
@@ -20100,7 +20092,7 @@
             "node_visits": 28,
             "containment_edges": 27,
             "max_semantic_depth": 8,
-            "output_bytes": 19900
+            "output_bytes": 20017
           }
         },
         "x64musl": {
@@ -20114,13 +20106,14 @@
             "node_visits": 28,
             "containment_edges": 27,
             "max_semantic_depth": 8,
-            "output_bytes": 19900
+            "output_bytes": 20017
           }
         }
       },
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics"
       ]
     },
@@ -20347,11 +20340,12 @@
     },
     {
       "name": "rich inline mixed styles, links, languages, and expansions",
-      "scenario_revision": "rich-inline-v1",
+      "scenario_revision": "rich-inline-v2",
       "family": "rich_inline",
       "snapshot": "tests/rich_inline/mixed.pdf",
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
+        "mixed_inline": 1,
         "pages": 1,
         "structure_elements": 34,
         "inline_elements": 16,
@@ -20389,7 +20383,7 @@
             "final_runs": 43,
             "fragments": 43,
             "pages": 1,
-            "output_bytes": 38592
+            "output_bytes": 38710
           }
         },
         "x64musl": {
@@ -20408,20 +20402,21 @@
             "final_runs": 43,
             "fragments": 43,
             "pages": 1,
-            "output_bytes": 38592
+            "output_bytes": 38710
           }
         }
       },
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics",
         "rich_inline"
       ]
     },
     {
       "name": "rich inline paragraphs x10",
-      "scenario_revision": "rich-inline-v1",
+      "scenario_revision": "rich-inline-v2",
       "family": "rich_inline",
       "snapshot": "tests/rich_inline/paragraphs_10.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -20464,7 +20459,7 @@
             "final_runs": 181,
             "fragments": 181,
             "pages": 1,
-            "output_bytes": 35373
+            "output_bytes": 35492
           }
         },
         "x64musl": {
@@ -20483,20 +20478,21 @@
             "final_runs": 181,
             "fragments": 181,
             "pages": 1,
-            "output_bytes": 35373
+            "output_bytes": 35492
           }
         }
       },
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics",
         "rich_inline"
       ]
     },
     {
       "name": "rich inline paragraphs x100",
-      "scenario_revision": "rich-inline-v1",
+      "scenario_revision": "rich-inline-v2",
       "family": "rich_inline",
       "snapshot": "tests/rich_inline/paragraphs_100.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -20539,7 +20535,7 @@
             "final_runs": 1801,
             "fragments": 1801,
             "pages": 6,
-            "output_bytes": 73414
+            "output_bytes": 73530
           }
         },
         "x64musl": {
@@ -20558,24 +20554,26 @@
             "final_runs": 1801,
             "fragments": 1801,
             "pages": 6,
-            "output_bytes": 73414
+            "output_bytes": 73530
           }
         }
       },
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics",
         "rich_inline"
       ]
     },
     {
       "name": "rich inline ordered multi-face spans",
-      "scenario_revision": "rich-inline-v1",
+      "scenario_revision": "rich-inline-v2",
       "family": "rich_inline",
       "snapshot": "tests/rich_inline/ordered.pdf",
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
+        "ordered_multiface": 1,
         "pages": 1,
         "structure_elements": 5,
         "inline_elements": 3,
@@ -20613,7 +20611,7 @@
             "final_runs": 3,
             "fragments": 3,
             "pages": 1,
-            "output_bytes": 10604
+            "output_bytes": 10723
           }
         },
         "x64musl": {
@@ -20632,13 +20630,14 @@
             "final_runs": 3,
             "fragments": 3,
             "pages": 1,
-            "output_bytes": 10604
+            "output_bytes": 10723
           }
         }
       },
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics",
         "rich_inline"
       ]
@@ -20718,7 +20717,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 5241,
+          "allocations": 5351,
           "allocated_bytes": 7500967,
           "work": {
             "shaped_runs": 80,
@@ -20726,11 +20725,11 @@
             "final_runs": 87,
             "pages": 2,
             "rejections": 1,
-            "output_bytes": 22453
+            "output_bytes": 22463
           }
         },
         "x64musl": {
-          "allocations": 5241,
+          "allocations": 5351,
           "allocated_bytes": 7500967,
           "work": {
             "shaped_runs": 80,
@@ -20738,7 +20737,7 @@
             "final_runs": 87,
             "pages": 2,
             "rejections": 1,
-            "output_bytes": 22453
+            "output_bytes": 22463
           }
         }
       },
@@ -20770,7 +20769,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 15147,
+          "allocations": 15658,
           "allocated_bytes": 22023755,
           "work": {
             "shaped_runs": 360,
@@ -20778,11 +20777,11 @@
             "final_runs": 367,
             "pages": 5,
             "rejections": 1,
-            "output_bytes": 31822
+            "output_bytes": 31849
           }
         },
         "x64musl": {
-          "allocations": 15147,
+          "allocations": 15658,
           "allocated_bytes": 22023755,
           "work": {
             "shaped_runs": 360,
@@ -20790,7 +20789,7 @@
             "final_runs": 367,
             "pages": 5,
             "rejections": 1,
-            "output_bytes": 31822
+            "output_bytes": 31849
           }
         }
       },
@@ -20923,7 +20922,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 7078,
+          "allocations": 7122,
           "allocated_bytes": 16440322,
           "work": {
             "shaped_runs": 56,
@@ -20931,11 +20930,11 @@
             "final_runs": 66,
             "pages": 1,
             "checks": 4,
-            "output_bytes": 24362
+            "output_bytes": 24373
           }
         },
         "x64musl": {
-          "allocations": 7078,
+          "allocations": 7122,
           "allocated_bytes": 16440322,
           "work": {
             "shaped_runs": 56,
@@ -20943,7 +20942,7 @@
             "final_runs": 66,
             "pages": 1,
             "checks": 4,
-            "output_bytes": 24362
+            "output_bytes": 24373
           }
         }
       },
@@ -20974,7 +20973,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 14855,
+          "allocations": 14899,
           "allocated_bytes": 37551800,
           "work": {
             "shaped_runs": 256,
@@ -20982,11 +20981,11 @@
             "final_runs": 306,
             "pages": 3,
             "checks": 4,
-            "output_bytes": 30325
+            "output_bytes": 30331
           }
         },
         "x64musl": {
-          "allocations": 14855,
+          "allocations": 14899,
           "allocated_bytes": 37551800,
           "work": {
             "shaped_runs": 256,
@@ -20994,7 +20993,7 @@
             "final_runs": 306,
             "pages": 3,
             "checks": 4,
-            "output_bytes": 30325
+            "output_bytes": 30331
           }
         }
       },
@@ -21205,23 +21204,23 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 3069,
+          "allocations": 3082,
           "allocated_bytes": 5435534,
           "work": {
             "node_writes": 70,
             "content_writes": 138,
             "occurrence_writes": 69,
-            "output_bytes": 24852
+            "output_bytes": 24864
           }
         },
         "x64musl": {
-          "allocations": 3069,
+          "allocations": 3082,
           "allocated_bytes": 5435534,
           "work": {
             "node_writes": 70,
             "content_writes": 138,
             "occurrence_writes": 69,
-            "output_bytes": 24852
+            "output_bytes": 24864
           }
         }
       },
@@ -21250,23 +21249,23 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 7589,
+          "allocations": 7601,
           "allocated_bytes": 12377951,
           "work": {
             "node_writes": 270,
             "content_writes": 578,
             "occurrence_writes": 309,
-            "output_bytes": 33658
+            "output_bytes": 33697
           }
         },
         "x64musl": {
-          "allocations": 7589,
+          "allocations": 7601,
           "allocated_bytes": 12377951,
           "work": {
             "node_writes": 270,
             "content_writes": 578,
             "occurrence_writes": 309,
-            "output_bytes": 33658
+            "output_bytes": 33697
           }
         }
       },
@@ -21308,7 +21307,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 5399,
+          "allocations": 5437,
           "allocated_bytes": 10175299,
           "work": {
             "node_writes": 46,
@@ -21323,7 +21322,7 @@
             "final_runs": 53,
             "fragments": 53,
             "pages": 1,
-            "output_bytes": 24568,
+            "output_bytes": 24575,
             "code_holds": 22,
             "lines_ending_in_holds": 0,
             "control_breaks_in_identifiers": 10,
@@ -21331,7 +21330,7 @@
           }
         },
         "x64musl": {
-          "allocations": 5399,
+          "allocations": 5437,
           "allocated_bytes": 10175299,
           "work": {
             "node_writes": 46,
@@ -21346,7 +21345,7 @@
             "final_runs": 53,
             "fragments": 53,
             "pages": 1,
-            "output_bytes": 24568,
+            "output_bytes": 24575,
             "code_holds": 22,
             "lines_ending_in_holds": 0,
             "control_breaks_in_identifiers": 10,
@@ -21392,7 +21391,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 14749,
+          "allocations": 14786,
           "allocated_bytes": 36979253,
           "work": {
             "node_writes": 298,
@@ -21407,7 +21406,7 @@
             "final_runs": 431,
             "fragments": 431,
             "pages": 8,
-            "output_bytes": 38844,
+            "output_bytes": 38853,
             "code_holds": 148,
             "lines_ending_in_holds": 0,
             "control_breaks_in_identifiers": 100,
@@ -21415,7 +21414,7 @@
           }
         },
         "x64musl": {
-          "allocations": 14749,
+          "allocations": 14786,
           "allocated_bytes": 36979253,
           "work": {
             "node_writes": 298,
@@ -21430,7 +21429,7 @@
             "final_runs": 431,
             "fragments": 431,
             "pages": 8,
-            "output_bytes": 38844,
+            "output_bytes": 38853,
             "code_holds": 148,
             "lines_ending_in_holds": 0,
             "control_breaks_in_identifiers": 100,
@@ -22163,7 +22162,7 @@
       "dimensions": {
         "pages": 4,
         "structure_elements": 356,
-        "element_identifiers": 61
+        "element_identifiers": 62
       },
       "work_counters": [
         "node_writes",
@@ -22185,14 +22184,14 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 12627,
+          "allocations": 12975,
           "allocated_bytes": 18786426,
           "work": {
             "node_writes": 356,
             "occurrence_writes": 288,
             "tables": 2,
             "table_cells": 269,
-            "header_association_edges": 410,
+            "header_association_edges": 472,
             "cell_measurements": 104,
             "measurement_cache_hits": 165,
             "column_width_passes": 2,
@@ -22203,18 +22202,18 @@
             "repeated_header_paints": 3,
             "fragments": 347,
             "artifact_runs": 21,
-            "output_bytes": 37158
+            "output_bytes": 37240
           }
         },
         "x64musl": {
-          "allocations": 12627,
+          "allocations": 12975,
           "allocated_bytes": 18786426,
           "work": {
             "node_writes": 356,
             "occurrence_writes": 288,
             "tables": 2,
             "table_cells": 269,
-            "header_association_edges": 410,
+            "header_association_edges": 472,
             "cell_measurements": 104,
             "measurement_cache_hits": 165,
             "column_width_passes": 2,
@@ -22225,7 +22224,7 @@
             "repeated_header_paints": 3,
             "fragments": 347,
             "artifact_runs": 21,
-            "output_bytes": 37158
+            "output_bytes": 37240
           }
         }
       },
@@ -22245,7 +22244,7 @@
       "dimensions": {
         "pages": 27,
         "structure_elements": 3113,
-        "element_identifiers": 511
+        "element_identifiers": 512
       },
       "work_counters": [
         "node_writes",
@@ -22267,14 +22266,14 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 61352,
+          "allocations": 64399,
           "allocated_bytes": 132721969,
           "work": {
             "node_writes": 3113,
             "occurrence_writes": 2595,
             "tables": 2,
             "table_cells": 2519,
-            "header_association_edges": 4010,
+            "header_association_edges": 4522,
             "cell_measurements": 104,
             "measurement_cache_hits": 2415,
             "column_width_passes": 2,
@@ -22285,18 +22284,18 @@
             "repeated_header_paints": 26,
             "fragments": 3161,
             "artifact_runs": 182,
-            "output_bytes": 142294
+            "output_bytes": 142773
           }
         },
         "x64musl": {
-          "allocations": 61352,
+          "allocations": 64399,
           "allocated_bytes": 132721969,
           "work": {
             "node_writes": 3113,
             "occurrence_writes": 2595,
             "tables": 2,
             "table_cells": 2519,
-            "header_association_edges": 4010,
+            "header_association_edges": 4522,
             "cell_measurements": 104,
             "measurement_cache_hits": 2415,
             "column_width_passes": 2,
@@ -22307,7 +22306,7 @@
             "repeated_header_paints": 26,
             "fragments": 3161,
             "artifact_runs": 182,
-            "output_bytes": 142294
+            "output_bytes": 142773
           }
         }
       },
@@ -22327,7 +22326,7 @@
       "dimensions": {
         "pages": 1,
         "structure_elements": 47,
-        "element_identifiers": 11
+        "element_identifiers": 13
       },
       "work_counters": [
         "node_writes",
@@ -22349,14 +22348,14 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 3295,
+          "allocations": 3407,
           "allocated_bytes": 4616338,
           "work": {
             "node_writes": 47,
             "occurrence_writes": 33,
             "tables": 1,
             "table_cells": 29,
-            "header_association_edges": 51,
+            "header_association_edges": 69,
             "cell_measurements": 29,
             "measurement_cache_hits": 0,
             "column_width_passes": 1,
@@ -22367,18 +22366,18 @@
             "repeated_header_paints": 0,
             "fragments": 33,
             "artifact_runs": 0,
-            "output_bytes": 21665
+            "output_bytes": 21697
           }
         },
         "x64musl": {
-          "allocations": 3295,
+          "allocations": 3407,
           "allocated_bytes": 4616338,
           "work": {
             "node_writes": 47,
             "occurrence_writes": 33,
             "tables": 1,
             "table_cells": 29,
-            "header_association_edges": 51,
+            "header_association_edges": 69,
             "cell_measurements": 29,
             "measurement_cache_hits": 0,
             "column_width_passes": 1,
@@ -22389,7 +22388,7 @@
             "repeated_header_paints": 0,
             "fragments": 33,
             "artifact_runs": 0,
-            "output_bytes": 21665
+            "output_bytes": 21697
           }
         }
       },
@@ -22409,7 +22408,7 @@
       "dimensions": {
         "pages": 6,
         "structure_elements": 23,
-        "element_identifiers": 5
+        "element_identifiers": 6
       },
       "work_counters": [
         "node_writes",
@@ -22431,14 +22430,14 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 3305,
+          "allocations": 3328,
           "allocated_bytes": 27335855,
           "work": {
             "node_writes": 23,
             "occurrence_writes": 14,
             "tables": 1,
             "table_cells": 12,
-            "header_association_edges": 12,
+            "header_association_edges": 15,
             "cell_measurements": 10,
             "measurement_cache_hits": 2,
             "column_width_passes": 1,
@@ -22449,18 +22448,18 @@
             "repeated_header_paints": 5,
             "fragments": 263,
             "artifact_runs": 15,
-            "output_bytes": 27373
+            "output_bytes": 27387
           }
         },
         "x64musl": {
-          "allocations": 3305,
+          "allocations": 3328,
           "allocated_bytes": 27335855,
           "work": {
             "node_writes": 23,
             "occurrence_writes": 14,
             "tables": 1,
             "table_cells": 12,
-            "header_association_edges": 12,
+            "header_association_edges": 15,
             "cell_measurements": 10,
             "measurement_cache_hits": 2,
             "column_width_passes": 1,
@@ -22471,7 +22470,7 @@
             "repeated_header_paints": 5,
             "fragments": 263,
             "artifact_runs": 15,
-            "output_bytes": 27373
+            "output_bytes": 27387
           }
         }
       },
@@ -22490,7 +22489,7 @@
       "dimensions": {
         "pages": 2,
         "structure_elements": 216,
-        "element_identifiers": 39
+        "element_identifiers": 40
       },
       "work_counters": [
         "node_writes",
@@ -22512,14 +22511,14 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 6710,
+          "allocations": 6950,
           "allocated_bytes": 8946618,
           "work": {
             "node_writes": 216,
             "occurrence_writes": 173,
             "tables": 1,
             "table_cells": 171,
-            "header_association_edges": 262,
+            "header_association_edges": 306,
             "cell_measurements": 46,
             "measurement_cache_hits": 125,
             "column_width_passes": 1,
@@ -22530,18 +22529,18 @@
             "repeated_header_paints": 1,
             "fragments": 175,
             "artifact_runs": 7,
-            "output_bytes": 24822
+            "output_bytes": 24866
           }
         },
         "x64musl": {
-          "allocations": 6710,
+          "allocations": 6950,
           "allocated_bytes": 8946618,
           "work": {
             "node_writes": 216,
             "occurrence_writes": 173,
             "tables": 1,
             "table_cells": 171,
-            "header_association_edges": 262,
+            "header_association_edges": 306,
             "cell_measurements": 46,
             "measurement_cache_hits": 125,
             "column_width_passes": 1,
@@ -22552,7 +22551,7 @@
             "repeated_header_paints": 1,
             "fragments": 175,
             "artifact_runs": 7,
-            "output_bytes": 24822
+            "output_bytes": 24866
           }
         }
       },
@@ -22593,14 +22592,14 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 3464,
+          "allocations": 3614,
           "allocated_bytes": 6959398,
           "work": {
             "node_writes": 71,
             "occurrence_writes": 53,
             "tables": 1,
             "table_cells": 26,
-            "header_association_edges": 24,
+            "header_association_edges": 36,
             "cell_measurements": 4,
             "measurement_cache_hits": 22,
             "column_width_passes": 1,
@@ -22611,18 +22610,18 @@
             "repeated_header_paints": 0,
             "fragments": 53,
             "artifact_runs": 0,
-            "output_bytes": 13985
+            "output_bytes": 14015
           }
         },
         "x64musl": {
-          "allocations": 3464,
+          "allocations": 3614,
           "allocated_bytes": 6959398,
           "work": {
             "node_writes": 71,
             "occurrence_writes": 53,
             "tables": 1,
             "table_cells": 26,
-            "header_association_edges": 24,
+            "header_association_edges": 36,
             "cell_measurements": 4,
             "measurement_cache_hits": 22,
             "column_width_passes": 1,
@@ -22633,7 +22632,7 @@
             "repeated_header_paints": 0,
             "fragments": 53,
             "artifact_runs": 0,
-            "output_bytes": 13985
+            "output_bytes": 14015
           }
         }
       },
@@ -22676,14 +22675,14 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 6528,
+          "allocations": 6842,
           "allocated_bytes": 10699939,
           "work": {
             "node_writes": 176,
             "occurrence_writes": 127,
             "tables": 1,
             "table_cells": 125,
-            "header_association_edges": 162,
+            "header_association_edges": 206,
             "cell_measurements": 29,
             "measurement_cache_hits": 96,
             "column_width_passes": 1,
@@ -22696,18 +22695,18 @@
             "artifact_runs": 3,
             "fills": 24,
             "rules": 38,
-            "output_bytes": 27120
+            "output_bytes": 27159
           }
         },
         "x64musl": {
-          "allocations": 6528,
+          "allocations": 6842,
           "allocated_bytes": 10699939,
           "work": {
             "node_writes": 176,
             "occurrence_writes": 127,
             "tables": 1,
             "table_cells": 125,
-            "header_association_edges": 162,
+            "header_association_edges": 206,
             "cell_measurements": 29,
             "measurement_cache_hits": 96,
             "column_width_passes": 1,
@@ -22720,7 +22719,7 @@
             "artifact_runs": 3,
             "fills": 24,
             "rules": 38,
-            "output_bytes": 27120
+            "output_bytes": 27159
           }
         }
       },
@@ -22763,14 +22762,14 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 31829,
+          "allocations": 34666,
           "allocated_bytes": 77592281,
           "work": {
             "node_writes": 1616,
             "occurrence_writes": 1207,
             "tables": 1,
             "table_cells": 1205,
-            "header_association_edges": 1602,
+            "header_association_edges": 2006,
             "cell_measurements": 29,
             "measurement_cache_hits": 1176,
             "column_width_passes": 1,
@@ -22783,18 +22782,18 @@
             "artifact_runs": 33,
             "fills": 214,
             "rules": 388,
-            "output_bytes": 77252
+            "output_bytes": 77576
           }
         },
         "x64musl": {
-          "allocations": 31829,
+          "allocations": 34666,
           "allocated_bytes": 77592281,
           "work": {
             "node_writes": 1616,
             "occurrence_writes": 1207,
             "tables": 1,
             "table_cells": 1205,
-            "header_association_edges": 1602,
+            "header_association_edges": 2006,
             "cell_measurements": 29,
             "measurement_cache_hits": 1176,
             "column_width_passes": 1,
@@ -22807,7 +22806,7 @@
             "artifact_runs": 33,
             "fills": 214,
             "rules": 388,
-            "output_bytes": 77252
+            "output_bytes": 77576
           }
         }
       },
@@ -22848,14 +22847,14 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 4836,
+          "allocations": 5093,
           "allocated_bytes": 8103202,
           "work": {
             "node_writes": 218,
             "occurrence_writes": 95,
             "table_cells": 168,
             "empty_cells": 75,
-            "header_association_edges": 246,
+            "header_association_edges": 287,
             "cell_measurements": 14,
             "row_visits": 42,
             "lines": 95,
@@ -22865,18 +22864,18 @@
             "artifact_runs": 3,
             "fills": 31,
             "rules": 38,
-            "output_bytes": 23554
+            "output_bytes": 23543
           }
         },
         "x64musl": {
-          "allocations": 4836,
+          "allocations": 5093,
           "allocated_bytes": 8103202,
           "work": {
             "node_writes": 218,
             "occurrence_writes": 95,
             "table_cells": 168,
             "empty_cells": 75,
-            "header_association_edges": 246,
+            "header_association_edges": 287,
             "cell_measurements": 14,
             "row_visits": 42,
             "lines": 95,
@@ -22886,7 +22885,7 @@
             "artifact_runs": 3,
             "fills": 31,
             "rules": 38,
-            "output_bytes": 23554
+            "output_bytes": 23543
           }
         }
       },
@@ -22927,14 +22926,14 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 28956,
+          "allocations": 31373,
           "allocated_bytes": 53489947,
           "work": {
             "node_writes": 2018,
             "occurrence_writes": 887,
             "table_cells": 1608,
             "empty_cells": 723,
-            "header_association_edges": 2406,
+            "header_association_edges": 2807,
             "cell_measurements": 14,
             "row_visits": 402,
             "lines": 887,
@@ -22944,18 +22943,18 @@
             "artifact_runs": 30,
             "fills": 292,
             "rules": 389,
-            "output_bytes": 66089
+            "output_bytes": 66298
           }
         },
         "x64musl": {
-          "allocations": 28956,
+          "allocations": 31373,
           "allocated_bytes": 53489947,
           "work": {
             "node_writes": 2018,
             "occurrence_writes": 887,
             "table_cells": 1608,
             "empty_cells": 723,
-            "header_association_edges": 2406,
+            "header_association_edges": 2807,
             "cell_measurements": 14,
             "row_visits": 402,
             "lines": 887,
@@ -22965,7 +22964,7 @@
             "artifact_runs": 30,
             "fills": 292,
             "rules": 389,
-            "output_bytes": 66089
+            "output_bytes": 66298
           }
         }
       },
@@ -23008,14 +23007,14 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 7700,
+          "allocations": 8058,
           "allocated_bytes": 11700989,
           "work": {
             "node_writes": 176,
             "occurrence_writes": 127,
             "tables": 1,
             "table_cells": 125,
-            "header_association_edges": 162,
+            "header_association_edges": 206,
             "cell_measurements": 29,
             "measurement_cache_hits": 96,
             "column_width_passes": 1,
@@ -23028,18 +23027,18 @@
             "artifact_runs": 3,
             "fills": 24,
             "rules": 131,
-            "output_bytes": 27636
+            "output_bytes": 27675
           }
         },
         "x64musl": {
-          "allocations": 7700,
+          "allocations": 8058,
           "allocated_bytes": 11700989,
           "work": {
             "node_writes": 176,
             "occurrence_writes": 127,
             "tables": 1,
             "table_cells": 125,
-            "header_association_edges": 162,
+            "header_association_edges": 206,
             "cell_measurements": 29,
             "measurement_cache_hits": 96,
             "column_width_passes": 1,
@@ -23052,7 +23051,7 @@
             "artifact_runs": 3,
             "fills": 24,
             "rules": 131,
-            "output_bytes": 27636
+            "output_bytes": 27675
           }
         }
       },
@@ -23095,14 +23094,14 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 35616,
+          "allocations": 38859,
           "allocated_bytes": 86055612,
           "work": {
             "node_writes": 1616,
             "occurrence_writes": 1207,
             "tables": 1,
             "table_cells": 1205,
-            "header_association_edges": 1602,
+            "header_association_edges": 2006,
             "cell_measurements": 29,
             "measurement_cache_hits": 1176,
             "column_width_passes": 1,
@@ -23115,18 +23114,18 @@
             "artifact_runs": 33,
             "fills": 214,
             "rules": 1261,
-            "output_bytes": 81890
+            "output_bytes": 82215
           }
         },
         "x64musl": {
-          "allocations": 35616,
+          "allocations": 38859,
           "allocated_bytes": 86055612,
           "work": {
             "node_writes": 1616,
             "occurrence_writes": 1207,
             "tables": 1,
             "table_cells": 1205,
-            "header_association_edges": 1602,
+            "header_association_edges": 2006,
             "cell_measurements": 29,
             "measurement_cache_hits": 1176,
             "column_width_passes": 1,
@@ -23139,7 +23138,7 @@
             "artifact_runs": 33,
             "fills": 214,
             "rules": 1261,
-            "output_bytes": 81890
+            "output_bytes": 82215
           }
         }
       },
@@ -23159,7 +23158,7 @@
       "dimensions": {
         "pages": 1,
         "structure_elements": 19,
-        "element_identifiers": 4
+        "element_identifiers": 5
       },
       "work_counters": [
         "node_writes",
@@ -23181,14 +23180,14 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1923,
+          "allocations": 1945,
           "allocated_bytes": 3184680,
           "work": {
             "node_writes": 19,
             "occurrence_writes": 12,
             "tables": 1,
             "table_cells": 9,
-            "header_association_edges": 8,
+            "header_association_edges": 10,
             "cell_measurements": 9,
             "measurement_cache_hits": 0,
             "column_width_passes": 1,
@@ -23199,18 +23198,18 @@
             "repeated_header_paints": 0,
             "fragments": 18,
             "artifact_runs": 0,
-            "output_bytes": 13023
+            "output_bytes": 13036
           }
         },
         "x64musl": {
-          "allocations": 1923,
+          "allocations": 1945,
           "allocated_bytes": 3184680,
           "work": {
             "node_writes": 19,
             "occurrence_writes": 12,
             "tables": 1,
             "table_cells": 9,
-            "header_association_edges": 8,
+            "header_association_edges": 10,
             "cell_measurements": 9,
             "measurement_cache_hits": 0,
             "column_width_passes": 1,
@@ -23221,7 +23220,7 @@
             "repeated_header_paints": 0,
             "fragments": 18,
             "artifact_runs": 0,
-            "output_bytes": 13023
+            "output_bytes": 13036
           }
         }
       },
@@ -23242,7 +23241,7 @@
         "pages": 1,
         "rejections": 14,
         "structure_elements": 13,
-        "element_identifiers": 3
+        "element_identifiers": 4
       },
       "work_counters": [
         "rejections",
@@ -23250,19 +23249,19 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 54403,
+          "allocations": 54480,
           "allocated_bytes": 57469569,
           "work": {
             "rejections": 15,
-            "output_bytes": 16025
+            "output_bytes": 16042
           }
         },
         "x64musl": {
-          "allocations": 54403,
+          "allocations": 54480,
           "allocated_bytes": 57469569,
           "work": {
             "rejections": 15,
-            "output_bytes": 16025
+            "output_bytes": 16042
           }
         }
       },
@@ -23297,7 +23296,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 5072,
+          "allocations": 5130,
           "allocated_bytes": 14189704,
           "work": {
             "lines": 111,
@@ -23307,11 +23306,11 @@
             "furniture_items": 5,
             "fragments": 114,
             "artifact_runs": 5,
-            "output_bytes": 31656
+            "output_bytes": 31671
           }
         },
         "x64musl": {
-          "allocations": 5072,
+          "allocations": 5130,
           "allocated_bytes": 14189704,
           "work": {
             "lines": 111,
@@ -23321,7 +23320,7 @@
             "furniture_items": 5,
             "fragments": 114,
             "artifact_runs": 5,
-            "output_bytes": 31656
+            "output_bytes": 31671
           }
         }
       },
@@ -23356,7 +23355,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 6368,
+          "allocations": 6425,
           "allocated_bytes": 31592684,
           "work": {
             "lines": 221,
@@ -23366,11 +23365,11 @@
             "furniture_items": 11,
             "fragments": 224,
             "artifact_runs": 11,
-            "output_bytes": 41036
+            "output_bytes": 41051
           }
         },
         "x64musl": {
-          "allocations": 6368,
+          "allocations": 6425,
           "allocated_bytes": 31592684,
           "work": {
             "lines": 221,
@@ -23380,7 +23379,7 @@
             "furniture_items": 11,
             "fragments": 224,
             "artifact_runs": 11,
-            "output_bytes": 41036
+            "output_bytes": 41051
           }
         }
       },
@@ -23415,7 +23414,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 21845,
+          "allocations": 21903,
           "allocated_bytes": 240823035,
           "work": {
             "lines": 1638,
@@ -23425,11 +23424,11 @@
             "furniture_items": 71,
             "fragments": 1641,
             "artifact_runs": 71,
-            "output_bytes": 162421
+            "output_bytes": 162433
           }
         },
         "x64musl": {
-          "allocations": 21845,
+          "allocations": 21903,
           "allocated_bytes": 240823035,
           "work": {
             "lines": 1638,
@@ -23439,7 +23438,7 @@
             "furniture_items": 71,
             "fragments": 1641,
             "artifact_runs": 71,
-            "output_bytes": 162421
+            "output_bytes": 162433
           }
         }
       },
@@ -23593,31 +23592,31 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 29230,
+          "allocations": 29642,
           "allocated_bytes": 31203087,
           "work": {
             "lines": 299,
             "pages": 2,
             "fragments": 299,
-            "letter_landscape_bytes": 27925,
+            "letter_landscape_bytes": 27967,
             "custom_bytes": 15614,
             "custom_blank_bytes": 4216,
             "rejections": 5,
-            "output_bytes": 27917
+            "output_bytes": 27955
           }
         },
         "x64musl": {
-          "allocations": 29230,
+          "allocations": 29642,
           "allocated_bytes": 31203087,
           "work": {
             "lines": 299,
             "pages": 2,
             "fragments": 299,
-            "letter_landscape_bytes": 27925,
+            "letter_landscape_bytes": 27967,
             "custom_bytes": 15614,
             "custom_blank_bytes": 4216,
             "rejections": 5,
-            "output_bytes": 27917
+            "output_bytes": 27955
           }
         }
       },
@@ -24220,30 +24219,30 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 6151,
-          "allocated_bytes": 11538483,
+          "allocations": 6245,
+          "allocated_bytes": 11846340,
           "work": {
             "lines": 69,
             "pages": 5,
-            "fragments": 69,
+            "fragments": 161,
             "scene_commands": 450,
             "figures": 11,
             "decorations": 0,
-            "output_bytes": 29890,
+            "output_bytes": 30147,
             "rejections": 7
           }
         },
         "x64musl": {
-          "allocations": 6151,
-          "allocated_bytes": 11538483,
+          "allocations": 6245,
+          "allocated_bytes": 11846340,
           "work": {
             "lines": 69,
             "pages": 5,
-            "fragments": 69,
+            "fragments": 161,
             "scene_commands": 450,
             "figures": 11,
             "decorations": 0,
-            "output_bytes": 29890,
+            "output_bytes": 30147,
             "rejections": 7
           }
         }
@@ -24277,30 +24276,30 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 16977,
-          "allocated_bytes": 38992806,
+          "allocations": 17125,
+          "allocated_bytes": 40673869,
           "work": {
             "lines": 329,
             "pages": 19,
-            "fragments": 329,
+            "fragments": 741,
             "scene_commands": 2050,
             "figures": 51,
             "decorations": 0,
-            "output_bytes": 60411,
+            "output_bytes": 61306,
             "rejections": 7
           }
         },
         "x64musl": {
-          "allocations": 16977,
-          "allocated_bytes": 38992806,
+          "allocations": 17125,
+          "allocated_bytes": 40673869,
           "work": {
             "lines": 329,
             "pages": 19,
-            "fragments": 329,
+            "fragments": 741,
             "scene_commands": 2050,
             "figures": 51,
             "decorations": 0,
-            "output_bytes": 60411,
+            "output_bytes": 61306,
             "rejections": 7
           }
         }
@@ -24335,32 +24334,32 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 4887,
-          "allocated_bytes": 10802024,
+          "allocations": 4934,
+          "allocated_bytes": 11154839,
           "work": {
             "lines": 56,
             "pages": 4,
-            "fragments": 56,
+            "fragments": 146,
             "scene_commands": 402,
             "body_labels": 50,
             "strong_labels": 10,
             "code_labels": 30,
-            "output_bytes": 29101,
+            "output_bytes": 29350,
             "rejections": 1
           }
         },
         "x64musl": {
-          "allocations": 4887,
-          "allocated_bytes": 10802024,
+          "allocations": 4934,
+          "allocated_bytes": 11154839,
           "work": {
             "lines": 56,
             "pages": 4,
-            "fragments": 56,
+            "fragments": 146,
             "scene_commands": 402,
             "body_labels": 50,
             "strong_labels": 10,
             "code_labels": 30,
-            "output_bytes": 29101,
+            "output_bytes": 29350,
             "rejections": 1
           }
         }
@@ -24395,32 +24394,32 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 16151,
-          "allocated_bytes": 36454879,
+          "allocations": 16252,
+          "allocated_bytes": 38601997,
           "work": {
             "lines": 276,
             "pages": 17,
-            "fragments": 276,
+            "fragments": 726,
             "scene_commands": 2002,
             "body_labels": 250,
             "strong_labels": 50,
             "code_labels": 150,
-            "output_bytes": 57448,
+            "output_bytes": 58613,
             "rejections": 1
           }
         },
         "x64musl": {
-          "allocations": 16151,
-          "allocated_bytes": 36454879,
+          "allocations": 16252,
+          "allocated_bytes": 38601997,
           "work": {
             "lines": 276,
             "pages": 17,
-            "fragments": 276,
+            "fragments": 726,
             "scene_commands": 2002,
             "body_labels": 250,
             "strong_labels": 50,
             "code_labels": 150,
-            "output_bytes": 57448,
+            "output_bytes": 58613,
             "rejections": 1
           }
         }
@@ -24652,7 +24651,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 19495,
+          "allocations": 19945,
           "allocated_bytes": 27503220,
           "work": {
             "lines": 232,
@@ -24665,11 +24664,11 @@
             "report_coverage": 233,
             "report_obligations": 10,
             "observations": 22,
-            "output_bytes": 38786
+            "output_bytes": 38835
           }
         },
         "x64musl": {
-          "allocations": 19495,
+          "allocations": 19945,
           "allocated_bytes": 27503220,
           "work": {
             "lines": 232,
@@ -24682,7 +24681,7 @@
             "report_coverage": 233,
             "report_obligations": 10,
             "observations": 22,
-            "output_bytes": 38786
+            "output_bytes": 38835
           }
         }
       },
@@ -25013,7 +25012,7 @@
     },
     {
       "name": "reference invoice",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/invoice.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25034,7 +25033,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 8417,
+          "allocations": 8620,
           "allocated_bytes": 11864655,
           "work": {
             "pages": 2,
@@ -25043,14 +25042,14 @@
             "report_outcomes": 1,
             "repeated_headers": 1,
             "relaxations": 0,
-            "report_obligations": 9,
+            "report_obligations": 16,
             "report_coverage": 194,
             "observations": 12,
-            "output_bytes": 33448
+            "output_bytes": 33605
           }
         },
         "x64musl": {
-          "allocations": 8417,
+          "allocations": 8620,
           "allocated_bytes": 11864655,
           "work": {
             "pages": 2,
@@ -25059,10 +25058,10 @@
             "report_outcomes": 1,
             "repeated_headers": 1,
             "relaxations": 0,
-            "report_obligations": 9,
+            "report_obligations": 16,
             "report_coverage": 194,
             "observations": 12,
-            "output_bytes": 33448
+            "output_bytes": 33605
           }
         }
       },
@@ -25070,12 +25069,13 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "rich_inline"
+        "rich_inline",
+        "pdfua2"
       ]
     },
     {
       "name": "reference report",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/report.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25096,35 +25096,35 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 10998,
-          "allocated_bytes": 18663153,
+          "allocations": 11242,
+          "allocated_bytes": 18799858,
           "work": {
             "pages": 4,
-            "fragments": 301,
+            "fragments": 321,
             "report_blocks": 265,
             "report_outcomes": 4,
             "repeated_headers": 1,
             "relaxations": 0,
-            "report_obligations": 14,
-            "report_coverage": 279,
+            "report_obligations": 22,
+            "report_coverage": 288,
             "observations": 17,
-            "output_bytes": 105690
+            "output_bytes": 105930
           }
         },
         "x64musl": {
-          "allocations": 10998,
-          "allocated_bytes": 18663153,
+          "allocations": 11242,
+          "allocated_bytes": 18799858,
           "work": {
             "pages": 4,
-            "fragments": 301,
+            "fragments": 321,
             "report_blocks": 265,
             "report_outcomes": 4,
             "repeated_headers": 1,
             "relaxations": 0,
-            "report_obligations": 14,
-            "report_coverage": 279,
+            "report_obligations": 22,
+            "report_coverage": 288,
             "observations": 17,
-            "output_bytes": 105690
+            "output_bytes": 105930
           }
         }
       },
@@ -25133,12 +25133,13 @@
         "pdfa4",
         "structure_semantics",
         "rich_inline",
-        "navigation"
+        "navigation",
+        "pdfua2"
       ]
     },
     {
       "name": "reference letter",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/letter.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25159,7 +25160,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 3595,
+          "allocations": 3642,
           "allocated_bytes": 10758527,
           "work": {
             "pages": 3,
@@ -25168,14 +25169,14 @@
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
-            "report_obligations": 5,
+            "report_obligations": 11,
             "report_coverage": 53,
             "observations": 8,
-            "output_bytes": 38588
+            "output_bytes": 38716
           }
         },
         "x64musl": {
-          "allocations": 3595,
+          "allocations": 3642,
           "allocated_bytes": 10758527,
           "work": {
             "pages": 3,
@@ -25184,10 +25185,10 @@
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
-            "report_obligations": 5,
+            "report_obligations": 11,
             "report_coverage": 53,
             "observations": 8,
-            "output_bytes": 38588
+            "output_bytes": 38716
           }
         }
       },
@@ -25195,12 +25196,13 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "rich_inline"
+        "rich_inline",
+        "pdfua2"
       ]
     },
     {
       "name": "reference invoice long text (INV-A1)",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/invoice_long_text.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25221,7 +25223,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 8534,
+          "allocations": 8738,
           "allocated_bytes": 13156727,
           "work": {
             "pages": 3,
@@ -25230,14 +25232,14 @@
             "report_outcomes": 2,
             "repeated_headers": 2,
             "relaxations": 0,
-            "report_obligations": 9,
+            "report_obligations": 16,
             "report_coverage": 199,
             "observations": 3,
-            "output_bytes": 35222
+            "output_bytes": 35373
           }
         },
         "x64musl": {
-          "allocations": 8534,
+          "allocations": 8738,
           "allocated_bytes": 13156727,
           "work": {
             "pages": 3,
@@ -25246,10 +25248,10 @@
             "report_outcomes": 2,
             "repeated_headers": 2,
             "relaxations": 0,
-            "report_obligations": 9,
+            "report_obligations": 16,
             "report_coverage": 199,
             "observations": 3,
-            "output_bytes": 35222
+            "output_bytes": 35373
           }
         }
       },
@@ -25257,12 +25259,13 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "rich_inline"
+        "rich_inline",
+        "pdfua2"
       ]
     },
     {
       "name": "reference invoice wide code (INV-A2a)",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/invoice_wide_code.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25283,7 +25286,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 8570,
+          "allocations": 8773,
           "allocated_bytes": 12130181,
           "work": {
             "pages": 3,
@@ -25292,14 +25295,14 @@
             "report_outcomes": 2,
             "repeated_headers": 2,
             "relaxations": 0,
-            "report_obligations": 9,
+            "report_obligations": 16,
             "report_coverage": 199,
             "observations": 3,
-            "output_bytes": 34796
+            "output_bytes": 34925
           }
         },
         "x64musl": {
-          "allocations": 8570,
+          "allocations": 8773,
           "allocated_bytes": 12130181,
           "work": {
             "pages": 3,
@@ -25308,10 +25311,10 @@
             "report_outcomes": 2,
             "repeated_headers": 2,
             "relaxations": 0,
-            "report_obligations": 9,
+            "report_obligations": 16,
             "report_coverage": 199,
             "observations": 3,
-            "output_bytes": 34796
+            "output_bytes": 34925
           }
         }
       },
@@ -25319,12 +25322,13 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "rich_inline"
+        "rich_inline",
+        "pdfua2"
       ]
     },
     {
       "name": "reference invoice split row (INV-A4b)",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/invoice_split_row.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25345,7 +25349,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 9096,
+          "allocations": 9298,
           "allocated_bytes": 23131255,
           "work": {
             "pages": 7,
@@ -25354,14 +25358,14 @@
             "report_outcomes": 11,
             "repeated_headers": 6,
             "relaxations": 0,
-            "report_obligations": 9,
+            "report_obligations": 16,
             "report_coverage": 224,
             "observations": 3,
-            "output_bytes": 42068
+            "output_bytes": 42222
           }
         },
         "x64musl": {
-          "allocations": 9096,
+          "allocations": 9298,
           "allocated_bytes": 23131255,
           "work": {
             "pages": 7,
@@ -25370,22 +25374,23 @@
             "report_outcomes": 11,
             "repeated_headers": 6,
             "relaxations": 0,
-            "report_obligations": 9,
+            "report_obligations": 16,
             "report_coverage": 224,
             "observations": 3,
-            "output_bytes": 42068
+            "output_bytes": 42222
           }
         }
       },
       "retention": null,
       "validators": [
         "pdfa4",
-        "structure_semantics"
+        "structure_semantics",
+        "pdfua2"
       ]
     },
     {
       "name": "reference invoice totals carry (INV-A5)",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/invoice_totals_carry.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25406,7 +25411,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 17081,
+          "allocations": 17489,
           "allocated_bytes": 21057208,
           "work": {
             "pages": 3,
@@ -25415,14 +25420,14 @@
             "report_outcomes": 2,
             "repeated_headers": 2,
             "relaxations": 0,
-            "report_obligations": 10,
+            "report_obligations": 17,
             "report_coverage": 219,
             "observations": 5,
-            "output_bytes": 35024
+            "output_bytes": 35190
           }
         },
         "x64musl": {
-          "allocations": 17081,
+          "allocations": 17489,
           "allocated_bytes": 21057208,
           "work": {
             "pages": 3,
@@ -25431,10 +25436,10 @@
             "report_outcomes": 2,
             "repeated_headers": 2,
             "relaxations": 0,
-            "report_obligations": 10,
+            "report_obligations": 17,
             "report_coverage": 219,
             "observations": 5,
-            "output_bytes": 35024
+            "output_bytes": 35190
           }
         }
       },
@@ -25442,12 +25447,13 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "rich_inline"
+        "rich_inline",
+        "pdfua2"
       ]
     },
     {
       "name": "reference invoice rows x50",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/invoice_50.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25468,7 +25474,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 10224,
+          "allocations": 10516,
           "allocated_bytes": 15575123,
           "work": {
             "pages": 3,
@@ -25477,14 +25483,14 @@
             "report_outcomes": 2,
             "repeated_headers": 2,
             "relaxations": 0,
-            "report_obligations": 11,
+            "report_obligations": 18,
             "report_coverage": 289,
             "observations": 3,
-            "output_bytes": 37971
+            "output_bytes": 38156
           }
         },
         "x64musl": {
-          "allocations": 10224,
+          "allocations": 10516,
           "allocated_bytes": 15575123,
           "work": {
             "pages": 3,
@@ -25493,10 +25499,10 @@
             "report_outcomes": 2,
             "repeated_headers": 2,
             "relaxations": 0,
-            "report_obligations": 11,
+            "report_obligations": 18,
             "report_coverage": 289,
             "observations": 3,
-            "output_bytes": 37971
+            "output_bytes": 38156
           }
         }
       },
@@ -25504,12 +25510,13 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "rich_inline"
+        "rich_inline",
+        "pdfua2"
       ]
     },
     {
       "name": "reference invoice rows x500 (INV-A3)",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/invoice_500.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25530,7 +25537,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 58920,
+          "allocations": 61461,
           "allocated_bytes": 107537832,
           "work": {
             "pages": 21,
@@ -25539,14 +25546,14 @@
             "report_outcomes": 20,
             "repeated_headers": 20,
             "relaxations": 0,
-            "report_obligations": 68,
+            "report_obligations": 75,
             "report_coverage": 2629,
             "observations": 3,
-            "output_bytes": 145897
+            "output_bytes": 146517
           }
         },
         "x64musl": {
-          "allocations": 58920,
+          "allocations": 61461,
           "allocated_bytes": 107537832,
           "work": {
             "pages": 21,
@@ -25555,10 +25562,10 @@
             "report_outcomes": 20,
             "repeated_headers": 20,
             "relaxations": 0,
-            "report_obligations": 68,
+            "report_obligations": 75,
             "report_coverage": 2629,
             "observations": 3,
-            "output_bytes": 145897
+            "output_bytes": 146517
           }
         }
       },
@@ -25566,12 +25573,13 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "rich_inline"
+        "rich_inline",
+        "pdfua2"
       ]
     },
     {
       "name": "reference report heading keep (REP-A1)",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/report_heading_keep.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25592,35 +25600,35 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 12025,
-          "allocated_bytes": 19461148,
+          "allocations": 12270,
+          "allocated_bytes": 19619185,
           "work": {
             "pages": 5,
-            "fragments": 302,
+            "fragments": 322,
             "report_blocks": 266,
             "report_outcomes": 4,
             "repeated_headers": 1,
             "relaxations": 0,
-            "report_obligations": 14,
-            "report_coverage": 280,
+            "report_obligations": 22,
+            "report_coverage": 289,
             "observations": 4,
-            "output_bytes": 106334
+            "output_bytes": 106581
           }
         },
         "x64musl": {
-          "allocations": 12025,
-          "allocated_bytes": 19461148,
+          "allocations": 12270,
+          "allocated_bytes": 19619185,
           "work": {
             "pages": 5,
-            "fragments": 302,
+            "fragments": 322,
             "report_blocks": 266,
             "report_outcomes": 4,
             "repeated_headers": 1,
             "relaxations": 0,
-            "report_obligations": 14,
-            "report_coverage": 280,
+            "report_obligations": 22,
+            "report_coverage": 289,
             "observations": 4,
-            "output_bytes": 106334
+            "output_bytes": 106581
           }
         }
       },
@@ -25629,12 +25637,13 @@
         "pdfa4",
         "structure_semantics",
         "rich_inline",
-        "navigation"
+        "navigation",
+        "pdfua2"
       ]
     },
     {
       "name": "reference report figure and caption (REP-A2)",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/report_figure_caption.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25655,35 +25664,35 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 12544,
-          "allocated_bytes": 19679350,
+          "allocations": 12807,
+          "allocated_bytes": 19862356,
           "work": {
             "pages": 5,
-            "fragments": 302,
+            "fragments": 322,
             "report_blocks": 266,
             "report_outcomes": 4,
             "repeated_headers": 1,
             "relaxations": 0,
-            "report_obligations": 14,
-            "report_coverage": 280,
+            "report_obligations": 22,
+            "report_coverage": 289,
             "observations": 4,
-            "output_bytes": 106346
+            "output_bytes": 106591
           }
         },
         "x64musl": {
-          "allocations": 12544,
-          "allocated_bytes": 19679350,
+          "allocations": 12807,
+          "allocated_bytes": 19862356,
           "work": {
             "pages": 5,
-            "fragments": 302,
+            "fragments": 322,
             "report_blocks": 266,
             "report_outcomes": 4,
             "repeated_headers": 1,
             "relaxations": 0,
-            "report_obligations": 14,
-            "report_coverage": 280,
+            "report_obligations": 22,
+            "report_coverage": 289,
             "observations": 4,
-            "output_bytes": 106346
+            "output_bytes": 106591
           }
         }
       },
@@ -25692,12 +25701,13 @@
         "pdfa4",
         "structure_semantics",
         "rich_inline",
-        "navigation"
+        "navigation",
+        "pdfua2"
       ]
     },
     {
       "name": "reference report table break (REP-A3)",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/report_table_break.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25718,35 +25728,35 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 11898,
-          "allocated_bytes": 19121705,
+          "allocations": 12143,
+          "allocated_bytes": 19279427,
           "work": {
             "pages": 5,
-            "fragments": 302,
+            "fragments": 322,
             "report_blocks": 266,
             "report_outcomes": 5,
             "repeated_headers": 2,
             "relaxations": 0,
-            "report_obligations": 14,
-            "report_coverage": 284,
+            "report_obligations": 22,
+            "report_coverage": 293,
             "observations": 6,
-            "output_bytes": 106589
+            "output_bytes": 106829
           }
         },
         "x64musl": {
-          "allocations": 11898,
-          "allocated_bytes": 19121705,
+          "allocations": 12143,
+          "allocated_bytes": 19279427,
           "work": {
             "pages": 5,
-            "fragments": 302,
+            "fragments": 322,
             "report_blocks": 266,
             "report_outcomes": 5,
             "repeated_headers": 2,
             "relaxations": 0,
-            "report_obligations": 14,
-            "report_coverage": 284,
+            "report_obligations": 22,
+            "report_coverage": 293,
             "observations": 6,
-            "output_bytes": 106589
+            "output_bytes": 106829
           }
         }
       },
@@ -25755,12 +25765,13 @@
         "pdfa4",
         "structure_semantics",
         "rich_inline",
-        "navigation"
+        "navigation",
+        "pdfua2"
       ]
     },
     {
       "name": "reference report ordered faces (REP-A5)",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/report_ordered.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25781,8 +25792,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 14468,
-          "allocated_bytes": 16543950,
+          "allocations": 14704,
+          "allocated_bytes": 16593239,
           "work": {
             "pages": 4,
             "fragments": 307,
@@ -25790,15 +25801,15 @@
             "report_outcomes": 4,
             "repeated_headers": 1,
             "relaxations": 0,
-            "report_obligations": 15,
+            "report_obligations": 23,
             "report_coverage": 284,
             "observations": 4,
-            "output_bytes": 90151
+            "output_bytes": 90315
           }
         },
         "x64musl": {
-          "allocations": 14468,
-          "allocated_bytes": 16543950,
+          "allocations": 14704,
+          "allocated_bytes": 16593239,
           "work": {
             "pages": 4,
             "fragments": 307,
@@ -25806,10 +25817,10 @@
             "report_outcomes": 4,
             "repeated_headers": 1,
             "relaxations": 0,
-            "report_obligations": 15,
+            "report_obligations": 23,
             "report_coverage": 284,
             "observations": 4,
-            "output_bytes": 90151
+            "output_bytes": 90315
           }
         }
       },
@@ -25818,12 +25829,13 @@
         "pdfa4",
         "structure_semantics",
         "rich_inline",
-        "navigation"
+        "navigation",
+        "pdfua2"
       ]
     },
     {
       "name": "reference report scaled figure (REP-A6b)",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/report_scaled_figure.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25844,8 +25856,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 10581,
-          "allocated_bytes": 18706417,
+          "allocations": 10817,
+          "allocated_bytes": 18755690,
           "work": {
             "pages": 5,
             "fragments": 301,
@@ -25853,15 +25865,15 @@
             "report_outcomes": 4,
             "repeated_headers": 1,
             "relaxations": 0,
-            "report_obligations": 14,
+            "report_obligations": 22,
             "report_coverage": 279,
             "observations": 2,
-            "output_bytes": 105350
+            "output_bytes": 105507
           }
         },
         "x64musl": {
-          "allocations": 10581,
-          "allocated_bytes": 18706417,
+          "allocations": 10817,
+          "allocated_bytes": 18755690,
           "work": {
             "pages": 5,
             "fragments": 301,
@@ -25869,10 +25881,10 @@
             "report_outcomes": 4,
             "repeated_headers": 1,
             "relaxations": 0,
-            "report_obligations": 14,
+            "report_obligations": 22,
             "report_coverage": 279,
             "observations": 2,
-            "output_bytes": 105350
+            "output_bytes": 105507
           }
         }
       },
@@ -25881,12 +25893,13 @@
         "pdfa4",
         "structure_semantics",
         "rich_inline",
-        "navigation"
+        "navigation",
+        "pdfua2"
       ]
     },
     {
       "name": "reference report sections x10",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/report_sections_10.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25907,8 +25920,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 7201,
-          "allocated_bytes": 15128982,
+          "allocations": 7467,
+          "allocated_bytes": 15201094,
           "work": {
             "pages": 4,
             "fragments": 241,
@@ -25916,15 +25929,15 @@
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
-            "report_obligations": 22,
+            "report_obligations": 30,
             "report_coverage": 201,
             "observations": 3,
-            "output_bytes": 34987
+            "output_bytes": 35234
           }
         },
         "x64musl": {
-          "allocations": 7201,
-          "allocated_bytes": 15128982,
+          "allocations": 7467,
+          "allocated_bytes": 15201094,
           "work": {
             "pages": 4,
             "fragments": 241,
@@ -25932,10 +25945,10 @@
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
-            "report_obligations": 22,
+            "report_obligations": 30,
             "report_coverage": 201,
             "observations": 3,
-            "output_bytes": 34987
+            "output_bytes": 35234
           }
         }
       },
@@ -25944,12 +25957,13 @@
         "pdfa4",
         "structure_semantics",
         "rich_inline",
-        "navigation"
+        "navigation",
+        "pdfua2"
       ]
     },
     {
       "name": "reference report sections x100",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/report_sections_100.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -25970,8 +25984,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 53962,
-          "allocated_bytes": 115551175,
+          "allocations": 56579,
+          "allocated_bytes": 116297667,
           "work": {
             "pages": 38,
             "fragments": 2401,
@@ -25979,15 +25993,15 @@
             "report_outcomes": 12,
             "repeated_headers": 12,
             "relaxations": 0,
-            "report_obligations": 202,
+            "report_obligations": 210,
             "report_coverage": 2037,
             "observations": 3,
-            "output_bytes": 159760
+            "output_bytes": 161238
           }
         },
         "x64musl": {
-          "allocations": 53962,
-          "allocated_bytes": 115551175,
+          "allocations": 56579,
+          "allocated_bytes": 116297667,
           "work": {
             "pages": 38,
             "fragments": 2401,
@@ -25995,10 +26009,10 @@
             "report_outcomes": 12,
             "repeated_headers": 12,
             "relaxations": 0,
-            "report_obligations": 202,
+            "report_obligations": 210,
             "report_coverage": 2037,
             "observations": 3,
-            "output_bytes": 159760
+            "output_bytes": 161238
           }
         }
       },
@@ -26007,12 +26021,13 @@
         "pdfa4",
         "structure_semantics",
         "rich_inline",
-        "navigation"
+        "navigation",
+        "pdfua2"
       ]
     },
     {
       "name": "reference letter long recipient (LET-A1)",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/letter_long_recipient.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -26033,7 +26048,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 3562,
+          "allocations": 3609,
           "allocated_bytes": 10985626,
           "work": {
             "pages": 3,
@@ -26042,14 +26057,14 @@
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
-            "report_obligations": 5,
+            "report_obligations": 11,
             "report_coverage": 53,
             "observations": 2,
-            "output_bytes": 38946
+            "output_bytes": 39078
           }
         },
         "x64musl": {
-          "allocations": 3562,
+          "allocations": 3609,
           "allocated_bytes": 10985626,
           "work": {
             "pages": 3,
@@ -26058,10 +26073,10 @@
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
-            "report_obligations": 5,
+            "report_obligations": 11,
             "report_coverage": 53,
             "observations": 2,
-            "output_bytes": 38946
+            "output_bytes": 39078
           }
         }
       },
@@ -26069,12 +26084,13 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "rich_inline"
+        "rich_inline",
+        "pdfua2"
       ]
     },
     {
       "name": "reference letter x60 (LET-A2)",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/letter_60.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -26095,7 +26111,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 5002,
+          "allocations": 5049,
           "allocated_bytes": 31357065,
           "work": {
             "pages": 11,
@@ -26104,14 +26120,14 @@
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
-            "report_obligations": 14,
+            "report_obligations": 20,
             "report_coverage": 107,
             "observations": 3,
-            "output_bytes": 67984
+            "output_bytes": 68119
           }
         },
         "x64musl": {
-          "allocations": 5002,
+          "allocations": 5049,
           "allocated_bytes": 31357065,
           "work": {
             "pages": 11,
@@ -26120,10 +26136,10 @@
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
-            "report_obligations": 14,
+            "report_obligations": 20,
             "report_coverage": 107,
             "observations": 3,
-            "output_bytes": 67984
+            "output_bytes": 68119
           }
         }
       },
@@ -26131,12 +26147,13 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "rich_inline"
+        "rich_inline",
+        "pdfua2"
       ]
     },
     {
       "name": "reference letter x20",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/letter_20.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -26157,7 +26174,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 3978,
+          "allocations": 4025,
           "allocated_bytes": 16032629,
           "work": {
             "pages": 5,
@@ -26166,14 +26183,14 @@
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
-            "report_obligations": 7,
+            "report_obligations": 13,
             "report_coverage": 67,
             "observations": 3,
-            "output_bytes": 46204
+            "output_bytes": 46328
           }
         },
         "x64musl": {
-          "allocations": 3978,
+          "allocations": 4025,
           "allocated_bytes": 16032629,
           "work": {
             "pages": 5,
@@ -26182,10 +26199,10 @@
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
-            "report_obligations": 7,
+            "report_obligations": 13,
             "report_coverage": 67,
             "observations": 3,
-            "output_bytes": 46204
+            "output_bytes": 46328
           }
         }
       },
@@ -26193,12 +26210,13 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "rich_inline"
+        "rich_inline",
+        "pdfua2"
       ]
     },
     {
       "name": "reference letter x200",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/letter_200.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -26219,7 +26237,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 8479,
+          "allocations": 8526,
           "allocated_bytes": 85563619,
           "work": {
             "pages": 31,
@@ -26228,14 +26246,14 @@
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
-            "report_obligations": 37,
+            "report_obligations": 43,
             "report_coverage": 247,
             "observations": 3,
-            "output_bytes": 143539
+            "output_bytes": 143672
           }
         },
         "x64musl": {
-          "allocations": 8479,
+          "allocations": 8526,
           "allocated_bytes": 85563619,
           "work": {
             "pages": 31,
@@ -26244,10 +26262,10 @@
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
-            "report_obligations": 37,
+            "report_obligations": 43,
             "report_coverage": 247,
             "observations": 3,
-            "output_bytes": 143539
+            "output_bytes": 143672
           }
         }
       },
@@ -26255,12 +26273,13 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "rich_inline"
+        "rich_inline",
+        "pdfua2"
       ]
     },
     {
       "name": "reference variant rejections",
-      "scenario_revision": "reference-documents-v12",
+      "scenario_revision": "reference-documents-v13",
       "family": "reference_documents",
       "snapshot": "tests/reference_documents/rejections.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -26274,21 +26293,21 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 81000,
+          "allocations": 82773,
           "allocated_bytes": 92577138,
           "work": {
             "rejections": 24,
-            "report_obligations": 2,
-            "output_bytes": 15588
+            "report_obligations": 8,
+            "output_bytes": 15705
           }
         },
         "x64musl": {
-          "allocations": 81000,
+          "allocations": 82773,
           "allocated_bytes": 92577138,
           "work": {
             "rejections": 24,
-            "report_obligations": 2,
-            "output_bytes": 15588
+            "report_obligations": 8,
+            "output_bytes": 15705
           }
         }
       },
@@ -26296,7 +26315,136 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "rich_inline"
+        "rich_inline",
+        "pdfua2"
+      ]
+    },
+    {
+      "name": "reference statement batch x10",
+      "scenario_revision": "reference-documents-v13",
+      "family": "reference_documents",
+      "snapshot": "tests/reference_documents/statements_10.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 10
+      },
+      "work_counters": [
+        "pages",
+        "fragments",
+        "report_blocks",
+        "report_outcomes",
+        "repeated_headers",
+        "relaxations",
+        "report_obligations",
+        "report_coverage",
+        "observations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 3592,
+          "allocated_bytes": 8885924,
+          "work": {
+            "pages": 10,
+            "fragments": 100,
+            "report_blocks": 100,
+            "report_outcomes": 0,
+            "repeated_headers": 0,
+            "relaxations": 0,
+            "report_obligations": 18,
+            "report_coverage": 100,
+            "observations": 1,
+            "output_bytes": 27620
+          }
+        },
+        "x64musl": {
+          "allocations": 3592,
+          "allocated_bytes": 8885924,
+          "work": {
+            "pages": 10,
+            "fragments": 100,
+            "report_blocks": 100,
+            "report_outcomes": 0,
+            "repeated_headers": 0,
+            "relaxations": 0,
+            "report_obligations": 18,
+            "report_coverage": 100,
+            "observations": 1,
+            "output_bytes": 27620
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "pdfua2",
+        "wtpdf_accessibility"
+      ]
+    },
+    {
+      "name": "reference statement batch x100",
+      "scenario_revision": "reference-documents-v13",
+      "family": "reference_documents",
+      "snapshot": "tests/reference_documents/statements_100.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 100
+      },
+      "work_counters": [
+        "pages",
+        "fragments",
+        "report_blocks",
+        "report_outcomes",
+        "repeated_headers",
+        "relaxations",
+        "report_obligations",
+        "report_coverage",
+        "observations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 24294,
+          "allocated_bytes": 64430098,
+          "work": {
+            "pages": 100,
+            "fragments": 1000,
+            "report_blocks": 1000,
+            "report_outcomes": 0,
+            "repeated_headers": 0,
+            "relaxations": 0,
+            "report_obligations": 108,
+            "report_coverage": 1000,
+            "observations": 1,
+            "output_bytes": 116471
+          }
+        },
+        "x64musl": {
+          "allocations": 24294,
+          "allocated_bytes": 64430098,
+          "work": {
+            "pages": 100,
+            "fragments": 1000,
+            "report_blocks": 1000,
+            "report_outcomes": 0,
+            "repeated_headers": 0,
+            "relaxations": 0,
+            "report_obligations": 108,
+            "report_coverage": 1000,
+            "observations": 1,
+            "output_bytes": 116471
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "pdfua2",
+        "wtpdf_accessibility"
       ]
     },
     {
@@ -27353,7 +27501,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 1755,
-          "allocated_bytes": 3616940,
+          "allocated_bytes": 3617249,
           "work": {
             "input_bytes": 52,
             "shaped_runs": 5,
@@ -27369,12 +27517,12 @@
             "reported_fragments": 1,
             "reported_visual_lines": 4,
             "rejections": 0,
-            "output_bytes": 17159
+            "output_bytes": 17276
           }
         },
         "x64musl": {
           "allocations": 1755,
-          "allocated_bytes": 3616940,
+          "allocated_bytes": 3617249,
           "work": {
             "input_bytes": 52,
             "shaped_runs": 5,
@@ -27390,7 +27538,7 @@
             "reported_fragments": 1,
             "reported_visual_lines": 4,
             "rejections": 0,
-            "output_bytes": 17159
+            "output_bytes": 17276
           }
         }
       },
@@ -27398,7 +27546,8 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "source_blocks"
+        "source_blocks",
+        "pdfua2"
       ]
     },
     {
@@ -28584,7 +28733,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 2910,
-          "allocated_bytes": 5422955,
+          "allocated_bytes": 5423266,
           "work": {
             "input_bytes": 1080,
             "shaped_runs": 63,
@@ -28600,7 +28749,7 @@
             "reported_fragments": 2,
             "reported_visual_lines": 61,
             "rejections": 0,
-            "output_bytes": 16530,
+            "output_bytes": 16649,
             "foreground_ranges": 0,
             "paint_clusters": 0,
             "paint_range_advances": 0
@@ -28608,7 +28757,7 @@
         },
         "x64musl": {
           "allocations": 2910,
-          "allocated_bytes": 5422955,
+          "allocated_bytes": 5423266,
           "work": {
             "input_bytes": 1080,
             "shaped_runs": 63,
@@ -28624,7 +28773,7 @@
             "reported_fragments": 2,
             "reported_visual_lines": 61,
             "rejections": 0,
-            "output_bytes": 16530,
+            "output_bytes": 16649,
             "foreground_ranges": 0,
             "paint_clusters": 0,
             "paint_range_advances": 0
@@ -28634,6 +28783,7 @@
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics",
         "source_foregrounds"
       ]
@@ -28673,7 +28823,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 4304,
-          "allocated_bytes": 8204264,
+          "allocated_bytes": 8204574,
           "work": {
             "input_bytes": 1080,
             "shaped_runs": 63,
@@ -28689,7 +28839,7 @@
             "reported_fragments": 2,
             "reported_visual_lines": 61,
             "rejections": 0,
-            "output_bytes": 19413,
+            "output_bytes": 19531,
             "foreground_ranges": 180,
             "paint_clusters": 1020,
             "paint_range_advances": 180
@@ -28697,7 +28847,7 @@
         },
         "x64musl": {
           "allocations": 4304,
-          "allocated_bytes": 8204264,
+          "allocated_bytes": 8204574,
           "work": {
             "input_bytes": 1080,
             "shaped_runs": 63,
@@ -28713,7 +28863,7 @@
             "reported_fragments": 2,
             "reported_visual_lines": 61,
             "rejections": 0,
-            "output_bytes": 19413,
+            "output_bytes": 19531,
             "foreground_ranges": 180,
             "paint_clusters": 1020,
             "paint_range_advances": 180
@@ -28723,6 +28873,7 @@
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics",
         "source_foregrounds"
       ]
@@ -28762,7 +28913,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 13808,
-          "allocated_bytes": 26433298,
+          "allocated_bytes": 26433609,
           "work": {
             "input_bytes": 10800,
             "shaped_runs": 603,
@@ -28778,7 +28929,7 @@
             "reported_fragments": 11,
             "reported_visual_lines": 601,
             "rejections": 0,
-            "output_bytes": 24059,
+            "output_bytes": 24178,
             "foreground_ranges": 0,
             "paint_clusters": 0,
             "paint_range_advances": 0
@@ -28786,7 +28937,7 @@
         },
         "x64musl": {
           "allocations": 13808,
-          "allocated_bytes": 26433298,
+          "allocated_bytes": 26433609,
           "work": {
             "input_bytes": 10800,
             "shaped_runs": 603,
@@ -28802,7 +28953,7 @@
             "reported_fragments": 11,
             "reported_visual_lines": 601,
             "rejections": 0,
-            "output_bytes": 24059,
+            "output_bytes": 24178,
             "foreground_ranges": 0,
             "paint_clusters": 0,
             "paint_range_advances": 0
@@ -28812,6 +28963,7 @@
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics",
         "source_foregrounds"
       ]
@@ -28851,7 +29003,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 31537,
-          "allocated_bytes": 63738508,
+          "allocated_bytes": 63738818,
           "work": {
             "input_bytes": 10800,
             "shaped_runs": 603,
@@ -28867,7 +29019,7 @@
             "reported_fragments": 11,
             "reported_visual_lines": 601,
             "rejections": 0,
-            "output_bytes": 51268,
+            "output_bytes": 51386,
             "foreground_ranges": 1800,
             "paint_clusters": 10200,
             "paint_range_advances": 1800
@@ -28875,7 +29027,7 @@
         },
         "x64musl": {
           "allocations": 31537,
-          "allocated_bytes": 63738508,
+          "allocated_bytes": 63738818,
           "work": {
             "input_bytes": 10800,
             "shaped_runs": 603,
@@ -28891,7 +29043,7 @@
             "reported_fragments": 11,
             "reported_visual_lines": 601,
             "rejections": 0,
-            "output_bytes": 51268,
+            "output_bytes": 51386,
             "foreground_ranges": 1800,
             "paint_clusters": 10200,
             "paint_range_advances": 1800
@@ -28901,6 +29053,7 @@
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics",
         "source_foregrounds"
       ]
@@ -29373,7 +29526,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 7925,
-          "allocated_bytes": 36828999,
+          "allocated_bytes": 36829116,
           "work": {
             "lines": 125,
             "pages": 6,
@@ -29382,7 +29535,7 @@
             "furniture_items": 9,
             "fragments": 125,
             "artifact_runs": 8,
-            "output_bytes": 25095,
+            "output_bytes": 25212,
             "scope_pages": 4,
             "scope_openings": 2,
             "scope_visits": 10,
@@ -29391,7 +29544,7 @@
         },
         "x64musl": {
           "allocations": 7925,
-          "allocated_bytes": 36828999,
+          "allocated_bytes": 36829116,
           "work": {
             "lines": 125,
             "pages": 6,
@@ -29400,7 +29553,7 @@
             "furniture_items": 9,
             "fragments": 125,
             "artifact_runs": 8,
-            "output_bytes": 25095,
+            "output_bytes": 25212,
             "scope_pages": 4,
             "scope_openings": 2,
             "scope_visits": 10,
@@ -29411,6 +29564,7 @@
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics",
         "chapter_templates"
       ]
@@ -29446,7 +29600,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 52990,
-          "allocated_bytes": 332611789,
+          "allocated_bytes": 332611907,
           "work": {
             "lines": 1223,
             "pages": 42,
@@ -29455,7 +29609,7 @@
             "furniture_items": 63,
             "fragments": 1223,
             "artifact_runs": 62,
-            "output_bytes": 83081,
+            "output_bytes": 83199,
             "scope_pages": 40,
             "scope_openings": 20,
             "scope_visits": 82,
@@ -29464,7 +29618,7 @@
         },
         "x64musl": {
           "allocations": 52990,
-          "allocated_bytes": 332611789,
+          "allocated_bytes": 332611907,
           "work": {
             "lines": 1223,
             "pages": 42,
@@ -29473,7 +29627,7 @@
             "furniture_items": 63,
             "fragments": 1223,
             "artifact_runs": 62,
-            "output_bytes": 83081,
+            "output_bytes": 83199,
             "scope_pages": 40,
             "scope_openings": 20,
             "scope_visits": 82,
@@ -29484,6 +29638,7 @@
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics",
         "chapter_templates"
       ]
@@ -29635,6 +29790,229 @@
       ]
     },
     {
+      "name": "fixed remittance pages x2",
+      "scenario_revision": "fixed-remittance-v1",
+      "family": "fixed_pages",
+      "snapshot": "tests/fixed_pages/remittance_2.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "placements": 10,
+        "artifact_rectangles": 4
+      },
+      "work_counters": [
+        "pages",
+        "reported_placements",
+        "fragments",
+        "authored_paint_indices",
+        "authored_artifact_rectangles",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1080,
+          "allocated_bytes": 3434525,
+          "work": {
+            "pages": 2,
+            "reported_placements": 10,
+            "fragments": 10,
+            "authored_paint_indices": 10,
+            "authored_artifact_rectangles": 4,
+            "output_bytes": 18984
+          }
+        },
+        "x64musl": {
+          "allocations": 1080,
+          "allocated_bytes": 3434525,
+          "work": {
+            "pages": 2,
+            "reported_placements": 10,
+            "fragments": 10,
+            "authored_paint_indices": 10,
+            "authored_artifact_rectangles": 4,
+            "output_bytes": 18984
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "fixed_pages"
+      ]
+    },
+    {
+      "name": "fixed remittance pages x20",
+      "scenario_revision": "fixed-remittance-v1",
+      "family": "fixed_pages",
+      "snapshot": "tests/fixed_pages/remittance_20.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 20,
+        "placements": 100,
+        "artifact_rectangles": 40
+      },
+      "work_counters": [
+        "pages",
+        "reported_placements",
+        "fragments",
+        "authored_paint_indices",
+        "authored_artifact_rectangles",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 2516,
+          "allocated_bytes": 10766942,
+          "work": {
+            "pages": 20,
+            "reported_placements": 100,
+            "fragments": 100,
+            "authored_paint_indices": 100,
+            "authored_artifact_rectangles": 40,
+            "output_bytes": 31418
+          }
+        },
+        "x64musl": {
+          "allocations": 2516,
+          "allocated_bytes": 10766942,
+          "work": {
+            "pages": 20,
+            "reported_placements": 100,
+            "fragments": 100,
+            "authored_paint_indices": 100,
+            "authored_artifact_rectangles": 40,
+            "output_bytes": 31418
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "fixed_pages"
+      ]
+    },
+    {
+      "name": "fixed remittance authoring rejections",
+      "scenario_revision": "fixed-remittance-v1",
+      "family": "fixed_pages",
+      "snapshot": "tests/fixed_pages/remittance_2.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "placements": 10,
+        "artifact_rectangles": 4
+      },
+      "work_counters": [
+        "pages",
+        "reported_placements",
+        "fragments",
+        "authored_paint_indices",
+        "authored_artifact_rectangles",
+        "output_bytes",
+        "byte_rejections",
+        "chunk_rejections",
+        "flush_frames_accepted"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 2000,
+          "allocated_bytes": 5536416,
+          "work": {
+            "pages": 2,
+            "reported_placements": 10,
+            "fragments": 10,
+            "authored_paint_indices": 10,
+            "authored_artifact_rectangles": 4,
+            "output_bytes": 18984,
+            "byte_rejections": 8,
+            "chunk_rejections": 8,
+            "flush_frames_accepted": 1
+          }
+        },
+        "x64musl": {
+          "allocations": 2000,
+          "allocated_bytes": 5536416,
+          "work": {
+            "pages": 2,
+            "reported_placements": 10,
+            "fragments": 10,
+            "authored_paint_indices": 10,
+            "authored_artifact_rectangles": 4,
+            "output_bytes": 18984,
+            "byte_rejections": 8,
+            "chunk_rejections": 8,
+            "flush_frames_accepted": 1
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "fixed_pages"
+      ]
+    },
+    {
+      "name": "fixed remittance WTPDF x2",
+      "scenario_revision": "fixed-remittance-v1",
+      "family": "fixed_pages",
+      "snapshot": "tests/fixed_pages/remittance_wtpdf_2.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "placements": 10,
+        "artifact_rectangles": 4,
+        "wtpdf_accessibility": 1
+      },
+      "work_counters": [
+        "pages",
+        "reported_placements",
+        "fragments",
+        "authored_paint_indices",
+        "authored_artifact_rectangles",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1081,
+          "allocated_bytes": 3436321,
+          "work": {
+            "pages": 2,
+            "reported_placements": 10,
+            "fragments": 10,
+            "authored_paint_indices": 10,
+            "authored_artifact_rectangles": 4,
+            "output_bytes": 19251
+          }
+        },
+        "x64musl": {
+          "allocations": 1081,
+          "allocated_bytes": 3436321,
+          "work": {
+            "pages": 2,
+            "reported_placements": 10,
+            "fragments": 10,
+            "authored_paint_indices": 10,
+            "authored_artifact_rectangles": 4,
+            "output_bytes": 19251
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "wtpdf_accessibility",
+        "structure_semantics",
+        "fixed_pages"
+      ]
+    },
+    {
       "name": "vector diagrams x1",
       "scenario_revision": "vector-diagrams-v1",
       "family": "vector_diagrams",
@@ -29656,33 +30034,35 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1032,
-          "allocated_bytes": 2713786,
+          "allocations": 1039,
+          "allocated_bytes": 2724593,
           "work": {
             "diagrams": 1,
             "authored_scene_commands": 18,
             "label_sources": 5,
             "pages": 1,
-            "fragments": 2,
-            "output_bytes": 12174
+            "fragments": 7,
+            "output_bytes": 12552
           }
         },
         "x64musl": {
-          "allocations": 1032,
-          "allocated_bytes": 2713786,
+          "allocations": 1039,
+          "allocated_bytes": 2724593,
           "work": {
             "diagrams": 1,
             "authored_scene_commands": 18,
             "label_sources": 5,
             "pages": 1,
-            "fragments": 2,
-            "output_bytes": 12174
+            "fragments": 7,
+            "output_bytes": 12552
           }
         }
       },
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
+        "wtpdf_accessibility",
         "structure_semantics",
         "vector_diagrams"
       ]
@@ -29709,27 +30089,27 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2636,
-          "allocated_bytes": 4685984,
+          "allocations": 2661,
+          "allocated_bytes": 4819072,
           "work": {
             "diagrams": 10,
             "authored_scene_commands": 180,
             "label_sources": 50,
             "pages": 3,
-            "fragments": 20,
-            "output_bytes": 15320
+            "fragments": 70,
+            "output_bytes": 15459
           }
         },
         "x64musl": {
-          "allocations": 2636,
-          "allocated_bytes": 4685984,
+          "allocations": 2661,
+          "allocated_bytes": 4819072,
           "work": {
             "diagrams": 10,
             "authored_scene_commands": 180,
             "label_sources": 50,
             "pages": 3,
-            "fragments": 20,
-            "output_bytes": 15320
+            "fragments": 70,
+            "output_bytes": 15459
           }
         }
       },
@@ -29762,33 +30142,35 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 9515,
-          "allocated_bytes": 13593532,
+          "allocations": 9592,
+          "allocated_bytes": 14615448,
           "work": {
             "diagrams": 50,
             "authored_scene_commands": 900,
             "label_sources": 250,
             "pages": 13,
-            "fragments": 100,
-            "output_bytes": 30206
+            "fragments": 350,
+            "output_bytes": 31186
           }
         },
         "x64musl": {
-          "allocations": 9515,
-          "allocated_bytes": 13593532,
+          "allocations": 9592,
+          "allocated_bytes": 14615448,
           "work": {
             "diagrams": 50,
             "authored_scene_commands": 900,
             "label_sources": 250,
             "pages": 13,
-            "fragments": 100,
-            "output_bytes": 30206
+            "fragments": 350,
+            "output_bytes": 31186
           }
         }
       },
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
+        "wtpdf_accessibility",
         "structure_semantics",
         "vector_diagrams"
       ]
@@ -30127,7 +30509,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 16984,
+          "allocations": 17917,
           "allocated_bytes": 33296215,
           "work": {
             "authored_scale": 10,
@@ -30137,7 +30519,7 @@
             "final_runs": 454,
             "fragments": 450,
             "scene_commands": 940,
-            "objects": 570,
+            "objects": 571,
             "metric_reads": 9741,
             "line_candidates": 4308,
             "page_candidates": 479,
@@ -30146,11 +30528,11 @@
             "callout_ancestors": 0,
             "callout_updates": 0,
             "callout_fragments": 0,
-            "output_bytes": 35603
+            "output_bytes": 35687
           }
         },
         "x64musl": {
-          "allocations": 16984,
+          "allocations": 17917,
           "allocated_bytes": 33296215,
           "work": {
             "authored_scale": 10,
@@ -30160,7 +30542,7 @@
             "final_runs": 454,
             "fragments": 450,
             "scene_commands": 940,
-            "objects": 570,
+            "objects": 571,
             "metric_reads": 9741,
             "line_candidates": 4308,
             "page_candidates": 479,
@@ -30169,7 +30551,7 @@
             "callout_ancestors": 0,
             "callout_updates": 0,
             "callout_fragments": 0,
-            "output_bytes": 35603
+            "output_bytes": 35687
           }
         }
       },
@@ -30214,7 +30596,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 145277,
+          "allocations": 154512,
           "allocated_bytes": 319836069,
           "work": {
             "authored_scale": 100,
@@ -30224,7 +30606,7 @@
             "final_runs": 4544,
             "fragments": 4500,
             "scene_commands": 9410,
-            "objects": 5490,
+            "objects": 5493,
             "metric_reads": 97492,
             "line_candidates": 40669,
             "page_candidates": 4799,
@@ -30233,11 +30615,11 @@
             "callout_ancestors": 0,
             "callout_updates": 0,
             "callout_fragments": 0,
-            "output_bytes": 235523
+            "output_bytes": 236574
           }
         },
         "x64musl": {
-          "allocations": 145277,
+          "allocations": 154512,
           "allocated_bytes": 319836069,
           "work": {
             "authored_scale": 100,
@@ -30247,7 +30629,7 @@
             "final_runs": 4544,
             "fragments": 4500,
             "scene_commands": 9410,
-            "objects": 5490,
+            "objects": 5493,
             "metric_reads": 97492,
             "line_candidates": 40669,
             "page_candidates": 4799,
@@ -30256,7 +30638,7 @@
             "callout_ancestors": 0,
             "callout_updates": 0,
             "callout_fragments": 0,
-            "output_bytes": 235523
+            "output_bytes": 236574
           }
         }
       },
@@ -30475,8 +30857,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 14464,
-          "allocated_bytes": 27191276,
+          "allocations": 15255,
+          "allocated_bytes": 27191615,
           "work": {
             "authored_scale": 3,
             "shaped_runs": 273,
@@ -30494,12 +30876,12 @@
             "callout_ancestors": 18,
             "callout_updates": 294,
             "callout_fragments": 21,
-            "output_bytes": 32889
+            "output_bytes": 33076
           }
         },
         "x64musl": {
-          "allocations": 14464,
-          "allocated_bytes": 27191276,
+          "allocations": 15255,
+          "allocated_bytes": 27191615,
           "work": {
             "authored_scale": 3,
             "shaped_runs": 273,
@@ -30517,13 +30899,14 @@
             "callout_ancestors": 18,
             "callout_updates": 294,
             "callout_fragments": 21,
-            "output_bytes": 32889
+            "output_bytes": 33076
           }
         }
       },
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics",
         "rich_inline",
         "rich_flow"
@@ -30562,8 +30945,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 112336,
-          "allocated_bytes": 245481348,
+          "allocations": 120213,
+          "allocated_bytes": 245481663,
           "work": {
             "authored_scale": 30,
             "shaped_runs": 2730,
@@ -30572,7 +30955,7 @@
             "final_runs": 3554,
             "fragments": 3480,
             "scene_commands": 8079,
-            "objects": 3538,
+            "objects": 3539,
             "metric_reads": 79350,
             "line_candidates": 14119,
             "page_candidates": 3373,
@@ -30581,12 +30964,12 @@
             "callout_ancestors": 180,
             "callout_updates": 2940,
             "callout_fragments": 211,
-            "output_bytes": 166592
+            "output_bytes": 167197
           }
         },
         "x64musl": {
-          "allocations": 112336,
-          "allocated_bytes": 245481348,
+          "allocations": 120213,
+          "allocated_bytes": 245481663,
           "work": {
             "authored_scale": 30,
             "shaped_runs": 2730,
@@ -30595,7 +30978,7 @@
             "final_runs": 3554,
             "fragments": 3480,
             "scene_commands": 8079,
-            "objects": 3538,
+            "objects": 3539,
             "metric_reads": 79350,
             "line_candidates": 14119,
             "page_candidates": 3373,
@@ -30604,13 +30987,14 @@
             "callout_ancestors": 180,
             "callout_updates": 2940,
             "callout_fragments": 211,
-            "output_bytes": 166592
+            "output_bytes": 167197
           }
         }
       },
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics",
         "rich_inline",
         "rich_flow"
@@ -31081,7 +31465,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 11539,
+          "allocations": 12351,
           "allocated_bytes": 18095604,
           "work": {
             "authored_scale": 80,
@@ -31100,11 +31484,11 @@
             "callout_ancestors": 3,
             "callout_updates": 164,
             "callout_fragments": 3,
-            "output_bytes": 20683
+            "output_bytes": 20712
           }
         },
         "x64musl": {
-          "allocations": 11539,
+          "allocations": 12351,
           "allocated_bytes": 18095604,
           "work": {
             "authored_scale": 80,
@@ -31123,7 +31507,7 @@
             "callout_ancestors": 3,
             "callout_updates": 164,
             "callout_fragments": 3,
-            "output_bytes": 20683
+            "output_bytes": 20712
           }
         }
       },
@@ -31137,14 +31521,14 @@
     },
     {
       "name": "technical manual chapters x2",
-      "scenario_revision": "technical-manual-v1",
+      "scenario_revision": "technical-manual-v2",
       "family": "technical_manual",
       "snapshot": "tests/technical_manual/manual_2.pdf",
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 9,
         "chapters": 2,
-        "structure_elements": 302
+        "structure_elements": 307
       },
       "work_counters": [
         "authored_chapters",
@@ -31173,21 +31557,21 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 17227,
-          "allocated_bytes": 33638994,
+          "allocations": 18075,
+          "allocated_bytes": 34089817,
           "work": {
             "authored_chapters": 2,
             "authored_table_rows": 80,
             "prepared_vector_commands": 36,
-            "shaped_runs": 245,
+            "shaped_runs": 241,
             "lines": 305,
             "pages": 9,
-            "fragments": 331,
-            "final_runs": 386,
-            "scene_commands": 1018,
-            "objects": 359,
-            "metric_reads": 17114,
-            "line_candidates": 9199,
+            "fragments": 337,
+            "final_runs": 382,
+            "scene_commands": 1010,
+            "objects": 366,
+            "metric_reads": 17036,
+            "line_candidates": 9155,
             "page_candidates": 256,
             "callout_contexts": 109,
             "callout_ancestors": 12,
@@ -31198,25 +31582,25 @@
             "reference_passes": 1,
             "field_resolutions": 33,
             "furniture_items": 15,
-            "output_bytes": 32944
+            "output_bytes": 33160
           }
         },
         "x64musl": {
-          "allocations": 17227,
-          "allocated_bytes": 33638994,
+          "allocations": 18075,
+          "allocated_bytes": 34089817,
           "work": {
             "authored_chapters": 2,
             "authored_table_rows": 80,
             "prepared_vector_commands": 36,
-            "shaped_runs": 245,
+            "shaped_runs": 241,
             "lines": 305,
             "pages": 9,
-            "fragments": 331,
-            "final_runs": 386,
-            "scene_commands": 1018,
-            "objects": 359,
-            "metric_reads": 17114,
-            "line_candidates": 9199,
+            "fragments": 337,
+            "final_runs": 382,
+            "scene_commands": 1010,
+            "objects": 366,
+            "metric_reads": 17036,
+            "line_candidates": 9155,
             "page_candidates": 256,
             "callout_contexts": 109,
             "callout_ancestors": 12,
@@ -31227,7 +31611,7 @@
             "reference_passes": 1,
             "field_resolutions": 33,
             "furniture_items": 15,
-            "output_bytes": 32944
+            "output_bytes": 33160
           }
         }
       },
@@ -31235,19 +31619,20 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "technical_manual"
+        "technical_manual",
+        "pdfua2"
       ]
     },
     {
       "name": "technical manual chapters x20",
-      "scenario_revision": "technical-manual-v1",
+      "scenario_revision": "technical-manual-v2",
       "family": "technical_manual",
       "snapshot": "tests/technical_manual/manual_20.pdf",
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 81,
         "chapters": 20,
-        "structure_elements": 3002
+        "structure_elements": 3043
       },
       "work_counters": [
         "authored_chapters",
@@ -31276,21 +31661,21 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 136139,
-          "allocated_bytes": 307535000,
+          "allocations": 144356,
+          "allocated_bytes": 310853089,
           "work": {
             "authored_chapters": 20,
             "authored_table_rows": 800,
             "prepared_vector_commands": 360,
-            "shaped_runs": 2441,
+            "shaped_runs": 2401,
             "lines": 3041,
             "pages": 81,
-            "fragments": 3301,
-            "final_runs": 3824,
-            "scene_commands": 10108,
-            "objects": 3337,
-            "metric_reads": 171250,
-            "line_candidates": 92007,
+            "fragments": 3361,
+            "final_runs": 3784,
+            "scene_commands": 10028,
+            "objects": 3399,
+            "metric_reads": 170452,
+            "line_candidates": 91567,
             "page_candidates": 2560,
             "callout_contexts": 1081,
             "callout_ancestors": 120,
@@ -31301,25 +31686,25 @@
             "reference_passes": 1,
             "field_resolutions": 303,
             "furniture_items": 141,
-            "output_bytes": 197917
+            "output_bytes": 199593
           }
         },
         "x64musl": {
-          "allocations": 136139,
-          "allocated_bytes": 307535000,
+          "allocations": 144356,
+          "allocated_bytes": 310853089,
           "work": {
             "authored_chapters": 20,
             "authored_table_rows": 800,
             "prepared_vector_commands": 360,
-            "shaped_runs": 2441,
+            "shaped_runs": 2401,
             "lines": 3041,
             "pages": 81,
-            "fragments": 3301,
-            "final_runs": 3824,
-            "scene_commands": 10108,
-            "objects": 3337,
-            "metric_reads": 171250,
-            "line_candidates": 92007,
+            "fragments": 3361,
+            "final_runs": 3784,
+            "scene_commands": 10028,
+            "objects": 3399,
+            "metric_reads": 170452,
+            "line_candidates": 91567,
             "page_candidates": 2560,
             "callout_contexts": 1081,
             "callout_ancestors": 120,
@@ -31330,7 +31715,7 @@
             "reference_passes": 1,
             "field_resolutions": 303,
             "furniture_items": 141,
-            "output_bytes": 197917
+            "output_bytes": 199593
           }
         }
       },
@@ -31338,7 +31723,8 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "technical_manual"
+        "technical_manual",
+        "pdfua2"
       ]
     },
     {
@@ -31593,7 +31979,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 1391,
-          "allocated_bytes": 3357888,
+          "allocated_bytes": 3358008,
           "work": {
             "reference_atoms": 1,
             "normalization_chunks": 3,
@@ -31618,12 +32004,12 @@
             "alignment_items": 0,
             "separator_run_visits": 0,
             "separator_override_writes": 0,
-            "output_bytes": 14588
+            "output_bytes": 14708
           }
         },
         "x64musl": {
           "allocations": 1391,
-          "allocated_bytes": 3357888,
+          "allocated_bytes": 3358008,
           "work": {
             "reference_atoms": 1,
             "normalization_chunks": 3,
@@ -31648,7 +32034,7 @@
             "alignment_items": 0,
             "separator_run_visits": 0,
             "separator_override_writes": 0,
-            "output_bytes": 14588
+            "output_bytes": 14708
           }
         }
       },
@@ -31656,7 +32042,8 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "destination_references"
+        "destination_references",
+        "pdfua2"
       ]
     },
     {
@@ -31735,7 +32122,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 1904,
-          "allocated_bytes": 3362296,
+          "allocated_bytes": 3362410,
           "work": {
             "reference_atoms": 2,
             "normalization_chunks": 5,
@@ -31760,12 +32147,12 @@
             "alignment_items": 0,
             "separator_run_visits": 8,
             "separator_override_writes": 2,
-            "output_bytes": 12751
+            "output_bytes": 12869
           }
         },
         "x64musl": {
           "allocations": 1904,
-          "allocated_bytes": 3362296,
+          "allocated_bytes": 3362410,
           "work": {
             "reference_atoms": 2,
             "normalization_chunks": 5,
@@ -31790,7 +32177,7 @@
             "alignment_items": 0,
             "separator_run_visits": 8,
             "separator_override_writes": 2,
-            "output_bytes": 12751
+            "output_bytes": 12869
           }
         }
       },
@@ -31798,7 +32185,8 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "destination_references"
+        "destination_references",
+        "pdfua2"
       ]
     },
     {
@@ -31940,8 +32328,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 23484,
-          "allocated_bytes": 24919985,
+          "allocations": 25107,
+          "allocated_bytes": 24920295,
           "work": {
             "authored_scale": 2,
             "shaped_runs": 325,
@@ -31959,12 +32347,12 @@
             "callout_ancestors": 2,
             "callout_updates": 162,
             "callout_fragments": 0,
-            "output_bytes": 27799
+            "output_bytes": 28007
           }
         },
         "x64musl": {
-          "allocations": 23484,
-          "allocated_bytes": 24919985,
+          "allocations": 25107,
+          "allocated_bytes": 24920295,
           "work": {
             "authored_scale": 2,
             "shaped_runs": 325,
@@ -31982,13 +32370,14 @@
             "callout_ancestors": 2,
             "callout_updates": 162,
             "callout_fragments": 0,
-            "output_bytes": 27799
+            "output_bytes": 28007
           }
         }
       },
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics",
         "rich_inline",
         "table_paint_frames"
@@ -32027,8 +32416,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 214934,
-          "allocated_bytes": 242024637,
+          "allocations": 231151,
+          "allocated_bytes": 242024947,
           "work": {
             "authored_scale": 20,
             "shaped_runs": 3241,
@@ -32037,7 +32426,7 @@
             "final_runs": 3441,
             "fragments": 3241,
             "scene_commands": 10442,
-            "objects": 5179,
+            "objects": 5180,
             "metric_reads": 15133,
             "line_candidates": 15133,
             "page_candidates": 1620,
@@ -32046,12 +32435,12 @@
             "callout_ancestors": 20,
             "callout_updates": 1620,
             "callout_fragments": 0,
-            "output_bytes": 162347
+            "output_bytes": 161188
           }
         },
         "x64musl": {
-          "allocations": 214934,
-          "allocated_bytes": 242024637,
+          "allocations": 231151,
+          "allocated_bytes": 242024947,
           "work": {
             "authored_scale": 20,
             "shaped_runs": 3241,
@@ -32060,7 +32449,7 @@
             "final_runs": 3441,
             "fragments": 3241,
             "scene_commands": 10442,
-            "objects": 5179,
+            "objects": 5180,
             "metric_reads": 15133,
             "line_candidates": 15133,
             "page_candidates": 1620,
@@ -32069,13 +32458,14 @@
             "callout_ancestors": 20,
             "callout_updates": 1620,
             "callout_fragments": 0,
-            "output_bytes": 162347
+            "output_bytes": 161188
           }
         }
       },
       "retention": null,
       "validators": [
         "pdfa4",
+        "pdfua2",
         "structure_semantics",
         "rich_inline",
         "table_paint_frames"
@@ -32114,7 +32504,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 12786,
+          "allocations": 13598,
           "allocated_bytes": 13014080,
           "work": {
             "authored_scale": 1,
@@ -32133,11 +32523,11 @@
             "callout_ancestors": 1,
             "callout_updates": 81,
             "callout_fragments": 0,
-            "output_bytes": 19841
+            "output_bytes": 19872
           }
         },
         "x64musl": {
-          "allocations": 12786,
+          "allocations": 13598,
           "allocated_bytes": 13014080,
           "work": {
             "authored_scale": 1,
@@ -32156,7 +32546,7 @@
             "callout_ancestors": 1,
             "callout_updates": 81,
             "callout_fragments": 0,
-            "output_bytes": 19841
+            "output_bytes": 19872
           }
         }
       },
@@ -32201,7 +32591,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 12790,
+          "allocations": 13602,
           "allocated_bytes": 12982419,
           "work": {
             "authored_scale": 1,
@@ -32220,11 +32610,11 @@
             "callout_ancestors": 1,
             "callout_updates": 81,
             "callout_fragments": 0,
-            "output_bytes": 19793
+            "output_bytes": 19821
           }
         },
         "x64musl": {
-          "allocations": 12790,
+          "allocations": 13602,
           "allocated_bytes": 12982419,
           "work": {
             "authored_scale": 1,
@@ -32243,7 +32633,7 @@
             "callout_ancestors": 1,
             "callout_updates": 81,
             "callout_fragments": 0,
-            "output_bytes": 19793
+            "output_bytes": 19821
           }
         }
       },
@@ -32288,7 +32678,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 12772,
+          "allocations": 13584,
           "allocated_bytes": 12973000,
           "work": {
             "authored_scale": 1,
@@ -32307,11 +32697,11 @@
             "callout_ancestors": 0,
             "callout_updates": 0,
             "callout_fragments": 0,
-            "output_bytes": 19782
+            "output_bytes": 19809
           }
         },
         "x64musl": {
-          "allocations": 12772,
+          "allocations": 13584,
           "allocated_bytes": 12973000,
           "work": {
             "authored_scale": 1,
@@ -32330,7 +32720,7 @@
             "callout_ancestors": 0,
             "callout_updates": 0,
             "callout_fragments": 0,
-            "output_bytes": 19782
+            "output_bytes": 19809
           }
         }
       },
@@ -32375,7 +32765,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 8828,
+          "allocations": 9876,
           "allocated_bytes": 8601386,
           "work": {
             "authored_scale": 1,
@@ -32385,7 +32775,7 @@
             "final_runs": 90,
             "fragments": 82,
             "scene_commands": 180,
-            "objects": 197,
+            "objects": 198,
             "metric_reads": 725,
             "line_candidates": 725,
             "page_candidates": 81,
@@ -32394,11 +32784,11 @@
             "callout_ancestors": 0,
             "callout_updates": 0,
             "callout_fragments": 0,
-            "output_bytes": 15933
+            "output_bytes": 15980
           }
         },
         "x64musl": {
-          "allocations": 8828,
+          "allocations": 9876,
           "allocated_bytes": 8601386,
           "work": {
             "authored_scale": 1,
@@ -32408,7 +32798,7 @@
             "final_runs": 90,
             "fragments": 82,
             "scene_commands": 180,
-            "objects": 197,
+            "objects": 198,
             "metric_reads": 725,
             "line_candidates": 725,
             "page_candidates": 81,
@@ -32417,7 +32807,7 @@
             "callout_ancestors": 0,
             "callout_updates": 0,
             "callout_fragments": 0,
-            "output_bytes": 15933
+            "output_bytes": 15980
           }
         }
       },
@@ -32462,7 +32852,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 12945,
+          "allocations": 13757,
           "allocated_bytes": 14305646,
           "work": {
             "authored_scale": 1,
@@ -32481,11 +32871,11 @@
             "callout_ancestors": 1,
             "callout_updates": 81,
             "callout_fragments": 0,
-            "output_bytes": 20095
+            "output_bytes": 20127
           }
         },
         "x64musl": {
-          "allocations": 12945,
+          "allocations": 13757,
           "allocated_bytes": 14305646,
           "work": {
             "authored_scale": 1,
@@ -32504,7 +32894,7 @@
             "callout_ancestors": 1,
             "callout_updates": 81,
             "callout_fragments": 0,
-            "output_bytes": 20095
+            "output_bytes": 20127
           }
         }
       },
@@ -32518,7 +32908,7 @@
     },
     {
       "name": "contents entries x2",
-      "scenario_revision": "contents-entry-v1",
+      "scenario_revision": "contents-entries-v2",
       "family": "destination_references",
       "snapshot": "tests/destination_references/contents_2.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -32557,7 +32947,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1562,
+          "allocations": 1606,
           "allocated_bytes": 4301873,
           "work": {
             "reference_atoms": 2,
@@ -32583,13 +32973,13 @@
             "alignment_items": 0,
             "separator_run_visits": 0,
             "separator_override_writes": 0,
-            "output_bytes": 17394,
+            "output_bytes": 17584,
             "contents_rows": 2,
             "leader_dots": 125
           }
         },
         "x64musl": {
-          "allocations": 1562,
+          "allocations": 1606,
           "allocated_bytes": 4301873,
           "work": {
             "reference_atoms": 2,
@@ -32615,7 +33005,7 @@
             "alignment_items": 0,
             "separator_run_visits": 0,
             "separator_override_writes": 0,
-            "output_bytes": 17394,
+            "output_bytes": 17584,
             "contents_rows": 2,
             "leader_dots": 125
           }
@@ -32625,12 +33015,13 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "contents_entries"
+        "contents_entries",
+        "pdfua2"
       ]
     },
     {
       "name": "contents entries x80",
-      "scenario_revision": "contents-entry-v1",
+      "scenario_revision": "contents-entries-v2",
       "family": "destination_references",
       "snapshot": "tests/destination_references/contents_80.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -32669,7 +33060,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 10743,
+          "allocations": 11218,
           "allocated_bytes": 36024166,
           "work": {
             "reference_atoms": 80,
@@ -32695,13 +33086,13 @@
             "alignment_items": 0,
             "separator_run_visits": 0,
             "separator_override_writes": 0,
-            "output_bytes": 52922,
+            "output_bytes": 54144,
             "contents_rows": 80,
             "leader_dots": 6322
           }
         },
         "x64musl": {
-          "allocations": 10743,
+          "allocations": 11218,
           "allocated_bytes": 36024166,
           "work": {
             "reference_atoms": 80,
@@ -32727,7 +33118,7 @@
             "alignment_items": 0,
             "separator_run_visits": 0,
             "separator_override_writes": 0,
-            "output_bytes": 52922,
+            "output_bytes": 54144,
             "contents_rows": 80,
             "leader_dots": 6322
           }
@@ -32737,12 +33128,13 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "contents_entries"
+        "contents_entries",
+        "pdfua2"
       ]
     },
     {
       "name": "contents entry across pages",
-      "scenario_revision": "contents-entry-v1",
+      "scenario_revision": "contents-entries-v2",
       "family": "destination_references",
       "snapshot": "tests/destination_references/contents_tall.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -32781,7 +33173,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2191,
+          "allocations": 2226,
           "allocated_bytes": 22149267,
           "work": {
             "reference_atoms": 1,
@@ -32807,13 +33199,13 @@
             "alignment_items": 0,
             "separator_run_visits": 0,
             "separator_override_writes": 0,
-            "output_bytes": 17149,
+            "output_bytes": 17323,
             "contents_rows": 1,
             "leader_dots": 0
           }
         },
         "x64musl": {
-          "allocations": 2191,
+          "allocations": 2226,
           "allocated_bytes": 22149267,
           "work": {
             "reference_atoms": 1,
@@ -32839,7 +33231,7 @@
             "alignment_items": 0,
             "separator_run_visits": 0,
             "separator_override_writes": 0,
-            "output_bytes": 17149,
+            "output_bytes": 17323,
             "contents_rows": 1,
             "leader_dots": 0
           }
@@ -32849,12 +33241,13 @@
       "validators": [
         "pdfa4",
         "structure_semantics",
-        "contents_entries"
+        "contents_entries",
+        "pdfua2"
       ]
     },
     {
       "name": "contents entries atomic negatives",
-      "scenario_revision": "contents-entry-v1",
+      "scenario_revision": "contents-entries-v2",
       "family": "destination_references",
       "snapshot": "tests/destination_references/contents_negatives.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -32866,14 +33259,14 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1589,
+          "allocations": 1679,
           "allocated_bytes": 320024,
           "work": {
             "rejections": 11
           }
         },
         "x64musl": {
-          "allocations": 1589,
+          "allocations": 1679,
           "allocated_bytes": 320024,
           "work": {
             "rejections": 11

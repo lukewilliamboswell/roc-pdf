@@ -118,8 +118,8 @@ import "../assets/NotoSansMono-Code-Fixture.ttf" as mono_font_bytes : List(U8)
 ## - `atomic_negatives`: every inline rejection with its stable dotted code
 ##   and inline path, the eight-deep accepted boundary, and no bytes.
 ##
-## Bytes always come from `Pdf.to_bytes_with` (the default `Archive`
-## profile). Work comes from one additional semantic planning pass and one
+## Bytes come from `Pdf.to_bytes_with`. Mixed, ordered and paragraph
+## scale cases request `AccessibleArchive`. Work comes from one additional semantic planning pass and one
 ## facade pipeline build over the same normalized authoring.
 Fixture :: [].{
 	repeated_segments : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
@@ -140,7 +140,7 @@ Fixture :: [].{
 		# The nested Emphasis/Strong/Code owner explicitly selects genuine
 		# Inter Bold Italic: the default mono family has no italic program.
 		theme = Theme.{ inline: { strong_emphasis: { font: Family(BuiltIn(Sans)) }, code: { color: Themed(Color.srgb8({ blue: 60, green: 100, red: 20 })) }, emphasis: { color: Themed(Color.srgb8({ blue: 140, green: 70, red: 20 })) }, strong: { color: Themed(Color.srgb8({ blue: 30, green: 30, red: 150 })) } } }
-		evidence(mixed_document(context), theme, BuiltInFace)
+		evidence_with_profile(mixed_document(context), theme, BuiltInFace, pipeline_limits, AccessibleArchive)
 	}
 
 	paragraphs : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
@@ -148,13 +148,13 @@ Fixture :: [].{
 		if count == 0 or count > 1000 {
 			return Err(InvalidScale)
 		}
-		evidence(paragraph_document(count), Theme.default, BuiltInFace)
+		evidence_with_profile(paragraph_document(count), Theme.default, BuiltInFace, pipeline_limits, AccessibleArchive)
 	}
 
 	ordered : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	ordered = |context| {
 		registered = register_faces(context)?
-		evidence(ordered_document(context), Theme.{ font_selection: Policy(registered.policy) }, Policy(registered))
+		evidence_with_profile(ordered_document(context), Theme.{ font_selection: Policy(registered.policy) }, Policy(registered), pipeline_limits, AccessibleArchive)
 	}
 
 	code_face : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
@@ -263,10 +263,9 @@ lines_ending_inside : Document, (Document.NormalizedAuthoring, KernelFacadeShape
 lines_ending_inside = |document, ranges_of| {
 	authoring = Document.normalize(document)
 	semantics = KernelFacadeSemantics.Plan.build(authoring, semantic_limits) ? |_| EvidenceFailure
-	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(semantics)))
 	sources = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics))
 	font = KernelFont.inspect(KernelBuiltInFont.bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
-	shape = KernelFacadeShape.Plan.build(authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), store, sources, font, Theme.default, KernelFacadeShape.Limits.make({ max_requests: 65536, shape: KernelShape.Limits.make({ max_clusters: 1000000, max_glyphs: 1000000, max_scalars: 1000000, max_source_bytes: 1000000 }) })) ? |_| EvidenceFailure
+	shape = KernelFacadeShape.Plan.build(authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), KernelFacadeSemantics.Plan.flow_text(semantics), sources, font, Theme.default, KernelFacadeShape.Limits.make({ max_requests: 65536, shape: KernelShape.Limits.make({ max_clusters: 1000000, max_glyphs: 1000000, max_scalars: 1000000, max_source_bytes: 1000000 }) })) ? |_| EvidenceFailure
 	lines = KernelFacadeLines.Plan.build_authoring(authoring, shape, sources, page_size, Theme.default, KernelFacadeLines.Limits.make({ line: KernelLineLayout.BatchLimits.make({ line: KernelLineLayout.Limits.make({ max_boundaries: 1000001, max_candidates: 2000000, max_clusters: 1000000, max_glyph_indices: 1000000, max_glyphs: 1000000, max_lines: 1000000 }), max_key_probes: 4000000, max_lines: 1000000, max_runs: 65536, max_table_slots: 262144, max_templates: 65536 }), max_blocks: 16384, max_runs: 65536 })) ? |_| EvidenceFailure
 	all_lines = KernelLineLayout.BatchPlan.lines(KernelFacadeLines.Plan.line(lines))
 	var $holds = 0
@@ -365,7 +364,7 @@ run_code_face = |context| {
 	# Preserve this caller body/title geometry and ordinary custom Code,
 	# while semantic style requests use genuine packaged Sans programs.
 	theme = Theme.{ title: { face: Face(faces.body) }, headings: { all: { face: Face(faces.body) } }, inline: { code: { color: Themed(Color.srgb8({ blue: 60, green: 100, red: 20 })), font: Face(faces.mono) }, strong: { font: Family(BuiltIn(Sans)) }, emphasis: { font: Family(BuiltIn(Sans)) }, strong_emphasis: { font: Family(BuiltIn(Sans)) } } }
-	options = Pdf.Options.{ theme: theme, fonts: Registered(faces.registry) }
+	options = Pdf.Options.{ profile: Archive, theme: theme, fonts: Registered(faces.registry) }
 	document = mixed_document(context)
 	bytes = Pdf.to_bytes_with(document, options) ? |error| crash "Code-face public preparation failed: ${Str.inspect(error)}"
 
@@ -383,7 +382,7 @@ run_code_face = |context| {
 	# Keep this rejection focused on inline role policy, independently of
 	# the positive fixture's deliberately exact regular block faces.
 	role_only_theme = { ..theme, title: { ..theme.title, face: ThemeFace }, headings: { all: { face: ThemeFace } } }
-	policy_options = Pdf.Options.{ theme: { ..role_only_theme, font_selection: Policy(policy.policy) }, fonts: Registered(policy.registry) }
+	policy_options = Pdf.Options.{ profile: Archive, theme: { ..role_only_theme, font_selection: Policy(policy.policy) }, fonts: Registered(policy.registry) }
 	under_policy = match Pdf.to_bytes_with(document, policy_options) {
 		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature("text.inline_font_policy"), .. }], .. })) => 1
 		_ => 0
@@ -393,7 +392,7 @@ run_code_face = |context| {
 		Err(InvalidDocument({ diagnostics: [{ code: FontCoverageMissing, details: ["contents[1].inlines[1].inlines[0]"], feature: Feature("text.coverage_missing"), .. }], .. })) => 1
 		_ => 0
 	}
-	unregistered = match Pdf.to_bytes_with(document, Pdf.Options.{ theme: role_only_theme }) {
+	unregistered = match Pdf.to_bytes_with(document, Pdf.Options.{ profile: Archive, theme: role_only_theme }) {
 		Err(InvalidFontResource(UnknownFace(face))) => if (face == faces.mono) 1 else 0
 		_ => 0
 	}
@@ -475,7 +474,7 @@ run_shared_source = |count| {
 	# This existing exact face override compares wide mono occurrences
 	# with regular body occurrences; it makes no bold-program claim.
 	theme = Theme.{ headings: { all: { face: Face(faces.body) } }, inline: { strong: { font: Face(faces.mono) } } }
-	options = Pdf.Options.{ theme: theme, fonts: Registered(faces.registry) }
+	options = Pdf.Options.{ profile: Archive, theme: theme, fonts: Registered(faces.registry) }
 	document = shared_source_document(count)
 	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
 	body_font = faces.registry.prepared_face(faces.body) ? |_| EvidenceFailure
@@ -539,7 +538,7 @@ run_heading_faces = |count| {
 	}
 	faces = code_faces(0)?
 	theme = heading_faces_theme(faces.body, faces.mono, Color.srgb8({ blue: 150, green: 60, red: 30 }))
-	options = Pdf.Options.{ theme: theme, fonts: Registered(faces.registry) }
+	options = Pdf.Options.{ profile: Archive, theme: theme, fonts: Registered(faces.registry) }
 	document = heading_faces_document(count)
 	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
 	body_font = faces.registry.prepared_face(faces.body) ? |_| EvidenceFailure
@@ -552,7 +551,7 @@ run_heading_faces = |count| {
 	flow = KernelFacadePipeline.Plan.work(pipeline)
 
 	## Rejections: each is transactional, with no bytes.
-	unregistered = match Pdf.to_bytes_with(document, Pdf.Options.{ theme: theme }) {
+	unregistered = match Pdf.to_bytes_with(document, Pdf.Options.{ profile: Archive, theme: theme }) {
 		Err(InvalidFontResource(UnknownFace(face))) => if (face == faces.mono) 1 else 0
 		_ => 0
 	}
@@ -560,7 +559,7 @@ run_heading_faces = |count| {
 		Err(_) => return Err(EvidenceFailure)
 		Ok(value) => value
 	}
-	policy_options = Pdf.Options.{ theme: { ..theme, font_selection: Policy(policy.policy) }, fonts: Registered(policy.registry) }
+	policy_options = Pdf.Options.{ profile: Archive, theme: { ..theme, font_selection: Policy(policy.policy) }, fonts: Registered(policy.registry) }
 	under_policy = match Pdf.to_bytes_with(document, policy_options) {
 		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature("text.block_font_policy"), .. }], .. })) => 1
 		_ => 0
@@ -615,14 +614,14 @@ run_scaled_code = |count| {
 	faces = code_faces(0)?
 	base = Theme.{ headings: { all: { face: Face(faces.body) } }, inline: { code: { font: Face(faces.mono) }, strong: { font: Family(BuiltIn(Mono)) } } }
 	theme = { ..base, inline: { ..base.inline, code: { ..base.inline.code, scale: Percent(85) } } }
-	options = Pdf.Options.{ theme: theme, fonts: Registered(faces.registry) }
+	options = Pdf.Options.{ profile: Archive, theme: theme, fonts: Registered(faces.registry) }
 	document = scaled_code_document(count)
 	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
 	pipeline = caller_work_plan(document, { registry: faces.registry, theme, limits: shared_source_limits })?
 	flow = KernelFacadePipeline.Plan.work(pipeline)
 
 	## The accepted boundaries, then the two rejected neighbours.
-	boundary = |percent| Pdf.Options.{ theme: { ..base, inline: { ..base.inline, code: { ..base.inline.code, scale: Percent(percent) } } }, fonts: Registered(faces.registry) }
+	boundary = |percent| Pdf.Options.{ profile: Archive, theme: { ..base, inline: { ..base.inline, code: { ..base.inline.code, scale: Percent(percent) } } }, fonts: Registered(faces.registry) }
 	lower = match Pdf.to_bytes_with(document, boundary(50)) {
 		Ok(_) => 1
 		Err(_) => 0
@@ -687,10 +686,10 @@ run_link_style = |count| {
 	}
 	underline = Underline({ offset: Layout.Unit.from_raw(1200), thickness: Layout.Unit.from_raw(600) })
 	document = link_style_document(count)
-	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ theme: link_style_theme(underline) }) ? |_| EvidenceFailure
+	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ profile: Archive, theme: link_style_theme(underline) }) ? |_| EvidenceFailure
 
 	## The rejected underlines: body leading 14 pt less size 11 pt leaves 3 pt.
-	rejected = |value| match Pdf.to_bytes_with(document, Pdf.Options.{ theme: link_style_theme(value) }) {
+	rejected = |value| match Pdf.to_bytes_with(document, Pdf.Options.{ profile: Archive, theme: link_style_theme(value) }) {
 		Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: ["theme.link.underline"], feature: Feature("text.link_underline"), .. }], .. })) => 1
 		_ => 0
 	}
@@ -794,7 +793,7 @@ run_scoped_text = |count| {
 	}
 	theme = Theme.{ table: { header_color: Themed(Color.srgb8({ blue: 140, green: 70, red: 10 })) } }
 	document = scoped_text_document(count, True)
-	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ theme: theme }) ? |_| EvidenceFailure
+	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ profile: Archive, theme: theme }) ? |_| EvidenceFailure
 	scoped_plan = KernelFacadeSemantics.Plan.build(Document.normalize(document), semantic_limits) ? |_| EvidenceFailure
 	plain_plan = KernelFacadeSemantics.Plan.build(Document.normalize(scoped_text_document(count, False)), semantic_limits) ? |_| EvidenceFailure
 	scoped_work = KernelFacadeSemantics.Plan.work(scoped_plan)
@@ -811,7 +810,7 @@ run_scoped_colors = |count| {
 		return Err(InvalidScale)
 	}
 	theme = Theme.{ inline: { strong: { color: Themed(Color.srgb8({ blue: 30, green: 30, red: 150 })) } }, link: { color: Themed(Color.srgb8({ blue: 180, green: 80, red: 20 })) } }
-	options = Pdf.Options.{ theme: theme }
+	options = Pdf.Options.{ profile: Archive, theme: theme }
 	document = scoped_colors_document(count, True)
 	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
 
@@ -975,10 +974,13 @@ evidence = |document, theme, faces| evidence_with_limits(document, theme, faces,
 ## `evidence` under explicit pipeline limits (a document with a table needs
 ## scene paths for its rules).
 evidence_with_limits : Document, Theme, Faces, KernelFacadePipeline.Limits -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
-evidence_with_limits = |document, theme, faces, limits| {
+evidence_with_limits = |document, theme, faces, limits| evidence_with_profile(document, theme, faces, limits, Archive)
+
+evidence_with_profile : Document, Theme, Faces, KernelFacadePipeline.Limits, Pdf.Profile -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+evidence_with_profile = |document, theme, faces, limits, profile| {
 	options = match faces {
-		BuiltInFace => Pdf.Options.{ theme: theme }
-		Policy(policy) => Pdf.Options.{ theme: theme, fonts: Registered(policy.registry) }
+		BuiltInFace => Pdf.Options.{ theme: theme, profile: profile }
+		Policy(policy) => Pdf.Options.{ theme: theme, fonts: Registered(policy.registry), profile: profile }
 	}
 	bytes = Pdf.to_bytes_with(document, options) ? |error| crash "Rich-inline public preparation failed: ${Str.inspect(error)}"
 	authoring = Document.normalize(document)
@@ -1044,7 +1046,7 @@ descriptor : KernelPdfFont.Descriptor
 descriptor = { flags: 32, italic_angle: 0, stem_v: 80 }
 
 rejects : Document, Conformance.DiagnosticCode, Str, Str -> U64
-rejects = |document, expected_code, expected_feature, expected_path| match Pdf.to_bytes(document) {
+rejects = |document, expected_code, expected_feature, expected_path| match Pdf.to_bytes_with(document, { profile: Archive }) {
 	Err(InvalidDocument({ diagnostics: [{ code, details, feature: Feature(feature), location: Document, stage: AuthoringValidation, .. }], truncation: Complete, .. })) => if (code == expected_code and feature == expected_feature and details == [expected_path]) 1 else 0
 	_ => 0
 }
@@ -1092,14 +1094,14 @@ run_negatives = |context| {
 	if passed != checks.len() {
 		return Err(MissingRejection(passed))
 	}
-	unknown = match Pdf.to_bytes(document([Pdf.rich_paragraph([Pdf.text("Go to${Str.repeat(" ", offset)} "), Pdf.inline_internal_link([Pdf.text("nowhere")], "missing")])])) {
+	unknown = match Pdf.to_bytes_with(document([Pdf.rich_paragraph([Pdf.text("Go to${Str.repeat(" ", offset)} "), Pdf.inline_internal_link([Pdf.text("nowhere")], "missing")])]), { profile: Archive }) {
 		Err(InvalidNavigation(UnknownDestinationName({ annotation: 0 }))) => 1
 		_ => return Err(MissingRejection(passed))
 	}
 
 	## The deepest accepted inline nesting is the facade bound itself.
-	boundary = Pdf.to_bytes(document([Pdf.title("Boundary"), Pdf.rich_paragraph([Pdf.text("Deep "), nest_emphasis([Pdf.text("text")], 8 + offset)])])) ? |_| EvidenceFailure
-	carrier = Pdf.to_bytes(document([Pdf.title("Inline carrier"), Pdf.rich_paragraph([Pdf.text("A "), Pdf.strong([Pdf.text("valid")]), Pdf.text(" rich paragraph.")])])) ? |_| EvidenceFailure
+	boundary = Pdf.to_bytes_with(document([Pdf.title("Boundary"), Pdf.rich_paragraph([Pdf.text("Deep "), nest_emphasis([Pdf.text("text")], 8 + offset)])]), { profile: Archive }) ? |_| EvidenceFailure
+	carrier = Pdf.to_bytes_with(document([Pdf.title("Inline carrier"), Pdf.rich_paragraph([Pdf.text("A "), Pdf.strong([Pdf.text("valid")]), Pdf.text(" rich paragraph.")])]), { profile: Archive }) ? |_| EvidenceFailure
 	Ok({ bytes: carrier, work: [passed + unknown, boundary.len(), carrier.len()] })
 }
 

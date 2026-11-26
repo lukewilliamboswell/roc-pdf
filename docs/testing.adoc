@@ -21,9 +21,10 @@ for test selection, fixture layout, validators and toolchain-baseline review.
 [#designing-correctness-oracles]
 == Designing correctness oracles
 
-Start a file-format or conformance check with the applicable clause, table
-and corrections in the
-https://github.com/lukewilliamboswell/roc-pdf/blob/main/conformance/normative-baseline.json[pinned normative baseline].
+Start a file-format or profile check with the applicable edition, clause,
+table, and errata. Record the reference beside the implementation or focused
+test. Use project-owned fixtures for CI. Independent PDF validators and
+readers are optional local tools.
 State the writer's obligation separately from any optional reader algorithm
 and from choices specific to roc-pdf. PDF name trees order byte-string keys
 with a key before its extensions. The fixed fanout is a package choice.
@@ -83,7 +84,7 @@ https://pdf-issues.pdfa.org/32000-2-2020/clause07.html#H7.9.6[ISO 32000-2 §7.9.
   text run unchanged.
 . *Stop when the contract has enough independent evidence.* State the
   explored domain and anything that depends on other evidence, such as
-  continuation geometry, caller validation or external conformance. When
+  continuation geometry, caller validation or independent PDF review. When
   a plausible failure escapes the model, look for an existing independent
   check that catches it. Add a case when a gap remains.
 

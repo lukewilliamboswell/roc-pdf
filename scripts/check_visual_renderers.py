@@ -8,10 +8,12 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from provision_extended_tools import archive_path
+
 
 ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT = ROOT / "tests" / "tagged_visual" / "minimal.pdf"
-PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
+PDFBOX_JAR = archive_path("pdfbox")
 PDFBOX_SOURCE = ROOT / "scripts" / "PdfBoxRender.java"
 WIDTH = 100
 HEIGHT = 100
@@ -123,7 +125,7 @@ def render_pdfium(renderer: Path, output: Path, working_directory: Path | None) 
 
 def check_renderers(renderer: Path, working_directory: Path | None) -> None:
     require(renderer.is_file(), f"PDFium renderer does not exist: {renderer}")
-    require(PDFBOX_JAR.is_file(), f"vendored PDFBox JAR does not exist: {PDFBOX_JAR}")
+    require(PDFBOX_JAR.is_file(), f"cached PDFBox JAR does not exist: {PDFBOX_JAR}")
     expected = expected_raster()
     with tempfile.TemporaryDirectory(prefix="roc-pdf-render-") as temporary_name:
         temporary = Path(temporary_name)

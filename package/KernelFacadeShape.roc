@@ -190,7 +190,7 @@ KernelFacadeShape :: [].{
 	## `ranges` is empty unless the document has a rich paragraph; then it
 	## holds one entry per request, in request order.
 	Preparation :: { block_runs : List(BlockRuns), options : KernelShape.BatchOptions, ranges : List(RequestRange), requests : List(KernelShape.SimpleRequest), styles : List(RunStyle) }.{
-		build : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), U64, Theme -> Try(Preparation, Error)
+		build : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), U64, Theme -> Try(Preparation, Error)
 		build = |authoring, owners, store, sources, max_requests, theme| prepare_plan(authoring, owners, store, sources, max_requests, theme, RequireFace(Theme.body_font(theme).index()))
 
 		block_runs : Preparation -> List(BlockRuns)
@@ -240,19 +240,19 @@ KernelFacadeShape :: [].{
 			Ok(Plan.{ block_runs: facts.block_runs, origins: facts.origins, requests: facts.requests, selection: facts.selection, shape: facts.shape, styles: facts.styles, work: facts.work })
 		}
 
-		build : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), KernelFont.Inspection, Theme, Limits -> Try(Plan, Error)
+		build : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), KernelFont.Inspection, Theme, Limits -> Try(Plan, Error)
 		build = |authoring, owners, store, sources, font, theme, limits| build_plan(authoring, owners, store, sources, font, theme, limits)
 
 		## The ordered multi-face arm: policy resolution, once-per-unique-source
 		## coverage planning, physical-run splitting, and selected shaping. The
 		## single-face `build` path above is untouched by this entry point.
-		build_ordered : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), { policy : Font.PolicyId, registry : Font.Registry }, Theme, Limits -> Try(Plan, Error)
+		build_ordered : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), { policy : Font.PolicyId, registry : Font.Registry }, Theme, Limits -> Try(Plan, Error)
 		build_ordered = |authoring, owners, store, sources, ordered, theme, limits| build_ordered_plan(authoring, owners, store, sources, ordered, theme, limits)
 
 		## The style-face arm with inline role faces: each text run shapes in
 		## the face of its innermost role with a face, or in the body face,
 		## and only the faces some run uses become output fonts, body first.
-		build_styled : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), StyledFaces, Theme, Limits -> Try(Plan, Error)
+		build_styled : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), StyledFaces, Theme, Limits -> Try(Plan, Error)
 		build_styled = |authoring, owners, store, sources, styled, theme, limits| build_styled_plan(authoring, owners, store, sources, styled, theme, limits)
 
 		block_runs : Plan -> List(BlockRuns)
@@ -330,7 +330,7 @@ unset_block_runs = TextBlock({ body: { physical: Semantics.IndexRange.from_start
 logical_run_single : Text.RunId -> KernelFacadeShape.LogicalRun
 logical_run_single = |run| { physical: Semantics.IndexRange.from_start_and_length({ start: run.index(), length: 1 }) }
 
-build_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), KernelFont.Inspection, Theme, KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
+build_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), KernelFont.Inspection, Theme, KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
 build_plan = |authoring, owners, store, source_store, font, theme, limits| {
 	if !authoring.sources.is_empty() {
 		return build_styled_plan(authoring, owners, store, source_store, { faces: [Theme.body_style(theme).font], fonts: [font], inline_faces: [], face_indexes: [], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }, theme, limits)
@@ -377,7 +377,7 @@ build_plan = |authoring, owners, store, source_store, font, theme, limits| {
 	)
 }
 
-build_styled_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), KernelFacadeShape.StyledFaces, Theme, KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
+build_styled_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), KernelFacadeShape.StyledFaces, Theme, KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
 build_styled_plan = |authoring, owners, store, source_store, styled, theme, limits| {
 	validate_style_faces(authoring, theme, styled)?
 	preparation = prepare_plan(authoring, owners, store, source_store, limits.max_requests, theme, CandidateFaces)?
@@ -462,7 +462,7 @@ build_styled_plan = |authoring, owners, store, source_store, styled, theme, limi
 ## A source document retains ordinary paragraph preparation while expanding
 ## source logical lines at their actual itemized script boundaries. Exact
 ## registered face selection is preserved for every source segment.
-build_source_styled : Document.NormalizedAuthoring, KernelFacadeShape.Preparation, Semantics.Store, List(KernelFacadeSources.Source), KernelFacadeShape.StyledFaces, List(U64), List(U64), List(Font.FaceId), List(KernelFont.Inspection), KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
+build_source_styled : Document.NormalizedAuthoring, KernelFacadeShape.Preparation, KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), KernelFacadeShape.StyledFaces, List(U64), List(U64), List(Font.FaceId), List(KernelFont.Inspection), KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
 build_source_styled = |authoring, preparation, store, sources, styled, candidates, dense, faces, fonts, limits| {
 	var $requests = []
 	var $selected = []
@@ -786,7 +786,7 @@ face_rejected = |check, style| match check {
 ## one keeps the exact whole-source preparation and its buffers; a document
 ## with one prepares every request with its exact cluster range, language,
 ## and occurrence origin.
-prepare_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), U64, Theme, FaceCheck -> Try(KernelFacadeShape.Preparation, KernelFacadeShape.Error)
+prepare_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), U64, Theme, FaceCheck -> Try(KernelFacadeShape.Preparation, KernelFacadeShape.Error)
 prepare_plan = |authoring, owners, store, sources, max_requests, theme, face_check| {
 	occurrence_count = store.occurrences.len()
 	if occurrence_count > max_requests {
@@ -808,7 +808,7 @@ batch_options_for = |authoring| {
 	writing_mode: Horizontal,
 }
 
-prepare_whole_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), Theme, FaceCheck -> Try(KernelFacadeShape.Preparation, KernelFacadeShape.Error)
+prepare_whole_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), Theme, FaceCheck -> Try(KernelFacadeShape.Preparation, KernelFacadeShape.Error)
 prepare_whole_plan = |authoring, owners, store, sources, theme, face_check| {
 	source_count = sources.len()
 	batch_language = Language(authoring.language)
@@ -922,7 +922,7 @@ prepare_whole_plan = |authoring, owners, store, sources, theme, face_check| {
 ## source, its natural language, and its occurrence origin. Plain blocks
 ## keep whole-source ranges in the document language. Buffers move through
 ## the per-block helpers as separate arguments so they stay uniquely owned.
-prepare_ranged_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), Theme, FaceCheck -> Try(KernelFacadeShape.Preparation, KernelFacadeShape.Error)
+prepare_ranged_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), Theme, FaceCheck -> Try(KernelFacadeShape.Preparation, KernelFacadeShape.Error)
 prepare_ranged_plan = |authoring, owners, store, sources, theme, face_check| {
 	batch_options = batch_options_for(authoring)
 	occurrence_count = store.occurrences.len()
@@ -1013,7 +1013,7 @@ prepare_ranged_plan = |authoring, owners, store, sources, theme, face_check| {
 
 RequestBuffers : { ranges : List(KernelFacadeShape.RequestRange), requests : List(KernelShape.SimpleRequest), styles : List(KernelFacadeShape.RunStyle) }
 
-RangedContext : { authoring : Document.NormalizedAuthoring, block : U64, face_check : FaceCheck, language : Semantics.Language, sources : List(KernelFacadeSources.Source), store : Semantics.Store, theme : Theme }
+RangedContext : { authoring : Document.NormalizedAuthoring, block : U64, face_check : FaceCheck, language : Semantics.Language, sources : List(KernelFacadeSources.Source), store : KernelFacadeSemantics.FlowTextFacts, theme : Theme }
 
 source_request_facts : RangedContext, Semantics.OccurrenceId -> Try({ range : KernelFacadeShape.RequestRange, request : KernelShape.SimpleRequest, style : KernelFacadeShape.RunStyle }, KernelFacadeShape.Error)
 source_request_facts = |at, body| {
@@ -1648,7 +1648,7 @@ select_source_report = |registry, policy, source, index, language| {
 ## range owned by one dense output font and one itemized script.
 SelectedSegment : { clusters : Semantics.IndexRange, font : U64, script : Font.Script }
 
-build_ordered_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), { policy : Font.PolicyId, registry : Font.Registry }, Theme, KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
+build_ordered_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), { policy : Font.PolicyId, registry : Font.Registry }, Theme, KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
 build_ordered_plan = |authoring, owners, store, source_store, ordered, theme, limits| {
 	preparation = prepare_plan(authoring, owners, store, source_store, limits.max_requests, theme, PolicySelectsFaces)?
 	policy_faces = ordered.registry.policy_faces(ordered.policy) ? PolicyInvalid
@@ -2116,7 +2116,7 @@ TextFailure : { cluster : U64, reason : [Cluster, Coverage(U32), Script(Str)], s
 ##
 ## `rules` holds one rule set per face in use and `rule_of` names the set
 ## that applies to a request; each set scans every source once.
-locate_text_failure : Document.NormalizedAuthoring, KernelFacadeShape.Preparation, Semantics.Store, List(KernelFacadeSources.Source), List(TextRules), (U64 -> U64) -> [Located(KernelFacadeShape.Error), NotLocated]
+locate_text_failure : Document.NormalizedAuthoring, KernelFacadeShape.Preparation, KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), List(TextRules), (U64 -> U64) -> [Located(KernelFacadeShape.Error), NotLocated]
 locate_text_failure = |authoring, preparation, store, sources, rules, rule_of| {
 	failures = rules.map(|rule| sources.map(|source| source_failures(source, rule)))
 	var $block = 0
@@ -2154,7 +2154,7 @@ locate_text_failure = |authoring, preparation, store, sources, rules, rule_of| {
 
 ## The first failing cluster inside one request's occurrence, relative to
 ## the occurrence's first scalar.
-request_failure : KernelFacadeShape.Preparation, Semantics.Store, List(List(TextFailure)), U64 -> [Found({ reason : [Cluster, Coverage(U32), Script(Str)], scalars : Semantics.IndexRange }), None]
+request_failure : KernelFacadeShape.Preparation, KernelFacadeSemantics.FlowTextFacts, List(List(TextFailure)), U64 -> [Found({ reason : [Cluster, Coverage(U32), Script(Str)], scalars : Semantics.IndexRange }), None]
 request_failure = |preparation, store, failures, request_index| {
 	request = list_at(preparation.requests, request_index)
 	occurrence = list_at(store.occurrences, request.occurrence.index())
@@ -2254,7 +2254,7 @@ source_failures = |source, rules| {
 
 ## An ordered-path coverage or script rejection, located when the policy's
 ## faces cannot shape some text; any other rejection is kept.
-ordered_failure : Document.NormalizedAuthoring, KernelFacadeShape.Preparation, Semantics.Store, List(KernelFacadeSources.Source), Font.Registry, List(Font.FaceId), KernelFacadeShape.Error -> KernelFacadeShape.Error
+ordered_failure : Document.NormalizedAuthoring, KernelFacadeShape.Preparation, KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), Font.Registry, List(Font.FaceId), KernelFacadeShape.Error -> KernelFacadeShape.Error
 ordered_failure = |authoring, preparation, store, sources, registry, faces, error| {
 	var $fonts = List.with_capacity(faces.len())
 	for face in faces {

@@ -1,12 +1,5 @@
 #!/usr/bin/env python3
-"""Independent evidence for text labels inside drawings.
-
-Every label of the flow-figures `labels` fixture must be shown as page
-artifact text whose CIDs decode through the font's ToUnicode CMap to the
-label's exact string, and no label may appear as the whole text of a
-tagged (MCID-owned) marked-content sequence: labels belong to no structure
-element, and a figure's alternative text carries their meaning.
-"""
+"""Independently check intrinsic Figure label text and panel artifact text."""
 
 from __future__ import annotations
 
@@ -18,17 +11,20 @@ from check_pdf_structure import ValidationError, require
 import re
 
 from check_rich_inline import page_marked_text, to_unicode
-from check_structure_semantics import Document, page_order
+from check_structure_semantics import Document, element_children, page_order, text_string, validate_structure_semantics_pdf
+from pdf_layout import planned_bodies, serialize_object_streams, trailer_facts
 
 
 ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT = ROOT / "tests" / "flow_figures" / "labels_10.pdf"
-LABELS = {"Hobart", "Launceston", "Moonah", "Fremantle", "AUD thousands", "KEY FIGURES", "0", "50", "100", *(f"Bay {n}" for n in range(1, 13))}
+REGIONS = ("Hobart", "Launceston", "Moonah", "Fremantle")
+CHART_LABELS = (*REGIONS, "0", "50", "100", "AUD thousands")
+PLAN_LABELS = tuple(f"Bay {number}" for number in range(1, 13))
+PANEL_LABEL = "KEY FIGURES"
 
 
 LAYOUT_TEXT = re.compile(rb"/Artifact <</Type /Layout>> BDC\n(.*?)\nEMC\n", re.S)
 FONT = re.compile(rb"/(\S+) [0-9.]+ Tf")
-SHOWN = re.compile(rb"<([0-9A-F]+)> Tj")
 
 
 def artifact_and_tagged_text(pdf: bytes) -> tuple[list[str], list[str]]:
@@ -61,17 +57,46 @@ def artifact_and_tagged_text(pdf: bytes) -> tuple[list[str], list[str]]:
     return artifacts, tagged
 
 
-def validate_drawing_labels_pdf(pdf: bytes) -> None:
+def figures_with_text(pdf: bytes) -> list[tuple[str, tuple[str, ...], list[set[str]]]]:
+    """Resolve each Figure's own ordered label sequences through /K and /ToUnicode."""
+    validate_structure_semantics_pdf(pdf, {})
+    document = Document(pdf)
+    per_page: dict[int, tuple[dict[int, str], dict[int, set[str]]]] = {}
+    figures = []
+    for number in document.bodies:
+        element = document.get(number)
+        if not isinstance(element, dict) or element.get("S") != "Figure":
+            continue
+        contents = element_children(document, element)
+        labels = []
+        fonts = []
+        for content in contents[1:]:
+            page = int(content["Pg"])
+            if page not in per_page:
+                shown_fonts: dict[int, set[str]] = {}
+                shown = dict(page_marked_text(document, page, by_mcid_fonts=shown_fonts))
+                per_page[page] = shown, shown_fonts
+            shown, shown_fonts = per_page[page]
+            mcid = int(content["MCID"])
+            labels.append(shown[mcid])
+            fonts.append(shown_fonts[mcid])
+        figures.append((text_string(element["Alt"]), tuple(labels), fonts))
+    return figures
+
+
+def validate_drawing_labels_pdf(pdf: bytes, count: int | None = None) -> None:
+    figures = figures_with_text(pdf)
+    charts = [labels for alt, labels, _ in figures if alt.startswith("Bar chart ")]
+    plans = [labels for alt, labels, _ in figures if alt.startswith("Plan of the Moonah yard:")]
+    require(charts and all(labels == CHART_LABELS for labels in charts), "each chart must own its exact labels in drawing order")
+    if count is not None:
+        require(len(charts) == count, f"expected {count} labelled charts, found {len(charts)}")
+    require(plans == [PLAN_LABELS] and len(figures) == len(charts) + 1, "the scaled site plan must own twelve exact bay labels in drawing order")
     artifacts, tagged = artifact_and_tagged_text(pdf)
-    shown = set(artifacts)
-    missing = sorted(LABELS - shown)
-    require(not missing, f"drawing labels are not shown as artifact text: {missing}")
-    leaked = sorted(LABELS.intersection(tagged))
-    require(not leaked, f"drawing labels are tagged content: {leaked}")
+    require(artifacts == [PANEL_LABEL] and PANEL_LABEL not in tagged, "the custom panel label must stay a layout artifact")
 
 
 FACES_SNAPSHOT = ROOT / "tests" / "flow_figures" / "label_faces_10.pdf"
-REGIONS = ("Hobart", "Launceston", "Moonah", "Fremantle")
 
 
 def label_fonts(pdf: bytes) -> tuple[dict[str, str], dict[str, str]]:
@@ -88,22 +113,20 @@ def label_fonts(pdf: bytes) -> tuple[dict[str, str], dict[str, str]]:
     return ({font: "".join(texts) for font, texts in artifacts.items()}, {font: "".join(texts) for font, texts in tagged.items()})
 
 
-def validate_drawing_label_faces_pdf(pdf: bytes) -> None:
-    """The label-faces fixture: region names and a small repeat of the
-    title in the body face, the title in a second face, and the tick values
-    in a third; the two role faces are output fonts that no tagged text
-    uses, so they entered the document through the labels alone."""
-    artifacts, tagged = label_fonts(pdf)
-    body = [font for font, text in artifacts.items() if all(name in text for name in REGIONS)]
-    require(len(body) == 1, f"region names are not all in one font: {sorted(artifacts)}")
-    titled = [font for font, text in artifacts.items() if "Café" in text]
-    require(len(titled) == 2 and body[0] in titled, "the title is not shown in the body face and in one other face")
-    title = next(font for font in titled if font != body[0])
-    ticks = [font for font, text in artifacts.items() if font not in (body[0], title) and "50" in text and "100" in text]
-    require(len(ticks) == 1, "tick values are not shown in a third face")
-    for role_font in (title, ticks[0]):
-        require(role_font not in tagged, f"label face {role_font} also sets tagged text")
-    require(body[0] in tagged, "the body face sets no tagged text")
+def validate_drawing_label_faces_pdf(pdf: bytes, count: int | None = None) -> None:
+    """Each chart owns its labels, with the Unicode title shown in two faces."""
+    figures = figures_with_text(pdf)
+    require(figures, "no labelled figures")
+    if count is not None:
+        require(len(figures) == count, f"expected {count} styled labelled figures, found {len(figures)}")
+    for _, labels, fonts in figures:
+        require(labels == (*REGIONS, "0", "50", "100", "Café", "Café"), "styled labels must keep their exact Unicode and reading order")
+        body, ticks, title = fonts[0], fonts[4], fonts[7]
+        require(all(len(face) == 1 for face in fonts), "a label uses multiple fonts")
+        require(len(body | ticks | title) == 3, "the regions, ticks and title must use three selected faces")
+        require(fonts[:4] == [body] * 4 and fonts[4:7] == [ticks] * 3 and fonts[8] == body, "drawing label faces do not match their authored roles")
+    artifacts, _ = artifact_and_tagged_text(pdf)
+    require(not artifacts, "intrinsic labels escaped as page artifacts")
 
 
 def validate_furniture_typography_pdf(pdf: bytes) -> None:
@@ -137,9 +160,54 @@ def validate_furniture_typography_pdf(pdf: bytes) -> None:
         require("Quiet running header" in text and f"Page {ordinal} of {len(pages)}" in text, "selected furniture face lost fields or literals")
 
 
+def swap_label_and_caption_owners(pdf: bytes) -> bytes:
+    """Swap two same-page MCID owners while preserving paint and both indexes."""
+    document = Document(pdf)
+    tree = document.get(int(document.get(document.root)["StructTreeRoot"]))
+    figure = next(number for number in sorted(document.bodies) if b"/S /Figure >>" in document.bodies[number])
+    element = document.get(figure)
+    page = int(element["Pg"])
+    section = document.get(int(element["P"]))
+    caption = document.get(int(section["K"][1]))
+    paragraph = int(caption["K"][0])
+    paragraph_element = document.get(paragraph)
+    require(int(paragraph_element["Pg"]) == page, "ownership mutation needs a same-page caption")
+    label_mcid = element["K"][1]
+    caption_mcid = paragraph_element["K"][0]
+
+    parsed, bodies = planned_bodies(pdf)
+    figure_kids = element["K"].copy()
+    figure_kids[1] = caption_mcid
+    encode_kids = lambda kids: b"/K [" + b" ".join(str(kid).encode() for kid in kids) + b"]"
+    bodies[figure] = bodies[figure].replace(encode_kids(element["K"]), encode_kids(figure_kids), 1)
+    bodies[paragraph] = bodies[paragraph].replace(encode_kids([caption_mcid]), encode_kids([label_mcid]), 1)
+
+    parent_tree = int(tree["ParentTree"])
+    nums = document.get(parent_tree)["Nums"]
+    key = document.get(page)["StructParents"]
+    row_index = next(index for index in range(0, len(nums), 2) if nums[index] == key) + 1
+    old_row = nums[row_index]
+    new_row = old_row.copy()
+    new_row[label_mcid], new_row[caption_mcid] = new_row[caption_mcid], new_row[label_mcid]
+    encode_row = lambda row: b"[" + b" ".join(f"{int(reference)} 0 R".encode() for reference in row) + b"]"
+    bodies[parent_tree] = bodies[parent_tree].replace(encode_row(old_row), encode_row(new_row), 1)
+    root, identifier = trailer_facts(parsed)
+    return serialize_object_streams(bodies, parsed.header, root, identifier)
+
+
 def self_test() -> None:
-    validate_drawing_labels_pdf(SNAPSHOT.read_bytes())
-    validate_drawing_label_faces_pdf(FACES_SNAPSHOT.read_bytes())
+    labelled = SNAPSHOT.read_bytes()
+    validate_drawing_labels_pdf(labelled, 10)
+    validate_drawing_label_faces_pdf(FACES_SNAPSHOT.read_bytes(), 10)
+    wrong_owner = swap_label_and_caption_owners(labelled)
+    validate_structure_semantics_pdf(wrong_owner, {})
+    require(artifact_and_tagged_text(labelled) == artifact_and_tagged_text(wrong_owner), "ownership twin changed the painted text")
+    try:
+        validate_drawing_labels_pdf(wrong_owner, 10)
+    except ValidationError as error:
+        require("each chart must own its exact labels" in str(error), f"unexpected ownership twin failure: {error}")
+    else:
+        raise SystemExit("drawing-label checker accepted a label owned by the caption")
     # Single-face labels are all in the body face.
     try:
         validate_drawing_label_faces_pdf(SNAPSHOT.read_bytes())

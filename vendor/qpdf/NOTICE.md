@@ -1,7 +1,7 @@
 # qpdf 12.3.2 Linux x86-64
 
-The retained `qpdf-12.3.2-bin-linux-x86_64.zip` is the unmodified qpdf release
-artifact used only by the repository's test tooling. It was downloaded from:
+The local cache file `qpdf-12.3.2-bin-linux-x86_64.zip` is the unmodified qpdf release
+artifact used only by the repository's test tooling. Provisioning downloads it from:
 
 https://github.com/qpdf/qpdf/releases/download/v12.3.2/qpdf-12.3.2-bin-linux-x86_64.zip
 
@@ -16,7 +16,7 @@ Its SHA-512 digest is:
 qpdf is copyright 2005-2021 Jay Berkenbilt and 2022-2026 Jay
 Berkenbilt and Manfred Holger and is licensed under Apache-2.0. The matching
 upstream `LICENSE.txt` and `UPSTREAM-NOTICE.md` from tag `v12.3.2` are retained
-beside the archive.
+here.
 
 The unmodified upstream binary archive also carries dynamically linked builds
 of libffi, GnuTLS, Nettle/Hogweed, GNU libidn2, libjpeg-turbo, p11-kit, GNU

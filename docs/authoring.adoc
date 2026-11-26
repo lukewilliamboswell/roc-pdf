@@ -1,8 +1,9 @@
 [#authoring-authoring-with-roc-pdf]
 = Authoring with roc-pdf
 
-Use `Pdf` to create documents with automatic pagination, searchable text,
-and semantic structure.
+Use `Pdf` to create documents with searchable text and semantic structure.
+Use automatic pagination for flowing content or set your own frames on
+xref:authoring.adoc#authoring-fixed-pages[fixed pages].
 
 [source,roc]
 ----
@@ -100,9 +101,15 @@ nesting order. Inline code uses Fira Code; quotes inherit the surrounding
 family unless explicitly configured. Unavailable styles reject with
 `text.style_unavailable`; no upright face is silently substituted.
 
-Use a nonempty, well-formed BCP 47 tag with `Pdf.in_language`, such as `fr`,
-`fr-CA`, or `zh-Hant-TW`. A malformed tag such as `en-12` produces the
-`semantics.language_tag` diagnostic at the inline's location.
+Use a BCP 47 tag with `Pdf.in_language`, such as `fr`, `fr-CA`, or
+`zh-Hant-TW`. Malformed syntax, repeated variants, and repeated extension
+singletons produce the `semantics.language_tag` diagnostic at the inline’s
+location. The document’s default language takes a canonical-case
+two- or three-letter language subtag with an optional script and region.
+Supply registered subtags or applicable private-use codes and choose a tag
+that identifies the specific language used in the combined archive profile.
+Standalone strings such as outline titles and figure alternatives use their
+inherited language.
 
 The theme's `inline` record can select colours, scales and exact faces or
 families, such as `inline: { strong: { color: Themed(navy) } }` or
@@ -140,7 +147,10 @@ a warning callout's label in amber and a note's in teal, wrap them in
 colors a role wins, then the theme. A scope's `text` colors its ordinary
 text (paragraphs, headings, list items and their labels), so a callout on a
 dark panel can use `Pdf.scoped({ text: Themed(near_white) }, blocks)`. A
-scope adds no structure element and keeps nothing together. See
+scope adds no structure element and keeps nothing together. In the combined
+archive profile, give every styled distinction its full meaning in text,
+semantic roles or an alternative description. Use colour and spacing for
+presentation. See
 xref:authoring.adoc#authoring-themes-and-options[Themes and options] for the record idiom.
 
 Lines break at UAX #14 opportunities across inline boundaries, with one
@@ -259,9 +269,10 @@ Cells hold inline content that wraps within the column; a header cell
 declares its `Scope` (`Column`, `Row`, or `Both`), and `cell.spanning(n)`
 spans columns. A cell aligns like the first column it spans unless
 `cell.aligned(align)` gives it its own alignment, such as an
-end-aligned totals label spanning start-aligned columns. Every cell gets a generated identifier, and each data cell's
-`Headers` name the column headers above it and the row headers beside it,
-derived from the declared scopes. Column widths resolve once per table:
+end-aligned totals label spanning start-aligned columns. The package derives
+each cell's header associations from the declared scopes. A column heading can
+describe a row header below it. Within a row, a header can describe later
+headers as well as any data cells in that row. Column widths resolve once per table:
 `Fixed` widths are exact, `Content` columns take their content's width,
 reduced toward their widest word only as needed, and `Share` columns divide
 the rest. `End` aligns amounts at the column's end edge.
@@ -381,10 +392,10 @@ text does; a face only furniture uses becomes an extra font. Text no policy
 face covers is `text.coverage_missing`, and text in an undeclared script
 `text.unsupported_script`, at its furniture item path.
 
-Documents are bounded: up to 16,384 content occurrences, structure elements,
-and text sources, and 1,024 pages. A document past a bound fails with the
-`BudgetExceeded` diagnostic `document.content_limit`, naming the table or
-block at which it was crossed.
+Documents admit up to 16,384 content occurrences, structure elements, and
+text sources, and 1,024 pages. Flow content over its semantic budget returns
+`document.content_limit` and names the table or block where it crossed the
+limit.
 
 Mandatory constraints are never relaxed: a conflict between them, or an
 unsplittable block taller than a page (`layout.oversize_block`), returns
@@ -422,8 +433,7 @@ landscape page is wider; margins that leave no body frame are
 size and orientation.
 
 The options' `compression` trades file size against generation time. Every
-choice writes the same pages, text, structure, and conformance; only the
-size of the compressed data and the time spent producing it differ.
+choice writes the same pages, text, tagged structure, and profile declarations.
 
 * `Balanced` (the default) generates quickly and writes compact files.
 * `Smallest` writes the smallest files the package can produce. Use it for
@@ -444,26 +454,56 @@ for each choice. Before this option existed, the package always wrote what is
 now `Smallest`. To keep those exact bytes, for example to match stored
 checksums, pass `compression: Smallest`.
 
-The default options (`{}`, also `Pdf.Options.default`) select the `Archive` profile, which claims PDF 2.0 plus
-static PDF/A-4. The canonical XMP declares `pdfaid:part` 4 and `pdfaid:rev`
-2020, the packaged sRGB output intent characterizes every color, and every
-font is embedded. Profile and lowered-plan validation run before any byte is
-emitted. A document that cannot meet the claim fails with an `InvalidDocument`
-batch whose `ProfileRequirementViolated` diagnostic names the ledger
-requirement and the ISO 19005-4 clause. It is never silently emitted as
-`Standard`.
+[#authoring-output-profiles]
+== Output profiles
 
-To produce plain PDF 2.0 deliberately, opt out explicitly:
+`Pdf.to_bytes`, `Pdf.to_chunks`, and any options that omit `profile` use
+`AccessibleArchive`. Choose the declarations your document needs.
+
+[cols="1,2",options="header"]
+|===
+| Profile | Output and declarations
+| `AccessibleArchive` (default) | PDF 2.0, static PDF/A-4, and PDF/UA-2
+| `Archive` | PDF 2.0 and static PDF/A-4
+| `Standard` | PDF 2.0
+|===
+
+`AccessibleArchive` requires semantic content and a tagged document. Give the
+document a meaningful metadata title and a specific language tag, and supply
+text alternatives for figures. Use
+xref:authoring.adoc#authoring-preparation-reports[the preparation report] to
+review requirements that depend on the meaning of your content. Select
+`Archive` explicitly when you need a blank archived page.
 
 [source,roc]
 ----
-bytes = Pdf.to_bytes_with(document, { profile: Standard })?
+archive_bytes = Pdf.to_bytes_with(document, { profile: Archive })?
+standard_bytes = Pdf.to_bytes_with(document, { profile: Standard })?
 ----
 
-`AccessibleArchive` is unavailable and returns `InvalidDocument` with
-`profile.accessible_archive`. Output does not claim PDF/UA-2 conformance.
-Reading, repairing, signing and encrypting PDFs are unsupported, as is
-converting text to outlines or raster images.
+WTPDF 1.0 accessibility is a separate declaration. Add it to
+`AccessibleArchive` by setting `wtpdf: DeclareAccessibility`. The default
+`NoWtpdfDeclaration` writes only the declarations for the selected profile.
+
+[source,roc]
+----
+declared_bytes = Pdf.to_bytes_with(document, {
+    profile: AccessibleArchive,
+    wtpdf: DeclareAccessibility,
+})?
+----
+
+The package checks metadata, tagged structure, text, and resources as
+applicable to the selected profile. A failed check returns an `InvalidDocument`
+diagnostic batch before any bytes or chunks are produced. Each diagnostic
+identifies the authored location or the relevant standards reference when
+available.
+
+Standards support is best effort. The preparation report helps you review
+content-dependent requirements such as whether figure descriptions are
+accurate and the reading order makes sense. If you need independent
+certification for a use case, discuss its scope, funding, and ownership in
+https://github.com/lukewilliamboswell/roc-pdf/issues[GitHub Issues].
 
 [#authoring-chapter-aware-page-scopes]
 == Chapter-aware page scopes
@@ -700,8 +740,65 @@ negative `below` overlaps the next block's first lines (by at most the
 drawing's height), and `layer: Behind` paints the drawing before the page's
 text, such as a band behind a heading. Drawings are
 validated at their authored path (`document.figure_drawing`,
-`layout.decoration_drawing`). Fixed-page composition is unavailable through
-`Pdf.prepare`: requests report `layout.custom` and emit no bytes or chunks.
+`layout.decoration_drawing`).
+
+[#authoring-fixed-pages]
+== Position text on fixed pages
+
+Use `Pdf.fixed_page` when you already know each page size and where its
+text belongs. Add placements in reading order, then finish the page.
+`Pdf.fixed_document` takes the finished pages in document order.
+
+[source,roc]
+----
+blue = Color.srgb8({ red: 220, green: 235, blue: 248 })
+band = Scene.Drawing.empty.rectangle({
+    bounds: Layout.rect({ x: 18, y: 100, width: 264, height: 56 }),
+    color: blue,
+})
+page = Pdf.fixed_page({ width: 300, height: 184 })
+    .background(band)
+    .place({ block: Pdf.title("Payment advice"), frame: Layout.rect({ x: 28, y: 105, width: 244, height: 46 }) })
+    .place({ block: Pdf.paragraph("Amount due: $130.00"), frame: Layout.rect({ x: 28, y: 58, width: 244, height: 26 }) })
+    .finish()
+doc = Pdf.fixed_document({ title: "Payment advice", language: "en-AU", pages: [page] })
+bytes = Pdf.to_bytes(doc)?
+----
+
+By default, text paints in the same order as `place` calls. To control
+layering, call `.with_paint_order([1, 0])` before `.finish()` for a page
+with two placements. The list gives the zero-based placement indices in
+paint order, each exactly once. The `place` order still controls reading
+order. `background(drawing)` paints before all text.
+`overlay({ kind: Decoration, drawing })` paints after all text. Both take
+solid-filled rectangles, which are emitted as artifacts.
+
+Each page needs at least one placement and may have its own width and height
+in whole points from 3 to 14,400. A frame has its origin at its lower-left
+corner, measured from the lower-left corner of the page. Frame and artwork
+rectangles need positive sides and must fit entirely on the page. Text wraps
+to the frame's width and starts at the top. The fit check uses each shaped
+line's advance and the theme's line spacing. Set the leading at least as
+large as the text size. Allow room for glyphs that extend past those metrics.
+Each placement must fit within its own frame.
+
+Supported blocks are `Pdf.title`, `Pdf.heading`, `Pdf.paragraph`, and
+`Pdf.rich_paragraph`. Rich paragraphs accept styling, language spans,
+expansions, and explicit line breaks. Use a flowing document for links,
+generated fields, figures, tables, outlines, page labels, or templates.
+Page sizes and frames on fixed pages come from the page builder. The output
+profile, font, theme styles and compression still come from `Pdf.Options`.
+
+Use `Pdf.prepare_with_report` to review placements by authored path, such as
+`pages[0].placements[1]`. Invalid frames and paint permutations identify
+`layout.fixed.frame` and `layout.fixed.paint_order` respectively. A text
+placement that cannot fit reports `layout.fixed.text_width` or
+`layout.fixed.text_height`. Exceeding 1,024 pages, 16,384 placements or
+1,000,000 artwork rectangles returns `layout.fixed.budget`. Invalid fixed
+documents produce an error before buffered or chunked output starts.
+
+See the runnable xref:gallery.adoc#remittance-advice[remittance advice] for
+a finished form with styled text and artwork on both sides of the text layer.
 
 [#authoring-callouts]
 == Callouts
@@ -756,9 +853,10 @@ PDF object or operator: it supplies ordinary paragraphs, its own
 measurement of the block (`size` and a content `inset`), and a panel of
 solid paths drawn behind the content. The block is `Unsplittable` (its
 `fragmentation`, the only value), and `inset` and `panel` default to zero
-and an empty drawing. The empty panel paints no decoration; zero inset uses
-the full measured width and height for content. Negative insets and content
-that does not fit remain errors. To size content whose paragraphs wrap, an extension calls
+and an empty drawing. A panel is decoration. Put information the reader needs
+in the block's contents. Zero inset uses the full measured width and height
+for content. Negative insets and content that does not fit remain errors.
+To size content whose paragraphs wrap, an extension calls
 `Pdf.measure_custom_content(options, { contents, language, width })` with
 the content width (the box width less twice the inset) and the options the
 document is prepared with; it returns the exact content height preparation
@@ -787,10 +885,11 @@ shows an extension that measures itself from the theme's public metrics.
 bounded, read-only `Pdf.Report`: pages, leaf blocks in reading order with
 their pages, alternatives and nested languages, layout outcomes (relaxed
 preferences, figure scales, repeated table headers, continued rows, placed
-custom blocks and callout fragments), text coverage, and author checks
-that the package cannot verify automatically. Every entry names the authored path diagnostics use. The
-prepared bytes are identical to `Pdf.prepare`'s, and a report over its
-budget is `report.budget_exceeded` rather than a shorter report.
+custom blocks and callout fragments), and text coverage. Use the report's
+`obligations` to review author-dependent requirements such as meaningful
+reading order, page numbering and text alternatives. Each obligation names
+its authored path. The prepared bytes are identical to `Pdf.prepare`'s, and a
+report over its budget returns `report.budget_exceeded`.
 
 [#authoring-supported-features]
 == Supported features
@@ -818,10 +917,13 @@ budget is `report.budget_exceeded` rather than a shorter report.
 | chapter scopes (`Pdf.page_scope`), opening/continuation templates and running labels | supported
 | a caller-registered face per inline role (style faces) | supported
 | furniture text under an ordered font policy | supported
-| fixed pages, columns, floats, footnotes, row spans, complex tables | unavailable; requests return a feature diagnostic
-| `Archive` profile (static PDF/A-4, the default) and `Standard` | supported
-| `AccessibleArchive` profile | unavailable; returns `profile.accessible_archive`
+| fixed pages with text frames and rectangle artifacts | supported; xref:authoring.adoc#authoring-fixed-pages[fixed-page guide]
+| columns, floats, footnotes, row spans, complex tables | unavailable; requests return a feature diagnostic
+| `AccessibleArchive`, `Archive`, and `Standard` | xref:authoring.adoc#authoring-output-profiles[choose an output profile]
 |===
+
+Reading, repairing, signing and encrypting PDFs are unsupported, as is
+converting text to outlines or raster images.
 
 Capability diagnostics identify the unsupported request with a stable dotted
 feature code, a readable explanation, and its location in the authored

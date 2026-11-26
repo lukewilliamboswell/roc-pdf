@@ -8,8 +8,8 @@ evidence; inclusion here does not establish a public capability.
 
 These contracts were extracted from the architecture without changing their
 requirements. Revisions require an explicit design decision, affected
-allocation/work and byte evidence, and updates to the normative ledger or
-architecture when their boundaries change. Compiler- or feature-caused baseline
+allocation, work and byte evidence, and updates to the architecture when
+their boundaries change. Compiler- or feature-caused baseline
 changes follow the existing review protocol; this record is not permission to
 regenerate evidence mechanically.
 
@@ -188,7 +188,7 @@ Collect exact allocation baselines and allocated-bytes ceilings from a cold
 Roc cache, in the full harness order used by CI. The test manifest records
 optimization and specialization separately so compiler defaults do not
 change the measured lowering policy. Fixture builds reuse the normal cache
-and keep exact allocation counts, work counters, and PDF bytes. A case's
-static PDF/A-4 claim is declared by its `pdfa4` validator; Standard-only
-snapshots must never declare PDF/A identification, and
-`scripts/check_pdfa4.py` enforces both directions.
+and keep exact allocation counts, work counters, and PDF bytes. The
+`pdfa4`, `pdfua2`, and `wtpdf_accessibility` fixture checks select the
+expected declarations. The project-owned checkers inspect those identifiers
+and check that Standard snapshots omit archival and accessibility declarations.

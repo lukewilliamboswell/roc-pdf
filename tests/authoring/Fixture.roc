@@ -164,13 +164,12 @@ evidence_shape_facade = |repetitions| {
 	}
 	text_units = repetitions * 4 + 21
 	text_bytes = repetitions * 4 + 25
-	text_plan = KernelFacadeSemantics.Plan.preliminary(semantic)
 	source_store = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantic))
 	font = KernelFont.inspect(built_in_font_bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
 	shape_result = KernelFacadeShape.Plan.build(
 		KernelFacadeSemantics.Plan.authoring(semantic),
 		KernelFacadeSemantics.Plan.block_ownership(semantic),
-		KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(text_plan)),
+		KernelFacadeSemantics.Plan.flow_text(semantic),
 		source_store,
 		font,
 		Theme.default,
@@ -243,13 +242,12 @@ evidence_line_facade = |repetitions| {
 	) ? |_| EvidenceFailure
 	text_units = repetitions * 4 + 21
 	text_bytes = repetitions * 4 + 25
-	text_plan = KernelFacadeSemantics.Plan.preliminary(semantic)
 	source_store = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantic))
 	font = KernelFont.inspect(built_in_font_bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
 	shape = KernelFacadeShape.Plan.build(
 		KernelFacadeSemantics.Plan.authoring(semantic),
 		KernelFacadeSemantics.Plan.block_ownership(semantic),
-		KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(text_plan)),
+		KernelFacadeSemantics.Plan.flow_text(semantic),
 		source_store,
 		font,
 		Theme.default,
@@ -340,10 +338,9 @@ evidence_page_facade = |repetitions| {
 	) ? |_| EvidenceFailure
 	text_units = repetitions * 4 + 21
 	text_bytes = repetitions * 4 + 25
-	text_plan = KernelFacadeSemantics.Plan.preliminary(semantic)
 	source_store = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantic))
 	font = KernelFont.inspect(built_in_font_bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
-	shape = KernelFacadeShape.Plan.build(KernelFacadeSemantics.Plan.authoring(semantic), KernelFacadeSemantics.Plan.block_ownership(semantic), KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(text_plan)), source_store, font, Theme.default, KernelFacadeShape.Limits.make({ max_requests: occurrences, shape: KernelShape.Limits.make({ max_clusters: text_units, max_glyphs: text_units, max_scalars: text_units, max_source_bytes: text_bytes }) })) ? |_| EvidenceFailure
+	shape = KernelFacadeShape.Plan.build(KernelFacadeSemantics.Plan.authoring(semantic), KernelFacadeSemantics.Plan.block_ownership(semantic), KernelFacadeSemantics.Plan.flow_text(semantic), source_store, font, Theme.default, KernelFacadeShape.Limits.make({ max_requests: occurrences, shape: KernelShape.Limits.make({ max_clusters: text_units, max_glyphs: text_units, max_scalars: text_units, max_source_bytes: text_bytes }) })) ? |_| EvidenceFailure
 	page_size = { height: Layout.Unit.from_raw(842000), width: Layout.Unit.from_raw(595000) }
 	line = KernelFacadeLines.Plan.build(
 		KernelFacadeSemantics.Plan.authoring(semantic),
@@ -747,7 +744,6 @@ evidence_ordered_facade = |repetitions| {
 			text_semantics: KernelTextSemantics.Limits.make({ max_text_properties: 2, max_text_property_bytes: 8, max_text_source_bytes: inputs * 32, max_text_source_scalars: inputs * 32, max_text_sources: inputs }),
 		}),
 	) ? |_| EvidenceFailure
-	text_plan = KernelFacadeSemantics.Plan.preliminary(semantic)
 	source_store = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantic))
 	sources_work = KernelFacadeSources.Plan.work(KernelFacadeSemantics.Plan.sources(semantic))
 	physical_budget = repetitions * 3 + 8
@@ -756,7 +752,7 @@ evidence_ordered_facade = |repetitions| {
 	shape = KernelFacadeShape.Plan.build_ordered(
 		KernelFacadeSemantics.Plan.authoring(semantic),
 		KernelFacadeSemantics.Plan.block_ownership(semantic),
-		KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(text_plan)),
+		KernelFacadeSemantics.Plan.flow_text(semantic),
 		source_store,
 		{ policy: configured.policy, registry: configured.registry },
 		theme,

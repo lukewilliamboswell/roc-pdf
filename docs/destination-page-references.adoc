@@ -29,7 +29,7 @@ selectable text and reading order.
 
 Both the title and number link to `reference.destination`. Supply title text
 and inline styling, without nested links or page references. The entry retains
-ordinary paragraph/link semantics with one logical space between title and
+table-of-contents semantics with one logical space between title and
 number. Its reference must use `End` alignment. Empty titles, negative `indent`
 or `gap`, and geometry leaving no title width reject before emission. The
 exact resolved number must fit the reserved reference width as usual. Heading
@@ -76,7 +76,9 @@ list items and callouts. Table intrinsic measurement includes the reserved
 width, and a reference atom never splits across lines.
 
 Use `Pdf.page_label` in furniture to display each current page's configured
-label, matching `PageLabel` references. It can be placed inside
+label, matching `PageLabel` references. If you also print the physical page
+ordinal, label it separately so readers can distinguish the two values. The
+current-page field can be placed inside
 `Pdf.reserved_width` like other page fields:
 
 [source,roc]
