@@ -112,7 +112,7 @@ fit_block = |block, frame, at, shaped| match block {
 		}
 		leading_raw = list_at(shaped.styles, physical.start()).leading.raw()
 		if leading_raw <= 0 {
-			return Err(InvalidPlan)
+			return Err(InvalidTextStyle(at))
 		}
 		leading = leading_raw.to_u64_wrap()
 		var $size = 0
