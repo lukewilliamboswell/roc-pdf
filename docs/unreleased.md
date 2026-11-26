@@ -1,4 +1,4 @@
-# roc-pdf 0.5.0
+# Unreleased
 
 `AccessibleArchive` becomes the default. Supported documents now include
 PDF/A-4 and PDF/UA-2 declarations when you omit the profile, including through
@@ -30,12 +30,7 @@ Placement order defines reading order, and each page can specify its own
 paint order. Fixed pages also support solid rectangle artwork before and after
 the text. See the [fixed-page authoring guide](../authoring.adoc#authoring-fixed-pages).
 
-## Install
 
-This release was tested with Roc `nightly-2026-11-24-ff5e544`.
+## Compiler
 
-```roc
-pdf: "{package-url}",
-```
-
-Bundle SHA-256 `{bundle-sha256}`.
+This development branch uses Roc `nightly-2026-11-25-d5a4f1e`.

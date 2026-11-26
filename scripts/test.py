@@ -806,24 +806,6 @@ def fixture_build_command(
     source: Path, toolchain: Toolchain, target: str, executable: Path
 ) -> list[str]:
     """Every flag an evidence executable is built with, in one place."""
-    # Evidence executables never reuse compiled procedures from the
-    # cache. The pinned compiler reuses a package procedure compiled for
-    # an earlier fixture program in a later one, and the later program
-    # can then copy lists that it updates in place when built alone: the
-    # allocation counts and allocated bytes of a case depended on which
-    # fixtures were built before it. Built without the cache, every
-    # fixture compiles exactly as a standalone `roc build --no-cache`
-    # does, whatever the order or cache state
-    # (docs/contributors/performance/lowering-uniqueness.md).
-    # --no-cache works around roc-lang/roc#11826. That issue is closed,
-    # but re-tested on nightly-2026-10-18 a cold shared cache still
-    # differs in 26 cases: "static PDF/A-4 archived report scaling x400"
-    # allocates 13,877 times instead of 13,473 when other fixtures were
-    # built into the cache first. On nightly-2026-10-23 cached fixture
-    # builds fail outright (the cached compile-time literal regression,
-    # roc-lang/roc#12564), so nothing could be compared.
-    # Keep it until a cold and a warm cache both match --no-cache for
-    # every case.
     return [
         ROC,
         "build",
@@ -831,7 +813,6 @@ def fixture_build_command(
         f"--opt={toolchain.roc_optimization}",
         f"--specialize={toolchain.roc_specialization}",
         f"--target={target}",
-        "--no-cache",
         f"--output={executable}",
     ]
 
@@ -1086,7 +1067,7 @@ def plan_validation(
     - `roc test` reports exactly the errors and warnings `roc check` does, with
       the same exit codes, before running expects; a tested root is not also
       checked.
-    - `roc build --no-cache` of a fixture source does the same, so a fixture
+    - `roc build` of a fixture source does the same, so a fixture
       root that no `roc test` needs is checked by its evidence build. A group
       application's closure includes its family packages (validation_closure),
       whose own package.roc roots are skipped: the group is their root.
@@ -1205,12 +1186,7 @@ def run_parallel_roc_tasks(tasks: list[ValidationTask], jobs: int) -> None:
             if task.action == "fmt":
                 roc("fmt", "--check", *(relative(source) for source in task.sources))
             else:
-                # TODO(roc-lang/roc#12564): remove --no-cache. On
-                # nightly-2026-10-23-18478ff a shared cache that already holds
-                # the package from an earlier root makes every later root's
-                # number literals of package types fail compile-time
-                # `from_numeral` evaluation with a stack overflow.
-                roc(task.action, relative(task.sources[0]), "--no-cache")
+                roc(task.action, relative(task.sources[0]))
         except SystemExit as error:
             if task.action != "test":
                 raise

@@ -112,19 +112,10 @@ repeatable improvement warrants it, using measurements from the detailed log.
 The ceiling is checked wherever allocation baselines are
 (`--allocation-baselines`, `--compare-baselines`, `--update-snapshots`).
 
-Fixture executables are built with
-`roc build --opt=dev --specialize=yes --no-cache`. With the cache, the
-pinned compiler reused package procedures compiled for an earlier fixture
-program in later ones, and a later program could then copy lists that it
-updates in place when built alone: a case's allocation count and allocated
-bytes depended on which fixtures were built before it and on the local cache
-(`docs/contributors/performance/lowering-uniqueness.md`). Without the cache each fixture
-compiles exactly as a standalone `roc build --no-cache --opt=dev --specialize=yes` does, so a
-case can be reproduced outside the harness. The flag works around
-roc-lang/roc#11826 and should be removed once that is fixed. Validation (`roc
-check`, `roc test`) still uses the cache. Still measure a delta you intend to review from a
-cold cache, as CI does, by running the full suite against an empty cache
-directory:
+Fixture executables use `roc build --opt=dev --specialize=yes`. The compiler
+cache is used for both validation and fixture builds. To investigate a baseline
+difference, rerun the full suite against an empty cache before considering a
+reference change:
 
 ```sh
 XDG_CACHE_HOME="$PWD/.roc-pdf-tmp/cold-cache" ./scripts/test.py \

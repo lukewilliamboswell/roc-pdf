@@ -76,6 +76,11 @@ def prepare(destination: Path, revision: str, release_version: str | None = None
                         f"Bundle SHA-256: `{sha}`.", "", f"Compiler: `{compiler}`.", ""])
         record(ROOT / ".roc-version")
     listing.extend(["== Source release notes", ""])
+    draft = ROOT / "docs/unreleased.md"
+    if release_version is None and draft.is_file():
+        relative = draft.relative_to(ROOT).as_posix()
+        listing.append(f"* https://github.com/lukewilliamboswell/roc-pdf/blob/{revision}/{relative}[Unreleased]")
+        record(draft)
     for source in releases:
         relative = source.relative_to(ROOT).as_posix()
         listing.append(f"* https://github.com/lukewilliamboswell/roc-pdf/blob/{revision}/{relative}[{source.stem}]")
