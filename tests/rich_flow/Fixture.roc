@@ -281,7 +281,7 @@ probe_facts : Document -> Try(KernelMetadata.PlanFacts, Fixture.Error)
 probe_facts = |document| {
 	validated = KernelMetadata.validate({ created: Omitted, modified: Omitted, title: Document.metadata_title(document), language: Document.language(document) }, KernelMetadata.Limits.make({ max_language_bytes: 64, max_title_bytes: 2048 })) ? |_| PipelineFailure
 	xmp = KernelXmp.Packet.build_identified(validated.facts, PdfA4Identification, 16384) ? |_| PipelineFailure
-	Ok(WithDocumentFacts({ condition_identifier: KernelMetadata.srgb_condition_identifier, profile: Color.ProfileId.from_index(0), registry_name: KernelMetadata.icc_registry_name, language: validated.facts.language, xmp: KernelXmp.Packet.bytes(xmp) }))
+	Ok(WithDocumentFacts({ associated: NoAssociatedFiles, condition_identifier: KernelMetadata.srgb_condition_identifier, profile: Color.ProfileId.from_index(0), registry_name: KernelMetadata.icc_registry_name, language: validated.facts.language, xmp: KernelXmp.Packet.bytes(xmp) }))
 }
 
 prepared_evidence : Document, { registry : Font.Registry, face : Font.FaceId }, U64, Pdf.Profile -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Error)
