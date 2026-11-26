@@ -21,3 +21,11 @@ https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/business-report
 image::images/vector-diagrams.png[Prepared vector diagram preview]
 
 https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/vector-diagrams/main.roc[Runnable vector-diagram source] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/vector-diagrams/vector-diagrams.pdf[PDF output]
+
+
+[#remittance-advice]
+== Remittance advice
+
+image::images/remittance-advice.png[Remittance advice on a fixed payment form]
+
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/remittance-advice/main.roc[Runnable remittance source] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/remittance-advice/remittance-advice.pdf[PDF output]

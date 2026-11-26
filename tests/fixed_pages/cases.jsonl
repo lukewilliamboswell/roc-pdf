@@ -1,0 +1,4 @@
+{"name":"fixed remittance pages x2","schema_version":1,"case":{"RemittancePages":{"count":2}}}
+{"name":"fixed remittance pages x20","schema_version":1,"case":{"RemittancePages":{"count":20}}}
+{"name":"fixed remittance authoring rejections","schema_version":1,"case":{"AtomicNegatives":{"context":0}}}
+{"name":"fixed remittance WTPDF x2","schema_version":1,"case":"Wtpdf"}

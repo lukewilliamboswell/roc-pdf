@@ -25,7 +25,9 @@ from pdf_layout import twin
 
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTATIONS = ROOT / "tests/fixed_pages/remittance-expectations.json"
+FIXTURES = ROOT / "tests/fixed_pages"
+EXPECTATIONS = FIXTURES / "remittance-expectations.json"
+SNAPSHOT = FIXTURES / "remittance_2.pdf"
 PDFBOX = ROOT / "vendor/pdfbox/pdfbox-app-3.0.8.jar"
 MARK_ID = re.compile(rb"<</MCID ([0-9]+)>>")
 INDIRECT_KID = re.compile(rb"\b[0-9]+ 0 R\b")
@@ -175,7 +177,7 @@ def check_artifact(page: Page, mark: Sequence, expected: Artifact) -> None:
 def check_frame(mark: Paint, placement: Placement) -> None:
     x, y, width, height = placement.frame
     left, bottom, right, top = mark.bounds
-    require(left == x and right <= x + width and y <= bottom <= top <= y + height, "fixed page text escaped its authored frame")
+    require(left == x and right <= x + width and y <= bottom <= top == y + height, "fixed page text escaped its authored frame")
 
 
 def check_physical_page(document: Document, page: Page, sheet: Sheet, index: int) -> None:
@@ -204,7 +206,7 @@ def check_physical_page(document: Document, page: Page, sheet: Sheet, index: int
 def validate_fixed_pages_pdf(pdf: bytes, dimensions: dict[str, int]) -> None:
     count = dimensions["pages"]
     require(count in (2, 20), "fixed page oracle expects the remittance scale pair")
-    validate_claims(pdf)
+    validate_claims(pdf, wtpdf=bool(dimensions.get("wtpdf_accessibility")))
     validate_structure_semantics_pdf(pdf, dimensions)
     document = Document(pdf)
     pages, sheets = read_pages(document), expected_sheets(count)
@@ -289,19 +291,20 @@ def verify_artifact_pixels(path: Path, count: int) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("pdf", type=Path)
+    parser.add_argument("pdf", nargs="?", type=Path, default=SNAPSHOT)
     parser.add_argument("--pages", type=int, choices=(2, 20), default=2)
     parser.add_argument("--self-test", action="store_true", help="run four independent mutations against the two-sheet fixture")
+    parser.add_argument("--wtpdf", action="store_true", help="require the opt-in WTPDF Accessibility declaration")
     parser.add_argument("--render", action="store_true", help="check artifact overlap pixels with pinned PDFBox")
     args = parser.parse_args()
     data = args.pdf.read_bytes()
     if args.self_test:
-        if args.pages != 2:
-            parser.error("--self-test requires the two-sheet fixture")
+        if args.pages != 2 or args.wtpdf:
+            parser.error("--self-test requires the combined default two-sheet fixture")
         verify_twins(data)
     else:
-        validate_fixed_pages_pdf(data, {"pages": args.pages})
-    if args.render:
+        validate_fixed_pages_pdf(data, {"pages": args.pages, "wtpdf_accessibility": int(args.wtpdf)})
+    if args.render or args.self_test:
         verify_artifact_pixels(args.pdf, args.pages)
     print(f"PASS {args.pdf}: exact fixed sheet geometry, independent reading and paint order, and artifact layers")
 
