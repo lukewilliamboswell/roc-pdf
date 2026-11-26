@@ -57,6 +57,7 @@ package
 		KernelIdentity,
 		KernelImage,
 		KernelIndex,
+		KernelInternationalLine,
 		KernelInternationalShape,
 		KernelInternationalText,
 		KernelLatinShape,
