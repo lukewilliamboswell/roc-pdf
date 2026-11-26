@@ -1,9 +1,4 @@
-# Bounded authored contents entries
-
-Issue [#65](https://github.com/lukewilliamboswell/roc-pdf/issues/65) adds a terminal
-page column to the existing exact destination-reference path. This is an authored
-layout primitive, not automatic heading collection, an index or general reference
-stabilization.
+# Contents, indexes and reference layout
 
 Consecutive `Pdf.contents_entry` blocks under one authored parent normalize
 to a single PDF 1.7 `TOC`. Each `TOCI` owns the rich paragraph with its two
@@ -56,7 +51,7 @@ that the missing relationship fails even when both of its annotations still
 point to the correct destination.
 
 The pinned allocation and determinism harness records the exact work vector
-in [tests/spec.json](../../../tests/spec.json). The new semantic wrappers and
+in [tests/spec.json](../../../tests/spec.json). The semantic wrappers and
 `/Ref` values add a linear number of nodes and references. Normalization
 processes each entry once, and one indexed target per entry moves through
 resolution and object lowering. Line measurement, wrapping, page field and
@@ -74,3 +69,27 @@ The pair varies title lengths and leader intervals. Wrap visits stay below
 twice the measured items and the terminal row count equals the entry count.
 The tall entry retains one title link and one structure item across three
 contents pages. Its page reference occurs on the final title line.
+
+## Generated navigation
+
+Generated contents reuses the same terminal-field path after selection.
+Each selected heading contributes one entry and its stable destination key.
+An index sorts at most 256 retained UTF-8 keys for each authored block.
+Each term checks at most 16 destinations for duplicates. The resulting
+reference atoms retain authored target order, including when terms share a
+destination.
+
+The flow-changing field keeps the shared literal shape and symbolic spine
+through stabilization. Each history entry owns a compact word buffer, with
+at most eight buffers of 500,000 words apiece. Earlier candidates do not enter
+the history. The latest candidate supplies geometry at convergence.
+
+`GeneratedNavigationModel` exhausts 341 transition histories, 65 heading
+histories, and 85 index histories. In its transition model the page count
+stays constant while anchor positions change. Comparing only page counts
+causes the production stabilization check to fail that model.
+`generated_navigation` fuzzes one- and two-level selection, duplicate titles,
+field widths, missing scopes and index duplicates before measurement.
+The public fixture lane verifies both a label that moves its own destination
+and a physical pagination cycle. The emitted-PDF checker also replaces one
+index `/Ref` with a different valid target and verifies that the mutation fails.
