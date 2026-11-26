@@ -83,8 +83,10 @@ Documentation serves current users and contributors. Every paragraph must help a
 current task; delete obsolete or duplicated material. Keep implementation history
 in Git, unfinished work in issues, and release changes in release records. Preserve
 required public anchors without explaining their history. Follow the
-[shared documentation guidance](https://lukewilliamboswell.github.io/roc-automation/documentation.html).
+[shared documentation guidance](https://lukewilliamboswell.github.io/roc-automation/documentation.html#keep-documentation-current).
 Author each rendered manual chapter once as a top-level `docs/*.adoc` file
 included by `docs/index.adoc`. The pinned shared `roc-docs` renderer builds
 HTML, PDF and static Markdown from those same sources. Keep generated formats
 in ignored build output and give durable published links explicit anchors.
+Link new gallery previews from their example directories to keep the manual's
+embedded figure payload within the renderer's budget.

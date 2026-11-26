@@ -31,6 +31,8 @@ def version_key(version: str) -> tuple[int, int, int, int]:
 def prepare(destination: Path, revision: str, release_version: str | None = None,
             bundle: Path | None = None) -> None:
     docs = ROOT / "docs"
+    if (ROOT / "architecture.md").exists():
+        raise ValueError("Keep the architecture chapter in docs/architecture.adoc.")
     chapters = {path.relative_to(ROOT).as_posix(): path.name
                 for path in sorted(docs.glob("*.adoc"))
                 if path.name != "index.adoc"}
