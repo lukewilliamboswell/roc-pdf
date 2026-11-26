@@ -261,13 +261,12 @@ The smoke mode is the default and is what every pull request runs:
 ./scripts/fuzz.py            # or: blueprint run fuzz
 ```
 
-It builds two shared suites with `roc build --fuzz --specialize=yes --no-cache` for libFuzzer
-coverage instrumentation, then invokes each property independently through
-`--target`. It replays the target's seed corpus and up to 64 further inputs
-from a fixed seed, with `--time=1` capping the workload at one second per
-target. Suites build in parallel (`--jobs`, by default as many 6 GB builds as
-memory allows) and run one at a time. Its purpose is that every target keeps building and its property keeps
-executing between campaigns; it makes no claim about search coverage.
+It builds the selected suites with `roc build --fuzz --specialize=yes --no-cache`
+for libFuzzer coverage instrumentation. Each property runs independently through
+`--target`, checking its examples and exploring up to 64 more inputs from a
+fixed seed. The exploration budget is one second per target. Suites build in
+parallel (`--jobs`, by default as many 6 GB builds as memory allows). Smoke runs
+keep every property building and executing between campaigns.
 
 The campaign mode is the bounded search, 2000 executions per target by default:
 
@@ -298,6 +297,12 @@ A target's corpus is what decides whether its property is exercised at all. An
 inspector reached only by raw byte mutation will spend an entire campaign in
 its reject paths unless valid inputs are seeded, leaving the accept-path
 invariants unevaluated.
+
+For authored documents, prefer a typed generator and a few examples that
+exercise distinct success and failure paths. The profile-output target varies
+the requested profile, compression and authored content. It checks document
+identifiers, compares buffered and chunked output, and checks that preparation
+and export agree on located rejections.
 
 Minimized reproductions are retained as `fuzz_seed` assets under `tests/assets/`
 with provenance, and promoted to atomic regression tests beside the code they

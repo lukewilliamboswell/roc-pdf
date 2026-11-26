@@ -433,8 +433,7 @@ landscape page is wider; margins that leave no body frame are
 size and orientation.
 
 The options' `compression` trades file size against generation time. Every
-choice writes the same pages, text, structure, and conformance; only the
-size of the compressed data and the time spent producing it differ.
+choice writes the same pages, text, tagged structure, and profile declarations.
 
 * `Balanced` (the default) generates quickly and writes compact files.
 * `Smallest` writes the smallest files the package can produce. Use it for

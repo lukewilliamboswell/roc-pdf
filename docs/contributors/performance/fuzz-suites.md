@@ -1,10 +1,10 @@
 # Fuzz suite ownership and allocation profile
 
-Nine properties share two LLVM executables. Font inspection, repair and subset
+Font inspection, repair and subset
 round trips share `font_suite`; JPEG inspection, facade output and structure,
-navigation, registry and theme checks share `document_suite`. Each executable
-builds once per invocation. Selecting several properties from one suite still
-builds only that suite.
+navigation, registry and theme checks share `document_suite`. `profile_output`
+runs separately and measures the named profile selection and rejection cases.
+Each selected executable builds once per invocation.
 
 The supervisor selects each member by its declared name, after the harness
 checks the executable's complete inventory. Examples, corpus directories,
@@ -64,3 +64,10 @@ reduction to the compiler change. All six changed examples reduce requested
 bytes and peak-live bytes. These observations preserve the dev-backend PDF,
 work and retention contracts, which are reviewed separately in the
 [compiler profile](toolchain-profile.md).
+
+The facade output, structure, navigation and registry examples exercise the
+public default profile. `AccessibleArchive` adds 118 bytes of PDF/UA-2 XMP
+identification per preparation, including when a later font or layout check
+rejects the document. Successful output also carries the longer packet through
+emission and file offsets. The observed requested-byte increases are under 1%,
+with the same allocation counts, peak live bytes and example inputs.

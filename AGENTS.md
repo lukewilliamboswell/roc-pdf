@@ -33,9 +33,11 @@
   fallback behavior, conformance downgrade, font substitution, outlining, or
   rasterization as recovery.
 - Support PDF standards on a best-effort basis. Cite applicable editions,
-  clauses and errata beside implementations and focused tests. Use project-owned
-  fixtures and checks in CI. Keep independent PDF validators and readers opt-in
-  local tools. Describe the emitted declarations and the checks actually
+  clauses and errata beside implementations and focused tests. Keep licensed
+  standards and audit material in ignored local directories. Prefer executable
+  invariants and a few authored seeds for generated cases. Use project-owned
+  fixtures and checks in CI and keep independent PDF validators and readers
+  opt-in local tools. Describe the emitted declarations and the checks actually
   exercised. Discuss separately scoped and funded certification, including
   ownership, in GitHub Issues.
 - Preserve the architecture's explicit stage contracts. Later stages must
