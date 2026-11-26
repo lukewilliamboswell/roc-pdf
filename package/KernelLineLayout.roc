@@ -140,6 +140,9 @@ KernelLineLayout :: [].{
 		next : LineCursor, Layout.Unit -> Try([Complete, Line({ line : Line, remaining : LineCursor })], Error)
 		next = |cursor, width| next_cursor_line(cursor, width)
 
+		is_complete : LineCursor -> Bool
+		is_complete = |LineCursor.(cursor)| cursor.next_cluster == cursor.paragraph.start() + cursor.paragraph.length()
+
 		work : LineCursor -> Work
 		work = |LineCursor.(cursor)| cursor.work
 	}

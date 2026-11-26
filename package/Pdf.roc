@@ -4,6 +4,7 @@ import Document
 import Font
 import Image
 import KernelLex
+import KernelColumnLayout
 import KernelDeflate
 import KernelEmit
 import KernelBuiltInFonts
@@ -813,9 +814,12 @@ Pdf :: [].{
 	generated_reference : Str -> Document.Block
 	generated_reference = |name| Document.unavailable(GeneratedReferences, name)
 
-	## Reserve a multi-column region; currently reports `layout.multi_column`.
-	multi_column : Str -> Document.Block
-	multi_column = |summary| Document.unavailable(MultiColumnLayout, summary)
+	## Sequential two-column flow with independent widths and a positive gap.
+	## Use this as the only top-level block in a document.
+	ColumnProps : Document.ColumnFlow
+
+	multi_column : ColumnProps -> Document.Block
+	multi_column = |props| Document.columns(props)
 
 	## Reserve custom layout intent; currently reports `layout.custom`.
 	custom_layout : Str -> Document.Block
@@ -956,6 +960,13 @@ Pdf :: [].{
 				return Ok(Prepared.(prepared.plan))
 			}
 		}
+		match Document.normalize_columns(doc) ? column_authoring_error {
+			Ordinary => {}
+			Columns(columns) => {
+				prepared = build_column_plan(doc, columns, options, NoCollect)?
+				return Ok(Prepared.(prepared.plan))
+			}
+		}
 		match Document.first_unavailable(doc) {
 			Available => {}
 			UnavailableFeature({ feature, summary }) => return Err(InvalidDocument(unavailable_batch(feature, summary)))
@@ -975,6 +986,14 @@ Pdf :: [].{
 			Fixed(fixed) => {
 				{ facts, normalized, plan } = build_fixed_plan(doc, fixed, options, Collect)?
 				report = build_report_at(normalized, facts, budget, options.profile, FixedReportPaths(Document.NormalizedFixed.view(fixed).pages))?
+				return Ok({ prepared: Prepared.(plan), report })
+			}
+		}
+		match Document.normalize_columns(doc) ? column_authoring_error {
+			Ordinary => {}
+			Columns(columns) => {
+				{ facts, normalized, plan } = build_column_plan(doc, columns, options, Collect)?
+				report = build_report_at(normalized, facts, budget, options.profile, ColumnReportPaths)?
 				return Ok({ prepared: Prepared.(plan), report })
 			}
 		}
@@ -1103,6 +1122,94 @@ build_fixed_plan = |doc, fixed, options, request| {
 	}
 	planned = resolve_font_plan_at(authoring, { options, doc }, path_scope)?
 	pipeline = KernelFacadePipeline.Plan.build_fixed(planned.authoring, fixed, planned.fonts, planned.theme, standard_font_descriptor, facts, request, standard_pipeline_limits) ? |error| fixed_pipeline_error(error, doc, path_scope, planned)
+	output = KernelFacadePipeline.Plan.output(pipeline)
+	_text_work = KernelPdfA4.validate_text(claims.archive, KernelFacadeOutput.Plan.text_facts(output)) ? |violation| InvalidDocument(profile_batch(violation, ProfileValidation))
+	plan = KernelFacadeOutput.Plan.structure(output)
+	validate_lowered_plan(claims, xmp, plan)?
+	Ok({ facts: KernelFacadePipeline.Plan.facts(pipeline), normalized: planned.authoring, plan: KernelStructure.Plan.with_compression(plan, deflate_level(options.compression)) })
+}
+
+column_block_path : U64 -> Str
+column_block_path = |block| "contents[0].contents[${block.to_str()}]"
+
+column_authoring_error : Document.ColumnError -> Pdf.Error
+column_authoring_error = |error| match error {
+	Empty => fixed_error(InvalidRelationship, "layout.columns.empty", "A column flow needs at least one title or paragraph.", "contents[0].contents")
+	UnsupportedBlock(block) => fixed_error(FeatureUnavailable, "layout.columns.block", "Column flow accepts titles, paragraphs, and a required keep around one paragraph.", column_block_path(block))
+	UnsupportedOption(option) => {
+		path = match option {
+			Outline => "outline"
+			PageLabels => "page_labels"
+			Templates => "page_templates"
+		}
+		fixed_error(FeatureUnavailable, "layout.columns.document_option", "This document option is unavailable for column flow.", path)
+	}
+}
+
+column_geometry_error : KernelColumnLayout.Error, Str -> Pdf.Error
+column_geometry_error = |error, path| match error {
+	InvalidWidth(First) => fixed_error(LayoutConstraintViolated, "layout.columns.width", "The first column needs a positive width.", "contents[0].first")
+	InvalidWidth(Second) => fixed_error(LayoutConstraintViolated, "layout.columns.width", "The second column needs a positive width.", "contents[0].second")
+	InvalidGutter => fixed_error(LayoutConstraintViolated, "layout.columns.gutter", "The gutter needs a positive width.", "contents[0].gutter")
+	ColumnsTooWide({ available, required }) => fixed_error(LayoutConstraintViolated, "layout.columns.width", "The columns and gutter need ${signed_points_text(required)} but the body provides ${signed_points_text(available)}.", path)
+	InvalidBody | GeometryOverflow => fixed_error(LayoutConstraintViolated, "layout.columns.geometry", "The two-column body geometry is outside the valid page range.", path)
+	InvalidLineMetrics => fixed_error(LayoutConstraintViolated, "layout.columns.text_style", "Use a positive leading and size, with leading at least as large as the size.", path)
+	LineTooTall({ available, required }) => fixed_error(LayoutConstraintViolated, "layout.columns.text_height", "The line needs ${signed_points_text(required)} of height but a column provides ${signed_points_text(available)}.", path)
+	PageLimit({ limit }) => fixed_error(BudgetExceeded, "layout.columns.budget", "Column flow exceeds the ${limit.to_str()}-page limit.", path)
+}
+
+column_pipeline_error : KernelFacadePipeline.ColumnError, Document, DiagnosticPaths, { authoring : Document.NormalizedAuthoring, fonts : KernelFacadeShape.FontSelection, theme : Theme } -> Pdf.Error
+column_pipeline_error = |error, doc, paths, planned| match error {
+	Pipeline(problem) => match planned.fonts {
+		Single(_) => pipeline_error_at(problem, doc, paths)
+		Styled(styled) => font_pipeline_error_at(problem, { doc, styled, theme: planned.theme, sources: planned.authoring.sources }, paths)
+		Ordered(ordered) => ordered_pipeline_error_at(problem, ordered.policy, doc, paths)
+	}
+	Placement(Column(problem)) => column_geometry_error(problem, "contents[0]")
+	Placement(ColumnAt({ block, error: problem })) => column_geometry_error(problem, column_block_path(block))
+	Placement(KeepTooTall({ block })) => fixed_error(LayoutConstraintViolated, "layout.columns.keep_conflict", "The kept paragraph cannot fit in an empty column.", column_block_path(block))
+	Placement(LineAt({ block, error: Unbreakable(_) })) => fixed_error(LayoutConstraintViolated, "layout.columns.unbreakable", "An unbreakable part of the source exceeds its column width.", column_block_path(block))
+	Placement(LineAt({ block, error: LimitExceeded({ limit, .. }) })) => fixed_error(BudgetExceeded, "layout.columns.budget", "Column line selection exceeded its work limit of ${limit.to_str()}.", column_block_path(block))
+	Placement(WorkLimit({ limit })) => fixed_error(BudgetExceeded, "layout.columns.budget", "Column line selection exceeded its work limit of ${limit.to_str()}.", "contents[0]")
+	Placement(PieceLimit({ limit })) => fixed_error(BudgetExceeded, "layout.columns.budget", "Column flow exceeded its positioned lines limit of ${limit.to_str()}.", "contents[0]")
+	Placement(InvalidBlock({ block })) | Placement(LineAt({ block, .. })) => fixed_error(InternalInvariant, "pipeline.columns.position", "The column stage received inconsistent source or font facts.", column_block_path(block))
+}
+
+build_column_plan : Document, Document.NormalizedColumns, Pdf.Options, KernelFacadeReport.Request -> Try({ facts : [Facts(KernelFacadeReport.Facts), NoFacts], normalized : Document.NormalizedAuthoring, plan : KernelStructure.Plan }, Pdf.Error)
+build_column_plan = |doc, columns, options, request| {
+	claims = validate_profile_request(doc, options)?
+	validate_theme(options.theme)?
+	validate_page_size(options.page_size)?
+	validate_body_frame(options.page_size, options.theme)?
+	page = layout_page_size(options.page_size)
+	margin = options.theme.page_margin
+	body = {
+		origin: { x: margin.left, y: margin.bottom },
+		size: {
+			width: Layout.Unit.from_raw(page.width.raw() - margin.left.raw() - margin.right.raw()),
+			height: Layout.Unit.from_raw(page.height.raw() - margin.top.raw() - margin.bottom.raw()),
+		},
+	}
+	authoring = columns.authoring
+	paths = ColumnPaths(authoring)
+	validated = KernelMetadata.validate(
+		{ created: Document.created(doc), language: authoring.language, modified: Document.modified(doc), title: authoring.metadata_title },
+		standard_metadata_limits,
+	) ? InvalidMetadata
+	xmp = KernelXmp.Packet.build_identified(validated.facts, claims.identification, standard_xmp_bytes) ? |_| InternalGenerationFailure
+	facts = WithDocumentFacts({
+		condition_identifier: KernelMetadata.srgb_condition_identifier,
+		profile: Color.ProfileId.from_index(0),
+		registry_name: KernelMetadata.icc_registry_name,
+		language: validated.facts.language,
+		xmp: KernelXmp.Packet.bytes(xmp),
+	})
+	if options.profile == AccessibleArchive {
+		validate_accessible_authoring_at(authoring, paths)?
+	}
+	planned = resolve_font_plan_at(authoring, { options, doc }, paths)?
+	widths = KernelColumnLayout.Widths.{ first: columns.first, second: columns.second, gutter: columns.gutter }
+	pipeline = KernelFacadePipeline.Plan.build_columns(planned.authoring, { body, kept: columns.kept, page, widths }, planned.fonts, planned.theme, standard_font_descriptor, facts, request, standard_pipeline_limits) ? |error| column_pipeline_error(error, doc, paths, planned)
 	output = KernelFacadePipeline.Plan.output(pipeline)
 	_text_work = KernelPdfA4.validate_text(claims.archive, KernelFacadeOutput.Plan.text_facts(output)) ? |violation| InvalidDocument(profile_batch(violation, ProfileValidation))
 	plan = KernelFacadeOutput.Plan.structure(output)
@@ -1723,6 +1830,7 @@ pipeline_error_at = |error, doc, paths| match error {
 		match paths {
 			FlowPaths => if (block < Document.normalize(doc).blocks.len()) [member_path(doc, Document.normalize(doc), block)] else []
 			FixedPaths(fixed) => if (block < fixed.authoring.blocks.len()) [fixed_block_path(fixed.pages, block)] else []
+			ColumnPaths(authoring) => if (block < authoring.blocks.len()) [column_block_path(block)] else []
 		},
 	)
 	Lines(Tables(TableWidth({ available, group, required }))) => group_error(doc, group, LayoutConstraintViolated, "layout.table_width", "A table's fixed column widths and column minimums need ${points_text(required)} but the table has ${points_text(available)}; content is never shrunk or clipped.")
@@ -2357,18 +2465,20 @@ located_batch = |diagnostic, feature, message, paths| {
 
 ## Fixed normalization preserves page-local addresses separately from
 ## the logical, page-major semantic block arena.
-DiagnosticPaths : [FlowPaths, FixedPaths({ authoring : Document.NormalizedAuthoring, pages : List(Document.FixedPagePlan) })]
+DiagnosticPaths : [ColumnPaths(Document.NormalizedAuthoring), FlowPaths, FixedPaths({ authoring : Document.NormalizedAuthoring, pages : List(Document.FixedPagePlan) })]
 
 diagnostic_authoring : Document, DiagnosticPaths -> Document.NormalizedAuthoring
 diagnostic_authoring = |doc, paths| match paths {
 	FlowPaths => Document.normalize(doc)
 	FixedPaths(fixed) => fixed.authoring
+	ColumnPaths(authoring) => authoring
 }
 
 diagnostic_leaf_path : Document, DiagnosticPaths, U64 -> Str
 diagnostic_leaf_path = |doc, paths, block| match paths {
 	FlowPaths => leaf_path(doc, block)
 	FixedPaths(fixed) => fixed_block_path(fixed.pages, block)
+	ColumnPaths(_) => column_block_path(block)
 }
 
 fixed_page_path : U64 -> Str
@@ -2542,13 +2652,14 @@ inline_path = |normalized, block, inline| inline_path_from(normalized, block, in
 inline_error_at : Document, DiagnosticPaths, U64, [AtInline(U64), NoInline], Conformance.DiagnosticCode, Str, Str -> Pdf.Error
 inline_error_at = |doc, paths, block, inline, diagnostic, feature, message| match paths {
 	FlowPaths => inline_error(doc, block, inline, diagnostic, feature, message)
-	FixedPaths(fixed) => InvalidDocument(container_batch(diagnostic, feature, message, authoring_inline_path(fixed.authoring, paths, block, inline)))
+	_ => InvalidDocument(container_batch(diagnostic, feature, message, authoring_inline_path(diagnostic_authoring(doc, paths), paths, block, inline)))
 }
 
 authoring_inline_path : Document.NormalizedAuthoring, DiagnosticPaths, U64, [AtInline(U64), NoInline] -> Str
 authoring_inline_path = |normalized, paths, block, inline| match paths {
 	FlowPaths => inline_path(normalized, block, inline)
 	FixedPaths(fixed) => inline_path_from(normalized, block, inline, FixedInlineRoot(fixed_block_path(fixed.pages, block)))
+	ColumnPaths(_) => column_block_path(block)
 }
 
 inline_path_from : Document.NormalizedAuthoring, U64, [AtInline(U64), NoInline], [FlowInlineRoot, FixedInlineRoot(Str)] -> Str
@@ -4176,7 +4287,7 @@ report_figure_invariant = |detail| InvalidDocument(located_batch(InternalInvaria
 build_report : Document.NormalizedAuthoring, [Facts(KernelFacadeReport.Facts), NoFacts], Pdf.ReportBudget, Pdf.Profile -> Try(Pdf.Report, Pdf.Error)
 build_report = |normalized, collected, budget, profile| build_report_at(normalized, collected, budget, profile, FlowReportPaths)
 
-ReportPaths : [FlowReportPaths, FixedReportPaths(List(Document.FixedPagePlan))]
+ReportPaths : [ColumnReportPaths, FlowReportPaths, FixedReportPaths(List(Document.FixedPagePlan))]
 
 build_report_at : Document.NormalizedAuthoring, [Facts(KernelFacadeReport.Facts), NoFacts], Pdf.ReportBudget, Pdf.Profile, ReportPaths -> Try(Pdf.Report, Pdf.Error)
 build_report_at = |normalized, collected, budget, profile, path_source| {
@@ -4201,6 +4312,15 @@ build_report_at = |normalized, collected, budget, profile, path_source| {
 	paths = match path_source {
 		FlowReportPaths => leaf_paths(normalized)
 		FixedReportPaths(pages) => fixed_report_paths(pages, normalized.blocks.len())
+		ColumnReportPaths => {
+			var $paths = List.with_capacity(normalized.blocks.len())
+			var $block = 0
+			while $block < normalized.blocks.len() {
+				$paths = $paths.append(column_block_path($block))
+				$block = $block + 1
+			}
+			$paths
+		}
 	}
 	path_at = |block| match paths.get(block) {
 		Ok(value) => value
@@ -4290,7 +4410,7 @@ build_report_at = |normalized, collected, budget, profile, path_source| {
 				Ok(rich) => {
 					inline_root = match path_source {
 						FlowReportPaths => FlowInlineRoot
-						FixedReportPaths(_) => FixedInlineRoot(path_at($index))
+						FixedReportPaths(_) | ColumnReportPaths => FixedInlineRoot(path_at($index))
 					}
 					var $inline = rich.inlines
 					while $inline < rich.inlines + rich.length {

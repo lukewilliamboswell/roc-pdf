@@ -18,6 +18,7 @@ package
 		KernelDeflate,
 		KernelDiscretionaryHyphen,
 		KernelEmit,
+		KernelFacadeColumns,
 		KernelFacadeFailure,
 		KernelFacadeFixed,
 		KernelFacadeFonts,
