@@ -1770,8 +1770,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 			}
 		}
 		match document.authoring {
-			Fixed(_) => UnavailableFeature({ feature: CustomLayout, summary: "Fixed-page layout is represented by this API but is not executable in this release." })
-			Compact(_) => Available
+			Fixed(_) | Compact(_) => Available
 			Simple(simple) => first_unavailable_block(simple.contents)
 		}
 	}
@@ -1796,7 +1795,8 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 		_ => Ok(Flow)
 	}
 
-	## Both authoring front ends lower once to the same flat text/block store.
+	## Both flow authoring front ends lower once to the same flat text/block
+	## store. Fixed-page callers use `normalize_fixed` for the frame sidecar.
 	## String payloads remain shared values; block and list identity are scalar facts.
 	normalize : Document -> NormalizedAuthoring
 
