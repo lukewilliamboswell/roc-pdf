@@ -36,7 +36,10 @@ jobs:
         with:
           path: generated-docs
   deploy:
-    if: github.event_name != 'pull_request' && !inputs.nightly_validation
+    if: >-
+      github.ref_type == 'branch' && github.ref_name == github.event.repository.default_branch &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      !inputs.nightly_validation
     permissions:
       contents: read
       pages: write

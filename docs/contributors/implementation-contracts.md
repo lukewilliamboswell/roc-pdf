@@ -1,6 +1,6 @@
 # Versioned Implementation Contracts
 
-[architecture.md](../../architecture.md) owns enduring package, stage, ownership,
+[The architecture](../architecture.adoc) owns enduring package, stage, ownership,
 conformance, determinism, and performance decisions. This record preserves the
 binding representation and repository-harness details used to implement those
 decisions. The [roadmap](../../feature-roadmap.md) owns capability availability and

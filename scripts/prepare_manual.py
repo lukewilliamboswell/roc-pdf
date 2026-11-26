@@ -30,12 +30,21 @@ def version_key(version: str) -> tuple[int, int, int, int]:
 
 def prepare(destination: Path, revision: str, release_version: str | None = None,
             bundle: Path | None = None) -> None:
+    docs = ROOT / "docs"
+    chapters = {path.relative_to(ROOT).as_posix(): path.name
+                for path in sorted(docs.glob("*.adoc"))
+                if path.name != "index.adoc"}
+    for name in ("index.adoc", *chapters.values()):
+        source = docs / name
+        if source.with_suffix(".md").exists():
+            raise ValueError(f"{source.relative_to(ROOT)}: remove the sibling Markdown chapter. The renderer publishes it.")
+    index = (docs / "index.adoc").read_text()
+    includes = re.findall(r"^include::([^\[\n]+)\[leveloffset=\+1\]$", index, re.M)
+    if sorted(includes) != sorted(chapters.values()):
+        raise ValueError("docs/index.adoc must include each top-level AsciiDoc chapter exactly once")
     if destination.exists():
         shutil.rmtree(destination)
     destination.mkdir(parents=True)
-    chapters = {path.relative_to(ROOT).as_posix(): path.name
-                for path in sorted((ROOT / "docs").glob("*.adoc"))
-                if path.name != "index.adoc"}
     inventory = []
 
     def record(source: Path) -> None:

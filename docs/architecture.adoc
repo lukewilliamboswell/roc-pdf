@@ -1,11 +1,12 @@
-# Pure Roc PDF Generation Architecture
+[#pure-roc-pdf-generation-architecture]
+= Pure Roc PDF Generation Architecture
 
-## Purpose
+== Purpose
 
 This document defines the enduring architecture for a pure Roc package that
 generates PDF 2.0 documents. It describes stable boundaries, data ownership,
 invariants, conformance policy, and test architecture. Feature delivery order
-belongs in [feature-roadmap.md](feature-roadmap.md).
+belongs in https://github.com/lukewilliamboswell/roc-pdf/blob/main/feature-roadmap.md[feature-roadmap.md].
 
 The package is generation-only. It does not read, edit, repair, incrementally
 update, or convert existing PDFs. Its production destination is accessible,
@@ -21,9 +22,9 @@ Unicode analysis, and `roc-deflate` for DEFLATE compression (a port of
 libdeflate). The DEFLATE dependency is currently the release candidate of a
 fork that carries the libdeflate port ahead of upstream; the package moves to
 an upstream `niclas-ahden/roc-deflate` release once one includes that work.
-[`vendor/README.md`](vendor/README.md) records each dependency's provenance.
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/vendor/README.md[`vendor/README.md`] records each dependency's provenance.
 
-## Product destination
+== Product destination
 
 The primary users generate reports, invoices, and business letters from
 application-owned content. The high-level `Pdf` facade is the primary product;
@@ -51,12 +52,12 @@ assistive-technology behavior evidence is recorded where reviewed but is
 optional.
 
 This document owns enduring contracts. Versioned representation and repository
-harness details live in [implementation contracts](docs/contributors/implementation-contracts.md),
+harness details live in https://github.com/lukewilliamboswell/roc-pdf/blob/main/docs/contributors/implementation-contracts.md[implementation contracts],
 and executable evidence lives in the roadmap's linked records. Those contracts
 remain binding until explicitly revised; moving them out of this document does
 not permit unreviewed byte, allocation, or capability changes.
 
-## Standards basis
+== Standards basis
 
 The implementation targets PDF 2.0 and supports selected standards rules on a
 best-effort basis. Record editions, clauses, tables and applicable errata near
@@ -76,7 +77,7 @@ formats. A separately licensed data set such as hyphenation patterns carries
 its language, source revision, digest and provenance. Deterministic layout
 never uses an unversioned system dictionary.
 
-## Scope and claims
+== Scope and claims
 
 The package supports distinct, composable claims:
 
@@ -111,7 +112,7 @@ order for review.
 
 Standards support is best effort. Independent certification is a separately
 scoped and funded undertaking with explicit ownership. Discuss a proposed
-certification effort in [GitHub Issues](https://github.com/lukewilliamboswell/roc-pdf/issues).
+certification effort in https://github.com/lukewilliamboswell/roc-pdf/issues[GitHub Issues].
 
 Four policy categories remain distinct:
 
@@ -127,42 +128,43 @@ valid conformance claim. Metadata title and language remain required author
 facts. A visible title is authored content and a default report-template
 convention, not an additional eligibility rule for `AccessibleArchive`.
 
-## Core invariants
+== Core invariants
 
-1. Semantics exist before layout. They are never inferred from coordinates,
+. Semantics exist before layout. They are never inferred from coordinates,
    drawing order, glyph positions, or extracted text.
-2. Logical reading order and page paint order are independent explicit data.
-3. Stable semantic identity survives line, column, page, and content-stream
+. Logical reading order and page paint order are independent explicit data.
+. Stable semantic identity survives line, column, page, and content-stream
    fragmentation.
-4. Each semantic element has one explicit ordered content spine that may
+. Each semantic element has one explicit ordered content spine that may
    interleave child elements, direct content occurrences, annotations, and
    contextual Artifact elements. PDF structure order is never recovered from
    ownership or paint order.
-5. Every painted item is associated with exactly one layout fragment whose
+. Every painted item is associated with exactly one layout fragment whose
    source is either a semantic content occurrence or a page-content artifact.
    There is no unclassified content.
-6. Page-content artifacts excluded from the logical structure and PDF 2.0
+. Page-content artifacts excluded from the logical structure and PDF 2.0
    contextual Artifact structure elements are distinct typed data.
-7. Source Unicode and its exact relationship to shaped glyphs cross the text
+. Source Unicode and its exact relationship to shaped glyphs cross the text
    boundary explicitly. They are never reconstructed from glyph IDs.
-8. Fonts, images, ICC profiles, annotations, destinations, and metadata are
+. Fonts, images, ICC profiles, annotations, destinations, and metadata are
    validated inputs. Reusable resource identity and per-placement semantic
    ownership remain distinct.
-9. Unsupported or non-conforming requests are errors. The package does not
+. Unsupported or non-conforming requests are errors. The package does not
    substitute fonts, outline text, rasterize content, drop features, repair
    semantics, or downgrade profiles.
-10. Conformance and the exact lowered object plan are validated before sealing
+. Conformance and the exact lowered object plan are validated before sealing
    for byte serialization. The serializer has no conformance policy and
    performs no repairs.
-11. The low-level PDF object model and object numbers are private implementation
+. The low-level PDF object model and object numbers are private implementation
    details.
-12. Identical explicit inputs and package versions produce identical bytes.
+. Identical explicit inputs and package versions produce identical bytes.
 
-## The package as a compiler
+== The package as a compiler
 
 PDF generation is a typed, one-way compilation pipeline:
 
-```text
+[source,text]
+----
 semantic document                         validated resources
         |                                         |
         +-------------------+---------------------+
@@ -194,13 +196,13 @@ semantic document                         validated resources
                             |
                             v
                  deterministic byte emission
-```
+----
 
 Each stage consumes explicit output from the preceding stage. A later stage
 does not recover missing data from geometry, names, content bytes, reader
 behavior, or incidental collection order.
 
-## Performance and storage architecture
+== Performance and storage architecture
 
 The tree-shaped examples in this document describe typed relationships, not
 the required hot-path memory representation. Public authoring values may be
@@ -239,7 +241,7 @@ worst-case `O(n log n)` time and a total tie-break order. Its scalability must
 not depend on a first-pivot quicksort or other algorithm with quadratic
 behavior on already ordered, reverse-ordered, or equal input.
 
-### ARC and phase ownership
+=== ARC and phase ownership
 
 Stage implementations are consumption-shaped. A builder consumes and returns
 one accumulator, preallocates from exact earlier counts where available, and
@@ -251,13 +253,14 @@ higher allocation and retention cost.
 
 Each successful stage transfers only the data required by its successor:
 
-```text
+[source,text]
+----
 authoring tree
     -> normalized semantic/layout input
     -> final PreparedDocument stores
     -> compact SealedPdfPlan
     -> Encoder state
-```
+----
 
 The sealed plan has no back-reference to the authoring tree, speculative layout
 passes, or full page-scene source. It retains compact object/content recipes,
@@ -273,7 +276,7 @@ data. Diagnostics contain compact IDs, locations, and bounded details rather
 than retaining documents or resource byte buffers; a deterministic diagnostic
 count/size budget prevents error storms.
 
-### Layout representation and complexity
+=== Layout representation and complexity
 
 All layout geometry uses one checked fixed-point `LayoutUnit` with documented
 scale, range, arithmetic, and rounding. Font-unit conversion and division have
@@ -331,7 +334,7 @@ writing mode, feature policy, and required boundary context; it never reuses a
 run across a context that can change joining or substitution. Cache count and
 retained bytes are budgeted.
 
-### Iter policy
+=== Iter policy
 
 `Iter` is a traversal interface, not an internal storage representation or an
 assumed optimization. It is appropriate for coarse pages, rows, scanlines,
@@ -347,7 +350,7 @@ adapter/`concat` chains, and does not assume unknown-length reverse/tail
 operations remain streaming. `Iter` values are not stored in `Document`,
 `PreparedDocument`, continuations, caches, or `SealedPdfPlan`.
 
-### Emission representation
+=== Emission representation
 
 The sealed plan is compact, exact, and replayable. Planning assigns objects and
 stream-length strategies before emission; lexical emission and deterministic
@@ -357,7 +360,7 @@ segments have bounded owned buffers; unchanged final-form resources may use
 exact shared ranges under the selected retention policy. Buffered output uses
 the same transition directly into its final accumulator.
 
-The binding [emission representation contract](docs/contributors/implementation-contracts.md#emission-representation)
+The binding https://github.com/lukewilliamboswell/roc-pdf/blob/main/docs/contributors/implementation-contracts.md#emission-representation[emission representation contract]
 specifies the current compressor seam, stream-length and xref representation,
 output-bound proofs, chunk ownership, and accumulator growth. Changing those
 choices requires reviewed determinism, allocation, and retention evidence.
@@ -379,9 +382,10 @@ Document identifier derivation uses a versioned, domain-separated digest of
 explicit normalized or plan data. It never requires hashing final serialized
 bytes that themselves contain the identifier.
 
-## Public architectural boundary
+== Public architectural boundary
 
-### High-level API is the primary product
+[#high-level-api-is-the-primary-product]
+=== High-level API is the primary product
 
 Most users should never construct a `PreparedDocument`, page scene, glyph run,
 font subset, output intent, semantic node, or conformance value. The primary
@@ -394,7 +398,8 @@ capitalized type modules, and consumers import the `Pdf` facade through their
 lowercase package shorthand. The other modules are available for advanced
 integration, but the common path needs one import:
 
-```roc
+[source,roc]
+----
 package [
     Pdf,
     Document,
@@ -410,23 +415,25 @@ package [
     Encode,
     Theme,
 ] {}
-```
+----
 
-```roc
+[source,roc]
+----
 app [main!] {
     pf: platform "...",
     pdf: "...",
 }
 
 import pdf.Pdf
-```
+----
 
 `Pdf.roc` is a void type module whose associated items form the facade. The
 shape below is an API design sketch using current Roc syntax; private backing
 types and the exact error alternatives may evolve without changing the
 boundary:
 
-```roc
+[source,roc]
+----
 Pdf :: [].{
     Error := [
         InvalidDocument(List(Diagnostic)),
@@ -494,15 +501,18 @@ Pdf :: [].{
     to_chunks_with : Document, Options -> Try(Encode, Error)
     next_chunk : Encode -> [Done, Emit(List(U8), Encode)]
 }
-```
+----
 
 The public profiles select the following declaration sets and checks:
 
-| `Pdf.Profile` | Internal claim set | Emitted profile information |
-| --- | --- | --- |
-| `AccessibleArchive` | `Pdf20 + StaticPdfA4 + PdfUa2` | Self-contained accessible archive; WTPDF accessibility is declared only through its separately validated declaration capability |
-| `Archive` | `Pdf20 + StaticPdfA4` | Self-contained static archive without a PDF/UA-2 claim |
-| `Standard` | `Pdf20` | The implemented generation-only PDF 2.0 subset without archival or accessibility conformance claims |
+[cols="1,2,3",options="header"]
+|===
+| `Pdf.Profile` | Internal claim set | Emitted profile information
+
+| `AccessibleArchive` | `Pdf20 + StaticPdfA4 + PdfUa2` | Self-contained accessible archive; WTPDF accessibility is declared only through its separately validated declaration capability
+| `Archive` | `Pdf20 + StaticPdfA4` | Self-contained static archive without a PDF/UA-2 claim
+| `Standard` | `Pdf20` | The implemented generation-only PDF 2.0 subset without archival or accessibility conformance claims
+|===
 
 `Profile` selects requirements, not feature availability or reader behavior.
 Choosing a weaker profile never repairs, substitutes, or removes unsupported
@@ -560,7 +570,7 @@ and an optional caption; a decoration enters through an explicitly classified
 page artifact. Semantic or artifact classification exists before layout in
 either authoring path. PNG is not an accepted source format.
 
-The [roadmap](feature-roadmap.md) and [authoring guide](docs/authoring.md) record
+The https://github.com/lukewilliamboswell/roc-pdf/blob/main/feature-roadmap.md[roadmap] and xref:authoring.adoc#authoring-authoring-with-roc-pdf[authoring guide] record
 the executable drawing and layout subsets. A representable drawing or a closed
 private graphics primitive does not establish that its public authoring path
 is executable. Unsupported compositions return stable feature diagnostics and
@@ -618,7 +628,8 @@ asset-package dependency for the PDF reader to resolve.
 
 The common path is deliberately short:
 
-```roc
+[source,roc]
+----
 make_report : Str -> Try(List(U8), Pdf.Error)
 make_report = |summary| {
     document = Pdf.document({
@@ -638,7 +649,7 @@ make_report = |summary| {
 
     Pdf.to_bytes(document)
 }
-```
+----
 
 `Pdf.document` requires the small set of facts that cannot be responsibly
 guessed, including metadata title and natural language. It fills in layout,
@@ -670,7 +681,7 @@ The API does not represent semantic decisions as booleans such as
 `decorative: Bool` or `accessible: Bool`. Distinct constructors make the choice
 visible and carry the fields required by that choice.
 
-### Defaults contract
+=== Defaults contract
 
 `Pdf.to_bytes` is equivalent to `Pdf.to_bytes_with(document,
 Pdf.Options.default)`. This section states the enduring production defaults.
@@ -718,15 +729,16 @@ the options' `profile` field; this is an opt-out, not an automatic
 downgrade. The `??` default on that field is the one place the production
 profile is declared.
 
-```roc
+[source,roc]
+----
 Pdf.to_bytes_with(document, { profile: Standard })
-```
+----
 
 Defaulting to PDF/UA-2 does not certify the quality of prose, alternative text,
 reading order, or table design. Supplying those semantic values is an author
 assertion, and the human-verifiable requirements described later still apply.
 
-### Authoring feedback
+=== Authoring feedback
 
 Preparation provides a bounded, read-only report alongside the opaque prepared
 result. `Pdf.prepare_with_report(document, props)` takes `Pdf.ReportProps`
@@ -734,7 +746,7 @@ with independent document options and report budget, each defaulted. It
 returns the same `Pdf.Prepared` as ordinary preparation with those options,
 beside a `Pdf.Report` whose mechanical facts and human-review obligations are
 separate fields. The budget governs only report materialization.
-See the [report contract](docs/contributors/reference-documents.md#preparation-report).
+See the https://github.com/lukewilliamboswell/roc-pdf/blob/main/docs/contributors/reference-documents.md#preparation-report[report contract].
 The report contains
 authoring locations, page and fragment summaries, logical reading order,
 authored alternatives and assertions, layout-policy outcomes, selected text
@@ -757,7 +769,7 @@ omit obligations when a report budget is exceeded. Required report facts are
 validated before sealing; later inspection introduces no document-error path
 into the encoder.
 
-### Advanced integration boundary
+=== Advanced integration boundary
 
 The common stable integration boundary is opaque `Pdf.Prepared`. It is produced
 by `Pdf.prepare` after authoring, layout, resource, navigation, conformance, and
@@ -767,7 +779,8 @@ executable boundary does not expose PDF object identity.
 The intended custom-layout integration boundary is the conceptual
 `PreparedDocument`, containing:
 
-```text
+[source,text]
+----
 PreparedDocument
 |- authored metadata, language, and output intent
 |- one PDF 2.0 Document root and its ordered semantic content spine
@@ -779,7 +792,7 @@ PreparedDocument
    |- exact font faces
    |- raster or inspected encoded images
    `- ICC profiles and typed color spaces
-```
+----
 
 Every reference that can affect layout is resolved before this boundary. A
 `PreparedDocument` never contains an approximate page number, unresolved
@@ -808,7 +821,8 @@ preparation still proves the fit. A separately authored callout exercises it
 The advanced conceptual lifecycle uses `Try`, current Roc's fallible-result
 type:
 
-```roc
+[source,roc]
+----
 prepare : DocumentInput -> Try(PreparedDocument, List(Diagnostic))
 
 conform :
@@ -817,14 +831,14 @@ conform :
     -> Try(SealedPdfPlan, List(Diagnostic))
 
 encode : SealedPdfPlan -> List(U8)
-```
+----
 
 `SealedPdfPlan` is opaque. `conform` normalizes the prepared document, applies
 the requested profile, lowers it to the exact PDF object plan, validates that
 plan, and seals it. Convenience functions may compose these operations, but
 byte emission accepts only the sealed result and has no user-data error path.
 
-## Semantic document graph
+== Semantic document graph
 
 The semantic document is the source of meaning and logical reading order. It
 has exactly one top-level `Document` element in the PDF 2.0 namespace. A
@@ -832,12 +846,13 @@ has exactly one top-level `Document` element in the PDF 2.0 namespace. A
 Each Document or DocumentFragment uses one heading family, either generic
 `H` or numbered `Hn`. The semantic graph validator tracks the family within
 the nearest scope and reports both the conflicting node and that scope.
-[ISO 32000-2 §14.8.4.3](https://pdf-issues.pdfa.org/32000-2-2020/clause14.html#H14.8.4.3)
+https://pdf-issues.pdfa.org/32000-2-2020/clause14.html#H14.8.4.3[ISO 32000-2 §14.8.4.3]
 
 Every semantic node has one structural parent and an ordered content spine.
 The spine, rather than a separate child list, may contain:
 
-```text
+[source,text]
+----
 SemanticContent :=
     ChildNode(SemanticNodeId)
     ContentOccurrence(ContentOccurrenceId)
@@ -854,7 +869,7 @@ LayoutFragment
 |- page and content-stream placement
 |- exact source subrange
 `- painted scene nodes
-```
+----
 
 This mixed order is preserved through normalization and becomes the source of
 PDF structure-element `/K` ordering. A later stage never attempts to insert a
@@ -918,13 +933,14 @@ pure Roc parser. Unchecked markup is never copied into a structure element or
 associated file. MathML as an Associated File is a distinct `PdfA4f`
 capability; it is not silently substituted for structure-element MathML.
 
-## Layout, shaping, and stabilization
+== Layout, shaping, and stabilization
 
 The built-in authoring path and independent layout packages target an explicit
 fragmentation contract. The concrete Roc API may use data and functions rather
 than an object-shaped interface, but it preserves these operations and outputs:
 
-```text
+[source,text]
+----
 LayoutComponent
 |- measure(constraints, style, validated resources)
 |- fragment(constraints, continuation)
@@ -934,7 +950,7 @@ LayoutComponent
    |- content-occurrence mappings
    |- resource uses
    `- deterministic diagnostics
-```
+----
 
 The contract represents legal line, column, and page breaks; before/after
 spacing; keeps; widow/orphan constraints; repeated table headings; and
@@ -1040,11 +1056,11 @@ resource acquisition services or rasterization fallbacks.
 Layout-dependent references are symbolic before layout and fully resolved in a
 `PreparedDocument`. Stabilization is deterministic:
 
-1. Each pass consumes an explicit reference state.
-2. It outputs the complete resolved-reference and pagination state.
-3. An identical consecutive state is success.
-4. Repetition of an earlier non-identical state is a cycle and an error.
-5. An explicit pass or work budget may report exhaustion, but no attempted
+. Each pass consumes an explicit reference state.
+. It outputs the complete resolved-reference and pagination state.
+. An identical consecutive state is success.
+. Repetition of an earlier non-identical state is a cycle and an error.
+. An explicit pass or work budget may report exhaustion, but no attempted
    state is accepted as an approximation.
 
 This covers counters, tables of contents, indexes, page references, footnotes,
@@ -1081,7 +1097,8 @@ permit later PDF stages to repair text or recover missing semantics.
 Before shaping, a deterministic `FontPlan` maps source scalar ranges to exact
 validated font instances:
 
-```text
+[source,text]
+----
 theme font policy + text + script + language
                        |
                        v
@@ -1089,7 +1106,7 @@ theme font policy + text + script + language
                        |
                        v
                shaping and layout
-```
+----
 
 A font policy contains a finite ordered set of exact packaged or caller-
 provided faces, explicit coverage, supported scripts, embedding rights, and
@@ -1106,11 +1123,12 @@ branch on provenance. Optional font/data packages provide ordinary explicit
 inputs through this boundary; they do not become hidden runtime services or
 grant `roc-pdf` filesystem or network access.
 
-## Page scenes and content ownership
+== Page scenes and content ownership
 
 Pages contain a balanced scene tree rather than raw PDF content operators:
 
-```roc
+[source,roc]
+----
 OwnedGroup := [
     Fragment(LayoutFragmentId, List(DrawNode)),
     PageArtifact(PageArtifactKind, List(DrawNode)),
@@ -1124,7 +1142,7 @@ DrawNode := [
     DrawText(TextPaint, GlyphRun),
     Image(ImagePlacement),
 ]
-```
+----
 
 The concrete Roc representation may differ, but it preserves the following
 properties:
@@ -1148,11 +1166,13 @@ output remains available only when every scene group has fragment or page-
 artifact ownership and the complete semantic graph and occurrence map are
 supplied. A canvas-only document cannot claim PDF/UA-2.
 
-## Text and font boundary
+[#text-and-font-boundary]
+== Text and font boundary
 
 The PDF package consumes positioned glyph runs, not unshaped strings:
 
-```text
+[source,text]
+----
 GlyphRun
 |- exact validated font instance
 |- positive layout size used to scale the selected instance
@@ -1164,7 +1184,7 @@ GlyphRun
 |- substitution and ligature evidence
 |- source-to-presentation transformations
 `- reference to an explicit semantic ActualText override when present
-```
+----
 
 Cluster mappings support one-to-one, one-to-many, many-to-one, combining,
 ligature, reordered, bidirectional, and context-dependent relationships. This
@@ -1229,7 +1249,7 @@ resolved conflict as work evidence. Exact logical extraction still comes from
 `ActualText`, not from that necessarily lossy per-CID fallback.
 The selected mapping must fit in 512 UTF-16BE bytes before hexadecimal
 serialization. The separate logical `ActualText` value follows its own
-budget. [ISO 32000-2 §9.10.3](https://pdf-issues.pdfa.org/32000-2-2020/clause09.html#H9.10.3)
+budget. https://pdf-issues.pdfa.org/32000-2-2020/clause09.html#H9.10.3[ISO 32000-2 §9.10.3]
 
 Presentation evidence explicitly covers inserted discretionary hyphens,
 suppressed soft hyphens, generated labels and counters, ligature replacement
@@ -1278,7 +1298,7 @@ conformance repairs because they change metrics or destroy searchable semantic
 text. `.notdef` is never emitted as content, and every character code has the
 required Unicode relationship.
 
-## Images and color
+== Images and color
 
 Images enter the PDF core only as validated forms:
 
@@ -1324,9 +1344,10 @@ complex nested mask/group combinations are separate capabilities.
 
 Pages with transparency require an explicit blending space. Transparency
 planning includes an annotation's normal appearance and its nested form
-and image uses. [ISO 32000-2 Annex Q](https://pdf-issues.pdfa.org/32000-2-2020/clauseAnnexQ.html)
+and image uses. https://pdf-issues.pdfa.org/32000-2-2020/clauseAnnexQ.html[ISO 32000-2 Annex Q]
 
-## Resources and annotations
+[#resources-and-annotations]
+== Resources and annotations
 
 Resource identity describes reusable visual data, never semantic ownership or
 an eventual object number. Fonts, image bytes, ICC profiles, and Form XObjects
@@ -1380,9 +1401,8 @@ A facade Link owns one annotation per painted page. Its active regions follow
 the painted lines, and the annotation rectangle encloses the union of those
 regions. A same-page wrap keeps one OBJR for the annotation and uses
 `QuadPoints` for the separate active areas. Each quadrilateral starts on its
-bottom edge and lists its vertices counterclockwise. [ISO 32000-2
-§12.5.6.5 and Table 176](https://pdf-issues.pdfa.org/32000-2-2020/clause12.html#H12.5.6.5),
-[§14.8.4.7.3 and correction #133](https://pdf-issues.pdfa.org/32000-2-2020/clause14.html#H14.8.4.7.3).
+bottom edge and lists its vertices counterclockwise. https://pdf-issues.pdfa.org/32000-2-2020/clause12.html#H12.5.6.5[ISO 32000-2 §12.5.6.5 and Table 176],
+https://pdf-issues.pdfa.org/32000-2-2020/clause14.html#H14.8.4.7.3[§14.8.4.7.3 and correction #133].
 
 Annotation appearances are subject to the same font, color, graphics, and
 content-ownership rules as ordinary page content. Arbitrary actions and raw
@@ -1413,18 +1433,18 @@ Rollover/down appearances and every other annotation type are unsupported until
 a separate capability defines their structure ownership, OBJR, appearance,
 focus behavior, and profile rules.
 
-## Conformance validation
+== Conformance validation
 
 Validation occurs at three explicit boundaries:
 
-1. **Authoring validation** checks graph identity, reachability, acyclicity,
+. **Authoring validation** checks graph identity, reachability, acyclicity,
    ordered content spines, semantic containment, namespace identity,
    structure attributes, table geometry, occurrence/fragment coverage, scene
    ownership, glyph clusters and presentation evidence, resource references,
    annotations, and author obligations.
-2. **Profile validation** checks every requested PDF/A-4, PDF/UA-2, and WTPDF
+. **Profile validation** checks every requested PDF/A-4, PDF/UA-2, and WTPDF
    rule that applies to the prepared representation.
-3. **Lowered-plan validation** checks exact objects, references, streams,
+. **Lowered-plan validation** checks exact objects, references, streams,
    namespaces, ParentTree relationships, metadata agreement, and forbidden
    constructs before sealing the plan for serialization.
 
@@ -1446,7 +1466,7 @@ code, document/resource location, applicable internal requirement IDs,
 standards clause references, and concrete details. Advice that does not affect
 validity is kept separate and never changes output.
 
-## Internal PDF object plan
+== Internal PDF object plan
 
 Only typed lowering modules may construct the private generic object model:
 
@@ -1512,7 +1532,7 @@ the presets of one document share an identifier and differ only in their
 compressed streams. The presets are a closed set rather than a numeric level:
 each one is a reviewed byte contract with its own size, time, and allocation
 evidence, recorded in
-[`docs/contributors/performance/output-size.md`](docs/contributors/performance/output-size.md).
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/docs/contributors/performance/output-size.md[`docs/contributors/performance/output-size.md`].
 `Balanced` is the default because it generates about ten times faster than
 `Smallest` for a modest size increase; `Smallest` keeps the package's previous
 bytes exactly.
@@ -1534,7 +1554,7 @@ hold its own offset, and it is FlateDecode with the PNG Up predictor. Object
 streams and the cross-reference stream carry direct lengths.
 
 This is an enduring decision, and the evidence behind it is recorded in
-[`docs/contributors/performance/output-size.md`](docs/contributors/performance/output-size.md). In a
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/docs/contributors/performance/output-size.md[`docs/contributors/performance/output-size.md`]. In a
 tagged business document most bytes are small dictionaries: structure
 elements, the ParentTree, annotations, and the page tree. Written as top-level
 uncompressed objects they were about half the file, and object streams remove
@@ -1556,9 +1576,9 @@ revisions and linearization are outside the generation-only baseline.
 The Arlington PDF Model is a useful independent schema cross-check, but its
 documented scope excludes parts of lexical syntax, content streams, and file
 structure. It informs tests; it is not the architectural source of truth.
-[Arlington PDF Model](https://github.com/pdf-association/arlington-pdf-model)
+https://github.com/pdf-association/arlington-pdf-model[Arlington PDF Model]
 
-## Deterministic serialization
+== Deterministic serialization
 
 Determinism is part of the public contract:
 
@@ -1588,7 +1608,8 @@ Roc numeric inputs that cannot be represented exactly enough by the supported
 PDF scalar type are rejected. Host floating-point formatting is not used to
 write PDF syntax.
 
-## Pure output and chunked delivery
+[#pure-output-and-chunked-delivery]
+== Pure output and chunked delivery
 
 The convenient API returns `List(U8)`. `Pdf.to_chunks` and
 `Pdf.to_chunks_with` validate and seal the document, then return an opaque
@@ -1596,9 +1617,10 @@ encoder over the same compact plan and internal emission transition used by
 the buffered path. Platforms can write its chunks without the package
 performing effects:
 
-```roc
+[source,roc]
+----
 Pdf.next_chunk : Encode -> [Done, Emit(List(U8), Encode)]
-```
+----
 
 The buffered and chunked APIs drive the same internal emission transition, so
 their forms are byte-identical. The buffered path supplies its final unique
@@ -1647,7 +1669,7 @@ inputs use checked arithmetic and explicit resource limits. Font, JPEG, ICC,
 and other externally supplied bytes are untrusted even though the package
 does not read PDFs.
 
-## Module boundaries
+== Module boundaries
 
 Conceptual public modules are:
 
@@ -1687,7 +1709,7 @@ consumer-visible surface.
 
 Evidence applications exercise private stage contracts through the repository
 integration root and public behavior through the release root. The binding
-[fixture protocol](docs/contributors/implementation-contracts.md#repository-fixture-protocol)
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/docs/contributors/implementation-contracts.md#repository-fixture-protocol[fixture protocol]
 defines app families, versioned scenarios, manifest dispatch, and checker
 selection. Neither test integration nor fixture conventions expand the public
 package boundary.
@@ -1696,7 +1718,7 @@ Separate pure Roc packages may own shaping, OpenType parsing, image decoding,
 XML/XMP construction, hashing, ICC inspection, and DEFLATE. Integration occurs
 through validated data types, not private representation coupling.
 
-## Enduring test architecture
+== Enduring test architecture
 
 Project-owned tests exercise byte structure, metadata declarations, text and
 semantic order, geometry, resource closure, transactional rejection and exact
@@ -1705,7 +1727,8 @@ facts to the authored fixture. Reader and assistive-technology review is
 optional. Independent PDF validators and readers are opt-in local tools.
 Their findings can become focused regressions in the project-owned suite.
 
-```text
+[source,text]
+----
 typed versioned scenario
           |
           v
@@ -1719,7 +1742,7 @@ PDF bytes + normalized generation report
           +-- metadata and supported profile declarations
           +-- normalized semantic spine and fragment ownership
           `-- optional local independent readers and validators
-```
+----
 
 Keep allocation and work baselines, provenance, tool locks and deterministic
 scenarios as maintainable inputs. Store raw review reports and screenshots in
@@ -1859,7 +1882,7 @@ When using veraPDF locally, select the intended `4`, `ua2` or `wt1a` profile
 explicitly. Record which tool and version produced an observation. Machine
 checks and authored human review address different requirements.
 
-## Security and resource policy
+== Security and resource policy
 
 Although generation is pure and effects-free, supplied assets are attacker-
 controlled byte sequences. Every parser is bounds checked, cycle aware where
@@ -1883,7 +1906,7 @@ and external rendering dependencies remain rejected. All fonts, profiles,
 images, metadata, timestamps, and identifiers are explicit inputs or documented
 deterministic assets.
 
-## Rejected alternatives
+== Rejected alternatives
 
 - **PDF 1.x as the internal model:** legacy output is not a goal and must not
   constrain PDF 2.0 semantics.
@@ -1923,7 +1946,7 @@ The defining architectural decision is that accessibility evidence crosses the
 layout boundary as first-class typed data, while PDF syntax remains private and
 downstream.
 
-## Packaged roc-font families
+== Packaged roc-font families
 
 The built-in facade supplies Inter for ordinary body/headings, Merriweather for
 explicit serif typography, and Fira Code for inline/source code. Ten unchanged
@@ -1943,6 +1966,6 @@ selection work linearly in authored input and registry size. The explicit
 reuse. Measurement and embedding consume identical selected static bytes.
 
 Merriweather lacks U+2318 and Fira Code has no genuine italic faces. Those
-requirements remain excluded and tracked upstream. [The integration record](docs/contributors/roc-font.md)
+requirements remain excluded and tracked upstream. https://github.com/lukewilliamboswell/roc-pdf/blob/main/docs/contributors/roc-font.md[The integration record]
 retains exact pins, licences, historical evidence and the consumer integration
 boundary. Package acceptance does not imply downstream adoption.

@@ -85,6 +85,9 @@ def check(site: Path, source: Path, pdf: Path | None, review: Path | None = None
         assert hashlib.sha256((ROOT / entry["path"]).read_bytes()).hexdigest() == entry["sha256"], entry["path"]
     pages = {path.name: Page(path.read_text()) for path in site.glob("*.html")}
     assert "index.html" in pages and (site / "llms.txt").is_file()
+    index_links = {urlsplit(href).path.rsplit("/", 1)[-1]
+                   for href in re.findall(r"\[[^\]]+\]\(([^)]+)\)", (site / "llms.txt").read_text())}
+    assert {name.removesuffix(".html") + ".md" for name in pages} <= index_links, "llms.txt omits a generated chapter"
     all_code = []
     table_cells = []
     table_count = 0
@@ -121,11 +124,15 @@ def check(site: Path, source: Path, pdf: Path | None, review: Path | None = None
         actual_grids = [[[compact(cell) for cell in row] for row in table] for table in page.tables]
         assert actual_grids == grids, f"HTML table row/cell associations changed in {path}"
         markdown = (site / prepared.replace(".adoc", ".md")).read_text()
-        exported_code = re.findall(r"^```[^\n]*\n(.*?)^```\s*$", markdown, re.M | re.S)
+        exports = re.compile(r"^```[^\n]*\n(.*?)^```[ \t]*$", re.M | re.S)
+        exported_code = exports.findall(markdown)
         assert [code.rstrip("\n") for code in exported_code] == [code.rstrip("\n") for code in expected], f"Markdown source whitespace changed in {path}"
+        explicit_ids = set(re.findall(r"^\[#([^\]]+)\]$", authored, re.M))
+        markdown_ids = set(re.findall(r'<a id="([^"]+)"', markdown))
+        assert explicit_ids <= page.ids and explicit_ids <= markdown_ids, f"chapter anchors lost in {path}"
         markdown_grids = []
         markdown_rows = []
-        for line in markdown.splitlines():
+        for line in exports.sub("", markdown).splitlines():
             if line.startswith("|"):
                 if not re.fullmatch(r"\|[ |:-]+\|", line):
                     markdown_rows.append([compact(re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", cell).replace("`", ""))
