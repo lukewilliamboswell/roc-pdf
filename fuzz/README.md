@@ -13,7 +13,9 @@ Run all targets with the repository's pinned Roc compiler:
 `font_suite.roc` contains font
 inspection, repair and subsetting; `document_suite.roc` contains JPEG inspection,
 facade output and structure, navigation, registry and theme properties. The
-standalone `profile_output.roc` exercises profile selection and atomic errors. Each
+standalone `profile_output.roc` exercises profile selection and atomic errors.
+The standalone `inter_latin.roc` exercises exact shaped widths and narrow-frame
+rejections. Each
 suite builds once, including when several selected properties share it.
 `--targets` still selects individual properties. The harness verifies the
 executable's inventory and invokes each property with its own `--target`,

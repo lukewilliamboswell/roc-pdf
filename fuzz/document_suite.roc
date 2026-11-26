@@ -26,6 +26,7 @@ import DocumentBuilderModel
 import FixedPageOrderModel
 import GroupingContainmentModel
 import HeadingFamilyModel
+import InterLatinModel
 import LinkRegionModel
 import OutlineModel
 import PageBreakModel

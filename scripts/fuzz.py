@@ -109,6 +109,7 @@ TARGETS = (
     Target("registry_property", 4096, "document_suite"),
     Target("theme_options", 4096, "document_suite"),
     Target("profile_output", 32, "profile_output"),
+    Target("inter_latin", 32, "inter_latin"),
 )
 
 

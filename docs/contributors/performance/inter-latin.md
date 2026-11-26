@@ -34,6 +34,14 @@ both draw glyph 1805. Disabling `calt` leaves the first spelling as glyphs
 source scalars. This also works when a wrapped literal-arrow line follows
 the ligature's line.
 
+The bounded adapter model exhausts 85 histories of at most three authored
+pieces, including a ligature after an earlier multibyte occurrence and an
+unsafe legal cut. Solve verifies that the production span length can be
+subtracted without underflow and added back at ordered endpoints. The
+structured fuzz target tests shaped widths at and around exact fit for four
+cluster patterns and requires atomic rejection below minimum. The native
+Linux smoke matched its four seed baselines and exercised 64 generated inputs.
+
 The independent PDF checker recovers actual glyph positions, source text,
 original paragraph ownership and colour. Its two mutation twins preserve PDF
 structure while dropping a contributor from `ActualText` or one kerning

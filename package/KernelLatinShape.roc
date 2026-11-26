@@ -29,6 +29,9 @@ KernelLatinShape :: [].{
 		range : KernelUnicode.UnicodeRange,
 	}
 
+	## Endpoints have already been validated in the running source walk.
+	span_length = |start, end| end.minus_wrap(start)
+
 	eligible_face : KernelFont.Inspection -> Bool
 	eligible_face = |inspection| inspection.digest == inter_regular_sha256
 

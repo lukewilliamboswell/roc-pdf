@@ -1731,8 +1731,8 @@ inter_entry = |shaped, size, units_per_em, index| {
 			glyphs: Semantics.IndexRange.from_start_and_length({ start: index, length: 1 }),
 			kind: shaped.kind,
 			source: {
-				scalars: Semantics.IndexRange.from_start_and_length({ start: shaped.range.scalar_start, length: shaped.range.scalar_end - shaped.range.scalar_start }),
-				utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: shaped.range.byte_start, length: shaped.range.byte_end - shaped.range.byte_start }),
+				scalars: Semantics.IndexRange.from_start_and_length({ start: shaped.range.scalar_start, length: KernelLatinShape.span_length(shaped.range.scalar_start, shaped.range.scalar_end) }),
+				utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: shaped.range.byte_start, length: KernelLatinShape.span_length(shaped.range.byte_start, shaped.range.byte_end) }),
 			},
 		},
 	})
