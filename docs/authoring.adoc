@@ -1,8 +1,9 @@
 [#authoring-authoring-with-roc-pdf]
 = Authoring with roc-pdf
 
-Use `Pdf` to create documents with automatic pagination, searchable text,
-and semantic structure.
+Use `Pdf` to create documents with searchable text and semantic structure.
+Use automatic pagination for flowing content or set your own frames on
+xref:authoring.adoc#authoring-fixed-pages[fixed pages].
 
 [source,roc]
 ----
@@ -733,8 +734,63 @@ negative `below` overlaps the next block's first lines (by at most the
 drawing's height), and `layer: Behind` paints the drawing before the page's
 text, such as a band behind a heading. Drawings are
 validated at their authored path (`document.figure_drawing`,
-`layout.decoration_drawing`). Fixed-page composition is unavailable through
-`Pdf.prepare`: requests report `layout.custom` and emit no bytes or chunks.
+`layout.decoration_drawing`).
+
+[#authoring-fixed-pages]
+== Position text on fixed pages
+
+Use `Pdf.fixed_page` when you already know each page size and where its
+text belongs. Add placements in reading order, then finish the page.
+`Pdf.fixed_document` takes the finished pages in document order.
+
+[source,roc]
+----
+blue = Color.srgb8({ red: 220, green: 235, blue: 248 })
+band = Scene.Drawing.empty.rectangle({
+    bounds: Layout.rect({ x: 18, y: 100, width: 264, height: 56 }),
+    color: blue,
+})
+page = Pdf.fixed_page({ width: 300, height: 184 })
+    .background(band)
+    .place({ block: Pdf.title("Payment advice"), frame: Layout.rect({ x: 28, y: 105, width: 244, height: 46 }) })
+    .place({ block: Pdf.paragraph("Amount due: $130.00"), frame: Layout.rect({ x: 28, y: 58, width: 244, height: 26 }) })
+    .finish()
+doc = Pdf.fixed_document({ title: "Payment advice", language: "en-AU", pages: [page] })
+bytes = Pdf.to_bytes(doc)?
+----
+
+By default, text paints in the same order as `place` calls. To control
+layering, call `.with_paint_order([1, 0])` before `.finish()` for a page
+with two placements. The list gives the zero-based placement indices in
+paint order, each exactly once. The `place` order still controls reading
+order. `background(drawing)` paints before all text.
+`overlay({ kind: Decoration, drawing })` paints after all text. Both take
+solid-filled rectangles, which are emitted as artifacts.
+
+Each page needs at least one placement and may have its own width and height
+in whole points from 3 to 14,400. A frame has its origin at its lower-left
+corner, measured from the lower-left corner of the page. Frame and artwork
+rectangles need positive sides and must fit entirely on the page. Text wraps
+to the frame's width and starts at the top. The fit check uses each shaped
+line's advance and the theme's line spacing. Allow room for glyphs that
+extend past those metrics. Each placement must fit within its own frame.
+
+Supported blocks are `Pdf.title`, `Pdf.heading`, `Pdf.paragraph`, and
+`Pdf.rich_paragraph`. Rich paragraphs accept styling, language spans,
+expansions, and explicit line breaks. Use a flowing document for links,
+generated fields, figures, tables, outlines, page labels, or templates.
+Page sizes and frames on fixed pages come from the page builder. The output
+profile, font, theme styles and compression still come from `Pdf.Options`.
+
+Use `Pdf.prepare_with_report` to review placements by authored path, such as
+`pages[0].placements[1]`. Invalid frames and paint permutations identify
+`layout.fixed.frame` and `layout.fixed.paint_order` respectively. A text
+placement that cannot fit reports `layout.fixed.text_width` or
+`layout.fixed.text_height`. Invalid fixed documents produce an error before
+buffered or chunked output starts.
+
+See the runnable xref:gallery.adoc#remittance-advice[remittance advice] for
+a finished form with styled text and artwork on both sides of the text layer.
 
 [#authoring-callouts]
 == Callouts
@@ -853,7 +909,8 @@ report over its budget returns `report.budget_exceeded`.
 | chapter scopes (`Pdf.page_scope`), opening/continuation templates and running labels | supported
 | a caller-registered face per inline role (style faces) | supported
 | furniture text under an ordered font policy | supported
-| fixed pages, columns, floats, footnotes, row spans, complex tables | unavailable; requests return a feature diagnostic
+| fixed pages with text frames and rectangle artifacts | supported; xref:authoring.adoc#authoring-fixed-pages[fixed-page guide]
+| columns, floats, footnotes, row spans, complex tables | unavailable; requests return a feature diagnostic
 | `AccessibleArchive`, `Archive`, and `Standard` | xref:authoring.adoc#authoring-output-profiles[choose an output profile]
 |===
 
