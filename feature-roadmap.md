@@ -3,7 +3,7 @@
 ## Purpose
 
 This roadmap delivers the business-document product defined in
-[architecture.md](architecture.md): reports, invoices, and business letters
+[architecture](docs/architecture.adoc): reports, invoices, and business letters
 authored through public APIs with combined PDF/A-4 and PDF/UA-2 declarations.
 It is capability-gated rather than schedule-based. Gates state observable
 completion criteria and dependency order; they do not prescribe task ownership

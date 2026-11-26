@@ -162,7 +162,7 @@ inside it. Each piece is an exact cluster range of its source's run.
 
 `Text.Run.occurrence` becomes `Text.Run.unicode : Text.RunUnicode`
 (`OccurrenceText` or `ArtifactText`). This is the architecture's second
-text source (`architecture.md`, "Text and font boundary"): an artifact run
+text source ([Text and font boundary](../../architecture.adoc#text-and-font-boundary)): an artifact run
 names an artifact text source, belongs to no structure element, carries no
 text property, and may be painted only by a page-artifact group.
 

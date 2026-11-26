@@ -1,6 +1,6 @@
 # Engineering evidence
 
-Use the [architecture](../../../architecture.md) for the compiler-stage
+Use the [architecture](../../architecture.adoc) for the compiler-stage
 contracts and the [testing chapter](../../testing.adoc) for choosing
 and running checks. These records explain the bounds, ownership and
 fixture design behind individual subsystems.

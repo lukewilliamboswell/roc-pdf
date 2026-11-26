@@ -1,7 +1,7 @@
 # text-layout authored chunked facade output
 
 This closes the byte-identical buffered/chunked public contract of
-`architecture.md` ("Pure output and chunked delivery", `architecture.md:1215`)
+[Pure output and chunked delivery](../../architecture.adoc#pure-output-and-chunked-delivery)
 for authored Standard documents. `Pdf.to_chunks_with` now builds the same
 standard plan as `Pdf.to_bytes_with` — including validation, the blank
 fallback, and profile rejection — and starts the shared `KernelEmit` encoder

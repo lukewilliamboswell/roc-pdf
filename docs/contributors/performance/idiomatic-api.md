@@ -66,7 +66,7 @@ A default is a documented construction value, never a fallback.
 Constructors only copy their fields. Preparation validates every field, as
 before, and rejects an invalid supplied value with a located diagnostic; the
 default never replaces it. Changing a `??` default is a reviewed
-package-version change. architecture.md records these rules.
+package-version change. The [architecture](../../architecture.adoc#high-level-api-is-the-primary-product) records these rules.
 
 ### Literal points
 
@@ -242,7 +242,7 @@ They are within the ceiling and left for a reviewed rebaseline.
     `{ ..Pdf.Options.default, chunk_retention: retention }`, with a TODO
     citing the issue.
 - A partial nested literal takes the inner type's defaults and does not
-  merge with a base. This is intended behaviour. authoring.md documents the
+  merge with a base. This is intended behaviour. The [authoring guide](../../authoring.adoc#authoring-themes-and-options) documents the
   spread pattern. A Theme expect checks that every nested field default
   equals its type's `X.{}` and that a partial literal resets the omitted
   fields.

@@ -72,7 +72,7 @@ the resource-planning foundation in
   marked-content sequence *in the page stream*, and the whole form invocation
   is inside it. Each placement gets its own MCID and its own structure parent,
   so reusable visual identity stays independent of semantic ownership — the
-  exact split `architecture.md` ("Resources and annotations") requires.
+  exact split [Resources and annotations](../../architecture.adoc#resources-and-annotations) requires.
 - Deduplication merges only the ownership-neutral physical stream. Semantic
   wrappers, MCIDs, fragment ownership, and artifact classifications live in
   page streams and in the placement records, so deduplication cannot merge

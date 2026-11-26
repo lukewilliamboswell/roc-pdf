@@ -9,6 +9,7 @@ __pycache__/
 *.rm
 *.roc-format-failed*
 
+.docs-out/
 generated-docs/
 dist/
 .roc-pdf-tmp/

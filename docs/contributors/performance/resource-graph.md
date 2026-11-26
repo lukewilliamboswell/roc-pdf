@@ -35,7 +35,7 @@ and the retained `canonical_index` map described under Ownership.
 store, and `KernelResourceUse` counts tagged-visual colour and image use inside one
 scene. Neither carries dependency edges, payload identity, descriptor facts, or
 placement ownership, so neither can express the production-visual contract. They are left
-untouched; production-visual owns a separate boundary. This matches `architecture.md`
+untouched; production-visual owns a separate boundary. This matches [the architecture](../../architecture.adoc)
 ("Resources and annotations") without changing any enduring decision, so no
 architecture or roadmap edit was required.
 

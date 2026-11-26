@@ -9,7 +9,7 @@ and needs no registry setup.
 Family/style selection is explicit; nested strong/emphasis selects Bold Italic
 in either order. Command-K uses exact U+2318 text in sans/mono roles. A serif
 occurrence containing that character would reject, as would requested mono
-italic. The [font guide](../../docs/roc-font.md) explains these limits and
+italic. The [font guide](../../docs/roc-font.adoc) explains these limits and
 caller font mappings. The package retains each original font, licence and
 provenance pin, and `RocFont.licenses` exposes the three family notices for
 applications distributing font assets.

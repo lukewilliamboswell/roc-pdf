@@ -5,7 +5,7 @@
   Put contributor workflows in their own manual chapters and supporting
   implementation contracts under `docs/contributors/`.
   Keep current capability requirements in `feature-roadmap.md` and enduring
-  decisions in `architecture.md`. Preserve executable baselines, provenance,
+  decisions in `docs/architecture.adoc`. Preserve executable baselines, provenance,
   licenses and fixture checks. Keep completed integration records in Git.
 - Keep generated run reports, before/after dumps, review screenshots, and one-off
   review JSON/XML in ignored `.roc-pdf-tmp/` directories or CI artifacts.
@@ -20,9 +20,9 @@
   or upcoming version labels and install pins; link release notes for exact
   package/compiler pins and release-specific migration. Derive publication
   version labels from build metadata.
-- Read `architecture.md` and `feature-roadmap.md` before making changes in this
+- Read `docs/architecture.adoc` and `feature-roadmap.md` before making changes in this
   repository.
-- Treat `architecture.md` as the enduring source of truth for package scope,
+- Treat `docs/architecture.adoc` as the enduring source of truth for package scope,
   public boundaries, compiler stages, typed invariants, ownership, storage,
   accessibility, conformance, deterministic emission, and performance design.
 - Treat `feature-roadmap.md` as the capability and evidence boundary. Implement
@@ -83,4 +83,8 @@ Documentation serves current users and contributors. Every paragraph must help a
 current task; delete obsolete or duplicated material. Keep implementation history
 in Git, unfinished work in issues, and release changes in release records. Preserve
 required public anchors without explaining their history. Follow the
-[shared documentation guidance](https://lukewilliamboswell.github.io/roc-automation/documentation.html#keep-documentation-current).
+[shared documentation guidance](https://lukewilliamboswell.github.io/roc-automation/documentation.html).
+Author each rendered manual chapter once as a top-level `docs/*.adoc` file
+included by `docs/index.adoc`. The pinned shared `roc-docs` renderer builds
+HTML, PDF and static Markdown from those same sources. Keep generated formats
+in ignored build output and give durable published links explicit anchors.

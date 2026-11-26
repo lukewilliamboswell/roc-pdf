@@ -4,7 +4,7 @@ Start with the [contributing chapter](../contributing.adoc) for setup and
 the [testing chapter](../testing.adoc) to design checks and review changes.
 These references document the repository's fixtures, tools and stage contracts.
 
-- [Architecture](../../architecture.md): enduring package and compiler-stage contracts.
+- [Architecture](../architecture.adoc): enduring package and compiler-stage contracts.
 - [Feature roadmap](../../feature-roadmap.md): capability boundaries and acceptance requirements.
 - [Implementation contracts](implementation-contracts.md): binding representation and harness details.
 - [Testing](testing.md) covers correctness oracles, focused tests, snapshot review, exact allocation and work baselines, and optional local tools.

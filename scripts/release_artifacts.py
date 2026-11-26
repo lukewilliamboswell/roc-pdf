@@ -103,9 +103,9 @@ def self_test() -> None:
     with tempfile.TemporaryDirectory() as directory:
         bundle = Path(directory) / "hash.tar.zst"
         bundle.write_bytes(b"bundle")
-        notes = render_notes("{package-url}\n{bundle-sha256}\n[Guide](../authoring.md)", "0.3.0", bundle, "a" * 40)
+        notes = render_notes("{package-url}\n{bundle-sha256}\n[Guide](../authoring.adoc)", "0.3.0", bundle, "a" * 40)
         assert "/0.3.0/hash.tar.zst" in notes and digest(bundle) in notes
-        assert "/blob/" + "a" * 40 + "/docs/authoring.md" in notes
+        assert "/blob/" + "a" * 40 + "/docs/authoring.adoc" in notes
         for source in ("missing placeholders", "{package-url} {bundle-sha256} TODO(release)"):
             try:
                 render_notes(source, "0.3.0", bundle, "a" * 40)

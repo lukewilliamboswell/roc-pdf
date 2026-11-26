@@ -57,6 +57,7 @@ jobs:
           entrypoint: index.adoc
           output-directory: .roc-pdf-tmp/manual-build
           pdf-filename: roc-pdf.pdf
+          markdown: "true"
           docs-version: ${{ inputs.docs_version }}
           site-url: https://lukewilliamboswell.github.io/roc-pdf/manual/
       - name: Generate separate API, audit private types and verify manual

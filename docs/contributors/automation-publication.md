@@ -1,8 +1,8 @@
 # Automation and documentation publication
 
 Use this guide when changing a workflow or preparing documentation for release.
-The product's conformance and resource contracts remain in `architecture.md`,
-`feature-roadmap.md` and the executable test inputs.
+The product's conformance and resource contracts remain in [the architecture](../architecture.adoc),
+[the capability roadmap](../../feature-roadmap.md) and the executable test inputs.
 
 ## Tools and identities
 
@@ -21,17 +21,18 @@ validators and readers, see the [testing guide](testing.md#optional-local-pdf-re
 Canonical user chapters are top-level `docs/*.adoc`, assembled by
 `docs/index.adoc`. `scripts/prepare_manual.py` stages authored bytes, exact local
 PNGs, source-revision links, release bindings and an input-digest inventory.
-The released renderer produces HTML, Markdown and PDF; it does not convert
-hand-maintained Markdown guides into AsciiDoc.
+The pinned shared `roc-docs` renderer produces HTML, static Markdown and PDF
+together. Include new chapters from `docs/index.adoc` and use named anchors for
+durable cross-references.
 
 ```sh
 blueprint run docs
 ```
 
 The manual publishes under `/manual/`; compiler-generated API routes stay at
-the site root. Existing Markdown guide paths link to the maintained chapters.
-A versioned build requires its actual bundle and authored release notes so the
-manual names the tested dependency and compiler.
+the site root. Each HTML chapter links to its generated Markdown, and the
+renderer indexes those files in `llms.txt`. A versioned build uses the actual
+bundle and authored notes to identify the tested dependency and compiler.
 
 `check_manual.py` verifies source-block bytes, table associations, local links,
 anchors and source/asset digests in HTML and Markdown. Project-owned PDF

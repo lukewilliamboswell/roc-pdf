@@ -96,8 +96,8 @@ artifact-consuming publication job; it never publishes from a branch build
 that tested different bytes. See [publishing](releases/publishing.md).
 
 The native manual is authored in top-level `docs/*.adoc` chapters. Its staging
-step binds source/release metadata and copies exact local assets; source format
-conversion is not part of the documentation build. See the
+step binds source and release metadata and copies exact local assets. The
+shared renderer generates HTML, Markdown and PDF from the staged chapters. See the
 [documentation publication guide](automation-publication.md) for source boundaries and
 independent HTML/Markdown/PDF checks.
 

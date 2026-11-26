@@ -33,7 +33,7 @@ if [[ "$manual_built" == false ]]; then
     if [[ -n "${bundle_dir:-}" ]]; then rm -rf "$bundle_dir"; fi
     "$renderer" build --workspace "$root_dir" --docs-directory .roc-pdf-tmp/manual-source \
         --entrypoint index.adoc --output-directory .roc-pdf-tmp/manual-build \
-        --pdf-filename roc-pdf.pdf --docs-version "$version" \
+        --pdf-filename roc-pdf.pdf --docs-version "$version" --markdown true \
         --site-url https://lukewilliamboswell.github.io/roc-pdf/manual/
 fi
 mkdir -p "$output_dir"
