@@ -3,8 +3,8 @@
 The [remittance example](../../../examples/remittance-advice/main.roc) places
 invoice references and payment amounts on two pre-printed sheet sizes. The
 amount paints early on each page and remains last in that page's reading
-order. The fixed builder accepts a title, numbered heading, paragraph or rich
-paragraph per placement, with background and overlay rectangles authored
+order. The fixed builder accepts a title, numbered heading, paragraph, rich
+paragraph or exact-size figure per placement, with background and overlay rectangles authored
 separately. Each placement is confined to one page. Frame fit uses nominal
 line boxes and shaped advances.
 
@@ -63,3 +63,48 @@ arena back to `pages[i].placements[j]`.
 | Two sheets | 18,984 | 1,080 | 3,434,525 |
 | Twenty sheets | 31,418 | 2,516 | 10,766,942 |
 | Two sheets with WTPDF accessibility | 19,251 | 1,081 | 3,436,321 |
+
+
+## Captioned figures
+
+The [designed brief](../../../examples/designed-brief/Brief.roc) places the
+same launch brief on Letter and A4 sheets. The title, key figures, and
+captioned figure are authored in reading order. The paint permutation
+places the figure first. The figure, caption, and text stay semantic.
+The background and accent rectangles are explicit artifacts.
+
+Normalization records a contiguous leaf span for each authored placement
+when a caption adds a leaf. Finite paint permutations expand those
+spans. The fit stage consumes the drawing's exact bounds, checks the
+caption's measured height from the same frame, and commits the drawing
+and caption positions for scene lowering. The caption stays next to its
+figure under a section, with a separate caption role. The preparation
+report preserves the authored placement paths and figure alternatives
+and requires author review of reading order and alternative text.
+
+The PDF writer uses ISO 32000-2:2020 with approved corrections
+§7.7.3.3 and Table 31 for page boxes, §§14.7.2 and 14.7.5 and Tables
+354–355 and 357–359 for structure and content ownership, and §§14.8.2.2
+and 14.8.2.5 for artifacts and authored logical order. Caption
+containment follows ISO/TS 32005:2023 Table 5. WTPDF §§8.2.3 and
+8.3 apply to the independent logical order and artifact paint;
+PDF/UA-2 requires review of the figure alternative and reading order.
+
+The independent designed-brief checker verifies exact drawing, glyph
+and page geometry, caption ownership and both orders. Reordering the
+structure entries to match the physical paint leaves the generic
+ownership checks valid and fails the authored-order oracle.
+
+| Figure fixture | PDF bytes | Roc allocations | Requested bytes |
+| --- | ---: | ---: | ---: |
+| Two sheets | 21,098 | 1,447 | 3,785,035 |
+| Twenty sheets | 44,123 | 5,727 | 13,544,768 |
+| Atomic authoring rejections | 21,098 | 3,633 | 7,973,907 |
+
+The Letter gallery file and both scale fixtures pass Arlington 1.30.2
+and the veraPDF 1.30.2 `4`, `ua2` and `wt1a` profiles. The fixed
+placement model checks both text-only and captioned-figure placements
+on each completed paint-order history. The fixture suite also replays
+an exact drawing-and-caption fit, a one-point drawing in a flush frame,
+and seven located rejections through both buffered and chunked entry
+points.

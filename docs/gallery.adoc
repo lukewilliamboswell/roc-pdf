@@ -84,6 +84,17 @@ image::images/vector-diagrams.png[Prepared vector diagram preview]
 https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/vector-diagrams/main.roc[Runnable vector-diagram source] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/vector-diagrams/vector-diagrams.pdf[PDF output]
 
 
+[#designed-brief]
+== Designed product brief
+
+This US Letter opener gives the Sprout launch title, key figures, and a
+captioned board illustration their own fixed frames. The order of the
+`place` calls sets the reading order. `with_paint_order([2, 0, 1])`
+paints the figure and its caption first, then the title and card.
+The background and accents are artifacts.
+
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/designed-brief/Brief.roc[Authored frames and order] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/designed-brief/main.roc[Runnable source] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/designed-brief/designed-brief.pdf[PDF] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/designed-brief/preview.png[Preview]
+
 [#remittance-advice]
 == Remittance advice
 

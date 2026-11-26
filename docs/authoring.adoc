@@ -1017,10 +1017,10 @@ See the xref:gallery.adoc#pilot-findings[runnable pilot article] for text
 that continues through both columns and onto a second page.
 
 [#authoring-fixed-pages]
-== Position text on fixed pages
+== Place content on fixed pages
 
 Use `Pdf.fixed_page` when you already know each page size and where its
-text belongs. Add placements in reading order, then finish the page.
+content belongs. Add placements in reading order, then finish the page.
 `Pdf.fixed_document` takes the finished pages in document order.
 
 [source,roc]
@@ -1039,12 +1039,12 @@ doc = Pdf.fixed_document({ title: "Payment advice", language: "en-AU", pages: [p
 bytes = Pdf.to_bytes(doc)?
 ----
 
-By default, text paints in the same order as `place` calls. To control
+By default, content paints in the same order as `place` calls. To control
 layering, call `.with_paint_order([1, 0])` before `.finish()` for a page
 with two placements. The list gives the zero-based placement indices in
 paint order, each exactly once. The `place` order still controls reading
-order. `background(drawing)` paints before all text.
-`overlay({ kind: Decoration, drawing })` paints after all text. Both take
+order. `background(drawing)` paints before the placements.
+`overlay({ kind: Decoration, drawing })` paints after the placements. Both take
 solid-filled rectangles, which are emitted as artifacts.
 
 Each page needs at least one placement and may have its own width and height
@@ -1054,12 +1054,21 @@ rectangles need positive sides and must fit entirely on the page. Text wraps
 to the frame's width and starts at the top. The fit check uses each shaped
 line's advance and the theme's line spacing. Set the leading at least as
 large as the text size. Allow room for glyphs that extend past those metrics.
-Each placement must fit within its own frame.
+Each placement must fit within its own frame. Frames may overlap when
+their paint order gives the intended appearance.
 
-Supported blocks are `Pdf.title`, `Pdf.heading`, `Pdf.paragraph`, and
-`Pdf.rich_paragraph`. Rich paragraphs accept styling, language spans,
-expansions, and explicit line breaks. Use a flowing document for links,
-generated fields, figures, tables, outlines, page labels, or templates.
+Supported blocks are `Pdf.title`, `Pdf.heading`, `Pdf.paragraph`,
+`Pdf.rich_paragraph`, and `Pdf.figure` with an exact-size drawing. Rich
+paragraphs accept styling, language spans, expansions, and explicit line
+breaks. A figure accepts supported vector paths and images and needs
+alternative text. Its drawing starts at the frame's upper-left edge.
+A visible caption wraps to the frame width beneath the drawing and the
+theme's paragraph gap. The two share one paint-order slot. Oversize
+drawings and captions report `layout.fixed.figure_frame`. A caption's
+authored path ends with `.caption`.
+
+Use a flowing document for drawing labels, `ScaleToFit`, links,
+generated fields, tables, outlines, page labels, or templates.
 Page sizes and frames on fixed pages come from the page builder. The output
 profile, font, theme styles and compression still come from `Pdf.Options`.
 
@@ -1071,8 +1080,10 @@ placement that cannot fit reports `layout.fixed.text_width` or
 1,000,000 artwork rectangles returns `layout.fixed.budget`. Invalid fixed
 documents produce an error before buffered or chunked output starts.
 
-See the runnable xref:gallery.adoc#remittance-advice[remittance advice] for
-a finished form with styled text and artwork on both sides of the text layer.
+The runnable xref:gallery.adoc#designed-brief[designed brief] places a
+captioned figure, title and key-figures card in prescribed frames.
+The xref:gallery.adoc#remittance-advice[remittance advice] uses two sheet
+sizes and artwork on both sides of the text layer.
 
 [#authoring-callouts]
 == Callouts
@@ -1213,7 +1224,7 @@ PDF. It includes a tighter report budget and an exhausted-budget example.
 | a caller-registered face per inline role (style faces) | supported
 | furniture text under an ordered font policy | supported
 | sequential flow of plain paragraphs through two columns | xref:authoring.adoc#authoring-column-flow[two-column guide]
-| fixed pages with text frames and rectangle artifacts | supported; xref:authoring.adoc#authoring-fixed-pages[fixed-page guide]
+| fixed pages with text, exact-size captioned figures, and rectangle artifacts | supported; xref:authoring.adoc#authoring-fixed-pages[fixed-page guide]
 | floats and footnotes | unavailable
 | output profiles | xref:authoring.adoc#authoring-output-profiles[choose declarations]
 | labelled, fillable fields | xref:authoring.adoc#authoring-fillable-fields[place fields on a fixed page]

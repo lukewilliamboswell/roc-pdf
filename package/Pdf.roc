@@ -1049,7 +1049,8 @@ Pdf :: [].{
 			Flow => {}
 			Fixed(fixed) => {
 				{ facts, normalized, plan } = build_fixed_plan(doc, fixed, options, Collect)?
-				report = build_report_at(normalized, facts, budget, options.profile, FixedReportPaths(Document.NormalizedFixed.view(fixed).pages), Document.associated_files(doc).len())?
+				view = Document.NormalizedFixed.view(fixed)
+				report = build_report_at(normalized, facts, budget, options.profile, FixedReportPaths({ pages: view.pages, placement_blocks: view.placement_blocks }), Document.associated_files(doc).len())?
 				return Ok({ prepared: Prepared.(plan), report })
 			}
 		}
@@ -1134,7 +1135,9 @@ fixed_authoring_error = |error| match error {
 		}
 		fixed_error(FeatureUnavailable, "layout.fixed.document_option", "This document option is unavailable for fixed pages.", path)
 	}
-	UnsupportedPlacement({ page, placement }) => fixed_error(FeatureUnavailable, "layout.fixed.block", "A fixed placement accepts a title, numbered heading, paragraph or rich paragraph.", fixed_placement_path(page, placement))
+	UnsupportedPlacement({ page, placement }) => fixed_error(FeatureUnavailable, "layout.fixed.block", "A fixed placement accepts a title, numbered heading, paragraph, rich paragraph or exact-size figure.", fixed_placement_path(page, placement))
+	UnsupportedFigureFit({ page, placement }) => fixed_error(FeatureUnavailable, "layout.fixed.figure_fit", "A fixed figure uses its declared drawing size.", fixed_placement_path(page, placement))
+	UnsupportedFigureLabels({ page, placement }) => fixed_error(FeatureUnavailable, "layout.fixed.figure_labels", "A fixed figure supports vector paths and images. Place its text as a caption or a separate semantic block.", fixed_placement_path(page, placement))
 	UnsupportedInline({ page, placement }) => fixed_error(FeatureUnavailable, "layout.fixed.inline", "Links and generated fields are unavailable in fixed placements.", fixed_placement_path(page, placement))
 	InvalidWidgetLabel({ kind, location }) => fixed_error(InvalidRelationship, widget_feature(kind, "label"), "Use the authored field label as the visible label.", "${widget_path(location)}.label")
 	InvalidCheckboxFrame({ page, placement }) => fixed_error(LayoutConstraintViolated, "form.checkbox.frame", "Leave 266 points across and 24 points high for the checkbox and its visible label on the page.", fixed_placement_path(page, placement))
@@ -1158,6 +1161,7 @@ fixed_pipeline_error = |error, doc, paths, planned| match error {
 	}
 	Placement(LineTooWide({ page, placement, actual, maximum })) => fixed_error(LayoutConstraintViolated, "layout.fixed.text_width", "A line needs ${signed_points_text(actual.raw())} of width but the frame has ${signed_points_text(maximum.raw())}.", fixed_placement_path(page, placement))
 	Placement(LineBoxesTooTall({ page, placement, actual, maximum })) => fixed_error(LayoutConstraintViolated, "layout.fixed.text_height", "The line boxes need ${points_text(actual)} of height but the frame has ${points_text(maximum)}.", fixed_placement_path(page, placement))
+	Placement(FigureTooLarge({ page, placement, height, width, frame_height, frame_width })) => fixed_error(LayoutConstraintViolated, "layout.fixed.figure_frame", "The figure with its caption needs ${points_text(width)} by ${points_text(height)} in a ${points_text(frame_width)} by ${points_text(frame_height)} frame.", fixed_placement_path(page, placement))
 	Placement(InvalidTextStyle({ page, placement })) => fixed_error(LayoutConstraintViolated, "layout.fixed.text_style", "Use a positive text size and set leading at least as large as the text size for this placement.", fixed_placement_path(page, placement))
 	Placement(PieceLimit({ attempted, limit })) => fixed_error(BudgetExceeded, "layout.fixed.budget", "Fixed text needs ${attempted.to_str()} positioned pieces, but the limit is ${limit.to_str()}.", "pages")
 	Placement(InvalidPlan) => fixed_error(InternalInvariant, "pipeline.fixed.placement", "The fixed layout stage received inconsistent accepted facts.", "pages")
@@ -1183,7 +1187,7 @@ build_fixed_plan = |doc, fixed, options, request| {
 	}
 	validate_theme(options.theme)?
 	authoring = view.authoring
-	path_scope = FixedPaths({ authoring, pages: view.pages })
+	path_scope = FixedPaths({ authoring, pages: view.pages, placement_blocks: view.placement_blocks })
 	validated = KernelMetadata.validate(
 		{ created: Document.created(doc), language: authoring.language, modified: Document.modified(doc), title: authoring.metadata_title },
 		standard_metadata_limits,
@@ -2012,7 +2016,7 @@ pipeline_error_at = |error, doc, paths| match error {
 		"The document needs ${attempted.to_str()} ${dimension_name(dimension)} but the facade accepts at most ${limit.to_str()}.",
 		match paths {
 			FlowPaths => if (block < Document.normalize(doc).blocks.len()) [member_path(doc, Document.normalize(doc), block)] else []
-			FixedPaths(fixed) => if (block < fixed.authoring.blocks.len()) [fixed_block_path(fixed.pages, block)] else []
+			FixedPaths(fixed) => if (block < fixed.authoring.blocks.len()) [fixed_block_path(fixed.pages, fixed.placement_blocks, block)] else []
 			ColumnPaths(authoring) => if (block < authoring.blocks.len()) [column_block_path(block)] else []
 		},
 	)
@@ -2682,7 +2686,7 @@ located_batch = |diagnostic, feature, message, paths| {
 
 ## Fixed normalization preserves page-local addresses separately from
 ## the logical, page-major semantic block arena.
-DiagnosticPaths : [ColumnPaths(Document.NormalizedAuthoring), FlowPaths, FixedPaths({ authoring : Document.NormalizedAuthoring, pages : List(Document.FixedPagePlan) })]
+DiagnosticPaths : [ColumnPaths(Document.NormalizedAuthoring), FlowPaths, FixedPaths({ authoring : Document.NormalizedAuthoring, pages : List(Document.FixedPagePlan), placement_blocks : List(Semantics.IndexRange) })]
 
 diagnostic_authoring : Document, DiagnosticPaths -> Document.NormalizedAuthoring
 diagnostic_authoring = |doc, paths| match paths {
@@ -2694,7 +2698,7 @@ diagnostic_authoring = |doc, paths| match paths {
 diagnostic_leaf_path : Document, DiagnosticPaths, U64 -> Str
 diagnostic_leaf_path = |doc, paths, block| match paths {
 	FlowPaths => leaf_path(doc, block)
-	FixedPaths(fixed) => fixed_block_path(fixed.pages, block)
+	FixedPaths(fixed) => fixed_block_path(fixed.pages, fixed.placement_blocks, block)
 	ColumnPaths(_) => column_block_path(block)
 }
 
@@ -2715,17 +2719,34 @@ fixed_page_path = |page| "pages[${page.to_str()}]"
 fixed_placement_path : U64, U64 -> Str
 fixed_placement_path = |page, placement| "${fixed_page_path(page)}.placements[${placement.to_str()}]"
 
-fixed_block_path : List(Document.FixedPagePlan), U64 -> Str
-fixed_block_path = |pages, block| {
+fixed_block_path : List(Document.FixedPagePlan), List(Semantics.IndexRange), U64 -> Str
+fixed_block_path = |pages, placement_blocks, block| {
 	var $page = 0
 	for record in pages {
 		range = record.placements
-		if block >= range.start() and block - range.start() < range.length() {
-			return fixed_placement_path($page, block - range.start())
+		if placement_blocks.is_empty() {
+			if block >= range.start() and block - range.start() < range.length() {
+				return fixed_placement_path($page, block - range.start())
+			}
+		} else {
+			var $position = 0
+			while $position < range.length() {
+				leaves = Document.NormalizedFixed.blocks_for(placement_blocks, range.start() + $position)
+				if block >= leaves.start() and block - leaves.start() < leaves.length() {
+					return fixed_leaf_path($page, $position, block > leaves.start())
+				}
+				$position = $position + 1
+			}
 		}
 		$page = $page + 1
 	}
 	crash "fixed semantic block escaped its validated page spans"
+}
+
+fixed_leaf_path : U64, U64, Bool -> Str
+fixed_leaf_path = |page, placement, caption| {
+	path = fixed_placement_path(page, placement)
+	if (caption) "${path}.caption" else path
 }
 
 fixed_artifact_path : U64, Document.FixedArtifactLayer, U64 -> Str
@@ -2895,7 +2916,7 @@ inline_error_at = |doc, paths, block, inline, diagnostic, feature, message| matc
 authoring_inline_path : Document.NormalizedAuthoring, DiagnosticPaths, U64, [AtInline(U64), NoInline] -> Str
 authoring_inline_path = |normalized, paths, block, inline| match paths {
 	FlowPaths => inline_path(normalized, block, inline)
-	FixedPaths(fixed) => inline_path_from(normalized, block, inline, FixedInlineRoot(fixed_block_path(fixed.pages, block)))
+	FixedPaths(fixed) => inline_path_from(normalized, block, inline, FixedInlineRoot(fixed_block_path(fixed.pages, fixed.placement_blocks, block)))
 	ColumnPaths(_) => column_block_path(block)
 }
 
@@ -4794,7 +4815,7 @@ report_figure_invariant = |detail| InvalidDocument(located_batch(InternalInvaria
 build_report : Document.NormalizedAuthoring, [Facts(KernelFacadeReport.Facts), NoFacts], Pdf.ReportBudget, Pdf.Profile -> Try(Pdf.Report, Pdf.Error)
 build_report = |normalized, collected, budget, profile| build_report_at(normalized, collected, budget, profile, FlowReportPaths, 0)
 
-ReportPaths : [ColumnReportPaths, FlowReportPaths, FixedReportPaths(List(Document.FixedPagePlan))]
+ReportPaths : [ColumnReportPaths, FlowReportPaths, FixedReportPaths({ pages : List(Document.FixedPagePlan), placement_blocks : List(Semantics.IndexRange) })]
 
 build_report_at : Document.NormalizedAuthoring, [Facts(KernelFacadeReport.Facts), NoFacts], Pdf.ReportBudget, Pdf.Profile, ReportPaths, U64 -> Try(Pdf.Report, Pdf.Error)
 build_report_at = |normalized, collected, budget, profile, path_source, attachment_count| {
@@ -4819,7 +4840,7 @@ build_report_at = |normalized, collected, budget, profile, path_source, attachme
 	}
 	paths = match path_source {
 		FlowReportPaths => leaf_paths(normalized)
-		FixedReportPaths(pages) => fixed_report_paths(pages, normalized.blocks.len())
+		FixedReportPaths(fixed) => fixed_report_paths(fixed.pages, fixed.placement_blocks, normalized.blocks.len())
 		ColumnReportPaths => column_report_paths(normalized.blocks.len())
 	}
 	path_at = |block| match paths.get(block) {
@@ -5146,14 +5167,18 @@ leaf_role = |normalized, record| {
 	}
 }
 
-fixed_report_paths : List(Document.FixedPagePlan), U64 -> List(Str)
-fixed_report_paths = |pages, blocks| {
+fixed_report_paths : List(Document.FixedPagePlan), List(Semantics.IndexRange), U64 -> List(Str)
+fixed_report_paths = |pages, placement_blocks, blocks| {
 	var $paths = List.with_capacity(blocks)
 	var $page = 0
 	for record in pages {
 		var $placement = 0
 		while $placement < record.placements.length() {
 			$paths = $paths.append(fixed_placement_path($page, $placement))
+			leaves = Document.NormalizedFixed.blocks_for(placement_blocks, record.placements.start() + $placement)
+			if leaves.length() == 2 {
+				$paths = $paths.append(fixed_leaf_path($page, $placement, True))
+			}
 			$placement = $placement + 1
 		}
 		$page = $page + 1

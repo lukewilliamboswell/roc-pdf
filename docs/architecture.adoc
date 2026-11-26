@@ -1068,6 +1068,15 @@ scene nodes. Raw PDF objects and operators are not extension points. A separate
 pure Roc SVG or vector package may target the scene boundary; rasterization is
 not a fallback.
 
+Fixed-page placement ordinals determine reading order. A captioned
+figure expands to a drawing anchor and a caption leaf during
+normalization. Both leaves belong to the same authored placement.
+The explicit paint permutation expands that slot to both leaves.
+Fixed fitting consumes the validated drawing extent, shapes the caption
+at the frame width and assigns both exact positions before scene
+lowering. The normalized figure uses the same alternative, caption
+containment and occurrence ownership as a flow figure.
+
 The bounded manual-authoring extensions preserve that boundary. Enclosing
 list columns and native callout padding produce explicit dense flow-frame
 facts before child width resolution. Tables, figures, source blocks and

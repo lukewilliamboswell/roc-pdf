@@ -106,9 +106,9 @@ KernelFacadeScenes :: [].{
 
 		## Fixed sheets supply their validated boxes and page-coordinate artwork.
 		## The text plan already carries physical paint order and fragment identity.
-		build_fixed : KernelFacadeFragments.Plan, FixedSheets, IntentProfile, Limits -> Try(Plan, Error)
-		build_fixed = |fragments, sheets, intent, limits| match sheets.pages.get(0) {
-			Ok(first) => build_plan(fragments, first.size, empty_authoring, ExplicitSheets(sheets), intent, limits)
+		build_fixed : KernelFacadeFragments.Plan, Document.NormalizedAuthoring, FixedSheets, IntentProfile, Limits -> Try(Plan, Error)
+		build_fixed = |fragments, authoring, sheets, intent, limits| match sheets.pages.get(0) {
+			Ok(first) => build_plan(fragments, first.size, authoring, ExplicitSheets(sheets), intent, limits)
 			Err(_) => Err(InvalidPageSize)
 		}
 

@@ -21,6 +21,7 @@ from pathlib import Path
 from check_drawing_labels import artifact_and_tagged_text
 from check_generated_handbook import check as check_generated_handbook
 from check_gallery_features import check_features
+from check_designed_brief import check_logical_twin, validate_designed_brief_pdf
 from check_table_spans import validate_quarterly, validate_regional
 
 
@@ -37,6 +38,7 @@ EXAMPLES = (
     "brand-brief",
     "business-report",
     "chunked-export",
+    "designed-brief",
     "field-guide",
     "furniture-typography",
     "font-families",
@@ -288,6 +290,9 @@ def main() -> None:
                 if name == "operations-handbook":
                     check_generated_handbook(example)
                 check_features(name, example)
+                if name == "designed-brief":
+                    validate_designed_brief_pdf(generated, {"pages": 1})
+                    check_logical_twin(generated)
                 if name == "quarterly-report":
                     validate_quarterly(generated)
                     validate_regional((example / "quarterly-report-regional.pdf").read_bytes())

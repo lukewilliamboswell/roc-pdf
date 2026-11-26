@@ -8,7 +8,7 @@ directory:
 examples/<name>/
   main.roc      the application
   <name>.pdf    the PDF it writes
-  preview.png   the first page, rendered by pdftoppm at 96 dpi
+  preview.png   a selected page, rendered by pdftoppm at 96 dpi
   fonts/        the fonts it registers, with their license texts
 ```
 
@@ -90,6 +90,7 @@ the default and variant PDFs and checks their committed bytes. Use
 | [Source blocks](source-blocks/main.roc) | Packaged face, Source Code Pro | a YAML deployment recipe with independent source typography and a padded background that continues across pages |
 | [Operations handbook](operations-handbook/main.roc) | Source Sans 3, Source Code Pro | an on-call runbook with an outline, severity and escalation tables, nested numbered procedures, a vector topology diagram, and appendices of commands and procedure drills |
 | [Business letter](warranty-letter/main.roc) | Literata | the reference business letter: a letterhead whose mark sits above a navy and brass rule as furniture, with the sender's name in Bold and address in slate as semantic blocks in the first-page lead region, a centered footer below a hairline, continuation headers with `Page N of M` inset above a hairline, an unsplittable signature block, an italic enclosure title, and an explicit break before a shaded, ruled covered-items schedule; no visible title, with the metadata title displayed |
+| [Designed product brief](designed-brief/Brief.roc) | Built-in sans | a US Letter opener with exact title, card and captioned figure frames, independent paint and reading order, and [preview](designed-brief/preview.png) |
 | [Release notes](release-notes/main.roc) | Noto Sans, Source Code Pro | release notes on US Letter: a decorative version banner spaced from the title, a night-blue highlights callout and a breaking-change callout, both measured by the package, versioned sections in the outline, change lists with inline code and underlined issue links, a labelled latency chart, a striped compatibility table with strong new versions and a table of changed flags, both leaving a release's missing entry as an empty cell, and running furniture |
 | [Business report](business-report/main.roc) | Source Sans 3, Source Code Pro | the reference business report: a navy cover band with the reversed mark, outline and link destinations for numbered sections, rich inline content with expansions, code, and a French quotation, nested lists, a "Key figures" callout with Bold labels through the custom-block seam (measured by the extension), a captioned bar chart whose axis values, bar values, region names, and legend are real drawing labels, a captioned JPEG photograph, a revenue table with a shaded total, and a striped 40-row register that continues with its header repeated |
 | [Invoice with associated data](invoice-with-data/README.md) | Inter | document-level XML embedding under explicit PDF/A-4f and combined PDF/UA-2 profiles |

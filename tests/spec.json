@@ -32277,6 +32277,171 @@
       ]
     },
     {
+      "name": "fixed designed brief x2",
+      "scenario_revision": "fixed-designed-brief-v1",
+      "family": "fixed_pages",
+      "snapshot": "tests/fixed_pages/designed_2.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "wtpdf_accessibility": 1
+      },
+      "work_counters": [
+        "pages",
+        "authored_placements",
+        "reported_leaves",
+        "owned_fragments",
+        "exact_figure_placements",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1447,
+          "allocated_bytes": 3785035,
+          "work": {
+            "pages": 2,
+            "authored_placements": 6,
+            "reported_leaves": 8,
+            "owned_fragments": 14,
+            "exact_figure_placements": 2,
+            "output_bytes": 21098
+          }
+        },
+        "x64musl": {
+          "allocations": 1447,
+          "allocated_bytes": 3785035,
+          "work": {
+            "pages": 2,
+            "authored_placements": 6,
+            "reported_leaves": 8,
+            "owned_fragments": 14,
+            "exact_figure_placements": 2,
+            "output_bytes": 21098
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "wtpdf_accessibility",
+        "structure_semantics",
+        "designed_brief"
+      ]
+    },
+    {
+      "name": "fixed designed brief x20",
+      "scenario_revision": "fixed-designed-brief-v1",
+      "family": "fixed_pages",
+      "snapshot": "tests/fixed_pages/designed_20.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 20,
+        "wtpdf_accessibility": 1
+      },
+      "work_counters": [
+        "pages",
+        "authored_placements",
+        "reported_leaves",
+        "owned_fragments",
+        "exact_figure_placements",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 5727,
+          "allocated_bytes": 13544768,
+          "work": {
+            "pages": 20,
+            "authored_placements": 60,
+            "reported_leaves": 80,
+            "owned_fragments": 140,
+            "exact_figure_placements": 20,
+            "output_bytes": 44123
+          }
+        },
+        "x64musl": {
+          "allocations": 5727,
+          "allocated_bytes": 13544768,
+          "work": {
+            "pages": 20,
+            "authored_placements": 60,
+            "reported_leaves": 80,
+            "owned_fragments": 140,
+            "exact_figure_placements": 20,
+            "output_bytes": 44123
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "wtpdf_accessibility",
+        "structure_semantics",
+        "designed_brief"
+      ]
+    },
+    {
+      "name": "fixed designed brief authoring rejections",
+      "scenario_revision": "fixed-designed-brief-v1",
+      "family": "fixed_pages",
+      "snapshot": "tests/fixed_pages/designed_2.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "wtpdf_accessibility": 1
+      },
+      "work_counters": [
+        "pages",
+        "authored_placements",
+        "reported_leaves",
+        "owned_fragments",
+        "exact_figure_placements",
+        "output_bytes",
+        "atomic_rejections",
+        "exact_fit_controls"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 3633,
+          "allocated_bytes": 7973907,
+          "work": {
+            "pages": 2,
+            "authored_placements": 6,
+            "reported_leaves": 8,
+            "owned_fragments": 14,
+            "exact_figure_placements": 2,
+            "output_bytes": 21098,
+            "atomic_rejections": 7,
+            "exact_fit_controls": 2
+          }
+        },
+        "x64musl": {
+          "allocations": 3633,
+          "allocated_bytes": 7973907,
+          "work": {
+            "pages": 2,
+            "authored_placements": 6,
+            "reported_leaves": 8,
+            "owned_fragments": 14,
+            "exact_figure_placements": 2,
+            "output_bytes": 21098,
+            "atomic_rejections": 7,
+            "exact_fit_controls": 2
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "wtpdf_accessibility",
+        "structure_semantics",
+        "designed_brief"
+      ]
+    },
+    {
       "name": "fixed remittance pages x2",
       "scenario_revision": "fixed-remittance-v1",
       "family": "fixed_pages",

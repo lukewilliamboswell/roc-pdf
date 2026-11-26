@@ -594,6 +594,8 @@ FixedError : [
 	LimitExceeded({ dimension : [Pages, Placements, Rectangles], attempted : U64, limit : U64 }),
 	UnsupportedDocumentOption([Templates, Outline, PageLabels]),
 	UnsupportedPlacement({ page : U64, placement : U64 }),
+	UnsupportedFigureFit({ page : U64, placement : U64 }),
+	UnsupportedFigureLabels({ page : U64, placement : U64 }),
 	UnsupportedInline({ page : U64, placement : U64 }),
 	InvalidFrame({ page : U64, placement : U64 }),
 	InvalidWidgetFrame(KernelWidgetFields.Location),
@@ -621,11 +623,18 @@ NormalizedFixed :: {
 	authoring : NormalizedAuthoring,
 	pages : List(FixedPagePlan),
 	frames : List(Layout.Rect),
+	placement_blocks : List(Semantics.IndexRange),
 	widget_fields : List(KernelWidgetFields.Authored),
 	paint_order : List(U64),
 	artifacts : List(FixedRect),
 }.{
 	view = |NormalizedFixed.(value)| value
+
+	## Authored placement ordinals and semantic leaf ordinals are identical
+	## unless a placement adds a caption. The sidecar is then in authored
+	## order. A page's paint order expands each placement as one whole span.
+	blocks_for : List(Semantics.IndexRange), U64 -> Semantics.IndexRange
+	blocks_for = |ranges, placement| if (ranges.is_empty()) fixed_range(placement, 1) else list_at(ranges, placement)
 }
 
 normalize_fixed_pages : { language : Str, metadata_title : Str, pages : List(FixedPage) }, FixedLimits -> Try(NormalizedFixed, FixedError)
@@ -638,6 +647,7 @@ normalize_fixed_pages = |fixed, limits| {
 	}
 	var $placements = 0
 	var $rectangles = 0
+	var $captions = 0
 	var $page = 0
 	for page in fixed.pages {
 		placement_count = page.placements.len()
@@ -648,30 +658,47 @@ normalize_fixed_pages = |fixed, limits| {
 			return Err(EmptyPage({ page: $page }))
 		}
 		$placements = add_fixed_count($placements, placement_count, limits.max_placements, Placements)?
-		validate_fixed_placements(page, $page)?
+		$captions = $captions + validate_fixed_placements(page, $page)?
 		validate_fixed_paint_order(page.paint_order, placement_count, $page)?
 		$rectangles = validate_fixed_artifacts(page.artifacts_before, page.size, $page, Underlay, $rectangles, limits.max_rectangles)?
 		$rectangles = validate_fixed_artifacts(page.artifacts_after, page.size, $page, Overlay, $rectangles, limits.max_rectangles)?
 		$page = $page + 1
 	}
 	var $page_plans = List.with_capacity(fixed.pages.len())
-	var $frames = List.with_capacity($placements)
-	var $paint_order = List.with_capacity($placements)
+	var $frames = List.with_capacity($placements + $captions)
+	var $paint_order = List.with_capacity($placements + $captions)
+	var $placement_blocks = if ($captions == 0) [] else List.with_capacity($placements)
 	var $artifacts = List.with_capacity($rectangles)
 	var $state = empty_state
 	var $widget_fields = []
+	var $placement_base = 0
 	$page = 0
 	for page in fixed.pages {
-		placement_base = $frames.len()
 		placement_count = page.placements.len()
-		$paint_order = append_fixed_paint_order($paint_order, page.paint_order, placement_base, placement_count)
+		paint_start = $paint_order.len()
 		var $placement = 0
 		for placement in page.placements {
-			position = placement_base + $placement
+			position = $placement_base + $placement
+			block_start = $frames.len()
 			match placement.widget {
 				NoWidget => {
 					$frames = $frames.append(placement.frame)
 					$state = append_leaf($state, placement.block, 0, position)
+					match placement.block {
+						Figure(_) => {
+							normalized = list_at($state.figures, $state.figures.len() - 1)
+							match normalized.drawing {
+								ValidDrawing(drawing) => if drawing.commands.any(is_flow_text) {
+									return Err(UnsupportedFigureLabels({ page: $page, placement: $placement }))
+								}
+								InvalidDrawing(_) => {}
+							}
+							if normalized.captioned {
+								$frames = $frames.append(placement.frame)
+							}
+						}
+						_ => {}
+					}
 				}
 				WithWidget(field) => {
 					location = { page: $page, placement: $placement }
@@ -687,20 +714,25 @@ normalize_fixed_pages = |fixed, limits| {
 					$state = close_group($state, group)
 				}
 			}
+			if $captions > 0 {
+				$placement_blocks = $placement_blocks.append(fixed_range(block_start, $frames.len() - block_start))
+			}
 			$placement = $placement + 1
 		}
+		$paint_order = append_fixed_paint_order($paint_order, page.paint_order, $placement_base, placement_count, $placement_blocks)
 		underlay_base = $artifacts.len()
 		$artifacts = append_fixed_artifacts($artifacts, page.artifacts_before)
 		overlay_base = $artifacts.len()
 		$artifacts = append_fixed_artifacts($artifacts, page.artifacts_after)
 		$page_plans = $page_plans.append({
 			size: page.size,
-			placements: fixed_range(placement_base, placement_count),
-			paint: fixed_range(placement_base, placement_count),
+			placements: fixed_range($placement_base, placement_count),
+			paint: fixed_range(paint_start, $paint_order.len() - paint_start),
 			underlays: fixed_range(underlay_base, overlay_base - underlay_base),
 			overlays: fixed_range(overlay_base, $artifacts.len() - overlay_base),
 		})
 		$page = $page + 1
+		$placement_base = $placement_base + placement_count
 	}
 	Ok(
 		NormalizedFixed.(
@@ -708,6 +740,7 @@ normalize_fixed_pages = |fixed, limits| {
 				authoring: finish_simple_authoring($state, fixed.language, fixed.metadata_title),
 				pages: $page_plans,
 				frames: $frames,
+				placement_blocks: $placement_blocks,
 				widget_fields: $widget_fields,
 				paint_order: $paint_order,
 				artifacts: $artifacts,
@@ -751,9 +784,10 @@ invalid_widget_frame = |field, location| match field {
 	CheckboxWidget(_) => InvalidCheckboxFrame(location)
 }
 
-validate_fixed_placements : FixedPage, U64 -> Try({}, FixedError)
+validate_fixed_placements : FixedPage, U64 -> Try(U64, FixedError)
 validate_fixed_placements = |page, page_index| {
 	var $index = 0
+	var $caption_count = 0
 	for placement in page.placements {
 		match placement.widget {
 			NoWidget => if !fixed_rect_fits(placement.frame, page.size) {
@@ -778,11 +812,21 @@ validate_fixed_placements = |page, page_index| {
 					return Err(UnsupportedInline({ page: page_index, placement: $index }))
 				}
 			}
+			Figure(spec) => {
+				figure = spec
+				match figure.fit {
+					ExactFit => {}
+					ScaleFit(_) => return Err(UnsupportedFigureFit({ page: page_index, placement: $index }))
+				}
+				if has_caption(figure.caption) {
+					$caption_count = $caption_count + 1
+				}
+			}
 			_ => return Err(UnsupportedPlacement({ page: page_index, placement: $index }))
 		}
 		$index = $index + 1
 	}
-	Ok({})
+	Ok($caption_count)
 }
 
 fixed_rich_supported : List(DocumentInline) -> Bool
@@ -900,24 +944,41 @@ validate_fixed_paint_order = |selection, count, page| match selection {
 	}
 }
 
-append_fixed_paint_order : List(U64), [Authored, Explicit(List(U64))], U64, U64 -> List(U64)
-append_fixed_paint_order = |output, selection, start, count| {
+append_fixed_paint_order : List(U64), [Authored, Explicit(List(U64))], U64, U64, List(Semantics.IndexRange) -> List(U64)
+append_fixed_paint_order = |output, selection, start, count, blocks| {
 	var $output = output
 	match selection {
 		Authored => {
 			var $index = 0
 			while $index < count {
-				$output = $output.append(start + $index)
+				$output = append_fixed_blocks($output, NormalizedFixed.blocks_for(blocks, start + $index))
 				$index = $index + 1
 			}
 		}
 		Explicit(order) => {
 			for placement in order {
-				$output = $output.append(start + placement)
+				$output = append_fixed_blocks($output, NormalizedFixed.blocks_for(blocks, start + placement))
 			}
 		}
 	}
 	$output
+}
+
+append_fixed_blocks : List(U64), Semantics.IndexRange -> List(U64)
+append_fixed_blocks = |order, range| {
+	var $order = order
+	var $index = range.start()
+	while $index < range.start() + range.length() {
+		$order = $order.append($index)
+		$index = $index + 1
+	}
+	$order
+}
+
+is_flow_text : FlowCommand -> Bool
+is_flow_text = |command| match command {
+	FlowText(_) => True
+	_ => False
 }
 
 NormalizedBlockKind := [

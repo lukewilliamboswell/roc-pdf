@@ -963,8 +963,7 @@ figures, page references and source blocks described under Gate 6.
 Generated contents selects anchored headings in authoring order by scope
 and depth. Target names carry identity and title overrides. Entries share
 the authored TOC/TOCI path with fixed-width fields, paired destinations and
-optional artifact leaders. Flow-changing references and indexes have
-separate layout and structure requirements.
+optional artifact leaders.
 
 ### Flow-changing page references
 
@@ -981,15 +980,16 @@ authored order of named destinations. Each location has a separate PDF 1.7
 `Reference` with a selectable page label and a paired link. The indexed
 handbook demonstrates shared targets and more than one location for a term.
 
-### Bounded fixed-page text and artwork
+### Bounded fixed-page text, figures, and artwork
 
 The fixed-page builder supports explicit sheet sizes, framed titles,
-numbered headings, paragraphs and rich paragraphs, and solid rectangle
-backgrounds and overlays. Placements determine reading order. A per-page
+numbered headings, paragraphs and rich paragraphs, exact-size figures
+with captions, and solid rectangle backgrounds and overlays. Placements determine reading order. A per-page
 permutation can independently select paint order. Preparation checks nominal
 line-box and advance fit and reports errors at the authored page and placement.
 The [remittance example](examples/remittance-advice/main.roc) exercises mixed
-sizes and differing orders. The [fixed-page evidence](docs/contributors/performance/fixed-pages.md)
+sizes and differing orders. The [designed brief](examples/designed-brief/Brief.roc)
+exercises figure and caption ownership in one paint-order slot. The [fixed-page evidence](docs/contributors/performance/fixed-pages.md)
 covers the combined and WTPDF declarations, exact reading and paint order,
 and two- and twenty-page scale checks.
 

@@ -12,6 +12,7 @@ from check_destination_references import validate_destination_references_pdf
 from check_chapter_templates import validate_chapter_templates_pdf
 from check_vector_diagrams import validate_vector_diagrams_pdf
 from check_fixed_pages import validate_fixed_pages_pdf
+from check_designed_brief import validate_designed_brief_pdf
 from check_generated_handbook import validate_flow_fixture, validate_generated_fixture, validate_index_fixture
 from check_arabic_invoice import check as check_arabic_invoice
 from check_hindi_statement import check as check_hindi_statement
@@ -175,6 +176,7 @@ VALIDATORS: dict[str, Validator] = {
     "bilingual_invoice": _dimensioned(lambda pdf, _: check_bilingual_invoice(pdf), "bilingual invoice logical text, writing modes, paint positions and language scopes"),
     "inter_latin": _dimensioned(validate_inter_latin_pdf, "exact kerned positions, ligature and literal mapping, wrap ownership and scope color"),
     "columns": _dimensioned(validate_columns_pdf, "authored source and semantic ownership across unequal-width columns and pages"),
+    "designed_brief": _dimensioned(validate_designed_brief_pdf, "fixed figure and text geometry, exact caption ownership, and independent semantic and paint permutations"),
     "fixed_pages": _dimensioned(validate_fixed_pages_pdf, "fixed frame geometry, independent structure and stream order, and exact background/overlay ownership"),
     "vector_diagrams": _dimensioned(validate_vector_diagrams_pdf, "exact prepared-vector Unicode labels, caption/Alt ownership and cubic/arrowhead paths"),
     "page_labels": _dimensioned(validate_page_labels_pdf, "visible labels match emitted PDF label ranges; repeated labels remain artifacts"),

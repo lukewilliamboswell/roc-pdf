@@ -376,7 +376,7 @@ build_ordered_with_geometry = |authoring, shape, sources, limits, input| {
 		FixedGeometry(frames) => {
 			if frames.len() != block_runs.len() or authoring.groups.any(
 				|group| match group.kind {
-					Container(FormContainer) => False
+					Container(FormContainer) | FigureGroup(_) => False
 					_ => True
 				},
 			) {
