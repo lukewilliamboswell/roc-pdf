@@ -109,6 +109,7 @@ TARGETS = (
     Target("fillable_text_fields", 48, "document_suite"),
     Target("fillable_checkboxes", 48, "document_suite"),
     Target("table_spans", 128, "document_suite"),
+    Target("anchored_figure", 32, "anchored_figure"),
     Target("facade_structure", 4096, "document_suite"),
     Target("navigation_property", 4096, "document_suite"),
     Target("registry_property", 4096, "document_suite"),
