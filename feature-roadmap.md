@@ -881,6 +881,15 @@ Standards support is best effort. Independent certification requires a
 separate scope, funding, and ownership. Discuss proposals in
 [GitHub Issues](https://github.com/lukewilliamboswell/roc-pdf/issues).
 
+### Inter Latin run shaping
+
+The `InterLatin` theme policy uses checked roc-font shaping for eligible
+plain English flow paragraphs in exact Inter Regular. The line fitter
+consumes the adjusted advances and may reshape at legal, unsafe cuts.
+The emitted fonts, tagged line ownership, distinct source spellings,
+atomic exhaustion, and bounded allocation and work are exercised by
+[the Inter Latin fixtures](docs/contributors/performance/inter-latin.md).
+
 ## Gate 8: advanced document composition
 
 These capabilities extend the single-column flow, ordinary tables, bounded

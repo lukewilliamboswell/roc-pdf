@@ -41,6 +41,7 @@
     "source_foregrounds",
     "chapter_templates",
     "fixed_pages",
+    "inter_latin",
     "vector_diagrams",
     "rich_flow",
     "technical_manual",
@@ -62,6 +63,7 @@
     "source_foregrounds",
     "chapter_templates",
     "fixed_pages",
+    "inter_latin",
     "vector_diagrams",
     "rich_flow",
     "technical_manual",
@@ -143,6 +145,9 @@
     },
     {
       "name": "public"
+    },
+    {
+      "name": "shaping"
     },
     {
       "name": "public_fonts"
@@ -261,6 +266,10 @@
     {
       "name": "destination_references",
       "group": "pages"
+    },
+    {
+      "name": "inter_latin",
+      "group": "shaping"
     },
     {
       "name": "fixed_pages",
@@ -29787,6 +29796,207 @@
         "pdfa4",
         "structure_semantics",
         "chapter_templates"
+      ]
+    },
+    {
+      "name": "Inter Latin shaping public report x2",
+      "scenario_revision": "inter-latin-v1",
+      "family": "inter_latin",
+      "snapshot": "tests/inter_latin/report_2.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "paragraphs": 2
+      },
+      "work_counters": [
+        "pages",
+        "owned_paragraphs",
+        "wrapped_line_fragments",
+        "scope_colour_variants",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 2592,
+          "allocated_bytes": 6194773,
+          "work": {
+            "pages": 1,
+            "owned_paragraphs": 3,
+            "wrapped_line_fragments": 6,
+            "scope_colour_variants": 1,
+            "output_bytes": 10979
+          }
+        },
+        "x64musl": {
+          "allocations": 2592,
+          "allocated_bytes": 6194773,
+          "work": {
+            "pages": 1,
+            "owned_paragraphs": 3,
+            "wrapped_line_fragments": 6,
+            "scope_colour_variants": 1,
+            "output_bytes": 10979
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "inter_latin"
+      ]
+    },
+    {
+      "name": "Inter Latin shaping public report x20",
+      "scenario_revision": "inter-latin-v1",
+      "family": "inter_latin",
+      "snapshot": "tests/inter_latin/report_20.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "paragraphs": 20
+      },
+      "work_counters": [
+        "pages",
+        "owned_paragraphs",
+        "wrapped_line_fragments",
+        "scope_colour_variants",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 3403,
+          "allocated_bytes": 8028722,
+          "work": {
+            "pages": 2,
+            "owned_paragraphs": 21,
+            "wrapped_line_fragments": 42,
+            "scope_colour_variants": 10,
+            "output_bytes": 12187
+          }
+        },
+        "x64musl": {
+          "allocations": 3403,
+          "allocated_bytes": 8028722,
+          "work": {
+            "pages": 2,
+            "owned_paragraphs": 21,
+            "wrapped_line_fragments": 42,
+            "scope_colour_variants": 10,
+            "output_bytes": 12187
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "inter_latin"
+      ]
+    },
+    {
+      "name": "Inter Latin shaping public report WTPDF",
+      "scenario_revision": "inter-latin-v1",
+      "family": "inter_latin",
+      "snapshot": "tests/inter_latin/report_wtpdf.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "paragraphs": 2,
+        "wtpdf_accessibility": 1
+      },
+      "work_counters": [
+        "pages",
+        "owned_paragraphs",
+        "wrapped_line_fragments",
+        "scope_colour_variants",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 2594,
+          "allocated_bytes": 6198367,
+          "work": {
+            "pages": 1,
+            "owned_paragraphs": 3,
+            "wrapped_line_fragments": 6,
+            "scope_colour_variants": 1,
+            "output_bytes": 11247
+          }
+        },
+        "x64musl": {
+          "allocations": 2594,
+          "allocated_bytes": 6198367,
+          "work": {
+            "pages": 1,
+            "owned_paragraphs": 3,
+            "wrapped_line_fragments": 6,
+            "scope_colour_variants": 1,
+            "output_bytes": 11247
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "inter_latin",
+        "wtpdf_accessibility"
+      ]
+    },
+    {
+      "name": "Inter Latin shaping atomic paragraph budget",
+      "scenario_revision": "inter-latin-v1",
+      "family": "inter_latin",
+      "snapshot": "tests/inter_latin/report_2.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "paragraphs": 2
+      },
+      "work_counters": [
+        "pages",
+        "owned_paragraphs",
+        "wrapped_line_fragments",
+        "scope_colour_variants",
+        "output_bytes",
+        "located_rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 3084,
+          "allocated_bytes": 20230076,
+          "work": {
+            "pages": 1,
+            "owned_paragraphs": 3,
+            "wrapped_line_fragments": 6,
+            "scope_colour_variants": 1,
+            "output_bytes": 10979,
+            "located_rejections": 2
+          }
+        },
+        "x64musl": {
+          "allocations": 3084,
+          "allocated_bytes": 20230076,
+          "work": {
+            "pages": 1,
+            "owned_paragraphs": 3,
+            "wrapped_line_fragments": 6,
+            "scope_colour_variants": 1,
+            "output_bytes": 10979,
+            "located_rejections": 2
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "inter_latin"
       ]
     },
     {

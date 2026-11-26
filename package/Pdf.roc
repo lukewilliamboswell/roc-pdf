@@ -1807,6 +1807,7 @@ pipeline_error_at = |error, doc, paths| match error {
 		path = [diagnostic_leaf_path(doc, paths, block)]
 		match reason {
 			ShapeBudget(_) => located_error(doc, BudgetExceeded, "text.latin_shaping_budget", "Inter Latin shaping exceeded its checked work budget.", path)
+			SourceBudget({ scalars, limit }) => located_error(doc, BudgetExceeded, "text.latin_shaping_budget", "The Inter Latin paragraph has ${scalars.to_str()} scalars and exceeds the ${limit.to_str()}-scalar limit.", path)
 			MissingGlyph({ byte }) => located_error(doc, FontCoverageMissing, "text.latin_shaping_glyph", "Inter Latin shaping reported a missing glyph at UTF-8 byte ${byte.to_str()}.", path)
 			_ => located_error(doc, FeatureUnavailable, "text.latin_shaping", "The selected Inter Latin run could not be shaped (${Str.inspect(reason)}).", path)
 		}

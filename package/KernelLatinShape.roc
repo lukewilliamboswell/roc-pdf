@@ -13,6 +13,7 @@ KernelLatinShape :: [].{
 		InvalidProviderOutput,
 		MissingGlyph({ byte : U64 }),
 		ShapeBudget(List(OpenType.Budget)),
+		SourceBudget({ scalars : U64, limit : U64 }),
 		UnsupportedGlyph({ byte : U64 }),
 	]
 
@@ -33,20 +34,25 @@ KernelLatinShape :: [].{
 
 	## This initial horizontal English run policy covers printable ASCII and
 	## the literal right arrow. Other text uses the existing coverage path.
-	input : Str, KernelUnicode.UnicodeAnalysis -> [Eligible(List(ScalarAt)), OutsidePolicy]
+	input : Str, KernelUnicode.UnicodeAnalysis -> Try([Eligible(List(ScalarAt)), OutsidePolicy], Error)
 	input = |source, analysis| {
 		if analysis.graphemes.len() != analysis.work.scalar_visits {
-			return OutsidePolicy
+			return Ok(OutsidePolicy)
 		}
-		var $scalars = List.with_capacity(analysis.work.scalar_visits)
+		var $scalars = List.with_capacity(U64.min(analysis.work.scalar_visits, max_run_scalars))
 		for located in Scalar.iter(source) {
 			scalar = Scalar.to_u32(located.scalar)
 			if (scalar < 0x20 or scalar > 0x7e) and scalar != 0x2192 {
-				return OutsidePolicy
+				return Ok(OutsidePolicy)
 			}
-			$scalars = $scalars.append({ scalar, offset: ByteRange.start(located.byte_range) })
+			if $scalars.len() < max_run_scalars {
+				$scalars = $scalars.append({ scalar, offset: ByteRange.start(located.byte_range) })
+			}
 		}
-		Eligible($scalars)
+		if analysis.work.scalar_visits > max_run_scalars {
+			return Err(SourceBudget({ scalars: analysis.work.scalar_visits, limit: max_run_scalars }))
+		}
+		Ok(Eligible($scalars))
 	}
 
 	## The PDF font planner has already validated the font, its rights and its
@@ -191,6 +197,9 @@ adapt_glyphs = |inspection, traced, graphemes, start, end| {
 		Err(InvalidProviderOutput)
 	}
 }
+
+max_run_scalars : U64
+max_run_scalars = 16384
 
 inter_regular_sha256 : List(U8)
 inter_regular_sha256 = [0x40, 0xd6, 0x92, 0xfc, 0xe1, 0x88, 0xe4, 0x47, 0x1e, 0x2b, 0x3c, 0xba, 0x93, 0x7b, 0xe9, 0x67, 0x87, 0x8f, 0x63, 0x1a, 0xd3, 0xeb, 0xbb, 0xdc, 0xd5, 0x87, 0x68, 0x7c, 0x7e, 0xbe, 0x0c, 0x82]

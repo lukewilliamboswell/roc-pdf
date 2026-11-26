@@ -568,7 +568,7 @@ build_inter_source = |latin, font, source, request, index| {
 	if request.clusters.start() != 0 or request.clusters.length() != source.analysis.graphemes.len() {
 		return Err(SelectedRequestInvalid({ reason: ClusterRange, request: index }))
 	}
-	match KernelLatinShape.input(source.unicode, source.analysis) {
+	match KernelLatinShape.input(source.unicode, source.analysis) ? |reason| InterLatin({ request: index, reason }) {
 		OutsidePolicy => Ok({ value: Ordinary, work: 0 })
 		Eligible(scalars) => {
 			ready = KernelLatinShape.shape(latin.plan, font, scalars, source.analysis) ? |reason| InterLatin({ request: index, reason })
