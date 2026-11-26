@@ -18,6 +18,7 @@ package
 		KernelDiscretionaryHyphen,
 		KernelEmit,
 		KernelFacadeFailure,
+		KernelFacadeFixed,
 		KernelFacadeFonts,
 		KernelFacadeFragments,
 		KernelFacadeFurniture,
