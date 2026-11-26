@@ -181,6 +181,7 @@ kernel_facade_lines_error = |error| match error {
 	SourceTokenTooWide(_) => leaf({ category: Invariant, feature: "source_token_too_wide", path: "SourceTokenTooWide", inspected: Str.inspect(error) })
 	CalloutWidth(_) => leaf({ category: Invariant, feature: "callout_width", path: "CalloutWidth", inspected: Str.inspect(error) })
 	CustomWidth(_) => leaf({ category: Invariant, feature: "custom_width", path: "CustomWidth", inspected: Str.inspect(error) })
+	FixedUnbreakable(_) => leaf({ category: Invariant, feature: "fixed_unbreakable", path: "FixedUnbreakable", inspected: Str.inspect(error) })
 	InvalidGeometry => leaf({ category: Invariant, feature: "invalid_geometry", path: "InvalidGeometry", inspected: Str.inspect(error) })
 	InvalidRun(_) => leaf({ category: Invariant, feature: "invalid_run", path: "InvalidRun", inspected: Str.inspect(error) })
 	LabelTooWide(_) => leaf({ category: Invariant, feature: "label_too_wide", path: "LabelTooWide", inspected: Str.inspect(error) })

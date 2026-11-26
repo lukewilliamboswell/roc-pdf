@@ -21,6 +21,7 @@ KernelFacadeLines :: [].{
 		## around it.
 		CalloutWidth({ group : U64 }),
 		CustomWidth({ available : U64, custom : U64, width : U64 }),
+		FixedUnbreakable({ block : U64, available : Layout.Unit }),
 		InvalidGeometry,
 		InvalidRun({ block : U64, run : U64 }),
 		LabelTooWide({ available : U64, block : U64, width : U64 }),
@@ -126,6 +127,11 @@ KernelFacadeLines :: [].{
 
 		build_ordered_authoring : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, Limits -> Try(Plan, Error)
 		build_ordered_authoring = |authoring, shape, sources, page, theme, limits| if (authoring.tables.is_empty() and authoring.sources.is_empty()) build_ordered_plan(authoring, shape, sources, page, theme, limits, [], Calculate) else build_table_plan(authoring, shape, sources, page, theme, limits)
+
+		## Fixed placements already own their frames. Use those exact widths
+		## with the normal logical line batch and no flow margin or indent.
+		build_fixed : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), List(Layout.Rect), Limits -> Try(Plan, Error)
+		build_fixed = |authoring, shape, sources, frames, limits| build_ordered_with_geometry(authoring, shape, sources, limits, FixedGeometry(frames))
 
 		source_frames : Plan -> List(SourceFrame)
 		source_frames = |plan| plan.source_frames
@@ -330,8 +336,18 @@ table_frames = |authoring, geometries, content_width| {
 
 ## `widths` is empty, or holds one text width per block where a nonzero
 ## entry (a table cell's) replaces the block's flow width.
+
+OrderedInput : [
+	FlowGeometry({ page : Layout.Size, theme : Theme, widths : List(U64), prepared : [Calculate, Calculated(Geometry)] }),
+	FixedGeometry(List(Layout.Rect)),
+]
+
 build_ordered_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, KernelFacadeLines.Limits, List(U64), [Calculate, Calculated(Geometry)] -> Try(KernelFacadeLines.Plan, KernelFacadeLines.Error)
-build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths, prepared| {
+build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths, prepared|
+	build_ordered_with_geometry(authoring, shape, sources, limits, FlowGeometry({ page, theme, widths, prepared }))
+
+build_ordered_with_geometry : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), KernelFacadeLines.Limits, OrderedInput -> Try(KernelFacadeLines.Plan, KernelFacadeLines.Error)
+build_ordered_with_geometry = |authoring, shape, sources, limits, input| {
 	styles = KernelFacadeShape.Plan.styles(shape)
 	block_runs = KernelFacadeShape.Plan.block_runs(shape)
 	shape_requests = KernelFacadeShape.Plan.requests(shape)
@@ -342,14 +358,32 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths, pr
 	if (run_count == 0 and authoring.sources.is_empty()) or run_count != shape_batch.store.runs.len() {
 		return Err(RunCoverage({ actual: shape_batch.store.runs.len(), expected: run_count }))
 	}
-	content_width = calculate_content_width(page, theme.page_margin)?
-	indent = positive_raw(theme.bullet_indent)?
-	if indent >= content_width {
-		return Err(InvalidGeometry)
-	}
-	geometry_plan = match prepared {
-		Calculate => list_geometries(authoring, block_runs, shape_batch.store, indent, content_width)?
-		Calculated(value) => value
+	{ content_width, geometry_plan, widths, fixed } = match input {
+		FlowGeometry({ page, theme, widths: flow_widths, prepared }) => {
+			flow_width = calculate_content_width(page, theme.page_margin)?
+			indent = positive_raw(theme.bullet_indent)?
+			if indent >= flow_width {
+				return Err(InvalidGeometry)
+			}
+			flow_geometry = match prepared {
+				Calculate => list_geometries(authoring, block_runs, shape_batch.store, indent, flow_width)?
+				Calculated(value) => value
+			}
+			{ content_width: flow_width, geometry_plan: flow_geometry, widths: flow_widths, fixed: False }
+		}
+		FixedGeometry(frames) => {
+			if frames.len() != block_runs.len() or !authoring.groups.is_empty() {
+				return Err(InvalidGeometry)
+			}
+			var $blocks = List.with_capacity(frames.len())
+			var $maximum_width = 0
+			for frame in frames {
+				width = positive_raw(frame.size.width)?
+				$maximum_width = U64.max($maximum_width, width)
+				$blocks = $blocks.append({ body_offset: 0, body_width: width, column: 0, label_offset: 0 })
+			}
+			{ content_width: $maximum_width, geometry_plan: { blocks: $blocks, ends: [], offsets: [] }, widths: [], fixed: True }
+		}
 	}
 	geometries = geometry_plan.blocks
 	var $source_frames = List.with_capacity(authoring.sources.len())
@@ -459,7 +493,7 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths, pr
 	} else if !authoring.sources.is_empty() {
 		KernelLineLayout.BatchPlan.build_source_mixed(sources, shape_batch.store, $line_requests, $holds, $modes, limits.line) ? |error| source_layout_error(authoring, $logical_index_of_body, geometries, shape_batch.store, error)
 	} else {
-		(if ($holds.is_empty()) KernelLineLayout.BatchPlan.build_logical(sources, shape_batch.store, $line_requests, limits.line) else KernelLineLayout.BatchPlan.build_logical_held(sources, shape_batch.store, $line_requests, $holds, limits.line)) ? LineLayout
+		(if ($holds.is_empty()) KernelLineLayout.BatchPlan.build_logical(sources, shape_batch.store, $line_requests, limits.line) else KernelLineLayout.BatchPlan.build_logical_held(sources, shape_batch.store, $line_requests, $holds, limits.line)) ? |error| if (fixed) fixed_line_error(block_runs, geometries, shape_batch.store, error) else LineLayout(error)
 	}
 	run_lines = KernelLineLayout.BatchPlan.run_lines(line)
 	var $blocks = List.with_capacity(block_runs.len())
@@ -506,6 +540,28 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths, pr
 			},
 		},
 	)
+}
+
+fixed_line_error : List(KernelFacadeShape.BlockRuns), List(BlockGeometry), Text.Store, KernelLineLayout.Error -> KernelFacadeLines.Error
+fixed_line_error = |blocks, geometry, store, error| match error {
+	Unbreakable({ cluster_start, .. }) => {
+		var $index = 0
+		for block in blocks {
+			match block {
+				TextBlock({ body, .. }) => {
+					first = list_at(store.runs, body.physical.start()).clusters.start()
+					last = list_at(store.runs, body.physical.start() + body.physical.length() - 1).clusters
+					if cluster_start >= first and cluster_start < last.start() + last.length() {
+						return FixedUnbreakable({ block: $index, available: Layout.Unit.from_raw(list_at(geometry, $index).body_width.to_i64_wrap()) })
+					}
+				}
+				_ => {}
+			}
+			$index = $index + 1
+		}
+		LineLayout(error)
+	}
+	_ => LineLayout(error)
 }
 
 source_layout_error : Document.NormalizedAuthoring, List(U64), List(BlockGeometry), Text.Store, KernelLineLayout.Error -> KernelFacadeLines.Error
