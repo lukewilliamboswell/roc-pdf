@@ -60,7 +60,7 @@ KernelUnicode :: [].{
 	## The released package tag resolves to this reviewed source identity. Its
 	## immutable archive URL and digest are recorded with the text-layout evidence.
 	source_revision : Str
-	source_revision = "6a230bf2a9a8d327e2160e000e84651363a923ce"
+	source_revision = "37ac0b869ad4bbb8427ebe80499b2b95e4ade93a"
 
 	version : Str
 	version = UnicodeVersion.to_str(UnicodeVersion.current)
@@ -219,7 +219,7 @@ KernelUnicode :: [].{
 		Ok($runs)
 	}
 
-	expect version == "17.0.0"
+	expect version == "18.0.0"
 
 	# Combining sequences stay atomic, scalar and byte coordinates agree, and
 	# script itemization is a separate explicit fact.

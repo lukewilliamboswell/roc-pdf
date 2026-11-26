@@ -3185,8 +3185,8 @@ expect {
 # The lexical implementation remains a private package module.
 expect KernelLex.boolean(True) == Str.to_utf8("true")
 
-# text-layout Unicode analysis is pinned to the reviewed Unicode 17 package release.
-expect KernelUnicode.version == "17.0.0"
+# text-layout Unicode analysis is pinned to the reviewed Unicode 18 package release.
+expect KernelUnicode.version == "18.0.0"
 
 # Object/value/edge storage is likewise package-private.
 expect KernelObject.counts(

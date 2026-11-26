@@ -34,3 +34,5 @@ the text. See the [fixed-page authoring guide](authoring.adoc#authoring-fixed-pa
 ## Compiler
 
 This development branch uses Roc `nightly-2026-11-25-d5a4f1e`.
+Text analysis uses `roc-lang/unicode` 4.4.0, with Unicode 18.0.0 data for
+segmentation, line breaking, bidirectional analysis, and case mapping.

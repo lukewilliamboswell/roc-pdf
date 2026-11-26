@@ -28,7 +28,7 @@ satisfy the pin. `package/main.roc` and `package/all.roc` declare both.
 
 | Package | Version | Release bundle | Archive SHA-256 | License | Use |
 | --- | --- | --- | --- | --- | --- |
-| `roc-lang/unicode` | 4.3.3 | [AJfFMmhvmbgn7THAF1E1sofC3dZaVWPFmVV7GH8Bc7k7.tar.zst](https://github.com/roc-lang/unicode/releases/download/4.3.3/AJfFMmhvmbgn7THAF1E1sofC3dZaVWPFmVV7GH8Bc7k7.tar.zst) | `e4bdde8dea6abe4952844c37b77cb01adc2df8d8e5f6f1b6d8b091329e27dcab` | UPL-1.0 | Scalar, segmentation, bidirectional, and case analysis |
+| `roc-lang/unicode` | 4.4.0 | [9qGDBYdjWTJFMhauxdUMpWHDQuzRd4E4E2dtBDHNffnS.tar.zst](https://github.com/roc-lang/unicode/releases/download/4.4.0/9qGDBYdjWTJFMhauxdUMpWHDQuzRd4E4E2dtBDHNffnS.tar.zst) | `73a7d30b8e93e08bab73b9f548df3416bda3a06c6358ba020e12c2d4d5eaddbc` | UPL-1.0 | Scalar, segmentation, bidirectional, and case analysis |
 | `lukewilliamboswell/roc-deflate` | 0.4.0-rc4 | [FoGWbhCP9K1Qk7HA9wcSxHYTpiwTHmCpfNUZx7rAGSSk.tar.zst](https://github.com/lukewilliamboswell/roc-deflate/releases/download/0.4.0-rc4/FoGWbhCP9K1Qk7HA9wcSxHYTpiwTHmCpfNUZx7rAGSSk.tar.zst) | `ef6d916b1629440ef0dab40e8416014dac227aeb60c2ecf19f2a28ecddf6d77d` | Apache-2.0 | DEFLATE compression behind `package/KernelDeflate.roc` |
 
 `roc-deflate` 0.4.0-rc4 (fork commit `78e74dd`) is a fork of

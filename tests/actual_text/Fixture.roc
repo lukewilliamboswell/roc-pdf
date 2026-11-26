@@ -905,7 +905,7 @@ case_mapping : U64 -> Try(CaseMappingFacts, [EvidenceFailure, InvalidRuntimeGuar
 case_mapping = |runtime_guard| {
 	font = KernelFont.inspect(built_in_font_bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
 	result = KernelCaseTransform.to_upper(case_source, case_limits(runtime_guard, 8)) ? |_| EvidenceFailure
-	if result.text != case_presentation or result.unicode_version != "17.0.0" or result.facts.len() != 2 {
+	if result.text != case_presentation or result.unicode_version != "18.0.0" or result.facts.len() != 2 {
 		return Err(EvidenceFailure)
 	}
 	simple = list_at(result.facts, 0)

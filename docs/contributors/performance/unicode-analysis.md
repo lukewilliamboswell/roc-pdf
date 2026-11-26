@@ -1,15 +1,15 @@
 # text-layout Unicode analysis slice
 
-This slice pins `roc-lang/unicode` release `4.0.0`, whose tag resolves to commit
-`b689986172679aa9fbdcd7890e3031a48b1c582f`. Its immutable GitHub release
-asset is `3DGC3M4b2pxaRLg4i8cmxWkm2E2WbCPCLntQzf2mkbUV.tar.zst` (228,087 bytes,
-SHA-256 `4343719be2d54e73dc1f138a4527d828220acb1f21b9f79d8a319a611fbc7930`).
-The dependency reports Unicode 17.0.0, UAX #14 revision 55, UAX #29 revision
-47, and the independently versioned `ConservativeScxV1` script-itemization
-policy. Updating its release URL, source revision, archive digest or Unicode
-semantics requires review of affected correctness and performance evidence.
-The package manifest records the dependency version. `.roc-version` selects
-the product compiler independently.
+Text analysis uses `roc-lang/unicode` 4.4.0 at commit
+`37ac0b869ad4bbb8427ebe80499b2b95e4ade93a`. The archive and its digest are
+recorded in [dependency provenance](../../../vendor/README.md).
+The [upstream data manifest](https://github.com/roc-lang/unicode/blob/37ac0b869ad4bbb8427ebe80499b2b95e4ade93a/vendor/unicode/manifest.json)
+(SHA-256 `ba7b69f46268f546b2d9eb3012cc5c9d42f488de2c6db7ee1d07df9c0d296935`)
+identifies Unicode 18.0.0, UAX #9 revision 52, UAX #14 revision 57, UAX #24
+revision 41, and UAX #29 revision 49. Script itemization retains the separately
+versioned `ConservativeScxV1` policy. The bidi and case adapters pass explicit
+options and retain their existing limits and source-coordinate contracts.
+`.roc-version` selects the product compiler independently.
 
 ## Representation and ownership
 
