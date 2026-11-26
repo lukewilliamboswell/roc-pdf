@@ -38,13 +38,7 @@ PROVENANCE = ROOT / "assets" / "provenance.json"
 # Package-private data the modules byte-import. `roc bundle` includes byte
 # imports (once omitted them, roc-lang/roc#11907); the consumer must see
 # every one, byte-identical to its provenance record.
-PACKAGE_DATA_FILES = (
-    "RocPdfSans-Regular.ttf", "sRGB2014.icc",
-    "fonts/Inter-Regular.ttf", "fonts/Inter-Bold.ttf", "fonts/Inter-Italic.ttf", "fonts/Inter-BoldItalic.ttf",
-    "fonts/Merriweather-Regular.ttf", "fonts/Merriweather-Bold.ttf", "fonts/Merriweather-Italic.ttf", "fonts/Merriweather-BoldItalic.ttf",
-    "fonts/FiraCode-Regular.ttf", "fonts/FiraCode-Bold.ttf",
-    "fonts/Inter-OFL.txt", "fonts/Merriweather-OFL.txt", "fonts/FiraCode-OFL.txt",
-)
+PACKAGE_DATA_FILES = ("RocPdfSans-Regular.ttf", "sRGB2014.icc")
 MAX_PACKAGE_BYTES = 10 * 1024 * 1024
 
 
@@ -157,10 +151,6 @@ def verify_bundle_data_files(bundle: Path, members: set[str]) -> None:
         if extracted.returncode != 0:
             raise TestFailure(f"could not extract {name} from the bundle: {extracted.stderr.decode(errors='replace')}")
         record = provenance.get(f"package/{name}")
-        if record is None and name.endswith("-OFL.txt"):
-            pins = json.loads((ROOT / "vendor/fonts/roc-font/upstream-pins.json").read_text())
-            license_pin = next(face["licence"] for face in pins["faces"] if face["licence"]["file"] == f"package/{name}")
-            record = {"bytes": license_pin["size"], "sha256": license_pin["sha256"]}
         if record is None:
             raise TestFailure(f"assets/provenance.json has no record for package/{name}")
         digest = hashlib.sha256(extracted.stdout).hexdigest()

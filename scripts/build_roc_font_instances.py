@@ -17,7 +17,7 @@ PINS = ROOT / "vendor/fonts/roc-font/upstream-pins.json"
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--check', action='store_true', help='Verify retained files without changing them (the default).')
-    parser.add_argument('--bundle', type=Path, help='Also compare each file with this published rc4 bundle.')
+    parser.add_argument('--bundle', type=Path, help='Also compare each file with this pinned roc-font bundle.')
     parser.add_argument('--install', action='store_true', help='Install exact files from --bundle after validating it.')
     args = parser.parse_args()
     if args.install and args.bundle is None:
@@ -32,7 +32,7 @@ def main():
     for name, pin in entries.items():
         target = ROOT / name
         if args.bundle is not None:
-            data = subprocess.check_output(['tar', '--zstd', '-xOf', str(args.bundle), name.removeprefix('package/')])
+            data = subprocess.check_output(['tar', '--zstd', '-xOf', str(args.bundle), f'fonts/{target.name}'])
             assert len(data) == pin['size'] and hashlib.sha256(data).hexdigest() == pin['sha256'], name
             if args.install:
                 target.write_bytes(data)
@@ -40,9 +40,9 @@ def main():
                 assert target.read_bytes() == data, name
         data = target.read_bytes()
         assert len(data) == pin['size'] and hashlib.sha256(data).hexdigest() == pin['sha256'], name
-    actual = {str(path.relative_to(ROOT)) for path in (ROOT / 'package/fonts').iterdir() if path.is_file()}
+    actual = {str(path.relative_to(ROOT)) for path in (ROOT / 'vendor/fonts/roc-font/static').iterdir() if path.is_file()}
     assert actual == set(entries), 'unmanifested package font files'
-    print('PASS ten unchanged roc-font rc4 static faces and three family licences')
+    print('PASS ten unchanged roc-font static faces and three family licences')
 
 
 if __name__ == '__main__':

@@ -518,7 +518,7 @@ The public profiles select the following declaration sets and checks:
 
 | `AccessibleArchive` | `Pdf20 + StaticPdfA4 + PdfUa2` | Self-contained accessible archive; WTPDF accessibility is declared only through its separately validated declaration capability
 | `Archive` | `Pdf20 + StaticPdfA4` | Self-contained static archive without a PDF/UA-2 claim
-| `AccessibleForm` | `Pdf20 + InteractivePdfA4 + PdfUa2` | Explicit accessible fixed-page forms using the package's bounded widget and editable-font policy
+| `AccessibleForm` | `Pdf20 + InteractivePdfA4 + PdfUa2` | Explicit accessible fixed-page forms with bounded widgets and a full editable font
 | `ArchiveWithFiles` | `Pdf20 + PdfA4f` | PDF/A-4f with document-level associated files
 | `AccessibleArchiveWithFiles` | `Pdf20 + PdfA4f + PdfUa2` | PDF/A-4f with supplemental associated files and PDF/UA-2
 | `Standard` | `Pdf20` | The implemented generation-only PDF 2.0 subset without archival or accessibility conformance claims
@@ -2020,7 +2020,7 @@ downstream.
 
 The built-in facade supplies Inter for ordinary body/headings, Merriweather for
 explicit serif typography, and Fira Code for inline/source code. Ten unchanged
-upstream static rc4 faces provide genuine Regular/Bold and, for sans/serif,
+upstream static faces provide genuine Regular/Bold and, for sans/serif,
 Italic/Bold Italic. No runtime instancing, synthetic styling or automatic
 fallback is permitted. Unsupported glyphs, scripts and requested styles return
 structured located errors before bytes. Explicit caller family/style mappings

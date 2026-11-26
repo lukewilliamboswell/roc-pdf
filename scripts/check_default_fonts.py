@@ -149,7 +149,7 @@ def check(data: bytes, kind: str) -> None:
             f"{kind}: unexpected selected family/style programs")
     for font in facts.bundles:
         name = font.postscript_name
-        source = tables((ROOT / "package/fonts" / f"{name}.ttf").read_bytes())
+        source = tables((ROOT / "vendor/fonts/roc-font/static" / f"{name}.ttf").read_bytes())
         actual = font.subset.tables
         require(actual[b"OS/2"] == source[b"OS/2"], f"{name}: subset changed source style facts")
         weight, italic = STYLES[name.rsplit("-", 1)[1]]

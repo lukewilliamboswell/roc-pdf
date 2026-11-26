@@ -110,7 +110,7 @@ def validate_inter_latin_pdf(pdf: bytes, dimensions: dict[str, int]) -> None:
 def harfbuzz_check() -> None:
     import uharfbuzz as hb
 
-    data = (ROOT / "package/fonts/Inter-Regular.ttf").read_bytes()
+    data = (ROOT / "vendor/fonts/roc-font/static/Inter-Regular.ttf").read_bytes()
     require(hashlib.sha256(data).hexdigest() == FONT_SHA256, "Inter checkpoint font bytes changed")
     require(hb.__version__ == "0.56.3" and hb.version_string() == "14.6.0", "unpinned HarfBuzz checkpoint")
     font = hb.Font(hb.Face(data))
