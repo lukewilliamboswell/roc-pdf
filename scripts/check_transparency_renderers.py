@@ -36,13 +36,15 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from provision_extended_tools import archive_path
+
 from check_visual_renderers import Raster, read_ppm
 from check_form_renderers import compile_java, render_mutool, require
 
 ROOT = Path(__file__).resolve().parents[1]
 SHOWCASE_SNAPSHOT = ROOT / "tests" / "transparency" / "transparency.pdf"
 SHARE_SNAPSHOT = ROOT / "tests" / "transparency" / "transparency_share_100.pdf"
-PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
+PDFBOX_JAR = archive_path("pdfbox")
 SIZE = 100
 
 ## Ideal float composites per region (the independent model), and the pinned

@@ -6,7 +6,7 @@
   implementation contracts under `docs/contributors/`.
   Keep current capability requirements in `feature-roadmap.md` and enduring
   decisions in `architecture.md`. Preserve executable baselines, provenance,
-  licenses and normative controls; retire completed integration journals to Git.
+  licenses and fixture checks. Keep completed integration records in Git.
 - Keep generated run reports, before/after dumps, review screenshots, and one-off
   review JSON/XML in ignored `.roc-pdf-tmp/` directories or CI artifacts.
   Commit executable baselines, provenance, lockfiles, and curated evidence
@@ -26,12 +26,18 @@
   public boundaries, compiler stages, typed invariants, ownership, storage,
   accessibility, conformance, deterministic emission, and performance design.
 - Treat `feature-roadmap.md` as the capability and evidence boundary. Implement
-  features in dependency-gate order, and do not claim a capability until its
-  gate evidence is satisfied.
+  features in dependency-gate order. Describe available behavior against
+  executable evidence.
 - Keep this a pure Roc, generation-only PDF 2.0 package. Do not introduce PDF
   reading, legacy-format constraints, native production dependencies, silent
   fallback behavior, conformance downgrade, font substitution, outlining, or
   rasterization as recovery.
+- Support PDF standards on a best-effort basis. Cite applicable editions,
+  clauses and errata beside implementations and focused tests. Use project-owned
+  fixtures and checks in CI. Keep independent PDF validators and readers opt-in
+  local tools. Describe the emitted declarations and the checks actually
+  exercised. Discuss separately scoped and funded certification, including
+  ownership, in GitHub Issues.
 - Preserve the architecture's explicit stage contracts. Later stages must
   consume facts produced by earlier stages rather than infer semantics,
   ownership, reading order, resource identity, or conformance from incidental
@@ -43,8 +49,7 @@
   or exponential blow-ups: exact Roc allocation counts and deterministic work
   counters remain mandatory, and scalable features carry small/large scale
   pairs, but there are no numeric product performance targets or required
-  timing/memory jobs. Human reader and assistive-technology review is optional
-  and never blocks gate closure; machine-verifiable conformance does not relax.
+  timing/memory jobs. Human reader and assistive-technology review is optional.
 - Treat performance as part of every feature slice's design and completion
   evidence. Review ownership, ARC/uniqueness, dense storage, traversal choice,
   caching, copying, seamless-slice retention, worst-case complexity, and error

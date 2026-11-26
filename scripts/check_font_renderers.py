@@ -33,6 +33,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from provision_extended_tools import archive_path
+
 from check_visual_renderers import Raster, read_ppm
 from check_fonts import FontFacts
 
@@ -42,7 +44,7 @@ FACTS_SNAPSHOT = ROOT / "tests" / "font_leaves" / "font_leaf_facts.pdf"
 SHARE_100_SNAPSHOT = ROOT / "tests" / "font_leaves" / "font_leaves_share_100.pdf"
 DEDUPE_8_SNAPSHOT = ROOT / "tests" / "font_leaves" / "font_leaves_dedupe_8.pdf"
 DISTINCT_8_SNAPSHOT = ROOT / "tests" / "font_leaves" / "font_leaves_distinct_8.pdf"
-PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
+PDFBOX_JAR = archive_path("pdfbox")
 RENDER_SOURCE = ROOT / "scripts" / "PdfBoxRender.java"
 EXTRACT_SOURCE = ROOT / "scripts" / "PdfBoxTextExtract.java"
 FONTTOOLS_VERSION = "4.61.1"

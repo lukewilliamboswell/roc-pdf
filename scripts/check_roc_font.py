@@ -5,11 +5,13 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from provision_extended_tools import archive_path
+
 from check_visual_renderers import read_ppm
 
 ROOT = Path(__file__).resolve().parents[1]
 PDF = ROOT / 'tests/caller_font_facade/roc_fonts.pdf'
-JAR = ROOT / 'vendor/pdfbox/pdfbox-app-3.0.8.jar'
+JAR = archive_path("pdfbox")
 
 
 def main():

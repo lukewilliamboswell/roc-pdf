@@ -59,8 +59,8 @@ Pdf :: [].{
 		is_eq : _
 	}
 
-	## Opt into the separately validated WTPDF 1.0 accessibility declaration
-	## with AccessibleArchive. The default writes only the selected profile.
+	## Opt into the WTPDF 1.0 accessibility declaration with AccessibleArchive.
+	## The package checks the supported output rules on a best-effort basis.
 	WtpdfDeclaration := [DeclareAccessibility, NoWtpdfDeclaration].{
 		is_eq : _
 	}
@@ -453,10 +453,10 @@ Pdf :: [].{
 	## `Pdf.to_bytes_with(document, { page_size: Letter, theme, fonts:
 	## Registered(registry) })`.
 	##
-	## The production default is `AccessibleArchive` (PDF 2.0, static PDF/A-4,
-	## and PDF/UA-2). Select `Archive` for static PDF/A-4 alone or `Standard`
-	## for PDF 2.0. Request the WTPDF accessibility declaration with
-	## `wtpdf: DeclareAccessibility`.
+	## `AccessibleArchive` declares PDF/A-4 and PDF/UA-2 by default. `Archive`
+	## declares PDF/A-4. `Standard` writes PDF 2.0 without either declaration.
+	## Request WTPDF accessibility with `wtpdf: DeclareAccessibility`.
+	## These options select the package's best-effort checks and declarations.
 	## `fonts` is the complete public caller-resource boundary: a
 	## `Registered` registry carries the original immutable font bytes and
 	## the once-produced inspection facts, and the theme selects only the
@@ -3695,7 +3695,7 @@ expect {
 ## White-box twins over a realistic claimed plan: text, an alpha raster
 ## figure, URI and internal links, an outline, and page labels. Each twin
 ## differs from the prepared plan in exactly one lowered fact or one prepared
-## text fact and must be rejected with its own ledger requirement.
+## text fact and must be rejected with its own requirement code.
 archive_twin_document : Document
 archive_twin_document = {
 	image = Image.Source.rgb8({

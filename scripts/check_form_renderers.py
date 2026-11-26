@@ -44,6 +44,8 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from provision_extended_tools import archive_path
+
 from check_visual_renderers import Raster, read_ppm
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -52,7 +54,7 @@ REPEAT_SNAPSHOT = ROOT / "tests" / "forms" / "forms_repeat_1000.pdf"
 DAG_SNAPSHOT = ROOT / "tests" / "forms" / "forms_dag_8.pdf"
 DEEP_SNAPSHOT = ROOT / "tests" / "forms" / "forms_deep_64.pdf"
 TEXT_SNAPSHOT = ROOT / "tests" / "form_text" / "form_text.pdf"
-PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
+PDFBOX_JAR = archive_path("pdfbox")
 RENDER_SOURCE = ROOT / "scripts" / "PdfBoxRender.java"
 EXTRACT_SOURCE = ROOT / "scripts" / "PdfBoxTextExtract.java"
 SIZE = 100

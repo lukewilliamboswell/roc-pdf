@@ -8,8 +8,8 @@ evidence; inclusion here does not establish a public capability.
 
 These contracts were extracted from the architecture without changing their
 requirements. Revisions require an explicit design decision, affected
-allocation/work and byte evidence, and updates to the normative ledger or
-architecture when their boundaries change. Compiler- or feature-caused baseline
+allocation, work and byte evidence, and updates to the architecture when
+their boundaries change. Compiler- or feature-caused baseline
 changes follow the existing review protocol; this record is not permission to
 regenerate evidence mechanically.
 
@@ -197,6 +197,6 @@ makes each case's allocation evidence independent of build order and cache
 state. A reproduction of the cache dependence is recorded in
 [upstream-roc-uniqueness-issue.md](https://github.com/lukewilliamboswell/roc-pdf/blob/4b247670ec05e8aa78c1d03a7002a00d820ceeda/development/performance/upstream-roc-uniqueness-issue.md)
 (B). A case's
-static PDF/A-4 claim is declared by its `pdfa4` validator; Standard-only
-snapshots must never declare PDF/A identification, and
-`scripts/check_pdfa4.py` enforces both directions.
+static PDF/A-4 declaration is selected by its `pdfa4` fixture checker.
+`scripts/check_profile_declarations.py` checks profile identification against
+the selected declarations, including their absence in Standard snapshots.

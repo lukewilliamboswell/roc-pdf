@@ -166,7 +166,7 @@ Run on 2026-09-30 against the committed snapshots and gallery.
   snapshots and 10 gallery PDFs fail only clause 5 (no PDF/UA
   identification, as expected without a claim). No 8.2.4 finding remains.
 - **Arlington 1.30.2** (`check_arlington.py --cases` against the digest-pinned
-  `verapdf/arlington` service in Docker, as CI runs it): 230 case files
+  `verapdf/arlington` service in Docker): 230 case files
   compliant with zero failed rules and checks; the one recorded exception
   failed exactly as recorded.
 - **Independent structure checkers**: `check_structure_semantics.py`

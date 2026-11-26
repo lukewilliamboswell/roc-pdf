@@ -145,52 +145,33 @@ reviewable without repeatedly rerunning the suite for its next mismatch.
 The [accepted compiler/dependency profile](performance/toolchain-profile.md)
 records current native provenance, controlled comparisons and reviewed outliers.
 
-## Static PDF/A-4 lanes
+## Profile fixtures
 
-Every `Archive` snapshot declares the `pdfa4` validator
-(`scripts/check_pdfa4_structure.py`), which re-derives the static profile
-facts from the bytes. The external lanes run on demand, after
-`scripts/provision_extended_tools.py` has laid down veraPDF, MuPDF, and the
-vendored upstream corpus:
+Register snapshots with `pdfa4` for the PDF/A-4 declaration, `pdfua2` for
+combined output, and `wtpdf_accessibility` when the case requests the WTPDF
+accessibility declaration. The project-owned harness inspects emitted XMP and
+applicable structure and resource facts, and compares the original output
+against the same PDF snapshot on each supported target. Use atomic source
+rejections and focused mutations to prove the checks distinguish altered
+objects or metadata.
 
-```sh
-python3 scripts/check_pdfa4.py --cases           # Archive snapshots: zero failed checks
-python3 scripts/check_pdfa4.py --standard-cases  # Standard snapshots: only deliberate omissions
-python3 scripts/check_pdfa4.py --corpus          # upstream veraPDF PDF/A-4 corpus verdicts
-python3 scripts/check_archive_renderers.py --pdfium-renderer PATH --mutool PATH
-```
+## Optional local PDF review
 
-The veraPDF lane always passes the explicit `--flavour 4`. Parser warnings or
-task exceptions in package output are failures. Corpus validator defects may
-only be recorded in `conformance/verapdf-exceptions.json`, with an upstream
-reference. The ledger must map every rule of the pinned profile
-(`conformance/verapdf-pdfa4-rules.json`, extracted from the vendored
-installer) exactly once; `scripts/check_contracts.py` enforces this.
-
-## Combined accessibility and archival validation
-
-Register each combined PDF snapshot with both `pdfa4` and `pdfua2`. Add
-`wtpdf_accessibility` when the case requests that declaration. The test
-harness inspects the emitted XMP and compares the full output with the same
-snapshot on each supported target. The CI conformance job runs after that
-comparison. To run the conformance job's combined-profile checks locally:
+Provision the independent tools you want to use. Selected downloads are
+verified and cached under `.roc-pdf-tmp/extended-tools/downloads`. Pass
+`--offline` to verify and use already-cached archives.
 
 ```sh
-python3 scripts/provision_extended_tools.py --skip-mupdf
+python3 scripts/provision_extended_tools.py --only verapdf
+python3 scripts/check_pdfa4.py --cases
 python3 scripts/check_accessible_archive.py --cases
 ```
 
-Each combined snapshot must pass separate explicit veraPDF `4` and `ua2`
-runs. WTPDF fixtures also pass explicit `wt1a`. All profiles receive the
-original bytes. Arlington separately inspects the same snapshots along
-with the other registered fixture and example PDFs.
-
-The accessibility oracle builds atomic negative twins from declared
-passing cases and requires the complete expected set of failed rule IDs for
-each twin. Inspect the generated PDFs and raw validator reports in ignored
-`.roc-pdf-tmp/accessible-archive-oracles/`. The pinned PDF/UA-2 and WTPDF
-Accessibility catalogs include the ISO/TS 32005 containment rules and can
-be re-extracted offline with `scripts/extract_verapdf_rules.py`.
+The Archive runner selects veraPDF profile `4`. The combined runner checks
+`4` and `ua2` on the original bytes and `wt1a` on the cases declaring WTPDF
+accessibility. Third-party results supplement local review. CI runs the
+project-owned checks. Report tool versions and keep generated controls and
+review output in ignored scratch storage.
 
 ## Designing correctness oracles
 

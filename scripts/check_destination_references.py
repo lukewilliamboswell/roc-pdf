@@ -12,6 +12,8 @@ import os
 import subprocess
 from fractions import Fraction as F
 from pathlib import Path
+
+from provision_extended_tools import archive_path
 import re
 
 from check_navigation import check_name_tree
@@ -390,7 +392,7 @@ def reader_check(mutool: Path | None) -> None:
     output = ROOT / '.roc-pdf-tmp/destination-reference-readers'
     classes = output / 'classes'
     classes.mkdir(parents=True, exist_ok=True)
-    jar = ROOT / 'vendor/pdfbox/pdfbox-app-3.0.8.jar'
+    jar = archive_path("pdfbox")
     def run(command: list[str]) -> bytes:
         result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=180)
         require(result.returncode == 0 and not result.stderr.strip(),

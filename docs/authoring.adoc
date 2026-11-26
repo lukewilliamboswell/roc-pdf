@@ -459,11 +459,11 @@ checksums, pass `compression: Smallest`.
 == Output profiles
 
 `Pdf.to_bytes`, `Pdf.to_chunks`, and any options that omit `profile` use
-`AccessibleArchive`. Choose the claims your document needs.
+`AccessibleArchive`. Choose the declarations your document needs.
 
 [cols="1,2",options="header"]
 |===
-| Profile | Claims
+| Profile | Output and declarations
 | `AccessibleArchive` (default) | PDF 2.0, static PDF/A-4, and PDF/UA-2
 | `Archive` | PDF 2.0 and static PDF/A-4
 | `Standard` | PDF 2.0
@@ -484,7 +484,7 @@ standard_bytes = Pdf.to_bytes_with(document, { profile: Standard })?
 
 WTPDF 1.0 accessibility is a separate declaration. Add it to
 `AccessibleArchive` by setting `wtpdf: DeclareAccessibility`. The default
-`NoWtpdfDeclaration` writes the selected profile's claims.
+`NoWtpdfDeclaration` writes only the declarations for the selected profile.
 
 [source,roc]
 ----
@@ -494,10 +494,17 @@ declared_bytes = Pdf.to_bytes_with(document, {
 })?
 ----
 
-The selected profile is validated before emission. A profile requirement
-failure returns an `InvalidDocument` diagnostic batch before any bytes or
-chunks are produced. The diagnostics describe the offending requirement,
-including its authored location or standards reference when available.
+The package checks metadata, tagged structure, text, and resources as
+applicable to the selected profile. A failed check returns an `InvalidDocument`
+diagnostic batch before any bytes or chunks are produced. Each diagnostic
+identifies the authored location or the relevant standards reference when
+available.
+
+Standards support is best effort. The preparation report helps you review
+content-dependent requirements such as whether figure descriptions are
+accurate and the reading order makes sense. If you need independent
+certification for a use case, discuss its scope, funding, and ownership in
+https://github.com/lukewilliamboswell/roc-pdf/issues[GitHub Issues].
 
 [#authoring-chapter-aware-page-scopes]
 == Chapter-aware page scopes

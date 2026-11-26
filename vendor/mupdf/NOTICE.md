@@ -1,11 +1,11 @@
 # MuPDF 1.28.2 source archive
 
-The retained `mupdf-1.28.2-source.tgz` is the unmodified MuPDF 1.28.2 source
+The local cache file `mupdf-1.28.2-source.tgz` is the unmodified MuPDF 1.28.2 source
 release artifact (upstream filename `mupdf-1.28.2-source.tar.gz`; only the
 local filename differs) used only by the repository's test tooling as the
 extended-diversity renderer. `mutool` is compiled from these exact bytes at
 test time; no MuPDF code is linked into or invoked by the production Roc
-package. It was downloaded from:
+package. Provisioning downloads it from:
 
 https://mupdf.com/downloads/archive/mupdf-1.28.2-source.tar.gz
 
@@ -20,9 +20,8 @@ Its SHA-512 digest is:
 MuPDF is copyright Artifex Software, Inc. and is licensed under the GNU
 Affero General Public License version 3 (or a commercial license from
 Artifex). The upstream top-level `COPYING` from this archive is retained
-beside it as `COPYING.txt`; the archive additionally carries its bundled
+here as `COPYING.txt`. The archive also carries its bundled
 third-party components (including FreeType, HarfBuzz, libjpeg, zlib, and the
 packaged fonts) under their own licenses in `thirdparty/`, `docs/license.md`,
-and `resources/`. The archive is redistributed unmodified with all of that
-license and attribution material intact, which satisfies the AGPL's
-source-availability terms for this repository's use as a test oracle.
+and `resources/`. Provisioning preserves all upstream license and
+attribution material in the archive.

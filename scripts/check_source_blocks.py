@@ -16,6 +16,8 @@ import tempfile
 from fractions import Fraction
 from pathlib import Path
 
+from provision_extended_tools import archive_path
+
 from check_pdf_structure import ValidationError, require
 from check_rich_inline import page_marked_text, text_string, to_unicode
 from check_structure_semantics import Document, Ref, element_children, page_order
@@ -23,7 +25,7 @@ from check_visual_renderers import read_ppm
 from text_positions import glyph_positions, shown_strings
 
 ROOT = Path(__file__).resolve().parents[1]
-PDFBOX = ROOT / "vendor/pdfbox/pdfbox-app-3.0.8.jar"
+PDFBOX = archive_path("pdfbox")
 MARKED = re.compile(rb"/[A-Za-z0-9]+ <</MCID ([0-9]+)>> BDC\n(.*?)\nEMC", re.S)
 ARTIFACT = re.compile(rb"/Artifact <</Type /Layout>> BDC\n(.*?)\nEMC", re.S)
 FONT = re.compile(rb"/([A-Za-z0-9_]+) ([0-9.]+) Tf")

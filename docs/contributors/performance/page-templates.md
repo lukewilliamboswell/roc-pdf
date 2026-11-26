@@ -284,7 +284,7 @@ snapshots with zero failed checks, including the seven page-templates
 snapshots, and `--standard-cases` fails only the deliberate omissions.
 Arlington `--cases` passes all 198 case files and the gallery.
 
-**Rendering.** PDFium (pages extracted with the vendored qpdf) paints
+**Rendering.** PDFium (pages extracted with the qpdf) paints
 `Page 2 of 3` end-aligned in the continuation header of page 2 of the
 letter, the logo and lead letterhead above the body on page 1 with the
 centered footer, the schedule's repainted header row under the page 3

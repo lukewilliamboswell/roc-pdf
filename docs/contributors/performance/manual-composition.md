@@ -157,7 +157,7 @@ expectations, immutable PDF snapshots, retained allocated-byte guards and all
 registered independent validators. The native measurements were collected at
 `8c5af2e`; all 224 Roc source SHA-256 values in the retained native manifest
 remain identical at `75e09c8`. The intervening commits change only the reviewed
-allocation expectation, conformance-ledger traceability and documentation.
+allocation expectation, edition and clause references and documentation.
 Thus both runs exercise identical production and fixture source; Linux matches
 the same accepted snapshots and establishes cross-target PDF byte equality.
 This does not assert equal requested-byte observations across targets.

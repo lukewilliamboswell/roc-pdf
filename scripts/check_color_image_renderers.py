@@ -34,6 +34,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from provision_extended_tools import archive_path
+
 from check_visual_renderers import Raster, read_ppm
 from check_form_renderers import (
     MUTOOL_IMAGE_TONES,
@@ -47,7 +49,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SHOWCASE_SNAPSHOT = ROOT / "tests" / "color_images" / "color_images.pdf"
 DEDUP_SNAPSHOT = ROOT / "tests" / "color_images" / "color_images_dedup_64.pdf"
 DISTINCT_SNAPSHOT = ROOT / "tests" / "color_images" / "color_images_distinct_8.pdf"
-PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
+PDFBOX_JAR = archive_path("pdfbox")
 SIZE = 100
 
 IDENTITY_SRGB = {

@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "oracles": {
+    "mupdf": {
+      "upstream_revision": "1.28.2",
+      "url": "https://mupdf.com/downloads/archive/mupdf-1.28.2-source.tar.gz",
+      "bytes": 68898646,
+      "sha256": "44075a84e329db55b9bef5f342a70fd26d69e48ad1d33cb89d9664581c641156",
+      "license": "AGPL-3.0-only and bundled third-party licenses",
+      "notice": "vendor/mupdf/NOTICE.md"
+    },
+    "pdfbox": {
+      "upstream_revision": "3.0.8",
+      "url": "https://archive.apache.org/dist/pdfbox/3.0.8/pdfbox-app-3.0.8.jar",
+      "bytes": 13602031,
+      "sha256": "f6b3a80c39747ff0ef5d06708bc03882152403de58dbef4a1fbffbee568eceb1",
+      "license": "Apache-2.0 and bundled third-party licenses",
+      "notice": "vendor/pdfbox/NOTICE.md"
+    },
+    "pdfium": {
+      "upstream_revision": "chromium/7988",
+      "url": "https://github.com/bblanchon/pdfium-binaries/releases/download/chromium/7988/pdfium-linux-x64.tgz",
+      "bytes": 3675602,
+      "sha256": "7358c15e26a746cd67854887ea11b3b807c436056788eee9294fb972b8f8e0be",
+      "license": "BSD-3-Clause and bundled third-party licenses",
+      "notice": "vendor/pdfium/NOTICE.md"
+    },
+    "qpdf": {
+      "upstream_revision": "12.3.2",
+      "url": "https://github.com/qpdf/qpdf/releases/download/v12.3.2/qpdf-12.3.2-bin-linux-x86_64.zip",
+      "bytes": 4025945,
+      "sha256": "44f2c53bf784c0143128d80d2b9946e9793962c5bb403b75c0024cb4d8e346b9",
+      "license": "Apache-2.0 and bundled third-party library licenses",
+      "notice": "vendor/qpdf/NOTICE.md"
+    },
+    "verapdf": {
+      "upstream_revision": "1.30.2",
+      "url": "https://software.verapdf.org/releases/1.30/verapdf-greenfield-1.30.2-installer.zip",
+      "bytes": 32923960,
+      "sha256": "6cc6341cb1af644044054b81f00a6590a7918abb18f762243de115258bcad838",
+      "license": "MPL-2.0 OR GPL-3.0-or-later, and bundled third-party licenses",
+      "notice": "vendor/verapdf/NOTICE.md"
+    }
+  }
+}

@@ -1,8 +1,8 @@
 # PDFium Chromium 7988 Linux x64
 
-The retained `pdfium-linux-x64-7988.tgz` is the unmodified PDFium binaries
-release artifact used only by the repository's test tooling. It was downloaded
-from:
+The local cache file `pdfium-linux-x64-7988.tgz` is the unmodified PDFium binaries
+release artifact used only by the repository's test tooling. Provisioning
+downloads it from:
 
 https://github.com/bblanchon/pdfium-binaries/releases/download/chromium/7988/pdfium-linux-x64.tgz
 

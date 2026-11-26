@@ -15,6 +15,8 @@ import json
 import os
 import subprocess
 from pathlib import Path
+
+from provision_extended_tools import archive_path
 import re
 
 from check_pdf_structure import ValidationError, require
@@ -422,7 +424,7 @@ def reader_check(mutool: Path | None):
     cases = [case for case in json.loads((ROOT/'tests/spec.json').read_text())['cases'] if 'technical_manual' in case['validators']]
     output = ROOT/'.roc-pdf-tmp/technical-manual-readers'
     classes = output/'classes'; classes.mkdir(parents=True, exist_ok=True)
-    jar = ROOT/'vendor/pdfbox/pdfbox-app-3.0.8.jar'
+    jar = archive_path("pdfbox")
     def run(command: list[str]) -> bytes:
         result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=180)
         require(result.returncode == 0 and not result.stderr.strip(), f'manual reader failed: {result.stderr.decode(errors="replace")}')

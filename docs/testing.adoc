@@ -21,9 +21,10 @@ for test selection, fixture layout, validators and toolchain-baseline review.
 [#designing-correctness-oracles]
 == Designing correctness oracles
 
-Start a file-format or conformance check with the applicable clause, table
-and corrections in the
-https://github.com/lukewilliamboswell/roc-pdf/blob/main/conformance/normative-baseline.json[pinned normative baseline].
+Start a file-format or profile check with the applicable edition, clause,
+table, and errata. Record the reference beside the implementation or focused
+test. Use project-owned fixtures for CI. Independent PDF validators and
+readers are optional local tools.
 State the writer's obligation separately from any optional reader algorithm
 and from choices specific to roc-pdf. PDF name trees order byte-string keys
 with a key before its extensions. The fixed fanout is a package choice.

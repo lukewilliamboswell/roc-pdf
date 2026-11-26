@@ -17,22 +17,6 @@
       }
     },
     {
-      "id": "apache-pdfbox-app-jar",
-      "path": "vendor/pdfbox/pdfbox-app-3.0.8.jar",
-      "kind": "test_toolchain",
-      "bytes": 13602031,
-      "sha256": "f6b3a80c39747ff0ef5d06708bc03882152403de58dbef4a1fbffbee568eceb1",
-      "license": "Apache-2.0 and bundled third-party licenses",
-      "attribution": "vendor/pdfbox/NOTICE.md",
-      "modification_permitted": true,
-      "redistribution_permitted": true,
-      "origin": {
-        "kind": "external",
-        "source_url": "https://archive.apache.org/dist/pdfbox/3.0.8/pdfbox-app-3.0.8.jar",
-        "upstream_revision": "3.0.8"
-      }
-    },
-    {
       "id": "archive-blank-pdf-snapshot",
       "path": "tests/archive/archive_blank.pdf",
       "kind": "expected_pdf",
@@ -3519,22 +3503,6 @@
       }
     },
     {
-      "id": "mupdf-1-28-2-source-archive",
-      "path": "vendor/mupdf/mupdf-1.28.2-source.tgz",
-      "kind": "test_toolchain",
-      "bytes": 68898646,
-      "sha256": "44075a84e329db55b9bef5f342a70fd26d69e48ad1d33cb89d9664581c641156",
-      "license": "AGPL-3.0-only and bundled third-party licenses",
-      "attribution": "vendor/mupdf/NOTICE.md",
-      "modification_permitted": true,
-      "redistribution_permitted": true,
-      "origin": {
-        "kind": "external",
-        "source_url": "https://mupdf.com/downloads/archive/mupdf-1.28.2-source.tar.gz",
-        "upstream_revision": "1.28.2"
-      }
-    },
-    {
       "id": "navigation-annots-64-pdf-snapshot",
       "path": "tests/navigation/navigation_annots_64.pdf",
       "kind": "expected_pdf",
@@ -4285,22 +4253,6 @@
       }
     },
     {
-      "id": "pdfium-chromium-7988-linux-x64-archive",
-      "path": "vendor/pdfium/pdfium-linux-x64-7988.tgz",
-      "kind": "test_toolchain",
-      "bytes": 3675602,
-      "sha256": "7358c15e26a746cd67854887ea11b3b807c436056788eee9294fb972b8f8e0be",
-      "license": "BSD-3-Clause and bundled third-party licenses",
-      "attribution": "vendor/pdfium/NOTICE.md",
-      "modification_permitted": true,
-      "redistribution_permitted": true,
-      "origin": {
-        "kind": "external",
-        "source_url": "https://github.com/bblanchon/pdfium-binaries/releases/download/chromium/7988/pdfium-linux-x64.tgz",
-        "upstream_revision": "chromium/7988"
-      }
-    },
-    {
       "id": "placeholder-pdf-snapshot",
       "path": "tests/placeholder/snapshot.pdf",
       "kind": "expected_pdf",
@@ -4343,22 +4295,6 @@
       "origin": {
         "kind": "generated",
         "generator": "tests/pdf_facade/Cases.roc"
-      }
-    },
-    {
-      "id": "qpdf-12-3-2-linux-x64-archive",
-      "path": "vendor/qpdf/qpdf-12.3.2-bin-linux-x86_64.zip",
-      "kind": "test_toolchain",
-      "bytes": 4025945,
-      "sha256": "44f2c53bf784c0143128d80d2b9946e9793962c5bb403b75c0024cb4d8e346b9",
-      "license": "Apache-2.0 and bundled third-party library licenses",
-      "attribution": "vendor/qpdf/NOTICE.md",
-      "modification_permitted": true,
-      "redistribution_permitted": true,
-      "origin": {
-        "kind": "external",
-        "source_url": "https://github.com/qpdf/qpdf/releases/download/v12.3.2/qpdf-12.3.2-bin-linux-x86_64.zip",
-        "upstream_revision": "12.3.2"
       }
     },
     {
@@ -7012,37 +6948,6 @@
       "sha256": "29e8b123e3b5a3481f030d038b39e0fd382d7a0ee20a4b8e1e22a92d9067fdc0",
       "modification_permitted": true,
       "redistribution_permitted": true
-    },
-    {
-      "id": "verapdf-corpus-pdfa4-subset",
-      "path": "vendor/verapdf-corpus/verapdf-corpus-pdfa4-49de56c.tgz",
-      "kind": "validator_corpus",
-      "bytes": 41493289,
-      "sha256": "c183bf25a38d1ceb9197d0ded548c73d7f14b02dd9e40fefd26e7520363f59bc",
-      "license": "CC-BY-4.0",
-      "attribution": "vendor/verapdf-corpus/NOTICE.md",
-      "modification_permitted": true,
-      "redistribution_permitted": true,
-      "origin": {
-        "kind": "generated",
-        "generator": "scripts/build_verapdf_corpus_subset.py"
-      }
-    },
-    {
-      "id": "verapdf-greenfield-1-30-2-installer",
-      "path": "vendor/verapdf/verapdf-greenfield-1.30.2-installer.zip",
-      "kind": "test_toolchain",
-      "bytes": 32923960,
-      "sha256": "6cc6341cb1af644044054b81f00a6590a7918abb18f762243de115258bcad838",
-      "license": "MPL-2.0 OR GPL-3.0-or-later, and bundled third-party licenses",
-      "attribution": "vendor/verapdf/NOTICE.md",
-      "modification_permitted": true,
-      "redistribution_permitted": true,
-      "origin": {
-        "kind": "external",
-        "source_url": "https://software.verapdf.org/releases/1.30/verapdf-greenfield-1.30.2-installer.zip",
-        "upstream_revision": "1.30.2"
-      }
     },
     {
       "id": "x64musl-libc-archive",

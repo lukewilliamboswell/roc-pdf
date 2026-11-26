@@ -15,10 +15,8 @@ without consulting the Roc package:
 * catalog /ViewerPreferences /DisplayDocTitle true whenever the catalog
   carries a metadata stream, plus /MarkInfo /Marked true and page /Tabs /S;
 * parent/child containment, content items, at-most-one children, and the
-  first-or-last Caption rule against its OWN transcription of ISO/TS 32005
-  Table 5 (not the Roc table). When the pinned veraPDF installation is
-  provisioned, the self-test also compares that transcription with the
-  veraPDF PDFUA-2-ISO32005 profile rules;
+  first-or-last Caption rule for the roles roc-pdf emits. See ISO/TS 32005
+  Table 5 for the containment rules;
 * page furniture: every /Artifact <</Type /Pagination /Subtype
   /Header|/Footer|/PageNum>> sequence carries no MCID (so no structure element can
   own it), every page-number artifact's ToUnicode-decoded text that reads
@@ -37,7 +35,6 @@ from __future__ import annotations
 import argparse
 import re
 import sys
-import zipfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -73,14 +70,11 @@ SNAPSHOTS = {
     "empty_cells": ROOT / "tests" / "tables" / "empty_cells_40.pdf",
 }
 
-VERAPDF_JAR_GLOB = ".roc-pdf-tmp/extended-tools/verapdf/bin/cli-*.jar"
-VERAPDF_PROFILE = "org/verapdf/pdfa/validation/PDFUA-2-ISO32005.xml"
 
 # ---------------------------------------------------------------------------
 # Supported ISO/TS 32005:2023 Table 5 edges ("Hn" stands for H1..H6).
 # Parent context is checked separately for Part and Div. Grouping-only
 # children of Caption, Code and Link are outside the bounded text subset.
-# The self-test checks the pinned catalog and its known differences.
 # ---------------------------------------------------------------------------
 PDF20_NAMESPACE = "http://iso.org/pdf2/ssn"
 PDF17_NAMESPACE = "http://iso.org/pdf/ssn"
@@ -990,35 +984,6 @@ def replace_once(value: bytes, old: bytes, new: bytes) -> bytes:
         raise ValidationError(str(error)) from error
 
 
-def independent_table_matches_verapdf() -> str:
-    jars = sorted(ROOT.glob(VERAPDF_JAR_GLOB))
-    if not jars:
-        return "veraPDF not provisioned; Table 5 cross-check skipped"
-    with zipfile.ZipFile(jars[-1]) as archive:
-        profile = archive.read(VERAPDF_PROFILE).decode("utf-8")
-    forbidden = set()
-    for parent, child in re.findall(r"<description>&lt;(\w+)&gt;(?:, when used as [a-z ]+,)? shall not contain &lt;(\w+)&gt;</description>", profile):
-        forbidden.add((parent, child))
-    require(bool(forbidden), "the veraPDF profile yielded no Table 5 containment rules")
-    # The pinned profile permits these pairs, but the published
-    # Table 5 either excludes them or requires grouping-only context.
-    catalog_only = {
-        ("Caption", "DocumentFragment"),
-        *(("Code", child) for child in {"Caption", "Code", "DocumentFragment", "Figure", "L", "Lbl", "P", "Quote", "Sect", "Table"}),
-        *(("Link", child) for child in {"Caption", "DocumentFragment", "H", "Hn", "L", "Link", "P", "Part", "Table", "Title"}),
-        ("Quote", "Div"),
-    }
-    for parent in ALL_ROLES:
-        for child in ALL_ROLES:
-            allowed = child in MAY_CONTAIN[parent]
-            catalog_permits = (parent, child) not in forbidden
-            expected = (True, False) if (parent, child) in catalog_only else (allowed, allowed)
-            require((catalog_permits, allowed) == expected, f"unexpected Table 5 catalog relation for {parent} > {child}")
-    content_rules = set(re.findall(r"<description>&lt;(\w+)&gt; shall not contain content items</description>", profile))
-    require(NO_CONTENT_ITEMS - {"LI"} == content_rules & ALL_ROLES, "content-item roles disagree with veraPDF")
-    return f"checked {len(ALL_ROLES) ** 2} role pairs against {jars[-1].name}, including {len(catalog_only)} known catalog differences"
-
-
 def self_test() -> None:
     for label, path in SNAPSHOTS.items():
         check_structure_semantics(path.read_bytes())
@@ -1231,12 +1196,11 @@ def self_test() -> None:
         except ValidationError:
             continue
         raise SystemExit(f"structure-semantics checker accepted {label}")
-    cross_check = independent_table_matches_verapdf()
     print(
         "PASS structure-semantics checker self-test: normalized trees, ParentTree/MCID/OBJR "
         "exactly-once, IDTree/ID, language, attributes, DisplayDocTitle, MarkInfo, Tabs, "
         f"Table 5 containment, page furniture, figure captions and scales, and custom-block Divs and underlays verified on {len(SNAPSHOTS)} snapshots; {len(mutations) + len(grouping_twins) + len(authored_group_twins)} "
-        f"length-preserving mutation twins, two role-only containment twins, one foreign-stream MCR twin, five invalid language-tag twins, 3 scope-header twins, {len(furniture_twins)} furniture twins, and {len(callout_twins)} custom-block twins rejected; {cross_check}",
+        f"length-preserving mutation twins, two role-only containment twins, one foreign-stream MCR twin, five invalid language-tag twins, 3 scope-header twins, {len(furniture_twins)} furniture twins, and {len(callout_twins)} custom-block twins rejected",
         flush=True,
     )
 

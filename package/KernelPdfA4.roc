@@ -34,11 +34,10 @@ import KernelXmp
 KernelPdfA4 :: [].{
 	Claim : [NoArchiveClaim, StaticPdfA4Claim]
 
-	## One tag per ledger requirement with a runtime check. Requirements that
+	## One tag per requirement with a runtime check. Requirements that
 	## hold by construction (file header, cross-reference streams, string and
 	## indirect-object syntax, predefined CMaps, width agreement, and glyph
-	## coverage) are pinned by their owning module's expects and recorded in
-	## the conformance ledger rather than re-derived here.
+	## coverage) are checked in their owning modules.
 	Requirement : [
 		ActualTextPrivateUse,
 		Actions,
@@ -72,7 +71,7 @@ KernelPdfA4 :: [].{
 		ToUnicodeValues,
 	]
 
-	## The stable conformance-ledger identifier for each requirement.
+	## Stable diagnostic identifier for each requirement.
 	requirement_code : Requirement -> Str
 	requirement_code = |requirement| match requirement {
 		ActualTextPrivateUse => "ROC-PDF-PDFA4-6-2-10-8-ACTUAL-TEXT"

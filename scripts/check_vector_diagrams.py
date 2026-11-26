@@ -8,6 +8,8 @@ import json
 import os
 import re
 from pathlib import Path
+
+from provision_extended_tools import archive_path
 import struct
 import subprocess
 import tempfile
@@ -105,7 +107,7 @@ def compare_render() -> None:
     reference = read_png(PREPARATION / 'reference.png')
     with tempfile.TemporaryDirectory(prefix='vector-render-') as name:
         temporary = Path(name)
-        jar = ROOT / 'vendor/pdfbox/pdfbox-app-3.0.8.jar'
+        jar = archive_path("pdfbox")
         subprocess.run(['javac', '-Xlint:all', '-Werror', '-encoding', 'UTF-8', '-cp', str(jar), '-d', str(temporary), str(ROOT/'scripts/PdfBoxRender.java')], check=True, capture_output=True)
         output = temporary / 'pdfbox.ppm'
         subprocess.run(['java', '-Djava.awt.headless=true', '-cp', f'{temporary}{os.pathsep}{jar}', 'PdfBoxRender', str(SNAPSHOT), str(output), '96'], check=True, capture_output=True)
@@ -151,12 +153,14 @@ def self_test() -> None:
         require(str(error) == 'Figure label Unicode or authored order changed', 'label-order twin failed for the wrong reason')
     else:
         raise ValidationError('vector checker accepted two swapped Figure label marks')
-    compare_render()
-    print('PASS prepared vector source provenance, exact Unicode/ownership and independent Chrome/PDFBox rendering')
+    print('PASS prepared vector source provenance, exact Unicode/ownership')
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--self-test', action='store_true')
-    parser.parse_args()
+    parser.add_argument('--render', action='store_true', help='compare the local PDFBox render with the reference preview')
+    args = parser.parse_args()
     self_test()
+    if args.render:
+        compare_render()

@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from check_accessible_archive import validate_claims
+from check_profile_declarations import validate_claims
 from check_default_fonts import validate_default_fonts_pdf
 from check_contents_entries import validate_contents_entries_pdf
 from check_destination_references import validate_destination_references_pdf
@@ -58,7 +58,7 @@ from check_text import decoded_stream, only_object, validate_text_pdf
 from check_transparency import validate_transparency_pdf
 
 
-# Claim IDs also select the corresponding explicit veraPDF conformance lanes.
+# Claim IDs select project-owned output checks and label local oracle inputs.
 PROFILE_VALIDATORS = {"pdfua2": "pdfa4", "wtpdf_accessibility": "pdfua2"}
 
 
@@ -219,30 +219,25 @@ class PreflightCheck:
 PREFLIGHT_CHECKS: dict[str, PreflightCheck] = {
     name.removeprefix("check_").removesuffix(".py"): PreflightCheck(name)
     for name in (
-        "check_arlington.py", "check_pdfbox.py", "check_tagged_visual.py", "check_visual_renderers.py",
+        "check_tagged_visual.py", "check_visual_renderers.py",
         "check_text.py", "check_caller_text.py", "check_caller_facade.py", "check_facade_output.py",
         "check_generated_labels.py", "check_actual_text.py", "check_supplementary_text.py", "check_cjk_text.py",
         "check_ligature.py", "check_multiface_facade.py", "check_case_text.py", "check_combining.py",
         "check_rtl.py", "check_multiface_text.py", "check_soft_hyphen.py", "check_external_discretionary_hyphen.py",
-        "check_text_renderers.py", "check_forms.py", "check_form_renderers.py", "check_color_images.py",
-        "check_color_image_renderers.py", "check_transparency.py", "check_transparency_renderers.py",
-        "check_soft_masks.py", "check_soft_mask_renderers.py", "check_shadings.py", "check_shading_renderers.py",
-        "check_font_renderers.py", "check_metadata.py", "check_metadata_renderers.py",
-        "check_navigation.py", "check_navigation_renderers.py", "check_link_underlines.py", "check_drawing_labels.py", "extract_verapdf_rules.py",
-        "build_verapdf_corpus_subset.py", "roc_diagnostics.py", "check_accessible_archive.py",
+        "check_forms.py", "check_color_images.py",
+        "check_transparency.py", "check_transparency_renderers.py",
+        "check_soft_masks.py", "check_shadings.py", "check_shading_renderers.py",
+        "check_metadata.py", "check_metadata_renderers.py",
+        "check_navigation.py", "check_link_underlines.py", "check_drawing_labels.py", "roc_diagnostics.py",
     )
 }
-# The static PDF/A-4 self-tests read Archive and Standard snapshots, which are
-# in flux during --update-snapshots; they run again as post-update checks.
 PREFLIGHT_CHECKS["pdfa4_structure"] = PreflightCheck("check_pdfa4_structure.py", True)
-PREFLIGHT_CHECKS["pdfa4"] = PreflightCheck("check_pdfa4.py", True)
-PREFLIGHT_CHECKS["archive_renderers"] = PreflightCheck("check_archive_renderers.py", True)
+PREFLIGHT_CHECKS["profile_declarations"] = PreflightCheck("check_profile_declarations.py", True)
 PREFLIGHT_CHECKS["contracts"] = PreflightCheck("check_contracts.py", True)
 PREFLIGHT_CHECKS["pdf_structure"] = PreflightCheck("check_pdf_structure.py", True)
 # The font self-test validates the committed font-leaf snapshots' exact
 # descendant dictionaries, which are also in flux during --update-snapshots.
 PREFLIGHT_CHECKS["default_fonts"] = PreflightCheck("check_default_fonts.py", True)
-PREFLIGHT_CHECKS["roc_font"] = PreflightCheck("check_roc_font.py", True)
 PREFLIGHT_CHECKS["fonts"] = PreflightCheck("check_fonts.py", True)
 # The structure-semantics self-test reads committed facade and container
 # snapshots, which are in flux during --update-snapshots.
@@ -258,9 +253,8 @@ PREFLIGHT_CHECKS["source_blocks"] = PreflightCheck("check_source_blocks.py", Tru
 PREFLIGHT_CHECKS["fixed_pages"] = PreflightCheck("check_fixed_pages.py", True)
 PREFLIGHT_CHECKS["vector_diagrams"] = PreflightCheck("check_vector_diagrams.py", True)
 PREFLIGHT_CHECKS["source_foregrounds"] = PreflightCheck("check_source_foregrounds.py", True)
-# Both reference-document self-tests read the reference and gallery
+# The reference-document self-test reads the reference and gallery
 # snapshots, which are in flux during --update-snapshots.
-PREFLIGHT_CHECKS["structure_extraction"] = PreflightCheck("check_structure_extraction.py", True)
 PREFLIGHT_CHECKS["reference_documents"] = PreflightCheck("check_reference_documents.py", True)
 
 

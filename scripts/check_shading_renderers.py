@@ -52,6 +52,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from provision_extended_tools import archive_path
+
 from check_visual_renderers import Raster, read_ppm
 from check_form_renderers import compile_java, render_mutool, require
 
@@ -60,7 +62,7 @@ SHOWCASE_SNAPSHOT = ROOT / "tests" / "shading_patterns" / "shadings.pdf"
 SHARE_SNAPSHOT = ROOT / "tests" / "shading_patterns" / "shadings_share_100.pdf"
 CLIP_SNAPSHOT = ROOT / "tests" / "shading_patterns" / "clip_winding.pdf"
 PSHARE_SNAPSHOT = ROOT / "tests" / "shading_patterns" / "patterns_share_100.pdf"
-PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
+PDFBOX_JAR = archive_path("pdfbox")
 SIZE = 100
 
 RED = (1.0, 0.0, 0.0)

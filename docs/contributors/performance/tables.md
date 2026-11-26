@@ -335,7 +335,7 @@ tables snapshot; the only failure is the PDF/UA identification the package
 does not claim (clause 5).
 
 **Rendering.** PDFium (page 2 of the invoice x50 case, extracted with the
-vendored qpdf, because the adapter renders one page) paints the repainted
+qpdf, because the adapter renders one page) paints the repainted
 header row and its rule above the continued rows; MuPDF renders every page
 of the invoice, split-rows, and footer-carry cases the same way.
 

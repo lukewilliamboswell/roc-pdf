@@ -2,10 +2,9 @@
 
 ## Fixture and oracle
 
-The retained tagged-visual PDF is rendered at 720 dpi by PDFium Chromium 7988 and
-Apache PDFBox 3.0.8. Both are loaded from checksum-pinned, provenance-tracked
-release artifacts under `vendor/`; CI performs no per-run HTTP fetch for
-either renderer. PDFBox is the required non-PDFium renderer.
+The optional local tagged-visual check renders the fixture at 720 dpi with
+PDFium and PDFBox. Provision those tools explicitly before running the check.
+Keep the original fixture bytes as input to both renderers.
 
 The expected 100 by 100 RGB raster is constructed directly from the typed
 fixture, not from either renderer and not from another PDF generator. One PDF
@@ -24,13 +23,10 @@ renderers must equal the independent 30,000-byte expectation and each other.
 
 ## Pinning and failure boundary
 
-The vendored PDFium Chromium 7988 Linux archive is the unmodified immutable
-`chromium/7988` release artifact and is checked against SHA-256
-`7358c15e26a746cd67854887ea11b3b807c436056788eee9294fb972b8f8e0be`.
-CI compiles the small `pdfium_render.c` adapter with warnings as errors against
-that archive. The PDFBox adapter is likewise compiled with all Java lint
-warnings as errors. Both adapters emit the same simple binary PPM boundary,
-which `check_visual_renderers.py` parses without image-library dependencies.
+The project adapters emit a binary PPM boundary that
+`check_visual_renderers.py` parses without image-library dependencies. Use
+[the local tool setup](../testing.md#optional-local-pdf-review) to provision
+archives and record the reviewed versions.
 
 The checker self-test changes one channel of one white pixel and proves that
 the zero-tolerance comparison rejects it. Renderer setup and buffers are test-

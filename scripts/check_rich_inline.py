@@ -32,6 +32,8 @@ import tempfile
 import zlib
 from pathlib import Path
 
+from provision_extended_tools import archive_path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from pdf_layout import flatten, mutate as layout_mutate, occurrences
@@ -45,7 +47,7 @@ PARAGRAPHS = ROOT / "tests" / "rich_inline" / "paragraphs_10.pdf"
 BREAKS = ROOT / "tests" / "layout_policies" / "breaks.pdf"
 CODE_FACE = ROOT / "tests" / "rich_inline" / "code_face.pdf"
 ORDERED_FURNITURE = ROOT / "tests" / "page_templates" / "ordered.pdf"
-PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
+PDFBOX_JAR = archive_path("pdfbox")
 PDFBOX_SOURCE = ROOT / "scripts" / "PdfBoxTextExtract.java"
 
 INLINE_ROLES = {"Em", "Strong", "Code", "Quote", "Span", "Link"}

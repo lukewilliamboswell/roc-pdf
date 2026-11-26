@@ -37,11 +37,13 @@ import sys
 import tempfile
 from pathlib import Path
 
+from provision_extended_tools import archive_path
+
 from pdf_layout import flatten
 from check_visual_renderers import Raster, read_ppm
 
 ROOT = Path(__file__).resolve().parents[1]
-PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
+PDFBOX_JAR = archive_path("pdfbox")
 RENDER_SOURCE = ROOT / "scripts" / "PdfBoxRender.java"
 EXTRACT_SOURCE = ROOT / "scripts" / "PdfBoxTextExtract.java"
 NAVIGATE_SOURCE = ROOT / "scripts" / "PdfBoxNavigate.java"

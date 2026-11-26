@@ -13,9 +13,8 @@ or current version strings into this guide. See [Blueprint setup](blueprint.md).
 
 CI verifies downloaded and cached artifacts against their recorded digests.
 The native renderer needs no compiler or browser; API extraction uses the pinned
-package compiler. Independent PDFBox, veraPDF, Arlington and reader checks remain
-test tools, never production dependencies. Their exact inputs and provisioning
-are recorded under `vendor/` and in the workflow definitions.
+package compiler. CI runs project-owned checks. For optional local PDF
+validators and readers, see the [testing guide](testing.md#optional-local-pdf-review).
 
 ## Build and check the manual
 
@@ -35,9 +34,9 @@ A versioned build requires its actual bundle and authored release notes so the
 manual names the tested dependency and compiler.
 
 `check_manual.py` verifies source-block bytes, table associations, local links,
-anchors and source/asset digests in HTML and Markdown. PDFBox independently
-checks extracted source/table content, tagged tables and the exact gallery
-images. `check_manual_browser.mjs` checks desktop/mobile navigation, images,
+anchors and source/asset digests in HTML and Markdown. Project-owned PDF
+checks inspect the embedded gallery image bytes. PDFBox extraction is available
+for optional local review. `check_manual_browser.mjs` checks desktop/mobile navigation, images,
 overflow and dark mode. Keep raw output under ignored `.roc-pdf-tmp/` or CI
 artifacts; inspect layout when content changes. A renderer pass does not prove
 all product or accessibility claims.
@@ -45,8 +44,8 @@ all product or accessibility claims.
 ## Check and publish the same bytes
 
 The reusable checks workflow receives one source SHA and runs package/resource
-checks, fuzz smoke, independent conformance lanes, documentation, public bundle
-consumers and gallery/archive checks. Its aggregate requires every declared
+checks, fuzz smoke, documentation, public bundle consumers and
+gallery/archive checks. Its aggregate requires every declared
 result to succeed. Compiler-candidate dispatch suppresses publication and
 deployment; it remains a diagnostic build rather than a release.
 
@@ -59,7 +58,7 @@ compatibility. Within the same breaking boundary, `roc bump` must compile and
 compare both APIs and any failure blocks release. Prereleases use the
 compatibility promise of their final base version. The version check's
 self-tests cover both proof paths and rejected transitions. All candidate,
-archive and conformance tests remain required in either case.
+archive and profile fixture tests remain required in either case.
 
 Ordinary CI may retain the latest final version only when a freshly built
 complete package matches the uniquely selected immutable published asset by

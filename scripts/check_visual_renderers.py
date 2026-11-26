@@ -8,10 +8,12 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from provision_extended_tools import archive_path
+
 
 ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT = ROOT / "tests" / "tagged_visual" / "minimal.pdf"
-PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
+PDFBOX_JAR = archive_path("pdfbox")
 PDFBOX_SOURCE = ROOT / "scripts" / "PdfBoxRender.java"
 WIDTH = 100
 HEIGHT = 100

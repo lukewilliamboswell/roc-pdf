@@ -27,13 +27,15 @@ import sys
 import tempfile
 from pathlib import Path
 
+from provision_extended_tools import archive_path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from check_pdf_structure import ValidationError, require  # noqa: E402
 from check_structure_semantics import check_structure_semantics  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
-PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
+PDFBOX_JAR = archive_path("pdfbox")
 SOURCE = ROOT / "scripts" / "PdfBoxStructureExtract.java"
 
 SNAPSHOTS = [

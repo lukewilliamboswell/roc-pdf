@@ -1,7 +1,7 @@
 # Apache PDFBox application 3.0.8
 
-The retained `pdfbox-app-3.0.8.jar` is an unmodified Apache PDFBox release
-artifact used only by the repository's test tooling. It was downloaded from:
+The local cache file `pdfbox-app-3.0.8.jar` is an unmodified Apache PDFBox release
+artifact used only by the repository's test tooling. Provisioning downloads it from:
 
 https://archive.apache.org/dist/pdfbox/3.0.8/pdfbox-app-3.0.8.jar
 
@@ -11,7 +11,7 @@ Its SHA-512 digest is:
 
 The artifact contains its complete applicable license and attribution material
 at `META-INF/LICENSE` and `META-INF/NOTICE`. Those embedded files are part of
-the retained, checksum-pinned artifact and cover PDFBox and its bundled
+the checksum-pinned archive and cover PDFBox and its bundled
 third-party components.
 
 Apache PDFBox application

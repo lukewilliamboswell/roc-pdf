@@ -60,8 +60,7 @@ All metadata facts originate in typed authoring data and cross the compiler
 stages explicitly; no later stage re-parses, re-derives, or recovers a value
 from serialized bytes.
 
-**Language.** The pinned standard is BCP 47 / RFC 5646 (normative-baseline
-`bcp47-rfc5646`). The accepted subset is the canonical-case form
+**Language.** The language-tag reference is BCP 47 / RFC 5646. The accepted subset is the canonical-case form
 `language["-" script]["-" region]`: a two- or three-letter lowercase primary
 language, an optional four-letter titlecase script, and an optional
 two-letter uppercase or three-digit region. Three rejection families keep

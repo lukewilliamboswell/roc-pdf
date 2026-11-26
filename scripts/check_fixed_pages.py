@@ -8,11 +8,13 @@ from dataclasses import dataclass
 from fractions import Fraction
 import json
 from pathlib import Path
+
+from provision_extended_tools import archive_path
 import re
 import subprocess
 import tempfile
 
-from check_accessible_archive import validate_claims
+from check_profile_declarations import validate_claims
 from check_pdf_structure import ValidationError, require
 from check_rich_flow import ORIGIN, RECT, Paint, color, paint
 from check_rich_inline import page_marked_text
@@ -28,7 +30,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "tests/fixed_pages"
 EXPECTATIONS = FIXTURES / "remittance-expectations.json"
 SNAPSHOT = FIXTURES / "remittance_2.pdf"
-PDFBOX = ROOT / "vendor/pdfbox/pdfbox-app-3.0.8.jar"
+PDFBOX = archive_path("pdfbox")
 MARK_ID = re.compile(rb"<</MCID ([0-9]+)>>")
 INDIRECT_KID = re.compile(rb"\b[0-9]+ 0 R\b")
 K_ARRAY = re.compile(rb"/K \[([^]]+)\]")
@@ -304,7 +306,7 @@ def main() -> None:
         verify_twins(data)
     else:
         validate_fixed_pages_pdf(data, {"pages": args.pages, "wtpdf_accessibility": int(args.wtpdf)})
-    if args.render or args.self_test:
+    if args.render:
         verify_artifact_pixels(args.pdf, args.pages)
     print(f"PASS {args.pdf}: exact fixed sheet geometry, independent reading and paint order, and artifact layers")
 
