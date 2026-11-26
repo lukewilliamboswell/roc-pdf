@@ -2,7 +2,11 @@ app [main!] {
 	pdf: "../../package/main.roc",
 	pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.28.1/7brgwR8YUqfeGrkdfF1V4GPPN7DnP7ftqub9KcrTEZtr.tar.zst",
 }
+import pf.File
+import pf.IOErr
+import pf.OsStr
 import pf.Path
+import pf.Stderr
 import pf.Stdout
 import pdf.Color
 import pdf.Document
@@ -23,10 +27,29 @@ import "fonts/SourceCodePro-Bold.ttf" as bold_bytes : List(U8)
 ## and shaded excursions that continues across pages with its header
 ## repeated and a summary footer, under a running header inset above its
 ## rule.
-main! = |_args| {
+main! = |args| {
+	{ compression, delivery } = match args.map(OsStr.display) {
+		[] => { compression: Balanced, delivery: Chunked(ShareUnchangedResources) }
+		[compression_name, delivery_name] => {
+			chosen_compression = match compression_name {
+				"balanced" => Balanced
+				"smallest" => Smallest
+				"fastest" => Fastest
+				_ => return usage!()
+			}
+			chosen_delivery = match delivery_name {
+				"share" => Chunked(ShareUnchangedResources)
+				"own" => Chunked(OwnChunks)
+				"buffered" => Buffered
+				_ => return usage!()
+			}
+			{ compression: chosen_compression, delivery: chosen_delivery }
+		}
+		_ => return usage!()
+	}
 	fonts = register_fonts({})?
 	options : Pdf.Options
-	options = { theme: theme(fonts), fonts: Registered(fonts.registry) }
+	options = { theme: theme(fonts), fonts: Registered(fonts.registry), compression }
 	blocks = contents(options).map_err(|err| PdfFailed(err))?
 	document = Pdf.document({
 		contents: blocks,
@@ -37,29 +60,39 @@ main! = |_args| {
 		modified: Explicit("2026-09-30T00:00:00Z"),
 	})
 	prepared = Pdf.prepare(document, options).map_err(|err| PdfFailed(err))?
-	encoder = Pdf.to_chunks_prepared(prepared, ShareUnchangedResources).map_err(|err| EmitFailed(err))?
-	collected = collect(encoder)
 	output : Path
 	output = "chunked-export.pdf"
-	output.write_bytes!(collected.bytes).map_err(|err| WriteFailed(err))?
-	Stdout.line!("Wrote chunked-export.pdf from ${collected.chunks.to_str()} chunks (${collected.bytes.len().to_str()} bytes)").map_err(|err| OutputFailed(err))?
+	match delivery {
+		Buffered => {
+			bytes = Pdf.to_bytes_prepared(prepared).map_err(|err| EmitFailed(err))?
+			output.write_bytes!(bytes).map_err(|err| WriteFailed(err))?
+			Stdout.line!("Wrote chunked-export.pdf (${bytes.len().to_str()} buffered bytes)").map_err(|err| OutputFailed(err))?
+		}
+		Chunked(retention) => {
+			encoder = Pdf.to_chunks_prepared(prepared, retention).map_err(|err| EmitFailed(err))?
+			counts = File.with_writer!(output, Truncate, {}, |writer| write_chunks!(writer, encoder)).map_err(|err| WriteFailed(err))?
+			Stdout.line!("Wrote chunked-export.pdf from ${counts.chunks.to_str()} chunks (${counts.bytes.to_str()} bytes)").map_err(|err| OutputFailed(err))?
+		}
+	}
 	Ok({})
 }
 
-## Drain the encoder, appending each chunk's bytes to one uniquely owned
-## buffer and counting the chunks.
-collect : Pdf.Encode -> { bytes : List(U8), chunks : U64 }
-collect = |encoder| {
-	var $bytes = []
+usage! = || {
+	Stderr.line!("Usage: roc run main.roc [balanced|smallest|fastest share|own|buffered]").map_err(|err| OutputFailed(err))?
+	Err(Exit(2))
+}
+
+write_chunks! : File.Writer, Pdf.Encode => Try({ bytes : U64, chunks : U64 }, [FileErr(IOErr)])
+write_chunks! = |writer, encoder| {
+	var $bytes = 0
 	var $chunks = 0
 	var $encoder = encoder
 	while True {
 		match Pdf.next_chunk($encoder) {
-			Done => return { bytes: $bytes, chunks: $chunks }
+			Done => return Ok({ bytes: $bytes, chunks: $chunks })
 			Emit(chunk, next) => {
-				for byte in chunk {
-					$bytes = $bytes.append(byte)
-				}
+				$bytes = $bytes + chunk.len()
+				writer.write_bytes!(chunk)?
 				$chunks = $chunks + 1
 				$encoder = next
 			}
