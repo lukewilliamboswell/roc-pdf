@@ -34,6 +34,17 @@ https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/business-report
 
 https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/business-report/README.md[Run the preparation report and heat-map variants.]
 
+[#quarterly-financial-schedule]
+== Quarterly financial schedule
+
+In the results-by-segment table, one revenue heading covers both quarters and
+one Farm operations header covers the Grain and Farm supplies rows. The
+Grain result of AUD 3,262 thousand names Q2, Revenue, Grain and fodder, and
+Farm operations explicitly. Farm supplies uses its scope-derived
+associations. The two farm rows stay together.
+
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/quarterly-report/main.roc[Runnable quarterly report source] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/quarterly-report/quarterly-report.pdf[PDF output] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/quarterly-report/preview.png[Preview]
+
 == Prepared vector diagrams
 
 image::images/vector-diagrams.png[Prepared vector diagram preview]

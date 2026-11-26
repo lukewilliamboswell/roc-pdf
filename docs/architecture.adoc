@@ -929,8 +929,14 @@ Table-local keys and explicit associations use a sparse normalized tape,
 leaving the dense cell arena unchanged. The semantic planner resolves
 explicit keys before layout, preserving the chosen header order and the
 scope-derived associations of other cells. A header-to-header edge points
-to an earlier header in authored order. Flattening
-a table to positioned boxes before semantic validation is forbidden.
+to an earlier header in authored order. Before sizing, semantics verifies
+the complete logical grid and stores cell rectangles and authored
+identities. Ordinary tables keep their dense cell path. For a spanning
+table, line layout uses the verified columns and pagination sizes its row
+bands from exact line counts and span-end constraints. A continuing paint
+tile always refers to the original semantic cell. Kept body groups cover
+every consecutive boundary crossed by a span. Repainting a header group
+uses its accepted bands and artifact ownership.
 
 Parent-child legality is not represented merely by `role` and `children`.
 Normalization checks namespace-aware containment, required attributes, role

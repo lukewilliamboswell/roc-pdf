@@ -205,7 +205,7 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 		}
 		$cell_measures = $cell_measures.append(measure)
 	}
-	tables = KernelFacadeTables.Plan.build_measured(authoring, sources, $cell_measures, content_width, $table_frames, theme) ? Tables
+	tables = KernelFacadeTables.Plan.build_measured(authoring, sources, $cell_measures, content_width, $table_frames, theme, symbolic.table_grids) ? Tables
 	var $cell_widths = List.repeat(0, owners.len())
 	for cell in KernelFacadeTables.Plan.cells(tables) {
 		$cell_widths = list_set($cell_widths, cell.block, cell.width)
@@ -345,7 +345,7 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 	if $row_items != items.len() {
 		return Err(InvalidContext({ block: 0 }))
 	}
-	Ok(KernelFacadeReferenceLines.Plan.{ contents: $contents, items, rows: $rows, item_offsets: $offsets, visible_advances: $visible, input: { blocks: $page_blocks, group_frames: $group_frames, source_frames: $source_frames, figure_frames: $figure_frames, tables: KernelFacadeTables.Plan.tables(tables), cells: KernelFacadeTables.Plan.cells(tables) }, work: { atoms: built.work.atom_writes, literal_clusters: built.work.cluster_visits, glyph_indices: built.work.glyph_index_visits, hold_scalars: holds.scalars, holds: holds.ranges.len(), measured_items: $measured_items, wrapped_items: $wrapped_items, boundaries: $boundaries, rows: $rows.len(), row_items: $row_items, alignment_items: $alignment_items } })
+	Ok(KernelFacadeReferenceLines.Plan.{ contents: $contents, items, rows: $rows, item_offsets: $offsets, visible_advances: $visible, input: { blocks: $page_blocks, group_frames: $group_frames, source_frames: $source_frames, figure_frames: $figure_frames, tables: KernelFacadeTables.Plan.tables(tables), table_grids: KernelFacadeTables.Plan.grids(tables), cells: KernelFacadeTables.Plan.cells(tables) }, work: { atoms: built.work.atom_writes, literal_clusters: built.work.cluster_visits, glyph_indices: built.work.glyph_index_visits, hold_scalars: holds.scalars, holds: holds.ranges.len(), measured_items: $measured_items, wrapped_items: $wrapped_items, boundaries: $boundaries, rows: $rows.len(), row_items: $row_items, alignment_items: $alignment_items } })
 }
 
 append_literal : KernelReferenceLayout.Builder, KernelFacadeReferenceShape.View, U64, Holds, List(KernelFacadeSources.Source) -> KernelReferenceLayout.Builder

@@ -1,9 +1,8 @@
 # Gate 6 ordinary tables
 
 This slice (S6) implements `reference-documents-v5`, which it introduces. It
-makes `Pdf.table`, `Pdf.row`, `Pdf.cell`, `Pdf.header_cell`, and
-`Pdf.spanning` executable, represents row spans (`Pdf.row_spanning`) so
-they reject with a located diagnostic, replaces the `Pdf.simple_table`
+exercises `Pdf.table`, `Pdf.row`, `Pdf.cell`, `Pdf.header_cell`, and
+`Pdf.spanning` on the dense table path, replaces the `Pdf.simple_table`
 placeholder, resolves the ordered-policy Common-run text row, and raises the
 facade's content bounds with a located budget diagnostic. It closes no
 Gate 6 capability as a whole and makes no PDF/UA-2 claim: `PdfUa2` stays
@@ -32,7 +31,8 @@ In scope:
 - an extended independent structure checker, a harness family, and ledger
   rows.
 
-Not in scope: row spans and complex tables (Gate 8), block content inside
+The [spanning table contract](#spanning-tables) extends the ordinary grid.
+The ordinary fixtures do not cover block content inside
 cells, header-row shading, a distinct face per cell role, the preparation
 report (which will expose relaxations and repeated headers), and the
 reference invoice and report documents themselves (a later slice builds
@@ -70,8 +70,7 @@ A table plans its whole subtree when its group opens (`plan_table`), then
 the block walk resumes after its last group and leaf.
 
 **Validation**, in authored order: a table needs a column and a body row
-(`table.empty`); every cell has no row span (`table.row_span`,
-`FeatureUnavailable`) and non-empty, valid inline content
+(`table.empty`); each ordinary cell covers one row, and any supplied inline content is valid
 (`table.cell_empty`, or the rich-inline codes); every row's spans are
 positive and sum to the column count (`table.grid_mismatch`); and the table
 has a header cell (`table.header_missing`).
@@ -295,7 +294,7 @@ and located rejections).
   registered as a caller face and a Han face.
 - **Atomic negatives** each return their stable code and paths and no
   bytes: `table.header_missing`; three `table.grid_mismatch` forms (too
-  many spans, an empty row, a zero span); `table.row_span`; two
+  many spans, an empty row, a zero span); `table.span_extent` (zero row span); two
   `table.empty` forms; `table.cell_empty`; `layout.oversize_row`;
   `layout.unbreakable_token` (a 128-hex-digit serial);
   `layout.table_width`; `layout.keep_conflict` naming the keep, its first
@@ -312,7 +311,7 @@ All counters are within the linear bound.
 **Independent checkers.**
 
 - `scripts/check_structure_semantics.py` adds table checks derived from the
-  bytes: grid regularity (equal column spans per row, no row spans), a
+  bytes: full rectangular grid coverage within each group, a
   `/Scope` on every `TH`, `/Headers` targets resolving through the IDTree to
   `TH` elements, `THead` content only on the table's first page, and a
   text-bearing, MCID-free `/Artifact <</Type /Pagination>>` sequence on
@@ -661,3 +660,41 @@ veraPDF PDF/A-4 passes both snapshots.
 - **Column minimums of spanning cells** are checked after resolution rather
   than widening the spanned columns, so a spanning cell whose widest word
   exceeds its span is rejected even when the table has room.
+
+
+## Spanning tables
+
+The semantic stage verifies regular rectangles in each `THead`, `TBody`
+and `TFoot` and retains the authored cell ordinal for every row tile.
+Work is bounded by one million occupied track and row-tile contributions.
+The height planner computes the least forward row boundaries that contain
+each cell's measured lines. Connected body rows are kept together under
+`KeepRows`. Shaped and measured-reference plans use the same row bands.
+Page placements, fills and internal rules use the accepted tiles. No
+internal rule crosses an active span.
+
+The contract follows ISO 32000-2:2020 with approved corrections §14.8.4.8.3
+and Table 371 for row groups and logical cells, §14.8.5.7 and Table 384 for
+`Scope`, `Headers`, `ColSpan` and `RowSpan`, §14.7.2 and Tables 354–355
+for IDs, §14.7.5 for marked-content ownership, and §14.8.2.2 for repeated
+header artifacts. The allowed table children follow ISO/TS 32005:2023
+Table 5. The PDF/UA-2 §8.2.5.26 regularity checks account for both spans.
+WTPDF §8.2.5.26 and Appendix B.4 distinguish optional reader lookup from
+the writer's obligation to emit sufficient associations. The writer emits
+a header array for each cell for which the author or supported scope
+policy supplies applicable headers, including layered header cells. The
+author reviews their meaning and logical reading order.
+
+The pinned `tables kept span groups x2` and `x40` cases hold adjacent
+revenue headings and paired farm rows. They count occupied grid work,
+retained row tiles, header edges, exact allocations and repeated artifact
+lines. The large case checks repeated headers while each connected group
+stays on one page. The decoded-PDF checker compares authored IDs and
+header order, exact cell roles and extents, and the positions of cells
+beside carried rectangles. The quarterly report also exercises an
+internally valid substitution of the wrong quarter ID. Its mutation
+fails the authored association check.
+
+The quarterly report and both fixtures pass Arlington 1.30.2 and the
+veraPDF 1.30.2 `4`, `ua2` and `wt1a` profiles. These checks cover the
+emitted declarations and machine-testable rules.

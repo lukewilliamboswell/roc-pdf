@@ -1,6 +1,7 @@
 import Document
 import KernelFacadeShape
 import KernelFacadeSources
+import KernelFacadeTableGrid
 import KernelLineLayout
 import KernelShape
 import Layout
@@ -49,22 +50,25 @@ KernelFacadeTables :: [].{
 
 	## `cells` is indexed by cell ordinal (the normalized `cells` arena);
 	## `tables` by table index.
-	Plan :: { cells : List(CellGeometry), sources : List(KernelFacadeSources.Source), tables : List(TableGeometry), work : Work }.{
+	Plan :: { cells : List(CellGeometry), table_grids : List(KernelFacadeTableGrid.Grid), sources : List(KernelFacadeSources.Source), tables : List(TableGeometry), work : Work }.{
 		build : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), U64, Theme, KernelLineLayout.Limits -> Try(Plan, Error)
-		build = |authoring, shape, input_sources, available, theme, limits| build_plan(authoring, shape, input_sources, available, [], theme, limits)
+		build = |authoring, shape, input_sources, available, theme, limits| build_plan(authoring, shape, input_sources, available, [], theme, limits, [])
 
-		build_framed : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), U64, List({ offset : U64, width : U64 }), Theme, KernelLineLayout.Limits -> Try(Plan, Error)
-		build_framed = |authoring, shape, input_sources, available, frames, theme, limits| build_plan(authoring, shape, input_sources, available, frames, theme, limits)
+		build_framed : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), U64, List({ offset : U64, width : U64 }), Theme, KernelLineLayout.Limits, List(KernelFacadeTableGrid.Grid) -> Try(Plan, Error)
+		build_framed = |authoring, shape, input_sources, available, frames, theme, limits, verified_grids| build_plan(authoring, shape, input_sources, available, frames, theme, limits, verified_grids)
 
 		## Resolve the same column algorithm from source-free intrinsic
 		## widths. Item-token diagnostics retain their explicit domain.
-		build_measured : Document.NormalizedAuthoring, List(KernelFacadeSources.Source), List(MeasuredWidth), U64, List({ offset : U64, width : U64 }), Theme -> Try(Plan, Error)
-		build_measured = |authoring, input_sources, measures, available, frames, theme| {
+		build_measured : Document.NormalizedAuthoring, List(KernelFacadeSources.Source), List(MeasuredWidth), U64, List({ offset : U64, width : U64 }), Theme, List(KernelFacadeTableGrid.Grid) -> Try(Plan, Error)
+		build_measured = |authoring, input_sources, measures, available, frames, theme, verified_grids| {
 			if measures.len() != authoring.cells.len() {
 				return Err(InvalidCell({ block: 0 }))
 			}
-			resolve_geometry(authoring, input_sources, measures, available, frames, theme, measures.len(), 0)
+			resolve_geometry(authoring, input_sources, measures, available, frames, theme, measures.len(), 0, verified_grids)
 		}
+
+		grids : Plan -> List(KernelFacadeTableGrid.Grid)
+		grids = |plan| plan.table_grids
 
 		cells : Plan -> List(CellGeometry)
 		cells = |plan| plan.cells
@@ -91,8 +95,8 @@ CellMeasure : KernelFacadeTables.MeasuredWidth
 ## and size are fixed for the document, so identical cell texts measure once.
 CacheSlot : [Measured({ measure : CellMeasure, size : I64 }), Unmeasured]
 
-build_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), U64, List({ offset : U64, width : U64 }), Theme, KernelLineLayout.Limits -> Try(KernelFacadeTables.Plan, KernelFacadeTables.Error)
-build_plan = |authoring, shape, sources, available, frames, theme, limits| {
+build_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), U64, List({ offset : U64, width : U64 }), Theme, KernelLineLayout.Limits, List(KernelFacadeTableGrid.Grid) -> Try(KernelFacadeTables.Plan, KernelFacadeTables.Error)
+build_plan = |authoring, shape, sources, available, frames, theme, limits, grids| {
 	block_runs = KernelFacadeShape.Plan.block_runs(shape)
 	styles = KernelFacadeShape.Plan.styles(shape)
 	requests = KernelFacadeShape.Plan.requests(shape)
@@ -156,11 +160,11 @@ build_plan = |authoring, shape, sources, available, frames, theme, limits| {
 		$ordinal = $ordinal + 1
 	}
 
-	resolve_geometry(authoring, sources, $measures, available, frames, theme, $measurements, $cache_hits)
+	resolve_geometry(authoring, sources, $measures, available, frames, theme, $measurements, $cache_hits, grids)
 }
 
-resolve_geometry : Document.NormalizedAuthoring, List(KernelFacadeSources.Source), List(CellMeasure), U64, List({ offset : U64, width : U64 }), Theme, U64, U64 -> Try(KernelFacadeTables.Plan, KernelFacadeTables.Error)
-resolve_geometry = |authoring, sources, measures, available, frames, theme, measurements, cache_hits| {
+resolve_geometry : Document.NormalizedAuthoring, List(KernelFacadeSources.Source), List(CellMeasure), U64, List({ offset : U64, width : U64 }), Theme, U64, U64, List(KernelFacadeTableGrid.Grid) -> Try(KernelFacadeTables.Plan, KernelFacadeTables.Error)
+resolve_geometry = |authoring, sources, measures, available, frames, theme, measurements, cache_hits, grids| {
 	padding = nonnegative(theme.table.cell_padding.raw())?
 	var $cells = List.with_capacity(authoring.cells.len())
 	var $tables = List.with_capacity(authoring.tables.len())
@@ -176,7 +180,12 @@ resolve_geometry = |authoring, sources, measures, available, frames, theme, meas
 				frame = if (frames.is_empty()) { offset: 0, width: available } else list_at(frames, table_index.to_u64())
 				first_cell = $cell_cursor
 				cell_end = first_cell + count_cells(authoring, group)
-				columns = resolve_columns(authoring, table, group, $group_index, measures, first_cell, cell_end, padding, frame.width)?
+				grid = KernelFacadeTableGrid.for_group(grids, $group_index)
+				columns = resolve_columns(authoring, table, group, $group_index, measures, first_cell, cell_end, padding, frame.width, grid)?
+				edges = match grid {
+					Ordinary => []
+					Spanning(_) => column_edges(columns)
+				}
 				var $row = $group_index + 1
 				var $ordinal_cursor = first_cell
 				while $row < group.group_end {
@@ -186,6 +195,10 @@ resolve_geometry = |authoring, sources, measures, available, frames, theme, meas
 					var $block = row_group.first_block
 					while $block < row_group.block_end {
 						record = list_at(authoring.cells, $ordinal_cursor)
+						$column = grid_column(grid, $ordinal_cursor, $column)
+						if !edges.is_empty() {
+							$x = list_at(edges, $column)
+						}
 						span = record.column_span.to_u64()
 						cell_width = sum_range(columns, $column, span)
 						contentless = match list_at(authoring.blocks, $block).kind {
@@ -223,6 +236,7 @@ resolve_geometry = |authoring, sources, measures, available, frames, theme, meas
 	Ok(
 		KernelFacadeTables.Plan.{
 			cells: $cells,
+			table_grids: grids,
 			sources,
 			tables: $tables,
 			work: {
@@ -233,6 +247,23 @@ resolve_geometry = |authoring, sources, measures, available, frames, theme, meas
 			},
 		},
 	)
+}
+
+grid_column : KernelFacadeTableGrid.Selection, U64, U64 -> U64
+grid_column = |grid, ordinal, ordinary| match grid {
+	Ordinary => ordinary
+	Spanning(verified) => list_at(verified.cells, ordinal - verified.first_cell).column
+}
+
+column_edges : List(U64) -> List(U64)
+column_edges = |columns| {
+	var $edges = List.with_capacity(columns.len() + 1).append(0)
+	var $edge = 0
+	for width in columns {
+		$edge = $edge + width
+		$edges = $edges.append($edge)
+	}
+	$edges
 }
 
 ## The code holds whose run lies in one segment's runs, as line-layout
@@ -280,8 +311,8 @@ measure_segment = |sources, store, start, length, source, holds, limits| {
 ## whose minimum exceeds its fixed width or the available width is
 ## `UnbreakableToken`; minima that fit alone but not together are
 ## `TableWidth`.
-resolve_columns : Document.NormalizedAuthoring, Document.NormalizedTable, Document.NormalizedGroup, U64, List(CellMeasure), U64, U64, U64, U64 -> Try(List(U64), KernelFacadeTables.Error)
-resolve_columns = |authoring, table, group, group_index, measures, first_cell, cell_end, padding, available| {
+resolve_columns : Document.NormalizedAuthoring, Document.NormalizedTable, Document.NormalizedGroup, U64, List(CellMeasure), U64, U64, U64, U64, KernelFacadeTableGrid.Selection -> Try(List(U64), KernelFacadeTables.Error)
+resolve_columns = |authoring, table, group, group_index, measures, first_cell, cell_end, padding, available, grid| {
 	count = table.columns.len()
 	var $minima = List.repeat(0, count)
 	var $maxima = List.repeat(0, count)
@@ -294,6 +325,7 @@ resolve_columns = |authoring, table, group, group_index, measures, first_cell, c
 		var $block = row_group.first_block
 		while $block < row_group.block_end {
 			record = list_at(authoring.cells, $ordinal)
+			$column = grid_column(grid, $ordinal, $column)
 			if record.column_span == 1 {
 				measure = list_at(measures, $ordinal)
 				minimum = measure.min_content + 2 * padding

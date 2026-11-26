@@ -806,10 +806,9 @@ Pdf :: [].{
 	## to the next page and rejects a row taller than a page body as
 	## `layout.oversize_row`; `SplitRows` breaks a row at a line boundary.
 	## `Pdf.keep_together([table])` keeps a whole table on one page.
-	## Each row's column spans must sum to the column count
-	## (`table.grid_mismatch`), a table needs a header cell
-	## (`table.header_missing`), and row spans are not yet supported
-	## (`table.row_span`).
+	## A table needs a header cell and a regularly occupied grid. A cell
+	## may span rows within its header, body or footer group. KeepRows
+	## keeps all body rows connected by a span on the same page.
 	table : TableProps -> Document.Block
 	table = |TableProps.{ body_rows, caption: caption_value, columns, footer_rows, header_rows, row_split }| Document.table({ body_rows, caption: caption_value, columns, footer_rows, header_rows, row_split })
 
@@ -1954,7 +1953,25 @@ pipeline_error_at = |error, doc, paths| match error {
 	Semantics(TableEmpty({ group })) => group_error(doc, group, InvalidRelationship, "table.empty", "A table needs at least one column, one body row, and one cell with content.")
 	Semantics(TableGridMismatch({ columns, group, spanned })) => group_error(doc, group, InvalidRelationship, "table.grid_mismatch", "A table row spans ${spanned.to_str()} columns but the table declares ${columns.to_str()}; every row's column spans must sum to the column count and each span must be at least one.")
 	Semantics(TableHeaderMissing({ group })) => group_error(doc, group, InvalidRelationship, "table.header_missing", "A table declares no header cell; at least one cell must be a header_cell with a declared scope.")
-	Semantics(TableRowSpan({ block })) => located_error(doc, FeatureUnavailable, "table.row_span", "A table cell spans rows; row spans are scheduled for Gate 8 and only column spans are supported.", [diagnostic_leaf_path(doc, paths, block)])
+	Semantics(TableSpan(CellExtent({ block, reason }))) => {
+		summary = match reason {
+			ColumnEnd => "The cell extends past the end of its row."
+			ColumnOccupied => "The cell's column span overlaps a cell spanning into this row."
+			RowGroupEnd => "The cell's row span extends beyond its header, body or footer row group."
+			ZeroColumns => "A table cell must cover at least one column."
+			ZeroRows => "A table cell must cover at least one row."
+		}
+		located_error(doc, InvalidRelationship, "table.span_extent", summary, [diagnostic_leaf_path(doc, paths, block)])
+	}
+	Semantics(TableSpan(RowGap({ column, group }))) => group_error(
+		doc,
+		group,
+		InvalidRelationship,
+		"table.grid_gap",
+		"A table row leaves column ${(column + 1).to_str()} unoccupied.",
+	)
+	Semantics(TableSpan(TrackBudget({ group, limit }))) => group_error(doc, group, BudgetExceeded, "table.grid_limit", "The spanning table needs more than ${limit.to_str()} occupied tracks and row tiles.")
+	Semantics(TableSpanPolicy({ group })) => group_error(doc, group, InvalidRelationship, "table.span_policy", "SplitRows applies only to tables whose cells each cover one row. Select KeepRows for a table with row spans.")
 	Semantics(BlockLimitExceeded({ attempted, block, dimension, limit })) => located_error(
 		doc,
 		BudgetExceeded,
@@ -2329,6 +2346,7 @@ table_layout_error = |doc, error, sources, units| {
 		}
 		KeepConflict(conflict) => match conflict {
 			GroupTooTall({ available, group, required }) => match sources.get(group) {
+				Ok(SpanRows({ first, last })) => located_error(doc, LayoutConstraintViolated, "layout.oversize_span_group", "A connected table row-span group needs ${points_text(required)}, with the repeated header rows, but a page body holds ${points_text(available)}.", [group_path(normalized.groups, first), group_path(normalized.groups, last)])
 				Ok(FooterRows({ first, last })) => located_error(doc, LayoutConstraintViolated, feature, "A table's footer rows stay together and need ${points_text(required)}, with the repeated header rows, but a page body holds ${points_text(available)}.", [group_path(normalized.groups, first), group_path(normalized.groups, last)])
 				Ok(AuthoredKeep(k)) => {
 					index = together_group(normalized, k)
@@ -2340,7 +2358,7 @@ table_layout_error = |doc, error, sources, units| {
 			BreakInsideGroup({ block, group }) => {
 				group_paths = match sources.get(group) {
 					Ok(AuthoredKeep(k)) => [group_path(normalized.groups, together_group(normalized, k))]
-					Ok(FooterRows({ first, last: _ })) => [group_path(normalized.groups, first)]
+					Ok(FooterRows({ first, last: _ })) | Ok(SpanRows({ first, last: _ })) => [group_path(normalized.groups, first)]
 					Err(OutOfBounds) => []
 				}
 				located_error(doc, LayoutConstraintViolated, feature, "A page break falls inside a keep-together group.", [break_path(normalized, leaf_of(block))].concat(group_paths))
@@ -4615,10 +4633,53 @@ expect {
 		_ => False
 	}
 	spanned = match Pdf.to_bytes(table([Pdf.row([Pdf.cell([Pdf.text("x")]).row_spanning(2), Pdf.cell([Pdf.text("y")])])])) {
-		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, details: ["contents[0].table.body_rows[0].cells[0]"], feature: Feature("table.row_span"), .. }], .. })) => True
+		Err(InvalidDocument({ diagnostics: [{ code: InvalidRelationship, details: ["contents[0].table.body_rows[0].cells[0]"], feature: Feature("table.span_extent"), .. }], .. })) => True
 		_ => False
 	}
 	grid and spanned
+}
+
+# Competing rectangles reject overlaps and holes at their authored paths.
+expect {
+	header = |text| Pdf.header_cell(Column, [Pdf.text(text)])
+	row_header = Pdf.header_cell(Row, [Pdf.text("Shared")]).row_spanning(2)
+	data = Pdf.cell([Pdf.text("Value")])
+	columns = List.repeat({ align: Start, width: Share(1) }, 3)
+	heads = Pdf.row([header("Group"), header("Prior"), header("Current")])
+	table = |header_rows, body_rows, row_split| Pdf.table({ body_rows, caption: Pdf.no_caption, columns, header_rows, row_split })
+	check = |block, expected_feature, expected_path| {
+		doc = Pdf.document({ contents: [block], language: "en-AU", title: "Grid negatives" })
+		match Pdf.to_bytes(doc) {
+			Err(InvalidDocument({ diagnostics: [{ code: InvalidRelationship, details: [path], feature: Feature(feature), .. }], .. })) =>
+				path == expected_path and feature == expected_feature
+			_ => False
+		}
+	}
+	check(table([heads], [Pdf.row([data, row_header, data]), Pdf.row([data.spanning(2)])], KeepRows), "table.span_extent", "contents[0].table.body_rows[1].cells[0]")
+		and check(table([heads], [Pdf.row([row_header, data, data]), Pdf.row([data])], KeepRows), "table.grid_gap", "contents[0].table.body_rows[1]")
+		and check(table([Pdf.row([header("Group").row_spanning(2), header("Prior"), header("Current")])], [Pdf.row([data, data, data])], KeepRows), "table.span_extent", "contents[0].table.header_rows[0].cells[0]")
+		and check(table([heads], [Pdf.row([row_header, data, data]), Pdf.row([data, data])], SplitRows), "table.span_policy", "contents[0]")
+}
+
+# Each row fits on its own. The two body rows linked by a row span need a
+# page large enough for the connected group and its repeated header.
+expect {
+	column = { align: Start, width: Share(1) }
+	header = Pdf.row([Pdf.header_cell(Column, [Pdf.text("Group")]), Pdf.header_cell(Column, [Pdf.text("Detail")])])
+	detail = Pdf.cell([Pdf.text("One"), Pdf.line_break, Pdf.text("Two"), Pdf.line_break, Pdf.text("Three")])
+	table = Pdf.table({
+		body_rows: [Pdf.row([Pdf.header_cell(Row, [Pdf.text("Farm")]).row_spanning(2), detail]), Pdf.row([detail])],
+		caption: Pdf.no_caption,
+		columns: [column, column],
+		header_rows: [header],
+	})
+	doc = Pdf.document({ contents: [table], language: "en-AU", title: "Oversize span group" })
+	options : Pdf.Options
+	options = { page_size: Custom({ height: 110, width: 350 }), theme: { page_margin: { top: 20, bottom: 20, left: 20, right: 20 } } }
+	match Pdf.to_bytes_with(doc, options) {
+		Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: ["contents[0].table.body_rows[0]", "contents[0].table.body_rows[1]"], feature: Feature("layout.oversize_span_group"), .. }], .. })) => True
+		_ => False
+	}
 }
 
 ## Report inspection consumes complete accepted figure facts. Dense figure

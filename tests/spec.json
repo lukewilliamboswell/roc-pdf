@@ -24093,6 +24093,176 @@
       ]
     },
     {
+      "name": "tables kept span groups x2",
+      "scenario_revision": "tables-row-spans-v1",
+      "family": "tables",
+      "snapshot": "tests/tables/row_spans_2.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "structure_elements": 31,
+        "element_identifiers": 11,
+        "spanning_schedule_groups": 2
+      },
+      "work_counters": [
+        "node_writes",
+        "occurrence_writes",
+        "table_cells",
+        "header_association_edges",
+        "grid_track_and_tile_work",
+        "grid_tiles",
+        "cell_measurements",
+        "row_visits",
+        "pages",
+        "candidate_visits",
+        "repeated_header_paints",
+        "fragments",
+        "artifact_runs",
+        "behind_rules",
+        "front_rules",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 2251,
+          "allocated_bytes": 3150799,
+          "work": {
+            "node_writes": 31,
+            "occurrence_writes": 20,
+            "table_cells": 19,
+            "header_association_edges": 44,
+            "grid_track_and_tile_work": 47,
+            "grid_tiles": 23,
+            "cell_measurements": 12,
+            "row_visits": 6,
+            "pages": 1,
+            "candidate_visits": 4,
+            "repeated_header_paints": 0,
+            "fragments": 20,
+            "artifact_runs": 0,
+            "behind_rules": 8,
+            "front_rules": 24,
+            "output_bytes": 14810
+          }
+        },
+        "x64musl": {
+          "allocations": 2251,
+          "allocated_bytes": 3150799,
+          "work": {
+            "node_writes": 31,
+            "occurrence_writes": 20,
+            "table_cells": 19,
+            "header_association_edges": 44,
+            "grid_track_and_tile_work": 47,
+            "grid_tiles": 23,
+            "cell_measurements": 12,
+            "row_visits": 6,
+            "pages": 1,
+            "candidate_visits": 4,
+            "repeated_header_paints": 0,
+            "fragments": 20,
+            "artifact_runs": 0,
+            "behind_rules": 8,
+            "front_rules": 24,
+            "output_bytes": 14810
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "wtpdf_accessibility",
+        "structure_semantics",
+        "table_spans"
+      ]
+    },
+    {
+      "name": "tables kept span groups x40",
+      "scenario_revision": "tables-row-spans-v1",
+      "family": "tables",
+      "snapshot": "tests/tables/row_spans_40.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 3,
+        "structure_elements": 373,
+        "element_identifiers": 125,
+        "spanning_schedule_groups": 40
+      },
+      "work_counters": [
+        "node_writes",
+        "occurrence_writes",
+        "table_cells",
+        "header_association_edges",
+        "grid_track_and_tile_work",
+        "grid_tiles",
+        "cell_measurements",
+        "row_visits",
+        "pages",
+        "candidate_visits",
+        "repeated_header_paints",
+        "fragments",
+        "artifact_runs",
+        "behind_rules",
+        "front_rules",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 10016,
+          "allocated_bytes": 15171192,
+          "work": {
+            "node_writes": 373,
+            "occurrence_writes": 286,
+            "table_cells": 285,
+            "header_association_edges": 842,
+            "grid_track_and_tile_work": 655,
+            "grid_tiles": 327,
+            "cell_measurements": 12,
+            "row_visits": 82,
+            "pages": 3,
+            "candidate_visits": 42,
+            "repeated_header_paints": 4,
+            "fragments": 286,
+            "artifact_runs": 10,
+            "behind_rules": 126,
+            "front_rules": 344,
+            "output_bytes": 26889
+          }
+        },
+        "x64musl": {
+          "allocations": 10016,
+          "allocated_bytes": 15171192,
+          "work": {
+            "node_writes": 373,
+            "occurrence_writes": 286,
+            "table_cells": 285,
+            "header_association_edges": 842,
+            "grid_track_and_tile_work": 655,
+            "grid_tiles": 327,
+            "cell_measurements": 12,
+            "row_visits": 82,
+            "pages": 3,
+            "candidate_visits": 42,
+            "repeated_header_paints": 4,
+            "fragments": 286,
+            "artifact_runs": 10,
+            "behind_rules": 126,
+            "front_rules": 344,
+            "output_bytes": 26889
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "wtpdf_accessibility",
+        "structure_semantics",
+        "table_spans"
+      ]
+    },
+    {
       "name": "tables atomic negatives",
       "scenario_revision": "tables-v1",
       "family": "tables",

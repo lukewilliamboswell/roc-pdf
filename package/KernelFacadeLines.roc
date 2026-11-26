@@ -2,6 +2,7 @@ import Document
 import KernelFacadeShape
 import KernelFacadeSources
 import KernelFacadeTables
+import KernelFacadeTableGrid
 import KernelLineLayout
 import KernelShape
 import Layout
@@ -101,8 +102,8 @@ KernelFacadeLines :: [].{
 		## column widths once from measured cell widths, then lays every
 		## cell out at its text width through the logical batch; any other
 		## document takes `build` exactly.
-		build_authoring : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, Limits -> Try(Plan, Error)
-		build_authoring = |authoring, shape, sources, page, theme, limits| if (authoring.tables.is_empty() and authoring.sources.is_empty()) build_plan(authoring, shape, sources, page, theme, limits) else build_table_plan(authoring, shape, sources, page, theme, limits)
+		build_authoring : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, Limits, List(KernelFacadeTableGrid.Grid) -> Try(Plan, Error)
+		build_authoring = |authoring, shape, sources, page, theme, limits, grids| if (authoring.tables.is_empty() and authoring.sources.is_empty()) build_plan(authoring, shape, sources, page, theme, limits) else build_table_plan(authoring, shape, sources, page, theme, limits, grids)
 
 		frame : Plan, U64 -> { offset : U64, width : U64 }
 		frame = |plan, block| {
@@ -125,8 +126,8 @@ KernelFacadeLines :: [].{
 		build_ordered : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, Limits -> Try(Plan, Error)
 		build_ordered = |authoring, shape, sources, page, theme, limits| build_ordered_plan(authoring, shape, sources, page, theme, limits, [], Calculate)
 
-		build_ordered_authoring : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, Limits -> Try(Plan, Error)
-		build_ordered_authoring = |authoring, shape, sources, page, theme, limits| if (authoring.tables.is_empty() and authoring.sources.is_empty()) build_ordered_plan(authoring, shape, sources, page, theme, limits, [], Calculate) else build_table_plan(authoring, shape, sources, page, theme, limits)
+		build_ordered_authoring : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, Limits, List(KernelFacadeTableGrid.Grid) -> Try(Plan, Error)
+		build_ordered_authoring = |authoring, shape, sources, page, theme, limits, grids| if (authoring.tables.is_empty() and authoring.sources.is_empty()) build_ordered_plan(authoring, shape, sources, page, theme, limits, [], Calculate) else build_table_plan(authoring, shape, sources, page, theme, limits, grids)
 
 		## Fixed placements already own their frames. Use those exact widths
 		## with the normal logical line batch and no flow margin or indent.
@@ -150,7 +151,7 @@ KernelFacadeLines :: [].{
 build_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, KernelFacadeLines.Limits -> Try(KernelFacadeLines.Plan, KernelFacadeLines.Error)
 build_plan = |authoring, shape, sources, page, theme, limits| {
 	if !authoring.sources.is_empty() {
-		return build_table_plan(authoring, shape, sources, page, theme, limits)
+		return build_table_plan(authoring, shape, sources, page, theme, limits, [])
 	}
 	block_runs = KernelFacadeShape.Plan.block_runs(shape)
 
@@ -259,8 +260,8 @@ build_plan = |authoring, shape, sources, page, theme, limits| {
 
 ## Tables resolve their geometry before any line is broken; each cell's
 ## text width then replaces the flow width of its block.
-build_table_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, KernelFacadeLines.Limits -> Try(KernelFacadeLines.Plan, KernelFacadeLines.Error)
-build_table_plan = |authoring, shape, sources, page, theme, limits| {
+build_table_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, KernelFacadeLines.Limits, List(KernelFacadeTableGrid.Grid) -> Try(KernelFacadeLines.Plan, KernelFacadeLines.Error)
+build_table_plan = |authoring, shape, sources, page, theme, limits, grids| {
 	content_width = calculate_content_width(page, theme.page_margin)?
 	indent = positive_raw(theme.bullet_indent)?
 	block_runs = KernelFacadeShape.Plan.block_runs(shape)
@@ -273,7 +274,7 @@ build_table_plan = |authoring, shape, sources, page, theme, limits| {
 		Calculate => []
 		Calculated(geometry) => table_frames(authoring, geometry.blocks, content_width)
 	}
-	tables = KernelFacadeTables.Plan.build_framed(authoring, shape, sources, content_width, frames, theme, KernelLineLayout.BatchLimits.line(limits.line)) ? Tables
+	tables = KernelFacadeTables.Plan.build_framed(authoring, shape, sources, content_width, frames, theme, KernelLineLayout.BatchLimits.line(limits.line), grids) ? Tables
 	var $widths = List.repeat(0, authoring.blocks.len())
 	for cell in KernelFacadeTables.Plan.cells(tables) {
 		$widths = list_set($widths, cell.block, cell.width)

@@ -19,7 +19,7 @@ import "fonts/NotoSerif-Italic.ttf" as italic_bytes : List(U8)
 ## band in the first-page header, a navy "key figures" callout and a
 ## tinted diary callout authored through the custom-block seam and measured
 ## by the package, a striped KPI scorecard with shaded status cells and a
-## segment table with a totals footer, two vector charts drawn from `Scene`
+## financial schedule with a grouped header and a totals footer, and two vector charts drawn from `Scene`
 ## groups (monthly revenue with a margin line and its data table, and
 ## progress against annual targets kept with its notes), and running
 ## headers inset above a ruled backdrop with `Page N of M` on every later
@@ -27,7 +27,7 @@ import "fonts/NotoSerif-Italic.ttf" as italic_bytes : List(U8)
 main! = |_args| {
 	fonts = register_fonts({})?
 	options : Pdf.Options
-	options = { theme: theme(fonts), fonts: Registered(fonts.registry) }
+	options = { theme: theme(fonts), fonts: Registered(fonts.registry), wtpdf: DeclareAccessibility }
 	blocks = contents(options).map_err(|err| PdfFailed(err))?
 	document = Pdf.document({
 		contents: blocks,
@@ -414,51 +414,81 @@ scorecard = Pdf.table({
 	],
 })
 
-segment_row : Str, Str, Str, Str, Str -> Pdf.Row
-segment_row = |segment, revenue, share, growth, margin| Pdf.row([
-	Pdf.header_cell(Row, [Pdf.text(segment)]),
-	Pdf.cell([Pdf.text(revenue)]),
-	Pdf.cell([Pdf.text(share)]),
-	Pdf.cell([Pdf.text(growth)]),
-	Pdf.cell([Pdf.text(margin)]),
-])
+segment_row : List(Pdf.Cell), Pdf.Cell, Str, Pdf.Cell, Str, Str, Str -> Pdf.Row
+segment_row = |group, segment, prior, current, share, growth, margin| Pdf.row(
+	group
+		.append(segment)
+		.append(Pdf.cell([Pdf.text(prior)]))
+		.append(current)
+		.append(Pdf.cell([Pdf.text(share)]))
+		.append(Pdf.cell([Pdf.text(growth)]))
+		.append(Pdf.cell([Pdf.text(margin)])),
+)
 
 segments : Document.Block
-segments = Pdf.table({
-	caption: Pdf.caption("Table 3. Results by segment, Q2 FY2027, revenue in AUD thousands"),
-	columns: [
-		{ width: Share(3), align: Start },
-		{ width: Share(2), align: End },
-		{ width: Share(2), align: End },
-		{ width: Share(2), align: End },
-		{ width: Share(2), align: End },
-	],
-	header_rows: [
-		Pdf.row([
-			Pdf.header_cell(Column, [Pdf.text("Segment")]),
-			Pdf.header_cell(Column, [Pdf.text("Revenue")]),
-			Pdf.header_cell(Column, [Pdf.text("Share")]),
-			Pdf.header_cell(Column, [Pdf.text("Growth")]),
-			Pdf.header_cell(Column, [Pdf.text("Margin")]),
-		]),
-	],
-	body_rows: [
-		segment_row("Grain and fodder", "3,262", "37.5%", "+14.2%", "29.8%"),
-		segment_row("Farm supplies", "2,436", "28.0%", "+9.6%", "36.1%"),
-		segment_row("Fuel and lubricants", "1,705", "19.6%", "+4.1%", "22.4%"),
-		segment_row("Advisory services", "853", "9.8%", "+31.5%", "58.0%"),
-		segment_row("Online store", "444", "5.1%", "+62.0%", "41.7%"),
-	],
-	footer_rows: [
-		Pdf.row([
-			Pdf.header_cell(Row, [Pdf.text("Total")]),
-			Pdf.cell([Pdf.strong([Pdf.text("8,700")])]),
-			Pdf.cell([Pdf.text("100.0%")]),
-			Pdf.cell([Pdf.strong([Pdf.text("+17.3%")])]),
-			Pdf.cell([Pdf.text("34.4%")]),
-		]),
-	],
-})
+segments = {
+	upper = |name| Pdf.header_cell_with([Pdf.text(name)], { scope: Column, layout: { row_span: 2 } })
+	quarter = |name, header_key| Pdf.header_cell_with([Pdf.text(name)], { scope: Column, layout: { key: Named(header_key), headers: Explicit(["revenue"]) } })
+	label = |text| Pdf.header_cell(Row, [Pdf.text(text)])
+	plain = |text| Pdf.cell([Pdf.text(text)])
+	amount = |value| Pdf.cell([Pdf.strong([Pdf.text(value)])])
+	farm_group = Pdf.header_cell_with(
+		[Pdf.text("Farm operations")],
+		{
+			scope: Row,
+			layout: { row_span: 2, key: Named("farm"), fill: CellFill(Color.srgb8({ red: 232, green: 244, blue: 244 })) },
+		},
+	)
+	grain = Pdf.header_cell_with([Pdf.text("Grain and fodder")], { scope: Row, layout: { key: Named("grain") } })
+	# This value has four applicable headers. The farm header also applies
+	# to ordinary scope-derived cells in the Farm supplies row below.
+	grain_current = Pdf.cell_with(
+		[Pdf.text("3,262")],
+		{
+			headers: Explicit(["current", "revenue", "grain", "farm"]),
+		},
+	)
+	Pdf.table({
+		caption: Pdf.caption("Table 3. Results by segment, Q2 FY2027"),
+		columns: [
+			{ width: Fixed(88), align: Start },
+			{ width: Fixed(118), align: Start },
+			{ width: Fixed(55), align: End },
+			{ width: Fixed(55), align: End },
+			{ width: Fixed(50), align: End },
+			{ width: Fixed(64), align: End },
+			{ width: Fixed(65), align: End },
+		],
+		header_rows: [
+			Pdf.row([
+				upper("Business group"),
+				upper("Segment"),
+				Pdf.header_cell_with([Pdf.text("Revenue (AUD thousands)")], { scope: Column, layout: { align: Aligned(Center), column_span: 2, key: Named("revenue") } }),
+				upper("Share"),
+				upper("YoY growth"),
+				upper("Margin"),
+			]),
+			Pdf.row([quarter("Q1", "prior"), quarter("Q2", "current")]),
+		],
+		body_rows: [
+			segment_row([farm_group], grain, "2,785", grain_current, "37.5%", "+14.2%", "29.8%"),
+			segment_row([], label("Farm supplies"), "2,167", plain("2,436"), "28.0%", "+9.6%", "36.1%"),
+			segment_row([label("Energy")], label("Fuel and lubricants"), "1,537", plain("1,705"), "19.6%", "+4.1%", "22.4%"),
+			segment_row([label("Services")], label("Advisory services"), "629", plain("853"), "9.8%", "+31.5%", "58.0%"),
+			segment_row([label("Retail")], label("Online store"), "302", plain("444"), "5.1%", "+62.0%", "41.7%"),
+		],
+		footer_rows: [
+			Pdf.row([
+				label("Total").spanning(2),
+				amount("7,420"),
+				amount("8,700"),
+				plain("100.0%"),
+				amount("+17.3%"),
+				plain("34.4%"),
+			]),
+		],
+	})
+}
 
 position_row : Str, Str, Str -> Pdf.Row
 position_row = |item, june, december| Pdf.row([Pdf.header_cell(Row, [Pdf.text(item)]), Pdf.cell([Pdf.text(june)]), Pdf.cell([Pdf.text(december)])])

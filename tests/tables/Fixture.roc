@@ -94,6 +94,14 @@ Fixture :: [].{
 	footer_carry : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	footer_carry = |context| evidence(carry_document(context), Theme.default, BuiltInFace)
 
+	spanning_schedule : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	spanning_schedule = |groups| {
+		if groups == 0 or groups > 100 {
+			return Err(InvalidScale)
+		}
+		evidence_with(spanning_schedule_document(groups), ruled_theme, BuiltInFace, SpanPaints)
+	}
+
 	ordered : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	ordered = |context| {
 		registered = register_faces(context)?
@@ -514,6 +522,34 @@ ordered_document = |context| {
 	})
 }
 
+spanning_schedule_document : U64 -> Document
+spanning_schedule_document = |groups| {
+	head = |name| Pdf.header_cell_with([Pdf.text(name)], { scope: Column, layout: { row_span: 2 } })
+	quarter = |name, header_key| Pdf.header_cell_with([Pdf.text(name)], { scope: Column, layout: { key: Named(header_key), headers: Explicit(["revenue"]) } })
+	var $body = List.with_capacity(groups * 2)
+	var $index = 1
+	while $index <= groups {
+		group_key = "farm-${$index.to_str()}"
+		grain_key = "grain-${$index.to_str()}"
+		group = Pdf.header_cell_with([Pdf.text("Farm operations")], { scope: Row, layout: { row_span: 2, key: Named(group_key), fill: CellFill(rule_gray) } })
+		grain = Pdf.header_cell_with([Pdf.text("Grain")], { scope: Row, layout: { key: Named(grain_key) } })
+		current = Pdf.cell_with([Pdf.text("3,262")], { headers: Explicit(["current", "revenue", grain_key, group_key]) })
+		$body = $body.append(Pdf.row([group, grain, Pdf.cell([Pdf.text("2,785")]), current]))
+		$body = $body.append(Pdf.row([Pdf.header_cell(Row, [Pdf.text("Farm supplies")]), Pdf.cell([Pdf.text("2,167")]), Pdf.cell([Pdf.text("2,436")])]))
+		$index = $index + 1
+	}
+	table = Pdf.table({
+		caption: Pdf.caption("Farm schedule"),
+		columns: [{ align: Start, width: Fixed(110) }, { align: Start, width: Fixed(120) }, { align: End, width: Fixed(100) }, { align: End, width: Fixed(100) }],
+		header_rows: [
+			Pdf.row([head("Business group"), head("Segment"), Pdf.header_cell_with([Pdf.text("Revenue (AUD thousands)")], { scope: Column, layout: { column_span: 2, key: Named("revenue") } })]),
+			Pdf.row([quarter("Prior quarter", "prior"), quarter("Current quarter", "current")]),
+		],
+		body_rows: $body,
+	})
+	Pdf.document({ contents: [table], language: "en-AU", title: "Farm schedule" })
+}
+
 ## The packaged Latin face registered as a caller face, then a Han face.
 register_faces : U64 -> Try({ policy : Font.PolicyId, registry : Font.Registry }, Fixture.EvidenceError)
 register_faces = |context| {
@@ -541,10 +577,10 @@ evidence = |document, theme, faces| evidence_with(document, theme, faces, NoPain
 
 ## With `Paints`, the work also counts the table fills painted behind the
 ## text and the rules painted after it.
-evidence_with : Document, Theme, Faces, [EmptyCellPaints, NoPaints, Paints] -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+evidence_with : Document, Theme, Faces, [EmptyCellPaints, NoPaints, Paints, SpanPaints] -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 evidence_with = |document, theme, faces, paints| {
 	options = match faces {
-		BuiltInFace => Pdf.Options.{ profile: Archive, theme: theme }
+		BuiltInFace => if (paints == SpanPaints) Pdf.Options.{ theme, wtpdf: DeclareAccessibility } else Pdf.Options.{ profile: Archive, theme: theme }
 		Policy(policy) => Pdf.Options.{ profile: Archive, theme: theme, fonts: Registered(policy.registry) }
 	}
 	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
@@ -556,12 +592,12 @@ evidence_with = |document, theme, faces, paints| {
 		BuiltInFace => {
 			font = KernelFont.inspect(KernelBuiltInFont.bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
 			shape = KernelFacadeShape.Plan.build(authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), KernelFacadeSemantics.Plan.flow_text(semantics), source_store, font, theme, shape_limits) ? |_| EvidenceFailure
-			lines = KernelFacadeLines.Plan.build_authoring(authoring, shape, source_store, page_size, theme, line_limits) ? |_| EvidenceFailure
+			lines = KernelFacadeLines.Plan.build_authoring(authoring, shape, source_store, page_size, theme, line_limits, KernelFacadeSemantics.Plan.table_grids(semantics)) ? |_| EvidenceFailure
 			{ lines, shape }
 		}
 		Policy(policy) => {
 			shape = KernelFacadeShape.Plan.build_ordered(authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), KernelFacadeSemantics.Plan.flow_text(semantics), source_store, policy, theme, shape_limits) ? |_| EvidenceFailure
-			lines = KernelFacadeLines.Plan.build_ordered_authoring(authoring, shape, source_store, page_size, theme, line_limits) ? |_| EvidenceFailure
+			lines = KernelFacadeLines.Plan.build_ordered_authoring(authoring, shape, source_store, page_size, theme, line_limits, KernelFacadeSemantics.Plan.table_grids(semantics)) ? |_| EvidenceFailure
 			{ lines, shape }
 		}
 	}
@@ -576,7 +612,7 @@ evidence_with = |document, theme, faces, paints| {
 	artifact_runs = KernelFacadeText.Plan.artifact_runs(text).len()
 	paint_counts = match paints {
 		NoPaints => { behind: 0, front: 0 }
-		Paints | EmptyCellPaints => {
+		Paints | EmptyCellPaints | SpanPaints => {
 			rules = KernelFacadePages.Plan.rules(pages)
 			behind = rules.keep_if(|rule| rule.layer == Behind).len()
 			{ behind, front: rules.len() - behind }
@@ -621,6 +657,27 @@ evidence_with = |document, theme, faces, paints| {
 			paint_counts.front,
 			bytes.len(),
 		]
+		SpanPaints => {
+			grid = KernelFacadeSemantics.Plan.table_grids(semantics).first() ?? crash "the spanning schedule's checked grid escaped"
+			[
+				work.node_writes,
+				work.occurrence_writes,
+				work.table_cells,
+				work.header_association_edges,
+				grid.work,
+				grid.tiles.len(),
+				table_work.cell_measurements,
+				table_work.row_visits,
+				page_work.page.page_writes,
+				page_work.page.candidate_visits,
+				page_work.repeated_header_paints,
+				final_runs - artifact_runs,
+				artifact_runs,
+				paint_counts.behind,
+				paint_counts.front,
+				bytes.len(),
+			]
+		}
 		EmptyCellPaints => [
 			work.node_writes,
 			work.occurrence_writes,
@@ -670,7 +727,7 @@ run_negatives = |context| {
 		rejects(document([lead, table([body("b"), Pdf.row([Pdf.header_cell(Row, [Pdf.text("A2")]), Pdf.cell([Pdf.text("b")]), Pdf.cell([Pdf.text("c")]).spanning(2)])], KeepRows)]), InvalidRelationship, "table.grid_mismatch", ["contents[1].table.body_rows[1]"]),
 		rejects(document([lead, table([Pdf.row([])], KeepRows)]), InvalidRelationship, "table.grid_mismatch", ["contents[1].table.body_rows[0]"]),
 		rejects(document([lead, table([Pdf.row([Pdf.header_cell(Row, [Pdf.text("A1")]), Pdf.cell([Pdf.text("b")]).spanning(0), Pdf.cell([Pdf.text("c")]).spanning(2)])], KeepRows)]), InvalidRelationship, "table.grid_mismatch", ["contents[1].table.body_rows[0]"]),
-		rejects(document([lead, table([Pdf.row([Pdf.header_cell(Row, [Pdf.text("A1")]).row_spanning(2), Pdf.cell([Pdf.text("b")]), Pdf.cell([Pdf.text("c")])])], KeepRows)]), FeatureUnavailable, "table.row_span", ["contents[1].table.body_rows[0].cells[0]"]),
+		rejects(document([lead, table([Pdf.row([Pdf.header_cell(Row, [Pdf.text("A1")]).row_spanning(0), Pdf.cell([Pdf.text("b")]), Pdf.cell([Pdf.text("c")])])], KeepRows)]), InvalidRelationship, "table.span_extent", ["contents[1].table.body_rows[0].cells[0]"]),
 		rejects(document([lead, table([], KeepRows)]), InvalidRelationship, "table.empty", ["contents[1]"]),
 		rejects(document([lead, Pdf.table({ body_rows: [], caption: Pdf.no_caption, columns: [] })]), InvalidRelationship, "table.empty", ["contents[1]"]),
 		rejects(document([lead, table([Pdf.row([Pdf.header_cell(Row, [Pdf.text("A1")]), Pdf.cell([Pdf.strong([])]), Pdf.cell([Pdf.text("c")])])], KeepRows)]), InvalidRelationship, "table.cell_empty", ["contents[1].table.body_rows[0].cells[1]"]),

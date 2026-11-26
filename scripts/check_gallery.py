@@ -21,6 +21,7 @@ from pathlib import Path
 from check_drawing_labels import artifact_and_tagged_text
 from check_generated_handbook import check as check_generated_handbook
 from check_gallery_features import check_features
+from check_table_spans import validate_quarterly
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -52,6 +53,7 @@ EXAMPLES = (
     "vector-diagrams",
     "warranty-letter",
 )
+PREVIEW_PAGES = {"quarterly-report": 2}
 LOCAL_IMPORT = re.compile(r'^import "([^"]+)"', re.MULTILINE)
 
 
@@ -255,7 +257,7 @@ def main() -> None:
                     (backup / pdf_name).write_bytes(expected)
                     shutil.copyfile(example / "preview.png", backup / "preview.png")
                     preview_prefix = output / f"{name}-preview"
-                    subprocess.run(["pdftoppm", "-f", "1", "-singlefile", "-r", "96", "-png", str(generated_path), str(preview_prefix)], check=True)
+                    subprocess.run(["pdftoppm", "-f", str(PREVIEW_PAGES.get(name, 1)), "-singlefile", "-r", "96", "-png", str(generated_path), str(preview_prefix)], check=True)
                     preview = preview_prefix.with_suffix(".png")
                     expected_path.write_bytes(generated)
                     shutil.copyfile(preview, example / "preview.png")
@@ -276,6 +278,8 @@ def main() -> None:
                 if name == "operations-handbook":
                     check_generated_handbook(example)
                 check_features(name, example)
+                if name == "quarterly-report":
+                    validate_quarterly(generated)
             if server is not None and server.get_requests == 0:
                 raise SystemExit("gallery never requested the served package bundle")
     if args.update:

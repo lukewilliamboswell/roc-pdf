@@ -1,6 +1,7 @@
 import Document
 import Font
 import KernelFacadeSources
+import KernelFacadeTableGrid
 import KernelNavigation
 import KernelSemantics
 import KernelTextSemantics
@@ -101,7 +102,8 @@ KernelFacadeSemantics :: [].{
 		TableEmpty({ group : U64 }),
 		TableGridMismatch({ columns : U64, group : U64, spanned : U64 }),
 		TableHeaderMissing({ group : U64 }),
-		TableRowSpan({ block : U64 }),
+		TableSpan(KernelFacadeTableGrid.Error),
+		TableSpanPolicy({ group : U64 }),
 		TextSemantics(KernelTextSemantics.Error),
 		UnsupportedHeadingLevel({ block : U64, level : U8 }),
 
@@ -200,6 +202,7 @@ KernelFacadeSemantics :: [].{
 		nodes : List(Semantics.Node),
 		pending : List(PendingContext),
 		sources : KernelFacadeSources.Plan,
+		table_grids : List(KernelFacadeTableGrid.Grid),
 		work : Work,
 	}
 
@@ -218,13 +221,14 @@ KernelFacadeSemantics :: [].{
 		literals : List(LiteralContext),
 		pending : List(PendingContext),
 		sources : KernelFacadeSources.Plan,
+		table_grids : List(KernelFacadeTableGrid.Grid),
 		work : Work,
 	}.{
 		build : Document.NormalizedAuthoring, Limits -> Try(Symbolic, Error)
 		build = |authoring, limits| build_symbolic(authoring, limits)
 
 		view : Symbolic -> SymbolicView
-		view = |plan| { authoring: plan.authoring, block_ownership: plan.block_ownership, content_spine: plan.components.content_spine, destinations: plan.destinations, links: plan.links, literals: plan.literals, nodes: plan.components.nodes, pending: plan.pending, sources: plan.sources, work: plan.work }
+		view = |plan| { authoring: plan.authoring, block_ownership: plan.block_ownership, content_spine: plan.components.content_spine, destinations: plan.destinations, links: plan.links, literals: plan.literals, nodes: plan.components.nodes, pending: plan.pending, sources: plan.sources, table_grids: plan.table_grids, work: plan.work }
 
 		## The full semantic occurrence arena includes Figure labels whose
 		## geometry is placed after reference measurement.
@@ -286,6 +290,7 @@ KernelFacadeSemantics :: [].{
 		preliminary : KernelTextSemantics.Plan,
 		sources : KernelFacadeSources.Plan,
 		widget_owners : List(Semantics.NodeId),
+		table_grids : List(KernelFacadeTableGrid.Grid),
 		work : Work,
 	}.{
 		build : Document.NormalizedAuthoring, Limits -> Try(Plan, Error)
@@ -310,6 +315,9 @@ KernelFacadeSemantics :: [].{
 
 		block_ownership : Plan -> List(BlockOwnership)
 		block_ownership = |plan| plan.block_ownership
+
+		table_grids : Plan -> List(KernelFacadeTableGrid.Grid)
+		table_grids = |plan| plan.table_grids
 
 		figure_labels : Plan -> FigureLabels
 		figure_labels = |plan| plan.figure_labels
@@ -365,6 +373,7 @@ Planning : {
 	relationship_count : U64,
 	source_inputs : List(Str),
 	table_count : U64,
+	table_grids : List(KernelFacadeTableGrid.Grid),
 	top_nodes : List(ChildEntry),
 }
 
@@ -404,6 +413,7 @@ build_plan = |authoring, widget_groups, limits| {
 			preliminary,
 			sources,
 			widget_owners: widget_groups.map(|index| Semantics.NodeId.from_index(list_at(planning.group_nodes, index))),
+			table_grids: planning.table_grids,
 			work: {
 				container_nodes: planning.group_nodes.len(),
 				content_writes: store.content_spine.len(),
@@ -548,6 +558,7 @@ build_symbolic = |authoring, limits| {
 			literals: contexts.literals,
 			pending: contexts.pending,
 			sources,
+			table_grids: planning.table_grids,
 			work: semantic_work(authoring, planning, built.components),
 		},
 	)
@@ -644,7 +655,7 @@ symbolic_contexts = |authoring, owners, occurrences| {
 }
 
 finalize_symbolic : KernelFacadeSemantics.Symbolic, List(Str), List(Semantics.NodeId) -> Try(KernelFacadeSemantics.Plan, KernelFacadeSemantics.Error)
-finalize_symbolic = |KernelFacadeSemantics.Symbolic.{ authoring, block_ownership, components, contents_nodes, destinations, figure_labels, limits, links, literals: _, pending, sources: literal_sources, work }, labels, resolved_nodes| {
+finalize_symbolic = |KernelFacadeSemantics.Symbolic.{ authoring, block_ownership, components, contents_nodes, destinations, figure_labels, limits, links, literals: _, pending, sources: literal_sources, table_grids, work }, labels, resolved_nodes| {
 	{ attributes, content_spine, element_identifiers, namespaces, nodes, literals, relationships, text_properties } = components
 	if labels.len() != pending.len() {
 		return Err(ReferenceResolution({ reference: labels.len(), reason: "Resolved labels must cover every reference exactly once in reference-id order." }))
@@ -722,6 +733,7 @@ finalize_symbolic = |KernelFacadeSemantics.Symbolic.{ authoring, block_ownership
 			preliminary,
 			sources,
 			widget_owners: [],
+			table_grids,
 			work: { ..work, occurrence_writes: store.occurrences.len(), property_writes: final_components.text_properties.len(), source_inputs: work.source_inputs + labels.len() },
 		},
 	)
@@ -763,6 +775,7 @@ plan_blocks = |authoring, limits| {
 	var $header_ranges = if (authoring.cells.is_empty()) [] else List.with_capacity(authoring.cells.len())
 	var $relationship_count = 0
 	var $table_count = 0
+	var $table_grids = []
 	var $empty_cells = 0
 	var $block_index = 0
 	check_limit($next_node, limits.max_nodes, Nodes)?
@@ -920,6 +933,12 @@ plan_blocks = |authoring, limits| {
 					$break_cursor = $break_cursor + planned.breaks
 					$cell_cursor = $cell_cursor + planned.cells
 					$association_cursor = planned.association_end
+					match planned.grid {
+						Spanning(verified) => {
+							$table_grids = $table_grids.append(verified)
+						}
+						Ordinary => {}
+					}
 					$table_count = $table_count + 1
 					$empty_cells = $empty_cells + planned.empty_cells
 					$block_index = group.block_end
@@ -1229,18 +1248,18 @@ plan_blocks = |authoring, limits| {
 	check_customs(authoring)?
 	check_callouts(authoring)?
 	check_decorations(authoring)?
-	Ok({ attribute_count: $attribute_count, cell_headers: $cell_headers, content_count: $content_count, destinations: $destinations, empty_cells: $empty_cells, figure_label_owners: $figure_label_owners, figure_label_texts: $figure_label_texts, group_nodes: $group_nodes, header_ranges: $header_ranges, inline_elements: $inline_elements, inline_leaves: $inline_leaves, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, relationship_count: $relationship_count, source_inputs: $sources, table_count: $table_count, top_nodes: $top_nodes })
+	Ok({ attribute_count: $attribute_count, cell_headers: $cell_headers, content_count: $content_count, destinations: $destinations, empty_cells: $empty_cells, figure_label_owners: $figure_label_owners, figure_label_texts: $figure_label_texts, group_nodes: $group_nodes, header_ranges: $header_ranges, inline_elements: $inline_elements, inline_leaves: $inline_leaves, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, relationship_count: $relationship_count, source_inputs: $sources, table_count: $table_count, table_grids: $table_grids, top_nodes: $top_nodes })
 }
 
 TableCursor : { association : U64, attribute_base : U64, break_cursor : U64, cell : U64, header_base : U64, node : U64, occurrence : U64 }
 
 TableBuffers : { group_nodes : List(U64), headers : List(U64), links : List(KernelFacadeSemantics.LinkRecord), ranges : List(Semantics.IndexRange), sources : List(Str) }
 
-TablePlan : { association_end : U64, attributes : U64, breaks : U64, buffers : TableBuffers, cells : U64, content : U64, elements : U64, empty_cells : U64, expansions : U64, leaves : U64, nodes : U64, occurrences : U64, relationships : U64 }
+TablePlan : { association_end : U64, attributes : U64, breaks : U64, buffers : TableBuffers, cells : U64, content : U64, elements : U64, empty_cells : U64, expansions : U64, grid : KernelFacadeTableGrid.Selection, leaves : U64, nodes : U64, occurrences : U64, relationships : U64 }
 
 ## Validate and count one table in authored order: a table needs columns
-## and a body row; each cell has non-empty inline content and no row span;
-## each row's column spans sum to the column count; and at least one cell is
+## and a body row; each cell occupies a rectangle in a regular grid, and
+## at least one cell is
 ## a header cell. Nodes are numbered in preorder: `Table`, the optional
 ## `Caption > P`, then each present section (`THead`, `TBody`, `TFoot`)
 ## before its rows, each `TR` before its cells, and each cell before its
@@ -1258,6 +1277,10 @@ plan_table = |authoring, group_index, table_index, at, { max_attributes, max_dep
 		return Err(TableEmpty({ group: group_index }))
 	}
 	cell_end = at.cell + group.block_end - group.first_block - (if (table.caption) 1 else 0)
+	grid = KernelFacadeTableGrid.build(authoring, group_index, at.cell, cell_end, table) ? TableSpan
+	if grid != Ordinary and table.row_split == SplitRows {
+		return Err(TableSpanPolicy({ group: group_index }))
+	}
 	var $association_end = at.association
 	while $association_end < authoring.cell_associations.len() and list_at(authoring.cell_associations, $association_end).cell < cell_end {
 		$association_end = $association_end + 1
@@ -1311,8 +1334,8 @@ plan_table = |authoring, group_index, table_index, at, { max_attributes, max_dep
 		var $block = row.first_block
 		while $block < row.block_end {
 			record = list_at(authoring.cells, $cell)
-			if record.row_span != 1 {
-				return Err(TableRowSpan({ block: $block }))
+			if record.row_span == 0 {
+				return Err(TableSpan(CellExtent({ block: $block, reason: ZeroRows })))
 			}
 			if record.column_span == 0 {
 				return Err(TableGridMismatch({ columns, group: $row_group, spanned: $spanned }))
@@ -1356,11 +1379,14 @@ plan_table = |authoring, group_index, table_index, at, { max_attributes, max_dep
 			if record.column_span > 1 {
 				$attributes = $attributes + 1
 			}
+			if record.row_span > 1 {
+				$attributes = $attributes + 1
+			}
 			match record.kind {
 				HeaderCell(scope) => {
 					$has_header = True
 					$attributes = $attributes + 1
-					if scope != Column {
+					if scope != Column and grid == Ordinary {
 						$row_headers = $row_headers.append($cell)
 					}
 				}
@@ -1370,8 +1396,12 @@ plan_table = |authoring, group_index, table_index, at, { max_attributes, max_dep
 			$cell = $cell + 1
 			$block = $block + 1
 		}
-		if $spanned != columns {
-			return Err(TableGridMismatch({ columns, group: $row_group, spanned: $spanned }))
+		if grid == Ordinary {
+			if $spanned != columns {
+				return Err(TableGridMismatch({ columns, group: $row_group, spanned: $spanned }))
+			}
+		} else {
+			$row_headers = spanning_row_headers(authoring.cells, grid, $row_ordinal)
 		}
 
 		# Column headers come from earlier rows. A forward row cursor
@@ -1379,8 +1409,12 @@ plan_table = |authoring, group_index, table_index, at, { max_attributes, max_dep
 		var $column = 0
 		var $index = first_cell
 		var $preceding_row_headers = 0
+		while $preceding_row_headers < $row_headers.len() and list_at($row_headers, $preceding_row_headers) < first_cell {
+			$preceding_row_headers = $preceding_row_headers + 1
+		}
 		while $index < $cell {
 			record = list_at(authoring.cells, $index)
+			$column = grid_column(grid, $index, $column)
 			local_start = $headers.len()
 			start = at.header_base + local_start
 			span = record.column_span.to_u64()
@@ -1447,6 +1481,7 @@ plan_table = |authoring, group_index, table_index, at, { max_attributes, max_dep
 		$index = first_cell
 		while $index < $cell {
 			record = list_at(authoring.cells, $index)
+			$column = grid_column(grid, $index, $column)
 			match record.kind {
 				HeaderCell(scope) => if scope != Row {
 					if record.column_span > 1 and $starting_headers.is_empty() {
@@ -1488,11 +1523,47 @@ plan_table = |authoring, group_index, table_index, at, { max_attributes, max_dep
 		elements: $elements,
 		empty_cells: $empty_cells,
 		expansions: $expansions,
+		grid,
 		leaves: $leaves,
 		nodes: $next_node - at.node,
 		occurrences: $occurrences,
 		relationships: $relationships,
 	})
+}
+
+grid_column : KernelFacadeTableGrid.Selection, U64, U64 -> U64
+grid_column = |grid, cell, ordinary| match grid {
+	Ordinary => ordinary
+	Spanning(verified) => list_at(verified.cells, cell - verified.first_cell).column
+}
+
+## A row-scoped header applies at each row of its rectangle. Column
+## scopes use the target's origin row and covered columns. At that row an
+## active cell cannot overlap the target in columns, so a Both-scoped
+## header is never counted twice. Authors can specify any wider meaning.
+spanning_row_headers : List(Document.NormalizedCell), KernelFacadeTableGrid.Selection, U64 -> List(U64)
+spanning_row_headers = |cells, grid, row| match grid {
+	Ordinary => []
+	Spanning(verified) => {
+		tiles = list_at(verified.rows, row).tiles
+		var $headers = []
+		var $index = tiles.start()
+		while $index < tiles.start() + tiles.length() {
+			ordinal = list_at(verified.tiles, $index)
+			match list_at(cells, ordinal).kind {
+				HeaderCell(Row) | HeaderCell(Both) => {
+					$headers = $headers.append(ordinal)
+				}
+				_ => {}
+			}
+			$index = $index + 1
+		}
+		if $headers.len() < 2 {
+			$headers
+		} else {
+			$headers.sort_with(compare_cell_ordinals)
+		}
+	}
 }
 
 TableKey : { bytes : List(U8), cell : U64, kind : Document.CellKind }
@@ -2957,6 +3028,9 @@ place_table = |attributes, { content, nodes, occurrences, properties }, identifi
 					}
 					$attributes = $attributes.append({ applicability: Family(TableRoles), name: Standard("Headers"), owner: Table, value: Names($names) })
 				}
+				if record.row_span > 1 {
+					$attributes = $attributes.append({ applicability: Family(TableRoles), name: Standard("RowSpan"), owner: Table, value: Integer(record.row_span.to_i64()) })
+				}
 				match record.kind {
 					HeaderCell(scope) => {
 						$attributes = $attributes.append({ applicability: Family(TableRoles), name: Standard("Scope"), owner: Table, value: Name(scope_name(scope)) })
@@ -3713,7 +3787,7 @@ expect {
 	missing = KernelFacadeSemantics.Plan.build(table({ ..base, header_rows: [] }), limits)
 	spanned = KernelFacadeSemantics.Plan.build(table({ ..base, body_rows: [Document.row([Document.cell([Document.plain_text("x")]).row_spanning(2)])] }), limits)
 	match (empty, grid, missing, spanned) {
-		(Err(TableEmpty({ group: 0 })), Err(TableGridMismatch({ columns: 1, group: 2, spanned: 2 })), Err(TableHeaderMissing({ group: 0 })), Err(TableRowSpan({ block: 1 }))) => True
+		(Err(TableEmpty({ group: 0 })), Err(TableGridMismatch({ columns: 1, group: 2, spanned: 2 })), Err(TableHeaderMissing({ group: 0 })), Err(TableSpan(CellExtent({ block: 1, reason: RowGroupEnd })))) => True
 		_ => False
 	}
 }

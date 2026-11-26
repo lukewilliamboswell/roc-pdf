@@ -47,6 +47,7 @@ from check_pdf_structure import canonical_text, dictionary_ref, is_structure_ele
 from check_rich_inline import validate_rich_inline_pdf
 from check_rich_flow import validate_rich_flow_pdf
 from check_table_paint_frames import validate_table_paint_frames_pdf
+from check_table_spans import validate_spanning_schedule
 from check_technical_manual import validate_technical_manual_pdf
 from check_source_foregrounds import validate_source_foregrounds_pdf
 from check_source_blocks import validate_source_blocks_pdf, validate_multiple_sources_pdf
@@ -209,6 +210,7 @@ VALIDATORS: dict[str, Validator] = {
     "rich_inline": _dimensioned(validate_rich_inline_pdf, "ToUnicode-decoded logical text in structure order equal to paint order, text-bearing inline roles, /E on Span only, and one OBJR-owning link annotation per page painted"),
     "technical_manual": _dimensioned(validate_technical_manual_pdf, "combined printed destinations, scoped chapter furniture, rich source/vector/table ownership, nested padding and repeated-reference artifacts"),
     "table_paint_frames": _dimensioned(validate_table_paint_frames_pdf, "scoped table outer paint, exact row boundaries, semantic text and repeated-reference artifacts"),
+    "table_spans": _dimensioned(validate_spanning_schedule, "authored row rectangles, exact header edges, repeated artifacts and kept group geometry"),
     "rich_flow": _dimensioned(validate_rich_flow_pdf, "exact rich LI/callout source/figure/table ownership, reading order, original source and foregrounds, parent frames, panel padding, and artifact table headers"),
     "tagged_visual": _simple(validate_tagged_visual_pdf, "exact normalized tagged structure and resources"),
     "visible_text": _simple(validate_text_pdf, "exact font, CID, Unicode mapping, and visible text facts"),
@@ -297,7 +299,7 @@ def run_validators(
     validator_ids: tuple[str, ...], data: bytes, dimensions: dict[str, int], report: Reporter
 ) -> None:
     if "pdfua2" in validator_ids:
-        dimensions = {**dimensions, "facade_table_headers": 1}
+        dimensions = {**dimensions, "facade_table_headers": int("table_spans" not in validator_ids)}
         wtpdf = "wtpdf_accessibility" in validator_ids
         validate_claims(data, wtpdf=wtpdf)
         report("independent inspection of PDF/UA-2 and applicable WTPDF identification and embedded font bundles")

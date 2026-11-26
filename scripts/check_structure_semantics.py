@@ -842,6 +842,39 @@ def check_scoped_table_headers(document: Document, rows: list[int]) -> None:
                     column_headers.setdefault(column, set()).add(cell.get("ID"))
 
 
+def check_table_grid(document: Document, row_groups: list[list[int]]) -> None:
+    """Expand rectangles independently of the writer's track-cursor algorithm."""
+    expected_width = None
+    occupied_tracks = 0
+    for rows in row_groups:
+        occupied = [set() for _ in rows]
+        for row_index, row in enumerate(rows):
+            column = 0
+            for cell in element_children(document, document.get(row)):
+                require(isinstance(cell, Ref), "table row has a non-cell child")
+                attributes = table_attributes(document.get(int(cell)))
+                height = attributes.get("RowSpan", 1)
+                width = attributes.get("ColSpan", 1)
+                require(1 <= height <= len(rows) - row_index, "/RowSpan exceeds its row group")
+                require(width >= 1, "/ColSpan is not positive")
+                occupied_tracks += width * height
+                require(occupied_tracks <= 1_000_000, "expanded table grid exceeds the checker budget")
+                while column in occupied[row_index]:
+                    column += 1
+                covered = set(range(column, column + width))
+                for row_mask in occupied[row_index : row_index + height]:
+                    require(row_mask.isdisjoint(covered), "table cells overlap")
+                    row_mask.update(covered)
+                column += width
+            if expected_width is None:
+                expected_width = len(occupied[row_index])
+            require(
+                len(occupied[row_index]) == expected_width
+                and max(occupied[row_index], default=-1) == expected_width - 1,
+                "table grid leaves a gap or extends past its width",
+            )
+
+
 def check_tables(document: Document, visited: set[int], identifiers: dict[bytes, int], pages: list[int], page_index: dict[int, int], dimensions: dict[str, int]) -> None:
     """Independent table checks, derived from the bytes alone:
 
@@ -849,9 +882,8 @@ def check_tables(document: Document, visited: set[int], identifiers: dict[bytes,
       with no /K and no /Pg: it owns no marked content, and there are
       exactly `empty_cells` of them when the case declares the count;
 
-    * grid regularity: every row of a table spans the same number of
-      columns (the sum of its cells' /ColSpan, default 1), and no cell spans
-      rows (the package's declared subset);
+    * grid regularity: expanded row and column spans cover every track
+      exactly once, within each row group;
     * every TH declares a /Scope, and every /Headers target resolves through
       the IDTree to a TH;
     * header-once semantics: a table's THead content lies on the table's
@@ -874,33 +906,27 @@ def check_tables(document: Document, visited: set[int], identifiers: dict[bytes,
                 require(target in identifiers and str(document.get(identifiers[target])["S"]) == "TH", "/Headers names an element that is not a TH")
         if str(element["S"]) != "Table":
             continue
-        rows: list[int] = []
+        row_groups: list[list[int]] = []
+        direct_rows: list[int] = []
         head: list[int] = []
         for child in element_children(document, element):
             if not isinstance(child, Ref):
                 continue
             child_role = str(document.get(int(child))["S"])
             if child_role == "TR":
-                rows.append(int(child))
+                direct_rows.append(int(child))
             elif child_role in ("THead", "TBody", "TFoot"):
+                if direct_rows:
+                    row_groups.append(direct_rows)
+                    direct_rows = []
                 if child_role == "THead":
                     head.append(int(child))
-                rows.extend(int(row) for row in element_children(document, document.get(int(child))) if isinstance(row, Ref))
-        widths = set()
-        for row in rows:
-            width = 0
-            for cell in element_children(document, document.get(row)):
-                if not isinstance(cell, Ref):
-                    continue
-                attributes = table_attributes(document.get(int(cell)))
-                require(attributes.get("RowSpan", 1) == 1, "a table cell spans rows outside the declared subset")
-                span = attributes.get("ColSpan", 1)
-                require(isinstance(span, int) and span >= 1, "a /ColSpan is not a positive integer")
-                width += span
-            widths.add(width)
-        require(len(widths) <= 1, f"table rows span different column counts {sorted(widths)}")
+                row_groups.append([int(row) for row in element_children(document, document.get(int(child))) if isinstance(row, Ref)])
+        if direct_rows:
+            row_groups.append(direct_rows)
+        check_table_grid(document, row_groups)
         if dimensions.get("facade_table_headers"):
-            check_scoped_table_headers(document, rows)
+            check_scoped_table_headers(document, [row for group in row_groups for row in group])
         table_pages = sorted(mcr_pages(document, number), key=lambda page: page_index[page])
         if not head or not table_pages:
             continue

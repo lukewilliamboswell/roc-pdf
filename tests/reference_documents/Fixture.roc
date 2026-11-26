@@ -712,7 +712,7 @@ run_negatives = |guard| {
 		(invoice_with({ ..Invoice.ordinary, row: row_override(6, |index| Pdf.row([Pdf.header_cell(Row, [Pdf.text(Invoice.product_code(index))]), Pdf.cell([Pdf.text("Installation")]), Pdf.cell([Pdf.text("12")]), Pdf.cell([Pdf.text("95.00")]), Pdf.cell([Pdf.text("1,140.00")]), Pdf.cell([Pdf.text("extra")]).spanning(2)])) }), invoice_faces, Code(InvalidRelationship, "table.grid_mismatch", ["${items}.table.body_rows[6]"])),
 
 		## INV-A9: a row span.
-		(invoice_with({ ..Invoice.ordinary, row: row_override(7, |index| Pdf.row([Pdf.header_cell(Row, [Pdf.text(Invoice.product_code(index))]).row_spanning(2), Pdf.cell([Pdf.text("Delivery")]), Pdf.cell([Pdf.text("1")]), Pdf.cell([Pdf.text("180.00")]), Pdf.cell([Pdf.text("180.00")])])) }), invoice_faces, Code(FeatureUnavailable, "table.row_span", ["${items}.table.body_rows[7].cells[0]"])),
+		(invoice_with({ ..Invoice.ordinary, row: row_override(7, |index| Pdf.row([Pdf.header_cell(Row, [Pdf.text(Invoice.product_code(index))]).row_spanning(0), Pdf.cell([Pdf.text("Delivery")]), Pdf.cell([Pdf.text("1")]), Pdf.cell([Pdf.text("180.00")]), Pdf.cell([Pdf.text("180.00")])])) }), invoice_faces, Code(InvalidRelationship, "table.span_extent", ["${items}.table.body_rows[7].cells[0]"])),
 
 		## REP-A4: a three-digit page number in a reserved width sized for
 		## two digits (12 pt; every two-digit value is 10.437 pt).

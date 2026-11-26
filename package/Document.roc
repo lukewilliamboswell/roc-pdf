@@ -182,8 +182,7 @@ CellKind : [DataCell, HeaderCell(HeaderScope)]
 DocumentRow :: [Row(List(DocumentCell))].{}
 
 ## One authored table cell: inline content forming one paragraph, its kind,
-## and the columns and rows it spans. Row spans are represented so they can
-## be rejected with a located diagnostic.
+## and the columns and rows it spans within its section.
 DocumentCell :: [Cell({ align : CellAlign, association : [Associated(Box(CellAssociation)), NoAssociation], column_span : U16, contents : List(DocumentInline), fill : CellFill, kind : CellKind, row_span : U16 })].{
 
 	## The cell spanning `count` columns (`ColSpan`):
@@ -211,8 +210,7 @@ DocumentCell :: [Cell({ align : CellAlign, association : [Associated(Box(CellAss
 		Cell(record) => DocumentCell.Cell({ ..record, fill: CellFill(color) })
 	}
 
-	## The cell spanning `count` rows. Row spans are outside the supported
-	## table subset: preparation reports `table.row_span` until Gate 8.
+	## The cell spanning `count` rows within its header, body or footer group.
 	row_spanning : DocumentCell, U16 -> DocumentCell
 	row_spanning = |value, count| match value {
 		Cell(record) => DocumentCell.Cell({ ..record, row_span: count })

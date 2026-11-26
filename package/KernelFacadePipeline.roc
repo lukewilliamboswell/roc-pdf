@@ -547,7 +547,7 @@ build_ordered_pipeline = |authoring, multi, theme, page_size, descriptor, facts,
 			StyledFace({ font: list_at(styled.fonts, $candidate), instance: $instance, extra: $instance == faces.len() })
 		}
 	}
-	lines = KernelFacadeLines.Plan.build_ordered_authoring(authoring, shape, source_store, page_size, theme, limits.lines) ? Lines
+	lines = KernelFacadeLines.Plan.build_ordered_authoring(authoring, shape, source_store, page_size, theme, limits.lines, KernelFacadeSemantics.Plan.table_grids(semantics)) ? Lines
 
 	## The laid-out record is destructured at once so its plans stay uniquely
 	## owned by the stages that consume them.
@@ -816,7 +816,7 @@ probe_early = |authoring, font, theme, page_size, limits, stage| {
 	if stage == ShapeReady {
 		return Ok(shape_work)
 	}
-	lines = KernelFacadeLines.Plan.build_authoring(authoring, shape, source_store, page_size, theme, limits.lines) ? Lines
+	lines = KernelFacadeLines.Plan.build_authoring(authoring, shape, source_store, page_size, theme, limits.lines, KernelFacadeSemantics.Plan.table_grids(semantics)) ? Lines
 	line_work = { ..shape_work, lines: KernelLineLayout.BatchPlan.lines(KernelFacadeLines.Plan.line(lines)).len(), line_candidate_visits: KernelLineLayout.BatchPlan.work(KernelFacadeLines.Plan.line(lines)).candidate_visits }
 	if stage == LinesReady {
 		return Ok(line_work)
@@ -842,7 +842,7 @@ probe_ordered_plan = |authoring, ordered, theme, page_size, limits| {
 	shape = KernelFacadeShape.Plan.build_ordered(KernelFacadeSemantics.Plan.authoring(semantics), KernelFacadeSemantics.Plan.block_ownership(semantics), KernelFacadeSemantics.Plan.flow_text(semantics), source_store, ordered, theme, limits.shape) ? Shape
 	selection = PolicyFaces({ faces: KernelFacadeShape.Plan.selected_faces(shape), fonts: KernelFacadeShape.Plan.fonts(shape), policy: ordered.policy, registry: ordered.registry })
 	shaped_runs = KernelFacadeShape.Plan.shape(shape).store.runs.len()
-	lines = KernelFacadeLines.Plan.build_ordered_authoring(authoring, shape, source_store, page_size, theme, limits.lines) ? Lines
+	lines = KernelFacadeLines.Plan.build_ordered_authoring(authoring, shape, source_store, page_size, theme, limits.lines, KernelFacadeSemantics.Plan.table_grids(semantics)) ? Lines
 	line_count = KernelLineLayout.BatchPlan.lines(KernelFacadeLines.Plan.line(lines)).len()
 	{ pages, text: unlabelled, work: laid_work } = lay_out(authoring, shape, lines, page_size, theme, selection, KernelFacadeSemantics.Plan.semantic_source_count(semantics), limits)?
 	labelled = label_text(semantics, unlabelled, PolicyLabels, limits)?
@@ -884,7 +884,7 @@ build_upstream = |authoring, font, theme, page_size, descriptor, request, limits
 	preliminary = KernelFacadeSemantics.Plan.preliminary(semantics)
 	source_store = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics))
 	shape = KernelFacadeShape.Plan.build(KernelFacadeSemantics.Plan.authoring(semantics), KernelFacadeSemantics.Plan.block_ownership(semantics), KernelFacadeSemantics.Plan.flow_text(semantics), source_store, font, theme, limits.shape) ? Shape
-	lines = KernelFacadeLines.Plan.build_authoring(authoring, shape, source_store, page_size, theme, limits.lines) ? Lines
+	lines = KernelFacadeLines.Plan.build_authoring(authoring, shape, source_store, page_size, theme, limits.lines, KernelFacadeSemantics.Plan.table_grids(semantics)) ? Lines
 
 	## The laid-out record is destructured at once so its plans stay uniquely
 	## owned by the stages that consume them.

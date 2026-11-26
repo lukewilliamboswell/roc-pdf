@@ -922,8 +922,10 @@ figures, page references and source blocks described under Gate 6.
 
 ### Capabilities
 
-- Complex tables with richer row groups, span combinations, and fragmentation
-  beyond the declared Gate 6 subset, preserving repeated-header semantics.
+- Tables with one header, body and footer group, combined row and column
+  spans inside a group, and layered explicit header identities. Keep connected
+  rows together and preserve repeated-header artifact ownership. Cross-page
+  fragmentation of spanning cells extends this subset.
 - General fixed-page composition, richer page templates, multi-column layout,
   floats, footnotes, side content, and explicit logical order.
 - General cross-references, generated tables of contents, indexes, richer page
