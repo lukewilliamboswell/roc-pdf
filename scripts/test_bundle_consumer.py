@@ -103,10 +103,10 @@ def verify_bundle_members(bundle: Path) -> None:
 
 
 def verify_bundle_size(bundle: Path) -> None:
-    # tar streams concatenated regular-file contents without filesystem writes.
-    # The consumer below also uses Roc's unchanged default package limit.
+    # Roc's decoder counts the complete expanded tar stream, including
+    # headers, member padding and end markers.
     expanded_bytes = 0
-    with subprocess.Popen(["tar", "--zstd", "-xOf", str(bundle)], stdout=subprocess.PIPE, stderr=subprocess.PIPE) as extraction:
+    with subprocess.Popen(["zstd", "-dc", str(bundle)], stdout=subprocess.PIPE, stderr=subprocess.PIPE) as extraction:
         assert extraction.stdout is not None
         while chunk := extraction.stdout.read(65536):
             expanded_bytes += len(chunk)
