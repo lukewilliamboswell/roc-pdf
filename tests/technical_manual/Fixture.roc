@@ -132,7 +132,7 @@ probe_facts : Document -> Try(KernelMetadata.PlanFacts, Fixture.Error)
 probe_facts = |document| {
 	validated = KernelMetadata.validate({ created: Omitted, modified: Omitted, title: Document.metadata_title(document), language: Document.language(document) }, KernelMetadata.Limits.make({ max_language_bytes: 64, max_title_bytes: 2048 })) ? |_| PipelineFailure
 	xmp = KernelXmp.Packet.build_identified(validated.facts, AccessibleArchiveIdentification, 16384) ? |_| PipelineFailure
-	Ok(WithDocumentFacts({ associated: NoAssociatedFiles, condition_identifier: KernelMetadata.srgb_condition_identifier, profile: Color.ProfileId.from_index(0), registry_name: KernelMetadata.icc_registry_name, language: validated.facts.language, xmp: KernelXmp.Packet.bytes(xmp) }))
+	Ok(WithDocumentFacts({ associated: NoAssociatedFiles, condition_identifier: KernelMetadata.srgb_condition_identifier, profile: Color.ProfileId.from_index(0), registry_name: KernelMetadata.icc_registry_name, language: validated.facts.language, widgets: NoPreparedWidgets, xmp: KernelXmp.Packet.bytes(xmp) }))
 }
 
 page_size : Layout.Size

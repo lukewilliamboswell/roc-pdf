@@ -349,6 +349,7 @@ run_pipeline = |input| {
 		profile: input.intent_profile,
 		registry_name: KernelMetadata.icc_registry_name,
 		language: validated.facts.language,
+		widgets: NoPreparedWidgets,
 		xmp: KernelXmp.Packet.bytes(packet),
 	})
 	structure = KernelFormStructure.Plan.build_with_facts(tagged, colors, images, content, form_plan, objects, NoTextObjects, Scene.no_shadings, plan_facts, structure_limits) ? StructureFailure
