@@ -1330,6 +1330,8 @@ role_index = |name| {
 		role_lbl
 	} else if name == "LBody" {
 		12
+	} else if name == "Form" {
+		role_form
 	} else if name == "Link" {
 		role_link
 	} else if name == "TD" {
@@ -1420,6 +1422,9 @@ role_lbl = 11
 role_caption : U64
 role_caption = 14
 
+role_form : U64
+role_form = 30
+
 role_link : U64
 role_link = 15
 
@@ -1484,8 +1489,8 @@ role_enabled = |role, namespace, is_root, text_enabled, navigation| {
 containment_row : U64 -> U64
 containment_row = |parent| match parent {
 
-	## Document: Document, DocumentFragment, Part, Sect, Div, Title, H, Hn, P, L, Figure, Link, Code, Table
-	0 => 271098879
+	## Document: Document, DocumentFragment, Part, Sect, Div, Title, H, Hn, P, L, Figure, Link, Code, Table and Form.
+	0 => (271098879.U64).bitwise_or(role_bit(role_form))
 
 	## DocumentFragment: same as Document
 	1 => 271098879
@@ -1562,6 +1567,10 @@ containment_row = |parent| match parent {
 
 	## TOCI: Div, P, Lbl, TOC
 	29 => 268437776
+
+	## Form: the fixed-widget subset permits the direct Lbl of
+	## ISO 14289-2:2024 8.10.2.2 and its annotation content item.
+	30 => role_bit(role_lbl)
 	_ => 0
 }
 

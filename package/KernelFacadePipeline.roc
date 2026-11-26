@@ -1,3 +1,4 @@
+import KernelWidgetFields
 import Document
 import KernelColumnLayout
 import KernelFacadeColumns
@@ -192,7 +193,16 @@ MultiFace : [Policy({ policy : Font.PolicyId, registry : Font.Registry }), Style
 
 build_fixed_pipeline : Document.NormalizedAuthoring, Document.NormalizedFixed, KernelFacadeShape.FontSelection, Theme, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelFacadeReport.Request, KernelFacadePipeline.Limits -> Try(KernelFacadePipeline.Plan, KernelFacadePipeline.FixedError)
 build_fixed_pipeline = |authoring, fixed, selection, theme, descriptor, facts, request, limits| {
-	semantics = KernelFacadeSemantics.Plan.build(authoring, limits.semantics) ? |error| Pipeline(Semantics(error))
+	widgets = match facts {
+		WithDocumentFacts(data) => data.widgets
+		NoDocumentFacts => NoPreparedWidgets
+	}
+	semantics = (
+		match widgets {
+			NoPreparedWidgets => KernelFacadeSemantics.Plan.build(authoring, limits.semantics)
+			WithPreparedWidgets(prepared) => KernelFacadeSemantics.Plan.build_with_widgets(authoring, KernelWidgetFields.Plan.fields(prepared).map(|field| field.group), limits.semantics)
+		}
+	) ? |error| Pipeline(Semantics(error))
 	preliminary = KernelFacadeSemantics.Plan.preliminary(semantics)
 	owners = KernelFacadeSemantics.Plan.block_ownership(semantics)
 	flow_text = KernelFacadeSemantics.Plan.flow_text(semantics)
@@ -210,7 +220,12 @@ build_fixed_pipeline = |authoring, fixed, selection, theme, descriptor, facts, r
 	lines = KernelFacadeLines.Plan.build_fixed(authoring, shape, sources, view.frames, limits.lines) ? |error| Pipeline(Lines(error))
 	{ positioned, work: placement_work } = KernelFacadeFixed.position(fixed, shape, lines, { max_pieces: KernelFacadeText.Limits.max_placements(limits.text) }) ? Placement
 	text = KernelFacadeText.Plan.build_positioned(positioned, [], { decorations: [], figure_scales: [], panels: [] }, limits.text) ? |error| Pipeline(Text(error))
-	fragments = KernelFacadeFragments.Plan.build(preliminary, text, limits.fragments, limits.fragment_semantics) ? |error| Pipeline(Fragments(error))
+	fragments = (
+		match widgets {
+			NoPreparedWidgets => KernelFacadeFragments.Plan.build(preliminary, text, limits.fragments, limits.fragment_semantics)
+			WithPreparedWidgets(_) => KernelFacadeFragments.Plan.build_with_widgets(preliminary, text, KernelFacadeSemantics.Plan.widget_owners(semantics), limits.fragments, limits.fragment_semantics)
+		}
+	) ? |error| Pipeline(Fragments(error))
 	scenes = KernelFacadeScenes.Plan.build_fixed(fragments, { pages: view.pages, artifacts: view.artifacts }, intent_profile(facts), limits.scenes) ? |error| Pipeline(Scenes(error))
 	output = (
 		match selection {

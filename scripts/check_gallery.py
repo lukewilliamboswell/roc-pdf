@@ -45,6 +45,7 @@ EXAMPLES = (
     "quarterly-report",
     "release-notes",
     "remittance-advice",
+    "service-intake",
     "source-blocks",
     "tax-invoice",
     "vector-diagrams",

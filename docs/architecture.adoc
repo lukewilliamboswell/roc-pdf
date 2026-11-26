@@ -88,6 +88,7 @@ The package supports distinct, composable claims:
 - `WtpdfAccessibility`: the WTPDF accessibility declaration, whose file
   requirements align with PDF/UA-2.
 - `WtpdfReuse`: a separate capability with additional requirements.
+- `InteractivePdfA4`: the bounded PDF/A-4 claim for editable fixed-page forms.
 - `PdfA4f`: the document-level associated-file profile. Its accessible
   combination requires the authored document to stand on its own.
 
@@ -517,14 +518,15 @@ The public profiles select the following declaration sets and checks:
 
 | `AccessibleArchive` | `Pdf20 + StaticPdfA4 + PdfUa2` | Self-contained accessible archive; WTPDF accessibility is declared only through its separately validated declaration capability
 | `Archive` | `Pdf20 + StaticPdfA4` | Self-contained static archive without a PDF/UA-2 claim
+| `AccessibleForm` | `Pdf20 + InteractivePdfA4 + PdfUa2` | Explicit accessible fixed-page forms using the package's bounded widget and editable-font policy
+| `ArchiveWithFiles` | `Pdf20 + PdfA4f` | PDF/A-4f with document-level associated files
+| `AccessibleArchiveWithFiles` | `Pdf20 + PdfA4f + PdfUa2` | PDF/A-4f with supplemental associated files and PDF/UA-2
 | `Standard` | `Pdf20` | The implemented generation-only PDF 2.0 subset without archival or accessibility conformance claims
 |===
 
-`Profile` selects requirements, not feature availability or reader behavior.
-Choosing a weaker profile never repairs, substitutes, or removes unsupported
-input. Orthogonal claims such as `WtpdfAccessibility`, `WtpdfReuse`, and future
-`PdfA4f` remain explicit conformance capabilities rather than additional
-meanings hidden inside the three facade values.
+`Profile` selects declaration requirements and the associated writer policy.
+Preparation rejects unsupported input. WTPDF accessibility is a separate option
+on eligible accessible profiles. WTPDF reuse has its own requirements.
 
 `Theme` is the typed visual and layout policy used by the convenience authoring
 path. It contains exact font policies and text styles; page margins and default
@@ -1438,6 +1440,21 @@ The payload is opaque caller data and flows into unchanged-resource emission
 as a shared list. Type and content-specific validation belong to the
 application supplying it. See ISO 19005-4:2020 §6.9 and Annex A, and ISO
 32000-2:2020 §§7.9.6, 7.11 and 14.13.
+
+An editable field enters through fixed-page authoring with a stable ID,
+visible label, authored order and widget origin. Preparation checks the field
+registry, geometry, initial values and appearance policy, then binds each
+field to its typed `Form` owner and visible `Lbl` child. The annotation spine
+links the page and the owner to the widget via OBJR and ParentTree.
+Per-page annotation arrays follow authored order, and pages write `/Tabs /S`.
+Lowering consumes that plan to emit one terminal widget per field, a normal
+appearance and one shared full editable font program with a bounded encoding.
+It checks the planned dictionaries, font and appearance edges, and page
+annotation arrays before sealing. The interactive PDF/A-4 claim takes the
+specific approved values and object identities. Other archival restrictions
+remain in force. See ISO 32000-2:2020+EC3 §§12.5.5, 12.5.6.19, 12.7.2–12.7.4
+and 12.7.5.3, ISO 19005-4:2020 §§6.2.10, 6.3 and 6.4, ISO 14289-2:2024
+§§8.9.3.3 and 8.10, and ISO/TS 32005:2023 Table 5.
 
 Annotations are first-class structured values carrying:
 

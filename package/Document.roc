@@ -1,4 +1,5 @@
 import KernelAssociatedFiles
+import KernelWidgetFields
 import Color
 import Conformance
 import Font
@@ -464,7 +465,7 @@ ValidatedDrawing : [InvalidDrawing(Str), ValidDrawing(FlowDrawing)]
 ## The PDF 2.0 grouping element a container block becomes: `Part`, `Sect`,
 ## or `Div`. Grouping has no visual effect; children keep their own roles,
 ## so headings inside a section remain explicit `H1`..`H6`.
-ContainerKind : [Division, Part, Section]
+ContainerKind : [Division, FormContainer, Part, Section]
 
 ## Explicit widths for sequential flow across two columns.
 ColumnFlow := {
@@ -508,7 +509,11 @@ AuthoringFeature := [
 PageArtifactKind := [Background, Decoration, Footer, Header, PageNumber, Watermark]
 
 ## A semantic block placed into an explicit page frame.
-FixedPlacement := { block : DocumentBlock, frame : Layout.Rect }
+FixedPlacement := {
+	block : DocumentBlock,
+	frame : Layout.Rect,
+	widget : [NoWidget, TextWidget(KernelWidgetFields.TextFieldProps)] ?? NoWidget,
+}
 
 ## A drawing whose non-content purpose and paint layer are explicit.
 FixedArtifact := { drawing : Scene.Drawing, kind : PageArtifactKind }
@@ -534,6 +539,14 @@ FixedPageBuilder :: FixedPage.{
 	place : FixedPageBuilder, { block : DocumentBlock, frame : Layout.Rect } -> FixedPageBuilder
 	place = |FixedPageBuilder.{ artifacts_after, artifacts_before, placements, paint_order, size }, { block, frame }| FixedPageBuilder.{ artifacts_after, artifacts_before, placements: placements.append({ block, frame }), paint_order, size }
 
+	## Place an editable field at the given page-coordinate origin. Its label
+	## appears above it and the widget follows the label in reading order.
+	place_text_field : FixedPageBuilder, { field : KernelWidgetFields.TextFieldProps, origin : Layout.Point } -> FixedPageBuilder
+	place_text_field = |FixedPageBuilder.{ artifacts_after, artifacts_before, placements, paint_order, size }, { field, origin }| {
+		frame = { origin, size: { width: field.width, height: 22 } }
+		FixedPageBuilder.{ artifacts_after, artifacts_before, placements: placements.append({ block: Paragraph(field.label), frame, widget: TextWidget(field) }), paint_order, size }
+	}
+
 	overlay : FixedPageBuilder, { kind : PageArtifactKind, drawing : Scene.Drawing } -> FixedPageBuilder
 	overlay = |FixedPageBuilder.{ artifacts_after, artifacts_before, placements, paint_order, size }, { kind, drawing }| FixedPageBuilder.{ artifacts_after: artifacts_after.append({ drawing, kind }), artifacts_before, placements, paint_order, size }
 
@@ -558,6 +571,8 @@ FixedError : [
 	UnsupportedPlacement({ page : U64, placement : U64 }),
 	UnsupportedInline({ page : U64, placement : U64 }),
 	InvalidFrame({ page : U64, placement : U64 }),
+	InvalidWidgetFrame(KernelWidgetFields.Location),
+	InvalidWidgetLabel(KernelWidgetFields.Location),
 	PaintOrderLength({ page : U64, actual : U64, expected : U64 }),
 	PaintOrderIndex({ page : U64, index : U64, placement : U64 }),
 	DuplicatePaintPlacement({ page : U64, index : U64, placement : U64 }),
@@ -580,6 +595,7 @@ NormalizedFixed :: {
 	authoring : NormalizedAuthoring,
 	pages : List(FixedPagePlan),
 	frames : List(Layout.Rect),
+	widget_fields : List(KernelWidgetFields.Authored),
 	paint_order : List(U64),
 	artifacts : List(FixedRect),
 }.{
@@ -617,14 +633,34 @@ normalize_fixed_pages = |fixed, limits| {
 	var $paint_order = List.with_capacity($placements)
 	var $artifacts = List.with_capacity($rectangles)
 	var $state = empty_state
+	var $widget_fields = []
+	$page = 0
 	for page in fixed.pages {
 		placement_base = $frames.len()
 		placement_count = page.placements.len()
 		$paint_order = append_fixed_paint_order($paint_order, page.paint_order, placement_base, placement_count)
 		var $placement = 0
 		for placement in page.placements {
-			$frames = $frames.append(placement.frame)
-			$state = append_leaf($state, placement.block, 0, placement_base + $placement)
+			position = placement_base + $placement
+			match placement.widget {
+				NoWidget => {
+					$frames = $frames.append(placement.frame)
+					$state = append_leaf($state, placement.block, 0, position)
+				}
+				TextWidget(field) => {
+					location = { page: $page, placement: $placement }
+					geometry = match KernelWidgetFields.geometry(placement.frame.origin, field.width, page.size) {
+						Frames(value) => value
+						InvalidFrames => return Err(InvalidWidgetFrame(location))
+					}
+					$frames = $frames.append(geometry.label)
+					group = $state.groups.len()
+					$widget_fields = $widget_fields.append({ field, geometry, group, location })
+					$state = open_group($state, Container(FormContainer), 0, 1, position)
+					$state = append_leaf($state, placement.block, group + 1, 0)
+					$state = close_group($state, group)
+				}
+			}
 			$placement = $placement + 1
 		}
 		underlay_base = $artifacts.len()
@@ -638,6 +674,7 @@ normalize_fixed_pages = |fixed, limits| {
 			underlays: fixed_range(underlay_base, overlay_base - underlay_base),
 			overlays: fixed_range(overlay_base, $artifacts.len() - overlay_base),
 		})
+		$page = $page + 1
 	}
 	Ok(
 		NormalizedFixed.(
@@ -645,6 +682,7 @@ normalize_fixed_pages = |fixed, limits| {
 				authoring: finish_simple_authoring($state, fixed.language, fixed.metadata_title),
 				pages: $page_plans,
 				frames: $frames,
+				widget_fields: $widget_fields,
 				paint_order: $paint_order,
 				artifacts: $artifacts,
 			},
@@ -685,8 +723,21 @@ validate_fixed_placements : FixedPage, U64 -> Try({}, FixedError)
 validate_fixed_placements = |page, page_index| {
 	var $index = 0
 	for placement in page.placements {
-		if !fixed_rect_fits(placement.frame, page.size) {
-			return Err(InvalidFrame({ page: page_index, placement: $index }))
+		match placement.widget {
+			NoWidget => if !fixed_rect_fits(placement.frame, page.size) {
+				return Err(InvalidFrame({ page: page_index, placement: $index }))
+			}
+			TextWidget(field) => match KernelWidgetFields.geometry(placement.frame.origin, field.width, page.size) {
+				Frames(_) => {}
+				InvalidFrames => return Err(InvalidWidgetFrame({ page: page_index, placement: $index }))
+			}
+		}
+		match placement.widget {
+			NoWidget => {}
+			TextWidget(field) => match placement.block {
+				Paragraph(label) if label == field.label => {}
+				_ => return Err(InvalidWidgetLabel({ page: page_index, placement: $index }))
+			}
 		}
 		match placement.block {
 			Title(_) | Heading(_) | Paragraph(_) => {}

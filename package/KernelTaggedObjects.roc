@@ -1,3 +1,4 @@
+import KernelWidgetObjects
 import KernelAssociatedObjects
 import KernelIndex
 import KernelLex
@@ -15,6 +16,7 @@ KernelTaggedObjects :: [].{
 	## objects: an annotation spine item on a plan without planned annotation
 	## object identities is a structured rejection, never a silent drop.
 	Error : [
+		Widgets(KernelWidgetObjects.Error),
 		Associated(KernelAssociatedObjects.Error),
 		AnnotationObjectUnplanned({ annotation : U64 }),
 		IdTree(KernelNavigationObjects.Error),
@@ -41,14 +43,14 @@ KernelTaggedObjects :: [].{
 
 	Plan :: { builder : KernelObject.Builder, navigation_names : [NoNavigationNames, WithNavigationNames(KernelNavigationObjects.Names)], work : Work }.{
 		build : KernelTagged.Plan, KernelObjectPlan.Plan, KernelObject.Limits -> Try(Plan, Error)
-		build = |tagged, objects, limits| build_plan(tagged, objects, NoCatalogFacts, NoNavigationObjects, NoAssociatedPlan, limits)
+		build = |tagged, objects, limits| build_plan(tagged, objects, NoCatalogFacts, NoNavigationObjects, NoAssociatedPlan, NoWidgetPlan, limits)
 
 		## Document facts extend the catalog with its validated language, the
 		## planned metadata stream, and the packaged sRGB output intent whose
 		## profile stream the planner has already assigned. `NoCatalogFacts`
 		## keeps the plan byte-identical to `build`.
 		build_with_facts : KernelTagged.Plan, KernelObjectPlan.Plan, KernelMetadata.CatalogFacts, KernelObject.Limits -> Try(Plan, Error)
-		build_with_facts = |tagged, objects, facts, limits| build_plan(tagged, objects, facts, NoNavigationObjects, NoAssociatedPlan, limits)
+		build_with_facts = |tagged, objects, facts, limits| build_plan(tagged, objects, facts, NoNavigationObjects, NoAssociatedPlan, NoWidgetPlan, limits)
 
 		## Navigation facts extend the prefix with the planned annotation,
 		## named-destination, outline, and page-label identities: the catalog
@@ -58,10 +60,13 @@ KernelTaggedObjects :: [].{
 		## content-stream rows. `NoNavigationObjects` keeps the plan
 		## byte-identical to `build_with_facts`.
 		build_with_navigation : KernelTagged.Plan, KernelObjectPlan.Plan, KernelMetadata.CatalogFacts, KernelNavigationObjects.TaggedFacts, KernelObject.Limits -> Try(Plan, Error)
-		build_with_navigation = |tagged, objects, facts, navigation, limits| build_plan(tagged, objects, facts, navigation, NoAssociatedPlan, limits)
+		build_with_navigation = |tagged, objects, facts, navigation, limits| build_plan(tagged, objects, facts, navigation, NoAssociatedPlan, NoWidgetPlan, limits)
 
 		build_with_associated_files : KernelTagged.Plan, KernelObjectPlan.Plan, KernelMetadata.CatalogFacts, KernelNavigationObjects.TaggedFacts, KernelAssociatedObjects.Planned, KernelObject.Limits -> Try(Plan, Error)
-		build_with_associated_files = |tagged, objects, facts, navigation, associated, limits| build_plan(tagged, objects, facts, navigation, associated, limits)
+		build_with_associated_files = |tagged, objects, facts, navigation, associated, limits| build_plan(tagged, objects, facts, navigation, associated, NoWidgetPlan, limits)
+
+		build_with_widgets : KernelTagged.Plan, KernelObjectPlan.Plan, KernelMetadata.CatalogFacts, KernelNavigationObjects.TaggedFacts, KernelWidgetObjects.Plan, KernelObject.Limits -> Try(Plan, Error)
+		build_with_widgets = |tagged, objects, facts, navigation, widgets, limits| build_plan(tagged, objects, facts, navigation, NoAssociatedPlan, WithWidgetPlan(widgets), limits)
 
 		builder : Plan -> KernelObject.Builder
 		builder = |plan| plan.builder
@@ -114,8 +119,8 @@ Names := {
 	type_name : KernelObject.NameId,
 }
 
-build_plan : KernelTagged.Plan, KernelObjectPlan.Plan, KernelMetadata.CatalogFacts, KernelNavigationObjects.TaggedFacts, KernelAssociatedObjects.Planned, KernelObject.Limits -> Try(KernelTaggedObjects.Plan, KernelTaggedObjects.Error)
-build_plan = |tagged, objects, facts, navigation, associated, limits| {
+build_plan : KernelTagged.Plan, KernelObjectPlan.Plan, KernelMetadata.CatalogFacts, KernelNavigationObjects.TaggedFacts, KernelAssociatedObjects.Planned, KernelWidgetObjects.Selection, KernelObject.Limits -> Try(KernelTaggedObjects.Plan, KernelTaggedObjects.Error)
+build_plan = |tagged, objects, facts, navigation, associated, widgets, limits| {
 	semantics = KernelTagged.Plan.semantics(tagged)
 	added_names = add_names(KernelObject.init(limits))?
 	prepared = match facts {
@@ -147,7 +152,7 @@ build_plan = |tagged, objects, facts, navigation, associated, limits| {
 		NoCatalogInput => NoCatalogLanguage
 		CatalogInput(input) => CatalogLanguage(input.facts.language)
 	}
-	with_catalog = add_catalog(lowering.builder, added_names.names, prepared.input, lowering.value, associated, objects)?
+	with_catalog = add_catalog(lowering.builder, added_names.names, prepared.input, lowering.value, associated, widgets, objects)?
 	with_root = add_structure_root(with_catalog, added_names.names, tagged, lowering.value, objects)?
 	with_parent_tree = add_parent_tree(with_root, added_names.names, tagged, lowering.value, objects)?
 	with_namespaces = add_namespaces(with_parent_tree, added_names.names, semantics, objects)?
@@ -282,8 +287,8 @@ add_fact_names = |builder| {
 	})
 }
 
-add_catalog : KernelObject.Builder, Names, CatalogInputFacts, NavigationLowering, KernelAssociatedObjects.Planned, KernelObjectPlan.Plan -> Try(KernelObject.Builder, KernelTaggedObjects.Error)
-add_catalog = |builder, names, catalog_input, navigation, associated, objects| {
+add_catalog : KernelObject.Builder, Names, CatalogInputFacts, NavigationLowering, KernelAssociatedObjects.Planned, KernelWidgetObjects.Selection, KernelObjectPlan.Plan -> Try(KernelObject.Builder, KernelTaggedObjects.Error)
+add_catalog = |builder, names, catalog_input, navigation, associated, widgets, objects| {
 	marked = KernelObject.add_boolean(builder, True) ? Object
 	mark_info = KernelObject.add_dictionary(marked.builder, [{ key: names.marked, value: marked.id }]) ? Object
 	pages = KernelObject.add_reference(mark_info.builder, list_at(KernelObjectPlan.Plan.page_tree(objects), 0)) ? Object
@@ -344,7 +349,14 @@ add_catalog = |builder, names, catalog_input, navigation, associated, objects| {
 			{ builder: entries.builder, values: AssociatedCatalogValues({ af: entries.af, names: entries.names }) }
 		}
 	}
-	var $entries = []
+	widget_catalog = match widgets {
+		NoWidgetPlan => { builder: associated_values.builder, entries: [] }
+		WithWidgetPlan(planned) => {
+			form = KernelWidgetObjects.catalog_entry(associated_values.builder, planned) ? Widgets
+			{ builder: form.builder, entries: [form.entry] }
+		}
+	}
+	var $entries = widget_catalog.entries
 	match associated_values.values {
 		NoAssociatedCatalogValues => {}
 		AssociatedCatalogValues(values) => {
@@ -411,7 +423,7 @@ add_catalog = |builder, names, catalog_input, navigation, associated, objects| {
 			$entries = $entries.append({ key: values.fact_names.viewer_preferences, value: values.viewer })
 		}
 	}
-	dictionary = KernelObject.add_dictionary(associated_values.builder, $entries) ? Object
+	dictionary = KernelObject.add_dictionary(widget_catalog.builder, $entries) ? Object
 	object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
 	ensure_object(object.id, KernelObjectPlan.Plan.catalog(objects))?
 	Ok(object.builder)

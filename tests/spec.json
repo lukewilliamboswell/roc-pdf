@@ -44,6 +44,7 @@
     "inter_latin",
     "columns",
     "associated_files",
+    "fillable_forms",
     "vector_diagrams",
     "rich_flow",
     "technical_manual",
@@ -69,6 +70,7 @@
     "inter_latin",
     "columns",
     "associated_files",
+    "fillable_forms",
     "vector_diagrams",
     "rich_flow",
     "technical_manual",
@@ -129,6 +131,9 @@
   },
   "groups": [
     {
+      "name": "interactive_fields"
+    },
+    {
       "name": "associated_files"
     },
     {
@@ -178,6 +183,10 @@
     }
   ],
   "families": [
+    {
+      "name": "interactive_fields",
+      "group": "interactive_fields"
+    },
     {
       "name": "associated_files",
       "group": "associated_files"
@@ -412,6 +421,300 @@
     }
   ],
   "cases": [
+    {
+      "name": "fillable service intake",
+      "scenario_revision": "fillable-fields-v1",
+      "family": "interactive_fields",
+      "snapshot": "tests/interactive_fields/intake.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "fields": 2,
+        "intake": 1,
+        "defaults": 0,
+        "wtpdf": 0
+      },
+      "work_counters": [
+        "pages_shown",
+        "widget_labels",
+        "chunks",
+        "output_bytes",
+        "atomic_rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1680,
+          "allocated_bytes": 11993157,
+          "work": {
+            "pages_shown": 1,
+            "widget_labels": 2,
+            "chunks": 40,
+            "output_bytes": 91952,
+            "atomic_rejections": 0
+          }
+        },
+        "x64musl": {
+          "allocations": 1680,
+          "allocated_bytes": 11993157,
+          "work": {
+            "pages_shown": 1,
+            "widget_labels": 2,
+            "chunks": 40,
+            "output_bytes": 91952,
+            "atomic_rejections": 0
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "fillable_forms"
+      ]
+    },
+    {
+      "name": "fillable defaults and empty value",
+      "scenario_revision": "fillable-fields-v1",
+      "family": "interactive_fields",
+      "snapshot": "tests/interactive_fields/defaults.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "fields": 1,
+        "intake": 0,
+        "defaults": 1,
+        "wtpdf": 0
+      },
+      "work_counters": [
+        "pages_shown",
+        "widget_labels",
+        "chunks",
+        "output_bytes",
+        "atomic_rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 3754,
+          "allocated_bytes": 23117663,
+          "work": {
+            "pages_shown": 1,
+            "widget_labels": 1,
+            "chunks": 37,
+            "output_bytes": 89078,
+            "atomic_rejections": 0
+          }
+        },
+        "x64musl": {
+          "allocations": 3754,
+          "allocated_bytes": 23117663,
+          "work": {
+            "pages_shown": 1,
+            "widget_labels": 1,
+            "chunks": 37,
+            "output_bytes": 89078,
+            "atomic_rejections": 0
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "fillable_forms"
+      ]
+    },
+    {
+      "name": "fillable text fields x4",
+      "scenario_revision": "fillable-fields-v1",
+      "family": "interactive_fields",
+      "snapshot": "tests/interactive_fields/fields_4.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "fields": 4,
+        "intake": 0,
+        "defaults": 0,
+        "wtpdf": 0
+      },
+      "work_counters": [
+        "pages_shown",
+        "widget_labels",
+        "chunks",
+        "output_bytes",
+        "atomic_rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 2036,
+          "allocated_bytes": 13117573,
+          "work": {
+            "pages_shown": 1,
+            "widget_labels": 4,
+            "chunks": 46,
+            "output_bytes": 91543,
+            "atomic_rejections": 0
+          }
+        },
+        "x64musl": {
+          "allocations": 2036,
+          "allocated_bytes": 13117573,
+          "work": {
+            "pages_shown": 1,
+            "widget_labels": 4,
+            "chunks": 46,
+            "output_bytes": 91543,
+            "atomic_rejections": 0
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "fillable_forms"
+      ]
+    },
+    {
+      "name": "fillable text fields x42",
+      "scenario_revision": "fillable-fields-v1",
+      "family": "interactive_fields",
+      "snapshot": "tests/interactive_fields/fields_42.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 7,
+        "fields": 42,
+        "intake": 0,
+        "defaults": 0,
+        "wtpdf": 0
+      },
+      "work_counters": [
+        "pages_shown",
+        "widget_labels",
+        "chunks",
+        "output_bytes",
+        "atomic_rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 9493,
+          "allocated_bytes": 40861463,
+          "work": {
+            "pages_shown": 7,
+            "widget_labels": 42,
+            "chunks": 178,
+            "output_bytes": 108303,
+            "atomic_rejections": 0
+          }
+        },
+        "x64musl": {
+          "allocations": 9493,
+          "allocated_bytes": 40861463,
+          "work": {
+            "pages_shown": 7,
+            "widget_labels": 42,
+            "chunks": 178,
+            "output_bytes": 108303,
+            "atomic_rejections": 0
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "fillable_forms"
+      ]
+    },
+    {
+      "name": "fillable field atomic rejections",
+      "scenario_revision": "fillable-fields-v1",
+      "family": "interactive_fields",
+      "snapshot": "tests/interactive_fields/intake.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "fields": 2,
+        "intake": 1,
+        "defaults": 0,
+        "wtpdf": 0
+      },
+      "work_counters": [
+        "pages_shown",
+        "widget_labels",
+        "chunks",
+        "output_bytes",
+        "atomic_rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 23241,
+          "allocated_bytes": 20288256,
+          "work": {
+            "pages_shown": 1,
+            "widget_labels": 2,
+            "chunks": 40,
+            "output_bytes": 91952,
+            "atomic_rejections": 49
+          }
+        },
+        "x64musl": {
+          "allocations": 23241,
+          "allocated_bytes": 20288256,
+          "work": {
+            "pages_shown": 1,
+            "widget_labels": 2,
+            "chunks": 40,
+            "output_bytes": 91952,
+            "atomic_rejections": 49
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "fillable_forms"
+      ]
+    },
+    {
+      "name": "fillable WTPDF service intake",
+      "scenario_revision": "fillable-fields-v1",
+      "family": "interactive_fields",
+      "snapshot": "tests/interactive_fields/intake_wtpdf.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "fields": 2,
+        "intake": 1,
+        "defaults": 0,
+        "wtpdf": 1
+      },
+      "work_counters": [
+        "pages_shown",
+        "widget_labels",
+        "chunks",
+        "output_bytes",
+        "atomic_rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1681,
+          "allocated_bytes": 11994965,
+          "work": {
+            "pages_shown": 1,
+            "widget_labels": 2,
+            "chunks": 40,
+            "output_bytes": 92220,
+            "atomic_rejections": 0
+          }
+        },
+        "x64musl": {
+          "allocations": 1681,
+          "allocated_bytes": 11994965,
+          "work": {
+            "pages_shown": 1,
+            "widget_labels": 2,
+            "chunks": 40,
+            "output_bytes": 92220,
+            "atomic_rejections": 0
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "fillable_forms"
+      ]
+    },
     {
       "name": "associated invoice 4f and ua2",
       "scenario_revision": "associated-files-v1",

@@ -285,10 +285,19 @@ KernelFacadeSemantics :: [].{
 		figure_labels : FigureLabels,
 		preliminary : KernelTextSemantics.Plan,
 		sources : KernelFacadeSources.Plan,
+		widget_owners : List(Semantics.NodeId),
 		work : Work,
 	}.{
 		build : Document.NormalizedAuthoring, Limits -> Try(Plan, Error)
-		build = |input_authoring, limits| build_plan(input_authoring, limits)
+		build = |input_authoring, limits| build_plan(input_authoring, [], limits)
+
+		## Widget binding identities are one per authored field. Their form
+		## group indices are assigned by fixed document normalization.
+		build_with_widgets : Document.NormalizedAuthoring, List(U64), Limits -> Try(Plan, Error)
+		build_with_widgets = |input_authoring, group_indices, limits| build_plan(input_authoring, group_indices, limits)
+
+		widget_owners : Plan -> List(Semantics.NodeId)
+		widget_owners = |plan| plan.widget_owners
 
 		destinations : Plan -> List(DestinationRecord)
 		destinations = |plan| plan.destinations
@@ -359,8 +368,8 @@ Planning : {
 	top_nodes : List(ChildEntry),
 }
 
-build_plan : Document.NormalizedAuthoring, KernelFacadeSemantics.Limits -> Try(KernelFacadeSemantics.Plan, KernelFacadeSemantics.Error)
-build_plan = |authoring, limits| {
+build_plan : Document.NormalizedAuthoring, List(U64), KernelFacadeSemantics.Limits -> Try(KernelFacadeSemantics.Plan, KernelFacadeSemantics.Error)
+build_plan = |authoring, widget_groups, limits| {
 	if !authoring.page_references.is_empty() {
 		return Err(ReferenceStageRequired)
 	}
@@ -394,6 +403,7 @@ build_plan = |authoring, limits| {
 			figure_labels,
 			preliminary,
 			sources,
+			widget_owners: widget_groups.map(|index| Semantics.NodeId.from_index(list_at(planning.group_nodes, index))),
 			work: {
 				container_nodes: planning.group_nodes.len(),
 				content_writes: store.content_spine.len(),
@@ -711,6 +721,7 @@ finalize_symbolic = |KernelFacadeSemantics.Symbolic.{ authoring, block_ownership
 			figure_labels,
 			preliminary,
 			sources,
+			widget_owners: [],
 			work: { ..work, occurrence_writes: store.occurrences.len(), property_writes: final_components.text_properties.len(), source_inputs: work.source_inputs + labels.len() },
 		},
 	)
@@ -2457,6 +2468,10 @@ build_components = |authoring, planning, source_plan| {
 				}
 				Paragraph | Title | DestinationParagraph(_) => {
 					role = match block.kind {
+						Paragraph if block.parent > 0 => match list_at(groups, block.parent - 1).kind {
+							Container(FormContainer) => "Lbl"
+							_ => "P"
+						}
 						Paragraph | DestinationParagraph(_) => "P"
 						Title => "Title"
 						_ => ""
@@ -3138,6 +3153,7 @@ list_numbering = |marker| {
 container_role : Document.ContainerKind -> Str
 container_role = |kind| match kind {
 	Division => "Div"
+	FormContainer => "Form"
 	Part => "Part"
 	Section => "Sect"
 }

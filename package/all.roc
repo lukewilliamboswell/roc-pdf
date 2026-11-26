@@ -100,6 +100,8 @@ package
 		KernelTextStructure,
 		KernelTimestamp,
 		KernelUnicode,
+		KernelWidgetFields,
+		KernelWidgetObjects,
 		KernelXmp,
 		Layout,
 		Metadata,

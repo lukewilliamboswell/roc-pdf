@@ -44,6 +44,15 @@ https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/remittance-advi
 
 https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/pilot-findings[Runnable two-column article] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/pilot-findings/pilot-findings.pdf[PDF output] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/pilot-findings/preview.png[Preview]
 
+[#service-intake]
+== Service intake
+
+The form has a blank Contact name field and the initial service reference
+HF-2041. See the
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/service-intake/preview.png[first-page preview].
+
+https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/service-intake[Run the intake form] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/service-intake/service-intake.pdf[PDF output]
+
 == More authoring examples
 
 * https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/operations-handbook/README.md[On-call handbook] for authored contents, chapter templates and a continued numbered instruction.

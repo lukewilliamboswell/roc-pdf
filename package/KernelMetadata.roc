@@ -23,6 +23,7 @@ import KernelTimestamp
 # substitutions once so canonical XMP serialization can reserve its exact
 # output size without rescanning.
 import KernelAssociatedObjects
+import KernelWidgetObjects
 import Color
 import KernelObject
 import KernelSrgbProfile
@@ -72,6 +73,7 @@ KernelMetadata :: [].{
 		profile : Color.ProfileId,
 		registry_name : Str,
 		language : Str,
+		widgets : KernelWidgetObjects.Prepared ?? NoPreparedWidgets,
 		xmp : List(U8),
 	}
 

@@ -102,6 +102,18 @@ KernelFacadeFragments :: [].{
 		anchor_rects : Plan -> List(KernelNavigation.AnchorRect)
 		anchor_rects = |plan| plan.anchor_rects
 
+		## Fixed fields carry explicit semantic Form owner identities, independent
+		## of scene paint order. Each owns one annotation after its label.
+		build_with_widgets : KernelTextSemantics.Plan, KernelFacadeText.Plan, List(Semantics.NodeId), Limits, KernelSemantics.Limits -> Try(Plan, Error)
+		build_with_widgets = |preliminary, in_text, owners, limits, semantic_limits| {
+			arena = build_arena(preliminary, prepare_text(in_text), [], limits)?
+			store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary))
+			patch = patch_annotation_spine(store, owners, List.repeat(1, owners.len()), |owner| owner)?
+			pages = KernelFacadeText.Plan.pages(in_text).len()
+			tagged = KernelTextSemantics.Plan.attach_fragments_navigation(preliminary, patch, arena.fragments, pages, pages, semantic_limits) ? TextSemantics
+			Ok(Plan.{ anchor_rects: [], arena, navigation: NoNavigationStore, semantics: tagged, text: in_text })
+		}
+
 		fragments : Plan -> List(Semantics.LayoutFragment)
 		fragments = |plan| plan.arena.fragments
 
@@ -554,16 +566,19 @@ union_quads = |quads| {
 ## occurrences appended to its span, in node order, assigning dense
 ## annotation identities and logical ranks in the same pass.
 patch_spine : Semantics.Store, List({ node : Semantics.NodeId, occurrences : Semantics.IndexRange, target : [InternalDestination(Str), Uri(Str)] }), List(U64) -> Try({ annotations : List(Semantics.Annotation), content_spine : List(Semantics.ContentSpineItem), nodes : List(Semantics.Node) }, KernelFacadeFragments.Error)
-patch_spine = |store, links, per_link| {
+patch_spine = |store, links, per_link| patch_annotation_spine(store, links, per_link, |link| link.node)
+
+patch_annotation_spine : Semantics.Store, List(a), List(U64), (a -> Semantics.NodeId) -> Try({ annotations : List(Semantics.Annotation), content_spine : List(Semantics.ContentSpineItem), nodes : List(Semantics.Node) }, KernelFacadeFragments.Error)
+patch_annotation_spine = |store, links, per_link, owner_for| {
 	sentinel = links.len()
 	var $link_of_node = List.repeat(sentinel, store.nodes.len())
 	var $link_index = 0
 	while $link_index < links.len() {
-		link = list_at(links, $link_index)
-		if link.node.index() >= store.nodes.len() {
-			return Err(InvalidOccurrence({ available: store.nodes.len(), run: link.node.index() }))
+		owner = owner_for(list_at(links, $link_index)).index()
+		if owner >= store.nodes.len() {
+			return Err(InvalidOccurrence({ available: store.nodes.len(), run: owner }))
 		}
-		$link_of_node = list_set($link_of_node, link.node.index(), $link_index)
+		$link_of_node = list_set($link_of_node, owner, $link_index)
 		$link_index = $link_index + 1
 	}
 	var $annotation_starts = List.with_capacity(links.len())

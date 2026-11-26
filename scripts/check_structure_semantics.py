@@ -86,9 +86,9 @@ INLINE = {"Lbl", "Figure", "Link", "Span", "Em", "Strong", "Code", "Quote"}
 ALL_ROLES = {
     "Document", "DocumentFragment", "Part", "Sect", "Div", "Title", "H", "Hn", "P", "L", "LI", "Lbl",
     "LBody", "Figure", "Caption", "Link", "Span", "Em", "Strong", "Code", "Quote", "Table", "THead",
-    "TBody", "TFoot", "TR", "TH", "TD", "TOC", "TOCI",
+    "TBody", "TFoot", "TR", "TH", "TD", "TOC", "TOCI", "Form",
 }
-DOCUMENT_CHILDREN = {"Document", "DocumentFragment", "Part", "Sect", "Div", "Title", "H", "Hn", "P", "L", "Figure", "Link", "Code", "Table", "TOC"}
+DOCUMENT_CHILDREN = {"Document", "DocumentFragment", "Part", "Sect", "Div", "Title", "H", "Hn", "P", "L", "Figure", "Link", "Code", "Table", "TOC", "Form"}
 GROUPING_WRAPPERS = {"Part", "Div"}
 # ISO/TS 32005 Table 5 lists these supported children in the Part row.
 PART_CHILDREN = DOCUMENT_CHILDREN | {"Caption", "Lbl", "TOCI"}
@@ -106,6 +106,7 @@ MAY_CONTAIN: dict[str, set[str]] = {
     "L": {"L", "LI", "Caption"},
     "LI": {"Div", "Lbl", "LBody"},
     "Lbl": INLINE - {"Lbl"},
+    "Form": {"Lbl"},
     "LBody": {"Part", "Sect", "Div", "H", "Hn", "P", "L", "Caption", "Table"} | (INLINE - {"Lbl"}),
     "Figure": {"Part", "Sect", "Div", "H", "Hn", "P", "L", "Caption", "Table"} | INLINE,
     "Caption": {"Part", "Sect", "Div", "H", "Hn", "P", "L", "Table"} | INLINE,

@@ -7,6 +7,7 @@ app [target] {
 import fuzz.Fuzz
 import JpegInspectorMutation
 import AssociatedFilesProperty
+import WidgetFormsProperty
 import FacadeOutputEquivalence
 import FacadeStructure
 import NavigationProperty
@@ -24,6 +25,7 @@ import ContinuationPaginationModel
 import DenseSpanProof
 import DocumentBuilderModel
 import FixedPageOrderModel
+import WidgetFormsModel
 import GroupingContainmentModel
 import HeadingFamilyModel
 import InterLatinModel
@@ -43,6 +45,7 @@ import XrefSlotProof
 target = Fuzz.suite([
 	JpegInspectorMutation.target,
 	AssociatedFilesProperty.target,
+	WidgetFormsProperty.target,
 	FacadeOutputEquivalence.target,
 	FacadeStructure.target,
 	NavigationProperty.target,

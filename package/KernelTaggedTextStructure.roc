@@ -1,3 +1,4 @@
+import KernelWidgetObjects
 import KernelAssociatedObjects
 import Document
 import KernelColor
@@ -26,6 +27,7 @@ import Semantics
 
 KernelTaggedTextStructure :: [].{
 	Error : [
+		Widgets(KernelWidgetObjects.Error),
 		Associated(KernelAssociatedObjects.Error),
 		ArithmeticOverflow,
 		Font(KernelPdfFont.Error),
@@ -173,8 +175,22 @@ build_plan = |tagged, colors, images, content, font_plan, text, fonts, facts, na
 			})
 		}
 	}
+	widgets = match facts {
+		NoDocumentFacts => NoWidgetPlan
+		WithDocumentFacts(data) => KernelWidgetObjects.plan(data.widgets, checked_add(base_count, metadata_object_count)?) ? Widgets
+	}
 	navigation_facts = match navigation_plan {
-		NoNavigationPlan => NoNavigationObjects
+		NoNavigationPlan => match widgets {
+			NoWidgetPlan => NoNavigationObjects
+			WithWidgetPlan(planned) => WithNavigationObjects({
+				annotation_objects: planned.slots.map(|slot| slot.widget),
+				annotation_pages: planned.slots.map(|slot| Semantics.PageId.from_index(slot.field.location.page)),
+				dests_root: NoDestsRoot,
+				ordered_annotations: widget_order(planned.slots.len()),
+				outline_root: NoOutlineRoot,
+				page_labels_root: NoPageLabelsRoot,
+			})
+		}
 		WithNavigationPlan(plan_input) => WithNavigationObjects({
 			annotation_objects: plan_input.planned.by_id,
 			annotation_pages: plan_input.annotation_pages,
@@ -195,12 +211,20 @@ build_plan = |tagged, colors, images, content, font_plan, text, fonts, facts, na
 			KernelAssociatedObjects.plan(data.associated, after_navigation) ? Associated
 		}
 	}
-	prefix = match associated {
-		NoAssociatedPlan => KernelTaggedObjects.Plan.build_with_navigation(tagged, objects, catalog_facts, navigation_facts, limits.object_limits)
-		WithAssociatedPlan(_) => KernelTaggedObjects.Plan.build_with_associated_files(tagged, objects, catalog_facts, navigation_facts, associated, limits.object_limits)
+	prefix = match (associated, widgets, navigation_plan) {
+		(NoAssociatedPlan, NoWidgetPlan, _) => KernelTaggedObjects.Plan.build_with_navigation(tagged, objects, catalog_facts, navigation_facts, limits.object_limits)
+		(WithAssociatedPlan(_), NoWidgetPlan, _) => KernelTaggedObjects.Plan.build_with_associated_files(tagged, objects, catalog_facts, navigation_facts, associated, limits.object_limits)
+		(NoAssociatedPlan, WithWidgetPlan(planned), NoNavigationPlan) => KernelTaggedObjects.Plan.build_with_widgets(tagged, objects, catalog_facts, navigation_facts, planned, limits.object_limits)
+		_ => return Err(Widgets(InvalidPlan))
 	} ? TaggedObjects
 	pages = match navigation_plan {
-		NoNavigationPlan => KernelPageObjects.Plan.build_with_fonts(prefix, tagged, content, font_plan) ? Pages
+		NoNavigationPlan => match widgets {
+			NoWidgetPlan => KernelPageObjects.Plan.build_with_fonts(prefix, tagged, content, font_plan) ? Pages
+			WithWidgetPlan(planned) => {
+				per_page = widget_page_annotations(planned.slots, KernelTagged.Plan.scenes(tagged).pages.len())?
+				KernelPageObjects.Plan.build_with_fonts_navigation(prefix, tagged, content, font_plan, per_page) ? Pages
+			}
+		}
 		WithNavigationPlan(plan_input) => {
 			page_count = KernelTagged.Plan.scenes(tagged).pages.len()
 			var $per_page = List.with_capacity(page_count)
@@ -311,18 +335,27 @@ build_plan = |tagged, colors, images, content, font_plan, text, fonts, facts, na
 			{ builder: lowered.builder, objects: planned.object_count, ownership: lowered.ownership, xref: planned.xref }
 		}
 	}
-	sealed = KernelSeal.seal(associated_output.builder) ? Seal
+	assembled = match widgets {
+		NoWidgetPlan => { builder: associated_output.builder, objects: associated_output.objects, evidence: NoWidgetEvidence, xref: associated_output.xref }
+		WithWidgetPlan(planned) => {
+			page_objects = KernelObjectPlan.Plan.pages(objects).map(|page| page.page)
+			lowered = KernelWidgetObjects.lower(associated_output.builder, planned, { catalog: KernelObjectPlan.Plan.catalog(objects), pages: page_objects, content_streams: KernelContent.Plan.stream_count(content) }) ? Widgets
+			{ builder: lowered.builder, evidence: lowered.evidence, objects: KernelObject.ObjectId.number(planned.xref) - 1, xref: planned.xref }
+		}
+	}
+	sealed = KernelSeal.seal(assembled.builder) ? Seal
 	identity = KernelIdentity.digest(sealed) ? Identity
-	bound = KernelOutputBound.calculate(sealed, associated_output.xref) ? OutputBound
+	bound = KernelOutputBound.calculate(sealed, assembled.xref) ? OutputBound
 	structure = KernelStructure.Plan.from_sealed({
 		association_ownership: associated_output.ownership,
+		widget_evidence: assembled.evidence,
 		identity: NormalizedPlanDigest(identity.digest),
 		output_bound: KernelOutputBound.Bound.bytes(bound),
 		page_count: KernelTagged.Plan.scenes(tagged).pages.len(),
 		root: KernelObjectPlan.Plan.catalog(objects),
 		sealed,
 		tree_nodes: KernelObjectPlan.Plan.page_tree(objects).len(),
-		xref_object: associated_output.xref,
+		xref_object: assembled.xref,
 	})
 	Ok(
 		KernelTaggedTextStructure.Plan.{
@@ -339,7 +372,7 @@ build_plan = |tagged, colors, images, content, font_plan, text, fonts, facts, na
 				metadata_bytes: finished.metadata_bytes,
 				metadata_objects: finished.metadata_objects,
 				name_node_objects: navigated.work.name_node_objects,
-				objects: associated_output.objects,
+				objects: assembled.objects,
 				outline_objects: navigated.work.outline_objects,
 				pages: KernelPageObjects.Plan.work(pages),
 				quad_numbers: navigated.work.quad_numbers,
@@ -348,6 +381,37 @@ build_plan = |tagged, colors, images, content, font_plan, text, fonts, facts, na
 			},
 		},
 	)
+}
+
+widget_order : U64 -> List(U64)
+widget_order = |count| {
+	var $items = List.with_capacity(count)
+	var $index = 0
+	while $index < count {
+		$items = $items.append($index)
+		$index = $index + 1
+	}
+	$items
+}
+
+widget_page_annotations : List(KernelWidgetObjects.Slot), U64 -> Try(List(List(KernelObject.ObjectId)), KernelTaggedTextStructure.Error)
+widget_page_annotations = |widgets, pages| {
+	var $output = List.with_capacity(pages)
+	var $page = 0
+	var $widget = 0
+	while $page < pages {
+		var $refs = []
+		while $widget < widgets.len() and list_at(widgets, $widget).field.location.page == $page {
+			$refs = $refs.append(list_at(widgets, $widget).widget)
+			$widget = $widget + 1
+		}
+		$output = $output.append($refs)
+		$page = $page + 1
+	}
+	if $widget != widgets.len() {
+		return Err(Widgets(InvalidPlan))
+	}
+	Ok($output)
 }
 
 NavigationPlanState := [

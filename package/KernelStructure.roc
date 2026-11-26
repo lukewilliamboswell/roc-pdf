@@ -1,3 +1,4 @@
+import KernelWidgetObjects
 import KernelAssociatedFiles
 import KernelAssociatedObjects
 import KernelBalanced
@@ -55,6 +56,7 @@ KernelStructure :: [].{
 	## normalized plan facts, never compressed bytes.
 	Plan :: {
 		association_ownership : KernelAssociatedObjects.Ownership,
+		widget_evidence : KernelWidgetObjects.Evidence,
 		compression : KernelDeflate.Level,
 		identity : [Blank, GeneratedContentDigest(List(U8)), NormalizedPlanDigest(List(U8)), UnchangedContentDigest(List(U8))],
 		output_bound : U64,
@@ -68,12 +70,16 @@ KernelStructure :: [].{
 		association_ownership : Plan -> KernelAssociatedObjects.Ownership
 		association_ownership = |plan| plan.association_ownership
 
+		widget_evidence : Plan -> KernelWidgetObjects.Evidence
+		widget_evidence = |plan| plan.widget_evidence
+
 		compression : Plan -> KernelDeflate.Level
 		compression = |plan| plan.compression
 
 		with_compression : Plan, KernelDeflate.Level -> Plan
 		with_compression = |plan, level| Plan.{
 			association_ownership: plan.association_ownership,
+			widget_evidence: plan.widget_evidence,
 			compression: level,
 			identity: plan.identity,
 			output_bound: plan.output_bound,
@@ -103,6 +109,7 @@ KernelStructure :: [].{
 		release_payload_bytes : Plan, KernelObject.PayloadId -> Plan
 		release_payload_bytes = |plan, payload| Plan.{
 			association_ownership: plan.association_ownership,
+			widget_evidence: plan.widget_evidence,
 			compression: plan.compression,
 			identity: plan.identity,
 			output_bound: plan.output_bound,
@@ -128,6 +135,7 @@ KernelStructure :: [].{
 
 		SealedFacts := {
 			association_ownership : KernelAssociatedObjects.Ownership ?? NoAssociationOwnership,
+			widget_evidence : KernelWidgetObjects.Evidence ?? NoWidgetEvidence,
 			identity : [Blank, GeneratedContentDigest(List(U8)), NormalizedPlanDigest(List(U8)), UnchangedContentDigest(List(U8))],
 			output_bound : U64,
 			page_count : U64,
@@ -140,6 +148,7 @@ KernelStructure :: [].{
 		from_sealed : SealedFacts -> Plan
 		from_sealed = |facts| Plan.{
 			association_ownership: facts.association_ownership,
+			widget_evidence: facts.widget_evidence,
 			compression: KernelDeflate.Level.balanced,
 			identity: facts.identity,
 			output_bound: facts.output_bound,
@@ -426,6 +435,7 @@ build_nonempty = |page_count, page_size, content_plan, facts| {
 	Ok(
 		KernelStructure.Plan.{
 			association_ownership: assembled.ownership,
+			widget_evidence: NoWidgetEvidence,
 			compression: KernelDeflate.Level.balanced,
 			identity,
 			output_bound: KernelOutputBound.Bound.bytes(layout_bound),

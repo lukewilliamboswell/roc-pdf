@@ -904,6 +904,17 @@ The [associated-files evidence](docs/contributors/performance/associated-files.m
 covers both declaration sets, exact extracted bytes, name-tree boundaries,
 metadata, error paths, and the count and payload-volume scale pairs.
 
+### Fillable text fields
+
+`AccessibleForm` explicitly selects PDF/A-4 and PDF/UA-2 for a fixed-page
+document with labelled single-line widgets. The package checks field IDs,
+authored focus and structure order, visible label ownership, initial values,
+page geometry and normal appearances before emission. The embedded editable
+font covers printable ASCII even when the initial value is blank. WTPDF
+accessibility is optional. See the
+[fillable-field evidence](docs/contributors/performance/fillable-forms.md)
+and [service intake example](examples/service-intake).
+
 ## Gate 8: advanced document composition
 
 These capabilities extend the single-column flow, ordinary tables, bounded
@@ -1094,7 +1105,7 @@ The following are separate capabilities if an application needs them:
   design.
 - CFF, CFF2, variable-font instancing, or additional image codecs after the
   initial validated font/image set.
-- Interactive forms, signatures, encryption, optional content, JavaScript,
+- Additional form field types, signatures, encryption, optional content, JavaScript,
   multimedia, RichMedia, and 3D.
 - Linearization, incremental updates, reading, editing, repair, or conversion.
 

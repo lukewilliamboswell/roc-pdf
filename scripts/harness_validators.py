@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from check_fillable_forms import validate_fillable_pdf
 from check_associated_files import validate_associated_files_pdf
 from check_profile_declarations import validate_claims
 from check_default_fonts import validate_default_fonts_pdf
@@ -154,6 +155,7 @@ def _facade_image(data: bytes, dimensions: dict[str, int], report: Reporter) -> 
 
 
 VALIDATORS: dict[str, Validator] = {
+    "fillable_forms": _dimensioned(validate_fillable_pdf, "editable widget repertoire, exact values and appearances, authored geometry and tab order, and Form-owned labels"),
     "associated_files": _dimensioned(validate_associated_files_pdf, "catalog AF, name-tree ordering and boundaries, exact file-specification metadata, distinct streams, and extracted payloads"),
     "default_fonts": _dimensioned(validate_default_fonts_pdf, "genuine static family/style programs, exact selected glyph outlines and searchable source text"),
     "generated_contents": _dimensioned(validate_generated_fixture, "authored generated contents targets, printed labels, and paired link destinations"),
@@ -305,3 +307,5 @@ def run_validators(
 PREFLIGHT_CHECKS["chapter_templates"] = PreflightCheck("check_chapter_templates.py", True)
 
 PREFLIGHT_CHECKS["associated_files"] = PreflightCheck("check_associated_files.py", True)
+
+PREFLIGHT_CHECKS["fillable_forms"] = PreflightCheck("check_fillable_forms.py", True)

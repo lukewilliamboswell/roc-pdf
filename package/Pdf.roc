@@ -1,5 +1,6 @@
 import KernelAssociatedFiles
 import KernelAssociatedObjects
+import KernelWidgetFields
 import Color
 import Conformance
 import Document
@@ -58,7 +59,7 @@ import Scene
 import Theme
 
 Pdf :: [].{
-	Profile := [AccessibleArchive, AccessibleArchiveWithFiles, Archive, ArchiveWithFiles, Standard].{
+	Profile := [AccessibleArchive, AccessibleArchiveWithFiles, AccessibleForm, Archive, ArchiveWithFiles, Standard].{
 		is_eq : _
 	}
 
@@ -518,6 +519,7 @@ Pdf :: [].{
 		AccessibleArchive => Conformance.claims_for_profile(AccessibleArchive)
 		ArchiveWithFiles => Conformance.claims_for_profile(ArchiveWithFiles)
 		AccessibleArchiveWithFiles => Conformance.claims_for_profile(AccessibleArchiveWithFiles)
+		AccessibleForm => Conformance.claims_for_profile(AccessibleForm)
 	}
 
 	AssociatedFile : Document.AssociatedFile
@@ -533,6 +535,9 @@ Pdf :: [].{
 	## the navigation, page templates, and timestamps its props name.
 	document : DocumentProps -> Document
 	document = |DocumentProps.{ contents, created, language, modified, outline, page_labels, page_templates, title: input_title }| Document.from_props({ contents, created, language, modified, outline, page_labels, templates: page_templates, title: input_title })
+
+	TextFieldProps : KernelWidgetFields.TextFieldProps
+	InitialTextFieldValue : KernelWidgetFields.InitialText
 
 	## Build a document whose pages supply their own sizes and text frames.
 	## Placements declare reading order. The page builder can choose a separate
@@ -1117,6 +1122,8 @@ fixed_authoring_error = |error| match error {
 	}
 	UnsupportedPlacement({ page, placement }) => fixed_error(FeatureUnavailable, "layout.fixed.block", "A fixed placement accepts a title, numbered heading, paragraph or rich paragraph.", fixed_placement_path(page, placement))
 	UnsupportedInline({ page, placement }) => fixed_error(FeatureUnavailable, "layout.fixed.inline", "Links and generated fields are unavailable in fixed placements.", fixed_placement_path(page, placement))
+	InvalidWidgetLabel(location) => fixed_error(InvalidRelationship, "form.text.label", "Use the authored field label as the visible label.", "${widget_path(location)}.label")
+	InvalidWidgetFrame({ page, placement }) => fixed_error(LayoutConstraintViolated, "form.text.frame", "Use a widget width from 48 to 1,024 points and leave 48 points in the page for the widget and its label.", fixed_placement_path(page, placement))
 	InvalidFrame({ page, placement }) => fixed_error(LayoutConstraintViolated, "layout.fixed.frame", "The frame needs positive sides and must fit entirely within its page.", "${fixed_placement_path(page, placement)}.frame")
 	PaintOrderLength({ page, actual, expected }) => fixed_error(LayoutConstraintViolated, "layout.fixed.paint_order", "The paint order needs ${expected.to_str()} entries, but it contains ${actual.to_str()}.", "${fixed_page_path(page)}.paint_order")
 	PaintOrderIndex({ page, index, placement }) => fixed_error(LayoutConstraintViolated, "layout.fixed.paint_order", "Paint order entry ${index.to_str()} names placement ${placement.to_str()}, which is outside this page.", "${fixed_page_path(page)}.paint_order[${index.to_str()}]")
@@ -1146,9 +1153,17 @@ fixed_pipeline_error = |error, doc, paths, planned| match error {
 ## size and body margins do not participate.
 build_fixed_plan : Document, Document.NormalizedFixed, Pdf.Options, KernelFacadeReport.Request -> Try({ facts : [Facts(KernelFacadeReport.Facts), NoFacts], normalized : Document.NormalizedAuthoring, plan : KernelStructure.Plan }, Pdf.Error)
 build_fixed_plan = |doc, fixed, options, request| {
-	claims = validate_profile_request(doc, options)?
-	validate_theme(options.theme)?
 	view = Document.NormalizedFixed.view(fixed)
+	widget_request = match view.widget_fields.get(0) {
+		Ok(first) => AuthoredWidgets(first.location)
+		Err(_) => NoAuthoredWidgets
+	}
+	claims = validate_profile_request(doc, options, widget_request)?
+	widgets = match widget_request {
+		NoAuthoredWidgets => NoPreparedWidgets
+		AuthoredWidgets(_) => WithPreparedWidgets(KernelWidgetFields.prepare(view.widget_fields) ? widget_error)
+	}
+	validate_theme(options.theme)?
 	authoring = view.authoring
 	path_scope = FixedPaths({ authoring, pages: view.pages })
 	validated = KernelMetadata.validate(
@@ -1163,6 +1178,7 @@ build_fixed_plan = |doc, fixed, options, request| {
 			profile: Color.ProfileId.from_index(0),
 			registry_name: KernelMetadata.icc_registry_name,
 			language: validated.facts.language,
+			widgets,
 			xmp: KernelXmp.Packet.bytes(xmp),
 		},
 	)
@@ -1251,7 +1267,7 @@ build_column_plan = |doc, columns, options, request| {
 	if options.theme.latin_shaping == InterLatin {
 		return Err(fixed_error(FeatureUnavailable, "layout.columns.shaping", "Two-column layout uses nominal glyph metrics.", "theme.latin_shaping"))
 	}
-	claims = validate_profile_request(doc, options)?
+	claims = validate_profile_request(doc, options, NoAuthoredWidgets)?
 	validate_theme(options.theme)?
 	validate_page_size(options.page_size)?
 	validate_body_frame(options.page_size, options.theme)?
@@ -1296,7 +1312,7 @@ build_column_plan = |doc, columns, options, request| {
 
 build_plan : Document, Pdf.Options -> Try(KernelStructure.Plan, Pdf.Error)
 build_plan = |doc, options| {
-	claims = validate_profile_request(doc, options)?
+	claims = validate_profile_request(doc, options, NoAuthoredWidgets)?
 	validate_theme(options.theme)?
 	validate_page_size(options.page_size)?
 	validate_body_frame(options.page_size, options.theme)?
@@ -1436,7 +1452,7 @@ measure_content = |options, contents, language, width| {
 ## returned for the report's path materialization.
 build_reporting_plan : Document, Pdf.Options -> Try({ facts : [Facts(KernelFacadeReport.Facts), NoFacts], normalized : Document.NormalizedAuthoring, plan : KernelStructure.Plan }, Pdf.Error)
 build_reporting_plan = |doc, options| {
-	claims = validate_profile_request(doc, options)?
+	claims = validate_profile_request(doc, options, NoAuthoredWidgets)?
 	validate_theme(options.theme)?
 	validate_page_size(options.page_size)?
 	validate_body_frame(options.page_size, options.theme)?
@@ -1515,7 +1531,13 @@ validate_lowered_plan = |claims, packet, plan| {
 	if KernelXmp.Packet.identification(packet) != claims.identification {
 		return Err(InternalGenerationFailure)
 	}
-	_work = KernelPdfA4.validate_associated_lowered(claims.archive, { packet, root: KernelStructure.Plan.root(plan), sealed: KernelStructure.Plan.sealed(plan) }, KernelStructure.Plan.association_ownership(plan)) ? |violation| InvalidDocument(profile_batch(violation, LoweredPlanValidation))
+	input = { packet, root: KernelStructure.Plan.root(plan), sealed: KernelStructure.Plan.sealed(plan) }
+	_work = (
+		match claims.archive {
+			InteractivePdfA4Claim => KernelPdfA4.validate_widgets_lowered(claims.archive, input, KernelStructure.Plan.widget_evidence(plan))
+			_ => KernelPdfA4.validate_associated_lowered(claims.archive, input, KernelStructure.Plan.association_ownership(plan))
+		}
+	) ? |violation| InvalidDocument(profile_batch(violation, LoweredPlanValidation))
 	match claims.identification {
 		AccessibleArchiveIdentification | AccessibleArchiveWithWtpdf | AccessibleArchiveWithFilesIdentification | AccessibleArchiveWithFilesAndWtpdf => KernelPdfUa2.validate_lowered(KernelStructure.Plan.sealed(plan), KernelStructure.Plan.root(plan)).map_err(|violation| InvalidDocument(accessibility_plan_batch(violation)))
 		_ => Ok({})
@@ -3142,7 +3164,7 @@ ProfileClaims : {
 }
 
 is_accessible : Pdf.Profile -> Bool
-is_accessible = |profile| profile == AccessibleArchive or profile == AccessibleArchiveWithFiles
+is_accessible = |profile| profile == AccessibleArchive or profile == AccessibleArchiveWithFiles or profile == AccessibleForm
 
 attachment_path : U64 -> Str
 attachment_path = |index| "associated_files[${index.to_str()}]"
@@ -3163,13 +3185,36 @@ attachment_error = |error| {
 	InvalidDocument(located_batch(finding.code, "attachment.${finding.feature}", finding.message, [finding.path]))
 }
 
-validate_profile_request : Document, Pdf.Options -> Try(ProfileClaims, Pdf.Error)
-validate_profile_request = |doc, options| {
+WidgetRequest : [AuthoredWidgets(KernelWidgetFields.Location), NoAuthoredWidgets]
+
+widget_path : KernelWidgetFields.Location -> Str
+widget_path = |{ page, placement }| "${fixed_placement_path(page, placement)}.field"
+
+widget_error : KernelWidgetFields.Error -> Pdf.Error
+widget_error = |error| match error {
+	FontUnavailable => fixed_error(InternalInvariant, "form.text.font", "The packaged editable font is unavailable.", "pages")
+	CountLimit({ actual, maximum }) => fixed_error(BudgetExceeded, "form.text.count", "The document uses ${actual.to_str()} fields and the limit is ${maximum.to_str()}.", "pages")
+	DuplicateId(location) => fixed_error(DuplicateIdentity, "form.text.duplicate_id", "Each field needs its own distinct identifier.", "${widget_path(location)}.id")
+	InvalidId(location) => fixed_error(InvalidRelationship, "form.text.id", "A field identifier needs 1–64 ASCII letters, digits, hyphens or underscores.", "${widget_path(location)}.id")
+	InvalidLabel(location) => fixed_error(InvalidRelationship, "form.text.label", "Supply a visible label of at most 256 UTF-8 bytes.", "${widget_path(location)}.label")
+	InvalidValue(location) => fixed_error(LayoutConstraintViolated, "form.text.value", "Use at most 64 printable ASCII characters in the initial value.", "${widget_path(location)}.value")
+	ValueDoesNotFit({ width, required, location }) => fixed_error(LayoutConstraintViolated, "form.text.fit", "The value needs ${signed_points_text(required)} but the field has ${signed_points_text(width)} inside its padding.", "${widget_path(location)}.value")
+}
+
+validate_profile_request : Document, Pdf.Options, WidgetRequest -> Try(ProfileClaims, Pdf.Error)
+validate_profile_request = |doc, options, widgets| {
+	match widgets {
+		AuthoredWidgets(location) if options.profile != AccessibleForm =>
+			return Err(InvalidDocument(located_batch(ProfileRequirementViolated, "form.profile", "Select AccessibleForm to prepare editable fields.", [widget_path(location)])))
+		NoAuthoredWidgets if options.profile == AccessibleForm =>
+			return Err(InvalidDocument(located_batch(ProfileRequirementViolated, "form.fields_required", "AccessibleForm requires one or more fields in a fixed-page document.", ["options.profile"])))
+		_ => {}
+	}
 	accessible = is_accessible(options.profile)
 	attachment_profile = options.profile == ArchiveWithFiles or options.profile == AccessibleArchiveWithFiles
 	files = Document.associated_files(doc)
 	if options.wtpdf == DeclareAccessibility and !accessible {
-		return Err(InvalidDocument(located_batch(ProfileRequirementViolated, "profile.wtpdf_accessibility", "Select AccessibleArchive or AccessibleArchiveWithFiles to request the WTPDF accessibility declaration.", ["options.wtpdf"])))
+		return Err(InvalidDocument(located_batch(ProfileRequirementViolated, "profile.wtpdf_accessibility", "Select an accessible profile to request the WTPDF accessibility declaration.", ["options.wtpdf"])))
 	}
 	if attachment_profile {
 		if files.is_empty() {
@@ -3211,6 +3256,10 @@ validate_profile_request = |doc, options| {
 			}
 			identification = if (options.wtpdf == DeclareAccessibility) AccessibleArchiveWithWtpdf else AccessibleArchiveIdentification
 			Ok({ archive: StaticPdfA4Claim, associated: NoAssociatedFiles, identification })
+		}
+		AccessibleForm => {
+			identification = if (options.wtpdf == DeclareAccessibility) AccessibleArchiveWithWtpdf else AccessibleArchiveIdentification
+			Ok({ archive: InteractivePdfA4Claim, associated: NoAssociatedFiles, identification })
 		}
 		Archive => Ok({ archive: StaticPdfA4Claim, associated: NoAssociatedFiles, identification: PdfA4Identification })
 		Standard => Ok({ archive: NoArchiveClaim, associated: NoAssociatedFiles, identification: NoIdentification })
@@ -4916,15 +4965,15 @@ count_link_blocks = |normalized| {
 ## from the cell arena by the caller).
 leaf_role : Document.NormalizedAuthoring, Document.NormalizedBlock -> Str
 leaf_role = |normalized, record| {
-	in_table = record.parent != 0 and (
+	paragraph_role = if record.parent == 0 {
+		"P"
+	} else {
 		match normalized.groups.get(record.parent - 1) {
-			Ok(group) => match group.kind {
-				Table(_) => True
-				_ => False
-			}
-			Err(OutOfBounds) => False
+			Ok({ kind: Table(_), .. }) => "Caption"
+			Ok({ kind: Container(FormContainer), .. }) => "Lbl"
+			_ => "P"
 		}
-	)
+	}
 	match record.kind {
 		Bullet(_) => "LI"
 		DestinationHeading({ level, name: _ }) => "H${level.to_str()}"
@@ -4935,7 +4984,7 @@ leaf_role = |normalized, record| {
 		FigureCaption(_) => "Caption"
 		Heading(level) => "H${level.to_str()}"
 		InternalLink(_) | Link(_) => "Link"
-		Paragraph => if (in_table) "Caption" else "P"
+		Paragraph => paragraph_role
 		RichParagraph(_) => "P"
 		Title => "Title"
 	}

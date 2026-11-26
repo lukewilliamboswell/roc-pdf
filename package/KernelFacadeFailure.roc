@@ -1,3 +1,4 @@
+import KernelWidgetObjects
 import KernelAssociatedObjects
 import Document
 import Font
@@ -539,8 +540,15 @@ kernel_associated_objects_error = |error| match error {
 	Tree(cause) => context({ feature: "tree", path: "Tree", cause: kernel_navigation_objects_error(cause) })
 }
 
+kernel_widget_objects_error : KernelWidgetObjects.Error -> KernelFacadeFailure.Failure
+kernel_widget_objects_error = |error| match error {
+	InvalidPlan => leaf({ category: Invariant, feature: "widget_plan", path: "InvalidPlan", inspected: Str.inspect(error) })
+	Object(cause) => context({ feature: "object", path: "Object", cause: kernel_object_error(cause) })
+}
+
 kernel_tagged_text_structure_error : KernelTaggedTextStructure.Error -> KernelFacadeFailure.Failure
 kernel_tagged_text_structure_error = |error| match error {
+	Widgets(cause) => context({ feature: "widgets", path: "Widgets", cause: kernel_widget_objects_error(cause) })
 	Associated(cause) => context({ feature: "associated_files", path: "Associated", cause: kernel_associated_objects_error(cause) })
 	ArithmeticOverflow => leaf({ category: Invariant, feature: "arithmetic_overflow", path: "ArithmeticOverflow", inspected: Str.inspect(error) })
 	Font(cause) => context({ feature: "font", path: "Font", cause: kernel_pdf_font_error(cause) })
@@ -866,6 +874,7 @@ kernel_seal_error = |error| match error {
 
 kernel_tagged_objects_error : KernelTaggedObjects.Error -> KernelFacadeFailure.Failure
 kernel_tagged_objects_error = |error| match error {
+	Widgets(cause) => context({ feature: "widgets", path: "Widgets", cause: kernel_widget_objects_error(cause) })
 	Associated(cause) => context({ feature: "associated_files", path: "Associated", cause: kernel_associated_objects_error(cause) })
 	AnnotationObjectUnplanned(_) => leaf({ category: Invariant, feature: "annotation_object_unplanned", path: "AnnotationObjectUnplanned", inspected: Str.inspect(error) })
 	IdTree(cause) => context({ feature: "id_tree", path: "IdTree", cause: kernel_navigation_objects_error(cause) })

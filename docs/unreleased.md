@@ -70,6 +70,13 @@ title overrides keyed by destination and display committed page labels
 after the contents lays out. See the
 [manual composition guide](manual-composition.adoc#generate-contents-from-headings).
 
+## Fillable text fields
+
+Select `AccessibleForm` to place labelled, editable single-line fields on a
+fixed page. Initial values may be blank or prefilled with printable ASCII.
+See the [fillable fields guide](authoring.adoc#authoring-fillable-fields) and
+the [service intake example](../examples/service-intake).
+
 ## Compiler
 
 This development branch uses Roc `nightly-2026-11-25-d5a4f1e`.

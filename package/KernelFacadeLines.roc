@@ -372,7 +372,12 @@ build_ordered_with_geometry = |authoring, shape, sources, limits, input| {
 			{ content_width: flow_width, geometry_plan: flow_geometry, widths: flow_widths, fixed: False }
 		}
 		FixedGeometry(frames) => {
-			if frames.len() != block_runs.len() or !authoring.groups.is_empty() {
+			if frames.len() != block_runs.len() or authoring.groups.any(
+				|group| match group.kind {
+					Container(FormContainer) => False
+					_ => True
+				},
+			) {
 				return Err(InvalidGeometry)
 			}
 			var $blocks = List.with_capacity(frames.len())
