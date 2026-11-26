@@ -2,13 +2,13 @@
 
 ## Purpose
 
-This roadmap delivers the business-document product defined in
+This roadmap defines the capability requirements for the business-document product in
 [architecture](docs/architecture.adoc): reports, invoices, and business letters
 authored through public APIs with combined PDF/A-4 and PDF/UA-2 declarations.
 It is capability-gated rather than schedule-based. Gates state observable
-completion criteria and dependency order; they do not prescribe task ownership
-or a calendar. Gate 7 is the first production-release destination for the
-bounded document set below. Gates 8 and 9 are independently justified expansions.
+completion criteria and dependency order. Gate 7 defines the combined profile
+for the reference business documents. Gates 8 and 9 define further composition
+and accessibility capabilities.
 
 The primary objective is a correct PDF library with deterministic output and
 transactional failure. Standards support is best effort. Each slice records
@@ -47,11 +47,12 @@ prototypes are not accepted as substitutes for that later evidence.
 No gate permits fallback output, profile downgrade, font substitution, feature
 removal, outlining, or rasterization after an error.
 
-## First production release: complete business documents
+<a id="first-production-release-complete-business-documents"></a>
 
-The first release is judged by correctness: complete business documents that
-author through public APIs, lay out predictably, report actionable diagnostics,
-and pass the project-owned checks for the supported output profiles.
+## Complete business documents
+
+Reference business documents exercise public authoring, predictable layout,
+actionable diagnostics, and project-owned checks for supported output profiles.
 
 The [reference document contract](docs/contributors/reference-documents.adoc)
 defines the business-document fixtures, their adverse variants, and the text
@@ -276,8 +277,7 @@ within an early correctness gate.
   distinguish them from optional visible title content. A report template may
   include a visible title by convention; conformance profile eligibility does
   not require one. Define typed constructors that distinguish meaningful
-  content from artifacts without boolean flags. This revises the former
-  planned visible-title policy without claiming a new executable profile.
+  content from artifacts without boolean flags.
 - Define `Theme` as typed convenience-layout typography, spacing, page-margin,
   and visual policy that cannot carry semantics or weaken conformance.
 - Define opaque semantic, content-occurrence, layout-fragment, namespace,
@@ -485,9 +485,9 @@ compiler boundary.
 - Complete extraction mappings for every emitted character code.
 - Explicit rejection of restricted embedding, unsupported font programs,
   missing glyphs, `.notdef`, invalid clusters, or absent Unicode evidence.
-- A small convenience shaping/layout path may initially support a constrained
-  explicitly declared script set, while the PDF boundary accepts fully shaped
-  multilingual runs.
+- The facade uses explicitly declared script and shaping policies. The
+  positioned-run boundary accepts fully shaped multilingual runs within its
+  declared contract.
 - Line breaking and grapheme-cluster font selection use the pinned UAX #14 and
   UAX #29 data and rules. Any automatic hyphenation uses only explicitly
   supported language pattern sets whose revision, license, digest, and
@@ -496,21 +496,19 @@ compiler boundary.
   single-column pagination, explicit breaks, keeps, widow/orphan policy, and
   `Pdf.to_bytes` facade provide a useful one-import path without exposing
   glyphs, scenes, resources, profiles, or object plans.
-- The core distribution contains only the small, audited face needed by the
-  built-in theme. Broader multilingual and specialist coverage is supplied by
-  callers or optional pure Roc asset packages and does not become a mandatory
-  core-package payload. Packaged and caller-provided faces enter the same
-  validation, planning, subsetting, and conformance pipeline.
+- The core distribution uses the audited static faces declared by the built-in
+  theme. Callers and optional pure Roc asset packages supply broader
+  multilingual and specialist coverage. All faces enter the same validation,
+  planning, subsetting, and conformance pipeline.
 - Compact cursor continuations, speculative measurement separated from final
   page materialization, and exact bounded caches for font parsing/coverage,
   shaping, measurement, and hyphenation.
 - Font-table offset/range views, once-per-face coverage/`cmap`/GSUB/GPOS data,
   contiguous glyph buffers, global used-glyph accumulation, and once-only
   composite closure/subset-table emission.
-- At this gate `Pdf.Options.default` selects public profile `Standard`, whose
-  claim set is `Pdf20`. The options' `profile` is the only way to request a
-  different implemented profile; incomplete `Archive` or `AccessibleArchive`
-  claims remain unavailable.
+- The public `profile` field selects an implemented conformance profile.
+  `Standard` selects PDF 2.0. Gate 7 defines the combined default and its
+  acceptance criteria.
 
 ### Upstream Unicode coordination
 
@@ -526,7 +524,9 @@ Language-specific hyphenation data is independently licensed and pinned.
 OpenType parsing, GSUB/GPOS, glyph selection and shaping are separate from
 the Unicode analysis boundary.
 
-### Text capability planning for the production release
+<a id="text-capability-planning-for-the-production-release"></a>
+
+### Declared text support
 
 Maintain a [declared support matrix](docs/contributors/reference-documents.adoc#contributor-reference-documents-declared-production-text-support)
 with explicit rows for:

@@ -73,6 +73,27 @@ exercise the minimum body space, lead-region height, continuation furniture
 and required keeps. Unsupported body fields and invalid metadata reject
 before output.
 
+[#contributor-reference-documents-declared-production-text-support]
+== Declared text support
+
+The reference invoice, report and letter use registered static TrueType
+faces for horizontal Latin text, including authored nested language spans.
+Each fixture states its font policy, text expectations and located errors.
+
+* The facade's xref:roc-font.adoc#roc-font-choose-built-in-and-caller-fonts[font guide]
+  lists packaged coverage, caller-provided faces, ordered Latin and Han
+  selection, Inter shaping and the opt-in international policies.
+* The xref:contributor-layout.adoc#contributor-international-text[international evidence]
+  names the exact faces, script ranges and fixtures for supported Hebrew,
+  Arabic, Hindi and Thai combinations.
+* The xref:contributor-layout.adoc#contributor-text-layout-closure[positioned-run contract]
+  defines the advanced input's independent script, direction, source cluster
+  and extraction guarantees.
+
+Unsupported script, cluster and coverage errors identify the first failing
+authored text and its scalar range. Automatic hyphenation and vertical
+writing are outside the reference fixture policies.
+
 [#contributor-reference-documents-layout-policy-vocabulary]
 == Flow outcomes and diagnostics
 

@@ -32,14 +32,13 @@ independent layout systems are a supported integration use case. The package
 owns document presentation and PDF generation, while applications supply
 business facts, calculated amounts, formatted values, and semantic intent.
 
-The first production release must support complete representative business
-documents through public authoring APIs. Its bounded scope includes rich inline
+The reference business documents exercise the public authoring APIs.
+The bounded business-authoring scope includes rich inline
 text, dependable single-column flow, ordinary tables that continue across
 pages, repeated table headers, page templates and page furniture, figures and
 captions, and navigation. The roadmap defines the reference documents, exact
-text coverage, layout policies, and release evidence. General publishing
-features such as floats, footnotes, indexes, and advanced writing modes are
-separate expansions rather than prerequisites for this release.
+text coverage, layout policies, and release evidence. The composition
+contracts describe supported footnotes, indexes, and figure placement.
 
 Correctness comes first. Product readiness requires usable authoring,
 predictable layout, actionable diagnostics, and executable evidence on those
