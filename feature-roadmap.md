@@ -981,6 +981,17 @@ paragraph across frames and pages. See the
 and a located impossible-keep diagnostic. Column balancing, spanners, and
 integration with floats or footnotes have separate requirements.
 
+### Hebrew and Latin flow
+
+The `HebrewLatin` theme option admits unpointed Hebrew and bounded Latin text
+with an explicit ordered policy over the static Inter Regular and IBM Plex Sans
+Hebrew Regular faces. The [bilingual invoice](examples/bilingual-invoice/README.md)
+checks a wrapped Hebrew address with a Latin purchase-order ID, a mixed item
+cell, and an effective French language span with exact logical extraction.
+Phrase order, writing mode and paint positions are checked from the emitted PDF.
+Other scripts, pointed Hebrew, bidi controls, and the option's integration with
+fixed pages, columns and references require their own executable evidence.
+
 ## Gate 9: extended modern accessibility vocabulary
 
 ### Capabilities

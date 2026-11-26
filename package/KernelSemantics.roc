@@ -1074,6 +1074,15 @@ check_attribute = |attribute, role| {
 				_ => InvalidAttributeCheck
 			}
 		}
+		# ISO 32000-2 §14.8.5.4, Layout attributes.
+		Layout => if name != "WritingMode" or attribute.applicability != AllRoles {
+			InvalidAttributeCheck
+		} else {
+			match attribute.value {
+				Name(value) => if (value == "RlTb" or value == "LrTb") AttributeBit(64) else InvalidAttributeCheck
+				_ => InvalidAttributeCheck
+			}
+		}
 		_ => InvalidAttributeCheck
 	}
 }

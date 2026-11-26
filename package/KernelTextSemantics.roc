@@ -69,6 +69,11 @@ KernelTextSemantics :: [].{
 		attach_artifact_sources : Plan, List(Str), Limits -> Try(Plan, Error)
 		attach_artifact_sources = |plan, sources, limits| attach_artifact_plan(plan, sources, limits)
 
+		## Direction is a semantic attribute of an authored block. Reuse its
+		## validated source facts while attaching the analysis stage's modes.
+		with_writing_modes : Plan, List(Bool), KernelSemantics.Limits -> Try(Plan, Error)
+		with_writing_modes = |plan, rtl_nodes, semantic_limits| attach_writing_modes(plan, rtl_nodes, semantic_limits)
+
 		semantics : Plan -> KernelSemantics.Plan
 		semantics = |plan| plan.semantics
 
@@ -127,6 +132,57 @@ attach_fragment_navigation_plan = |plan, patch, fragments, page_count, content_s
 	preliminary = KernelSemantics.Plan.store(plan.semantics)
 	store = { ..preliminary, annotations: patch.annotations, content_spine: patch.content_spine, fragments, nodes: patch.nodes, occurrence_fragments: [] }
 	semantics = KernelSemantics.Plan.build_text_navigation(store, plan.source_facts, page_count, content_stream_count, semantic_limits) ? Semantic
+	Ok(KernelTextSemantics.Plan.{ semantics, source_facts: plan.source_facts, work: plan.work })
+}
+
+attach_writing_modes : KernelTextSemantics.Plan, List(Bool), KernelSemantics.Limits -> Try(KernelTextSemantics.Plan, KernelTextSemantics.Error)
+attach_writing_modes = |plan, rtl_nodes, limits| {
+	preliminary = KernelSemantics.Plan.store(plan.semantics)
+	var $count = 0
+	for rtl in rtl_nodes {
+		if rtl {
+			$count = $count + 1
+		}
+	}
+	if $count == 0 {
+		return Ok(plan)
+	}
+	total = checked_add(preliminary.attributes.len(), $count)?
+	max_attributes = KernelSemantics.Limits.attribute_limit(limits)
+	if total > max_attributes {
+		return Err(Semantic(LimitExceeded({ attempted: total, dimension: Attributes, limit: max_attributes })))
+	}
+	writing_mode = { applicability: AllRoles, name: Standard("WritingMode"), owner: Layout, value: Name("RlTb") }
+	var $attributes = List.with_capacity(total)
+	var $nodes = List.with_capacity(preliminary.nodes.len())
+	for node in preliminary.nodes {
+		start = $attributes.len()
+		var $attribute = node.attributes.start()
+		end = $attribute + node.attributes.length()
+		while $attribute < end {
+			$attributes = $attributes.append(list_at(preliminary.attributes, $attribute))
+			$attribute = $attribute + 1
+		}
+		if list_at(rtl_nodes, node.id.index()) {
+			$attributes = $attributes.append(writing_mode)
+		}
+		stored = { ..node, attributes: Semantics.IndexRange.from_start_and_length({ start, length: $attributes.len() - start }) }
+		$nodes = $nodes.append(stored)
+	}
+	var $artifacts = List.with_capacity(preliminary.contextual_artifacts.len())
+	for artifact in preliminary.contextual_artifacts {
+		start = $attributes.len()
+		var $attribute = artifact.attributes.start()
+		end = $attribute + artifact.attributes.length()
+		while $attribute < end {
+			$attributes = $attributes.append(list_at(preliminary.attributes, $attribute))
+			$attribute = $attribute + 1
+		}
+		stored = { ..artifact, attributes: Semantics.IndexRange.from_start_and_length({ start, length: $attributes.len() - start }) }
+		$artifacts = $artifacts.append(stored)
+	}
+	store = { ..preliminary, attributes: $attributes, contextual_artifacts: $artifacts, nodes: $nodes }
+	semantics = KernelSemantics.Plan.build_text_navigation(store, plan.source_facts, 0, 0, limits) ? Semantic
 	Ok(KernelTextSemantics.Plan.{ semantics, source_facts: plan.source_facts, work: plan.work })
 }
 

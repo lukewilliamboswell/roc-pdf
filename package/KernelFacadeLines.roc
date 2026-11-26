@@ -498,7 +498,10 @@ build_ordered_with_geometry = |authoring, shape, sources, limits, input| {
 	} else if !authoring.sources.is_empty() {
 		KernelLineLayout.BatchPlan.build_logical_variants(sources, shape_batch.store, $line_requests, $holds, $modes, shape_batch.inter_runs, limits.line) ? |error| source_layout_error(authoring, $logical_index_of_body, geometries, shape_batch.store, error)
 	} else {
-		KernelLineLayout.BatchPlan.build_logical_variants(sources, shape_batch.store, $line_requests, $holds, [], shape_batch.inter_runs, limits.line) ? |error| if (fixed) fixed_line_error(block_runs, geometries, shape_batch.store, error) else LineLayout(error)
+		match KernelFacadeShape.Plan.international(shape) {
+			International(_) => KernelLineLayout.BatchPlan.build_international(sources, shape_batch.store, $line_requests, $holds, limits.line) ? LineLayout
+			NoInternational => KernelLineLayout.BatchPlan.build_logical_variants(sources, shape_batch.store, $line_requests, $holds, [], shape_batch.inter_runs, limits.line) ? |error| if (fixed) fixed_line_error(block_runs, geometries, shape_batch.store, error) else LineLayout(error)
+		}
 	}
 	run_lines = KernelLineLayout.BatchPlan.run_lines(line)
 	var $blocks = List.with_capacity(block_runs.len())

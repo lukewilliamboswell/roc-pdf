@@ -7,13 +7,16 @@ import pdf.Font
 import pdf.KernelBidiBoundary
 import pdf.KernelFont
 import pdf.KernelInternationalLine
+import pdf.KernelInternationalSelection
 import pdf.KernelInternationalShape
 import pdf.KernelInternationalText
 import pdf.KernelUnicode
 import pdf.Layout
 import pdf.Semantics
+import pdf.RocFont
 import pdf.Text
 import "../assets/IBMPlexSansHebrew-Rtl-Fixture.ttf" as hebrew_bytes : List(U8)
+import "../../examples/bilingual-invoice/fonts/IBMPlexSansHebrew-Regular.ttf" as invoice_hebrew : List(U8)
 
 main! = |_| { bytes: [], work: [] }
 
@@ -122,4 +125,53 @@ positioned_run = |index, direction, script, start, length, bytes| {
 	transformations: range(0, 0),
 	unicode: OccurrenceText(Semantics.OccurrenceId.from_index(index)),
 	writing_mode: Horizontal,
+}
+
+expect {
+	limits = Font.ValidationLimits.default
+	registered = Font.Registry.empty.register({ bytes: invoice_hebrew, registration: { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hebr")] }, limits })?
+	demo = RocFont.register(registered.registry, limits)?
+	combined = demo.registry.with_policy([demo.body, registered.face])?
+	policy = KernelInternationalSelection.policy(combined.registry, combined.policy)?
+	source = "אב AV"
+	analysis = KernelUnicode.analyze(source, KernelUnicode.default_limits)?
+	owners : List(KernelInternationalText.Occurrence)
+	owners = [
+		{ id: Semantics.OccurrenceId.from_index(0), language: Language("he"), source: { scalars: range(0, 3), utf8_bytes: range(0, 5) } },
+		{ id: Semantics.OccurrenceId.from_index(1), language: Language("en"), source: { scalars: range(3, 2), utf8_bytes: range(5, 2) } },
+	]
+	analyzed = KernelInternationalText.plan(source, analysis, Auto, owners, UnpointedHebrewLatin, { max_clusters: 5, max_items: 8, max_scalars: 5 })?
+	selected = KernelInternationalSelection.select(policy, Semantics.TextSourceId.from_index(0), Language("en"), analyzed)?
+	selection = selected.selected.map(|entry| (entry.face, entry.item.level, entry.item.source.scalars.start(), entry.item.source.scalars.length()))
+	latin_only = combined.registry.with_policy([demo.body])?
+	uncovered = KernelInternationalSelection.policy(latin_only.registry, latin_only.policy)?
+	missing = match KernelInternationalSelection.select(uncovered, Semantics.TextSourceId.from_index(0), Language("en"), analyzed) {
+		Err(NoCoverage({ scalar: 0x5d0, scalar_index: 0 })) => True
+		_ => False
+	}
+	missing and selected.work.graphemes == 5 and selection == [(1, 1, 0, 2), (0, 1, 2, 1), (0, 2, 3, 2)]
+}
+
+## HarfBuzz 14.6.0 with the exact gallery IBM Plex Sans Hebrew bytes,
+## script Hebr, language he, RTL, default features. The vendor's UTF-8
+## offsets are relative to the buffer; the adapter keeps the paragraph's
+## nonzero origin. The last painted glyph carries a positioned offset.
+expect {
+	font = KernelFont.inspect(invoice_hebrew, KernelFont.Limits.make({ max_bytes: 100000, max_cmap_mappings: 2000, max_glyphs: 2000, max_tables: 128 }))?
+	face = KernelInternationalShape.prepare(font)?
+	provider = KernelInternationalShape.program(face, { direction: RightToLeft, language: Language("he"), script: "Hebr" })
+	scalars : List(KernelInternationalText.ScalarAt)
+	scalars = [
+		{ scalar: 0x41, offset: 0 },
+		{ scalar: 0x20, offset: 1 },
+		{ scalar: 0x5e8, offset: 2 },
+		{ scalar: 0x5d7, offset: 4 },
+		{ scalar: 0x5d5, offset: 6 },
+		{ scalar: 0x5d1, offset: 8 },
+	]
+	street = { ..item, source: { scalars: range(2, 4), utf8_bytes: range(2, 8) } }
+	shaped = KernelInternationalShape.shape(provider, street, scalars, 4)?
+	glyphs = shaped.glyphs.map(|glyph| (glyph.id, glyph.advance.x, glyph.advance.y, glyph.offset.x, glyph.offset.y))
+	boundaries = shaped.clusters.map(|entry| (entry.glyphs.start(), entry.source.scalars.start(), entry.source.utf8_bytes.start()))
+	glyphs == [(285, 552, 0, 0, 0), (289, 260, 0, 0, 0), (291, 647, 0, 0, 0), (308, 496, 0, -30, 0)] and boundaries == [(3, 2, 2), (2, 3, 4), (1, 4, 6), (0, 5, 8)]
 }

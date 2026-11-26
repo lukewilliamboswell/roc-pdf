@@ -1,0 +1,5 @@
+{"name":"Hebrew Latin invoice","schema_version":1,"case":{"Invoice":{"wtpdf":false}}}
+{"name":"Hebrew Latin invoice WTPDF","schema_version":1,"case":{"Invoice":{"wtpdf":true}}}
+{"name":"Hebrew Latin wrap x2","schema_version":1,"case":{"Wrap":{"count":2}}}
+{"name":"Hebrew Latin wrap x20","schema_version":1,"case":{"Wrap":{"count":20}}}
+{"name":"Hebrew Latin atomic diagnostics","schema_version":1,"case":"Atomic"}

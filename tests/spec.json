@@ -41,6 +41,7 @@
     "source_foregrounds",
     "chapter_templates",
     "fixed_pages",
+    "bilingual_invoice",
     "inter_latin",
     "columns",
     "associated_files",
@@ -67,6 +68,7 @@
     "source_foregrounds",
     "chapter_templates",
     "fixed_pages",
+    "bilingual_invoice",
     "inter_latin",
     "columns",
     "associated_files",
@@ -162,6 +164,9 @@
     },
     {
       "name": "public"
+    },
+    {
+      "name": "international_text"
     },
     {
       "name": "shaping"
@@ -294,6 +299,10 @@
     {
       "name": "destination_references",
       "group": "pages"
+    },
+    {
+      "name": "international_text",
+      "group": "international_text"
     },
     {
       "name": "inter_latin",
@@ -30639,6 +30648,252 @@
         "pdfa4",
         "structure_semantics",
         "chapter_templates"
+      ]
+    },
+    {
+      "name": "Hebrew Latin invoice",
+      "scenario_revision": "hebrew-latin-v1",
+      "family": "international_text",
+      "snapshot": "tests/international_text/invoice.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "paragraphs": 0
+      },
+      "work_counters": [
+        "pages",
+        "authored_blocks",
+        "owned_fragments",
+        "wrapped_paragraphs",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 20996,
+          "allocated_bytes": 11598114,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 11,
+            "owned_fragments": 80,
+            "wrapped_paragraphs": 0,
+            "output_bytes": 18494
+          }
+        },
+        "x64musl": {
+          "allocations": 20996,
+          "allocated_bytes": 11598114,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 11,
+            "owned_fragments": 80,
+            "wrapped_paragraphs": 0,
+            "output_bytes": 18494
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "bilingual_invoice"
+      ]
+    },
+    {
+      "name": "Hebrew Latin invoice WTPDF",
+      "scenario_revision": "hebrew-latin-v1",
+      "family": "international_text",
+      "snapshot": "tests/international_text/invoice-wtpdf.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "paragraphs": 0
+      },
+      "work_counters": [
+        "pages",
+        "authored_blocks",
+        "owned_fragments",
+        "wrapped_paragraphs",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 20998,
+          "allocated_bytes": 11601708,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 11,
+            "owned_fragments": 80,
+            "wrapped_paragraphs": 0,
+            "output_bytes": 18762
+          }
+        },
+        "x64musl": {
+          "allocations": 20998,
+          "allocated_bytes": 11601708,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 11,
+            "owned_fragments": 80,
+            "wrapped_paragraphs": 0,
+            "output_bytes": 18762
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics",
+        "wtpdf_accessibility",
+        "bilingual_invoice"
+      ]
+    },
+    {
+      "name": "Hebrew Latin wrap x2",
+      "scenario_revision": "hebrew-latin-v1",
+      "family": "international_text",
+      "snapshot": "tests/international_text/wrap-2.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "paragraphs": 2
+      },
+      "work_counters": [
+        "pages",
+        "authored_blocks",
+        "owned_fragments",
+        "wrapped_paragraphs",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 9139,
+          "allocated_bytes": 8981649,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 2,
+            "owned_fragments": 40,
+            "wrapped_paragraphs": 2,
+            "output_bytes": 13242
+          }
+        },
+        "x64musl": {
+          "allocations": 9139,
+          "allocated_bytes": 8981649,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 2,
+            "owned_fragments": 40,
+            "wrapped_paragraphs": 2,
+            "output_bytes": 13242
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics"
+      ]
+    },
+    {
+      "name": "Hebrew Latin wrap x20",
+      "scenario_revision": "hebrew-latin-v1",
+      "family": "international_text",
+      "snapshot": "tests/international_text/wrap-20.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "paragraphs": 20
+      },
+      "work_counters": [
+        "pages",
+        "authored_blocks",
+        "owned_fragments",
+        "wrapped_paragraphs",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 68298,
+          "allocated_bytes": 22059961,
+          "work": {
+            "pages": 2,
+            "authored_blocks": 20,
+            "owned_fragments": 400,
+            "wrapped_paragraphs": 20,
+            "output_bytes": 18275
+          }
+        },
+        "x64musl": {
+          "allocations": 68298,
+          "allocated_bytes": 22059961,
+          "work": {
+            "pages": 2,
+            "authored_blocks": 20,
+            "owned_fragments": 400,
+            "wrapped_paragraphs": 20,
+            "output_bytes": 18275
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics"
+      ]
+    },
+    {
+      "name": "Hebrew Latin atomic diagnostics",
+      "scenario_revision": "hebrew-latin-v1",
+      "family": "international_text",
+      "snapshot": "tests/international_text/wrap-2.pdf",
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "paragraphs": 2
+      },
+      "work_counters": [
+        "pages",
+        "authored_blocks",
+        "owned_fragments",
+        "wrapped_paragraphs",
+        "output_bytes",
+        "rejected_deliveries"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 12508,
+          "allocated_bytes": 19832372,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 2,
+            "owned_fragments": 40,
+            "wrapped_paragraphs": 2,
+            "output_bytes": 13242,
+            "rejected_deliveries": 8
+          }
+        },
+        "x64musl": {
+          "allocations": 12508,
+          "allocated_bytes": 19832372,
+          "work": {
+            "pages": 1,
+            "authored_blocks": 2,
+            "owned_fragments": 40,
+            "wrapped_paragraphs": 2,
+            "output_bytes": 13242,
+            "rejected_deliveries": 8
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "pdfua2",
+        "structure_semantics"
       ]
     },
     {

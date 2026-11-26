@@ -29,6 +29,7 @@ import KernelStabilization
 import KernelStructure
 import KernelTextSemantics
 import Layout
+import Semantics
 import Theme
 
 KernelFacadePipeline :: [].{
@@ -432,8 +433,85 @@ build_plan = |authoring, font, theme, page_size, descriptor, facts, request, lim
 	)
 }
 
+## Use the first authored content of each block together with its UAX #9
+## paragraph base. The validated spine supplies the semantic owner, so
+## the WritingMode declaration does not depend on visual placements.
+semantic_writing_modes : KernelFacadeSemantics.Plan, KernelFacadeShape.Plan, KernelSemantics.Limits -> Try(KernelTextSemantics.Plan, KernelTextSemantics.Error)
+semantic_writing_modes = |semantics, shape, limits| {
+	preliminary = KernelFacadeSemantics.Plan.preliminary(semantics)
+	facts = match KernelFacadeShape.Plan.international(shape) {
+		International(value) => value
+		NoInternational => return Ok(preliminary)
+	}
+	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary))
+	var $owners = List.repeat(0.U64, store.occurrences.len())
+	for node in store.nodes {
+		var $child = node.content.start()
+		end = $child + node.content.length()
+		while $child < end {
+			match list_at(store.content_spine, $child) {
+				ContentOccurrence(id) => {
+					$owners = replace_at($owners, id.index(), node.id.index())
+				}
+				_ => {}
+			}
+			$child = $child + 1
+		}
+	}
+	var $rtl_nodes = List.repeat(False, store.nodes.len())
+	for block in KernelFacadeSemantics.Plan.block_ownership(semantics) {
+		occurrence = match block {
+			TextBlock({ body, .. }) => body.index()
+			RichTextBlock({ occurrences, .. }) => occurrences.start()
+			_ => store.occurrences.len()
+		}
+		if occurrence < store.occurrences.len() and source_is_rtl(list_at(store.occurrences, occurrence).source, facts) {
+			owner = semantic_block_owner(store.nodes, list_at($owners, occurrence))
+			if owner != 0 {
+				$rtl_nodes = replace_at($rtl_nodes, owner, True)
+			}
+		}
+	}
+	KernelTextSemantics.Plan.with_writing_modes(preliminary, $rtl_nodes, limits)
+}
+
+source_is_rtl : Semantics.OccurrenceSource, KernelFacadeShape.International -> Bool
+source_is_rtl = |source, facts| match source {
+	Text(id, _) => match facts.paragraphs.get(id.index()) {
+		Ok(Analyzed(paragraph)) => paragraph.base_level == 1
+		_ => False
+	}
+	NonText(_, _) => False
+}
+
+semantic_block_owner : List(Semantics.Node), U64 -> U64
+semantic_block_owner = |nodes, first| {
+	var $owner = first
+	while $owner != 0 {
+		node = list_at(nodes, $owner)
+		match node.role.local_name {
+			"P" | "TD" | "TH" | "Title" | "Caption" | "H" | "H1" | "H2" | "H3" | "H4" | "H5" | "H6" => return $owner
+			_ => {}
+		}
+		$owner = match node.parent {
+			ParentNode(parent) => parent.index()
+			DocumentRoot => 0
+		}
+	}
+	0
+}
+
+replace_at : List(a), U64, a -> List(a)
+replace_at = |items, index, value| match items.set(index, value) {
+	Ok(replaced) => replaced
+	Err(_) => crash "validated semantic writing-mode index escaped its store"
+}
+
 build_ordered_pipeline : Document.NormalizedAuthoring, MultiFace, Theme, Layout.Size, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelFacadeReport.Request, KernelFacadePipeline.Limits -> Try(KernelFacadePipeline.Plan, KernelFacadePipeline.Error)
 build_ordered_pipeline = |authoring, multi, theme, page_size, descriptor, facts, request, limits| {
+	if theme.international_text == HebrewLatin and !authoring.page_references.is_empty() {
+		return Err(Shape(InternationalSurface))
+	}
 	if !authoring.page_references.is_empty() {
 		selection = match multi {
 			Policy(ordered) => Ordered(ordered)
@@ -442,7 +520,6 @@ build_ordered_pipeline = |authoring, multi, theme, page_size, descriptor, facts,
 		return build_references(authoring, selection, theme, page_size, descriptor, facts, request, limits)
 	}
 	semantics = KernelFacadeSemantics.Plan.build(authoring, limits.semantics) ? Semantics
-	preliminary = KernelFacadeSemantics.Plan.preliminary(semantics)
 	source_store = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics))
 	shape = (
 		match multi {
@@ -450,6 +527,7 @@ build_ordered_pipeline = |authoring, multi, theme, page_size, descriptor, facts,
 			Styled(styled) => KernelFacadeShape.Plan.build_styled(KernelFacadeSemantics.Plan.authoring(semantics), KernelFacadeSemantics.Plan.block_ownership(semantics), KernelFacadeSemantics.Plan.flow_text(semantics), source_store, styled, theme, limits.shape)
 		}
 	) ? Shape
+	preliminary = semantic_writing_modes(semantics, shape, limits.fragment_semantics) ? |error| Semantics(TextSemantics(error))
 	furniture_selection = match multi {
 		Policy(ordered) => PolicyFaces({ faces: KernelFacadeShape.Plan.selected_faces(shape), fonts: KernelFacadeShape.Plan.fonts(shape), policy: ordered.policy, registry: ordered.registry })
 		Styled(styled) => {

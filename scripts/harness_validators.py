@@ -13,6 +13,7 @@ from check_chapter_templates import validate_chapter_templates_pdf
 from check_vector_diagrams import validate_vector_diagrams_pdf
 from check_fixed_pages import validate_fixed_pages_pdf
 from check_generated_handbook import validate_generated_fixture
+from check_bilingual_invoice import check as check_bilingual_invoice
 from check_inter_latin import validate_inter_latin_pdf
 from check_columns import validate_columns_pdf
 from check_actual_text import EXPECTED_CONTENT as ACTUAL_TEXT_CONTENT
@@ -161,6 +162,7 @@ VALIDATORS: dict[str, Validator] = {
     "generated_contents": _dimensioned(validate_generated_fixture, "authored generated contents targets, printed labels, and paired link destinations"),
     "contents_entries": _dimensioned(validate_contents_entries_pdf, "aligned contents columns, wrapped titles, linked exact page references and decorative leaders"),
     "destination_references": _dimensioned(validate_destination_references_pdf, "printed reference Unicode agrees with emitted destinations and page labels, fixed advances, semantic owners and explicit annotations"),
+    "bilingual_invoice": _dimensioned(lambda pdf, _: check_bilingual_invoice(pdf), "bilingual invoice logical text, writing modes, paint positions and language scopes"),
     "inter_latin": _dimensioned(validate_inter_latin_pdf, "exact kerned positions, ligature and literal mapping, wrap ownership and scope color"),
     "columns": _dimensioned(validate_columns_pdf, "authored source and semantic ownership across unequal-width columns and pages"),
     "fixed_pages": _dimensioned(validate_fixed_pages_pdf, "fixed frame geometry, independent structure and stream order, and exact background/overlay ownership"),
@@ -261,6 +263,7 @@ PREFLIGHT_CHECKS["generated_contents"] = PreflightCheck("check_generated_handboo
 PREFLIGHT_CHECKS["contents_entries"] = PreflightCheck("check_contents_entries.py", True)
 PREFLIGHT_CHECKS["destination_references"] = PreflightCheck("check_destination_references.py", True)
 PREFLIGHT_CHECKS["source_blocks"] = PreflightCheck("check_source_blocks.py", True)
+PREFLIGHT_CHECKS["bilingual_invoice"] = PreflightCheck("check_bilingual_invoice.py", True)
 PREFLIGHT_CHECKS["inter_latin"] = PreflightCheck("check_inter_latin.py", True)
 PREFLIGHT_CHECKS["columns"] = PreflightCheck("check_columns.py", True)
 PREFLIGHT_CHECKS["fixed_pages"] = PreflightCheck("check_fixed_pages.py", True)

@@ -47,7 +47,18 @@ KernelInternationalText :: [].{
 	plan : Str, KernelUnicode.UnicodeAnalysis, KernelBidiBoundary.BaseDirection, List(Occurrence), Repertoire, Limits -> Try(Plan, Error)
 	plan = |source, analysis, base, occurrences, repertoire, limits| {
 		bidi = KernelBidiBoundary.analyze_paragraph(source, analysis, base, bidi_limits(limits)) ? Bidi
+		from_paragraph(source, analysis, bidi, occurrences, repertoire, limits)
+	}
+
+	## Paragraph resolution can share the same immutable analysis across
+	## occurrences of one interned source. Itemization still reads each
+	## occurrence's own exact ranges and language.
+	from_paragraph : Str, KernelUnicode.UnicodeAnalysis, KernelBidiBoundary.Paragraph, List(Occurrence), Repertoire, Limits -> Try(Plan, Error)
+	from_paragraph = |source, analysis, bidi, occurrences, repertoire, limits| {
 		cluster_count = analysis.graphemes.len()
+		if analysis.work.scalar_visits != bidi.entries.len() or bidi.logical_source.utf8_bytes.length() != source.count_utf8_bytes() {
+			return Err(FactMismatch({ scalar_index: 0 }))
+		}
 		if cluster_count != analysis.work.scalar_visits {
 			index = first_multi_scalar(analysis.graphemes)
 			return Err(UnsupportedCluster({ scalar_index: index }))
@@ -71,6 +82,7 @@ KernelInternationalText :: [].{
 			return Err(FactMismatch({ scalar_index: 0 }))
 		}
 		var $level = 0
+		var $space = False
 		var $item_start = 0
 		var $item_byte = 0
 		var $byte = 0
@@ -94,7 +106,11 @@ KernelInternationalText :: [].{
 			}
 			next_original = $index == $original_scalar_end
 			next_script = $index == $script.range.scalar_end
-			if $index > 0 and (next_original or next_script or level != $level) {
+			# A line's trailing spaces can later acquire the paragraph level
+			# under L1. A separate unit lets final ordering move that space
+			# without reshaping a neighboring word.
+			space = value == 0x20 or value == 0xa0
+			if $index > 0 and (next_original or next_script or level != $level or space != $space) {
 				check_items($items.len(), limits.max_items)?
 				$items = $items.append(item($original, $script.script, $level, $item_start, $index, $item_byte, byte_start))
 				$item_start = $index
@@ -133,6 +149,7 @@ KernelInternationalText :: [].{
 			}
 			$scalars = $scalars.append({ offset: byte_start, scalar: value })
 			$level = level
+			$space = space
 			$byte = byte_end
 			$index = $index + 1
 		}
@@ -216,8 +233,8 @@ expect {
 	view = KernelInternationalText.plan(source, analysis, Auto, owners, UnpointedHebrewLatin, test_limits)?
 	items = view.items.map(|one| (one.occurrence.index(), one.language, one.level, one.source.scalars.start(), one.source.scalars.length()))
 	view.bidi.base_level == 1 and
-		items == [(0, Language("he"), 1, 0, 2), (0, Language("he"), 1, 2, 1), (1, Language("en"), 2, 3, 3), (2, Language("fr"), 2, 6, 2)] and
-			view.work.clusters == 8 and view.work.occurrences == 3 and view.work.items == 4
+		items == [(0, Language("he"), 1, 0, 2), (0, Language("he"), 1, 2, 1), (1, Language("en"), 2, 3, 2), (1, Language("en"), 2, 5, 1), (2, Language("fr"), 2, 6, 2)] and
+			view.work.clusters == 8 and view.work.occurrences == 3 and view.work.items == 5
 }
 
 expect {

@@ -4,6 +4,9 @@ import Font
 import KernelFacadeSemantics
 import KernelFacadeSources
 import KernelFont
+import KernelInternationalBatch
+import KernelInternationalLine
+import KernelInternationalSelection
 import KernelLatinShape
 import KernelUnicode
 import KernelShape
@@ -21,6 +24,11 @@ KernelFacadeShape :: [].{
 		GeneratedLabelEvidenceInvalid({ block : U64, occurrence : U64 }),
 		InlineClusterBoundary({ block : U64, inline : U64 }),
 		InvalidOccurrence({ block : U64, occurrence : U64 }),
+		InternationalPolicy(KernelInternationalSelection.Error),
+		InternationalShape({ block : U64, cause : KernelInternationalBatch.Error }),
+		InternationalStore(KernelInternationalLine.Error),
+		InternationalSurface,
+
 		LanguageMismatch({ occurrence : U64 }),
 		LatinShaping({ block : U64, reason : KernelLatinShape.Error }),
 		LimitExceeded({ attempted : U64, dimension : Dimension, limit : U64 }),
@@ -209,7 +217,14 @@ KernelFacadeShape :: [].{
 	}
 	ContextShape : { block_runs : List(BlockRuns), origins : Origins, requests : List(KernelShape.SimpleRequest), selection : Selection, shape : KernelShape.Batch, styles : List(RunStyle), work : Work }
 
+	International : {
+		owners : List(U64),
+		paragraphs : List(KernelInternationalBatch.Paragraph),
+		requests : List(KernelShape.SimpleRequest),
+	}
+
 	Plan :: {
+		international : [International(International), NoInternational],
 		block_runs : List(BlockRuns),
 		origins : Origins,
 		requests : List(KernelShape.SimpleRequest),
@@ -239,7 +254,7 @@ KernelFacadeShape :: [].{
 			if $next != occurrences {
 				return Err(OccurrenceCoverage({ actual: $next, expected: occurrences }))
 			}
-			Ok(Plan.{ block_runs: facts.block_runs, origins: facts.origins, requests: facts.requests, selection: facts.selection, shape: facts.shape, styles: facts.styles, work: facts.work })
+			Ok(Plan.{ international: NoInternational, block_runs: facts.block_runs, origins: facts.origins, requests: facts.requests, selection: facts.selection, shape: facts.shape, styles: facts.styles, work: facts.work })
 		}
 
 		build : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), KernelFont.Inspection, Theme, Limits -> Try(Plan, Error)
@@ -259,6 +274,9 @@ KernelFacadeShape :: [].{
 
 		block_runs : Plan -> List(BlockRuns)
 		block_runs = |plan| plan.block_runs
+
+		international : Plan -> [International(International), NoInternational]
+		international = |plan| plan.international
 
 		origins : Plan -> Origins
 		origins = |plan| plan.origins
@@ -364,6 +382,7 @@ build_plan = |authoring, owners, store, source_store, font, theme, limits| {
 	}
 	Ok(
 		KernelFacadeShape.Plan.{
+			international: NoInternational,
 			block_runs: preparation.block_runs,
 			origins: request_origins(preparation.ranges),
 			requests: preparation.requests,
@@ -447,6 +466,7 @@ build_styled_plan = |authoring, owners, store, source_store, styled, theme, limi
 	}
 	Ok(
 		KernelFacadeShape.Plan.{
+			international: NoInternational,
 			block_runs: preparation.block_runs,
 			origins: request_origins(preparation.ranges),
 			requests: preparation.requests,
@@ -562,6 +582,7 @@ build_source_styled = |authoring, preparation, store, sources, styled, candidate
 	}
 	Ok(
 		KernelFacadeShape.Plan.{
+			international: NoInternational,
 			block_runs: $block_runs,
 			origins: Origins($origins),
 			requests: $requests,
@@ -1286,7 +1307,9 @@ append_rich_requests = |ranges, requests, styles, at, occurrences, rich| {
 				## The convenience path accepts only the declared scripts; a
 				## span in another script rejects here, naming the authored
 				## inline, before any shaping.
-				$script_run = inline_script(analysis.script_runs, $script_run, scalar_start, scalar_end, at.block, $inline)?
+				if at.theme.international_text == OrdinaryText {
+					$script_run = inline_script(analysis.script_runs, $script_run, scalar_start, scalar_end, at.block, $inline)?
+				}
 				cluster_start = cluster_at(analysis.graphemes, $cluster, scalar_start, at.block, $inline)?
 				cluster_end = cluster_at(analysis.graphemes, cluster_start, scalar_end, at.block, $inline)?
 				$cluster = cluster_end
@@ -1720,6 +1743,9 @@ SelectedSegment : { clusters : Semantics.IndexRange, font : U64, script : Font.S
 
 build_ordered_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), { policy : Font.PolicyId, registry : Font.Registry }, Theme, KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
 build_ordered_plan = |authoring, owners, store, source_store, ordered, theme, limits| {
+	if theme.international_text == HebrewLatin {
+		return build_international_plan(authoring, owners, store, source_store, ordered, theme, limits)
+	}
 	preparation = prepare_plan(authoring, owners, store, source_store, limits.max_requests, theme, PolicySelectsFaces)?
 	policy_faces = ordered.registry.policy_faces(ordered.policy) ? PolicyInvalid
 	batch_language = preparation.options.language
@@ -1832,6 +1858,7 @@ build_ordered_plan = |authoring, owners, store, source_store, ordered, theme, li
 	}
 	Ok(
 		KernelFacadeShape.Plan.{
+			international: NoInternational,
 			block_runs: $block_runs,
 			origins: physical_origins,
 			requests: physical_requests,
@@ -1850,6 +1877,121 @@ build_ordered_plan = |authoring, owners, store, source_store, ordered, theme, li
 			},
 		},
 	)
+}
+
+## The opt-in bidi path keeps separate paragraph and paint facts alongside
+## the ordinary compact font and glyph plans. Authored occurrence IDs and
+## their language/property ranges come from the same semantic preparation.
+build_international_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), { policy : Font.PolicyId, registry : Font.Registry }, Theme, KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
+build_international_plan = |authoring, owners, store, sources, ordered, theme, limits| {
+	if !authoring.sources.is_empty() or !authoring.page_references.is_empty() {
+		return Err(InternationalSurface)
+	}
+	preparation = prepare_plan(authoring, owners, store, sources, limits.max_requests, theme, PolicySelectsFaces)?
+	policy = KernelInternationalSelection.policy(ordered.registry, ordered.policy) ? InternationalPolicy
+	var $origins = List.with_capacity(preparation.requests.len())
+	var $inputs = List.with_capacity(preparation.requests.len())
+	var $index = 0
+	while $index < preparation.requests.len() {
+		shape = list_at(preparation.requests, $index)
+		source = list_at(store.occurrences, shape.occurrence.index())
+		range = match source.source {
+			Text(id, UnicodeRange(known)) if id == shape.source => known
+			_ => return Err(InvalidOccurrence({ block: inter_block(preparation.block_runs, $index), occurrence: shape.occurrence.index() }))
+		}
+		$origins = $origins.append({ byte: range.utf8_bytes.start(), scalar: range.scalars.start() })
+		$inputs = $inputs.append({ authored: { id: shape.occurrence, language: source.language, source: range }, shape, segment: list_at(preparation.styles, $index).segment })
+		$index = $index + 1
+	}
+	shape_limits = KernelShape.Limits.values(limits.shape)
+	result = KernelInternationalBatch.build(sources, $inputs, policy, { max_clusters: shape_limits.max_clusters, max_glyphs: shape_limits.max_glyphs, max_requests: limits.max_requests, max_scalars: shape_limits.max_scalars, max_source_bytes: shape_limits.max_source_bytes }) ? |cause| InternationalShape({ block: international_request_block(preparation.block_runs, cause), cause })
+	physical = result.parents.map(|parent| list_at(preparation.requests, parent))
+	var $used = List.repeat(False, policy.faces.len())
+	for run in result.batch.store.runs {
+		$used = list_set($used, run.instance.index(), True)
+	}
+	var $instances = List.with_capacity(policy.faces.len())
+	var $faces = List.with_capacity(policy.faces.len())
+	var $fonts = List.with_capacity(policy.faces.len())
+	var $candidate = 0
+	for face in policy.faces {
+		$instances = $instances.append($faces.len())
+		if list_at($used, $candidate) {
+			$faces = $faces.append(face.id)
+			$fonts = $fonts.append(face.inspection)
+		}
+		$candidate = $candidate + 1
+	}
+	shaped = result.batch
+	runs = if ($faces.len() == policy.faces.len()) shaped.store.runs else shaped.store.runs.map(
+		|run| { ..run, instance: Font.InstanceId.from_index(list_at($instances, run.instance.index())) },
+	)
+	shaped_store = { ..shaped.store, runs }
+	font_bytes = total_font_bytes($fonts)
+	font_tables = total_font_tables($fonts)
+	block_runs = preparation.block_runs.map(
+		|block| match block {
+			TextBlock({ body, label, level }) => {
+				label_run = match label {
+					NoLabel => NoLabel
+					Label(run) => Label(expanded_range(run, result.firsts))
+				}
+				TextBlock({ body: expanded_range(body, result.firsts), label: label_run, level })
+			}
+			other => other
+		},
+	)
+	work = result.batch.work
+	cluster_owners = KernelInternationalLine.cluster_owners(shaped_store) ? InternationalStore
+	Ok(
+		KernelFacadeShape.Plan.{
+			international: International({ owners: cluster_owners, paragraphs: result.paragraphs, requests: physical }),
+			block_runs,
+			origins: Origins(result.parents.map(|parent| list_at($origins, parent))),
+			requests: physical,
+			selection: OrderedFaces({
+				faces: $faces,
+				fonts: $fonts,
+				work: { coverage_span_visits: result.work.coverage_spans, face_visits: result.work.faces, grapheme_visits: result.work.graphemes, planned_sources: result.work.paragraphs, selection_ranges: result.parents.len() },
+			}),
+			shape: { ..shaped, store: shaped_store },
+			styles: result.parents.map(|parent| list_at(preparation.styles, parent)),
+			work: { font_bytes, font_tables, glyphs: work.glyph_visits, metric_reads: work.metric_reads, requests: physical.len(), scalars: work.scalar_visits, script_run_visits: work.script_run_visits, source_bytes: work.utf8_bytes },
+		},
+	)
+}
+
+expanded_range : KernelFacadeShape.LogicalRun, List(U64) -> KernelFacadeShape.LogicalRun
+expanded_range = |run, firsts| {
+	start = list_at(firsts, run.physical.start())
+	stop = list_at(firsts, run.physical.start() + run.physical.length())
+	{ physical: Semantics.IndexRange.from_start_and_length({ start, length: stop - start }) }
+}
+
+international_request_block : List(KernelFacadeShape.BlockRuns), KernelInternationalBatch.Error -> U64
+international_request_block = |blocks, error| {
+	input_index = match error {
+		InvalidRequest(index) => index
+		Coverage({ request, .. }) | LimitExceeded({ request, .. }) | Paragraph({ request, .. }) | Shape({ request, .. }) | Scale({ request, .. }) => request
+	}
+	var $index = 0
+	for block in blocks {
+		match block {
+			TextBlock({ body, label, .. }) => {
+				start = match label {
+					Label(run) => run.physical.start()
+					NoLabel => body.physical.start()
+				}
+				ending = body.physical.start() + body.physical.length()
+				if input_index >= start and input_index < ending {
+					return $index
+				}
+			}
+			_ => {}
+		}
+		$index = $index + 1
+	}
+	0
 }
 
 ## Segmented grapheme-cluster facts for coverage planning: one cluster per

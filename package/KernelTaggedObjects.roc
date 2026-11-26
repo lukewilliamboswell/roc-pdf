@@ -827,7 +827,7 @@ add_text_entry = |builder, key, property| match property {
 
 ## `/A` lowers each attribute owner present on the node as one attribute
 ## dictionary with its `/O` owner and entries in canonical key order
-## (ISO 32000-2 14.7.6); one owner is a direct dictionary, two are an array.
+## (ISO 32000-2 §14.7.6); one owner is a direct dictionary, multiple form an array.
 add_attribute_value : KernelObject.Builder, Semantics.Store, Semantics.Node -> Try({ builder : KernelObject.Builder, dictionaries : U64, entry : OptionalEntry }, KernelTaggedObjects.Error)
 add_attribute_value = |builder, semantics, node| {
 	if node.attributes.length() == 0 {
@@ -835,7 +835,12 @@ add_attribute_value = |builder, semantics, node| {
 	}
 	list_dictionary = add_owner_dictionary(builder, semantics, node, ListOwner)?
 	table_dictionary = add_owner_dictionary(list_dictionary.builder, semantics, node, TableOwner)?
-	a_name = KernelObject.add_name(table_dictionary.builder, Str.to_utf8("A")) ? Object
+	layout_dictionary = add_owner_dictionary(table_dictionary.builder, semantics, node, LayoutOwner)?
+	a_name = KernelObject.add_name(layout_dictionary.builder, Str.to_utf8("A")) ? Object
+	match layout_dictionary.value {
+		WithValue(layout_value) => return lower_layout_attributes(a_name.builder, a_name.id, layout_value, list_dictionary.value, table_dictionary.value)
+		NoValue => {}
+	}
 
 	## Matching the two owners directly avoids building and filtering a list
 	## of them for every attributed element.
@@ -854,24 +859,39 @@ add_attribute_value = |builder, semantics, node| {
 	}
 }
 
-AttributeOwnerKind : [ListOwner, TableOwner]
+AttributeValue : [NoValue, WithValue(KernelObject.ValueId)]
+
+lower_layout_attributes : KernelObject.Builder, KernelObject.NameId, KernelObject.ValueId, AttributeValue, AttributeValue -> Try({ builder : KernelObject.Builder, dictionaries : U64, entry : OptionalEntry }, KernelTaggedObjects.Error)
+lower_layout_attributes = |builder, key, layout_value, list_value, table_value| {
+	items = match (list_value, table_value) {
+		(WithValue(list_id), WithValue(table_id)) => [layout_value, list_id, table_id]
+		(WithValue(id), NoValue) | (NoValue, WithValue(id)) => [layout_value, id]
+		(NoValue, NoValue) => return Ok({ builder, dictionaries: 1, entry: WithEntry({ key, value: layout_value }) })
+	}
+	count = items.len()
+	array = KernelObject.add_array(builder, items) ? Object
+	Ok({ builder: array.builder, dictionaries: count, entry: WithEntry({ key, value: array.id }) })
+}
+
+AttributeOwnerKind : [LayoutOwner, ListOwner, TableOwner]
 
 owner_matches : Semantics.AttributeOwner, AttributeOwnerKind -> Bool
 owner_matches = |owner, kind| match (owner, kind) {
+	(Layout, LayoutOwner) => True
 	(List, ListOwner) => True
 	(Table, TableOwner) => True
 	_ => False
 }
 
-## Canonical key order per owner: `ListNumbering`, `O` for List; `ColSpan`,
-## `Headers`, `O`, `RowSpan`, `Scope`, `Summary` for Table.
+## Canonical key order in each emitted attribute owner.
 owner_keys : AttributeOwnerKind -> List(Str)
 owner_keys = |kind| match kind {
+	LayoutOwner => ["O", "WritingMode"]
 	ListOwner => ["ListNumbering", "O"]
 	TableOwner => ["ColSpan", "Headers", "O", "RowSpan", "Scope", "Summary"]
 }
 
-add_owner_dictionary : KernelObject.Builder, Semantics.Store, Semantics.Node, AttributeOwnerKind -> Try({ builder : KernelObject.Builder, value : [NoValue, WithValue(KernelObject.ValueId)] }, KernelTaggedObjects.Error)
+add_owner_dictionary : KernelObject.Builder, Semantics.Store, Semantics.Node, AttributeOwnerKind -> Try({ builder : KernelObject.Builder, value : AttributeValue }, KernelTaggedObjects.Error)
 add_owner_dictionary = |builder, semantics, node, kind| {
 	start = node.attributes.start()
 	end = start + node.attributes.length()
@@ -898,7 +918,12 @@ add_owner_dictionary = |builder, semantics, node, kind| {
 		key = list_at(keys, $key_index)
 		if key == "O" {
 			o_name = KernelObject.add_name($builder, KernelLex.name_bytes("O")) ? Object
-			owner_name = KernelObject.add_name(o_name.builder, KernelLex.name_bytes(if (kind == ListOwner) "List" else "Table")) ? Object
+			name = match kind {
+				LayoutOwner => "Layout"
+				ListOwner => "List"
+				TableOwner => "Table"
+			}
+			owner_name = KernelObject.add_name(o_name.builder, KernelLex.name_bytes(name)) ? Object
 			owner_value = KernelObject.add_name_value(owner_name.builder, owner_name.id) ? Object
 			$builder = KernelObject.push_entry(owner_value.builder, { key: o_name.id, value: owner_value.id })
 		} else {

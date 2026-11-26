@@ -48,6 +48,14 @@ KernelShape :: [].{
 	Limits :: { max_clusters : U64, max_glyphs : U64, max_scalars : U64, max_source_bytes : U64 }.{
 		make : { max_clusters : U64, max_glyphs : U64, max_scalars : U64, max_source_bytes : U64 } -> Limits
 		make = |limits| Limits.(limits)
+		values : Limits -> { max_clusters : U64, max_glyphs : U64, max_scalars : U64, max_source_bytes : U64 }
+		values = |Limits.(limits)| limits
+	}
+
+	scale_font_units : I32, Layout.Unit, U16 -> Try(Layout.Unit, Error)
+	scale_font_units = |value, size, units_per_em| {
+		raw = scale_offset(value, size.raw(), units_per_em)?
+		Ok(Layout.Unit.from_raw(raw))
 	}
 
 	AdvancedLimits :: { max_clusters : U64, max_glyph_indices : U64, max_glyphs : U64, max_runs : U64, max_scalars : U64, max_source_bytes : U64, max_substitutions : U64, max_transformations : U64 }.{

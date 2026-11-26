@@ -152,3 +152,27 @@ https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/ordered-han/REA
 Inter followed by a static Han subset in a paragraph, the running header,
 and a table. Run its Latin-only variant to see a located missing-coverage
 diagnostic.
+
+[#hebrew-and-latin]
+== Set unpointed Hebrew alongside Latin
+
+Enable `theme.international_text: HebrewLatin` with `theme.font_selection:
+Policy(policy)` and the registered fonts in `Pdf.Options.fonts`. Register
+the packaged static Inter Regular and the exact static IBM Plex Sans Hebrew
+Regular supplied with the xref:gallery.adoc#bilingual-invoice[bilingual invoice].
+The order of the registered policy controls coverage for shared glyphs. Each
+font is tracked by its bytes.
+
+Author the text in reading order. Use `Pdf.in_language("he", ...)` for
+Hebrew and identify other meaningful changes, such as French within English
+payment instructions. The first strong character in each paragraph sets its
+base direction. The composer resolves each line after wrapping and retains
+the logical text and ownership of styled spans and table cells. When an
+authored text block has a right-to-left base, its structure element declares
+`RlTb` writing mode. Other blocks use the PDF default `LrTb`.
+
+The supported repertoire covers unpointed Hebrew letters, printable ASCII,
+Latin-1 letters and selected punctuation. Vowel points, bidi controls and
+other scripts give a located error. The option applies to ordinary
+single-column flow and table cells. It excludes fixed-page placement, columns,
+source blocks, layout-dependent references and explicit role face selection.

@@ -2,6 +2,8 @@ import Color
 import Document
 import KernelFacadeSemantics
 import Font
+import KernelBidiBoundary
+import KernelInternationalLine
 import KernelFacadeFurniture
 import KernelFacadeLines
 import KernelFacadePages
@@ -17,6 +19,7 @@ KernelFacadeText :: [].{
 	Dimension : [Clusters, GlyphIndices, Glyphs, Pages, Placements, Runs]
 	Error : [
 		ArithmeticOverflow,
+		InternationalPlacement({ line : U64, cause : KernelInternationalLine.Error }),
 		InvalidCluster({ cluster : U64, line : U64 }),
 		InvalidGlyph({ glyph : U64, line : U64 }),
 		InvalidLine({ line : U64, run : U64 }),
@@ -118,7 +121,7 @@ KernelFacadeText :: [].{
 		## The production facade uses `build`, which extracts it from validated
 		## preceding plans without exposing this internal module publicly.
 		build_prepared : Prepared, Limits -> Try(Plan, Error)
-		build_prepared = |prepared, limits| build_prepared_plan(prepared, [], [], { decorations: [], figure_scales: [], panels: [] }, limits)
+		build_prepared = |prepared, limits| build_prepared_plan(prepared, [], [], { decorations: [], figure_scales: [], panels: [] }, NoInternational, limits)
 
 		## Exact Unicode runs placed against previously committed geometry.
 		## Every piece names real final clusters; this entry never wraps text.
@@ -205,6 +208,7 @@ build_plan = |shape_plan, line_plan, page_plan, limits| {
 		KernelFacadePages.Plan.artifact_rows(page_plan),
 		KernelFacadePages.Plan.rules(page_plan),
 		KernelFacadePages.Plan.flow(page_plan),
+		KernelFacadeShape.Plan.international(shape_plan),
 		limits,
 	)
 }
@@ -213,8 +217,8 @@ build_plan = |shape_plan, line_plan, page_plan, limits| {
 ## page artifacts. Their runs duplicate shaped clusters already painted by
 ## the header's own occurrence, so the once-each coverage proof counts only
 ## the other runs, and the artifact runs are reported for scene ownership.
-build_prepared_plan : KernelFacadeText.Prepared, List(U64), List(KernelFacadePages.Rule), KernelFacadePages.FlowPaints, KernelFacadeText.Limits -> Try(KernelFacadeText.Plan, KernelFacadeText.Error)
-build_prepared_plan = |prepared, artifact_rows, rules, flow, limits| {
+build_prepared_plan : KernelFacadeText.Prepared, List(U64), List(KernelFacadePages.Rule), KernelFacadePages.FlowPaints, [International(KernelFacadeShape.International), NoInternational], KernelFacadeText.Limits -> Try(KernelFacadeText.Plan, KernelFacadeText.Error)
+build_prepared_plan = |prepared, artifact_rows, rules, flow, international, limits| {
 	shape = prepared.shape
 	styles = prepared.styles
 	lines = prepared.lines
@@ -303,13 +307,13 @@ build_prepared_plan = |prepared, artifact_rows, rules, flow, limits| {
 	if $artifact_cursor != artifact_rows.len() {
 		return Err(InvalidPlacement({ placement: $placement_cursor }))
 	}
-	materialize_requests({ shape, styles, lines, origins: prepared.origins, pages: pages.len(), placements: page_placements.len() }, $requests, rules, flow, limits)
+	materialize_requests({ shape, styles, lines, origins: prepared.origins, pages: pages.len(), placements: page_placements.len() }, $requests, rules, flow, international, limits)
 }
 
 MaterializeInput : { shape : Text.Store, styles : List(KernelFacadeShape.RunStyle), lines : List(KernelLineLayout.Line), origins : KernelFacadeShape.Origins, pages : U64, placements : U64 }
 
-materialize_requests : MaterializeInput, List(KernelFacadeText.PositionedPiece), List(KernelFacadePages.Rule), KernelFacadePages.FlowPaints, KernelFacadeText.Limits -> Try(KernelFacadeText.Plan, KernelFacadeText.Error)
-materialize_requests = |at, requests, rules, flow, limits| {
+materialize_requests : MaterializeInput, List(KernelFacadeText.PositionedPiece), List(KernelFacadePages.Rule), KernelFacadePages.FlowPaints, [International(KernelFacadeShape.International), NoInternational], KernelFacadeText.Limits -> Try(KernelFacadeText.Plan, KernelFacadeText.Error)
+materialize_requests = |at, requests, rules, flow, international, limits| {
 	shape = at.shape
 	styles = at.styles
 	lines = at.lines
@@ -345,7 +349,14 @@ materialize_requests = |at, requests, rules, flow, limits| {
 			$page_cursor = $page_cursor + 1
 			$page_run_start = $runs.len()
 		}
-		if request.source_runs.physical.length() != 1 {
+		arrangement = match international {
+			NoInternational => Natural
+			International(facts) => Mixed(resolve_placements(facts, shape, lines, request, limits)?)
+		}
+		if request.source_runs.physical.length() != 1 or match arrangement {
+			Natural => False
+			Mixed(_) => True
+		} {
 			split = paint_split_logical(
 				{
 					clusters: $clusters,
@@ -360,6 +371,7 @@ materialize_requests = |at, requests, rules, flow, limits| {
 				lines,
 				at.origins,
 				request,
+				arrangement,
 				limits,
 			)?
 			$clusters = split.clusters
@@ -523,8 +535,35 @@ PaintAccumulator : {
 ## cluster is rebased to its occurrence (a rich paragraph's occurrences begin
 ## inside their shared source), the text store's occurrence-relative
 ## contract.
-paint_split_logical : PaintAccumulator, Text.Store, List(KernelFacadeShape.RunStyle), List(KernelLineLayout.Line), KernelFacadeShape.Origins, KernelFacadeText.PositionedPiece, KernelFacadeText.Limits -> Try(PaintAccumulator, KernelFacadeText.Error)
-paint_split_logical = |accumulator, shape, styles, lines, origins, request, limits| {
+Alignment : [Mixed(List(KernelInternationalLine.Piece)), Natural]
+
+resolve_placements : KernelFacadeShape.International, Text.Store, List(KernelLineLayout.Line), KernelFacadeText.PositionedPiece, KernelFacadeText.Limits -> Try(List(KernelInternationalLine.Piece), KernelFacadeText.Error)
+resolve_placements = |facts, shape, lines, request, limits| {
+	if request.line >= lines.len() {
+		return Err(InvalidLine({ line: request.line, run: request.source_runs.physical.start() }))
+	}
+	line = list_at(lines, request.line)
+	first = match facts.owners.get(line.clusters.start()) {
+		Ok(owner) => owner
+		Err(_) => return Err(InvalidLine({ line: request.line, run: request.source_runs.physical.start() }))
+	}
+	if first >= facts.requests.len() {
+		return Err(InvalidLine({ line: request.line, run: first }))
+	}
+	source = list_at(facts.requests, first).source.index()
+	if source >= facts.paragraphs.len() {
+		return Err(InvalidLine({ line: request.line, run: first }))
+	}
+	paragraph = match list_at(facts.paragraphs, source) {
+		Analyzed(analysis) => analysis
+		Unseen => return Err(InvalidLine({ line: request.line, run: first }))
+	}
+	resolved = KernelInternationalLine.position(paragraph, shape, facts.owners, line, KernelBidiBoundary.Limits.make({ max_clusters: limits.max_clusters, max_scalars: limits.max_clusters, max_visual_order: limits.max_clusters })) ? |cause| InternationalPlacement({ line: request.line, cause })
+	Ok(resolved.pieces)
+}
+
+paint_split_logical : PaintAccumulator, Text.Store, List(KernelFacadeShape.RunStyle), List(KernelLineLayout.Line), KernelFacadeShape.Origins, KernelFacadeText.PositionedPiece, Alignment, KernelFacadeText.Limits -> Try(PaintAccumulator, KernelFacadeText.Error)
+paint_split_logical = |accumulator, shape, styles, lines, origins, request, alignment, limits| {
 	var $clusters = accumulator.clusters
 	var $glyph_indices = accumulator.glyph_indices
 	var $glyphs = accumulator.glyphs
@@ -559,8 +598,23 @@ paint_split_logical = |accumulator, shape, styles, lines, origins, request, limi
 	var $advance_offset = 0
 	var $source_scalar = line.source.scalars.start()
 	var $source_byte = line.source.utf8_bytes.start()
-	var $physical = physical_start
-	while $physical < physical_end {
+	var $mixed = []
+	match alignment {
+		Natural => {}
+		Mixed(pieces) => {
+			if pieces.is_empty() {
+				return Err(InvalidLine({ line: request.line, run: physical_start }))
+			}
+			$mixed = pieces
+		}
+	}
+	var $physical = if ($mixed.is_empty()) physical_start else list_at($mixed, 0).run.index()
+	mixed_first = $physical
+	stop = if ($mixed.is_empty()) physical_end else list_at($mixed, $mixed.len() - 1).run.index() + 1
+	if $physical < physical_start or stop > physical_end {
+		return Err(InvalidLine({ line: request.line, run: physical_start }))
+	}
+	while $physical < stop {
 		run = list_at(shape.runs, $physical)
 		if run.id.index() != $physical or !range_fits(run.clusters, shape.clusters.len()) or !range_fits(run.glyphs, shape.glyphs.len()) or run.clusters.length() == 0 or run.glyphs.length() == 0 {
 			return Err(InvalidRun({ run: $physical }))
@@ -578,6 +632,23 @@ paint_split_logical = |accumulator, shape, styles, lines, origins, request, limi
 			segment_first = list_at(shape.clusters, segment_start)
 			segment_scalar_start = segment_first.source.scalars.start()
 			segment_byte_start = segment_first.source.utf8_bytes.start()
+			var $raw_glyph_start = 0
+			if !$mixed.is_empty() {
+				piece_index = $physical - mixed_first
+				if piece_index >= $mixed.len() {
+					return Err(InvalidLine({ line: request.line, run: $physical }))
+				}
+				approved = list_at($mixed, piece_index)
+				if approved.run.index() != $physical or approved.clusters.start() != segment_start or approved.clusters.length() != segment_end - segment_start {
+					return Err(InvalidLine({ line: request.line, run: $physical }))
+				}
+				initial_cluster = if (run.direction == RightToLeft) list_at(shape.clusters, segment_end - 1) else segment_first
+				if initial_cluster.glyphs.length() == 0 or !range_fits(initial_cluster.glyphs, shape.glyph_indices.len()) {
+					return Err(InvalidCluster({ cluster: segment_start, line: request.line }))
+				}
+				$raw_glyph_start = list_at(shape.glyph_indices, initial_cluster.glyphs.start())
+			}
+			var $segment_glyphs = 0
 			var $segment_advance = 0
 			var $cluster_index = segment_start
 			while $cluster_index < segment_end {
@@ -602,8 +673,16 @@ paint_split_logical = |accumulator, shape, styles, lines, origins, request, limi
 					check_limit(checked_add($glyph_indices.len(), 1)?, limits.max_glyph_indices, GlyphIndices)?
 					glyph = list_at(shape.glyphs, glyph_index)
 					$segment_advance = checked_i64_add($segment_advance, glyph.advance_x.raw())?
-					$glyph_indices = $glyph_indices.append($glyphs.len())
-					$glyphs = $glyphs.append(glyph)
+					if $mixed.is_empty() {
+						$glyph_indices = $glyph_indices.append($glyphs.len())
+						$glyphs = $glyphs.append(glyph)
+					} else {
+						if glyph_index < $raw_glyph_start {
+							return Err(InvalidGlyph({ glyph: glyph_index, line: request.line }))
+						}
+						$glyph_indices = $glyph_indices.append(glyph_start_new + glyph_index - $raw_glyph_start)
+						$segment_glyphs = $segment_glyphs + 1
+					}
 					$reference = $reference + 1
 				}
 				check_limit(checked_add($clusters.len(), 1)?, limits.max_clusters, Clusters)?
@@ -614,10 +693,23 @@ paint_split_logical = |accumulator, shape, styles, lines, origins, request, limi
 				})
 				$cluster_index = $cluster_index + 1
 			}
+			if !$mixed.is_empty() {
+				raw_end = checked_add($raw_glyph_start, $segment_glyphs)?
+				if raw_end > range_end(run.glyphs)? or raw_end > shape.glyphs.len() {
+					return Err(InvalidGlyph({ glyph: raw_end, line: request.line }))
+				}
+				var $visual = $raw_glyph_start
+				while $visual < raw_end {
+					check_limit(checked_add($glyphs.len(), 1)?, limits.max_glyphs, Glyphs)?
+					$glyphs = $glyphs.append(list_at(shape.glyphs, $visual))
+					$visual = $visual + 1
+				}
+			}
 			check_limit(checked_add($runs.len(), 1)?, limits.max_runs, Runs)?
 			check_limit(checked_add($placements.len(), 1)?, limits.max_placements, Placements)?
 			new_run_id = Text.RunId.from_index($runs.len())
-			origin_x = checked_i64_add(request.origin.x.raw(), $advance_offset)?
+			x = if ($mixed.is_empty()) $advance_offset else list_at($mixed, $physical - mixed_first).origin.raw()
+			origin_x = checked_i64_add(request.origin.x.raw(), x)?
 			$runs = $runs.append({
 				..run,
 				clusters: Semantics.IndexRange.from_start_and_length({ start: cluster_start_new, length: $clusters.len() - cluster_start_new }),
@@ -1312,7 +1404,7 @@ build_positioned_plan = |at, rules, flow, limits| {
 		$page = piece.page.index()
 		$index = $index + 1
 	}
-	materialize_requests({ shape: at.shape, styles: at.styles, lines: at.lines, origins: at.origins, pages: at.pages, placements: at.pieces.len() }, at.pieces, rules, flow, limits)
+	materialize_requests({ shape: at.shape, styles: at.styles, lines: at.lines, origins: at.origins, pages: at.pages, placements: at.pieces.len() }, at.pieces, rules, flow, NoInternational, limits)
 }
 
 SeparatorSlot : [NoSeparator, WithSeparator({ property : Semantics.TextPropertyId, bytes : U64 })]

@@ -1135,6 +1135,18 @@ and reshaping/reselection work consumes the declared layout budget. Only final
 accepted lines materialize scene commands. This internal interaction does not
 permit later PDF stages to repair text or recover missing semantics.
 
+The international shaper partitions an authored paragraph by resolved levels,
+script, language, occurrence and legal break boundaries. It retains glyph
+paint order separately from the logical cluster partition. Font selection
+consumes complete earlier graphemes. Once fitting commits a line, per-line
+UAX #9 L1/L2 determines positions from the paragraph facts and committed
+cluster interval. Semantic ownership keeps its authored order. The writer
+uses the logical occurrence interval for a reordered or mirrored replacement,
+and derives a nondefault writing mode from the earlier paragraph base and
+earlier semantic owner. ISO 32000-2 §§9.10, 14.7.5, 14.8.5.4 and 14.9 and
+ISO 14289-2:2024 Annex B.1 define the applicable text, structure, attribute
+and language obligations.
+
 Before shaping, a deterministic `FontPlan` maps source scalar ranges to exact
 validated font instances:
 

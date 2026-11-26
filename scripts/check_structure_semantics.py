@@ -937,6 +937,9 @@ def normalize_attributes(value, role: str) -> str:
                     require(role in ("TH", "TD") and isinstance(dictionary[span], int) and dictionary[span] >= 1, f"invalid /{span}")
             if "Summary" in dictionary:
                 require(role == "Table", "/Summary outside Table")
+        elif owner == "Layout":
+            require(set(dictionary) == {"O", "WritingMode"}, "invalid Layout attributes")
+            require(dictionary["WritingMode"] in ("LrTb", "RlTb"), "invalid /WritingMode")
         elif owner == "List":
             require(set(dictionary) <= {"O", "ListNumbering"} and role == "L", "invalid List attributes")
             require(dictionary.get("ListNumbering") in LIST_NUMBERING, "invalid /ListNumbering")

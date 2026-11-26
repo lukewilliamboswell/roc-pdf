@@ -325,6 +325,10 @@ kernel_facade_shape_error = |error| match error {
 	FontSelectionRejected(_) => leaf({ category: Invariant, feature: "font_selection_rejected", path: "FontSelectionRejected", inspected: Str.inspect(error) })
 	GeneratedLabelEvidenceInvalid(_) => leaf({ category: Invariant, feature: "generated_label_evidence_invalid", path: "GeneratedLabelEvidenceInvalid", inspected: Str.inspect(error) })
 	InlineClusterBoundary(_) => leaf({ category: Invariant, feature: "inline_cluster_boundary", path: "InlineClusterBoundary", inspected: Str.inspect(error) })
+	InternationalPolicy(_) => leaf({ category: UnsupportedText, feature: "international_policy", path: "InternationalPolicy", inspected: Str.inspect(error) })
+	InternationalShape(_) => leaf({ category: UnsupportedText, feature: "international_shape", path: "InternationalShape", inspected: Str.inspect(error) })
+	InternationalStore(_) => leaf({ category: Invariant, feature: "international_store", path: "InternationalStore", inspected: Str.inspect(error) })
+	InternationalSurface => leaf({ category: UnsupportedText, feature: "international_surface", path: "InternationalSurface", inspected: Str.inspect(error) })
 	InvalidOccurrence(_) => leaf({ category: Invariant, feature: "invalid_occurrence", path: "InvalidOccurrence", inspected: Str.inspect(error) })
 	LanguageMismatch(_) => leaf({ category: Invariant, feature: "language_mismatch", path: "LanguageMismatch", inspected: Str.inspect(error) })
 	LatinShaping(_) => leaf({ category: Invariant, feature: "latin_shaping", path: "LatinShaping", inspected: Str.inspect(error) })
@@ -341,6 +345,7 @@ kernel_facade_shape_error = |error| match error {
 
 kernel_facade_text_error : KernelFacadeText.Error -> KernelFacadeFailure.Failure
 kernel_facade_text_error = |error| match error {
+	InternationalPlacement(_) => leaf({ category: Invariant, feature: "international_placement", path: "InternationalPlacement", inspected: Str.inspect(error) })
 	ArithmeticOverflow => leaf({ category: Invariant, feature: "arithmetic_overflow", path: "ArithmeticOverflow", inspected: Str.inspect(error) })
 	InvalidCluster(_) => leaf({ category: Invariant, feature: "invalid_cluster", path: "InvalidCluster", inspected: Str.inspect(error) })
 	InvalidGlyph(_) => leaf({ category: Invariant, feature: "invalid_glyph", path: "InvalidGlyph", inspected: Str.inspect(error) })

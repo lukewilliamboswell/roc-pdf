@@ -31,6 +31,7 @@ PACKAGE_DEPENDENCY = 'pdf: "../../package/main.roc",'
 # imports, the PDF it writes (named after the directory), and a preview.
 EXAMPLES = (
     "audit-log",
+    "bilingual-invoice",
     "brand-brief",
     "business-report",
     "chunked-export",

@@ -217,7 +217,13 @@ def check_audit(example: Path) -> None:
             and all(f"{shift} dispatch 24" in texts[0] for shift in ("Morning", "Afternoon", "Evening")), "audit batches lost entries or changed between profiles")
 
 
+def check_bilingual(example: Path) -> None:
+    from check_bilingual_invoice import check
+    check((example / "bilingual-invoice.pdf").read_bytes())
+
+
 CHECKS = {
+    "bilingual-invoice": check_bilingual,
     "audit-log": check_audit,
     "business-report": check_report,
     "field-guide": check_pocket,
