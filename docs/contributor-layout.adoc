@@ -6,172 +6,1534 @@ Use the focused fixture group and independent checker named by the relevant cont
 [#contributor-layout-task-1]
 == Normalize authoring and assign ownership
 
-include::contributors/performance/idiomatic-api.adoc[leveloffset=+2]
+[#contributor-idiomatic-api]
+=== Idiomatic API: records with defaults
 
-include::contributors/performance/facade-builder-types.adoc[leveloffset=+2]
+`Theme`, `Pdf.Options`, `Theme.Scope`, and the configuration of the block
+constructors are transparent nominal records (`:=`). Each presentation field
+declares its built-in value as a `??` default. A caller writes only the
+fields it changes, and `{}` uses all defaults.
 
-include::contributors/performance/authoring-normalization.adoc[leveloffset=+2]
+The document title, language, contents, alternative text, captions, table columns and rows, and font validation limits stay required.
 
-include::contributors/performance/facade-source-cache.adoc[leveloffset=+2]
+Each sub-record with defaults has its own nominal type. See `BodyStyle`, `TitleStyle`, `HeadingStyle`, `Headings`, `InlineRoles`,
+`InlineStyle`, `LinkStyle`, `TableStyle`, `BodyFills`, and `PageMargin`. A
+partial nested literal is completed from its own type's defaults, so a
+partial `title` uses its declared title size.
 
-include::contributors/performance/semantic-foundation.adoc[leveloffset=+2]
+The following tags express inheritance.
 
-include::contributors/performance/facade-semantics.adoc[leveloffset=+2]
+* A style's face is `ThemeFace` (the theme's `face`) or `Face(id)`.
+* A heading level is `SameAsAll` or `Own(style)`.
+* An inline role's color, face, and scale are `Inherited` until set.
 
-include::contributors/performance/semantics.adoc[leveloffset=+2]
+The getters that preparation reads (`body_style`, `title_style`,
+`heading_level_style`, and `inline_*`) resolve these tags into `TextStyle` before shaping.
 
-include::contributors/performance/semantic-layout-types.adoc[leveloffset=+2]
+Defaults supply documented construction values. Preparation validates each supplied field and reports a located diagnostic for an invalid value. Changing a `??` default is a reviewed
+package-version change. The xref:architecture.adoc#high-level-api-is-the-primary-product[architecture] records these rules.
 
-include::contributors/performance/semantic-identity.adoc[leveloffset=+2]
+[#contributor-facade-builder-types]
+=== Facade, theme, and builder type
 
-include::contributors/bibliography.adoc[leveloffset=+2]
+The ordinary facade accepts `List(Document.Block)`. The compact builder retains a text-source list and parallel tag, source-ID and auxiliary scalar buffers. Appending one block grows each buffer once without retaining an old projection. Shared string payloads remain immutable. Both paths lower to the same explicit authoring and semantic facts.
 
-include::contributors/performance/footnotes.adoc[leveloffset=+2]
+[#contributor-authoring-normalization]
+=== Facade authoring normalization
 
-include::contributors/performance/generated-labels.adoc[leveloffset=+2]
+The compact builder stores block tag, text-source ID, and auxiliary value in
+three parallel scalar buffers, with text payloads in a fourth flat list. It does
+not allocate a boxed union descriptor per block. Ordinary scalar methods remain
+ergonomic; `add_paragraphs` is the consumption-shaped large-input path and keeps
+all four buffers uniquely owned throughout one direct indexed loop. Only the
+final builder escapes that loop.
+
+Normalization is linear in authoring descriptors plus expanded bullet items.
+It visits each input descriptor once and writes each normalized block once. It
+does not sort, retain list suffixes, rescan text bytes for each output item, or
+keep earlier builder/normalization versions. The work vector records authoring
+descriptors, normalized blocks, referenced UTF-8 bytes, title/heading/paragraph/
+bullet counts, list count, and the structural evidence-carrier bytes.
+
+[#contributor-facade-source-cache]
+=== Facade text-source cache
+
+The common compact-builder pattern receives a zero-scan adjacent-source fast
+path. Repeated consecutive values compare directly with the last unique source
+and never instantiate the Unicode scalar iterator. Non-adjacent and unique
+values use a flat open-address table sized below 50% load. Its deterministic
+xorshift scalar hash uses wrapping shifts and XOR only, avoiding unchecked
+integer overflow. Hash probes, equality checks, a conservative equality-byte
+bound, table slots, scalar visits, unique bytes, and unique scalars are all
+explicit work evidence and limits.
+
+The table stores only dense source indices. Strings and Unicode analyses live
+once in their own flat list; the input-to-source mapping is a scalar list.
+Empty input text, Unicode analysis failure, arithmetic overflow, table
+exhaustion, and every cumulative input/source/probe/slot limit fail
+transactionally.
+
+[#contributor-semantic-foundation]
+=== Semantic foundation: nested containers and core structure vocabulary
+
+Normalization writes preorder block and group arenas with range-based child ownership. Semantic planning assigns container IDs before children and creates one dense spine from the Document, container and content ranges in authored order. The bound check carries the original authored path. One valid group traversal uses a bounded frame stack and no retained recursive node payload.
+
+`KernelSemantics` encodes ISO/TS 32005:2023 Table 5 containment and PDF/UA-2 §8.2.5.25 content-item restrictions. Attributes, identifiers and relations are validated before tagging. An ID is a nonempty byte string in strict order. Each accepted relationship has reciprocal types and valid dense owners. Lowering consumes these facts in canonical key order. It uses one direct `/A` dictionary per owner, or an array for multiple owners.
+
+The `tests/containers` nested fixture and scale pair verify Document, Part, Sect and Div nesting. `scripts/check_structure_semantics.py` derives an object-number-independent normalized tree. Kernel expectations exercise allowed and denied containment and validation rejects excessive nesting and empty structural containers before emission.
+
+[#contributor-facade-semantics]
+=== Facade semantic planning
+
+Semantic planning assigns explicit occurrence ownership before layout. It consumes normalized kinds and source spans and produces dense semantic nodes, ordered spine items and occurrences. Symbolic references may retain pending content owned by already assigned IDs. The preliminary semantic store is validated before line/page layout. Later placement attaches fragments to those owners.
+
+[#contributor-semantics]
+=== Semantic normalization
+
+`KernelSemantics` consumes the flat semantic stores and produces the exact
+occurrence-to-fragment reverse index required by tagged lowering. It counts
+fragments per occurrence, computes dense prefix starts, and fills one compact
+fragment-ID buffer. It does not comparison-sort fragments or copy fragment
+records.
+
+The semantic graph is traversed from the one PDF 2.0 `Document` root with an
+explicit worklist. Ownership marks prove that nodes, mixed content-spine
+entries, occurrences, contextual artifacts, and attributes are each reached
+exactly once. Semantic depth is budgeted without using the host call stack.
+
+The deterministic work record separates namespace, occurrence, fragment,
+counting, prefix, reverse-write, node, content, and attribute visits. The
+optimized contextual tagged-visual fixture pins the integrated pipeline at 662 Roc
+allocations. The exact semantic work remains asserted by focused unit tests,
+while the emitted checker independently verifies the resulting namespace,
+contextual Artifact, mixed `/K`, MCID, and ParentTree relationships.
+
+[#contributor-semantic-layout-types]
+=== Semantic, layout, and scene type
+
+Semantic nodes, occurrences, fragments, namespaces, annotations, pages, streams and scene commands use dense identities and separate stores. Spines, ranges and typed edges give their ordering and ownership. Keep immutable inputs shared and accumulate each growing store independently. The public contract fixture checks mixed logical children, page/stream fragmentation and separate paint order.
+
+[#contributor-semantic-identity]
+=== Semantic identity and MathML type
+
+Identity, parent, and relationship checks are linear in dense nodes and edges
+when implemented with dense state arrays. ID uniqueness and role lookup use
+bounded maps keyed by compact identities; deterministic output orders by dense
+identity rather than map iteration. Attribute applicability is `O(1)` for a
+family or linear in the exact small role span unless a later capability records a
+reviewed indexed representation.
+
+MathML validation is linear in input UTF-8 bytes, nodes, attributes, and edges,
+subject to the dimension-specific resource policy. Its exact byte, node, and
+attribute counters distinguish scaling dimensions. Parser state and input
+bytes are released after the normalized subtree and diagnostics are produced.
+
+The stores contain no recursive node payloads, copied identifier strings,
+stored iterators, closures, or duplicate MathML tree. Error lists remain bound
+by `ResourcePolicy.max_diagnostics` and never carry a partially trusted graph.
+
+`tests/contracts/advanced_semantics_contract.roc` compiles namespace-scoped role
+mapping, exact attribute applicability, ID-based table headers, and a bounded
+validated MathML parse boundary. Runtime validity and atomic negative behavior
+belong to the capabilities implementing semantic normalization and MathML parsing.
+
+[#contributor-bibliography]
+=== Bibliography evidence
+
+The public compiler resolves each authored citation to an explicit ordered bibliography entry before shaping. Destination names use the ordinary destination registry. The bibliography is a PDF 2.0 `Sect` with ARIA `doc-bibliography`, and its `BibEntry` children use the PDF 1.7 standard namespace. Explicit reciprocal `Ref` edges connect entries and citations. Unknown destinations, duplicate entries and invalid scope produce located, atomic errors.
+
+ISO 32000-2:2020 §14.7.2 Table 355 and §12.3.2.3 govern structure references and interactive structure destinations. The independent oracle decodes marked text and checks authored entry order, role namespaces, ARIA, exact backlinks and each annotation's destination. Run the `bibliography` tests and the operations-handbook `bibliography` mode for the executable examples.
+
+[#contributor-footnotes]
+=== Whole first-citation footnotes
+
+Each accepted footnote is one PDF 2.0 `FENote` with its text and a visible
+return link. The note and its first citation share the physical page.
+Later citations use the same target. The note remains in the logical
+declaration order and paints at the bottom of that page in first-citation
+order.
+
+[cols="1,1",options="header"]
+|===
+|Authority |Writer obligation and evidence
+|ISO 32000-2:2020+EC3 §14.7.2/Table 355 and §12.3.2.3 |Each citation Link contains its note's structure reference. The FENote contains references to every citation in authored order. Every annotation's `SD` names the expected structure element and its `D` resolves to the same page and coordinates.
+|ISO 14289-2:2024 §§8.2.5.14 and 8.8, WTPDF 1.0 §§8.2.5.14 and 8.8, and ISO/TS 32005:2023 Table 5 |Document owns FENote with marked note text and one return Link. The typed optional `NoteType` attribute appears on the WTPDF form of the fixture. The base PDF/UA-2 profile uses FENote and the required references.
+|Package geometry |The first citing line and each whole note reserve their measured height and a six-point note gap. If the note moves the first citation beyond a candidate cut, the note remains with the next legal occurrence of that line. An impossible placement rejects the document at the note path.
+|===
+
+The owning paginator model exhausts 624 states and 623 steps through depth
+four. It independently enumerates cuts over three body lines, two possible
+notes and three page heights. Five witnesses cover repetitions, exact fit,
+impossible placement, two notes on one line and a forced break. A concrete
+layout fixture moves a citation off the first page and checks one millipoint
+below the legal height. Solve verifies the checked body-plus-note fit
+inequality. The public handbook fixture exercises forced page breaks and
+confirms both buffered and chunked output reject absent, repeated, misplaced,
+oversized, uncited and malformed declarations atomically.
+The dedicated LLVM fuzz suite retains six named inputs, including a
+repeated citation after a break and rejection when its whole note cannot fit.
+
+All four PDF snapshots pass Arlington 1.30.2 and veraPDF 1.30.2 explicit
+`4` and `ua2`. The declared WTPDF PDF also passes `wt1a`. The independent
+PDF decoder checks note order, both directions of the citation graph, the
+visible return link, and placement below the first citation's annotation.
+It rejects a dropped backlink and a wrong structure destination. Arlington
+and `4` accept both mutations. `ua2` detects the omitted reciprocal
+reference and accepts the wrong structure destination.
+The maintained handbook preview shows the complete note at the foot of
+page 2. Poppler extraction shows the later marker on page 3 and a single
+painted instance of the note text.
+
+Normalization keeps bounded citation metadata and a sorted ID index.
+The layout pass walks measured rows by citation order. It builds a sparse
+prefix index for unique first citations and finds the maximum note-inclusive
+fit by monotone search. After choosing a cut, the paginator writes the
+body and note placements once. The normal materializer preserves a separate
+paint-order row tape for note documents. Each entry carries its existing
+shape range instead of copying source text, and the temporary row order
+belongs to preparation. Each reciprocal structure-reference edge occupies
+one slot in a flat adjacency tape, bounded by twice the number of citations.
+
+[#contributor-generated-labels]
+=== Generated list-label
+
+The positive public facade fixture authors two list items using only
+`Pdf.bullets`. It paints the two bullet labels and two bodies as four
+fragment-owned text runs. Direct CID/`ToUnicode` reconstruction is exactly
+`•First•Second`; the bullet requires no `/ActualText`, because its generated
+logical source and visible presentation are the same one-scalar value and the
+CID mapping is unambiguous. PDFBox 3.0.8's extraction API deliberately reports
+line geometry, so its independently pinned exact expectation is
+`• First\n• Second\n`.
+
+The structural oracle verifies the tagged `L -> LI -> (Lbl, LBody)` hierarchy,
+two labels, two bodies, balanced marked-content/text scopes, Identity-H Type 0
+font/CID closure, and complete direct `ToUnicode` mappings. Its atomic
+original-byte negative changes the bullet's CMap row and is rejected. The Roc
+atomic negative removes only the owned generated-presentation property from a
+validated label occurrence; shape preparation returns
+`GeneratedLabelEvidenceInvalid` before font shaping or PDF planning, and the
+fixture's blank evidence carrier is not a fallback output.
+
+The atomic shape-boundary negative allocates 44 times and has deterministic
+work `[1, 667]`: one rejected property and the independent blank evidence
+carrier. It does not inspect a font, shape a glyph, or create a pipeline PDF.
+Both exact allocations and work vectors are registered in `tests/spec.json`
+for the pinned dev backend. No other backend result is used or claimed.
 
 [#contributor-layout-task-2]
 == Resolve font and source facts
 
-include::contributors/roc-font.adoc[leveloffset=+2]
+[#contributor-roc-font]
+=== Packaged roc-font families and asset provenance
 
-include::contributors/performance/default-fonts.adoc[leveloffset=+2]
+The facade gets its packaged static font programs and shaping tables from roc-font 0.2.0. The immutable source-oracle assets in `vendor/fonts/roc-font/static/` let independent checks compare emitted subsets with the exact package inputs. Preserve the license and source pins with those assets.
 
-include::contributors/performance/block-faces.adoc[leveloffset=+2]
+The ordinary facade resolves exact family and style requirements before shaping. A fixed demand set records the needed package faces and only those faces are inspected. Registry construction consumes its accumulator and extracts the scalar handle before the next append. Exact work records count inspections, registered font bytes and inline and source traversal. Font descriptors consume validated source style-link, fixed-pitch and italic-angle facts. Keep the exact 16.16 angle in font-leaf identity and emission rather than converting to whole degrees.
 
-include::contributors/performance/caller-font-registration.adoc[leveloffset=+2]
+[#contributor-default-fonts]
+=== Default font family acceptance and work evidence
 
-include::contributors/performance/caller-font-facade.adoc[leveloffset=+2]
+The `default_fonts` group exercises the public resolver before authoring and preparation. It checks genuine packaged styles, combined inline roles, drawing labels, located selection failures and bounded scale. Registration inspects each demanded program once. The fixed face set and bounded drawing-role demands avoid per-inline font-store growth. Dense source and inline stores are traversed a constant number of times. Use a consuming registry builder and extract each scalar face handle before the next append.
 
-include::contributors/performance/caller-font-retention.adoc[leveloffset=+2]
+`scripts/check_default_fonts.py` checks static TrueType table structure, checksums, exact source outlines after composite ID relocation, style bits, font resource and glyph ownership, and expected role metrics. Its mutations include an altered outline and a wrong role. Run `./scripts/test.py --group default_fonts --quick --allocation-baselines --jobs 1` with the pinned tools. See xref:contributor-layout.adoc#contributor-roc-font[packaged assets] for the source oracle.
 
-include::contributors/performance/caller-font-text.adoc[leveloffset=+2]
+[#contributor-block-faces]
+=== Title and heading faces and per-level heading styles
 
-include::contributors/performance/text-font-types.adoc[leveloffset=+2]
+`KernelFacadeShape.style_for` resolves a heading's style from its level.
+Semantic planning rejects a level outside 1 to 6 as `UnsupportedHeadingLevel`.
 
-include::contributors/performance/multiface-font-selection.adoc[leveloffset=+2]
+Under an ordered font policy every cluster takes the first policy face that
+covers it, and rejects a separately specified title or heading face with
+`text.block_font_policy`. A heading whose text its face does not
+cover is `text.coverage_missing` located at the heading; no face is
+substituted.
 
-include::contributors/performance/multiface-public-facade.adoc[leveloffset=+2]
+The heading styles are fixed-shape records, with no additional list allocation. Candidate lookup scans
+at most eight block faces and four role faces per plain block (a constant),
+so the styled preparation stays linear in blocks. The faces list is built
+once per preparation.
 
-include::contributors/performance/font-inspection.adoc[leveloffset=+2]
+The `Theme` expectation changes one level's style and checks the remaining levels.
 
-include::contributors/performance/font-planning.adoc[leveloffset=+2]
+[#contributor-caller-font-registration]
+=== Caller-font registration
 
-include::contributors/performance/font-subsetting.adoc[leveloffset=+2]
+Successful registration allocates dense resource, face, static-instance, and
+single-instance policy handles. Coverage comes only from the validated cmap;
+embedding rights come only from the inspected OS/2 table; declared scripts are
+canonical four-byte tags. The registry retains the original byte allocation and
+the once-produced inspection facts. Its work evidence therefore records zero
+input-payload copying and equal input/retained byte counts. `Theme.with_font`
+selects the returned face without a system-font name or caller-assigned ID.
 
-include::contributors/performance/cache-closure.adoc[leveloffset=+2]
+Malformed signature bytes receive `UnsupportedFormat` without a partial
+registry. The subsequent caller-text slice adds the checksum-valid
+embedding-prohibited twin and caller-face shaping, subsetting, embedding,
+extraction, and rendering evidence. Source-allocation reference counts through
+final emission, multi-placement parse reuse, and public facade generation still
+remain required text-layout evidence rather than silent fallbacks.
 
-include::contributors/performance/unicode-analysis.adoc[leveloffset=+2]
+[#contributor-caller-font-facade]
+=== Caller-font facade composition
 
-include::contributors/performance/uax-boundary-vectors.adoc[leveloffset=+2]
+The facade resolves the caller's exact registered face with `Theme` and `Pdf.Options`. Use `tests/caller_font/caller_facade.roc` to exercise the 7,816-byte fixture from external registration through PDF emission. The `text-layout caller-font facade restricted-rights atomic negative` checks that a checksum-valid font with restricted embedding rights is rejected without partial output.
+
+[#contributor-caller-font-retention]
+=== Caller-font shared-input retention
+
+The shared case registers the 7,816-byte caller font once. Two separately
+constructed `Pdf.Options` values retain that same complete `Font.Registry` and
+produce byte-identical 10,348-byte documents. Registration is the sole parse:
+the work carrier reports one resource, face, static instance, policy, and one
+set of 17 table, 15 glyph, nine cmap, and four composite-edge visits. It also
+observes 7,816 retained source bytes after both subset emissions and zero
+registry input-copy bytes. The registry therefore carries the validation facts
+and original immutable input through each selected output; the facade does not
+fall back to the packaged font or re-register it per document.
+
+The deliberately unique control copies the caller bytes into a second caller
+allocation before registration and uses two independent registries. It reports
+two inputs/resources/faces/instances/policies, 15,632 retained source bytes,
+two exact inspections, and 7,816 caller-side copy bytes. The package registry
+still records zero input-copy bytes. This is intentionally not a content-based
+cross-registry deduplication claim: a complete caller-owned input allocation is
+one resource identity, while reusing one completed registry is the explicit
+sharing mechanism.
+
+The existing restricted-rights atomic negative remains the rejection boundary
+for both shapes: invalid caller bytes fail transactionally during registration,
+before any registry can be shared or supplied to `Pdf.Options`; it emits zero
+PDF bytes. This slice adds no new accepted font format, fallback, or
+cross-registry cache.
+
+[#contributor-caller-font-text]
+=== Caller-font text
+
+The caller-font visible fixture uses the ordinary semantic, text-ownership,
+calibrated-color, page-resource and sealed-object stages. One fragment-owned
+group paints one run. The page, MCID, ParentTree entry, structure children, color
+space and Type 0 font all consume earlier validated facts.
+
+TrueType inspection retains source ranges for the Windows Unicode family,
+full and PostScript names. Subset construction copies those ranges from the
+shared source. The PDF font consumes the validated PostScript name and the
+descriptor gets CapHeight from the validated OS/2 table.
+
+PDFBox extracts exact UTF-8 `Café PDF`. The pinned PDFium check compares the
+caller and built-in fixtures with identical outlines. A checksum-valid twin with
+restricted embedding rights fails registration with `EmbeddingRightsProhibited`
+before a registry or PDF can be emitted.
+
+[#contributor-text-font-types]
+=== Text and font planning type
+
+* Font resources own bytes once.
+
+Font selection operates on complete grapheme clusters. For `g` clusters, `f`
+ordered candidate faces, and at most `s` searched coverage spans per face, the
+declared conservative bound is `O(g * f * s)`. Exact `grapheme_visits`,
+`face_visits`, and `coverage_span_visits` counters make that bound observable.
+Implementations may use indexed coverage to reduce work but must preserve the
+same ordered selection result and counters appropriate to that algorithm.
+
+Run traversal is linear in runs, glyphs, clusters, substitutions, and
+transformations. Hot glyph and cluster loops are direct indexed loops over the
+flat buffers. No `Iter`, closure, source suffix, font-byte copy, or recursive
+per-glyph value is stored in the contract.
+
+Planning reads validated face facts and source cluster ranges, then returns a
+compact plan or a bounded error list. Rejection carries no partial usable plan.
+Uncovered clusters, prohibited embedding, and unsupported built-in shaping are
+distinct failures; none permits system lookup, substitution, outlining, or
+rasterization. Phase-local parse, coverage, and shaping caches require complete
+keys and are introduced with their executable evidence.
+
+`tests/contracts/advanced_text_contract.roc` compiles a whole-cluster face assignment,
+a many-to-one cluster, an occurrence-owned shaped run, and visible text paint.
+The package tests prove opaque identities preserve their scalar backing. Exact
+optimized allocation and scaled-work evidence belongs to the capability implementing
+font planning and shaping rather than this define-only representation.
+
+[#contributor-multiface-font-selection]
+=== Ordered multi-face cluster planning
+
+A caller registers validated faces, then `Font.Registry.with_policy` accepts
+an ordered list of opaque faces and produces an opaque policy ID. Empty,
+unknown, and duplicate-face policies reject before a plan is returned. A
+duplicate would make the selected policy ambiguous, so it is not normalized or
+silently deduplicated.
+
+[#contributor-multiface-public-facade]
+=== Public ordered multi-face facade output
+
+The ordered policy selects a registered face for each complete grapheme cluster from its declared script and coverage. One interned logical source can have several ordered physical runs. The prepared dense font table includes only selected faces in policy order. A missing script, uncovered scalar or ambiguous policy emits a located rejection before PDF output.
+
+The shaper keeps a source's primary font assignment uniquely owned until
+all requests in its partition have been validated. Later occurrences reuse
+that assignment while their font choices agree.
+
+The `tests/multiface_facade` case registers separate Latin and Han faces. Its four public negative cases test missing coverage, script/policy errors and no partial PDF emission. The shared-registry control prepares independent documents against one validated face set. The planner-level alternating cluster scale and the facade's repeated mixed-source x1000/x10000 pair check candidate probes and reuse without taking one allocation per candidate visit.
+
+[#contributor-font-inspection]
+=== TrueType inspection
+
+`KernelFont.Inspection` retains the caller's exact immutable font bytes. Table, loca, cmap, coverage and glyph component records are flat and reference these bytes by checked range. Inspection checks every name record individually and retains source-backed name ranges. SHA-256 uses Roc's `Crypto.SHA256` builtin. The sfnt checksum is a wrapping sum of fixed-width big-endian words with a bounded incomplete word.
+
+The independent Inter 4.1-derived fixture carries reproducible OFL-1.1 provenance and uses its retained composite and cmap facts. Reset the allocation count before passing it into inspection or requesting glyph coverage. The independent font fixture tooling verifies the original font against its recipe and digest.
+
+[#contributor-font-planning]
+=== Deterministic font planning
+
+This slice consumes `KernelFont.Inspection` facts without reparsing font bytes.
+Content glyph use is accumulated in one dense marker list. Glyph zero is
+retained only as the subset's required `.notdef` entry and is rejected if a run
+attempts to use it as content. Duplicate use does not duplicate plan entries.
+
+The inspection-stage component edges are already grouped by parent glyph.
+Planning builds one dense parent-offset index over that retained flat list,
+then follows only edges reachable from used glyphs. It does not copy component
+edges or allocate a node per glyph/component. Composite closure is computed
+once and fails transactionally if its explicit retained-glyph limit would be
+exceeded.
+
+Retained original glyph IDs are scanned in ascending order. That order defines
+both subset glyph IDs and initial CIDs, with original glyph zero fixed at subset
+glyph/CID zero but unavailable to content. Each entry retains its exact source
+advance width and whether it was directly used or included only for composite
+closure. The dense original-to-subset mapping is carried forward for glyph-data
+rewriting and content lowering.
+
+The six-letter subset-prefix candidate hashes the full inspected font digest
+and ordered retained original glyph IDs. It is deterministic input to the
+later document-level resource planner, which remains responsible for proving
+name uniqueness across all subsets in one output.
+
+The focused fixture plans repeated `A` and `é` use, retains glyph zero and the
+required composite dependencies, and visits only the selected closure after
+indexing the component edges. The flat index must preserve linear work without
+allocating a node per component.
+
+[#contributor-font-subsetting]
+=== Sanitized TrueType subsetting
+
+This slice consumes the sealed `KernelFont.Inspection` and
+`KernelFontPlan.Plan` facts. It does not reparse glyph semantics, infer use from
+serialized content, or accept caller-selected PDF object identities.
+
+Retained glyphs are copied once in ascending original-glyph order. Composite
+component IDs are rewritten at the validated component offsets recorded by the
+inspection stage. The subset uses long `loca` offsets and one explicit long
+horizontal metric per retained glyph. Glyph zero remains the required
+`.notdef` entry but is absent from the rebuilt Unicode mapping.
+
+The writer constructs a fresh, deterministic sfnt from an allowlist.
+
+The format-12 `cmap` is emitted from one contiguous group-byte buffer. The sfnt
+directory is planned by bounded passes over a fixed list of at most 14
+tables, sizes the
+result before emission, and appends every payload once. The original font byte
+resource remains shared through glyph copying; inspection does not duplicate
+it.
+
+Subset mapping consumes the inspection layer's ordered traversal of the selected
+cmap. It preserves all source aliases of retained content glyphs, not only the
+scalars seen in the document. Format-4 decoding remains owned by inspection;
+subsetting does not reinterpret font bytes or restart a random-access search for
+each scalar.
+
+Traversal work is linear in source ranges plus their scalar spans. The traversal
+reports exact range, scalar and yielded-mapping counts; small/large unit cases
+pin that growth. Its fold threads the caller's accumulator without allocating
+an intermediate mapping list. The subset's existing mapping count still counts
+emitted mappings, and the output order and grouping rules are unchanged.
+
+[#contributor-cache-closure]
+=== Bounded-cache closure record
+
+`KernelFacadeSources` retains one string and one analysis per unique source, with exact equality after hash selection. The adjacent compact-builder path checks the last source directly. Font registration keeps inspected programs and face coverage spans in shared immutable stores.
+
+The ordered selection plan consumes the source range, language, script and exact ordered policy. A line template includes the measured typography and width, exact physical shape partition, source positions and applicable break policy. Reuse keeps distinct occurrence ownership. Compare cache hits, probing, measurement and committed placement work in the exact registered harness cases.
+
+[#contributor-unicode-analysis]
+=== Unicode analysis
+
+* One source `Str` owns UTF-8 once.
+
+The complete-string analysis performs four bounded linear walks: grapheme
+segmentation, scalar-coordinate attachment, exhaustive line-boundary analysis,
+and shaping-oriented script itemization. Every scalar is visited a constant
+number of times. There is no paragraph-candidate rescan, comparison sort,
+recursive node, per-scalar substring, or stored `Iter`.
+
+The focused fixture resets the Roc allocation counter before source
+construction. It constructs repetitions of `a éU+6F22 `, performs the full
+analysis, releases it into scalar work counters, and emits the unchanged structural-kernel
+blank PDF solely to use the common scenario protocol. Counts exclude Python
+and validators.
+
+[#contributor-uax-boundary-vectors]
+=== UAX boundary-vector seam evidence
+
+This project owns a compact regression seam for the Unicode facts consumed by
+source normalization, grapheme-cluster font selection, and line layout. It
+does not vendor or duplicate the upstream package's full conformance corpus.
+That corpus belongs to `roc-lang/unicode`; this evidence protects the PDF
+pipeline's exact UTF-8/scalar coordinate handoff against a dependency upgrade
+or an accidental loss of a fact between stages.
+
+The positive fixture asserts these source coordinates.
+
+* CRLF is one grapheme at UTF-8 `[0, 2)` and scalar `[0, 2)`.
+* the Indic conjunct is one grapheme at UTF-8 `[0, 9)` and scalar `[0, 3)`.
+* the UAX #14 vectors retain every project boundary, including initial
+`Prohibited` and final `Mandatory` entries: AK/RI `[0, 3, 7]` and
+AI/SP/RI `[0, 3, 4, 8]`, with matching scalar coordinates and decisions.
+
+The atomic-negative twin independently sets the grapheme limit below the CRLF
+cluster count and the line-boundary limit below the AK/RI boundary count. Both
+must reject at their first crossing with the stable bounded error; no partial
+Unicode analysis is accepted. The fixture emits the standard blank structural
+carrier only after proving the two errors, so the common harness can inspect
+deterministic PDF bytes without treating it as successful text output.
 
 [#contributor-layout-task-3]
 == Shape and verify logical text
 
-include::contributors/performance/facade-shaping.adoc[leveloffset=+2]
+[#contributor-facade-shaping]
+=== Facade batch shaping
 
-include::contributors/performance/shaping.adoc[leveloffset=+2]
+Count requests from the validated occurrence store before allocating request and run buffers. A request takes earlier source, style, face and occurrence facts. The bounded shaper checks cumulative source bytes, scalars, clusters and glyphs before producing shaped arenas. Immutable shaped templates may be shared across placements. Use the batch shaping scales to verify that request construction and write counts grow with their declared inputs.
 
-include::contributors/performance/logical-physical-runs.adoc[leveloffset=+2]
+Selected shaping validates each request against a cursor over the source's
+ordered Unicode script runs. A group partitions its whole source in order,
+so subsequent requests only examine runs their range reaches. A long script
+run can cover several requests without being copied. The focused 16- and
+8,192-run alternating cases inspect one script-run row per one-run request,
+in addition to the group's single structural walk. The cursor resets for each
+group, including repeated placements of the same source.
 
-include::contributors/international-text.adoc[leveloffset=+2]
+For an end-to-end scale pair, build `benchmarks/mixed_script.roc`. It uses the
+receiving handover example's checked-in Han font. Run with `-n 64` and
+`-n 4096`, passing `--max-source-script-runs 8192 --prepare-only` to both
+runs. A single paragraph holds all alternating Latin and Han runs. Running
+the larger case at the default script-run limit exercises the atomic
+budget diagnostic.
 
-include::contributors/performance/inter-latin.adoc[leveloffset=+2]
+[#contributor-shaping]
+=== Simple and advanced shaping
 
-include::contributors/performance/actual-text.adoc[leveloffset=+2]
+The advanced boundary accepts caller-supplied positioned runs but does not
+trust their relationships. A bounded validation pass builds one scalar-to-byte
+boundary list and proves:
 
-include::contributors/performance/combining-text.adoc[leveloffset=+2]
+* dense run IDs and exact instance/occurrence ownership;
+* a positive layout size carried by every run for later PDF text scaling;
+* complete ordered source, run, cluster, glyph, and auxiliary partitions;
+* cluster-kind cardinality and exact UTF-8/scalar boundaries;
+* valid nonzero glyph IDs and horizontal advances;
+* every glyph reference stays inside its run and occurs exactly once; and
+* substitution/transformation ranges stay inside their owning run.
 
-include::contributors/performance/supplementary-text.adoc[leveloffset=+2]
+Validation returns the same flat `Text.Store`; it does not copy glyph or
+cluster payloads. Negative twins reject a duplicate glyph reference, `.notdef`,
+a non-positive size, and an inconsistent Unicode byte range without returning a
+partially validated store.
 
-include::contributors/performance/rtl-text.adoc[leveloffset=+2]
+The convenience fixture shapes `Café PDF` into one-to-one clusters. The
+advanced fixture validates `A` plus combining grave mapping through `ccmp` to
+the font’s `Agrave` glyph while retaining the two-scalar source range. These
+checks cover the declared shaping boundary; they do not establish a built-in
+OpenType GSUB/GPOS engine or bidirectional resolution.
 
-include::contributors/performance/cjk-text.adoc[leveloffset=+2]
+[#contributor-logical-physical-runs]
+=== Logical-to-physical facade run boundary
 
-include::contributors/performance/soft-hyphen.adoc[leveloffset=+2]
+Logical requests preserve authored text and semantic ownership across line wrapping. A logical run can produce several paint-ordered physical runs with different faces or typographic facts. Each physical range carries the earlier logical owner. See xref:contributor-layout.adoc#contributor-facade-text-materialization[committed text materialization].
 
-include::contributors/performance/case-transformation.adoc[leveloffset=+2]
+[#contributor-international-text]
+=== International flow evidence
 
-include::contributors/performance/gsub-ligature-inspection.adoc[leveloffset=+2]
+[#contributor-international-text-hebrew-and-latin]
+==== Hebrew and Latin
 
-include::contributors/performance/fi-ligature.adoc[leveloffset=+2]
+The bilingual invoice uses Unicode 18.0.0 analysis from Unicode 4.4.0
+(UAX #9 revision 52, UAX #14 revision 57 and UAX #29 revision 49) and
+roc-font 0.2.0 shaping. Earlier checked-in Unicode vectors continue to
+exercise their pinned cases. UAX #24 script facts are intersected with
+paragraph levels and authored occurrences. Coverage then uses the caller's
+ordered exact faces. The shaper uses the provider's default features with
+the resolved direction, exact script and author language. The admitted
+repertoire avoids joining across UAX #14 opportunities, so shaping both
+sides independently before fitting gives final measurement at every legal
+boundary. The Latin and Hebrew fonts are pinned in the asset inventory.
 
-include::contributors/performance/ligature-blocker.adoc[leveloffset=+2]
+`tests/contracts/international_shape.roc` checks source intervals, RTL glyph
+order, glyph limits, exact selected fonts and a line whose wrap changes paint
+positions while preserving logical owners. The matched HarfBuzz 14.6.0 case
+uses the exact gallery Hebrew font, Latin prefix byte origin, Hebr, he, RTL
+and default features. It checks glyph IDs, clusters, advances and offsets.
+The invoice PDF oracle independently traverses structure owners and reads
+the painted positions, ToUnicode and scoped ActualText. Its mutations
+change an owned replacement, reorder a mirrored bracket on a committed line,
+or change WritingMode. ISO 32000-2 §§9.10, 14.7.5, 14.8.5.4 and 14.9 and
+ISO 14289-2:2024 Annex B.1 govern these mappings, scoped replacements,
+language and layout attributes.
 
-include::contributors/performance/text-layout-closure.adoc[leveloffset=+2]
+The fixture group exercises normal preparation, reporting, WTPDF
+Accessibility and located rejections for an unsupported script, pointed
+grapheme, bidi control and missing face coverage. Each rejection is exercised
+through complete bytes and chunk preparation.
+
+Arlington 1.30.2 accepts the four PDF snapshots. Explicit veraPDF `4` and
+`ua2` accept the gallery invoice and its WTPDF counterpart and both scale layouts, and `wt1a`
+accepts the latter. The checked-in preview uses Poppler 26.07.0 at 96 dpi.
+The exact UTF-8 inputs and profile cases are in https://github.com/lukewilliamboswell/roc-pdf/blob/main/tests/international_text/Cases.roc[the international fixture group].
+
+[#contributor-international-text-arabic-and-latin]
+==== Arabic and Latin
+
+The supplier invoice exercises initial, medial, final and isolated forms
+with the audited IBM Plex Sans Arabic Regular font. The Arabic shaper uses
+Unicode 18.0.0 DerivedJoiningType supplied by roc-font 0.2.0 and OpenType
+Arabic joining and contextual substitutions. The production adapter checks
+all positions, glyph IDs and cluster ranges in `U+0627 U+0644 U+0633 U+0644 U+0627 U+0645` against HarfBuzz
+14.6.0 with the exact face, Arab, ar, RTL and default features. The checked
+lam-alef cluster owns one glyph and both original letters. The fixture's
+tagged owners supply exact logical extraction, writing mode and scope
+language. An inline boundary inside a joining word has a located rejection
+until supported shaping contexts can cross that boundary.
+
+[#contributor-international-text-hindi-and-latin]
+==== Hindi and Latin
+
+The Hindi statement checks a conjunct and pre-base vowel in `U+0935 U+093F U+0924 U+094D U+0924 U+0940 U+092F`
+and a below-base mark in `U+0915 U+0943 U+092A U+092F U+093E`. Layout uses the exact static IBM Plex
+Sans Devanagari Regular and the font's OpenType `dev2` features with
+Deva, hi and left-to-right direction. Coverage planning keeps each
+Unicode grapheme together. The provider may merge contributors into a
+single cluster and reorder glyphs according to the script's OpenType
+stages. The adapter and the emitted PDF are independently compared to
+HarfBuzz 14.6.0 for these choices and positions. Tagged language and exact
+logical source remain intact. An inline divide inside a conjunct is
+located before paint, and unsupported script or effective language
+gives a separate diagnostic.
+
+[#contributor-international-text-committed-line-model]
+==== Committed-line model
+
+The bounded model in `fuzz/InternationalLineModel.roc` exhausts 37
+states at depth three using four independently authored paragraph-level
+cases. It retains base direction, bracket and digit contexts, an optional
+authored style boundary and one of three exact committed line ranges.
+The production analysis and line stages must agree with hand-derived
+paragraph levels and independent L1 trailing-space resets and L2 run
+reversals. It checks line levels, visual cluster order and logical
+ranges, with witnesses for an earlier committed cut on both base
+directions. The Hebrew invoice checks the corresponding ordered owner
+and paint facts through the public compiler and archived PDF.
+
+[#contributor-international-text-thai-and-latin]
+==== Thai and Latin
+
+The Thai notice uses Unicode 4.4.0 ThaiDictionaryV1 over the case's authored
+five words, with the dictionary revision supplied in the public options.
+Independently expected scalar cuts 5, 9, 13 and 18 map to bytes 15, 27, 39
+and 54. The production shaper and fitter consume the same decisions.
+The notice shows the break after U+0E40 U+0E07 U+0E34 U+0E19. Its owner retains the full unspaced
+text, including SARA AM and combining marks. HarfBuzz 14.6.0 agrees on the
+glyphs, advances and offsets of U+0E0A U+0E33 U+0E23 U+0E30 in Thai/th/LTR with the exact static
+IBM Plex Sans Thai Looped font and default features. The PDF oracle checks
+those painted positions and the vertical mark in U+0E27 U+0E31 U+0E19 U+0E19 U+0E35 U+0E49.
+
+One unspaced paragraph at two and twenty dictionary repetitions retains ten
+and one hundred owned word fragments, respectively. Both documents stay on
+one page. The exact x64musl references are 3,695 allocations and 6,378,436
+bytes for two repetitions, and 19,361 allocations and 10,746,280 bytes for
+twenty. The PDF oracle verifies the single owner, exact original text, and
+paint order within each committed baseline. Arlington 1.30.2 and explicit
+veraPDF `4` and `ua2` accept both scale snapshots.
+
+The separate face model in `fuzz/InternationalCoverageModel.roc` exhausts
+16 states. It checks four ordered coverage choices against an independent
+scan of the admitted faces, including a two-scalar Hindi grapheme and a
+Latin glyph covered by both faces. The Solve proof checks the positive
+signed-advance boundary. It finds an overflow witness and sends it, and
+the largest valid neighboring advance, through production line placement.
+Each trailing space has its own positioning unit, so UAX #9 L1 can reset
+consecutive spaces without reversing any shaped run.
+
+The structured `international_text` fuzz target varies widths, repeated
+text, occurrence boundaries, four scripts and font or control failures
+through actual shape, fit and positioning. Eight pinned examples and
+64 generated smoke inputs passed the bounded lane. The smoke report
+recorded 56 accepted and eight rejected generated inputs. Public fixture
+cases separately check the atomic byte/chunk diagnostics and emitted PDF
+ownership.
+
+[#contributor-inter-latin]
+=== Inter Latin shaping evidence
+
+The facade shapes an eligible Inter Regular English paragraph with one
+strictly loaded roc-font plan per document. The font identity is the
+validated SHA-256 digest. Only printable ASCII and U+2192 use this path,
+with one scalar per Unicode grapheme. The checked scalar API retains byte
+offsets through substitutions. The adapter verifies one glyph per output
+cluster and an exact partition of Unicode scalar and byte ranges, and checks
+the trace's ligature classification. The same font-unit template serves
+repeated occurrences at different sizes. The line cache separates shaped
+and nominal uses of the same interned source. A paint-only scope shares
+the shape while applying its own colour to the same cluster positions.
+
+At a legal cut inside a cluster or one the shaper marks unsafe, preparation
+isolates the legal spans and shapes each side. This bounded policy also
+isolates potential cuts that happen to fit on one line. The final advances
+are measured together with the existing Unicode break facts. The input cap
+is 16,384 scalars per eligible paragraph. The provider sees at most two
+passes of the source scalars, and its checked substitution budget applies
+to each call. The pass counter counts those input scalars in the facade's
+shaping work. Signed offsets use the same checked round-half-away-from-zero
+conversion as positive advances, applying the sign after scaling magnitude.
+
+The exact Inter and HarfBuzz pins are in
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/vendor/README.md[the dependency notices]. OpenType 1.9.1
+https://learn.microsoft.com/en-us/typography/opentype/spec/gsub[GSUB]
+and https://learn.microsoft.com/en-us/typography/opentype/spec/gpos[GPOS]
+determine shape. ISO 32000-2:2020 9.10.3 and 14.9.4 govern the separate
+`ToUnicode` and `ActualText` evidence. `AV` advances by 1273 and 1413 font
+units. Disabling `kern` restores 1413 for `A`. The authors' `->` and `→`
+both draw glyph 1805. Disabling `calt` leaves the first spelling as glyphs
+1459 and 1517. The one-character spelling supplies the shared CID's
+`ToUnicode` value, and the ligature's `ActualText` retains both original
+source scalars. This also works when a wrapped literal-arrow line follows
+the ligature's line.
+
+The bounded adapter model exhausts 85 histories of at most three authored
+pieces, including a ligature after an earlier multibyte occurrence and an
+unsafe legal cut. Solve verifies that the production span length can be
+subtracted without underflow and added back at ordered endpoints. The
+structured fuzz target tests shaped widths at and around exact fit for four
+cluster patterns and requires atomic rejection below minimum. The native
+Linux smoke matched its four seed baselines and exercised 64 generated inputs.
+
+The independent PDF checker recovers actual glyph positions, source text,
+original paragraph ownership and colour. Its two mutation twins preserve PDF
+structure while dropping a contributor from `ActualText` or one kerning
+adjustment. The public report test verifies emitted bytes match ordinary
+preparation. The scale pair expands from 6 to 42 wrapped fragments on one
+and two pages. The allocation baseline on the pinned Roc dev backend
+records 2,592 to 3,403 allocations and 6,194,773 to 8,028,722 requested bytes,
+including both preparation paths and a separate two-line unsafe break.
+The atomic budget case checks both buffered and chunked entry points.
+
+Run the fixture group and independent checker from the repository root.
+
+[source,sh]
+----
+./scripts/test.py --quick --allocation-baselines --group shaping
+python3 scripts/check_inter_latin.py --self-test
+----
+
+Use `--harfbuzz` with the pinned local Python binding to replay the optional
+differential. Local Arlington 1.30.2 and veraPDF 1.30.2 reviews passed for all
+three PDFs, including explicit `4` and `ua2` and `wt1a` on the declared WTPDF
+variant.
+
+[#contributor-actual-text]
+=== Reordered ActualText
+
+`KernelPdfText` consumes earlier source, cluster and occurrence facts. Paint order can differ from logical text. The cluster's validated source interval supplies occurrence-owned `ActualText` when paint order or a shaped mapping requires replacement. The cumulative replacement-scalar budget is checked independently of source and glyph budgets. Each painted CID has a canonical `ToUnicode` entry. If a CID maps to distinct logical text in separate uses, scoped replacement supplies the exact source where needed.
+
+The advanced reordered-text fixture checks exact marked-content replacement and the independently decoded paint order. The advanced shaping expectations cover validated many-to-many clusters and inconsistent source ranges.
+
+[#contributor-combining-text]
+=== Advanced combining-text
+
+The tagged one-page PDF retains its fragment MCID, ParentTree ownership,
+Identity-H Type 0 font, CIDFontType2 descendant, embedded deterministic
+subset, and one painted CID. The direct checker reconstructs the decomposed
+source from that CID and CMap. PDFBox 3.0.8 extracts the exact UTF-8 sequence
+`A` plus U+0300 and newline. The fixture deliberately has no `/ActualText`:
+one CID has one complete, unambiguous source mapping, so a redundant override
+would obscure the distinction between CMap and `ActualText` responsibilities.
+The existing reordered fixture remains the required `ActualText` evidence.
+
+Local 72-dpi renderer evidence on the original bytes is deliberately recorded
+per engine: PDFBox 3.0.8 measured bounds `(72, 131, 79, 141)`, 45 changed
+pixels, 21 dark pixels, and 5,085 grayscale-ink units; PDFium Chromium 7988
+measured `(71, 131, 79, 141)`, 55, 21, and 5,413. Their bounds differ by at
+most one pixel. These are observed fixture facts pending promotion to the
+baseline-controlled renderer suite, not inherited tolerances from the Latin
+fixture.
+
+The atomic typed negative shortens the cluster's UTF-8 range from three to two
+bytes while leaving its two-scalar range intact. Advanced validation rejects it
+as `AdvancedClusterInvalid(SourceRange)` before a scene, object plan, or PDF is
+created. The independent checker additionally rejects same-length mutations of
+the decomposed CMap row and `/Identity-H` encoding.
+
+[#contributor-supplementary-text]
+=== Advanced supplementary-plane text
+
+The advanced input supplies one exact source scalar and its four-byte UTF-8
+range, one validated nonzero glyph selected from the inspected caller asset,
+and one `OneToOne` cluster. The source relationship remains an occurrence fact;
+the PDF stage consumes it to write the direct `ToUnicode` row
+`<0001> <D83CDD2F>`. This is canonical UTF-16BE surrogate-pair output for
+U+1F12F, not a glyph-ID inference or a serializer-created fallback.
+
+The atomic negative truncates the advanced cluster's UTF-8 range from four
+bytes to three while retaining its scalar range. `KernelShape.validate_advanced`
+rejects it as `AdvancedClusterInvalid(SourceRange)` before a scene, font plan,
+or PDF plan is produced. Its only emitted bytes are the independent 667-byte
+blank evidence carrier.
+
+At 72 dpi, PDFBox 3.0.8 measures `(72, 133, 81, 142)`, 65 changed pixels, 30
+dark pixels, and 7,884 grayscale-ink units; PDFium Chromium 7988 measures the
+same bounds, 77, 30, and 8,280. The two engines retain separate raster facts
+while their geometry agrees exactly. Run the focused checks with:
+
+[#contributor-rtl-text]
+=== Resolved right-to-left output
+
+The advanced bidi fixture exercises the Unicode bracket-pair input, exact source order and independently resolved visual permutation. The right-to-left cases in `tests/spec.json` link the original input and malformed permutation twin. The fixture uses the pinned test-only IBM Plex Sans Hebrew font and checked-in Unicode 17.0.0 vectors. The active runtime uses the current Unicode pin.
+
+`KernelBidiBoundary` checks the earlier paragraph facts and source/run intervals. The tagged PDF paints fourteen CIDs in resolved visual order with scoped replacement for logical extraction. An invalid glyph permutation or source interval rejects independently. See xref:contributor-layout.adoc#contributor-international-text[international flow] for the multilingual facade.
+
+[#contributor-cjk-text]
+=== CJK searchable-text
+
+The advanced Han fixture shapes one horizontal run for U+4E2D. It carries exact source byte/scalar ranges, `Hani`, `zh-Hans`, one
+validated caller-style glyph, one one-to-one cluster, and positioned advance.
+PDF lowering consumes those facts without inferring Unicode from glyph ID.
+
+`tests/assets/NotoSansSC-CJK-Fixture.ttf` is a 2,104-byte static
+TrueType-flavoured OFL-1.1 fixture. It derives from Google Fonts Noto Sans SC
+at immutable revision `2894aab31764f10f29c421bdfd2340d3b382d384`.
+
+`scripts/build_cjk_font_fixture.py` verifies the source digest, freezes
+`wght=400`, subsets U+4E2D with fontTools 4.46.0, and adds empty valid `cvt `
+and `fpgm` tables required by the current bounded subsetter. They have no glyph
+or presentation data. The fixture has `glyf`/`loca`, no `fvar`, glyph ID 4.
+
+The positive is a 3,957-byte tagged Type 0/CIDFontType2 PDF with exact
+`/W [0 [1000 1000]]`, `ToUnicode <0001> <4E2D>`, and a 940-byte sanitized
+TrueType subset, SHA-256
+`e63604452a131dbaf60dd6baf21017b1ac63e13199c5bd5846dd77ecb97e2175`.
+The structural checker reconstructs the CID mapping and verifies resource
+closure; PDFBox extracts U+4E2D followed by a newline. qpdf accepts the original bytes.
+
+The atomic negative changes only the three-byte source range to two bytes.
+`KernelShape.validate_advanced` rejects it as `AdvancedClusterInvalid(SourceRange)`
+before scene or object planning. The harness records the rejection with its blank evidence carrier.
+
+[#contributor-soft-hyphen]
+=== Selected soft-hyphen
+
+`KernelDiscretionaryHyphen` holds exact scalar and UTF-8 coordinates from the
+earlier UAX #14 opportunity. Selection records an independent presentation fact.
+The selected soft-hyphen case owns logical `co` + U+00AD + `operate` and paints
+a visible hyphen at the selected line end. The external selected-boundary case
+paints `a-b` and retains logical `ab`.
+
+The atomic twins reject malformed and unselected external opportunities. The
+independent checker inspects exact glyph closure, widths, CID mappings and
+balanced replacement text. PDFBox extracts `ab` plus its reader newline even
+though the painted U+002D has its own presentation mapping.
+
+[#contributor-case-transformation]
+=== Case-transformation output
+
+Failure is transactional: no partial text or fact buffer escapes. The module
+retains one transformed `Str` and one flat fact buffer; the source stays
+owned by its occurrence and mapping records use scalar and byte coordinates
+only, so no substring is retained.
+
+The fixture authors `aß` and requests full Unicode default uppercase. The
+dependency resolves two facts — a `Simple` mapping `a` to `A` and an
+`Expanded` mapping `ß` to `SS` — which the fixture asserts rather than
+hard-codes; the presentation `ASS` is never written as a literal expectation
+of the mapping itself. The built-in RocPdfSans face covers `A` and `S`, so
+this row adds no font asset.
+
+This row covers the Unicode default uppercase profile only. Contextual final
+sigma, Turkic and Lithuanian profiles, and titlecase word boundaries are
+explicitly out of scope and remain future rows: `KernelCaseTransform` exposes
+only `to_upper` under `unicode_default`, so no locale-sensitive behavior can
+be requested and then silently ignored. The public facade does not request
+case transformation; this is the advanced boundary.
+
+[#contributor-gsub-ligature-inspection]
+=== Bounded GSUB ligature inspection
+
+The accepted subset is deliberately narrow: GSUB 1.0 script/language/feature
+selection, direct Type-4 lookups, and ExtensionSubst lookups that resolve to
+Type-4. Every relative offset, feature/lookup index, coverage record,
+ligature-set record, component count, and glyph ID is bounds checked. Other
+lookup types are only skipped while resolving the selected feature; they are
+not interpreted as ligatures.
+
+`GsubEvidence` validates the built-in face's `latn` default language
+system, `ccmp` feature, lookup 4, and exact glyph sequence `A` plus U+0300 to
+glyph 5. The fixture asserts the complete typed fact and deterministic work.
+
+Its atomic negatives prove that a wrong declared output glyph returns
+`OutputMismatch` and that a corrupt GSUB version returns
+`UnsupportedGsubVersion`. Both fail at the inspection boundary, before an
+advanced run, scene, object plan, or PDF bytes can exist.
+
+The shaping evidence also proves that the retained fact is consumed: the valid
+fact accepts its matching `Ligature` cluster, while changing only its output
+glyph rejects that otherwise-valid advanced store before downstream planning.
+
+[#contributor-fi-ligature]
+=== Parsed `fi` ligature output
+
+The fixture's selected `latn` default language system contains a direct GSUB
+Type-4 `liga` lookup proving `f` glyph 4 plus `i` glyph 5 maps to glyph 6.
+`KernelGsub` retains that exact fact, and
+`KernelShape.validate_advanced_with_ligature_fact` consumes it alongside the
+two-scalar source range, one-glyph `Ligature` cluster, substitution range, and
+painted glyph. No stage infers a substitution from a glyph ID.
+
+The tagged Type 0 output has one painted CID, canonical `<0001> <00660069>`
+ToUnicode mapping, and required `/ActualText <FEFF00660069>`. The structural
+checker verifies the embedded sanitized subset (2,144 bytes, SHA-256
+`e99ef53b60c53e5252f0f4ffc0b30c6406766244dae663bf7b147020d326e07b`),
+CID width 633, original bytes, and PDFBox extraction `fi\n`; qpdf accepts the
+original bytes. The atomic negative changes only the retained fact's output to
+the `i` glyph. It is rejected at advanced shaping before scene/object planning
+and emits no feature PDF.
+
+[#contributor-ligature-blocker]
+=== Ligature validation and output evidence
+
+For the declared GSUB contract, see xref:contributor-layout.adoc#contributor-gsub-ligature-inspection[bounded GSUB ligature inspection]. Check visible output with the xref:contributor-layout.adoc#contributor-fi-ligature[advanced fi fixture] and xref:contributor-layout.adoc#contributor-inter-latin[Inter Latin shaping fixtures].
+
+[#contributor-text-layout-closure]
+=== Text-layout verification map
+
+Use xref:contributor-layout.adoc#contributor-cache-closure[preparation cache contracts] for stage-level work and xref:contributor-layout.adoc#contributor-international-text[international flow evidence] for the multilingual facade. The advanced text cases verify xref:contributor-layout.adoc#contributor-actual-text[replacement text], xref:contributor-layout.adoc#contributor-soft-hyphen[discretionary hyphens], and xref:contributor-layout.adoc#contributor-case-transformation[case transformations] against emitted bytes.
 
 [#contributor-layout-task-4]
 == Measure and paginate authored structures
 
-include::contributors/performance/line-layout.adoc[leveloffset=+2]
+[#contributor-line-layout]
+=== Shaped-cluster line-selection
 
-include::contributors/performance/facade-line-layout.adoc[leveloffset=+2]
+Bounded single-column line selection consumes shaped clusters before pagination. Its public internal entry points accept either the built-in
+`KernelShape.Shape` result or an advanced `KernelShape.Validated` result. The
+planner consumes the shaped cluster-to-source and cluster-to-glyph-index facts
+directly. It does not reconstruct clusters from Unicode text, assume one glyph
+per scalar, or infer source ownership from glyph order.
 
-include::contributors/performance/page-layout.adoc[leveloffset=+2]
+The planner first validates the dense UAX #14 boundary coordinates and requires
+every allowed or mandatory boundary to coincide with a shaped cluster end. It
+then visits each cluster and its glyph-index references once to build checked
+prefix advances. Negative advances, overflowing ranges or advances, incomplete
+source partitions, invalid glyph references, breaks inside multi-scalar
+clusters, and an over-width span with no legal break all fail with typed errors.
+No partial line plan escapes.
 
-include::contributors/performance/facade-pagination.adoc[leveloffset=+2]
+Line selection retains scalar and UTF-8 source ranges plus cluster ranges. This
+preserves the information needed for later per-line bidirectional ordering,
+extraction, accessibility, and tagged scene lowering. It deliberately does not
+flatten a line to an assumed contiguous glyph range: advanced shaped clusters
+can refer to reordered glyph indices.
 
-include::contributors/performance/geometry.adoc[leveloffset=+2]
+The implementation uses flat cluster, glyph-index, glyph, boundary, prefix, and
+line buffers. It keeps no source substrings or list suffixes. Boundary
+validation, cluster measurement, and line writes are linear. Candidate visits
+are explicitly limited; the evidence pattern exercises the restart after every
+selected break and records exactly `2 * clusters - 2` candidate visits.
 
-include::contributors/performance/manual-composition.adoc[leveloffset=+2]
+[#contributor-facade-line-layout]
+=== Facade line layout
 
-include::contributors/performance/layout-policies.adoc[leveloffset=+2]
+This slice connects the facade's dense shaped-run store to line selection
+without copying per-run glyph, cluster, or Unicode buffers. `KernelLineLayout`
+selects an exact global run range from the shaped store; emitted line cluster
+ranges remain global while line source ranges stay relative to the run's
+immutable Unicode source. Later pagination therefore consumes explicit shaped
+facts rather than reconstructing character or ownership relationships.
 
-include::contributors/performance/column-flow.adoc[leveloffset=+2]
+The cache key is the exact numeric tuple `(source, font instance, size, available width)`. Script, language, direction, and writing mode are batch-wide
+validated shaping facts; source identity denotes the once-analyzed Unicode
+value. A representative template is measured once and its local source ranges
+are reused while global cluster ranges are shifted to each occurrence's
+validated dense run range.
 
-include::contributors/performance/rich-inline.adoc[leveloffset=+2]
+The cache uses an exact power-of-two open-addressed
+table sized from the request count. Table slots and every probe are explicit,
+bounded work. Exhaustion or a probe limit crossing is a typed error, never
+permission to approximate or skip layout.
 
-include::contributors/performance/rich-segment-identity.adoc[leveloffset=+2]
+The hot stores are flat lists: one assignment per run, one cache entry per
+unique key, one line template per unique key, one final line per occurrence,
+and one block-to-label/body mapping per normalized block. The shaped store,
+Unicode sources, and font inspection stay shared. No per-occurrence
+`Text.Store`, Unicode analysis, glyph list, or copied source suffix is retained.
 
-include::contributors/performance/source-blocks.adoc[leveloffset=+2]
+[#contributor-page-layout]
+=== Single-column pagination
 
-include::contributors/performance/source-foregrounds.adoc[leveloffset=+2]
+Pagination consumes flat block descriptors and the preceding stage's shaped-cluster line plans. It emits dense stores for pages,
+semantic layout fragments, and placed-line baselines. Every fragment retains
+its content occurrence, exact source Unicode range, input-line range, checked
+fixed-point geometry, and page identity. Every placed line points to one dense
+fragment identity. Scene construction therefore does not need to infer
+ownership, reading order, source ranges, or pagination from coordinates.
 
-include::contributors/performance/rich-flow.adoc[leveloffset=+2]
+Page and margin dimensions, leading, baseline offsets, spacing, ranges, and all
+configured limits are validated before a plan escapes. Fragmentation implements
+explicit break-before, keep-together, transitive keep-with-next chains, and
+minimum first/last line counts. Keep chains are precomputed in one reverse pass,
+so a long chain does not cause repeated forward lookahead. An impossible keep,
+a break that contradicts the preceding keep, invalid source partitions,
+arithmetic overflow, and limit crossings fail transactionally with typed
+diagnostics.
 
-include::contributors/performance/tables.adoc[leveloffset=+2]
+The planner uses top-down consumption but records ordinary bottom-up PDF page
+coordinates. It materializes each accepted fragment and line placement exactly
+once. It retains no source substring, list suffix, speculative page scene, or
+earlier page candidate. Spacing after a completed block is bounded at the page
+edge; checked overflow remains an error rather than being treated as a page
+break.
 
-include::contributors/performance/table-paint-footprints.adoc[leveloffset=+2]
+The stress pattern combines widow/orphan minima, keep-together, keep-with-next,
+and explicit break-before. Check scaled cases for linear work across all input
+lines and fragments, including the complete keep-policy planning boundary.
 
-include::contributors/performance/contents-entries.adoc[leveloffset=+2]
+[#contributor-facade-pagination]
+=== Facade pagination
 
-include::contributors/performance/destination-page-references.adoc[leveloffset=+2]
+Pagination consumes a dense body-line view because vertical breaking operates
+on visual rows, not semantic child count. Copying these small fixed-shape line
+records does not copy glyphs, clusters, source Unicode, font bytes, or shaped
+runs. The row map is the explicit bridge used by the later fragment/scene
+stage; it never recovers label ownership from coordinates.
 
-include::contributors/performance/page-templates.adoc[leveloffset=+2]
+Title and heading blocks are kept together and with the following block when
+one exists. Other multi-line blocks use a two-line minimum at both fragment
+ends when possible, falling back to one for a one-line block. Consecutive items
+in one authored list have zero inter-item spacing; the final item receives the
+theme paragraph spacing. Page breaking uses compact cursors and materializes
+each accepted body fragment and row placement once.
 
-include::contributors/performance/chapter-templates.adoc[leveloffset=+2]
+The adapter makes two direct dense block passes. The first validates all
+label/body ranges and computes the exact row count before allocation. The
+second writes exact-capacity row, visual-line, and page-block buffers. The page
+kernel then performs linear validation, keep-policy planning, fragmentation,
+and placement. No authoring suffix, speculative page scene, prior accumulator
+version, or per-row glyph/source payload is retained.
 
-include::contributors/performance/fixed-pages.adoc[leveloffset=+2]
+All block, row, page, fragment, line, and placement counts are independently
+bounded. Arithmetic and invalid label/run/range relationships are typed
+failures. The two bullet labels in the scaled fixture remain two explicit row
+attachments at every scale.
 
-include::contributors/performance/custom-block-report.adoc[leveloffset=+2]
+[#contributor-geometry]
+=== Page and analytical geometry
+
+Prepared pages carry resolved media, crop, bleed, trim, and art boxes plus one
+closed quarter-turn rotation. Coordinates use PDF user space with a bottom-left
+origin and upward Y axis. One point is exactly 1,000 `Layout.Unit` values.
+Affine matrix coefficients are signed fixed-point thousandths; translations
+use layout units. Transform multiplication uses checked `I64` arithmetic and
+half-even rounding at the single division boundary.
+
+Paths are dense records over one flat segment arena. Cubics store two controls
+and an endpoint; rectangles remain one fixed-shape segment rather than four
+duplicated line records. Dash lengths occupy one flat scalar arena. Commands
+refer to paths, images, text runs, and child spans by dense scalar identity;
+they do not retain payload copies or recursive command lists.
+
+Every resolved box must have positive dimensions and checked endpoints. Crop
+must be contained by media; bleed, trim, and art must each be contained by
+crop. Validation performs five box checks, four containment checks, and twenty
+coordinate checks per page, with no geometry-dependent allocation.
+
+`fuzz/PageViewport.roc` checks the exact emitted box corners and rotation for
+negative and fractional origins. The checker follows the catalog and page
+tree to the page dictionary, where absent production boxes resolve to the
+crop box under ISO 32000-2 Table 31. It also checks both inclusive custom
+size limits through the public facade.
+
+The prepared scene owns each path segment and dash scalar once. Placements and
+commands carry scalar IDs or ranges, so repeated drawing and resource reuse do
+not duplicate geometric or image payloads.
+
+[#contributor-manual-composition]
+=== Bounded composition contracts
+
+Derive dense parent frames after label shaping and before measuring child geometry. Retain exact authored scopes and reading order, and carry typed continuations through accepted fragments. Repainted headers and furniture receive paint ownership from layout. An original source position retains one semantic occurrence owner. Nested container work follows bounded depth and emitted placements.
+
+For a change that crosses these stages, run the focused geometry and structure fixture, its atomic rejection and the corresponding scale pair. Review changed snapshots, allocation counts and work counters by architectural cause.
+
+[#contributor-layout-policies]
+=== Lists, explicit breaks, keeps, and ranked layout policies
+
+List groups and transparent keeps normalize through one explicit frame stack. Each list item owns one `Label` and one `LBody`. The list nesting level determines indentation. A generated label retains its exact source paint and numbering attribute. Transparent keep wrappers leave child semantic parentage unchanged and explicit page breaks have no semantic occurrence.
+
+Keep-with-next distinguishes mandatory constraints from ranked preferences. Static validation rejects oversize unsplittable blocks, malformed groups and invalid break positions before scanning. Each page scans legal candidate block and line boundaries in forward order. Candidate scoring favors the best permitted rank, with the later break winning a tie. A page is materialized once from the chosen range. Frame scanning keeps scalar continuation state. Page/column relaxations retain explicit facts for preparation reporting.
+
+Use the `layout_policies` family for nested lists, keeps and lists x10/x100, and the heading chain. Kernel expectations exercise required and preferred keeps and widow/orphan relaxation. `scripts/check_structure_semantics.py` derives list labels, numbering and item relationships from emitted bytes.
+
+[#contributor-column-flow]
+=== Sequential column flow
+
+Columns use the selected fixed-point page body. The positive widths and
+gutter have checked endpoints. A column's nominal line heights fit entirely
+inside its frame. Reading and paint follow the authored order through the
+first and second columns in each page. ISO 32000-2 §§7.7.3.3, 14.7.2,
+14.7.5 and 14.8.2 and ISO 14289-2 §8.2 govern page and tagged-content
+ownership. The column order, widths and placement policy are package choices.
+
+`fuzz/ColumnFlowModel.roc` exhausts 73 states with one to twelve words,
+one to three lines per column, and both keep policies. Its reference
+counts word partitions independently of shaping. It reaches a page
+transition, a whole paragraph moved to the wider column, a rescued
+widow, and an impossible keep.
+
+[#contributor-rich-inline]
+=== Rich inline content and nested language
+
+Normalization writes dense preorder inline records. Each rich paragraph owns one logical text source, built from its leaves in order with one consuming accumulator. Leaves retain exact scalar and byte subranges. The semantics stage allocates a `P` and nested inline nodes, then occurrence ranges for text leaves and links. The nearest language scope supplies the leaf's language, which is emitted at the authored structure node. PDF 1.7 standard roles `Code` and `Quote` use their namespace from semantic planning.
+
+Shaping treats each occurrence group's face and style split as local to that group. Shared literal text can be interned once and still participate in differently split runs. Line-template equality includes the physical split and range facts used by layout. Inline scale changes each physical run's typography and retains the line geometry needed by pagination. Prior style facts resolve scoped text and role colors. Line-selection policy suppresses legal breaks inside a code word. A word wider than the frame rejects with `layout.unbreakable_token`.
+
+Inline links produce one annotation per page where owned text paints. Link occurrence ranges and accepted placements determine the annotation bounds. The shape of the link annotation is independent of any adjacent content that used the same source.
+
+Use `tests/rich_inline` for mixed styles, language nesting, shared-source faces, scaled code, scoped colors, and code-hold scale pairs. `scripts/check_rich_inline.py` reconstructs paint and structure order, language, and source text and rejects mutation twins. The combined archive cases apply the same verification to ordered Latin/Han paragraphs and their 10/100 scale pair.
+
+[#contributor-rich-segment-identity]
+=== Explicit rich-text segment occurrence identity
+
+Interned source identity describes immutable content. Segment identity describes the authored occurrence. The first semantic leaf occurrence anchors each rich segment as one scalar per prepared run record. Equal adjacent segments keep distinct owners even when their source and shape are shared. Repeated ordered and single-face x10/x50 cases check both ownership and reuse.
+
+[#contributor-source-blocks]
+=== Preformatted source blocks
+
+`KernelSourceText.prepare` owns a single canonical UTF-8 source and a dense logical line arena. It expands tabs and handles CRLF and blank rows, retaining earlier byte and scalar coordinates. Limits on input bytes, expanded bytes and lines are checked before growth. One consuming output byte builder and one independent line arena use worst-case work proportional to input, expansion and lines.
+
+`Pdf.source_block` uses a separately prepared static face and local size and leading. Normalization retains each source span over the global line arena. Shaping consumes the earlier exact ranges. Blank rows remain typed visual rows and there is no synthesized glyph for a wholly blank source. Pagination uses a `SourceUnit` owned by its source and carries explicit visual-row continuation. Source, shape, visual-row and page arenas grow separately. Font option rejection precedes font enrichment.
+
+Use the `source_text` group to isolate canonicalization and the `source_blocks` group for public continuation, owned source offsets, blank lines, and the 50/500-line scale cases. The source-foreground cases additionally use xref:contributor-layout.adoc#contributor-source-foregrounds[original-input range mapping].
+
+[#contributor-source-foregrounds]
+=== Source foreground ranges
+
+`Pdf.SourceForeground` is `{ start : U64, end : U64, color : Color.SourceValue }`.
+
+Worst-case normalization is O(input bytes + expanded bytes + original
+clusters + ranges); retained mapping is O(ranges). Paint subdivision is
+O(runs + logical rows + occurrences + source clusters + ranges), with O(occurrences + sources
+
+* paint pieces) temporary/index storage. Run/placement limits are checked
+before every new piece. Accumulators stay uniquely owned; no growing list
+passes through a fallible helper that its caller then extends. There are no
+new payload copies, caches, native dependencies or language dependencies.
+
+[#contributor-rich-flow]
+=== Rich list bodies and continued callouts
+
+Lists and callouts can contain source blocks, tables and figures with their own semantic subtrees. Frame resolution runs after label shaping and before table column measurement. Pagination consumes typed flat units and scalar continuations. Active containers derive accepted paint from bounded context and ancestor walks.
+
+Use the empty table-frame contract when earlier ownership facts prove there is no active container for a table. Defer frame resolution only when normalized stores prove the default path is available, preserving the table error order. Simple continuation consumes repeated-header geometry without retaining a lead-band arena. Active containers retain explicit bands even when their padding is zero, because their paint footprint needs those regions.
+
+The `rich_flow` family pairs wide list labels and rich children x10/x100, nested callouts x3/x30 and zero-padding paint geometry. Work counters separately cover context and ancestor writes, accepted fragment updates, and fragment writes. The ownership pair exercises both a shared immutable callout and deliberately fresh inputs.
+
+[#contributor-tables]
+=== Ordinary tables
+
+Normalization keeps one dense table, row and cell store in authored order. Diagnostic paths identify the caption or the authored table section, row and cell. Semantic planning visits sections in authored reading order and checks their regular row/column rectangles. Every `TD` or `TH` retains its row and column span. Only accepted applicable headers become reciprocal `HeaderFor` and `Headers` facts. The combined attribute and relationship budget is charged before building the adjacency stores.
+
+ISO 32000-2:2020+EC3 §14.8.4.8.3 and Table 371 govern table order, rectangular coverage and scope. `fuzz/TableHeaderModel.roc` independently rescans earlier row, column, and mixed scopes from authored grids. `scripts/check_structure_semantics.py` checks the emitted table trees, cells, spans and associations. The `tests/tables` fixture family includes the invoice x50/x500, empty cells x40/x400, and ruled grid x40/x400 scale pairs.
+
+`KernelFacadeTables` resolves column widths before line selection using measured max-content and unbreakable widths. A cell's text width excludes its own padding. Two neighboring cells supply all of the inter-column spacing with their padding. The layout reserves decoration edges before committing frame occupancy, as described in xref:contributor-layout.adoc#contributor-table-paint-footprints[table paint footprints]. An empty cell has no text occurrence. Its row retains the ordinary geometry and structural cell.
+
+Weighted `Share` columns clamp undersized widths to their measured minima.
+When a clamp triggers further redistribution, the resolver orders the
+remaining positive minima by exact minimum-to-weight ratios and settles
+them in one pass. It distributes integer remainders in authored order.
+
+Pagination consumes dense row-line units. A caption keeps with the first row. Repainted header cells reference existing shape and are emitted as `RepeatedHeader` artifacts with no pagination subtype. Their repaints are excluded from logical text, structure ownership and the once-emitted cluster accounting. Simple repeated headers use existing row geometry and need no per-page lead-band arena. Active continued containers keep explicit bands for paint geometry.
+
+[#contributor-tables-spanning-tables]
+==== Spanning tables
+
+`KeepSpans` ties covered rows into a group. `SplitSpans` leaves headers and footers whole and can cut a body group at a legal row or line boundary. Existing logical owners continue across accepted fragments. `tables kept span groups x2` and `x40` exercise adjacent revenue headings and paired cells. The bounded bitmap model checks 1,201 states and seven witnesses independently of row measurement.
+
+[#contributor-table-paint-footprints]
+=== Table paint footprints
+
+The paginator reserves the visible bounds of fills, column rules and outer frames before placing painted tables. It uses a layout-only `NoPaint` interval when row geometry would understate occupancy. Earlier normalized container facts determine whether that interval or an active container's paint band owns the reservation. Unpainted tables keep the ordinary row contract.
+
+The `ScopedTables` fixture leaves furniture with no extra gap. The emitted-byte checker computes occupied geometry from authored constants. Its controls distinguish ordinary painted tables from rows in an active zero-padding container.
+
+[#contributor-contents-entries]
+=== Contents, indexes and reference layout
+
+Consecutive `Pdf.contents_entry` blocks under one parent normalize to a PDF 1.7 `TOC`. Title wrapping reserves indentation, clearance and one terminal atomic page field. Decoration intervals derive from the final row. Leader squares remain artifacts. Preparation walks dense items and rows in order and retains the symbolic spine through stabilization.
+
+Generated contents reuse the terminal field path from selected headings. Each heading supplies explicit title and destination identity. A generated index retains its authored terms and picked destination pages in reading order. `GeneratedNavigationModel` exhausts 341 transition histories, 65 heading histories and 85 index histories. The `destination_references` family exercises 2 and 80 entries. `check_contents_entries.py` independently derives title text, alignments, destinations, link ownership and leader placement from the PDF.
+
+[#contributor-destination-page-references]
+=== Destination page-reference verification
+
+`Pdf.page_reference` is an authored atom with a destination name and positive fixed width. Normalization records reference and chunk arenas only for rich paragraphs containing atoms. Symbolic semantics allocates the final owner and occurrence IDs before layout. A reference is one measured item with an unbroken reserved width. Tables use the same item domain for intrinsic width and wrapping. A range diagnostic over atoms names item coordinates instead of scalar coordinates.
+
+`KernelFacadeReferenceShape` shapes the exact literals against the selected face and style. `KernelFacadeReferences` registers destinations and commits anchor identities from accepted rows. Resolution shapes each final label once to check it against the reserved width and uses the cached run span and alignment at final emission. Finalization extends source interning without renumbering existing literals. An authored break after an atom preserves its semantic space as occurrence-owned `ActualText`.
+
+Normalization captures state projections before growing inline/reference arenas. Measured items use owning `Open | Failed` state. Anchor evidence freezes before label evaluation. Positioning builds one linear owned placement sequence from that evidence. Pagination consumes the exact maximum body-leaf size for vertical alignment. Table alignment consumes the separate visible advance that trims only terminal literal U+0020 clusters. Repeating table headers carry reserved frame geometry without a redundant lead-band arena for ordinary unpainted tables.
+
+The `reference_layout` pair isolates item building, intrinsic measurement and wrapping. The `destination_references` group exercises public preparation, configured labels, fit and rejection, Archive evidence and geometry. Its byte-level oracle derives each resolved reference from the actual target page and recovers its painted label from the emitted glyph mappings.
+
+[#contributor-page-templates]
+=== Page templates, furniture, and page fields
+
+First-page and continuation templates resolve to fixed flow frames before pagination. Geometry derives from region heights and gaps. The opening lead normalizes before ordinary body blocks and must fit on its opening page. Authored scope names and individual region and item paths identify any geometry or fit rejection.
+
+`KernelStabilization.stabilize` bounds explicit state iteration and distinguishes stable results, cycles and exhaustion. Furniture fields resolve from accepted pages. Field width and region placement are established before painting. Fixed frame geometry is independent of the final page-field text. Start, center and end slots align to prepared geometry, with placed text and drawings sharing one region fit check.
+
+`KernelFacadeText.Plan.with_furniture` interleaves header and footer paint with each page's body. The earlier furniture plan provides placement and artifact ownership. Furniture shape is reused by resolved text/style identity. The default furniture typography derives from the current body style and a fixed override can select a separately prepared face. Backdrops use their own region slot. Insets and nested drawing offsets are validated before scene construction.
+
+The `tests/page_templates` fixture family covers page-field geometry in the letter x20/x200 pair, landscape and custom page size, region backdrops, slot insets, grouped furniture drawings, and independent typography x3/x30. `scripts/check_structure_semantics.py` checks furniture ownership and paint order from emitted bytes.
+
+[#contributor-page-templates-reviewed-rebaselines]
+==== Template baseline verification
+
+Run the `page_templates` group through the strict harness when changing frame, furniture or page-field storage. Its registered allocation, work and PDF expectations are the reference for both pinned targets.
+
+[#contributor-chapter-templates]
+=== Explicit chapter scopes
+
+`Pdf.page_scope` sets fixed opening and continuation frames and an explicit short-run policy. Normalization stores dense scope records. The furniture stage builds each authored template once. Accepted pages carry their scope and opening or continuation identity. Template, region, text and accepted page accumulators remain independently owned.
+
+`check_chapter_templates.py` derives chapter starts from structured H1 content and compares each frame and furniture choice. The `tests/page_templates` 2/20 pair has 4/40 scoped pages and 2/20 opening pages.
+
+[#contributor-fixed-pages]
+=== Fixed-page text and artwork
+
+The remittance-advice example authors fixed page frames, semantic content order and a separate paint permutation. Normalization validates page sizes, placement geometry and the complete permutation. The semantic compiler retains logical order. Scene construction consumes accepted positions, page boxes and paint order.
+
+`fuzz/FixedPageOrderModel.roc` checks 7,057 small placement and ordering states, including incomplete and duplicate permutations. The designed-brief checker verifies exact page, drawing and text geometry and the caption's logical owner. A caption expands a fixed figure into one contiguous normalized leaf span. Page boxes follow ISO 32000-2:2020+EC3 §7.7.3.3 and Table 31.
+
+[#contributor-custom-block-report]
+=== Custom-block seam and preparation report
+
+A custom block is an authored box containing paragraphs and rich paragraphs. Normalization puts its leaves under a `Div`; layout uses the extension's declared content box and inset. The paginator owns the entire box, including trailing space reserved below its last line. An optional panel paints as an artifact before text. Panel placement consumes the accepted first-leaf ownership and geometry. A zero inset uses the whole measured width.
+
+`Pdf.measure_custom_content` supplies the extension with the facade's exact measured result for supported paragraphs. `Pdf.prepare_with_report` normalizes once and collects scalar facts only on its reporting path. It returns the prepared document and report after the same validation and budget checks as ordinary preparation. Ordinary preparation keeps no report tape.
+
+The `tests/custom_block` report, rich callout x10/x50 and defaults cases cover the public paths. `check_structure_semantics.py` independently proves that the `Div` owns only the logical paragraph children and that panel paint does not claim their content.
 
 [#contributor-layout-task-5]
 == Materialize placements and check output
 
-include::contributors/performance/facade-text-materialization.adoc[leveloffset=+2]
+[#contributor-facade-text-materialization]
+=== Facade text materialization
 
-include::contributors/performance/facade-fragments.adoc[leveloffset=+2]
+`KernelFacadeText` is the committed-materialization boundary between speculative
+line/page layout and the final scene. It consumes validated shaped runs, cached
+line ranges, visual rows, and page placements. It produces one dense final text
+run for every painted line plus one for each painted list label.
 
-include::contributors/performance/flow-figures.adoc[leveloffset=+2]
+This split is required by tagged-text ownership: every final run is painted and
+owned exactly once. A shaped paragraph that wraps across lines therefore cannot
+remain one repeatedly placed run. The stage copies each source cluster and glyph
+to exactly one final line run, preserves the occurrence-relative Unicode range,
+and assigns a new dense run identity in page paint order.
 
-include::contributors/performance/image-figure-facade.adoc[leveloffset=+2]
+The bullet-body horizontal offset is retained by `KernelFacadeLines` and passed
+through `KernelFacadePages.Row`. Materialization consumes that explicit layout
+fact. It does not recover indentation from the theme, label presence, glyph
+geometry, or coordinates.
 
-include::contributors/performance/drawing-labels.adoc[leveloffset=+2]
+The result contains flat `Text.Store` buffers, a parallel dense style list,
+page-to-run ranges, and one compact placement per final run. Page and run ranges
+follow canonical page paint order. No recursive line, run, or scene object is
+allocated.
 
-include::contributors/performance/vector-diagram-adapter.adoc[leveloffset=+2]
+Clusters retain source ranges. Their glyph-reference ranges are rewritten into
+the final flat glyph-index buffer, and referenced glyph records are appended to
+the final flat glyph buffer. The completed stage verifies that final cluster,
+glyph-index, and glyph counts exactly equal the shaped input counts. Wrapping
+changes run boundaries but neither duplicates nor drops glyph payload.
 
-include::contributors/performance/visible-text.adoc[leveloffset=+2]
+For ordinary text, materialization checks the shaped run store once for
+valid bounds and ascending cluster ranges. It searches that store for each
+committed line and walks the intersecting runs. Direct positioned inputs
+that fail the check go through the validating walk so the existing located
+diagnostics still apply.
 
-include::contributors/performance/public-pdf-facade.adoc[leveloffset=+2]
+[#contributor-facade-fragments]
+=== Facade semantic-fragment materialization
 
-include::contributors/performance/font-leaves.adoc[leveloffset=+2]
+The facade fragment stage consumes the preliminary validated text-semantic plan
+and the final per-line text plan. It does not infer occurrence identity, source
+ranges, page identity, content-stream identity, or paint order from geometry.
+Each final run already carries its occurrence-relative Unicode range, and each
+placement already carries its accepted page.
 
-include::contributors/performance/cid-system-info-ascii.adoc[leveloffset=+2]
+The stage writes exactly one dense `LayoutFragment` per final run.
 
-include::contributors/performance/color-image-leaves.adoc[leveloffset=+2]
+After arena construction, `KernelTextSemantics.Plan.attach_fragments` rebuilds
+the occurrence-to-fragment reverse index through the existing semantic
+validator. It reuses the preliminary plan's exact scalar/UTF-8 source facts and
+text-property work instead of rescanning immutable source strings. The final
+semantic store therefore has validated absolute fragment ranges and normalized
+occurrence spans without duplicating Unicode analysis.
 
-include::contributors/performance/canonical-policy.adoc[leveloffset=+2]
+For `p` pages, `r` final runs/fragments, and `o` occurrences, arena construction
+uses `O(p + r)` time and `O(r + o)` storage. It performs one page visit, one
+placement visit, one fragment write, and one continuation counter read/write
+per applicable input. Semantic attachment uses the existing `O(o + r)`
+count/prefix/write reverse-index algorithm.
 
-include::contributors/performance/balanced-shape.adoc[leveloffset=+2]
+The fragment list and continuation counter list are created once with exact
+capacities. The hot loop consumes and returns unique accumulators, retains no
+source substrings, and stores only dense IDs and scalar ranges. The successful
+plan retains the final text plan required by the scene successor and the final
+semantic plan; it does not retain alternate fragment arenas or speculative page
+scenes.
 
-include::contributors/performance/balanced-indexes.adoc[leveloffset=+2]
+[#contributor-flow-figures]
+=== Flow figures and decorations
+
+`Scene.Drawing.group` is an authored translation. Normalization validates a drawing once, flattens commands in authored order and accumulates translations. The extent is the conservative control-point hull. A drawing-bound error names the authored command and either an offending local point or the group origin. Coordinates include accumulated offsets. Validation walks commands, segments and bounded depth, retaining one flat buffer.
+
+An uncaptioned figure contributes one space anchor leaf. A captioned figure has a `Sect` containing the `Figure` with alternative text and the real `Caption`. Pagination fits the drawing, caption and decorations as an atomic unit. Scale-to-fit scales only the drawing and respects the declared floor. Decoration spacing and the paint layer are layout facts. The scene consumes accepted anchor positions and scale. Figure paint belongs to the anchor's semantic fragment and decoration paint is an artifact.
+
+`Pdf.anchored_figure` normalizes a transparent group containing the paragraph and figure. The paginator can defer the pair, preserving their declared order and accepted ownership. The dedicated anchored-figure fuzz target covers exact defer and keeping the pair after context. The `flow_figures` group covers report drawings, the sections x10/x100 pair, spaced decorations x10/x100, bounds diagnostics and anchored figures. `scripts/check_structure_semantics.py` verifies figure ownership and drawing extents from the emitted PDF.
+
+[#contributor-image-figure-facade]
+=== Public image-figure facade
+
+The source plane remains one immutable packed byte list. Inspection, hashing,
+compression, image-object emission, and placement consume ranges or the shared
+list; the authoring layer does not expand pixels into records. The prepared PDF
+retains only the validated resource payload and sealed object/content recipes.
+
+The existing contract suite supplies atomic negatives for malformed packed
+planes, empty alternatives, and vector-only drawings. Existing color-image
+fixtures retain the scaled row, hashing, compression, alpha, and JPEG evidence;
+the public fixture proves that the facade reaches those already-reviewed
+stages without a parallel serializer or fallback.
+
+Rich-flow composition added an explicit figure-indexed `{ width, padding }`
+arena so a figure fits its earlier resolved list/callout frame. The ordinary
+full-width image fixture also allocated that arena, adding one allocation
+despite having no enclosing padding or narrowed width. The flow planner's
+existing empty-arena contract already means full content width and zero
+padding.
+
+[#contributor-drawing-labels]
+=== Text labels inside drawings
+
+`Scene.Drawing.text` adds a single line whose baseline is aligned to its
+drawing-local origin. `Start` begins at the anchor, `Center` centers on it, and
+`End` ends there. `Scene.Drawing.text_in` selects an inline role's style face,
+falling back to the body face when the theme does not assign that role a face.
+
+A label that exceeds the drawing bounds reports `layout.drawing_label_bounds`.
+Labels on decorations, in furniture drawings, and under an ordered font
+policy are rejected. Decorations paint after page text, furniture draws its
+text through its own path, and the ordered policy does not supply a single
+label face. A drawing with no labels skips the label shaping and placement
+stage.
+
+The `flow figures label faces x10` and `x50` cases use three Font resources.
+The regions use the body face, the ticks use the `Code` face, and the title
+“Café” appears in both the `Strong` and body faces. No flow text uses either
+role face. The checker verifies both exact Unicode order and selected faces
+by Figure label. The cases also exercise missing label-face coverage.
+
+Label preparation and placement visit the drawing commands and label text
+linearly. Label pieces are sorted once by page and authored index, then
+merged into the page text runs. The focused cases pin deterministic work
+and allocation evidence in `tests/spec.json`.
+
+[#contributor-vector-diagram-adapter]
+=== Prepared vector diagram adapter
+
+The adapter is an example over the closed public `Scene.Drawing`/`Pdf.figure`
+seam, not a new SVG feature or production dependency. Mermaid/browser work is
+explicit authoring-time preparation. Its pin and bounded accepted input profile
+are documented in `examples/vector-diagrams/README.md`.
+
+The scale cases run from allocation reset through font registration,
+construction, public preparation report and byte emission. Work counts are
+figures, authored commands, label placements, final report pages/fragments and
+output bytes. They describe actual accepted inputs/output facts; no private
+compiler probe or timing target is introduced.
+
+`Diagram.options` accepts explicit `Font.ValidationLimits`. The runnable
+example and scale cases use the named default. A restrictive byte limit has
+an atomic `expect` that checks the original `LimitExceeded` dimension,
+attempted bytes and limit. Registration errors retain `Font.ResourceError`
+through the adapter.
+
+[#contributor-visible-text]
+=== Visible searchable text
+
+The scene's text command resolves through the validated ownership join to one prepared run and fragment. Lowering builds a bounded local-coordinate glyph body and keeps one occurrence-owned logical source. The common no-replacement path maps CIDs through `ToUnicode`. The visible searchable-text fixture independently checks calibrated color, structure ownership and exact painted character order for `Café PDF`.
+
+[#contributor-public-pdf-facade]
+=== Public built-in `Pdf` facade evidence
+
+The fixture is intentionally byte-identical to the existing internal authored
+pipeline scenario. It has one document block, one semantic occurrence and
+line, one page and fragment, two scene commands, one planned embedded font,
+and twenty PDF objects. It consumes the facade document into the normal
+normalization/pipeline path. No PDF object, glyph, scene, or font internal is
+exposed by the public fixture, and it adds no cache, resource payload, output
+slice, or alternate serialization representation. Its 1,423 count is one
+higher than the 1,422 internal pipeline case because public construction uses
+a runtime title guard in the measured region; this is a measurement-boundary
+cost, not a changed PDF plan, copied font payload, or per-glyph allocation.
+
+The snapshot is checked before the facade-output structural checker reconstructs
+the text from the original content CIDs and `ToUnicode` CMap. The same original
+bytes pass exact PDFBox 3.0.8 extraction and independently pinned 72-dpi
+PDFBox/PDFium metrics. The fixture's `Pdf.page_footer` twin receives
+`UnsupportedAuthoringContent({ blocks: 1 })` with no `List(U8)` result; it does
+not select the blank path or substitute page-artifact output.
+
+[#contributor-font-leaves]
+=== Canonical font leaves
+
+Canonical identity covers one complete nine-object font bundle. The subset program, CID map, widths, descriptor and ToUnicode stream derive from one validated face and glyph plan. The canonical recipe includes the schema tag, deterministic subset prefix, descriptor and exact program, CID, width and Unicode facts. The recipe uses the raw signed 16.16 italic-angle value. Hash matching only selects candidates for exact descriptor and byte comparison.
+
+The six-uppercase-letter subset tag hashes the exact source face and ordered retained glyph IDs. Font resource names use canonical font ordinals. Lowering assigns these names to prepared glyph bodies and resource use from earlier run and ownership facts. The identity arena retains the derived material needed for equality and emission without retaining or copying a caller's full program.
+
+The `font-leaves` evidence covers adversarial source order, shared placements, distinct fonts, and invalid descriptors, mappings, and metric plans. `scripts/check_fonts.py` verifies the complete emitted bundle and ownership. `scripts/check_font_renderers.py` independently renders the selected snapshots with the pinned engines.
+
+[#contributor-font-leaves-cidsysteminfo-ascii-correction]
+==== CIDSystemInfo strings
+
+See xref:contributor-layout.adoc#contributor-cid-system-info-ascii[CIDSystemInfo ASCII strings] for the exact emitted bytes and verifier.
+
+[#contributor-cid-system-info-ascii]
+=== CIDSystemInfo ASCII strings
+
+The CIDFont writer emits `/Registry` and `/Ordering` as ASCII byte strings.
+The font checker inspects those bytes directly.
+
+ISO 32000-2 Table 114 types `/Registry` and `/Ordering` as ASCII strings. A
+text string is a different type, and its byte-order mark makes the value
+non-ASCII. The pinned Arlington 1.30.2 validator rejected every font-bearing
+file with `CIDSystemInfo-Registry#8` and `CIDSystemInfo-Ordering#8` ("shall
+have type StringAscii"). veraPDF PDF/A-4 decodes the strings and reports
+nothing, and PDFium, PDFBox, and MuPDF all accept them, so no existing lane
+caught it. `scripts/check_fonts.py` had pinned the wrong bytes as canonical.
+
+....
+/CIDSystemInfo << /Ordering <4964656E74697479> /Registry <41646F6265> /Supplement 0 >>
+....
+
+`add_text_string` records `bytes_checked` for the UTF-8 length it validates
+and lexically encodes. `add_byte_string` records no work, because byte
+strings are opaque: nothing is decoded or validated, and serialization is a
+fixed hex expansion already bounded by `KernelOutputBound`. Adding synthetic
+work here would count validation that does not happen, so none was added.
+`object_bytes_checked` therefore falls by 13 per CIDFont. Only
+`text-layout Type 0 PDF font objects` reports that counter (298 → 285).
+
+`check_fonts.py --self-test` validates committed font-leaf snapshots
+byte-for-byte. Like the PDF/A-4 and structure self-tests, it cannot pass
+while `--update-snapshots` is replacing those snapshots, so it is now
+`skip_on_snapshot_update` in `scripts/harness_validators.py` and runs again
+as a `post_update_checks` entry in `tests/spec.json`. Ordinary runs are
+unchanged.
+
+For another local run, follow the xref:contributor-conformance.adoc#contributor-arlington[Arlington setup].
+
+[#contributor-color-image-leaves]
+=== Color and image leaves
+
+Every image, ICC profile and color-space leaf derives canonical identity once from validated earlier facts. The packaged sRGB2014 asset pins the official ICC profile bytes, provenance and license. A hash narrows candidates. Descriptor partitioning and exact byte equality decide sharing. Canonical resource ordinals follow canonical ID order. Lowering consumes component shape and source ownership validated earlier.
+
+Validation, identity derivation and emission walk validated records and bytes forward. Palette, alpha, reusable form and placed image identities are kept explicit. The 24 negative cases exercise malformed ICC or raster shapes and resource ownership. `scripts/check_color_images.py` compares embedded profile bytes, image dictionaries and resource graphs. `scripts/check_color_image_renderers.py` replays the showcase, dedup and distinct raster rendering cases.
+
+[#contributor-canonical-policy]
+=== Canonical emission and metadata policy
+
+For `n` stream bytes, match search is bounded by `O(128 * n)` candidate visits;
+window and block state are bounded constants. The structural-kernel implementation records
+input bytes, candidate visits, hash inserts, tokens, matches, blocks, emitted
+bytes, and maximum chunk size so compression ratio cannot hide a work
+regression. It writes statefully into bounded output chunks and never retains
+both complete uncompressed and compressed streams.
+
+Canonical ordering operates on dense planned stores. Dictionary sorting is
+`O(k log k)` comparisons for `k` unique keys unless the planner constructs them
+in canonical order; balanced-tree partition and object/resource traversal are
+linear after canonical input ordering. Metadata and identifier inputs are owned
+once in the normalized plan.
+
+The common facade does not accept this policy as an option, preventing callers
+from accidentally changing deterministic bytes or conformance. A future policy
+revision is an explicit package-version and snapshot change with focused
+performance evidence.
+
+`tests/contracts/advanced_encode_contract.roc` compiles explicit metadata inputs and
+the fixed canonical policy. Package expects pin number, compression, xref, and
+identifier choices. structural-kernel now supplies runtime lexical, digest, compression,
+and byte-equality evidence; XML evidence belongs to the capability implementing XML.
+
+[#contributor-balanced-shape]
+=== Shared balanced shape
+
+`KernelBalanced.Shape` is the shared topology for structural-kernel balanced structures.
+It always uses a maximum fanout of 32 and left-packed breadth-first levels.
+There is no flat-to-balanced size threshold: one item creates a root leaf, and
+the 33rd item creates a root above two leaves. Tree-specific lowerers retain
+their own ordering, key, `Limits`, `Count`, and object-numbering policy instead
+of placing PDF semantics in the shared shape.
+
+The opaque shape stores only the accepted item count, one node count and offset
+per level, and the total node count. It does not store per-item or per-node
+child ranges. Accessors derive a node's contiguous child-node and descendant-
+item spans arithmetically from the sealed shape. The shape builder rejects zero
+items and the caller's explicit item limit before allocating level storage;
+node-offset accumulation is checked `U64` arithmetic.
+
+Focused tests cover one item, the 33-item depth transition, the 4,096-item
+stress shape, zero and over-limit failures, and the maximum accepted 1,048,576-
+item shape. The maximum has level counts `[1, 32, 1024, 32768]` and exactly
+33,825 nodes.
+
+[#contributor-balanced-indexes]
+=== Balanced byte-key and number-key plans
+
+`KernelIndex` provides two opaque plan families over the shared fanout-32,
+left-packed `KernelBalanced.Shape`:
+
+* `ByteTree`, branded as either `NameTree` or `IDTree`, compares keys as
+unsigned byte strings;
+* `NumberTree`, branded as either `NumberTree` or `ParentTree`, compares signed
+PDF integer keys, with the ParentTree policy additionally rejecting negative
+keys.
+
+The node contract follows ISO 32000-2:2020 7.9.6 Tables 36 and 7.9.7 Table 37,
+including Errata Collection 3: a root contains entries if it is also the only
+leaf, otherwise it contains child nodes; every non-root intermediate or leaf
+node carries `/Limits`. Byte keys use unsigned ascending byte order, with a
+shorter key before a longer key having the same prefix; number keys use
+ascending integer order.
+
+Callers provide a dense entry list in final key order. Sealing checks the entry
+limit before any shape allocation, checks every byte-key size and value ID
+against the earlier object-value count, and verifies strict monotonicity and
+uniqueness in one pass. It does not sort or recover malformed input. The sealed
+plan retains the original entry list and one shared shape; it creates no per-
+node entry lists, child lists, or limit-key copies.
+
+A node is an arithmetic view. Leaf nodes expose one contiguous entry span and
+internal nodes expose one contiguous breadth-first child span. The root omits
+`/Limits`; every non-root node identifies the first and last entries in its
+complete descendant span. Tree-specific object lowering can therefore consume
+sealed ordering and limit facts without rescanning keys or inferring ranges
+from object order.

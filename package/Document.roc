@@ -311,7 +311,7 @@ DocumentInline :: [
 ].{}
 
 # Nominal types avoid widening unrelated inline alternatives; see
-# docs/contributors/performance/page-templates.adoc for the allocation review.
+# docs/contributor-layout.adoc#contributor-page-templates for the allocation review.
 ## The numbering style of a page field. Use the public furniture constructors
 ## to select a style and reserve its width.
 PageFieldStyle := [DecimalField, LowerAlphaField, LowerRomanField, UpperAlphaField, UpperRomanField]
@@ -509,7 +509,7 @@ FigureFit : [Exact, ScaleToFit({ minimum_percent : U8 })]
 AnchoredFigureSpec : { anchor : List(DocumentInline), alternative : Str, caption : Str, drawing : Scene.Drawing }
 
 # Nominal representation avoids the structural-union allocation cost recorded
-# in docs/contributors/performance/page-templates.adoc.
+# in docs/contributor-layout.adoc#contributor-page-templates.
 ## A figure's fit policy. Figure constructors convert the selected fit and
 ## minimum scale into this value.
 FigurePolicy := [ExactFit, ScaleFit(U64)]
@@ -1115,7 +1115,7 @@ NormalizedList : { items : U64, marker : ListMarker }
 NormalizedTable : { body_rows : U64, caption : Bool, columns : List(TableColumn), footer_rows : U64, header_rows : U64, row_split : RowSplit }
 
 # Spans retain U16 to keep the record at 24 bytes; see the allocation review
-# in docs/contributors/performance/tables.adoc before changing its representation.
+# in docs/contributor-layout.adoc#contributor-tables before changing its representation.
 ## One table cell, in leaf-block order: its rich-paragraph leaf `block`, its
 ## kind, its authored column and row spans, and its line alignment.
 ##
@@ -4179,7 +4179,7 @@ destination_paragraph_tag = 8
 
 # Appends every element of `source`. List.concat sizes its result exactly,
 # so growing an accumulator with it copies on every call. Append grows
-# geometrically; see docs/contributors/performance/emission-linearity.adoc.
+# geometrically; see docs/contributor-output.adoc#contributor-emission-linearity.
 append_all : List(a), List(a) -> List(a)
 append_all = |target, source| {
 	var $out = target

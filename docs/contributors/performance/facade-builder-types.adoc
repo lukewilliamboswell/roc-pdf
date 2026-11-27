@@ -1,4 +1,0 @@
-[#contributor-facade-builder-types]
-= Facade, theme, and builder type
-
-The ordinary facade accepts `List(Document.Block)`. The compact builder retains a text-source list and parallel tag, source-ID and auxiliary scalar buffers. Appending one block grows each buffer once without retaining an old projection. Shared string payloads remain immutable. Both paths lower to the same explicit authoring and semantic facts.

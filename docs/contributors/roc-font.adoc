@@ -1,6 +1,0 @@
-[#contributor-roc-font]
-= Packaged roc-font families and asset provenance
-
-The facade gets its packaged static font programs and shaping tables from roc-font 0.2.0. The immutable source-oracle assets in `vendor/fonts/roc-font/static/` let independent checks compare emitted subsets with the exact package inputs. Preserve the license and source pins with those assets.
-
-The ordinary facade resolves exact family and style requirements before shaping. A fixed demand set records the needed package faces and only those faces are inspected. Registry construction consumes its accumulator and extracts the scalar handle before the next append. Exact work records count inspections, registered font bytes and inline and source traversal. Font descriptors consume validated source style-link, fixed-pitch and italic-angle facts. Keep the exact 16.16 angle in font-leaf identity and emission rather than converting to whole degrees.

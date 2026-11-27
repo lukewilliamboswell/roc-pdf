@@ -1,6 +1,0 @@
-[#contributor-default-fonts]
-= Default font family acceptance and work evidence
-
-The `default_fonts` group exercises the public resolver before authoring and preparation. It checks genuine packaged styles, combined inline roles, drawing labels, located selection failures and bounded scale. Registration inspects each demanded program once. The fixed face set and bounded drawing-role demands avoid per-inline font-store growth. Dense source and inline stores are traversed a constant number of times. Use a consuming registry builder and extract each scalar face handle before the next append.
-
-`scripts/check_default_fonts.py` checks static TrueType table structure, checksums, exact source outlines after composite ID relocation, style bits, font resource and glyph ownership, and expected role metrics. Its mutations include an altered outline and a wrong role. Run `./scripts/test.py --group default_fonts --quick --allocation-baselines --jobs 1` with the pinned tools. See xref:contributor-layout.adoc#contributor-roc-font[packaged assets] for the source oracle.

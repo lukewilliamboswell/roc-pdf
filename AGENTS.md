@@ -2,8 +2,8 @@
 
 - Keep the root README and user chapters focused on using the package.
   Explain supported behavior, runnable usage, limits and migration by task.
-  Put contributor workflows in their own manual chapters and supporting
-  implementation contracts under `docs/contributors/`.
+  Put contributor workflows and implementation contracts in their owning
+  manual chapters under `docs/`.
   Document supported behavior in its manual chapter and enduring decisions in
   `docs/architecture.adoc`. Preserve executable baselines, provenance, licenses
   and fixture checks. Keep completed integration records in Git.
@@ -81,8 +81,8 @@
   inside the branches of an `if` or `match` that produces a value (including
   a function's tail expression), and do not read a record or projection
   after the call that grows one of its lists. See
-  `docs/contributors/performance/lowering-uniqueness.adoc` and
-  `docs/contributors/performance/emission-linearity.adoc`.
+  `docs/contributor-output.adoc#contributor-lowering-uniqueness` and
+  `docs/contributor-output.adoc#contributor-emission-linearity`.
 - If a proposed change alters an enduring architectural decision or supported
   capability boundary, update the owning manual chapter in the same change.
   Do not use an implementation workaround to avoid resolving the conflict.

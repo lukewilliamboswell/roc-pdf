@@ -3329,7 +3329,7 @@
       "path": "tests/associated_files/archive_invoice.pdf",
       "kind": "expected_pdf",
       "license": "UPL-1.0 and OFL-1.1 embedded fonts",
-      "attribution": "docs/contributors/performance/associated-files.adoc",
+      "attribution": "docs/contributor-conformance.adoc#contributor-associated-files",
       "origin": {
         "kind": "generated",
         "generator": "tests/associated_files/Cases.roc"
@@ -3344,7 +3344,7 @@
       "path": "tests/associated_files/files_blank.pdf",
       "kind": "expected_pdf",
       "license": "UPL-1.0 and OFL-1.1 embedded fonts",
-      "attribution": "docs/contributors/performance/associated-files.adoc",
+      "attribution": "docs/contributor-conformance.adoc#contributor-associated-files",
       "origin": {
         "kind": "generated",
         "generator": "tests/associated_files/Cases.roc"
@@ -3359,7 +3359,7 @@
       "path": "tests/associated_files/files_many.pdf",
       "kind": "expected_pdf",
       "license": "UPL-1.0 and OFL-1.1 embedded fonts",
-      "attribution": "docs/contributors/performance/associated-files.adoc",
+      "attribution": "docs/contributor-conformance.adoc#contributor-associated-files",
       "origin": {
         "kind": "generated",
         "generator": "tests/associated_files/Cases.roc"
@@ -3374,7 +3374,7 @@
       "path": "tests/associated_files/files_payloads.pdf",
       "kind": "expected_pdf",
       "license": "UPL-1.0 and OFL-1.1 embedded fonts",
-      "attribution": "docs/contributors/performance/associated-files.adoc",
+      "attribution": "docs/contributor-conformance.adoc#contributor-associated-files",
       "origin": {
         "kind": "generated",
         "generator": "tests/associated_files/Cases.roc"
@@ -3389,7 +3389,7 @@
       "path": "tests/associated_files/files_small.pdf",
       "kind": "expected_pdf",
       "license": "UPL-1.0 and OFL-1.1 embedded fonts",
-      "attribution": "docs/contributors/performance/associated-files.adoc",
+      "attribution": "docs/contributor-conformance.adoc#contributor-associated-files",
       "origin": {
         "kind": "generated",
         "generator": "tests/associated_files/Cases.roc"
@@ -3404,7 +3404,7 @@
       "path": "tests/associated_files/files_wtpdf.pdf",
       "kind": "expected_pdf",
       "license": "UPL-1.0 and OFL-1.1 embedded fonts",
-      "attribution": "docs/contributors/performance/associated-files.adoc",
+      "attribution": "docs/contributor-conformance.adoc#contributor-associated-files",
       "origin": {
         "kind": "generated",
         "generator": "tests/associated_files/Cases.roc"
@@ -3419,7 +3419,7 @@
       "path": "tests/associated_files/invoice.pdf",
       "kind": "expected_pdf",
       "license": "UPL-1.0 and OFL-1.1 embedded fonts",
-      "attribution": "docs/contributors/performance/associated-files.adoc",
+      "attribution": "docs/contributor-conformance.adoc#contributor-associated-files",
       "origin": {
         "kind": "generated",
         "generator": "tests/associated_files/Cases.roc"
@@ -5358,7 +5358,7 @@
       "bytes": 25212,
       "sha256": "8712683e18b73db62e716f76589190471e7a6a2b3db47e93560f730b80d7c45a",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/contributors/performance/asset-provenance.adoc",
+      "attribution": "docs/contributor-conformance.adoc#contributor-asset-provenance",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -5373,7 +5373,7 @@
       "bytes": 83199,
       "sha256": "94585c9b0e9f55e11ba13725f09098f53de4e85518c32926adfe45da84b899f7",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/contributors/performance/asset-provenance.adoc",
+      "attribution": "docs/contributor-conformance.adoc#contributor-asset-provenance",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -5388,7 +5388,7 @@
       "bytes": 10263,
       "sha256": "1e82f82c43cdeed0c23e0ef45b5b4bac976cc14a3d9aee35d4205e8047d21fbd",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/contributors/performance/asset-provenance.adoc",
+      "attribution": "docs/contributor-conformance.adoc#contributor-asset-provenance",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -5403,7 +5403,7 @@
       "bytes": 20942,
       "sha256": "44c0ab6240b3212c308def78a4e0d36ac0a7a9c264442ef8fa85e85876198ffe",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/contributors/performance/asset-provenance.adoc",
+      "attribution": "docs/contributor-conformance.adoc#contributor-asset-provenance",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -5418,7 +5418,7 @@
       "bytes": 21525,
       "sha256": "c9695c762888ba5baea1fad2b243e2fa327e2ba76f51e9c061fd468025ee7c2a",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/contributors/performance/asset-provenance.adoc",
+      "attribution": "docs/contributor-conformance.adoc#contributor-asset-provenance",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -5553,7 +5553,7 @@
       "bytes": 12192,
       "sha256": "95c2bbde79e06df12faaa65bcc35eb9bdba6c63c58b284fdd65ce25cd0b320bd",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/contributors/performance/asset-provenance.adoc",
+      "attribution": "docs/contributor-conformance.adoc#contributor-asset-provenance",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -5568,7 +5568,7 @@
       "bytes": 25217,
       "sha256": "82c2eb7159e7706d082bd1d78f7218a8fe88fa42c285cfa0dae8630e84b18385",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/contributors/performance/asset-provenance.adoc",
+      "attribution": "docs/contributor-conformance.adoc#contributor-asset-provenance",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -6318,7 +6318,7 @@
       "bytes": 4226,
       "sha256": "41f2fae913033983b60e2bee282a9aa01c848ae88d788178c9b99d686f65be70",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/contributors/performance/asset-provenance.adoc",
+      "attribution": "docs/contributor-conformance.adoc#contributor-asset-provenance",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -6333,7 +6333,7 @@
       "bytes": 4227,
       "sha256": "a130138aa339c1d8833d8de54b4d66494a99566fb0551fcc5c516fd043cc6917",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/contributors/performance/asset-provenance.adoc",
+      "attribution": "docs/contributor-conformance.adoc#contributor-asset-provenance",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -6393,7 +6393,7 @@
       "bytes": 11002,
       "sha256": "0e0e089ed627dd8475691bc4c7b78ebc0e1ffc6a266694be22cc6e2e31ce7814",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/contributors/performance/asset-provenance.adoc",
+      "attribution": "docs/contributor-conformance.adoc#contributor-asset-provenance",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -6408,7 +6408,7 @@
       "bytes": 35687,
       "sha256": "75427bdaa4721753a09fd4b17df105f18674b63b67b7f2b610ce683a4e38e6a0",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/contributors/performance/asset-provenance.adoc",
+      "attribution": "docs/contributor-conformance.adoc#contributor-asset-provenance",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -6423,7 +6423,7 @@
       "bytes": 236574,
       "sha256": "e737bf735d14e6e91e0b1136e6b168fe8980ea14e694fc052db9641f47ca4021",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/contributors/performance/asset-provenance.adoc",
+      "attribution": "docs/contributor-conformance.adoc#contributor-asset-provenance",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -6438,7 +6438,7 @@
       "bytes": 33076,
       "sha256": "d011efe86d3a3ca550e7f6275b0570d6a3d1cc16e4b3c188116e14caaa91cfe4",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/contributors/performance/asset-provenance.adoc",
+      "attribution": "docs/contributor-conformance.adoc#contributor-asset-provenance",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -6453,7 +6453,7 @@
       "bytes": 167197,
       "sha256": "8c614e440f2c62c5d7edf0cabebf50bb5feac706e3e209cdb322a8d2c25ba001",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/contributors/performance/asset-provenance.adoc",
+      "attribution": "docs/contributor-conformance.adoc#contributor-asset-provenance",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -6468,7 +6468,7 @@
       "bytes": 19042,
       "sha256": "00508f9ed1c28f88ec0905caf083afac12efd950cacfee80a60e324050bfa0bb",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/contributors/performance/asset-provenance.adoc",
+      "attribution": "docs/contributor-conformance.adoc#contributor-asset-provenance",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -6483,7 +6483,7 @@
       "bytes": 37872,
       "sha256": "b628e843ecbffd3b0eaf94571d83f58224a3672b3136e0b90cb967870c066994",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/contributors/performance/asset-provenance.adoc",
+      "attribution": "docs/contributor-conformance.adoc#contributor-asset-provenance",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -6498,7 +6498,7 @@
       "bytes": 16256,
       "sha256": "2fa8a9cd0d837e1acc17c49a437e11d88dd02eee7d7977ffd9a710d6fd4ef3cf",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/contributors/performance/asset-provenance.adoc",
+      "attribution": "docs/contributor-conformance.adoc#contributor-asset-provenance",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -6513,7 +6513,7 @@
       "bytes": 24816,
       "sha256": "36421126efdd20ce3fc4e28d077af661401fcfa34ebfe90a88bee272ee259b32",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/contributors/performance/asset-provenance.adoc",
+      "attribution": "docs/contributor-conformance.adoc#contributor-asset-provenance",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -6633,7 +6633,7 @@
       "bytes": 20712,
       "sha256": "d7a428159f8e16d5c459498d20817d3142c1a2a9e5d481c8615c33e3ad88cbab",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/contributors/performance/asset-provenance.adoc",
+      "attribution": "docs/contributor-conformance.adoc#contributor-asset-provenance",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -8370,7 +8370,7 @@
       "bytes": 33160,
       "sha256": "5227ee6ccfc9d874f69525ca3e350367e42a69e2f8f0b4567e48a0969044ab1d",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/contributors/performance/asset-provenance.adoc",
+      "attribution": "docs/contributor-conformance.adoc#contributor-asset-provenance",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {
@@ -8385,7 +8385,7 @@
       "bytes": 199593,
       "sha256": "ce2b80d9f54aa211508f31bf8a9e8ccad3f081705be67f84a6aacdb71b3b33b2",
       "license": "UPL-1.0; embedded resources retain their separately recorded licenses",
-      "attribution": "docs/contributors/performance/asset-provenance.adoc",
+      "attribution": "docs/contributor-conformance.adoc#contributor-asset-provenance",
       "modification_permitted": true,
       "redistribution_permitted": true,
       "origin": {

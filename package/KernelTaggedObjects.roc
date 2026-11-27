@@ -1157,7 +1157,7 @@ add_id_tree = |builder, tagged, objects| {
 ## beside the value list, as `Try({ builder, values })`, made the pinned dev
 ## backend treat the builder's store lists as shared once the caller passed
 ## both on, so the next append copied every list once per element
-## (docs/contributors/performance/lowering-uniqueness.adoc).
+## (docs/contributor-output.adoc#contributor-lowering-uniqueness).
 add_k_array : KernelObject.Builder, Names, List(KernelTagged.KItem), Semantics.IndexRange, NavigationLowering, KernelObjectPlan.Plan, ElementPage -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelTaggedObjects.Error)
 add_k_array = |builder, names, items, range, navigation, objects, element_page| {
 	if range.length() == 1 {

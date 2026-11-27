@@ -5,7 +5,7 @@ Reusing only the byte-level value parser of the structure-semantics checker,
 and never the Roc package, it proves on the reference snapshots that:
 
 * metadata: the XMP packet's ``dc:title`` (``x-default``) equals the
-  metadata title fixed by docs/contributors/reference-documents.adoc, the catalog sets
+  metadata title fixed by docs/contributor-reference.adoc#contributor-reference-documents, the catalog sets
   ``/ViewerPreferences << /DisplayDocTitle true >>`` and ``/MarkInfo <<
   /Marked true >>``, and every page has ``/Tabs /S`` (LET-A4: the letter has
   no visible ``Title`` element and still carries all four);

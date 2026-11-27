@@ -1720,7 +1720,7 @@ the presets of one document share an identifier and differ only in their
 compressed streams. The presets are a closed set rather than a numeric level:
 each one is a reviewed byte contract with its own size, time, and allocation
 evidence, recorded in
-xref:contributor-output.adoc#contributor-output-size[`docs/contributors/performance/output-size.adoc`].
+xref:contributor-output.adoc#contributor-output-size[`docs/contributor-output.adoc#contributor-output-size`].
 `Balanced` is the default because it generates about ten times faster than
 `Smallest` for a modest size increase; `Smallest` keeps the package's previous
 bytes exactly.
@@ -1742,7 +1742,7 @@ hold its own offset, and it is FlateDecode with the PNG Up predictor. Object
 streams and the cross-reference stream carry direct lengths.
 
 This is an enduring decision, and the evidence behind it is recorded in
-xref:contributor-output.adoc#contributor-output-size[`docs/contributors/performance/output-size.adoc`]. In a
+xref:contributor-output.adoc#contributor-output-size[`docs/contributor-output.adoc#contributor-output-size`]. In a
 tagged business document most bytes are small dictionaries: structure
 elements, the ParentTree, annotations, and the page tree. Written as top-level
 uncompressed objects they were about half the file, and object streams remove
@@ -2074,7 +2074,7 @@ Contributor and CI tooling is declared in `Blueprint.roc` and locked in
 `Blueprint.lock` without a package provider: fixed tools such as Zig are
 fetched by committed digest, the remaining host tools are expected, and the
 test, fuzz, gallery, bundle and docs scripts are exposed as named tasks
-(`docs/contributors/blueprint.adoc`). The package compiler is not a Blueprint input:
+(`docs/contributor-reference.adoc#contributor-blueprint`). The package compiler is not a Blueprint input:
 `.roc-version` remains its single pin, because allocation baselines are exact
 for one compiler build and the nightly updater changes only that file.
 

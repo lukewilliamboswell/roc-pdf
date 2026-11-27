@@ -1,8 +1,0 @@
-[#contributor-multiface-font-selection]
-= Ordered multi-face cluster planning
-
-A caller registers validated faces, then `Font.Registry.with_policy` accepts
-an ordered list of opaque faces and produces an opaque policy ID. Empty,
-unknown, and duplicate-face policies reject before a plan is returned. A
-duplicate would make the selected policy ambiguous, so it is not normalized or
-silently deduplicated.

@@ -1,8 +1,0 @@
-[#contributor-custom-block-report]
-= Custom-block seam and preparation report
-
-A custom block is an authored box containing paragraphs and rich paragraphs. Normalization puts its leaves under a `Div`; layout uses the extension's declared content box and inset. The paginator owns the entire box, including trailing space reserved below its last line. An optional panel paints as an artifact before text. Panel placement consumes the accepted first-leaf ownership and geometry. A zero inset uses the whole measured width.
-
-`Pdf.measure_custom_content` supplies the extension with the facade's exact measured result for supported paragraphs. `Pdf.prepare_with_report` normalizes once and collects scalar facts only on its reporting path. It returns the prepared document and report after the same validation and budget checks as ordinary preparation. Ordinary preparation keeps no report tape.
-
-The `tests/custom_block` report, rich callout x10/x50 and defaults cases cover the public paths. `check_structure_semantics.py` independently proves that the `Div` owns only the logical paragraph children and that panel paint does not claim their content.

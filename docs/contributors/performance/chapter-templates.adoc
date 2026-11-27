@@ -1,6 +1,0 @@
-[#contributor-chapter-templates]
-= Explicit chapter scopes
-
-`Pdf.page_scope` sets fixed opening and continuation frames and an explicit short-run policy. Normalization stores dense scope records. The furniture stage builds each authored template once. Accepted pages carry their scope and opening or continuation identity. Template, region, text and accepted page accumulators remain independently owned.
-
-`check_chapter_templates.py` derives chapter starts from structured H1 content and compares each frame and furniture choice. The `tests/page_templates` 2/20 pair has 4/40 scoped pages and 2/20 opening pages.

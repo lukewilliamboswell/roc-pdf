@@ -1,4 +1,4 @@
-# Contributor tooling for roc-pdf. See docs/contributors/blueprint.adoc.
+# Contributor tooling for roc-pdf. See docs/contributor-reference.adoc#contributor-blueprint.
 #
 # The package compiler is not fetched here. `.roc-version` stays its only pin:
 # CI installs that nightly with the shared verified installer, contributors put it on PATH

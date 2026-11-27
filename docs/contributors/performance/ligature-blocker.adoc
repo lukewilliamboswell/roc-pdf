@@ -1,4 +1,0 @@
-[#contributor-ligature-blocker]
-= Ligature validation and output evidence
-
-For the declared GSUB contract, see xref:contributor-layout.adoc#contributor-gsub-ligature-inspection[bounded GSUB ligature inspection]. Check visible output with the xref:contributor-layout.adoc#contributor-fi-ligature[advanced fi fixture] and xref:contributor-layout.adoc#contributor-inter-latin[Inter Latin shaping fixtures].

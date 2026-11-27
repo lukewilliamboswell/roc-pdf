@@ -1,6 +1,0 @@
-[#contributor-color-image-leaves]
-= Color and image leaves
-
-Every image, ICC profile and color-space leaf derives canonical identity once from validated earlier facts. The packaged sRGB2014 asset pins the official ICC profile bytes, provenance and license. A hash narrows candidates. Descriptor partitioning and exact byte equality decide sharing. Canonical resource ordinals follow canonical ID order. Lowering consumes component shape and source ownership validated earlier.
-
-Validation, identity derivation and emission walk validated records and bytes forward. Palette, alpha, reusable form and placed image identities are kept explicit. The 24 negative cases exercise malformed ICC or raster shapes and resource ownership. `scripts/check_color_images.py` compares embedded profile bytes, image dictionaries and resource graphs. `scripts/check_color_image_renderers.py` replays the showcase, dedup and distinct raster rendering cases.

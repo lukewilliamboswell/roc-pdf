@@ -1006,7 +1006,7 @@ is_uri_byte = |byte| is_ascii_alpha(byte) or
 ## Appends every element of `source`. `List.concat` sizes its result
 ## exactly, so an accumulator grown by `concat` in a loop was reallocated,
 ## and copied, on every call; `append` grows geometrically
-## (docs/contributors/performance/emission-linearity.adoc).
+## (docs/contributor-output.adoc#contributor-emission-linearity).
 append_all : List(a), List(a) -> List(a)
 append_all = |target, source| {
 	var $out = target

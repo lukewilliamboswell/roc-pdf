@@ -80,10 +80,12 @@ def prepare(destination: Path, revision: str, release_version: str | None = None
     authored = set()
     for path in sorted(docs.rglob("*.adoc")):
         target = path.relative_to(docs)
-        if target.parts[0] == "releases":
+        if len(target.parts) == 2 and target.parts[0] == "releases":
             continue
+        if len(target.parts) != 1:
+            raise ValueError(f"{path.relative_to(ROOT)}: keep chapters directly under docs/")
         text = path.read_text()
-        if len(target.parts) == 1 and not re.match(r"(?:\[#[^\n]+\]\n)?= [^\n]+", text):
+        if not re.match(r"(?:\[#[^\n]+\]\n)?= [^\n]+", text):
             raise ValueError(f"{path.relative_to(ROOT)}: missing AsciiDoc document title")
         (destination / target).parent.mkdir(parents=True, exist_ok=True)
         (destination / target).write_text(pin_source_links(text, revision))

@@ -1,32 +1,828 @@
 [#contributor-conformance-chapter]
 = Conformance and correctness evidence
 
-include::contributors/performance/arlington.adoc[leveloffset=+1]
+[#contributor-arlington]
+== Optional Arlington object-model review
 
-include::contributors/performance/asset-provenance.adoc[leveloffset=+1]
+Arlington checks PDF object relationships derived from ISO 32000-2:2020. Its
+scope excludes lexical syntax, content-stream operators and file layout. The
+project-owned byte and structure checkers cover the supported output in CI.
 
-include::contributors/performance/associated-files.adoc[leveloffset=+1]
+For local review, start the service at the version expected by the report
+parser and invoke the checker on a generated file.
 
-include::contributors/performance/business-authoring-closure.adoc[leveloffset=+1]
+[source,sh]
+----
+docker run --rm -p 127.0.0.1:18080:8080 \
+  verapdf/arlington@sha256:1543368902c393771557e2a1da69e64ad72b69db32e6efebd38a09a7b86eacbc
+python3 scripts/check_arlington.py output.pdf
+----
 
-include::contributors/performance/conformance-types.adoc[leveloffset=+1]
+Run the second command in another shell. `--cases` selects registered fixtures
+and examples. The checker verifies the service version, selected `arlington2.0`
+profile, parser status, file length, and reported findings on the original
+bytes. `--self-test` exercises the report parser offline.
 
-include::contributors/performance/facade-diagnostics.adoc[leveloffset=+1]
+[#contributor-asset-provenance]
+== contract-definition asset-provenance performance contract
 
-include::contributors/performance/facade-output-oracles.adoc[leveloffset=+1]
+[#contributor-asset-provenance-scope]
+=== Scope
 
-include::contributors/performance/fillable-forms.adoc[leveloffset=+1]
+The provenance manifest describes versioned repository assets. Its validation
+is test-only and adds no production Roc data, startup work, or generated-PDF
+retention.
 
-include::contributors/performance/identifiers.adoc[leveloffset=+1]
+[#contributor-asset-provenance-representation-and-ownership]
+=== Representation and ownership
 
-include::contributors/performance/negative-determinism.adoc[leveloffset=+1]
+* Each retained asset has one flat record. Reuse sites refer to the asset path;
+they do not copy provenance records or payload bytes.
+* External assets require an immutable upstream revision, source URL, SHA-256
+digest, license, attribution, and explicit modification and redistribution
+permissions.
+* Generated assets identify their checked-in generator and carry the same
+digest, size, license, attribution, and permission fields.
+* Future hyphenation assets additionally require a BCP 47 language tag. No
+unversioned system dictionary is an acceptable origin.
 
-include::contributors/performance/negative.adoc[leveloffset=+1]
+[#contributor-asset-provenance-complexity-and-deterministic-work]
+=== Complexity and deterministic work
 
-include::contributors/performance/pdfbox.adoc[leveloffset=+1]
+The checker hashes every tracked binary asset once, so work is linear in total
+retained asset bytes. It builds one small path map and compares it with the
+tracked binary path set. It performs no network access and does not copy asset
+payloads into the production package.
 
-include::contributors/performance/renderers.adoc[leveloffset=+1]
+The check runs before every Roc allocation boundary. Consequently its hashing,
+filesystem, Python, and Git work cannot affect Roc allocations, PDF bytes, or
+production peak memory.
 
-include::contributors/performance/static-pdfa4.adoc[leveloffset=+1]
+[#contributor-asset-provenance-evidence]
+=== Evidence
 
-include::contributors/performance/technical-manual.adoc[leveloffset=+1]
+The schema self-test proves that a changed asset digest is rejected. The normal
+check also rejects missing files, byte-length changes, unmanifested tracked
+binary assets, duplicate identities or paths, mutable external origins, and a
+hyphenation record without a language.
+
+[#contributor-associated-files]
+== Associated files
+
+The document-level writer supports PDF/A-4f alone and the same archival
+declaration combined with PDF/UA-2. The accessible profile accepts only
+authored supplemental files. It checks that the descriptions can be emitted
+as human-readable PDF strings and asks the author to review their meaning
+and confirm that the visible document contains all essential information.
+
+[#contributor-associated-files-writer-checks]
+=== Writer checks
+
+[cols="1,1",options="header"]
+|===
+|Requirement |Evidence
+|ISO 19005-4:2020 §6.7.3 and Annex A |XMP identifies part 4, revision 2020 and conformance F. The declaration checker rejects a changed conformance value.
+|ISO 19005-4:2020 §6.9 |Each file specification includes F and UF, a typed AFRelationship, an embedded-stream reference and a parameter-free MIME Subtype. The catalog includes the EmbeddedFiles name tree. The tests change each fact independently.
+|ISO 32000-2:2020 §§7.9.6, 7.11 and 14.13 |Encoded keys, leaf boundaries, indirect references, payload ownership and each file's ModDate are checked before sealing. The independent checker compares the decoded objects with authored facts and detects swapping two same-size, same-MIME payloads.
+|ISO 14289-2:2024 §§6.2, 7.2.2, 8.6 and 8.14 |An accessible profile rejects a declared dependency and private-use text in the filename or description. Each file specification carries Desc. Omission is an atomic negative.
+|WTPDF 1.0 §§6.2, 7.2.2 and 8.14 |An optional declaration exercises the same supplemental-file boundary and matches the explicit WTPDF accessibility profile.
+|===
+
+Table 44 of the PDF 2.0 file specification and the associated-file
+relationships use the published
+https://pdf-issues.pdfa.org/32000-2-2020/clause07.html#H7.11[syntax] and
+https://pdf-issues.pdfa.org/32000-2-2020/clause14.html#H14.13[document interchange]
+errata. The archive metadata follows the
+https://pdf-issues.pdfa.org/19005-4-2020/clause06.html#H6.7.3[PDF/A-4 identification errata].
+
+The optional local Arlington 1.30.2 PDF 2.0 check passed all seven distinct
+associated-file PDFs in `tests/associated_files`. The separate veraPDF
+1.30.2 `4f` check passed the same seven files. Its explicit `ua2` check
+passed the same bytes for the invoice and all four accessible scale or
+declaration fixtures. Its explicit `wt1a` check passed the WTPDF fixture.
+qpdf extracted the exact example XML. These checks exercise declarations
+and machine rules. They cannot determine whether a description is meaningful
+or a document can be understood without the supplied data.
+
+[#contributor-associated-files-ownership-and-growth]
+=== Ownership and growth
+
+Validation first scans file counts and sizes using checked remaining capacity.
+File metadata and encoded keys are bounded independently from payload size.
+The registry sorts its bounded metadata once. Lowering appends one file
+specification, one stream and one length object per file, with a fixed-fanout
+name tree. Each stream references a full caller payload using the
+unchanged-resource path. Each payload is hashed once into the canonical file
+identity. Shared chunks forward its bytes, owned chunks copy it once, and
+the encoder drops its reference at the final stream.
+
+`tests/spec.json` pins allocations, requested bytes and deterministic work.
+The count pair crosses the 32-file leaf boundary. The volume pair keeps
+the number of files and their metadata fixed. Each run prepares once and
+checks both chunk retention modes against the buffered result.
+
+[cols="1,1,1,1,1",options="header"]
+|===
+|Files |Payload bytes |Chunks |Roc allocations |Allocated bytes
+|4 |64 |40 |1,583 |7,906,750
+|48 |768 |172 |3,977 |9,358,160
+|4 |131,072 |40 |1,588 |8,711,837
+|===
+
+Measurements use the pinned Roc dev backend with specialization enabled on
+Linux x86-64 and the ReleaseFast Zig test platform. Small public fixtures
+also cover insertion permutations, exact count and payload limits, bounds
+rejections and both accessible declaration selections. The bounded
+`AssociatedFilesModel` explores 682 states through four additions and
+finalization. The document fuzz property supplies opaque bytes and verifies
+canonical output or an atomic authoring diagnostic.
+
+[#contributor-business-authoring-closure]
+== Business authoring checks
+
+The invoice, report and letter are authored through the public APIs.
+Their accepted layouts, rejections and scale variants are recorded in
+xref:contributor-reference.adoc#contributor-reference-documents[the reference document contract]
+and in the
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/tests/spec.json[fixture inventory].
+The gallery verifies regeneration from both the checkout and the published
+package bundle. The negative paths check located errors before any bytes or
+chunks are available.
+
+The ordinary fixtures validate the default combined PDF/A-4 and PDF/UA-2
+declarations. The structure checks cover metadata title and display,
+standard roles and namespaces, authored table header identity, marked content,
+artifacts, and geometric and structure destinations. The project decoder and
+optional PDFBox extraction provide independent observations of structure.
+Compare values with the authored fixture to detect substitutions that still
+satisfy a generic file validator.
+
+The scale cases retain output identity, exact allocation counts and work
+counters. See xref:testing.adoc[Testing roc-pdf] for the baseline protocol and
+xref:contributor-conformance.adoc#contributor-static-pdfa4[static archival checks]
+for the supported writer policy.
+
+[#contributor-conformance-types]
+== contract-definition conformance-type slice
+
+This record covers the define-only `Conformance` public type module. It does
+not claim that profile validation or PDF emission exists.
+
+[#contributor-conformance-types-input-and-complexity-contract]
+=== Input and complexity contract
+
+* Profile-to-claim mapping is constant time and visits no input collection.
+* Diagnostics are stored in one flat list. Each diagnostic retains compact
+scalar locations, validation stage, requirement IDs, standards clause
+references, and bounded detail strings rather than a document or resource
+payload.
+* `ResourcePolicy` contains an explicit limit for every currently planned
+attacker-controlled dimension. Zero rejects that dimension and is never an
+unlimited sentinel.
+
+[#contributor-conformance-types-ownership-and-allocation-contract]
+=== Ownership and allocation contract
+
+* Claim sets and policies are fixed-shape records with no hidden collection.
+* A diagnostic owns only its bounded text lists. Later validation stages
+consume one diagnostic accumulator, stop at the policy count or byte bound,
+and mark truncation without scanning merely to count discarded findings.
+* The mapping function allocates no per-capability list and performs no `Iter`
+traversal.
+
+Type checking and unit tests exercise the representation. The validators
+that consume it supply executable allocation and scaling evidence.
+
+[#contributor-facade-diagnostics]
+== Specific facade diagnostics for every pipeline failure
+
+The original facade mapped author-facing failures to located diagnostics, but
+other failures fell through `pipeline_error` to
+`UnsupportedAuthoringContent({ blocks })`. Crossed stage limits, unprepared
+style faces, unexplained shaping failures and internal preconditions all
+looked the same. The gallery exposed missing subset hinting tables and a
+`SplitMismatch`; their separate repairs are recorded in
+xref:contributor-layout.adoc#contributor-font-subsetting[font-subsetting.md] and xref:contributor-layout.adoc#contributor-rich-inline[rich-inline.md].
+The generic public error has since been removed.
+
+[#contributor-facade-diagnostics-typed-conversion-contract]
+=== Typed conversion contract
+
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/package/KernelFacadeFailure.roc[KernelFacadeFailure.roc] owns private,
+exhaustive conversions from the pipeline's reachable error unions to
+`{ category, feature, path, detail }`. Each constructor explicitly selects its
+stable feature segment, diagnostic path segment and `Budget` or `Invariant`
+category. Owning-stage wrappers add context to that typed result.
+
+For example, the typed constructor path
+`Output.Structure.TaggedObjects.Object.LimitExceeded` yields
+`pipeline.output.structure.tagged_objects.object.limit_exceeded`, a
+`BudgetExceeded` public diagnostic and that exact dotted detail path. A
+`Text.InvalidRun` failure yields `pipeline.text.invalid_run` and
+`InternalInvariant`. Record-held causes also supply their category through a
+typed conversion: a table-layout limit stays `Budget`, while the stable
+`pipeline.pages.table_layout` wrapper identity is retained.
+
+New constructors require an explicit decision in the owning exhaustive match.
+There is no fallback branch that guesses a budget failure or derives a feature
+from a constructor's spelling. Debug text such as `LimitExceeded` inside a
+string payload cannot change classification or identity. These private error
+types do not enter the common public API.
+
+`Str.inspect` renders explanatory leaf detail only, after the typed decision.
+The detail is capped to a 160-byte UTF-8 prefix plus an ellipsis; a prefix that
+splits a scalar uses the fixed truncation marker. No parser searches rendered
+text for tags, parentheses, punctuation or budget names. A record-held table
+error renders its cause rather than its retained unit/group arenas. The
+conversion runs only after rejection; a successful preparation does not call
+it or build diagnostic strings.
+
+[#contributor-facade-diagnostics-public-authoring-diagnostics]
+=== Public authoring diagnostics
+
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/package/Pdf.roc[Pdf.roc] keeps specific authoring mappings where the
+failure has an author-facing cause and location:
+
+[cols="1,1",options="header"]
+|===
+|Feature |Cause and location
+|`semantics.heading_level` |A heading outside levels 1–6, at its authored path
+|`document.language_empty`, `document.title_empty` |Missing required metadata, normally rejected earlier
+|`text.theme_face` |A block style names an unprepared face
+|`text.shaping_failed` |Selected faces cannot shape a run and no individual run was identified
+|`color.unsupported` |A text color cannot be represented by the output intent
+|`image.invalid` |Invalid declared image data, retaining its typed failure identity
+|===
+
+Crossed image limits use `BudgetExceeded` through the typed stage converter.
+Other unmapped stage failures use `InternalInvariant`, preserving their typed
+stage and cause as a package defect. Page-layout table failures and furniture
+failures without a specific authoring mapping follow the same contract.
+Located style-availability and coverage diagnostics retain the font resolver's
+explicit owner facts; their evidence is in
+xref:contributor-layout.adoc#contributor-default-fonts[default-fonts.md].
+
+[#contributor-facade-diagnostics-evidence-and-measurement-scope]
+=== Evidence and measurement scope
+
+The current `KernelFacadeFailure` expects cover nested budget identity, payload
+strings that resemble error tags, payload-bearing and payload-free invariants,
+record-held table causes, image marker limits and bounded long detail. The
+`Pdf` expects verify that typed categories become the corresponding public
+codes and stable paths. Additional facade regressions retain `image.invalid`
+for a bad declared image and `semantics.heading_level` at `contents[1]` for a
+level-7 heading. These execute with the package checks in `scripts/test.py`.
+The public facade contract in
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/tests/contracts/pdf_facade.roc[tests/contracts/pdf_facade.roc] retains
+the malformed packed-image regression.
+
+Diagnostic conversion runs on rejection. Review any change in successful
+output or allocation counts against the affected success path.
+
+[#contributor-facade-output-oracles]
+== text-layout facade-output oracle boundary
+
+This document records the evidence boundary for the first real high-level
+`Pdf` facade output. It does not close any text-layout capability.
+
+The input case is one authored paragraph with the built-in theme and a
+`Standard` profile. The core slice must provide a deterministic nonblank PDF,
+an exact snapshot, and a checked-in scenario record before it can join the
+ordinary test suite. Its positive evidence must establish all of these facts
+from the original emitted bytes:
+
+* exactly one tagged A4 page with an owned text content stream, balanced
+fragment marked content and text objects, `/StructParents`, and `/Tabs /S`;
+* exactly one page Type 0 `/Identity-H` resource with one CIDFontType2
+descendant, an unfiltered identity `CIDToGIDMap`, and a complete `ToUnicode`
+mapping for every painted CID;
+* direct reconstruction of the semantic source string from content CIDs and
+`ToUnicode`, plus independent PDFBox 3.0.8 extraction of the exact UTF-8
+string;
+* an embedded TrueType-flavoured `FontFile2` whose declared `/Length1` equals
+the decoded stream, with one deterministic subset identity shared by all
+three PDF font dictionaries; and
+* independent PDFBox and PDFium 72-dpi rendering within newly measured,
+explicitly checked per-renderer ink bounds and tolerances, with their
+geometry checked against each other separately. Glyph-edge antialiasing
+coverage is renderer-specific evidence, not a reason to widen a shared
+pixel-count tolerance.
+
+`scripts/check_facade_output.py` carries these assertions without
+hard-coding object IDs, subset digest, width sequence, content layout, or
+allocation totals. The core fixture supplies those facts through the emitted
+PDF and the authored expected text. Its checker self-test uses the existing
+visible-text fixture and rejects independent same-length changes to a
+`ToUnicode` row, `/Identity-H`, and embedded-font length.
+
+The facade-output fixture is registered in `tests/spec.json` with reviewed
+exact dev-backend allocation and deterministic-work records. The test harness
+invokes this checker after snapshot comparison. Its local
+`tests/facade_output/oracles.json` records the authored text and separate
+exact 72-dpi PDFBox 3.0.8 and PDFium Chromium 7988 metrics from the original
+bytes. These are renderer-specific observations, not a widened shared
+tolerance inherited from the synthetic visible-text case.
+
+The implementation-owned line-run-limit atomic negative now verifies the
+stable typed failure before output planning. Mutating output bytes remains only
+the independent checker self-test and is not a substitute for that failure
+evidence.
+
+The separate public one-import fixture exercises the same authored paragraph
+through `Pdf.to_bytes`. It is registered with its own byte-identical public
+snapshot, 1,423-allocation construction-inclusive dev-backend baseline, and
+deterministic output-byte work counter. The harness applies this structural
+oracle to the public fixture after comparing the original snapshot. The
+fixture uses the same authored string and measured renderer observations, so
+the explicit PDFBox extraction and independent PDFBox/PDFium 72-dpi checks can
+be run directly against its original bytes without treating an internal
+pipeline result as a substitute for the public boundary.
+
+[#contributor-fillable-forms]
+== Fillable forms
+
+The explicit `AccessibleForm` profile emits PDF/A-4 and PDF/UA-2 for labelled,
+single-line text fields and independent checkboxes on fixed pages. The optional WTPDF accessibility declaration
+uses the same form constraints. The writer checks the bytes it generates.
+A reader owns subsequent user edits, appearances and saves.
+
+[#contributor-fillable-forms-writer-checks]
+=== Writer checks
+
+[cols="1,1",options="header"]
+|===
+|Requirement |Evidence
+|ISO 32000-2:2020+EC3 §§12.5.5, 12.5.6.19, 12.7.2–12.7.4 and 12.7.5.3 |Each field has one editable text widget, a unique terminal field name, a plain initial value, and one normal appearance. The local and AcroForm default appearances use `Ftx` at 10 points. The decoder matches the appearance's text and resources to the authored value and checks the full 95-character ASCII range using the embedded program's cmap and horizontal metrics.
+|ISO 19005-4:2020 §§6.2.10 and 6.3–6.4 |The form has an embedded editable font and explicit normal appearances. Widgets print and remain visible. The writer omits `NeedAppearances` and excludes actions, rich values and external programs from the policy.
+|ISO 14289-2:2024 §§8.9.3.3, 8.10.1, 8.10.2 and 8.10.3.3, WTPDF 1.0 corresponding clauses, and ISO/TS 32005:2023 Table 5 |Every widget has one `Form` owner and OBJR via ParentTree. The direct `Lbl` child holds its decoded visible label, and `TU` carries the accessible field context. Ordered `Form` nodes and ordered page-local annotations preserve authored focus with `/Tabs /S`. The package admits only plain text and omits `RV`.
+|===
+
+The five field PDFs pass Arlington 1.30.2 and veraPDF 1.30.2 explicit `4` and
+`ua2`. The WTPDF fixture also passes `wt1a`. The independent field decoder
+rejects a different valid value in the appearance while Arlington and
+veraPDF `4` and `ua2` accept the same mutation. It also rejects a read-only
+flag and a changed field context. Poppler 26.07.0 at 96 dpi renders a blank
+text interior and produces 296 nonwhite pixels in the matching interior of
+the prefilled field.
+
+The owning-facade model explores 518 states and 517 steps through depth
+four with four witnesses. It checks authored label ownership, pages,
+placement order and duplicate rejection for reordered text fields and
+checkboxes, including a page boundary. A separate authored table compares
+planned values and labels to the production field plan. The independent PDF decoder checks
+values and appearances when an emitted fixture is read. Solve checks the
+48-point geometry within the bounded page domain. The owning-facade
+rejection fixture runs boundary widths, invalid values, duplicate IDs, the
+128-field boundary, and incompatible profiles through both buffered and
+chunked preparation. Omitted, explicit blank, and empty prefilled inputs
+produce byte-identical files.
+
+[#contributor-fillable-forms-checkbox-states]
+=== Checkbox states
+
+ISO 32000-2:2020+EC3 §§12.5.5 and 12.7.5.2.3 connect each checkbox's
+`V`, widget `AS` and named normal appearances. ISO 19005-4:2020 §§6.3–6.4
+requires the state subdictionary for these button widgets. The writer
+produces both appearances for every widget and shares two 22-point vector
+streams throughout a document. The package uses the deterministic name
+`Yes` for checked and `Off` for unchecked. The visible label and accessible
+context identify the option independently. ISO 14289-2:2024 and WTPDF 1.0
+§§8.9.3.3, 8.10.1, 8.10.2, 8.10.3.2.1 and 8.10.3.2.3 govern the label,
+context and ownership. ISO/TS 32005:2023 Table 5 supplies the `Form` and
+`Lbl` containment rules.
+
+The checker decodes both streams, compares the selected state to the
+authored choice, and confirms the label's ownership and mixed tab order.
+Both unchecked authoring forms produce byte-identical output. Case
+coverage includes duplicate IDs across types, layout endpoints with
+one-millipoint negatives, the 128-field limit, and existing static
+profiles. Solve checks placement of the box and label within their
+266-point horizontal span.
+
+All retained checkbox PDFs pass explicit veraPDF 1.30.2 `4` and `ua2`.
+The declared WTPDF mixed PDF also passes `wt1a`. Arlington 1.30.2 reports
+only `AnnotWidgetFieldBtnCheckbox-DA#7`, once per checkbox, because its
+model requires a variable-text default appearance even for fully
+specified vector checkboxes. The harness pins the exact rule and
+occurrence count per path. ISO 32000-2:2020+EC3 §12.7.4.3 Table 228 applies
+to variable-text fields. See https://github.com/pdf-association/pdf-issues/issues/323[PDF Association issue #323].
+
+Mutating both `V` and `AS` to the wrong state or swapping the two
+normal appearances preserves the external outcomes above. The project
+checker detects both mutations. Its optional Poppler 26.07.0 rendering
+check confirms the initial visible marks and their changes in the same
+mutated files.
+
+[#contributor-fillable-forms-allocation-and-work]
+=== Allocation and work
+
+The field registry validates bounded UTF-8 strings and stably sorts
+bounded IDs once. Widgets follow authored page order, so lowering and
+checking scan the annotation plan without a field-by-page Cartesian pass.
+Fixed page geometry shares checked span arithmetic. All appearances
+reference one complete editable font program, shared with buffered and
+chunked emission, and bounded label/value inputs keep field-local work
+finite. The field rejects the 129th registered field before lowering.
+
+[cols="1,1,1,1,1,1",options="header"]
+|===
+|Fields |Pages |Roc dev allocations |Allocated bytes |Emitted chunks |PDF bytes
+|4 text |1 |2,036 |13,117,573 |46 |91,543
+|42 text |7 |9,493 |40,861,463 |178 |108,303
+|4 mixed |1 |1,987 |13,068,992 |46 |90,717
+|42 mixed |7 |7,906 |29,502,811 |121 |101,378
+|===
+
+The fixture pins exact allocations and deterministic counters with the
+pinned dev compiler, and compares shared prepared chunks with buffered
+bytes. Retained generated PDFs include references to one editable font
+program per document regardless of field count. See
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/tests/spec.json[`tests/spec.json`] for the cross-target evidence
+contract.
+
+[#contributor-identifiers]
+== structural-kernel deterministic file identifiers
+
+[#contributor-identifiers-scope-and-normalized-input]
+=== Scope and normalized input
+
+The initial structural plan emits the same 32-byte SHA-256 digest in both
+members of the PDF file-identifier array. Its exact normalized input is the
+UTF-8 domain `roc-pdf:document-id:v1`, a zero byte, the plan-kind tag `blank`,
+a zero byte, the page count as one big-endian `U64`, and one page-size byte
+(`0` for A4 and `1` for Letter). Those facts uniquely determine every current
+blank structural plan without hashing serialized bytes that contain the
+identifier itself. Future plan kinds require their own unambiguous fact tags
+and complete normalized fields under the versioned domain.
+
+[#contributor-identifiers-ownership-and-bounded-work]
+=== Ownership and bounded work
+
+`KernelSha256` processes input in 64-byte blocks. It allocates one fixed
+64-word message schedule per digest and mutates that unique schedule for every
+block, keeps the eight digest words as scalar state, and produces one 32-byte
+result. It does not construct a padded copy of the input, allocate per byte or
+block, use `Iter`, or retain views into the caller's input. Work is exactly 64
+compression rounds per padded block with constant auxiliary space.
+
+The encoder owns the 32-byte digest once and replays it twice into the xref
+dictionary. The optimized one-page whole-fixture allocation count remains zero
+under the pinned compiler. The 262,144-byte generated-content fixture exercises
+4,097 SHA-256 blocks without allocation growth per digest block; its whole
+pipeline grows only with the five bounded DEFLATE blocks.
+
+[#contributor-identifiers-evidence]
+=== Evidence
+
+Unit tests cover the NIST empty-input and multi-block SHA-256 vectors. The
+independent PDF checker requires two canonical uppercase 32-byte identifiers,
+requires the initial pair to match, reconstructs the normalized facts from the
+page tree and media box, and recalculates the digest with Python's independent
+SHA-256 implementation.
+
+[#contributor-negative-determinism]
+== structural-kernel negative and cross-system evidence
+
+[#contributor-negative-determinism-atomic-negative-matrix]
+=== Atomic negative matrix
+
+structural-kernel invalid inputs are rejected at their typed construction or sealing
+boundary before an emission plan can escape. The retained caller value remains
+unchanged, and no encoder exists from which partial PDF bytes could be read.
+The focused rejection cases cover these structural contracts:
+
+[cols="1,1",options="header"]
+|===
+|Required category |Rejection evidence
+|Malformed numeric values |`KernelLex.Decimal.from_coefficient` rejects a scale outside the closed exact-decimal policy; floating-point NaN and infinity never enter the representation.
+|Duplicate keys |`KernelObject` rejects duplicate dictionary keys before appending edges; `KernelIndex` separately rejects duplicate byte and number keys.
+|Bad references |`KernelSeal` rejects an indirect reference outside the final dense object range and identifies both source value and target object.
+|Offset/count overflow |`KernelEmit.CountingSink` rejects a position increment above `U64.highest`; `KernelObject` directly exercises checked count and aggregate-size overflow without allocating an impossible collection.
+|Invalid names/strings |`KernelLex.Name` rejects a null byte. Roc `Str` makes malformed UTF-8 unconstructible, while PDF byte strings intentionally accept every byte; explicit aggregate limits reject oversized name, text-string, and byte-string inputs atomically.
+|Non-monotonic tree keys |`KernelIndex` distinguishes descending byte keys and descending number keys from duplicates, including prefix and unsigned-byte ordering cases.
+|Bad limits/counts |Empty page, balanced-tree, index-tree, and outline inputs and their explicit page, entry, and depth limits have named failures.
+|Size limits |Object-store aggregate bytes, index key bytes, generated DEFLATE input/output, structural page count/output bounds, and outline entry/depth limits are checked before their bounded representation escapes.
+|===
+
+The external checker negatives are deliberately separate. They mutate already
+serialized bytes to prove that independent zlib reconstruction, offsets,
+indirect lengths, identifiers, EOF placement, Arlington report parsing, and
+PDFBox strict parsing do not accept their corresponding corrupt evidence.
+Those files are never inputs to the package and therefore are not substitutes
+for transactional internal rejection.
+
+[#contributor-negative-determinism-cross-system-byte-identity]
+=== Cross-system byte identity
+
+The supported evidence systems are `arm64mac` and `x64musl` under the compiler
+pin in `.roc-version`. The CI matrix builds each fixture with the same Roc
+optimization and Zig ABI, captures its original stdout bytes, and compares the
+entire result to one shared tracked snapshot before running independent
+structural checks. A platform-specific hash match is not accepted in place of
+that byte-for-byte comparison.
+
+The shared snapshots establish these structural-kernel hashes on both systems:
+
+[cols="1,1",options="header"]
+|===
+|Structural fixture |SHA-256
+|blank |`1ead96b196ec598284fc1a127bb390a3f4643f1d848d01dd118aa1b46949ef5d`
+|balanced 4,096 pages |`bef875d56c7b93c4120aaea9e9f19bc90b3f4857e507a8bdb6aff6a8e07e5756`
+|one-block DEFLATE |`9c17df59246c2e7bb2d7073057c805aa37b7f21f931a2bb5929f8b7e0e870a95`
+|five-block DEFLATE |`110215bac723e732b7248e092db3d75e19c7da430c77154f39bd4062c91a30ed`
+|unchanged resource |`3ab3cc3e9162be5bfacdfb3012900256a087973484f21e194e2d87516ff18cb8`
+|===
+
+The same matrix asserts the exact allocation and algorithmic-work vectors per
+target. Cross-system determinism therefore does not relax the separate
+performance contract.
+
+[#contributor-negative]
+== tagged-visual atomic negative evidence
+
+[#contributor-negative-transactional-boundary]
+=== Transactional boundary
+
+Every runtime negative below is rejected while building an opaque geometry,
+scene, semantic, tagged, color, image, resource-use, or content plan. Object
+identity assignment and emission accept only those opaque plans, so a rejected
+input cannot expose a partial object store or PDF byte prefix. Error tags and
+their scalar diagnostic fields are exact Roc test expectations.
+
+Non-finite operands have a stronger boundary: page coordinates, affine
+coefficients, colors, dimensions, and path operands use opaque integer or
+fixed-point types. NaN and infinity have no representation at this API. The
+runtime twin for the remaining numeric failure mode is checked `I64` overflow,
+which returns `CoordinateOverflow` before a geometry plan escapes.
+
+[cols="1,1",options="header"]
+|===
+|Required negative |Evidence and stable rejection
+|Unbalanced or invalid geometry |`KernelScene` rejects overlapping command ranges with `DuplicateOwnership`, orphan commands with `Orphaned`, invalid path order with `InvalidPathOrder`, and excessive explicit graphics depth with `LimitExceeded(GraphicsDepth)`; traversal is iterative.
+|Non-finite or overflowing operands |Non-finite values are unrepresentable; `KernelGeometry` returns `CoordinateOverflow` for checked transform overflow.
+|Invalid page boxes |`KernelGeometry` returns exact `NonPositiveBox` and `BoxOutside` errors before page lowering.
+|Invalid image dimensions or channels |`KernelImage` returns `InvalidDimensions` before stride arithmetic and `ColorComponentMismatch` before resource planning; `KernelResourceUse` independently checks scene/color/image agreement.
+|Malformed JPEG |Segment-length, truncated-marker, table, scan, component, and EXIF/orientation checks return bounded `InvalidJpegSegment`, `InvalidJpegMarker`, `UnsupportedJpegComponents`, `InvalidExif`, or `OrientationRequiresTransform` errors.
+|Invalid semantic, content-stream, or fragment identity |`KernelSemantics` tests exact `NonDenseIdentity` and `IndexOutOfRange` failures before reverse-index writes or ParentTree planning.
+|Orphan or duplicate MCID ownership |MCIDs are derived only after `DuplicateFragmentOwnership`, `OrphanFragment`, and `OccurrenceHasNoFragments` checks. The independent emitted-PDF checker rejects a changed MCID.
+|Missing or wrong ParentTree entry |Counts and prefix sums create every row from sealed marked references. The independent checker replaces the one ParentTree value and requires rejection.
+|Unowned meaningful content |`KernelTagged` rejects semantic fragments painted as page artifacts and logical occurrences without a painted fragment.
+|Page/contextual Artifact confusion |`KernelTagged` proves page artifacts acquire no MCID; `KernelSemantics` rejects Artifact-owned attributes on ordinary nodes; the independent checker rejects a contextual Artifact attached outside its exact semantic parent.
+|===
+
+[#contributor-negative-emitted-negative-twins]
+=== Emitted negative twins
+
+`check_tagged_visual.py` begins from the retained valid PDF and applies five length-
+preserving mutations: mixed `/K` reordering, wrong ParentTree ownership, an
+orphan MCID, a wrong page `StructParents` key, and a contextual Artifact with
+the wrong parent. Each must fail the normalized structure checker. Existing
+structural-kernel structural negatives separately prove that offsets, lengths, xref,
+DEFLATE, identifiers, and EOF corruption are rejected.
+
+[#contributor-pdfbox]
+== structural-kernel strict PDFBox parsing
+
+[#contributor-pdfbox-parser-pin-and-strict-boundary]
+=== Parser pin and strict boundary
+
+For optional local verification, use a JDK and provision the pinned PDFBox JAR.
+
+[source,sh]
+----
+python3 scripts/provision_extended_tools.py --only pdfbox
+python3 scripts/check_pdfbox.py
+----
+
+`scripts/StrictPdfCheck.java` constructs `PDFParser` over the original file and
+calls `parse(false)`. The explicit `false` selects PDFBox's non-lenient path;
+the ordinary loader and the parser's zero-argument `parse()` are not used
+because they enable auto-healing by default. The checker captures both Java
+warning records and raw standard-error diagnostics across parsing, lazy object
+loading, stream decoding, content parsing, and close. Any warning or diagnostic
+fails the check.
+
+[#contributor-pdfbox-independent-facts]
+=== Independent facts
+
+Every xref entry is dereferenced. The checker asserts PDF 2.0, an xref stream,
+no hybrid xref or encryption, contiguous generation-zero object numbers, exact
+`/Size`, object 1 as `/Root`, a paired 32-byte identifier, and exact catalog,
+page-tree, page, and xref-stream type counts. It walks the independent PDFBox
+page model, verifies every parent, content, and indirect-length reference,
+checks the A4 media box and empty resource dictionary, decodes every content
+stream, and incrementally parses every content token.
+
+[cols="1,1,1,1,1,1",options="header"]
+|===
+|Snapshot |Pages |Objects |`/Pages` nodes |Decoded bytes |Operators
+|blank |1 |6 |1 |0 |0
+|one-block DEFLATE |1 |6 |1 |65,535 |32,768
+|five-block DEFLATE |1 |6 |1 |262,144 |131,072
+|balanced pages |4,096 |12,423 |133 |0 |0
+|unchanged resource |1 |6 |1 |64 |0
+|===
+
+The generated streams must contain only balanced, alternating `q` and `Q`
+operators; blank and unchanged-resource streams must be empty or whitespace-
+only. This forces lazy object loading, Flate decoding, and content parsing
+instead of accepting a successful initial catalog load as sufficient evidence.
+
+[#contributor-pdfbox-recovery-negative]
+=== Recovery negative
+
+The checker shifts the blank fixture's `startxref` by one byte without changing
+the file length. PDFBox must reject it while executing `parse(false)` with the
+dedicated strict-parse exit status. A later object-fact mismatch does not count
+as proof that recovery was disabled.
+
+PDFBox is independent parser evidence, not the conformance source of truth and
+not a repair or rewrite stage. Arlington, qpdf, and the byte-level structural
+checker retain their separate scopes.
+
+[#contributor-renderers]
+== tagged-visual independent renderer evidence
+
+[#contributor-renderers-fixture-and-oracle]
+=== Fixture and oracle
+
+The optional local tagged-visual check renders the fixture at 720 dpi with
+PDFium and PDFBox. Provision those tools explicitly before running the check.
+Keep the original fixture bytes as input to both renderers.
+
+The expected 100 by 100 RGB raster is constructed directly from the typed
+fixture, not from either renderer and not from another PDF generator. One PDF
+point is ten pixels at this resolution. The expectation starts as white and
+then applies these regions in paint order:
+
+* the one-point gray path fills pixels `[0,10) x [90,100)` with RGB 128;
+* the translated two-by-one-point image occupies `[60,80) x [10,20)`;
+* its four source samples produce 10-by-5-pixel cells with values 0, 64, 128,
+and 255 in source row order.
+
+All geometry lands on integer pixel boundaries, there are no curves at the
+region edges, and every color is grayscale. The declared tolerance is
+therefore zero pixels for geometry and zero component values for color. Both
+renderers must equal the independent 30,000-byte expectation and each other.
+
+[#contributor-renderers-pinning-and-failure-boundary]
+=== Pinning and failure boundary
+
+The project adapters emit a binary PPM boundary that
+`check_visual_renderers.py` parses without image-library dependencies. Use
+xref:contributor-reference.adoc#contributor-testing-optional-local-pdf-review[the local tool setup] to provision
+archives and record the reviewed versions.
+
+The checker self-test changes one channel of one white pixel and proves that
+the zero-tolerance comparison rejects it. Renderer setup and buffers are test-
+only and are outside Roc allocation measurements and production dependencies.
+
+[#contributor-static-pdfa4]
+== Static PDF/A-4 output checks
+
+`Archive` emits PDF/A-4 identification. `AccessibleArchive` uses the same
+static checks and adds PDF/UA-2 identification and accessibility checks.
+`Standard` selects PDF 2.0 without archival identification. Support is best
+effort and limited to the implemented static subset.
+
+`KernelXmp.Packet.build_identified` writes part 4 and revision 2020 when the
+selected profile includes PDF/A-4. PDF/A-4e and PDF/A-4f are separate profiles
+outside this authoring surface.
+
+[#contributor-static-pdfa4-validation-stages-and-the-whitelist]
+=== Validation stages and the whitelist
+
+`package/KernelPdfA4.roc` owns the profile boundary. Each implemented `Requirement`
+has a diagnostic identifier, edition/clause reference and author-facing
+summary.
+
+*Profile validation* (`validate_text`) consumes the prepared text facts that
+only the text planner can state:
+
+* the exact ToUnicode mappings retained by `KernelPdfText.ScenePlan`;
+* the first ActualText run whose replacement contains a private-use scalar.
+`KernelPdfText` records this where it materializes the replacement, so
+validation never re-reads content streams.
+
+It rejects U+0000, U+FEFF, and U+FFFE mappings (6.2.10.7) and private-use
+ActualText (6.2.10.8). It performs zero allocations and is linear in mapped
+scalars.
+
+*Lowered-plan validation* (`validate_lowered`) runs on every prepared plan,
+blank or authored, before it is wrapped in `Pdf.Prepared`.
+
+For an unclaimed plan it only compares the packet's identification with the
+claim. A `Standard` packet that declares PDF/A is therefore a false
+declaration and is rejected without scanning.
+
+For a claimed plan it:
+
+[arabic]
+. Classifies each interned name once into a dense `List(NameClass)`. This is
+the only allocation. The same pass checks strict UTF-8 (6.1.7).
+. Checks every dictionary value and every stream dictionary against the
+whitelist:
+* Excluded constructs cover external stream sources, encryption,
+interactive forms, JavaScript, optional content and attachments.
+* *Value checks:*
+** `Interpolate` is false;
+** `BitsPerComponent` is 1, 2, 4, 8 or 16, and is 1 for image masks;
+** `BM` is `Normal`;
+** `Filter` is `FlateDecode` or `DCTDecode`;
+** actions are only `URI` or `GoTo`, without `Next`;
+** annotations are only `Link`, with Print set and Hidden, Invisible,
+NoView and ToggleNoView clear; an appearance, if present, is exactly one
+`/N` stream;
+** fonts are only `Type0` or `CIDFontType2`, with a `CIDToGIDMap`;
+** font descriptors carry `FontFile2` and no other font program.
+. Checks the catalog:
+* the `/Metadata` stream is `/Type /Metadata /Subtype /XML`, unfiltered, and
+byte-equal to the claim's canonical packet;
+* there is exactly one `GTS_PDFA1` output intent whose embedded profile is an
+ICC v2–v4 `mntr` or `prtr` profile;
+* any `/Version` is 2.x.
+
+Update the applicable whitelist checks and add focused fixtures when adding
+a name class, action type, annotation subtype, font subtype or filter.
+Facade links omit an appearance stream.
+
+Violations return the first finding in deterministic store order as
+`InvalidDocument` with:
+
+* `code: ProfileRequirementViolated`
+* `feature: profile.archive`
+* A stable requirement identifier and applicable ISO 19005-4 clause
+* `stage` set to `ProfileValidation` or `LoweredPlanValidation`
+* `location: Document`
+
+No bytes are emitted, and there is no rescan.
+
+[#contributor-static-pdfa4-fixture-checks]
+=== Fixture checks
+
+`scripts/check_pdfa4_structure.py` checks the original output for identifiers,
+canonical metadata, the sRGB output intent, font embedding, supported resource
+types and printable link annotations. `scripts/check_profile_declarations.py`
+checks metadata for each declared profile. `tests/spec.json` records the exact
+PDF, allocation, work and allocated-byte expectations.
+
+See the xref:contributor-reference.adoc#contributor-testing-optional-local-pdf-review[optional local review setup]
+for an independent veraPDF check.
+
+[#contributor-technical-manual]
+== Technical manual evidence
+
+The https://github.com/lukewilliamboswell/roc-pdf/blob/main/tests/technical_manual/Fixture.roc[2- and 20-chapter fixtures]
+exercise the bounded chapter templates, lists, callouts, tables, source blocks,
+and vector drawings through public preparation and byte emission. Both files
+are registered for explicit `4` and `ua2` checks on the same emitted bytes.
+
+The manual authors its contents with `Pdf.contents_entry`. Each title and
+terminal page label links to a chapter. The corresponding `TOCI` references
+the same semantic heading. The running footer prints the configured page
+label and the physical ordinal separately. Body references exercise both
+numbering choices inside fixed-width fields and the repeated table header
+uses the configured label. This preserves an authored distinction between a
+page label and its index when the two are displayed together.
+
+Each chapter declares opening and continuation frames. An outer callout
+contains a numbered instruction with exact source text and a purple
+foreground range, a scaled prepared vector figure, and an inner callout with
+a 40-row filled and framed table. Inter is the explicitly registered face
+used to prepare the diagram.
+
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/scripts/check_technical_manual.py[`check_technical_manual.py`]
+derives heading pages and semantic identities from the emitted content and
+structure. Its independent expectations cover the contents references,
+configured page labels, visible page fields, outline, semantic child order,
+source replacement text, frame bounds, and independent page-artifact marking.
+Each prepared vector Figure owns its drawing and the five authored labels
+in order. The checker decodes the labels and verifies their scaled bounds.
+Single-edit controls change the printed contents label, its structure
+reference, a structured destination, the page-label prefix, a running
+header's artifact subtype, the callout border, and the nesting of a tagged
+sequence into a page artifact. The same script's
+`--readers` mode checks complete-file extraction and rendering through
+PDFBox and can also exercise MuPDF. The two fixtures cover 90 PDFBox
+rendered and extracted pages. Both pass Arlington and explicit veraPDF
+PDF/A-4 and PDF/UA-2 validation.
+
+The fixture prepares both the public document and a private measurement
+probe of the same pipeline. Allocations include both passes, and the work
+vector records one pipeline's counters. The test-only vector diagram entry
+uses the same package identity as the probe. The production example imports
+the public package entry.
+
+`tests/spec.json` records the pinned allocations and deterministic work.
+The replacement of the front-matter physical field with the terminal
+configured label removes two shaped runs, final runs, and fragments per
+chapter. The table-of-contents wrappers and label link add three objects per
+chapter and one shared TOC object. Each diagram contributes five semantic
+label fragments and five corresponding drawing-text marks. Each checklist
+associates its first column heading with 40 row headers. This adds 80 and
+800 typed header relationships across the pair. The 20-chapter document
+needs one additional IDTree node for these referenced heading IDs. The
+pinned counts are 18,075 and 144,356 allocations. The pair keeps its 9/81
+pages, linear work growth, and one reference resolution phase. The physical
+references within chapter bodies still exercise the exact fixed-width
+measurement contract.

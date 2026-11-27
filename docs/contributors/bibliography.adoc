@@ -1,6 +1,0 @@
-[#contributor-bibliography]
-= Bibliography evidence
-
-The public compiler resolves each authored citation to an explicit ordered bibliography entry before shaping. Destination names use the ordinary destination registry. The bibliography is a PDF 2.0 `Sect` with ARIA `doc-bibliography`, and its `BibEntry` children use the PDF 1.7 standard namespace. Explicit reciprocal `Ref` edges connect entries and citations. Unknown destinations, duplicate entries and invalid scope produce located, atomic errors.
-
-ISO 32000-2:2020 §14.7.2 Table 355 and §12.3.2.3 govern structure references and interactive structure destinations. The independent oracle decodes marked text and checks authored entry order, role namespaces, ARIA, exact backlinks and each annotation's destination. Run the `bibliography` tests and the operations-handbook `bibliography` mode for the executable examples.

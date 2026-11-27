@@ -1,6 +1,0 @@
-[#contributor-table-paint-footprints]
-= Table paint footprints
-
-The paginator reserves the visible bounds of fills, column rules and outer frames before placing painted tables. It uses a layout-only `NoPaint` interval when row geometry would understate occupancy. Earlier normalized container facts determine whether that interval or an active container's paint band owns the reservation. Unpainted tables keep the ordinary row contract.
-
-The `ScopedTables` fixture leaves furniture with no extra gap. The emitted-byte checker computes occupied geometry from authored constants. Its controls distinguish ordinary painted tables from rows in an active zero-padding container.

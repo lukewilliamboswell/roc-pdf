@@ -15,7 +15,7 @@ KernelDeflate :: [].{
 	## A package-versioned libdeflate level. Only the three constructors
 	## below exist: `fastest` (1), `balanced` (6), and `smallest` (10, the
 	## first near-optimal parsing level).
-	## docs/contributors/performance/output-size.adoc records the measurements
+	## docs/contributor-output.adoc#contributor-output-size records the measurements
 	## behind each.
 	Level :: U64.{
 		is_eq : _

@@ -1,4 +1,0 @@
-[#contributor-semantic-layout-types]
-= Semantic, layout, and scene type
-
-Semantic nodes, occurrences, fragments, namespaces, annotations, pages, streams and scene commands use dense identities and separate stores. Spines, ranges and typed edges give their ordering and ownership. Keep immutable inputs shared and accumulate each growing store independently. The public contract fixture checks mixed logical children, page/stream fragmentation and separate paint order.

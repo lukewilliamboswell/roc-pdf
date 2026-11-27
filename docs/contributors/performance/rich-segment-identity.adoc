@@ -1,4 +1,0 @@
-[#contributor-rich-segment-identity]
-= Explicit rich-text segment occurrence identity
-
-Interned source identity describes immutable content. Segment identity describes the authored occurrence. The first semantic leaf occurrence anchors each rich segment as one scalar per prepared run record. Equal adjacent segments keep distinct owners even when their source and shape are shared. Repeated ordered and single-face x10/x50 cases check both ownership and reuse.

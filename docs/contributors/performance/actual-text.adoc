@@ -1,6 +1,0 @@
-[#contributor-actual-text]
-= Reordered ActualText
-
-`KernelPdfText` consumes earlier source, cluster and occurrence facts. Paint order can differ from logical text. The cluster's validated source interval supplies occurrence-owned `ActualText` when paint order or a shaped mapping requires replacement. The cumulative replacement-scalar budget is checked independently of source and glyph budgets. Each painted CID has a canonical `ToUnicode` entry. If a CID maps to distinct logical text in separate uses, scoped replacement supplies the exact source where needed.
-
-The advanced reordered-text fixture checks exact marked-content replacement and the independently decoded paint order. The advanced shaping expectations cover validated many-to-many clusters and inconsistent source ranges.

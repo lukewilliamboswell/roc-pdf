@@ -1,8 +1,0 @@
-[#contributor-layout-policies]
-= Lists, explicit breaks, keeps, and ranked layout policies
-
-List groups and transparent keeps normalize through one explicit frame stack. Each list item owns one `Label` and one `LBody`. The list nesting level determines indentation. A generated label retains its exact source paint and numbering attribute. Transparent keep wrappers leave child semantic parentage unchanged and explicit page breaks have no semantic occurrence.
-
-Keep-with-next distinguishes mandatory constraints from ranked preferences. Static validation rejects oversize unsplittable blocks, malformed groups and invalid break positions before scanning. Each page scans legal candidate block and line boundaries in forward order. Candidate scoring favors the best permitted rank, with the later break winning a tie. A page is materialized once from the chosen range. Frame scanning keeps scalar continuation state. Page/column relaxations retain explicit facts for preparation reporting.
-
-Use the `layout_policies` family for nested lists, keeps and lists x10/x100, and the heading chain. Kernel expectations exercise required and preferred keeps and widow/orphan relaxation. `scripts/check_structure_semantics.py` derives list labels, numbering and item relationships from emitted bytes.
