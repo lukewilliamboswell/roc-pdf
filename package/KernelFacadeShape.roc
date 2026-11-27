@@ -4,6 +4,10 @@ import Font
 import KernelFacadeSemantics
 import KernelFacadeSources
 import KernelFont
+import KernelInternationalBatch
+import KernelInternationalLine
+import KernelInternationalSelection
+import KernelLatinShape
 import KernelUnicode
 import KernelShape
 import Layout
@@ -20,7 +24,15 @@ KernelFacadeShape :: [].{
 		GeneratedLabelEvidenceInvalid({ block : U64, occurrence : U64 }),
 		InlineClusterBoundary({ block : U64, inline : U64 }),
 		InvalidOccurrence({ block : U64, occurrence : U64 }),
+		InternationalPolicy(KernelInternationalSelection.Error),
+		InternationalShape({ block : U64, cause : KernelInternationalBatch.Error }),
+		InternationalStore(KernelInternationalLine.Error),
+		InternationalThaiDictionary(KernelUnicode.ThaiError),
+		InternationalThaiSource({ block : U64, cause : KernelUnicode.ThaiError }),
+		InternationalSurface,
+
 		LanguageMismatch({ occurrence : U64 }),
+		LatinShaping({ block : U64, reason : KernelLatinShape.Error }),
 		LimitExceeded({ attempted : U64, dimension : Dimension, limit : U64 }),
 		OccurrenceCoverage({ actual : U64, expected : U64 }),
 		PolicyInvalid(Font.PolicyError),
@@ -137,22 +149,27 @@ KernelFacadeShape :: [].{
 		SingleFace,
 	]
 
+	ScopeColors : ScopeColors
+
+	scope_colors : Document.NormalizedAuthoring -> ScopeColors
+	scope_colors = |authoring| effective_scope_colors(authoring)
+
 	## Shared style facts for the symbolic-reference measurement path. It
 	## shapes real literal leaves only; pending atoms receive these same
 	## inherited facts after their Unicode resolves.
-	leaf_style : Document.NormalizedAuthoring, U64, [AtInline(U64), NoInline], [Body, GeneratedLabel], Theme -> Theme.TextStyle
-	leaf_style = |authoring, block, inline, role, theme| {
+	leaf_style : Document.NormalizedAuthoring, ScopeColors, U64, [AtInline(U64), NoInline], [Body, GeneratedLabel], Theme -> Theme.TextStyle
+	leaf_style = |authoring, scopes, block, inline, role, theme| {
 		if role == GeneratedLabel {
 			style = Theme.body_style(theme)
-			return { ..style, color: scoped_text_color(authoring, block, theme, style.color) }
+			return { ..style, color: scoped_text_color(authoring, scopes, block, theme, style.color) }
 		}
 		match inline {
-			NoInline => block_style(authoring, block, theme)
+			NoInline => block_style(authoring, scopes, block, theme)
 			AtInline(index) => {
 				style = Theme.body_style(theme)
 				parent = list_at(authoring.inlines, index).parent
-				color = header_cell_color(authoring, block, theme, scoped_text_color(authoring, block, theme, style.color))
-				{ ..style, color: inline_color(authoring, block, parent, theme, color), size: inline_size(authoring.inlines, parent, theme, style.size) }
+				color = header_cell_color(authoring, block, theme, scoped_text_color(authoring, scopes, block, theme, style.color))
+				{ ..style, color: inline_color(authoring, scopes, block, parent, theme, color), size: inline_size(authoring.inlines, parent, theme, style.size) }
 			}
 		}
 	}
@@ -164,7 +181,7 @@ KernelFacadeShape :: [].{
 		}
 		match inline {
 			AtInline(index) => inline_candidate(authoring.inlines, { index: index, styled: styled })
-			NoInline => candidate_of(styled, block_style(authoring, block, theme).font)
+			NoInline => candidate_of(styled, base_block_style(authoring, list_at(authoring.blocks, block).kind, theme).font)
 		}
 	}
 
@@ -207,7 +224,15 @@ KernelFacadeShape :: [].{
 	}
 	ContextShape : { block_runs : List(BlockRuns), origins : Origins, requests : List(KernelShape.SimpleRequest), selection : Selection, shape : KernelShape.Batch, styles : List(RunStyle), work : Work }
 
+	International : {
+		owners : List(U64),
+		paragraphs : List(KernelInternationalBatch.Paragraph),
+		requests : List(KernelShape.SimpleRequest),
+		tailored : [DefaultSources, TailoredSources(List(KernelFacadeSources.Source))],
+	}
+
 	Plan :: {
+		international : [International(International), NoInternational],
 		block_runs : List(BlockRuns),
 		origins : Origins,
 		requests : List(KernelShape.SimpleRequest),
@@ -237,7 +262,7 @@ KernelFacadeShape :: [].{
 			if $next != occurrences {
 				return Err(OccurrenceCoverage({ actual: $next, expected: occurrences }))
 			}
-			Ok(Plan.{ block_runs: facts.block_runs, origins: facts.origins, requests: facts.requests, selection: facts.selection, shape: facts.shape, styles: facts.styles, work: facts.work })
+			Ok(Plan.{ international: NoInternational, block_runs: facts.block_runs, origins: facts.origins, requests: facts.requests, selection: facts.selection, shape: facts.shape, styles: facts.styles, work: facts.work })
 		}
 
 		build : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), KernelFont.Inspection, Theme, Limits -> Try(Plan, Error)
@@ -257,6 +282,9 @@ KernelFacadeShape :: [].{
 
 		block_runs : Plan -> List(BlockRuns)
 		block_runs = |plan| plan.block_runs
+
+		international : Plan -> [International(International), NoInternational]
+		international = |plan| plan.international
 
 		origins : Plan -> Origins
 		origins = |plan| plan.origins
@@ -341,12 +369,17 @@ build_plan = |authoring, owners, store, source_store, font, theme, limits| {
 	## the exact whole-source batch shaper applies. A rich paragraph's
 	## occurrences cover sub-ranges of one source, which the range-exact
 	## selected shaper consumes with the one resolved face.
-	shaped = if preparation.ranges.is_empty() {
-		KernelShape.shape_simple_batch(font, source_store, preparation.options, preparation.requests, limits.shape)
-	} else {
-		KernelShape.shape_selected_batch([font], source_store, { direction: LeftToRight, language: preparation.options.language, writing_mode: Horizontal }, single_face_requests(preparation), limits.shape)
+	latin = inter_latin(authoring, { blocks: preparation.block_runs, requests: preparation.requests.len() }, font, 0, theme)?
+	shaped = match latin {
+		InterLatin(plan) => KernelShape.shape_selected_inter_batch([font], source_store, { direction: LeftToRight, language: preparation.options.language, writing_mode: Horizontal }, single_face_requests(preparation, source_store), limits.shape, plan)
+		NoInterLatin => if preparation.ranges.is_empty() {
+			KernelShape.shape_simple_batch(font, source_store, preparation.options, preparation.requests, limits.shape)
+		} else {
+			KernelShape.shape_selected_batch([font], source_store, { direction: LeftToRight, language: preparation.options.language, writing_mode: Horizontal }, single_face_requests(preparation, source_store), limits.shape)
+		}
 	}
 	shape = match shaped {
+		Err(InterLatin({ request, reason })) => return Err(LatinShaping({ block: inter_block(preparation.block_runs, request), reason }))
 		Err(_) => return Err(
 			match locate_text_failure(authoring, preparation, store, source_store, [single_face_rules(font)], |_| 0) {
 				Located(located) => located
@@ -357,6 +390,7 @@ build_plan = |authoring, owners, store, source_store, font, theme, limits| {
 	}
 	Ok(
 		KernelFacadeShape.Plan.{
+			international: NoInternational,
 			block_runs: preparation.block_runs,
 			origins: request_origins(preparation.ranges),
 			requests: preparation.requests,
@@ -408,7 +442,7 @@ build_styled_plan = |authoring, owners, store, source_store, styled, theme, limi
 		$candidate = $candidate + 1
 	}
 	if !authoring.sources.is_empty() {
-		return build_source_styled(authoring, preparation, store, source_store, styled, candidates, $dense, $faces, $fonts, limits)
+		return build_source_styled(authoring, preparation, store, source_store, styled, candidates, $dense, $faces, $fonts, theme, limits)
 	}
 	latin = Font.Script.from_iso15924("Latn")
 	var $selected = List.with_capacity(preparation.requests.len())
@@ -420,12 +454,13 @@ build_styled_plan = |authoring, owners, store, source_store, styled, theme, limi
 		$selected = $selected.append({ clusters: range.clusters, instance, language: range.language, occurrence: request.occurrence, script: latin, size: request.size, source: request.source })
 		$index = $index + 1
 	}
-	shaped = if authoring.sources.is_empty() {
-		KernelShape.shape_selected_batch($fonts, source_store, { direction: LeftToRight, language: preparation.options.language, writing_mode: Horizontal }, $selected, limits.shape)
-	} else {
-		KernelShape.shape_ranged_selected_batch($fonts, source_store, { direction: LeftToRight, language: preparation.options.language, writing_mode: Horizontal }, $selected, limits.shape)
+	body = list_at($dense, 0)
+	shaped = match inter_latin(authoring, { blocks: preparation.block_runs, requests: preparation.requests.len() }, list_at($fonts, body), body, theme)? {
+		InterLatin(plan) => KernelShape.shape_selected_inter_batch($fonts, source_store, { direction: LeftToRight, language: preparation.options.language, writing_mode: Horizontal }, $selected, limits.shape, plan)
+		NoInterLatin => KernelShape.shape_selected_batch($fonts, source_store, { direction: LeftToRight, language: preparation.options.language, writing_mode: Horizontal }, $selected, limits.shape)
 	}
 	shape = match shaped {
+		Err(InterLatin({ request, reason })) => return Err(LatinShaping({ block: inter_block(preparation.block_runs, request), reason }))
 		Ok(value) => value
 		Err(_) => {
 			rules = styled.fonts.map(|font| single_face_rules(font))
@@ -439,6 +474,7 @@ build_styled_plan = |authoring, owners, store, source_store, styled, theme, limi
 	}
 	Ok(
 		KernelFacadeShape.Plan.{
+			international: NoInternational,
 			block_runs: preparation.block_runs,
 			origins: request_origins(preparation.ranges),
 			requests: preparation.requests,
@@ -462,8 +498,8 @@ build_styled_plan = |authoring, owners, store, source_store, styled, theme, limi
 ## A source document retains ordinary paragraph preparation while expanding
 ## source logical lines at their actual itemized script boundaries. Exact
 ## registered face selection is preserved for every source segment.
-build_source_styled : Document.NormalizedAuthoring, KernelFacadeShape.Preparation, KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), KernelFacadeShape.StyledFaces, List(U64), List(U64), List(Font.FaceId), List(KernelFont.Inspection), KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
-build_source_styled = |authoring, preparation, store, sources, styled, candidates, dense, faces, fonts, limits| {
+build_source_styled : Document.NormalizedAuthoring, KernelFacadeShape.Preparation, KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), KernelFacadeShape.StyledFaces, List(U64), List(U64), List(Font.FaceId), List(KernelFont.Inspection), Theme, KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
+build_source_styled = |authoring, preparation, store, sources, styled, candidates, dense, faces, fonts, theme, limits| {
 	var $requests = []
 	var $selected = []
 	var $styles = []
@@ -532,7 +568,15 @@ build_source_styled = |authoring, preparation, store, sources, styled, candidate
 		}
 		$block = $block + 1
 	}
-	shape = match KernelShape.shape_ranged_selected_batch(fonts, sources, { direction: LeftToRight, language: preparation.options.language, writing_mode: Horizontal }, $selected, limits.shape) {
+	options = { direction: LeftToRight, language: preparation.options.language, writing_mode: Horizontal }
+	# On the source-aware path the body face need not be present at all.
+	# Try the original candidate for eligibility, even if it was unused.
+	shaped = match inter_latin(authoring, { blocks: $block_runs, requests: $requests.len() }, list_at(styled.fonts, 0), list_at(dense, 0), theme)? {
+		InterLatin(plan) => KernelShape.shape_ranged_inter_batch(fonts, sources, options, $selected, limits.shape, plan)
+		NoInterLatin => KernelShape.shape_ranged_selected_batch(fonts, sources, options, $selected, limits.shape)
+	}
+	shape = match shaped {
+		Err(InterLatin({ request, reason })) => return Err(LatinShaping({ block: inter_block($block_runs, request), reason }))
 		Ok(value) => value
 		Err(_) => {
 			rules = styled.fonts.map(|font| single_face_rules(font))
@@ -546,6 +590,7 @@ build_source_styled = |authoring, preparation, store, sources, styled, candidate
 	}
 	Ok(
 		KernelFacadeShape.Plan.{
+			international: NoInternational,
 			block_runs: $block_runs,
 			origins: Origins($origins),
 			requests: $requests,
@@ -589,7 +634,7 @@ request_candidates = |authoring, preparation, styled, theme| {
 			(_, TextBlock({ body, label: _, level: _ })) => {
 				## A plain block's body shapes in its style's face (a title or
 				## heading face); its generated label stays in the body face.
-				face = block_style(authoring, $block, theme).font
+				face = base_block_style(authoring, list_at(authoring.blocks, $block).kind, theme).font
 				if face.index() != styled_body_face(styled) {
 					candidate = if (face_indexes.is_empty()) candidate_of(styled, face) else list_at(face_indexes, face.index())
 					$candidates = list_set($candidates, body.physical.start(), candidate)
@@ -636,7 +681,7 @@ label_candidates = |authoring, styled| {
 
 append_label_candidates : List(U64), Document.ValidatedDrawing, KernelFacadeShape.StyledFaces -> List(U64)
 append_label_candidates = |candidates, drawing, styled| match drawing {
-	InvalidDrawing(_) => candidates
+	DrawingDepthLimit(_) | InvalidDrawing(_) => candidates
 	ValidDrawing(value) => {
 		var $candidates = candidates
 		for command in value.commands {
@@ -707,7 +752,7 @@ validate_style_faces = |authoring, theme, styled| {
 	indexes = if (authoring.sources.is_empty()) [] else styled_face_indexes(styled)
 	var $block = 0
 	while $block < authoring.blocks.len() {
-		face = block_style(authoring, $block, theme).font
+		face = base_block_style(authoring, list_at(authoring.blocks, $block).kind, theme).font
 		valid = if (indexes.is_empty()) styled.faces.any(|known| known == face) else face.index() < indexes.len() and list_at(indexes, face.index()) != U64.highest
 		if !valid {
 			return Err(UnsupportedThemeFace({ block: $block, face: face.index() }))
@@ -750,18 +795,72 @@ inline_candidate = |inlines, { index, styled }| {
 
 ## Range-exact requests over the one resolved face (dense font 0), in
 ## preparation order: each request shapes exactly its occurrence's clusters.
-single_face_requests : KernelFacadeShape.Preparation -> List(KernelShape.SelectedBatchRequest)
-single_face_requests = |preparation| {
+single_face_requests : KernelFacadeShape.Preparation, List(KernelFacadeSources.Source) -> List(KernelShape.SelectedBatchRequest)
+single_face_requests = |preparation, sources| {
 	latin = Font.Script.from_iso15924("Latn")
 	var $selected = List.with_capacity(preparation.requests.len())
 	var $index = 0
 	while $index < preparation.requests.len() {
 		request = list_at(preparation.requests, $index)
-		range = list_at(preparation.ranges, $index)
+		range = if (preparation.ranges.is_empty()) whole_source_range(sources, request.source, preparation.options.language) else list_at(preparation.ranges, $index)
 		$selected = $selected.append({ clusters: range.clusters, instance: Font.InstanceId.from_index(0), language: range.language, occurrence: request.occurrence, script: latin, size: request.size, source: request.source })
 		$index = $index + 1
 	}
 	$selected
+}
+
+## The selected face and the authored block/occurrence boundaries decide
+## eligibility. No late glyph or paint inspection changes those boundaries.
+inter_latin : Document.NormalizedAuthoring, { blocks : List(KernelFacadeShape.BlockRuns), requests : U64 }, KernelFont.Inspection, U64, Theme -> Try([InterLatin(KernelShape.InterLatinPlan), NoInterLatin], KernelFacadeShape.Error)
+inter_latin = |authoring, preparation, font, face, theme| {
+	if theme.latin_shaping != InterLatin or !KernelLatinShape.eligible_face(font) {
+		return Ok(NoInterLatin)
+	}
+	language = authoring.language.to_utf8()
+	if language.len() < 2 or (list_at(language, 0) != 0x45 and list_at(language, 0) != 0x65) or (list_at(language, 1) != 0x4e and list_at(language, 1) != 0x6e) or (language.len() > 2 and list_at(language, 2) != 0x2d) {
+		return Ok(NoInterLatin)
+	}
+	var $paragraphs = List.repeat(False, preparation.requests)
+	var $first = authoring.blocks.len()
+	var $block = 0
+	while $block < authoring.blocks.len() {
+		authored = list_at(authoring.blocks, $block)
+		ordinary_paragraph = match authored.kind {
+			Paragraph => authored.parent == 0 or match list_at(authoring.groups, authored.parent - 1).kind {
+				Table(_) => False
+				_ => True
+			}
+			_ => False
+		}
+		if ordinary_paragraph {
+			match list_at(preparation.blocks, $block) {
+				TextBlock({ body, label: NoLabel, level: _ }) if body.physical.length() == 1 => {
+					$paragraphs = list_set($paragraphs, body.physical.start(), True)
+					$first = U64.min($first, $block)
+				}
+				_ => {}
+			}
+		}
+		$block = $block + 1
+	}
+	if $first == authoring.blocks.len() {
+		return Ok(NoInterLatin)
+	}
+	plan = KernelLatinShape.prepare(font) ? |reason| LatinShaping({ block: $first, reason })
+	Ok(InterLatin({ face, paragraphs: $paragraphs, plan }))
+}
+
+inter_block : List(KernelFacadeShape.BlockRuns), U64 -> U64
+inter_block = |blocks, request| {
+	var $block = 0
+	for block in blocks {
+		match block {
+			TextBlock({ body, label: _, level: _ }) if body.physical.start() == request => return $block
+			_ => {}
+		}
+		$block = $block + 1
+	}
+	crash "eligible Latin run escaped its authored block"
 }
 
 request_origins : List(KernelFacadeShape.RequestRange) -> KernelFacadeShape.Origins
@@ -792,10 +891,11 @@ prepare_plan = |authoring, owners, store, sources, max_requests, theme, face_che
 	if occurrence_count > max_requests {
 		return Err(LimitExceeded({ attempted: occurrence_count, dimension: Requests, limit: max_requests }))
 	}
+	scopes = effective_scope_colors(authoring)
 	if has_rich_block(owners) or !authoring.sources.is_empty() {
-		prepare_ranged_plan(authoring, owners, store, sources, theme, face_check)
+		prepare_ranged_plan(authoring, owners, store, sources, theme, face_check, scopes)
 	} else {
-		prepare_whole_plan(authoring, owners, store, sources, theme, face_check)
+		prepare_whole_plan(authoring, owners, store, sources, theme, face_check, scopes)
 	}
 }
 
@@ -808,8 +908,8 @@ batch_options_for = |authoring| {
 	writing_mode: Horizontal,
 }
 
-prepare_whole_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), Theme, FaceCheck -> Try(KernelFacadeShape.Preparation, KernelFacadeShape.Error)
-prepare_whole_plan = |authoring, owners, store, sources, theme, face_check| {
+prepare_whole_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), Theme, FaceCheck, ScopeColors -> Try(KernelFacadeShape.Preparation, KernelFacadeShape.Error)
+prepare_whole_plan = |authoring, owners, store, sources, theme, face_check, scopes| {
 	source_count = sources.len()
 	batch_language = Language(authoring.language)
 	batch_options = {
@@ -840,7 +940,7 @@ prepare_whole_plan = |authoring, owners, store, sources, theme, face_check| {
 			}
 			RichTextBlock({ label: _, level: _, occurrences }) => return Err(InvalidOccurrence({ block: $block_index, occurrence: occurrences.start() }))
 			TextBlock({ body, label, level }) => {
-				body_style = block_style(authoring, $block_index, theme)
+				body_style = block_style(authoring, scopes, $block_index, theme)
 				if face_rejected(face_check, body_style) {
 					return Err(UnsupportedThemeFace({ block: $block_index, face: body_style.font.index() }))
 				}
@@ -874,7 +974,7 @@ prepare_whole_plan = |authoring, owners, store, sources, theme, face_check| {
 						}
 						run = logical_run_single(Text.RunId.from_index($request_index))
 						$requests = $requests.append({ occurrence: occurrence_id, size: label_style.size, source: source_id })
-						$styles = $styles.append({ color: scoped_text_color(authoring, $block_index, theme, label_style.color), leading: label_style.leading, segment: occurrence_id.index() })
+						$styles = $styles.append({ color: scoped_text_color(authoring, scopes, $block_index, theme, label_style.color), leading: label_style.leading, segment: occurrence_id.index() })
 						$request_index = $request_index + 1
 						Label(run)
 					}
@@ -922,8 +1022,8 @@ prepare_whole_plan = |authoring, owners, store, sources, theme, face_check| {
 ## source, its natural language, and its occurrence origin. Plain blocks
 ## keep whole-source ranges in the document language. Buffers move through
 ## the per-block helpers as separate arguments so they stay uniquely owned.
-prepare_ranged_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), Theme, FaceCheck -> Try(KernelFacadeShape.Preparation, KernelFacadeShape.Error)
-prepare_ranged_plan = |authoring, owners, store, sources, theme, face_check| {
+prepare_ranged_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), Theme, FaceCheck, ScopeColors -> Try(KernelFacadeShape.Preparation, KernelFacadeShape.Error)
+prepare_ranged_plan = |authoring, owners, store, sources, theme, face_check, scopes| {
 	batch_options = batch_options_for(authoring)
 	occurrence_count = store.occurrences.len()
 	var $requests = List.with_capacity(occurrence_count)
@@ -934,7 +1034,7 @@ prepare_ranged_plan = |authoring, owners, store, sources, theme, face_check| {
 	while $block_index < authoring.blocks.len() {
 		block = list_at(authoring.blocks, $block_index)
 		first_request = $requests.len()
-		at = { authoring, block: $block_index, face_check, language: batch_options.language, sources, store, theme }
+		at = { authoring, block: $block_index, face_check, language: batch_options.language, scopes, sources, store, theme }
 		match list_at(owners, $block_index) {
 			ContentlessCell => {
 				$block_runs = list_set($block_runs, $block_index, ContentlessCell)
@@ -1013,7 +1113,7 @@ prepare_ranged_plan = |authoring, owners, store, sources, theme, face_check| {
 
 RequestBuffers : { ranges : List(KernelFacadeShape.RequestRange), requests : List(KernelShape.SimpleRequest), styles : List(KernelFacadeShape.RunStyle) }
 
-RangedContext : { authoring : Document.NormalizedAuthoring, block : U64, face_check : FaceCheck, language : Semantics.Language, sources : List(KernelFacadeSources.Source), store : KernelFacadeSemantics.FlowTextFacts, theme : Theme }
+RangedContext : { authoring : Document.NormalizedAuthoring, block : U64, face_check : FaceCheck, language : Semantics.Language, scopes : ScopeColors, sources : List(KernelFacadeSources.Source), store : KernelFacadeSemantics.FlowTextFacts, theme : Theme }
 
 source_request_facts : RangedContext, Semantics.OccurrenceId -> Try({ range : KernelFacadeShape.RequestRange, request : KernelShape.SimpleRequest, style : KernelFacadeShape.RunStyle }, KernelFacadeShape.Error)
 source_request_facts = |at, body| {
@@ -1022,7 +1122,7 @@ source_request_facts = |at, body| {
 		Text(_, UnicodeRange(value)) => value
 		_ => return Err(InvalidOccurrence({ block: at.block, occurrence: body.index() }))
 	}
-	style = block_style(at.authoring, at.block, at.theme)
+	style = block_style(at.authoring, at.scopes, at.block, at.theme)
 	if face_rejected(at.face_check, style) {
 		return Err(UnsupportedThemeFace({ block: at.block, face: style.font.index() }))
 	}
@@ -1079,7 +1179,7 @@ source_cluster_range = |graphemes, start, end, block| {
 ## body, each covering its whole source in the document language.
 append_plain_requests : List(KernelFacadeShape.RequestRange), List(KernelShape.SimpleRequest), List(KernelFacadeShape.RunStyle), RangedContext, Semantics.OccurrenceId, [Label(Semantics.OccurrenceId), NoLabel] -> Try(RequestBuffers, KernelFacadeShape.Error)
 append_plain_requests = |ranges, requests, styles, at, body, label| {
-	body_style = block_style(at.authoring, at.block, at.theme)
+	body_style = block_style(at.authoring, at.scopes, at.block, at.theme)
 	if face_rejected(at.face_check, body_style) {
 		return Err(UnsupportedThemeFace({ block: at.block, face: body_style.font.index() }))
 	}
@@ -1098,7 +1198,7 @@ append_plain_requests = |ranges, requests, styles, at, body, label| {
 				return Err(GeneratedLabelEvidenceInvalid({ block: at.block, occurrence: occurrence_id.index() }))
 			}
 			$requests = $requests.append({ occurrence: occurrence_id, size: label_style.size, source: occurrence.source })
-			$styles = $styles.append({ color: scoped_text_color(at.authoring, at.block, at.theme, label_style.color), leading: label_style.leading, segment: occurrence_id.index() })
+			$styles = $styles.append({ color: scoped_text_color(at.authoring, at.scopes, at.block, at.theme, label_style.color), leading: label_style.leading, segment: occurrence_id.index() })
 			$ranges = $ranges.append(whole_source_range(at.sources, occurrence.source, at.language))
 		}
 	}
@@ -1126,7 +1226,7 @@ append_label_request = |ranges, requests, styles, at, label| match label {
 		Ok({
 			ranges: ranges.append(whole_source_range(at.sources, occurrence.source, at.language)),
 			requests: requests.append({ occurrence: occurrence_id, size: label_style.size, source: occurrence.source }),
-			styles: styles.append({ color: scoped_text_color(at.authoring, at.block, at.theme, label_style.color), leading: label_style.leading, segment: occurrence_id.index() }),
+			styles: styles.append({ color: scoped_text_color(at.authoring, at.scopes, at.block, at.theme, label_style.color), leading: label_style.leading, segment: occurrence_id.index() }),
 		})
 	}
 }
@@ -1160,7 +1260,7 @@ append_rich_requests = |ranges, requests, styles, at, occurrences, rich| {
 	if face_rejected(at.face_check, body) {
 		return Err(UnsupportedThemeFace({ block: at.block, face: body.font.index() }))
 	}
-	paragraph_color = header_cell_color(at.authoring, at.block, at.theme, scoped_text_color(at.authoring, at.block, at.theme, body.color))
+	paragraph_color = header_cell_color(at.authoring, at.block, at.theme, scoped_text_color(at.authoring, at.scopes, at.block, at.theme, body.color))
 	var $ranges = ranges
 	var $requests = requests
 	var $styles = styles
@@ -1216,12 +1316,14 @@ append_rich_requests = |ranges, requests, styles, at, occurrences, rich| {
 				## The convenience path accepts only the declared scripts; a
 				## span in another script rejects here, naming the authored
 				## inline, before any shaping.
-				$script_run = inline_script(analysis.script_runs, $script_run, scalar_start, scalar_end, at.block, $inline)?
+				if at.theme.international_text == OrdinaryText {
+					$script_run = inline_script(analysis.script_runs, $script_run, scalar_start, scalar_end, at.block, $inline)?
+				}
 				cluster_start = cluster_at(analysis.graphemes, $cluster, scalar_start, at.block, $inline)?
 				cluster_end = cluster_at(analysis.graphemes, cluster_start, scalar_end, at.block, $inline)?
 				$cluster = cluster_end
 				$requests = $requests.append({ occurrence: Semantics.OccurrenceId.from_index(occurrence_index), size: inline_size(at.authoring.inlines, record.parent, at.theme, body.size), source: located.id })
-				$styles = $styles.append({ color: inline_color(at.authoring, at.block, record.parent, at.theme, paragraph_color), leading: body.leading, segment: $segment })
+				$styles = $styles.append({ color: inline_color(at.authoring, at.scopes, at.block, record.parent, at.theme, paragraph_color), leading: body.leading, segment: $segment })
 				$ranges = $ranges.append({
 					clusters: Semantics.IndexRange.from_start_and_length({ start: cluster_start, length: cluster_end - cluster_start }),
 					language: occurrence.language,
@@ -1517,8 +1619,8 @@ inline_size = |inlines, parent, theme, size| {
 	size
 }
 
-inline_color : Document.NormalizedAuthoring, U64, U64, Theme, Color.SourceValue -> Color.SourceValue
-inline_color = |authoring, block, parent, theme, paragraph_color| {
+inline_color : Document.NormalizedAuthoring, ScopeColors, U64, U64, Theme, Color.SourceValue -> Color.SourceValue
+inline_color = |authoring, scopes, block, parent, theme, paragraph_color| {
 	var $cursor = parent
 	var $color = Unresolved
 	while $cursor != 0 and $color == Unresolved {
@@ -1526,13 +1628,13 @@ inline_color = |authoring, block, parent, theme, paragraph_color| {
 		role = match record.kind {
 			Code => Role(Code)
 			Emphasis => Role(Emphasis)
-			Link(_) | InternalLink(_) => Role(Link)
+			Link(_) | InternalLink(_) | Citation(_) => Role(Link)
 			Quote => Role(Quote)
 			Strong => Role(Strong)
 			_ => NoRole
 		}
 		match role {
-			Role(value) => match role_color(authoring, block, theme, value) {
+			Role(value) => match role_color(authoring, scopes, block, theme, value) {
 				Themed(color) => {
 					$color = Resolved(color)
 				}
@@ -1548,23 +1650,85 @@ inline_color = |authoring, block, parent, theme, paragraph_color| {
 	}
 }
 
+ScopeColors : [ResolvedScopes({ groups : List(U64), scopes : List(Theme.Scope) }), WalkScopes]
+
+## Group parents and authored scope codes precede their consumers. Each
+## role is resolved once per scope; other groups retain its dense code.
+effective_scope_colors : Document.NormalizedAuthoring -> ScopeColors
+effective_scope_colors = |authoring| {
+	if authoring.scopes.len() <= 16 {
+		return WalkScopes
+	}
+	var $groups = List.with_capacity(authoring.groups.len())
+	var $scopes = List.with_capacity(authoring.scopes.len())
+	for group in authoring.groups {
+		if group.parent > $groups.len() {
+			return WalkScopes
+		}
+		inherited = if (group.parent == 0) 0 else list_at($groups, group.parent - 1)
+		match group.kind {
+			Scope(index) => {
+				scope = index.to_u64()
+				if scope != $scopes.len() or scope >= authoring.scopes.len() {
+					return WalkScopes
+				}
+				inner = list_at(authoring.scopes, scope)
+				outer = if (inherited == 0) Theme.Scope.{} else list_at($scopes, inherited - 1)
+				$scopes = $scopes.append({
+					code: override_scope_color(inner.code, outer.code),
+					emphasis: override_scope_color(inner.emphasis, outer.emphasis),
+					link: override_scope_color(inner.link, outer.link),
+					quote: override_scope_color(inner.quote, outer.quote),
+					strong: override_scope_color(inner.strong, outer.strong),
+					text: override_scope_color(inner.text, outer.text),
+				})
+				$groups = $groups.append(scope + 1)
+			}
+			_ => {
+				$groups = $groups.append(inherited)
+			}
+		}
+	}
+	ResolvedScopes({ groups: $groups, scopes: $scopes })
+}
+
+override_scope_color : Theme.InlineColor, Theme.InlineColor -> Theme.InlineColor
+override_scope_color = |inner, outer| match inner {
+	Inherited => outer
+	Themed(_) => inner
+}
+
 ## One role's color for a block: the innermost enclosing `Pdf.scoped`
 ## group that colors the role, else the theme. A document without scopes
 ## never walks its groups.
-role_color : Document.NormalizedAuthoring, U64, Theme, Theme.ScopeRole -> Theme.InlineColor
-role_color = |authoring, block, theme, role| {
-	if !authoring.scopes.is_empty() {
-		var $code = list_at(authoring.blocks, block).parent
-		while $code != 0 {
-			group = list_at(authoring.groups, $code - 1)
-			match group.kind {
-				Scope(index) => match list_at(authoring.scopes, index.to_u64()).color(role) {
-					Themed(color) => return Themed(color)
-					Inherited => {}
+role_color : Document.NormalizedAuthoring, ScopeColors, U64, Theme, Theme.ScopeRole -> Theme.InlineColor
+role_color = |authoring, scopes, block, theme, role| {
+	match scopes {
+		ResolvedScopes(value) => {
+			parent = list_at(authoring.blocks, block).parent
+			if parent != 0 {
+				owner = list_at(value.groups, parent - 1)
+				if owner != 0 {
+					match list_at(value.scopes, owner - 1).color(role) {
+						Themed(color) => return Themed(color)
+						Inherited => {}
+					}
 				}
-				_ => {}
 			}
-			$code = group.parent
+		}
+		WalkScopes => if !authoring.scopes.is_empty() {
+			var $code = list_at(authoring.blocks, block).parent
+			while $code != 0 {
+				group = list_at(authoring.groups, $code - 1)
+				match group.kind {
+					Scope(index) => match list_at(authoring.scopes, index.to_u64()).color(role) {
+						Themed(color) => return Themed(color)
+						Inherited => {}
+					}
+					_ => {}
+				}
+				$code = group.parent
+			}
 		}
 	}
 	match role {
@@ -1579,12 +1743,12 @@ role_color = |authoring, block, theme, role| {
 
 ## A block's ordinary text color: the innermost scope's `Text` color, else
 ## `color`. A document without scopes never walks its groups.
-scoped_text_color : Document.NormalizedAuthoring, U64, Theme, Color.SourceValue -> Color.SourceValue
-scoped_text_color = |authoring, block, theme, color| {
+scoped_text_color : Document.NormalizedAuthoring, ScopeColors, U64, Theme, Color.SourceValue -> Color.SourceValue
+scoped_text_color = |authoring, scopes, block, theme, color| {
 	if authoring.scopes.is_empty() {
 		return color
 	}
-	match role_color(authoring, block, theme, Text) {
+	match role_color(authoring, scopes, block, theme, Text) {
 		Themed(scoped) => scoped
 		Inherited => color
 	}
@@ -1592,9 +1756,23 @@ scoped_text_color = |authoring, block, theme, color| {
 
 ## A plain block's text style: its kind's theme style, with a link block
 ## colored by the innermost scope's link color when one applies.
-block_style : Document.NormalizedAuthoring, U64, Theme -> Theme.TextStyle
-block_style = |authoring, block, theme| {
+block_style : Document.NormalizedAuthoring, ScopeColors, U64, Theme -> Theme.TextStyle
+block_style = |authoring, scopes, block, theme| {
 	kind = list_at(authoring.blocks, block).kind
+	style = base_block_style(authoring, kind, theme)
+	match kind {
+		SourceLine(_) | EmptySourceLine(_) => style
+		Link(_) | InternalLink(_) if !authoring.scopes.is_empty() => match role_color(authoring, scopes, block, theme, Link) {
+			Themed(color) => { ..style, color }
+			Inherited => style
+		}
+		_ if !authoring.scopes.is_empty() => { ..style, color: scoped_text_color(authoring, scopes, block, theme, style.color) }
+		_ => style
+	}
+}
+
+base_block_style : Document.NormalizedAuthoring, Document.NormalizedBlockKind, Theme -> Theme.TextStyle
+base_block_style = |authoring, kind, theme| {
 	match kind {
 		SourceLine({ source, .. }) | EmptySourceLine({ source, .. }) => {
 			facts = list_at(authoring.sources, source)
@@ -1606,14 +1784,29 @@ block_style = |authoring, block, theme| {
 		}
 		_ => {}
 	}
-	style = style_for(kind, theme)
-	match kind {
-		Link(_) | InternalLink(_) if !authoring.scopes.is_empty() => match role_color(authoring, block, theme, Link) {
-			Themed(color) => { ..style, color }
-			Inherited => style
-		}
-		_ if !authoring.scopes.is_empty() => { ..style, color: scoped_text_color(authoring, block, theme, style.color) }
-		_ => style
+	style_for(kind, theme)
+}
+
+expect {
+	text = Document.paragraph("Body")
+	red = Themed(Color.srgb8({ red: 180, green: 0, blue: 0 }))
+	blue = Themed(Color.srgb8({ red: 0, green: 0, blue: 180 }))
+	var $body = Document.scoped({ strong: red }, [Document.division([text])])
+	var $index = 0
+	while $index < 16 {
+		$body = Document.scoped({}, [$body])
+		$index = $index + 1
+	}
+	outer = Document.scoped({ text: blue, emphasis: blue, strong: blue }, [$body, text])
+	doc = Document.from_blocks({ title: "Scope inheritance", language: "en", contents: [outer, text] })
+	authoring = Document.normalize(doc)
+	cache = effective_scope_colors(authoring)
+	roles : List(Theme.ScopeRole)
+	roles = [Code, Emphasis, Link, Quote, Strong, Text]
+	equal = |block| roles.all(|role| role_color(authoring, cache, block, Theme.{}, role) == role_color(authoring, WalkScopes, block, Theme.{}, role))
+	match cache {
+		ResolvedScopes(value) => value.groups.len() == authoring.groups.len() and equal(0) and equal(1) and equal(2) and role_color(authoring, cache, 0, Theme.{}, Strong) == red and role_color(authoring, cache, 0, Theme.{}, Text) == blue
+		WalkScopes => False
 	}
 }
 
@@ -1650,6 +1843,9 @@ SelectedSegment : { clusters : Semantics.IndexRange, font : U64, script : Font.S
 
 build_ordered_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), { policy : Font.PolicyId, registry : Font.Registry }, Theme, KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
 build_ordered_plan = |authoring, owners, store, source_store, ordered, theme, limits| {
+	if theme.international_text != OrdinaryText {
+		return build_international_plan(authoring, owners, store, source_store, ordered, theme, limits)
+	}
 	preparation = prepare_plan(authoring, owners, store, source_store, limits.max_requests, theme, PolicySelectsFaces)?
 	policy_faces = ordered.registry.policy_faces(ordered.policy) ? PolicyInvalid
 	batch_language = preparation.options.language
@@ -1762,6 +1958,7 @@ build_ordered_plan = |authoring, owners, store, source_store, ordered, theme, li
 	}
 	Ok(
 		KernelFacadeShape.Plan.{
+			international: NoInternational,
 			block_runs: $block_runs,
 			origins: physical_origins,
 			requests: physical_requests,
@@ -1780,6 +1977,158 @@ build_ordered_plan = |authoring, owners, store, source_store, ordered, theme, li
 			},
 		},
 	)
+}
+
+## The opt-in bidi path keeps separate paragraph and paint facts alongside
+## the ordinary compact font and glyph plans. Authored occurrence IDs and
+## their language/property ranges come from the same semantic preparation.
+build_international_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), { policy : Font.PolicyId, registry : Font.Registry }, Theme, KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
+build_international_plan = |authoring, owners, store, sources, ordered, theme, limits| {
+	if !authoring.sources.is_empty() or !authoring.page_references.is_empty() {
+		return Err(InternationalSurface)
+	}
+	preparation = prepare_plan(authoring, owners, store, sources, limits.max_requests, theme, PolicySelectsFaces)?
+	repertoire = match theme.international_text {
+		ArabicLatin => UnpointedArabicLatin
+		HindiLatin => ModernHindiLatin
+		HebrewLatin => UnpointedHebrewLatin
+		ThaiLatin(_) => ThaiWithLatin
+		OrdinaryText => return Err(InternationalSurface)
+	}
+	policy = KernelInternationalSelection.for_repertoire(ordered.registry, ordered.policy, repertoire) ? InternationalPolicy
+	var $origins = List.with_capacity(preparation.requests.len())
+	var $inputs = List.with_capacity(preparation.requests.len())
+	var $index = 0
+	while $index < preparation.requests.len() {
+		shape = list_at(preparation.requests, $index)
+		source = list_at(store.occurrences, shape.occurrence.index())
+		range = match source.source {
+			Text(id, UnicodeRange(known)) if id == shape.source => known
+			_ => return Err(InvalidOccurrence({ block: inter_block(preparation.block_runs, $index), occurrence: shape.occurrence.index() }))
+		}
+		$origins = $origins.append({ byte: range.utf8_bytes.start(), scalar: range.scalars.start() })
+		$inputs = $inputs.append({ authored: { id: shape.occurrence, language: source.language, source: range }, shape, segment: list_at(preparation.styles, $index).segment })
+		$index = $index + 1
+	}
+	tailored = match theme.international_text {
+		ThaiLatin(words) => {
+			dictionary = KernelUnicode.thai_dictionary(words) ? InternationalThaiDictionary
+			var $effective = List.with_capacity(sources.len())
+			var $source_index = 0
+			for source in sources {
+				analysis = KernelUnicode.tailor_thai(source.unicode, source.analysis, dictionary) ? |cause| InternationalThaiSource({ block: source_block(preparation, $source_index), cause })
+				$effective = $effective.append({ ..source, analysis })
+				$source_index = $source_index + 1
+			}
+			TailoredSources($effective)
+		}
+		_ => DefaultSources
+	}
+	layout_sources = match tailored {
+		TailoredSources(prepared) => prepared
+		DefaultSources => sources
+	}
+	shape_limits = KernelShape.Limits.values(limits.shape)
+	result = KernelInternationalBatch.build(layout_sources, $inputs, policy, { max_clusters: shape_limits.max_clusters, max_glyphs: shape_limits.max_glyphs, max_requests: limits.max_requests, max_scalars: shape_limits.max_scalars, max_source_bytes: shape_limits.max_source_bytes }) ? |cause| InternationalShape({ block: international_request_block(preparation.block_runs, cause), cause })
+	physical = result.parents.map(|parent| list_at(preparation.requests, parent))
+	var $used = List.repeat(False, policy.faces.len())
+	for run in result.batch.store.runs {
+		$used = list_set($used, run.instance.index(), True)
+	}
+	var $instances = List.with_capacity(policy.faces.len())
+	var $faces = List.with_capacity(policy.faces.len())
+	var $fonts = List.with_capacity(policy.faces.len())
+	var $candidate = 0
+	for face in policy.faces {
+		$instances = $instances.append($faces.len())
+		if list_at($used, $candidate) {
+			$faces = $faces.append(face.id)
+			$fonts = $fonts.append(face.inspection)
+		}
+		$candidate = $candidate + 1
+	}
+	shaped = result.batch
+	runs = if ($faces.len() == policy.faces.len()) shaped.store.runs else shaped.store.runs.map(
+		|run| { ..run, instance: Font.InstanceId.from_index(list_at($instances, run.instance.index())) },
+	)
+	shaped_store = { ..shaped.store, runs }
+	font_bytes = total_font_bytes($fonts)
+	font_tables = total_font_tables($fonts)
+	block_runs = preparation.block_runs.map(
+		|block| match block {
+			TextBlock({ body, label, level }) => {
+				label_run = match label {
+					NoLabel => NoLabel
+					Label(run) => Label(expanded_range(run, result.firsts))
+				}
+				TextBlock({ body: expanded_range(body, result.firsts), label: label_run, level })
+			}
+			other => other
+		},
+	)
+	work = result.batch.work
+	cluster_owners = KernelInternationalLine.cluster_owners(shaped_store) ? InternationalStore
+	Ok(
+		KernelFacadeShape.Plan.{
+			international: International({ owners: cluster_owners, paragraphs: result.paragraphs, requests: physical, tailored }),
+			block_runs,
+			origins: Origins(result.parents.map(|parent| list_at($origins, parent))),
+			requests: physical,
+			selection: OrderedFaces({
+				faces: $faces,
+				fonts: $fonts,
+				work: { coverage_span_visits: result.work.coverage_spans, face_visits: result.work.faces, grapheme_visits: result.work.graphemes, planned_sources: result.work.paragraphs, selection_ranges: result.parents.len() },
+			}),
+			shape: { ..shaped, store: shaped_store },
+			styles: result.parents.map(|parent| list_at(preparation.styles, parent)),
+			work: { font_bytes, font_tables, glyphs: work.glyph_visits, metric_reads: work.metric_reads, requests: physical.len(), scalars: work.scalar_visits, script_run_visits: work.script_run_visits, source_bytes: work.utf8_bytes },
+		},
+	)
+}
+
+source_block : KernelFacadeShape.Preparation, U64 -> U64
+source_block = |preparation, source_index| {
+	var $index = 0
+	for request in preparation.requests {
+		if request.source.index() == source_index {
+			return inter_block(preparation.block_runs, $index)
+		}
+		$index = $index + 1
+	}
+	0
+}
+
+expanded_range : KernelFacadeShape.LogicalRun, List(U64) -> KernelFacadeShape.LogicalRun
+expanded_range = |run, firsts| {
+	start = list_at(firsts, run.physical.start())
+	stop = list_at(firsts, run.physical.start() + run.physical.length())
+	{ physical: Semantics.IndexRange.from_start_and_length({ start, length: stop - start }) }
+}
+
+international_request_block : List(KernelFacadeShape.BlockRuns), KernelInternationalBatch.Error -> U64
+international_request_block = |blocks, error| {
+	input_index = match error {
+		InvalidRequest(index) => index
+		Coverage({ request, .. }) | LimitExceeded({ request, .. }) | Paragraph({ request, .. }) | Shape({ request, .. }) | Scale({ request, .. }) => request
+	}
+	var $index = 0
+	for block in blocks {
+		match block {
+			TextBlock({ body, label, .. }) => {
+				start = match label {
+					Label(run) => run.physical.start()
+					NoLabel => body.physical.start()
+				}
+				ending = body.physical.start() + body.physical.length()
+				if input_index >= start and input_index < ending {
+					return $index
+				}
+			}
+			_ => {}
+		}
+		$index = $index + 1
+	}
+	0
 }
 
 ## Segmented grapheme-cluster facts for coverage planning: one cluster per
@@ -1866,6 +2215,10 @@ face_selected_anywhere = |ranges_per_source, face| {
 
 ordered_segments : List(Font.FaceRange), List(KernelUnicode.ScriptRun), List(Font.FaceId), U64 -> Try(List(SelectedSegment), KernelFacadeShape.Error)
 ordered_segments = |face_ranges, script_runs, used_faces, source_index| {
+	# The two ordered partitions can share a forward script cursor.
+	ordered = contiguous_script_ranges(script_runs)
+	var $script_index = 0
+	var $last_scalar = 0
 	var $segments = []
 	var $range_index = 0
 	while $range_index < face_ranges.len() {
@@ -1876,7 +2229,11 @@ ordered_segments = |face_ranges, script_runs, used_faces, source_index| {
 		range_end = range_start + range_length
 		var $cursor = range_start
 		while $cursor < range_end {
-			run = script_run_covering(script_runs, $cursor, source_index)?
+			first = if (ordered and $cursor >= $last_scalar) $script_index else 0
+			covered = script_run_covering(script_runs, first, $cursor, source_index)?
+			run = covered.run
+			$script_index = covered.index
+			$last_scalar = $cursor
 			segment_end = if (run.range.scalar_end < range_end) run.range.scalar_end else range_end
 			if segment_end <= $cursor {
 				return Err(UndeclaredScript({ script: run.script, source: source_index }))
@@ -1896,17 +2253,51 @@ ordered_segments = |face_ranges, script_runs, used_faces, source_index| {
 	Ok($segments)
 }
 
-script_run_covering : List(KernelUnicode.ScriptRun), U64, U64 -> Try(KernelUnicode.ScriptRun, KernelFacadeShape.Error)
-script_run_covering = |runs, scalar_index, source_index| {
-	var $index = 0
+script_run_covering : List(KernelUnicode.ScriptRun), U64, U64, U64 -> Try({ index : U64, run : KernelUnicode.ScriptRun }, KernelFacadeShape.Error)
+script_run_covering = |runs, first, scalar_index, source_index| {
+	var $index = first
 	while $index < runs.len() {
 		run = list_at(runs, $index)
 		if run.range.scalar_start <= scalar_index and scalar_index < run.range.scalar_end {
-			return Ok(run)
+			return Ok({ index: $index, run })
 		}
 		$index = $index + 1
 	}
 	Err(UndeclaredScript({ script: "", source: source_index }))
+}
+
+## Keep the original first covering run for malformed internal analyses.
+contiguous_script_ranges : List(KernelUnicode.ScriptRun) -> Bool
+contiguous_script_ranges = |runs| {
+	var $scalar = 0
+	for run in runs {
+		if run.range.scalar_start != $scalar or run.range.scalar_end < $scalar {
+			return False
+		}
+		$scalar = run.range.scalar_end
+	}
+	True
+}
+
+expect {
+	latin = { range: { byte_start: 0, byte_end: 2, scalar_start: 0, scalar_end: 2 }, script: "Latn" }
+	common = { range: { byte_start: 2, byte_end: 3, scalar_start: 2, scalar_end: 3 }, script: "Zyyy" }
+	han = { range: { byte_start: 3, byte_end: 6, scalar_start: 3, scalar_end: 4 }, script: "Hani" }
+	instance = Font.InstanceId.from_index(0)
+	face = Font.FaceId.from_index(0)
+	first = { clusters: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), instance }
+	second = { clusters: Semantics.IndexRange.from_start_and_length({ start: 1, length: 3 }), instance }
+	ordered = ordered_segments([first, second], [latin, common, han], [face], 0)?
+	unordered = ordered_segments([first, second], [han, latin, common], [face], 0)?
+	before = ordered_segments([second, first], [latin, common, han], [face], 0)?
+	missing = ordered_segments([second], [latin, common], [face], 5)
+	scripts = |segments| segments.map(|segment| (segment.script.to_str(), segment.clusters.start()))
+	expected = [("Latn", 0), ("Latn", 1), ("Zyyy", 2), ("Hani", 3)]
+	missing_script = match missing {
+		Err(UndeclaredScript({ script: "", source: 5 })) => True
+		_ => False
+	}
+	scripts(ordered) == expected and scripts(unordered) == expected and scripts(before) == [("Latn", 1), ("Zyyy", 2), ("Hani", 3), ("Latn", 0)] and missing_script
 }
 
 dense_font_index : List(Font.FaceId), Font.InstanceId, U64 -> Try(U64, KernelFacadeShape.Error)

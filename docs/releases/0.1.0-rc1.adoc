@@ -1,0 +1,18 @@
+[#release-0-1-0-rc1]
+= roc-pdf 0.1.0-rc1
+
+This early-development release candidate introduces the public `Pdf` API
+for deterministic PDF 2.0 generation under `Pdf.Profile.Standard`.
+`Pdf.to_bytes` supports titles, headings, paragraphs, and bulleted lists
+using the built-in font.
+
+These notes describe rc1. Later releases expand this API and change the
+default profile; see the link:https://github.com/lukewilliamboswell/roc-pdf/releases/tag/0.1.0-rc3[release notes for rc3].
+
+PDF/A-4 and PDF/UA-2 are unavailable in rc1. `Archive` and
+`AccessibleArchive` return structured capability errors. Multi-face text,
+bidirectional text, and case mapping are also incomplete in this version.
+Do not claim archival or accessibility conformance from rc1 output.
+
+Use `Pdf.to_bytes` for nonblank documents in rc1; `Pdf.to_chunks` does not
+yet support authored documents in this version.

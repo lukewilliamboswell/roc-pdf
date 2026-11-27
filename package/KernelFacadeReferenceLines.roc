@@ -39,7 +39,10 @@ KernelFacadeReferenceLines :: [].{
 	}
 	Plan :: View.{
 		build : KernelFacadeSemantics.SymbolicView, KernelFacadeReferenceShape.Plan, Layout.Size, Theme, KernelFacadeLines.Limits -> Try(Plan, Error)
-		build = |symbolic, shape, page, theme, limits| build_plan(symbolic, shape, page, theme, limits)
+		build = |symbolic, shape, page, theme, limits| build_plan(symbolic, shape, page, theme, limits, [])
+
+		build_with_widths : KernelFacadeSemantics.SymbolicView, KernelFacadeReferenceShape.Plan, Layout.Size, Theme, KernelFacadeLines.Limits, List(Layout.Unit) -> Try(Plan, Error)
+		build_with_widths = |symbolic, shape, page, theme, limits, widths| build_plan(symbolic, shape, page, theme, limits, widths)
 		view : Plan -> View
 		view = |Plan.(value)| value
 	}
@@ -53,8 +56,8 @@ BlockItems : { body : Semantics.IndexRange, label : [NoLabel, Label(Semantics.In
 
 Holds : { ranges : List(Semantics.IndexRange), contexts : List(Semantics.IndexRange), scalars : U64 }
 
-build_plan : KernelFacadeSemantics.SymbolicView, KernelFacadeReferenceShape.Plan, Layout.Size, Theme, KernelFacadeLines.Limits -> Try(KernelFacadeReferenceLines.Plan, KernelFacadeReferenceLines.Error)
-build_plan = |symbolic, shape, page, theme, line_limits| {
+build_plan : KernelFacadeSemantics.SymbolicView, KernelFacadeReferenceShape.Plan, Layout.Size, Theme, KernelFacadeLines.Limits, List(Layout.Unit) -> Try(KernelFacadeReferenceLines.Plan, KernelFacadeReferenceLines.Error)
+build_plan = |symbolic, shape, page, theme, line_limits, widths| {
 	authoring = symbolic.authoring
 	owners = symbolic.block_ownership
 	limits = KernelFacadeLines.Limits.values(line_limits)
@@ -63,6 +66,7 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 		return Err(LimitExceeded)
 	}
 	shaped = KernelFacadeReferenceShape.Plan.view(shape)
+	scope_colors = KernelFacadeReferenceShape.Plan.scope_colors(shape)
 	sources = KernelFacadeSources.Plan.sources(symbolic.sources)
 	holds = build_holds(authoring, shaped.literals, item_limits.max_items)?
 	var $builder = KernelReferenceLayout.Builder.start(item_limits)
@@ -113,9 +117,17 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 				if context.reference >= authoring.page_references.len() {
 					return Err(InvalidContext({ block: $block }))
 				}
-				style = KernelFacadeShape.leaf_style(authoring, $block, AtInline(context.inline), Body, theme)
+				style = KernelFacadeShape.leaf_style(authoring, scope_colors, $block, AtInline(context.inline), Body, theme)
 				$size = I64.max($size, style.size.raw())
-				$builder = KernelReferenceLayout.Builder.reference($builder, context.reference, list_at(authoring.page_references, context.reference).spec.width)
+				$builder = KernelReferenceLayout.Builder.reference(
+					$builder,
+					context.reference,
+					if widths.is_empty() {
+						list_at(authoring.page_references, context.reference).spec.width
+					} else {
+						list_at(widths, context.reference)
+					},
+				)
 				$pending = $pending + 1
 			}
 		}
@@ -205,7 +217,7 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 		}
 		$cell_measures = $cell_measures.append(measure)
 	}
-	tables = KernelFacadeTables.Plan.build_measured(authoring, sources, $cell_measures, content_width, $table_frames, theme) ? Tables
+	tables = KernelFacadeTables.Plan.build_measured(authoring, sources, $cell_measures, content_width, $table_frames, theme, symbolic.table_grids) ? Tables
 	var $cell_widths = List.repeat(0, owners.len())
 	for cell in KernelFacadeTables.Plan.cells(tables) {
 		$cell_widths = list_set($cell_widths, cell.block, cell.width)
@@ -305,7 +317,7 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 				_ => return Err(InvalidContext({ block: $block }))
 			}
 			TextBlock({ body, level, .. }) => {
-				style = KernelFacadeShape.leaf_style(authoring, $block, NoInline, Body, theme)
+				style = KernelFacadeShape.leaf_style(authoring, scope_colors, $block, NoInline, Body, theme)
 				MeasuredText({ rows: Semantics.IndexRange.from_start_and_length({ start: body_start, length: $rows.len() - body_start }), size: style.size, leading: style.leading, owner: body, level, body_offset: Layout.Unit.from_raw(frame.body_offset.to_i64_wrap()), label: $label })
 			}
 			RichTextBlock({ occurrences, level, .. }) => {
@@ -345,7 +357,7 @@ build_plan = |symbolic, shape, page, theme, line_limits| {
 	if $row_items != items.len() {
 		return Err(InvalidContext({ block: 0 }))
 	}
-	Ok(KernelFacadeReferenceLines.Plan.{ contents: $contents, items, rows: $rows, item_offsets: $offsets, visible_advances: $visible, input: { blocks: $page_blocks, group_frames: $group_frames, source_frames: $source_frames, figure_frames: $figure_frames, tables: KernelFacadeTables.Plan.tables(tables), cells: KernelFacadeTables.Plan.cells(tables) }, work: { atoms: built.work.atom_writes, literal_clusters: built.work.cluster_visits, glyph_indices: built.work.glyph_index_visits, hold_scalars: holds.scalars, holds: holds.ranges.len(), measured_items: $measured_items, wrapped_items: $wrapped_items, boundaries: $boundaries, rows: $rows.len(), row_items: $row_items, alignment_items: $alignment_items } })
+	Ok(KernelFacadeReferenceLines.Plan.{ contents: $contents, items, rows: $rows, item_offsets: $offsets, visible_advances: $visible, input: { blocks: $page_blocks, group_frames: $group_frames, source_frames: $source_frames, figure_frames: $figure_frames, tables: KernelFacadeTables.Plan.tables(tables), table_grids: KernelFacadeTables.Plan.grids(tables), cells: KernelFacadeTables.Plan.cells(tables) }, work: { atoms: built.work.atom_writes, literal_clusters: built.work.cluster_visits, glyph_indices: built.work.glyph_index_visits, hold_scalars: holds.scalars, holds: holds.ranges.len(), measured_items: $measured_items, wrapped_items: $wrapped_items, boundaries: $boundaries, rows: $rows.len(), row_items: $row_items, alignment_items: $alignment_items } })
 }
 
 append_literal : KernelReferenceLayout.Builder, KernelFacadeReferenceShape.View, U64, Holds, List(KernelFacadeSources.Source) -> KernelReferenceLayout.Builder

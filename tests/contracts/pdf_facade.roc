@@ -283,9 +283,36 @@ expect {
 		language: "en-AU",
 		title: "Presentation and structure",
 	})
-	{ report, .. } = Pdf.prepare_with_report(doc, { profile: AccessibleArchive })?
+	{ report, .. } = Pdf.prepare_with_report(doc, { options: { profile: AccessibleArchive } })?
 	report.obligations.contains({ obligation: StructureMeaningful, path: "document" })
 		and report.obligations.contains({ obligation: ArtifactClassificationMeaningful, path: "document" })
+}
+
+# Report defaults and tighter successful limits preserve the facts and the
+# bytes from ordinary preparation. Either independently exhausted limit fails
+# before returning a report or prepared document.
+expect {
+	doc = Pdf.document({ title: "Preparation report", language: "en-AU", contents: [Pdf.paragraph("Inspect the report.")] })
+	options = Pdf.Options.default
+	ordinary = Pdf.prepare(doc, options)?
+	omitted = Pdf.prepare_with_report(doc, {})?
+	explicit = Pdf.prepare_with_report(doc, { options, budget: { max_entries: 65536, max_text_bytes: 4194304 } })?
+	tighter = Pdf.prepare_with_report(doc, { budget: { max_entries: 100, max_text_bytes: 1024 } })?
+	bytes = Pdf.to_bytes_prepared(ordinary)?
+	omitted_bytes = Pdf.to_bytes_prepared(omitted.prepared)?
+	explicit_bytes = Pdf.to_bytes_prepared(explicit.prepared)?
+	tighter_bytes = Pdf.to_bytes_prepared(tighter.prepared)?
+	exhausted = |budget| match Pdf.prepare_with_report(doc, { budget: budget }) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("report.budget_exceeded"), .. }], .. })) => True
+		_ => False
+	}
+	omitted.report == explicit.report
+		and omitted.report == tighter.report
+		and bytes == omitted_bytes
+		and bytes == explicit_bytes
+		and bytes == tighter_bytes
+		and exhausted({ max_entries: 0 })
+		and exhausted({ max_text_bytes: 0 })
 }
 
 # Dense header associations reach the existing document budget during
@@ -303,4 +330,45 @@ exceeds_header_budget = |result| match result {
 	Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, details: ["contents[0]"], feature: Feature("document.content_limit"), message, stage: AuthoringValidation, .. }], .. })) =>
 		message.starts_with("The document needs 65701 typed attributes and relationships but the facade accepts at most 65536.")
 	_ => False
+}
+
+# Nominal cell defaults and explicit layout overrides use the same dense
+# representation and emission as the ordinary constructors and setters.
+expect {
+	head = [Pdf.text("Balance (AUD)")]
+	label = [Pdf.text("Opening balance")]
+	amount = [Pdf.text("100.00")]
+	tint : Color.SourceValue
+	tint = "#E8F5F6"
+	document = |header, item, total| Pdf.document({
+		title: "Balance schedule",
+		language: "en-AU",
+		contents: [
+			Pdf.table({
+				caption: Pdf.no_caption,
+				columns: [{ width: Share(1), align: Start }, { width: Fixed(100), align: End }],
+				header_rows: [Pdf.row([header])],
+				body_rows: [Pdf.row([item, total])],
+			}),
+		],
+	})
+	shorthand = document(
+		Pdf.header_cell(Column, head).spanning(2).aligned(Center).shaded(tint),
+		Pdf.cell(label),
+		Pdf.cell(amount).aligned(End).shaded(tint),
+	)
+	configured = document(
+		Pdf.header_cell_with(head, { scope: Column, layout: { column_span: 2, align: Aligned(Center), fill: CellFill(tint) } }),
+		Pdf.cell_with(label, {}),
+		Pdf.cell_with(amount, { align: Aligned(End), fill: CellFill(tint) }),
+	)
+	explicit = document(
+		Pdf.header_cell_with(head, { scope: Column, layout: { column_span: 2, row_span: 1, align: Aligned(Center), fill: CellFill(tint) } }),
+		Pdf.cell_with(label, { column_span: 1, row_span: 1, align: FirstColumn, fill: NoCellFill }),
+		Pdf.cell_with(amount, { row_span: 1, column_span: 1, align: Aligned(End), fill: CellFill(tint) }),
+	)
+	ordinary_bytes = Pdf.to_bytes(shorthand)?
+	configured_bytes = Pdf.to_bytes(configured)?
+	explicit_bytes = Pdf.to_bytes(explicit)?
+	ordinary_bytes == configured_bytes and configured_bytes == explicit_bytes
 }

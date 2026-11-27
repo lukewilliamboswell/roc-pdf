@@ -17,6 +17,7 @@ main! = |_args| {
 	options = {
 		theme: {
 			family: BuiltIn(Sans),
+			latin_shaping: InterLatin,
 			inline: {
 				code: { font: Family(BuiltIn(Mono)) },
 				quote: { font: Family(BuiltIn(Serif)) },
@@ -29,6 +30,10 @@ main! = |_args| {
 		contents: [
 			Pdf.title("Built-in font families"),
 			Pdf.paragraph("Inter body text supports the Command shortcut ⌘K."),
+			Pdf.heading(2, "Inter Regular shaping specimen"),
+			Pdf.paragraph("AV"),
+			Pdf.paragraph("Proposed -> Decided"),
+			Pdf.paragraph("Proposed → Decided"),
 			Pdf.rich_paragraph([
 				Pdf.strong([Pdf.text("Genuine bold. ")]),
 				Pdf.emphasis([Pdf.text("Genuine italic. ")]),

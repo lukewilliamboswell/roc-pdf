@@ -15,7 +15,7 @@ KernelDeflate :: [].{
 	## A package-versioned libdeflate level. Only the three constructors
 	## below exist: `fastest` (1), `balanced` (6), and `smallest` (10, the
 	## first near-optimal parsing level).
-	## docs/contributors/performance/output-size.md records the measurements
+	## docs/contributor-output.adoc#contributor-output-size records the measurements
 	## behind each.
 	Level :: U64.{
 		is_eq : _
@@ -130,6 +130,9 @@ max_supported_input = 72057594037927936
 adler_modulus : U64
 adler_modulus = 65521
 
+adler_batch_bytes : U64
+adler_batch_bytes = 5552
+
 ## The canonical empty zlib stream: header, one empty fixed-Huffman final
 ## block, and the Adler-32 of no bytes.
 empty_stream : List(U8)
@@ -210,10 +213,20 @@ adler32 = |bytes| {
 	var $a = 1
 	var $b = 0
 	var $index = 0
-	while $index < bytes.len() {
-		$a = U64.mod_by($a + list_at_u8(bytes, $index).to_u64(), adler_modulus)
-		$b = U64.mod_by($b + $a, adler_modulus)
-		$index = $index + 1
+	length = bytes.len()
+	while $index < length {
+		end = $index + U64.min(length - $index, adler_batch_bytes)
+		# Both sums start below 65521. After n bytes, the larger sum is
+		# at most 65520 * (n + 1) + 255 * n * (n + 1) / 2, which fits
+		# even in U32 for n <= 5552. Addition preserves residues, so
+		# reducing once per batch gives the same RFC 1950 checksum.
+		while $index < end {
+			$a = $a + list_at_u8(bytes, $index).to_u64()
+			$b = $b + $a
+			$index = $index + 1
+		}
+		$a = U64.mod_by($a, adler_modulus)
+		$b = U64.mod_by($b, adler_modulus)
 	}
 	$b.shl_wrap(16).bitwise_or($a)
 }
@@ -328,6 +341,16 @@ expect {
 
 # Adler-32 of "Wikipedia" is the RFC 1950 worked value 0x11E60398.
 expect adler32(Str.to_utf8("Wikipedia")) == 0x11E60398
+
+# Independent zlib.adler32 values for maximum bytes around the first batch
+# boundary, and two complete batches followed by a one-byte tail.
+expect {
+	bytes = List.repeat(255, 11105)
+	adler32(bytes.take_first(5551)) == 0x56039A8D and
+		adler32(bytes.take_first(5552)) == 0xF18F9B8C and
+			adler32(bytes.take_first(5553)) == 0x8E299C8B and
+				adler32(bytes) == 0x37A33825
+}
 
 framed : List(U8), KernelDeflate.Level, U8 -> Bool
 framed = |input, level, flag| {

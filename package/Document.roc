@@ -1,7 +1,11 @@
+import KernelDrawingGroups
+import KernelAssociatedFiles
+import KernelWidgetFields
 import Color
 import Conformance
 import Font
 import Image
+import KernelContentsSelection
 import KernelSourceText
 import KernelSpan
 import Layout
@@ -12,6 +16,7 @@ import Text
 import Theme
 
 DocumentBlock :: [
+	AnchoredFigure(Box(AnchoredFigureSpec)),
 	Bullets(List(Str)),
 	Container({ contents : List(DocumentBlock), kind : ContainerKind }),
 
@@ -27,6 +32,7 @@ DocumentBlock :: [
 	Decoration(DecorationSpec),
 	Figure({ alternative : Str, caption : Caption, drawing : Scene.Drawing, fit : FigurePolicy }),
 	InternalLink({ destination : Str, text : Str }),
+	Footnote(Box(FootnoteProps)),
 	KeepTogether(List(DocumentBlock)),
 	KeepWithNext({ contents : List(DocumentBlock), keep : Keep }),
 	Link({ text : Str, uri : Str }),
@@ -36,6 +42,11 @@ DocumentBlock :: [
 	Paragraph(Str),
 	RichParagraph(List(DocumentInline)),
 	ContentsEntry(Box(ContentsEntryProps)),
+	GeneratedContents(Box(GeneratedContentsProps)),
+	GeneratedEntries(List(DocumentBlock)),
+	Index(Box(IndexProps)),
+	IndexEntries(List(IndexBlock)),
+	Columns(Box(ColumnFlow)),
 
 	## Blocks whose inline colors a `Theme.Scope` overrides, boxed so the
 	## block union keeps the size of its other alternatives.
@@ -46,6 +57,12 @@ DocumentBlock :: [
 	Title(Str),
 	Unavailable({ feature : AuthoringFeature, summary : Str }),
 ].{}
+
+FootnoteProps := { id : Str, label : Str, body : Str }
+
+NormalizedFootnote : { id : Str, label : Str, body : Str, block : U64, parent : U64, position : U64 }
+
+NormalizedCitation : { id : Str, text : Str, block : U64, inline : U64, segment : U64, utf8_start : U64 }
 
 ## An in-flow decoration: its drawing, the space it keeps above the
 ## drawing and between the drawing and the next block (`below`, negative
@@ -96,6 +113,37 @@ SourceBlockProps := {
 	wrap : [RejectLongToken, Wrap] ?? Wrap,
 }.{}
 
+## Source preparation separates raw input per block from retained document
+## output, logical line, and foreground range totals.
+SourceBudgets := {
+	max_input_bytes : U64 ?? 1000000,
+	max_output_bytes : U64 ?? 1000000,
+	max_lines : U64 ?? 1000000,
+	max_foregrounds : U64 ?? 100000,
+}.{
+	default : SourceBudgets
+	default = SourceBudgets.{}
+}
+
+## Preparation budgets for page furniture and drawing labels. Attached text
+## sources count toward the same Unicode store as semantic body text.
+ArtifactTextBudgets := {
+	max_furniture_items : U64 ?? 4096,
+	max_furniture_pieces : U64 ?? 1000000,
+	max_drawing_labels : U64 ?? 100000,
+	max_page_label_bytes : U64 ?? 4096,
+	max_source_inputs : U64 ?? 1000000,
+	max_source_hash_probes : U64 ?? 4000000,
+	max_source_table_slots : U64 ?? 2097152,
+	max_source_script_runs : U64 ?? 2048,
+	max_text_units : U64 ?? 1000000,
+	max_attached_sources : U64 ?? 1000000,
+	max_attached_source_units : U64 ?? 16000000,
+}.{
+	default : ArtifactTextBudgets
+	default = ArtifactTextBudgets.{}
+}
+
 ## One canonical source, its explicit logical lines, and local presentation.
 ## Invalid whitespace is carried as a typed fact for located preparation
 ## diagnostics; later stages consume only semantically validated sources.
@@ -136,8 +184,9 @@ TableColumn : { align : ColumnAlign, width : ColumnWidth }
 ## its row, or both.
 HeaderScope : [Both, Column, Row]
 
-## Whether a body row may break across pages at a line boundary.
-RowSplit : [KeepRows, SplitRows]
+## How body rows fragment. SplitRows applies to one-row cells. SplitSpans
+## also allows a spanning cell's line slots to continue across pages.
+RowSplit : [KeepRows, SplitRows, SplitSpans]
 
 ## How one cell's lines align: in the alignment of the first column it
 ## spans, or in an explicit alignment of its own.
@@ -147,6 +196,28 @@ CellAlign : [Aligned(ColumnAlign), FirstColumn]
 ## fill as a layout decoration artifact.
 CellFill := [NoCellFill, CellFill(Color.SourceValue)]
 
+## An optional table-local cell key for authored header associations.
+CellKey : [Named(Str), Unnamed]
+
+## Use automatic associations or give the exact ordered list of header keys.
+HeaderAssociations : [Explicit(List(Str)), FromScopes]
+
+CellAssociation : { headers : HeaderAssociations, key : CellKey }
+
+## Shared geometry, paint and semantic associations for data and header cells. Alignment defaults
+## to the first spanned column. A fill affects only the cell's decoration.
+CellProps := {
+	align : CellAlign ?? FirstColumn,
+	column_span : U16 ?? 1,
+	fill : CellFill ?? NoCellFill,
+	headers : HeaderAssociations ?? FromScopes,
+	key : CellKey ?? Unnamed,
+	row_span : U16 ?? 1,
+}
+
+## Header scope is an authored fact, independent of shared cell layout.
+HeaderCellProps := { scope : HeaderScope, layout : CellProps ?? {} }
+
 ## A data cell (`TD`) or a header cell (`TH`) with its declared scope.
 CellKind : [DataCell, HeaderCell(HeaderScope)]
 
@@ -154,9 +225,8 @@ CellKind : [DataCell, HeaderCell(HeaderScope)]
 DocumentRow :: [Row(List(DocumentCell))].{}
 
 ## One authored table cell: inline content forming one paragraph, its kind,
-## and the columns and rows it spans. Row spans are represented so they can
-## be rejected with a located diagnostic.
-DocumentCell :: [Cell({ align : CellAlign, column_span : U16, contents : List(DocumentInline), fill : CellFill, kind : CellKind, row_span : U16 })].{
+## and the columns and rows it spans within its section.
+DocumentCell :: [Cell({ align : CellAlign, association : [Associated(Box(CellAssociation)), NoAssociation], column_span : U16, contents : List(DocumentInline), fill : CellFill, kind : CellKind, row_span : U16 })].{
 
 	## The cell spanning `count` columns (`ColSpan`):
 	## `Pdf.header_cell(Row, label).spanning(2)`.
@@ -183,8 +253,7 @@ DocumentCell :: [Cell({ align : CellAlign, column_span : U16, contents : List(Do
 		Cell(record) => DocumentCell.Cell({ ..record, fill: CellFill(color) })
 	}
 
-	## The cell spanning `count` rows. Row spans are outside the supported
-	## table subset: preparation reports `table.row_span` until Gate 8.
+	## The cell spanning `count` rows within its header, body or footer group.
 	row_spanning : DocumentCell, U16 -> DocumentCell
 	row_spanning = |value, count| match value {
 		Cell(record) => DocumentCell.Cell({ ..record, row_span: count })
@@ -210,11 +279,14 @@ Keep : [Preferred, Required]
 ## semantic role it becomes; presentation is Theme policy. Nesting is data,
 ## normalized with an explicit frame stack rather than recursion.
 DocumentInline :: [
+	Citation({ target : Str, text : Str }),
 	Code(Str),
 	Emphasis(List(DocumentInline)),
 	Expansion({ expanded : Str, text : Str }),
+	FootnoteMarker({ id : Str, text : Str }),
 	InLanguage({ contents : List(DocumentInline), tag : Str }),
 	InternalLink({ contents : List(DocumentInline), destination : Str }),
+	IndexReference(Box(List(DocumentInline))),
 	LineBreak,
 	Link({ contents : List(DocumentInline), uri : Str }),
 
@@ -224,6 +296,7 @@ DocumentInline :: [
 	PageNumber(PageFieldStyle),
 	PageLabel,
 	PageReference(Box(PageReferenceProps)),
+	FlowPageReference(Box(PageReferenceProps)),
 	RunningLabel,
 	Quote(List(DocumentInline)),
 
@@ -238,7 +311,7 @@ DocumentInline :: [
 ].{}
 
 # Nominal types avoid widening unrelated inline alternatives; see
-# docs/contributors/performance/page-templates.md for the allocation review.
+# docs/contributor-layout.adoc#contributor-page-templates for the allocation review.
 ## The numbering style of a page field. Use the public furniture constructors
 ## to select a style and reserve its width.
 PageFieldStyle := [DecimalField, LowerAlphaField, LowerRomanField, UpperAlphaField, UpperRomanField]
@@ -257,6 +330,8 @@ PageReferenceProps := {
 	width : Layout.Unit,
 }.{}
 
+FlowPageReferenceProps := { destination : Str, numbering : PageReferenceNumbering ?? Physical }.{}
+
 ## A linked contents entry. The page field is terminal and end-aligned;
 ## every title line reserves the field and gap before pagination.
 ContentsEntryProps := {
@@ -266,6 +341,60 @@ ContentsEntryProps := {
 	gap : Layout.Unit ?? 6,
 	leader : [NoLeader, Dots] ?? NoLeader,
 }.{}
+
+## Select anchored headings in document order and use fixed-width linked
+## page fields. Depth is absolute for a whole document and relative under
+## a named heading. Overrides name destination identities, not title text.
+GeneratedContentsScope : [Under(Str), WholeDocument]
+
+GeneratedContentsTitle : { target : Str, title : Str }
+
+GeneratedContentsProps := {
+	depth : U8 ?? 6,
+	gap : Layout.Unit ?? 6,
+	indent_step : Layout.Unit ?? 12,
+	leader : [NoLeader, Dots] ?? NoLeader,
+	numbering : PageReferenceNumbering ?? Physical,
+	overrides : List(GeneratedContentsTitle) ?? [],
+	page_width : Layout.Unit ?? 36,
+	scope : GeneratedContentsScope ?? WholeDocument,
+}
+
+BibliographyEntry : { target : Str, text : Str }
+
+IndexEntry : { term : Str, destinations : List(Str) }
+
+IndexBlock : { block : DocumentBlock, position : U64 }
+
+IndexProps := {
+	entries : List(IndexEntry),
+	numbering : PageReferenceNumbering ?? PageLabel,
+	page_width : Layout.Unit ?? 36,
+}
+
+IndexError : [
+	Empty,
+	CapacityOverflow,
+	EntryLimit({ attempted : U64, limit : U64 }),
+	LocationLimit({ attempted : U64, limit : U64 }),
+	TargetLimit({ attempted : U64, entry : U64, limit : U64 }),
+	TermByteLimit({ attempted : U64, entry : U64, limit : U64 }),
+	DuplicateTerm(U64),
+	EmptyTerm(U64),
+	NoTargets(U64),
+	InvalidTarget({ entry : U64, target : U64 }),
+	DuplicateTarget({ entry : U64, target : U64 }),
+	InvalidWidth,
+]
+
+GeneratedContentsError : [
+	BlockScanLimit({ limit : U64 }),
+	EntryLimit({ limit : U64, position : U64 }),
+	Indent({ position : U64 }),
+	InvalidIndex({ error : IndexError, position : U64 }),
+	RequestLimit({ limit : U64, position : U64 }),
+	Selection({ error : KernelContentsSelection.Error, position : U64 }),
+]
 
 ## Sparse geometry facts, kept separately from the TOC/TOCI structure spine.
 NormalizedContentsEntry : { block : U64, indent : Layout.Unit, gap : Layout.Unit, leader : [NoLeader, Dots], reference : U64 }
@@ -376,8 +505,11 @@ Caption := [Caption(Str), NoCaption]
 ## `minimum_percent`.
 FigureFit : [Exact, ScaleToFit({ minimum_percent : U8 })]
 
+## One authored paragraph paired with an exact-size captioned drawing.
+AnchoredFigureSpec : { anchor : List(DocumentInline), alternative : Str, caption : Str, drawing : Scene.Drawing }
+
 # Nominal representation avoids the structural-union allocation cost recorded
-# in docs/contributors/performance/page-templates.md.
+# in docs/contributor-layout.adoc#contributor-page-templates.
 ## A figure's fit policy. Figure constructors convert the selected fit and
 ## minimum scale into this value.
 FigurePolicy := [ExactFit, ScaleFit(U64)]
@@ -406,12 +538,32 @@ FlowDrawing : { commands : List(FlowCommand), height : U64, images : List(Image.
 ## A figure, decoration, or custom panel after normalization validation. An
 ## invalid drawing keeps its reason so semantic planning can reject it at
 ## its authored location.
-ValidatedDrawing : [InvalidDrawing(Str), ValidDrawing(FlowDrawing)]
+ValidatedDrawing : [DrawingDepthLimit(KernelDrawingGroups.DepthLimit), InvalidDrawing(Str), ValidDrawing(FlowDrawing)]
 
 ## The PDF 2.0 grouping element a container block becomes: `Part`, `Sect`,
 ## or `Div`. Grouping has no visual effect; children keep their own roles,
 ## so headings inside a section remain explicit `H1`..`H6`.
-ContainerKind : [Division, Part, Section]
+ContainerKind : [Bibliography, BibliographyItem, Division, FormContainer, Part, Section]
+
+## Explicit widths for sequential flow across two columns.
+ColumnFlow := {
+	contents : List(DocumentBlock),
+	first : Layout.Unit,
+	gutter : Layout.Unit,
+	second : Layout.Unit,
+}
+
+ColumnOption : [Outline, PageLabels, Templates]
+
+ColumnError : [Empty, UnsupportedBlock(U64), UnsupportedOption(ColumnOption)]
+
+NormalizedColumns := {
+	authoring : NormalizedAuthoring,
+	first : Layout.Unit,
+	gutter : Layout.Unit,
+	kept : List(Bool),
+	second : Layout.Unit,
+}
 
 ## Stable feature identities used by transactional preparation diagnostics.
 AuthoringFeature := [
@@ -435,7 +587,11 @@ AuthoringFeature := [
 PageArtifactKind := [Background, Decoration, Footer, Header, PageNumber, Watermark]
 
 ## A semantic block placed into an explicit page frame.
-FixedPlacement := { block : DocumentBlock, frame : Layout.Rect }
+FixedPlacement := {
+	block : DocumentBlock,
+	frame : Layout.Rect,
+	widget : [NoWidget, WithWidget(KernelWidgetFields.Input)] ?? NoWidget,
+}
 
 ## A drawing whose non-content purpose and paint layer are explicit.
 FixedArtifact := { drawing : Scene.Drawing, kind : PageArtifactKind }
@@ -461,6 +617,21 @@ FixedPageBuilder :: FixedPage.{
 	place : FixedPageBuilder, { block : DocumentBlock, frame : Layout.Rect } -> FixedPageBuilder
 	place = |FixedPageBuilder.{ artifacts_after, artifacts_before, placements, paint_order, size }, { block, frame }| FixedPageBuilder.{ artifacts_after, artifacts_before, placements: placements.append({ block, frame }), paint_order, size }
 
+	## Place an editable field at the given page-coordinate origin. Its label
+	## appears above it and the widget follows the label in reading order.
+	place_text_field : FixedPageBuilder, { field : KernelWidgetFields.TextFieldProps, origin : Layout.Point } -> FixedPageBuilder
+	place_text_field = |FixedPageBuilder.{ artifacts_after, artifacts_before, placements, paint_order, size }, { field, origin }| {
+		frame = { origin, size: { width: field.width, height: 22 } }
+		FixedPageBuilder.{ artifacts_after, artifacts_before, placements: placements.append({ block: Paragraph(field.label), frame, widget: WithWidget(TextWidget(field)) }), paint_order, size }
+	}
+
+	## Place a 22-point checkbox at the page origin with its label to the right.
+	place_checkbox : FixedPageBuilder, { field : KernelWidgetFields.CheckboxProps, origin : Layout.Point } -> FixedPageBuilder
+	place_checkbox = |FixedPageBuilder.{ artifacts_after, artifacts_before, placements, paint_order, size }, { field, origin }| {
+		frame = { origin, size: { width: 22, height: 22 } }
+		FixedPageBuilder.{ artifacts_after, artifacts_before, placements: placements.append({ block: Paragraph(field.label), frame, widget: WithWidget(CheckboxWidget(field)) }), paint_order, size }
+	}
+
 	overlay : FixedPageBuilder, { kind : PageArtifactKind, drawing : Scene.Drawing } -> FixedPageBuilder
 	overlay = |FixedPageBuilder.{ artifacts_after, artifacts_before, placements, paint_order, size }, { kind, drawing }| FixedPageBuilder.{ artifacts_after: artifacts_after.append({ drawing, kind }), artifacts_before, placements, paint_order, size }
 
@@ -483,8 +654,13 @@ FixedError : [
 	LimitExceeded({ dimension : [Pages, Placements, Rectangles], attempted : U64, limit : U64 }),
 	UnsupportedDocumentOption([Templates, Outline, PageLabels]),
 	UnsupportedPlacement({ page : U64, placement : U64 }),
+	UnsupportedFigureFit({ page : U64, placement : U64 }),
+	UnsupportedFigureLabels({ page : U64, placement : U64 }),
 	UnsupportedInline({ page : U64, placement : U64 }),
 	InvalidFrame({ page : U64, placement : U64 }),
+	InvalidWidgetFrame(KernelWidgetFields.Location),
+	InvalidCheckboxFrame(KernelWidgetFields.Location),
+	InvalidWidgetLabel(KernelWidgetFields.Located),
 	PaintOrderLength({ page : U64, actual : U64, expected : U64 }),
 	PaintOrderIndex({ page : U64, index : U64, placement : U64 }),
 	DuplicatePaintPlacement({ page : U64, index : U64, placement : U64 }),
@@ -507,14 +683,22 @@ NormalizedFixed :: {
 	authoring : NormalizedAuthoring,
 	pages : List(FixedPagePlan),
 	frames : List(Layout.Rect),
+	placement_blocks : List(Semantics.IndexRange),
+	widget_fields : List(KernelWidgetFields.Authored),
 	paint_order : List(U64),
 	artifacts : List(FixedRect),
 }.{
 	view = |NormalizedFixed.(value)| value
+
+	## Authored placement ordinals and semantic leaf ordinals are identical
+	## unless a placement adds a caption. The sidecar is then in authored
+	## order. A page's paint order expands each placement as one whole span.
+	blocks_for : List(Semantics.IndexRange), U64 -> Semantics.IndexRange
+	blocks_for = |ranges, placement| if (ranges.is_empty()) fixed_range(placement, 1) else list_at(ranges, placement)
 }
 
-normalize_fixed_pages : { language : Str, metadata_title : Str, pages : List(FixedPage) }, FixedLimits -> Try(NormalizedFixed, FixedError)
-normalize_fixed_pages = |fixed, limits| {
+normalize_fixed_pages : { language : Str, metadata_title : Str, pages : List(FixedPage) }, FixedLimits, U64 -> Try(NormalizedFixed, FixedError)
+normalize_fixed_pages = |fixed, limits, max_drawing_group_depth| {
 	if fixed.pages.is_empty() {
 		return Err(NoPages)
 	}
@@ -523,6 +707,7 @@ normalize_fixed_pages = |fixed, limits| {
 	}
 	var $placements = 0
 	var $rectangles = 0
+	var $captions = 0
 	var $page = 0
 	for page in fixed.pages {
 		placement_count = page.placements.len()
@@ -533,38 +718,81 @@ normalize_fixed_pages = |fixed, limits| {
 			return Err(EmptyPage({ page: $page }))
 		}
 		$placements = add_fixed_count($placements, placement_count, limits.max_placements, Placements)?
-		validate_fixed_placements(page, $page)?
+		$captions = $captions + validate_fixed_placements(page, $page)?
 		validate_fixed_paint_order(page.paint_order, placement_count, $page)?
 		$rectangles = validate_fixed_artifacts(page.artifacts_before, page.size, $page, Underlay, $rectangles, limits.max_rectangles)?
 		$rectangles = validate_fixed_artifacts(page.artifacts_after, page.size, $page, Overlay, $rectangles, limits.max_rectangles)?
 		$page = $page + 1
 	}
 	var $page_plans = List.with_capacity(fixed.pages.len())
-	var $frames = List.with_capacity($placements)
-	var $paint_order = List.with_capacity($placements)
+	var $frames = List.with_capacity($placements + $captions)
+	var $paint_order = List.with_capacity($placements + $captions)
+	var $placement_blocks = if ($captions == 0) [] else List.with_capacity($placements)
 	var $artifacts = List.with_capacity($rectangles)
-	var $state = empty_state
+	var $state = { ..empty_state, max_drawing_group_depth }
+	var $widget_fields = []
+	var $placement_base = 0
+	$page = 0
 	for page in fixed.pages {
-		placement_base = $frames.len()
 		placement_count = page.placements.len()
-		$paint_order = append_fixed_paint_order($paint_order, page.paint_order, placement_base, placement_count)
+		paint_start = $paint_order.len()
 		var $placement = 0
 		for placement in page.placements {
-			$frames = $frames.append(placement.frame)
-			$state = append_leaf($state, placement.block, 0, placement_base + $placement)
+			position = $placement_base + $placement
+			block_start = $frames.len()
+			match placement.widget {
+				NoWidget => {
+					$frames = $frames.append(placement.frame)
+					$state = append_leaf($state, placement.block, 0, position)
+					match placement.block {
+						Figure(_) => {
+							normalized = list_at($state.figures, $state.figures.len() - 1)
+							match normalized.drawing {
+								ValidDrawing(drawing) => if drawing.commands.any(is_flow_text) {
+									return Err(UnsupportedFigureLabels({ page: $page, placement: $placement }))
+								}
+								DrawingDepthLimit(_) | InvalidDrawing(_) => {}
+							}
+							if normalized.captioned {
+								$frames = $frames.append(placement.frame)
+							}
+						}
+						_ => {}
+					}
+				}
+				WithWidget(field) => {
+					location = { page: $page, placement: $placement }
+					geometry = match KernelWidgetFields.geometry(placement.frame.origin, field, page.size) {
+						Frames(value) => value
+						InvalidFrames => return Err(invalid_widget_frame(field, location))
+					}
+					$frames = $frames.append(geometry.label)
+					group = $state.groups.len()
+					$widget_fields = $widget_fields.append({ field, geometry, group, location })
+					$state = open_group($state, Container(FormContainer), 0, 1, position)
+					$state = append_leaf($state, placement.block, group + 1, 0)
+					$state = close_group($state, group)
+				}
+			}
+			if $captions > 0 {
+				$placement_blocks = $placement_blocks.append(fixed_range(block_start, $frames.len() - block_start))
+			}
 			$placement = $placement + 1
 		}
+		$paint_order = append_fixed_paint_order($paint_order, page.paint_order, $placement_base, placement_count, $placement_blocks)
 		underlay_base = $artifacts.len()
 		$artifacts = append_fixed_artifacts($artifacts, page.artifacts_before)
 		overlay_base = $artifacts.len()
 		$artifacts = append_fixed_artifacts($artifacts, page.artifacts_after)
 		$page_plans = $page_plans.append({
 			size: page.size,
-			placements: fixed_range(placement_base, placement_count),
-			paint: fixed_range(placement_base, placement_count),
+			placements: fixed_range($placement_base, placement_count),
+			paint: fixed_range(paint_start, $paint_order.len() - paint_start),
 			underlays: fixed_range(underlay_base, overlay_base - underlay_base),
 			overlays: fixed_range(overlay_base, $artifacts.len() - overlay_base),
 		})
+		$page = $page + 1
+		$placement_base = $placement_base + placement_count
 	}
 	Ok(
 		NormalizedFixed.(
@@ -572,6 +800,8 @@ normalize_fixed_pages = |fixed, limits| {
 				authoring: finish_simple_authoring($state, fixed.language, fixed.metadata_title),
 				pages: $page_plans,
 				frames: $frames,
+				placement_blocks: $placement_blocks,
+				widget_fields: $widget_fields,
 				paint_order: $paint_order,
 				artifacts: $artifacts,
 			},
@@ -608,12 +838,32 @@ fixed_rect_fits = |rect, size| {
 		and KernelSpan.end_within(y.to_u64_wrap(), height.to_u64_wrap(), size.height.raw().to_u64_wrap()).is_ok()
 }
 
-validate_fixed_placements : FixedPage, U64 -> Try({}, FixedError)
+invalid_widget_frame : KernelWidgetFields.Input, KernelWidgetFields.Location -> FixedError
+invalid_widget_frame = |field, location| match field {
+	TextWidget(_) => InvalidWidgetFrame(location)
+	CheckboxWidget(_) => InvalidCheckboxFrame(location)
+}
+
+validate_fixed_placements : FixedPage, U64 -> Try(U64, FixedError)
 validate_fixed_placements = |page, page_index| {
 	var $index = 0
+	var $caption_count = 0
 	for placement in page.placements {
-		if !fixed_rect_fits(placement.frame, page.size) {
-			return Err(InvalidFrame({ page: page_index, placement: $index }))
+		match placement.widget {
+			NoWidget => if !fixed_rect_fits(placement.frame, page.size) {
+				return Err(InvalidFrame({ page: page_index, placement: $index }))
+			}
+			WithWidget(field) => match KernelWidgetFields.geometry(placement.frame.origin, field, page.size) {
+				Frames(_) => {}
+				InvalidFrames => return Err(invalid_widget_frame(field, { page: page_index, placement: $index }))
+			}
+		}
+		match placement.widget {
+			NoWidget => {}
+			WithWidget(field) => match placement.block {
+				Paragraph(label) if label == KernelWidgetFields.label(field) => {}
+				_ => return Err(InvalidWidgetLabel({ kind: KernelWidgetFields.kind(field), location: { page: page_index, placement: $index } }))
+			}
 		}
 		match placement.block {
 			Title(_) | Heading(_) | Paragraph(_) => {}
@@ -622,11 +872,21 @@ validate_fixed_placements = |page, page_index| {
 					return Err(UnsupportedInline({ page: page_index, placement: $index }))
 				}
 			}
+			Figure(spec) => {
+				figure = spec
+				match figure.fit {
+					ExactFit => {}
+					ScaleFit(_) => return Err(UnsupportedFigureFit({ page: page_index, placement: $index }))
+				}
+				if has_caption(figure.caption) {
+					$caption_count = $caption_count + 1
+				}
+			}
 			_ => return Err(UnsupportedPlacement({ page: page_index, placement: $index }))
 		}
 		$index = $index + 1
 	}
-	Ok({})
+	Ok($caption_count)
 }
 
 fixed_rich_supported : List(DocumentInline) -> Bool
@@ -744,24 +1004,41 @@ validate_fixed_paint_order = |selection, count, page| match selection {
 	}
 }
 
-append_fixed_paint_order : List(U64), [Authored, Explicit(List(U64))], U64, U64 -> List(U64)
-append_fixed_paint_order = |output, selection, start, count| {
+append_fixed_paint_order : List(U64), [Authored, Explicit(List(U64))], U64, U64, List(Semantics.IndexRange) -> List(U64)
+append_fixed_paint_order = |output, selection, start, count, blocks| {
 	var $output = output
 	match selection {
 		Authored => {
 			var $index = 0
 			while $index < count {
-				$output = $output.append(start + $index)
+				$output = append_fixed_blocks($output, NormalizedFixed.blocks_for(blocks, start + $index))
 				$index = $index + 1
 			}
 		}
 		Explicit(order) => {
 			for placement in order {
-				$output = $output.append(start + placement)
+				$output = append_fixed_blocks($output, NormalizedFixed.blocks_for(blocks, start + placement))
 			}
 		}
 	}
 	$output
+}
+
+append_fixed_blocks : List(U64), Semantics.IndexRange -> List(U64)
+append_fixed_blocks = |order, range| {
+	var $order = order
+	var $index = range.start()
+	while $index < range.start() + range.length() {
+		$order = $order.append($index)
+		$index = $index + 1
+	}
+	$order
+}
+
+is_flow_text : FlowCommand -> Bool
+is_flow_text = |command| match command {
+	FlowText(_) => True
+	_ => False
 }
 
 NormalizedBlockKind := [
@@ -838,11 +1115,13 @@ NormalizedList : { items : U64, marker : ListMarker }
 NormalizedTable : { body_rows : U64, caption : Bool, columns : List(TableColumn), footer_rows : U64, header_rows : U64, row_split : RowSplit }
 
 # Spans retain U16 to keep the record at 24 bytes; see the allocation review
-# in docs/contributors/performance/tables.md before changing its representation.
+# in docs/contributor-layout.adoc#contributor-tables before changing its representation.
 ## One table cell, in leaf-block order: its rich-paragraph leaf `block`, its
 ## kind, its authored column and row spans, and its line alignment.
 ##
 ## `fill` is zero, or the cell's own background packed by `pack_color`.
+NormalizedCellAssociation : { cell : U64, headers : HeaderAssociations, key : CellKey }
+
 NormalizedCell : { align : CellAlign, block : U64, column_span : U16, fill : U64, kind : CellKind, row_span : U16 }
 
 ## The section a normalized table row belongs to.
@@ -866,7 +1145,7 @@ TableSection : [Body, Footer, Header]
 ##
 ## `Custom` is a custom block (payload: its `customs` index): a `Div` of its
 ## paragraphs for semantics and one unsplittable unit for layout.
-NormalizedGroupKind := [Source(U64), Container(ContainerKind), ContentsItem, ContentsList, Custom(U32), Callout(U32), FigureGroup(U32), ItemList(U32), KeepTogether, KeepWithNext(Keep), LeadRegion, ListItem(U32), PageScope(U32), Scope(U32), Table(U32), TableRow(TableSection)]
+NormalizedGroupKind := [FigureAnchor, Source(U64), Container(ContainerKind), ContentsItem, ContentsList, GeneratedContentsList, IndexList, Custom(U32), Callout(U32), FigureGroup(U32), ItemList(U32), KeepTogether, KeepWithNext(Keep), LeadRegion, ListItem(U32), PageScope(U32), Scope(U32), Table(U32), TableRow(TableSection)]
 
 ## The semantic role of one normalized inline. Text leaves hold their exact
 ## authored string and its byte range in the paragraph's concatenated text.
@@ -875,7 +1154,9 @@ NormalizedGroupKind := [Source(U64), Container(ContainerKind), ContentsItem, Con
 ## content. It holds no text and no children; semantic planning rejects it,
 ## because page fields are page furniture only.
 NormalizedInlineKind := [
+	Citation(Str),
 	Code,
+	IndexReference,
 	Emphasis,
 	Expansion(Str),
 	FurnitureOnly,
@@ -923,7 +1204,7 @@ NormalizedFigure := { alternative : Str, captioned : Bool, drawing : ValidatedDr
 ## A reference is a semantic content leaf with no provisional Unicode.
 ## `separator_after` is the explicit authored line-break normalization fact:
 ## final ActualText includes its separator; shaping uses the label alone.
-NormalizedPageReference : { block : U64, inline : U64, leaf : U64, paragraph : U64, separator_after : Bool, spec : PageReferenceProps }
+NormalizedPageReference : { block : U64, flow : Bool, inline : U64, leaf : U64, paragraph : U64, separator_after : Bool, spec : PageReferenceProps }
 
 ## Literal chunks stop at every reference and mandatory authored break.
 ## Byte offsets on Text leaves are relative to their chunk. `ordinal` is
@@ -937,11 +1218,17 @@ NormalizedReferenceParagraph : { chunks : Semantics.IndexRange, paragraph : U64,
 NormalizedAuthoring := {
 	blocks : List(NormalizedBlock),
 	contents_entries : List(NormalizedContentsEntry) ?? [],
+	cell_associations : List(NormalizedCellAssociation) ?? [],
 	cells : List(NormalizedCell),
 	customs : List(NormalizedCustom),
 	callouts : List(NormalizedCallout),
 	decorations : List(NormalizedDecoration),
 	figures : List(NormalizedFigure),
+	footnotes : List(NormalizedFootnote) ?? [],
+	footnote_citations : List(NormalizedCitation) ?? [],
+	footnote_targets : List(U64) ?? [],
+	footnote_type : [AnnotateFootnoteType, CommonFootnote] ?? CommonFootnote,
+	footnote_placements : List({ definition : U64, citation : U64 }) ?? [],
 	groups : List(NormalizedGroup),
 	inlines : List(NormalizedInline),
 	language : Str,
@@ -1183,7 +1470,7 @@ DocumentBuilder :: {
 	}
 
 	finish : DocumentBuilder -> Document
-	finish = |state| Document.{ authoring: Compact(state), created: Omitted, modified: Omitted, outline: [], page_labels: [], templates: NoTemplates }
+	finish = |state| Document.{ associated_files: [], authoring: Compact(state), created: Omitted, modified: Omitted, outline: [], page_labels: [], source_budgets: SourceBudgets.default, max_drawing_group_depth: KernelDrawingGroups.default_depth, templates: NoTemplates }
 }
 
 DocumentAuthoring := [
@@ -1192,13 +1479,20 @@ DocumentAuthoring := [
 	Simple({ contents : List(DocumentBlock), language : Str, metadata_title : Str }),
 ]
 
-Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, modified : Metadata.TimestampInput, outline : List(OutlineEntry), page_labels : List(PageLabelRange), templates : DocumentTemplates }.{
+Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : DocumentAuthoring, created : Metadata.TimestampInput, modified : Metadata.TimestampInput, outline : List(OutlineEntry), page_labels : List(PageLabelRange), source_budgets : SourceBudgets, max_drawing_group_depth : U64, templates : DocumentTemplates }.{
+	AssociatedFile : KernelAssociatedFiles.File
+	AttachmentRelationship : KernelAssociatedFiles.Relationship
+	AttachmentNecessity : KernelAssociatedFiles.Necessity
 	Block : DocumentBlock
 	Builder : DocumentBuilder
 	Caption : Caption
 	Cell : DocumentCell
 	CellAlign : CellAlign
 	CellFill : CellFill
+	CellKey : CellKey
+	HeaderAssociations : HeaderAssociations
+	CellProps : CellProps
+	HeaderCellProps : HeaderCellProps
 
 	## A normalized cell's own fill color.
 	cell_fill : NormalizedCell -> CellFill
@@ -1209,6 +1503,9 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	ColumnWidth : ColumnWidth
 	ContainerKind : ContainerKind
 	Feature : AuthoringFeature
+	ColumnFlow : ColumnFlow
+	ColumnError : ColumnError
+	NormalizedColumns : NormalizedColumns
 	FixedArtifact : FixedArtifact
 	FixedArtifactLayer : FixedArtifactLayer
 	FixedError : FixedError
@@ -1230,6 +1527,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	NavigationError : NavigationError
 	NormalizedBlock : NormalizedBlock
 	NormalizedBlockKind : NormalizedBlockKind
+	NormalizedCellAssociation : NormalizedCellAssociation
 	NormalizedCell : NormalizedCell
 	NormalizedDecoration : NormalizedDecoration
 	NormalizedCustom : NormalizedCustom
@@ -1240,8 +1538,25 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	SourceForeground : SourceForeground
 	SourceTabs : SourceTabs
 	SourceBlockProps : SourceBlockProps
+	SourceBudgets : SourceBudgets
+	ArtifactTextBudgets : ArtifactTextBudgets
 	NormalizedSource : NormalizedSource
 	NormalizedFigure : NormalizedFigure
+	FootnoteProps : FootnoteProps
+	NormalizedFootnote : NormalizedFootnote
+	NormalizedCitation : NormalizedCitation
+
+	footnote_destination : Str -> Str
+	footnote_destination = |id| "_roc_footnote.${id}"
+
+	footnote_return : Str -> Str
+	footnote_return = |id| "_roc_citation.${id}"
+
+	footnote_definition : FootnoteProps -> DocumentBlock
+	footnote_definition = |props| DocumentBlock.Footnote(Box.box(props))
+
+	footnote_marker : { id : Str, text : Str } -> DocumentInline
+	footnote_marker = |props| DocumentInline.FootnoteMarker(props)
 	FigureFit : FigureFit
 	FigurePolicy : FigurePolicy
 	FlowCommand : FlowCommand
@@ -1261,6 +1576,24 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	PageScopeProps : PageScopeProps
 	NormalizedRegion : NormalizedRegion
 	PageReferenceProps : PageReferenceProps
+	FlowPageReferenceProps : FlowPageReferenceProps
+	GeneratedContentsError : GeneratedContentsError
+	GeneratedContentsProps : GeneratedContentsProps
+	GeneratedContentsLimits := {
+		max_scan_blocks : U64 ?? 32768,
+		max_entries : U64 ?? 4096,
+		max_requests : U64 ?? 16,
+		max_title_overrides : U64 ?? 64,
+		max_index_entries : U64 ?? 256,
+		max_index_locations : U64 ?? 2048,
+		max_index_targets_per_term : U64 ?? 16,
+		max_index_term_bytes : U64 ?? 256,
+	}.{
+		default : GeneratedContentsLimits
+		default = GeneratedContentsLimits.{}
+	}
+	IndexProps : IndexProps
+	IndexError : IndexError
 	ContentsEntryProps : ContentsEntryProps
 	NormalizedContentsEntry : NormalizedContentsEntry
 	PageReferenceNumbering : PageReferenceNumbering
@@ -1397,11 +1730,14 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	from_blocks : { contents : List(DocumentBlock), language : Str, title : Str } -> Document
 	from_blocks = |{ contents, language: input_language, title: document_title }|
 		Document.{
+			associated_files: [],
 			authoring: Simple({ contents, language: input_language, metadata_title: document_title }),
 			created: Omitted,
 			modified: Omitted,
 			outline: [],
 			page_labels: [],
+			source_budgets: SourceBudgets.default,
+			max_drawing_group_depth: KernelDrawingGroups.default_depth,
 			templates: NoTemplates,
 		}
 
@@ -1410,11 +1746,14 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	from_props : { contents : List(DocumentBlock), created : Metadata.TimestampInput, language : Str, modified : Metadata.TimestampInput, outline : List(OutlineEntry), page_labels : List(PageLabelRange), templates : DocumentTemplates, title : Str } -> Document
 	from_props = |{ contents, created: input_created, language: input_language, modified: input_modified, outline: input_outline, page_labels: input_page_labels, templates, title: document_title }|
 		Document.{
+			associated_files: [],
 			authoring: Simple({ contents, language: input_language, metadata_title: document_title }),
 			created: input_created,
 			modified: input_modified,
 			outline: input_outline,
 			page_labels: input_page_labels,
+			source_budgets: SourceBudgets.default,
+			max_drawing_group_depth: KernelDrawingGroups.default_depth,
 			templates,
 		}
 
@@ -1423,11 +1762,14 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	from_fixed_pages : { language : Str, pages : List(FixedPage), title : Str } -> Document
 	from_fixed_pages = |{ language: input_language, pages, title: document_title }|
 		Document.{
+			associated_files: [],
 			authoring: Fixed({ language: input_language, metadata_title: document_title, pages }),
 			created: Omitted,
 			modified: Omitted,
 			outline: [],
 			page_labels: [],
+			source_budgets: SourceBudgets.default,
+			max_drawing_group_depth: KernelDrawingGroups.default_depth,
 			templates: NoTemplates,
 		}
 
@@ -1436,21 +1778,27 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	## exact canonical UTC instant, which is validated before generation.
 	with_created : Document, Str -> Document
 	with_created = |document, timestamp| Document.{
+		associated_files: document.associated_files,
 		authoring: document.authoring,
 		created: Explicit(timestamp),
 		modified: document.modified,
 		outline: document.outline,
 		page_labels: document.page_labels,
+		source_budgets: document.source_budgets,
+		max_drawing_group_depth: document.max_drawing_group_depth,
 		templates: document.templates,
 	}
 
 	with_modified : Document, Str -> Document
 	with_modified = |document, timestamp| Document.{
+		associated_files: document.associated_files,
 		authoring: document.authoring,
 		created: document.created,
 		modified: Explicit(timestamp),
 		outline: document.outline,
 		page_labels: document.page_labels,
+		source_budgets: document.source_budgets,
+		max_drawing_group_depth: document.max_drawing_group_depth,
 		templates: document.templates,
 	}
 
@@ -1459,11 +1807,14 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	## preserved exactly through lowering.
 	with_outline : Document, List(OutlineEntry) -> Document
 	with_outline = |document, entries| Document.{
+		associated_files: document.associated_files,
 		authoring: document.authoring,
 		created: document.created,
 		modified: document.modified,
 		outline: entries,
 		page_labels: document.page_labels,
+		source_budgets: document.source_budgets,
+		max_drawing_group_depth: document.max_drawing_group_depth,
 		templates: document.templates,
 	}
 
@@ -1471,13 +1822,24 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	## validated against the final page count after pagination.
 	with_page_labels : Document, List(PageLabelRange) -> Document
 	with_page_labels = |document, ranges| Document.{
+		associated_files: document.associated_files,
 		authoring: document.authoring,
 		created: document.created,
 		modified: document.modified,
 		outline: document.outline,
 		page_labels: ranges,
+		source_budgets: document.source_budgets,
+		max_drawing_group_depth: document.max_drawing_group_depth,
 		templates: document.templates,
 	}
+
+	## Replace the associated-file list for any document constructor. File
+	## metadata and payload budgets are checked during profile preparation.
+	with_associated_files : Document, List(AssociatedFile) -> Document
+	with_associated_files = |Document.(record), files| Document.{ ..record, associated_files: files }
+
+	associated_files : Document -> List(AssociatedFile)
+	associated_files = |document| document.associated_files
 
 	created : Document -> Metadata.TimestampInput
 	created = |document| document.created
@@ -1496,13 +1858,24 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	## templates, pagination uses the theme's body frame on every page.
 	with_page_templates : Document, { continuation : DocumentPageTemplate, first : DocumentFirstPageTemplate } -> Document
 	with_page_templates = |document, { continuation, first }| Document.{
+		associated_files: document.associated_files,
 		authoring: document.authoring,
 		created: document.created,
 		modified: document.modified,
 		outline: document.outline,
 		page_labels: document.page_labels,
+		source_budgets: document.source_budgets,
+		max_drawing_group_depth: document.max_drawing_group_depth,
 		templates: Templates({ continuation, first }),
 	}
+
+	## Supply the source budgets for this preparation and its diagnostics.
+	with_source_budgets : Document, SourceBudgets -> Document
+	with_source_budgets = |Document.(fields), source_budgets| Document.{ ..fields, source_budgets }
+
+	## Install preparation-local authoring budgets before normalization.
+	with_preparation_budgets : Document, { source_budgets : SourceBudgets, max_drawing_group_depth : U64 } -> Document
+	with_preparation_budgets = |Document.(fields), { source_budgets, max_drawing_group_depth }| Document.{ ..fields, source_budgets, max_drawing_group_depth }
 
 	## Whether the document declares page templates.
 	has_templates : Document -> Bool
@@ -1552,6 +1925,12 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	page_reference : PageReferenceProps -> DocumentInline
 	page_reference = |spec| DocumentInline.PageReference(Box.box(spec))
 
+	flow_page_reference : FlowPageReferenceProps -> DocumentInline
+	flow_page_reference = |props| {
+		spec = PageReferenceProps.{ align: Start, destination: props.destination, numbering: props.numbering, width: 1 }
+		DocumentInline.FlowPageReference(Box.box(spec))
+	}
+
 	total_pages : NumberStyle -> DocumentInline
 	total_pages = |style| DocumentInline.TotalPages(page_field_style(style))
 
@@ -1588,6 +1967,72 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 
 	contents_entry : ContentsEntryProps -> DocumentBlock
 	contents_entry = |props| DocumentBlock.ContentsEntry(Box.box(props))
+
+	generated_contents : GeneratedContentsProps -> DocumentBlock
+	generated_contents = |props| DocumentBlock.GeneratedContents(Box.box(props))
+
+	BibliographyEntry : BibliographyEntry
+
+	bibliography : List(BibliographyEntry) -> DocumentBlock
+	bibliography = |entries| DocumentBlock.Container({
+		kind: Bibliography,
+		contents: entries.map(
+			|entry| DocumentBlock.Container({
+				kind: BibliographyItem,
+				contents: [DocumentBlock.DestinationParagraph({ name: entry.target, text: entry.text })],
+			}),
+		),
+	})
+
+	citation : { target : Str, text : Str } -> DocumentInline
+	citation = |entry| DocumentInline.Citation(entry)
+
+	index : IndexProps -> DocumentBlock
+	index = |props| DocumentBlock.Index(Box.box(props))
+
+	## Index locations are an authored Reference wrapper around exactly one
+	## internal link, whose only child is the fixed-width page reference.
+	index_location : NormalizedAuthoring, U64 -> [IndexLocation(U64), NoIndexLocation]
+	index_location = |authoring, reference| {
+		record = list_at(authoring.page_references, reference)
+		parent = list_at(authoring.inlines, record.inline).parent
+		if parent == 0 {
+			return NoIndexLocation
+		}
+		outer = list_at(authoring.inlines, parent - 1).parent
+		if outer == 0 {
+			return NoIndexLocation
+		}
+		wrapper = list_at(authoring.inlines, outer - 1)
+		match wrapper.kind {
+			IndexReference => IndexLocation(wrapper.position // 2 - 1)
+			_ => NoIndexLocation
+		}
+	}
+
+	## Resolve generated entries before the ordinary normalization pass.
+	## Documents without a request keep their authored blocks unchanged.
+	resolve_generated_contents : Document -> Try(Document, GeneratedContentsError)
+	resolve_generated_contents = |document| resolve_generated_contents_with(document, GeneratedContentsLimits.default)
+
+	resolve_generated_contents_with : Document, GeneratedContentsLimits -> Try(Document, GeneratedContentsError)
+	resolve_generated_contents_with = |document, limits| match document.authoring {
+		Simple(simple) => {
+			if !simple.contents.any(
+				|block| match block {
+					GeneratedContents(_) | Index(_) => True
+					_ => False
+				},
+			) {
+				return Ok(document)
+			}
+			headings = collect_contents_headings(simple.contents, limits.max_scan_blocks)?
+			contents = resolve_contents_blocks(simple.contents, headings, limits)?
+			Document.(fields) = document
+			Ok(Document.{ ..fields, authoring: Simple({ ..simple, contents }) })
+		}
+		_ => Ok(document)
+	}
 
 	## An unordered list; each item's label is a generated bullet.
 	bullet_list : List(DocumentListItem) -> DocumentBlock
@@ -1630,11 +2075,17 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 
 	## A data cell (`TD`) of inline content.
 	cell : List(DocumentInline) -> DocumentCell
-	cell = |contents| DocumentCell.Cell({ align: FirstColumn, column_span: 1, contents, fill: NoCellFill, kind: DataCell, row_span: 1 })
+	cell = |contents| cell_with(contents, {})
+
+	cell_with : List(DocumentInline), CellProps -> DocumentCell
+	cell_with = |contents, props| make_cell(contents, DataCell, props)
 
 	## A header cell (`TH`) with its declared scope.
 	header_cell : HeaderScope, List(DocumentInline) -> DocumentCell
-	header_cell = |scope, contents| DocumentCell.Cell({ align: FirstColumn, column_span: 1, contents, fill: NoCellFill, kind: HeaderCell(scope), row_span: 1 })
+	header_cell = |scope, contents| header_cell_with(contents, { scope: scope })
+
+	header_cell_with : List(DocumentInline), HeaderCellProps -> DocumentCell
+	header_cell_with = |contents, { layout, scope }| make_cell(contents, HeaderCell(scope), layout)
 
 	## An explicit line break inside a rich paragraph.
 	line_break : DocumentInline
@@ -1675,6 +2126,10 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	## An abbreviation and its expansion (`Span` with `/E`).
 	expansion : { text : Str, expanded : Str } -> DocumentInline
 	expansion = |{ text: value, expanded }| DocumentInline.Expansion({ expanded, text: value })
+
+	## Attach an exact-size captioned drawing to its introducing paragraph.
+	anchored_figure : List(DocumentInline), { alternative : Str, caption : Str, drawing : Scene.Drawing } -> DocumentBlock
+	anchored_figure = |anchor, { alternative, caption: caption_value, drawing }| DocumentBlock.AnchoredFigure(Box.box({ anchor, alternative, caption: caption_value, drawing }))
 
 	## Attach meaningful drawing content with required alternative text.
 	figure : Scene.Drawing, { alternative : Str, caption : Caption } -> DocumentBlock
@@ -1756,6 +2211,30 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 		Simple(simple) => simple.contents.len()
 	}
 
+	columns : ColumnFlow -> Block
+	columns = |props| DocumentBlock.Columns(Box.box(props))
+
+	## A column flow is the document's body. The normalized text arena has
+	## one occurrence for each declared paragraph or title.
+	normalize_columns : Document -> Try([Ordinary, Columns(NormalizedColumns)], ColumnError)
+	normalize_columns = |document| {
+		spec = match document.authoring {
+			Simple({ contents: [Columns(value)], .. }) => Box.unbox(value)
+			_ => return Ok(Ordinary)
+		}
+		if document.has_templates() {
+			return Err(UnsupportedOption(Templates))
+		}
+		if !document.outline.is_empty() {
+			return Err(UnsupportedOption(Outline))
+		}
+		if !document.page_labels.is_empty() {
+			return Err(UnsupportedOption(PageLabels))
+		}
+		plan = normalize_column_flow(spec, document.language(), document.metadata_title())?
+		Ok(Columns(plan))
+	}
+
 	## Return the first unsupported authored capability in deterministic order.
 	first_unavailable : Document -> [Available, UnavailableFeature({ feature : AuthoringFeature, summary : Str })]
 	first_unavailable = |document| {
@@ -1789,7 +2268,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 			if !document.page_labels.is_empty() {
 				return Err(UnsupportedDocumentOption(PageLabels))
 			}
-			plan = normalize_fixed_pages(fixed, limits)?
+			plan = normalize_fixed_pages(fixed, limits, document.max_drawing_group_depth)?
 			Ok(Fixed(plan))
 		}
 		_ => Ok(Flow)
@@ -1804,23 +2283,26 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	## Page templates normalize their regions as authored values and their
 	## lead region's blocks first, as group 0 (`LeadRegion`), so the lead
 	## precedes the body in every arena and in reading order.
-	normalize = |document| match document.templates {
-		NoTemplates => {
-			normalized = normalize_authoring(document.authoring, empty_state)
-			finish_reference_chunks({ ..normalized, outline: document.outline, page_labels: document.page_labels })
-		}
-		Templates({ continuation, first }) => {
-			lead = match first.lead {
-				NoLead => { height: NoLead, state: empty_state }
-				Lead({ contents, height }) => { height: Lead(height), state: append_lead(empty_state, contents) }
+	normalize = |document| {
+		initial = { ..empty_state, source_budgets: document.source_budgets, max_drawing_group_depth: document.max_drawing_group_depth }
+		match document.templates {
+			NoTemplates => {
+				normalized = normalize_authoring(document.authoring, initial)
+				finish_reference_chunks({ ..normalized, outline: document.outline, page_labels: document.page_labels })
 			}
-			normalized = normalize_authoring(document.authoring, lead.state)
-			templates = Templates({
-				continuation: { footer: normalize_region(continuation.footer), gap: continuation.gap, header: normalize_region(continuation.header) },
-				first: { footer: normalize_region(first.footer), gap: first.gap, header: normalize_region(first.header) },
-				lead: lead.height,
-			})
-			finish_reference_chunks({ ..normalized, outline: document.outline, page_labels: document.page_labels, templates })
+			Templates({ continuation, first }) => {
+				lead = match first.lead {
+					NoLead => { height: NoLead, state: initial }
+					Lead({ contents, height }) => { height: Lead(height), state: append_lead(initial, contents) }
+				}
+				normalized = normalize_authoring(document.authoring, lead.state)
+				templates = Templates({
+					continuation: { footer: normalize_region(continuation.footer), gap: continuation.gap, header: normalize_region(continuation.header) },
+					first: { footer: normalize_region(first.footer), gap: first.gap, header: normalize_region(first.header) },
+					lead: lead.height,
+				})
+				finish_reference_chunks({ ..normalized, outline: document.outline, page_labels: document.page_labels, templates })
+			}
 		}
 	}
 }
@@ -1945,13 +2427,288 @@ furniture_leaf = |inline, position, inner| match inline {
 }
 
 empty_state : SimpleState
-empty_state = { contents_entries: [], page_references: [], source_bytes: 0, source_exhaustion: NoSourceExhaustion, blocks: [], cells: [], customs: [], callouts: [], decorations: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], page_scopes: [], rich_paragraphs: [], scopes: [], source_foregrounds: [], source_lines: [], sources: [], spacers: [], tables: [] }
+empty_state = { contents_entries: [], footnotes: [], footnote_citations: [], page_references: [], source_budgets: SourceBudgets.default, max_drawing_group_depth: KernelDrawingGroups.default_depth, source_bytes: 0, source_exhaustion: NoSourceExhaustion, blocks: [], cell_associations: [], cells: [], customs: [], callouts: [], decorations: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], page_scopes: [], rich_paragraphs: [], scopes: [], source_foregrounds: [], source_lines: [], sources: [], spacers: [], tables: [] }
 
 normalize_authoring : DocumentAuthoring, SimpleState -> NormalizedAuthoring
 normalize_authoring = |authoring, initial| match authoring {
 	Compact(compact) => normalize_compact(compact, initial)
 	Fixed(fixed) => { blocks: [], cells: [], customs: [], callouts: [], decorations: [], figures: [], groups: [], inlines: [], language: fixed.language, line_breaks: [], lists: [], metadata_title: fixed.metadata_title, outline: [], page_breaks: [], page_scopes: [], page_labels: [], rich_paragraphs: [], scopes: [], source_foregrounds: [], source_lines: [], sources: [], spacers: [], tables: [], templates: NoTemplates }
 	Simple(simple) => normalize_simple(simple, initial)
+}
+
+normalize_column_flow : ColumnFlow, Str, Str -> Try(NormalizedColumns, ColumnError)
+normalize_column_flow = |spec, language, metadata_title| {
+	if spec.contents.is_empty() {
+		return Err(Empty)
+	}
+	var $kept = List.with_capacity(spec.contents.len())
+	var $contents = List.with_capacity(spec.contents.len())
+	for block in spec.contents {
+		match block {
+			Title(_) => {
+				$contents = $contents.append(block)
+				$kept = $kept.append(True)
+			}
+			Paragraph(_) => {
+				$contents = $contents.append(block)
+				$kept = $kept.append(False)
+			}
+			KeepTogether([Paragraph(text)]) => {
+				$contents = $contents.append(DocumentBlock.Paragraph(text))
+				$kept = $kept.append(True)
+			}
+			_ => return Err(UnsupportedBlock($kept.len()))
+		}
+	}
+	normalized = normalize_simple({ contents: $contents, language, metadata_title }, empty_state)
+	Ok({ authoring: finish_reference_chunks(normalized), first: spec.first, gutter: spec.gutter, kept: $kept, second: spec.second })
+}
+
+collect_contents_headings : List(DocumentBlock), U64 -> Try(List(KernelContentsSelection.Heading), GeneratedContentsError)
+collect_contents_headings = |blocks, max_scan_blocks| {
+	var $pending = [{ blocks, next: 0 }]
+	var $headings = []
+	var $visits = 0
+	while !$pending.is_empty() {
+		last = $pending.len() - 1
+		top = list_at($pending, last)
+		if top.next == top.blocks.len() {
+			$pending = $pending.drop_last(1)
+		} else {
+			if $visits == max_scan_blocks {
+				return Err(BlockScanLimit({ limit: max_scan_blocks }))
+			}
+			block = list_at(top.blocks, top.next)
+			$pending = list_set($pending, last, { ..top, next: top.next + 1 })
+			match block {
+				DestinationHeading({ name, level, text }) => {
+					$headings = $headings.append({ level, target: Named(name), title: text })
+				}
+				Heading({ level, text }) => {
+					$headings = $headings.append({ level, target: NoTarget, title: text })
+				}
+				_ => {
+					children = heading_children(block)
+					if !children.is_empty() {
+						$pending = $pending.append({ blocks: children, next: 0 })
+					}
+				}
+			}
+			$visits = $visits + 1
+		}
+	}
+	Ok($headings)
+}
+
+heading_children : DocumentBlock -> List(DocumentBlock)
+heading_children = |block| match block {
+	Container({ contents, .. }) | KeepTogether(contents) | KeepWithNext({ contents, .. }) => contents
+	PageScope(value) => Box.unbox(value).contents
+	Scoped(value) => Box.unbox(value).contents
+	Callout(value) => Box.unbox(value).contents
+	ListBlock({ items, .. }) => item_blocks(items)
+	_ => []
+}
+
+resolve_contents_blocks : List(DocumentBlock), List(KernelContentsSelection.Heading), Document.GeneratedContentsLimits -> Try(List(DocumentBlock), GeneratedContentsError)
+resolve_contents_blocks = |blocks, headings, limits| {
+	var $resolved = List.with_capacity(blocks.len())
+	var $entries = 0
+	var $requests = 0
+	var $locations = 0
+	for block in blocks {
+		position = $resolved.len()
+		match block {
+			GeneratedContents(spec) => {
+				if $requests == limits.max_requests {
+					return Err(RequestLimit({ limit: limits.max_requests, position }))
+				}
+				$requests = $requests + 1
+				props = Box.unbox(spec)
+				remaining = limits.max_entries - $entries
+				{ entries, selected, .. } = KernelContentsSelection.select_with_limits(
+					headings,
+					{ depth: props.depth, overrides: props.overrides, scope: props.scope },
+					{ max_entries: remaining, max_title_overrides: limits.max_title_overrides },
+				) ? |error| Selection({ error, position })
+				if selected > remaining {
+					return Err(EntryLimit({ limit: limits.max_entries, position }))
+				}
+				$entries = $entries + selected
+				converted = build_generated_entries(entries, props) ? |_| Indent({ position: position })
+				$resolved = $resolved.append(DocumentBlock.GeneratedEntries(converted))
+			}
+			Index(spec) => {
+				converted = build_index_entries(Box.unbox(spec), $locations, limits) ? |error| InvalidIndex({ error, position: position })
+				$locations = converted.locations
+				$resolved = $resolved.append(DocumentBlock.IndexEntries(converted.blocks))
+			}
+			_ => {
+				$resolved = $resolved.append(block)
+			}
+		}
+	}
+	Ok($resolved)
+}
+
+build_generated_entries : List(KernelContentsSelection.Entry), GeneratedContentsProps -> Try(List(DocumentBlock), [InvalidIndent])
+build_generated_entries = |entries, props| {
+	if props.indent_step.raw() < 0 {
+		return Err(InvalidIndent)
+	}
+	var $blocks = List.with_capacity(entries.len())
+	for entry in entries {
+		indent = I64.times_try((entry.depth - 1).to_i64(), props.indent_step.raw()) ? |_| InvalidIndent
+		reference = PageReferenceProps.{ destination: entry.target, width: props.page_width, numbering: props.numbering }
+		$blocks = $blocks.append(
+			Document.contents_entry({
+				title: [Document.plain_text(entry.title)],
+				indent: Layout.Unit.from_raw(indent),
+				gap: props.gap,
+				leader: props.leader,
+				reference,
+			}),
+		)
+	}
+	Ok($blocks)
+}
+
+build_index_entries : IndexProps, U64, Document.GeneratedContentsLimits -> Try({ blocks : List(IndexBlock), locations : U64 }, IndexError)
+build_index_entries = |props, preceding_locations, limits| {
+	if props.entries.is_empty() {
+		return Err(Empty)
+	}
+	if props.entries.len() > limits.max_index_entries {
+		return Err(EntryLimit({ attempted: props.entries.len(), limit: limits.max_index_entries }))
+	}
+	if props.page_width <= 0 {
+		return Err(InvalidWidth)
+	}
+	var $entries = List.with_capacity(props.entries.len())
+	var $index = 0
+	var $locations = preceding_locations
+	for entry in props.entries {
+		if entry.term.is_empty() {
+			return Err(EmptyTerm($index))
+		}
+		term_bytes = entry.term.count_utf8_bytes()
+		if term_bytes > limits.max_index_term_bytes {
+			return Err(TermByteLimit({ attempted: term_bytes, entry: $index, limit: limits.max_index_term_bytes }))
+		}
+		target_count = entry.destinations.len()
+		if target_count == 0 {
+			return Err(NoTargets($index))
+		}
+		if target_count > limits.max_index_targets_per_term {
+			return Err(TargetLimit({ attempted: target_count, entry: $index, limit: limits.max_index_targets_per_term }))
+		}
+		attempted = $locations.plus_saturated(target_count)
+		if target_count > limits.max_index_locations - $locations {
+			return Err(LocationLimit({ attempted, limit: limits.max_index_locations }))
+		}
+		$locations = attempted
+		if target_count <= 16 {
+			var $target = 0
+			for target in entry.destinations {
+				if target.is_empty() {
+					return Err(InvalidTarget({ entry: $index, target: $target }))
+				}
+				if entry.destinations.sublist({ start: 0, len: $target }).contains(target) {
+					return Err(DuplicateTarget({ entry: $index, target: $target }))
+				}
+				$target = $target + 1
+			}
+		} else {
+			validate_large_index_targets(entry.destinations, $index)?
+		}
+		$entries = $entries.append({ entry, key: entry.term.to_utf8(), position: $index })
+		$index = $index + 1
+	}
+	sorted = $entries.sort_with(
+		|left, right| match compare_index_terms(left.key, right.key) {
+			Same => if (left.position < right.position) Before else if (left.position > right.position) After else Same
+			order => order
+		},
+	)
+	var $blocks = List.with_capacity(sorted.len())
+	$index = 0
+	for term in sorted {
+		if $index > 0 and list_at(sorted, $index - 1).key == term.key {
+			return Err(DuplicateTerm(term.position))
+		}
+		inline_count = U64.times_try(2, term.entry.destinations.len()) ? |_| CapacityOverflow
+		var $inlines = List.with_capacity(inline_count + 1)
+		$inlines = $inlines.append(Document.plain_text(term.entry.term))
+		var $separator = ": "
+		for target in term.entry.destinations {
+			$inlines = $inlines.append(Document.plain_text($separator))
+			reference = Document.page_reference({ destination: target, align: Start, width: props.page_width, numbering: props.numbering })
+			link = Document.inline_internal_link([reference], target)
+			$inlines = $inlines.append(DocumentInline.IndexReference(Box.box([link])))
+			$separator = ", "
+		}
+		$blocks = $blocks.append({ block: Document.rich_paragraph($inlines), position: term.position })
+		$index = $index + 1
+	}
+	Ok({ blocks: $blocks, locations: $locations })
+}
+
+validate_large_index_targets : List(Str), U64 -> Try({}, IndexError)
+validate_large_index_targets = |destinations, entry| {
+	var $keys = List.with_capacity(destinations.len())
+	var $target = 0
+	for target in destinations {
+		if target.is_empty() {
+			break
+		}
+		$keys = $keys.append({ key: target.to_utf8(), position: $target })
+		$target = $target + 1
+	}
+	# Sort only the valid prefix. The earliest repeated position in that
+	# prefix takes precedence over the first empty target.
+	sorted = $keys.sort_with(
+		|left, right| match compare_index_terms(left.key, right.key) {
+			Same => if (left.position < right.position) Before else if (left.position > right.position) After else Same
+			order => order
+		},
+	)
+	var $duplicate = $target
+	var $index = 1
+	while $index < sorted.len() {
+		candidate = list_at(sorted, $index)
+		if list_at(sorted, $index - 1).key == candidate.key {
+			$duplicate = U64.min($duplicate, candidate.position)
+		}
+		$index = $index + 1
+	}
+	if $duplicate < $target {
+		return Err(DuplicateTarget({ entry, target: $duplicate }))
+	}
+	if $target < destinations.len() {
+		return Err(InvalidTarget({ entry, target: $target }))
+	}
+	Ok({})
+}
+
+compare_index_terms : List(U8), List(U8) -> [After, Before, Same]
+compare_index_terms = |left, right| {
+	common = U64.min(left.len(), right.len())
+	var $index = 0
+	while $index < common {
+		a = list_at(left, $index)
+		b = list_at(right, $index)
+		if a != b {
+			return if (a < b) Before else After
+		}
+		$index = $index + 1
+	}
+	if left.len() < right.len() {
+		Before
+	} else if left.len() > right.len() {
+		After
+	} else {
+		Same
+	}
 }
 
 first_unavailable_block : List(DocumentBlock) -> [Available, UnavailableFeature({ feature : AuthoringFeature, summary : Str })]
@@ -2066,6 +2823,9 @@ item_blocks = |items| {
 unavailable_leaf : DocumentBlock -> [Available, UnavailableFeature({ feature : AuthoringFeature, summary : Str })]
 unavailable_leaf = |block| match block {
 	Unavailable({ feature, summary }) => UnavailableFeature({ feature, summary })
+	Columns(_) => UnavailableFeature({ feature: MultiColumnLayout, summary: "The column flow must be the only top-level block." })
+	Index(_) => UnavailableFeature({ feature: GeneratedReferences, summary: "Place the index at the top level of the document." })
+	GeneratedContents(_) => UnavailableFeature({ feature: GeneratedReferences, summary: "Place generated contents at the top level of the document." })
 	_ => Available
 }
 
@@ -2112,6 +2872,7 @@ normalize_compact = |compact, initial| {
 	{
 		blocks: $blocks,
 		contents_entries: initial.contents_entries,
+		cell_associations: initial.cell_associations,
 		cells: initial.cells,
 		customs: initial.customs,
 		callouts: initial.callouts,
@@ -2142,7 +2903,10 @@ normalize_compact = |compact, initial| {
 SourceExhaustion : [NoSourceExhaustion, SourceExhausted(KernelSourceText.Error)]
 
 SimpleState : {
+	cell_associations : List(NormalizedCellAssociation),
 	contents_entries : List(NormalizedContentsEntry),
+	source_budgets : SourceBudgets,
+	max_drawing_group_depth : U64,
 	source_bytes : U64,
 	source_exhaustion : SourceExhaustion,
 	blocks : List(NormalizedBlock),
@@ -2166,6 +2930,8 @@ SimpleState : {
 	source_lines : List(KernelSourceText.Line),
 	spacers : List(NormalizedSpacer),
 	tables : List(NormalizedTable),
+	footnotes : List(NormalizedFootnote),
+	footnote_citations : List(NormalizedCitation),
 }
 
 normalize_simple : { contents : List(DocumentBlock), language : Str, metadata_title : Str }, SimpleState -> NormalizedAuthoring
@@ -2174,13 +2940,24 @@ normalize_simple = |simple, initial| {
 	var $block_index = 0
 	while $block_index < simple.contents.len() {
 		block = list_at(simple.contents, $block_index)
-		if is_contents_entry(block) {
-			end = contents_list_end(simple.contents, $block_index + 1)
-			$state = append_contents_list($state, simple.contents, 0, 0, $block_index, end)
-			$block_index = end
-		} else {
-			$state = if (is_grouping(block)) append_group($state, block, $block_index) else append_leaf($state, block, 0, $block_index)
-			$block_index = $block_index + 1
+		match block {
+			GeneratedEntries(entries) => {
+				$state = append_contents_list_at($state, entries, 0, 0, 0, entries.len(), { position: $block_index, kind: GeneratedContentsList })
+				$block_index = $block_index + 1
+			}
+			IndexEntries(entries) => {
+				$state = append_index_entries($state, entries, $block_index)
+				$block_index = $block_index + 1
+			}
+			ContentsEntry(_) => {
+				end = contents_list_end(simple.contents, $block_index + 1)
+				$state = append_contents_list($state, simple.contents, 0, 0, $block_index, end)
+				$block_index = end
+			}
+			_ => {
+				$state = if (is_grouping(block)) append_group($state, block, $block_index) else append_leaf($state, block, 0, $block_index)
+				$block_index = $block_index + 1
+			}
 		}
 	}
 	finish_simple_authoring($state, simple.language, simple.metadata_title)
@@ -2190,11 +2967,14 @@ finish_simple_authoring : SimpleState, Str, Str -> NormalizedAuthoring
 finish_simple_authoring = |state, language, metadata_title| {
 	blocks: state.blocks,
 	contents_entries: state.contents_entries,
+	cell_associations: state.cell_associations,
 	cells: state.cells,
 	customs: state.customs,
 	callouts: state.callouts,
 	decorations: state.decorations,
 	figures: state.figures,
+	footnotes: state.footnotes,
+	footnote_citations: state.footnote_citations,
 	groups: state.groups,
 	inlines: state.inlines,
 	page_references: state.page_references,
@@ -2240,8 +3020,11 @@ contents_list_end = |blocks, start| {
 ## Consecutive authored entries under one parent make one semantic TOC.
 ## Position stays the authored sibling index, including for diagnostics.
 append_contents_list : SimpleState, List(DocumentBlock), U64, U64, U64, U64 -> SimpleState
-append_contents_list = |state, blocks, parent, depth, first, end| {
-	var $state = open_group(state, ContentsList, parent, depth, first)
+append_contents_list = |state, blocks, parent, depth, first, end| append_contents_list_at(state, blocks, parent, depth, first, end, { position: first, kind: ContentsList })
+
+append_contents_list_at : SimpleState, List(DocumentBlock), U64, U64, U64, U64, { position : U64, kind : NormalizedGroupKind } -> SimpleState
+append_contents_list_at = |state, blocks, parent, depth, first, end, list| {
+	var $state = open_group(state, list.kind, parent, depth, list.position)
 	group = $state.groups.len()
 	var $position = first
 	while $position < end {
@@ -2250,6 +3033,16 @@ append_contents_list = |state, blocks, parent, depth, first, end| {
 		$state = append_leaf($state, list_at(blocks, $position), item, $position)
 		$state = close_group($state, item - 1)
 		$position = $position + 1
+	}
+	close_group($state, group - 1)
+}
+
+append_index_entries : SimpleState, List(IndexBlock), U64 -> SimpleState
+append_index_entries = |state, entries, position| {
+	var $state = open_group(state, IndexList, 0, 0, position)
+	group = $state.groups.len()
+	for entry in entries {
+		$state = append_leaf($state, entry.block, group, entry.position)
 	}
 	close_group($state, group - 1)
 }
@@ -2331,7 +3124,7 @@ open_block_group = |state, block, parent, depth, list_depth, position| match blo
 	Custom(boxed) => {
 		spec = Box.unbox(boxed)
 		index = state.customs.len()
-		custom = { group: state.groups.len(), height: spec.size.height, inset: spec.inset, name: spec.name, panel: validate_custom_panel(spec.panel), width: spec.size.width }
+		custom = { group: state.groups.len(), height: spec.size.height, inset: spec.inset, name: spec.name, panel: validate_custom_panel(spec.panel, state.max_drawing_group_depth), width: spec.size.width }
 		opened = open_group({ ..state, customs: state.customs.append(custom) }, Custom(index.to_u32_wrap()), parent, depth + 1, position)
 		{ frame: { blocks: spec.contents, depth: depth + 1, group: opened.groups.len(), items: [], list_depth, listing: False, next: 0 }, state: opened }
 	}
@@ -2376,8 +3169,9 @@ open_block_group = |state, block, parent, depth, list_depth, position| match blo
 
 open_group : SimpleState, NormalizedGroupKind, U64, U64, U64 -> SimpleState
 open_group = |state, kind, parent, depth, position| {
-	..state,
-	groups: state.groups.append({ block_end: state.blocks.len(), depth, first_block: state.blocks.len(), group_end: state.groups.len() + 1, kind, parent, position }),
+	first_block = state.blocks.len()
+	group_end = state.groups.len() + 1
+	{ ..state, groups: state.groups.append({ block_end: first_block, depth, first_block, group_end, kind, parent, position }) }
 }
 
 close_group : SimpleState, U64 -> SimpleState
@@ -2388,6 +3182,7 @@ close_group = |state, group| {
 
 append_leaf : SimpleState, DocumentBlock, U64, U64 -> SimpleState
 append_leaf = |state, block, parent, position| match block {
+	AnchoredFigure(spec) => append_anchored_figure(state, Box.unbox(spec), parent, position)
 	Bullets(items) => {
 		var $blocks = state.blocks
 		var $item = 0
@@ -2402,9 +3197,23 @@ append_leaf = |state, block, parent, position| match block {
 	}
 	DestinationHeading({ level, name, text }) => { ..state, blocks: state.blocks.append({ kind: DestinationHeading({ level, name }), parent, text }) }
 	DestinationParagraph({ name, text }) => { ..state, blocks: state.blocks.append({ kind: DestinationParagraph({ name: name }), parent, text }) }
+	Footnote(boxed) => {
+		{ id, label, body } = Box.unbox(boxed)
+		definition = { id, label, body, block: state.blocks.len(), parent, position }
+		with_note = { ..state, footnotes: state.footnotes.append(definition) }
+		append_rich(
+			with_note,
+			[
+				DocumentInline.Text("${label} ${body} "),
+				Document.inline_internal_link([DocumentInline.Text("Return to first citation")], Document.footnote_return(id)),
+			],
+			parent,
+			position,
+		)
+	}
 	Heading({ level, text }) => { ..state, blocks: state.blocks.append({ kind: Heading(level), parent, text }) }
 	Decoration(spec) => {
-		{ ..state, decorations: state.decorations.append({ behind: spec.behind, block: state.blocks.len(), drawing: space_decoration(without_decoration_labels(validate_flow_drawing(spec.drawing)), spec.above, spec.below), parent, position }) }
+		{ ..state, decorations: state.decorations.append({ behind: spec.behind, block: state.blocks.len(), drawing: space_decoration(without_decoration_labels(validate_flow_drawing(spec.drawing, state.max_drawing_group_depth)), spec.above, spec.below), parent, position }) }
 	}
 	Figure({ alternative, caption, drawing, fit }) => append_figure(state, { alternative, caption, drawing, fit }, parent, position)
 	InternalLink({ destination, text }) => { ..state, blocks: state.blocks.append({ kind: InternalLink({ destination: destination }), parent, text }) }
@@ -2427,33 +3236,27 @@ append_leaf = |state, block, parent, position| match block {
 	Title(text) => { ..state, blocks: state.blocks.append({ kind: Title, parent, text }) }
 
 	## Preparation rejects this branch before normalization.
-	Unavailable({ feature: _, summary: _ }) => { ..state, blocks: state.blocks.append({ kind: Paragraph, parent, text: "" }) }
+	Unavailable({ feature: _, summary: _ }) | Columns(_) | GeneratedContents(_) | GeneratedEntries(_) | Index(_) | IndexEntries(_) => { ..state, blocks: state.blocks.append({ kind: Paragraph, parent, text: "" }) }
 }
 
 ## The parser owns the canonical byte buffer once. Leaf text stays empty:
 ## all later text ranges reference this source arena, including blank lines.
+## Remaining quotas apply cumulatively across sources. A compact exhaustion
+## fact prevents parsing subsequent sources after the first budget failure.
 append_source : SimpleState, SourceBlockProps, U64, U64 -> SimpleState
-append_source = |state, spec, parent, position| append_source_limited(state, spec, parent, position, source_normalization_limits)
-
-source_normalization_limits : KernelSourceText.Limits
-source_normalization_limits = { max_input_bytes: 1000000, max_lines: 1000000, max_output_bytes: 1000000 }
-
-## Canonical bytes and line rows have aggregate document bounds. Remaining
-## capacities pass to the parser, so it rejects before retaining an oversized
-## source. A compact exhaustion fact prevents parsing subsequent sources.
-append_source_limited : SimpleState, SourceBlockProps, U64, U64, KernelSourceText.Limits -> SimpleState
-append_source_limited = |state, spec, parent, position, limits| {
+append_source = |state, spec, parent, position| {
+	limits = state.source_budgets
 	facts = match state.source_exhaustion {
 		SourceExhausted(error) => { foregrounds: [], bytes: 0, exhaustion: state.source_exhaustion, lines: [], text: "", validation: InvalidSource(error) }
 		NoSourceExhaustion => {
 			remaining = { max_input_bytes: limits.max_input_bytes, max_lines: limits.max_lines - state.source_lines.len(), max_output_bytes: limits.max_output_bytes - state.source_bytes }
-			match KernelSourceText.prepare_foregrounds(spec.text, spec.tabs, remaining, spec.foregrounds, 100000 - state.source_foregrounds.len()) {
+			match KernelSourceText.prepare_foregrounds(spec.text, spec.tabs, remaining, spec.foregrounds, limits.max_foregrounds - state.source_foregrounds.len()) {
 				Ok(value) => { foregrounds: value.foregrounds, bytes: value.work.output_bytes, exhaustion: NoSourceExhaustion, lines: value.lines, text: value.text, validation: ValidSource }
 				Err(error) => {
 					located = match error {
-						LimitExceeded({ attempted, dimension: OutputBytes, .. }) => LimitExceeded({ attempted: state.source_bytes + attempted, dimension: OutputBytes, limit: limits.max_output_bytes })
-						LimitExceeded({ attempted, dimension: Lines, .. }) => LimitExceeded({ attempted: state.source_lines.len() + attempted, dimension: Lines, limit: limits.max_lines })
-						LimitExceeded({ attempted, dimension: Foregrounds, .. }) => LimitExceeded({ attempted: state.source_foregrounds.len() + attempted, dimension: Foregrounds, limit: 100000 })
+						LimitExceeded({ attempted, dimension: OutputBytes, .. }) => LimitExceeded({ attempted: state.source_bytes.plus_saturated(attempted), dimension: OutputBytes, limit: limits.max_output_bytes })
+						LimitExceeded({ attempted, dimension: Lines, .. }) => LimitExceeded({ attempted: state.source_lines.len().plus_saturated(attempted), dimension: Lines, limit: limits.max_lines })
+						LimitExceeded({ attempted, dimension: Foregrounds, .. }) => LimitExceeded({ attempted: state.source_foregrounds.len().plus_saturated(attempted), dimension: Foregrounds, limit: limits.max_foregrounds })
 						other => other
 					}
 					exhaustion = match located {
@@ -2491,9 +3294,10 @@ append_source_limited = |state, spec, parent, position, limits| {
 ## has fixed depth, so no frame stack is needed.
 append_table : SimpleState, TableSpec, U64, U64 -> SimpleState
 append_table = |state, spec, parent, position| {
+	table_index = state.tables.len()
 	table_group = state.groups.len()
 	table_code = table_group + 1
-	var $state = open_group({ ..state, tables: state.tables.append({ body_rows: spec.body_rows.len(), caption: has_caption(spec.caption), columns: spec.columns, footer_rows: spec.footer_rows.len(), header_rows: spec.header_rows.len(), row_split: spec.row_split }) }, Table(state.tables.len().to_u32_wrap()), parent, 0, position)
+	var $state = open_group({ ..state, tables: state.tables.append({ body_rows: spec.body_rows.len(), caption: has_caption(spec.caption), columns: spec.columns, footer_rows: spec.footer_rows.len(), header_rows: spec.header_rows.len(), row_split: spec.row_split }) }, Table(table_index.to_u32_wrap()), parent, 0, position)
 	match spec.caption {
 		Caption(text) => {
 			$state = { ..$state, blocks: $state.blocks.append({ kind: Paragraph, parent: table_code, text }) }
@@ -2506,6 +3310,17 @@ append_table = |state, spec, parent, position| {
 	close_group($state, table_group)
 }
 
+## The paired layout group has no structure role. It preserves one
+## paragraph and an ordinary captioned figure under their semantic parent.
+append_anchored_figure : SimpleState, AnchoredFigureSpec, U64, U64 -> SimpleState
+append_anchored_figure = |state, spec, parent, position| {
+	group = state.groups.len()
+	opened = open_group(state, FigureAnchor, parent, 0, position)
+	anchor = append_rich(opened, spec.anchor, group + 1, 0)
+	placed = append_figure(anchor, { alternative: spec.alternative, caption: Caption(spec.caption), drawing: spec.drawing, fit: ExactFit }, group + 1, 1)
+	close_group(placed, group)
+}
+
 ## Lower one figure. An uncaptioned figure is one `Figure` leaf. A
 ## captioned figure is a `FigureGroup` (a `Sect`) holding the `Figure` leaf
 ## and a `FigureCaption` leaf, so the caption stays a visible `Caption`
@@ -2514,7 +3329,7 @@ append_table = |state, spec, parent, position| {
 append_figure : SimpleState, { alternative : Str, caption : Caption, drawing : Scene.Drawing, fit : FigurePolicy }, U64, U64 -> SimpleState
 append_figure = |state, authored, parent, position| {
 	index = state.figures.len()
-	figure = { alternative: authored.alternative, captioned: has_caption(authored.caption), drawing: validate_flow_drawing(authored.drawing), fit: authored.fit }
+	figure = { alternative: authored.alternative, captioned: has_caption(authored.caption), drawing: validate_flow_drawing(authored.drawing, state.max_drawing_group_depth), fit: authored.fit }
 	figured = { ..state, figures: state.figures.append(figure) }
 	match authored.caption {
 		NoCaption => { ..figured, blocks: figured.blocks.append({ kind: Figure(index), parent, text: " " }) }
@@ -2527,14 +3342,10 @@ append_figure = |state, authored, parent, position| {
 	}
 }
 
-## Figure and decoration drawings nest at most this many groups deep.
-flow_group_depth : U64
-flow_group_depth = 8
-
 ## Validate one figure or decoration drawing: at least one command; images
 ## with a positive size and paths with a solid fill, a solid stroke of
 ## positive width, or both, each beginning with a move or a rectangle; and
-## groups nested at most `flow_group_depth` deep. Each group's translation
+## groups nested within the configured depth. Each group's translation
 ## is applied to the points and placements it contains, so the result is
 ## flat. Every command lies at or beyond the origin; the extent is the
 ## union of the commands from the origin, a stroke extending its path by
@@ -2554,7 +3365,7 @@ without_decoration_labels = |validated| match validated {
 	} else {
 		validated
 	}
-	InvalidDrawing(_) => validated
+	DrawingDepthLimit(_) | InvalidDrawing(_) => validated
 }
 
 ## A decoration's drawing with its spacing applied: the space above adds to
@@ -2565,7 +3376,7 @@ without_decoration_labels = |validated| match validated {
 ## space above, or an overlap deeper than the drawing, is invalid.
 space_decoration : ValidatedDrawing, Layout.Unit, Layout.Unit -> ValidatedDrawing
 space_decoration = |validated, above, below| match validated {
-	InvalidDrawing(_) => validated
+	DrawingDepthLimit(_) | InvalidDrawing(_) => validated
 	ValidDrawing(drawing) => {
 		up = above.raw()
 		down = below.raw()
@@ -2608,17 +3419,17 @@ lift_segments = |segments, dy| {
 
 ## An empty custom panel means no decoration. Figures and decorations still
 ## require a drawing with commands and positive extent.
-validate_custom_panel : Scene.Drawing -> ValidatedDrawing
-validate_custom_panel = |drawing| {
+validate_custom_panel : Scene.Drawing, U64 -> ValidatedDrawing
+validate_custom_panel = |drawing, max_depth| {
 	if drawing.commands().is_empty() {
 		ValidDrawing({ commands: [], height: 0, images: [], width: 0 })
 	} else {
-		validate_flow_drawing(drawing)
+		validate_flow_drawing(drawing, max_depth)
 	}
 }
 
-validate_flow_drawing : Scene.Drawing -> ValidatedDrawing
-validate_flow_drawing = |drawing| {
+validate_flow_drawing : Scene.Drawing, U64 -> ValidatedDrawing
+validate_flow_drawing = |drawing, max_depth| {
 	commands = drawing.commands()
 	if commands.is_empty() {
 		return InvalidDrawing("it has no commands")
@@ -2636,8 +3447,8 @@ validate_flow_drawing = |drawing| {
 		## Close every group that ends before this command.
 		while !$groups.is_empty() and list_at($groups, $groups.len() - 1).end <= $index {
 			closed = list_at($groups, $groups.len() - 1)
-			$dx = $dx - closed.x
-			$dy = $dy - closed.y
+			$dx = closed.x
+			$dy = closed.y
 			$groups = $groups.drop_last(1)
 		}
 		match list_at(commands, $index) {
@@ -2697,8 +3508,8 @@ validate_flow_drawing = |drawing| {
 				$converted = $converted.append(FlowPath({ fill, segments: moved, stroke }))
 			}
 			AuthorTranslate({ commands: count, offset }) => {
-				if $groups.len() >= flow_group_depth {
-					return InvalidDrawing("groups nest more than ${flow_group_depth.to_str()} deep")
+				if $groups.len() >= max_depth {
+					return DrawingDepthLimit({ attempted: $groups.len() + 1, command: $index, limit: max_depth })
 				}
 				if count > commands.len() - $index - 1 {
 					return InvalidDrawing("a group extends past the drawing's last command")
@@ -2706,10 +3517,17 @@ validate_flow_drawing = |drawing| {
 				if !within_bound(offset.x.raw()) or !within_bound(offset.y.raw()) {
 					return InvalidDrawing("a coordinate lies more than 10^9 pt from the drawing origin")
 				}
-				end = $index + 1 + count
-				$groups = $groups.append({ end, x: offset.x.raw(), y: offset.y.raw() })
-				$dx = $dx + offset.x.raw()
-				$dy = $dy + offset.y.raw()
+				dx = match KernelDrawingGroups.accumulate($dx, offset.x.raw()) {
+					Ok(value) => value
+					Err(_) => return InvalidDrawing("the accumulated group translation exceeds drawing coordinate capacity")
+				}
+				dy = match KernelDrawingGroups.accumulate($dy, offset.y.raw()) {
+					Ok(value) => value
+					Err(_) => return InvalidDrawing("the accumulated group translation exceeds drawing coordinate capacity")
+				}
+				$groups = $groups.append({ end: $index + 1 + count, x: $dx, y: $dy })
+				$dx = dx
+				$dy = dy
 			}
 			AuthorGroup(_) => return InvalidDrawing("opacity, clip, soft-mask, and transform groups are not supported; group drawings with Scene.Drawing.group")
 			AuthorText(boxed) => {
@@ -2851,7 +3669,7 @@ translate_segments = |segments, dx, dy| {
 ## Authored drawing coordinates, sizes, and accumulated group offsets stay
 ## within 10^9 pt of the origin.
 flow_coordinate_bound : I64
-flow_coordinate_bound = 1000000000000
+flow_coordinate_bound = KernelDrawingGroups.coordinate_bound
 
 within_bound : I64 -> Bool
 within_bound = |value| value <= flow_coordinate_bound and value >= 0 - flow_coordinate_bound
@@ -2921,6 +3739,15 @@ rgb_color_kind = 0x1_0000_0000_0000
 gray_color_kind : U64
 gray_color_kind = 0x2_0000_0000_0000
 
+make_cell : List(DocumentInline), CellKind, CellProps -> DocumentCell
+make_cell = |contents, kind, { align, column_span, fill, headers, key, row_span }| {
+	association = match (headers, key) {
+		(FromScopes, Unnamed) => NoAssociation
+		_ => Associated(Box.box({ headers, key }))
+	}
+	DocumentCell.Cell({ align, association, column_span, contents, fill, kind, row_span })
+}
+
 append_table_rows : SimpleState, List(DocumentRow), TableSection, U64 -> SimpleState
 append_table_rows = |state, rows, section, table_code| {
 	var $state = state
@@ -2939,6 +3766,13 @@ append_table_rows = |state, rows, section, table_code| {
 			fill = match record.fill {
 				NoCellFill => 0
 				CellFill(color) => pack_color(color)
+			}
+			match record.association {
+				Associated(box) => {
+					{ headers, key } = Box.unbox(box)
+					$state = { ..$state, cell_associations: $state.cell_associations.append({ cell: $state.cells.len(), headers, key }) }
+				}
+				NoAssociation => {}
 			}
 			$state = { ..$state, cells: $state.cells.append({ align: record.align, block: $state.blocks.len(), column_span: record.column_span, fill, kind: record.kind, row_span: record.row_span }) }
 			$state = if record.contents.is_empty() {
@@ -2979,13 +3813,18 @@ append_rich = |state, contents, parent, position| {
 		line_breaks: [],
 		page_references: [],
 		rich_paragraphs: [],
+		source_budgets: state.source_budgets,
+		max_drawing_group_depth: state.max_drawing_group_depth,
 		source_bytes: state.source_bytes,
 		source_exhaustion: state.source_exhaustion,
+		cell_associations: state.cell_associations,
 		cells: state.cells,
 		customs: state.customs,
 		callouts: state.callouts,
 		decorations: state.decorations,
 		figures: state.figures,
+		footnotes: state.footnotes,
+		footnote_citations: [],
 		groups: state.groups,
 		list_index: state.list_index,
 		lists: state.lists,
@@ -3007,6 +3846,7 @@ append_rich = |state, contents, parent, position| {
 	var $inlines = state.inlines
 	var $line_breaks = state.line_breaks
 	var $references = state.page_references
+	var $citations = state.footnote_citations
 	first_reference = $references.len()
 	var $last_reference = 0
 	var $elements = 0
@@ -3029,7 +3869,8 @@ append_rich = |state, contents, parent, position| {
 			$frames = list_set($frames, $frames.len() - 1, { ..top, next: top.next + 1 })
 			index = $inlines.len()
 			slot = top.next - top.breaks
-			match list_at(top.items, top.next) {
+			authored = list_at(top.items, top.next)
+			match authored {
 				LineBreak => {
 					## The break's separator: the text before it gains a
 					## trailing U+0020, painted at the end of its line, so
@@ -3050,6 +3891,17 @@ append_rich = |state, contents, parent, position| {
 					$inlines = $inlines.append({ children: 0, depth: top.depth, element: 0, first_leaf: $leaves, kind: Text({ byte_length: length, byte_start: $bytes, text: value }), language: top.language, leaf_end: $leaves + 1, parent: top.owner, position: slot, spine: 0 })
 					$last_text = $inlines.len()
 					$last_reference = 0
+					$leaves = $leaves + 1
+					$bytes = $bytes + length
+				}
+				FootnoteMarker({ id, text: value }) => {
+					length = value.count_utf8_bytes()
+					$citations = $citations.append({ id, text: value, block: block_index, inline: index, segment: $line_breaks.len() - first_break, utf8_start: $bytes })
+					$inlines = $inlines.append({ ..inline_element(top, slot, InternalLink(Document.footnote_destination(id)), 1, $elements, $leaves), leaf_end: $leaves + 1 })
+					$inlines = $inlines.append({ children: 0, depth: top.depth + 1, element: 0, first_leaf: $leaves, kind: Text({ byte_length: length, byte_start: $bytes, text: value }), language: top.language, leaf_end: $leaves + 1, parent: index + 1, position: 0, spine: 0 })
+					$last_text = $inlines.len()
+					$last_reference = 0
+					$elements = $elements + 1
 					$leaves = $leaves + 1
 					$bytes = $bytes + length
 				}
@@ -3093,6 +3945,12 @@ append_rich = |state, contents, parent, position| {
 					$frames = $frames.append({ breaks: 0, depth: top.depth + 1, items: nested, language: top.language, next: 0, owner: index + 1 })
 					$elements = $elements + 1
 				}
+				Citation({ target, text }) => {
+					nested = [DocumentInline.Text(text)]
+					$inlines = $inlines.append(inline_element(top, slot, Citation(target), 1, $elements, $leaves))
+					$elements = $elements + 1
+					$frames = $frames.append({ breaks: 0, depth: top.depth + 1, items: nested, language: top.language, next: 0, owner: index + 1 })
+				}
 				InternalLink({ contents: nested, destination }) => {
 					$inlines = $inlines.append(inline_element(top, slot, InternalLink(destination), nested.len(), $elements, $leaves))
 					$frames = $frames.append({ breaks: 0, depth: top.depth + 1, items: nested, language: top.language, next: 0, owner: index + 1 })
@@ -3104,9 +3962,19 @@ append_rich = |state, contents, parent, position| {
 					$elements = $elements + 1
 				}
 
-				PageReference(boxed) => {
+				IndexReference(boxed) => {
+					nested = Box.unbox(boxed)
+					$inlines = $inlines.append(inline_element(top, slot, IndexReference, nested.len(), $elements, $leaves))
+					$frames = $frames.append({ breaks: 0, depth: top.depth + 1, items: nested, language: top.language, next: 0, owner: index + 1 })
+					$elements = $elements + 1
+				}
+				PageReference(boxed) | FlowPageReference(boxed) => {
+					flow = match authored {
+						FlowPageReference(_) => True
+						_ => False
+					}
 					reference = $references.len()
-					$references = $references.append({ block: block_index, inline: index, leaf: $leaves, paragraph, separator_after: False, spec: Box.unbox(boxed) })
+					$references = $references.append({ block: block_index, flow, inline: index, leaf: $leaves, paragraph, separator_after: False, spec: Box.unbox(boxed) })
 					$inlines = $inlines.append({ children: 0, depth: top.depth, element: 0, first_leaf: $leaves, kind: PageReference(reference), language: top.language, leaf_end: $leaves + 1, parent: top.owner, position: slot, spine: 0 })
 					$last_reference = reference + 1
 					$last_text = 0
@@ -3144,11 +4012,11 @@ append_rich = |state, contents, parent, position| {
 	if $references.len() != first_reference {
 		## No concatenated paragraph source can cross a symbolic atom. The
 		## explicit chunk pass below supplies its literal sources instead.
-		return { ..unchanged, blocks: blocks.append({ kind: RichParagraph(paragraph), parent, text: "" }), inlines: $inlines, line_breaks: $line_breaks, page_references: $references, rich_paragraphs: rich_paragraphs.append(rich) }
+		return { ..unchanged, blocks: blocks.append({ kind: RichParagraph(paragraph), parent, text: "" }), inlines: $inlines, line_breaks: $line_breaks, page_references: $references, footnote_citations: $citations, rich_paragraphs: rich_paragraphs.append(rich) }
 	}
 	if $line_breaks.len() == first_break {
 		text = if ($leaves == 1) single_leaf_text($inlines, base) else concatenated_text($inlines, base, $bytes)
-		return { ..unchanged, blocks: blocks.append({ kind: RichParagraph(paragraph), parent, text }), inlines: $inlines, line_breaks: $line_breaks, page_references: $references, rich_paragraphs: rich_paragraphs.append(rich) }
+		return { ..unchanged, blocks: blocks.append({ kind: RichParagraph(paragraph), parent, text }), inlines: $inlines, line_breaks: $line_breaks, page_references: $references, footnote_citations: $citations, rich_paragraphs: rich_paragraphs.append(rich) }
 	}
 	segments = segment_texts($inlines, base, $line_breaks, first_break)
 	var $index_break = first_break
@@ -3157,7 +4025,7 @@ append_rich = |state, contents, parent, position| {
 		$line_breaks = list_set($line_breaks, $index_break, { ..record, text: list_at(segments, $index_break - first_break + 1) })
 		$index_break = $index_break + 1
 	}
-	{ ..unchanged, blocks: blocks.append({ kind: RichParagraph(paragraph), parent, text: list_at(segments, 0) }), inlines: $inlines, line_breaks: $line_breaks, page_references: $references, rich_paragraphs: rich_paragraphs.append(rich) }
+	{ ..unchanged, blocks: blocks.append({ kind: RichParagraph(paragraph), parent, text: list_at(segments, 0) }), inlines: $inlines, line_breaks: $line_breaks, page_references: $references, footnote_citations: $citations, rich_paragraphs: rich_paragraphs.append(rich) }
 }
 
 ## The text leaf `last_text - 1` before a line break, ending in U+0020: the
@@ -3311,7 +4179,7 @@ destination_paragraph_tag = 8
 
 # Appends every element of `source`. List.concat sizes its result exactly,
 # so growing an accumulator with it copies on every call. Append grows
-# geometrically; see docs/contributors/performance/emission-linearity.md.
+# geometrically; see docs/contributor-output.adoc#contributor-emission-linearity.
 append_all : List(a), List(a) -> List(a)
 append_all = |target, source| {
 	var $out = target
@@ -3440,8 +4308,23 @@ expect {
 	black = Color.srgb8({ blue: 0, green: 0, red: 0 })
 	inner = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 10, height: 5 }), color: black })
 	drawing = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 1, height: 1 }), color: black }).group({ offset: Layout.point({ x: 20, y: 10 }), drawing: Scene.Drawing.empty.group({ offset: Layout.point({ x: 5, y: 5 }), drawing: inner }) })
-	match validate_flow_drawing(drawing) {
+	match validate_flow_drawing(drawing, KernelDrawingGroups.default_depth) {
 		ValidDrawing({ commands: [_, FlowPath({ fill: Fill(_), segments: [Rectangle(rect)], stroke: NoStroke })], height, images: [], width }) => rect.origin.x.raw() == 25000 and rect.origin.y.raw() == 15000 and width == 35000 and height == 20000
+		_ => False
+	}
+}
+
+# Configured source limits survive the intervening rich paragraph and apply
+# both per block and to the document-wide foreground arena.
+expect {
+	black = Color.srgb8({ red: 0, green: 0, blue: 0 })
+	source = Document.source_block({ text: "a", foregrounds: [{ start: 0, end: 1, color: black }] })
+	doc = Document.from_blocks({ contents: [source, Document.rich_paragraph([Document.plain_text("Middle")]), source], language: "en-AU", title: "Source budgets" })
+	bounded = Document.normalize(doc.with_source_budgets({ max_input_bytes: 1, max_foregrounds: 1 }))
+	widened = Document.normalize(doc.with_source_budgets({ max_input_bytes: 1, max_foregrounds: 2 }))
+	raw = Document.normalize(doc.with_source_budgets({ max_input_bytes: 0 }))
+	match (list_at(bounded.sources, 1).validation, list_at(widened.sources, 1).validation, list_at(raw.sources, 0).validation) {
+		(InvalidSource(LimitExceeded({ attempted: 2, dimension: Foregrounds, limit: 1 })), ValidSource, InvalidSource(LimitExceeded({ attempted: 1, dimension: InputBytes, limit: 0 }))) => bounded.source_foregrounds.len() == 1 and widened.source_foregrounds.len() == 2
 		_ => False
 	}
 }
@@ -3457,8 +4340,8 @@ expect {
 		$deep = Scene.Drawing.empty.group({ offset: Layout.point({ x: 1, y: 1 }), drawing: $deep })
 		$level = $level + 1
 	}
-	rejected = |drawing| match validate_flow_drawing(drawing) {
-		InvalidDrawing(_) => True
+	rejected = |drawing| match validate_flow_drawing(drawing, KernelDrawingGroups.default_depth) {
+		DrawingDepthLimit(_) | InvalidDrawing(_) => True
 		ValidDrawing(_) => False
 	}
 	rejected($deep) and rejected(Scene.Drawing.empty.group({ offset: Layout.point({ x: -5, y: 0 }), drawing: mark })) and rejected(Scene.Drawing.empty.group({ offset: Layout.point({ x: 1, y: 1 }), drawing: Scene.Drawing.empty })) and rejected(Scene.Drawing.empty)
@@ -3467,10 +4350,10 @@ expect {
 # Two source placements share one aggregate retained-byte budget. Expansion
 # must fit before its buffer is retained, and later sources are not parsed.
 expect {
-	limits = { max_input_bytes: 32, max_lines: 8, max_output_bytes: 8 }
-	first = append_source_limited(empty_state, { face: Face(Font.FaceId.from_index(0)), text: "12345" }, 0, 0, limits)
-	second = append_source_limited(first, { face: Face(Font.FaceId.from_index(0)), text: "\t" }, 0, 1, limits)
-	third = append_source_limited(second, { face: Face(Font.FaceId.from_index(0)), text: "\r" }, 0, 2, limits)
+	initial = { ..empty_state, source_budgets: SourceBudgets.{ max_input_bytes: 32, max_lines: 8, max_output_bytes: 8 } }
+	first = append_source(initial, { face: Face(Font.FaceId.from_index(0)), text: "12345" }, 0, 0)
+	second = append_source(first, { face: Face(Font.FaceId.from_index(0)), text: "\t" }, 0, 1)
+	third = append_source(second, { face: Face(Font.FaceId.from_index(0)), text: "\r" }, 0, 2)
 	tab = list_at(third.sources, 1)
 	after = list_at(third.sources, 2)
 	bounded = match (tab.validation, after.validation) {
@@ -3482,9 +4365,9 @@ expect {
 
 # Logical line limits also apply across source blocks, including blank rows.
 expect {
-	limits = { max_input_bytes: 32, max_lines: 3, max_output_bytes: 32 }
-	first = append_source_limited(empty_state, { face: Face(Font.FaceId.from_index(0)), text: "a\n" }, 0, 0, limits)
-	second = append_source_limited(first, { face: Face(Font.FaceId.from_index(0)), text: "b\n" }, 0, 1, limits)
+	initial = { ..empty_state, source_budgets: SourceBudgets.{ max_input_bytes: 32, max_lines: 3, max_output_bytes: 32 } }
+	first = append_source(initial, { face: Face(Font.FaceId.from_index(0)), text: "a\n" }, 0, 0)
+	second = append_source(first, { face: Face(Font.FaceId.from_index(0)), text: "b\n" }, 0, 1)
 	match list_at(second.sources, 1).validation {
 		InvalidSource(LimitExceeded({ attempted: 4, dimension: Lines, limit: 3 })) => second.source_lines.len() == 2 and second.source_bytes == 2 and list_at(second.sources, 1).text.is_empty()
 		_ => False
@@ -3500,6 +4383,62 @@ expect {
 	second = append_source(first, { face: Face(Font.FaceId.from_index(0)), text: "\r" }, 0, 1)
 	match (list_at(second.sources, 0).validation, list_at(second.sources, 1).validation) {
 		(InvalidSource(LimitExceeded({ attempted: 100001, dimension: Foregrounds, limit: 100000 })), InvalidSource(LimitExceeded({ attempted: 100001, dimension: Foregrounds, limit: 100000 }))) => second.source_bytes == 0 and second.source_lines.is_empty() and second.source_foregrounds.len() == 100000 and list_at(second.sources, 0).text.is_empty() and list_at(second.sources, 1).text.is_empty()
+		_ => False
+	}
+}
+
+expect {
+	toc = Document.generated_contents({})
+	heading = Document.destination_heading({ name: "first", level: 1, text: "First" })
+	doc = Document.from_blocks({ contents: [toc, heading, toc], language: "en-AU", title: "Table of contents" })
+	scans = match Document.resolve_generated_contents_with(doc, { max_scan_blocks: 2 }) {
+		Err(BlockScanLimit({ limit: 2 })) => True
+		_ => False
+	}
+	requests = match Document.resolve_generated_contents_with(doc, { max_requests: 1 }) {
+		Err(RequestLimit({ limit: 1, position: 2 })) => True
+		_ => False
+	}
+	entries = match Document.resolve_generated_contents_with(doc, { max_entries: 1 }) {
+		Err(EntryLimit({ limit: 1, position: 2 })) => True
+		_ => False
+	}
+	resolved = Document.resolve_generated_contents_with(doc, { max_scan_blocks: 3, max_requests: 2, max_entries: 2 })?
+	scans and requests and entries and Document.normalize(resolved).contents_entries.len() == 2
+}
+
+expect {
+	index = Document.index({ entries: [{ term: "First", destinations: ["first"] }] })
+	doc = Document.from_blocks({ contents: [index, index], language: "en-AU", title: "Index" })
+	rejected = match Document.resolve_generated_contents_with(doc, { max_index_locations: 1 }) {
+		Err(InvalidIndex({ error: LocationLimit({ attempted: 2, limit: 1 }), position: 1 })) => True
+		_ => False
+	}
+	resolved = Document.resolve_generated_contents_with(doc, { max_index_locations: 2 })?
+	rejected and Document.normalize(resolved).reference_paragraphs.len() == 2
+}
+
+expect {
+	index = Document.index({ entries: [{ term: "First", destinations: ["first"] }, { term: "Second", destinations: ["second"] }] })
+	doc = Document.from_blocks({ contents: [index], language: "en-AU", title: "Index" })
+	entries = match Document.resolve_generated_contents_with(doc, { max_index_entries: 1 }) {
+		Err(InvalidIndex({ error: EntryLimit({ attempted: 2, limit: 1 }), position: 0 })) => True
+		_ => False
+	}
+	bytes = match Document.resolve_generated_contents_with(doc, { max_index_term_bytes: 5 }) {
+		Err(InvalidIndex({ error: TermByteLimit({ attempted: 6, entry: 1, limit: 5 }), position: 0 })) => True
+		_ => False
+	}
+	resolved = Document.resolve_generated_contents_with(doc, { max_index_entries: 2, max_index_term_bytes: 6 })?
+	entries and bytes and Document.normalize(resolved).reference_paragraphs.len() == 2
+}
+
+expect {
+	trailing = List.repeat("other", 17)
+	duplicate_first = validate_large_index_targets(["z", "a", "z", "a", ""].concat(trailing), 2)
+	empty_first = validate_large_index_targets(["z", "a", "", "z"].concat(trailing), 2)
+	match (duplicate_first, empty_first) {
+		(Err(DuplicateTarget({ entry: 2, target: 2 })), Err(InvalidTarget({ entry: 2, target: 2 }))) => True
 		_ => False
 	}
 }

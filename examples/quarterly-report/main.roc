@@ -1,9 +1,14 @@
 app [main!] {
 	pdf: "../../package/main.roc",
 	pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.28.1/7brgwR8YUqfeGrkdfF1V4GPPN7DnP7ftqub9KcrTEZtr.tar.zst",
+	weaver: "https://github.com/lukewilliamboswell/weaver/releases/download/0.11.0/7CdYzjBAJmprmnK45oTpmH6BXt76ZASN2Ck5uZQEoWsK.tar.zst",
 }
+import pf.OsStr
 import pf.Path
+import pf.Stderr
 import pf.Stdout
+import weaver.Cli
+import weaver.Param
 import pdf.Color
 import pdf.Document
 import pdf.Font
@@ -19,15 +24,33 @@ import "fonts/NotoSerif-Italic.ttf" as italic_bytes : List(U8)
 ## band in the first-page header, a navy "key figures" callout and a
 ## tinted diary callout authored through the custom-block seam and measured
 ## by the package, a striped KPI scorecard with shaded status cells and a
-## segment table with a totals footer, two vector charts drawn from `Scene`
+## financial schedule with a grouped header and a totals footer, and two vector charts drawn from `Scene`
 ## groups (monthly revenue with a margin line and its data table, and
 ## progress against annual targets kept with its notes), and running
 ## headers inset above a ruled backdrop with `Page N of M` on every later
 ## page.
-main! = |_args| {
+main! = |args| {
+	mode = match Cli.parse_or_display_message(cli, args, OsStr.to_raw) {
+		Err(Help(message)) | Err(Version(message)) => return Stdout.line!(message).map_err(|error| OutputFailed(error))
+		Err(InvalidUsage(message)) => {
+			Stderr.line!(message).map_err(|error| OutputFailed(error))?
+			return Err(Exit(2))
+		}
+		Ok(Err(NoValue)) => Quarterly
+		Ok(Ok("regional")) => Regional(SplitSpans)
+		Ok(Ok("regional-keep")) => Regional(KeepRows)
+		Ok(Ok(_)) => {
+			Stderr.line!("Usage: roc run main.roc [regional|regional-keep]").map_err(|err| OutputFailed(err))?
+			return Err(Exit(2))
+		}
+	}
 	fonts = register_fonts({})?
+	match mode {
+		Regional(policy) => return write_regional!(fonts, policy)
+		Quarterly => {}
+	}
 	options : Pdf.Options
-	options = { theme: theme(fonts), fonts: Registered(fonts.registry) }
+	options = { theme: theme(fonts), fonts: Registered(fonts.registry), wtpdf: DeclareAccessibility }
 	blocks = contents(options).map_err(|err| PdfFailed(err))?
 	document = Pdf.document({
 		contents: blocks,
@@ -414,51 +437,172 @@ scorecard = Pdf.table({
 	],
 })
 
-segment_row : Str, Str, Str, Str, Str -> Pdf.Row
-segment_row = |segment, revenue, share, growth, margin| Pdf.row([
-	Pdf.header_cell(Row, [Pdf.text(segment)]),
-	Pdf.cell([Pdf.text(revenue)]),
-	Pdf.cell([Pdf.text(share)]),
-	Pdf.cell([Pdf.text(growth)]),
-	Pdf.cell([Pdf.text(margin)]),
-])
+segment_row : List(Pdf.Cell), Pdf.Cell, Str, Pdf.Cell, Str, Str, Str -> Pdf.Row
+segment_row = |group, segment, prior, current, share, growth, margin| Pdf.row(
+	group
+		.append(segment)
+		.append(Pdf.cell([Pdf.text(prior)]))
+		.append(current)
+		.append(Pdf.cell([Pdf.text(share)]))
+		.append(Pdf.cell([Pdf.text(growth)]))
+		.append(Pdf.cell([Pdf.text(margin)])),
+)
 
 segments : Document.Block
-segments = Pdf.table({
-	caption: Pdf.caption("Table 3. Results by segment, Q2 FY2027, revenue in AUD thousands"),
-	columns: [
-		{ width: Share(3), align: Start },
-		{ width: Share(2), align: End },
-		{ width: Share(2), align: End },
-		{ width: Share(2), align: End },
-		{ width: Share(2), align: End },
-	],
-	header_rows: [
-		Pdf.row([
-			Pdf.header_cell(Column, [Pdf.text("Segment")]),
-			Pdf.header_cell(Column, [Pdf.text("Revenue")]),
-			Pdf.header_cell(Column, [Pdf.text("Share")]),
-			Pdf.header_cell(Column, [Pdf.text("Growth")]),
-			Pdf.header_cell(Column, [Pdf.text("Margin")]),
-		]),
-	],
-	body_rows: [
-		segment_row("Grain and fodder", "3,262", "37.5%", "+14.2%", "29.8%"),
-		segment_row("Farm supplies", "2,436", "28.0%", "+9.6%", "36.1%"),
-		segment_row("Fuel and lubricants", "1,705", "19.6%", "+4.1%", "22.4%"),
-		segment_row("Advisory services", "853", "9.8%", "+31.5%", "58.0%"),
-		segment_row("Online store", "444", "5.1%", "+62.0%", "41.7%"),
-	],
-	footer_rows: [
-		Pdf.row([
-			Pdf.header_cell(Row, [Pdf.text("Total")]),
-			Pdf.cell([Pdf.strong([Pdf.text("8,700")])]),
-			Pdf.cell([Pdf.text("100.0%")]),
-			Pdf.cell([Pdf.strong([Pdf.text("+17.3%")])]),
-			Pdf.cell([Pdf.text("34.4%")]),
-		]),
-	],
-})
+segments = {
+	upper = |name| Pdf.header_cell_with([Pdf.text(name)], { scope: Column, layout: { row_span: 2 } })
+	quarter = |name, header_key| Pdf.header_cell_with([Pdf.text(name)], { scope: Column, layout: { key: Named(header_key), headers: Explicit(["revenue"]) } })
+	label = |text| Pdf.header_cell(Row, [Pdf.text(text)])
+	plain = |text| Pdf.cell([Pdf.text(text)])
+	amount = |value| Pdf.cell([Pdf.strong([Pdf.text(value)])])
+	farm_group = Pdf.header_cell_with(
+		[Pdf.text("Farm operations")],
+		{
+			scope: Row,
+			layout: { row_span: 2, key: Named("farm"), fill: CellFill(Color.srgb8({ red: 232, green: 244, blue: 244 })) },
+		},
+	)
+	grain = Pdf.header_cell_with([Pdf.text("Grain and fodder")], { scope: Row, layout: { key: Named("grain") } })
+	# This value has four applicable headers. The farm header also applies
+	# to ordinary scope-derived cells in the Farm supplies row below.
+	grain_current = Pdf.cell_with(
+		[Pdf.text("3,262")],
+		{
+			headers: Explicit(["current", "revenue", "grain", "farm"]),
+		},
+	)
+	Pdf.table({
+		caption: Pdf.caption("Table 3. Results by segment, Q2 FY2027"),
+		columns: [
+			{ width: Fixed(88), align: Start },
+			{ width: Fixed(118), align: Start },
+			{ width: Fixed(55), align: End },
+			{ width: Fixed(55), align: End },
+			{ width: Fixed(50), align: End },
+			{ width: Fixed(64), align: End },
+			{ width: Fixed(65), align: End },
+		],
+		header_rows: [
+			Pdf.row([
+				upper("Business group"),
+				upper("Segment"),
+				Pdf.header_cell_with([Pdf.text("Revenue (AUD thousands)")], { scope: Column, layout: { align: Aligned(Center), column_span: 2, key: Named("revenue") } }),
+				upper("Share"),
+				upper("YoY growth"),
+				upper("Margin"),
+			]),
+			Pdf.row([quarter("Q1", "prior"), quarter("Q2", "current")]),
+		],
+		body_rows: [
+			segment_row([farm_group], grain, "2,785", grain_current, "37.5%", "+14.2%", "29.8%"),
+			segment_row([], label("Farm supplies"), "2,167", plain("2,436"), "28.0%", "+9.6%", "36.1%"),
+			segment_row([label("Energy")], label("Fuel and lubricants"), "1,537", plain("1,705"), "19.6%", "+4.1%", "22.4%"),
+			segment_row([label("Services")], label("Advisory services"), "629", plain("853"), "9.8%", "+31.5%", "58.0%"),
+			segment_row([label("Retail")], label("Online store"), "302", plain("444"), "5.1%", "+62.0%", "41.7%"),
+		],
+		footer_rows: [
+			Pdf.row([
+				label("Total").spanning(2),
+				amount("7,420"),
+				amount("8,700"),
+				plain("100.0%"),
+				amount("+17.3%"),
+				plain("34.4%"),
+			]),
+		],
+	})
+}
+
+## Use hard line breaks for this annex's list of regional observations.
+observations : List(Str) -> List(Pdf.Inline)
+observations = |lines| {
+	var $inlines = []
+	for line in lines {
+		if !$inlines.is_empty() {
+			$inlines = $inlines.append(Pdf.line_break)
+		}
+		$inlines = $inlines.append(Pdf.text(line))
+	}
+	$inlines
+}
+
+regional_schedule : Pdf.RowSplit -> Document.Block
+regional_schedule = |policy| {
+	notes = observations([
+		"North: morning transfers cleared.",
+		"North: growers delivered to plan.",
+		"North: standing orders held.",
+		"Coast: harvest intake rose.",
+		"Coast: farm supplies held steady.",
+		"Coast: garage deliveries resumed.",
+		"South: grain testing finished.",
+		"South: the new silo opened.",
+		"South: carrying costs eased.",
+		"East: invoices caught up.",
+		"East: road access improved.",
+		"East: fewer delayed orders.",
+		"West: storage stayed full.",
+		"West: demand for seed grew.",
+		"West: shared routes cut mileage.",
+		"All regions: reconcile in January.",
+	])
+	Pdf.table({
+		caption: Pdf.caption("Regional revenue commentary"),
+		columns: [{ align: Start, width: Fixed(110) }, { align: Start, width: Fixed(275) }, { align: End, width: Fixed(110) }],
+		header_rows: [
+			Pdf.row([
+				Pdf.header_cell(Column, [Pdf.text("Segment")]),
+				Pdf.header_cell_with([Pdf.text("Regional commentary")], { scope: Column, layout: { key: Named("commentary") } }),
+				Pdf.header_cell(Column, [Pdf.text("Q2 (AUD thousands)")]),
+			]),
+		],
+		body_rows: [
+			Pdf.row([
+				Pdf.header_cell_with(observations(["Grain", "North", "Coast", "South", "East", "West", "All regions"]), { scope: Row, layout: { key: Named("grain") } }),
+				Pdf.cell_with(notes, { row_span: 2, headers: Explicit(["commentary", "grain", "farm"]) }),
+				Pdf.cell([Pdf.text("3,262")]),
+			]),
+			Pdf.row([
+				Pdf.header_cell_with([Pdf.text("Farm supplies")], { scope: Row, layout: { key: Named("farm") } }),
+				Pdf.cell([Pdf.text("2,436")]),
+			]),
+		],
+		row_split: policy,
+	})
+}
+
+write_regional! = |fonts, policy| {
+	options : Pdf.Options
+	options = { theme: theme(fonts), fonts: Registered(fonts.registry), page_size: Custom({ height: 270, width: 595 }), wtpdf: DeclareAccessibility }
+	document = Pdf.document({
+		contents: [regional_schedule(policy)],
+		language: "en-AU",
+		title: "Northstar Cooperative regional revenue commentary",
+		created: Explicit("2027-01-18T00:00:00Z"),
+		modified: Explicit("2027-01-18T00:00:00Z"),
+	})
+	prepared = match Pdf.prepare_with_report(document, Pdf.ReportProps.{ options: options }) {
+		Ok(result) => {
+			for outcome in result.report.facts.outcomes {
+				match outcome {
+					RepeatedHeader({ page, .. }) => Stdout.line!("Repeated header on page ${page.to_str()}").map_err(|err| OutputFailed(err))?
+					RowContinued({ page, path }) => Stdout.line!("Continued row ${path} on page ${page.to_str()}").map_err(|err| OutputFailed(err))?
+					_ => {}
+				}
+			}
+			result.prepared
+		}
+		Err(error) => {
+			Stderr.line!(Pdf.Error.to_inspect(error)).map_err(|err| OutputFailed(err))?
+			return Err(Exit(1))
+		}
+	}
+	bytes = Pdf.to_bytes_prepared(prepared).map_err(|err| PdfFailed(err))?
+	path : Path
+	path = "quarterly-report.pdf"
+	path.write_bytes!(bytes).map_err(|err| WriteFailed(err))?
+	Ok({})
+}
 
 position_row : Str, Str, Str -> Pdf.Row
 position_row = |item, june, december| Pdf.row([Pdf.header_cell(Row, [Pdf.text(item)]), Pdf.cell([Pdf.text(june)]), Pdf.cell([Pdf.text(december)])])
@@ -619,3 +763,10 @@ contents = |options| Ok([
 		position_table,
 	]),
 ])
+
+cli = Cli.assert_valid(
+	Cli.finish(
+		Param.maybe_str({ name: "mode", help: "Choose regional or regional-keep." }),
+		{ name: "quarterly-report", version: "unversioned", authors: [], description: "Generate a quarterly financial report.", text_style: Plain },
+	),
+)

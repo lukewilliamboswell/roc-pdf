@@ -1,0 +1,205 @@
+[#contributor-benchmarks-chapter]
+= PDF generation benchmarks
+
+[#contributor-benchmarks-pdf-comparison-readme]
+== PDF generation comparison trial
+
+This optional trial prepares the same one-page operations report with roc-pdf,
+Python and ReportLab, and Go and fpdf. It measures the complete scripting path
+and the separate compiled build and execution paths. It is diagnostic and does
+not set release performance targets.
+
+[#contributor-benchmarks-pdf-comparison-readme-workload-and-comparisons]
+=== Workload
+
+The harness generates each program's constants from
+`scripts/benchmarks/pdf-comparison/workload.json`. The report has an A4
+page, title, wrapped paragraphs, four-row table and footer. All three read
+`package/RocPdfSans-Regular.ttf` at runtime. They use equivalent authored
+content and embedded font coverage, with each library's own layout.
+Roc uses the `Archive` profile, including tagging, the PDF/A-4 claim,
+Unicode mappings and output intent. The other libraries produce ordinary
+PDFs with embedded fonts. The benchmark records those different output
+contracts.
+
+[cols="1,1,2",options="header"]
+|===
+|Track |Application |Measured command
+|Source to PDF |Python | `python report.py`
+|Source to PDF |Roc, dev backend | `roc run main.roc`
+|Source to executable |Roc, default speed optimization | `roc build main.roc --output=report`
+|Source to executable |Go | `go build -o report .`
+|Executable to PDF |Roc or Go | `./report`
+|===
+
+[#contributor-benchmarks-pdf-comparison-readme-run]
+=== Run locally
+
+Run from the repository root on Linux or macOS. Install the exact Roc nightly
+in `.roc-version`, Go 1.21 or later, Python 3.11 or later and Poppler's
+`pdfinfo`, `pdftotext` and `pdffonts`. The harness records tool paths and
+versions. Python requirements and Go modules are pinned by the harness.
+
+Provision the Roc dependencies, then create a fresh workspace.
+
+[source,sh]
+----
+export ROC=/absolute/path/to/roc
+"$ROC" version
+"$ROC" deps examples/furniture-typography/main.roc
+python3 scripts/benchmarks/pdf-comparison/trial.py prepare \
+  .roc-pdf-tmp/pdf-comparison-01 --roc "$ROC"
+python3 scripts/benchmarks/pdf-comparison/trial.py run \
+  .roc-pdf-tmp/pdf-comparison-01
+----
+
+Use `prepare --roc-packages DIR` if the package cache is outside its default
+location. Preparation copies the necessary packages and pins a private
+compiler cache. Go modules are installed during preparation, and run disables
+module downloads.
+
+If the host lacks `ensurepip`, install the pinned dependencies with host
+pip 22.3 or later and supply that environment during preparation.
+
+[source,sh]
+----
+python3 -m venv --without-pip .roc-pdf-tmp/reportlab-venv
+python3 -m pip --python .roc-pdf-tmp/reportlab-venv/bin/python install \
+  -r scripts/benchmarks/pdf-comparison/requirements.txt
+python3 scripts/benchmarks/pdf-comparison/trial.py prepare \
+  .roc-pdf-tmp/pdf-comparison-01 --roc "$ROC" \
+  --existing-python --python .roc-pdf-tmp/reportlab-venv/bin/python
+----
+
+For a smoke run, prepare a separate workspace and pass
+`--states first --runtime-samples 1` to `run`. Select a track with
+`--tracks script` or `--tracks compiled`, or languages with
+`--languages`. To resume an interrupted run, repeat the same command
+with the same sample count. Use a new workspace after a first Roc build
+fails after populating its cache. Runs are serial. Avoid running the test
+suite or another trial alongside the speed-optimized build.
+
+[#contributor-benchmarks-pdf-comparison-readme-cache-and-source-edit-scenarios]
+=== Cache and edit scenarios
+
+The first state starts with installed dependencies and an empty private
+compiler cache. The unchanged state repeats the same source command with
+existing cache and executable. The edited state changes only the visible
+revision text (including its length) and retains those caches. A run
+measures a single source command per state and five executions after
+each successful build by default. It reports all raw samples and the
+runtime median, with no warmup discarded. Prepare multiple independent
+workspaces to study first-use variation.
+
+[#contributor-benchmarks-pdf-comparison-readme-timing-and-memory-boundaries]
+=== Measurements
+
+External wall time covers launch through process exit. It includes compilation
+for `roc run` and Python imports. Application monotonic timers record the
+phases each library actually exposes. Their durations sum to the measured
+application time. Compare complete application totals before interpreting
+phase differences. For example, Go's final serialization includes its
+subsetting and finalization.
+
+The OS `wait4` figures record user/system CPU time and peak RSS. The latter
+is a process high-water mark with platform-specific child accounting.
+Never add peak RSS from separate build and run processes. The font is a
+runtime file, with its size recorded separately. The application generates
+a buffered PDF, measures the write and close, and validates the result
+outside the timed invocation. A close is not a durability measurement.
+
+[#contributor-benchmarks-pdf-comparison-readme-correctness-and-evidence]
+=== Validation and results
+
+Before accepting a sample, the harness checks the page dimensions, expected
+extractable text with its current revision, embedded fonts and written byte
+count. It also checks identical Roc input across modes for exact PDF bytes.
+Failed commands, inconsistent metrics and invalid or incomplete PDFs stay
+outside the success summary.
+
+The ignored workspace contains `summary.md`, raw `results.json`,
+`manifest.json`, tool logs and validated PDFs. The manifest records the
+machine, versions, locations and source and font hashes. This benchmark does
+not use the fixture allocator or replace the repository's exact dev
+allocation and work checks.
+
+[#sample-pdf-generation]
+== Sample PDF generation
+
+* `benchmarks/flow.roc` lays out rich text and a multi-page table.
+* `benchmarks/wide_table.roc` varies 1 to 65,535 fixed-width tracks beneath
+  one spanning cell while keeping row contents and total width constant.
+* `benchmarks/style.roc` compares one long styled paragraph with the same
+  runs split into shorter paragraphs. Vary `--paragraph-units` at a fixed
+  workload size.
+* `benchmarks/graphics.roc` places captioned vector and raster figures.
+  Vary `--rasters` at a fixed figure count to compare shared and distinct
+  resource inputs.
+* `benchmarks/jpeg.roc` places the same encoded photograph in multiple
+  captioned figures to exercise encoded image reuse.
+* `benchmarks/mixed_script.roc` shapes alternating Latin and Han characters in
+  one paragraph. Use `--units` to set the number of character pairs and
+  `--max-source-script-runs` to raise or lower the itemization budget.
+* `benchmarks/source.roc` paginates tab-indented source text. Use `--units` for
+  total lines, `--lines-per-block` to vary the largest block, and `--highlight`
+  to add one foreground range per line.
+* `benchmarks/scoped_wrapper.roc` wraps a fixed body in layout-only scopes.
+  Vary `--scope-depth` at a fixed paragraph count and compare the emitted PDF.
+* `benchmarks/furniture.roc` repeats a header with reserved-width text.
+  Use `--slots` for the number of reserved positions and `--units` for pages.
+* `benchmarks/stress.roc` starts each unit on a new page, with links and
+  rich text plus periodic tables, vector drawings and a shared photograph.
+  Use `--detail-every 0` for a plain-text control and `--max-pages` to pass an
+  explicit page budget to `Pdf.Options`. Use `--budget-scale` to multiply the
+  default content, text, paint, navigation, index, source, and output budgets
+  for a stress run.
+  Use `--image-comparison-bytes` to vary the exact image sharing budget in
+  workloads that place the same image many times.
+  Use `--generated-contents` to include one page reference per station.
+  Use `--flow-references` to add one flow-changing reference per station.
+  Each reference points to the next station, and the last points to the first.
+  For a 10,000-reference preparation run, use `--units 10000 --max-pages 15000`
+  with `--detail-every 0 --budget-scale 16 --flow-references --prepare-only`.
+  Budget scaling multiplies the per-pass state and accumulated layout work
+  limits while keeping the standard eight-pass cap. Use
+  `--flow-reference-state-units` to set the per-pass state limit independently.
+  Use `--index-targets-per-term N` to append an authored index with one link per
+  station and at most `N` links in each term.
+  Allow extra pages for the table of contents and index when setting `--max-pages`.
+
+`benchmarks/drawing_authoring.roc` measures construction and command traversal
+for a nested vector drawing. Vary `--depth` at a fixed `--iterations`. The
+app reports the total authored commands.
+
+The facade apps report the total number of bytes they emit.
+Use `--help` for workload size, repetition, compression and preparation
+options.
+Use `--delivery buffered`, `--delivery share`, or `--delivery own` to compare
+buffered output with draining either chunk policy. The chunk consumer counts
+bytes and drops each chunk before requesting the next one. Use
+`--output .roc-pdf-tmp/report.pdf` with one full generation to write an
+artifact for independent inspection.
+
+Build the target for speed with debug information. On Linux, sample the
+compiled process with `perf` using DWARF call stacks.
+
+[source,sh]
+----
+mkdir -p .roc-pdf-tmp/sampling
+roc build benchmarks/flow.roc --opt=speed --debug --output=.roc-pdf-tmp/sampling/pdf-flow
+perf record -e cycles:u -F 999 --call-graph dwarf,16384 \
+  -o .roc-pdf-tmp/sampling/flow.perf.data \
+  -- .roc-pdf-tmp/sampling/pdf-flow --units 128 --iterations 200
+perf report -i .roc-pdf-tmp/sampling/flow.perf.data --stdio --no-children
+----
+
+Increase the iterations for a longer capture. Keep the same workload size
+and compare against `--prepare-only` to narrow a suspected hot path to
+preparation or emission. Review inclusive call stacks alongside leaf samples
+before attributing cost to a package or compiler operation. Keep raw captures
+in ignored output.
+
+For the page stress case, run each delivery mode in a fresh process and record
+peak resident memory as well as elapsed time. Include a preparation-only run
+at the same size so you can see how much memory is already committed before
+emission.

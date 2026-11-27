@@ -1,4 +1,8 @@
+import KernelDrawingGroups
+import KernelWidgetFields
 import Document
+import KernelColumnLayout
+import KernelFacadeColumns
 import Font
 import KernelFacadeFragments
 import KernelFacadeFixed
@@ -26,6 +30,7 @@ import KernelStabilization
 import KernelStructure
 import KernelTextSemantics
 import Layout
+import Semantics
 import Theme
 
 KernelFacadePipeline :: [].{
@@ -48,13 +53,18 @@ KernelFacadePipeline :: [].{
 		Text(KernelFacadeText.Error),
 	]
 	FixedError : [Pipeline(Error), Placement(KernelFacadeFixed.Error)]
+	ColumnError : [Pipeline(Error), Placement(KernelFacadeColumns.Error)]
 	Stage : [FragmentsReady, LinesReady, OutputReady, PagesReady, ScenesReady, SemanticsReady, ShapeReady, TextReady]
 
 	Limits :: {
+		artifact_text : Document.ArtifactTextBudgets,
+		flow_reference : KernelFacadeReferences.FlowLimits,
 		fragment_semantics : KernelSemantics.Limits,
 		fragments : KernelFacadeFragments.Limits,
 		lines : KernelFacadeLines.Limits,
 		navigation : KernelNavigation.Limits,
+		max_reference_page_label_bytes : U64,
+		max_drawing_group_depth : U64,
 		output : KernelFacadeOutput.Limits,
 		pages : KernelFacadePages.Limits,
 		scenes : KernelFacadeScenes.Limits,
@@ -74,11 +84,27 @@ KernelFacadePipeline :: [].{
 			shape : KernelFacadeShape.Limits,
 			text : KernelFacadeText.Limits,
 		} -> Limits
-		make = |limits| Limits.(limits)
+		make = |{ fragment_semantics, fragments, lines, navigation, output, pages, scenes, semantics, shape, text }| Limits.{ artifact_text: Document.ArtifactTextBudgets.default, flow_reference: KernelFacadeReferences.default_flow_limits, fragment_semantics, fragments, lines, max_reference_page_label_bytes: 128, max_drawing_group_depth: KernelDrawingGroups.default_depth, navigation, output, pages, scenes, semantics, shape, text }
+
+		with_artifact_text : Limits, Document.ArtifactTextBudgets -> Limits
+		with_artifact_text = |Limits.(fields), artifact_text| {
+			fragments = KernelFacadeFragments.Limits.with_attachment(fields.fragments, artifact_text)
+			Limits.{ ..fields, artifact_text, fragments }
+		}
+
+		with_flow_reference : Limits, KernelFacadeReferences.FlowLimits -> Limits
+		with_flow_reference = |Limits.(limits), flow_reference| Limits.{ ..limits, flow_reference }
+
+		with_drawing_group_depth : Limits, U64 -> Limits
+		with_drawing_group_depth = |Limits.(limits), max_drawing_group_depth| Limits.{ ..limits, max_drawing_group_depth }
+
+		with_reference_page_label_bytes : Limits, U64 -> Limits
+		with_reference_page_label_bytes = |Limits.(limits), max_reference_page_label_bytes| Limits.{ ..limits, max_reference_page_label_bytes }
 	}
 
 	## `reference_passes` counts template stabilization passes, or one exact
-	## resolution phase for fixed-width body references. `field_resolutions`
+	## resolution phase for fixed-width body references. Flow-changing body
+	## references count each pass through committed body geometry. `field_resolutions`
 	## counts resolved page-field values; `furniture_items` counts furniture
 	## lines shaped, one per line per page. With body reference atoms,
 	## `line_candidate_visits` counts actual wrapped-item visits.
@@ -163,6 +189,9 @@ KernelFacadePipeline :: [].{
 
 		## Fixed preparation has separate physical placement rules while sharing
 		## semantic ownership, shaping, tagged lowering and profile output.
+		build_columns : Document.NormalizedAuthoring, { body : Layout.Rect, kept : List(Bool), page : Layout.Size, widths : KernelColumnLayout.Widths }, KernelFacadeShape.FontSelection, Theme, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelFacadeReport.Request, Limits -> Try(Plan, ColumnError)
+		build_columns = |authoring, columns, selection, theme, descriptor, input_facts, request, limits| build_columns_pipeline(authoring, columns, selection, theme, descriptor, input_facts, request, limits)
+
 		build_fixed : Document.NormalizedAuthoring, Document.NormalizedFixed, KernelFacadeShape.FontSelection, Theme, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelFacadeReport.Request, Limits -> Try(Plan, FixedError)
 		build_fixed = |authoring, fixed, selection, theme, descriptor, input_facts, request, limits| build_fixed_pipeline(authoring, fixed, selection, theme, descriptor, input_facts, request, limits)
 
@@ -186,24 +215,41 @@ MultiFace : [Policy({ policy : Font.PolicyId, registry : Font.Registry }), Style
 
 build_fixed_pipeline : Document.NormalizedAuthoring, Document.NormalizedFixed, KernelFacadeShape.FontSelection, Theme, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelFacadeReport.Request, KernelFacadePipeline.Limits -> Try(KernelFacadePipeline.Plan, KernelFacadePipeline.FixedError)
 build_fixed_pipeline = |authoring, fixed, selection, theme, descriptor, facts, request, limits| {
-	semantics = KernelFacadeSemantics.Plan.build(authoring, limits.semantics) ? |error| Pipeline(Semantics(error))
+	widgets = match facts {
+		WithDocumentFacts(data) => data.widgets
+		NoDocumentFacts => NoPreparedWidgets
+	}
+	semantics = (
+		match widgets {
+			NoPreparedWidgets => KernelFacadeSemantics.Plan.build(authoring, limits.semantics)
+			WithPreparedWidgets(prepared) => KernelFacadeSemantics.Plan.build_with_widgets(authoring, KernelWidgetFields.Plan.fields(prepared).map(|field| field.group), limits.semantics)
+		}
+	) ? |error| Pipeline(Semantics(error))
 	preliminary = KernelFacadeSemantics.Plan.preliminary(semantics)
 	owners = KernelFacadeSemantics.Plan.block_ownership(semantics)
 	flow_text = KernelFacadeSemantics.Plan.flow_text(semantics)
 	sources = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics))
+	shape_theme : Theme
+	shape_theme = { ..theme, latin_shaping: NominalGlyphs }
 	shape = (
 		match selection {
-			Single(font) => KernelFacadeShape.Plan.build(authoring, owners, flow_text, sources, font, theme, limits.shape)
-			Styled(styled) => KernelFacadeShape.Plan.build_styled(authoring, owners, flow_text, sources, styled, theme, limits.shape)
+			Single(font) => KernelFacadeShape.Plan.build(authoring, owners, flow_text, sources, font, shape_theme, limits.shape)
+			Styled(styled) => KernelFacadeShape.Plan.build_styled(authoring, owners, flow_text, sources, styled, shape_theme, limits.shape)
 			Ordered(ordered) => KernelFacadeShape.Plan.build_ordered(authoring, owners, flow_text, sources, ordered, theme, limits.shape)
 		}
 	) ? |error| Pipeline(Shape(error))
 	view = Document.NormalizedFixed.view(fixed)
-	lines = KernelFacadeLines.Plan.build_fixed(authoring, shape, sources, view.frames, limits.lines) ? |error| Pipeline(Lines(error))
-	{ positioned, work: placement_work } = KernelFacadeFixed.position(fixed, shape, lines, { max_pieces: KernelFacadeText.Limits.max_placements(limits.text) }) ? Placement
-	text = KernelFacadeText.Plan.build_positioned(positioned, [], { decorations: [], figure_scales: [], panels: [] }, limits.text) ? |error| Pipeline(Text(error))
-	fragments = KernelFacadeFragments.Plan.build(preliminary, text, limits.fragments, limits.fragment_semantics) ? |error| Pipeline(Fragments(error))
-	scenes = KernelFacadeScenes.Plan.build_fixed(fragments, { pages: view.pages, artifacts: view.artifacts }, intent_profile(facts), limits.scenes) ? |error| Pipeline(Scenes(error))
+	lines = KernelFacadeLines.Plan.build_fixed(authoring, shape, sources, KernelFacadeFixed.line_frames(fixed), limits.lines) ? |error| Pipeline(Lines(error))
+	{ positioned, work: placement_work } = KernelFacadeFixed.position(fixed, shape, lines, theme.paragraph_spacing, { max_pieces: KernelFacadeText.Limits.max_placements(limits.text) }) ? Placement
+	scales = if (authoring.figures.is_empty()) [] else List.repeat(1000, authoring.figures.len())
+	text = KernelFacadeText.Plan.build_positioned(positioned, [], { decorations: [], figure_scales: scales, panels: [] }, limits.text) ? |error| Pipeline(Text(error))
+	fragments = (
+		match widgets {
+			NoPreparedWidgets => KernelFacadeFragments.Plan.build(preliminary, text, limits.fragments, limits.fragment_semantics)
+			WithPreparedWidgets(_) => KernelFacadeFragments.Plan.build_with_widgets(preliminary, text, KernelFacadeSemantics.Plan.widget_owners(semantics), limits.fragments, limits.fragment_semantics)
+		}
+	) ? |error| Pipeline(Fragments(error))
+	scenes = KernelFacadeScenes.Plan.build_fixed(fragments, authoring, { pages: view.pages, artifacts: view.artifacts }, intent_profile(facts), limits.scenes) ? |error| Pipeline(Scenes(error))
 	output = (
 		match selection {
 			Single(font) => KernelFacadeOutput.Plan.build_with_facts(scenes, font, descriptor, facts, limits.output)
@@ -214,7 +260,7 @@ build_fixed_pipeline = |authoring, fixed, selection, theme, descriptor, facts, r
 	final_text = KernelFacadeText.Plan.text(KernelFacadeFragments.Plan.text(fragments))
 	report_facts = match request {
 		NoCollect => NoFacts
-		Collect => Facts(KernelFacadeReport.collect({ callouts: [], panels: [], references: [], relaxations: [], repeats: [], scales: [], scope_pages: [], source_fragments: [], splits: [] }, owners, KernelFacadeSemantics.Plan.figure_labels(semantics), fragment_table, final_text, view.pages.len()))
+		Collect => Facts(KernelFacadeReport.collect({ callouts: [], panels: [], references: [], relaxations: [], repeats: [], scales, scope_pages: [], source_fragments: [], splits: [] }, owners, KernelFacadeSemantics.Plan.figure_labels(semantics), fragment_table, final_text, view.pages.len()))
 	}
 	batch = KernelFacadeLines.Plan.line(lines)
 	shaped = KernelFacadeShape.Plan.shape(shape)
@@ -238,6 +284,89 @@ build_fixed_pipeline = |authoring, fixed, selection, theme, descriptor, facts, r
 				occurrences: KernelFacadeSemantics.Plan.work(semantics).occurrence_writes,
 				page_candidate_visits: placement_work.placements,
 				pages: view.pages.len(),
+				reference_passes: 0,
+				scene_commands: KernelFacadeScenes.Plan.work(scenes).command_writes,
+				scope_visits: 0,
+				shape_metric_reads: shaped.work.metric_reads,
+				shaped_runs: shaped.store.runs.len(),
+				source_foreground_ranges: 0,
+				source_paint_clusters: 0,
+				source_paint_ranges: 0,
+				template_region_visits: 0,
+			},
+		},
+	)
+}
+
+build_columns_pipeline : Document.NormalizedAuthoring, { body : Layout.Rect, kept : List(Bool), page : Layout.Size, widths : KernelColumnLayout.Widths }, KernelFacadeShape.FontSelection, Theme, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelFacadeReport.Request, KernelFacadePipeline.Limits -> Try(KernelFacadePipeline.Plan, KernelFacadePipeline.ColumnError)
+build_columns_pipeline = |authoring, columns, selection, theme, descriptor, facts, request, limits| {
+	semantics = KernelFacadeSemantics.Plan.build(authoring, limits.semantics) ? |error| Pipeline(Semantics(error))
+	owners = KernelFacadeSemantics.Plan.block_ownership(semantics)
+	flow_text = KernelFacadeSemantics.Plan.flow_text(semantics)
+	sources = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics))
+	shape = (
+		match selection {
+			Single(font) => KernelFacadeShape.Plan.build(authoring, owners, flow_text, sources, font, theme, limits.shape)
+			Styled(styled) => KernelFacadeShape.Plan.build_styled(authoring, owners, flow_text, sources, styled, theme, limits.shape)
+			Ordered(ordered) => KernelFacadeShape.Plan.build_ordered(authoring, owners, flow_text, sources, ordered, theme, limits.shape)
+		}
+	) ? |error| Pipeline(Shape(error))
+	requests = KernelFacadeShape.Plan.requests(shape)
+	var $blocks = List.with_capacity(columns.kept.len())
+	for block in KernelFacadeShape.Plan.block_runs(shape) {
+		index = $blocks.len()
+		runs = match block {
+			TextBlock({ body, label: NoLabel, .. }) if body.physical.length() > 0 => body.physical
+			_ => return Err(Placement(InvalidBlock({ block: index })))
+		}
+		keep = match columns.kept.get(index) {
+			Ok(True) => KeepTogether
+			Ok(False) => Split
+			Err(OutOfBounds) => return Err(Placement(InvalidBlock({ block: index })))
+		}
+		source = list_at(requests, runs.start()).source
+		$blocks = $blocks.append({ keep, runs, source })
+	}
+	line_limits = KernelLineLayout.BatchLimits.line(KernelFacadeLines.Limits.values(limits.lines).line)
+	column_limits = { candidates: 8000000, line: line_limits, page_count: KernelFacadeText.Limits.max_pages(limits.text), pieces: KernelFacadeText.Limits.max_placements(limits.text) }
+	{ positioned, work: placement } = KernelFacadeColumns.position($blocks, shape, sources, columns.body, columns.widths, theme.paragraph_spacing, column_limits) ? Placement
+	page_count = positioned.pages
+	text = KernelFacadeText.Plan.build_positioned(positioned, [], { decorations: [], figure_scales: [], panels: [] }, limits.text) ? |error| Pipeline(Text(error))
+	fragments = KernelFacadeFragments.Plan.build(KernelFacadeSemantics.Plan.preliminary(semantics), text, limits.fragments, limits.fragment_semantics) ? |error| Pipeline(Fragments(error))
+	scenes = KernelFacadeScenes.Plan.build_with_intent(fragments, columns.page, intent_profile(facts), limits.scenes) ? |error| Pipeline(Scenes(error))
+	output = (
+		match selection {
+			Single(font) => KernelFacadeOutput.Plan.build_with_facts(scenes, font, descriptor, facts, limits.output)
+			Styled(_) | Ordered(_) => KernelFacadeOutput.Plan.build_multi_with_facts(scenes, KernelFacadeShape.Plan.fonts(shape), descriptor, facts, limits.output)
+		}
+	) ? |error| Pipeline(Output(error))
+	fragment_table = KernelFacadeFragments.Plan.fragments(fragments)
+	final_text = KernelFacadeText.Plan.text(KernelFacadeFragments.Plan.text(fragments))
+	report_facts = match request {
+		NoCollect => NoFacts
+		Collect => Facts(KernelFacadeReport.collect({ callouts: [], panels: [], references: [], relaxations: [], repeats: [], scales: [], scope_pages: [], source_fragments: [], splits: [] }, owners, KernelFacadeSemantics.Plan.figure_labels(semantics), fragment_table, final_text, page_count))
+	}
+	shaped = KernelFacadeShape.Plan.shape(shape)
+	Ok(
+		KernelFacadePipeline.Plan.{
+			facts: report_facts,
+			output,
+			work: {
+				blocks: placement.blocks,
+				callout_ancestors: 0,
+				callout_contexts: 0,
+				callout_fragments: 0,
+				callout_updates: 0,
+				field_resolutions: 0,
+				final_runs: final_text.runs.len(),
+				fragments: fragment_table.len(),
+				furniture_items: 0,
+				line_candidate_visits: placement.candidate_visits,
+				lines: placement.lines,
+				objects: KernelFacadeOutput.Plan.work(output).objects,
+				occurrences: KernelFacadeSemantics.Plan.work(semantics).occurrence_writes,
+				page_candidate_visits: placement.frame_advances,
+				pages: page_count,
 				reference_passes: 0,
 				scene_commands: KernelFacadeScenes.Plan.work(scenes).command_writes,
 				scope_visits: 0,
@@ -326,8 +455,85 @@ build_plan = |authoring, font, theme, page_size, descriptor, facts, request, lim
 	)
 }
 
+## Use the first authored content of each block together with its UAX #9
+## paragraph base. The validated spine supplies the semantic owner, so
+## the WritingMode declaration does not depend on visual placements.
+semantic_writing_modes : KernelFacadeSemantics.Plan, KernelFacadeShape.Plan, KernelSemantics.Limits -> Try(KernelTextSemantics.Plan, KernelTextSemantics.Error)
+semantic_writing_modes = |semantics, shape, limits| {
+	preliminary = KernelFacadeSemantics.Plan.preliminary(semantics)
+	facts = match KernelFacadeShape.Plan.international(shape) {
+		International(value) => value
+		NoInternational => return Ok(preliminary)
+	}
+	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary))
+	var $owners = List.repeat(0.U64, store.occurrences.len())
+	for node in store.nodes {
+		var $child = node.content.start()
+		end = $child + node.content.length()
+		while $child < end {
+			match list_at(store.content_spine, $child) {
+				ContentOccurrence(id) => {
+					$owners = replace_at($owners, id.index(), node.id.index())
+				}
+				_ => {}
+			}
+			$child = $child + 1
+		}
+	}
+	var $rtl_nodes = List.repeat(False, store.nodes.len())
+	for block in KernelFacadeSemantics.Plan.block_ownership(semantics) {
+		occurrence = match block {
+			TextBlock({ body, .. }) => body.index()
+			RichTextBlock({ occurrences, .. }) => occurrences.start()
+			_ => store.occurrences.len()
+		}
+		if occurrence < store.occurrences.len() and source_is_rtl(list_at(store.occurrences, occurrence).source, facts) {
+			owner = semantic_block_owner(store.nodes, list_at($owners, occurrence))
+			if owner != 0 {
+				$rtl_nodes = replace_at($rtl_nodes, owner, True)
+			}
+		}
+	}
+	KernelTextSemantics.Plan.with_writing_modes(preliminary, $rtl_nodes, limits)
+}
+
+source_is_rtl : Semantics.OccurrenceSource, KernelFacadeShape.International -> Bool
+source_is_rtl = |source, facts| match source {
+	Text(id, _) => match facts.paragraphs.get(id.index()) {
+		Ok(Analyzed(paragraph)) => paragraph.base_level == 1
+		_ => False
+	}
+	NonText(_, _) => False
+}
+
+semantic_block_owner : List(Semantics.Node), U64 -> U64
+semantic_block_owner = |nodes, first| {
+	var $owner = first
+	while $owner != 0 {
+		node = list_at(nodes, $owner)
+		match node.role.local_name {
+			"P" | "TD" | "TH" | "Title" | "Caption" | "H" | "H1" | "H2" | "H3" | "H4" | "H5" | "H6" => return $owner
+			_ => {}
+		}
+		$owner = match node.parent {
+			ParentNode(parent) => parent.index()
+			DocumentRoot => 0
+		}
+	}
+	0
+}
+
+replace_at : List(a), U64, a -> List(a)
+replace_at = |items, index, value| match items.set(index, value) {
+	Ok(replaced) => replaced
+	Err(_) => crash "validated semantic writing-mode index escaped its store"
+}
+
 build_ordered_pipeline : Document.NormalizedAuthoring, MultiFace, Theme, Layout.Size, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelFacadeReport.Request, KernelFacadePipeline.Limits -> Try(KernelFacadePipeline.Plan, KernelFacadePipeline.Error)
 build_ordered_pipeline = |authoring, multi, theme, page_size, descriptor, facts, request, limits| {
+	if theme.international_text != OrdinaryText and !authoring.page_references.is_empty() {
+		return Err(Shape(InternationalSurface))
+	}
 	if !authoring.page_references.is_empty() {
 		selection = match multi {
 			Policy(ordered) => Ordered(ordered)
@@ -336,7 +542,6 @@ build_ordered_pipeline = |authoring, multi, theme, page_size, descriptor, facts,
 		return build_references(authoring, selection, theme, page_size, descriptor, facts, request, limits)
 	}
 	semantics = KernelFacadeSemantics.Plan.build(authoring, limits.semantics) ? Semantics
-	preliminary = KernelFacadeSemantics.Plan.preliminary(semantics)
 	source_store = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics))
 	shape = (
 		match multi {
@@ -344,6 +549,7 @@ build_ordered_pipeline = |authoring, multi, theme, page_size, descriptor, facts,
 			Styled(styled) => KernelFacadeShape.Plan.build_styled(KernelFacadeSemantics.Plan.authoring(semantics), KernelFacadeSemantics.Plan.block_ownership(semantics), KernelFacadeSemantics.Plan.flow_text(semantics), source_store, styled, theme, limits.shape)
 		}
 	) ? Shape
+	preliminary = semantic_writing_modes(semantics, shape, limits.fragment_semantics) ? |error| Semantics(TextSemantics(error))
 	furniture_selection = match multi {
 		Policy(ordered) => PolicyFaces({ faces: KernelFacadeShape.Plan.selected_faces(shape), fonts: KernelFacadeShape.Plan.fonts(shape), policy: ordered.policy, registry: ordered.registry })
 		Styled(styled) => {
@@ -363,11 +569,15 @@ build_ordered_pipeline = |authoring, multi, theme, page_size, descriptor, facts,
 			StyledFace({ font: list_at(styled.fonts, $candidate), instance: $instance, extra: $instance == faces.len() })
 		}
 	}
-	lines = KernelFacadeLines.Plan.build_ordered_authoring(authoring, shape, source_store, page_size, theme, limits.lines) ? Lines
+	line_sources = match KernelFacadeShape.Plan.international(shape) {
+		International({ tailored: TailoredSources(value), .. }) => value
+		_ => source_store
+	}
+	lines = KernelFacadeLines.Plan.build_ordered_authoring(authoring, shape, line_sources, page_size, theme, limits.lines, KernelFacadeSemantics.Plan.table_grids(semantics)) ? Lines
 
 	## The laid-out record is destructured at once so its plans stay uniquely
 	## owned by the stages that consume them.
-	{ pages, text: unlabelled, work: laid_work } = lay_out(authoring, shape, lines, page_size, theme, furniture_selection, KernelFacadeSemantics.Plan.semantic_source_count(semantics), limits)?
+	{ pages, text: unlabelled, work: laid_work } = lay_out(KernelFacadeSemantics.Plan.authoring(semantics), shape, lines, page_size, theme, furniture_selection, KernelFacadeSemantics.Plan.semantic_source_count(semantics), limits)?
 	label_fonts = match multi {
 		Policy(_) => PolicyLabels
 		Styled(styled) => LabelFonts(StyledFonts({ fonts: KernelFacadeShape.Plan.fonts(shape), instances: KernelFacadeShape.Plan.label_instances(shape, styled) }))
@@ -394,42 +604,48 @@ build_ordered_pipeline = |authoring, multi, theme, page_size, descriptor, facts,
 		NoLayoutFacts => NoFacts
 		LayoutFacts(value) => Facts(KernelFacadeReport.collect(value, KernelFacadeSemantics.Plan.block_ownership(semantics), KernelFacadeSemantics.Plan.figure_labels(semantics), KernelFacadeFragments.Plan.fragments(fragments), KernelFacadeText.Plan.text(KernelFacadeFragments.Plan.text(fragments)), page_total))
 	}
+	# Finish reading the upstream arenas before building the scene and
+	# sealing the output. Only their scalar work counters survive.
+	shaped = KernelFacadeShape.Plan.shape(shape)
+	batch = KernelFacadeLines.Plan.line(lines)
+	page_work = KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages))
+	paint_work = KernelFacadeText.Plan.paint_work(text)
+	upstream_work : KernelFacadePipeline.Work
+	upstream_work = {
+		blocks: authoring.blocks.len(),
+		field_resolutions: laid_work.field_resolutions,
+		final_runs: KernelFacadeText.Plan.text(text).runs.len(),
+		fragments: KernelFacadeFragments.Plan.fragments(fragments).len(),
+		furniture_items: laid_work.furniture_items,
+		lines: KernelLineLayout.BatchPlan.lines(batch).len(),
+		objects: 0,
+		occurrences: KernelFacadeSemantics.Plan.work(semantics).occurrence_writes,
+		pages: page_total,
+		scope_visits: laid_work.scope_visits,
+		template_region_visits: laid_work.template_region_visits,
+		reference_passes: laid_work.reference_passes,
+		scene_commands: 0,
+		shaped_runs: shaped.store.runs.len(),
+		shape_metric_reads: shaped.work.metric_reads,
+		line_candidate_visits: KernelLineLayout.BatchPlan.work(batch).candidate_visits,
+		page_candidate_visits: page_work.candidate_visits,
+		callout_contexts: page_work.container_contexts,
+		callout_ancestors: page_work.container_ancestors,
+		callout_updates: page_work.container_updates,
+		callout_fragments: page_work.container_fragments,
+		source_foreground_ranges: authoring.source_foregrounds.len(),
+		source_paint_clusters: paint_work.clusters,
+		source_paint_ranges: paint_work.ranges,
+	}
+	navigation = navigation_input(fragments, limits.navigation)
 	scenes = KernelFacadeScenes.Plan.build_authoring_with_intent(fragments, page_size, authoring, intent_profile(facts), limits.scenes) ? Scenes
-	output = KernelFacadeOutput.Plan.build_multi_with_navigation(scenes, output_fonts, descriptor, facts, navigation_input(fragments, limits.navigation), limits.output) ? Output
-	shape_store = KernelFacadeShape.Plan.shape(shape).store
-	line_store = KernelLineLayout.BatchPlan.lines(KernelFacadeLines.Plan.line(lines))
-	page_store = KernelPageLayout.Plan.pages(KernelFacadePages.Plan.page(pages))
-	final_store = KernelFacadeText.Plan.text(text)
+	scene_commands = KernelFacadeScenes.Plan.work(scenes).command_writes
+	output = KernelFacadeOutput.Plan.build_multi_with_navigation(scenes, output_fonts, descriptor, facts, navigation, limits.output) ? Output
 	Ok(
 		KernelFacadePipeline.Plan.{
 			facts: report_facts,
 			output,
-			work: {
-				blocks: authoring.blocks.len(),
-				field_resolutions: laid_work.field_resolutions,
-				final_runs: final_store.runs.len(),
-				fragments: KernelFacadeFragments.Plan.fragments(fragments).len(),
-				furniture_items: laid_work.furniture_items,
-				lines: line_store.len(),
-				objects: KernelFacadeOutput.Plan.work(output).objects,
-				occurrences: KernelFacadeSemantics.Plan.work(semantics).occurrence_writes,
-				pages: page_store.len(),
-				scope_visits: laid_work.scope_visits,
-				template_region_visits: laid_work.template_region_visits,
-				reference_passes: laid_work.reference_passes,
-				scene_commands: KernelFacadeScenes.Plan.work(scenes).command_writes,
-				shaped_runs: shape_store.runs.len(),
-				shape_metric_reads: KernelFacadeShape.Plan.shape(shape).work.metric_reads,
-				line_candidate_visits: KernelLineLayout.BatchPlan.work(KernelFacadeLines.Plan.line(lines)).candidate_visits,
-				page_candidate_visits: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).candidate_visits,
-				callout_contexts: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_contexts,
-				callout_ancestors: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_ancestors,
-				callout_updates: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_updates,
-				callout_fragments: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_fragments,
-				source_foreground_ranges: authoring.source_foregrounds.len(),
-				source_paint_clusters: KernelFacadeText.Plan.paint_work(text).clusters,
-				source_paint_ranges: KernelFacadeText.Plan.paint_work(text).ranges,
-			},
+			work: { ..upstream_work, objects: KernelFacadeOutput.Plan.work(output).objects, scene_commands },
 		},
 	)
 }
@@ -439,7 +655,7 @@ build_ordered_pipeline = |authoring, multi, theme, page_size, descriptor, facts,
 ## navigation consumes and verifies the same registry and anchor proof.
 build_references : Document.NormalizedAuthoring, KernelFacadeShape.FontSelection, Theme, Layout.Size, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelFacadeReport.Request, KernelFacadePipeline.Limits -> Try(KernelFacadePipeline.Plan, KernelFacadePipeline.Error)
 build_references = |authoring, selection, theme, page_size, descriptor, facts, request, limits| {
-	static = KernelFacadeFurniture.Static.build(authoring, theme, page_size) ? Furniture
+	static = KernelFacadeFurniture.Static.build_with_drawing_depth(authoring, theme, page_size, limits.max_drawing_group_depth) ? Furniture
 	with_furniture = match authoring.templates {
 		NoTemplates => !authoring.page_scopes.is_empty()
 		Templates(_) => True
@@ -450,34 +666,37 @@ build_references = |authoring, selection, theme, page_size, descriptor, facts, r
 	} else {
 		NoFlowTemplate
 	}
-	referenced = KernelFacadeReferences.Plan.build(authoring, selection, theme, page_size, flow, { semantics: limits.semantics, shape: limits.shape, lines: limits.lines, pages: limits.pages, text: limits.text, navigation: limits.navigation, max_reference_bytes: 128 }) ? reference_pipeline_error
-	view = KernelFacadeReferences.Plan.view(referenced)
-	semantics = view.semantics
+	referenced = KernelFacadeReferences.Plan.build(authoring, selection, theme, page_size, flow, { flow: limits.flow_reference, semantics: limits.semantics, shape: limits.shape, lines: limits.lines, pages: limits.pages, text: limits.text, navigation: limits.navigation, max_reference_bytes: limits.max_reference_page_label_bytes }) ? reference_pipeline_error
+	{ semantics, shape, text: reference_text, measured: measured_plan, paint, registry, labels, resolved, anchors, work: reference_work } = KernelFacadeReferences.Plan.view(referenced)
 	preliminary = KernelFacadeSemantics.Plan.preliminary(semantics)
 	source_count = KernelFacadeSemantics.Plan.semantic_source_count(semantics)
-	measured = KernelFacadePages.Measured.view(view.measured)
+	occurrences = KernelFacadeSemantics.Plan.work(semantics).occurrence_writes
+	measured = KernelFacadePages.Measured.view(measured_plan)
 	page_count_value = KernelPageLayout.Choice.pages(measured.choice).len()
 	page_work = KernelPageLayout.Choice.work(measured.choice)
-	furniture_selection = reference_furniture_selection(selection, view.shape, theme)
-	furniture_result = if with_furniture {
-		furniture_limits = KernelFacadeFurniture.Limits.make({ max_inputs: 1000000, max_items: 4096, max_pieces: 1000000, shape: furniture_shape_limits, sources: furniture_source_limits })
-		furniture = KernelFacadeFurniture.Plan.resolve_scoped_with_labels(static, view.labels, KernelPageLayout.Choice.scope_pages(measured.choice), furniture_selection, Language(authoring.language), source_count, furniture_limits) ? Furniture
-		text = KernelFacadeText.Plan.with_furniture(view.text, furniture, limits.text) ? Text
+	shaped_runs = KernelFacadeShape.Plan.shape(shape).store.runs.len()
+	furniture_selection = reference_furniture_selection(selection, shape, theme)
+	{ text: unlabelled, field_resolutions, furniture_items, template_region_visits } = if with_furniture {
+		furniture_limits = furniture_limits_for(limits.artifact_text)
+		furniture = KernelFacadeFurniture.Plan.resolve_scoped_with_labels(static, labels, KernelPageLayout.Choice.scope_pages(measured.choice), furniture_selection, Language(authoring.language), source_count, furniture_limits) ? Furniture
 		work = KernelFacadeFurniture.Plan.work(furniture)
+		text = KernelFacadeText.Plan.with_furniture(reference_text, furniture, limits.text) ? Text
 		{ text, field_resolutions: work.field_resolutions, furniture_items: work.items_shaped, template_region_visits: work.template_region_visits }
 	} else {
-		{ text: view.text, field_resolutions: 0, furniture_items: 0, template_region_visits: 0 }
+		{ text: reference_text, field_resolutions: 0, furniture_items: 0, template_region_visits: 0 }
 	}
 	label_selection = match selection {
 		Single(font) => LabelFonts(SingleFont(font))
 		Ordered(_) => PolicyLabels
-		Styled(styled) => LabelFonts(StyledFonts({ fonts: KernelFacadeShape.Plan.fonts(view.shape), instances: KernelFacadeShape.Plan.label_instances(view.shape, styled) }))
+		Styled(styled) => LabelFonts(StyledFonts({ fonts: KernelFacadeShape.Plan.fonts(shape), instances: KernelFacadeShape.Plan.label_instances(shape, styled) }))
 	}
-	labelled = label_text(semantics, furniture_result.text, label_selection, limits)?
+	labelled = label_text(semantics, unlabelled, label_selection, limits)?
 	text = KernelFacadeText.Plan.with_source_foregrounds(labelled, authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), limits.text) ? Text
+	final_runs = KernelFacadeText.Plan.text(text).runs.len()
+	paint_work = KernelFacadeText.Plan.paint_work(text)
 	base_fonts = match selection {
 		Single(font) => [font]
-		Ordered(_) | Styled(_) => KernelFacadeShape.Plan.fonts(view.shape)
+		Ordered(_) | Styled(_) => KernelFacadeShape.Plan.fonts(shape)
 	}
 	output_fonts = match KernelFacadeText.Plan.furniture(text) {
 		WithFurniture(furniture) => {
@@ -486,46 +705,52 @@ build_references = |authoring, selection, theme, page_size, descriptor, facts, r
 		}
 		NoFurniture => base_fonts
 	}
-	fragments = KernelFacadeFragments.Plan.build_with_planned_navigation(preliminary, text, navigation_authoring(semantics, authoring, theme), { registry: view.registry, labels: view.labels, anchors: view.anchors }, limits.fragments, limits.fragment_semantics, limits.navigation) ? Fragments
+	fragments = KernelFacadeFragments.Plan.build_with_planned_navigation(preliminary, text, navigation_authoring(semantics, authoring, theme), { registry, labels, anchors }, limits.fragments, limits.fragment_semantics, limits.navigation) ? Fragments
 	report = match request {
 		NoCollect => NoFacts
 		Collect => {
-			layout = KernelFacadeReport.layout_measured(view.measured, view.paint, view.resolved)
+			layout = KernelFacadeReport.layout_measured(measured_plan, paint, resolved)
 			Facts(KernelFacadeReport.collect(layout, KernelFacadeSemantics.Plan.block_ownership(semantics), KernelFacadeSemantics.Plan.figure_labels(semantics), KernelFacadeFragments.Plan.fragments(fragments), KernelFacadeText.Plan.text(KernelFacadeFragments.Plan.text(fragments)), page_count_value))
 		}
 	}
+	# Retain the work and navigation projections across sealing, not the
+	# reference measurement, placement, or fragment arenas.
+	upstream_work : KernelFacadePipeline.Work
+	upstream_work = {
+		blocks: authoring.blocks.len(),
+		occurrences,
+		shaped_runs,
+		shape_metric_reads: reference_work.shape_metric_reads,
+		lines: reference_work.measured_rows,
+		line_candidate_visits: reference_work.measurement.wrapped_items,
+		pages: page_count_value,
+		page_candidate_visits: page_work.candidate_visits,
+		final_runs,
+		fragments: KernelFacadeFragments.Plan.fragments(fragments).len(),
+		scene_commands: 0,
+		objects: 0,
+		callout_contexts: page_work.container_contexts,
+		callout_ancestors: page_work.container_ancestors,
+		callout_updates: page_work.container_updates,
+		callout_fragments: page_work.container_fragments,
+		scope_visits: page_work.scope_visits,
+		reference_passes: U64.max(reference_work.flow_passes, 1),
+		field_resolutions,
+		furniture_items,
+		template_region_visits,
+		source_foreground_ranges: authoring.source_foregrounds.len(),
+		source_paint_clusters: paint_work.clusters,
+		source_paint_ranges: paint_work.ranges,
+	}
+	navigation = navigation_input(fragments, limits.navigation)
 	scenes = KernelFacadeScenes.Plan.build_authoring_with_intent(fragments, page_size, authoring, intent_profile(facts), limits.scenes) ? Scenes
-	output = KernelFacadeOutput.Plan.build_multi_with_navigation(scenes, output_fonts, descriptor, facts, navigation_input(fragments, limits.navigation), limits.output) ? Output
+	scene_commands = KernelFacadeScenes.Plan.work(scenes).command_writes
+	output = KernelFacadeOutput.Plan.build_multi_with_navigation(scenes, output_fonts, descriptor, facts, navigation, limits.output) ? Output
 	Ok(
 		KernelFacadePipeline.Plan.{
 			facts: report,
 			output,
-			work: {
-				blocks: authoring.blocks.len(),
-				occurrences: KernelFacadeSemantics.Plan.work(semantics).occurrence_writes,
-				shaped_runs: KernelFacadeShape.Plan.shape(view.shape).store.runs.len(),
-				shape_metric_reads: view.work.shape_metric_reads,
-				lines: view.work.measured_rows,
-				line_candidate_visits: view.work.measurement.wrapped_items,
-				pages: page_count_value,
-				page_candidate_visits: page_work.candidate_visits,
-				final_runs: KernelFacadeText.Plan.text(text).runs.len(),
-				fragments: KernelFacadeFragments.Plan.fragments(fragments).len(),
-				scene_commands: KernelFacadeScenes.Plan.work(scenes).command_writes,
-				objects: KernelFacadeOutput.Plan.work(output).objects,
-				callout_contexts: page_work.container_contexts,
-				callout_ancestors: page_work.container_ancestors,
-				callout_updates: page_work.container_updates,
-				callout_fragments: page_work.container_fragments,
-				scope_visits: page_work.scope_visits,
-				reference_passes: 1,
-				field_resolutions: furniture_result.field_resolutions,
-				furniture_items: furniture_result.furniture_items,
-				template_region_visits: furniture_result.template_region_visits,
-				source_foreground_ranges: authoring.source_foregrounds.len(),
-				source_paint_clusters: KernelFacadeText.Plan.paint_work(text).clusters,
-				source_paint_ranges: KernelFacadeText.Plan.paint_work(text).ranges,
-			},
+			work: { ..upstream_work, objects: KernelFacadeOutput.Plan.work(output).objects, scene_commands },
 		},
 	)
 }
@@ -632,7 +857,7 @@ probe_early = |authoring, font, theme, page_size, limits, stage| {
 	if stage == ShapeReady {
 		return Ok(shape_work)
 	}
-	lines = KernelFacadeLines.Plan.build_authoring(authoring, shape, source_store, page_size, theme, limits.lines) ? Lines
+	lines = KernelFacadeLines.Plan.build_authoring(authoring, shape, source_store, page_size, theme, limits.lines, KernelFacadeSemantics.Plan.table_grids(semantics)) ? Lines
 	line_work = { ..shape_work, lines: KernelLineLayout.BatchPlan.lines(KernelFacadeLines.Plan.line(lines)).len(), line_candidate_visits: KernelLineLayout.BatchPlan.work(KernelFacadeLines.Plan.line(lines)).candidate_visits }
 	if stage == LinesReady {
 		return Ok(line_work)
@@ -642,9 +867,9 @@ probe_early = |authoring, font, theme, page_size, limits, stage| {
 		Templates(_) => False
 	}
 	pages = if plain {
-		KernelFacadePages.Plan.build(authoring, shape, lines, page_size, theme, limits.pages) ? Pages
+		KernelFacadePages.Plan.build(KernelFacadeSemantics.Plan.authoring(semantics), shape, lines, page_size, theme, limits.pages) ? Pages
 	} else {
-		static = KernelFacadeFurniture.Static.build(authoring, theme, page_size) ? Furniture
+		static = KernelFacadeFurniture.Static.build_with_drawing_depth(authoring, theme, page_size, limits.max_drawing_group_depth) ? Furniture
 		KernelFacadePages.Plan.build_with_scopes(authoring, shape, lines, page_size, theme, KernelFacadeFurniture.Static.flow(static), KernelFacadeFurniture.Static.scope_flows(static), limits.pages) ? Pages
 	}
 	Ok({ ..line_work, pages: KernelPageLayout.Plan.pages(KernelFacadePages.Plan.page(pages)).len(), page_candidate_visits: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).candidate_visits, callout_contexts: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_contexts, callout_ancestors: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_ancestors, callout_updates: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_updates, callout_fragments: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).container_fragments })
@@ -658,9 +883,9 @@ probe_ordered_plan = |authoring, ordered, theme, page_size, limits| {
 	shape = KernelFacadeShape.Plan.build_ordered(KernelFacadeSemantics.Plan.authoring(semantics), KernelFacadeSemantics.Plan.block_ownership(semantics), KernelFacadeSemantics.Plan.flow_text(semantics), source_store, ordered, theme, limits.shape) ? Shape
 	selection = PolicyFaces({ faces: KernelFacadeShape.Plan.selected_faces(shape), fonts: KernelFacadeShape.Plan.fonts(shape), policy: ordered.policy, registry: ordered.registry })
 	shaped_runs = KernelFacadeShape.Plan.shape(shape).store.runs.len()
-	lines = KernelFacadeLines.Plan.build_ordered_authoring(authoring, shape, source_store, page_size, theme, limits.lines) ? Lines
+	lines = KernelFacadeLines.Plan.build_ordered_authoring(authoring, shape, source_store, page_size, theme, limits.lines, KernelFacadeSemantics.Plan.table_grids(semantics)) ? Lines
 	line_count = KernelLineLayout.BatchPlan.lines(KernelFacadeLines.Plan.line(lines)).len()
-	{ pages, text: unlabelled, work: laid_work } = lay_out(authoring, shape, lines, page_size, theme, selection, KernelFacadeSemantics.Plan.semantic_source_count(semantics), limits)?
+	{ pages, text: unlabelled, work: laid_work } = lay_out(KernelFacadeSemantics.Plan.authoring(semantics), shape, lines, page_size, theme, selection, KernelFacadeSemantics.Plan.semantic_source_count(semantics), limits)?
 	labelled = label_text(semantics, unlabelled, PolicyLabels, limits)?
 	text = KernelFacadeText.Plan.with_source_foregrounds(labelled, authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), limits.text) ? Text
 	page_count_value = KernelPageLayout.Plan.pages(KernelFacadePages.Plan.page(pages)).len()
@@ -700,11 +925,11 @@ build_upstream = |authoring, font, theme, page_size, descriptor, request, limits
 	preliminary = KernelFacadeSemantics.Plan.preliminary(semantics)
 	source_store = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics))
 	shape = KernelFacadeShape.Plan.build(KernelFacadeSemantics.Plan.authoring(semantics), KernelFacadeSemantics.Plan.block_ownership(semantics), KernelFacadeSemantics.Plan.flow_text(semantics), source_store, font, theme, limits.shape) ? Shape
-	lines = KernelFacadeLines.Plan.build_authoring(authoring, shape, source_store, page_size, theme, limits.lines) ? Lines
+	lines = KernelFacadeLines.Plan.build_authoring(authoring, shape, source_store, page_size, theme, limits.lines, KernelFacadeSemantics.Plan.table_grids(semantics)) ? Lines
 
 	## The laid-out record is destructured at once so its plans stay uniquely
 	## owned by the stages that consume them.
-	{ pages, text: unlabelled, work: laid_work } = lay_out(authoring, shape, lines, page_size, theme, SingleFace(font), KernelFacadeSemantics.Plan.semantic_source_count(semantics), limits)?
+	{ pages, text: unlabelled, work: laid_work } = lay_out(KernelFacadeSemantics.Plan.authoring(semantics), shape, lines, page_size, theme, SingleFace(font), KernelFacadeSemantics.Plan.semantic_source_count(semantics), limits)?
 	labelled = label_text(semantics, unlabelled, LabelFonts(SingleFont(font)), limits)?
 	text = KernelFacadeText.Plan.with_source_foregrounds(labelled, authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), limits.text) ? Text
 	collected = match request {
@@ -778,9 +1003,9 @@ lay_out = |authoring, shape, lines, page_size, theme, selection, source_base, li
 		return Ok({ pages, text, work: { scope_visits: 0, template_region_visits: 0, field_resolutions: 0, furniture_items: 0, reference_passes: 0 } })
 	}
 	{
-		static = KernelFacadeFurniture.Static.build(authoring, theme, page_size) ? Furniture
+		static = KernelFacadeFurniture.Static.build_with_drawing_depth(authoring, theme, page_size, limits.max_drawing_group_depth) ? Furniture
 		language = Language(authoring.language)
-		furniture_limits = KernelFacadeFurniture.Limits.make({ max_inputs: 1000000, max_items: 4096, max_pieces: 1000000, shape: furniture_shape_limits, sources: furniture_source_limits })
+		furniture_limits = furniture_limits_for(limits.artifact_text)
 		stabilized = KernelStabilization.stabilize(
 			KernelStabilization.initial,
 			reference_pass_budget,
@@ -790,7 +1015,7 @@ lay_out = |authoring, shape, lines, page_size, theme, selection, source_base, li
 					Ok({ candidate: Paginated(pages), state: { pages: page_count(pages), values: [] } })
 				}
 				Candidate(Paginated(pages)) | Candidate(Resolved({ furniture: _, pages })) => {
-					furniture = KernelFacadeFurniture.Plan.resolve_scoped(static, state.pages, KernelPageLayout.Plan.scope_pages(KernelFacadePages.Plan.page(pages)), selection, language, source_base, furniture_limits) ? Furniture
+					furniture = KernelFacadeFurniture.Plan.resolve_scoped(static, state.pages, KernelPageLayout.Plan.scope_pages(KernelFacadePages.Plan.page(pages)), selection, language, source_base, limits.navigation, furniture_limits) ? Furniture
 					Ok({ candidate: Resolved({ furniture, pages }), state: { pages: page_count(pages), values: [] } })
 				}
 			},
@@ -828,15 +1053,24 @@ label_text = |semantics, text, selection, limits| {
 		WithFurniture(furniture) => KernelFacadeFurniture.Plan.sources(furniture).len()
 	}
 	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(semantics)))
-	built = KernelFacadeLabels.build(authoring, text, KernelFacadeSemantics.Plan.block_ownership(semantics), KernelFacadeSemantics.Plan.figure_labels(semantics), fonts, Language(authoring.language), store.text_sources.len() + furniture_sources, label_limits) ? Labels
+	built = KernelFacadeLabels.build(authoring, text, KernelFacadeSemantics.Plan.block_ownership(semantics), KernelFacadeSemantics.Plan.figure_labels(semantics), fonts, Language(authoring.language), store.text_sources.len() + furniture_sources, label_limits_for(limits.artifact_text)) ? Labels
 	match built {
 		NoLabels => Ok(text)
 		Labels(plan) => Ok(KernelFacadeText.Plan.with_labels(text, plan.pieces, plan.store, plan.sources, limits.text) ? Text)
 	}
 }
 
-label_limits : KernelFacadeLabels.Limits
-label_limits = KernelFacadeLabels.Limits.make({ max_labels: 100000, shape: furniture_shape_limits, sources: furniture_source_limits })
+furniture_limits_for : Document.ArtifactTextBudgets -> KernelFacadeFurniture.Limits
+furniture_limits_for = |budgets| KernelFacadeFurniture.Limits.make({
+	max_inputs: budgets.max_source_inputs,
+	max_items: budgets.max_furniture_items,
+	max_pieces: budgets.max_furniture_pieces,
+	shape: artifact_shape_limits(budgets.max_text_units),
+	sources: artifact_source_limits(budgets),
+}).with_page_label_bytes(budgets.max_page_label_bytes)
+
+label_limits_for : Document.ArtifactTextBudgets -> KernelFacadeLabels.Limits
+label_limits_for = |budgets| KernelFacadeLabels.Limits.make({ max_labels: budgets.max_drawing_labels, shape: artifact_shape_limits(budgets.max_text_units), sources: artifact_source_limits(budgets) })
 
 ## The fixed pass budget of page-template reference stabilization.
 reference_pass_budget : U64
@@ -845,19 +1079,22 @@ reference_pass_budget = 4
 page_count : KernelFacadePages.Plan -> U64
 page_count = |pages| KernelFacadePages.Plan.pages(pages).len()
 
-furniture_shape_limits : KernelShape.Limits
-furniture_shape_limits = KernelShape.Limits.make({ max_clusters: 1000000, max_glyphs: 1000000, max_scalars: 1000000, max_source_bytes: 1000000 })
+artifact_shape_limits : U64 -> KernelShape.Limits
+artifact_shape_limits = |units| KernelShape.Limits.make({ max_clusters: units, max_glyphs: units, max_scalars: units, max_source_bytes: units })
 
-furniture_source_limits : KernelFacadeSources.Limits
-furniture_source_limits = KernelFacadeSources.Limits.make({
-	max_hash_probes: 4000000,
-	max_inputs: 1000000,
-	max_source_bytes: 1000000,
-	max_source_scalars: 1000000,
-	max_table_slots: 2097152,
-	max_unique_sources: 1000000,
-	unicode: { max_graphemes: 1000000, max_line_boundaries: 1000001, max_scalars: 1000000, max_script_runs: 2048 },
-})
+artifact_source_limits : Document.ArtifactTextBudgets -> KernelFacadeSources.Limits
+artifact_source_limits = |budgets| {
+	units = budgets.max_text_units
+	KernelFacadeSources.Limits.make({
+		max_hash_probes: budgets.max_source_hash_probes,
+		max_inputs: budgets.max_source_inputs,
+		max_source_bytes: units,
+		max_source_scalars: units,
+		max_table_slots: budgets.max_source_table_slots,
+		max_unique_sources: budgets.max_source_inputs,
+		unicode: { max_graphemes: units, max_line_boundaries: units.plus_saturated(1), max_scalars: units, max_script_runs: budgets.max_source_script_runs },
+	})
+}
 
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {

@@ -9,7 +9,15 @@ and needs no registry setup.
 Family/style selection is explicit; nested strong/emphasis selects Bold Italic
 in either order. Command-K uses exact U+2318 text in sans/mono roles. A serif
 occurrence containing that character would reject, as would requested mono
-italic. The [font guide](../../docs/roc-font.md) explains these limits and
+italic. The [font guide](../../docs/roc-font.adoc) explains these limits and
 caller font mappings. The package retains each original font, licence and
 provenance pin, and `RocFont.licenses` exposes the three family notices for
 applications distributing font assets.
+
+The Inter specimen turns on `theme.latin_shaping: InterLatin` for the plain
+paragraphs. Copy the first arrow into a text editor to get `->` and the
+second to get `→`. Both draw the same Inter glyph. The `AV` specimen uses
+Inter’s kerning adjustment between the two letters.
+
+For a coverage policy over packaged Inter and a caller Han face, run the
+[ordered font companion](../ordered-han/README.md).

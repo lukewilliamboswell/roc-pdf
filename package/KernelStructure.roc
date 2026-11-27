@@ -1,6 +1,11 @@
+import KernelWidgetObjects
+import KernelAssociatedFiles
+import KernelAssociatedObjects
 import KernelBalanced
 import KernelDeflate
 import KernelIdentity
+import KernelNavigation
+import KernelNavigationObjects
 import KernelObject
 import KernelOutputBound
 import KernelSeal
@@ -12,7 +17,9 @@ ContentPlan : [Deflated(List(U8)), EmptyGenerated, Unchanged(List(U8))]
 ## language, the canonical XMP packet bytes, and the packaged output-intent
 ## profile with its identifier facts. The caller has already validated all of
 ## them; this builder only lowers.
-BlankFacts : {
+BlankFacts := {
+	associated : KernelAssociatedObjects.Input ?? NoAssociatedFiles,
+	page_label : KernelStructure.BlankPageLabel ?? NoBlankPageLabel,
 	condition_identifier : Str,
 	language : Str,
 	profile_bytes : List(U8),
@@ -25,10 +32,13 @@ DocumentFacts : [NoBlankFacts, WithBlankFacts(BlankFacts)]
 
 KernelStructure :: [].{
 
+	BlankPageLabel : [NoBlankPageLabel, BlankPageLabel(KernelNavigation.LabelRange)]
+
 	## A fixed page size. `Points` is any other size in whole points.
 	PageSize := [A4, Letter, Points({ height : I64, width : I64 })]
 	PageGeometry := [Fixed(PageSize), Variable]
 	Error : [
+		AssociatedObjects(KernelAssociatedObjects.Error),
 		Deflate(KernelDeflate.Error),
 		OutputBound(KernelOutputBound.Error),
 		Identity(KernelIdentity.Error),
@@ -50,6 +60,8 @@ KernelStructure :: [].{
 	## level, and the plan identity (and so the file identifier) digests
 	## normalized plan facts, never compressed bytes.
 	Plan :: {
+		association_ownership : KernelAssociatedObjects.Ownership,
+		widget_evidence : KernelWidgetObjects.Evidence,
 		compression : KernelDeflate.Level,
 		identity : [Blank, GeneratedContentDigest(List(U8)), NormalizedPlanDigest(List(U8)), UnchangedContentDigest(List(U8))],
 		output_bound : U64,
@@ -60,11 +72,19 @@ KernelStructure :: [].{
 		tree_nodes : U64,
 		xref_object : KernelObject.ObjectId,
 	}.{
+		association_ownership : Plan -> KernelAssociatedObjects.Ownership
+		association_ownership = |plan| plan.association_ownership
+
+		widget_evidence : Plan -> KernelWidgetObjects.Evidence
+		widget_evidence = |plan| plan.widget_evidence
+
 		compression : Plan -> KernelDeflate.Level
 		compression = |plan| plan.compression
 
 		with_compression : Plan, KernelDeflate.Level -> Plan
 		with_compression = |plan, level| Plan.{
+			association_ownership: plan.association_ownership,
+			widget_evidence: plan.widget_evidence,
 			compression: level,
 			identity: plan.identity,
 			output_bound: plan.output_bound,
@@ -93,6 +113,8 @@ KernelStructure :: [].{
 
 		release_payload_bytes : Plan, KernelObject.PayloadId -> Plan
 		release_payload_bytes = |plan, payload| Plan.{
+			association_ownership: plan.association_ownership,
+			widget_evidence: plan.widget_evidence,
 			compression: plan.compression,
 			identity: plan.identity,
 			output_bound: plan.output_bound,
@@ -116,7 +138,9 @@ KernelStructure :: [].{
 		xref_object : Plan -> KernelObject.ObjectId
 		xref_object = |plan| plan.xref_object
 
-		from_sealed : {
+		SealedFacts := {
+			association_ownership : KernelAssociatedObjects.Ownership ?? NoAssociationOwnership,
+			widget_evidence : KernelWidgetObjects.Evidence ?? NoWidgetEvidence,
 			identity : [Blank, GeneratedContentDigest(List(U8)), NormalizedPlanDigest(List(U8)), UnchangedContentDigest(List(U8))],
 			output_bound : U64,
 			page_count : U64,
@@ -124,8 +148,12 @@ KernelStructure :: [].{
 			sealed : KernelSeal.Plan,
 			tree_nodes : U64,
 			xref_object : KernelObject.ObjectId,
-		} -> Plan
+		}
+
+		from_sealed : SealedFacts -> Plan
 		from_sealed = |facts| Plan.{
+			association_ownership: facts.association_ownership,
+			widget_evidence: facts.widget_evidence,
 			compression: KernelDeflate.Level.balanced,
 			identity: facts.identity,
 			output_bound: facts.output_bound,
@@ -199,8 +227,8 @@ build_nonempty = |page_count, page_size, content_plan, facts| {
 	dictionary_limit = checked_add(checked_add(checked_linear(page_count, 5, 1)?, checked_linear(node_count, 4, 0)?)?, fact_budget.dictionary_entries)?
 	array_limit = checked_add(checked_add(checked_add(page_count, node_count)?, 3)?, fact_budget.array_items)?
 
-	limits : KernelObject.Limits
-	limits = {
+	base_limits : KernelObject.Limits
+	base_limits = {
 		max_array_items: array_limit,
 		max_byte_string_bytes: 0,
 		max_byte_strings: 0,
@@ -215,6 +243,36 @@ build_nonempty = |page_count, page_size, content_plan, facts| {
 		max_text_string_bytes: fact_budget.text_string_bytes,
 		max_text_strings: fact_budget.text_strings,
 		max_values: value_limit,
+	}
+
+	associated = match facts {
+		NoBlankFacts => NoAssociatedFiles
+		WithBlankFacts(data) => data.associated
+	}
+	limits = match associated {
+		NoAssociatedFiles => base_limits
+		WithAssociatedFiles(files) => {
+			count = KernelAssociatedFiles.Plan.entries(files).len()
+			# The fixed attachment keys and relationship names keep their
+			# prior allowance. MIME names use the admitted registry's total.
+			associated_name_bytes = checked_add(checked_add(checked_times(23, count)?, 160)?, KernelAssociatedFiles.Plan.media_type_bytes(files))?
+			{
+				..base_limits,
+				max_array_items: checked_add(base_limits.max_array_items, checked_add(checked_times(8, count)?, 16)?)?,
+				max_byte_string_bytes: checked_times(KernelAssociatedFiles.key_bytes * 6, count)?,
+				max_byte_strings: checked_times(6, count)?,
+				max_dictionary_entries: checked_add(base_limits.max_dictionary_entries, checked_add(checked_times(18, count)?, 16)?)?,
+				max_name_bytes: checked_add(base_limits.max_name_bytes, associated_name_bytes)?,
+				max_names: checked_add(base_limits.max_names, checked_add(checked_times(2, count)?, 19)?)?,
+				max_objects: checked_add(base_limits.max_objects, checked_add(checked_times(5, count)?, 1)?)?,
+				max_payload_bytes: checked_add(base_limits.max_payload_bytes, KernelAssociatedFiles.Plan.payload_bytes(files))?,
+				max_payloads: checked_add(base_limits.max_payloads, count)?,
+				max_streams: checked_add(base_limits.max_streams, count)?,
+				max_text_string_bytes: checked_add(base_limits.max_text_string_bytes, KernelAssociatedFiles.Plan.text_bytes(files))?,
+				max_text_strings: checked_add(base_limits.max_text_strings, checked_times(4, count)?)?,
+				max_values: checked_add(base_limits.max_values, checked_add(checked_times(30, count)?, 16)?)?,
+			}
+		}
 	}
 
 	contents_name = KernelObject.add_name(KernelObject.init(limits), Str.to_utf8("Contents")) ? Object
@@ -239,6 +297,7 @@ build_nonempty = |page_count, page_size, content_plan, facts| {
 	## page; document facts append the metadata stream and the ICC profile
 	## stream (each with its length object) immediately after the pages.
 	pages_end = checked_add(checked_add(1, KernelBalanced.Shape.node_count(shape))?, checked_times(page_count, 3)?)?
+	associated_plan = KernelAssociatedObjects.plan(associated, checked_add(pages_end, 4)?) ? AssociatedObjects
 	prepared_facts = match facts {
 		NoBlankFacts => { builder: pages_reference.builder, context: NoFactContext }
 		WithBlankFacts(fact_data) => {
@@ -281,16 +340,58 @@ build_nonempty = |page_count, page_size, content_plan, facts| {
 				],
 			) ? Object
 			intents = KernelObject.add_array(intent.builder, [intent.id]) ? Object
-			KernelObject.add_dictionary(
-				intents.builder,
-				[
-					{ key: fact_names.lang, value: lang_value.id },
-					{ key: fact_names.metadata, value: metadata_reference.id },
-					{ key: fact_names.output_intents, value: intents.id },
-					{ key: pages_name.id, value: pages_reference.id },
-					{ key: type_name.id, value: catalog_type.id },
-				],
-			) ? Object
+			core_entries = [
+				{ key: fact_names.lang, value: lang_value.id },
+				{ key: fact_names.metadata, value: metadata_reference.id },
+				{ key: fact_names.output_intents, value: intents.id },
+				{ key: pages_name.id, value: pages_reference.id },
+				{ key: type_name.id, value: catalog_type.id },
+			]
+			match fact_data.page_label {
+				NoBlankPageLabel => match associated_plan {
+					NoAssociatedPlan => KernelObject.add_dictionary(intents.builder, core_entries) ? Object
+					WithAssociatedPlan(planned) => {
+						extra = KernelAssociatedObjects.catalog_entries(intents.builder, planned, NoDestsRoot) ? AssociatedObjects
+						entries = List.with_capacity(7)
+							.append(extra.af)
+							.append(list_at(core_entries, 0))
+							.append(list_at(core_entries, 1))
+							.append(extra.names)
+							.append(list_at(core_entries, 2))
+							.append(list_at(core_entries, 3))
+							.append(list_at(core_entries, 4))
+						KernelObject.add_dictionary(extra.builder, entries) ? Object
+					}
+				}
+				BlankPageLabel(range) => {
+					label = KernelNavigationObjects.add_blank_page_label(intents.builder, range) ? Object
+					match associated_plan {
+						NoAssociatedPlan => {
+							entries = List.with_capacity(6)
+								.append(list_at(core_entries, 0))
+								.append(list_at(core_entries, 1))
+								.append(list_at(core_entries, 2))
+								.append(label.entry)
+								.append(list_at(core_entries, 3))
+								.append(list_at(core_entries, 4))
+							KernelObject.add_dictionary(label.builder, entries) ? Object
+						}
+						WithAssociatedPlan(planned) => {
+							extra = KernelAssociatedObjects.catalog_entries(label.builder, planned, NoDestsRoot) ? AssociatedObjects
+							entries = List.with_capacity(8)
+								.append(extra.af)
+								.append(list_at(core_entries, 0))
+								.append(list_at(core_entries, 1))
+								.append(extra.names)
+								.append(list_at(core_entries, 2))
+								.append(label.entry)
+								.append(list_at(core_entries, 3))
+								.append(list_at(core_entries, 4))
+							KernelObject.add_dictionary(extra.builder, entries) ? Object
+						}
+					}
+				}
+			}
 		}
 	}
 	catalog_object = KernelObject.add_object(catalog.builder, catalog.id) ? Object
@@ -341,7 +442,11 @@ build_nonempty = |page_count, page_size, content_plan, facts| {
 		NoFactContext => finished
 		FactContext(context) => add_fact_streams(finished, type_name.id, context)?
 	}
-	sealed = KernelSeal.seal(with_facts) ? Seal
+	assembled = match associated_plan {
+		NoAssociatedPlan => { builder: with_facts, ownership: NoAssociationOwnership }
+		WithAssociatedPlan(planned) => KernelAssociatedObjects.lower(with_facts, planned, catalog_object.id) ? AssociatedObjects
+	}
+	sealed = KernelSeal.seal(assembled.builder) ? Seal
 	identity = match prepared_facts.context {
 		NoFactContext => match content_plan {
 			Deflated(bytes) => GeneratedContentDigest(KernelSha256.digest(bytes) ? |_| IdentityInputTooLarge)
@@ -367,6 +472,8 @@ build_nonempty = |page_count, page_size, content_plan, facts| {
 
 	Ok(
 		KernelStructure.Plan.{
+			association_ownership: assembled.ownership,
+			widget_evidence: NoWidgetEvidence,
 			compression: KernelDeflate.Level.balanced,
 			identity,
 			output_bound: KernelOutputBound.Bound.bytes(layout_bound),
@@ -430,7 +537,7 @@ facts_limit_budget = |facts| match facts {
 	WithBlankFacts(data) => {
 		text_bytes = checked_add(checked_add(Str.to_utf8(data.language).len(), Str.to_utf8(data.condition_identifier).len())?, Str.to_utf8(data.registry_name).len())?
 		payload_bytes = checked_add(data.xmp.len(), data.profile_bytes.len())?
-		Ok({
+		ordinary = {
 			array_items: 2,
 			dictionary_entries: 16,
 			name_bytes: 128,
@@ -441,7 +548,20 @@ facts_limit_budget = |facts| match facts {
 			text_string_bytes: text_bytes,
 			text_strings: 3,
 			values: 24,
-		})
+		}
+		match data.page_label {
+			NoBlankPageLabel => Ok(ordinary)
+			BlankPageLabel(label) => Ok({
+				..ordinary,
+				array_items: 4,
+				dictionary_entries: 21,
+				name_bytes: 151,
+				names: 22,
+				text_string_bytes: checked_add(text_bytes, label.prefix.count_utf8_bytes())?,
+				text_strings: 4,
+				values: 32,
+			})
+		}
 	}
 }
 
@@ -460,7 +580,11 @@ facts_output_bound = |facts| match facts {
 			KernelDeflate.bound_for_input(data.profile_bytes.len()) ? Deflate
 		}
 		payload_bytes = checked_add(data.xmp.len(), profile_bound)?
-		checked_add(checked_add(payload_bytes, checked_times(text_bytes, 4)?)?, 1024)
+		ordinary = checked_add(checked_add(payload_bytes, checked_times(text_bytes, 4)?)?, 1024)?
+		match data.page_label {
+			NoBlankPageLabel => Ok(ordinary)
+			BlankPageLabel(label) => checked_add(ordinary, checked_add(256, checked_times(label.prefix.count_utf8_bytes(), 4)?)?)
+		}
 	}
 }
 
@@ -617,7 +741,7 @@ add_page_tree_node = |builder, shape, facts, level, node| {
 ## value ids, which a caller that needs them derives from the value count
 ## before the call. Returning the builder beside the value list made the
 ## pinned dev backend copy the object store
-## (docs/contributors/performance/lowering-uniqueness.md).
+## (docs/contributor-output.adoc#contributor-lowering-uniqueness).
 add_object_references : KernelObject.Builder, U64, U64, U64 -> Try(KernelObject.Builder, KernelStructure.Error)
 add_object_references = |builder, first_number, count, stride| {
 	var $builder = builder

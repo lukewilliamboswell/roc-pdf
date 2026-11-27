@@ -1,0 +1,1682 @@
+[#contributor-output-chapter]
+= PDF object planning and emission
+
+Consult these contracts when changing scene or resource lowering, PDF object
+planning, or the byte writer. Follow the typed stage boundary that owns the
+fact you are changing. Use the xref:testing.adoc#testing-roc-pdf[testing guide]
+to run exact snapshots, allocations, and work counters. The fixture specs
+are the source of current numerical baselines.
+
+[#contributor-prepared-document]
+== Advanced prepared-document contract
+
+[#contributor-prepared-document-scope]
+=== Scope
+
+The advanced type establishes the stable `Document.Prepared` integration
+boundary, exact layout cache identities, bounded diagnostic batches, resource
+use edges, per-phase work facts, and typed lifetime rules.
+
+[#contributor-prepared-document-representation-and-ownership]
+=== Representation and ownership
+
+* Prepared semantics, placements, scene commands, text runs, fonts, images,
+profiles, and color spaces remain separate flat stores. Cross-store links are
+scalar IDs or exact ranges; the prepared record does not recursively embed
+payloads at use sites.
+* Each resource use is one fixed-shape edge from a scene group to a font,
+image, color-space, or ICC identity. Repeated placement does not duplicate
+bytes, decoded planes, or semantic ownership.
+* Every layout-affecting reference has an exact value and final state. The
+prepared type has no unresolved or approximate alternative.
+* Custom layout functions, authoring blocks, speculative scenes, and caches do
+not cross their typed lifetime boundaries. Validated bytes needed by the
+encoder remain independently owned through emission.
+
+[#contributor-prepared-document-cache-traversal-and-complexity]
+=== Cache, traversal, and complexity
+
+Measurement keys contain exact constraints, source, style, and interned
+resource state. Font parse, instance, coverage, planning,
+and shaping retain their existing exact typed keys.
+
+Preparation uses direct indexed passes over normalized blocks, semantic nodes,
+fragments, commands, and resource edges. Dense identity checks and prefix-sum
+fragment indexing are linear. Any ordering that cannot use dense IDs consumes
+the explicit comparison-work budget and requires deterministic worst-case
+`O(n log n)` sorting. No hot byte, glyph, pixel, command, or edge pass relies on
+`Iter` storage.
+
+`PreparationWork` carries copied and retained payload bytes plus exact stage
+dimensions. `Layout.Work` separates source, candidate, continuation, reference,
+comparison, fragment, cache, and retained-cache work so favorable aggregate
+timing cannot hide rescans or retention growth.
+
+[#contributor-prepared-document-failure-and-diagnostics]
+=== Failure and diagnostics
+
+Preparation returns `Try(Document.Prepared, Conformance.DiagnosticBatch)`.
+Failure never exposes a partial prepared document. Diagnostics carry a stable
+code, validation stage, compact location, internal requirement IDs, standards
+clause references, and bounded details. The accumulator stops at its
+deterministic count or detail-byte limit and marks the batch `Truncated`; it
+does not continue scanning merely to count discarded findings.
+
+[#contributor-prepared-document-evidence]
+=== Evidence
+
+`tests/contracts/advanced_prepared_contract.roc` compiles the stable boundary access,
+exact measurement identity, resource-use edge, atomic error batch, clause and
+stage facts, and lifetime policy. Runtime preparation, negative detection,
+allocation, ARC, copied-byte, retained-byte, cache, and scaling evidence belongs
+to the capabilities that implement those passes.
+
+[#contributor-facade-scenes]
+== Facade scene materialization and text ownership
+
+The facade scene stage consumes final page/run placement facts, final
+per-run styles, final text, and the fragment-attached semantic plan. It
+writes the flat scene arena for PDF content lowering. Page identity,
+reading order, occurrence, fragment, and resources come from earlier
+stage records.
+
+A text group carries a baseline transform, local text commands, and
+explicit fragment ownership. Page paint order references the groups in
+accepted placement order. Figure and caption facts, drawing labels,
+foregrounds, panels and furniture also have explicit placement records
+with semantic owners or artifact classifications.
+
+[#contributor-facade-scenes-complexity-and-ownership]
+=== Complexity and ownership
+
+Materialization traverses each page, placement, command and resource
+reference with dense buffers. Validation checks scene arenas and exact
+run/fragment association. Referenced font, color, and image facts are
+shared with the scene plan. Scene paint order carries each group once.
+
+Packed raster sources with matching format, dimensions, color space, strides
+and exact color and alpha bytes share a resource across figures, decorations
+and furniture. JPEG sources with matching encoded bytes, color space and
+orientation policy share resources the same way. Scene commands resolve
+the shared resource in source order and keep their own geometry and
+semantic or artifact ownership.
+
+The scene stage checks raster dimensions and plane lengths before reading
+their bytes, and checks the encoded length and initial markers of JPEGs.
+It compares against two recent sources per image family, then groups
+remaining candidates by descriptor, lengths and fixed samples of the bytes.
+Only groups with matching samples need full fingerprints. Exact equality
+permits reuse, with stable radix refinement for fingerprint collisions.
+
+The default classifier budgets 320 MiB of fingerprint input. Each of the
+two recent-source comparisons has a 1 GiB input allowance per image family.
+`Pdf.Options.image_budgets` supplies both allowances and the physical image
+budgets.
+Image validation preserves original source ordinals. A source that passes
+the admission checks may encounter a work limit before deep validation.
+Physical storage limits, JPEG validation and sanitization, raster compaction,
+sealed-plan hashing and compression apply to canonical resources.
+
+[#contributor-facade-scenes-evidence]
+=== Evidence
+
+The `facade-scenes-v1` cases in `tests/spec.json` measure prepared
+inputs and scene construction separately at 1,000 and 10,000 runs.
+They pin placement and ownership work with the structural and
+allocated-byte checks. Figure, fixed-page and rich-flow cases add paint
+and logical-order variants. The `facade-raster-sharing-v1` cases verify
+three and 24 tagged placements against the same pair of RGB streams and
+their distinct alpha masks. The `facade-jpeg-sharing-v1` cases verify a
+single byte-exact DCT stream at both scales. Module checks cover recent
+matches, sampled candidates, work limits and forced collisions.
+
+[#contributor-tagged-plan]
+== Tagged content and semantic order
+
+`KernelTagged` joins already-validated semantic and scene plans. It walks page
+paint ranges once, distinguishes typed page artifacts from fragment-owned
+paint, and proves that every meaningful fragment owns exactly one scene group.
+
+MCIDs are assigned in content-stream paint order. Counts and prefix sums create
+one dense ParentTree entry range per content stream, while a fragment-indexed
+table provides constant-time lookup when semantic `/K` order is materialized.
+The two orders remain independent: ParentTree rows follow paint order and
+structure kids follow the mixed semantic content spine.
+
+The plan stores scalar IDs and ranges rather than duplicating scene commands,
+fragment records, or payload bytes. Its work record counts paint edges,
+fragment and artifact groups, occurrence-owner edges, ParentTree prefix/write
+steps, and emitted normalized `/K` items. The retained contextual fixture emits
+an exact `[contextual-Artifact, MCR]` mixed `/K` array, and the snapshot pins its exact allocation and work evidence in `tests/spec.json`.
+
+[#contributor-content]
+== Typed command lowering into PDF content streams
+
+`KernelContent` consumes the opaque tagged plan and writes deterministic
+bytes from typed scene commands. Fragment groups receive marked content
+with lowering-assigned MCIDs. Page artifacts receive explicit Artifact
+properties. Paths, clipping, transforms, paint, stroke state, dash arrays
+and images lower through validated typed operations.
+
+Command traversal uses a dense explicit frame buffer, so nested graphics
+do not consume the host call stack, and source paint order is preserved.
+Its capacity grows with graphics depth. Each command and path segment
+is visited once. A content stream owns one growing byte buffer. Canonical
+numbers append directly after an exact lexical-length check. Resource
+names contain dense IDs. Repeated placements retain one validated image.
+The remaining document content-byte budget is checked at each stream.
+
+The work exposes exact bytes, command and group visits, path segments,
+balanced graphics-state pairs, image placements and marked groups. The
+million-command image-reuse fixture in `tests/spec.json` pins one million
+command visits and image placements at a maximum frame depth of one.
+
+[#contributor-lexical-kernel]
+== Canonical PDF lexical values
+
+[#contributor-lexical-kernel-scope-and-status]
+=== Scope and status
+
+`KernelLex` is a private package module for canonical PDF lexical values. Focused tests cover positive and atomic-negative behavior for booleans,
+null, signed and unsigned integers, exact finite decimals, names, byte strings,
+and Unicode text strings. Every direct value also crosses the flat object
+store, sealing, and the shared value emitter in one exact integration check.
+
+[#contributor-lexical-kernel-representation-and-validation]
+=== Representation and validation
+
+* A real is an opaque signed `I64` coefficient plus a decimal scale from zero
+through nine. No floating-point value or host formatter crosses the boundary.
+* A name owns its validated source bytes once. Null bytes are rejected with an
+exact source index; delimiters, whitespace, `#`, and non-ASCII bytes use
+uppercase `#XX` escapes during emission.
+* Byte strings use the shorter of literal and uppercase hexadecimal
+syntax, with a hexadecimal tie-break. Text strings retain exact UTF-8 in
+the plan. Printable ASCII uses PDFDocEncoding. Other text uses
+BOM-prefixed UTF-16BE, including surrogate pairs for non-BMP scalars.
+Repeated emission reuses the original stored bytes.
+* The object plan stores names and strings once and refers to them by dense IDs
+or ranges. The flat plan carries no recursive token tree.
+
+[#contributor-lexical-kernel-traversal-and-complexity]
+=== Traversal and complexity
+
+All input and output passes are direct indexed `while` loops. There is no
+`Iter(U8)`, token list, per-digit string, locale lookup, map iteration, or
+recursive traversal.
+
+* Integer work is bounded by 20 decimal digits and constant auxiliary state.
+* Decimal normalization is bounded by nine fractional digits; rendering is
+bounded by the integer width plus that fixed scale.
+* Name and byte-string work is linear in source bytes. The byte bound
+includes delimiters and canonical escapes.
+* Text work is linear in UTF-8 bytes and emitted UTF-16 code units. It retains
+no intermediate scalar or UTF-16 list.
+
+The production append entrypoints consume and return one output list. Fixed
+keywords append their bytes directly and never allocate a temporary `Str`.
+When the sealed emitter supplies a unique accumulator with proven capacity,
+digits, escapes, and code units require no allocation per token or byte.
+
+[#contributor-lexical-kernel-ownership-and-executable-evidence]
+=== Ownership and executable evidence
+
+Fixed-keyword standalone helpers start from an exactly sized output list;
+variable-width standalone helpers start empty for unit-test convenience.
+Production append entrypoints consume the preflighted unique accumulator
+supplied by the sealed emitter; a shared accumulator is not part of this
+consumption-shaped hot-path contract. The boolean writer selects scalar bytes
+before mutating the list, so control flow does not cause an ARC copy. Planned
+text retains one UTF-8 byte list and does not allocate a conversion for every
+emission.
+
+The bulk lexical x2048 and x4096 cases in `tests/spec.json` pin exact
+allocation and work across both scales. Each bundle covers booleans, null,
+`I64.lowest`, `U64.highest`, a normalized real, an escaped name, a byte
+string, and a non-BMP text string. The deterministic byte-visit and
+checksum evidence detects output or traversal changes.
+
+The all-value integration check stores and seals null, boolean, integer, real,
+name, byte string, text string, reference, array, and dictionary values, then
+compares their shared emitter output exactly. Allocation or work baseline
+changes require a representation/ARC review rather than regeneration.
+
+[#contributor-resource-types]
+== Color, ICC, and image input contracts
+
+[#contributor-resource-types-scope]
+=== Scope
+
+Prepared values carry the validated ICC/color and packed raster/JPEG
+facts consumed by image lowering, scene placement and the byte writer.
+
+[#contributor-resource-types-representation-and-ownership]
+=== Representation and ownership
+
+* ICC bytes are owned once per profile. Parsed tag records carry ranges into
+that allocation; color spaces, output intent, and blend space carry scalar
+profile or space IDs.
+* Component counts are a closed typed union for grayscale and RGB.
+* Raster color and optional alpha planes are packed byte buffers with checked
+dimensions and row strides. There is no list allocation per pixel.
+* Validated JPEG bytes remain one encoded allocation. Dimension, component,
+color-space, and orientation evidence are fixed-shape facts beside it.
+* Repeated scene placements carry one `Image.Id` from the validated
+resource store. A theme names an explicit source sRGB value, while a prepared
+scene color carries the exact validated `Color.SpaceId`; neither duplicates
+the channel union or invents a resource ID during authoring.
+
+[#contributor-resource-types-complexity-and-lifetime]
+=== Complexity and lifetime
+
+ICC inspection is linear in profile bytes, tags, and checked tag edges. JPEG
+inspection is linear in encoded bytes and marker count. Raster validation,
+alpha separation, filtering, and transformation are linear in checked pixel
+bytes and rows. Exact work records separate these dimensions.
+
+Inspectors use direct indexed loops over bounded byte ranges. They reject
+overflow, overlap, unsupported components, invalid dimensions, and conflicting
+orientation before constructing a trusted resource. Input and transformed
+planes are consumed or released at the earliest phase boundary; an executable
+implementation may not retain whole encoded, decoded, separated, filtered, and
+compressed copies simultaneously.
+
+No resource stores a closure, iterator, semantic owner, placement, alternative
+text, or eventual PDF object number. Returned seamless encoded-resource slices
+remain governed by the explicit chunk-retention policy.
+
+[#contributor-resource-types-failure-policy]
+=== Failure policy
+
+Unsupported color, prohibited profile facts, malformed binary input, excessive
+work, and orientation conflicts are errors. There is no assumed profile,
+metadata passthrough, rasterization recovery, or conversion fallback.
+
+[#contributor-resource-types-evidence]
+=== Evidence
+
+`tests/contracts/advanced_resource_contract.roc` compiles one retained ICC profile,
+a packed RGB raster, and explicit JPEG orientation evidence. Runtime positive,
+atomic negative, fuzz, allocation, copied-byte, and retention evidence belongs
+to the capabilities implementing these inspectors.
+
+[#contributor-resources]
+== tagged-visual color and image resources
+
+`KernelColor` validates dense color-space identities and bounds ICC bytes,
+profiles, tag records, and spaces before exposing an opaque plan. ICC header
+and tag-table fields are read directly from packed bytes; tag relationships use
+scalar ranges into profile storage.
+
+`KernelImage` validates packed grayscale/RGB raster planes with checked
+dimension, stride, multiplication, color-component, and exact decoded-length
+rules. Pixel and alpha planes remain packed byte lists. The normalized store
+reuses each validated raster payload and scene placements carry only image IDs.
+
+JPEG preparation scans bounded marker segments and entropy ranges iteratively,
+checks frame dimensions, component tables, quantization and Huffman table
+shapes, scan headers, JFIF/Adobe metadata, and TIFF/EXIF orientation. Relevant
+decoder metadata is retained; comments, unrelated application segments, ICC
+duplicates, and EXIF bytes are omitted from one compact sanitized payload.
+Orientations requiring a pixel transform are rejected unless the caller has
+provided display-ready input.
+
+`KernelResourceUse` joins the checked scene, color, and image plans. It rejects
+cardinality drift, color-channel/component mismatches, and orphan normalized
+resources before lowering. Dense per-resource counters record direct path and
+image dependencies; repeated placements increment only a scalar image-use
+counter and continue to reference one inspected payload.
+
+The join traverses the command arena and image descriptor store once. Updating
+unique dense count lists has no payload-sized copies, and the result retains no
+second image, ICC, raster, or JPEG byte list. The plans expose deterministic
+byte, row, marker, profile, tag, space, command, placement, and reuse work
+counters.
+
+[#contributor-resource-graph]
+== Direct resource dependencies and exact identity
+
+The resource planner separates reusable visual identity from per-placement
+ownership. Use its canonical source map, direct dictionaries, and resolved
+object facts when lowering. Resource use comes from normalized operations.
+
+[#contributor-resource-graph-representation]
+=== Representation
+
+* `Source` is `{ descriptor, start, length }` — an exact range into one flat
+caller-owned `payload_bytes` allocation. Resources, roots, edges, and
+placements are dense scalar IDs into flat lists. Nothing is recursive.
+* `Descriptor` carries kind plus the scalar facts (`subtype`, `width`,
+`height`, `components`, `bit_depth`, `flags`) that must distinguish resources
+whose bytes alone are insufficient. Descriptor facts are hashed _before_ the
+payload, so resources with equal bytes and unequal descriptors do not even
+share a collision bucket.
+* Resource identity is independent of PDF object numbers; no PDF dictionary or
+object internal crosses this boundary.
+* Reusable visual identity (`Canonical`) is separate from per-placement
+ownership (`Placement`, carrying `Ownership` and `Reuse`).
+* The graph stores *direct edges only*, as a compressed dependency store
+(`dependency_offsets` + `dependency_heads`) plus a reverse index built by
+counting and prefix sums. No transitive-reachability set is built for any
+node.
+
+[#contributor-resource-graph-identity-and-deduplication-procedure]
+=== Identity and deduplication procedure
+
+[arabic]
+. *Hash once.* Each payload is hashed exactly once with a versioned,
+domain-separated SHA-256 over
+`"roc-pdf/resource-identity/v1\n" || descriptor || length || payload`.
+`digest_range` reads the payload in place, so hashing copies zero payload
+bytes. `hashes == resources` and `bytes_hashed == payload_bytes` in every
+scenario.
+. *Bucket.* Entries are ordered by a deterministic bottom-up merge sort on
+`(fingerprint, descriptor, length, index)` — worst case `O(n log n)` on
+already ordered, reverse ordered, and equal input; no first-pivot quicksort.
+. *Candidate only.* A shared fingerprint is a _candidate_. Each bucket is
+partitioned by exact descriptor and exact byte length first.
+. *Order.* Each partition with more than one entry is ordered by an
+iterative most-significant-byte radix refinement with an explicit segment
+stack. An entry contributes a byte visit only while still tied with another
+entry, and a counting/scatter pass runs only at a real split, of which there
+are at most `entries - 1`. Declared bound: `O(bucket_entries + bucket_bytes)` byte work. There is *no all-pairs comparison*.
+. *Confirm.* Adjacent exact payload equality confirms each merge:
+`entries - 1` comparisons, stopping at the first differing byte. A hash
+collision is never treated as equality.
+. *Canonical IDs* are assigned in that content-derived order, so they do not
+depend on insertion, map, or traversal order.
+
+[#contributor-resource-graph-planning]
+=== Planning
+
+* *Closure.* An iterative stack walk from every declared content-stream root
+marks reachability over direct edges. Any canonical resource no root can
+reach is `UnreachableResource`. Attacker-controlled depth is never recursed.
+* *Topological order.* Kahn's algorithm over the reverse index. Ready nodes
+are resolved by a binary min-heap on canonical ID — the documented *total*
+tie-break order, and content-derived, so adversarial insertion orders produce
+the identical normalized plan. Failure to plan every node is
+`DependencyCycle` naming the lowest still-blocked resource; a canonical
+self-edge is the separate `SelfCycle`.
+* *Complexity.* `O(V + E)` for validation, closure, and dictionary
+construction; `O((V + E) log V)` for planning; `O(n log n)` for the identity
+and edge sorts; `O(entries + bytes)` for collision ordering and equality.
+* *Direct dictionaries.* Each content-stream root receives exactly its direct
+canonical resources; each resource's nested dictionary contains exactly its
+own direct dependencies and never a transitive one. Both come from normalized
+facts. Resource use is never recovered by scanning serialized operators or
+PDF content bytes.
+
+[#contributor-resource-graph-limits-arithmetic-and-diagnostics]
+=== Limits, arithmetic, and diagnostics
+
+Every dimension has an explicit checked limit: resources, edges, roots, root
+uses, placements, payload bytes, hashes, hashed bytes, collision entries,
+ordering work, compared bytes, and topological work. All accumulation uses
+checked arithmetic; an impossible or overflowing payload range is
+`PayloadRangeInvalid`. Every failure is one stable structured value holding
+compact scalar IDs and the exact failed bound — no diagnostic retains a
+payload, so diagnostics stay bounded regardless of input size. Failure is
+transactional: no plan, no partial plan, and no PDF bytes.
+
+[#contributor-resource-graph-ownership]
+=== Ownership
+
+The planner consumes source and raw edges, retaining the original flat
+payload, canonical descriptor ranges, direct and reverse indexes, plan
+order, root dictionaries, placement records, and source-to-canonical map.
+Digest, ordering, and exact comparison read the original allocation in
+place. The plan retains that entire allocation until the last referencing
+range is released, including duplicate payload bytes. Retained-input and
+unique-input controls verify the same output with independently measured
+allocation counts.
+
+[#contributor-resource-graph-evidence]
+=== Evidence
+
+`KernelResourceGraph.roc` covers empty and leaf-only graphs, branching
+and shared dependencies, adversarial input order, exact equality,
+placement ownership, and all bounded failure categories. The
+`resource-graph-v1` cases in `tests/spec.json` pin exact work,
+allocations and allocated bytes for scaled chains, fans, dense graphs,
+and forced collisions. A 1,000-entry collision case makes 999 adjacent
+comparisons. Allocation growth is governed by nodes and edges, while
+collision work also counts visited payload bytes.
+
+[#contributor-resource-names]
+== Stable resource names
+
+[#contributor-resource-names-sealed-representation]
+=== Sealed representation
+
+`KernelResource.Plan` assigns private PDF resource names during planning, not
+during public document construction. Its base resource inputs are dense
+identities in canonical kind order: color space, font, ICC profile,
+image, pattern, shading, then other XObject. The planner does not sort or use a
+map. It rejects a kind reversal, duplicate or skipped identity, a nonzero first
+identity for any kind, and entry or aggregate-name limits before a plan can
+escape.
+
+Names are package-versioned ASCII prefixes followed by the one-based canonical
+unsigned identity: `CS`, `F`, `ICC`, `Im`, `P`, `Sh`, and `XO`. Prefixes remain
+distinct even where multiple implementation kinds will later occupy one PDF
+resource subdictionary. Feature lowerers consume the sealed name attached to
+the earlier typed resource identity; they do not reconstruct a name from
+object order or a hash traversal.
+
+The plan retains the caller's single dense entry list, one exact-capacity byte
+arena, and one dense span list. Each name is a seamless view into that arena,
+so it adds no backing allocation per resource. Planning first validates and
+computes the exact checked byte total, then fills the two unique output buffers
+in one direct indexed pass. Lookup is constant time; validation and emission
+are linear in entries plus decimal digits.
+
+[#contributor-resource-names-executable-evidence]
+=== Executable evidence
+
+Focused Roc tests cover every kind prefix, the `F9` to `F10` decimal-width
+transition, empty resources, kind reversal, duplicate/skipped/nonzero-first
+identities, and exact entry and aggregate-byte limit failures.
+
+The 4,096-font fixture seals exactly 19,373 name bytes and checks the
+byte checksum. It records 4,096 entry and identity checks, 4,095
+adjacent kind comparisons, and 19,373 audited byte visits. The fixture
+keeps the exact PDF, work vector, and allocation evidence in
+`tests/spec.json`.
+
+[#contributor-form-xobjects]
+== Form XObject identity and placement ownership
+
+Use the resource graph for physical Form XObject identity. Validate a form's
+geometry, direct dependencies, and placement multiplicity before emitting its
+definition or any invocation.
+
+[#contributor-form-xobjects-the-semantic-and-tagging-model]
+=== The semantic and tagging model
+
+*Decision: placement-site tagging over ownership-neutral physical forms.*
+
+[arabic]
+. A Form XObject's content stream never contains structure-bearing marked
+content: no MCIDs, no `/StructParents`, no `/StructParent`, and no OBJR.
+Form streams may contain non-structural presentation sequences (the
+existing `ActualText` spans emitted by text lowering) because those carry
+no ParentTree ownership.
+. Every meaningful placement is tagged in the _consuming page content
+stream_: the placing scene group is fragment-owned, so the existing
+`/P <</MCID n>> BDC … EMC` wrapper (ISO 32000-2, 14.6.2: content painted by
+a `Do` inside a marked-content sequence is part of that sequence) encloses
+the balanced `q <matrix> cm /XOn Do Q` invocation. Artifact placements are
+likewise enclosed by the group's `/Artifact … BDC … EMC` wrapper.
+. MCIDs, page `/StructParents`, and ParentTree rows therefore remain exactly
+the page-stream facts the tagged-visual tagged plan already produces. No form
+stream acquires a ParentTree mapping, so ISO 32000-2's stream-scoped
+content-item rules (14.7.5.4: an MCID in a non-page stream needs an MCR
+with `/Stm` and the stream's own `/StructParents` key) never apply to
+emitted output.
+
+[#contributor-form-xobjects-text-inside-forms]
+=== Text inside forms
+
+* A form that paints text (directly or through nested forms) must be
+instantiated exactly once: every `Text.RunId` is drawn exactly once
+globally, matching the existing run-ownership contract. Placing a
+text-bearing form more than once (any placement multiplicity across the
+DAG) is the stable rejection `TextFormMultiplyPlaced`; text reachable under
+an artifact owner is `ArtifactTextInForm`, the form-DAG analogue of the
+existing `ArtifactTextUnsupported`.
+* The run's fragment ownership is the owner of the form's unique placement
+chain, resolved iteratively over the DAG (no recursion). The fragment's
+MCID wraps the placement in the page stream; `ActualText`, `ToUnicode`,
+CID, and subset behavior are unchanged because the same
+`KernelPdfText.ScenePlan` run lowering produces the in-form text operators.
+* Two authored text-bearing forms whose canonical recipes are byte-identical
+(same glyphs, font, paint, geometry — which requires their occurrences'
+presentation to be identical) deduplicate to one physical stream; each
+placement still extracts through its own MCID and occurrence.
+
+[#contributor-form-xobjects-logical-order-versus-paint-order]
+=== Logical order versus paint order
+
+Reading order continues to come only from the semantic content spine; MCIDs
+are assigned from page paint order; the `/K` order of structure elements is
+spine order. Form placement order participates in paint order exactly like any
+other painted group, so the `order` scenario proves a document whose spine
+order is intentionally different from its form paint order.
+
+[#contributor-form-xobjects-form-identity]
+=== Form identity
+
+Canonical recipes include validated commands, geometry, numeric operands,
+text and paint, and exact canonical identities for nested resources. The
+digest identifies an equality candidate. Exact recipe checks prove reuse.
+Identity carries no MCID, object number, or logical position. Direct
+dependencies provide each stream's resource dictionary.
+
+[#contributor-form-xobjects-complexity-ownership-and-retention-contracts]
+=== Complexity, ownership, and retention contracts
+
+Use the existing acyclic dependency graph and dense placement facts.
+Traversals count direct edges and commands. A reused artifact or
+visual-only form gets one generated compressed stream. Each consuming
+page site retains its own occurrence or artifact association. The
+emitter consumes the generated payload through its final declared use.
+
+[#contributor-form-xobjects-evidence]
+=== Evidence
+
+`fuzz/GraphicsTransformModel.roc` compares transform and graphics-stack
+behavior with ISO 32000-2 §8.3.4. The Form XObject cases in
+`tests/spec.json` pin scaled artifact reuse, distinct recipes, nested
+forms, logical versus paint order, and bounded rejection of conflicting
+ownership. `scripts/check_forms.py` verifies the emitted structural
+wrappers, per-stream dictionaries, and paint. The opt-in matrix
+`scripts/check_form_renderers.py` compares the original files in pinned
+independent readers.
+
+[#contributor-transparency]
+== Constant alpha and isolated transparency groups
+
+Scene normalization plans literal opacity, effective opacity through
+nesting, and explicit form-group isolation. It resolves paint contexts
+before lowering. PDF writes Normal blending in the packaged sRGB blending
+space, with exact direct-use dictionaries.
+
+[#contributor-transparency-effective-alpha-semantics-and-the-u16-mapping]
+=== Effective-alpha semantics and the U16 mapping
+
+`Scene.Opacity` carries one public `U16` alpha applied to both the
+non-stroking and stroking constants. The *effective alpha of a painted
+element is the product of every enclosing opacity group within its content
+stream*, computed in exact fixed width:
+`effective = round_half_even(ambient * own, 65535)` at each nesting step
+(the denominator is odd, so the half-way tie cannot occur and the rounding is
+plain nearest; the function keeps the shared round-half-even shape).
+
+* 65535 is fully opaque and an *exact multiplicative identity*
+(`x·65535/65535 = x`). An opacity command whose own value is the identity
+*normalizes away entirely*: no resource, no operators, no recipe marker.
+This is a normalization decision, tested at every stage boundary, not a
+serializer optimization.
+* Zero annihilates exactly and is a supported constant (invisible painting).
+* A non-identity factor always lands strictly below 65535, so an emitted
+state's value is in `[0, 65534]` and the identity value doubles as the
+internal "no state" sentinel without collision.
+* The canonical PDF number uses the identical mapping color channels use:
+`round_half_even(value * 1000000000, 65535)` emitted at scale 9 — 32768 emits
+`0.50000763`, 49152 emits `0.750011444`, 16384 emits `0.250003815`, zero
+emits `0`. `/ca`, `/CA`, and painted channel values therefore agree
+byte-for-byte on one canonical arithmetic.
+
+Nested groups lower to nested `q /GS_eff gs … Q` pairs whose operands carry
+the _effective_ products, so PDF's replace-semantics `gs` implements the
+typed multiplicative semantics exactly. The showcase pins the exactness:
+0.75 * 2/3 (49152 then 43690) collapses onto the same canonical state as a
+directly authored 0.5, because `49152 * 43690 = 32768 * 65535` exactly.
+
+[#contributor-transparency-across-form-boundaries]
+=== Across form boundaries
+
+A form without a transparency group is transparent to the graphics state, so
+its painted elements multiply the ambient alpha natively — placing a plain
+form under an opacity group needs nothing special. An *isolated group form*
+resets the ambient constant alpha at its boundary (ISO 32000-2, 11.6.6: at
+the start of group execution ca/CA/BM/SMask reset to their initial values,
+and the enclosing state applies once to the group's composited result), so
+its internal opacity is relative to the group and the one shared stream stays
+valid under every placement context.
+
+The single combination whose correct behavior one shared stream cannot
+encode is a *non-group form whose own stream carries a non-opaque opacity
+command, executed under a non-identity ambient alpha*: the inner `gs` would
+replace, not multiply, and the required per-placement effective product has
+no shared representation. That combination is the transactional rejection
+`FormOpacityInAmbient`, resolved over the placement DAG (ambient context
+propagates through non-group parents and stops at isolated-group
+boundaries). Authors who need it isolate the form. This mirrors the form
+slice's `TextFormMultiplyPlaced` rule: a structured rejection in place of
+silent duplication or changed semantics.
+
+[#contributor-transparency-resource-graph-dictionaries-and-objects]
+=== Resource graph, dictionaries, and objects
+
+Derived states are ordinary canonical graph leaves. One state per
+distinct effective value carries `/BM /Normal /CA a /Type /ExtGState
+/ca a`. Page blending space is a closure-only use. Every stream
+dictionary declares exactly its direct uses, with canonical state
+names. A shared page-group value serves transparency pages, and a
+shared isolated-group value serves isolated forms.
+
+[#contributor-transparency-independent-evidence]
+=== Independent evidence
+
+`scripts/check_transparency.py` checks canonical state sharing,
+group isolation and blending space, all `gs` operands in page and form
+contexts, and corrupted states. `scripts/check_transparency_renderers.py`
+checks independent sampled compositing values and pinned reader
+rasters. The transparency cases in `tests/spec.json` exercise
+all-opaque elision, shared and distinct alphas, nested form contexts,
+transparency limits, and allocation/work scaling.
+
+[#contributor-soft-masks]
+== Form-backed alpha soft masks
+
+A soft mask uses the alpha of an explicit isolated-group form rendered
+against a transparent backdrop. Normative basis and layout constraints use
+ISO 32000-2 §11.6.6. Select the mask through a canonical ExtGState with one
+direct `/SMask /G` dependency. The mask Form required only by this edge
+stays reachable through it.
+
+[#contributor-soft-masks-scope-and-non-scope]
+=== Scope and non-scope
+
+The mask group writes balanced `q /GSn gs ... Q` operators. The state
+points to the isolated group's stream object with `/S /Alpha`.
+Constant alpha, image masks, and group masks compose. A documented
+isolated-group boundary resets ambient state and permits inner and outer
+masks to compose. Within one stream context a second active mask would
+replace the first, so it is rejected as `NestedSoftMask`. The planner
+rejects ambient non-isolated application (`FormMaskInAmbient`), text
+reachable in mask rendering (`TextInMaskForm`), and an over-budget
+chain (`MaskDepthExceeded`).
+
+[#contributor-soft-masks-normalization-pipeline]
+=== Normalization pipeline
+
+The transparency slice's derived-state pre-pass generalizes to one combined
+derived-state space `[AlphaState(value), MaskState(form)]`: distinct
+effective alphas and distinct authored mask Forms register dense
+first-appearance indices during the same walk (each registry map allocated
+only when the scene counted the corresponding commands), each walk frame
+carries `(ambient alpha, opacity depth, mask context)`, in-stream nesting and
+non-isolated mask targets reject immediately, and `PlaceForm` sites record
+both ambient channels. Use collection touches mask states exactly like alpha
+states; the state→mask-Form edges join the graph alongside the image→space
+and space→profile edges.
+
+After the ownership sweep, the transparency sweeps carry both channels
+(direct masks are transparency facts, so masked pages get the page `/Group`
+and require the blending space), and two mask-specific sweeps run *only for
+documents that apply masks*: a reversed sweep marks mask-reachable forms
+(for `TextInMaskForm`), and a forward, dependencies-first sweep computes
+mask-chain depths over a counting-and-prefix-sum adjacency of the direct
+edges (`MaskDepthExceeded`). Content lowering consumes the same dense
+per-command canonical-state maps as opacity — the `SoftMask` emission branch
+is the identical balanced-group mechanism.
+
+[#contributor-soft-masks-independent-evidence]
+=== Independent evidence
+
+`scripts/check_soft_masks.py` checks exact Alpha state dictionaries,
+isolated-group targets, direct dictionary ownership, state sharing,
+mask chains, marked-content ownership, and malformed mutations.
+`scripts/check_soft_mask_renderers.py` compares the full 100x100
+rasters against geometry and compositing models. The
+`soft-masks-v1` cases in `tests/spec.json` measure retained versus unique
+input and scaled reuse. Work counts commands and direct edges.
+
+[#contributor-shadings-patterns]
+== Shading and colored tiling pattern resources
+
+Scene normalization validates linear or radial shadings and colored tiling
+pattern cells. It derives deterministic function and resource identities
+before object planning. Each consuming stream names its direct dependencies.
+
+[#contributor-shadings-patterns-fixed-width-numeric-semantics]
+=== Fixed-width numeric semantics
+
+* Stop offsets are public `U16`: 0 is domain 0.0, 65535 is domain 1.0,
+`t = offset / 65535` exactly. The canonical PDF number is
+`round_half_even(offset * 1000000000, 65535)` at scale 9 — byte-identical to the
+channel and constant-alpha mapping, so stitch `/Bounds`, function
+`/C0`/`/C1`, painted channels, and `/ca` all agree on one arithmetic.
+* Stop colors are the existing `U16` channels under the same mapping.
+* Coordinates, radii, steps, and matrices are `Layout.Unit` (`I64`
+milli-points, 1000 per point) emitted at the exact scale-3 mapping `cm`
+and `re` operands use. Negative zero is unrepresentable (`I64` raw), all
+derived arithmetic is checked, and no host floating-point formatting
+exists anywhere in the path.
+* `/Domain [0 1]` and `/Encode [0 1 …]` are emitted explicitly as integers;
+`/Extend` is always the explicit two-boolean array; radii must be
+non-negative; pattern steps must be strictly positive; pattern matrices
+must have a nonzero checked determinant.
+
+[#contributor-shadings-patterns-function-object-strategy]
+=== Function-object strategy
+
+The simplest faithful representation of the exact stop model: exponential
+interpolation per stop interval with `/N 1`, stitched with the exact
+interior offsets as bounds and canonical `[0 1]` encode pairs. Stop
+ordering and domains validate at the scene boundary before object planning;
+function objects have deterministic content-derived identity and canonical
+ordering; equal functions merge only after exact recipe equality; every
+referenced function is an explicit graph node and planned object; and
+construction is bounded by the per-shading stop budget (256), the shared
+recipe-byte budget, and the graph's resource/object limits. No function
+language is public, and independent inspection re-derives domains, bounds,
+encode arrays, endpoint components, and adjacent-segment continuity from
+the emitted objects alone.
+
+[#contributor-shadings-patterns-resource-dag-and-closure]
+=== Resource DAG and closure
+
+Shadings depend on their color space and root function. A stitching
+function depends on its segments. Pattern cells declare direct image,
+form, opacity-free paint, and shading resources. Graph closure includes
+the function objects without adding entries to stream dictionaries.
+A reversed topological pass marks pattern-reachable forms and validates
+transitive restrictions over direct edges.
+
+[#contributor-shadings-patterns-object-planning-lowering-and-emission]
+=== Object planning, lowering, and emission
+
+Shadings use Type 2 or 3 dictionaries. The paint operator is `sh` with
+the canonical shading name. Uncolored tiling patterns are outside this
+API. A colored cell emits one `/PaintType 1 /PatternType 1` stream and
+uses `/Pattern cs` plus the canonical `scn` selection. The checked
+matrix maps pattern space into the default space of its consuming stream.
+Transformation follows ISO 32000-2 §8.7.3.1.
+
+[#contributor-shadings-patterns-independent-evidence]
+=== Independent evidence
+
+`scripts/check_shadings.py` validates exact dictionaries and operators,
+function domains and continuity, direct resource reachability, canonical
+sharing, and mutation rejections. `scripts/check_shading_renderers.py`
+compares generated rasters to independent geometry and color models.
+The `shadings-patterns-v1` cases in `tests/spec.json` pin scaled sharing,
+distinct recipes, geometry, limits, and malformed atomic cases.
+
+[#contributor-pdf-font-objects]
+== Type 0 font object lowering
+
+Font lowering consumes earlier inspected, planned, and subset font facts and writes the planned PDF object graph. It assigns seven consecutive indirect objects for the
+embedded FlateDecode `FontFile2` stream, the FlateDecode `ToUnicode` CMap,
+font descriptor, CIDFontType2 descendant, and Type 0 parent. Stream length
+objects are assigned by the shared object kernel and validated by sealing.
+
+The lowering consumes the dense subset plan directly: CID equals the subset
+glyph ID, which is validated for every retained glyph so the descendant can
+declare `/CIDToGIDMap /Identity` (ISO 32000-2 Table 115), and `/W` contains
+one checked 1,000-unit width for every CID. Descriptor and width metrics are
+scaled once from the inspected units-per-em. The subset prefix and validated
+PostScript name form the PDF BaseFont name; caller-controlled whitespace,
+delimiters, non-ASCII bytes, `#`, and the subset separator are rejected.
+
+Every content CID must have exactly one ordered Unicode mapping before any
+object is added. Empty, missing, unexpected, duplicate, surrogate, and
+out-of-range mappings are typed errors. A destination over 512 UTF-16BE bytes
+is rejected before CMap construction. The CMap writes at most 100 entries per
+block and emits supplementary scalars as UTF-16 surrogate pairs. Its exact
+serialized byte count is checked against the configured limit before allocation.
+Context-dependent mappings and `ActualText` remain facts supplied by later text
+lowering; this module does not infer them from glyph identity.
+
+[#contributor-pdf-font-objects-validation]
+=== Validation
+
+The focused fixture covers repeated glyph use, ToUnicode entries, object
+identity, stream closure and atomic rejection of incomplete Unicode mappings.
+It inspects BMP and supplementary destinations of exactly 512 decoded bytes
+in a sealed stream and rejects 514- and 516-byte destinations. The advanced
+text fixture also rejects a shaped cluster that would assign an oversized
+mapping to a CID. Integrated fixtures cover reader extraction and page output.
+
+Current exact allocation and work expectations live in the matching scenarios
+in https://github.com/lukewilliamboswell/roc-pdf/blob/main/tests/spec.json[`tests/spec.json`]. Review changes with the
+xref:contributor-reference.adoc#contributor-testing-allocation-baselines[allocation baseline protocol].
+
+[#contributor-multiface-advanced-output]
+== Ordered multiface output for advanced callers
+
+`KernelShape.validate_advanced_selected` consumes the ordered
+`Font.FaceRange` plan and once-parsed face inspections. Each shaped run
+matches one selected cluster range and instance. The text, font-plan,
+subset, CID, ToUnicode, resource, tagged-content and sealed-object
+stages retain the instance identity without repeating coverage selection.
+
+The `text-layout ordered multi-face advanced output` case in
+`tests/spec.json` selects `[Latin, CJK, Latin]` for three graphemes.
+The fixture uses U+0043, U+4E2D and U+00E9. It checks two sanitized
+TrueType subsets, exact direct page-resource closure and separate
+CID/ToUnicode maps. Direct reconstruction and PDFBox extraction
+recover all three scalars in order. The invalid twin `MissingCoverage`
+checks a Latin scalar itemized as `Hani` before the plan escapes.
+The case metadata pins exact allocations, work and the two independent
+renderer expectations.
+
+See xref:contributor-layout.adoc#contributor-multiface-public-facade[ordered face selection through the facade].
+
+[#contributor-metadata-output-intent]
+== Canonical metadata, document language, and sRGB output intent
+
+Metadata validation produces typed facts before layout. The catalog and
+XMP share the validated language. XMP also consumes the validated title,
+timestamps, and selected profile. Conformance validation consumes these facts and verifies the
+emitted outputs through the case-specific validators.
+
+[#contributor-metadata-output-intent-typed-facts-and-validation-policies]
+=== Typed facts and validation policies
+
+All metadata facts originate in typed authoring data and cross the compiler
+stages explicitly; no later stage re-parses, re-derives, or recovers a value
+from serialized bytes.
+
+*Language.* The language-tag reference is BCP 47 / RFC 5646. The accepted subset is the canonical-case form
+`language["-" script]["-" region]`: a two- or three-letter lowercase primary
+language, an optional four-letter titlecase script, and an optional
+two-letter uppercase or three-digit region. Three rejection families keep
+the boundary honest and the diagnostics stable:
+
+* `MalformedLanguageTag` — shapes RFC 5646 itself cannot produce (`en_AU`,
+`en--AU`, digit-bearing primaries, a second region), with the byte offset;
+* `UnsupportedLanguageForm` — well-formed RFC 5646 outside the subset
+(private use, singletons, variants, extended language subtags, 4–8 letter
+primaries), never silently accepted;
+* `LanguageNotCanonicalCase` — supported tags in non-canonical case
+(`en-au`, `EN`, `zh-hans`), rejected rather than silently normalized.
+
+Registry validity beyond RFC 5646 syntax is out of scope because the IANA
+subtag registry is not a pinned data dependency. Length is bounded before
+parsing (`max_language_bytes`, 64 on the facade; the subset's own maximum is
+12 bytes).
+
+*Title.* Non-empty, bounded (`max_title_bytes`, 2048 on the facade), and
+every scalar must be an XML 1.0 character: C0 controls, DEL, U+FFFE, and
+U+FFFF reject with `InvalidTitleScalar` at the exact byte offset (U+FFFD and
+all other supplementary scalars pass through as canonical UTF-8). The same
+single validation scan counts the `&`/`<`/`>` occurrences, so serialization
+later knows its exact output size without rescanning.
+
+*Timestamps.* `Metadata.TimestampInput` stays `Explicit(Str)` or
+`Omitted`; the package never reads a clock. Explicit values accept exactly
+the 20-byte canonical UTC form `YYYY-MM-DDThh:mm:ssZ` — no offsets, no
+fractional seconds — with month/day ranges and the Gregorian leap rule
+checked (`2024-02-29` accepted, `2023-02-29` rejected at offset 8). One
+canonical input form means the emitted `xmp:CreateDate`/`xmp:ModifyDate`
+need no normalization step.
+
+Validation runs once, in `Pdf.build_plan` before any layout work on
+the facade (so a rejected document costs no shaping or pagination) and at
+the head of the kernel evidence pipeline; the returned `Facts` record —
+including the escape counts — is what every later stage consumes.
+
+[#contributor-metadata-output-intent-canonical-xmp-serialization]
+=== Canonical XMP serialization
+
+`KernelXmp.Packet.build` writes a canonical UTF-8 packet. Namespace
+declarations and properties follow URI and local-name order. The
+`dc:language` bag has one validated language, and the `dc:title` Alt
+has one `x-default` entry. Explicit times use canonical UTC; optional
+omitted times leave no empty elements. Element text escapes `&`, `<`,
+and `>`. Validation supplies exact byte limits and escape counts before
+one buffer allocation. Metadata remains unfiltered.
+
+[#contributor-metadata-output-intent-the-output-intent-and-the-packaged-profile]
+=== The output intent and the packaged profile
+
+The packaged asset is `vendor/icc/sRGB2014.icc`, the ICC's official v2
+sRGB profile, 3,024 bytes. The license, provenance, SHA-256, and ISO
+15076-1 profile-ID self-check are recorded in `vendor/icc/NOTICE.md`
+and `assets/provenance.json`. `scripts/build_srgb_profile.py` produces
+`package/KernelSrgbProfile.roc`. The generated module pins size and
+digest with an `expect`.
+
+The metadata-bearing catalog's `/OutputIntents` array names one
+`/GTS_PDFA1` dictionary. Its `/DestOutputProfile` references the canonical
+three-component ICC stream, which is FlateDecode. Identical validated
+profile bytes share that stream through their canonical resource
+identity. The archival declaration is emitted in XMP by the selected
+profile.
+
+[#contributor-metadata-output-intent-independent-evidence]
+=== Independent evidence
+
+`scripts/check_metadata.py` parses the original PDF and checks the
+language, canonical packet, titles and times, output intent and profile
+sharing, and exact ICC bytes. Test cases in `tests/spec.json` control
+allocation and work for repeated metadata, omitted times, and located
+malformed values. Use `scripts/check_metadata_renderers.py` with the
+pinned external tools for independent rendering and metadata extraction.
+
+[#contributor-navigation-annotations]
+== Navigation, annotations, and outline targets
+
+Prepared navigation resolves authored target identity before object
+lowering. A GoTo action writes a paired structure destination and geometric
+destination from one resolved record. Keyboard order, page ownership, and
+semantic order remain explicit and independently checked.
+
+[#contributor-navigation-annotations-stage-contracts-and-representations]
+=== Stage contracts and representations
+
+`KernelNavigation.resolve` follows each target's explicit anchor
+occurrence to its first committed fragment. Its page and geometry
+supply `/XYZ`; the authored target supplies `/SD`. A destination name
+registry resolves one ordered UTF-8 key at a time by binary search.
+A named target shares the paired facts. The `/D` plus `/SD` on an
+internal GoTo comes directly from the resolved record.
+
+A wrapped Link joins multiple active quads on one page into one
+annotation and one OBJR for that page. Every annotation's explicit
+`/StructParent` key, ParentTree owner, and `/Pg` agree. The active
+regions use counterclockwise quads starting on their lower edge.
+The annotation's `/Rect` encloses their union. Keyboard order follows
+authored facts, and outline counts follow the authored hierarchy.
+See ISO 32000-2 §12.3.2.3, §12.5.6.5 Table 176, §14.8.4.7.3 and its
+resolved errata.
+
+[#contributor-navigation-annotations-independent-evidence]
+=== Independent evidence
+
+`scripts/check_navigation.py` parses the emitted bytes directly. It
+checks keyboard-ordered `/Annots` references, the closed action union,
+paired destinations and exact resolved coordinates, quad containment
+and vertex order, ParentTree and OBJR ownership, name-tree keys and
+limits, independently computed outline counts, ascending page-label
+keys, and appearance geometry. Mutation twins exercise malformed
+links, swapped coordinates and owners, missing keys, and duplicated
+annotation references. Cases in `tests/spec.json` also pin facade
+equivalence, destination reuse and negative authorship.
+
+`scripts/check_navigation_renderers.py` drives the pinned reader matrix.
+The `PdfBoxNavigate.java` lane checks real page resolution through
+`/D` and through the name registry. This complements structure inspection
+of `/SD`, which readers need for navigation using the structure tree.
+
+[#contributor-navigation-annotations-combined-accessible-archive]
+=== Combined accessible archive
+
+In the accessible archive control, two annotation objects and two
+ParentTree keys resolve to one logical Link and one authored Overview
+target. The named Results destination supplies a valid wrong-target
+mutation. The checker also rejects replacing one fragment's action
+with an external URI under the same Link owner. The profile control
+verifies PDF/UA-2 identification separately from the navigation facts.
+
+[#contributor-outline-hierarchy]
+== structural-kernel linked outline hierarchy
+
+[#contributor-outline-hierarchy-representation-rule]
+=== Representation rule
+
+PDF document outlines are not balanced search trees. ISO 32000-2:2020 12.3.3
+Tables 150 and 151 represent each sibling level as a doubly linked list and use
+`First`, `Last`, `Parent`, `Prev`, `Next`, and signed `Count` facts to express
+the hierarchy and its open state. Inserting invisible balancing nodes is not an
+available transformation: every outline item has user-visible identity and
+would change the authored outline.
+
+`KernelOutline.Plan` therefore consumes a dense preorder entry list and
+preserves its sibling order exactly. Each entry carries a title ID, optional
+target value ID, depth, and open state. Sealing checks the entry limit before
+allocation, enforces an explicit depth limit, rejects a nonzero first depth and
+skipped parent depths, and validates title and target IDs against facts from the
+earlier object-value stores.
+
+The sealed plan is a flat item list with dense opaque IDs. One forward pass
+assigns parent, previous/next sibling, and first/last child links. One reverse
+pass accumulates the number of descendants that would be visible if each item
+were open. Items with children receive a positive `OpenCount` or negative-on-
+emission `ClosedCount`; leaves omit `Count`. The outline root records the total
+currently visible entry count and exact top-level first and last items.
+
+[#contributor-outline-hierarchy-complexity-and-evidence]
+=== Complexity and evidence
+
+Planning is `O(entries)` time and uses one final item allocation plus an
+`O(depth)` ancestor stack. It creates no list per parent, sibling level, or
+outline item. No traversal infers relationships from object numbering; a later
+object lowerer consumes the sealed link and count facts directly.
+
+Focused tests cover mixed open and closed subtrees, exact root and item counts,
+root/parent/child/sibling links, a targetless grouping item, and named failures
+for empty input, entry and depth limits, first-depth and skipped-depth errors,
+and unresolved title or target IDs.
+
+The pinned optimized stress fixture seals 4,096 entries arranged as 128
+top-level items with 31 children each. Alternating top-level open state produces
+an exact root visible count of 2,112. The fixture independently walks all 128
+parent and 3,968 leaf items, checks 3,967 previous and next links, and records a
+16,773,120 title/target identity checksum. Construction records 4,096 entries
+checked, 4,096 items appended, 15,999 in-place item rewrites, 4,096 count
+accumulations, and maximum depth one.
+
+The outline fixture adds exactly four Roc allocations to the unchanged
+4,096-page path: the caller entry list, final item list, and the two-element
+ancestor stack's growth. Its current total is 134,278 allocations; there is no
+allocation per item or relationship. It emits the same 1,084,927-byte PDF with
+SHA-256
+`bef875d56c7b93c4120aaea9e9f19bc90b3f4857e507a8bdb6aff6a8e07e5756`.
+CI applies the exact allocation count and work vector on arm64mac and x64musl.
+
+This fixture exercises sealing the outline hierarchy. The
+xref:contributor-output.adoc#contributor-navigation-annotations[navigation contract]
+covers outline lowering and public destination and action construction.
+
+[#contributor-objects]
+== Dense PDF object identities
+
+The object planner joins resolved tagged, content, navigation, and resource
+facts before assigning PDF object numbers. The planning order of each
+family is explicit. All counts and total object limits use checked
+arithmetic. A forward reference names a planned identity, and a linear
+prefix walk accounts for optional image alpha-mask objects.
+
+The planner stores dense scalar identities, page-tree shape facts, and
+fixed-shape rows. Large scene, text, and resource payloads stay in their
+own stores. Each variable family contributes exact work counters. Sealing
+and emission consume the resulting flat plan in order, with a separate
+deterministic partition into top-level objects and packed objects.
+
+[#contributor-object-store]
+== Flat PDF object store
+
+[#contributor-object-store-scope-and-status]
+=== Scope and status
+
+`KernelObject` is a private package module for constructing the PDF object
+graph. It implements dense IDs, flat value and edge stores, preassigned stream
+length-object references, explicit payload ownership kinds, checked dimensions,
+direct-depth limits, canonical dictionary-key validation, and exact work
+counters. Sealing validates all forward references and the optimized emitter
+consumes the same compact plan.
+
+The module is imported privately by `Pdf` so its tests are in the package test
+closure. It is intentionally absent from `package/main.roc`; object numbers,
+spans, streams, and lexical storage are not public facade types.
+
+[#contributor-object-store-representation-and-ownership]
+=== Representation and ownership
+
+* Values, depths, array edges, dictionary edges, objects, streams, names, byte
+strings, text strings, and payloads each have one consumption-shaped store.
+* Opaque `U64` IDs prevent accidental interchange between values, names,
+strings, payloads, streams, and indirect objects without tagged runtime
+wrappers. Object number zero is uninhabitable.
+* Arrays and dictionaries are spans into flat edge buffers. Values therefore do
+not form recursive Roc lists or retain parent containers through child nodes.
+* A stream retains a payload ID and a separately preassigned indirect length
+object ID. It never embeds or duplicates payload bytes.
+* Text strings retain their UTF-8 byte list once, so emission does not allocate
+another `Str.to_utf8` conversion per use.
+* Generated and unchanged-resource payloads retain their input byte list once.
+The chunk-retention policy selects whether to share an unchanged caller
+slice or copy it into an owned chunk.
+
+The builder is consumed and returned by every successful operation so unique
+list buffers can grow in place under optimized ARC. A failed operation returns
+no modified builder and performs every bounds, index, key-order, and work check
+before appending to a store.
+
+[#contributor-object-store-traversal-and-complexity]
+=== Traversal and complexity
+
+All edge validation and appending uses indexed `while` loops. There is no
+`Iter`, recursive object walk, map iteration, per-edge closure, or temporary
+token list.
+
+* Scalar insertion, indirect-object insertion, and interned-value insertion are
+constant work apart from amortized list growth.
+* Array insertion is linear in its edge count and appends each edge once.
+* Dictionary and stream insertion are linear in entries plus adjacent key-byte
+comparisons. Requiring already-sorted keys avoids an internal sort and makes
+order deterministic. Long common prefixes can be revisited between adjacent
+keys; the exact comparison count is recorded and all counter additions are
+overflow checked.
+* Name and text validation is linear in input bytes. Byte strings and payloads
+are retained without a validation copy.
+* Direct-container depth is stored beside each value, so a parent computes its
+depth during the same edge-validation pass instead of recursively walking the
+completed graph.
+
+Count, cumulative-byte, direct-depth, index, and work arithmetic is checked
+before mutation. Errors report the exact dimension, attempted value, limit, or
+store kind.
+
+[#contributor-object-store-executable-evidence]
+=== Executable evidence
+
+structural-kernel now has sealing-time reference validation, compact emission-plan
+measurements, exact optimized allocation scenarios, and thousands-of-pages
+stress plus greater-than-4-GiB counting-sink coverage. It also has
+shared-versus-owned backing-storage retention and final-use release evidence.
+An exact all-value integration check now constructs, seals, and emits every
+direct value form through this store, including nested arrays/dictionaries and
+a resolved reference. The strict PDFBox lane separately checks the emitted
+structural object range, references, and streams.
+Allocation or work baseline changes are reviewed as representation changes,
+not mechanically accepted.
+
+[#contributor-structure-lowering]
+== Catalog and page-tree lowering
+
+The page tree consumes the shared opaque `KernelBalanced.Shape`:
+fixed fanout 32, left-packed breadth-first levels, and every leaf at
+one depth. Each node stores its exact descendant page count. Each page
+and each non-root node has an explicit parent. Catalog, page tree, page
+and stream facts go into the same flat checked stores as other objects.
+
+[#contributor-structure-lowering-representation-and-traversal]
+=== Representation and traversal
+
+Shared names and direct values are stored once. A page retains scalar
+IDs for its media box, resources and parent reference. Direct indexed
+loops traverse tree levels and pages in `O(pages + nodes)` work.
+Counts, object numbers, and xref-object assignment use checked
+`U64` arithmetic. The lowerer builds the compact sealed plan and leaves
+byte materialization to the shared emission transition.
+
+[#contributor-structure-lowering-evidence]
+=== Evidence
+
+Focused Roc tests cover a single-node tree, the 33-page depth transition,
+and a deterministic 4,096-page shape. The independent byte checker
+verifies `/Kids`, `/Parent` and `/Count` and rejects cycles,
+unreachable nodes, mixed child types and fanout violations. The
+4,096-page case pins object, value and edge work, exact output and
+allocations in `tests/spec.json`.
+
+[#contributor-sealed-plan]
+== Sealed object and stream plan
+
+[#contributor-sealed-plan-scope-and-status]
+=== Scope and status
+
+`KernelSeal` consumes the private object builder and returns an opaque compact
+plan only after the complete object range is known. It validates object order,
+stored-value indices, lexical-value store indices, aggregate spans, forward
+references, stream ownership, and the consecutive indirect length-object pair
+for every stream. No public type in `package/main.roc` exposes the builder,
+store, or sealed plan.
+
+Catalog/page-tree invariants, output bounds, xref dimensions, and the emission
+state machine now consume this same sealing transaction before the facade can
+return an encoder or bytes.
+
+[#contributor-sealed-plan-representation-and-traversal]
+=== Representation and traversal
+
+The sealed plan retains the existing flat stores, exact source-byte totals,
+construction work, and sealing work. It drops construction limits and does not
+materialize a recursive tree, object map, reference map, token list, or
+precompressed stream list.
+
+Sealing uses direct indexed passes:
+
+* The object pass validates contiguous generation-zero order, stored values,
+and stream ownership in object order. It checks that each stream-bearing
+object owns its stream and catches extra length objects. The stream pass
+reports misplaced designated length objects.
+* The value pass validates final store ranges and forward indirect references.
+* The stream pass checks each declared owner's object, length object and
+payload use. The payload pass verifies each recorded final stream points
+back to the payload.
+
+The work is `O(objects + values + streams + payloads)` with constant auxiliary
+state. The object pass tracks the next stream ID in a scalar. Exact object,
+value, reference, and stream visit counts remain in the plan. Counter and
+span arithmetic is checked.
+
+[#contributor-sealed-plan-stream-allocation-and-ownership]
+=== Stream allocation and ownership
+
+Stream construction now allocates the stream object and its indirect length
+object atomically as one consecutive pair. The length object carries
+`LengthOf(StreamId)` rather than a placeholder integer value. The stateful
+emitter can therefore write the measured compressed byte length immediately
+after the stream without buffering the stream or patching a prior object.
+
+Every stream continues to retain one payload ID. Sealing neither copies nor
+coalesces payload bytes, so the shared/owned chunk policy can make the
+retention decision without undoing an intermediate arena.
+
+[#contributor-sealed-plan-executable-evidence]
+=== Executable evidence
+
+The current blank structural plan stores its checked output bound before
+emission, the generated-stream probe adds a checked multi-block compressor
+bound, and an independent counting sink covers offsets beyond 4 GiB. qpdf,
+Arlington, and strict PDFBox lanes now validate the emitted structural plans.
+Shared/owned unchanged-resource retention is checked against actual backing
+allocations and final-use release.
+
+[#contributor-sealed-plan-bounded-stream-pair-model]
+=== Bounded stream-pair model
+
+Run `roc test fuzz/document_suite.roc --no-cache` with the pinned compiler.
+The stream expectations live in `fuzz/StreamSealModel.roc`.
+The model applies the same authored commands to the object builder and a
+plain ledger. After each command it compares the seal result with the
+ledger's ordered objects, reference targets, and payload readers. For an
+accepted plan it also compares each stream's ID, owner object number,
+length object number, and source payload ID. The ledger represents each
+stream pair directly and finds a payload's last reader by scanning the
+authored sources backwards.
+
+The bounded world uses up to five commands per trace, two payloads and
+reference targets 1 and 3. The search exhausts 2,379 states and 2,378
+transitions. Three named goals require a resolved forward reference, an
+attempt to reuse a stream value as a second object, and interleaved payload
+uses. The shortest stream-reuse witness is
+`[AddPayload, AddStream(0), ReuseStreamValue(0)]`. The sealer returns
+`StreamObjectMismatch` with the extra object and its stream before an
+encoder can start. Separate malformed-store cases exercise a second length
+object, a misplaced designated length object, and two self-consistent stream
+pairs in reversed stream order. The misplaced designation preserves the
+`StreamLengthNotAdjacent` diagnostic. Returning the
+first stream as every used payload's last reader also fails the ledger at
+`[AddPayload, AddStream(0), AddStream(0)]`.
+
+This finite search covers ownership and order at the sealing boundary.
+The canonical PDF byte comparisons, reader checks and retained-chunk cases
+continue to validate emission and backing-allocation behavior. Running the
+ledger as a Roc expectation keeps it outside the release package and the
+allocation measurement window.
+
+[#contributor-output-bounds]
+== Checked bounds for emitted PDF bytes
+
+`KernelOutputBound.calculate` computes the final stored bound from the
+sealed object stores. Every later `KernelEmit` transition checks its
+position against that bound. The blank-plan construction guard uses
+checked `4096 + 1024 * page_count + payload_bytes` as a preallocation
+bound for the supported 1 to 1,048,576 page range. The final file
+calculation follows the actual object-stream partition.
+
+[#contributor-output-bounds-object-stream-layout-bound]
+=== Object-stream layout bound
+
+`KernelOutputBound.calculate` walks the sealed objects once in plan order and
+applies the same partition as emission (`KernelFileLayout`):
+
+* A stream object is bounded as a top-level object, exactly as before: its
+header, dictionary value bound with the generated `/Filter` and `/Length`
+entries, framing, and payload bound (a DEFLATE bound for generated
+payloads).
+* Every other object is bounded as an object-stream member: its value bound
+(or the digits of its stream's payload bound for a length object) plus 43
+bytes for its header pair (two numbers of at most 20 digits, two spaces)
+and newline.
+* Each object stream closed by the partition (every 400 members, and the last
+partial batch) adds the DEFLATE bound of its members plus the header's
+newline, and 256 bytes of framing: its object header, a dictionary with at
+most three 20-digit numbers, and the stream keywords.
+* The cross-reference stream adds the DEFLATE bound of 12 bytes per row (a
+predictor byte, the type, at most eight offset bytes, and two index bytes)
+over every object including zero, the object streams, and itself, plus 512
+bytes of dictionary and the `startxref` trailer with the digits of the
+running bound.
+
+The DEFLATE bound is the dependency's stored-block bound (five bytes per
+5,000-byte block beyond the input, at least one block) plus six zlib framing
+bytes, so every term is an upper bound of what emission writes whatever the
+compressor finds. Every addition and multiplication is checked. The emitter
+still compares its position with the stored bound at every segment.
+
+[#contributor-output-bounds-executable-evidence]
+=== Executable evidence
+
+Focused Roc tests exercise maximum accepted page count, rejected
+arithmetic and compressor limits, and realized outputs within the stored
+bound. The 4,096-page and compressed-stream fixtures in `tests/spec.json`
+pin exact output, work and allocations. A counting sink starts above
+`2^32` and checks correct positions and `U64` overflow without
+allocating a multi-gigabyte PDF. The xref width is checked independently
+by `scripts/pdf_layout.py` and the structure validator.
+
+[#contributor-output-size]
+== Canonical compact PDF encoding
+
+File size is evidence about the representation. Use the sealed layout and
+its independent reader when changing a PDF encoding choice. Compression
+presets alter compressed bytes and can alter object offsets. They preserve
+uncompressed content, structure, and plan identity.
+
+[#contributor-output-size-compression-presets-2026-10-19]
+=== Compression presets
+
+`Pdf.Options.compression` selects `Fastest`, `Balanced` (default), or
+`Smallest`. Preparation seals the corresponding libdeflate level (1, 6,
+or 10) into the plan. Emission applies that level to all generated
+streams, object streams and the xref stream. `/ID` derives from normalized
+plan facts and uncompressed generated inputs. The stored-block bound
+holds for every level and the zlib wrapper owns the FLEVEL bits. The
+empty stream keeps its canonical framing bytes.
+
+`tests/pdf_facade` and the `facade_output_equivalence` fuzz target
+exercise buffered, chunked, prepared and one-shot output for these
+choices. The package checks exact framing and work. The
+`Smallest` snapshot records the pre-preset bytes for its matching source.
+
+[#contributor-output-size-checkers]
+=== Checkers
+
+`scripts/pdf_layout.py` parses the layout independently: it decodes the
+predicted cross-reference rows, checks every type 1 offset against the object
+it lands on and every type 2 row against the object stream header that holds
+it, and returns every object's flat body, so the existing checkers read
+objects exactly as before. `check_pdf_structure.validate_object_stream_layout`
+checks the layout itself: canonical dictionaries, the minimal offset width,
+the numbering of object streams after the planned objects, streams top-level,
+and the 400-member partition in object-number order. Negative self-tests
+build their twins in the same layout (`pdf_layout.twin` and `mutate`), so a
+twin differs from a valid file only by its edit; `check_pdf_structure`'s
+self-test also proves that an unedited re-serialized twin still validates.
+The fuzz lane's `StructureOracle` inflates
+the cross-reference and object streams with the DEFLATE dependency's
+inflater (which shares no code with its compressor), undoes the predictor,
+and tokenizes every object where it lives.
+
+[#contributor-output-size-conformance-basis]
+=== Conformance basis
+
+PDF 2.0 permits compressed object streams under ISO 32000-2 §7.5.7.
+The canonical partition is 400 members in object-number order, with
+streams and values consisting entirely of an indirect reference kept
+top-level. All objects use generation zero. The xref stream uses
+minimal offset width and PNG Up prediction. See
+xref:contributor-output.adoc#contributor-output-bounds[the checked bounds].
+
+Generated font programs, CMaps, and ICC streams use FlateDecode.
+Validated JPEG bytes use DCTDecode and XMP stays unfiltered.
+`KernelPdfA4` checks ISO 19005-4:2020 §6.1.6.2 and §6.7.2 as
+`ROC-PDF-PDFA4-6-1-6-2-FILTERS` and
+`ROC-PDF-PDFA4-6-7-2-METADATA`.
+`/CIDToGIDMap /Identity` is valid under ISO 32000-2 §9.7.4 and Table 115.
+Preparation validates CID equals subset glyph ID before writing it.
+
+[#contributor-output-size-5a-literal-strings-and-single-byte-text-strings]
+=== 5a. Literal strings and single-byte text strings
+
+`KernelLex` chooses the shorter canonical byte-string form. Literal
+strings escape delimiters and nonprintable bytes. Ties use uppercase
+hexadecimal. Printable ASCII text uses PDFDocEncoding.
+Other Unicode uses BOM-prefixed UTF-16BE. File identifiers remain hex
+and ActualText keeps its UTF-16BE hex form. See ISO 32000-2 §§7.3.4
+and 7.9.2.2. `canonical_bytes` and `canonical_text` check this policy
+independently.
+
+[#contributor-output-size-5b-structure-elements-optional-type-bare-mcids-and-referenced-cell-ids]
+=== 5b. Structure elements: optional /Type, bare MCIDs, and referenced cell IDs
+
+Use `/Pg` on an element for the page of its first marked-content
+child. Same-page kids write bare MCIDs and other pages write explicit
+MCR dictionaries under ISO 32000-2 §14.7.5.2 and Table 355.
+`/Type /StructElem` is optional. A generated cell `/ID` lowers only
+when a `/Headers` attribute refers to it. Authored identifiers
+continue to lower. Independent checkers expand bare MCIDs and verify
+ownership, structure and ID references.
+
+[#contributor-output-size-5c-default-page-entries-and-tounicode-ranges]
+=== 5c. Default page entries and ToUnicode ranges
+
+Page boxes and rotation use the defaults in ISO 32000-2 Table 31.
+Empty resource categories are omitted. `ToUnicode` uses `bfrange`
+for consecutive CIDs mapping to consecutive BMP units when both stay
+inside their 256-code windows. Other rows use `bfchar`. Blocks have
+at most 100 rows. `check_pdf_structure.to_unicode_mappings` checks
+the range limits, counts, and exact ascending CID coverage.
+
+[#contributor-deflate]
+== Generated-stream compression contract
+
+`KernelDeflate` wraps the pinned `roc-deflate` dependency. The sealed
+plan chooses level 1 (`Fastest`), 6 (`Balanced`), or 10 (`Smallest`).
+The seam owns zlib framing, Adler-32, the empty-stream encoding, and the
+checked bound for each stream. Generated streams have FlateDecode.
+Validated unchanged JPEG bytes use DCTDecode and XMP stays unfiltered.
+
+[#contributor-deflate-bounds-ownership-and-traversal]
+=== Bounds, ownership, and traversal
+
+The stored-block bound covers input bytes, five bytes per 5,000-byte
+block (at least one block), and six framing bytes. The bound holds for
+all presets. Preparation checks input and output limits before the plan
+escapes. The compression transition consumes the source and checks the
+exact framed length against the bound. Work counts streams, input bytes,
+and emitted bytes.
+
+[#contributor-deflate-executable-evidence]
+=== Executable evidence
+
+`KernelDeflate` checks framing, FLEVEL, Adler-32, round trip, bounds, and
+empty-stream bytes. The `structural-kernel` generated-stream fixture
+family in `tests/spec.json` pins output, allocation and deterministic
+work. `scripts/check_pdf_structure.py` uses independent zlib
+decompression to check the original payload, indirect length, xref
+offset, and malformed compressed data. See also
+xref:contributor-output.adoc#contributor-output-size[encoding and compression presets].
+
+[#contributor-chunked-facade-output]
+== Buffered and chunked facade output
+
+`Pdf.prepare` seals the same plan used for buffered and chunked delivery
+under the selected profile and compression preset. Prepared and one-shot
+entry points share this transition. See
+xref:architecture.adoc#pure-output-and-chunked-delivery[Pure output and chunked delivery].
+
+[#contributor-chunked-facade-output-byte-identity-by-construction]
+=== Byte identity by construction
+
+`KernelEmit.to_bytes` collects the same transition that `Pdf.next_chunk`
+drives. The plan-derived phase machine determines object order and chunk
+boundaries. Preparation rejects incomplete plans before an encoder can
+escape. Chunk retention affects memory ownership and leaves concatenated
+bytes identical.
+
+[#contributor-chunked-facade-output-registered-evidence]
+=== Registered evidence
+
+The `tests/pdf_facade` chunked cases compare prepared, one-shot,
+buffered, and chunked output over all compression presets and retention
+policies. The cases pin byte identity, chunk count, largest chunk, and
+an order-sensitive length counter alongside exact allocation and output
+evidence in `tests/spec.json`. Atomic negative examples check that no
+encoder or bytes escape. The
+xref:contributor-output.adoc#contributor-resource-retention[unchanged-resource fixture]
+separately checks pointer identity and source release.
+
+[#contributor-resource-retention]
+== Unchanged-resource chunk retention
+
+[#contributor-resource-retention-representation-and-release-point]
+=== Representation and release point
+
+Each payload records the ID of its final stream use. The consumption-shaped
+builder updates that scalar when a stream is added, and sealing independently
+validates that the recorded stream exists, uses the payload, and occurs no
+earlier than any other use. Emission therefore consumes a fact produced by an
+earlier stage rather than scanning future objects or inferring ownership from
+byte equality.
+
+For an unchanged unfiltered payload, `ShareResourceChunks` returns the payload
+list itself as a `SharedResource` segment. `OwnResourceChunks` copies only that
+range into an `OwnedResource` segment. Immediately after the final range, the
+next encoder state replaces the plan's payload bytes with the empty list. The
+segment remains valid through its own reference, while later length, xref, and
+trailer emission no longer pins the source allocation. Generated syntax and
+compressed bytes are always generated segments.
+
+The evidence-only structural fixture places validated whitespace in an
+unfiltered content stream. It exercises the unchanged-byte transition without
+requiring a source image or font. The same ownership transition applies to
+validated unchanged payloads in published features.
+
+[#contributor-resource-retention-backing-allocation-evidence]
+=== Backing-allocation evidence
+
+The optimized fixture constructs one runtime-filled 8,192-byte caller list and
+passes a 64-byte seamless slice beginning at offset 4,096. A dedicated Zig test
+host inspects the returned Roc list representations directly and requires:
+
+* the source and shared segment are seamless slices with the same element and
+allocation pointers as the caller's 8,192-byte backing list;
+* the owned segment has a distinct allocation whose capacity is exactly 64
+bytes;
+* all three 64-byte ranges are byte-identical;
+* the caller backing allocation has exactly three references at the ABI
+boundary: the returned backing list, source slice, and shared segment.
+
+The exact reference count proves that neither a completed encoder nor its
+sealed plan still owns the source after the final range. Pointer identity proves
+that sharing did not route bytes through a package-created resource arena. The
+source offset and backing length make the caller tradeoff explicit: retaining
+the small shared segment pins the caller's entire 8,192-byte allocation.
+
+The buffered, shared-chunk, and owned-chunk paths emit identical bytes.
+Encoder counters record zero shared-resource copied bytes and exactly 64
+owned-resource copied bytes. The `structural-kernel unchanged-resource
+retention` case in `tests/spec.json` pins exact output and allocation baselines
+for both targets.
+
+[#contributor-lowering-uniqueness]
+== Accumulator ownership and the allocated-bytes guard
+
+The object, scene, and semantic lowerers consume growing buffers. Each loop
+retains one owner through the next update. Keep the declaration-specific
+rules in AGENTS.md and inspect emitted LIR when equal allocation counts
+hide growing copies.
+
+[#contributor-lowering-uniqueness-fix-pattern]
+=== Fix pattern
+
+The rules now in `AGENTS.md`:
+
+* Thread an accumulator (list, builder, or store) only through calls that
+consume it. Never keep it live on another path, as in
+`Err(e) => { $error = … }` loop state or `Err(_) => $acc` fallbacks. Use
+`?` or `return Err(e)`.
+* Do not return an accumulator beside another refcounted value in a `Try`
+that the caller then splits. Let the helper finish the aggregate
+(`add_*_array` returning `{ builder, id }`), or return the accumulator
+alone and derive dense ids from counts taken before the call.
+* Do not update a list the caller received through `?`. Move the update into
+the producing call.
+* Grow accumulators with `append` only. `List.reserve` and `List.concat` are
+for one-shot sizing when the final size is known.
+
+[#contributor-lowering-uniqueness-the-allocated-bytes-guard]
+=== The allocated-bytes guard
+
+Metrics protocol 2 adds `allocated_bytes`, the size of every `roc_alloc`
+and the new size of every `roc_realloc`. Each case records it per target
+beside exact allocations and work. `scripts/test.py` fails a case whose
+allocated bytes exceed the recorded value by more than 10%
+(`ALLOCATED_BYTES_CEILING_TENTHS = 11`). The self-test checks that one
+byte over the ceiling fails and that the ceiling and half the recorded
+value pass. The baseline report lists violations and the run log retains
+measurements for reviewed tightening.
+
+The ceiling is checked with `--allocation-baselines`,
+`--compare-baselines`, and `--update-snapshots`. Use at least one small
+and large pair for a scalable feature. Exact counts can remain linear
+even when a per-append copy increases allocated bytes quadratically.
+
+[#contributor-lowering-uniqueness-harness-builds-without-the-cache]
+=== Harness builds without the cache
+
+`fixture_build_command` uses `--no-cache` with the pinned dev backend.
+Allocation evidence then depends on the fixture's source and argument
+ownership, rather than previously compiled procedures. The harness's
+grouped, isolated, perturbed, and injected modes exercise the equivalence
+check. The injected allocation must be detected.
+
+[#contributor-emission-linearity]
+== Linear emission through unique accumulators
+
+Review ownership when a change adds an object, stream, text token, or graphics
+command. Use the pinned harness to compare exact Roc allocations, deterministic
+work, and allocated bytes across small and large cases. A list copied on every
+append can have a linear allocation count and quadratic allocated bytes.
+
+[#contributor-emission-linearity-causes-and-fixes]
+=== Causes and fixes
+
+* When an `if` or `match` produces a value and one branch reassigns a `var`
+while another passes it on as the value, the join carries the `var` beside
+the value. On the second branch both refer to the same list, and the call
+copies the list. Each branch can consume an immutable binding. Alternatively,
+mutate the `var` in statements and read it after the construct.
+* After `match f($state) { ... }`, make every arm reassign the consumed
+accumulator or return. A `Done => { $done = True }` arm keeps the old state
+live and can cause every `KernelEmit` transition to copy its object offsets.
+* `List.concat`, `Str.concat`, and `List.reserve` size their result exactly.
+Grow with `append`, or calculate the final size and allocate once. Join
+a segment's leaf texts once with `Str.join_with`.
+* When several accumulators leave a loop, destructure the result once and
+consume its fields. Leaving the result record live while projecting and
+growing its lists can make each list shared.
+
+[#contributor-emission-linearity-how-it-was-measured]
+=== How it was measured
+
+`ROC_LIR_DUMP=<procedure>` prints the final low-level IR. Inspect callers
+and the actual owned or borrowed specialization. An `incref` on the same
+list that later reaches `list_map_prepare_reuse`, `list_set` or
+`list_append_unsafe` before a matching `decref` forces a copy. Use the
+allocated-byte comparison to confirm the result in the fixture. The
+https://github.com/lukewilliamboswell/roc-pdf/blob/4b247670ec05e8aa78c1d03a7002a00d820ceeda/development/performance/upstream-roc-uniqueness-issue.md[minimal compiler witnesses]
+isolate the relevant control-flow shapes.
+
+[#contributor-structural-kernel-closure]
+== Structural PDF verification controls
+
+Run `./scripts/test.py --group kernel --allocation-baselines` to
+exercise the shared structural fixture app, or select an exact case
+by name:
+
+[source,bash]
+----
+./scripts/test.py --case "structural-kernel balanced 4096-page PDF" --allocation-baselines
+----
+
+The spec pins group membership,
+exact allocations, work, snapshots, digest and per-target byte ceilings.
+
+[#contributor-structural-kernel-closure-capability-and-evidence-aggregation]
+=== Capability and evidence aggregation
+
+The independent PDF parser checks lexical values, lossless decompression,
+the sealed object range, every xref reference, and page-tree invariants.
+The structural fixture set covers all typed values, the blank page
+tree, long offsets with a counting sink, and unchanged-resource lifetime.
+Review both the selected positive cases and the exact invalid twins.
+Optional qpdf, Arlington and PDFBox checks read the original file.
+
+[#contributor-tagged-visual-closure]
+== Tagged visual verification controls
+
+Run the tagged visual cases in `tests/spec.json` when changing paint
+planning or structure ownership. The same fixture checks independent
+object and structure layout and renderer output, with exact allocation
+and work evidence under the pinned compiler.
+
+[#contributor-tagged-visual-closure-capability-and-evidence-aggregation]
+=== Capability and evidence aggregation
+
+`scripts/check_tagged_visual.py` checks normalized structure, resource
+use and adversarial negatives. `scripts/check_visual_renderers.py`
+checks an independent pixel oracle in the pinned reader matrix.
+Pair contextual ownership cases with the million-command image-reuse
+fixture to exercise paint attachment and bounded command traversal.
+Check reading and paint order independently.
+
+[#contributor-production-visual-closure]
+== Visual compiler verification controls
+
+Use the cases for the affected capability families in `tests/spec.json`.
+Every family records positive and atomic negative output, decoded object
+and structure checks, and deterministic work and allocation evidence.
+The capability sections identify the matching opt-in reader matrix.
+
+[#contributor-production-visual-closure-verification-contract]
+=== Verification contract
+
+Run `./scripts/test.py --allocation-baselines` with the pinned compiler.
+Use focused `--case` selectors where appropriate. Run
+`./scripts/docs.sh` to check that emitted API documentation keeps
+private object internals out of the public facade. Use
+`scripts/check_gallery.py` to reproduce the runnable public examples.
+Application authoring examples consume the package root, and checked
+snapshots retain asset provenance in `assets/provenance.json`.

@@ -1,3 +1,5 @@
+import KernelWidgetObjects
+import KernelAssociatedObjects
 import Document
 import KernelColor
 import KernelContent
@@ -25,6 +27,8 @@ import Semantics
 
 KernelTaggedTextStructure :: [].{
 	Error : [
+		Widgets(KernelWidgetObjects.Error),
+		Associated(KernelAssociatedObjects.Error),
 		ArithmeticOverflow,
 		Font(KernelPdfFont.Error),
 		FontCountMismatch({ fonts : U64, mappings : U64, planned : U64 }),
@@ -124,8 +128,9 @@ build_plan : KernelTagged.Plan, KernelColor.Plan, KernelImage.Plan, KernelConten
 build_plan = |tagged, colors, images, content, font_plan, text, fonts, facts, navigation, limits| {
 	planned_fonts = KernelFontObjects.Plan.fonts(font_plan)
 	mappings = KernelPdfText.ScenePlan.mappings(text)
-	if fonts.len() != mappings.len() or fonts.len() != planned_fonts.len() {
-		return Err(FontCountMismatch({ fonts: fonts.len(), mappings: mappings.len(), planned: planned_fonts.len() }))
+	font_count = fonts.len()
+	if font_count != mappings.len() or font_count != planned_fonts.len() {
+		return Err(FontCountMismatch({ fonts: font_count, mappings: mappings.len(), planned: planned_fonts.len() }))
 	}
 	objects = KernelFontObjects.Plan.base(font_plan)
 	base_count = KernelFontObjects.Plan.object_count(font_plan)
@@ -171,8 +176,22 @@ build_plan = |tagged, colors, images, content, font_plan, text, fonts, facts, na
 			})
 		}
 	}
+	widgets = match facts {
+		NoDocumentFacts => NoWidgetPlan
+		WithDocumentFacts(data) => KernelWidgetObjects.plan(data.widgets, checked_add(base_count, metadata_object_count)?) ? Widgets
+	}
 	navigation_facts = match navigation_plan {
-		NoNavigationPlan => NoNavigationObjects
+		NoNavigationPlan => match widgets {
+			NoWidgetPlan => NoNavigationObjects
+			WithWidgetPlan(planned) => WithNavigationObjects({
+				annotation_objects: planned.slots.map(|slot| slot.widget),
+				annotation_pages: planned.slots.map(|slot| Semantics.PageId.from_index(slot.field.location.page)),
+				dests_root: NoDestsRoot,
+				ordered_annotations: widget_order(planned.slots.len()),
+				outline_root: NoOutlineRoot,
+				page_labels_root: NoPageLabelsRoot,
+			})
+		}
 		WithNavigationPlan(plan_input) => WithNavigationObjects({
 			annotation_objects: plan_input.planned.by_id,
 			annotation_pages: plan_input.annotation_pages,
@@ -182,11 +201,41 @@ build_plan = |tagged, colors, images, content, font_plan, text, fonts, facts, na
 			page_labels_root: if (plan_input.planned.label_nodes.is_empty()) NoPageLabelsRoot else PageLabelsRootAt(list_at(plan_input.planned.label_nodes, 0)),
 		})
 	}
-	prefix = KernelTaggedObjects.Plan.build_with_navigation(tagged, objects, catalog_facts, navigation_facts, limits.object_limits) ? TaggedObjects
+	associated = match facts {
+		NoDocumentFacts => NoAssociatedPlan
+		WithDocumentFacts(data) => {
+			after_metadata = checked_add(base_count, metadata_object_count)?
+			after_navigation = match navigation_plan {
+				NoNavigationPlan => after_metadata
+				WithNavigationPlan(input) => checked_add(after_metadata, input.planned.total)?
+			}
+			KernelAssociatedObjects.plan(data.associated, after_navigation) ? Associated
+		}
+	}
+	prefix = match (associated, widgets, navigation_plan) {
+		(NoAssociatedPlan, NoWidgetPlan, _) => KernelTaggedObjects.Plan.build_with_navigation(tagged, objects, catalog_facts, navigation_facts, limits.object_limits)
+		(WithAssociatedPlan(_), NoWidgetPlan, _) => KernelTaggedObjects.Plan.build_with_associated_files(tagged, objects, catalog_facts, navigation_facts, associated, limits.object_limits)
+		(NoAssociatedPlan, WithWidgetPlan(planned), NoNavigationPlan) => KernelTaggedObjects.Plan.build_with_widgets(tagged, objects, catalog_facts, navigation_facts, planned, limits.object_limits)
+		_ => return Err(Widgets(InvalidPlan))
+	} ? TaggedObjects
+	# Read the sidecars before passing the builder into the next stage.
+	# Retaining each plan for its work record would keep the old builder alive.
+	tagged_work = KernelTaggedObjects.Plan.work(prefix)
+	planned_navigation_names = KernelTaggedObjects.Plan.navigation_names(prefix)
+	page_count = KernelTagged.Plan.scenes(tagged).pages.len()
+	content_work = KernelContent.Plan.work(content)
+	content_stream_count = KernelContent.Plan.stream_count(content)
+	font_object_count = KernelFontObjects.Plan.work(font_plan).font_objects
+	font_xref = KernelFontObjects.Plan.xref(font_plan)
 	pages = match navigation_plan {
-		NoNavigationPlan => KernelPageObjects.Plan.build_with_fonts(prefix, tagged, content, font_plan) ? Pages
+		NoNavigationPlan => match widgets {
+			NoWidgetPlan => KernelPageObjects.Plan.build_with_fonts(prefix, tagged, content, font_plan) ? Pages
+			WithWidgetPlan(planned) => {
+				per_page = widget_page_annotations(planned.slots, page_count)?
+				KernelPageObjects.Plan.build_with_fonts_navigation(prefix, tagged, content, font_plan, per_page) ? Pages
+			}
+		}
 		WithNavigationPlan(plan_input) => {
-			page_count = KernelTagged.Plan.scenes(tagged).pages.len()
 			var $per_page = List.with_capacity(page_count)
 			var $page = 0
 			while $page < page_count {
@@ -204,33 +253,38 @@ build_plan = |tagged, colors, images, content, font_plan, text, fonts, facts, na
 			KernelPageObjects.Plan.build_with_fonts_navigation(prefix, tagged, content, font_plan, $per_page) ? Pages
 		}
 	}
+	page_work = KernelPageObjects.Plan.work(pages)
+	root = KernelObjectPlan.Plan.catalog(objects)
+	tree_nodes = KernelObjectPlan.Plan.page_tree(objects).len()
 	resources = KernelResourceObjects.Plan.build(pages, colors, images, objects) ? Resources
+	resource_work = KernelResourceObjects.Plan.work(resources)
 	var $builder = KernelResourceObjects.Plan.builder(resources)
-	var $font_objects = List.with_capacity(fonts.len())
+	var $font_objects = List.with_capacity(font_count)
 	var $font_bytes = 0
 	var $font_index = 0
-	while $font_index < fonts.len() {
+	while $font_index < font_count {
 		input = list_at(fonts, $font_index)
 		font = KernelPdfFont.Plan.build($builder, input.font, input.plan, input.subset, input.descriptor, list_at(mappings, $font_index), limits.font_limits) ? Font
 		emitted = KernelPdfFont.Plan.objects(font)
 		planned = list_at(planned_fonts, $font_index)
 		ensure_object(emitted.font_file, planned.first)?
 		ensure_object(emitted.type0, planned.type0)?
+		program_bytes = KernelPdfFont.Plan.work(font).font_program_bytes
 		$builder = KernelPdfFont.Plan.builder(font)
 		$font_objects = $font_objects.append(emitted)
-		$font_bytes = checked_add($font_bytes, KernelPdfFont.Plan.work(font).font_program_bytes)?
+		$font_bytes = checked_add($font_bytes, program_bytes)?
 		$font_index = $font_index + 1
 	}
 	if $builder.store.objects.len() != base_count {
 		return Err(ObjectCountMismatch({ actual: $builder.store.objects.len(), expected: base_count }))
 	}
-	finished = match facts {
+	{ builder: metadata_builder, metadata_bytes, metadata_objects, objects: after_metadata, xref: metadata_xref } = match facts {
 		NoDocumentFacts => {
 			builder: $builder,
 			metadata_bytes: 0,
 			metadata_objects: 0,
 			objects: base_count,
-			xref: KernelFontObjects.Plan.xref(font_plan),
+			xref: font_xref,
 		}
 		WithDocumentFacts(data) => {
 			ids = KernelMetadata.plan_objects(base_count) ? |_| ArithmeticOverflow
@@ -244,16 +298,16 @@ build_plan = |tagged, colors, images, content, font_plan, text, fonts, facts, na
 			}
 		}
 	}
-	navigated = match navigation_plan {
+	{ builder: navigation_builder, objects: after_navigation, resolved: destinations_resolved, work: navigation_work, xref: navigation_xref } = match navigation_plan {
 		NoNavigationPlan => {
-			builder: finished.builder,
-			objects: finished.objects,
+			builder: metadata_builder,
+			objects: after_metadata,
 			resolved: 0,
 			work: { annotation_objects: 0, label_node_objects: 0, name_node_objects: 0, outline_objects: 0, quad_numbers: 0 },
-			xref: finished.xref,
+			xref: metadata_xref,
 		}
 		WithNavigationPlan(plan_input) => {
-			navigation_names = match KernelTaggedObjects.Plan.navigation_names(prefix) {
+			navigation_names = match planned_navigation_names {
 				WithNavigationNames(names) => names
 				NoNavigationNames => {
 					crash "navigation lowering lost its planned name table"
@@ -266,7 +320,7 @@ build_plan = |tagged, colors, images, content, font_plan, text, fonts, facts, na
 				$page_scan = $page_scan + 1
 			}
 			lowered = KernelNavigationObjects.add_objects(
-				finished.builder,
+				metadata_builder,
 				navigation_names,
 				plan_input.store,
 				plan_input.resolved,
@@ -274,56 +328,104 @@ build_plan = |tagged, colors, images, content, font_plan, text, fonts, facts, na
 				{
 					appearance_streams: [],
 					page_objects: $page_objects,
-					stream_count: KernelContent.Plan.stream_count(content),
+					stream_count: content_stream_count,
 					structure_elements: KernelObjectPlan.Plan.structure_elements(objects),
 				},
 				{ max_outline_depth: plan_input.max_outline_depth },
 			) ? NavigationObjects
 			{
 				builder: lowered.builder,
-				objects: checked_add(finished.objects, plan_input.planned.total)?,
+				objects: checked_add(after_metadata, plan_input.planned.total)?,
 				resolved: plan_input.resolve_work.destinations_resolved,
 				work: lowered.work,
 				xref: plan_input.planned.xref,
 			}
 		}
 	}
-	sealed = KernelSeal.seal(navigated.builder) ? Seal
+	{ builder: associated_builder, objects: after_associated, ownership: association_ownership, xref: associated_xref } = match associated {
+		NoAssociatedPlan => { builder: navigation_builder, objects: after_navigation, ownership: NoAssociationOwnership, xref: navigation_xref }
+		WithAssociatedPlan(planned) => {
+			lowered = KernelAssociatedObjects.lower(navigation_builder, planned, root) ? Associated
+			{ builder: lowered.builder, objects: planned.object_count, ownership: lowered.ownership, xref: planned.xref }
+		}
+	}
+	{ builder, objects: object_count, evidence: widget_evidence, xref } = match widgets {
+		NoWidgetPlan => { builder: associated_builder, objects: after_associated, evidence: NoWidgetEvidence, xref: associated_xref }
+		WithWidgetPlan(planned) => {
+			page_objects = KernelObjectPlan.Plan.pages(objects).map(|page| page.page)
+			lowered = KernelWidgetObjects.lower(associated_builder, planned, { catalog: root, pages: page_objects, content_streams: content_stream_count }) ? Widgets
+			{ builder: lowered.builder, evidence: lowered.evidence, objects: KernelObject.ObjectId.number(planned.xref) - 1, xref: planned.xref }
+		}
+	}
+	sealed = KernelSeal.seal(builder) ? Seal
 	identity = KernelIdentity.digest(sealed) ? Identity
-	bound = KernelOutputBound.calculate(sealed, navigated.xref) ? OutputBound
+	bound = KernelOutputBound.calculate(sealed, xref) ? OutputBound
 	structure = KernelStructure.Plan.from_sealed({
+		association_ownership,
+		widget_evidence,
 		identity: NormalizedPlanDigest(identity.digest),
 		output_bound: KernelOutputBound.Bound.bytes(bound),
-		page_count: KernelTagged.Plan.scenes(tagged).pages.len(),
-		root: KernelObjectPlan.Plan.catalog(objects),
+		page_count,
+		root,
 		sealed,
-		tree_nodes: KernelObjectPlan.Plan.page_tree(objects).len(),
-		xref_object: navigated.xref,
+		tree_nodes,
+		xref_object: xref,
 	})
 	Ok(
 		KernelTaggedTextStructure.Plan.{
 			font_objects: $font_objects,
 			structure,
 			work: {
-				annotation_objects: navigated.work.annotation_objects,
-				content_bytes: KernelContent.Plan.work(content).bytes_emitted,
-				destinations_resolved: navigated.resolved,
-				font_objects: KernelFontObjects.Plan.work(font_plan).font_objects,
+				annotation_objects: navigation_work.annotation_objects,
+				content_bytes: content_work.bytes_emitted,
+				destinations_resolved,
+				font_objects: font_object_count,
 				font_program_bytes: $font_bytes,
-				fonts: fonts.len(),
-				label_node_objects: navigated.work.label_node_objects,
-				metadata_bytes: finished.metadata_bytes,
-				metadata_objects: finished.metadata_objects,
-				name_node_objects: navigated.work.name_node_objects,
-				objects: navigated.objects,
-				outline_objects: navigated.work.outline_objects,
-				pages: KernelPageObjects.Plan.work(pages),
-				quad_numbers: navigated.work.quad_numbers,
-				resources: KernelResourceObjects.Plan.work(resources),
-				tagged_objects: KernelTaggedObjects.Plan.work(prefix),
+				fonts: font_count,
+				label_node_objects: navigation_work.label_node_objects,
+				metadata_bytes,
+				metadata_objects,
+				name_node_objects: navigation_work.name_node_objects,
+				objects: object_count,
+				outline_objects: navigation_work.outline_objects,
+				pages: page_work,
+				quad_numbers: navigation_work.quad_numbers,
+				resources: resource_work,
+				tagged_objects: tagged_work,
 			},
 		},
 	)
+}
+
+widget_order : U64 -> List(U64)
+widget_order = |count| {
+	var $items = List.with_capacity(count)
+	var $index = 0
+	while $index < count {
+		$items = $items.append($index)
+		$index = $index + 1
+	}
+	$items
+}
+
+widget_page_annotations : List(KernelWidgetObjects.Slot), U64 -> Try(List(List(KernelObject.ObjectId)), KernelTaggedTextStructure.Error)
+widget_page_annotations = |widgets, pages| {
+	var $output = List.with_capacity(pages)
+	var $page = 0
+	var $widget = 0
+	while $page < pages {
+		var $refs = []
+		while $widget < widgets.len() and list_at(widgets, $widget).field.location.page == $page {
+			$refs = $refs.append(list_at(widgets, $widget).widget)
+			$widget = $widget + 1
+		}
+		$output = $output.append($refs)
+		$page = $page + 1
+	}
+	if $widget != widgets.len() {
+		return Err(Widgets(InvalidPlan))
+	}
+	Ok($output)
 }
 
 NavigationPlanState := [

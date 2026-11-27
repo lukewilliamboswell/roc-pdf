@@ -2,11 +2,14 @@ import pdf.Document
 import pdf.Layout
 import pdf.Pdf
 import remittance.Remittance
+import Designed
 
 Cases :: [].{
 	Case : [
 		AtomicNegatives({ context : U64 }),
 		RemittancePages({ count : U64 }),
+		DesignedBrief({ count : U64 }),
+		DesignedNegatives,
 		Wtpdf,
 	]
 	Stats : { bytes : List(U8), work : List(U64) }
@@ -21,6 +24,8 @@ Cases :: [].{
 				evidence(count, Pdf.Options.default)
 			}
 			Wtpdf => evidence(2, { wtpdf: DeclareAccessibility })
+			DesignedBrief({ count }) => Designed.evidence(count)
+			DesignedNegatives => Designed.negatives({})
 			AtomicNegatives({ context }) => {
 				if context != 0 {
 					crash "CASE_CONTEXT_INVALID"
@@ -37,7 +42,7 @@ Cases :: [].{
 
 evidence : U64, Pdf.Options -> Try(Cases.Stats, Pdf.Error)
 evidence = |count, options| {
-	{ prepared, report } = Pdf.prepare_with_report(Remittance.document(count), options)?
+	{ prepared, report } = Pdf.prepare_with_report(Remittance.document(count), { options: options })?
 	bytes = Pdf.to_bytes_prepared(prepared)?
 	fragments = report.facts.pages.map(|page| page.fragments).sum()
 	if report.facts.pages.len() != count or fragments != count * 5 or !authored_paths(report.facts.blocks, count) {

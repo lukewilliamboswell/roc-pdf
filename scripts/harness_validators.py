@@ -1,8 +1,14 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 
+from check_fillable_forms import validate_fillable_pdf
+from check_footnotes import validate_footnotes_pdf
+from check_associated_files import validate_associated_files_pdf
+from check_anchored_figure import validate_anchored_figure_pdf
 from check_profile_declarations import validate_claims
 from check_default_fonts import validate_default_fonts_pdf
 from check_contents_entries import validate_contents_entries_pdf
@@ -10,6 +16,16 @@ from check_destination_references import validate_destination_references_pdf
 from check_chapter_templates import validate_chapter_templates_pdf
 from check_vector_diagrams import validate_vector_diagrams_pdf
 from check_fixed_pages import validate_fixed_pages_pdf
+from check_gallery_features import ARTIFACT, tagged
+from check_designed_brief import validate_designed_brief_pdf
+from check_generated_handbook import validate_flow_fixture, validate_generated_fixture, validate_index_fixture
+from check_arabic_invoice import check as check_arabic_invoice
+from check_hindi_statement import check as check_hindi_statement
+from check_thai_notice import check as check_thai_notice, check_scale as check_thai_scale
+from check_bibliography import check as check_bibliography
+from check_bilingual_invoice import check as check_bilingual_invoice
+from check_inter_latin import validate_inter_latin_pdf
+from check_columns import validate_columns_pdf
 from check_actual_text import EXPECTED_CONTENT as ACTUAL_TEXT_CONTENT
 from check_actual_text import validate_actual_text_pdf
 from check_caller_facade import validate_caller_facade_pdf, validate_unhinted_caller_pdf
@@ -37,10 +53,11 @@ from check_multiface_facade import validate_multiface_facade_pdf
 from check_multiface_text import validate_multiface_text_pdf
 from check_navigation import validate_navigation_pdf
 from check_page_labels import validate_page_labels_pdf
-from check_pdf_structure import canonical_text, dictionary_ref, is_structure_element, object_slices, require, structure_kids, validate_pdf
+from check_pdf_structure import canonical_text, dictionary_ref, indirect_length, is_structure_element, object_slices, require, stream_parts, structure_kids, validate_pdf
 from check_rich_inline import validate_rich_inline_pdf
-from check_rich_flow import validate_rich_flow_pdf
+from check_rich_flow import MARKED, validate_rich_flow_pdf
 from check_table_paint_frames import validate_table_paint_frames_pdf
+from check_table_spans import validate_table_spans
 from check_technical_manual import validate_technical_manual_pdf
 from check_source_foregrounds import validate_source_foregrounds_pdf
 from check_source_blocks import validate_source_blocks_pdf, validate_multiple_sources_pdf
@@ -49,7 +66,7 @@ from check_shadings import validate_shadings_pdf
 from check_soft_hyphen import EXPECTED_CONTENT as SOFT_HYPHEN_CONTENT
 from check_soft_hyphen import validate_soft_hyphen_pdf
 from check_soft_masks import validate_soft_masks_pdf
-from check_structure_semantics import validate_structure_semantics_pdf
+from check_structure_semantics import Document, Ref, text_string, validate_structure_semantics_pdf
 from check_supplementary_text import EXPECTED_CONTENT as SUPPLEMENTARY_TEXT_CONTENT
 from check_supplementary_text import validate_supplementary_text_pdf
 from check_tagged_visual import validate_tagged_visual_pdf
@@ -149,10 +166,125 @@ def _facade_image(data: bytes, dimensions: dict[str, int], report: Reporter) -> 
     report("exact packed image payload, one image placement, semantic Figure ownership, and authored /Alt")
 
 
+def _image_objects(document: Document):
+    return [(number, body) for number in sorted(document.bodies)
+            if isinstance(body := document.get(number), dict) and body.get("Subtype") == "Image"]
+
+
+def _page_xobjects(document: Document, page: dict):
+    resources = page["Resources"]
+    if isinstance(resources, Ref):
+        resources = document.get(int(resources))
+    xobjects = resources["XObject"]
+    return document.get(int(xobjects)) if isinstance(xobjects, Ref) else xobjects
+
+
+def _shared_image_figures(pdf: bytes, dimensions: dict[str, int]):
+    validate_structure_semantics_pdf(pdf, dimensions)
+    document, pages, root = tagged(pdf)
+    require(len(pages) == dimensions["pages"], "shared image page count changed")
+    figures = [node for node in root.descendants() if node.role == "Figure"]
+    captions = [node for node in root.descendants() if node.role == "Caption"]
+    require(len(figures) == len(captions) == 3 * len(pages), "image sharing merged a semantic figure or caption")
+    return document, pages, figures, captions
+
+
+def _facade_shared_rasters(pdf: bytes, dimensions: dict[str, int], report: Reporter) -> None:
+    document, pages, figures, captions = _shared_image_figures(pdf, dimensions)
+    images = _image_objects(document)
+    colors = [(number, body) for number, body in images if "SMask" in body]
+    require(len(images) == 4 and len(colors) == 2, "expected exactly two canonical RGB streams with their masks")
+    require(all(document.stream(number) == bytes([30, 60, 90, 120, 150, 180]) for number, _ in colors), "RGB bytes changed")
+    require([document.stream(int(body["SMask"])) for _, body in colors] == [bytes([0, 255]), bytes([255, 0])],
+            "distinct alpha payloads changed or lost first-occurrence order")
+    a, b = [number for number, _ in colors]
+
+    _check_owned_image_paints(document, pages, figures, captions, [a, b, a])
+    report("two canonical RGB and alpha streams, A/B/A per page, and independent figure ownership")
+
+
+def _facade_shared_jpeg(pdf: bytes, dimensions: dict[str, int], report: Reporter) -> None:
+    document, pages, figures, captions = _shared_image_figures(pdf, dimensions)
+    images = _image_objects(document)
+    require(len(images) == 1, "expected exactly one shared JPEG image stream")
+    image, dictionary = images[0]
+    require(dictionary.get("Filter") == "DCTDecode" and dictionary.get("Width") == dictionary.get("Height") == 8,
+            "shared JPEG lost its filter or dimensions")
+    length = indirect_length(document.bodies, int(dictionary["Length"]))
+    _, encoded = stream_parts(document.bodies[image], length)
+    expected = (Path(__file__).resolve().parents[1] / "tests/assets/jpeg-fuzz-corpus/rgb-8x8.jpg").read_bytes()
+    require(encoded == expected, "shared JPEG payload changed")
+    _check_owned_image_paints(document, pages, figures, captions, [image] * 3)
+    report("one byte-exact DCT stream and one owned image paint per tagged figure")
+
+
+def _check_owned_image_paints(document: Document, pages, figures, captions, expected: list[int]) -> None:
+    for page_index, page in enumerate(pages):
+        page_value = document.get(page)
+        xobjects = _page_xobjects(document, page_value)
+        require(sorted(map(int, xobjects.values())) == sorted(set(expected)), "page dictionary has duplicate, missing or foreign image references")
+        marks = {int(mcid): body for mcid, body in MARKED.findall(document.stream(int(page_value["Contents"])))}
+        painted = []
+        for position in range(3):
+            index = 3 * page_index + position
+            figure, caption = figures[index], captions[index]
+            require(text_string(figure.value["Alt"]) == f"Image description {index + 1}", "figure alternative changed")
+            require(caption.text == f"Survey figure {index + 1}" and caption.pages == {page}, "figure caption changed")
+            require(len(figure.marks) == 1 and figure.pages == {page}, "figure lost its own drawing mark")
+            _, mcid = figure.marks[0]
+            names = re.findall(rb"/([A-Za-z0-9_]+) Do\n", marks[mcid])
+            require(len(names) == 1, "figure must paint exactly one image")
+            painted.append(int(xobjects[names[0].decode("ascii")]))
+        require(painted == expected, "figure paint references changed the authored image sequence")
+
+
+def _furniture_shared_rasters(pdf: bytes, dimensions: dict[str, int], report: Reporter) -> None:
+    document, pages, _ = tagged(pdf)
+    images = _image_objects(document)
+    require(len(images) == dimensions["canonical_images"], "physical furniture image count changed")
+    mark = images[-1][0]
+    logo = images[0][0]
+    if logo != mark:
+        require(document.stream(logo) == bytes([20, 90, 140] * 16 + [240, 180, 40] * 16), "header logo pixels changed")
+    require(document.stream(mark) == bytes([0, 80, 160, 240, 240, 160, 80, 0]), "gray mark pixels changed")
+    expected_refs = sorted({logo, mark})
+    expected_paints = ([(b"<</Type /Pagination /Subtype /Header>>", logo)] * dimensions["header_image_placements"]
+                       + [(b"<</Type /Pagination /Subtype /Footer>>", mark)])
+    for page in pages:
+        page_value = document.get(page)
+        xobjects = _page_xobjects(document, page_value)
+        require(sorted(map(int, xobjects.values())) == expected_refs, "page has repeated furniture resource entries")
+        content = document.stream(int(page_value["Contents"]))
+        paints = [(declaration, int(xobjects[name.decode("ascii")]))
+                  for declaration, body in ARTIFACT.findall(content)
+                  for name in re.findall(rb"/([A-Za-z0-9_]+) Do\n", body)]
+        require(paints == expected_paints, "furniture raster placement or artifact classification changed")
+    report("shared furniture images with exact pixels and separate header/footer artifacts on each page")
+
+
 VALIDATORS: dict[str, Validator] = {
+    "facade_shared_rasters": _facade_shared_rasters,
+    "facade_shared_jpeg": _facade_shared_jpeg,
+    "furniture_shared_rasters": _furniture_shared_rasters,
+    "footnotes": _dimensioned(validate_footnotes_pdf, "first-citation placement, logical backlinks and structure destinations"),
+    "fillable_forms": _dimensioned(validate_fillable_pdf, "editable widget repertoire, exact values and appearances, authored geometry and tab order, and Form-owned labels"),
+    "anchored_figure": _dimensioned(validate_anchored_figure_pdf, "atomic anchor deferral with owned figure and caption, exact drawing geometry and authored order"),
+    "associated_files": _dimensioned(validate_associated_files_pdf, "catalog AF, name-tree ordering and boundaries, exact file-specification metadata, distinct streams, and extracted payloads"),
     "default_fonts": _dimensioned(validate_default_fonts_pdf, "genuine static family/style programs, exact selected glyph outlines and searchable source text"),
+    "authored_index": _dimensioned(validate_index_fixture, "index collation and linked authored locations"),
+    "flow_page_reference": _dimensioned(validate_flow_fixture, "final reference wrapping, committed labels and paired destinations"),
+    "generated_contents": _dimensioned(validate_generated_fixture, "authored generated contents targets, printed labels, and paired link destinations"),
     "contents_entries": _dimensioned(validate_contents_entries_pdf, "aligned contents columns, wrapped titles, linked exact page references and decorative leaders"),
     "destination_references": _dimensioned(validate_destination_references_pdf, "printed reference Unicode agrees with emitted destinations and page labels, fixed advances, semantic owners and explicit annotations"),
+    "arabic_invoice": _dimensioned(lambda pdf, _: check_arabic_invoice(pdf), "Arabic invoice logical text, writing modes, paint positions and language scopes"),
+    "hindi_statement": _dimensioned(lambda pdf, _: check_hindi_statement(pdf), "logical text, glyph positions and language scopes"),
+    "thai_notice": _dimensioned(lambda pdf, _: check_thai_notice(pdf), "logical text, glyph positions and language scopes"),
+    "thai_dictionary_scale": _dimensioned(check_thai_scale, "logical Thai dictionary word and ordered line positions at scale"),
+    "bibliography": _dimensioned(check_bibliography, "authored bibliography order, namespaces, citation actions and reciprocal references"),
+    "bilingual_invoice": _dimensioned(lambda pdf, _: check_bilingual_invoice(pdf), "bilingual invoice logical text, writing modes, paint positions and language scopes"),
+    "inter_latin": _dimensioned(validate_inter_latin_pdf, "exact kerned positions, ligature and literal mapping, wrap ownership and scope color"),
+    "columns": _dimensioned(validate_columns_pdf, "authored source and semantic ownership across unequal-width columns and pages"),
+    "designed_brief": _dimensioned(validate_designed_brief_pdf, "fixed figure and text geometry, exact caption ownership, and independent semantic and paint permutations"),
     "fixed_pages": _dimensioned(validate_fixed_pages_pdf, "fixed frame geometry, independent structure and stream order, and exact background/overlay ownership"),
     "vector_diagrams": _dimensioned(validate_vector_diagrams_pdf, "exact prepared-vector Unicode labels, caption/Alt ownership and cubic/arrowhead paths"),
     "page_labels": _dimensioned(validate_page_labels_pdf, "visible labels match emitted PDF label ranges; repeated labels remain artifacts"),
@@ -197,6 +329,7 @@ VALIDATORS: dict[str, Validator] = {
     "rich_inline": _dimensioned(validate_rich_inline_pdf, "ToUnicode-decoded logical text in structure order equal to paint order, text-bearing inline roles, /E on Span only, and one OBJR-owning link annotation per page painted"),
     "technical_manual": _dimensioned(validate_technical_manual_pdf, "combined printed destinations, scoped chapter furniture, rich source/vector/table ownership, nested padding and repeated-reference artifacts"),
     "table_paint_frames": _dimensioned(validate_table_paint_frames_pdf, "scoped table outer paint, exact row boundaries, semantic text and repeated-reference artifacts"),
+    "table_spans": _dimensioned(validate_table_spans, "authored row rectangles, exact header edges, repeated artifacts and cell paint across pages"),
     "rich_flow": _dimensioned(validate_rich_flow_pdf, "exact rich LI/callout source/figure/table ownership, reading order, original source and foregrounds, parent frames, panel padding, and artifact table headers"),
     "tagged_visual": _simple(validate_tagged_visual_pdf, "exact normalized tagged structure and resources"),
     "visible_text": _simple(validate_text_pdf, "exact font, CID, Unicode mapping, and visible text facts"),
@@ -247,9 +380,14 @@ PREFLIGHT_CHECKS["rich_inline"] = PreflightCheck("check_rich_inline.py", True)
 PREFLIGHT_CHECKS["table_paint_frames"] = PreflightCheck("check_table_paint_frames.py", True)
 PREFLIGHT_CHECKS["rich_flow"] = PreflightCheck("check_rich_flow.py", True)
 PREFLIGHT_CHECKS["technical_manual"] = PreflightCheck("check_technical_manual.py", True)
+PREFLIGHT_CHECKS["generated_contents"] = PreflightCheck("check_generated_handbook.py", True)
 PREFLIGHT_CHECKS["contents_entries"] = PreflightCheck("check_contents_entries.py", True)
 PREFLIGHT_CHECKS["destination_references"] = PreflightCheck("check_destination_references.py", True)
 PREFLIGHT_CHECKS["source_blocks"] = PreflightCheck("check_source_blocks.py", True)
+PREFLIGHT_CHECKS["bibliography"] = PreflightCheck("check_bibliography.py", True)
+PREFLIGHT_CHECKS["bilingual_invoice"] = PreflightCheck("check_bilingual_invoice.py", True)
+PREFLIGHT_CHECKS["inter_latin"] = PreflightCheck("check_inter_latin.py", True)
+PREFLIGHT_CHECKS["columns"] = PreflightCheck("check_columns.py", True)
 PREFLIGHT_CHECKS["fixed_pages"] = PreflightCheck("check_fixed_pages.py", True)
 PREFLIGHT_CHECKS["vector_diagrams"] = PreflightCheck("check_vector_diagrams.py", True)
 PREFLIGHT_CHECKS["source_foregrounds"] = PreflightCheck("check_source_foregrounds.py", True)
@@ -281,7 +419,7 @@ def run_validators(
     validator_ids: tuple[str, ...], data: bytes, dimensions: dict[str, int], report: Reporter
 ) -> None:
     if "pdfua2" in validator_ids:
-        dimensions = {**dimensions, "facade_table_headers": 1}
+        dimensions = {**dimensions, "facade_table_headers": int("table_spans" not in validator_ids)}
         wtpdf = "wtpdf_accessibility" in validator_ids
         validate_claims(data, wtpdf=wtpdf)
         report("independent inspection of PDF/UA-2 and applicable WTPDF identification and embedded font bundles")
@@ -292,3 +430,9 @@ def run_validators(
             VALIDATORS[validator_id](data, dimensions, report)
 
 PREFLIGHT_CHECKS["chapter_templates"] = PreflightCheck("check_chapter_templates.py", True)
+
+PREFLIGHT_CHECKS["associated_files"] = PreflightCheck("check_associated_files.py", True)
+
+PREFLIGHT_CHECKS["fillable_forms"] = PreflightCheck("check_fillable_forms.py", True)
+
+PREFLIGHT_CHECKS["footnotes"] = PreflightCheck("check_footnotes.py", True)

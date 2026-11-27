@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+from dataclasses import dataclass
 import functools
 import hashlib
 import http.server
@@ -18,6 +19,11 @@ import threading
 from pathlib import Path
 
 from check_drawing_labels import artifact_and_tagged_text
+from check_anchored_figure import validate_topology
+from check_generated_handbook import check as check_generated_handbook
+from check_gallery_features import check_features
+from check_designed_brief import check_logical_twin, validate_designed_brief_pdf
+from check_table_spans import validate_quarterly, validate_regional
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,23 +33,126 @@ PACKAGE_DEPENDENCY = 'pdf: "../../package/main.roc",'
 # Each example is a directory holding its app root `main.roc`, the assets it
 # imports, the PDF it writes (named after the directory), and a preview.
 EXAMPLES = (
+    "arabic-invoice",
+    "audit-log",
+    "bilingual-invoice",
     "brand-brief",
     "business-report",
     "chunked-export",
+    "designed-brief",
     "field-guide",
     "furniture-typography",
     "font-families",
+    "hindi-statement",
+    "invoice-with-data",
     "operations-handbook",
+    "ordered-han",
+    "pilot-findings",
     "product-brief",
     "quarterly-report",
     "release-notes",
     "remittance-advice",
+    "service-intake",
     "source-blocks",
     "tax-invoice",
+    "thai-notice",
     "vector-diagrams",
     "warranty-letter",
 )
+PREVIEW_PAGES = {"quarterly-report": 2}
 LOCAL_IMPORT = re.compile(r'^import "([^"]+)"', re.MULTILINE)
+
+
+@dataclass(frozen=True)
+class Case:
+    args: tuple[str, ...]
+    snapshot: str | None = None
+    diagnosis: str | None = None
+    facts: tuple[str, ...] = ()
+
+
+CASES = {
+    "audit-log": (
+        Case(("archive",), "audit-log-archive.pdf"),
+        Case(("standard",), "audit-log-standard.pdf"),
+        Case(("invalid",), diagnosis="semantics.heading_level at contents[1]"),
+    ),
+    "business-report": (
+        Case(("report",), "business-report.pdf", facts=("Language en-AU", "repeated header", "alternative:", "Author check")),
+        Case(("report-budget",), "business-report.pdf", facts=("Language en-AU", "repeated header")),
+        Case(("report-tiny",), diagnosis="report.budget_exceeded"),
+        Case(("heat-map",), "business-report-heat-map.pdf", facts=("figure on page 5", "applied figure scale 731 per thousand")),
+        Case(("heat-exact",), diagnosis="document.figure_oversize at contents[7].contents[2]"),
+        Case(("heat-high-floor",), diagnosis="below its ScaleToFit floor of 90%"),
+    ),
+    "chunked-export": tuple(
+        Case((compression, delivery), f"chunked-export{suffix}.pdf")
+        for compression, suffix in (("balanced", ""), ("smallest", "-smallest"), ("fastest", "-fastest"))
+        for delivery in ("share", "own", "buffered")
+    ),
+    "field-guide": (
+        Case(("pocket",), "field-guide-pocket.pdf", facts=("Preferred species note keep relaxed",)),
+    ),
+    "operations-handbook": (
+        Case(("generated",), "operations-handbook-generated.pdf"),
+        Case(("index",), "operations-handbook-index.pdf"),
+        Case(("bibliography",), "operations-handbook-bibliography.pdf"),
+        Case(("flow-short",), "operations-handbook-flow-short.pdf", facts=("A-1 on physical page 1",)),
+        Case(("flow-long",), "operations-handbook-flow-long.pdf", facts=("RECOVERY-CHECKS-2 on physical page 2",)),
+        Case(("footnotes",), "operations-handbook-footnotes.pdf"),
+        Case(("footnote-oversize",), diagnosis="document.footnote.fit at contents[8]"),
+        Case(("topology",), "operations-handbook-topology.pdf",
+             facts=("contents[3].anchor on page 2", "contents[3].figure on page 2")),
+        Case(("topology-tight",), diagnosis="layout.anchored_figure_fit at contents[3].anchor, contents[3].figure"),
+    ),
+    "ordered-han": (
+        Case(("latin-only",), diagnosis="text.coverage_missing at contents[1].inlines[1].inlines[0]"),
+    ),
+    "pilot-findings": (
+        Case(("keep-together",), diagnosis="layout.columns.keep_conflict at contents[0].contents[1]"),
+    ),
+    "quarterly-report": (
+        Case(("regional",), "quarterly-report-regional.pdf", facts=("Repeated header on page 2", "Continued row contents[0].table.body_rows[1] on page 2")),
+        Case(("regional-keep",), diagnosis="layout.oversize_span_group at contents[0].table.body_rows[0], contents[0].table.body_rows[1]"),
+    ),
+    "source-blocks": (
+        Case(("plain",), "source-blocks-plain.pdf"),
+        Case(("bad-range",), diagnosis="source.foreground_range at contents[2]"),
+    ),
+    "tax-invoice": (
+        Case(("split",), "tax-invoice-split.pdf", facts=("Repeated header", "Continued row contents[4].contents[1].table.body_rows[30]")),
+        Case(("keep",), diagnosis="layout.oversize_row at contents[4].contents[1].table.body_rows[30]"),
+    ),
+}
+
+
+def check_cases(name: str, source: Path, example: Path, output: Path) -> None:
+    generated = output / f"{name}.pdf"
+    sentinel = b"gallery check: existing output must survive a rejected document"
+    for case in CASES.get(name, ()):
+        label = f"{name}/main.roc {' '.join(case.args)}"
+        command = [ROC, "run", str(source), *case.args]
+        result = subprocess.run(command, cwd=output, capture_output=True, text=True)
+        if case.diagnosis is not None:
+            if result.returncode != 1 or case.diagnosis not in result.stderr or generated.exists():
+                raise SystemExit(f"{label}: expected a rejected document and no new file\n{result.stderr}")
+            generated.write_bytes(sentinel)
+            try:
+                repeat = subprocess.run(command, cwd=output, capture_output=True, text=True)
+                if (repeat.returncode != 1 or case.diagnosis not in repeat.stderr
+                        or not generated.is_file() or generated.read_bytes() != sentinel):
+                    raise SystemExit(f"{label}: rejected document changed an existing output file")
+            finally:
+                generated.unlink(missing_ok=True)
+        else:
+            if result.returncode != 0 or not generated.is_file():
+                raise SystemExit(f"{label}: generation failed\n{result.stderr}")
+            if not all(fact in result.stdout for fact in case.facts):
+                raise SystemExit(f"{label}: missing expected review facts\n{result.stdout}")
+            if generated.read_bytes() != (example / case.snapshot).read_bytes():
+                raise SystemExit(f"{label}: generated PDF differs from {case.snapshot}")
+            generated.unlink()
+        print(f"PASS {label}", flush=True)
 
 
 class BundleRequestHandler(http.server.SimpleHTTPRequestHandler):
@@ -90,7 +199,7 @@ def bundled_example(example: Path, destination: Path, bundle_url: str) -> Path:
         resolved = (example / imported).resolve()
         if not resolved.is_relative_to(example.resolve()) or not resolved.is_file():
             raise SystemExit(f"{example.name}: import {imported!r} is not a file inside the example directory")
-    shutil.copytree(example, destination, ignore=shutil.ignore_patterns("*.pdf", "preview.png", "node_modules"))
+    shutil.copytree(example, destination, ignore=shutil.ignore_patterns("*.pdf", "preview*.png", "node_modules"))
     (destination / "main.roc").write_text(
         text.replace(PACKAGE_DEPENDENCY, f'pdf: "{bundle_url}",'),
         encoding="utf-8",
@@ -102,6 +211,7 @@ def bundled_example(example: Path, destination: Path, bundle_url: str) -> Path:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--bundle-path", type=Path)
+    parser.add_argument("--example", action="append", choices=EXAMPLES, help="Limit the check to selected examples")
     parser.add_argument("--update", action="store_true", help="Regenerate reviewed PDFs and Poppler previews, updating their provenance")
     parser.add_argument("--update-reason", help="Architectural cause reviewed before accepting changed gallery output")
     parser.add_argument("--report", type=Path, default=ROOT / ".roc-pdf-tmp/gallery-update-report.json")
@@ -143,7 +253,7 @@ def main() -> None:
         temporary_path = Path(temporary)
         server_context = BundleServer(bundle) if bundle is not None else contextlib.nullcontext()
         with server_context as server:
-            for name in EXAMPLES:
+            for name in args.example or EXAMPLES:
                 example = GALLERY / name
                 pdf_name = f"{name}.pdf"
                 source = example / "main.roc"
@@ -169,7 +279,7 @@ def main() -> None:
                     (backup / pdf_name).write_bytes(expected)
                     shutil.copyfile(example / "preview.png", backup / "preview.png")
                     preview_prefix = output / f"{name}-preview"
-                    subprocess.run(["pdftoppm", "-f", "1", "-singlefile", "-r", "96", "-png", str(generated_path), str(preview_prefix)], check=True)
+                    subprocess.run(["pdftoppm", "-f", str(PREVIEW_PAGES.get(name, 1)), "-singlefile", "-r", "96", "-png", str(generated_path), str(preview_prefix)], check=True)
                     preview = preview_prefix.with_suffix(".png")
                     expected_path.write_bytes(generated)
                     shutil.copyfile(preview, example / "preview.png")
@@ -186,6 +296,19 @@ def main() -> None:
                     raise SystemExit(f"{name}: generated PDF differs from {pdf_name}")
                 generated_path.unlink()
                 print(f"PASS {name}/main.roc -> {pdf_name} ({len(generated)} bytes)", flush=True)
+                check_cases(name, source, example, output)
+                if name == "operations-handbook":
+                    from check_bibliography import check as check_bibliography
+                    check_generated_handbook(example)
+                    validate_topology((example / "operations-handbook-topology.pdf").read_bytes())
+                    check_bibliography((example / "operations-handbook-bibliography.pdf").read_bytes(), {"bibliography_citations": 2})
+                check_features(name, example)
+                if name == "designed-brief":
+                    validate_designed_brief_pdf(generated, {"pages": 1})
+                    check_logical_twin(generated)
+                if name == "quarterly-report":
+                    validate_quarterly(generated)
+                    validate_regional((example / "quarterly-report-regional.pdf").read_bytes())
             if server is not None and server.get_requests == 0:
                 raise SystemExit("gallery never requested the served package bundle")
     if args.update:

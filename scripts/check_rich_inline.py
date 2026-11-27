@@ -422,7 +422,7 @@ def validate_combined_code_font(pdf: bytes) -> None:
     matched = [font for font in facts.bundles if font.postscript_name == "Inter-BoldItalic"]
     require(len(matched) == 1, "missing unique genuine combined-style program")
     font = matched[0]
-    source = tables((ROOT / "package/fonts/Inter-BoldItalic.ttf").read_bytes())
+    source = tables((ROOT / "vendor/fonts/roc-font/static/Inter-BoldItalic.ttf").read_bytes())
     actual = font.subset.tables
     require(actual[b"OS/2"] == source[b"OS/2"] and struct.unpack_from(">H", actual[b"OS/2"], 4)[0] == 700,
             "combined Code lost genuine source weight/style facts")
@@ -513,7 +513,7 @@ def self_test() -> None:
     try:
         check_structure_semantics(twin)
     except ValidationError as error:
-        require(str(error) == "unsupported attribute owner 'Layout'", str(error))
+        require(str(error) == "invalid Layout attributes", str(error))
     else:
         raise ValidationError("mixed inline checker accepted a paint style projected as a Layout attribute")
     rejected += 1

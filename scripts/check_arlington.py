@@ -43,12 +43,38 @@ EXPECTED_RELEASES = {
 # Files that are not package output and deliberately fall outside the
 # Arlington model. Keys are paths relative to the repository root; values are
 # the exact failing rule identifiers (``clause#testNumber``) and why.
-FIXTURE_EXCEPTIONS: dict[str, tuple[frozenset[str], str]] = {
+CHECKBOX_DA = "AnnotWidgetFieldBtnCheckbox-DA#7"
+CHECKBOX_DA_REASON = (
+    "Arlington requires DA on a terminal checkbox; ISO 32000-2:2020 "
+    "12.7.4.3 Table 228 applies to fields containing variable text. "
+    "These boxes supply both vector appearances. See PDF Association issue #323."
+)
+BIBLIOGRAPHY_ROLE = "StructureAttributesDict#1"
+BIBLIOGRAPHY_ROLE_REASON = (
+    "Arlington 1.30.2 permits uppercase /Role only. WTPDF 1.0 sections "
+    "8.2.5.31 and 8.2.6.4 use case-sensitive lowercase /role under /ARIA-1.1."
+)
+# Exact terminal object path from the destination's entry to its section's
+# direct /A dictionary. The fixture oracle independently checks that path.
+BIBLIOGRAPHY_OBJECTS = {
+    "tests/bibliography/graph-2.pdf": (17, 16, 13),
+    "tests/bibliography/graph-20.pdf": (53, 52, 49),
+    "tests/bibliography/graph-wtpdf.pdf": (17, 16, 13),
+    "examples/operations-handbook/operations-handbook-bibliography.pdf": (695, 694, 691),
+}
+FIXTURE_EXCEPTIONS: dict[str, tuple[dict[str, int], str]] = {
+    **{path: ({BIBLIOGRAPHY_ROLE: 1}, BIBLIOGRAPHY_ROLE_REASON) for path in BIBLIOGRAPHY_OBJECTS},
     "tests/placeholder/snapshot.pdf": (
-        frozenset({"FileTrailer-ID#11"}),
+        {"FileTrailer-ID#11": 1},
         "the harness placeholder is a fixed classic-xref PDF written by the test "
         "platform, not package output; it has no trailer /ID",
     ),
+    "tests/interactive_fields/checkbox_defaults.pdf": ({CHECKBOX_DA: 1}, CHECKBOX_DA_REASON),
+    "tests/interactive_fields/mixed_fields_4.pdf": ({CHECKBOX_DA: 2}, CHECKBOX_DA_REASON),
+    "tests/interactive_fields/mixed_fields_42.pdf": ({CHECKBOX_DA: 21}, CHECKBOX_DA_REASON),
+    "tests/interactive_fields/mixed_intake.pdf": ({CHECKBOX_DA: 2}, CHECKBOX_DA_REASON),
+    "tests/interactive_fields/mixed_wtpdf.pdf": ({CHECKBOX_DA: 2}, CHECKBOX_DA_REASON),
+    "examples/service-intake/service-intake.pdf": ({CHECKBOX_DA: 2}, CHECKBOX_DA_REASON),
 }
 
 
@@ -77,7 +103,7 @@ def integer_value(value: object, label: str) -> int:
 
 
 def validate_report(
-    value: object, expected_name: str, expected_size: int
+    value: object, expected_name: str, expected_size: int, expected_failures: dict[str, int] | None = None
 ) -> tuple[int, int]:
     root = object_value(value, "response")
     report = object_value(root.get("report"), "report")
@@ -109,11 +135,11 @@ def validate_report(
     result = object_value(results[0], "arlingtonResult[0]")
     require(result.get("profileName") == EXPECTED_PROFILE, "unexpected Arlington profile")
     require(result.get("jobEndStatus") == "normal", "Arlington job did not end normally")
-    require(result.get("compliant") is True, "Arlington reported a non-compliant PDF")
-    require(
-        result.get("statement") == "PDF file is compliant with Profile requirements.",
-        "Arlington did not report profile compliance",
-    )
+    failures = expected_failures or {}
+    compliant = not failures
+    statement = "PDF file is compliant with Profile requirements." if compliant else "PDF file is not compliant with Profile requirements."
+    require(result.get("compliant") is compliant, "Arlington compliance differs from the expected result")
+    require(result.get("statement") == statement, "Arlington compliance statement differs")
 
     details = object_value(result.get("details"), "details")
     passed_rules = integer_value(details.get("passedRules"), "passedRules")
@@ -122,9 +148,19 @@ def validate_report(
     failed_checks = integer_value(details.get("failedChecks"), "failedChecks")
     require(passed_rules > 0, "Arlington executed no rules")
     require(passed_checks > 0, "Arlington executed no object checks")
-    require(failed_rules == 0, f"Arlington reported {failed_rules} failed rules")
-    require(failed_checks == 0, f"Arlington reported {failed_checks} failed checks")
-    require(details.get("ruleSummaries") == [], "Arlington returned failure summaries")
+    require(failed_rules == len(failures), f"Arlington reported {failed_rules} failed rules, expected {len(failures)}")
+    require(failed_checks == sum(failures.values()), f"Arlington reported {failed_checks} failed checks, expected {sum(failures.values())}")
+    observed = {}
+    for index, raw_rule in enumerate(list_value(details.get("ruleSummaries"), "ruleSummaries")):
+        rule = object_value(raw_rule, f"ruleSummaries[{index}]")
+        clause = rule.get("clause")
+        number = rule.get("testNumber")
+        require(isinstance(clause, str), f"ruleSummaries[{index}].clause must be text")
+        require(type(number) is int, f"ruleSummaries[{index}].testNumber must be an integer")
+        identifier = f"{clause}#{number}"
+        require(identifier not in observed, f"repeated Arlington failure summary {identifier}")
+        observed[identifier] = integer_value(rule.get("failedChecks"), "ruleSummaries.failedChecks")
+    require(observed == failures, f"Arlington failure inventory differs from expected {failures}: got {observed}")
 
     summary = object_value(report.get("batchSummary"), "batchSummary")
     for field in [
@@ -138,43 +174,9 @@ def validate_report(
     require(validation.get("totalJobCount") == 1, "Arlington validation total is not one")
     require(validation.get("successfulJobCount") == 1, "Arlington validation did not succeed")
     require(validation.get("failedJobCount") == 0, "Arlington validation job failed")
-    require(validation.get("nonCompliantPdfaCount") == 0, "Arlington counted a non-compliant PDF")
-    require(validation.get("compliantPdfaCount") == 1, "Arlington did not count one compliant PDF")
+    require(validation.get("nonCompliantPdfaCount") == int(not compliant), "Arlington noncompliant PDF count differs")
+    require(validation.get("compliantPdfaCount") == int(compliant), "Arlington compliant PDF count differs")
     return passed_rules, passed_checks
-
-
-def failed_rules(value: object) -> frozenset[str]:
-    """Return the failing rule identifiers of a report whose job otherwise ran
-    normally. Reports that did not run normally raise instead."""
-    root = object_value(value, "response")
-    report = object_value(root.get("report"), "report")
-    summary = object_value(report.get("batchSummary"), "batchSummary")
-    for field in [
-        "failedEncryptedJobs",
-        "failedParsingJobs",
-        "outOfMemory",
-        "veraExceptions",
-    ]:
-        require(summary.get(field) == 0, f"Arlington batch summary has nonzero {field}")
-    jobs = list_value(report.get("jobs"), "jobs")
-    require(len(jobs) == 1, f"expected one Arlington job, got {len(jobs)}")
-    job = object_value(jobs[0], "jobs[0]")
-    results = list_value(job.get("arlingtonResult"), "arlingtonResult")
-    require(len(results) == 1, f"expected one Arlington result, got {len(results)}")
-    result = object_value(results[0], "arlingtonResult[0]")
-    require(result.get("profileName") == EXPECTED_PROFILE, "unexpected Arlington profile")
-    require(result.get("jobEndStatus") == "normal", "Arlington job did not end normally")
-    details = object_value(result.get("details"), "details")
-    summaries = list_value(details.get("ruleSummaries"), "ruleSummaries")
-    rules: set[str] = set()
-    for index, raw_rule in enumerate(summaries):
-        rule = object_value(raw_rule, f"ruleSummaries[{index}]")
-        clause = rule.get("clause")
-        number = rule.get("testNumber")
-        require(isinstance(clause, str), f"ruleSummaries[{index}].clause must be text")
-        require(type(number) is int, f"ruleSummaries[{index}].testNumber must be an integer")
-        rules.add(f"{clause}#{number}")
-    return frozenset(rules)
 
 
 def describe_failures(value: object) -> str:
@@ -191,23 +193,34 @@ def describe_failures(value: object) -> str:
     return "".join("\n" + line for line in lines)
 
 
+def check_bibliography_context(value: object, entry: int, parent: int, section: int) -> None:
+    output = value["report"]["jobs"][0]["arlingtonResult"][0]["details"]["ruleSummaries"][0]  # type: ignore[index]
+    expected = (
+        f"/SD[0]{{SD}}/entry0[0](AStructElem {entry} 0 obj){{0}}"
+        f"/P[0](AStructElem {parent} 0 obj){{P}}/P[0](AStructElem {section} 0 obj){{P}}/A[0]{{A}}"
+    )
+    checks = list_value(output.get("checks"), "bibliography checks")
+    require(output.get("object") == "AStructureAttributesDict" and len(checks) == 1,
+            "bibliography disagreement did not name one structure attribute dictionary")
+    observed = object_value(checks[0], "bibliography check")
+    path = observed.get("context")
+    require(isinstance(path, str) and path.endswith(expected) and observed.get("status") == "failed",
+            "bibliography disagreement has a different object path")
+
+
 def classify_case(value: object, relative: str, expected_size: int) -> str:
     """Accept one case report, or raise with the precise failure."""
     exception = FIXTURE_EXCEPTIONS.get(relative)
-    if exception is None:
-        try:
-            passed_rules, passed_checks = validate_report(value, Path(relative).name, expected_size)
-        except ValidationError as error:
-            raise ValidationError(f"{relative}: {error}{describe_failures(value)}") from error
-        return f"passed_rules={passed_rules}, passed_checks={passed_checks}"
-    expected_rules, reason = exception
-    observed = failed_rules(value)
-    require(
-        observed == expected_rules,
-        f"{relative}: recorded exception {sorted(expected_rules)} but Arlington failed "
-        f"{sorted(observed)}; update or remove the exception",
-    )
-    return f"recorded exception {sorted(expected_rules)}: {reason}"
+    expected_failures, reason = exception if exception is not None else ({}, "")
+    try:
+        passed_rules, passed_checks = validate_report(value, Path(relative).name, expected_size, expected_failures)
+        if relative in BIBLIOGRAPHY_OBJECTS:
+            check_bibliography_context(value, *BIBLIOGRAPHY_OBJECTS[relative])
+    except ValidationError as error:
+        raise ValidationError(f"{relative}: {error}{describe_failures(value)}") from error
+    if expected_failures:
+        return f"recorded exception {expected_failures}: {reason}"
+    return f"passed_rules={passed_rules}, passed_checks={passed_checks}"
 
 
 def case_paths(root: Path = ROOT) -> list[str]:
@@ -357,6 +370,10 @@ def self_test() -> None:
     job["itemDetails"]["name"] = "snapshot.pdf"
     result = job["arlingtonResult"][0]
     result["compliant"] = False
+    result["statement"] = "PDF file is not compliant with Profile requirements."
+    validation = failing["report"]["batchSummary"]["validationSummary"]  # type: ignore[index]
+    validation["nonCompliantPdfaCount"] = 1
+    validation["compliantPdfaCount"] = 0
     result["details"]["failedRules"] = 1
     result["details"]["failedChecks"] = 1
     result["details"]["ruleSummaries"] = [
@@ -381,8 +398,17 @@ def self_test() -> None:
     changed["report"]["jobs"][0]["arlingtonResult"][0]["details"]["ruleSummaries"][0]["testNumber"] = 12  # type: ignore[index]
     parser_failure = copy.deepcopy(failing)
     parser_failure["report"]["batchSummary"]["failedParsingJobs"] = 1  # type: ignore[index]
+    repeated = copy.deepcopy(failing)
+    repeated_details = repeated["report"]["jobs"][0]["arlingtonResult"][0]["details"]  # type: ignore[index]
+    repeated_details["ruleSummaries"].append(repeated_details["ruleSummaries"][0])
+    wrong_count = copy.deepcopy(failing)
+    wrong_count["report"]["jobs"][0]["arlingtonResult"][0]["details"]["failedChecks"] = 2  # type: ignore[index]
+    stale = copy.deepcopy(valid)
+    stale["report"]["jobs"][0]["itemDetails"]["name"] = "snapshot.pdf"  # type: ignore[index]
     for label, candidate in [
-        ("stale exception", valid),
+        ("stale exception", stale),
+        ("repeated exception report", repeated),
+        ("extra failure occurrence", wrong_count),
         ("changed exception", changed),
         ("exception with parser recovery", parser_failure),
     ]:
@@ -391,6 +417,27 @@ def self_test() -> None:
         except ValidationError:
             continue
         raise SystemExit(f"Arlington case checker accepted a {label}")
+
+    bibliography = copy.deepcopy(failing)
+    bibl_job = bibliography["report"]["jobs"][0]
+    bibl_job["itemDetails"]["name"] = "graph-2.pdf"
+    bibl_failure = bibl_job["arlingtonResult"][0]["details"]["ruleSummaries"][0]
+    bibl_failure.update(
+        clause="StructureAttributesDict",
+        testNumber=1,
+        object="AStructureAttributesDict",
+        checks=[{"status": "failed", "context": "root/SD[0]{SD}/entry0[0](AStructElem 17 0 obj){0}"
+                "/P[0](AStructElem 16 0 obj){P}/P[0](AStructElem 13 0 obj){P}/A[0]{A}"}],
+    )
+    require(classify_case(bibliography, "tests/bibliography/graph-2.pdf", 10).startswith("recorded exception"),
+            "bibliography exception rejected its object path")
+    bibl_failure["checks"][0]["context"] = bibl_failure["checks"][0]["context"].replace("13 0 obj", "14 0 obj")
+    try:
+        classify_case(bibliography, "tests/bibliography/graph-2.pdf", 10)
+    except ValidationError:
+        pass
+    else:
+        raise SystemExit("Arlington accepted a bibliography disagreement at the wrong object path")
 
     ## Case collection is deterministic, distinct, and covers every recorded
     ## exception and the public examples.
@@ -449,11 +496,10 @@ def main() -> None:
     wait_ready(args.base_url)
     for pdf in args.pdf:
         report = request_report(args.base_url, pdf)
-        passed_rules, passed_checks = validate_report(report, pdf.name, pdf.stat().st_size)
-        print(
-            f"PASS Arlington 1.30.2: {pdf}, "
-            f"passed_rules={passed_rules}, passed_checks={passed_checks}"
-        )
+        resolved = pdf.resolve()
+        relative = resolved.relative_to(ROOT).as_posix() if resolved.is_relative_to(ROOT) else str(pdf)
+        outcome = classify_case(report, relative, pdf.stat().st_size)
+        print(f"PASS Arlington 1.30.2: {pdf}, {outcome}")
 
 
 if __name__ == "__main__":

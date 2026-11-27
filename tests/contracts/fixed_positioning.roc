@@ -59,7 +59,7 @@ position_with_theme = |pages, theme| {
 	sources = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantic))
 	shape = KernelFacadeShape.Plan.build(authoring, KernelFacadeSemantics.Plan.block_ownership(semantic), KernelFacadeSemantics.Plan.flow_text(semantic), sources, font, theme, KernelFacadeShape.Limits.make({ max_requests: 128, shape: KernelShape.Limits.make({ max_clusters: 4096, max_glyphs: 4096, max_scalars: 4096, max_source_bytes: 4096 }) })) ? Shape
 	lines = KernelFacadeLines.Plan.build_fixed(authoring, shape, sources, view.frames, lines_limits) ? Lines
-	KernelFacadeFixed.position(fixed, shape, lines, { max_pieces: 256 }).map_err(|error| Position(error))
+	KernelFacadeFixed.position(fixed, shape, lines, theme.paragraph_spacing, { max_pieces: 256 }).map_err(|error| Position(error))
 }
 
 # One rich block uses multiple style/occurrence runs and explicit break

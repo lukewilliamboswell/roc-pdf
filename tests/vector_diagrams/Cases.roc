@@ -32,7 +32,7 @@ Cases :: [].{
 render : U64, Bool -> Try(Cases.Stats, [FontRegistration(Font.ResourceError), Preparation(Pdf.Error), Emission(Pdf.Error)])
 render = |count, archive| {
 	options = Diagram.options(Font.ValidationLimits.default).map_err(|error| FontRegistration(error))?
-	result = Pdf.prepare_with_report(Diagram.document(count), if (archive) { ..options, profile: Archive, wtpdf: NoWtpdfDeclaration } else options).map_err(|error| Preparation(error))?
+	result = Pdf.prepare_with_report(Diagram.document(count), { options: if (archive) { ..options, profile: Archive, wtpdf: NoWtpdfDeclaration } else options }).map_err(|error| Preparation(error))?
 	bytes = Pdf.to_bytes_prepared(result.prepared).map_err(|error| Emission(error))?
 	fragments = result.report.facts.pages.map(|page| page.fragments).sum()
 

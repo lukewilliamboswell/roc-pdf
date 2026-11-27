@@ -1,5 +1,4 @@
 import Image
-import KernelLex
 import KernelScene
 import KernelSemantics
 import Layout
@@ -146,7 +145,7 @@ build_plan = |semantic_plan, scene_plan| {
 		parents = build_parent_tree(semantics, paint.fragment_order, occurrence_nodes, KernelSemantics.Plan.content_stream_count(semantic_plan))?
 		k = build_k_order(semantics, parents.marked)?
 		annotation_owners = build_annotation_owners(semantics)
-		lowered_identifiers = lowered_identifier_flags(semantics)
+		lowered_identifiers = lowered_identifier_flags(semantic_plan)
 		lowered_identifier_count = count_true(lowered_identifiers)
 
 		Ok(
@@ -614,28 +613,22 @@ expect {
 						marked.mcid == 0
 }
 
-lowered_identifier_flags : Semantics.Store -> List(Bool)
-lowered_identifier_flags = |store| {
+## Semantic validation proves that every /Headers name matches a typed
+## HeaderFor edge in order, and that each edge names a valid header ID.
+lowered_identifier_flags : KernelSemantics.Plan -> List(Bool)
+lowered_identifier_flags = |semantic_plan| {
+	store = KernelSemantics.Plan.store(semantic_plan)
 	count = store.element_identifiers.len()
 	var $referenced = List.repeat(False, count)
-	var $attribute = 0
-	while $attribute < store.attributes.len() {
-		match list_at(store.attributes, $attribute) {
-			{ name: Standard("Headers"), value: Names(values), .. } => {
-				var $value = 0
-				while $value < values.len() {
-					match identifier_position(store.element_identifiers, list_at(values, $value)) {
-						Found(position) => {
-							$referenced = list_set($referenced, position, True)
-						}
-						Missing => {}
-					}
-					$value = $value + 1
-				}
+	var $relation = 0
+	while $relation < store.relationships.len() {
+		match list_at(store.relationships, $relation) {
+			HeaderFor({ header, .. }) => {
+				$referenced = list_set($referenced, header.index(), True)
 			}
 			_ => {}
 		}
-		$attribute = $attribute + 1
+		$relation = $relation + 1
 	}
 	var $lowered = List.repeat(True, count)
 	var $node = 0
@@ -653,26 +646,6 @@ lowered_identifier_flags = |store| {
 		$node = $node + 1
 	}
 	$lowered
-}
-
-## Element identifiers are validated unique and in ascending byte order, so a
-## `/Headers` name is found by binary search over their bytes.
-identifier_position : List(Semantics.ElementIdentifier), Str -> [Found(U64), Missing]
-identifier_position = |identifiers, target| {
-	var $low = 0
-	var $high = identifiers.len()
-	while $low < $high {
-		middle = $low + U64.div_by($high - $low, 2)
-		order = KernelLex.compare_utf8(list_at(identifiers, middle).value, target)
-		if order == Equal {
-			return Found(middle)
-		} else if order == Less {
-			$low = middle + 1
-		} else {
-			$high = middle
-		}
-	}
-	Missing
 }
 
 count_true : List(Bool) -> U64

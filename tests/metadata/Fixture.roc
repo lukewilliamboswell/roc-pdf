@@ -344,10 +344,12 @@ run_pipeline = |input| {
 	base = KernelObjectPlan.Plan.build_canonical(tagged, colors, images, resource_use, content, { color_spaces: leaf_counts.color_spaces, image_alpha: KernelForm.Plan.canonical_image_alpha(form_plan), profiles: leaf_counts.profiles }, KernelObjectPlan.Limits.make({ max_objects: 8192, max_pages: 1 })) ? ObjectFailure
 	objects = KernelFormObjects.Plan.build_with_states(base, KernelForm.Plan.canonical_form_count(form_plan), KernelForm.Plan.canonical_state_count(form_plan), 0, 8192) ? FormObjectFailure
 	plan_facts = WithDocumentFacts({
+		associated: NoAssociatedFiles,
 		condition_identifier: KernelMetadata.srgb_condition_identifier,
 		profile: input.intent_profile,
 		registry_name: KernelMetadata.icc_registry_name,
 		language: validated.facts.language,
+		widgets: NoPreparedWidgets,
 		xmp: KernelXmp.Packet.bytes(packet),
 	})
 	structure = KernelFormStructure.Plan.build_with_facts(tagged, colors, images, content, form_plan, objects, NoTextObjects, Scene.no_shadings, plan_facts, structure_limits) ? StructureFailure
@@ -781,8 +783,10 @@ expect match Fixture.atomic_negatives(1) {
 # structural kernel boundary the facade uses for empty documents.
 expect {
 	facts = {
+		associated: NoAssociatedFiles,
 		condition_identifier: KernelMetadata.srgb_condition_identifier,
 		language: showcase_language,
+		page_label: NoBlankPageLabel,
 		profile_bytes: KernelSrgbProfile.bytes,
 		profile_components: 3,
 		registry_name: KernelMetadata.icc_registry_name,

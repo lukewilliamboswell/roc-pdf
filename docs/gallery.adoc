@@ -4,28 +4,171 @@
 These complete applications use public Roc APIs. Run one from a checkout to
 inspect its PDF and then adapt its source to your own content.
 
+Use the compiler pinned in the checkout and run the application from its
+directory. For example:
+
+[source,sh]
+----
+cd examples/product-brief
+roc run main.roc
+----
+
+The application writes its PDF in that directory. The committed preview
+shows a selected page rendered at 96 dpi. To use an example with a published
+package, point its `pdf` dependency at the release bundle.
+
+Examples with command-line modes use
+https://github.com/lukewilliamboswell/weaver[Weaver]. Run one with `--help`
+to list its available modes.
+
 == Invoice
 
 image::images/tax-invoice.png[Tax invoice preview]
 
 https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/tax-invoice/main.roc[Runnable invoice source] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/tax-invoice/tax-invoice.pdf[PDF output]
 
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/tax-invoice/README.md[Run the long-description layout variants.]
+
+[#bilingual-invoice]
+== Hebrew and English invoice
+
+The Hebrew address wraps after the city. The second line includes a
+parenthesized purchase-order ID. The mixed service cell pairs a Hebrew
+description with the selectable text `SKU-42 ILS 1,250.00`.
+
+https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/bilingual-invoice[Run the bilingual invoice] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/bilingual-invoice/bilingual-invoice.pdf[PDF output] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/bilingual-invoice/preview.png[Preview]
+
+[#arabic-invoice]
+== Arabic and Latin supplier invoice
+
+The Arabic supplier name and Latin reference share a line. The Arabic
+payment wording precedes `AED 2,400.00` in the logical text.
+
+https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/arabic-invoice[Run the Arabic invoice] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/arabic-invoice/preview.png[First-page preview] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/arabic-invoice/arabic-invoice.pdf[PDF output]
+
+[#hindi-statement]
+== Hindi and Latin account statement
+
+The statement uses a conjunct, a pre-base dependent vowel, and a
+positioned below-base mark. Its activity cell includes a Latin reference.
+
+https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/hindi-statement[Run the Hindi statement] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/hindi-statement/preview.png[First-page preview] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/hindi-statement/hindi-statement.pdf[PDF output]
+
+[#thai-notice]
+== Thai and Latin payment notice
+
+The Thai paragraph wraps at a word boundary supplied by the dictionary.
+The tagged paragraph retains the authored text without added spaces.
+
+https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/thai-notice[Run the Thai notice] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/thai-notice/preview.png[First-page preview] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/thai-notice/thai-notice.pdf[PDF output]
+
+[#invoice-with-data]
+== Invoice with associated data
+
+https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/invoice-with-data[Run the invoice and extract its XML] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/invoice-with-data/invoice-with-data.pdf[PDF output] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/invoice-with-data/preview.png[Preview]
+
 == Business report
 
+ifdef::backend-html5[]
 image::images/business-report.png[Business report preview]
+endif::[]
 
-https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/business-report/main.roc[Runnable report source] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/business-report/business-report.pdf[PDF output]
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/business-report/main.roc[Runnable report source] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/business-report/business-report.pdf[PDF output] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/business-report/preview.png[Preview]
+
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/business-report/README.md[Run the preparation report and heat-map variants.]
+
+[#quarterly-financial-schedule]
+== Quarterly financial schedule
+
+In the results-by-segment table, one revenue heading covers both quarters and
+one Farm operations header covers the Grain and Farm supplies rows. The
+Grain result of AUD 3,262 thousand names Q2, Revenue, Grain and fodder, and
+Farm operations explicitly. Farm supplies uses its scope-derived
+associations. The two farm rows stay together.
+
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/quarterly-report/main.roc[Runnable quarterly report source] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/quarterly-report/quarterly-report.pdf[PDF output] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/quarterly-report/preview.png[Page-two preview]
+
+Run `roc run main.roc regional` from `examples/quarterly-report` for a
+two-page regional commentary. One spanning cell holds the sixteen
+observations and retains its three header references across both pages.
+The repeated headings are artifacts. `regional-keep` rejects the same
+schedule with `layout.oversize_span_group` at both body rows.
+
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/quarterly-report/quarterly-report-regional.pdf[Regional PDF] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/quarterly-report/regional-preview.png[Continuation preview]
 
 == Prepared vector diagrams
 
+ifdef::backend-html5[]
 image::images/vector-diagrams.png[Prepared vector diagram preview]
+endif::[]
 
-https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/vector-diagrams/main.roc[Runnable vector-diagram source] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/vector-diagrams/vector-diagrams.pdf[PDF output]
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/vector-diagrams/main.roc[Runnable vector-diagram source] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/vector-diagrams/vector-diagrams.pdf[PDF output] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/vector-diagrams/preview.png[Preview]
 
+
+[#designed-brief]
+== Designed product brief
+
+This US Letter opener gives the Sprout launch title, key figures, and a
+captioned board illustration their own fixed frames. The order of the
+`place` calls sets the reading order. `with_paint_order([2, 0, 1])`
+paints the figure and its caption first, then the title and card.
+The background and accents are artifacts.
+
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/designed-brief/Brief.roc[Authored frames and order] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/designed-brief/main.roc[Runnable source] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/designed-brief/designed-brief.pdf[PDF] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/designed-brief/preview.png[Preview]
 
 [#remittance-advice]
 == Remittance advice
 
+ifdef::backend-html5[]
 image::images/remittance-advice.png[Remittance advice on a fixed payment form]
+endif::[]
 
-https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/remittance-advice/main.roc[Runnable remittance source] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/remittance-advice/remittance-advice.pdf[PDF output]
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/remittance-advice/main.roc[Runnable remittance source] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/remittance-advice/remittance-advice.pdf[PDF output] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/remittance-advice/preview.png[Preview of the fixed payment form]
+
+[#pilot-findings]
+== Pilot findings
+
+https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/pilot-findings[Runnable two-column article] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/pilot-findings/pilot-findings.pdf[PDF output] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/pilot-findings/preview.png[Preview]
+
+[#service-intake]
+== Service intake
+
+The form has two editable text fields and two independent checkboxes.
+Include an inspection report starts checked, and Request a site visit starts
+unchecked. See the
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/service-intake/preview.png[first-page preview].
+
+https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/service-intake[Run the intake form] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/service-intake/service-intake.pdf[PDF output]
+
+[#handbook-bibliography]
+== Operations handbook bibliography
+
+The bibliography mode links the recovery checklist and service-level
+policy from “After the incident” to an explicitly ordered appendix.
+
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/operations-handbook/README.md[Run the bibliography variant] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/operations-handbook/preview-bibliography.png[Appendix preview] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/operations-handbook/operations-handbook-bibliography.pdf[PDF output]
+
+== More authoring examples
+
+* https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/warranty-letter[Warranty letter] for custom letterhead, a kept signature, and a covered-items schedule.
+* https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/brand-brief[Brand brief] for themed callouts, color swatches and vector logo placements.
+* https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/product-brief[Product brief] for Inter Latin shaping, vector charts and a kept plan comparison.
+* https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/font-families[Built-in font families] for the packaged sans, serif and monospace roles.
+* https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/furniture-typography[Furniture typography] for independent running text settings.
+* https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/release-notes[Release notes] for a version banner, compatibility table and issue links.
+* https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/operations-handbook/README.md[On-call handbook] for authored and generated contents, flow-changing references, indexes and chapter templates.
+* https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/source-blocks/README.md[Highlighted YAML] for caller-supplied UTF-8 ranges and an invalid-boundary example.
+* https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/ordered-han/README.md[Latin and Han receiving note] for explicit coverage order and language spans.
+* https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/field-guide/README.md[Pocket field guide] for custom pages and layout preferences.
+* https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/chunked-export/README.md[Cold-chain telemetry] for direct sink writes and compression choices.
+* https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/audit-log/README.md[Audit log] for compact text batches and explicit output profiles.
+
+
+[#operations-handbook-footnotes]
+== Operations handbook with footnotes
+
+In the single-column runbook, the response-clock note stays with the first
+citation in Severity levels. The citation in Escalation opens the same note,
+and the note links back to Severity levels.
+
+https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/operations-handbook#footnotes[Run the footnote example] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/operations-handbook/operations-handbook-footnotes.pdf[PDF output] · https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/operations-handbook/footnotes-preview.png[Preview of page 2]

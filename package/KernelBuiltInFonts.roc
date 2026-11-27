@@ -1,45 +1,36 @@
-import "fonts/Inter-Regular.ttf" as sans_regular_bytes : List(U8)
-import "fonts/Inter-Bold.ttf" as sans_bold_bytes : List(U8)
-import "fonts/Inter-Italic.ttf" as sans_italic_bytes : List(U8)
-import "fonts/Inter-BoldItalic.ttf" as sans_bold_italic_bytes : List(U8)
-import "fonts/Merriweather-Regular.ttf" as serif_regular_bytes : List(U8)
-import "fonts/Merriweather-Bold.ttf" as serif_bold_bytes : List(U8)
-import "fonts/Merriweather-Italic.ttf" as serif_italic_bytes : List(U8)
-import "fonts/Merriweather-BoldItalic.ttf" as serif_bold_italic_bytes : List(U8)
-import "fonts/FiraCode-Regular.ttf" as mono_regular_bytes : List(U8)
-import "fonts/FiraCode-Bold.ttf" as mono_bold_bytes : List(U8)
+import shaping.Font as BuiltInFaces
 
-## Exact unchanged static rc4 payloads. No runtime acquisition or instancing.
+## Exact static faces exposed by the pinned roc-font dependency.
 KernelBuiltInFonts :: [].{
 	sans_regular : List(U8)
-	sans_regular = sans_regular_bytes
+	sans_regular = BuiltInFaces.sans_bytes
 
 	sans_bold : List(U8)
-	sans_bold = sans_bold_bytes
+	sans_bold = BuiltInFaces.sans_bold_bytes
 
 	sans_italic : List(U8)
-	sans_italic = sans_italic_bytes
+	sans_italic = BuiltInFaces.sans_italic_bytes
 
 	sans_bold_italic : List(U8)
-	sans_bold_italic = sans_bold_italic_bytes
+	sans_bold_italic = BuiltInFaces.sans_bold_italic_bytes
 
 	serif_regular : List(U8)
-	serif_regular = serif_regular_bytes
+	serif_regular = BuiltInFaces.serif_bytes
 
 	serif_bold : List(U8)
-	serif_bold = serif_bold_bytes
+	serif_bold = BuiltInFaces.serif_bold_bytes
 
 	serif_italic : List(U8)
-	serif_italic = serif_italic_bytes
+	serif_italic = BuiltInFaces.serif_italic_bytes
 
 	serif_bold_italic : List(U8)
-	serif_bold_italic = serif_bold_italic_bytes
+	serif_bold_italic = BuiltInFaces.serif_bold_italic_bytes
 
 	mono_regular : List(U8)
-	mono_regular = mono_regular_bytes
+	mono_regular = BuiltInFaces.mono_bytes
 
 	mono_bold : List(U8)
-	mono_bold = mono_bold_bytes
+	mono_bold = BuiltInFaces.mono_bold_bytes
 
 	## Canonical dense storage has one slot per supported packaged face.
 	count : U64
@@ -80,16 +71,16 @@ KernelBuiltInFonts :: [].{
 
 		bytes : Slot -> List(U8)
 		bytes = |Slot.(slot_index)| match slot_index {
-			0 => sans_regular_bytes
-			1 => sans_bold_bytes
-			2 => sans_italic_bytes
-			3 => sans_bold_italic_bytes
-			4 => serif_regular_bytes
-			5 => serif_bold_bytes
-			6 => serif_italic_bytes
-			7 => serif_bold_italic_bytes
-			8 => mono_regular_bytes
-			9 => mono_bold_bytes
+			0 => BuiltInFaces.sans_bytes
+			1 => BuiltInFaces.sans_bold_bytes
+			2 => BuiltInFaces.sans_italic_bytes
+			3 => BuiltInFaces.sans_bold_italic_bytes
+			4 => BuiltInFaces.serif_bytes
+			5 => BuiltInFaces.serif_bold_bytes
+			6 => BuiltInFaces.serif_italic_bytes
+			7 => BuiltInFaces.serif_bold_italic_bytes
+			8 => BuiltInFaces.mono_bytes
+			9 => BuiltInFaces.mono_bold_bytes
 			_ => crash "KernelBuiltInFonts.Slot.bytes: invalid opaque slot"
 		}
 	}
@@ -118,16 +109,16 @@ expect {
 		replayed_bytes: slots.map(|slot| KernelBuiltInFonts.Slot.from_index(slot.index()).bytes()),
 	}
 	expected_bytes = [
-		sans_regular_bytes,
-		sans_bold_bytes,
-		sans_italic_bytes,
-		sans_bold_italic_bytes,
-		serif_regular_bytes,
-		serif_bold_bytes,
-		serif_italic_bytes,
-		serif_bold_italic_bytes,
-		mono_regular_bytes,
-		mono_bold_bytes,
+		BuiltInFaces.sans_bytes,
+		BuiltInFaces.sans_bold_bytes,
+		BuiltInFaces.sans_italic_bytes,
+		BuiltInFaces.sans_bold_italic_bytes,
+		BuiltInFaces.serif_bytes,
+		BuiltInFaces.serif_bold_bytes,
+		BuiltInFaces.serif_italic_bytes,
+		BuiltInFaces.serif_bold_italic_bytes,
+		BuiltInFaces.mono_bytes,
+		BuiltInFaces.mono_bold_bytes,
 	]
 	actual == { count: selections.len(), indexes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], bytes: expected_bytes, replayed_bytes: expected_bytes }
 }

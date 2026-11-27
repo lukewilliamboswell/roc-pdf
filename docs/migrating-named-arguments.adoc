@@ -13,8 +13,14 @@ Pdf.destination_heading({ name: "intro", level: 1, text: "Introduction" })
 Pdf.destination_paragraph({ name: "details", text: "Details" })
 Pdf.expansion({ text: "PDF", expanded: "Portable Document Format" })
 Pdf.reserved_width({ width: 64, align: End, contents: [Pdf.page_number(Decimal)] })
-Pdf.prepare_with_report_budget(document, { options, budget })
 ----
+
+Preparation reports now take `Pdf.ReportProps`. Change
+`Pdf.prepare_with_report(document, options)` to
+`Pdf.prepare_with_report(document, { options: options })` and
+`Pdf.prepare_with_report_budget(document, { options, budget })` to
+`Pdf.prepare_with_report(document, { options, budget })`. Use an empty record
+to apply both defaults.
 
 The equivalent `Document` constructors use the same names. Document builder
 methods retain their consuming receiver and take a record, such as

@@ -1,14 +1,15 @@
 Conformance :: [].{
 
 	## Public profiles select declarations and package checks.
-	Profile : [AccessibleArchive, Archive, Standard]
+	Profile : [AccessibleArchive, AccessibleArchiveWithFiles, AccessibleForm, Archive, ArchiveWithFiles, Standard]
 
 	## Capabilities name the declarations used by profile and diagnostic APIs.
-	Capability : [Pdf20, PdfA4f, PdfUa2, StaticPdfA4, WtpdfAccessibility, WtpdfReuse]
+	Capability : [Pdf20, PdfA4f, PdfA4Forms, PdfUa2, StaticPdfA4, WtpdfAccessibility, WtpdfReuse]
 
 	ClaimSet : {
 		pdf20 : Bool,
 		pdf_a4f : Bool,
+		pdf_a4_forms : Bool,
 		pdf_ua2 : Bool,
 		static_pdf_a4 : Bool,
 		wtpdf_accessibility : Bool,
@@ -117,6 +118,7 @@ Conformance :: [].{
 		match profile {
 			Standard => {
 				pdf20: True,
+				pdf_a4_forms: False,
 				pdf_a4f: False,
 				pdf_ua2: False,
 				static_pdf_a4: False,
@@ -125,14 +127,34 @@ Conformance :: [].{
 			}
 			Archive => {
 				pdf20: True,
+				pdf_a4_forms: False,
 				pdf_a4f: False,
 				pdf_ua2: False,
 				static_pdf_a4: True,
 				wtpdf_accessibility: False,
 				wtpdf_reuse: False,
 			}
+			ArchiveWithFiles | AccessibleArchiveWithFiles => {
+				pdf20: True,
+				pdf_a4_forms: False,
+				pdf_a4f: True,
+				pdf_ua2: profile == AccessibleArchiveWithFiles,
+				static_pdf_a4: False,
+				wtpdf_accessibility: False,
+				wtpdf_reuse: False,
+			}
+			AccessibleForm => {
+				pdf20: True,
+				pdf_a4_forms: True,
+				pdf_a4f: False,
+				pdf_ua2: True,
+				static_pdf_a4: False,
+				wtpdf_accessibility: False,
+				wtpdf_reuse: False,
+			}
 			AccessibleArchive => {
 				pdf20: True,
+				pdf_a4_forms: False,
 				pdf_a4f: False,
 				pdf_ua2: True,
 				static_pdf_a4: True,

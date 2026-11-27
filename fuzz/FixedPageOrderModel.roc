@@ -39,7 +39,7 @@ machine = {
 		Finish => { ..world, closed: True }
 	},
 	rules: [
-		Model.always("validated sheets preserve logical placements and separate physical paint", |world| !world.closed or agrees(world)),
+		Model.always("validated sheets preserve logical placements and separate physical paint", |world| !world.closed or (agrees(world, TextOnly) and agrees(world, WithFigure))),
 		Model.sometimes("reversed paint with both artifact layers", |world| world.closed and world.order == [3, 2, 1, 0] and world.underlay and world.overlay),
 		Model.sometimes("duplicate paint with full count", |world| world.closed and world.placements == 2 and world.order == [0, 0]),
 		Model.sometimes("one placement is omitted from paint", |world| world.closed and world.placements == 2 and world.order == [1]),
@@ -47,11 +47,13 @@ machine = {
 	],
 }
 
-agrees : World -> Bool
-agrees = |world| {
+Content : [TextOnly, WithFigure]
+
+agrees : World, Content -> Bool
+agrees = |world, content| {
 	indices = [0, 1, 2, 3].keep_if(|index| index < world.placements)
 	valid = world.order.len() == world.placements and indices.all(|index| world.order.count_if(|paint| paint == index) == 1)
-	page = build_page(indices, world)
+	page = build_page(indices, world, content)
 	document = Pdf.fixed_document({ pages: [page], language: "en", title: "Fixed page model" })
 	match Document.normalize_fixed(document, { max_pages: 1, max_placements: 4, max_rectangles: 2 }) {
 		Err(_) => !valid
@@ -68,10 +70,22 @@ agrees = |world| {
 						},
 					)
 					expected = (if (world.underlay) [1] else []).concat(if (world.overlay) [2] else [])
-					valid and view.frames == indices.map(frame) and view.paint_order == world.order and artifacts == expected and
-						view.authoring.blocks.map(|block| block.text) == indices.map(|index| index.to_str()) and
+					frames = indices.map(|index| if (content == WithFigure and index == 1) [frame(index), frame(index)] else [frame(index)]).join()
+					logical = indices.map(|index| if (content == WithFigure and index == 1) [" ", "Caption"] else [index.to_str()]).join()
+					paint = world.order.map(
+						|index|
+							if content == TextOnly or index == 0 {
+								[index]
+							} else if index == 1 {
+								[1, 2]
+							} else {
+								[index + 1]
+							},
+					).join()
+					valid and view.frames == frames and view.paint_order == paint and artifacts == expected and
+						view.authoring.blocks.map(|block| block.text) == logical and
 							sheet.placements.start() == 0 and sheet.placements.length() == indices.len() and
-								sheet.paint.start() == 0 and sheet.paint.length() == indices.len() and
+								sheet.paint.start() == 0 and sheet.paint.length() == frames.len() and
 									sheet.underlays.start() == 0 and sheet.underlays.length() == (if (world.underlay) 1 else 0) and
 										sheet.overlays.start() == sheet.underlays.length() and sheet.overlays.length() == (if (world.overlay) 1 else 0)
 				}
@@ -84,15 +98,21 @@ agrees = |world| {
 frame : U64 -> Layout.Rect
 frame = |index| Layout.rect({ x: 10, y: 10 + index.to_i64_wrap() * 20, width: 80, height: 20 })
 
-build_page : List(U64), World -> Document.FixedPage
-build_page = |indices, world| {
+build_page : List(U64), World, Content -> Document.FixedPage
+build_page = |indices, world, content| {
 	drawing = Scene.Drawing.empty.rectangle({ bounds: frame(0), color: Color.srgb8({ red: 25, green: 50, blue: 75 }) })
 	var $page = Pdf.fixed_page({ width: 100, height: 100 })
 	if world.underlay {
 		$page = $page.background(drawing)
 	}
 	for index in indices {
-		$page = $page.place({ frame: frame(index), block: Pdf.paragraph(index.to_str()) })
+		block = if content == WithFigure and index == 1 {
+			local = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 10, height: 5 }), color: Color.srgb8({ red: 25, green: 50, blue: 75 }) })
+			Pdf.figure({ drawing: local, alt: "Colored patch", caption: Pdf.caption("Caption") })
+		} else {
+			Pdf.paragraph(index.to_str())
+		}
+		$page = $page.place({ frame: frame(index), block })
 	}
 	if world.overlay {
 		$page = $page.overlay({ drawing, kind: Decoration })

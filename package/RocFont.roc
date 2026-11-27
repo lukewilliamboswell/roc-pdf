@@ -1,11 +1,9 @@
 import Font
 import Theme
 import KernelBuiltInFonts
-import "fonts/Inter-OFL.txt" as sans_license : Str
-import "fonts/Merriweather-OFL.txt" as serif_license : Str
-import "fonts/FiraCode-OFL.txt" as mono_license : Str
+import shaping.Font as BuiltInFaces
 
-## Exact static rc4 families; registration validates each payload once.
+## Exact static built-in families; registration validates each payload once.
 RocFont :: [].{
 	Faces : { body : Font.FaceId, heading : Font.FaceId, strong : Font.FaceId, emphasis : Font.FaceId, strong_emphasis : Font.FaceId, inline_code : Font.FaceId, source_code : Font.FaceId, sans : Font.FamilyFaces, serif : Font.FamilyFaces, mono : Font.FamilyFaces, registry : Font.Registry }
 
@@ -52,5 +50,5 @@ RocFont :: [].{
 	}
 
 	licenses : { sans : Str, serif : Str, mono : Str }
-	licenses = { sans: sans_license, serif: serif_license, mono: mono_license }
+	licenses = { sans: BuiltInFaces.sans_licence, serif: BuiltInFaces.serif_licence, mono: BuiltInFaces.mono_licence }
 }

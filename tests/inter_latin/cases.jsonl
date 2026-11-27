@@ -1,0 +1,4 @@
+{"name":"Inter Latin shaping public report x2","schema_version":1,"case":{"Report":{"count":2,"wtpdf":false}}}
+{"name":"Inter Latin shaping public report x20","schema_version":1,"case":{"Report":{"count":20,"wtpdf":false}}}
+{"name":"Inter Latin shaping public report WTPDF","schema_version":1,"case":{"Report":{"count":2,"wtpdf":true}}}
+{"name":"Inter Latin shaping atomic paragraph budget","schema_version":1,"case":{"AtomicBudget":{"count":16385}}}

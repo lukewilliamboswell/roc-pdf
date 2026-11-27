@@ -1,6 +1,7 @@
 import Color
 import Document
 import Font
+import KernelFacadePages
 import KernelFacadeSemantics
 import KernelFacadeShape
 import KernelFacadeSources
@@ -96,7 +97,7 @@ drawing_has_labels = |drawing| match drawing {
 			_ => False
 		},
 	)
-	InvalidDrawing(_) => False
+	DrawingDepthLimit(_) | InvalidDrawing(_) => False
 }
 
 build_labels : Document.NormalizedAuthoring, KernelFacadeText.Plan, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FigureLabels, KernelFacadeLabels.Fonts, Semantics.Language, U64, KernelFacadeLabels.Limits -> Try([Labels(KernelFacadeLabels.Plan), NoLabels], KernelFacadeLabels.Error)
@@ -129,10 +130,7 @@ build_labels = |authoring, text, blocks, figures, fonts, language, source_base, 
 		drawing = list_at(authoring.customs, $custom).panel
 		if drawing_has_labels(drawing) {
 			owner = PanelOwner($custom)
-			placed = match flow.panels.find_first(|paint| paint.custom == $custom) {
-				Ok(paint) => { origin: paint.origin, page: paint.page }
-				Err(_) => return Err(InvalidPlacement(owner))
-			}
+			placed = panel_placement(flow.panels, $custom)?
 			$entries = append_entries($entries, drawing, owner, placed, 1000)?
 		}
 		$custom = $custom + 1
@@ -225,7 +223,7 @@ build_labels = |authoring, text, blocks, figures, fonts, language, source_base, 
 
 	## The runs are rewritten in place rather than with `map`: dev builds
 	## never reuse `List.map`'s list.
-	{ advances, store: batch_store, work: _ } = batch
+	{ advances, store: batch_store, .. } = batch
 	var $runs = batch_store.runs
 	var $run_index = 0
 	while $run_index < $runs.len() {
@@ -282,7 +280,7 @@ build_labels = |authoring, text, blocks, figures, fonts, language, source_base, 
 ## Append one drawing's labels as entries.
 append_entries : List(Entry), Document.ValidatedDrawing, KernelFacadeLabels.Owner, { origin : Layout.Point, page : U64 }, I64 -> Try(List(Entry), KernelFacadeLabels.Error)
 append_entries = |entries, drawing, owner, placed, scale| match drawing {
-	InvalidDrawing(_) => Err(InvalidPlacement(owner))
+	DrawingDepthLimit(_) | InvalidDrawing(_) => Err(InvalidPlacement(owner))
 	ValidDrawing(value) => {
 		var $entries = entries
 		var $label = 0
@@ -298,6 +296,13 @@ append_entries = |entries, drawing, owner, placed, scale| match drawing {
 		}
 		Ok($entries)
 	}
+}
+
+## Pagination emits one accepted panel per custom in authored order.
+panel_placement : List(KernelFacadePages.PanelPaint), U64 -> Try({ origin : Layout.Point, page : U64 }, KernelFacadeLabels.Error)
+panel_placement = |panels, custom| match panels.get(custom) {
+	Ok({ custom: owner, origin, page }) if owner == custom => Ok({ origin, page })
+	_ => Err(InvalidPlacement(PanelOwner(custom)))
 }
 
 ## Each figure's anchor: the origin and page of the first painted run of
@@ -395,4 +400,23 @@ list_set : List(a), U64, a -> List(a)
 list_set = |items, index, value| match items.set(index, value) {
 	Ok(updated) => updated
 	Err(OutOfBounds) => crash "validated drawing label write escaped"
+}
+
+expect {
+	origin = Layout.point({ x: 18, y: 36 })
+	first = { custom: 0, origin, page: 0 }
+	second = { custom: 1, origin, page: 1 }
+	matches = match panel_placement([first, second], 1) {
+		Ok({ page: 1, origin: placed }) => placed.x.raw() == origin.x.raw() and placed.y.raw() == origin.y.raw()
+		_ => False
+	}
+	wrong_owner = match panel_placement([second, first], 1) {
+		Err(InvalidPlacement(PanelOwner(1))) => True
+		_ => False
+	}
+	missing = match panel_placement([first], 1) {
+		Err(InvalidPlacement(PanelOwner(1))) => True
+		_ => False
+	}
+	matches and wrong_owner and missing
 }

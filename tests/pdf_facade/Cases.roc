@@ -1,7 +1,10 @@
+import pdf.Document
 import pdf.Image
 import pdf.Layout
 import pdf.Pdf
 import pdf.Scene
+import "../assets/jpeg-fuzz-corpus/rgb-8x8.jpg" as jpeg_bytes : List(U8)
+import "../assets/jpeg-fuzz-corpus/rgb-exif-orientation-6.jpg" as rotated_jpeg : List(U8)
 
 ## The pdf_facade family's typed cases and their dispatch, run by a fixture
 ## group app.
@@ -13,6 +16,8 @@ Cases :: [].{
 	Case : [
 		Output({ context : U64 }),
 		Image({ context : U64 }),
+		SharedRaster({ pages : U64 }),
+		SharedJpeg({ pages : U64 }),
 		Chunks({ compression : [Balanced, Fastest, Smallest], retention : [Own, Share] }),
 		ChunksNegative({ context : U64 }),
 	]
@@ -22,6 +27,8 @@ Cases :: [].{
 		match case {
 			Output({ context }) => facade_output(context)
 			Image({ context }) => image_output(context)
+			SharedRaster({ pages }) => shared_raster(pages)
+			SharedJpeg({ pages }) => shared_jpeg(pages)
 			Chunks({ compression, retention }) => chunked_output(retention, compression)
 			ChunksNegative({ context }) => chunks_negative(context)
 		}
@@ -214,6 +221,76 @@ image_output = |context| {
 	}
 	bytes = Pdf.to_bytes_with(document, { profile: Archive }) ?? []
 	{ bytes, work: [image_pixels.len(), bytes.len()] }
+}
+
+## Three figures on each page place A, B, A. The RGB planes match while
+## the alpha planes differ. Figure text and marked content stay distinct.
+shared_raster : U64 -> { bytes : List(U8), work : List(U64) }
+shared_raster = |pages| {
+	raster = |alpha| Image.Source.rgb8({
+		alpha: PackedAlpha({ bytes: alpha, row_stride: 2 }),
+		dimensions: { width: 2, height: 1 },
+		pixels: [30, 60, 90, 120, 150, 180],
+		row_stride: 6,
+	})
+	shared_figures(pages, raster([0, 255]), raster([255, 0]), "Survey figure raster sharing")
+}
+
+shared_jpeg : U64 -> { bytes : List(U8), work : List(U64) }
+shared_jpeg = |pages| {
+	image = Image.Source.jpeg_srgb(jpeg_bytes, RequireDisplayReady)
+	shared_figures(pages, image, image, "Survey figure JPEG sharing")
+}
+
+shared_figures : U64, Image.Source, Image.Source, Str -> { bytes : List(U8), work : List(U64) }
+shared_figures = |pages, a, b, title| {
+	empty : List(Document.Block)
+	empty = []
+	var $blocks = empty
+	var $page = 0
+	while $page < pages {
+		if $page > 0 {
+			$blocks = $blocks.append(Pdf.page_break)
+		}
+		var $placement = 0
+		while $placement < 3 {
+			image = if ($placement == 1) b else a
+			reading = ($page * 3 + $placement + 1).to_str()
+			drawing = Scene.Drawing.empty.image({ image, placement: Layout.rect({ x: 0, y: 0, width: 90, height: 36 }) })
+			$blocks = $blocks.append(
+				Pdf.figure({
+					drawing,
+					alt: "Image description ${reading}",
+					caption: Pdf.caption("Survey figure ${reading}"),
+				}),
+			)
+			$placement = $placement + 1
+		}
+		$page = $page + 1
+	}
+	document = Pdf.document({ contents: $blocks, language: "en", title })
+	bytes = Pdf.to_bytes_with(document, { profile: Archive }) ?? []
+	{ bytes, work: [3 * pages, bytes.len()] }
+}
+
+# Shared encoded sources still pass through the format and orientation
+# inspector. Both failures keep the facade's existing image diagnostic.
+expect {
+	rejects = |bytes, reason| {
+		image = Image.Source.jpeg_srgb(bytes, RequireDisplayReady)
+		drawing = Scene.Drawing.empty.image({ image, placement: Layout.rect({ x: 0, y: 0, width: 90, height: 36 }) })
+		document = Pdf.document({
+			contents: [Pdf.figure({ drawing, alt: "First image", caption: Pdf.no_caption }), Pdf.figure({ drawing, alt: "Second image", caption: Pdf.no_caption })],
+			language: "en",
+			title: "JPEG source rejection",
+		})
+		match Pdf.prepare(document, Pdf.Options.default) {
+			Err(InvalidDocument({ diagnostics: [{ code: InvalidRelationship, details: [detail], feature: Feature("image.invalid"), .. }], .. })) => detail == reason
+			_ => False
+		}
+	}
+	rejects(rotated_jpeg, "OrientationRequiresTransform")
+		and rejects([0xff, 0xd8, 0, 0], "InvalidJpegSegment")
 }
 
 ## The authored chunked facade drives the same sealed plan as the buffered

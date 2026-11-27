@@ -82,8 +82,15 @@ KernelCaseTransform :: [].{
 
 transform : Str, KernelCaseTransform.Limits -> Try(KernelCaseTransform.Result, KernelCaseTransform.Error)
 transform = |source, limits| {
-	budget = Case.limits(limits.max_input_bytes, limits.max_input_scalars, limits.max_output_bytes, limits.max_output_scalars, limits.max_mapping_facts)
-	result = Case.to_upper(source, Case.unicode_default, budget) ? map_case_error
+	budget : Case.Limits
+	budget = {
+		max_input_bytes: limits.max_input_bytes,
+		max_input_scalars: limits.max_input_scalars,
+		max_output_bytes: limits.max_output_bytes,
+		max_output_scalars: limits.max_output_scalars,
+		max_mapping_facts: limits.max_mapping_facts,
+	}
+	result = Case.to_upper(source, Case.MappingOptions.{ profile: Case.unicode_default, limits: budget }) ? map_case_error
 	version = UnicodeVersion.to_str(Case.result_unicode_version(result))
 	if version != pinned_unicode_version {
 		return Err(UnexpectedUnicodeVersion(version))
@@ -167,7 +174,7 @@ transform = |source, limits| {
 ## The pinned Unicode data version. A dependency that reports a different
 ## version is a reviewed provenance change, not a silent upgrade.
 pinned_unicode_version : Str
-pinned_unicode_version = "17.0.0"
+pinned_unicode_version = "18.0.0"
 
 project_range : TextRange -> Semantics.TextRange
 project_range = |range| {

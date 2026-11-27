@@ -2,3 +2,6 @@
 {"name":"fixed remittance pages x20","schema_version":1,"case":{"RemittancePages":{"count":20}}}
 {"name":"fixed remittance authoring rejections","schema_version":1,"case":{"AtomicNegatives":{"context":0}}}
 {"name":"fixed remittance WTPDF x2","schema_version":1,"case":"Wtpdf"}
+{"name":"fixed designed brief x2","schema_version":1,"case":{"DesignedBrief":{"count":2}}}
+{"name":"fixed designed brief x20","schema_version":1,"case":{"DesignedBrief":{"count":20}}}
+{"name":"fixed designed brief authoring rejections","schema_version":1,"case":"DesignedNegatives"}

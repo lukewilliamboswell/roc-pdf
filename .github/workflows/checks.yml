@@ -53,12 +53,12 @@ jobs:
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           python3 scripts/check_release_version.py --self-test
           python3 scripts/test_check_ci_release.py
-          if [[ -z "$REQUESTED_VERSION" && -f docs/unreleased.md ]]; then
+          if [[ -z "$REQUESTED_VERSION" && -f docs/releases/unreleased.adoc ]]; then
             version=unreleased
           else
             version="${REQUESTED_VERSION:-$(python3 scripts/release_artifacts.py --latest-notes)}"
             [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)?$ ]]
-            test -f "docs/releases/$version.md"
+            test -f "docs/releases/$version.adoc"
           fi
           printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
   test:
@@ -116,7 +116,7 @@ jobs:
           python3 scripts/prepare_ci_source.py
 
       - name: Run spec-defined e2e evidence
-        run: blueprint run test -- --compare-baselines --baseline-report .roc-pdf-tmp/ci-baselines.json
+        run: blueprint run test -- --compare-baselines --baseline-report .roc-pdf-tmp/ci-baselines.json --improvement-report .roc-pdf-tmp/ci-allocation-improvements.json
 
       - name: Preserve exact allocation and functional diagnostics
         if: always()
@@ -126,6 +126,7 @@ jobs:
           path: |
             .roc-pdf-tmp/ci-source.json
             .roc-pdf-tmp/ci-baselines.json
+            .roc-pdf-tmp/ci-allocation-improvements.json
             .roc-pdf-tmp/logs/
           if-no-files-found: warn
           retention-days: 14
@@ -260,6 +261,12 @@ jobs:
           CANDIDATE_BUNDLE: ${{ steps.candidate.outputs.bundle }}
         run: |
           python3 scripts/check_ci_release.py --requested "$RELEASE_VERSION" --explicit-release "$EXPLICIT_RELEASE" --bundle "$CANDIDATE_BUNDLE"
+      - id: release-renderer
+        if: ${{ steps.version.outputs.version != 'unreleased' && (!inputs.nightly_validation || inputs.release_payload) }}
+        uses: lukewilliamboswell/roc-automation/actions/blueprint-tool@dd30a5dd576973b6e224db70d96e3e12c96bcc95
+        with:
+          task: docs-path
+          label: Locked release notes renderer
       - name: Test fresh bundle and applicable release artifacts
         env:
           RELEASE_VERSION: ${{ steps.version.outputs.version }}
@@ -267,6 +274,7 @@ jobs:
           SOURCE_SHA: ${{ inputs.source_sha }}
           NIGHTLY_VALIDATION: ${{ inputs.nightly_validation }}
           RELEASE_PAYLOAD: ${{ inputs.release_payload }}
+          ROC_DOCS_BINARY: ${{ steps.release-renderer.outputs.binary }}
         run: |
           ROC=roc python3 scripts/check_gallery.py --bundle-path "$CANDIDATE_BUNDLE"
           python3 scripts/release_artifacts.py --self-test

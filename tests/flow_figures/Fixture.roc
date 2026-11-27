@@ -290,7 +290,7 @@ face_counts = |document| {
 					}
 				}
 			}
-			InvalidDrawing(_) => {}
+			DrawingDepthLimit(_) | InvalidDrawing(_) => {}
 		}
 	}
 	$counts
@@ -637,7 +637,7 @@ run_negatives = |context| {
 		rejects(document([Pdf.section([Pdf.paragraph("Lead"), figure(wide, Pdf.no_caption)])]), LayoutConstraintViolated, "document.figure_oversize", ["contents[0].contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), Pdf.figure({ drawing: leaf_mark, alt: "", caption: Pdf.caption("Figure 2.") })]), InvalidRelationship, "document.figure_alternative_empty", ["contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), figure(Scene.Drawing.empty, Pdf.no_caption)]), InvalidRelationship, "document.figure_drawing", ["contents[1]"]),
-		rejects(document([Pdf.paragraph("Lead"), figure(nested(9), Pdf.no_caption)]), InvalidRelationship, "document.figure_drawing", ["contents[1]"]),
+		rejects(document([Pdf.paragraph("Lead"), figure(nested(9), Pdf.no_caption)]), BudgetExceeded, "document.drawing_group_depth", ["contents[1].drawing.commands[8]"]),
 		rejects(document([Pdf.paragraph("Lead"), figure(leaf_mark, Pdf.caption(""))]), InvalidRelationship, "document.figure_caption_empty", ["contents[1].caption"]),
 		rejects(document([Pdf.paragraph("Lead"), Pdf.figure({ drawing: leaf_mark, alt: "A plan drawing", caption: Pdf.no_caption, fit: ScaleToFit({ minimum_percent: 101 }) })]), InvalidRelationship, "document.figure_fit", ["contents[1]"]),
 		rejects(document([Pdf.section([Pdf.paragraph("Lead"), Pdf.figure({ drawing: leaf_mark, alt: "A plan drawing", caption: Pdf.no_caption, fit: ScaleToFit({ minimum_percent: 255 }) })])]), InvalidRelationship, "document.figure_fit", ["contents[0].contents[1]"]),

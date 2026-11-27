@@ -1,3 +1,5 @@
+import KernelWidgetObjects
+import KernelAssociatedObjects
 # The static PDF/A-4 profile boundary. A requested claim is a typed input
 # selected by the facade from the public profile; every construct that
 # reaches a claimed file is either eligible by construction or checked here
@@ -32,7 +34,7 @@ import KernelStructure
 import KernelXmp
 
 KernelPdfA4 :: [].{
-	Claim : [NoArchiveClaim, StaticPdfA4Claim]
+	Claim : [InteractivePdfA4Claim, NoArchiveClaim, PdfA4fClaim, StaticPdfA4Claim]
 
 	## One tag per requirement with a runtime check. Requirements that
 	## hold by construction (file header, cross-reference streams, string and
@@ -147,7 +149,7 @@ KernelPdfA4 :: [].{
 		ActualTextPrivateUse => "ActualText replacement text must not contain Private Use Area characters"
 		Actions => "only URI and GoTo actions without chained actions are supported"
 		AdditionalActions => "additional-action (AA) entries are not permitted"
-		AnnotationAppearance => "an annotation appearance must be a single normal appearance stream"
+		AnnotationAppearance => "an annotation must use its required normal appearance"
 		AnnotationFlags => "annotations must be printable and never hidden"
 		AnnotationTypes => "only link annotations are supported"
 		BlendMode => "only the Normal blend mode is supported"
@@ -211,13 +213,21 @@ KernelPdfA4 :: [].{
 
 	## Lowered-plan validation over the sealed store before serialization.
 	validate_lowered : Claim, LoweredInput -> Try(LoweredWork, Violation)
-	validate_lowered = |claim, input| check_lowered(claim, input)
+	validate_lowered = |claim, input| check_lowered(claim, input, NoAssociationOwnership, NoWidgetEvidence)
+
+	## Accept AF and EmbeddedFiles exclusively at the two verified dictionary
+	## edges produced by the document-level associated-file writer.
+	validate_associated_lowered : Claim, LoweredInput, KernelAssociatedObjects.Ownership -> Try(LoweredWork, Violation)
+	validate_associated_lowered = |claim, input, ownership| check_lowered(claim, input, ownership, NoWidgetEvidence)
+	validate_widgets_lowered : Claim, LoweredInput, KernelWidgetObjects.Evidence -> Try(LoweredWork, Violation)
+	validate_widgets_lowered = |claim, input, evidence| check_lowered(claim, input, NoAssociationOwnership, evidence)
+
 }
 
 check_text : KernelPdfA4.Claim, KernelPdfA4.TextFacts -> Try(KernelPdfA4.TextWork, KernelPdfA4.Violation)
 check_text = |claim, facts| match claim {
 	NoArchiveClaim => Ok({ mappings_checked: 0, scalars_checked: 0 })
-	StaticPdfA4Claim => {
+	StaticPdfA4Claim | PdfA4fClaim | InteractivePdfA4Claim => {
 		match facts.actual_text {
 			PrivateUseInRun(run) => return Err({ position: run, requirement: ActualTextPrivateUse })
 			NoPrivateUse => {}
@@ -330,6 +340,8 @@ NameClass : [
 	Trans,
 	Type,
 	Type0,
+	TrueType,
+	Widget,
 	Uri,
 	Version,
 	XObject,
@@ -370,26 +382,35 @@ empty_summary = {
 	type_name: Other,
 }
 
-check_lowered : KernelPdfA4.Claim, KernelPdfA4.LoweredInput -> Try(KernelPdfA4.LoweredWork, KernelPdfA4.Violation)
-check_lowered = |claim, input| {
-	if KernelXmp.declares_archive(KernelXmp.Packet.identification(input.packet)) != (claim == StaticPdfA4Claim) {
+check_lowered : KernelPdfA4.Claim, KernelPdfA4.LoweredInput, KernelAssociatedObjects.Ownership, KernelWidgetObjects.Evidence -> Try(KernelPdfA4.LoweredWork, KernelPdfA4.Violation)
+check_lowered = |claim, input, ownership, widgets| {
+	identification = KernelXmp.Packet.identification(input.packet)
+	if KernelXmp.declares_archive(identification) != (claim != NoArchiveClaim) or KernelXmp.declares_files(identification) != (claim == PdfA4fClaim) {
 		return Err({ position: 0, requirement: Identification })
 	}
 	match claim {
 		NoArchiveClaim => Ok({ entries_checked: 0, names_classified: 0, packet_bytes_compared: 0, streams_checked: 0, values_checked: 0 })
-		StaticPdfA4Claim => validate_claimed_store(KernelSeal.Plan.store(input.sealed), input.root, KernelXmp.Packet.bytes(input.packet))
+		StaticPdfA4Claim => validate_claimed_store(KernelSeal.Plan.store(input.sealed), input.root, KernelXmp.Packet.bytes(input.packet), NoAssociationOwnership, NoWidgetEvidence)
+		InteractivePdfA4Claim => match widgets {
+			NoWidgetEvidence => Err({ position: 0, requirement: InteractiveForms })
+			WidgetEvidence(_) => validate_claimed_store(KernelSeal.Plan.store(input.sealed), input.root, KernelXmp.Packet.bytes(input.packet), NoAssociationOwnership, widgets)
+		}
+		PdfA4fClaim => match ownership {
+			NoAssociationOwnership => Err({ position: 0, requirement: EmbeddedFiles })
+			AssociationOwnership(_) => validate_claimed_store(KernelSeal.Plan.store(input.sealed), input.root, KernelXmp.Packet.bytes(input.packet), ownership, NoWidgetEvidence)
+		}
 	}
 }
 
-validate_claimed_store : KernelObject.Store, KernelObject.ObjectId, List(U8) -> Try(KernelPdfA4.LoweredWork, KernelPdfA4.Violation)
-validate_claimed_store = |store, root, packet| {
+validate_claimed_store : KernelObject.Store, KernelObject.ObjectId, List(U8), KernelAssociatedObjects.Ownership, KernelWidgetObjects.Evidence -> Try(KernelPdfA4.LoweredWork, KernelPdfA4.Violation)
+validate_claimed_store = |store, root, packet, ownership, interactive| {
 	classes = classify_names(store.names)?
 	var $entries_checked = 0
 	var $value = 0
 	while $value < store.values.len() {
 		match list_at(store.values, $value) {
 			Dictionary(span) => {
-				check_dictionary(store, classes, span, PlainDictionary, $value)?
+				check_dictionary(store, classes, span, PlainDictionary, $value, ownership, interactive)?
 				$entries_checked = $entries_checked + span.length
 			}
 			_ => {}
@@ -399,7 +420,7 @@ validate_claimed_store = |store, root, packet| {
 	var $stream = 0
 	while $stream < store.streams.len() {
 		stream = list_at(store.streams, $stream)
-		check_dictionary(store, classes, stream.dictionary, StreamDictionary, $stream)?
+		check_dictionary(store, classes, stream.dictionary, StreamDictionary, $stream, NoAssociationOwnership, NoWidgetEvidence)?
 		$entries_checked = $entries_checked + stream.dictionary.length
 		$stream = $stream + 1
 	}
@@ -486,15 +507,15 @@ value_name_class = |store, classes, value| match list_at(store.values, KernelObj
 
 ## Forbidden keys map directly to their requirement; everything else is
 ## summarized for the kind-specific checks below.
-check_dictionary : KernelObject.Store, List(NameClass), KernelObject.Span, DictionaryKind, U64 -> Try({}, KernelPdfA4.Violation)
-check_dictionary = |store, classes, span, kind, position| {
+check_dictionary : KernelObject.Store, List(NameClass), KernelObject.Span, DictionaryKind, U64, KernelAssociatedObjects.Ownership, KernelWidgetObjects.Evidence -> Try({}, KernelPdfA4.Violation)
+check_dictionary = |store, classes, span, kind, position, ownership, interactive| {
 	var $summary = empty_summary
 	var $entry = span.start
 	end = span.start + span.length
 	while $entry < end {
 		entry = list_at(store.dictionary_entries, $entry)
 		key = name_class(store, classes, entry.key)
-		forbidden = forbidden_key(key, kind)
+		forbidden = forbidden_key(key, kind, ownership, $entry, interactive)
 		match forbidden {
 			Forbidden(requirement) => return Err({ position, requirement })
 			Allowed => {}
@@ -562,13 +583,13 @@ check_dictionary = |store, classes, span, kind, position| {
 		}
 		$entry = $entry + 1
 	}
-	check_summary(store, classes, $summary, position)
+	check_summary(store, classes, $summary, position, interactive)
 }
 
 ForbiddenKey : [Allowed, Forbidden(KernelPdfA4.Requirement)]
 
-forbidden_key : NameClass, DictionaryKind -> ForbiddenKey
-forbidden_key = |key, kind| match key {
+forbidden_key : NameClass, DictionaryKind, KernelAssociatedObjects.Ownership, U64, KernelWidgetObjects.Evidence -> ForbiddenKey
+forbidden_key = |key, kind, ownership, edge, interactive| match key {
 	Encrypt => Forbidden(Encryption)
 	PieceInfo => Forbidden(DocumentInformation)
 	FFilter => Forbidden(StreamExternal)
@@ -590,15 +611,20 @@ forbidden_key = |key, kind| match key {
 		# a distinct /Ref entry for relationships, including TOCI targets.
 		PlainDictionary => Allowed
 	}
-	AcroForm => Forbidden(InteractiveForms)
+	AcroForm => match interactive {
+		WidgetEvidence({ acro_form_edge, .. }) if edge == acro_form_edge => Allowed
+		_ => Forbidden(InteractiveForms)
+	}
 	NeedAppearances => Forbidden(InteractiveForms)
 	NeedsRendering => Forbidden(InteractiveForms)
 	Xfa => Forbidden(InteractiveForms)
 	Js => Forbidden(Actions)
 	JavaScript => Forbidden(Actions)
 	Aa => Forbidden(AdditionalActions)
-	EmbeddedFiles => Forbidden(EmbeddedFiles)
-	Af => Forbidden(EmbeddedFiles)
+	EmbeddedFiles | Af => match ownership {
+		AssociationOwnership(associated) if (key == Af and edge == associated.af) or (key == EmbeddedFiles and edge == associated.embedded_files) => Allowed
+		_ => Forbidden(EmbeddedFiles)
+	}
 	OcProperties => Forbidden(OptionalContent)
 	Oc => Forbidden(OptionalContent)
 	AlternatePresentations => Forbidden(Presentations)
@@ -628,8 +654,8 @@ names_all = |store, classes, value, first, second| match list_at(store.values, K
 	_ => False
 }
 
-check_summary : KernelObject.Store, List(NameClass), Summary, U64 -> Try({}, KernelPdfA4.Violation)
-check_summary = |store, classes, summary, position| {
+check_summary : KernelObject.Store, List(NameClass), Summary, U64, KernelWidgetObjects.Evidence -> Try({}, KernelPdfA4.Violation)
+check_summary = |store, classes, summary, position, interactive| {
 	if is_action_type(summary.s) {
 		if (summary.s != Uri and summary.s != GoTo) or summary.next {
 			return Err({ position, requirement: Actions })
@@ -645,11 +671,15 @@ check_summary = |store, classes, summary, position| {
 		}
 		Absent => {}
 	}
-	if summary.type_name == Annot or summary.subtype == Link {
-		check_annotation(store, classes, summary, position)?
+	if summary.type_name == Annot or summary.subtype == Link or summary.subtype == Widget {
+		check_annotation(store, classes, summary, position, KernelWidgetObjects.allows_widget(interactive, position))?
 	}
 	if summary.type_name == Font {
-		if summary.subtype != Type0 and summary.subtype != CidFontType2 {
+		approved_edit_face = match interactive {
+			WidgetEvidence({ editable_font_value: EditableFontValue(index), .. }) => position == index and summary.subtype == TrueType
+			_ => False
+		}
+		if summary.subtype != Type0 and summary.subtype != CidFontType2 and !approved_edit_face {
 			return Err({ position, requirement: FontDictionary })
 		}
 		if summary.subtype == CidFontType2 and !summary.cid_to_gid {
@@ -668,13 +698,12 @@ is_action_type = |class| match class {
 	_ => False
 }
 
-## The package emits only link annotations, always printable and visible.
-## ISO 19005-4 6.3.3 exempts link annotations from requiring an appearance,
-## so facade links without `/AP` are eligible; an appearance that is present
-## must be a single normal appearance stream.
-check_annotation : KernelObject.Store, List(NameClass), Summary, U64 -> Try({}, KernelPdfA4.Violation)
-check_annotation = |store, classes, summary, position| {
-	if summary.subtype != Link {
+## ISO 19005-4:2020 6.3.3 permits a normal appearance state dictionary for a
+## non-pushbutton widget. The scoped interactive writer proof independently
+## checks both checked and unchecked streams before the archival scan.
+check_annotation : KernelObject.Store, List(NameClass), Summary, U64, Bool -> Try({}, KernelPdfA4.Violation)
+check_annotation = |store, classes, summary, position, interactive| {
+	if summary.subtype != Link and !(interactive and summary.subtype == Widget) {
 		return Err({ position, requirement: AnnotationTypes })
 	}
 	match summary.flags {
@@ -684,6 +713,7 @@ check_annotation = |store, classes, summary, position| {
 		}
 	}
 	match summary.ap {
+		Absent if summary.subtype == Widget => Err({ position, requirement: AnnotationAppearance })
 		Absent => Ok({})
 		Present(appearance) => {
 			span = match resolve_dictionary(store, appearance) {
@@ -694,10 +724,16 @@ check_annotation = |store, classes, summary, position| {
 				return Err({ position, requirement: AnnotationAppearance })
 			}
 			entry = list_at(store.dictionary_entries, span.start)
-			if name_class(store, classes, entry.key) != N or !is_stream(store, entry.value) {
+			if name_class(store, classes, entry.key) != N {
 				return Err({ position, requirement: AnnotationAppearance })
 			}
-			Ok({})
+			if is_stream(store, entry.value) {
+				return Ok({})
+			}
+			match resolve_dictionary(store, entry.value) {
+				Resolved(states) if interactive and summary.subtype == Widget and states.length == 2 => Ok({})
+				_ => Err({ position, requirement: AnnotationAppearance })
+			}
 		}
 	}
 }
@@ -925,6 +961,8 @@ name_table = [
 	{ bytes: [80, 101, 114, 109, 115], class: Perms }, # Perms
 	{ bytes: [83, 111, 117, 110, 100], class: Sound }, # Sound
 	{ bytes: [84, 114, 97, 110, 115], class: Trans }, # Trans
+	{ bytes: [84, 114, 117, 101, 84, 121, 112, 101], class: TrueType }, # TrueType
+	{ bytes: [87, 105, 100, 103, 101, 116], class: Widget }, # Widget
 	{ bytes: [84, 121, 112, 101, 48], class: Type0 }, # Type0
 	{ bytes: [70, 105, 108, 116, 101, 114], class: Filter }, # Filter
 	{ bytes: [71, 111, 84, 111, 68, 112], class: GoToDp }, # GoToDp

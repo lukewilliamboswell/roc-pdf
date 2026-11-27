@@ -158,9 +158,9 @@ negative_evidence = |context| {
 		$depth = $depth + 1
 	}
 	report_document = make(Pdf.callout({ name: "Budgeted note", contents: valid }))
-	report = (Pdf.prepare_with_report(report_document, options) ? PdfFailure).report
+	report = (Pdf.prepare_with_report(report_document, { options: options }) ? PdfFailure).report
 	entries = report.facts.pages.len() + report.facts.blocks.len() + report.facts.alternatives.len() + report.facts.outcomes.len() + report.facts.coverage.len() + report.obligations.len()
-	report_budget_rejected = match Pdf.prepare_with_report_budget(report_document, { options: options, budget: { max_entries: entries - 1 } }) {
+	report_budget_rejected = match Pdf.prepare_with_report(report_document, { options: options, budget: { max_entries: entries - 1 } }) {
 		Err(InvalidDocument(batch)) => batch.diagnostics.any(|diagnostic| diagnostic.feature == Feature("report.budget_exceeded"))
 		_ => False
 	}
@@ -281,7 +281,7 @@ probe_facts : Document -> Try(KernelMetadata.PlanFacts, Fixture.Error)
 probe_facts = |document| {
 	validated = KernelMetadata.validate({ created: Omitted, modified: Omitted, title: Document.metadata_title(document), language: Document.language(document) }, KernelMetadata.Limits.make({ max_language_bytes: 64, max_title_bytes: 2048 })) ? |_| PipelineFailure
 	xmp = KernelXmp.Packet.build_identified(validated.facts, PdfA4Identification, 16384) ? |_| PipelineFailure
-	Ok(WithDocumentFacts({ condition_identifier: KernelMetadata.srgb_condition_identifier, profile: Color.ProfileId.from_index(0), registry_name: KernelMetadata.icc_registry_name, language: validated.facts.language, xmp: KernelXmp.Packet.bytes(xmp) }))
+	Ok(WithDocumentFacts({ associated: NoAssociatedFiles, condition_identifier: KernelMetadata.srgb_condition_identifier, profile: Color.ProfileId.from_index(0), registry_name: KernelMetadata.icc_registry_name, language: validated.facts.language, widgets: NoPreparedWidgets, xmp: KernelXmp.Packet.bytes(xmp) }))
 }
 
 prepared_evidence : Document, { registry : Font.Registry, face : Font.FaceId }, U64, Pdf.Profile -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Error)
@@ -295,7 +295,7 @@ prepared_evidence = |document, registered, count, profile| {
 
 prepared_evidence_styled : Document, { registry : Font.Registry, face : Font.FaceId }, U64, Theme, Pdf.Profile -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Error)
 prepared_evidence_styled = |document, registered, count, theme, profile| {
-	{ prepared, report } = Pdf.prepare_with_report(document, { theme, fonts: Registered(registered.registry), profile }) ? PdfFailure
+	{ prepared, report } = Pdf.prepare_with_report(document, { options: { theme, fonts: Registered(registered.registry), profile } }) ? PdfFailure
 	bytes = Pdf.to_bytes_prepared(prepared) ? PdfFailure
 	resolved = KernelFacadeFonts.resolve(Document.normalize(document), { origin: Caller, registry: registered.registry, theme }) ? |_| FontFailure
 	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(resolved.authoring, resolved.fonts, resolved.theme, page_size, descriptor, probe_facts(document)?, pipeline_limits) ? |_| PipelineFailure
@@ -343,7 +343,7 @@ list_evidence = |count| {
 	document = Pdf.document({ title: "Rich numbered procedures", language: "en", contents: [Pdf.numbered_list({ start: 100 }, $items)] })
 	theme : Theme
 	theme = { face: registered.face, table: { header_color: Themed(Theme.black), row_header_color: Themed(Theme.black) } }
-	{ prepared, report } = Pdf.prepare_with_report(document, { profile: Archive, theme, fonts: Registered(registered.registry) }) ? PdfFailure
+	{ prepared, report } = Pdf.prepare_with_report(document, { options: { profile: Archive, theme, fonts: Registered(registered.registry) } }) ? PdfFailure
 	bytes = Pdf.to_bytes_prepared(prepared) ? PdfFailure
 	font = registered.registry.prepared_face(registered.face) ? |_| FontFailure
 	styled = { faces: [registered.face], fonts: [font], inline_faces: [], face_indexes: [], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }

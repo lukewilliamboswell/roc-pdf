@@ -1,3 +1,5 @@
+import KernelWidgetObjects
+import KernelAssociatedObjects
 import KernelIndex
 import KernelLex
 import KernelObjectPlan
@@ -14,6 +16,8 @@ KernelTaggedObjects :: [].{
 	## objects: an annotation spine item on a plan without planned annotation
 	## object identities is a structured rejection, never a silent drop.
 	Error : [
+		Widgets(KernelWidgetObjects.Error),
+		Associated(KernelAssociatedObjects.Error),
 		AnnotationObjectUnplanned({ annotation : U64 }),
 		IdTree(KernelNavigationObjects.Error),
 		IdTreeIndex(KernelIndex.Error),
@@ -39,14 +43,14 @@ KernelTaggedObjects :: [].{
 
 	Plan :: { builder : KernelObject.Builder, navigation_names : [NoNavigationNames, WithNavigationNames(KernelNavigationObjects.Names)], work : Work }.{
 		build : KernelTagged.Plan, KernelObjectPlan.Plan, KernelObject.Limits -> Try(Plan, Error)
-		build = |tagged, objects, limits| build_plan(tagged, objects, NoCatalogFacts, NoNavigationObjects, limits)
+		build = |tagged, objects, limits| build_plan(tagged, objects, NoCatalogFacts, NoNavigationObjects, NoAssociatedPlan, NoWidgetPlan, limits)
 
 		## Document facts extend the catalog with its validated language, the
 		## planned metadata stream, and the packaged sRGB output intent whose
 		## profile stream the planner has already assigned. `NoCatalogFacts`
 		## keeps the plan byte-identical to `build`.
 		build_with_facts : KernelTagged.Plan, KernelObjectPlan.Plan, KernelMetadata.CatalogFacts, KernelObject.Limits -> Try(Plan, Error)
-		build_with_facts = |tagged, objects, facts, limits| build_plan(tagged, objects, facts, NoNavigationObjects, limits)
+		build_with_facts = |tagged, objects, facts, limits| build_plan(tagged, objects, facts, NoNavigationObjects, NoAssociatedPlan, NoWidgetPlan, limits)
 
 		## Navigation facts extend the prefix with the planned annotation,
 		## named-destination, outline, and page-label identities: the catalog
@@ -56,7 +60,13 @@ KernelTaggedObjects :: [].{
 		## content-stream rows. `NoNavigationObjects` keeps the plan
 		## byte-identical to `build_with_facts`.
 		build_with_navigation : KernelTagged.Plan, KernelObjectPlan.Plan, KernelMetadata.CatalogFacts, KernelNavigationObjects.TaggedFacts, KernelObject.Limits -> Try(Plan, Error)
-		build_with_navigation = |tagged, objects, facts, navigation, limits| build_plan(tagged, objects, facts, navigation, limits)
+		build_with_navigation = |tagged, objects, facts, navigation, limits| build_plan(tagged, objects, facts, navigation, NoAssociatedPlan, NoWidgetPlan, limits)
+
+		build_with_associated_files : KernelTagged.Plan, KernelObjectPlan.Plan, KernelMetadata.CatalogFacts, KernelNavigationObjects.TaggedFacts, KernelAssociatedObjects.Planned, KernelObject.Limits -> Try(Plan, Error)
+		build_with_associated_files = |tagged, objects, facts, navigation, associated, limits| build_plan(tagged, objects, facts, navigation, associated, NoWidgetPlan, limits)
+
+		build_with_widgets : KernelTagged.Plan, KernelObjectPlan.Plan, KernelMetadata.CatalogFacts, KernelNavigationObjects.TaggedFacts, KernelWidgetObjects.Plan, KernelObject.Limits -> Try(Plan, Error)
+		build_with_widgets = |tagged, objects, facts, navigation, widgets, limits| build_plan(tagged, objects, facts, navigation, NoAssociatedPlan, WithWidgetPlan(widgets), limits)
 
 		builder : Plan -> KernelObject.Builder
 		builder = |plan| plan.builder
@@ -109,8 +119,8 @@ Names := {
 	type_name : KernelObject.NameId,
 }
 
-build_plan : KernelTagged.Plan, KernelObjectPlan.Plan, KernelMetadata.CatalogFacts, KernelNavigationObjects.TaggedFacts, KernelObject.Limits -> Try(KernelTaggedObjects.Plan, KernelTaggedObjects.Error)
-build_plan = |tagged, objects, facts, navigation, limits| {
+build_plan : KernelTagged.Plan, KernelObjectPlan.Plan, KernelMetadata.CatalogFacts, KernelNavigationObjects.TaggedFacts, KernelAssociatedObjects.Planned, KernelWidgetObjects.Selection, KernelObject.Limits -> Try(KernelTaggedObjects.Plan, KernelTaggedObjects.Error)
+build_plan = |tagged, objects, facts, navigation, associated, widgets, limits| {
 	semantics = KernelTagged.Plan.semantics(tagged)
 	added_names = add_names(KernelObject.init(limits))?
 	prepared = match facts {
@@ -142,7 +152,7 @@ build_plan = |tagged, objects, facts, navigation, limits| {
 		NoCatalogInput => NoCatalogLanguage
 		CatalogInput(input) => CatalogLanguage(input.facts.language)
 	}
-	with_catalog = add_catalog(lowering.builder, added_names.names, prepared.input, lowering.value, objects)?
+	with_catalog = add_catalog(lowering.builder, added_names.names, prepared.input, lowering.value, associated, widgets, objects)?
 	with_root = add_structure_root(with_catalog, added_names.names, tagged, lowering.value, objects)?
 	with_parent_tree = add_parent_tree(with_root, added_names.names, tagged, lowering.value, objects)?
 	with_namespaces = add_namespaces(with_parent_tree, added_names.names, semantics, objects)?
@@ -277,8 +287,8 @@ add_fact_names = |builder| {
 	})
 }
 
-add_catalog : KernelObject.Builder, Names, CatalogInputFacts, NavigationLowering, KernelObjectPlan.Plan -> Try(KernelObject.Builder, KernelTaggedObjects.Error)
-add_catalog = |builder, names, catalog_input, navigation, objects| {
+add_catalog : KernelObject.Builder, Names, CatalogInputFacts, NavigationLowering, KernelAssociatedObjects.Planned, KernelWidgetObjects.Selection, KernelObjectPlan.Plan -> Try(KernelObject.Builder, KernelTaggedObjects.Error)
+add_catalog = |builder, names, catalog_input, navigation, associated, widgets, objects| {
 	marked = KernelObject.add_boolean(builder, True) ? Object
 	mark_info = KernelObject.add_dictionary(marked.builder, [{ key: names.marked, value: marked.id }]) ? Object
 	pages = KernelObject.add_reference(mark_info.builder, list_at(KernelObjectPlan.Plan.page_tree(objects), 0)) ? Object
@@ -303,9 +313,9 @@ add_catalog = |builder, names, catalog_input, navigation, objects| {
 	navigation_values = match navigation {
 		NoNavigationLowering => { builder: metadata_values.builder, values: NoNavigationValues }
 		WithNavigationLowering(input) => {
-			dests = match input.dests_root {
-				NoDestsRoot => { builder: metadata_values.builder, value: NoValue }
-				DestsRootAt(root) => {
+			dests = match (associated, input.dests_root) {
+				(WithAssociatedPlan(_), _) | (_, NoDestsRoot) => { builder: metadata_values.builder, value: NoValue }
+				(NoAssociatedPlan, DestsRootAt(root)) => {
 					root_reference = KernelObject.add_reference(metadata_values.builder, root) ? Object
 					dictionary = KernelObject.add_dictionary(root_reference.builder, [{ key: input.names.dests, value: root_reference.id }]) ? Object
 					{ builder: dictionary.builder, value: WithValue(dictionary.id) }
@@ -328,7 +338,31 @@ add_catalog = |builder, names, catalog_input, navigation, objects| {
 			{ builder: labels.builder, values: WithNavigationValues({ dests: dests.value, labels: labels.value, names: input.names, outline: outline.value }) }
 		}
 	}
-	var $entries = []
+	associated_values = match associated {
+		NoAssociatedPlan => { builder: navigation_values.builder, values: NoAssociatedCatalogValues }
+		WithAssociatedPlan(planned) => {
+			destination = match navigation {
+				WithNavigationLowering({ dests_root: DestsRootAt(root), .. }) => DestsRootAt(root)
+				_ => NoDestsRoot
+			}
+			entries = KernelAssociatedObjects.catalog_entries(navigation_values.builder, planned, destination) ? Associated
+			{ builder: entries.builder, values: AssociatedCatalogValues({ af: entries.af, names: entries.names }) }
+		}
+	}
+	widget_catalog = match widgets {
+		NoWidgetPlan => { builder: associated_values.builder, entries: [] }
+		WithWidgetPlan(planned) => {
+			form = KernelWidgetObjects.catalog_entry(associated_values.builder, planned) ? Widgets
+			{ builder: form.builder, entries: [form.entry] }
+		}
+	}
+	var $entries = widget_catalog.entries
+	match associated_values.values {
+		NoAssociatedCatalogValues => {}
+		AssociatedCatalogValues(values) => {
+			$entries = $entries.append(values.af)
+		}
+	}
 	match metadata_values.values {
 		NoMetadataValues => {}
 		WithMetadataValues(values) => {
@@ -340,6 +374,12 @@ add_catalog = |builder, names, catalog_input, navigation, objects| {
 		NoMetadataValues => {}
 		WithMetadataValues(values) => {
 			$entries = $entries.append({ key: values.fact_names.metadata, value: values.metadata })
+		}
+	}
+	match associated_values.values {
+		NoAssociatedCatalogValues => {}
+		AssociatedCatalogValues(values) => {
+			$entries = $entries.append(values.names)
 		}
 	}
 	match navigation_values.values {
@@ -383,7 +423,7 @@ add_catalog = |builder, names, catalog_input, navigation, objects| {
 			$entries = $entries.append({ key: values.fact_names.viewer_preferences, value: values.viewer })
 		}
 	}
-	dictionary = KernelObject.add_dictionary(navigation_values.builder, $entries) ? Object
+	dictionary = KernelObject.add_dictionary(widget_catalog.builder, $entries) ? Object
 	object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
 	ensure_object(object.id, KernelObjectPlan.Plan.catalog(objects))?
 	Ok(object.builder)
@@ -532,13 +572,14 @@ add_structure_elements = |builder, names, tagged, navigation, objects, catalog_l
 	lowered = KernelTagged.Plan.lowered_identifiers(tagged)
 	ids = KernelObjectPlan.Plan.structure_elements(objects)
 	references = contents_references(semantics)
+	paired_refs = paired_references(semantics)
 	var $builder = builder
 	var $attribute_dictionaries = 0
 	var $language_entries = 0
 	var $structure_index = 0
 	while $structure_index < ids.len() {
 		node = list_at(semantics.nodes, list_at(nodes_by_structure, $structure_index).index())
-		{ attribute_dictionaries, builder: next_builder, language_entries } = add_structure_element($builder, names, tagged, navigation, objects, catalog_language, lowered, node, references.get(node.id.index()) ?? NoContentsTarget, list_at(ids, $structure_index))?
+		{ attribute_dictionaries, builder: next_builder, language_entries } = add_structure_element($builder, names, tagged, navigation, objects, catalog_language, lowered, node, reference_for(references, paired_refs, node.id.index()), list_at(ids, $structure_index))?
 		$builder = next_builder
 		$attribute_dictionaries = $attribute_dictionaries + attribute_dictionaries
 		$language_entries = $language_entries + language_entries
@@ -584,7 +625,7 @@ add_structure_element = |builder, names, tagged, navigation, objects, catalog_la
 	# `/Type /StructElem` is optional (ISO 32000-2 Table 355) and omitted.
 	k_entry = if (node_k.items.length() != 0) WithEntry({ key: names.k, value: k_id }) else NoEntry
 	base = { k: k_entry, ns: ns_id, p: p_id, page: page_entry, s: s_id }
-	if node.role.local_name == "TOCI" and contents_reference == NoContentsTarget {
+	if (node.role.local_name == "TOCI" or node.role.local_name == "Reference") and !has_structure_reference(contents_reference) {
 		return Err(InvalidContentsTarget({ node: node.id.index() }))
 	}
 	properties = node_properties(semantics, node)
@@ -592,7 +633,7 @@ add_structure_element = |builder, names, tagged, navigation, objects, catalog_la
 		return Err(InvalidFigureAlternative({ node: node.id.index() }))
 	}
 	lowered_language = lowered_node_language(semantics, catalog_language, node)
-	extras = node.attributes.length() != 0 or properties.actual != NoProperty or properties.alternative != NoProperty or properties.expansion != NoProperty or node.element_identifier != NoElementIdentifier or lowered_language != NoProperty or contents_reference != NoContentsTarget
+	extras = node.attributes.length() != 0 or properties.actual != NoProperty or properties.alternative != NoProperty or properties.expansion != NoProperty or node.element_identifier != NoElementIdentifier or lowered_language != NoProperty or has_structure_reference(contents_reference)
 	if !extras {
 		mark = KernelObject.dictionary_mark(with_type)
 		{ builder: with_dictionary, id: dictionary_id } = KernelObject.add_pushed_dictionary(push_base_entries(with_type, names, base, NoEntry, NoEntry), mark) ? Object
@@ -635,7 +676,73 @@ add_structure_element = |builder, names, tagged, navigation, objects, catalog_la
 	})
 }
 
-ContentsReference : [NoContentsTarget, ContentsTargetNode(Semantics.NodeId)]
+ContentsReference : [NoContentsTarget, ContentsTargetNode(Semantics.NodeId), StructureTargets(List(Semantics.NodeId))]
+
+has_structure_reference : ContentsReference -> Bool
+has_structure_reference = |reference| match reference {
+	NoContentsTarget => False
+	_ => True
+}
+
+PairedReferences : { ranges : List(Semantics.IndexRange), peers : List(Semantics.NodeId) }
+
+reference_for : List(ContentsReference), PairedReferences, U64 -> ContentsReference
+reference_for = |contents, paired, index| {
+	if !paired.ranges.is_empty() {
+		span = list_at(paired.ranges, index)
+		if span.length() != 0 {
+			return StructureTargets(paired.peers.sublist({ start: span.start(), len: span.length() }))
+		}
+	}
+	contents.get(index) ?? NoContentsTarget
+}
+
+## Use one flat adjacency tape. Counts and prefix offsets let each pair
+## add exactly one edge in each direction without revisiting other notes.
+paired_references : Semantics.Store -> PairedReferences
+paired_references = |semantics| {
+	var $counts = []
+	var $total = 0
+	for relationship in semantics.relationships {
+		match relationship {
+			FootnoteReference({ note: target, citation }) | BibliographyReference({ entry: target, citation }) => {
+				if $counts.is_empty() {
+					$counts = List.repeat(0, semantics.nodes.len())
+				}
+				$counts = list_set($counts, target.index(), list_at($counts, target.index()) + 1)
+				$counts = list_set($counts, citation.index(), list_at($counts, citation.index()) + 1)
+				$total = $total + 2
+			}
+			_ => {}
+		}
+	}
+	if $total == 0 {
+		return { ranges: [], peers: [] }
+	}
+	var $ranges = List.with_capacity($counts.len())
+	var $next = List.with_capacity($counts.len())
+	var $offset = 0
+	for count in $counts {
+		$ranges = $ranges.append(Semantics.IndexRange.from_start_and_length({ start: $offset, length: count }))
+		$next = $next.append($offset)
+		$offset = $offset + count
+	}
+	var $peers = List.repeat(Semantics.NodeId.from_index(0), $total)
+	for relationship in semantics.relationships {
+		match relationship {
+			FootnoteReference({ note: target, citation }) | BibliographyReference({ entry: target, citation }) => {
+				target_slot = list_at($next, target.index())
+				citation_slot = list_at($next, citation.index())
+				$peers = list_set($peers, target_slot, citation)
+				$peers = list_set($peers, citation_slot, target)
+				$next = list_set($next, target.index(), target_slot + 1)
+				$next = list_set($next, citation.index(), citation_slot + 1)
+			}
+			_ => {}
+		}
+	}
+	{ ranges: $ranges, peers: $peers }
+}
 
 ## No per-node table is allocated for documents without contents entries.
 contents_references : Semantics.Store -> List(ContentsReference)
@@ -643,7 +750,7 @@ contents_references = |semantics| {
 	var $references = []
 	for relationship in semantics.relationships {
 		match relationship {
-			ContentsTarget({ item, target }) => {
+			ContentsTarget({ item, target }) | IndexTarget({ item, target }) => {
 				if $references.is_empty() {
 					$references = List.repeat(NoContentsTarget, semantics.nodes.len())
 				}
@@ -663,6 +770,13 @@ add_contents_reference = |builder, reference, nodes, objects| match reference {
 		object_id = list_at(KernelObjectPlan.Plan.structure_elements(objects), element.index())
 		key = KernelObject.add_name(builder, Str.to_utf8("Ref")) ? Object
 		value = add_reference_array(key.builder, [object_id])?
+		Ok({ builder: value.builder, entry: WithEntry({ key: key.id, value: value.id }) })
+	}
+	StructureTargets(peers) => {
+		ids = KernelObjectPlan.Plan.structure_elements(objects)
+		refs = peers.map(|target| list_at(ids, list_at(nodes, target.index()).structure_element.index()))
+		key = KernelObject.add_name(builder, Str.to_utf8("Ref")) ? Object
+		value = add_reference_array(key.builder, refs)?
 		Ok({ builder: value.builder, entry: WithEntry({ key: key.id, value: value.id }) })
 	}
 }
@@ -787,15 +901,51 @@ add_text_entry = |builder, key, property| match property {
 
 ## `/A` lowers each attribute owner present on the node as one attribute
 ## dictionary with its `/O` owner and entries in canonical key order
-## (ISO 32000-2 14.7.6); one owner is a direct dictionary, two are an array.
+## (ISO 32000-2 §14.7.6); one owner is a direct dictionary, multiple form an array.
 add_attribute_value : KernelObject.Builder, Semantics.Store, Semantics.Node -> Try({ builder : KernelObject.Builder, dictionaries : U64, entry : OptionalEntry }, KernelTaggedObjects.Error)
 add_attribute_value = |builder, semantics, node| {
 	if node.attributes.length() == 0 {
 		return Ok({ builder, dictionaries: 0, entry: NoEntry })
 	}
+	if node.role.local_name == "FENote" {
+		footnote = add_owner_dictionary(builder, semantics, node, FootnoteOwner)?
+		layout = add_owner_dictionary(footnote.builder, semantics, node, LayoutOwner)?
+		key = KernelObject.add_name(layout.builder, Str.to_utf8("A")) ? Object
+		return match (footnote.value, layout.value) {
+			(WithValue(note_type), WithValue(writing_mode)) => lower_layout_attributes(key.builder, key.id, writing_mode, WithValue(note_type), NoValue)
+			(WithValue(value), _) | (_, WithValue(value)) => Ok({ builder: key.builder, dictionaries: 1, entry: WithEntry({ key: key.id, value }) })
+			(NoValue, NoValue) => Ok({ builder: key.builder, dictionaries: 0, entry: NoEntry })
+		}
+	}
 	list_dictionary = add_owner_dictionary(builder, semantics, node, ListOwner)?
 	table_dictionary = add_owner_dictionary(list_dictionary.builder, semantics, node, TableOwner)?
-	a_name = KernelObject.add_name(table_dictionary.builder, Str.to_utf8("A")) ? Object
+	layout_dictionary = add_owner_dictionary(table_dictionary.builder, semantics, node, LayoutOwner)?
+	aria_dictionary = add_owner_dictionary(layout_dictionary.builder, semantics, node, AriaOwner)?
+	a_name = KernelObject.add_name(aria_dictionary.builder, Str.to_utf8("A")) ? Object
+	match aria_dictionary.value {
+		WithValue(aria) => {
+			var $attribute_values = [aria]
+			for candidate in [layout_dictionary.value, list_dictionary.value, table_dictionary.value] {
+				match candidate {
+					WithValue(id) => {
+						$attribute_values = $attribute_values.append(id)
+					}
+					NoValue => {}
+				}
+			}
+			if $attribute_values.len() == 1 {
+				return Ok({ builder: a_name.builder, dictionaries: 1, entry: WithEntry({ key: a_name.id, value: aria }) })
+			}
+			dictionaries = $attribute_values.len()
+			array = KernelObject.add_array(a_name.builder, $attribute_values) ? Object
+			return Ok({ builder: array.builder, dictionaries, entry: WithEntry({ key: a_name.id, value: array.id }) })
+		}
+		NoValue => {}
+	}
+	match layout_dictionary.value {
+		WithValue(layout_value) => return lower_layout_attributes(a_name.builder, a_name.id, layout_value, list_dictionary.value, table_dictionary.value)
+		NoValue => {}
+	}
 
 	## Matching the two owners directly avoids building and filtering a list
 	## of them for every attributed element.
@@ -814,24 +964,43 @@ add_attribute_value = |builder, semantics, node| {
 	}
 }
 
-AttributeOwnerKind : [ListOwner, TableOwner]
+AttributeValue : [NoValue, WithValue(KernelObject.ValueId)]
+
+lower_layout_attributes : KernelObject.Builder, KernelObject.NameId, KernelObject.ValueId, AttributeValue, AttributeValue -> Try({ builder : KernelObject.Builder, dictionaries : U64, entry : OptionalEntry }, KernelTaggedObjects.Error)
+lower_layout_attributes = |builder, key, layout_value, list_value, table_value| {
+	items = match (list_value, table_value) {
+		(WithValue(list_id), WithValue(table_id)) => [layout_value, list_id, table_id]
+		(WithValue(id), NoValue) | (NoValue, WithValue(id)) => [layout_value, id]
+		(NoValue, NoValue) => return Ok({ builder, dictionaries: 1, entry: WithEntry({ key, value: layout_value }) })
+	}
+	count = items.len()
+	array = KernelObject.add_array(builder, items) ? Object
+	Ok({ builder: array.builder, dictionaries: count, entry: WithEntry({ key, value: array.id }) })
+}
+
+AttributeOwnerKind : [AriaOwner, FootnoteOwner, LayoutOwner, ListOwner, TableOwner]
 
 owner_matches : Semantics.AttributeOwner, AttributeOwnerKind -> Bool
 owner_matches = |owner, kind| match (owner, kind) {
+	(Aria11, AriaOwner) => True
+	(Layout, LayoutOwner) => True
+	(FENote, FootnoteOwner) => True
 	(List, ListOwner) => True
 	(Table, TableOwner) => True
 	_ => False
 }
 
-## Canonical key order per owner: `ListNumbering`, `O` for List; `ColSpan`,
-## `Headers`, `O`, `RowSpan`, `Scope`, `Summary` for Table.
+## Canonical key order in each emitted attribute owner.
 owner_keys : AttributeOwnerKind -> List(Str)
 owner_keys = |kind| match kind {
+	FootnoteOwner => ["NoteType", "O"]
+	AriaOwner => ["O", "role"]
+	LayoutOwner => ["O", "WritingMode"]
 	ListOwner => ["ListNumbering", "O"]
 	TableOwner => ["ColSpan", "Headers", "O", "RowSpan", "Scope", "Summary"]
 }
 
-add_owner_dictionary : KernelObject.Builder, Semantics.Store, Semantics.Node, AttributeOwnerKind -> Try({ builder : KernelObject.Builder, value : [NoValue, WithValue(KernelObject.ValueId)] }, KernelTaggedObjects.Error)
+add_owner_dictionary : KernelObject.Builder, Semantics.Store, Semantics.Node, AttributeOwnerKind -> Try({ builder : KernelObject.Builder, value : AttributeValue }, KernelTaggedObjects.Error)
 add_owner_dictionary = |builder, semantics, node, kind| {
 	start = node.attributes.start()
 	end = start + node.attributes.length()
@@ -858,7 +1027,14 @@ add_owner_dictionary = |builder, semantics, node, kind| {
 		key = list_at(keys, $key_index)
 		if key == "O" {
 			o_name = KernelObject.add_name($builder, KernelLex.name_bytes("O")) ? Object
-			owner_name = KernelObject.add_name(o_name.builder, KernelLex.name_bytes(if (kind == ListOwner) "List" else "Table")) ? Object
+			name = match kind {
+				FootnoteOwner => "FENote"
+				AriaOwner => "ARIA-1.1"
+				LayoutOwner => "Layout"
+				ListOwner => "List"
+				TableOwner => "Table"
+			}
+			owner_name = KernelObject.add_name(o_name.builder, KernelLex.name_bytes(name)) ? Object
 			owner_value = KernelObject.add_name_value(owner_name.builder, owner_name.id) ? Object
 			$builder = KernelObject.push_entry(owner_value.builder, { key: o_name.id, value: owner_value.id })
 		} else {
@@ -981,7 +1157,7 @@ add_id_tree = |builder, tagged, objects| {
 ## beside the value list, as `Try({ builder, values })`, made the pinned dev
 ## backend treat the builder's store lists as shared once the caller passed
 ## both on, so the next append copied every list once per element
-## (docs/contributors/performance/lowering-uniqueness.md).
+## (docs/contributor-output.adoc#contributor-lowering-uniqueness).
 add_k_array : KernelObject.Builder, Names, List(KernelTagged.KItem), Semantics.IndexRange, NavigationLowering, KernelObjectPlan.Plan, ElementPage -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelTaggedObjects.Error)
 add_k_array = |builder, names, items, range, navigation, objects, element_page| {
 	if range.length() == 1 {

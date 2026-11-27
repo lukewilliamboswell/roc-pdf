@@ -111,6 +111,26 @@ KernelNavigationObjects :: [].{
 		xyz : KernelObject.NameId,
 	}
 
+	## A single validated range for the facade's one-page blank catalog.
+	add_blank_page_label : KernelObject.Builder, KernelNavigation.LabelRange -> Try({ builder : KernelObject.Builder, entry : KernelObject.DictionaryEntry }, KernelObject.Error)
+	add_blank_page_label = |builder, range| {
+		page_labels = KernelObject.add_name(builder, Str.to_utf8("PageLabels"))?
+		nums = KernelObject.add_name(page_labels.builder, Str.to_utf8("Nums"))?
+		a = KernelObject.add_name(nums.builder, Str.to_utf8("A"))?
+		a_lower = KernelObject.add_name(a.builder, Str.to_utf8("a"))?
+		d = KernelObject.add_name(a_lower.builder, Str.to_utf8("D"))?
+		p = KernelObject.add_name(d.builder, Str.to_utf8("P"))?
+		r_lower = KernelObject.add_name(p.builder, Str.to_utf8("r"))?
+		r_upper = KernelObject.add_name(r_lower.builder, Str.to_utf8("R"))?
+		s = KernelObject.add_name(r_upper.builder, Str.to_utf8("S"))?
+		st = KernelObject.add_name(s.builder, Str.to_utf8("St"))?
+		value = add_page_label_value(st.builder, { a: a.id, a_lower: a_lower.id, d: d.id, p: p.id, r_lower: r_lower.id, r_upper: r_upper.id, s: s.id, st: st.id }, range)?
+		zero = KernelObject.add_integer(value.builder, 0)?
+		pairs = KernelObject.add_array(zero.builder, [zero.id, value.id])?
+		root = KernelObject.add_dictionary(pairs.builder, [{ key: nums.id, value: pairs.id }])?
+		Ok({ builder: root.builder, entry: { key: page_labels.id, value: root.id } })
+	}
+
 	Work : {
 		annotation_objects : U64,
 		label_node_objects : U64,
@@ -543,7 +563,7 @@ add_name_tree = |builder, names, store, resolved, objects, context| {
 
 ## One byte-tree node's `/Kids` or `/Names` array. The builder moves into
 ## this function rather than being copied into a loop-local `var` beside the
-## still-live loop builder (docs/contributors/performance/lowering-uniqueness.md).
+## still-live loop builder (docs/contributor-output.adoc#contributor-lowering-uniqueness).
 add_byte_tree_children : KernelObject.Builder, KernelNavigationObjects.TreeNames, KernelIndex.ByteTree, List(KernelObject.ObjectId), KernelIndex.Node -> Try({ builder : KernelObject.Builder, key : KernelObject.NameId, value : KernelObject.ValueId }, KernelNavigationObjects.Error)
 add_byte_tree_children = |builder, names, tree, planned, node| match KernelIndex.Node.children(node) {
 	Nodes(span) => {
@@ -798,50 +818,11 @@ add_label_tree = |builder, names, store, objects| {
 	} else {
 		var $builder = builder
 		var $entries = List.with_capacity(store.label_ranges.len())
+		label_names = { a: names.a, a_lower: names.a_lower, d: names.d, p: names.p, r_lower: names.r_lower, r_upper: names.r_upper, s: names.s, st: names.st }
 		var $index = 0
 		while $index < store.label_ranges.len() {
 			range = list_at(store.label_ranges, $index)
-			var $label_entries = []
-			prefixed = if Str.is_empty(range.prefix) {
-				{ builder: $builder, value: NoValue }
-			} else {
-				text = KernelObject.add_text_string($builder, range.prefix) ? Object
-				value = KernelObject.add_text_string_value(text.builder, text.id) ? Object
-				{ builder: value.builder, value: WithValue(value.id) }
-			}
-			match prefixed.value {
-				NoValue => {}
-				WithValue(value) => {
-					$label_entries = $label_entries.append({ key: names.p, value })
-				}
-			}
-			styled = match range.style {
-				NoNumber => { builder: prefixed.builder, value: NoValue }
-				DecimalArabic => add_style_value(prefixed.builder, names.d)?
-				LettersLower => add_style_value(prefixed.builder, names.a_lower)?
-				LettersUpper => add_style_value(prefixed.builder, names.a)?
-				RomanLower => add_style_value(prefixed.builder, names.r_lower)?
-				RomanUpper => add_style_value(prefixed.builder, names.r_upper)?
-			}
-			match styled.value {
-				NoValue => {}
-				WithValue(value) => {
-					$label_entries = $label_entries.append({ key: names.s, value })
-				}
-			}
-			numbered = if range.start_number == 1 {
-				{ builder: styled.builder, value: NoValue }
-			} else {
-				added = KernelObject.add_integer(styled.builder, range.start_number) ? Object
-				{ builder: added.builder, value: WithValue(added.id) }
-			}
-			match numbered.value {
-				NoValue => {}
-				WithValue(value) => {
-					$label_entries = $label_entries.append({ key: names.st, value })
-				}
-			}
-			dictionary = KernelObject.add_dictionary(numbered.builder, $label_entries) ? Object
+			dictionary = add_page_label_value($builder, label_names, range) ? Object
 			$builder = dictionary.builder
 			$entries = $entries.append(KernelIndex.NumberEntry.make(range.start_page.to_i64_wrap(), dictionary.id))
 			$index = $index + 1
@@ -850,6 +831,62 @@ add_label_tree = |builder, names, store, objects| {
 		tree = KernelIndex.NumberTree.build($entries, NumberTree, KernelIndex.Limits.make({ max_entries: store.label_ranges.len(), max_key_bytes: 0, value_count: counts.values })) ? Index
 		emit_number_tree($builder, names, tree, objects.label_nodes)
 	}
+}
+
+PageLabelNames : {
+	a : KernelObject.NameId,
+	a_lower : KernelObject.NameId,
+	d : KernelObject.NameId,
+	p : KernelObject.NameId,
+	r_lower : KernelObject.NameId,
+	r_upper : KernelObject.NameId,
+	s : KernelObject.NameId,
+	st : KernelObject.NameId,
+}
+
+add_page_label_value : KernelObject.Builder, PageLabelNames, KernelNavigation.LabelRange -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelObject.Error)
+add_page_label_value = |builder, names, range| {
+	var $label_entries = []
+	prefixed = if Str.is_empty(range.prefix) {
+		{ builder: builder, value: NoValue }
+	} else {
+		text = KernelObject.add_text_string(builder, range.prefix)?
+		value = KernelObject.add_text_string_value(text.builder, text.id)?
+		{ builder: value.builder, value: WithValue(value.id) }
+	}
+	match prefixed.value {
+		NoValue => {}
+		WithValue(value) => {
+			$label_entries = $label_entries.append({ key: names.p, value })
+		}
+	}
+	styled = match range.style {
+		NoNumber => { builder: prefixed.builder, value: NoValue }
+		DecimalArabic => add_style_value(prefixed.builder, names.d)?
+		LettersLower => add_style_value(prefixed.builder, names.a_lower)?
+		LettersUpper => add_style_value(prefixed.builder, names.a)?
+		RomanLower => add_style_value(prefixed.builder, names.r_lower)?
+		RomanUpper => add_style_value(prefixed.builder, names.r_upper)?
+	}
+	match styled.value {
+		NoValue => {}
+		WithValue(value) => {
+			$label_entries = $label_entries.append({ key: names.s, value })
+		}
+	}
+	numbered = if range.start_number == 1 {
+		{ builder: styled.builder, value: NoValue }
+	} else {
+		added = KernelObject.add_integer(styled.builder, range.start_number)?
+		{ builder: added.builder, value: WithValue(added.id) }
+	}
+	match numbered.value {
+		NoValue => {}
+		WithValue(value) => {
+			$label_entries = $label_entries.append({ key: names.st, value })
+		}
+	}
+	KernelObject.add_dictionary(numbered.builder, $label_entries)
 }
 
 ## One number-tree node's `/Kids` or `/Nums` array (see
@@ -922,16 +959,16 @@ emit_number_tree = |builder, names, tree, planned| {
 	Ok({ builder: $builder })
 }
 
-add_style_value : KernelObject.Builder, KernelObject.NameId -> Try({ builder : KernelObject.Builder, value : [NoValue, WithValue(KernelObject.ValueId)] }, KernelNavigationObjects.Error)
+add_style_value : KernelObject.Builder, KernelObject.NameId -> Try({ builder : KernelObject.Builder, value : [NoValue, WithValue(KernelObject.ValueId)] }, KernelObject.Error)
 add_style_value = |builder, name| {
-	added = KernelObject.add_name_value(builder, name) ? Object
+	added = KernelObject.add_name_value(builder, name)?
 	Ok({ builder: added.builder, value: WithValue(added.id) })
 }
 
 ## References to `length` planned objects from `start`, then their array.
 ## It returns only the builder and the array's id: returning the builder
 ## beside the value list made the pinned dev backend copy the store once per
-## node (docs/contributors/performance/lowering-uniqueness.md).
+## node (docs/contributor-output.adoc#contributor-lowering-uniqueness).
 add_planned_reference_array : KernelObject.Builder, List(KernelObject.ObjectId), U64, U64 -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelNavigationObjects.Error)
 add_planned_reference_array = |builder, planned, start, length| {
 	var $builder = builder

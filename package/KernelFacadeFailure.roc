@@ -1,3 +1,5 @@
+import KernelWidgetObjects
+import KernelAssociatedObjects
 import Document
 import Font
 import KernelBalanced
@@ -145,6 +147,7 @@ kernel_facade_furniture_error = |error| match error {
 	BodyEmpty => leaf({ category: Invariant, feature: "body_empty", path: "BodyEmpty", inspected: Str.inspect(error) })
 	BodySpace(_) => leaf({ category: Invariant, feature: "body_space", path: "BodySpace", inspected: Str.inspect(error) })
 	DrawingInvalid(_) => leaf({ category: Invariant, feature: "drawing_invalid", path: "DrawingInvalid", inspected: Str.inspect(error) })
+	DrawingGroupDepth(_) => leaf({ category: Budget, feature: "drawing_group_depth", path: "DrawingGroupDepth", inspected: Str.inspect(error) })
 	FieldOverflow(_) => leaf({ category: Invariant, feature: "field_overflow", path: "FieldOverflow", inspected: Str.inspect(error) })
 	FurnitureInline(_) => leaf({ category: Invariant, feature: "furniture_inline", path: "FurnitureInline", inspected: Str.inspect(error) })
 	GapNegative(_) => leaf({ category: Invariant, feature: "gap_negative", path: "GapNegative", inspected: Str.inspect(error) })
@@ -181,6 +184,7 @@ kernel_facade_lines_error = |error| match error {
 	SourceTokenTooWide(_) => leaf({ category: Invariant, feature: "source_token_too_wide", path: "SourceTokenTooWide", inspected: Str.inspect(error) })
 	CalloutWidth(_) => leaf({ category: Invariant, feature: "callout_width", path: "CalloutWidth", inspected: Str.inspect(error) })
 	CustomWidth(_) => leaf({ category: Invariant, feature: "custom_width", path: "CustomWidth", inspected: Str.inspect(error) })
+	InternationalUnbreakable(_) => leaf({ category: Invariant, feature: "international_unbreakable", path: "InternationalUnbreakable", inspected: Str.inspect(error) })
 	FixedUnbreakable(_) => leaf({ category: Invariant, feature: "fixed_unbreakable", path: "FixedUnbreakable", inspected: Str.inspect(error) })
 	InvalidGeometry => leaf({ category: Invariant, feature: "invalid_geometry", path: "InvalidGeometry", inspected: Str.inspect(error) })
 	InvalidRun(_) => leaf({ category: Invariant, feature: "invalid_run", path: "InvalidRun", inspected: Str.inspect(error) })
@@ -234,6 +238,8 @@ kernel_facade_references_error = |error| match error {
 	UnknownDestination(_) => leaf({ category: Invariant, feature: "unknown_destination", path: "UnknownDestination", inspected: Str.inspect(error) })
 	MissingAnchor(_) => leaf({ category: Invariant, feature: "missing_anchor", path: "MissingAnchor", inspected: Str.inspect(error) })
 	Format({ error: cause, .. }) => leaf({ category: kernel_page_labels_error(cause).category, feature: "format", path: "Format", inspected: Str.inspect(error) })
+	FlowBudget(_) => leaf({ category: Budget, feature: "flow_reference_budget", path: "FlowBudget", inspected: Str.inspect(error) })
+	FlowCycle(_) => leaf({ category: Invariant, feature: "flow_reference_cycle", path: "FlowCycle", inspected: Str.inspect(error) })
 	FieldOverflow(_) => leaf({ category: Invariant, feature: "field_overflow", path: "FieldOverflow", inspected: Str.inspect(error) })
 	InvalidMapping(_) => leaf({ category: Invariant, feature: "invalid_mapping", path: "InvalidMapping", inspected: Str.inspect(error) })
 }
@@ -242,6 +248,7 @@ kernel_facade_scenes_error : KernelFacadeScenes.Error -> KernelFacadeFailure.Fai
 kernel_facade_scenes_error = |error| match error {
 	ArithmeticOverflow => leaf({ category: Invariant, feature: "arithmetic_overflow", path: "ArithmeticOverflow", inspected: Str.inspect(error) })
 	Color(cause) => context({ feature: "color", path: "Color", cause: kernel_color_error(cause) })
+	ImageIdentity(WorkLimit(_)) => leaf({ category: Budget, feature: "image_identity_work_limit", path: "ImageIdentity.WorkLimit", inspected: Str.inspect(error) })
 	InvalidPage(_) => leaf({ category: Invariant, feature: "invalid_page", path: "InvalidPage", inspected: Str.inspect(error) })
 	InvalidPageSize => leaf({ category: Invariant, feature: "invalid_page_size", path: "InvalidPageSize", inspected: Str.inspect(error) })
 	InvalidPlacement(_) => leaf({ category: Invariant, feature: "invalid_placement", path: "InvalidPlacement", inspected: Str.inspect(error) })
@@ -259,6 +266,7 @@ kernel_facade_semantics_error = |error| match error {
 	CalloutBlock(_) => leaf({ category: Invariant, feature: "callout_block", path: "CalloutBlock", inspected: Str.inspect(error) })
 	CalloutFlow(_) => leaf({ category: Invariant, feature: "callout_flow", path: "CalloutFlow", inspected: Str.inspect(error) })
 	ArithmeticOverflow => leaf({ category: Invariant, feature: "arithmetic_overflow", path: "ArithmeticOverflow", inspected: Str.inspect(error) })
+	Footnote(_) => leaf({ category: Invariant, feature: "footnote", path: "Footnote", inspected: Str.inspect(error) })
 	ReferenceStageRequired => leaf({ category: Invariant, feature: "reference_stage_required", path: "ReferenceStageRequired", inspected: Str.inspect(error) })
 	ContentsEntry(_) => leaf({ category: Invariant, feature: "contents_entry", path: "ContentsEntry", inspected: Str.inspect(error) })
 	PageReference(_) => leaf({ category: Invariant, feature: "page_reference", path: "PageReference", inspected: Str.inspect(error) })
@@ -271,8 +279,14 @@ kernel_facade_semantics_error = |error| match error {
 	CustomDrawing(_) => leaf({ category: Invariant, feature: "custom_drawing", path: "CustomDrawing", inspected: Str.inspect(error) })
 	CustomMeasure(_) => leaf({ category: Invariant, feature: "custom_measure", path: "CustomMeasure", inspected: Str.inspect(error) })
 	CustomName(_) => leaf({ category: Invariant, feature: "custom_name", path: "CustomName", inspected: Str.inspect(error) })
+	BibliographyEmpty(_) => leaf({ category: Invariant, feature: "bibliography_empty", path: "BibliographyEmpty", inspected: Str.inspect(error) })
+	BibliographyEntry(_) => leaf({ category: Invariant, feature: "bibliography_entry", path: "BibliographyEntry", inspected: Str.inspect(error) })
+	BibliographyCitation(_) => leaf({ category: Invariant, feature: "bibliography_citation", path: "BibliographyCitation", inspected: Str.inspect(error) })
+	BibliographyEntryLimit(_) => leaf({ category: Budget, feature: "bibliography_target_limit", path: "BibliographyEntryLimit", inspected: Str.inspect(error) })
+	BibliographyCitationLimit(_) => leaf({ category: Budget, feature: "bibliography_target_limit", path: "BibliographyCitationLimit", inspected: Str.inspect(error) })
 	EmptyContainer(_) => leaf({ category: Invariant, feature: "empty_container", path: "EmptyContainer", inspected: Str.inspect(error) })
 	DecorationDrawing(_) => leaf({ category: Invariant, feature: "decoration_drawing", path: "DecorationDrawing", inspected: Str.inspect(error) })
+	DrawingGroupDepth(_) => leaf({ category: Budget, feature: "drawing_group_depth", path: "DrawingGroupDepth", inspected: Str.inspect(error) })
 	DecorationPosition(_) => leaf({ category: Invariant, feature: "decoration_position", path: "DecorationPosition", inspected: Str.inspect(error) })
 	EmptyInline(_) => leaf({ category: Invariant, feature: "empty_inline", path: "EmptyInline", inspected: Str.inspect(error) })
 	EmptyKeep(_) => leaf({ category: Invariant, feature: "empty_keep", path: "EmptyKeep", inspected: Str.inspect(error) })
@@ -307,10 +321,15 @@ kernel_facade_semantics_error = |error| match error {
 	BlockLimitExceeded(_) => leaf({ category: Budget, feature: "block_limit_exceeded", path: "BlockLimitExceeded", inspected: Str.inspect(error) })
 	Source(cause) => context({ feature: "source", path: "Source", cause: kernel_facade_sources_error(cause) })
 	TableCellEmpty(_) => leaf({ category: Invariant, feature: "table_cell_empty", path: "TableCellEmpty", inspected: Str.inspect(error) })
+	TableCellKey(_) => leaf({ category: Invariant, feature: "table_cell_key", path: "TableCellKey", inspected: Str.inspect(error) })
+	TableCellKeyLimit(_) => leaf({ category: Budget, feature: "table_cell_key_limit", path: "TableCellKeyLimit", inspected: Str.inspect(error) })
+	TableHeaderTargetLimit(_) => leaf({ category: Budget, feature: "table_header_target_limit", path: "TableHeaderTargetLimit", inspected: Str.inspect(error) })
+	TableHeaderTargets(_) => leaf({ category: Invariant, feature: "table_header_targets", path: "TableHeaderTargets", inspected: Str.inspect(error) })
 	TableEmpty(_) => leaf({ category: Invariant, feature: "table_empty", path: "TableEmpty", inspected: Str.inspect(error) })
 	TableGridMismatch(_) => leaf({ category: Invariant, feature: "table_grid_mismatch", path: "TableGridMismatch", inspected: Str.inspect(error) })
 	TableHeaderMissing(_) => leaf({ category: Invariant, feature: "table_header_missing", path: "TableHeaderMissing", inspected: Str.inspect(error) })
-	TableRowSpan(_) => leaf({ category: Invariant, feature: "table_row_span", path: "TableRowSpan", inspected: Str.inspect(error) })
+	TableSpan(_) => leaf({ category: Invariant, feature: "table_span", path: "TableSpan", inspected: Str.inspect(error) })
+	TableSpanPolicy(_) => leaf({ category: Invariant, feature: "table_span_policy", path: "TableSpanPolicy", inspected: Str.inspect(error) })
 	TextSemantics(cause) => context({ feature: "text_semantics", path: "TextSemantics", cause: kernel_text_semantics_error(cause) })
 	UnsupportedHeadingLevel(_) => leaf({ category: Invariant, feature: "unsupported_heading_level", path: "UnsupportedHeadingLevel", inspected: Str.inspect(error) })
 	HeadingSkip(_) => leaf({ category: Invariant, feature: "heading_skip", path: "HeadingSkip", inspected: Str.inspect(error) })
@@ -321,8 +340,15 @@ kernel_facade_shape_error = |error| match error {
 	FontSelectionRejected(_) => leaf({ category: Invariant, feature: "font_selection_rejected", path: "FontSelectionRejected", inspected: Str.inspect(error) })
 	GeneratedLabelEvidenceInvalid(_) => leaf({ category: Invariant, feature: "generated_label_evidence_invalid", path: "GeneratedLabelEvidenceInvalid", inspected: Str.inspect(error) })
 	InlineClusterBoundary(_) => leaf({ category: Invariant, feature: "inline_cluster_boundary", path: "InlineClusterBoundary", inspected: Str.inspect(error) })
+	InternationalPolicy(_) => leaf({ category: UnsupportedText, feature: "international_policy", path: "InternationalPolicy", inspected: Str.inspect(error) })
+	InternationalShape(_) => leaf({ category: UnsupportedText, feature: "international_shape", path: "InternationalShape", inspected: Str.inspect(error) })
+	InternationalStore(_) => leaf({ category: Invariant, feature: "international_store", path: "InternationalStore", inspected: Str.inspect(error) })
+	InternationalThaiDictionary(_) => leaf({ category: UnsupportedText, feature: "international_thai_dictionary", path: "InternationalThaiDictionary", inspected: Str.inspect(error) })
+	InternationalThaiSource(_) => leaf({ category: UnsupportedText, feature: "international_thai_source", path: "InternationalThaiSource", inspected: Str.inspect(error) })
+	InternationalSurface => leaf({ category: UnsupportedText, feature: "international_surface", path: "InternationalSurface", inspected: Str.inspect(error) })
 	InvalidOccurrence(_) => leaf({ category: Invariant, feature: "invalid_occurrence", path: "InvalidOccurrence", inspected: Str.inspect(error) })
 	LanguageMismatch(_) => leaf({ category: Invariant, feature: "language_mismatch", path: "LanguageMismatch", inspected: Str.inspect(error) })
+	LatinShaping(_) => leaf({ category: Invariant, feature: "latin_shaping", path: "LatinShaping", inspected: Str.inspect(error) })
 	LimitExceeded(_) => leaf({ category: Budget, feature: "limit_exceeded", path: "LimitExceeded", inspected: Str.inspect(error) })
 	OccurrenceCoverage(_) => leaf({ category: Invariant, feature: "occurrence_coverage", path: "OccurrenceCoverage", inspected: Str.inspect(error) })
 	PolicyInvalid(cause) => context({ feature: "policy_invalid", path: "PolicyInvalid", cause: font_policy_error(cause) })
@@ -336,6 +362,7 @@ kernel_facade_shape_error = |error| match error {
 
 kernel_facade_text_error : KernelFacadeText.Error -> KernelFacadeFailure.Failure
 kernel_facade_text_error = |error| match error {
+	InternationalPlacement(_) => leaf({ category: Invariant, feature: "international_placement", path: "InternationalPlacement", inspected: Str.inspect(error) })
 	ArithmeticOverflow => leaf({ category: Invariant, feature: "arithmetic_overflow", path: "ArithmeticOverflow", inspected: Str.inspect(error) })
 	InvalidCluster(_) => leaf({ category: Invariant, feature: "invalid_cluster", path: "InvalidCluster", inspected: Str.inspect(error) })
 	InvalidGlyph(_) => leaf({ category: Invariant, feature: "invalid_glyph", path: "InvalidGlyph", inspected: Str.inspect(error) })
@@ -396,7 +423,7 @@ document_navigation_error = |error| match error {
 	UriInvalidByte(_) => leaf({ category: Invariant, feature: "uri_invalid_byte", path: "UriInvalidByte", inspected: Str.inspect(error) })
 	UriInvalidPercentEncoding(_) => leaf({ category: Invariant, feature: "uri_invalid_percent_encoding", path: "UriInvalidPercentEncoding", inspected: Str.inspect(error) })
 	UriMissingScheme(_) => leaf({ category: Invariant, feature: "uri_missing_scheme", path: "UriMissingScheme", inspected: Str.inspect(error) })
-	UriTooLong(_) => leaf({ category: Invariant, feature: "uri_too_long", path: "UriTooLong", inspected: Str.inspect(error) })
+	UriTooLong(_) => leaf({ category: Budget, feature: "uri_too_long", path: "UriTooLong", inspected: Str.inspect(error) })
 }
 
 kernel_text_semantics_error : KernelTextSemantics.Error -> KernelFacadeFailure.Failure
@@ -416,6 +443,7 @@ kernel_shape_error = |error| match error {
 	EmptySource => leaf({ category: Invariant, feature: "empty_source", path: "EmptySource", inspected: Str.inspect(error) })
 	InvalidSource(_) => leaf({ category: Invariant, feature: "invalid_source", path: "InvalidSource", inspected: Str.inspect(error) })
 	InvalidSize(_) => leaf({ category: Invariant, feature: "invalid_size", path: "InvalidSize", inspected: Str.inspect(error) })
+	InterLatin(_) => leaf({ category: Invariant, feature: "inter_latin", path: "InterLatin", inspected: Str.inspect(error) })
 	LimitExceeded(_) => leaf({ category: Budget, feature: "limit_exceeded", path: "LimitExceeded", inspected: Str.inspect(error) })
 	MetricFailure(_) => leaf({ category: Invariant, feature: "metric_failure", path: "MetricFailure", inspected: Str.inspect(error) })
 	MissingGlyph(_) => leaf({ category: Invariant, feature: "missing_glyph", path: "MissingGlyph", inspected: Str.inspect(error) })
@@ -524,8 +552,26 @@ kernel_resource_use_error = |error| match error {
 	ShadingStopComponentMismatch(_) => leaf({ category: Invariant, feature: "shading_stop_component_mismatch", path: "ShadingStopComponentMismatch", inspected: Str.inspect(error) })
 }
 
+kernel_associated_objects_error : KernelAssociatedObjects.Error -> KernelFacadeFailure.Failure
+kernel_associated_objects_error = |error| match error {
+	ArithmeticOverflow => leaf({ category: Invariant, feature: "arithmetic_overflow", path: "ArithmeticOverflow", inspected: Str.inspect(error) })
+	InvalidAssociation => leaf({ category: Invariant, feature: "invalid_association", path: "InvalidAssociation", inspected: Str.inspect(error) })
+	Object(cause) => context({ feature: "object", path: "Object", cause: kernel_object_error(cause) })
+	Index(cause) => context({ feature: "index", path: "Index", cause: kernel_index_error(cause) })
+	Shape(cause) => context({ feature: "shape", path: "Shape", cause: kernel_balanced_error(cause) })
+	Tree(cause) => context({ feature: "tree", path: "Tree", cause: kernel_navigation_objects_error(cause) })
+}
+
+kernel_widget_objects_error : KernelWidgetObjects.Error -> KernelFacadeFailure.Failure
+kernel_widget_objects_error = |error| match error {
+	InvalidPlan => leaf({ category: Invariant, feature: "widget_plan", path: "InvalidPlan", inspected: Str.inspect(error) })
+	Object(cause) => context({ feature: "object", path: "Object", cause: kernel_object_error(cause) })
+}
+
 kernel_tagged_text_structure_error : KernelTaggedTextStructure.Error -> KernelFacadeFailure.Failure
 kernel_tagged_text_structure_error = |error| match error {
+	Widgets(cause) => context({ feature: "widgets", path: "Widgets", cause: kernel_widget_objects_error(cause) })
+	Associated(cause) => context({ feature: "associated_files", path: "Associated", cause: kernel_associated_objects_error(cause) })
 	ArithmeticOverflow => leaf({ category: Invariant, feature: "arithmetic_overflow", path: "ArithmeticOverflow", inspected: Str.inspect(error) })
 	Font(cause) => context({ feature: "font", path: "Font", cause: kernel_pdf_font_error(cause) })
 	FontCountMismatch(_) => leaf({ category: Invariant, feature: "font_count_mismatch", path: "FontCountMismatch", inspected: Str.inspect(error) })
@@ -579,6 +625,8 @@ kernel_page_layout_error = |error| match error {
 	LeadOverflow(_) => leaf({ category: Invariant, feature: "lead_overflow", path: "LeadOverflow", inspected: Str.inspect(error) })
 	LimitExceeded(_) => leaf({ category: Budget, feature: "limit_exceeded", path: "LimitExceeded", inspected: Str.inspect(error) })
 	Oversize(_) => leaf({ category: Invariant, feature: "oversize", path: "Oversize", inspected: Str.inspect(error) })
+	NoteBinding(_) => leaf({ category: Invariant, feature: "note_binding", path: "NoteBinding", inspected: Str.inspect(error) })
+	NoteTooTall(_) => leaf({ category: Invariant, feature: "note_too_tall", path: "NoteTooTall", inspected: Str.inspect(error) })
 }
 
 kernel_facade_reference_shape_error : KernelFacadeReferenceShape.Error -> KernelFacadeFailure.Failure
@@ -850,6 +898,8 @@ kernel_seal_error = |error| match error {
 
 kernel_tagged_objects_error : KernelTaggedObjects.Error -> KernelFacadeFailure.Failure
 kernel_tagged_objects_error = |error| match error {
+	Widgets(cause) => context({ feature: "widgets", path: "Widgets", cause: kernel_widget_objects_error(cause) })
+	Associated(cause) => context({ feature: "associated_files", path: "Associated", cause: kernel_associated_objects_error(cause) })
 	AnnotationObjectUnplanned(_) => leaf({ category: Invariant, feature: "annotation_object_unplanned", path: "AnnotationObjectUnplanned", inspected: Str.inspect(error) })
 	IdTree(cause) => context({ feature: "id_tree", path: "IdTree", cause: kernel_navigation_objects_error(cause) })
 	IdTreeIndex(cause) => context({ feature: "id_tree_index", path: "IdTreeIndex", cause: kernel_index_error(cause) })

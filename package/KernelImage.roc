@@ -24,13 +24,48 @@ KernelImage :: [].{
 	Limits :: { max_decoded_bytes : U64, max_encoded_bytes : U64, max_height : U32, max_markers : U64, max_resources : U64, max_width : U32 }.{
 		make : { max_decoded_bytes : U64, max_encoded_bytes : U64, max_height : U32, max_markers : U64, max_resources : U64, max_width : U32 } -> Limits
 		make = |limits| Limits.(limits)
+
+		from_budgets : Image.Budgets -> Limits
+		from_budgets = |budgets| Limits.{
+			max_decoded_bytes: budgets.max_decoded_bytes,
+			max_encoded_bytes: budgets.max_encoded_bytes,
+			max_height: budgets.max_height,
+			max_markers: budgets.max_markers,
+			max_resources: budgets.max_resources,
+			max_width: budgets.max_width,
+		}
+	}
+
+	## Scene admission uses the physical image limits before reading candidate
+	## bytes. The image plan supplies the detailed validation error.
+	admits_facade_raster : Image.PackedRaster, Image.Budgets -> Bool
+	admits_facade_raster = |raster, budgets| {
+		{ width, height } = raster.dimensions
+		if width == 0 or height == 0 or width > budgets.max_width or height > budgets.max_height {
+			return False
+		}
+		match raster_planes(raster, 0) {
+			Ok({ bytes_checked, .. }) => bytes_checked <= budgets.max_decoded_bytes
+			Err(_) => False
+		}
+	}
+
+	admits_facade_jpeg : Image.JpegSource, Image.Budgets -> Bool
+	admits_facade_jpeg = |jpeg, budgets| {
+		bytes = jpeg.bytes
+		bytes.len() <= budgets.max_encoded_bytes and has_jpeg_header(bytes) and list_at(bytes, 2) == 0xff
 	}
 
 	Work : { bytes_checked : U64, markers_checked : U64, resource_visits : U64, rows_checked : U64 }
 
 	Plan :: { store : Image.Store, work : Work }.{
 		build : Image.SourceStore, KernelColor.Plan, Limits -> Try(Plan, Error)
-		build = |sources, colors, limits| build_plan(sources, colors, limits)
+		build = |sources, colors, limits| build_plan(sources, [], colors, limits)
+
+		## Facade canonicalization preserves the ordinal of each original input
+		## for image diagnostics without exposing it as a resource identity.
+		build_indexed : Image.SourceStore, List(U64), KernelColor.Plan, Limits -> Try(Plan, Error)
+		build_indexed = |sources, ordinals, colors, limits| build_plan(sources, ordinals, colors, limits)
 
 		resource_count : Plan -> U64
 		resource_count = |plan| plan.store.resources.len()
@@ -43,8 +78,8 @@ KernelImage :: [].{
 	}
 }
 
-build_plan : Image.SourceStore, KernelColor.Plan, KernelImage.Limits -> Try(KernelImage.Plan, KernelImage.Error)
-build_plan = |sources, colors, limits| {
+build_plan : Image.SourceStore, List(U64), KernelColor.Plan, KernelImage.Limits -> Try(KernelImage.Plan, KernelImage.Error)
+build_plan = |sources, ordinals, colors, limits| {
 	if sources.resources.len() > limits.max_resources {
 		Err(LimitExceeded({ attempted: sources.resources.len(), dimension: Resources, limit: limits.max_resources }))
 	} else {
@@ -57,6 +92,7 @@ build_plan = |sources, colors, limits| {
 		var $encoded_total = 0
 		while $index < sources.resources.len() {
 			source = list_at(sources.resources, $index)
+			resource = if (ordinals.is_empty()) $index else list_at(ordinals, $index)
 			if source.id.index() != $index {
 				return Err(NonDenseIdentity({ actual: source.id.index(), expected: $index }))
 			} else {
@@ -69,7 +105,7 @@ build_plan = |sources, colors, limits| {
 						if $encoded_total > limits.max_encoded_bytes {
 							return Err(LimitExceeded({ attempted: $encoded_total, dimension: EncodedBytes, limit: limits.max_encoded_bytes }))
 						} else {
-							match inspect_jpeg(jpeg, $index, colors, limits) {
+							match inspect_jpeg(jpeg, resource, colors, limits) {
 								Err(error) => {
 									return Err(error)
 								}
@@ -87,9 +123,9 @@ build_plan = |sources, colors, limits| {
 												return Err(LimitExceeded({ attempted: total, dimension: DecodedBytes, limit: limits.max_decoded_bytes }))
 											} else {
 												$decoded_total = total
-												$bytes_checked = $bytes_checked + jpeg.bytes.len()
-												$markers_checked = $markers_checked + inspected.markers_checked
-												$rows_checked = $rows_checked + inspected.jpeg.dimensions.height.to_u64()
+												$bytes_checked = checked_add($bytes_checked, jpeg.bytes.len())?
+												$markers_checked = checked_add($markers_checked, inspected.markers_checked)?
+												$rows_checked = checked_add($rows_checked, inspected.jpeg.dimensions.height.to_u64())?
 												$resources = $resources.append({ id: source.id, payload: Jpeg(inspected.jpeg) })
 											}
 										}
@@ -98,7 +134,7 @@ build_plan = |sources, colors, limits| {
 							}
 						}
 					}
-					PackedPixels(raster) => match validate_raster(raster, $index, colors, limits) {
+					PackedPixels(raster) => match validate_raster(raster, resource, colors, limits) {
 						Err(error) => {
 							return Err(error)
 						}
@@ -111,8 +147,8 @@ build_plan = |sources, colors, limits| {
 									return Err(LimitExceeded({ attempted: total, dimension: DecodedBytes, limit: limits.max_decoded_bytes }))
 								} else {
 									$decoded_total = total
-									$bytes_checked = $bytes_checked + work.bytes_checked
-									$rows_checked = $rows_checked + work.rows_checked
+									$bytes_checked = checked_add($bytes_checked, work.bytes_checked)?
+									$rows_checked = checked_add($rows_checked, work.rows_checked)?
 									$resources = $resources.append({ id: source.id, payload: Raster(raster) })
 								}
 							}
@@ -129,10 +165,13 @@ build_plan = |sources, colors, limits| {
 
 JpegInspection := { decoded_row_bytes : U64, jpeg : Image.ValidatedJpeg, markers_checked : U64 }
 
+has_jpeg_header : List(U8) -> Bool
+has_jpeg_header = |bytes| bytes.len() >= 4 and list_at(bytes, 0) == 0xff and list_at(bytes, 1) == 0xd8
+
 inspect_jpeg : Image.JpegSource, U64, KernelColor.Plan, KernelImage.Limits -> Try(JpegInspection, KernelImage.Error)
 inspect_jpeg = |source, resource, colors, limits| {
 	bytes = source.bytes
-	if bytes.len() < 4 or list_at(bytes, 0) != 0xff or list_at(bytes, 1) != 0xd8 {
+	if !has_jpeg_header(bytes) {
 		Err(InvalidJpegSegment({ offset: 0, resource }))
 	} else if source.color_space.index() >= KernelColor.Plan.space_count(colors) {
 		Err(ColorSpaceOutOfRange({ available: KernelColor.Plan.space_count(colors), index: source.color_space.index(), resource }))
@@ -605,31 +644,37 @@ validate_raster = |raster, resource, colors, limits| {
 				}),
 			)
 		} else {
-			component_width = match raster.format {
-				Gray8 => 1
-				Rgb8 => 3
-			}
-			minimum_stride = checked_times(width.to_u64(), component_width)?
-			if raster.row_stride < minimum_stride {
-				Err(InvalidRowStride({ minimum: minimum_stride, resource, stride: raster.row_stride }))
-			} else {
-				expected_pixels = checked_times(raster.row_stride, height.to_u64())?
-				if raster.pixels.len() != expected_pixels {
-					Err(DecodedLengthMismatch({ actual: raster.pixels.len(), expected: expected_pixels, resource }))
-				} else {
-					match raster.alpha {
-						NoAlpha => Ok({ bytes_checked: expected_pixels, rows_checked: height.to_u64() })
-						PackedAlpha({ bytes, row_stride }) => {
-							if row_stride < width.to_u64() {
-								Err(InvalidRowStride({ minimum: width.to_u64(), resource, stride: row_stride }))
-							} else {
-								expected_alpha = checked_times(row_stride, height.to_u64())?
-								if bytes.len() != expected_alpha {
-									Err(DecodedLengthMismatch({ actual: bytes.len(), expected: expected_alpha, resource }))
-								} else {
-									Ok({ bytes_checked: checked_add(expected_pixels, expected_alpha)?, rows_checked: height.to_u64() * 2 })
-								}
-							}
+			raster_planes(raster, resource)
+		}
+	}
+}
+
+raster_planes : Image.PackedRaster, U64 -> Try({ bytes_checked : U64, rows_checked : U64 }, KernelImage.Error)
+raster_planes = |raster, resource| {
+	{ width, height } = raster.dimensions
+	component_width = match raster.format {
+		Gray8 => 1
+		Rgb8 => 3
+	}
+	minimum_stride = checked_times(width.to_u64(), component_width)?
+	if raster.row_stride < minimum_stride {
+		Err(InvalidRowStride({ minimum: minimum_stride, resource, stride: raster.row_stride }))
+	} else {
+		expected_pixels = checked_times(raster.row_stride, height.to_u64())?
+		if raster.pixels.len() != expected_pixels {
+			Err(DecodedLengthMismatch({ actual: raster.pixels.len(), expected: expected_pixels, resource }))
+		} else {
+			match raster.alpha {
+				NoAlpha => Ok({ bytes_checked: expected_pixels, rows_checked: height.to_u64() })
+				PackedAlpha({ bytes, row_stride }) => {
+					if row_stride < width.to_u64() {
+						Err(InvalidRowStride({ minimum: width.to_u64(), resource, stride: row_stride }))
+					} else {
+						expected_alpha = checked_times(row_stride, height.to_u64())?
+						if bytes.len() != expected_alpha {
+							Err(DecodedLengthMismatch({ actual: bytes.len(), expected: expected_alpha, resource }))
+						} else {
+							Ok({ bytes_checked: checked_add(expected_pixels, expected_alpha)?, rows_checked: height.to_u64() * 2 })
 						}
 					}
 				}
@@ -850,4 +895,40 @@ expect {
 		Err(InvalidJpegSegment({ offset: 0, resource: 0 })) => True
 		_ => False
 	}
+}
+
+# Scene-side admission and physical validation enforce the same explicit
+# width and byte budgets. The latter supplies the located error.
+expect {
+	colors = KernelColor.Plan.build(gray_color_store, gray_color_limits)?
+	width = Image.Budgets.default.max_width + 1
+	raster = { ..test_raster, dimensions: { width, height: 1 }, pixels: List.repeat(0, width.to_u64()), row_stride: width.to_u64() }
+	sources : Image.SourceStore
+	sources = { resources: [{ id: Image.Id.from_index(0), payload: PackedPixels(raster) }] }
+	wider = Image.Budgets.{ max_width: width, max_decoded_bytes: width.to_u64() }
+	low = Image.Budgets.{ max_width: width, max_decoded_bytes: width.to_u64() - 1 }
+	accepted = KernelImage.Plan.build(sources, colors, KernelImage.Limits.from_budgets(wider))?
+	rejected = match KernelImage.Plan.build(sources, colors, KernelImage.Limits.from_budgets(low)) {
+		Err(LimitExceeded({ attempted, dimension: DecodedBytes, limit })) => attempted == width.to_u64() and limit == width.to_u64() - 1
+		_ => False
+	}
+	KernelImage.Plan.resource_count(accepted) == 1 and KernelImage.admits_facade_raster(raster, wider) and !KernelImage.admits_facade_raster(raster, low) and rejected
+}
+
+expect {
+	colors = KernelColor.Plan.build(gray_color_store, gray_color_limits)?
+	bytes = synthetic_jpeg({})
+	jpeg = { bytes, color_space: Color.SpaceId.from_index(0), orientation_policy: RequireDisplayReady }
+	sources : Image.SourceStore
+	sources = { resources: [{ id: Image.Id.from_index(0), payload: EncodedJpeg(jpeg) }] }
+	low = Image.Budgets.{ max_encoded_bytes: bytes.len() - 1 }
+	encoded_rejected = match KernelImage.Plan.build(sources, colors, KernelImage.Limits.from_budgets(low)) {
+		Err(LimitExceeded({ attempted, dimension: EncodedBytes, limit })) => attempted == bytes.len() and limit == bytes.len() - 1
+		_ => False
+	}
+	marker_rejected = match KernelImage.Plan.build(sources, colors, KernelImage.Limits.from_budgets({ max_markers: 1 })) {
+		Err(MarkerLimitExceeded({ attempted: 2, limit: 1, resource: 0 })) => True
+		_ => False
+	}
+	!KernelImage.admits_facade_jpeg(jpeg, low) and encoded_rejected and marker_rejected
 }

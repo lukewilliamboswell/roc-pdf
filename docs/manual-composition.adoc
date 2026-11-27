@@ -2,7 +2,46 @@
 = Composing a technical manual
 
 Use ordinary `Pdf` blocks to combine chapter text, numbered instructions,
-tables, callouts and diagrams in one document.
+tables, callouts and diagrams in one document. The
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/operations-handbook/README.md[runnable on-call handbook] combines
+authored contents, chapter scopes, restarted appendix labels and a
+numbered rollback item that continues across pages.
+
+[#generate-contents-from-headings]
+== Generate contents from headings
+
+Place `Pdf.generated_contents` at the top level where the contents should
+start. It collects anchored headings in authoring order. Heading names
+identify destinations even when their visible titles repeat.
+
+[source,roc]
+----
+Pdf.generated_contents({
+    scope: Under("procedures"),
+    depth: 2,
+    leader: Dots,
+    page_width: 36,
+    numbering: PageLabel,
+    overrides: [{ target: "second-check", title: "Follow-up checks" }],
+})
+----
+
+Use `WholeDocument` for the whole heading sequence. With `Under(name)`,
+the named heading identifies the start and is excluded. Collection stops at
+the next heading at the same or a shallower level. `depth` counts from the
+document or selected heading. Plain headings still determine scope, but
+entries require `Pdf.destination_heading` to provide a target. An override
+must name a selected target. Empty selection, a missing scope, and an
+invalid override report `document.generated_contents` at the request.
+
+Links, end-aligned page fields, and artifact leaders use the same layout
+as authored `Pdf.contents_entry`. Choose a fixed `page_width` wide enough
+for the labels. Generated entries may take several pages, and the printed
+labels refer to the final heading placements. Keep headings and overrides
+meaningful in isolation.
+
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/operations-handbook/README.md[Run the generated handbook] to see the first chapter move from page 2 to
+page 3 while its link and printed number follow it.
 
 [#manual-composition-print-page-numbers-in-a-table-of-contents]
 == Print page numbers in a table of contents
@@ -17,6 +56,38 @@ for the longest page number or configured label.
 See xref:destination-page-references.adoc#destination-page-references-destination-page-references[Destination page references] for a complete
 example, numbering options and overflow diagnostics. You author the contents
 entries yourself; roc-pdf resolves their page values.
+
+[#add-an-index]
+== Add an index
+
+Place `Pdf.index` at the document's top level. Give each term one entry
+and list the named destinations in the order their links should appear.
+
+[source,roc]
+----
+Pdf.index({
+    entries: [
+        { term: "On-call escalation", destinations: ["escalation"] },
+        { term: "Failover", destinations: ["failover", "escalation"] },
+    ],
+    page_width: 36,
+})
+----
+
+Terms sort by unsigned UTF-8 bytes. Exact duplicate terms and repeated
+destinations within a term are rejected. Different terms may link to the
+same destination. Term text has a 256-byte limit. Each index accepts up to
+256 terms, each has up to 16 destinations, and a document accepts up to
+2,048 index locations.
+
+Each location prints the committed page label in a fixed-width field and
+links to its named heading or paragraph. Use `numbering: Physical` for
+decimal physical page numbers. Set `page_width` to fit your longest label.
+An unknown destination reports its authored term and destination indices.
+Use terms readers can recognize when scanning the index.
+
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/operations-handbook/README.md[Run the indexed handbook] to see the two locations for Failover and the
+shared escalation location.
 
 [#manual-composition-give-chapters-their-own-headers-and-opening-pages]
 == Give chapters their own headers and opening pages

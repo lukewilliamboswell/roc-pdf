@@ -1,0 +1,5 @@
+{"name":"handbook linked footnotes","schema_version":1,"case":"Handbook"}
+{"name":"handbook linked footnotes WTPDF","schema_version":1,"case":"HandbookWtpdf"}
+{"name":"whole footnotes x3","schema_version":1,"case":{"Scale":{"count":3}}}
+{"name":"whole footnotes x18","schema_version":1,"case":{"Scale":{"count":18}}}
+{"name":"footnote atomic rejections","schema_version":1,"case":"Rejections"}

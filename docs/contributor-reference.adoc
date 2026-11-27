@@ -1,0 +1,1063 @@
+[#contributor-reference-chapter]
+= Contributor contracts and tooling
+
+[#contributor-readme]
+== Contributor documentation
+
+Start with the xref:contributing.adoc[contributing chapter] for setup and
+the xref:testing.adoc[testing chapter] to design checks and review changes.
+These references document the repository's fixtures, tools and stage contracts.
+
+* xref:architecture.adoc[Architecture]: enduring package and compiler-stage contracts.
+* xref:contributor-reference.adoc#contributor-implementation-contracts[Implementation contracts]: binding representation and harness details.
+* xref:contributor-reference.adoc#contributor-testing[Testing] covers correctness oracles, focused tests, snapshot review, allocation ceilings, exact work counters, and optional local tools.
+* xref:contributor-reference.adoc#contributor-blueprint[Blueprint setup]: declared tools and test, fuzz, gallery, bundle and docs tasks.
+* xref:testing.adoc#run-and-review-property-fuzzing[Property fuzzing]: bounded searches, reports, witnesses and explicit baseline review.
+* xref:contributor-reference.adoc#contributor-accessibility-review[Accessibility review] covers preparation-report obligations and document review.
+* xref:contributor-reference.adoc#contributor-reference-documents[Reference documents]: invoice, report and letter fixture contracts.
+* xref:contributor-layout.adoc#contributor-roc-font[Packaged fonts]: source provenance, selection and ownership.
+* xref:contributor-reference.adoc#contributor-engineering[Engineering contracts]: subsystem invariants, resource bounds and fixture rationale.
+* xref:contributor-benchmarks.adoc#contributor-benchmarks-pdf-comparison-readme[PDF comparison]: reproducible Roc/Go/Python workloads.
+* xref:contributor-reference.adoc#contributor-releases-publishing[Publishing]: release validation and publication steps.
+* xref:contributor-reference.adoc#contributor-automation-publication[Automation and documentation]: source/artifact boundaries and manual checks.
+
+[#contributor-accessibility-review]
+== Accessible archival documents
+
+Use this guide to review authoring for the `AccessibleArchive` profile or
+add a regression for an accessibility check. The profile writes PDF/A-4 and
+PDF/UA-2 declarations. WTPDF 1.0 accessibility is a separate declaration.
+Standards support is best effort.
+
+[#contributor-accessibility-review-file-and-author-checks]
+=== File and author checks
+
+Inspect the exact PDF returned for the requested profile. For a mechanical
+check, cite the standard edition and clause near the implementation or
+focused test. Include an accepted authored case and an atomic negative that
+isolates the relevant object value or relationship. A rejected document
+returns a diagnostic before producing any bytes or chunks. Use the
+xref:testing.adoc[test harness] to verify snapshots, work, and allocations.
+Independent tools are optional for local review.
+
+The xref:contributor-reference.adoc#contributor-reference-documents-preparation-report[preparation report] separates
+facts from obligations. Supply title and language, meaningful text alternatives, the intended structure and reading
+order, labels and headers, and link purposes through the public authoring
+surface. The generated file preserves these choices within the supported
+subset. The author is responsible for their accuracy. A report entry locates
+the content to review.
+
+Review the following against source content and the preparation report.
+Choose the applicable records based on the document's features.
+
+[cols="1,1",options="header"]
+|===
+|Report obligations |What the author or reviewer checks
+|`DocumentTitleAccurate`, `LanguageAccurate` |The metadata title identifies the document, whether or not there is a visible title. The default and scoped languages fit the prose, inline language changes and human-readable strings, including alternatives, captions, link descriptions, outlines and labels.
+|`StructureMeaningful`, `ReadingOrderMeaningful` |The structure reflects the type and level of each item and follows a coherent reading order. Review the title, headings, sections, quotations, paragraphs, emphasized text, code, lists and rich list items. A paginated unit stays one logical unit. Review meaning across boundaries in continued tables, source blocks and callouts.
+|`ArtifactClassificationMeaningful`, `StructureMeaningful` |Identify meaningful content separately from decoration, furniture, repeats and contextual artifacts. Check that relevant grouping, layout attributes and order convey the author’s intent, even when paint order and structure order differ.
+|`AlternativeTextMeaningful`, `ExpansionAccurate`, `TextEquivalentAccurate` |Evaluate the purpose and scope of each figure alternative, including labelled drawings and chart data. Check the caption association. Review text equivalents, replacements and expansions for fidelity, and verify that source blocks preserve the intended text and whitespace.
+|`StructureMeaningful`, `TableHeadersMeaningful` |Check that numbering, labels, header descriptions and cell relationships are meaningful. Repeated visual table headers do not add separate semantic headers.
+|`LinkPurposeMeaningful`, `AnnotationOrderMeaningful` |Link and annotation descriptions provide enough context to identify their purpose. Check corresponding visible text, logical and focus order, and target on each fragment of a continued link. Check that distinct targets remain distinguishable.
+|`OutlineMeaningful`, `PageLabelsAccurate`, `LinkPurposeMeaningful` |Check that the outline and authored table of contents identify their intended logical sections. Check page labels, shown page numbers and cross-references against what a reader perceives.
+|`FontEmbeddingRightsConfirmed` |Confirm that each font can legally be embedded in the file for unlimited, universal rendering and that subsetting is permitted. The package checks supported font structure and rejects restricted technical flags where applicable.
+|===
+
+Review the need for an outline even when the report has no
+`OutlineMeaningful` record. PDF/UA-2 and WTPDF accessibility recommend an
+outline for longer documents and leave the length judgment to the reviewer.
+
+Use the `LanguageAccurate` record to check that each tag names the
+actual natural language. The combined profile rejects recognized placeholder
+tags and tags starting with the private-use singleton `x`. Check registered
+subtags and applicable private agreements as part of language review.
+Declare language changes in body text with `Pdf.in_language`. Each standalone
+PDF string must use its one inherited language, including alternate
+descriptions, expansion text, outline titles and page-label prefixes. The text-string encoder rejects raw escape
+introducers.
+
+Use the `StructureMeaningful` and `ArtifactClassificationMeaningful`
+records to review styling and layout. Theme, scopes, panels, table fills,
+borders, spacing and source highlighting provide presentation in the
+combined facade. Express the full meaning of a styled distinction through
+authored text, semantic roles or alternatives. For example, put a visible
+`Warning.` label inside a tinted callout and use a heading or list to
+identify its logical content. A visual property with independent semantic
+meaning requires an applicable Layout attribute and is outside the
+supported authoring scope.
+
+Page furniture provides page context. Repeated headers
+repaint an already tagged table header, and contents-entry leaders supply visual
+spacing between tagged labels. A figure's intrinsic vector paint and labels
+belong to the Figure. The bounded facade has no constructor for separate
+contextual artifacts, such as numbered lines referenced elsewhere.
+
+An optional human or assistive-technology review records the exact source and
+PDF digest, tool and version, operating system, tasks, expected result,
+observed result and any limitation or follow-up. Preserve raw files and
+review outputs in ignored storage or CI artifacts. Use the
+xref:contributor-reference.adoc#contributor-reference-documents[reference document scenarios] when reviewing the
+invoice, report and letter. WCAG checks such as contrast and cognitive
+accessibility have their own scope. File conformance does not certify those
+qualities or a reader's behavior.
+
+For independent certification, discuss the use case, scope, funding, and
+ownership in https://github.com/lukewilliamboswell/roc-pdf/issues[GitHub Issues].
+
+[#contributor-accessibility-review-supplemental-associated-files]
+=== Supplemental associated files
+
+Apply ISO 14289-2:2024 §8.14.1 to each file specification reached through
+the catalog's `EmbeddedFiles` tree. Its `Desc` must describe the purpose
+of the file. Inspect that judgment and confirm that the document provides
+all information a reader needs before marking a file supplemental. Both
+checks appear at the file's authoring path in a combined-profile report.
+
+ISO 14289-2 §6.2 and WTPDF §6.2 impose accessibility obligations for files
+needed to understand the document. WTPDF §7.2.2 also addresses file-specific
+declarations for necessary non-PDF files. The package rejects that dependency
+under `AccessibleArchiveWithFiles`. Supply whole-document supplemental data
+only. The recommendations in §8.14.2 for associating alternate or
+supplemental representations with the applicable structure element belong
+to a separate element-level capability.
+
+[#contributor-automation-publication]
+== Automation and documentation publication
+
+Use this guide when changing a workflow or preparing documentation for release.
+The xref:architecture.adoc[architecture] defines the resource contracts.
+The xref:contributor-conformance.adoc[conformance chapter] links the
+executable evidence for supported profiles.
+
+[#contributor-automation-publication-tools-and-identities]
+=== Tools and identities
+
+`Blueprint.roc` and `Blueprint.lock` select the reviewed Blueprint release,
+native renderer, Zig and other fetched tools. `.roc-version` is the package
+compiler pin. Keep those declarations authoritative instead of copying hashes
+or current version strings into this guide. See xref:contributor-reference.adoc#contributor-blueprint[Blueprint setup].
+
+CI verifies downloaded and cached artifacts against their recorded digests.
+The native renderer needs no compiler or browser; API extraction uses the pinned
+package compiler. CI runs project-owned checks. For optional local PDF
+validators and readers, see the xref:contributor-reference.adoc#contributor-testing-optional-local-pdf-review[testing guide].
+
+[#contributor-automation-publication-build-and-check-the-manual]
+=== Build and check the manual
+
+The manual keeps each chapter in `docs/*.adoc` and assembles them through
+`docs/index.adoc`. Versioned release records live in `docs/releases/`.
+`scripts/prepare_manual.py` stages authored bytes, exact local
+PNGs, source-revision links, release bindings and an input-digest inventory.
+The pinned shared `roc-docs` renderer produces HTML, static Markdown and PDF
+together. Include new chapters from `docs/index.adoc` and use named anchors for
+durable cross-references.
+
+[source,sh]
+----
+blueprint run docs
+----
+
+The manual publishes under `/manual/`; compiler-generated API routes stay at
+the site root. Each HTML chapter links to its generated Markdown, and the
+renderer indexes those files in `llms.txt`. A versioned build uses the actual
+bundle and authored notes to identify the tested dependency and compiler.
+
+`check_manual.py` verifies source-block bytes, table associations, local links,
+anchors and source/asset digests in HTML and Markdown. Project-owned PDF
+checks inspect the embedded gallery image bytes. PDFBox extraction is available
+for optional local review. `check_manual_browser.mjs` checks desktop/mobile navigation, images,
+overflow and dark mode. Keep raw output under ignored `.roc-pdf-tmp/` or CI
+artifacts; inspect layout when content changes. A renderer pass does not prove
+all product or accessibility claims.
+
+[#contributor-automation-publication-check-and-publish-the-same-bytes]
+=== Check and publish the same bytes
+
+The reusable checks workflow receives one source SHA and runs package/resource
+checks, fuzz smoke, documentation, public bundle consumers and
+gallery/archive checks. Its aggregate requires every declared
+result to succeed. Compiler-candidate dispatch suppresses publication and
+deployment; it remains a diagnostic build rather than a release.
+
+Release version checks reject malformed metadata, component overflow and
+non-forward versions before invoking a compiler. A higher major, or a higher
+minor while both versions are pre-1.0, already satisfies the largest possible
+API-change requirement. This proof permits a compiler transition when the
+immutable old bundle no longer compiles; it does not establish source
+compatibility. Within the same breaking boundary, `roc bump` must compile and
+compare both APIs and any failure blocks release. Prereleases use the
+compatibility promise of their final base version. The version check's
+self-tests cover both proof paths and rejected transitions. All candidate,
+archive and profile fixture tests remain required in either case.
+
+Ordinary CI may retain the latest final version only when a freshly built
+complete package matches the uniquely selected immutable published asset by
+name, length, SHA-256 and complete downloaded bytes. The same admitted file
+then runs through the gallery and archived-example consumers. This establishes
+package identity, not a new API-compatibility or release-eligibility claim.
+Changed or unverifiable packages fail. Every explicit release request and every
+new-version comparison still uses the strict forward-version/API check above;
+an already published version cannot become a new release through this path.
+Official API requests have bounded metadata, package and diagnostic output,
+an absolute deadline and one process-group cleanup with bounded reaping.
+Metadata is limited to 1 MiB and package files to 16 MiB before reading; errors
+or incomplete cleanup fail the gate. Identity still relies on GitHub's immutable
+release hosting; it does not establish compiler provenance.
+
+Publication requires `main`, a new version and eligible authored notes. The
+release manifest binds the recorded commit/compiler, asset names, lengths,
+digests and notes. The publisher consumes its own run's tested artifacts,
+checks out no project source and executes no candidate-produced file. It
+uploads, downloads and verifies the complete asset inventory before publication.
+See xref:contributor-reference.adoc#contributor-releases-publishing[the release procedure].
+
+Review current GitHub repository settings separately from workflow source:
+required current checks, signed commits, pull requests, tag immutability,
+protected release/Pages environments and workflow permissions. A configuration
+file or an old settings report does not establish current enforcement.
+
+[#contributor-blueprint]
+== Contributor tooling with Blueprint
+
+`Blueprint.roc` and `Blueprint.lock` at the repository root declare the tools
+the contributor checks need and name those checks as tasks. They use
+https://github.com/lukewilliamboswell/roc-blueprint[Blueprint] with no
+package provider: no Nix and no flake. Downloads are checked against the
+digests committed in `Blueprint.lock`, and everything else is expected from the
+machine.
+
+[#contributor-blueprint-what-comes-from-where]
+=== What comes from where
+
+[cols="1,1",options="header"]
+|===
+|Tool |Source
+|Zig 0.16.0 |Fetched from Hexops with ziglang.org as fallback on `x86_64-linux` and `aarch64-darwin`. Both archives are checked against `Blueprint.lock`.
+|`roc` |Expected on `PATH`; it must be the nightly named in `.roc-version`
+|`python3`, `bash`, `tar` |Expected on `PATH`
+|ripgrep 15.2.0 (`rg`) |Fetched from its GitHub release for the `docs` task, checked against `Blueprint.lock`
+|`roc-docs` |Native manual renderer, fetched per system with reviewed release size/SHA-256 in `Blueprint.lock`
+|Temurin JDK 21.0.13+9 and Python 3.14.0 |Explicit CI setup-action inputs; local independent checks may use an installed compatible JDK/Python and record their identities
+|===
+
+The package compiler is deliberately not fetched by Blueprint. `.roc-version`
+stays its single pin, because the allocation baselines are exact for one build
+and compiler changes require the baseline review described in `testing.md`.
+CI installs that nightly with the shared verified installer. A matching
+archive in the Actions cache skips the release download. The installer
+checks the archive size and SHA-256 and extracts it outside the checkout.
+Locally, put the pinned compiler on `PATH` or set `ROC`.
+
+The GitHub checks reuse Blueprint's verified download artifacts for the
+`dev` workload, including Zig. The docs workflow uses the separate `docs`
+workload for ripgrep and the locked renderer. Both caches are keyed by
+workflow, target, installer and lock. Each tool is verified before use.
+
+Zig is fetched because the test platform hosts need exactly 0.16.0, and a newer
+Zig on `PATH` is rejected by the harness. ripgrep is fetched because the docs
+audit for private `Kernel` types needs it and the Ubuntu runners do not ship
+it; `scripts/docs.sh` now refuses to run without it. Inside a task the fetched Zig comes
+first on `PATH`, so `ZIG` no longer needs to be set.
+
+CI uses project-owned PDF checks. To run an independent validator or reader
+locally, follow the xref:contributor-reference.adoc#contributor-testing-optional-local-pdf-review[optional review setup].
+
+[#contributor-blueprint-tasks]
+=== Tasks
+
+Install the `blueprint` binary for your system from the release named in
+`Blueprint.roc` and check its SHA-256 against the release’s `blueprint.sha256`.
+Then run:
+
+[source,sh]
+----
+blueprint check                     # validate Blueprint.roc
+blueprint tasks                     # list the tasks
+blueprint run test                  # ./scripts/test.py
+blueprint run test -- --compare-baselines --jobs 6
+blueprint run fuzz                  # fuzz smoke run (what pull requests run)
+blueprint run fuzz-campaign         # bounded fuzz campaign (scheduled in CI)
+blueprint run gallery               # scripts/check_gallery.py
+blueprint run bundle                # scripts/bundle.sh
+blueprint run bundle-consumer       # scripts/test_bundle_consumer.py
+blueprint run docs                  # native user manual, separate API and checks
+blueprint run docs-path             # verified persistent renderer path
+blueprint workflow check            # test, fuzz smoke, bundle consumer, gallery
+blueprint shell                     # a shell with the dev tools on PATH
+----
+
+Arguments after `--` are passed to the script unchanged. Every task wraps an
+existing script; the scripts still run directly when the tools are already on
+`PATH`.
+
+Gallery checks compare the generated PDFs byte for byte. After reviewing the
+architectural cause of an intentional change, regenerate PDFs and the retained
+96 dpi previews with Poppler 26.07.0:
+
+[source,sh]
+----
+blueprint run gallery -- --update --update-reason 'Reviewed cause of the changed output'
+blueprint run gallery
+----
+
+The update preserves a before/after hash report and the old artifacts under
+`.roc-pdf-tmp/`, checks that tagged semantic characters survive typography and
+wrapping changes, and updates the exact asset provenance. Review changed
+previews and the report before committing them. An update does not change
+test-case allocation, byte, work or snapshot baselines.
+
+`blueprint workflow check` is the local package-check sequence. The reusable
+GitHub checks workflow additionally checks the native manual/API and the
+exact bundle/examples/docs archives. The fuzz
+campaign remains separate.
+
+[#contributor-blueprint-ci]
+=== CI
+
+Workflow action references are full commit SHAs in `.github/workflows/`.
+The shared `setup-blueprint` action reads the Blueprint release from its platform
+URL and verifies the executable digest. Cached downloads are rehashed before use.
+Release dispatch runs the same checks at its recorded SHA before an
+artifact-consuming publication job; it never publishes from a branch build
+that tested different bytes. See xref:contributor-reference.adoc#contributor-releases-publishing[publishing].
+
+The native manual is authored in top-level `docs/*.adoc` chapters. Its staging
+step binds source and release metadata and copies exact local assets. The
+shared renderer generates HTML, Markdown and PDF from the staged chapters. See the
+xref:contributor-reference.adoc#contributor-automation-publication[documentation publication guide] for source boundaries and
+independent HTML/Markdown/PDF checks.
+
+[#contributor-blueprint-maintenance]
+=== Maintenance
+
+* To move Zig or add a fetched program, edit `Blueprint.roc`, run
+`blueprint update`, review every URL, size and SHA-256 in the regenerated
+`Blueprint.lock` (compare Zig against
+https://ziglang.org/download/index.json and ripgrep against the digests on
+its GitHub release), and commit both files.
+* To upgrade Blueprint, change the platform URL in `Blueprint.roc` and use a
+`setup-blueprint` revision that records the release or supply its reviewed
+executable SHA-256 values to the action. Regenerate the lock if the lock
+format changed.
+* `.blueprint/` is generated state and is ignored.
+
+[#contributor-implementation-contracts]
+== Versioned Implementation Contracts
+
+xref:architecture.adoc[The architecture] owns enduring package, stage, ownership,
+conformance, determinism, and performance decisions. This record preserves the
+binding representation and repository-harness details used to implement those
+decisions. The xref:authoring.adoc#authoring-authoring-with-roc-pdf[authoring guide]
+describes supported capabilities, and the
+xref:testing.adoc#validate-a-capability-change[testing chapter] defines the evidence
+for changes.
+
+These contracts were extracted from the architecture without changing their
+requirements. Revisions require an explicit design decision, affected
+allocation, work and byte evidence, and updates to the architecture when
+their boundaries change. Compiler- or feature-caused baseline
+changes follow the existing review protocol; this record is not permission to
+regenerate evidence mechanically.
+
+[#contributor-implementation-contracts-emission-representation]
+=== Emission representation
+
+`SealedPdfPlan` is an exact compact replayable plan, not a fully materialized
+recursive PDF tree or a collection of precompressed byte blobs. Every object
+and indirect stream-length object is assigned before emission. Object IDs
+follow emission order so offsets append to a dense list rather than update a
+map. Ordinary stream lengths use indirect objects emitted immediately after
+their streams. A generated stream payload is already held whole in the
+sealed plan's payload store; the encoder compresses it whole at its stream's
+transition into one owned buffer, emits it as one generated segment, releases
+the source payload at its last use, and records the compressed length for the
+following length object.
+
+DEFLATE goes through one private seam, `KernelDeflate`, whose single call into
+the pinned pure-Roc `roc-deflate` package (a libdeflate port) compresses at
+the level the plan carries. `KernelDeflate.Level` admits exactly three
+package-versioned levels: 1 (`Pdf.Compression.Fastest`), 6 (`Balanced`, the
+default), and 10 (`Smallest`). Preparation seals the author's choice into
+`KernelStructure.Plan`; internal builders seal the default, and emission reads
+the level only from the plan. The seam owns the zlib framing (a header
+carrying the level's FLEVEL, `78 01`, `78 9C`, or `78 DA`, and the Adler-32
+trailer), accepts preflighted input and checked limits, proves a
+conservative output bound before a plan escapes (the dependency's stored-block
+bound plus six framing bytes), checks the emitted length against it, and
+reports deterministic work (streams, input bytes, and emitted bytes). The
+independent Python checker uses zlib only as a test-time decompression oracle
+over the emitted PDF bytes. Changing the dependency version, a preset's level, or the default preset is
+a byte-contract change reviewed like any other; it cannot weaken these
+contracts or change emitted bytes silently. The output bound and the plan
+identity do not depend on the level.
+
+Stream objects are written top-level in plan order. Every other object is
+serialized into the open object stream's buffer: its value followed by a
+newline, with its object number and offset recorded for the stream header.
+The object streams partition the compressible objects in plan order into
+batches of at most 400 members (`KernelFileLayout.max_objects_per_stream`).
+When a batch fills, or the last compressible object is placed, the batch is
+written as one FlateDecode object stream: `/Filter /FlateDecode /First /Length /N /Type /ObjStm`, numbered after the planned objects in order, with a direct
+length. The open batch is the only buffer that grows with object count between
+segments, and it is bounded by 400 serialized objects.
+
+The cross-reference stream is numbered after the object streams and covers the
+complete contiguous range from object zero. Each row is `[type, field, index]`
+with `/W [1 w 2]`, where `w` is the fewest bytes that hold the stream's own
+offset (the largest offset in the file). Type 1 rows are top-level objects;
+type 2 rows name an object stream and a member index. The rows are PNG Up
+predicted (`/DecodeParms << /Columns w+3 /Predictor 12 >>`) and FlateDecode
+compressed, and every dictionary entry, including `/Length`, is direct. The
+encoder retains one `U64` per planned object: a file offset, or a marked
+object stream ordinal and member index. Sealing proves exact counts where
+possible and safe upper bounds for lexical output, compression, offsets, and configured
+output budgets so the infallible encoder cannot discover overflow or limit
+failures.
+
+The encoder is an explicit state machine, not a stored iterator closure. It
+consumes one state and returns its successor plus a coarse output segment. A
+segment is either a generated, independently owned bounded-capacity buffer or
+an exact range of validated resource bytes that are already in their final PDF
+representation. The public `List(U8)` for the latter may be a Roc seamless
+slice, avoiding a payload copy. Generated PDF syntax, transformed image data,
+font subsets, and DEFLATE output are never presented as slices of mutable
+accumulators or oversized internal arenas. Retaining an old encoder state is
+valid but forfeits the unique-state fast path.
+
+The package never coalesces shareable resources into one whole-document byte
+arena, and package-created shareable resources use separate reference-counted
+allocations. A caller-supplied resource may itself already be a seamless slice
+of a larger caller allocation; sharing it can retain that actual backing
+allocation, not merely the visible resource range. The encoder releases its
+own resource reference immediately after its final emitted range; any remaining
+lifetime is then caused by caller-retained chunks. Chunked output has an
+explicit retention policy: the default shares unchanged resources for the
+ordinary consume-and-release streaming path, while an owned-chunk mode copies
+such ranges into bounded buffers when predictable retained memory is more
+important than avoiding the copy. Both policies emit identical bytes.
+
+Buffered output drives the same lower-level emission transition into one unique
+byte accumulator, reserving only an exact known size. When the final size is
+not exact, the accumulator follows one deterministic bounded-growth policy; a
+loose validated worst-case bound is never used as a requested allocation size.
+It does not first build a `List(List(U8))` and concatenate it. Resource ranges
+are copied directly into this final contiguous result, because `to_bytes`
+cannot both return one allocation and preserve zero-copy resource sharing. The
+public chunk wrapper either returns a permitted seamless resource slice or
+supplies a fresh bounded buffer to the transition. A high-level chunk
+entrypoint may expose the validated encoder, while one-shot byte sources that
+cannot be replayed or fully validated are not accepted as resources.
+
+[#contributor-implementation-contracts-exact-source-font-style-facts]
+=== Exact source font style facts
+
+Font inspection retains signed `post.italicAngle` bits (`I32`), the unchanged
+`post.isFixedPitch` (`U32`), `head.macStyle` and `OS/2.fsSelection` (`U16`), and
+a bounded Serif/NonSerif/Unclassified value from positive OS/2 family-class or
+Latin-text PANOSE declarations. Unknown or conflicting classifications stay
+unclassified and never consult a name. A
+short or unsupported post header rejects as `InvalidPost`; inconsistent
+head/OS2 Bold/Italic links reject as `InvalidStyle`. These facts are produced
+once from validated source bytes, never inferred from a name or a semantic role.
+The subset's format-3 post header preserves the exact angle and fixed-pitch
+value; its name removal and other sanitization rules remain unchanged.
+
+The facade resolves descriptor FixedPitch/Serif/Italic flags and angle before font
+resource identity. The private `KernelPdfFont.Descriptor.italic_angle` now means
+signed raw 16.16 bits carried in `I64`, validated to the complete `I32` range.
+Integer degree values emit as PDF integers; fractional values become the private
+`KernelObject.Fixed16(I32)` primitive. Its plan-identity discriminator is 11 and
+its lexical bound is 23 bytes. The lexer splits integer/remainder magnitudes,
+multiplies only the remainder by `5^16`, and emits at most sixteen decimal
+places without floating point or rounding. All intermediate magnitudes fit
+`U64`, including both signed endpoints. The ordinary `KernelLex.Decimal`
+coefficient remains `I64` with scale at most nine.
+
+Font-leaf recipe schema 2 stores the angle as signed raw 16.16 at the same
+eight-byte field width. Schema 1 described integer degree values and cannot
+silently acquire a different interpretation just because historical callers
+used zero. The version change deliberately changes canonical font resource
+identities and affected PDF plan identities, including unchanged upright fonts;
+the tag itself adds no recipe bytes, allocations or traversal work. The
+subset-tag policy remains based on the source digest and glyph closure.
+
+[#contributor-implementation-contracts-repository-fixture-protocol]
+=== Repository fixture protocol
+
+Repository file and directory names must not collide under case-insensitive
+comparison. The contract preflight checks Git's path inventory on every host,
+including Linux, so a macOS checkout cannot silently replace a fixture module
+with a differently cased app root. App and module names must be distinct beyond
+capitalization.
+
+Evidence cases belong to case families: local packages in capability-named
+directories under `tests/`, each exposing a `Cases` module with a closed typed
+case union and its dispatch, beside a deterministically ordered, versioned JSONL
+case file. Internal evidence families depend on the local `all.roc` root,
+public API families on `main.roc`; a directory holds one family and a program
+never holds both roots. Test-only fixture modules live in the family
+directories rather than in `package/`. Generated group applications under
+`tests/groups/` decode exactly one JSON argument, an envelope tagging the case
+with its family, into the union of their families' case types; unknown tags,
+malformed fields, non-canonical JSON and unsupported schema versions are
+explicit failures. The allocation reset follows the decode, so the measured
+window is the family's `run`. The harness builds each group once and runs
+every case in its own process. Group membership must not change any case's
+evidence: a family's allocations, allocated bytes, work and bytes are identical
+in its group, alone (`--isolate`) and beside another group (`--group-mode perturb`), from an empty cache. Only the retention probe, which needs its own
+platform, remains a standalone application.
+
+The blank-document fixture deliberately exercises compile-time generation,
+with no runtime input and zero measured runtime allocations. Its document is
+an explicit module value so that the contract does not depend on the dev
+backend inlining and folding a closed function call. Runtime generation and
+its resource costs remain covered by the other document fixtures; this
+constant case does not establish a zero-allocation runtime generation claim.
+
+Negative cases may return a separate successful PDF solely as a structural
+carrier for their rejection evidence. Such an input-independent carrier is an
+explicit module value. Runtime guards, rejection calls, atomicity assertions
+and valid controls within the operation remain in the measured window,
+including any PDF generation the case exercises as a positive control.
+
+Case manifests declare their ordered structural validators explicitly by
+stable allowlisted ID. Numeric dimensions are evidence inputs, not implicit
+validator selectors, and source paths or directory names never choose semantic
+checks. Preflight checker self-tests are likewise an ordered manifest list.
+Python registries bind those IDs to project-owned callables and scripts without
+allowing manifest data to import or execute arbitrary code.
+
+Collect exact allocation baselines and allocated-bytes ceilings from a cold
+Roc cache, in the full harness order used by CI. The test manifest records
+optimization and specialization separately so compiler defaults do not
+change the measured lowering policy. Fixture builds reuse the normal cache
+and keep exact allocation counts, work counters, and PDF bytes. The
+`pdfa4`, `pdfua2`, and `wtpdf_accessibility` fixture checks select the
+expected declarations. The project-owned checkers inspect those identifiers
+and check that Standard snapshots omit archival and accessibility declarations.
+
+[#contributor-engineering]
+== Engineering evidence
+
+Use the xref:architecture.adoc[architecture] for the compiler-stage
+contracts and the xref:testing.adoc[testing chapter] for choosing
+and running checks. These records explain the bounds, ownership and
+fixture design behind individual subsystems.
+
+[cols="1,1",options="header"]
+|===
+|Task |References
+|Review allocation or copying changes |xref:contributor-output.adoc#contributor-lowering-uniqueness[Lowering and uniqueness], xref:contributor-output.adoc#contributor-emission-linearity[emission linearity], xref:contributor-reference.adoc#contributor-toolchain-profile[pinned toolchain baselines]
+|Change pagination or text fitting |xref:contributor-layout.adoc#contributor-layout-policies[Page breaking], xref:contributor-layout.adoc#contributor-page-templates[frames and furniture], xref:contributor-layout.adoc#contributor-line-layout[line layout], xref:contributor-layout.adoc#contributor-inter-latin[Inter run shaping], xref:contributor-layout.adoc#contributor-destination-page-references[reference wrapping]
+|Change semantic output |xref:contributor-layout.adoc#contributor-semantic-identity[Semantic identity], xref:contributor-output.adoc#contributor-structure-lowering[structure lowering], xref:contributor-layout.adoc#contributor-tables[table associations], xref:contributor-output.adoc#contributor-navigation-annotations[navigation]
+|Change object or resource planning |xref:contributor-output.adoc#contributor-resource-graph[Resource graph], xref:contributor-layout.adoc#contributor-balanced-indexes[balanced indexes], xref:contributor-output.adoc#contributor-sealed-plan[sealed plan], xref:contributor-output.adoc#contributor-object-store[object store]
+|Change a profile or review output |xref:contributor-conformance.adoc#contributor-static-pdfa4[Archive checks], xref:contributor-reference.adoc#contributor-accessibility-review[author review], xref:contributor-reference.adoc#contributor-testing-optional-local-pdf-review[optional local tools]
+|Add an evidence fixture |xref:contributor-reference.adoc#contributor-scenario-protocol[Scenario protocol], xref:contributor-reference.adoc#contributor-fixture-grouping[fixture grouping], xref:contributor-reference.adoc#contributor-test-suite-speed[test validation plan], xref:contributor-reference.adoc#contributor-fuzz-suites[fuzz suites]
+|===
+
+[#contributor-fixture-grouping]
+== Fixture grouping
+
+The fixture driver shares compiler builds across case families and runs each
+case in a fresh process. Group membership must preserve every case's PDF
+bytes, allocation count, requested bytes and deterministic work.
+
+[#contributor-fixture-grouping-structure]
+=== Structure
+
+The xref:contributor-reference.adoc#contributor-implementation-contracts-repository-fixture-protocol[fixture protocol]
+defines family layout, canonical argument decoding and the allocation reset.
+A validation root can cover the expectations in all of its linked family
+packages. The retention probe runs on its own platform in a standalone app.
+
+[#contributor-fixture-grouping-groups]
+=== Groups
+
+Use `./scripts/test.py --list-groups` to see the active groups, families and
+case counts. Add `--json` for machine-readable output. A group shares one
+package root. Keep facade families using `package/main.roc` apart from
+internal families using `package/all.roc`. The driver budgets build and
+validation concurrency separately. Lower `--jobs` when investigating a
+memory-constrained build.
+
+[#contributor-fixture-grouping-equivalence-evidence]
+=== Check equivalence
+
+Compare the committed grouping with `--isolate` and `--group-mode perturb`
+under the pinned compiler. Run with `--compare-baselines` and separate empty
+`XDG_CACHE_HOME` directories. Check exact PDF bytes, allocation counts,
+requested bytes and deterministic work. Use `--group-mode inject` to verify
+that an extra allocation inside the measured window is detected in every
+grouped case.
+
+Keep the same runtime inputs when converting a fixture. A decoded string
+can share input storage where an inline string would allocate on conversion
+to UTF-8. A payload-free case can also let the compiler precompute a document
+that the fixture is intended to generate at runtime.
+
+[#contributor-fixture-grouping-driver-options]
+=== Driver options
+
+* `--write-groups` regenerates the committed group applications from the
+  fixture inventory.
+* `--group NAME` selects a group's cases and combines with `--case`.
+* `--quick` skips preflight and validation during focused iteration.
+* `--isolate` builds each family alone. `--group-mode perturb` builds each
+  group beside the next group that uses the same root.
+
+[#contributor-fuzz-suites]
+== Fuzz suite ownership and allocation profile
+
+Font inspection, repair and subset
+round trips share `font_suite`; JPEG inspection, facade output and structure,
+navigation, registry and theme checks share `document_suite`. `profile_output`
+runs separately and measures the named profile selection and rejection cases.
+Each selected executable builds once per invocation.
+
+The supervisor selects each member by its declared name, after the harness
+checks the executable's complete inventory. Examples, corpus directories,
+input bounds, baselines, deadlines and reports remain per property. Dispatch
+and input preparation stay outside the measured `$property` region. Neither
+combining members nor selecting a subset changes a property's input encoding
+or measurement boundary.
+
+Builds use `--fuzz --specialize=yes --no-cache`, the compiler in
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/.roc-version[`.roc-version`], and the platform pinned by
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/scripts/fuzz.py[`scripts/fuzz.py`]. The executable stamp binds the
+complete local source/asset closure, compiler, target, platform SHA-256, flags
+and executable digest. `--no-build` rejects a changed identity. The suite's
+source closure includes every member, even when only one member is selected.
+
+
+The baseline retains each reviewed example's name, revision, original input
+digest and complete allocation observation for the measured property. The
+harness uses those measurements as ceilings and verifies the property, trace
+rules and live counts at region boundaries. See xref:testing.adoc#run-and-review-property-fuzzing[how to run
+and review property fuzzing]. The suite membership and build operands in
+`scripts/fuzz.py` are the executable inventory.
+
+[#contributor-scenario-protocol]
+== contract-definition scenario protocol
+
+[#contributor-scenario-protocol-pinned-configuration]
+=== Pinned configuration
+
+* Scenario schema: 2
+* Roc-to-host metrics protocol: 1
+* Roc toolchain selector and compiler identity: read solely from `.roc-version`;
+the harness requires `roc version` to report that exact release
+* Default functional Roc optimization: `dev`
+* Allocation-baseline Roc optimization: `dev`
+* Zig version: 0.16.0
+* Zig host optimization: `ReleaseFast`
+* Supported baseline targets: `arm64mac` and `x64musl`
+
+`./scripts/test.py` is the fast functional path: it validates bytes,
+independent structural oracles, retention facts, and exact deterministic work
+counters with `--opt=dev`. `./scripts/test.py --allocation-baselines` uses the
+same pinned dev backend and additionally requires exact allocation counts.
+`--compare-baselines` also remains on the dev backend and reports rather than
+accepts allocation deltas.
+
+The harness rejects a toolchain, protocol, target, counter shape, or
+`.roc-version` mismatch before accepting scenario results. The allocation path
+additionally rejects an optimization-mode mismatch.
+
+[#contributor-scenario-protocol-measurement-abi-and-ownership]
+=== Measurement ABI and ownership
+
+A compiled scenario returns one fixed record containing owned PDF bytes and a
+flat `List(U64)` whose positions are named per scenario by `tests/spec.json`.
+This permits each feature slice to report its actual deterministic operations
+without widening the allocation-measurement ABI or mislabelling counters. The host emits
+the PDF bytes unchanged, reports the counter values and allocation events in
+one versioned line, and then decrements both lists. The metrics ABI contains no
+strings, maps, closures, or per-counter records.
+
+The host constructs command-line arguments before resetting the allocation
+counter. It resets immediately before calling the Roc fixture entrypoint, so
+the declared `before_fixture_main` boundary includes all Roc fixture work and
+excludes Python, argument construction, host formatting, snapshot comparison,
+and contract validation.
+
+[#contributor-scenario-protocol-deterministic-work-self-test]
+=== Deterministic-work self-test
+
+The protocol fixture emits the same 431-byte PDF at two declared input scales.
+Both explicit allocation runs retain the exact one-allocation result under the
+dev backend. The default path checks the same deterministic work without
+treating its allocation count as a baseline. A direct `while` loop reports the
+independently checked work:
+
+[cols="1,1,1,1",options="header"]
+|===
+|Scenario |Passes |Byte visits |Roc allocations
+|`placeholder PDF x1` |1 |431 |1
+|`placeholder PDF x4` |4 |1,724 |1
+|===
+
+This makes a work-only regression observable even when bytes and allocations
+are unchanged. The harness self-test injects one extra allocation and one extra
+work unit independently and proves that both reports are rejected.
+
+The CI matrix enforces these exact values on native `arm64mac` and 64-bit
+`x64musl` runners. contract-definition cross-host evidence is accepted only when both jobs
+succeed for the same commit.
+
+[#contributor-scenario-protocol-complexity-and-retention]
+=== Complexity and retention
+
+Parsing and comparing metrics is linear in the small fixed counter count.
+Snapshot hashing remains linear in output bytes. Each scenario process releases
+its Roc result before the host leak check, and each executable lives only for
+its case. No protocol value enters the production package or changes the
+generated output representation.
+
+[#contributor-test-suite-speed]
+== Test scheduling and fixture isolation
+
+The driver plans one compiler validation per covered root. An evidence build
+checks a fixture root, a test root runs expectations in its local closure,
+and untested roots receive an explicit check. Validation and fixture builds
+use hardware-aware concurrency. The current caps and inventory are in
+`scripts/test.py` and `tests/spec.json`.
+
+The driver writes its plan and metrics to a timestamped ignored log.
+Use the xref:contributor-reference.adoc#contributor-fixture-grouping[fixture grouping contract]
+to check that an optimization preserves the tested case and allocation
+boundary. Preserve runtime source inputs and output snapshots when changing
+how applications are grouped or scheduled.
+
+[#contributor-toolchain-profile]
+== Compiler and allocation evidence
+
+The checked `.roc-version` and `Blueprint.lock` identify the current toolchain.
+The fixture inventory owns each target's exact allocation and deterministic work
+references. The dev backend uses explicit specialization. Fixture builds use the
+script's declared compiler-cache policy, which is itself part of the evidence.
+
+When a compiler or dependency changes, compare native Linux and macOS
+fixtures before updating a reference. Hold the old fixture inputs and
+snapshots fixed when diagnosing allocation changes. Establish whether the
+change is due to compiler lowering, ownership of retained input, explicit
+stage work or a changed scenario. An optimised benchmark may support the
+diagnosis, and the dev build remains the fixture's measured contract.
+
+[#contributor-toolchain-profile-lowering-policy]
+=== Ownership and lowering
+
+Check uniqueness through lowerings that pass a growing list or object store
+across a call. An error path that retains the prior value can make every
+append copy its accumulator. Compare allocation bytes, exact counts and
+work on small and large inputs. See the
+xref:contributor-output.adoc#contributor-lowering-uniqueness[lowering uniqueness contract].
+
+Logs and before/after receipts belong in scratch storage or CI artifacts.
+The exact inputs and reviewed reference values remain in the fixture
+inventory and its Git history.
+
+[#contributor-reference-documents]
+== Reference business documents
+
+The invoice, report and letter exercise the public facade with fictional
+Australian business data. Their Runnable document gallery sources and checked
+PDFs live under `examples/`. The
+https://github.com/lukewilliamboswell/roc-pdf/tree/main/tests/reference_documents[reference document fixture sources]
+author additional variants. The
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/tests/spec.json[fixture inventory]
+pins expected PDFs, validation dimensions, exact allocation counts and work
+counters. Change the corresponding fixture and contractual expectation together.
+
+[#contributor-reference-documents-shared-conventions]
+=== Shared conventions
+
+All three documents use A4 (595 × 842 pt), 48 pt top and bottom margins and
+56 pt side margins (72 pt for the letter). Templates reserve their regions
+inside the body frame. Metadata and root language use `en-AU`. The fixtures
+exercise nested French text under `fr`. Currency values, amounts and dates
+are authored strings. The author owns their accuracy.
+
+The invoice and report register upstream OFL Source Sans 3 faces. The report
+also registers Source Code Pro for code. The letter registers Literata. Font
+registration, subset coverage, genuine styles and logical character recovery
+follow the xref:roc-font.adoc[font authoring contracts]. Decorative page
+furniture paints as artifacts. Figure alternative text, title, headings,
+paragraphs, table structure and links remain semantic.
+
+[#contributor-reference-documents-multi-page-invoice]
+=== Invoice
+
+The tax invoice uses a semantic title and addresses, a two-column key/value
+table, a long invoice line table and linked payment instructions. The item
+table uses real column headers. Repeat header paint belongs to an artifact,
+while the table keeps one logical header and one `TR` for each authored row.
+The totals follow the final item and keep the last body row with them under
+the admitted policy. Page labels and currency strings stay exact.
+
+Adverse fixtures require wrapping a long description, widening a content
+column for an identifier and either keeping or splitting ordinary rows
+according to the authored row policy. Narrow columns reject an unbreakable
+token or insufficient table width. Other cases exercise spanning scopes,
+atomic rejection of invalid tables and keeps, exact reserves for page labels,
+and oversize rows that are rejected under `KeepRows`.
+
+[#contributor-reference-documents-business-report]
+=== Report
+
+The business report exercises heading hierarchy, grouped content, a bounded
+callout, accessible captioned figures, styled tables and navigation. The
+outline and annotation destinations target authored headings. A contextual
+caption remains owned by its figure. Page furniture is visually independent
+of reading order.
+
+Adverse fixtures place a heading and its following text near a page break,
+move a figure with its caption, repeat the table header and check the figure
+scaling policy and its rejection floor. The coverage fixture uses a Han
+face for its Chinese scalar and the declared Latin face for surrounding
+spaces with Common script. Invalid headings, destination identities,
+alternatives and custom block geometry reject before output.
+
+[#contributor-reference-documents-business-letter]
+=== Letter
+
+The warranty letter has address and recipient content, a date, a subject,
+body paragraphs, its closing and signature, and exact page furniture. The
+metadata title is independent of a visible title. Its reference case
+exercises the default combined archival and accessibility claims. The lead
+region and signature retain their authored group boundaries.
+
+Adverse fixtures wrap a long addressee, expand the body across pages and
+exercise the minimum body space, lead-region height, continuation furniture
+and required keeps. Unsupported body fields and invalid metadata reject
+before output.
+
+[#contributor-reference-documents-declared-production-text-support]
+=== Declared text support
+
+The reference invoice, report and letter use registered static TrueType
+faces for horizontal Latin text, including authored nested language spans.
+Each fixture states its font policy, text expectations and located errors.
+
+* The facade's xref:roc-font.adoc#roc-font-choose-built-in-and-caller-fonts[font guide]
+  lists packaged coverage, caller-provided faces, ordered Latin and Han
+  selection, Inter shaping and the opt-in international policies.
+* The xref:contributor-layout.adoc#contributor-international-text[international evidence]
+  names the exact faces, script ranges and fixtures for supported Hebrew,
+  Arabic, Hindi and Thai combinations.
+* The xref:contributor-layout.adoc#contributor-text-layout-closure[positioned-run contract]
+  defines the advanced input's independent script, direction, source cluster
+  and extraction guarantees.
+
+Unsupported script, cluster and coverage errors identify the first failing
+authored text and its scalar range. Automatic hyphenation and vertical
+writing are outside the reference fixture policies.
+
+[#contributor-reference-documents-layout-policy-vocabulary]
+=== Flow outcomes and diagnostics
+
+The outer body frame is page size minus theme margins. Template stack and
+flow-fit requirements are measured before emission. Unsplittable content,
+required keeps and explicit page breaks constrain legal cuts. A new page must
+make progress. An impossible cut reports the participating paths.
+
+[cols="1,2",options="header"]
+|===
+|Policy |Mechanical rejection or checked outcome
+|Template and slot fit |No body line fits or a slot/lead region overflows. `layout.template_body_space` or `layout.template_region_overflow`.
+|Required keeps |A kept unit cannot fit, has no successor or conflicts with an explicit break. `layout.keep_conflict`.
+|Rows |The declared keep/split policy determines legal row cuts. An unsplittable row that cannot fit reports `layout.oversize_row`.
+|Figures |A caption stays with its figure. Explicit scale-to-fit uses its author-supplied floor. No-fit reports `document.figure_oversize`.
+|Inline text |An unbreakable token that cannot fit reports `layout.unbreakable_token`. Unsupported text reports its source path.
+|Fixed-width page fields |The exact resolved value must fit its authored width. `layout.field_overflow`.
+|===
+
+At an otherwise legal cut, the paginator ranks heading keeps, preferred
+author keeps, table footer carry, orphan limits and widow limits in that
+order. Where identical scores fit, it chooses the later cut. See the
+xref:contributor-layout.adoc#contributor-layout-policies[layout policy evidence]
+for the executable constraints. Authoring examples and newer profile paths
+live in xref:authoring.adoc[Authoring] and
+xref:manual-composition.adoc[Manual composition].
+
+[#contributor-reference-documents-preparation-report]
+=== Preparation report
+
+Use `Pdf.prepare_with_report` to review authored paths, first and last
+pages, semantic roles, fragment counts, fit and keep outcomes, repeated
+headers and resolved destinations. The report records mechanical facts
+and leaves language, text alternatives and business facts to author review.
+The fixture cases compare the production report to authored expectations,
+and an independent decoder verifies the associated PDF facts. See
+xref:authoring.adoc#authoring-preparation-reports[preparation reports].
+
+[#contributor-reference-documents-scale-workloads]
+=== Scale workloads
+
+The fixture inventory pairs small and large invoices, tables, reports and
+letters. It records exact work and allocation metrics under the pinned
+compiler. The full-size variants exercise row and page growth, continued
+furniture and reference fit. The release gallery runs the package bundle and
+compares its output byte for byte with retained PDF baselines.
+
+[#contributor-reference-documents-optional-human-review-tasks]
+=== Optional reader review
+
+In a reader, find the invoice total through the table headers, use the
+report outline and caption to locate the chart, and trace the letter's
+signature and page furniture. Use the same validated PDFs that the
+automated checks inspect. Record reader and assistive-technology versions.
+
+[#contributor-releases-publishing]
+== Publishing a release
+
+A release dispatch records one full commit SHA from `main`, runs the complete
+applicable checks at that SHA, then publishes the tested artifacts once.
+`.roc-version` is the package compiler pin.
+
+Keep working release notes in https://github.com/lukewilliamboswell/roc-pdf/blob/main/docs/releases/unreleased.adoc[`docs/releases/unreleased.adoc`].
+While that draft exists, ordinary CI verifies the package and bundled gallery
+and builds an Unreleased manual. Version comparison and publication artifacts
+are checked when a release version is selected.
+
+[#contributor-releases-publishing-prepare-and-validate]
+=== Prepare and validate
+
+[arabic]
+. Move the changes being released into `docs/releases/<version>.adoc` and add
+the pinned nightly and literal
+`{package-url}` and `{bundle-sha256}` placeholders. Describe user-visible
+behavior and migration; keep the authored placeholders in Git.
+. Without a working draft, the PR checks choose the highest authored notes version and build the
+package, examples archive, API/manual archive and PDF. They test the actual
+bundle/archive consumers, render notes with the resulting URL/digest, and
+run `roc bump --old <latest-final-bundle> --expect <version>` under the
+pinned compiler. Both old/new APIs must compile; failures are investigated,
+never skipped or replaced by a guessed compatibility verdict.
+When the previous release cannot compile under a newly required compiler,
+treat that requirement change as a source-compatibility boundary: document
+the compiler migration and author a breaking version. The existing breaking-version rule
+then applies; a patch release cannot claim an unproved API comparison.
+. Merge only after applicable checks pass. Dispatch the release workflow on
+`main` with that authored version and `nightly_validation: true` for an
+end-to-end dry run. This repeats the full Linux/macOS tests and
+documentation/archive checks on the recorded SHA and builds the complete
+publication payload for the explicit version. A compiler-only rehearsal
+can also run on a branch with the tag omitted, using the ordinary CI
+version selection.
+. Review the same-run `roc-pdf-release-<sha>` artifact: its manifest records
+the compiler, commit, exact names, lengths and SHA-256 values of all four
+deliverables. Rendered notes are also hash-bound. No source file is rewritten.
+
+[#contributor-releases-publishing-publish-once]
+=== Publish once
+
+Dispatch `release-candidate.yml` from `main` with the same authored version and
+`nightly_validation: false`. Existing tags/releases reject before publication.
+The protected `release` environment admits `main` alone. A separate job downloads
+its own run's artifacts, verifies their manifest/notes/identity and invokes the
+full-SHA shared publisher. It checks out no project source and rebuilds nothing.
+The publisher creates a draft at the tested SHA, uploads each explicit asset,
+downloads and verifies its bytes, and only then publishes. Candidates remain
+prereleases; final versions become latest. Immutable hosting and tag rules
+prevent modifying a published version.
+
+Assets are the content-addressed package, `roc-pdf-examples-<version>.zip`,
+`roc-pdf-docs-<version>.zip`, `roc-pdf-<version>.pdf` and
+`release-manifest.json`. The docs archive preserves both the original API site
+routes and `/manual/`. Default-branch Pages output says `unreleased`; release
+archives carry their exact version. The manual links to historical release
+records.
+
+If publication fails, inspect the named draft and the uploaded/downloaded
+files. A draft is never automatically adopted. Delete an unpublished failed
+draft before retrying the same run's tested artifacts. Never repair a published
+release, move a tag, replace an asset or reconstruct an expired artifact from a
+moving branch. Publish changed bytes as a new version.
+
+[#contributor-testing]
+== Fixture driver reference
+
+Run the checks and interpret their results through xref:testing.adoc[Testing roc-pdf].
+The fixture inventory in
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/tests/spec.json[`tests/spec.json`]
+declares the validation roots, groups, cases, snapshots and named checks.
+The driver checks the public package and tests the internal package's
+expectations. Each application root is checked by its evidence build or a
+validation command. The detailed log records the roots and local import closures.
+
+Use `--quick --group NAME` or `--quick --case NAME` to skip preflights and
+validation while iterating. `ROC` selects the pinned compiler executable.
+`--jobs N` changes the worker cap, and `--verbose` mirrors the detailed log
+under `.roc-pdf-tmp/logs/`.
+
+[#contributor-testing-allocation-baselines]
+=== Allocation baselines
+
+Integration tests use the dev backend with `--specialize=yes`. Each accepted
+case pins the PDF and deterministic work and sets an allocation ceiling. The fixture host
+resets its counters at `before_fixture_main`, after decoding the envelope.
+Protocol 2 reports allocation events (`roc_alloc` and `roc_realloc`) and total
+requested bytes, including the new size of every reallocation. Requested
+bytes may reach 110% of the recorded reference. Lower observations pass and can
+tighten the ceiling after a repeatability check. Counts and requested bytes
+cover different costs, including cases with quadratic copying.
+
+[source,sh]
+----
+./scripts/test.py --compare-baselines --baseline-report .roc-pdf-tmp/baselines.json \
+  --improvement-report .roc-pdf-tmp/allocation-improvements.json
+./scripts/test.py --update-snapshots
+----
+
+The snapshot update path still enforces allocation and work evidence.
+Explain the cause of an intentional PDF change or ceiling increase before
+refreshing its record. When investigating a difference, run the complete comparison with
+a separate empty `XDG_CACHE_HOME`. Keep reports in ignored scratch storage.
+
+[#contributor-testing-profile-fixtures]
+=== Profile checks
+
+Select the fixture validators for the actual declarations and observed
+production contract. The driver checks PDF/A-4, PDF/UA-2 and WTPDF accessibility
+using XMP and structure and resource facts. It compares the output against
+the same authored snapshot on the supported native targets. Anchor new
+conditions in the pinned normative reference and include relevant atomic
+rejections and mutations.
+
+[#contributor-testing-optional-local-pdf-review]
+=== Optional local PDF review
+
+Provision the independent tools used in the review. Use `--offline` for
+already-cached archives.
+
+[source,sh]
+----
+python3 scripts/provision_extended_tools.py --only verapdf
+python3 scripts/check_pdfa4.py --cases
+python3 scripts/check_accessible_archive.py --cases
+----
+
+The Archive runner selects veraPDF `4`. The combined runner selects `4`
+and `ua2` against the same PDFs and `wt1a` where declared.
+Report tool versions. Commit the independent fixture or curated observation,
+and keep raw generated validator and mutation files in scratch storage.
+
+[#contributor-testing-family-fixtures-and-fixture-groups]
+=== Family fixtures and fixture groups
+
+A family has `package.roc` exposing `Cases`, a typed case union and handler in
+`Cases.roc`, and ordered schema-1 rows in `cases.jsonl`. A family uses either
+the public `package/main.roc` or the internal `package/all.roc`. Group apps
+decode a schema-2 envelope, reset allocation counters and dispatch one
+process per case. Keep runtime measurements on runtime inputs. A case
+with no payload or one that resolves entirely at compile time can have no
+runtime allocation evidence.
+
+Add the matching snapshot, dimensions, ordered validators, work counters,
+expected allocations and retention contract in the inventory. Regenerate
+the group apps with `./scripts/test.py --write-groups`. See the
+xref:contributor-reference.adoc#contributor-fixture-grouping-equivalence-evidence[fixture grouping checks]
+for membership changes. The validator allowlist lives in
+`scripts/harness_validators.py`. Unknown or duplicate identifiers are
+inventory errors.

@@ -1,8 +1,14 @@
 app [main!] {
 	pdf: "../../package/main.roc",
 	pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.28.1/7brgwR8YUqfeGrkdfF1V4GPPN7DnP7ftqub9KcrTEZtr.tar.zst",
+	weaver: "https://github.com/lukewilliamboswell/weaver/releases/download/0.11.0/7CdYzjBAJmprmnK45oTpmH6BXt76ZASN2Ck5uZQEoWsK.tar.zst",
 }
+import pf.OsStr
 import pf.Path
+import pf.Stderr
+import pf.Stdout
+import weaver.Cli
+import weaver.Param
 import pdf.Color
 import pdf.Document
 import pdf.Font
@@ -22,22 +28,49 @@ import "fonts/Literata-Italic.ttf" as italic_bytes : List(U8)
 ## are empty `TD`s for the surveyor to fill in), callouts through the
 ## custom-block seam measured by the package, page labels, and running
 ## headers and footers with the header text inset above a ruled backdrop.
-main! = |_args| {
+main! = |args| {
+	pocket = match Cli.parse_or_display_message(cli, args, OsStr.to_raw) {
+		Err(Help(message)) | Err(Version(message)) => return Stdout.line!(message).map_err(|error| OutputFailed(error))
+		Err(InvalidUsage(message)) => {
+			Stderr.line!(message).map_err(|error| OutputFailed(error))?
+			return Err(Exit(2))
+		}
+		Ok(Err(NoValue)) => False
+		Ok(Ok("pocket")) => True
+		Ok(Ok(_)) => {
+			Stderr.line!("Usage: roc run main.roc [pocket]").map_err(|err| OutputFailed(err))?
+			return Err(Exit(2))
+		}
+	}
 	fonts = register_fonts({})?
+	base = theme(fonts)
 	options : Pdf.Options
-	options = { theme: theme(fonts), fonts: Registered(fonts.registry) }
-	blocks = contents(options).map_err(|err| PdfFailed(err))?
+	options = {
+		theme: if (pocket) { ..base, page_margin: { top: 22, right: 20, bottom: 22, left: 20 } } else base,
+		page_size: if (pocket) Custom({ width: 306, height: 468 }) else A4,
+		fonts: Registered(fonts.registry),
+	}
+	blocks = contents(options, pocket).map_err(|err| PdfFailed(err))?
 	document = Pdf.document({
 		contents: blocks,
 		language: "en-AU",
 		title: "Coastal field guide: shorebirds of the Derwent estuary",
-		page_templates: Templates(templates),
+		page_templates: Templates(templates(pocket)),
 		outline,
 		page_labels: [{ prefix: "FG-", start_number: 1, start_page: 0, style: DecimalArabic }],
 		created: Explicit("2026-11-02T00:00:00Z"),
 		modified: Explicit("2026-11-02T00:00:00Z"),
 	})
-	bytes = Pdf.to_bytes_with(document, options).map_err(|err| PdfFailed(err))?
+	bytes = if pocket {
+		result = Pdf.prepare_with_report(document, { options: options }).map_err(|err| PdfFailed(err))?
+		for outcome in result.report.facts.outcomes {
+			match outcome {
+				PreferenceRelaxed({ page, path, preference: AuthorKeep }) => Stdout.line!("Preferred species note keep relaxed at ${path} on page ${page.to_str()}").map_err(|err| OutputFailed(err))?
+				_ => {}
+			}
+		}
+		Pdf.to_bytes_prepared(result.prepared).map_err(|err| PdfFailed(err))?
+	} else Pdf.to_bytes_with(document, options).map_err(|err| PdfFailed(err))?
 	output : Path
 	output = "field-guide.pdf"
 	output.write_bytes!(bytes).map_err(|err| WriteFailed(err))?
@@ -72,8 +105,8 @@ sand : Color.SourceValue
 sand = rgb(226, 204, 158)
 
 ## A4 with a wide binding margin: a 459 pt measure.
-body_width : I64
-body_width = 459
+body_width : Bool -> I64
+body_width = |pocket| if (pocket) 266 else 459
 
 ## Regular for body text; Bold for the title, the first two heading
 ## levels, and `Pdf.strong`; Italic for `Pdf.emphasis`.
@@ -117,22 +150,22 @@ wave_mark = {
 		.path({ path: wave(12), style: Scene.solid_stroke(rgb(120, 170, 168), 1.5) })
 }
 
-rule : Scene.Drawing
-rule = Scene.Drawing.empty.rectangle({ bounds: { origin: Layout.point({ x: 0, y: 0 }), size: { height: 0.6, width: Layout.Unit.points(body_width) } }, color: rgb(120, 170, 168) })
+rule : Bool -> Scene.Drawing
+rule = |pocket| Scene.Drawing.empty.rectangle({ bounds: { origin: Layout.point({ x: 0, y: 0 }), size: { height: 0.6, width: Layout.Unit.points(body_width(pocket)) } }, color: rgb(120, 170, 168) })
 
-footer : Pdf.Region
-footer = Pdf.region({
+footer : Bool -> Pdf.Region
+footer = |pocket| Pdf.region({
 	height: 14,
-	start: [Pdf.furniture_text([Pdf.text("Derwent Estuary Bird Group · 2026 edition")])],
+	start: [Pdf.furniture_text([Pdf.text(if (pocket) "Derwent Estuary Bird Group" else "Derwent Estuary Bird Group · 2026 edition")])],
 	end: [Pdf.furniture_text([Pdf.reserved_width({ width: 40, align: End, contents: [Pdf.text("FG-"), Pdf.page_number(Decimal)] })])],
 })
 
-templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
-templates = {
-	first: Pdf.first_page_template({ footer, gap: 12 }),
+templates : Bool -> { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
+templates = |pocket| {
+	first: Pdf.first_page_template({ footer: footer(pocket), gap: 12 }),
 	continuation: Pdf.page_template({
-		header: Pdf.region({ height: 21, start: [Pdf.furniture_text([Pdf.text("Coastal field guide · Shorebirds")])], end: [Pdf.furniture_image(wave_mark)], backdrop: Backdrop(rule), slot_inset: 3 }),
-		footer,
+		header: Pdf.region({ height: 21, start: [Pdf.furniture_text([Pdf.text("Coastal field guide · Shorebirds")])], end: [Pdf.furniture_image(wave_mark)], backdrop: Backdrop(rule(pocket)), slot_inset: 3 }),
+		footer: footer(pocket),
 		gap: 14,
 	}),
 }
@@ -179,7 +212,7 @@ line = |x1, y1, x2, y2| Scene.PathBuilder.start.move_to(point(x1, y1)).line_to(p
 
 habitat_section : Scene.Drawing
 habitat_section = {
-	w = body_width
+	w = body_width(False)
 	sky = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: w, height: 190 }), color: rgb(226, 240, 244) })
 	dune = Scene.PathBuilder.start
 		.move_to(point(0, 0))
@@ -343,11 +376,11 @@ callout_inset = 12
 
 ## Each line is a label and its text; the callout scopes its `Strong`
 ## labels to its accent colour.
-callout : Pdf.Options, Str, Color.SourceValue, List((Str, Str)) -> Try(Document.Block, Pdf.Error)
-callout = |options, name, accent, lines| {
+callout : Pdf.Options, Bool, Str, Color.SourceValue, List((Str, Str)) -> Try(Document.Block, Pdf.Error)
+callout = |options, pocket, name, accent, lines| {
 	paragraphs = lines.map(|(label, text)| Pdf.rich_paragraph([Pdf.strong([Pdf.text(label)]), Pdf.text(" ${text}")]))
-	content = Pdf.measure_custom_content(options, { contents: paragraphs, language: "en-AU", width: Layout.Unit.points(body_width - 24) })?
-	size = { height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width: Layout.Unit.points(body_width) }
+	content = Pdf.measure_custom_content(options, { contents: paragraphs, language: "en-AU", width: Layout.Unit.points(body_width(pocket) - 24) })?
+	size = { height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width: Layout.Unit.points(body_width(pocket)) }
 	block = Pdf.custom_block({
 		contents: paragraphs,
 		inset: callout_inset,
@@ -385,12 +418,12 @@ callout_panel = |size| {
 
 ## A thin sand-coloured rule with a centred wave, set 6 pt below the
 ## account before it and above each species account.
-divider : Document.Block
-divider = Pdf.decoration({
+divider : Bool -> Document.Block
+divider = |pocket| Pdf.decoration({
 	drawing: Scene.Drawing.empty
-		.path({ path: line(1, 7, 210, 7), style: Scene.solid_stroke(sand, 1) })
-		.group({ offset: point(217, 0), drawing: wave_mark })
-		.path({ path: line(249, 7, body_width - 1, 7), style: Scene.solid_stroke(sand, 1) }),
+		.path({ path: line(1, 7, if (pocket) 113 else 210, 7), style: Scene.solid_stroke(sand, 1) })
+		.group({ offset: point(if (pocket) 120 else 217, 0), drawing: wave_mark })
+		.path({ path: line(if (pocket) 152 else 249, 7, body_width(pocket) - 1, 7), style: Scene.solid_stroke(sand, 1) }),
 	above: 6,
 })
 
@@ -477,10 +510,11 @@ table_of_species = Pdf.table({
 	],
 })
 
-contents : Pdf.Options -> Try(List(Document.Block), Pdf.Error)
-contents = |options| {
+contents : Pdf.Options, Bool -> Try(List(Document.Block), Pdf.Error)
+contents = |options, pocket| {
 	windows = callout(
 		options,
+		pocket,
 		"Best counting windows",
 		coastal,
 		[
@@ -491,6 +525,7 @@ contents = |options| {
 	)?
 	etiquette = callout(
 		options,
+		pocket,
 		"Field etiquette",
 		rgb(176, 72, 40),
 		[
@@ -499,17 +534,17 @@ contents = |options| {
 			("Alarm", "if birds take flight or call in alarm, you are too close."),
 		],
 	)?
-	Ok(body(windows, etiquette))
+	Ok(body(pocket, windows, etiquette))
 }
 
-body : Document.Block, Document.Block -> List(Document.Block)
-body = |windows, etiquette| [
+body : Bool, Document.Block, Document.Block -> List(Document.Block)
+body = |pocket, windows, etiquette| [
 	Pdf.title("Coastal field guide"),
 	Pdf.rich_paragraph([
 		Pdf.strong([Pdf.text("Shorebirds of the Derwent estuary")]),
 		Pdf.text(" · A pocket companion for volunteer surveyors"),
 	]),
-	Pdf.figure({ drawing: habitat_section, alt: "Cross-section of the estuary from a grassy dune crest down across sand flats to the channel, with a dashed high-tide line and a solid low-tide line. Brackets above the flats mark where oystercatchers, red-capped plovers, and curlews feed, and a small bird of each species is shown in its zone.", caption: Pdf.caption("Figure 1. From dune to channel: where each species feeds"), fit: ScaleToFit({ minimum_percent: 60 }) }),
+	if (pocket) pocket_habitat else Pdf.figure({ drawing: habitat_section, alt: "Cross-section of the estuary from a grassy dune crest down across sand flats to the channel, with a dashed high-tide line and a solid low-tide line. Brackets above the flats mark where oystercatchers, red-capped plovers, and curlews feed, and a small bird of each species is shown in its zone.", caption: Pdf.caption("Figure 1. From dune to channel: where each species feeds"), fit: ScaleToFit({ minimum_percent: 60 }) }),
 	Pdf.section([
 		Pdf.destination_heading({ name: "habitat", level: 1, text: "Reading the estuary" }),
 		Pdf.rich_paragraph([
@@ -540,8 +575,8 @@ body = |windows, etiquette| [
 	Pdf.section([
 		Pdf.destination_heading({ name: "species", level: 1, text: "Species accounts" }),
 		Pdf.paragraph("Each plate below is drawn to the same scale, so relative size is a first clue. Compare bill shape next: it tells you how, and where, a bird feeds."),
-		Pdf.figure({ drawing: plates, alt: "Three bird silhouettes on tinted cards, drawn to scale. Left: a black-and-white oystercatcher with a long straight orange-red bill and pink legs. Centre: a small pale plover with a rust cap and a short bill. Right: a large brown curlew with a very long down-curved bill.", caption: Pdf.caption("Figure 2. Plates to scale: pied oystercatcher, red-capped plover, and Far Eastern curlew") }),
-		divider,
+		if (pocket) pocket_plates else Pdf.figure({ drawing: plates, alt: "Three bird silhouettes on tinted cards, drawn to scale. Left: a black-and-white oystercatcher with a long straight orange-red bill and pink legs. Centre: a small pale plover with a rust cap and a short bill. Right: a large brown curlew with a very long down-curved bill.", caption: Pdf.caption("Figure 2. Plates to scale: pied oystercatcher, red-capped plover, and Far Eastern curlew") }),
+		divider(pocket),
 		Pdf.section([
 			Pdf.destination_heading({ name: "oystercatcher", level: 2, text: "Pied oystercatcher" }),
 			Pdf.rich_paragraph([
@@ -551,17 +586,9 @@ body = |windows, etiquette| [
 			]),
 			id_list([Pdf.text("42 to 50 cm; the largest black-and-white bird on the flats.")], [Pdf.text("long straight "), Pdf.emphasis([Pdf.text("orange-red")]), Pdf.text(" bill, red eye-ring, pink legs.")], [Pdf.text("a loud, piping "), Pdf.quote([Pdf.text("“kleep kleep”")]), Pdf.text(" when disturbed.")]),
 		]),
-		divider,
-		Pdf.section([
-			Pdf.destination_heading({ name: "plover", level: 2, text: "Red-capped plover" }),
-			Pdf.rich_paragraph([
-				Pdf.text("A tiny, fast-running plover that nests in a bare scrape on the upper beach. Eggs and chicks are almost invisible against the sand, so follow the "),
-				Pdf.inline_internal_link([Pdf.text("field etiquette")], "survey"),
-				Pdf.text(" closely during the nesting season."),
-			]),
-			id_list([Pdf.text("14 to 16 cm; smaller than a sparrow.")], [Pdf.text("pale grey-brown above, white below; adult males have a "), Pdf.emphasis([Pdf.text("rufous")]), Pdf.text(" cap and a dark bar across the shoulder.")], [Pdf.text("a thin, sharp "), Pdf.quote([Pdf.text("“tik”")]), Pdf.text(" as it runs ahead of you.")]),
-		]),
-		divider,
+		divider(pocket),
+		Pdf.section(plover_account(pocket)),
+		divider(pocket),
 		Pdf.section([
 			Pdf.destination_heading({ name: "curlew", level: 2, text: "Far Eastern curlew" }),
 			Pdf.rich_paragraph([
@@ -603,6 +630,95 @@ body = |windows, etiquette| [
 			Pdf.inline_link([Pdf.text("the Atlas of Living Australia")], "https://www.ala.org.au/"),
 			Pdf.text(" for maps and records."),
 		]),
-		checklist,
+		if (pocket) pocket_checklist else checklist,
 	]),
 ]
+
+pocket_habitat : Document.Block
+pocket_habitat = {
+	drawing = Scene.Drawing.empty
+		.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 252, height: 108 }), color: rgb(232, 242, 241) })
+		.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 84, height: 55 }), color: sand })
+		.rectangle({ bounds: Layout.rect({ x: 84, y: 0, width: 84, height: 42 }), color: rgb(195, 172, 130) })
+		.rectangle({ bounds: Layout.rect({ x: 168, y: 0, width: 84, height: 28 }), color: rgb(120, 170, 168) })
+		.text({ text: "Dune", origin: point(14, 71), size: 11 })
+		.text({ text: "Flats", origin: point(98, 59), size: 11 })
+		.text({ text: "Channel", origin: point(181, 47), size: 11 })
+	Pdf.figure({ drawing, alt: "Three habitat bands descend from dune to sand flats and channel.", caption: Pdf.caption("Figure 1. Estuary habitat bands") })
+}
+
+pocket_plates : Document.Block
+pocket_plates = {
+	drawing = Scene.Drawing.empty
+		.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 252, height: 108 }), color: rgb(232, 242, 241) })
+		.group({ offset: point(17, 42), drawing: oystercatcher_small })
+		.group({ offset: point(105, 42), drawing: plover_small })
+		.group({ offset: point(185, 42), drawing: curlew_small })
+		.text({ text: "Oystercatcher", origin: point(7, 13), size: 9 })
+		.text({ text: "Plover", origin: point(105, 13), size: 9 })
+		.text({ text: "Curlew", origin: point(185, 13), size: 9 })
+	Pdf.figure({ drawing, alt: "A straight-billed oystercatcher, a short-billed plover and a down-curved-billed curlew.", caption: Pdf.caption("Figure 2. Compare the bills") })
+}
+
+plover_account : Bool -> List(Document.Block)
+plover_account = |pocket| {
+	note = Pdf.rich_paragraph([
+		Pdf.text("A tiny, fast-running plover that nests in a bare scrape on the upper beach. Eggs and chicks are almost invisible against the sand, so follow the "),
+		Pdf.inline_internal_link([Pdf.text("field etiquette")], "survey"),
+		Pdf.text(" closely during the nesting season."),
+	])
+	tail = id_list([Pdf.text("14 to 16 cm; smaller than a sparrow.")], [Pdf.text("pale grey-brown above, white below; adult males have a "), Pdf.emphasis([Pdf.text("rufous")]), Pdf.text(" cap and a dark bar across the shoulder.")], [Pdf.text("a thin, sharp "), Pdf.quote([Pdf.text("“tik”")]), Pdf.text(" as it runs ahead of you.")])
+	heading = Pdf.destination_heading({ name: "plover", level: 2, text: "Red-capped plover" })
+	if (pocket) [heading, Pdf.keep_with_next(Preferred, note), plover_card, tail] else [heading, note, tail]
+}
+
+# A full-height pocket checklist card follows the species note. The card
+# fits the pocket frame alone, so the Preferred keep is allowed to relax.
+plover_card : Document.Block
+plover_card = {
+	drawing = Scene.Drawing.empty
+		.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 252, height: 334 }), color: rgb(232, 242, 241) })
+		.text({ text: "Plover observation card", origin: point(14, 310), size: 15 })
+		.text({ text: "Observe from the wet sand", origin: point(14, 283), size: 11 })
+		.group({ offset: point(114, 248), drawing: plover_small })
+		.text({ text: "Time and tide", origin: point(14, 229), size: 11 })
+		.path({ path: line(14, 188, 238, 188), style: Scene.solid_stroke(coastal, 0.6) })
+		.text({ text: "Adult birds", origin: point(14, 172), size: 11 })
+		.path({ path: line(14, 131, 238, 131), style: Scene.solid_stroke(coastal, 0.6) })
+		.text({ text: "Chicks", origin: point(14, 115), size: 11 })
+		.path({ path: line(14, 74, 238, 74), style: Scene.solid_stroke(coastal, 0.6) })
+		.text({ text: "Disturbance", origin: point(14, 58), size: 11 })
+		.path({ path: line(14, 17, 238, 17), style: Scene.solid_stroke(coastal, 0.6) })
+	Pdf.figure({ drawing, alt: "Blank observation card with lines for time and tide, adult birds, chicks, and disturbance. Observe from the wet sand.", caption: Pdf.caption("Figure 3. Pocket plover observation card") })
+}
+
+pocket_checklist : Document.Block
+pocket_checklist = {
+	species = [
+		"Pied oystercatcher",
+		"Sooty oystercatcher",
+		"Red-capped plover",
+		"Hooded plover",
+		"Masked lapwing",
+		"Far Eastern curlew",
+		"Bar-tailed godwit",
+		"Red-necked stint",
+		"Double-banded plover",
+	]
+	Pdf.keep_together([
+		survey_details,
+		Pdf.table({
+			caption: Pdf.caption("Table 2. Pocket survey counts"),
+			columns: [{ width: Share(1), align: Start }, { width: Fixed(44), align: End }],
+			header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Species")]), Pdf.header_cell(Column, [Pdf.text("Count")])])],
+			body_rows: species.map(|name| Pdf.row([Pdf.header_cell(Row, [Pdf.text(name)]), Pdf.cell([])])),
+		}),
+	])
+}
+
+cli = Cli.assert_valid(
+	Cli.finish(
+		Param.maybe_str({ name: "mode", help: "Choose pocket to generate the pocket edition." }),
+		{ name: "field-guide", version: "unversioned", authors: [], description: "Generate a shorebird field guide.", text_style: Plain },
+	),
+)

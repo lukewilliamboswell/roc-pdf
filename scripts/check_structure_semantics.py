@@ -80,21 +80,21 @@ PDF20_NAMESPACE = "http://iso.org/pdf2/ssn"
 PDF17_NAMESPACE = "http://iso.org/pdf/ssn"
 # These unique PDF 1.7 roles retain that namespace in mixed structure
 # trees under ISO/TS 32005 §5.5 and PDF/UA-2 §8.2.4.
-PDF17_ROLES = {"Code", "Quote", "TOC", "TOCI"}
+PDF17_ROLES = {"Code", "Quote", "TOC", "TOCI", "Index", "Reference", "BibEntry"}
 
 INLINE = {"Lbl", "Figure", "Link", "Span", "Em", "Strong", "Code", "Quote"}
 ALL_ROLES = {
     "Document", "DocumentFragment", "Part", "Sect", "Div", "Title", "H", "Hn", "P", "L", "LI", "Lbl",
     "LBody", "Figure", "Caption", "Link", "Span", "Em", "Strong", "Code", "Quote", "Table", "THead",
-    "TBody", "TFoot", "TR", "TH", "TD", "TOC", "TOCI",
+    "TBody", "TFoot", "TR", "TH", "TD", "TOC", "TOCI", "Form", "Index", "Reference", "FENote", "BibEntry",
 }
-DOCUMENT_CHILDREN = {"Document", "DocumentFragment", "Part", "Sect", "Div", "Title", "H", "Hn", "P", "L", "Figure", "Link", "Code", "Table", "TOC"}
+DOCUMENT_CHILDREN = {"Document", "DocumentFragment", "Part", "Sect", "Div", "Title", "H", "Hn", "P", "L", "Figure", "Link", "Code", "Table", "TOC", "Form", "FENote"}
 GROUPING_WRAPPERS = {"Part", "Div"}
 # ISO/TS 32005 Table 5 lists these supported children in the Part row.
 PART_CHILDREN = DOCUMENT_CHILDREN | {"Caption", "Lbl", "TOCI"}
 CELL_CHILDREN = {"Sect", "Div", "H", "Hn", "P", "L", "Table"} | INLINE
 MAY_CONTAIN: dict[str, set[str]] = {
-    "Document": DOCUMENT_CHILDREN,
+    "Document": DOCUMENT_CHILDREN | {"Index"},
     "DocumentFragment": DOCUMENT_CHILDREN,
     "Part": set(ALL_ROLES),
     "Div": set(ALL_ROLES),
@@ -102,10 +102,12 @@ MAY_CONTAIN: dict[str, set[str]] = {
     "Title": {"Part", "Div", "P", "L", "Caption", "Table"} | INLINE,
     "H": {"Sect"} | INLINE,
     "Hn": {"Sect"} | INLINE,
-    "P": {"L", "Table"} | INLINE,
+    "P": {"L", "Table", "Reference", "BibEntry"} | INLINE,
     "L": {"L", "LI", "Caption"},
     "LI": {"Div", "Lbl", "LBody"},
     "Lbl": INLINE - {"Lbl"},
+    "Form": {"Lbl"},
+    "FENote": {"Link"},
     "LBody": {"Part", "Sect", "Div", "H", "Hn", "P", "L", "Caption", "Table"} | (INLINE - {"Lbl"}),
     "Figure": {"Part", "Sect", "Div", "H", "Hn", "P", "L", "Caption", "Table"} | INLINE,
     "Caption": {"Part", "Sect", "Div", "H", "Hn", "P", "L", "Table"} | INLINE,
@@ -124,6 +126,9 @@ MAY_CONTAIN: dict[str, set[str]] = {
     "TD": set(CELL_CHILDREN),
     "TOC": {"Part", "Caption", "TOC", "TOCI"},
     "TOCI": {"Div", "P", "Lbl", "TOC"},
+    "Index": {"P"},
+    "Reference": {"Link"},
+    "BibEntry": set(),
 }
 NO_CONTENT_ITEMS = {"Document", "DocumentFragment", "Sect", "L", "LI", "Table", "THead", "TBody", "TFoot", "TR", "TOC", "TOCI"}
 AT_MOST_ONE: dict[str, set[str]] = {
@@ -454,9 +459,9 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
         for key in ("Alt", "E", "ActualText"):
             if key in element:
                 facts.append(f"{key}={text_string(element[key])!r}")
-        if role == "TOCI":
+        if role in {"TOCI", "Reference"}:
             refs = element.get("Ref")
-            require(isinstance(refs, list) and len(refs) == 1 and isinstance(refs[0], Ref), "contents item must have one structure target")
+            require(isinstance(refs, list) and len(refs) == 1 and isinstance(refs[0], Ref), f"{role} must have one structure target")
             contents_targets.append(int(refs[0]))
         if role == "Figure":
             require("Alt" in element or "ActualText" in element, "Figure has neither /Alt nor /ActualText")
@@ -841,6 +846,39 @@ def check_scoped_table_headers(document: Document, rows: list[int]) -> None:
                     column_headers.setdefault(column, set()).add(cell.get("ID"))
 
 
+def check_table_grid(document: Document, row_groups: list[list[int]]) -> None:
+    """Expand rectangles independently of the writer's track-cursor algorithm."""
+    expected_width = None
+    occupied_tracks = 0
+    for rows in row_groups:
+        occupied = [set() for _ in rows]
+        for row_index, row in enumerate(rows):
+            column = 0
+            for cell in element_children(document, document.get(row)):
+                require(isinstance(cell, Ref), "table row has a non-cell child")
+                attributes = table_attributes(document.get(int(cell)))
+                height = attributes.get("RowSpan", 1)
+                width = attributes.get("ColSpan", 1)
+                require(1 <= height <= len(rows) - row_index, "/RowSpan exceeds its row group")
+                require(width >= 1, "/ColSpan is not positive")
+                occupied_tracks += width * height
+                require(occupied_tracks <= 1_000_000, "expanded table grid exceeds the checker budget")
+                while column in occupied[row_index]:
+                    column += 1
+                covered = set(range(column, column + width))
+                for row_mask in occupied[row_index : row_index + height]:
+                    require(row_mask.isdisjoint(covered), "table cells overlap")
+                    row_mask.update(covered)
+                column += width
+            if expected_width is None:
+                expected_width = len(occupied[row_index])
+            require(
+                len(occupied[row_index]) == expected_width
+                and max(occupied[row_index], default=-1) == expected_width - 1,
+                "table grid leaves a gap or extends past its width",
+            )
+
+
 def check_tables(document: Document, visited: set[int], identifiers: dict[bytes, int], pages: list[int], page_index: dict[int, int], dimensions: dict[str, int]) -> None:
     """Independent table checks, derived from the bytes alone:
 
@@ -848,9 +886,8 @@ def check_tables(document: Document, visited: set[int], identifiers: dict[bytes,
       with no /K and no /Pg: it owns no marked content, and there are
       exactly `empty_cells` of them when the case declares the count;
 
-    * grid regularity: every row of a table spans the same number of
-      columns (the sum of its cells' /ColSpan, default 1), and no cell spans
-      rows (the package's declared subset);
+    * grid regularity: expanded row and column spans cover every track
+      exactly once, within each row group;
     * every TH declares a /Scope, and every /Headers target resolves through
       the IDTree to a TH;
     * header-once semantics: a table's THead content lies on the table's
@@ -873,33 +910,27 @@ def check_tables(document: Document, visited: set[int], identifiers: dict[bytes,
                 require(target in identifiers and str(document.get(identifiers[target])["S"]) == "TH", "/Headers names an element that is not a TH")
         if str(element["S"]) != "Table":
             continue
-        rows: list[int] = []
+        row_groups: list[list[int]] = []
+        direct_rows: list[int] = []
         head: list[int] = []
         for child in element_children(document, element):
             if not isinstance(child, Ref):
                 continue
             child_role = str(document.get(int(child))["S"])
             if child_role == "TR":
-                rows.append(int(child))
+                direct_rows.append(int(child))
             elif child_role in ("THead", "TBody", "TFoot"):
+                if direct_rows:
+                    row_groups.append(direct_rows)
+                    direct_rows = []
                 if child_role == "THead":
                     head.append(int(child))
-                rows.extend(int(row) for row in element_children(document, document.get(int(child))) if isinstance(row, Ref))
-        widths = set()
-        for row in rows:
-            width = 0
-            for cell in element_children(document, document.get(row)):
-                if not isinstance(cell, Ref):
-                    continue
-                attributes = table_attributes(document.get(int(cell)))
-                require(attributes.get("RowSpan", 1) == 1, "a table cell spans rows outside the declared subset")
-                span = attributes.get("ColSpan", 1)
-                require(isinstance(span, int) and span >= 1, "a /ColSpan is not a positive integer")
-                width += span
-            widths.add(width)
-        require(len(widths) <= 1, f"table rows span different column counts {sorted(widths)}")
+                row_groups.append([int(row) for row in element_children(document, document.get(int(child))) if isinstance(row, Ref)])
+        if direct_rows:
+            row_groups.append(direct_rows)
+        check_table_grid(document, row_groups)
         if dimensions.get("facade_table_headers"):
-            check_scoped_table_headers(document, rows)
+            check_scoped_table_headers(document, [row for group in row_groups for row in group])
         table_pages = sorted(mcr_pages(document, number), key=lambda page: page_index[page])
         if not head or not table_pages:
             continue
@@ -936,6 +967,14 @@ def normalize_attributes(value, role: str) -> str:
                     require(role in ("TH", "TD") and isinstance(dictionary[span], int) and dictionary[span] >= 1, f"invalid /{span}")
             if "Summary" in dictionary:
                 require(role == "Table", "/Summary outside Table")
+        elif owner == "FENote":
+            require(role == "FENote" and dictionary == {"O": "FENote", "NoteType": "Footnote"}, "invalid footnote attribute")
+        elif owner == "ARIA-1.1":
+            require(role == "Sect" and set(dictionary) == {"O", "role"}
+                    and dictionary["role"] == "doc-bibliography", "invalid bibliography ARIA attribute")
+        elif owner == "Layout":
+            require(set(dictionary) == {"O", "WritingMode"}, "invalid Layout attributes")
+            require(dictionary["WritingMode"] in ("LrTb", "RlTb"), "invalid /WritingMode")
         elif owner == "List":
             require(set(dictionary) <= {"O", "ListNumbering"} and role == "L", "invalid List attributes")
             require(dictionary.get("ListNumbering") in LIST_NUMBERING, "invalid /ListNumbering")

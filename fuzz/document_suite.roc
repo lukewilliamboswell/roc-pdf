@@ -6,23 +6,37 @@ app [target] {
 
 import fuzz.Fuzz
 import JpegInspectorMutation
+import AssociatedFilesProperty
+import WidgetFormsProperty
+import CheckboxFormsProperty
 import FacadeOutputEquivalence
 import FacadeStructure
 import NavigationProperty
 import RegistryProperty
 import ThemeOptions
+import TableSpanProperty
 
 # roc test also runs the bounded models and proofs in this suite.
 import AppearanceTransparencyModel
+import AnchoredFigureModel
+import AssociatedFilesModel
+import BibliographyModel
 import FormAmbientTransparencyModel
 import ContentScopeModel
+import ColumnFlowModel
 import GraphicsTransformModel
 import ContinuationPaginationModel
 import DenseSpanProof
 import DocumentBuilderModel
 import FixedPageOrderModel
+import FootnotePaginationModel
+import WidgetFormsModel
 import GroupingContainmentModel
 import HeadingFamilyModel
+import InterLatinModel
+import InternationalLineModel
+import InternationalAdvanceProof
+import InternationalCoverageModel
 import LinkRegionModel
 import OutlineModel
 import PageBreakModel
@@ -30,17 +44,23 @@ import PageLabelModel
 import PageTreeProof
 import PageViewport
 import ReferenceWrapModel
+import GeneratedNavigationModel
 import ResourceGraphModel
 import StreamSealModel
 import TaggedStreamOwners
 import TableHeaderModel
+import TableSpanPaginationModel
 import XrefSlotProof
 
 target = Fuzz.suite([
 	JpegInspectorMutation.target,
+	AssociatedFilesProperty.target,
+	WidgetFormsProperty.target,
+	CheckboxFormsProperty.target,
 	FacadeOutputEquivalence.target,
 	FacadeStructure.target,
 	NavigationProperty.target,
 	RegistryProperty.target,
+	TableSpanProperty.target,
 	ThemeOptions.target,
 ])

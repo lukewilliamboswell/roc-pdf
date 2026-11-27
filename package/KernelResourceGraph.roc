@@ -1,3 +1,4 @@
+import KernelResourceRadix
 import KernelSha256
 import Scene
 import Semantics
@@ -515,7 +516,8 @@ classify = |entries, payload, limits| {
 						$canonical_of = list_set($canonical_of, entry.index, $canonical.len())
 						$canonical = $canonical.append({ descriptor: entry.descriptor, length: entry.length, start: entry.start })
 					} else {
-						ordered = radix_order(entries, payload, $partition, partition_end)
+						length = list_at(entries, $partition).length
+						ordered = KernelResourceRadix.order($partition, partition_end, length, |member, depth| byte_at(payload, list_at(entries, member).start + depth))
 						$ordering_passes = $ordering_passes + ordered.passes
 						$ordering_byte_visits = $ordering_byte_visits + ordered.byte_visits
 						confirmed = confirm_equality(entries, payload, ordered.order)
@@ -581,98 +583,6 @@ run_end = |entries, start, limit, mode| {
 		}
 	}
 	$index
-}
-
-## Iterative most-significant-byte radix refinement over one descriptor/length
-## partition. Every entry contributes a byte visit only while it is still tied
-## with another entry, so total work is bounded by the partition's entries plus
-## its bytes; a counting pass runs only at a real split, of which there are at
-## most `entries - 1`. There is no pairwise comparison.
-radix_order : List(Entry), List(U8), U64, U64 -> { byte_visits : U64, order : List(U64), passes : U64 }
-radix_order = |entries, payload, start, end| {
-	var $order = List.with_capacity(end - start)
-	var $seed = start
-	while $seed < end {
-		$order = $order.append($seed)
-		$seed = $seed + 1
-	}
-	length = list_at(entries, start).length
-	var $byte_visits = 0
-	var $passes = 0
-	var $stack = [{ depth: 0, end: end - start, start: 0 }]
-	while $stack.len() > 0 {
-		segment = list_at($stack, $stack.len() - 1)
-		$stack = $stack.sublist({ len: $stack.len() - 1, start: 0 })
-		var $depth = segment.depth
-		var $splitting = False
-		while !$splitting and $depth < length {
-			first = partition_byte(entries, payload, $order, segment.start, $depth)
-			var $scan = segment.start
-			var $same = True
-			while $scan < segment.end {
-				if partition_byte(entries, payload, $order, $scan, $depth) != first {
-					$same = False
-				}
-				$scan = $scan + 1
-			}
-			$byte_visits = $byte_visits + (segment.end - segment.start)
-			if $same {
-				$depth = $depth + 1
-			} else {
-				$splitting = True
-			}
-		}
-		if $splitting {
-			var $counts = List.repeat(0, 256)
-			var $scan = segment.start
-			while $scan < segment.end {
-				value = partition_byte(entries, payload, $order, $scan, $depth).to_u64()
-				$counts = list_set($counts, value, list_at($counts, value) + 1)
-				$scan = $scan + 1
-			}
-			$byte_visits = $byte_visits + (segment.end - segment.start)
-			var $offsets = List.repeat(0, 256)
-			var $running = 0
-			var $value = 0
-			while $value < 256 {
-				$offsets = list_set($offsets, $value, $running)
-				$running = $running + list_at($counts, $value)
-				$value = $value + 1
-			}
-			var $scratch = List.repeat(0, segment.end - segment.start)
-			$scan = segment.start
-			while $scan < segment.end {
-				value = partition_byte(entries, payload, $order, $scan, $depth).to_u64()
-				$scratch = list_set($scratch, list_at($offsets, value), list_at($order, $scan))
-				$offsets = list_set($offsets, value, list_at($offsets, value) + 1)
-				$scan = $scan + 1
-			}
-			$byte_visits = $byte_visits + (segment.end - segment.start)
-			$scan = 0
-			while $scan < $scratch.len() {
-				$order = list_set($order, segment.start + $scan, list_at($scratch, $scan))
-				$scan = $scan + 1
-			}
-			$passes = $passes + 1
-			$running = segment.start
-			$value = 0
-			while $value < 256 {
-				size = list_at($counts, $value)
-				if size > 1 {
-					$stack = $stack.append({ depth: $depth + 1, end: $running + size, start: $running })
-				}
-				$running = $running + size
-				$value = $value + 1
-			}
-		}
-	}
-	{ byte_visits: $byte_visits, order: $order, passes: $passes }
-}
-
-partition_byte : List(Entry), List(U8), List(U64), U64, U64 -> U8
-partition_byte = |entries, payload, order, position, depth| {
-	entry = list_at(entries, list_at(order, position))
-	byte_at(payload, entry.start + depth)
 }
 
 ## Adjacent exact equality after ordering. Each position records the position of

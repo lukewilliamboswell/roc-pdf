@@ -219,3 +219,203 @@ expect {
 	}
 	report.states == 1155 and report.steps == 1154 and report.depth == 4 and report.reached.len() == 7
 }
+
+## The ordinary model above rescans scope edges. The spanning model uses a
+## bounded bitmap, then compares coverage and exact ordered scopes at the
+## semantic stage. Finitely many authored row recipes include illegal grids.
+SpanRow : [FullHeight, Inner, Left, None, One, Two, Wide]
+
+SpanPartition : [AllBody, HeadAndBody, HeadBodyFoot]
+
+SpanWorld : { partition : [Partition(SpanPartition), Unset], rows : List(SpanRow) }
+
+SpanAction : [AppendSpan(SpanRow), Partition(SpanPartition)]
+
+SpanCell : { column_span : U64, height : U64, kind : [Data, Header(Document.HeaderScope)] }
+
+PlacedSpan : { cell : SpanCell, column : U64, ordinal : U64, row : U64 }
+
+span_machine : Model.Machine(SpanWorld, SpanAction)
+span_machine = {
+	init: { partition: Unset, rows: [] },
+	actions: |world| match world.partition {
+		Unset => [Partition(AllBody), Partition(HeadAndBody), Partition(HeadBodyFoot)]
+		Partition(_) => if (world.rows.len() < 3) [Left, Inner, FullHeight, Wide, Two, One, None].map(|row| AppendSpan(row)) else []
+	},
+	step: |world, action| match action {
+		Partition(partition) => { ..world, partition: Partition(partition) }
+		AppendSpan(row) => { ..world, rows: world.rows.append(row) }
+	},
+	rules: [
+		Model.always(
+			"spanning cells and scopes agree with an independently filled bitmap",
+			|world|
+				match world.partition {
+					Partition(partition) if world.rows.len() == 3 => span_agrees(world.rows, partition)
+					_ => True
+				},
+		),
+		span_witness("combined span touches a sibling without overlapping", AllBody, [Left, One, Wide]),
+		span_witness("a combined span occupies a row with no authored origins", AllBody, [FullHeight, None, None]),
+		span_witness("a later wide cell overlaps an earlier interior span", AllBody, [Inner, Two, Wide]),
+		span_witness("a wide later cell overflows after a carried span", AllBody, [Left, Wide, Wide]),
+		span_witness("a row omits an uncovered track", AllBody, [Inner, One, Wide]),
+		span_witness("a rowspan crossing a section boundary rejects", HeadBodyFoot, [Left, One, Wide]),
+		span_witness("a rowspan ending at a section boundary succeeds", HeadAndBody, [Left, One, Wide]),
+	],
+}
+
+span_witness : Str, SpanPartition, List(SpanRow) -> Model.Rule(SpanWorld, SpanAction)
+span_witness = |name, partition, rows| Model.sometimes(name, |world| world.partition == Partition(partition) and world.rows == rows)
+
+span_cells : SpanRow -> List(SpanCell)
+span_cells = |row| match row {
+	Left => [{ column_span: 2, height: 2, kind: Header(Both) }, { column_span: 1, height: 1, kind: Data }]
+	Inner => [{ column_span: 1, height: 1, kind: Data }, { column_span: 1, height: 2, kind: Header(Row) }, { column_span: 1, height: 1, kind: Data }]
+	FullHeight => [{ column_span: 3, height: 3, kind: Header(Column) }]
+	Wide => [{ column_span: 3, height: 1, kind: Header(Both) }]
+	Two => [{ column_span: 2, height: 1, kind: Data }]
+	One => [{ column_span: 1, height: 1, kind: Data }]
+	None => []
+}
+
+span_sections : SpanPartition, U64 -> U64
+span_sections = |partition, row| match partition {
+	AllBody => 3
+	HeadAndBody => if (row < 2) 2 else 3
+	HeadBodyFoot => row + 1
+}
+
+span_bitmap : List(SpanRow), SpanPartition -> Try({ placements : List(PlacedSpan), tiles : List(List(U64)) }, [Invalid])
+span_bitmap = |rows, partition| {
+	var $bits = List.repeat(0, 9)
+	var $placements = []
+	var $row = 0
+	for recipe in rows {
+		for cell in span_cells(recipe) {
+			var $column = 0
+			while $column < 3 and ($bits.get($row * 3 + $column) ?? 0) != 0 {
+				$column = $column + 1
+			}
+			if $column + cell.column_span > 3 or $row + cell.height > span_sections(partition, $row) {
+				return Err(Invalid)
+			}
+			ordinal = $placements.len()
+			$placements = $placements.append({ cell, column: $column, ordinal, row: $row })
+			var $y = $row
+			while $y < $row + cell.height {
+				var $x = $column
+				while $x < $column + cell.column_span {
+					index = $y * 3 + $x
+					if ($bits.get(index) ?? 0) != 0 {
+						return Err(Invalid)
+					}
+					$bits = $bits.set(index, ordinal + 1) ?? crash "model bitmap coordinate escaped"
+					$x = $x + 1
+				}
+				$y = $y + 1
+			}
+		}
+		if $bits.sublist({ start: $row * 3, len: 3 }).contains(0) {
+			return Err(Invalid)
+		}
+		$row = $row + 1
+	}
+	if !$placements.any(|entry| entry.cell.kind != Data) {
+		return Err(Invalid)
+	}
+	tiles = [0, 1, 2].map(
+		|row| {
+			var $row_tiles = []
+			for bit in $bits.sublist({ start: row * 3, len: 3 }) {
+				if !$row_tiles.contains(bit - 1) {
+					$row_tiles = $row_tiles.append(bit - 1)
+				}
+			}
+			$row_tiles
+		},
+	)
+	Ok({ placements: $placements, tiles })
+}
+
+span_agrees : List(SpanRow), SpanPartition -> Bool
+span_agrees = |shapes, partition| {
+	rows = shapes.map(
+		|shape| Document.row(
+			span_cells(shape).map(
+				|cell| {
+					text = [Document.plain_text("x")]
+					authored = match cell.kind {
+						Data => Document.cell(text)
+						Header(scope) => Document.header_cell(scope, text)
+					}
+					authored.spanning(cell.column_span.to_u16_wrap()).row_spanning(cell.height.to_u16_wrap())
+				},
+			),
+		),
+	)
+	subsets = match partition {
+		AllBody => { head: [], body: rows, foot: [] }
+		HeadAndBody => { head: rows.take_first(2), body: rows.drop_first(2), foot: [] }
+		HeadBodyFoot => { head: rows.take_first(1), body: rows.sublist({ start: 1, len: 1 }), foot: rows.drop_first(2) }
+	}
+	table = Document.table({
+		header_rows: subsets.head,
+		body_rows: subsets.body,
+		footer_rows: subsets.foot,
+		caption: NoCaption,
+		columns: List.repeat({ align: Start, width: Content }, 3),
+		row_split: KeepRows,
+	})
+	authoring = Document.normalize(Document.from_blocks({ contents: [table], language: "en", title: "Spanning grid model" }))
+	checked = KernelFacadeSemantics.Plan.build(authoring, limits)
+	match (span_bitmap(shapes, partition), checked) {
+		(Err(Invalid), Err(TableSpan(_))) | (Err(Invalid), Err(TableGridMismatch(_))) | (Err(Invalid), Err(TableHeaderMissing(_))) | (Err(Invalid), Err(TableEmpty(_))) => True
+		(Ok(expected), Ok(plan)) => {
+			verified = KernelFacadeSemantics.Plan.table_grids(plan)
+			if expected.placements.any(|entry| entry.cell.height > 1) {
+				grid = verified.get(0) ?? crash "verified spanning grid missing"
+				actual = grid.cells.map(|cell| [cell.column, cell.column_end, cell.row, cell.row_end])
+				rectangles_expected = expected.placements.map(|entry| [entry.column, entry.column + entry.cell.column_span, entry.row, entry.row + entry.cell.height])
+				row_tiles = grid.rows.map(|row| grid.tiles.sublist({ start: row.tiles.start(), len: row.tiles.length() }))
+				if verified.len() != 1 or actual != rectangles_expected or row_tiles != expected.tiles {
+					return False
+				}
+			} else if !verified.is_empty() {
+				return False
+			}
+			store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(plan)))
+			expected_edges = expected.placements.map(|target| span_headers(expected.placements, target).map(|header|
+				HeaderFor({ cell: Semantics.ElementId.from_index(target.ordinal), header: Semantics.ElementId.from_index(header) }))).join()
+			store.relationships == expected_edges
+		}
+		_ => {
+			crash "spanning grid disagrees for ${Str.inspect(shapes)} / ${Str.inspect(partition)}: ${Str.inspect(checked)}"
+		}
+	}
+}
+
+span_headers : List(PlacedSpan), PlacedSpan -> List(U64)
+span_headers = |cells, target| {
+	columns = cells.keep_if(
+		|candidate| match candidate.cell.kind {
+			Data => False
+			Header(scope) => scope != Row and candidate.row < target.row and candidate.column < target.column + target.cell.column_span and target.column < candidate.column + candidate.cell.column_span
+		},
+	)
+	rows = cells.keep_if(
+		|candidate| match candidate.cell.kind {
+			Data => False
+			Header(scope) => scope != Column and candidate.ordinal != target.ordinal and candidate.row <= target.row and candidate.row + candidate.cell.height > target.row and (target.cell.kind == Data or candidate.ordinal < target.ordinal)
+		},
+	)
+	List.concat(columns, rows).map(|cell| cell.ordinal)
+}
+
+expect {
+	report = Model.explore(span_machine, { depth: 5, key: |world| (world.partition, world.rows), verify: EveryStep })
+	if report.verdict != Holds(Exhausted) {
+		crash "${Model.explain(report)} ${Str.inspect(report.verdict)}"
+	}
+	report.states == 1201 and report.steps == 1200 and report.depth == 4 and report.reached.len() == 7
+}

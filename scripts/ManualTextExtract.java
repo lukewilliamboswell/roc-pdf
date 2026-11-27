@@ -16,7 +16,8 @@ import org.apache.pdfbox.text.PDFTextStripper;
 public final class ManualTextExtract {
     private ManualTextExtract() {}
     public static void main(String[] args) throws Exception {
-        if (args.length != 1 && args.length != 2) throw new IllegalArgumentException("usage: ManualTextExtract INPUT.pdf [REVIEW_DIRECTORY]");
+        if (args.length != 1 && args.length != 3)
+            throw new IllegalArgumentException("usage: ManualTextExtract INPUT.pdf [REVIEW_DIRECTORY FIGURE_PAGES]");
         try (PDDocument document = Loader.loadPDF(new File(args[0]))) {
             if (document.getNumberOfPages() < 2 || document.getNumberOfPages() > 512)
                 throw new IllegalArgumentException("manual page count outside 2..512");
@@ -24,8 +25,9 @@ public final class ManualTextExtract {
             stripper.setSortByPosition(false);
             stripper.setPageEnd("\f");
             System.out.write(stripper.getText(document).getBytes(StandardCharsets.UTF_8));
-            if (args.length == 2) {
+            if (args.length == 3) {
                 Path output = Path.of(args[1]);
+                int expectedFigures = Integer.parseInt(args[2]);
                 Files.createDirectories(output);
                 PDFRenderer renderer = new PDFRenderer(document);
                 int figures = 0;
@@ -45,7 +47,7 @@ public final class ManualTextExtract {
                         stripper.setEndPage(page + 1);
                         table = stripper.getText(document).contains("Authoring surface");
                     }
-                    if (page == 0 || (image && figures < 3) || table) {
+                    if (page == 0 || (image && figures < expectedFigures) || table) {
                         var box = document.getPage(page).getCropBox();
                         if (box.getWidth() * box.getHeight() > 1_000_000)
                             throw new IllegalArgumentException("manual preview pixel budget exceeded");
@@ -55,7 +57,8 @@ public final class ManualTextExtract {
                         if (table) tables++;
                     }
                 }
-                if (figures != 3) throw new IllegalArgumentException("manual needs three independently rendered figure pages");
+                if (figures != expectedFigures)
+                    throw new IllegalArgumentException("manual preview did not render all expected figure pages");
             }
         }
     }

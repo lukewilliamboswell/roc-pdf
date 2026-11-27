@@ -1,9 +1,14 @@
 app [main!] {
 	pdf: "../../package/main.roc",
 	pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.28.1/7brgwR8YUqfeGrkdfF1V4GPPN7DnP7ftqub9KcrTEZtr.tar.zst",
+	weaver: "https://github.com/lukewilliamboswell/weaver/releases/download/0.11.0/7CdYzjBAJmprmnK45oTpmH6BXt76ZASN2Ck5uZQEoWsK.tar.zst",
 }
+import pf.OsStr
 import pf.Path
+import pf.Stderr
 import pf.Stdout
+import weaver.Cli
+import weaver.Param
 import pdf.Color
 import pdf.Document
 import pdf.Font
@@ -14,7 +19,7 @@ import pdf.Theme
 import "fonts/SourceSans3-Regular.ttf" as regular_bytes : List(U8)
 import "fonts/SourceSans3-Bold.ttf" as bold_bytes : List(U8)
 
-## The reference multi-page tax invoice (docs/contributors/reference-documents.md):
+## The reference multi-page tax invoice (docs/contributor-reference.adoc#contributor-reference-documents):
 ## first-page and continuation templates with a vector logo over a
 ## masthead rule, running headers inset above a hairline, and exact
 ## `Page N of M` fields; a striped key/value details table; and a 32-row
@@ -22,19 +27,50 @@ import "fonts/SourceSans3-Bold.ttf" as bold_bytes : List(U8)
 ## a repeated header row, end-aligned amounts, and a totals group on a
 ## brass tint that keeps with the last body row. The document is prepared
 ## once and then emitted.
-main! = |_args| {
+main! = |args| {
+	{ oversized, row_split } = match Cli.parse_or_display_message(cli, args, OsStr.to_raw) {
+		Err(Help(message)) | Err(Version(message)) => return Stdout.line!(message).map_err(|error| OutputFailed(error))
+		Err(InvalidUsage(message)) => {
+			Stderr.line!(message).map_err(|error| OutputFailed(error))?
+			return Err(Exit(2))
+		}
+		Ok(Err(NoValue)) => { oversized: False, row_split: KeepRows }
+		Ok(Ok("split")) => { oversized: True, row_split: SplitRows }
+		Ok(Ok("keep")) => { oversized: True, row_split: KeepRows }
+		Ok(Ok(_)) => {
+			Stderr.line!("Usage: roc run main.roc [split|keep]").map_err(|err| OutputFailed(err))?
+			return Err(Exit(2))
+		}
+	}
 	fonts = register_fonts({})?
 	options : Pdf.Options
 	options = { theme: theme(fonts), fonts: Registered(fonts.registry) }
 	document = Pdf.document({
-		contents: [supplier_block, Pdf.title("Tax invoice"), details_table, bill_to_section, items_section, payment_section],
+		contents: [supplier_block, Pdf.title("Tax invoice"), details_table, bill_to_section, items_section(oversized, row_split), payment_section],
 		language: "en-AU",
 		title: "Tax invoice HF-2026-0417 — Harbour & Finch Pty Ltd",
 		page_templates: Templates(templates),
 		created: Explicit("2026-09-14T00:00:00Z"),
 		modified: Explicit("2026-09-14T00:00:00Z"),
 	})
-	prepared = Pdf.prepare(document, options).map_err(|err| PdfFailed(err))?
+	prepared = if oversized {
+		match Pdf.prepare_with_report(document, { options: options }) {
+			Ok(result) => {
+				for outcome in result.report.facts.outcomes {
+					match outcome {
+						RepeatedHeader({ page, path, .. }) => Stdout.line!("Repeated header ${path} on page ${page.to_str()}").map_err(|err| OutputFailed(err))?
+						RowContinued({ page, path }) => Stdout.line!("Continued row ${path} on page ${page.to_str()}").map_err(|err| OutputFailed(err))?
+						_ => {}
+					}
+				}
+				result.prepared
+			}
+			Err(error) => {
+				Stderr.line!(Pdf.Error.to_inspect(error)).map_err(|err| OutputFailed(err))?
+				return Err(Exit(1))
+			}
+		}
+	} else Pdf.prepare(document, options).map_err(|err| PdfFailed(err))?
 	bytes = Pdf.to_bytes_prepared(prepared).map_err(|err| EmitFailed(err))?
 	output : Path
 	output = "tax-invoice.pdf"
@@ -164,17 +200,22 @@ products = [
 ]
 
 ## The eight products once for each fit-out site, levels 2 to 5.
-item_rows : List(Pdf.Row)
-item_rows = ["2", "3", "4", "5"].map(
+item_rows : Bool -> List(Pdf.Row)
+item_rows = |oversized| ["2", "3", "4", "5"].map(
 	|site| {
 		products.map(
-			|product| Pdf.row([
-				Pdf.header_cell(Row, [Pdf.text("${product.code}/L${site}")]),
-				Pdf.cell(product.description.append(Pdf.text(" (Level ${site})"))),
-				Pdf.cell([Pdf.text(product.quantity)]),
-				Pdf.cell([Pdf.text(product.price)]),
-				Pdf.cell([Pdf.text(product.amount)]),
-			]),
+			|product| {
+				description = if oversized and site == "5" and product.code == "HF-INS-HRS" {
+					product.description.append(Pdf.text(Str.repeat(" Checked mounting hardware, cable clearances and the standing height at each desk.", 40)))
+				} else product.description
+				Pdf.row([
+					Pdf.header_cell(Row, [Pdf.text("${product.code}/L${site}")]),
+					Pdf.cell(description.append(Pdf.text(" (Level ${site})"))),
+					Pdf.cell([Pdf.text(product.quantity)]),
+					Pdf.cell([Pdf.text(product.price)]),
+					Pdf.cell([Pdf.text(product.amount)]),
+				])
+			},
 		)
 	},
 ).join()
@@ -234,8 +275,8 @@ bill_to_section = Pdf.section([
 	]),
 ])
 
-items_section : Document.Block
-items_section = Pdf.section([
+items_section : Bool, Pdf.RowSplit -> Document.Block
+items_section = |oversized, row_split| Pdf.section([
 	Pdf.heading(1, "Items"),
 	Pdf.table({
 		caption: Pdf.caption("Items supplied under purchase order PO 88213"),
@@ -249,7 +290,8 @@ items_section = Pdf.section([
 				Pdf.header_cell(Column, [Pdf.text("Amount (AUD)")]),
 			]),
 		],
-		body_rows: item_rows,
+		body_rows: item_rows(oversized),
+		row_split,
 		footer_rows: [
 			total_row("Subtotal (excl. GST)", [Pdf.text("40,116.40")]),
 			total_row("GST (10%)", [Pdf.text("4,011.64")]),
@@ -268,3 +310,10 @@ payment_section = Pdf.section([
 		Pdf.text(" (pay.harbourfinch.example/invoices/HF-2026-0417)."),
 	]),
 ])
+
+cli = Cli.assert_valid(
+	Cli.finish(
+		Param.maybe_str({ name: "mode", help: "Choose split or keep for oversized rows." }),
+		{ name: "tax-invoice", version: "unversioned", authors: [], description: "Generate a multi-page tax invoice.", text_style: Plain },
+	),
+)

@@ -32,17 +32,31 @@ import KernelMetadata
 import Metadata
 
 KernelXmp :: [].{
-	Error : [PacketTooLarge({ attempted : U64, limit : U64 })]
+	Error : [PacketTooLarge({ attempted : U64, limit : U64 }), SizeOverflow]
 
 	Work : { packet_bytes : U64, properties : U64, title_escapes : U64 }
 
 	## Typed declarations are separate from authored metadata facts.
-	Identification : [NoIdentification, PdfA4Identification, AccessibleArchiveIdentification, AccessibleArchiveWithWtpdf]
+	Identification : [
+		NoIdentification,
+		PdfA4Identification,
+		PdfA4fIdentification,
+		AccessibleArchiveIdentification,
+		AccessibleArchiveWithWtpdf,
+		AccessibleArchiveWithFilesIdentification,
+		AccessibleArchiveWithFilesAndWtpdf,
+	]
 
 	declares_archive : Identification -> Bool
 	declares_archive = |identification| match identification {
 		NoIdentification => False
-		PdfA4Identification | AccessibleArchiveIdentification | AccessibleArchiveWithWtpdf => True
+		_ => True
+	}
+
+	declares_files : Identification -> Bool
+	declares_files = |identification| match identification {
+		PdfA4fIdentification | AccessibleArchiveWithFilesIdentification | AccessibleArchiveWithFilesAndWtpdf => True
+		_ => False
 	}
 
 	Packet :: { bytes : List(U8), identification : Identification, work : Work }.{
@@ -87,24 +101,25 @@ build_packet = |facts, identification, max_bytes| {
 
 	## The optional segments materialize only for claims that emit them.
 	archive = if KernelXmp.declares_archive(identification) {
-		Identified({ namespace: Str.to_utf8(pdfaid_namespace_attribute), properties: Str.to_utf8(pdfaid_properties) })
+		properties = if (KernelXmp.declares_files(identification)) pdfaid_files_properties else pdfaid_properties
+		Identified({ namespace: Str.to_utf8(pdfaid_namespace_attribute), properties: Str.to_utf8(properties) })
 	} else {
 		NotIdentified
 	}
 	accessibility = match identification {
-		AccessibleArchiveIdentification | AccessibleArchiveWithWtpdf => Identified({ namespace: Str.to_utf8(pdfuaid_namespace_attribute), properties: Str.to_utf8(pdfuaid_properties) })
+		AccessibleArchiveIdentification | AccessibleArchiveWithWtpdf | AccessibleArchiveWithFilesIdentification | AccessibleArchiveWithFilesAndWtpdf => Identified({ namespace: Str.to_utf8(pdfuaid_namespace_attribute), properties: Str.to_utf8(pdfuaid_properties) })
 		_ => NotIdentified
 	}
 	declaration = match identification {
-		AccessibleArchiveWithWtpdf => Identified({ namespace: Str.to_utf8(pdfd_namespace_attribute), properties: Str.to_utf8(wtpdf_accessibility_properties) })
+		AccessibleArchiveWithWtpdf | AccessibleArchiveWithFilesAndWtpdf => Identified({ namespace: Str.to_utf8(pdfd_namespace_attribute), properties: Str.to_utf8(wtpdf_accessibility_properties) })
 		_ => NotIdentified
 	}
 
 	escapes = facts.title_escapes
 	escape_count = escapes.amps + escapes.lts + escapes.gts
-	escaped_title_len = title_bytes.len() + escapes.amps * 4 + escapes.lts * 3 + escapes.gts * 3
+	escaped_title_len = title_bytes.len().plus_saturated(escapes.amps.times_saturated(4)).plus_saturated(escapes.lts.times_saturated(3)).plus_saturated(escapes.gts.times_saturated(3))
 
-	total = head.len()
+	overhead = head.len()
 		+ bom.len()
 		+ head_rest.len()
 		+ namespace_len
@@ -118,10 +133,10 @@ build_packet = |facts, identification, max_bytes| {
 		+ language_bytes.len()
 		+ language_tail.len()
 		+ title_head.len()
-		+ escaped_title_len
 		+ title_tail.len()
 		+ tail.len()
 
+	total = U64.plus_try(overhead, escaped_title_len) ? |_| SizeOverflow
 	if total > max_bytes {
 		return Err(PacketTooLarge({ attempted: total, limit: max_bytes }))
 	}
@@ -158,8 +173,10 @@ build_packet = |facts, identification, max_bytes| {
 	identification_properties = match identification {
 		NoIdentification => 0
 		PdfA4Identification => 2
+		PdfA4fIdentification => 3
 		AccessibleArchiveIdentification => 4
-		AccessibleArchiveWithWtpdf => 5
+		AccessibleArchiveWithWtpdf | AccessibleArchiveWithFilesIdentification => 5
+		AccessibleArchiveWithFilesAndWtpdf => 6
 	}
 	properties = 2 + segment_count(created) + segment_count(modified) + identification_properties
 	Ok(
@@ -263,6 +280,10 @@ pdfaid_namespace_attribute = " xmlns:pdfaid=\"http://www.aiim.org/pdfa/ns/id/\""
 
 pdfaid_properties : Str
 pdfaid_properties = "\t\t\t<pdfaid:part>4</pdfaid:part>\n\t\t\t<pdfaid:rev>2020</pdfaid:rev>\n"
+
+# ISO 19005-4:2020 6.7.3 and Annex A designate A-4f with an uppercase F.
+pdfaid_files_properties : Str
+pdfaid_files_properties = "\t\t\t<pdfaid:conformance>F</pdfaid:conformance>\n\t\t\t<pdfaid:part>4</pdfaid:part>\n\t\t\t<pdfaid:rev>2020</pdfaid:rev>\n"
 
 pdfuaid_namespace_attribute : Str
 pdfuaid_namespace_attribute = " xmlns:pdfuaid=\"http://www.aiim.org/pdfua/ns/id/\""

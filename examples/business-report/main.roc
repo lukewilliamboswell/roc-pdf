@@ -1,9 +1,14 @@
 app [main!] {
 	pdf: "../../package/main.roc",
 	pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.28.1/7brgwR8YUqfeGrkdfF1V4GPPN7DnP7ftqub9KcrTEZtr.tar.zst",
+	weaver: "https://github.com/lukewilliamboswell/weaver/releases/download/0.11.0/7CdYzjBAJmprmnK45oTpmH6BXt76ZASN2Ck5uZQEoWsK.tar.zst",
 }
+import pf.OsStr
 import pf.Path
+import pf.Stderr
 import pf.Stdout
+import weaver.Cli
+import weaver.Param
 import pdf.Color
 import pdf.Document
 import pdf.Font
@@ -18,7 +23,7 @@ import "fonts/SourceSans3-It.ttf" as italic_bytes : List(U8)
 import "fonts/SourceCodePro-Regular.ttf" as code_bytes : List(U8)
 import "drying-yard.jpg" as drying_photo : List(U8)
 
-## The reference business report (docs/contributors/reference-documents.md): a navy
+## The reference business report (docs/contributor-reference.adoc#contributor-reference-documents): a navy
 ## cover band with the reversed mark, numbered sections that are outline
 ## and link destinations, rich inline content with expansions, a French
 ## quotation, and code, nested lists, a separately authored "Key figures"
@@ -27,12 +32,34 @@ import "drying-yard.jpg" as drying_photo : List(U8)
 ## ruled tables, and a 40-row supplier register that continues across
 ## pages with its header row repeated. Continuation pages carry a running
 ## header inset above a hairline.
-main! = |_args| {
+main! = |args| {
+	{ inspection, heat } = match Cli.parse_or_display_message(cli, args, OsStr.to_raw) {
+		Err(Help(message)) | Err(Version(message)) => return Stdout.line!(message).map_err(|error| OutputFailed(error))
+		Err(InvalidUsage(message)) => {
+			Stderr.line!(message).map_err(|error| OutputFailed(error))?
+			return Err(Exit(2))
+		}
+		Ok(Err(NoValue)) => { inspection: Ordinary, heat: NoHeatMap }
+		Ok(Ok("report")) => { inspection: Inspect(Pdf.ReportBudget.{}), heat: NoHeatMap }
+		Ok(Ok("report-budget")) => { inspection: Inspect(Pdf.ReportBudget.{ max_entries: 700 }), heat: NoHeatMap }
+		Ok(Ok("report-tiny")) => { inspection: Inspect(Pdf.ReportBudget.{ max_entries: 1 }), heat: NoHeatMap }
+		Ok(Ok("heat-map")) => { inspection: Inspect(Pdf.ReportBudget.{}), heat: HeatMap(ScaleToFit({ minimum_percent: 65 })) }
+		Ok(Ok("heat-exact")) => { inspection: Inspect(Pdf.ReportBudget.{}), heat: HeatMap(Exact) }
+		Ok(Ok("heat-high-floor")) => { inspection: Inspect(Pdf.ReportBudget.{}), heat: HeatMap(ScaleToFit({ minimum_percent: 90 })) }
+		Ok(Ok(_)) => {
+			Stderr.line!("Usage: roc run main.roc [report|report-budget|report-tiny|heat-map|heat-exact|heat-high-floor]").map_err(|err| OutputFailed(err))?
+			return Err(Exit(2))
+		}
+	}
 	fonts = register_fonts({})?
 	options : Pdf.Options
 	options = { theme: theme(fonts), fonts: Registered(fonts.registry) }
+	blocks = match heat {
+		NoHeatMap => contents
+		HeatMap(fit) => contents.append(heat_map_section(fit))
+	}
 	document = Pdf.document({
-		contents,
+		contents: blocks,
 		language: "en-AU",
 		title: "Harbour & Finch quarterly operations report, Q1 FY2027",
 		page_templates: Templates(templates),
@@ -40,12 +67,106 @@ main! = |_args| {
 		created: Explicit("2026-10-12T00:00:00Z"),
 		modified: Explicit("2026-10-12T00:00:00Z"),
 	})
-	bytes = Pdf.to_bytes_with(document, options).map_err(|err| PdfFailed(err))?
+	bytes = match inspection {
+		Ordinary => Pdf.to_bytes_with(document, options).map_err(|err| PdfFailed(err))?
+		Inspect(budget) => match Pdf.prepare_with_report(document, { options, budget }) {
+			Ok(result) => {
+				print_report!(result.report)?
+				Pdf.to_bytes_prepared(result.prepared).map_err(|err| PdfFailed(err))?
+			}
+			Err(error) => {
+				Stderr.line!(Pdf.Error.to_inspect(error)).map_err(|err| OutputFailed(err))?
+				return Err(Exit(1))
+			}
+		}
+	}
 	output : Path
 	output = "business-report.pdf"
 	output.write_bytes!(bytes).map_err(|err| WriteFailed(err))?
 	Stdout.line!("Wrote business-report.pdf").map_err(|err| OutputFailed(err))?
 	Ok({})
+}
+
+# Print a small review view using authored locations.
+print_report! = |report| {
+	facts = report.facts
+	report_line!("Language ${facts.language}, ${facts.pages.len().to_str()} pages")?
+	for block in facts.blocks {
+		if block.role == "Figure" {
+			report_line!("${block.path}, figure on page ${block.first_page.to_str()}")?
+		}
+	}
+	for alternative in facts.alternatives {
+		if alternative.kind == Alternative {
+			report_line!("${alternative.path}, alternative: ${alternative.text}")?
+		}
+	}
+	for outcome in facts.outcomes {
+		match outcome {
+			RepeatedHeader({ page, path, .. }) => report_line!("${path}, repeated header on page ${page.to_str()}")?
+			FigureScale({ fit: ScaleToFit, path, scale }) => report_line!("${path}, applied figure scale ${scale.to_str()} per thousand")?
+			_ => {}
+		}
+	}
+	for entry in report.obligations {
+		match entry.obligation {
+			ReadingOrderMeaningful | AlternativeTextMeaningful => report_line!("Author check ${entry.path}: ${Str.inspect(entry.obligation)}")?
+			_ => {}
+		}
+	}
+	Ok({})
+}
+
+report_line! = |text| Stdout.line!(text).map_err(|err| OutputFailed(err))
+
+heat_map_section : Pdf.FigureFit -> Document.Block
+heat_map_section = |fit| {
+	# Four receiving zones, eight one-hour sample slots per zone. Each
+	# sampled bin count becomes one RGB pixel in row-major order.
+	counts : List(U8)
+	counts = [
+		4,
+		3,
+		9,
+		16,
+		18,
+		12,
+		8,
+		7,
+		3,
+		6,
+		7,
+		11,
+		12,
+		8,
+		6,
+		6,
+		2,
+		3,
+		5,
+		6,
+		10,
+		12,
+		8,
+		4,
+		5,
+		7,
+		8,
+		10,
+		13,
+		13,
+		10,
+		8,
+	]
+	pixels : List(U8)
+	pixels = counts.map(|count| if (count < 8) [230, 239, 244] else if (count < 16) [94, 168, 179] else [20, 73, 92]).join()
+	image = Image.Source.rgb8({ pixels, row_stride: 24, alpha: NoAlpha, dimensions: { width: 8, height: 4 } })
+	drawing = Scene.Drawing.empty.image({ image, placement: Layout.rect({ x: 0, y: 0, width: 660, height: 330 }) })
+	Pdf.section([
+		Pdf.heading(1, "Appendix B. Receiving load"),
+		Pdf.paragraph("Rows show zones A to D from top to bottom. Columns show eight hourly slots from 8 am. Pale blue means 0–7 bins, teal means 8–15, and dark blue means 16 or more."),
+		Pdf.figure({ drawing, fit, alt: "Zone A reaches 16 and 18 bins in the fourth and fifth hours. Zones B to D stay below 16 bins throughout.", caption: Pdf.caption("Figure 3. Hourly receiving load by zone") }),
+	])
 }
 
 Faces : { bold : Font.FaceId, code : Font.FaceId, italic : Font.FaceId, regular : Font.FaceId, registry : Font.Registry }
@@ -493,3 +614,10 @@ contents = [
 		supplier_table,
 	]),
 ]
+
+cli = Cli.assert_valid(
+	Cli.finish(
+		Param.maybe_str({ name: "mode", help: "Choose report, report-budget, report-tiny, heat-map, heat-exact, or heat-high-floor." }),
+		{ name: "business-report", version: "unversioned", authors: [], description: "Generate an accessible business report.", text_style: Plain },
+	),
+)

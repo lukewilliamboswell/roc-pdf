@@ -90,7 +90,7 @@ import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 ##   reused three times through `Scene.Drawing.group` in a header item,
 ##   nested twice in a footer item, and grouped inside a backdrop; the
 ##   flattened marks must land where their offsets put them. It rejects
-##   groups nested nine deep (`layout.furniture_drawing`).
+##   groups nested nine deep (`document.drawing_group_depth`).
 ## - `atomic_negatives`: every template rejection with its stable dotted
 ##   code and template path, and no bytes.
 ##
@@ -667,9 +667,9 @@ run_furniture_groups = |context| {
 			title: "Deep groups",
 			page_templates: Templates({ continuation: Pdf.page_template({ gap: 12, header: deep_header }), first: Pdf.first_page_template({ gap: 12, header: deep_header }) }),
 		}),
-		InvalidRelationship,
-		"layout.furniture_drawing",
-		["templates.first.header.start[0]"],
+		BudgetExceeded,
+		"document.drawing_group_depth",
+		["templates.first.header.start[0].commands[8]"],
 	)
 	if rejected != 1 {
 		return Err(MissingRejection(rejected))
@@ -987,7 +987,7 @@ chapter_evidence = |count, mode| {
 	}
 	$contents = $contents.append(Pdf.paragraph("Unscoped ending resets the chapter label."))
 	doc = Pdf.document({ contents: $contents, language: "en-AU", title: "Chapter scope evidence", page_templates: if (mode == 1) NoTemplates else Templates({ first: Pdf.first_page_template({ footer, gap: 10, lead: Pdf.lead_region(40, [Pdf.paragraph("Semantic document lead")]) }), continuation: Pdf.page_template({ footer, gap: 10, header }) }) })
-	reported = Pdf.prepare_with_report(doc, Pdf.Options.{ profile: Archive, theme: report_theme }) ? |error| crash Str.inspect(error)
+	reported = Pdf.prepare_with_report(doc, { options: { profile: Archive, theme: report_theme } }) ? |error| crash Str.inspect(error)
 	var $scopes = 0
 	var $openings = 0
 	for outcome in reported.report.facts.outcomes {

@@ -7,13 +7,13 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import posixpath
 import re
 import shutil
 import subprocess
+import tempfile
 import zipfile
 
-from prepare_manual import ROOT, version_key
+from prepare_manual import PROJECT_URL, ROOT, pin_source_links, version_key
 
 
 def digest(path: Path) -> str:
@@ -21,30 +21,48 @@ def digest(path: Path) -> str:
 
 
 def latest_notes() -> str:
-    return max((path.stem for path in (ROOT / "docs/releases").glob("*.md")), key=version_key)
+    return max((path.stem for path in (ROOT / "docs/releases").glob("*.adoc")
+                if path.stem != "unreleased"), key=version_key)
 
 
-def render_notes(source: str, tag: str, bundle: Path, revision: str) -> str:
-    url = f"https://github.com/lukewilliamboswell/roc-pdf/releases/download/{tag}/{bundle.name}"
+def bind_notes(source: str, tag: str, bundle: Path, revision: str) -> str:
+    url = f"{PROJECT_URL}/releases/download/{tag}/{bundle.name}"
     if "{package-url}" not in source or "{bundle-sha256}" not in source:
         raise ValueError("next release notes must name {package-url} and {bundle-sha256}")
     rendered = source.replace("{package-url}", url).replace("{bundle-sha256}", digest(bundle))
     if "TODO(release)" in rendered:
         raise ValueError("release notes contain TODO(release)")
-    def pin(match):
-        target = match.group(2)
-        if re.match(r"[a-z]+:|#", target):
-            return match.group(0)
-        path = posixpath.normpath(posixpath.join("docs/releases", target))
-        return f"{match.group(1)}https://github.com/lukewilliamboswell/roc-pdf/blob/{revision}/{path})"
-    return re.sub(r"(\]\()([^)\s]+)\)", pin, rendered)
+    return pin_source_links(rendered, revision)
+
+
+def render_notes(source: str, tag: str) -> str:
+    scratch = ROOT / ".roc-pdf-tmp"
+    scratch.mkdir(exist_ok=True)
+    renderer = os.environ.get("ROC_DOCS_BINARY", "roc-docs")
+    with tempfile.TemporaryDirectory(prefix="release-notes-", dir=scratch) as directory:
+        work = Path(directory)
+        sources = work / "source"
+        sources.mkdir()
+        (sources / "index.adoc").write_text(source)
+        output = work / "output"
+        subprocess.run([
+            renderer, "build", "--workspace", str(work), "--docs-directory", "source",
+            "--entrypoint", "index.adoc", "--output-directory", "output",
+            "--docs-version", tag, "--markdown", "true",
+        ], check=True)
+        markdown = (output / "site/index.md").read_text()
+    header, separator, body = markdown.partition("\n\n")
+    if not separator or not header.startswith(f"> Documentation version: {tag}.") or not body:
+        raise ValueError("unexpected Markdown export for release notes")
+    return body
 
 
 def build(tag: str, bundle: Path, docs: Path, revision: str, output: Path) -> None:
     version_key(tag)
     if not re.fullmatch(r"[0-9a-f]{40}", revision):
         raise ValueError("release revision must be one full recorded commit SHA")
-    notes = (ROOT / f"docs/releases/{tag}.md").read_text()
+    source_path = f"docs/releases/{tag}.adoc"
+    notes = (ROOT / source_path).read_text()
     pinned = (ROOT / ".roc-version").read_text().strip()
     if pinned not in notes:
         raise ValueError("release notes must state the pinned compiler")
@@ -53,14 +71,15 @@ def build(tag: str, bundle: Path, docs: Path, revision: str, output: Path) -> No
         raise ValueError("release compiler differs from .roc-version")
     manual_inventory = json.loads((docs / "manual/source-digests.json").read_text())
     assert manual_inventory["revision"] == revision, "manual source links do not describe the release commit"
-    bindings = manual_inventory["release_bindings"][f"docs/releases/{tag}.md"]
+    bindings = manual_inventory["release_bindings"][source_path]
     assert bindings == {
-        "{package-url}": f"https://github.com/lukewilliamboswell/roc-pdf/releases/download/{tag}/{bundle.name}",
+        "{package-url}": f"{PROJECT_URL}/releases/download/{tag}/{bundle.name}",
         "{bundle-sha256}": digest(bundle),
     }, "manual does not describe the tested bundle"
     assert f'<span id="revnumber">{tag}</span>' in (docs / "manual/index.html").read_text(), "release manual has the wrong version label"
     output.mkdir(parents=True, exist_ok=True)
-    (output / "release-notes.md").write_text(render_notes(notes, tag, bundle, revision) + f"\n\nCompiler: `{compiler}`.\n")
+    authored = bind_notes(notes, tag, bundle, revision)
+    (output / "release-notes.md").write_text(render_notes(authored + f"\n\nCompiler: `{compiler}`.\n", tag))
     archive = output / f"roc-pdf-docs-{tag}.zip"
     with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as zipped:
         for path in sorted(docs.rglob("*")):
@@ -99,16 +118,17 @@ def build(tag: str, bundle: Path, docs: Path, revision: str, output: Path) -> No
 
 
 def self_test() -> None:
-    import tempfile
     with tempfile.TemporaryDirectory() as directory:
         bundle = Path(directory) / "hash.tar.zst"
         bundle.write_bytes(b"bundle")
-        notes = render_notes("{package-url}\n{bundle-sha256}\n[Guide](../authoring.md)", "0.3.0", bundle, "a" * 40)
+        notes = bind_notes("{package-url}\n{bundle-sha256}\n"
+                           "https://github.com/lukewilliamboswell/roc-pdf/blob/main/docs/authoring.adoc[Guide]",
+                           "0.3.0", bundle, "a" * 40)
         assert "/0.3.0/hash.tar.zst" in notes and digest(bundle) in notes
-        assert "/blob/" + "a" * 40 + "/docs/authoring.md" in notes
+        assert "/blob/" + "a" * 40 + "/docs/authoring.adoc" in notes
         for source in ("missing placeholders", "{package-url} {bundle-sha256} TODO(release)"):
             try:
-                render_notes(source, "0.3.0", bundle, "a" * 40)
+                bind_notes(source, "0.3.0", bundle, "a" * 40)
             except ValueError:
                 pass
             else:

@@ -1,3 +1,4 @@
+import KernelFootnoteReserve
 import KernelLineLayout
 import Layout
 import Semantics
@@ -38,6 +39,8 @@ KernelPageLayout :: [].{
 		LeadOverflow({ available : U64, required : U64 }),
 		LimitExceeded({ attempted : U64, dimension : Dimension, limit : U64 }),
 		Oversize({ available : U64, block : U64, required : U64 }),
+		NoteTooTall({ available : U64, block : U64, required : U64 }),
+		NoteBinding(U64),
 	]
 
 	Margins : { bottom : Layout.Unit, left : Layout.Unit, right : Layout.Unit, top : Layout.Unit }
@@ -97,6 +100,11 @@ KernelPageLayout :: [].{
 		space_after : Layout.Unit,
 		trailing : Layout.Unit,
 	}
+
+	## Each tail block contains one complete note. Its binding points to the
+	## first citation's measured body line, in first-citation order.
+	NoteAnchor : { line : U64, block : U64 }
+	FootnoteInput : { anchors : List(NoteAnchor), body_blocks : U64 }
 
 	## A required keep-together group over a contiguous block range. Groups
 	## are listed in preorder: a group either nests inside an earlier one or
@@ -198,29 +206,32 @@ KernelPageLayout :: [].{
 		scope_pages = |plan| plan.scope_pages
 
 		build : List(Block), List(KernelLineLayout.Line), Constraints, Limits -> Try(Plan, Error)
-		build = |blocks, lines, constraints, limits| build_plan(blocks, [], lines, constraints, NoTemplate, [], [], limits)
+		build = |blocks, lines, constraints, limits| build_plan(blocks, [], lines, constraints, NoTemplate, [], [], NoFootnotes, limits)
 
 		## Pagination with required keep-together groups.
 		build_with_groups : List(Block), List(KeepGroup), List(KernelLineLayout.Line), Constraints, Limits -> Try(Plan, Error)
-		build_with_groups = |blocks, groups, lines, constraints, limits| build_plan(blocks, groups, lines, constraints, NoTemplate, [], [], limits)
+		build_with_groups = |blocks, groups, lines, constraints, limits| build_plan(blocks, groups, lines, constraints, NoTemplate, [], [], NoFootnotes, limits)
+
+		build_with_footnotes : List(Block), List(KeepGroup), List(KernelLineLayout.Line), Constraints, FootnoteInput, Limits -> Try(Plan, Error)
+		build_with_footnotes = |blocks, groups, lines, constraints, notes, limits| build_plan(blocks, groups, lines, constraints, NoTemplate, [], [], WithFootnotes(notes), limits)
 
 		## Pagination under page templates: the first page flows in the
 		## first frame and every later page in the continuation frame, after
 		## the lead region (when present) receives its blocks on the first
 		## page. Every fit check uses its page's own flow height.
 		build_with_template : List(Block), List(KeepGroup), List(KernelLineLayout.Line), Constraints, Template, Limits -> Try(Plan, Error)
-		build_with_template = |blocks, groups, lines, constraints, template, limits| build_plan(blocks, groups, lines, constraints, WithTemplate(template), [], [], limits)
+		build_with_template = |blocks, groups, lines, constraints, template, limits| build_plan(blocks, groups, lines, constraints, WithTemplate(template), [], [], NoFootnotes, limits)
 
 		build_with_scopes : List(Block), List(KeepGroup), List(KernelLineLayout.Line), Constraints, Template, List(ScopedFrame), Limits -> Try(Plan, Error)
-		build_with_scopes = |blocks, groups, lines, constraints, template, scopes, limits| build_plan(blocks, groups, lines, constraints, WithTemplate(template), scopes, [], limits)
+		build_with_scopes = |blocks, groups, lines, constraints, template, scopes, limits| build_plan(blocks, groups, lines, constraints, WithTemplate(template), scopes, [], NoFootnotes, limits)
 
 		## Container spans remain declarative facts; text, source and row
 		## cursors resume in the existing flat unit store.
 		build_with_containers : List(Block), List(KeepGroup), List(KernelLineLayout.Line), Constraints, [NoTemplate, WithTemplate(Template)], List(Container), Limits -> Try(Plan, Error)
-		build_with_containers = |blocks, groups, lines, constraints, template, containers, limits| build_plan(blocks, groups, lines, constraints, template, [], containers, limits)
+		build_with_containers = |blocks, groups, lines, constraints, template, containers, limits| build_plan(blocks, groups, lines, constraints, template, [], containers, NoFootnotes, limits)
 
 		build_with_contexts : List(Block), List(KeepGroup), List(KernelLineLayout.Line), Constraints, [NoTemplate, WithTemplate(Template)], List(ScopedFrame), List(Container), Limits -> Try(Plan, Error)
-		build_with_contexts = |blocks, groups, lines, constraints, template, scopes, containers, limits| build_plan(blocks, groups, lines, constraints, template, scopes, containers, limits)
+		build_with_contexts = |blocks, groups, lines, constraints, template, scopes, containers, limits| build_plan(blocks, groups, lines, constraints, template, scopes, containers, NoFootnotes, limits)
 		container_fragments : Plan -> List(ContainerFragment)
 		container_fragments = |plan| plan.container_fragments
 		lead_bands : Plan -> List(Band)
@@ -503,18 +514,36 @@ Frames := {
 	largest : U64,
 }
 
-build_plan : List(KernelPageLayout.Block), List(KernelPageLayout.KeepGroup), List(KernelLineLayout.Line), KernelPageLayout.Constraints, [NoTemplate, WithTemplate(KernelPageLayout.Template)], List(KernelPageLayout.ScopedFrame), List(KernelPageLayout.Container), KernelPageLayout.Limits -> Try(KernelPageLayout.Plan, KernelPageLayout.Error)
-build_plan = |blocks, groups, lines, constraints, template, scopes, containers, limits| {
+FootnoteSelection : [NoFootnotes, WithFootnotes(KernelPageLayout.FootnoteInput)]
+
+build_plan : List(KernelPageLayout.Block), List(KernelPageLayout.KeepGroup), List(KernelLineLayout.Line), KernelPageLayout.Constraints, [NoTemplate, WithTemplate(KernelPageLayout.Template)], List(KernelPageLayout.ScopedFrame), List(KernelPageLayout.Container), FootnoteSelection, KernelPageLayout.Limits -> Try(KernelPageLayout.Plan, KernelPageLayout.Error)
+build_plan = |all_blocks, groups, lines, constraints, template, scopes, containers, note_input, limits| {
+	blocks = match note_input {
+		NoFootnotes => all_blocks
+		WithFootnotes({ body_blocks, .. }) => all_blocks.sublist({ start: 0, len: body_blocks })
+	}
 	if blocks.len() == 0 or lines.len() == 0 {
 		return Err(InvalidConstraints)
 	}
-	check_limit(blocks.len(), limits.max_blocks, Blocks)?
+	check_limit(all_blocks.len(), limits.max_blocks, Blocks)?
 	check_limit(lines.len(), limits.max_lines, Lines)?
 	check_limit(groups.len(), limits.max_blocks, Groups)?
 	geometry = validate_geometry(constraints)?
 	frames = validate_frames(template, geometry, blocks.len())?
 	scope_largest = validate_scope_frames(scopes, geometry.content_height, blocks)?
-	validation = validate_input(blocks, groups, ConcreteLines(lines), U64.max(frames.largest, scope_largest))?
+	validation = validate_input(all_blocks, groups, ConcreteLines(lines), U64.max(frames.largest, scope_largest)) ? |error| match error {
+		Oversize(info) if info.block >= blocks.len() => NoteTooTall(info)
+		_ => error
+	}
+	match note_input {
+		NoFootnotes => {}
+		WithFootnotes(_) => for group in groups {
+			if range_end(group.blocks)? > blocks.len() {
+				return Err(NoteBinding(blocks.len()))
+			}
+		}
+	}
+	notes = build_note_reserve(note_input, all_blocks, validation)?
 	check_limit(containers.len(), limits.max_blocks, Groups)?
 	for container in containers {
 		if checked_add(nonnegative_raw(container.offset)?, positive_raw(container.width)?)? > geometry.content_width {
@@ -612,7 +641,7 @@ build_plan = |blocks, groups, lines, constraints, template, scopes, containers, 
 		flow_height = selected.height
 		flow_top = selected.top
 		page_geometry = { ..geometry, content_height: flow_height, margin_top: checked_add(geometry.margin_top, flow_top)? }
-		scan = scan_page(blocks, validation, container_facts, flow_height, $block, $line)?
+		scan = scan_page(blocks, validation, container_facts, flow_height, notes, $block, $line)?
 		$candidate_visits = checked_add($candidate_visits, scan.candidates)?
 		end = match scan.end {
 			AllFits => { block: blocks.len(), line: 0 }
@@ -675,6 +704,41 @@ build_plan = |blocks, groups, lines, constraints, template, scopes, containers, 
 				$cursor_line = stop
 			}
 		}
+		if !KernelFootnoteReserve.Plan.is_empty(notes) {
+			first_line = list_at(blocks, $block).lines.start() + $line
+			past_line = list_at(all_blocks, end.block).lines.start() + end.line
+			reserved = KernelFootnoteReserve.Plan.range(notes, first_line, past_line)
+			var $note_used = flow_height - reserved.height
+			var $note = reserved.first
+			while $note < reserved.end {
+				binding = KernelFootnoteReserve.Plan.binding(notes, $note)
+				note_block = list_at(all_blocks, binding.note)
+				height = binding.height - note_gap
+				$note_used = $note_used + note_gap
+				fragment_id = Semantics.FragmentId.from_index($fragments.len())
+				line_start = note_block.lines.start()
+				take = note_block.lines.length()
+				fragment = make_fragment(note_block, lines, line_start, take, height, $note_used, page_geometry, page_index)?
+				check_limit($fragments.len() + 1, limits.max_fragments, Fragments)?
+				$fragments = $fragments.append(fragment)
+				baseline_offset = positive_raw(note_block.baseline_offset)?
+				leading = positive_raw(note_block.leading)?
+				var $local = 0
+				while $local < take {
+					check_limit($placements.len() + 1, limits.max_placements, Placements)?
+					baseline_descent = $note_used + baseline_offset + $local * leading
+					baseline_y = page_geometry.page_height - page_geometry.margin_top - baseline_descent
+					$placements = $placements.append({
+						baseline: { x: Layout.Unit.from_raw(geometry.margin_left.to_i64_wrap()), y: Layout.Unit.from_raw(baseline_y.to_i64_wrap()) },
+						fragment: fragment_id,
+						line: line_start + $local,
+					})
+					$local = $local + 1
+				}
+				$note_used = $note_used + height
+				$note = $note + 1
+			}
+		}
 		$pages = append_page($pages, fragment_start, $fragments.len(), placement_start, $placements.len(), limits.max_pages)?
 		$page_fragment_start = $fragments.len()
 		$page_placement_start = $placements.len()
@@ -715,6 +779,38 @@ build_plan = |blocks, groups, lines, constraints, template, scopes, containers, 
 			},
 		},
 	)
+}
+
+note_gap : U64
+note_gap = 6000
+
+build_note_reserve : FootnoteSelection, List(KernelPageLayout.Block), Validation -> Try(KernelFootnoteReserve.Plan, KernelPageLayout.Error)
+build_note_reserve = |selected, blocks, validation| match selected {
+	NoFootnotes => Ok(KernelFootnoteReserve.Plan.empty)
+	WithFootnotes({ anchors, body_blocks }) => {
+		if anchors.is_empty() or body_blocks == 0 or body_blocks >= blocks.len() or anchors.len() != blocks.len() - body_blocks {
+			return Err(NoteBinding(body_blocks))
+		}
+		var $seen = List.repeat(False, anchors.len())
+		var $bindings = List.with_capacity(anchors.len())
+		for anchor in anchors {
+			if anchor.block < body_blocks or anchor.block >= blocks.len() or list_at($seen, anchor.block - body_blocks) {
+				return Err(NoteBinding(anchor.block))
+			}
+			note = list_at(blocks, anchor.block)
+			if note.lead.raw() != 0 or note.decoration.raw() != 0 or note.trailing.raw() != 0 or fragment_padding(note)? != 0 {
+				return Err(NoteBinding(anchor.block))
+			}
+			$seen = list_set($seen, anchor.block - body_blocks, True)
+			$bindings = $bindings.append({ line: anchor.line, note: anchor.block, height: checked_add(list_at(validation.heights, anchor.block), note_gap)? })
+		}
+		KernelFootnoteReserve.Plan.build($bindings, list_at(blocks, body_blocks).lines.start(), U64.highest).map_err(
+			|error| match error {
+				InvalidBinding(note) => NoteBinding(note)
+				ArithmeticOverflow => ArithmeticOverflow
+			},
+		)
+	}
 }
 
 choose_rows : List(KernelPageLayout.Block), List(KernelPageLayout.KeepGroup), U64, KernelPageLayout.Constraints, [NoTemplate, WithTemplate(KernelPageLayout.Template)], List(KernelPageLayout.ScopedFrame), List(KernelPageLayout.Container), KernelPageLayout.Limits -> Try(KernelPageLayout.Choice, KernelPageLayout.Error)
@@ -814,7 +910,7 @@ choose_rows = |blocks, groups, row_count, constraints, template, scopes, contain
 		flow_height = selected.height
 		flow_top = selected.top
 		page_geometry = { ..geometry, content_height: flow_height, margin_top: checked_add(geometry.margin_top, flow_top)? }
-		scan = scan_page(blocks, validation, container_facts, flow_height, $block, $line)?
+		scan = scan_page(blocks, validation, container_facts, flow_height, KernelFootnoteReserve.Plan.empty, $block, $line)?
 		$candidate_visits = checked_add($candidate_visits, scan.candidates)?
 		end = match scan.end {
 			AllFits => { block: blocks.len(), line: 0 }
@@ -912,8 +1008,9 @@ choose_rows = |blocks, groups, row_count, constraints, template, scopes, contain
 ## latest on ties. Required keeps make a position illegal; keep-together
 ## groups and unsplittable blocks are atomic units. A reachable explicit
 ## break ends the page there. The scan keeps scalar state only.
-scan_page : List(KernelPageLayout.Block), Validation, ContainerFacts, U64, U64, U64 -> Try(Scan, KernelPageLayout.Error)
-scan_page = |blocks, validation, containers, height, start_block, start_line| {
+scan_page : List(KernelPageLayout.Block), Validation, ContainerFacts, U64, KernelFootnoteReserve.Plan, U64, U64 -> Try(Scan, KernelPageLayout.Error)
+scan_page = |blocks, validation, containers, height, notes, start_block, start_line| {
+	first_page_line = list_at(blocks, start_block).lines.start() + start_line
 	var $used = checked_add(nonnegative_raw(list_at(blocks, start_block).lead)?, container_padding(containers, start_block))?
 	var $best_block = 0
 	var $best_line = 0
@@ -949,8 +1046,10 @@ scan_page = |blocks, validation, containers, height, start_block, start_line| {
 		atomic_end = if (validation.atomic_ends.is_empty() or $first_line != 0) 0 else list_at(validation.atomic_ends, $index)
 		if atomic_end != 0 {
 			unit = checked_add(group_height(blocks, validation.heights, $index, atomic_end)?, container_internal_height(containers, $index, atomic_end))?
-			if checked_add(checked_add($used, unit)?, container_padding(containers, atomic_end - 1))? > height {
-				return finish_scan($best_score, $best_block, $best_line, $visits, { blocked: $blocked, height, start: start_block, stop: $index, unit, used: checked_add($used, container_padding(containers, atomic_end - 1))? }, blocks)
+			last = list_at(blocks, atomic_end - 1).lines
+			reserved = KernelFootnoteReserve.Plan.range(notes, first_page_line, last.start() + last.length())
+			if checked_add(checked_add(checked_add($used, unit)?, container_padding(containers, atomic_end - 1))?, reserved.height)? > height {
+				return finish_scan($best_score, $best_block, $best_line, $visits, { blocked: $blocked, height, start: start_block, stop: $index, unit, used: checked_add($used, container_padding(containers, atomic_end - 1))? }, blocks, notes, reserved)
 			}
 			spaced = checked_add(checked_add($used, unit)?, nonnegative_raw(list_at(blocks, atomic_end - 1).space_after)?)?
 			$used = if (spaced > height) height else spaced
@@ -958,8 +1057,9 @@ scan_page = |blocks, validation, containers, height, start_block, start_line| {
 			$first_line = 0
 		} else if block.policy.keep_together and $first_line == 0 {
 			unit = list_at(validation.heights, $index)
-			if checked_add(checked_add($used, unit)?, container_padding(containers, $index))? > height {
-				return finish_scan($best_score, $best_block, $best_line, $visits, { blocked: $blocked, height, start: start_block, stop: $index, unit, used: checked_add($used, container_padding(containers, $index))? }, blocks)
+			reserved = KernelFootnoteReserve.Plan.range(notes, first_page_line, block.lines.start() + block.lines.length())
+			if checked_add(checked_add(checked_add($used, unit)?, container_padding(containers, $index))?, reserved.height)? > height {
+				return finish_scan($best_score, $best_block, $best_line, $visits, { blocked: $blocked, height, start: start_block, stop: $index, unit, used: checked_add($used, container_padding(containers, $index))? }, blocks, notes, reserved)
 			}
 			spaced = checked_add(checked_add($used, unit)?, nonnegative_raw(block.space_after)?)?
 			$used = if (spaced > height) height else spaced
@@ -974,8 +1074,14 @@ scan_page = |blocks, validation, containers, height, start_block, start_line| {
 			padding = checked_mul(fragment_padding(block)?, 2)?
 			$used = checked_add(checked_add($used, decoration)?, padding)?
 			reserved = checked_add($used, container_padding(containers, $index))?
-			fit = if (reserved >= height) 0 else (height - reserved) / leading
-			take_max = if (fit < remaining) fit else remaining
+			first_line = block.lines.start() + $first_line
+			prior = KernelFootnoteReserve.Plan.range(notes, first_page_line, first_line)
+			available = if reserved >= height or prior.height >= height - reserved {
+				0
+			} else {
+				height - reserved - prior.height
+			}
+			take_max = KernelFootnoteReserve.Plan.fit_lines(notes, first_line, remaining, leading, available)
 			starts_here = $first_line == 0
 			previous_keep = if (starts_here and $index > start_block) list_at(blocks, $index - 1).policy.keep_with_next else NoKeep
 			var $taken = $first_line + 1
@@ -1005,8 +1111,9 @@ scan_page = |blocks, validation, containers, height, start_block, start_line| {
 				}
 				$taken = $taken + 1
 			}
-			if remaining > fit {
-				return finish_scan($best_score, $best_block, $best_line, $visits, { blocked: $blocked, height, start: start_block, stop: $index, unit: leading, used: reserved }, blocks)
+			if remaining > take_max {
+				stop_notes = KernelFootnoteReserve.Plan.range(notes, first_page_line, first_line + take_max + 1)
+				return finish_scan($best_score, $best_block, $best_line, $visits, { blocked: $blocked, height, start: start_block, stop: $index, unit: leading, used: reserved }, blocks, notes, stop_notes)
 			}
 			spaced = checked_add(checked_add($used, checked_mul(remaining, leading)?)?, nonnegative_raw(block.space_after)?)?
 			$used = if (spaced > height) height else spaced
@@ -1020,12 +1127,16 @@ scan_page = |blocks, validation, containers, height, start_block, start_line| {
 ## The scan stopped at a unit that does not fit. The best legal candidate
 ## ends the page; with none, the page start cannot be placed at all, and the
 ## result is the error for that unit, never an empty page.
-finish_scan : U64, U64, U64, U64, { blocked : U64, height : U64, start : U64, stop : U64, unit : U64, used : U64 }, List(KernelPageLayout.Block) -> Try(Scan, KernelPageLayout.Error)
-finish_scan = |best_score, best_block, best_line, visits, stop, blocks| {
+finish_scan : U64, U64, U64, U64, { blocked : U64, height : U64, start : U64, stop : U64, unit : U64, used : U64 }, List(KernelPageLayout.Block), KernelFootnoteReserve.Plan, KernelFootnoteReserve.Reservation -> Try(Scan, KernelPageLayout.Error)
+finish_scan = |best_score, best_block, best_line, visits, stop, blocks, notes, reserve| {
 	if best_score != no_candidate {
 		return Ok({ candidates: visits, end: Break({ block: best_block, line: best_line }) })
 	}
 	required = checked_add(stop.used, stop.unit)?
+	if reserve.height > 0 {
+		binding = KernelFootnoteReserve.Plan.binding(notes, reserve.end - 1)
+		return Err(NoteTooTall({ available: stop.height, block: binding.note, required: checked_add(required, reserve.height)? }))
+	}
 	if stop.blocked != no_candidate {
 		Err(KeepConflict(ChainTooTall({ available: stop.height, block: stop.blocked, next: stop.blocked + 1, required })))
 	} else if stop.stop < blocks.len() {
@@ -1927,4 +2038,30 @@ expect {
 	panels = KernelPageLayout.Plan.container_fragments(concrete)
 	KernelPageLayout.Plan.lead_bands(concrete).map(|band| band.top) == [4000, 4000] and KernelPageLayout.Choice.lead_bands(choice) == KernelPageLayout.Plan.lead_bands(concrete) and
 		panels.len() == 2 and panels.all(|panel| panel.rect.origin.y.raw() == 1500 and panel.rect.size.height.raw() == 2500) and KernelPageLayout.Choice.container_fragments(choice) == panels
+}
+
+## Without note reservation all six body lines fit the first page. Adding
+## an indivisible note at line four changes the selected legal cut and
+## places the note at the foot of the page with its first citation.
+expect {
+	policy = { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 }
+	body = { ..test_block, policy, lines: Semantics.IndexRange.from_start_and_length({ start: 0, length: 6 }) }
+	note = { ..test_block, policy: { ..policy, keep_together: True }, lines: Semantics.IndexRange.from_start_and_length({ start: 6, length: 1 }), owner: Content(Semantics.OccurrenceId.from_index(1)) }
+	constraints = { ..test_constraints, page: { width: Layout.Unit.from_raw(10000), height: Layout.Unit.from_raw(12000) } }
+	selection = { anchors: [{ line: 3, block: 1 }], body_blocks: 1 }
+	plan = KernelPageLayout.Plan.build_with_footnotes([body, note], [], test_lines.take_first(7), constraints, selection, test_limits)?
+	fragments = KernelPageLayout.Plan.fragments(plan)
+	note_fragment = list_at(fragments, 2)
+	too_small = { ..constraints, page: { ..constraints.page, height: Layout.Unit.from_raw(9999) } }
+	KernelPageLayout.Plan.pages(plan).len() == 2
+		and list_at(fragments, 0).lines.length() == 3
+		and list_at(fragments, 1).lines.start() == 3
+		and list_at(fragments, 1).page.index() == note_fragment.page.index()
+		and note_fragment.geometry.origin.y.raw() == 1000
+		and (
+			match KernelPageLayout.Plan.build_with_footnotes([body, note], [], test_lines.take_first(7), too_small, selection, test_limits) {
+				Err(NoteTooTall({ available: 7999, block: 1, required: 8000 })) => True
+				_ => False
+			}
+		)
 }

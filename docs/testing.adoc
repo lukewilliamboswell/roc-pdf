@@ -15,8 +15,27 @@ blueprint run fuzz
 The test command checks or builds each fixture and checks the resulting output.
 Selecting a case retains the package and model checks. The fuzz smoke run
 replays seeds and runs a short bounded search. Use the
-https://github.com/lukewilliamboswell/roc-pdf/blob/main/docs/contributors/testing.md[repository testing reference]
+xref:contributor-reference.adoc#contributor-testing[repository testing reference]
 for test selection, fixture layout, validators and toolchain-baseline review.
+
+[#validate-a-capability-change]
+== Validate a capability change
+
+Exercise the supported subset through its owning entry point. For a public
+capability, run a representative document through the public facade. For an
+advanced integration boundary, use a separately authored consumer.
+Keep validation and lowering grounded in typed facts from the preceding stage.
+
+Check successful output and stable, located rejection before any bytes escape.
+Compare deterministic bytes and inspect the decoded structure, resources and
+declared profiles against the authored input. State the supported limits and
+author obligations in the owning chapter. Record independent reader and
+assistive-technology observations when reviewed.
+
+Before changing a representation, review worst-case work, ownership and
+retention, including shared inputs and error paths. Keep exact allocation and
+work evidence under the pinned backend and use small/large scale pairs for
+scalable behavior. See the xref:testing.adoc#review-fixture-changes[fixture review procedure].
 
 [#designing-correctness-oracles]
 == Designing correctness oracles
@@ -106,9 +125,72 @@ stream's length while its geometry and semantic ownership stay identical.
 Check the intended object changes and the exact downstream facts that the
 contract preserves.
 
-Record exact allocation counts and deterministic work alongside the expected
-change in output length. Allocated bytes have a per-case ceiling with 10%
-headroom. Keep the reference when measurements stay within that ceiling and
-tighten it for repeatable improvements. Identify the cause of any violation
-before changing a reference. See the
-https://github.com/lukewilliamboswell/roc-pdf/blob/main/docs/contributors/testing.md#allocation-baselines[baseline review procedure].
+Record measured allocations and exact deterministic work alongside the expected
+change in output length. Fixture allocation counts can decrease and may reach
+the checked-in ceiling. Allocated bytes have 10% headroom over their reference.
+Report passing improvements and tighten ceilings after confirming repeatability.
+Identify the cause of any violation before raising a ceiling. See the
+xref:contributor-reference.adoc#contributor-testing-allocation-baselines[baseline review procedure].
+
+[#run-and-review-property-fuzzing]
+== Run and review property fuzzing
+
+The property targets exercise correctness, deterministic output, bounded
+errors and resource ownership. Run the smoke lane with the pinned compiler:
+
+[source,sh]
+----
+blueprint run fuzz -- --jobs 1
+blueprint run fuzz -- --targets generated_navigation --jobs 1
+----
+
+Smoke replays the named inputs for each selected property and requests up to
+64 fixed-seed exploration attempts within its exploration budget. The
+supervisor separately enforces each invocation's deadline and the worker's
+memory limit. The harness requires accepted exploration inputs and complete
+named-example observations. Use the target inventory in
+https://github.com/lukewilliamboswell/roc-pdf/blob/main/scripts/fuzz.py[`scripts/fuzz.py`]
+to choose targets. The font and document suites share builds among several
+properties. Each target has its own corpus, input size and baseline.
+
+For a longer local search, choose a target and execution cap explicitly:
+
+[source,sh]
+----
+blueprint run fuzz -- --mode campaign --targets jpeg_inspector_mutation --runs 2000 --jobs 1
+----
+
+Read the run directory printed under `.roc-pdf-tmp/fuzz-artifacts/`. Review
+the build stamp, native host and compiler, target's `report.json`, observation
+completeness and any saved original input. Use the supervisor's `show`,
+`replay`, `measure` and `retain` commands to inspect and reproduce inputs.
+Preserve original bytes for storage-sensitive witnesses and register any
+promoted binary regression in the asset manifest. The harness copies tracked
+raw seeds into writable scratch corpora.
+
+[#review-fuzz-allocation-baselines]
+=== Review fuzz allocation baselines
+
+The native fuzz ratchet limits the combined allocation and reallocation events
+in each named region. Requested and peak live bytes have 10% headroom. The
+named inputs, region inventory, and live allocation and byte counts at region
+boundaries must match. When observations differ within the ceilings, the
+harness records the named measurements and runs exploration separately.
+Both phases must pass. Review repeatable improvements from
+independent uncached builds before accepting tighter native baselines.
+Explain any raised ceiling in terms of the source or ownership change. The dev
+PDF fixture ledger records separate allocation, byte and work evidence.
+
+[source,sh]
+----
+blueprint run fuzz -- --check-only --jobs 1
+blueprint run fuzz-accept -- --no-build --jobs 1
+blueprint run fuzz -- --no-build --jobs 1
+----
+
+`--no-build` requires the current source closure, compiler, host, uncached
+fuzz flags and binary digest to match the build stamp. Linux CI runs the
+same named observations as the local Linux lane. Full CI also validates the
+native Apple Silicon macOS entries. `scripts/profile.py` can measure named
+allocation regions when diagnosing a specific case. Compare profiles only
+under the same compiler, backend, host and counting definition.

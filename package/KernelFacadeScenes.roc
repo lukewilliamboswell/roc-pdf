@@ -4,6 +4,7 @@ import Image
 import KernelColor
 import KernelFacadeFragments
 import KernelFacadeFurniture
+import KernelFacadeImages
 import KernelFacadePages
 import KernelFacadeShape
 import KernelFacadeText
@@ -28,6 +29,7 @@ KernelFacadeScenes :: [].{
 	Error : [
 		ArithmeticOverflow,
 		Color(KernelColor.Error),
+		ImageIdentity(KernelFacadeImages.Error),
 		InvalidPage({ page : U64 }),
 		InvalidPageSize,
 		InvalidPlacement({ placement : U64 }),
@@ -39,6 +41,7 @@ KernelFacadeScenes :: [].{
 	]
 	Limits :: {
 		color : KernelColor.Limits,
+		image_budgets : Image.Budgets,
 		max_commands : U64,
 		max_groups : U64,
 		max_page_group_edges : U64,
@@ -53,7 +56,10 @@ KernelFacadeScenes :: [].{
 			max_pages : U64,
 			scene : KernelScene.Limits,
 		} -> Limits
-		make = |limits| Limits.(limits)
+		make = |{ color, max_commands, max_groups, max_page_group_edges, max_pages, scene }| Limits.{ color, image_budgets: Image.Budgets.default, max_commands, max_groups, max_page_group_edges, max_pages, scene }
+
+		with_image_budgets : Limits, Image.Budgets -> Limits
+		with_image_budgets = |Limits.(limits), image_budgets| Limits.{ ..limits, image_budgets }
 	}
 	Prepared : {
 		page_size : Layout.Size,
@@ -78,7 +84,7 @@ KernelFacadeScenes :: [].{
 		page_writes : U64,
 		placement_visits : U64,
 	}
-	Arena :: { colors : Color.Store, images : Image.SourceStore, scenes : Scene.Store, work : Work }.{
+	Arena :: { colors : Color.Store, images : KernelFacadeImages.Inputs, scenes : Scene.Store, work : Work }.{
 		build_prepared : ArenaPrepared, Limits -> Try(Arena, Error)
 		build_prepared = |prepared, limits| build_arena(prepared, limits)
 
@@ -86,7 +92,7 @@ KernelFacadeScenes :: [].{
 		colors = |arena| arena.colors
 
 		images : Arena -> Image.SourceStore
-		images = |arena| arena.images
+		images = |arena| arena.images.sources
 
 		scenes : Arena -> Scene.Store
 		scenes = |arena| arena.scenes
@@ -94,7 +100,7 @@ KernelFacadeScenes :: [].{
 		work : Arena -> Work
 		work = |arena| arena.work
 	}
-	Plan :: { paint_phases : List(Text.PaintPhase), colors : KernelColor.Plan, images : Image.SourceStore, ownership : KernelTextOwnership.Plan, scene : KernelScene.Plan, work : Work }.{
+	Plan :: { paint_phases : List(Text.PaintPhase), colors : KernelColor.Plan, images : KernelFacadeImages.Inputs, ownership : KernelTextOwnership.Plan, scene : KernelScene.Plan, work : Work }.{
 		build : KernelFacadeFragments.Plan, Layout.Size, Limits -> Try(Plan, Error)
 		build = |fragments, page_size, limits| build_plan(fragments, page_size, empty_authoring, FlowSheets, NoIntentProfile, limits)
 
@@ -106,9 +112,9 @@ KernelFacadeScenes :: [].{
 
 		## Fixed sheets supply their validated boxes and page-coordinate artwork.
 		## The text plan already carries physical paint order and fragment identity.
-		build_fixed : KernelFacadeFragments.Plan, FixedSheets, IntentProfile, Limits -> Try(Plan, Error)
-		build_fixed = |fragments, sheets, intent, limits| match sheets.pages.get(0) {
-			Ok(first) => build_plan(fragments, first.size, empty_authoring, ExplicitSheets(sheets), intent, limits)
+		build_fixed : KernelFacadeFragments.Plan, Document.NormalizedAuthoring, FixedSheets, IntentProfile, Limits -> Try(Plan, Error)
+		build_fixed = |fragments, authoring, sheets, intent, limits| match sheets.pages.get(0) {
+			Ok(first) => build_plan(fragments, first.size, authoring, ExplicitSheets(sheets), intent, limits)
 			Err(_) => Err(InvalidPageSize)
 		}
 
@@ -140,7 +146,7 @@ KernelFacadeScenes :: [].{
 		colors : Plan -> KernelColor.Plan
 		colors = |plan| plan.colors
 
-		images : Plan -> Image.SourceStore
+		images : Plan -> KernelFacadeImages.Inputs
 		images = |plan| plan.images
 
 		ownership : Plan -> KernelTextOwnership.Plan
@@ -224,7 +230,7 @@ build_validated = |semantics, prepared, geometry, intent, limits, paint_phases| 
 	figure_by_occurrence = if (prepared.authoring.figures.is_empty()) [] else index_figures(semantic_store, prepared.authoring.figures.len())?
 	arena = build_arena_with_intent({ ..arena_prepared, figure_by_occurrence }, geometry, intent, limits)?
 	colors = KernelColor.Plan.build(arena.colors, limits.color) ? Color
-	scene = KernelScene.Plan.build(arena.scenes, KernelScene.Resources.with_text({ color_spaces: arena.colors.spaces.len(), images: arena.images.resources.len(), text_runs: text.runs.len() }), limits.scene) ? Scene
+	scene = KernelScene.Plan.build(arena.scenes, KernelScene.Resources.with_text({ color_spaces: arena.colors.spaces.len(), images: arena.images.sources.resources.len(), text_runs: text.runs.len() }), limits.scene) ? Scene
 	ownership = (if (prepared.artifact_runs.is_empty()) KernelTextOwnership.Plan.build(semantics, scene, text) else KernelTextOwnership.Plan.build_with_artifact_text(semantics, scene, text)) ? Ownership
 	Ok(KernelFacadeScenes.Plan.{ paint_phases, colors, images: arena.images, ownership, scene, work: arena.work })
 }
@@ -327,6 +333,15 @@ build_arena_with_intent = |prepared, geometry, intent, limits| {
 		PackagedSrgbIntent => checked_add(run_count, run_count)?
 	}
 	color_checks = checked_add(text_color_checks, fixed_count)?
+	gray_space = {
+		id: Color.SpaceId.from_index(if (use_srgb) 1 else 0),
+		space: CalibratedGray({
+			black_point: { x: 0, y: 0, z: 0 },
+			white_point: { x: 950000, y: 1000000, z: 1089000 },
+		}),
+	}
+
+	{ aliases: image_aliases, inputs: images, .. } = KernelFacadeImages.share_with_budgets(authoring_images(flow.images, furniture.images, Color.SpaceId.from_index(0), gray_space.id), limits.image_budgets) ? ImageIdentity
 	var $commands = List.with_capacity(command_count)
 	var $groups = List.with_capacity(group_count)
 	var $page_groups = List.with_capacity(group_count)
@@ -369,7 +384,7 @@ build_arena_with_intent = |prepared, geometry, intent, limits| {
 		## table rules. Two consecutive inner loops over the same accumulators
 		## copied `$commands`, `$groups`, and `$page_groups` once per page: the
 		## first loop's exit state reached the second loop's entry through an
-		## aggregate that still held them (docs/contributors/performance/emission-linearity.md).
+		## aggregate that still held them (docs/contributor-output.adoc#contributor-emission-linearity).
 		while $fixed_cursor < sheet.overlay_end or ($panel_cursor < panel_count and list_at(prepared.flow.panels, $panel_cursor).page == $page_index) or $placement_cursor < page_end or ($rule_cursor < rule_count and list_at(prepared.rules, $rule_cursor).page == $page_index) or ($decoration_cursor < decoration_count and list_at(prepared.flow.decorations, $decoration_cursor).page == $page_index) or ($paint_cursor < paint_count and list_at(furniture.paints, $paint_cursor).page == $page_index) {
 			## A template region's backdrops paint first on their page,
 			## through the furniture branch below, behind everything else.
@@ -533,7 +548,7 @@ build_arena_with_intent = |prepared, geometry, intent, limits| {
 						for drawing_command in figure_drawing.commands {
 							match drawing_command {
 								FlowImage({ image, placement: image_placement }) => {
-									$commands = $commands.append(DrawImage({ image: Image.Id.from_index(figure_drawing.image_base + image), placement: image_placement }))
+									$commands = $commands.append(DrawImage({ image: KernelFacadeImages.image_at(image_aliases, figure_drawing.image_base + image), placement: image_placement }))
 								}
 								FlowText(_) => {}
 								FlowPath({ fill, segments, stroke }) => {
@@ -626,7 +641,7 @@ build_arena_with_intent = |prepared, geometry, intent, limits| {
 				for drawing_command in decoration.commands {
 					match drawing_command {
 						FlowImage({ image, placement: image_placement }) => {
-							$commands = $commands.append(DrawImage({ image: Image.Id.from_index(decoration.image_base + image), placement: image_placement }))
+							$commands = $commands.append(DrawImage({ image: KernelFacadeImages.image_at(image_aliases, decoration.image_base + image), placement: image_placement }))
 						}
 						FlowText(_) => {}
 						FlowPath({ fill, segments, stroke }) => {
@@ -667,7 +682,7 @@ build_arena_with_intent = |prepared, geometry, intent, limits| {
 				for drawing_command in drawing.commands {
 					match drawing_command {
 						DrawingImage({ image, placement }) => {
-							$commands = $commands.append(DrawImage({ image: Image.Id.from_index(flow.images.len() + image), placement }))
+							$commands = $commands.append(DrawImage({ image: KernelFacadeImages.image_at(image_aliases, flow.images.len() + image), placement }))
 						}
 						DrawingPath({ fill, segments, stroke }) => {
 							path = Scene.PathId.from_index($paths.len())
@@ -701,13 +716,6 @@ build_arena_with_intent = |prepared, geometry, intent, limits| {
 	if $painted_figures.any(|painted| !painted) or $decoration_cursor != decoration_count or $panel_cursor != panel_count or $fixed_cursor != fixed_count {
 		return Err(InvalidPlacement({ placement: $placement_cursor }))
 	}
-	gray_space = {
-		id: Color.SpaceId.from_index(if (use_srgb) 1 else 0),
-		space: CalibratedGray({
-			black_point: { x: 0, y: 0, z: 0 },
-			white_point: { x: 950000, y: 1000000, z: 1089000 },
-		}),
-	}
 
 	## A semantic source containing only blank rows may have no painting.
 	## Its output intent still owns the ICC profile, but no page resource
@@ -739,7 +747,7 @@ build_arena_with_intent = |prepared, geometry, intent, limits| {
 	Ok(
 		KernelFacadeScenes.Arena.{
 			colors,
-			images: authoring_images(flow.images, furniture.images, Color.SpaceId.from_index(0), gray_space.id),
+			images,
 			scenes: {
 				commands: $commands,
 				dash_lengths: [],
@@ -903,7 +911,7 @@ without_labels = |drawing| {
 valid_flow_drawing : Document.ValidatedDrawing -> Try(Document.FlowDrawing, KernelFacadeScenes.Error)
 valid_flow_drawing = |drawing| match drawing {
 	ValidDrawing(value) => Ok(value)
-	InvalidDrawing(_) => Err(InvalidPlacement({ placement: 0 }))
+	DrawingDepthLimit(_) | InvalidDrawing(_) => Err(InvalidPlacement({ placement: 0 }))
 }
 
 count_flow : List(Document.FlowCommand) -> Try({ commands : U64, nonblack : Bool, paths : U64, segments : U64 }, KernelFacadeScenes.Error)
@@ -938,7 +946,7 @@ count_flow = |commands| {
 check_flow_colors : Document.NormalizedAuthoring, KernelFacadeScenes.IntentProfile, Bool -> Try({}, [Unsupported])
 check_flow_colors = |authoring, intent, use_srgb| {
 	check = |drawing| match drawing {
-		InvalidDrawing(_) => Ok({})
+		DrawingDepthLimit(_) | InvalidDrawing(_) => Ok({})
 		ValidDrawing(value) => {
 			for command in value.commands {
 				match command {

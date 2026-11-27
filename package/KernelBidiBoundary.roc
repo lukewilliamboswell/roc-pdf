@@ -8,7 +8,7 @@ import unicode.ScalarRange
 import unicode.TextRange
 
 ## The project-side UAX #9 boundary over the pinned Unicode package's
-## revision-51 bidirectional algorithm.
+## revision-52 bidirectional algorithm.
 ##
 ## This module owns no bidi rules. It consumes one immutable source once,
 ## projects the dependency's per-scalar resolution into flat project-typed
@@ -128,7 +128,7 @@ analyze = |source, analysis, base, limits| {
 		LeftToRight => LeftToRight
 		RightToLeft => RightToLeft
 	}
-	resolved = Bidi.analyze_paragraph(source, requested, { max_bytes: source_bytes, max_scalars: limits.max_scalars }) ? map_bidi_error
+	resolved = Bidi.analyze_paragraph(source, Bidi.AnalysisOptions.{ base_direction: requested, limits: { max_bytes: source_bytes, max_scalars: limits.max_scalars } }) ? map_bidi_error
 	entries = Bidi.entries(resolved)
 	if entries.len() != analysis.work.scalar_visits {
 		return Err(AnalysisMismatch)

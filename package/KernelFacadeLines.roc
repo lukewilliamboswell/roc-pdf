@@ -2,6 +2,7 @@ import Document
 import KernelFacadeShape
 import KernelFacadeSources
 import KernelFacadeTables
+import KernelFacadeTableGrid
 import KernelLineLayout
 import KernelShape
 import Layout
@@ -22,6 +23,7 @@ KernelFacadeLines :: [].{
 		CalloutWidth({ group : U64 }),
 		CustomWidth({ available : U64, custom : U64, width : U64 }),
 		FixedUnbreakable({ block : U64, available : Layout.Unit }),
+		InternationalUnbreakable({ block : U64, available : Layout.Unit }),
 		InvalidGeometry,
 		InvalidRun({ block : U64, run : U64 }),
 		LabelTooWide({ available : U64, block : U64, width : U64 }),
@@ -101,8 +103,8 @@ KernelFacadeLines :: [].{
 		## column widths once from measured cell widths, then lays every
 		## cell out at its text width through the logical batch; any other
 		## document takes `build` exactly.
-		build_authoring : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, Limits -> Try(Plan, Error)
-		build_authoring = |authoring, shape, sources, page, theme, limits| if (authoring.tables.is_empty() and authoring.sources.is_empty()) build_plan(authoring, shape, sources, page, theme, limits) else build_table_plan(authoring, shape, sources, page, theme, limits)
+		build_authoring : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, Limits, List(KernelFacadeTableGrid.Grid) -> Try(Plan, Error)
+		build_authoring = |authoring, shape, sources, page, theme, limits, grids| if (authoring.tables.is_empty() and authoring.sources.is_empty()) build_plan(authoring, shape, sources, page, theme, limits) else build_table_plan(authoring, shape, sources, page, theme, limits, grids)
 
 		frame : Plan, U64 -> { offset : U64, width : U64 }
 		frame = |plan, block| {
@@ -125,8 +127,8 @@ KernelFacadeLines :: [].{
 		build_ordered : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, Limits -> Try(Plan, Error)
 		build_ordered = |authoring, shape, sources, page, theme, limits| build_ordered_plan(authoring, shape, sources, page, theme, limits, [], Calculate)
 
-		build_ordered_authoring : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, Limits -> Try(Plan, Error)
-		build_ordered_authoring = |authoring, shape, sources, page, theme, limits| if (authoring.tables.is_empty() and authoring.sources.is_empty()) build_ordered_plan(authoring, shape, sources, page, theme, limits, [], Calculate) else build_table_plan(authoring, shape, sources, page, theme, limits)
+		build_ordered_authoring : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, Limits, List(KernelFacadeTableGrid.Grid) -> Try(Plan, Error)
+		build_ordered_authoring = |authoring, shape, sources, page, theme, limits, grids| if (authoring.tables.is_empty() and authoring.sources.is_empty()) build_ordered_plan(authoring, shape, sources, page, theme, limits, [], Calculate) else build_table_plan(authoring, shape, sources, page, theme, limits, grids)
 
 		## Fixed placements already own their frames. Use those exact widths
 		## with the normal logical line batch and no flow margin or indent.
@@ -150,7 +152,7 @@ KernelFacadeLines :: [].{
 build_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, KernelFacadeLines.Limits -> Try(KernelFacadeLines.Plan, KernelFacadeLines.Error)
 build_plan = |authoring, shape, sources, page, theme, limits| {
 	if !authoring.sources.is_empty() {
-		return build_table_plan(authoring, shape, sources, page, theme, limits)
+		return build_table_plan(authoring, shape, sources, page, theme, limits, [])
 	}
 	block_runs = KernelFacadeShape.Plan.block_runs(shape)
 
@@ -209,7 +211,7 @@ build_plan = |authoring, shape, sources, page, theme, limits| {
 	if $next_run != run_count {
 		return Err(RunCoverage({ actual: $next_run, expected: run_count }))
 	}
-	line = KernelLineLayout.BatchPlan.build(sources, shape_requests, shape_batch.store, $line_requests, limits.line) ? LineLayout
+	line = KernelLineLayout.BatchPlan.build_variants(sources, shape_requests, shape_batch.store, $line_requests, shape_batch.inter_runs, limits.line) ? LineLayout
 	run_lines = KernelLineLayout.BatchPlan.run_lines(line)
 	var $blocks = List.with_capacity(block_runs.len())
 	$block_index = 0
@@ -259,8 +261,8 @@ build_plan = |authoring, shape, sources, page, theme, limits| {
 
 ## Tables resolve their geometry before any line is broken; each cell's
 ## text width then replaces the flow width of its block.
-build_table_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, KernelFacadeLines.Limits -> Try(KernelFacadeLines.Plan, KernelFacadeLines.Error)
-build_table_plan = |authoring, shape, sources, page, theme, limits| {
+build_table_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, KernelFacadeLines.Limits, List(KernelFacadeTableGrid.Grid) -> Try(KernelFacadeLines.Plan, KernelFacadeLines.Error)
+build_table_plan = |authoring, shape, sources, page, theme, limits, grids| {
 	content_width = calculate_content_width(page, theme.page_margin)?
 	indent = positive_raw(theme.bullet_indent)?
 	block_runs = KernelFacadeShape.Plan.block_runs(shape)
@@ -273,7 +275,7 @@ build_table_plan = |authoring, shape, sources, page, theme, limits| {
 		Calculate => []
 		Calculated(geometry) => table_frames(authoring, geometry.blocks, content_width)
 	}
-	tables = KernelFacadeTables.Plan.build_framed(authoring, shape, sources, content_width, frames, theme, KernelLineLayout.BatchLimits.line(limits.line)) ? Tables
+	tables = KernelFacadeTables.Plan.build_framed(authoring, shape, sources, content_width, frames, theme, KernelLineLayout.BatchLimits.line(limits.line), grids) ? Tables
 	var $widths = List.repeat(0, authoring.blocks.len())
 	for cell in KernelFacadeTables.Plan.cells(tables) {
 		$widths = list_set($widths, cell.block, cell.width)
@@ -372,7 +374,12 @@ build_ordered_with_geometry = |authoring, shape, sources, limits, input| {
 			{ content_width: flow_width, geometry_plan: flow_geometry, widths: flow_widths, fixed: False }
 		}
 		FixedGeometry(frames) => {
-			if frames.len() != block_runs.len() or !authoring.groups.is_empty() {
+			if frames.len() != block_runs.len() or authoring.groups.any(
+				|group| match group.kind {
+					Container(FormContainer) | FigureGroup(_) => False
+					_ => True
+				},
+			) {
 				return Err(InvalidGeometry)
 			}
 			var $blocks = List.with_capacity(frames.len())
@@ -491,9 +498,15 @@ build_ordered_with_geometry = |authoring, shape, sources, limits, input| {
 	line = if run_count == 0 {
 		KernelLineLayout.BatchPlan.empty({})
 	} else if !authoring.sources.is_empty() {
-		KernelLineLayout.BatchPlan.build_source_mixed(sources, shape_batch.store, $line_requests, $holds, $modes, limits.line) ? |error| source_layout_error(authoring, $logical_index_of_body, geometries, shape_batch.store, error)
+		KernelLineLayout.BatchPlan.build_logical_variants(sources, shape_batch.store, $line_requests, $holds, $modes, shape_batch.inter_runs, limits.line) ? |error| source_layout_error(authoring, $logical_index_of_body, geometries, shape_batch.store, error)
 	} else {
-		(if ($holds.is_empty()) KernelLineLayout.BatchPlan.build_logical(sources, shape_batch.store, $line_requests, limits.line) else KernelLineLayout.BatchPlan.build_logical_held(sources, shape_batch.store, $line_requests, $holds, limits.line)) ? |error| if (fixed) fixed_line_error(block_runs, geometries, shape_batch.store, error) else LineLayout(error)
+		match KernelFacadeShape.Plan.international(shape) {
+			International(_) => KernelLineLayout.BatchPlan.build_international(sources, shape_batch.store, $line_requests, $holds, limits.line) ? |error| match fixed_line_error(block_runs, geometries, shape_batch.store, error) {
+				FixedUnbreakable(problem) => InternationalUnbreakable(problem)
+				other => other
+			}
+			NoInternational => KernelLineLayout.BatchPlan.build_logical_variants(sources, shape_batch.store, $line_requests, $holds, [], shape_batch.inter_runs, limits.line) ? |error| if (fixed) fixed_line_error(block_runs, geometries, shape_batch.store, error) else LineLayout(error)
+		}
 	}
 	run_lines = KernelLineLayout.BatchPlan.run_lines(line)
 	var $blocks = List.with_capacity(block_runs.len())

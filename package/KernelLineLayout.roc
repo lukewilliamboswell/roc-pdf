@@ -119,9 +119,40 @@ KernelLineLayout :: [].{
 	measure_logical_held : List(KernelShape.SimpleSource), Text.Store, LogicalRunRequest, List(Hold), Limits -> Try({ measure : Measure, work : Work }, Error)
 	measure_logical_held = |sources, store, request, holds, limits| measure_request(sources, store, request, { holds, length: holds.len(), start: 0 }, limits)
 
+	## A measured paragraph and the next uncommitted cluster. The ranges
+	## refer to the original shaped source and the prefix buffer is shared
+	## across lines. The layout caller chooses each line's frame width.
+	LineCursor :: {
+		boundaries : List(KernelUnicode.LineBoundary),
+		clusters : List(Text.Cluster),
+		limits : Limits,
+		paragraph : Semantics.IndexRange,
+		prefix : List(I64),
+		next_cluster : U64,
+		work : Work,
+	}.{
+		start : KernelUnicode.UnicodeAnalysis, Text.Store, Semantics.IndexRange, Limits -> Try(LineCursor, Error)
+		start = |analysis, store, runs, limits| {
+			logical = logical_bounds(store, runs, runs.start())?
+			start_cursor(analysis, store, logical.bounds, limits)
+		}
+
+		next : LineCursor, Layout.Unit -> Try([Complete, Line({ line : Line, remaining : LineCursor })], Error)
+		next = |cursor, width| next_cursor_line(cursor, width)
+
+		is_complete : LineCursor -> Bool
+		is_complete = |LineCursor.(cursor)| cursor.next_cluster == cursor.paragraph.start() + cursor.paragraph.length()
+
+		work : LineCursor -> Work
+		work = |LineCursor.(cursor)| cursor.work
+	}
+
 	BatchPlan :: { lines : List(Line), run_lines : List(Semantics.IndexRange), work : BatchWork }.{
 		build : List(KernelShape.SimpleSource), List(KernelShape.SimpleRequest), Text.Store, List(RunRequest), BatchLimits -> Try(BatchPlan, Error)
-		build = |sources, shape_requests, store, requests, limits| build_batch(sources, shape_requests, store, requests, limits)
+		build = |sources, shape_requests, store, requests, limits| build_batch(sources, shape_requests, store, requests, [], limits)
+
+		build_variants : List(KernelShape.SimpleSource), List(KernelShape.SimpleRequest), Text.Store, List(RunRequest), List(Bool), BatchLimits -> Try(BatchPlan, Error)
+		build_variants = |sources, shape_requests, store, requests, variants, limits| build_batch(sources, shape_requests, store, requests, variants, limits)
 
 		## A wholly contentless source still has visual rows for pagination.
 		empty : {} -> BatchPlan
@@ -135,20 +166,30 @@ KernelLineLayout :: [].{
 		## instance, size, and cluster count. A signature over that sequence
 		## narrows probes, and equal signatures are confirmed run by run.
 		build_logical : List(KernelShape.SimpleSource), Text.Store, List(LogicalRunRequest), BatchLimits -> Try(BatchPlan, Error)
-		build_logical = |sources, store, requests, limits| build_logical_batch(sources, store, requests, [], [], limits)
+		build_logical = |sources, store, requests, limits| build_logical_batch(sources, store, requests, [], [], [], True, limits)
 
 		## `build_logical` with holds, sorted by request and then by start.
 		## A request with holds is laid out on its own: its template is
 		## neither found in nor added to the template cache, so it never
 		## shares lines with an equal request that has none.
 		build_logical_held : List(KernelShape.SimpleSource), Text.Store, List(LogicalRunRequest), List(Hold), BatchLimits -> Try(BatchPlan, Error)
-		build_logical_held = |sources, store, requests, holds, limits| build_logical_batch(sources, store, requests, holds, [], limits)
+		build_logical_held = |sources, store, requests, holds, limits| build_logical_batch(sources, store, requests, holds, [], [], True, limits)
 
 		## A source-aware batch: aligned request modes mark exact canonical
 		## logical-line ranges. Source requests bypass whole-source caching;
 		## prose preserves its usual holds and cache contract.
 		build_source_mixed : List(KernelShape.SimpleSource), Text.Store, List(LogicalRunRequest), List(Hold), List(SourceMode), BatchLimits -> Try(BatchPlan, Error)
-		build_source_mixed = |sources, store, requests, holds, modes, limits| build_logical_batch(sources, store, requests, holds, modes, limits)
+		build_source_mixed = |sources, store, requests, holds, modes, limits| build_logical_batch(sources, store, requests, holds, modes, [], True, limits)
+
+		## A shaping variant uses a separate cache namespace without duplicating
+		## its Unicode analysis. Only whole single-run paragraphs are eligible.
+		build_logical_variants : List(KernelShape.SimpleSource), Text.Store, List(LogicalRunRequest), List(Hold), List(SourceMode), List(Bool), BatchLimits -> Try(BatchPlan, Error)
+		build_logical_variants = |sources, store, requests, holds, modes, variants, limits| build_logical_batch(sources, store, requests, holds, modes, variants, True, limits)
+
+		## International items retain resolved direction and authored language.
+		## A width template is local to that shaped paragraph occurrence.
+		build_international : List(KernelShape.SimpleSource), Text.Store, List(LogicalRunRequest), List(Hold), BatchLimits -> Try(BatchPlan, Error)
+		build_international = |sources, store, requests, holds, limits| build_logical_batch(sources, store, requests, holds, [], [], False, limits)
 
 		lines : BatchPlan -> List(Line)
 		lines = |plan| plan.lines
@@ -204,9 +245,12 @@ RangeBounds := { cluster_end : U64, cluster_start : U64, glyph_end : U64, glyph_
 empty_slot : U64
 empty_slot = U64.highest
 
-build_batch : List(KernelShape.SimpleSource), List(KernelShape.SimpleRequest), Text.Store, List(KernelLineLayout.RunRequest), KernelLineLayout.BatchLimits -> Try(KernelLineLayout.BatchPlan, KernelLineLayout.Error)
-build_batch = |sources, shape_requests, store, requests, limits| {
+build_batch : List(KernelShape.SimpleSource), List(KernelShape.SimpleRequest), Text.Store, List(KernelLineLayout.RunRequest), List(Bool), KernelLineLayout.BatchLimits -> Try(KernelLineLayout.BatchPlan, KernelLineLayout.Error)
+build_batch = |sources, shape_requests, store, requests, variants, limits| {
 	if requests.len() == 0 or requests.len() != store.runs.len() or shape_requests.len() != requests.len() {
+		return Err(InvalidAnalysis)
+	}
+	if !variants.is_empty() and variants.len() != store.runs.len() {
 		return Err(InvalidAnalysis)
 	}
 	check_limit(requests.len(), limits.max_runs, Runs)?
@@ -238,7 +282,7 @@ build_batch = |sources, shape_requests, store, requests, limits| {
 		if source_index >= sources.len() or shape_request.source.index() != source_index or !same_occurrence or shape_request.size != run.size or request.width <= 0 {
 			return Err(InvalidRun({ run: $run_index }))
 		}
-		key = { instance: run.instance.index(), size: run.size.raw(), source: source_index, width: request.width.raw() }
+		key = { instance: run.instance.index(), size: run.size.raw(), source: cache_source(sources.len(), source_index, variants, $run_index)?, width: request.width.raw() }
 		var $template_index = empty_slot
 		var $insertion_slot = empty_slot
 		if $previous_template != empty_slot {
@@ -367,16 +411,21 @@ build_batch = |sources, shape_requests, store, requests, limits| {
 ## adjacent physical runs, proven contiguous before any measurement.
 LogicalBounds := { bounds : RangeBounds, glyph_length : U64, instance : U64, signature : U64, size : I64 }
 
-build_logical_batch : List(KernelShape.SimpleSource), Text.Store, List(KernelLineLayout.LogicalRunRequest), List(KernelLineLayout.Hold), List(KernelLineLayout.SourceMode), KernelLineLayout.BatchLimits -> Try(KernelLineLayout.BatchPlan, KernelLineLayout.Error)
-build_logical_batch = |sources, store, requests, holds, modes, limits| {
+build_logical_batch : List(KernelShape.SimpleSource), Text.Store, List(KernelLineLayout.LogicalRunRequest), List(KernelLineLayout.Hold), List(KernelLineLayout.SourceMode), List(Bool), Bool, KernelLineLayout.BatchLimits -> Try(KernelLineLayout.BatchPlan, KernelLineLayout.Error)
+build_logical_batch = |sources, store, requests, holds, modes, variants, use_cache, limits| {
 	if requests.len() == 0 or store.runs.len() == 0 {
 		return Err(InvalidAnalysis)
 	}
 	if !modes.is_empty() and modes.len() != requests.len() {
 		return Err(InvalidAnalysis)
 	}
+	if !variants.is_empty() and variants.len() != store.runs.len() {
+		return Err(InvalidAnalysis)
+	}
 	check_limit(requests.len(), limits.max_runs, Runs)?
-	cacheable = if (modes.is_empty()) requests.len() else modes.count_if(|mode| mode == WholeSource)
+	cacheable = if !use_cache {
+		0
+	} else if (modes.is_empty()) requests.len() else modes.count_if(|mode| mode == WholeSource)
 	capacity = if (cacheable == 0) 0 else table_capacity(cacheable, limits.max_table_slots)?
 	var $assignments = List.repeat(empty_slot, requests.len())
 	var $slots = List.repeat(empty_slot, capacity)
@@ -405,16 +454,17 @@ build_logical_batch = |sources, store, requests, holds, modes, limits| {
 			$hold_cursor = $hold_cursor + 1
 		}
 		mode = if (modes.is_empty()) WholeSource else list_at(modes, $request_index)
-		held = $hold_cursor > hold_start or mode != WholeSource
+		held = !use_cache or $hold_cursor > hold_start or mode != WholeSource
 		if source_index >= sources.len() or request.width <= 0 {
 			return Err(InvalidRun({ run: $request_index }))
 		}
 		logical = logical_bounds(store, request.runs, $run_cursor)?
 		$run_cursor = range_end(request.runs)?
-		if source_index > u32_max or request.runs.length() > u32_max {
+		variant_source = if (request.runs.length() == 1) cache_source(sources.len(), source_index, variants, request.runs.start())? else source_index
+		if variant_source > u32_max or request.runs.length() > u32_max {
 			return Err(InvalidRun({ run: $request_index }))
 		}
-		key = { run_count: request.runs.length().to_u32_wrap(), run_start: request.runs.start(), signature: logical.signature, source: source_index.to_u32_wrap(), width: request.width.raw() }
+		key = { run_count: request.runs.length().to_u32_wrap(), run_start: request.runs.start(), signature: logical.signature, source: variant_source.to_u32_wrap(), width: request.width.raw() }
 		var $template_index = empty_slot
 		var $insertion_slot = empty_slot
 		if $previous_template != empty_slot and !held {
@@ -706,6 +756,15 @@ logical_key_equal = |store, left, right| {
 hash_logical_key : LogicalKey, U64, I64 -> U64
 hash_logical_key = |key, instance, size| hash_key({ instance, size, source: key.source.to_u64(), width: key.width })
 
+cache_source : U64, U64, List(Bool), U64 -> Try(U64, KernelLineLayout.Error)
+cache_source = |source_count, source, variants, run| {
+	if !variants.is_empty() and list_at(variants, run) {
+		checked_add(source_count, source)
+	} else {
+		Ok(source)
+	}
+}
+
 hash_key : BatchKey -> U64
 hash_key = |key| {
 	first = mix_hash(14695981039346656037, key.source)
@@ -836,6 +895,96 @@ build_range = |analysis, store, bounds, width, holds, limits| {
 			},
 		},
 	)
+}
+
+start_cursor : KernelUnicode.UnicodeAnalysis, Text.Store, RangeBounds, KernelLineLayout.Limits -> Try(KernelLineLayout.LineCursor, KernelLineLayout.Error)
+start_cursor = |analysis, store, bounds, limits| {
+	scalars = analysis.work.scalar_visits
+	clusters = bounds.cluster_end - bounds.cluster_start
+	glyphs = bounds.glyph_end - bounds.glyph_start
+	if scalars == 0 or analysis.line_boundaries.len() != scalars + 1 {
+		return Err(InvalidAnalysis)
+	}
+	check_limit(analysis.line_boundaries.len(), limits.max_boundaries, Boundaries)?
+	check_limit(clusters, limits.max_clusters, Clusters)?
+	check_limit(glyphs, limits.max_glyph_indices, GlyphIndices)?
+	check_limit(glyphs, limits.max_glyphs, Glyphs)?
+	boundary_work = validate_boundaries(analysis.line_boundaries, store.clusters, bounds.cluster_start, bounds.cluster_end, scalars)?
+	measure = measure_clusters(store.clusters, store.glyph_indices, store.glyphs, bounds.cluster_start, bounds.cluster_end, bounds.glyph_start, bounds.glyph_end, scalars)?
+	if measure.glyph_index_visits != glyphs {
+		return Err(InvalidAnalysis)
+	}
+	Ok(
+		KernelLineLayout.LineCursor.{
+			boundaries: analysis.line_boundaries,
+			clusters: store.clusters,
+			limits,
+			paragraph: Semantics.IndexRange.from_start_and_length({ start: bounds.cluster_start, length: clusters }),
+			prefix: measure.prefix,
+			next_cluster: bounds.cluster_start,
+			work: {
+				boundary_visits: boundary_work.visits,
+				candidate_visits: 0,
+				cluster_visits: measure.cluster_visits,
+				glyph_index_visits: measure.glyph_index_visits,
+				glyph_visits: measure.glyph_index_visits,
+				line_writes: 0,
+			},
+		},
+	)
+}
+
+next_cursor_line : KernelLineLayout.LineCursor, Layout.Unit -> Try([Complete, Line({ line : KernelLineLayout.Line, remaining : KernelLineLayout.LineCursor })], KernelLineLayout.Error)
+next_cursor_line = |KernelLineLayout.LineCursor.(cursor), width| {
+	end = cursor.paragraph.start() + cursor.paragraph.length()
+	start = cursor.next_cluster
+	if start == end {
+		return Ok(Complete)
+	}
+	if width.raw() <= 0 {
+		return Err(InvalidWidth(width.raw()))
+	}
+
+	prefix_start = cursor.paragraph.start()
+	start_advance = list_at(cursor.prefix, start - prefix_start)
+	var $last_break = start
+	var $cut = 0
+	var $candidate = start + 1
+	var $visits = cursor.work.candidate_visits
+	while $candidate <= end {
+		$visits = checked_add($visits, 1)?
+		check_limit($visits, cursor.limits.max_candidates, Candidates)?
+		advance = list_at(cursor.prefix, $candidate - prefix_start) - start_advance
+		if advance > width.raw() {
+			if $last_break == start {
+				return Err(Unbreakable({ cluster_end: $candidate, cluster_start: start }))
+			}
+			$cut = $last_break
+			break
+		}
+		cluster = list_at(cursor.clusters, $candidate - 1)
+		boundary = list_at(cursor.boundaries, range_end(cluster.source.scalars)?)
+		match boundary.decision {
+			Allowed => {
+				$last_break = $candidate
+			}
+			Mandatory => {
+				$cut = $candidate
+				break
+			}
+			Prohibited => {}
+		}
+		$candidate = $candidate + 1
+	}
+	required = checked_add(cursor.work.line_writes, 1)?
+	check_limit(required, cursor.limits.max_lines, Lines)?
+	line = source_line(cursor.clusters, cursor.prefix, prefix_start, start, $cut)?
+	remaining = KernelLineLayout.LineCursor.{
+		..cursor,
+		next_cluster: $cut,
+		work: { ..cursor.work, candidate_visits: $visits, line_writes: required },
+	}
+	Ok(Line({ line, remaining }))
 }
 
 build_source_range : KernelUnicode.UnicodeAnalysis, Text.Store, RangeBounds, Layout.Unit, [Wrap, RejectOverflow], KernelLineLayout.Limits -> Try(KernelLineLayout.Plan, KernelLineLayout.Error)
@@ -1261,6 +1410,34 @@ expect {
 	match build_plan(analysis, test_store, Layout.Unit.from_raw(3000), test_limits) {
 		Err(Unbreakable({ cluster_end: 4, cluster_start: 0 })) => True
 		_ => False
+	}
+}
+
+# The continuation retains the earlier source cut when the next frame gets
+# narrower. Its measurement work is charged once, and its scan budget follows
+# the cursor across the transition.
+expect {
+	cursor = start_cursor(test_analysis, test_store, { cluster_start: 0, cluster_end: 6, glyph_start: 0, glyph_end: 6 }, test_limits)?
+	match cursor.next(Layout.Unit.from_raw(4500))? {
+		Complete => False
+		Line(first) => match first.remaining.next(Layout.Unit.from_raw(2000))? {
+			Complete => False
+			Line(second) => {
+				work = second.remaining.work()
+				complete = match second.remaining.next(Layout.Unit.from_raw(2000))? {
+					Complete => True
+					Line(_) => False
+				}
+				first.line.source.scalars.length() == 4 and
+					first.line.advance.raw() == 4000 and
+						second.line.source.utf8_bytes.start() == 4 and
+							second.line.source.utf8_bytes.length() == 2 and
+								work.boundary_visits == 7 and
+									work.candidate_visits == 7 and
+										work.cluster_visits == 6 and
+											work.line_writes == 2 and complete
+			}
+		}
 	}
 }
 

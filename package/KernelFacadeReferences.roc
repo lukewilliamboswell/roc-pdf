@@ -4,6 +4,7 @@ import KernelBuiltInFont
 import KernelFont
 import KernelSemantics
 import KernelShape
+import KernelStabilization
 import KernelTextSemantics
 import KernelFacadeLines
 import KernelFacadePages
@@ -38,9 +39,17 @@ KernelFacadeReferences :: [].{
 		MissingAnchor({ reference : U64 }),
 		Format({ error : KernelPageLabels.Error, reference : U64 }),
 		FieldOverflow({ reference : U64, width : Layout.Unit, required : Layout.Unit }),
+		FlowCycle({ reference : U64, first : U64, repeated : U64 }),
+		FlowBudget({ dimension : FlowDimension, limit : U64, reference : U64 }),
 		InvalidMapping({ item : U64 }),
 	]
+	FlowDimension : [LayoutWork, Passes, StateUnits]
+	FlowLimits : { max_layout_work : U64, max_passes : U64, max_state_units : U64 }
+	default_flow_limits : FlowLimits
+	default_flow_limits = { max_layout_work: 4000000, max_passes: 8, max_state_units: 500000 }
+
 	Limits : {
+		flow : FlowLimits,
 		semantics : KernelFacadeSemantics.Limits,
 		shape : KernelFacadeShape.Limits,
 		lines : KernelFacadeLines.Limits,
@@ -53,6 +62,8 @@ KernelFacadeReferences :: [].{
 	## The resolved target physical_page is one-based.
 	Resolved : { reference : U64, physical_page : U64, value : Str }
 	Work : {
+		flow_passes : U64,
+		flow_work : U64,
 		reference_atoms : U64,
 		reference_lookups : U64,
 		reference_format_bytes : U64,
@@ -68,8 +79,7 @@ KernelFacadeReferences :: [].{
 		registry_lookup_steps : U64,
 		resolved_labels : U64,
 		resolved_label_bytes : U64,
-		mapping_cluster_visits : U64,
-		mapping_glyph_visits : U64,
+		mapping_run_visits : U64,
 		reference_fit_run_visits : U64,
 		positioned_pieces : U64,
 		contents_rows : U64,
@@ -98,7 +108,26 @@ KernelFacadeReferences :: [].{
 }
 
 build_plan : Document.NormalizedAuthoring, KernelFacadeShape.FontSelection, Theme, Layout.Size, KernelFacadePages.FlowSelection, KernelFacadeReferences.Limits -> Try(KernelFacadeReferences.Plan, KernelFacadeReferences.Error)
-build_plan = |authoring, selection, theme, page_size, flow, limits| {
+build_plan = |authoring, selection, theme, page_size, flow, limits| match first_flow_reference(authoring.page_references) {
+	None => build_fixed_plan(authoring, selection, theme, page_size, flow, limits)
+	First(reference) => build_flow_plan(authoring, selection, theme, page_size, flow, limits, reference)
+}
+
+build_flow_plan : Document.NormalizedAuthoring, KernelFacadeShape.FontSelection, Theme, Layout.Size, KernelFacadePages.FlowSelection, KernelFacadeReferences.Limits, U64 -> Try(KernelFacadeReferences.Plan, KernelFacadeReferences.Error)
+build_flow_plan = |authoring, selection, theme, page_size, flow, limits, reference| {
+	symbolic = KernelFacadeSemantics.Symbolic.build(authoring, limits.semantics) ? Semantics
+	spine = KernelFacadeSemantics.Symbolic.view(symbolic)
+	registry = KernelNavigation.Registry.build(spine.destinations, { forms: 0, nodes: spine.nodes.len(), occurrences: KernelFacadeSemantics.Symbolic.occurrence_count(symbolic), pages: 0, semantic_annotations: 0 }, limits.navigation) ? Navigation
+	literal_shape = KernelFacadeReferenceShape.Plan.build(authoring, spine.literals, KernelFacadeSources.Plan.sources(spine.sources), selection, theme, limits.shape) ? Shape
+	inputs = { flow, limits, literal_shape, page_size, registry, selection, spine, symbolic, theme }
+	stabilize_flow(inputs, reference)
+}
+
+## Keep the single-pass path's ownership lifetimes. A speculative Pass value
+## retains its authoring arenas across the next layout and is needed only for
+## flow-changing fields.
+build_fixed_plan : Document.NormalizedAuthoring, KernelFacadeShape.FontSelection, Theme, Layout.Size, KernelFacadePages.FlowSelection, KernelFacadeReferences.Limits -> Try(KernelFacadeReferences.Plan, KernelFacadeReferences.Error)
+build_fixed_plan = |authoring, selection, theme, page_size, flow, limits| {
 	symbolic = KernelFacadeSemantics.Symbolic.build(authoring, limits.semantics) ? Semantics
 	spine = KernelFacadeSemantics.Symbolic.view(symbolic)
 	flow_occurrences = checked_add(spine.literals.len(), spine.pending.len())?
@@ -115,11 +144,14 @@ build_plan = |authoring, selection, theme, page_size, flow, limits| {
 	resolved = resolve_labels(authoring, registry, labels, committed.anchors, limits.max_reference_bytes)?
 	finalized = KernelFacadeSemantics.Symbolic.finalize_with_contexts(symbolic, resolved.values, resolved.contents_targets) ? Semantics
 	semantics = finalized.plan
-	final_shape = KernelFacadeReferenceShape.Plan.build(authoring, finalized.contexts, KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics)), selection, theme, limits.shape) ? Shape
+	final_shape = KernelFacadeReferenceShape.Plan.build_resolved(literal_shape, authoring, finalized.contexts, KernelFacadeSemantics.Plan.sources(semantics), selection, theme, limits.shape) ? Shape
 	final = KernelFacadeReferenceShape.Plan.view(final_shape)
 	shape = KernelFacadeReferenceShape.Plan.final_shape(final_shape, authoring, spine.block_ownership, flow_occurrences) ? Shape
-	mapping = map_literal_clusters(literal, final)?
-	positioned = position_items(authoring, spine.pending, measured_lines, literal, final, mapping.entries, paint.rows, committed.anchors)?
+	literal_metric_reads = literal.work.shape.metric_reads
+	literal_shape_requests = literal.requests.len()
+	projections = map_literal_runs(literal, final)?
+	mapping_run_visits = projections.len()
+	positioned = position_items(authoring, spine.pending, measured_lines, final, projections, paint.rows, committed.anchors)?
 	leaders = contents_rules(measured_lines.contents, paint.rows, theme, KernelLineLayout.BatchLimits.max_items(KernelFacadeLines.Limits.values(limits.lines).line))?
 	rules = merge_contents_rules(paint.rules, leaders.rules)
 	positioned_text = KernelFacadeText.Plan.build_positioned({ shape: final.store, styles: final.styles, lines: positioned.lines, origins: Origins(final.origins), pages, pieces: positioned.pieces }, rules, paint.flow, limits.text) ? Text
@@ -137,14 +169,16 @@ build_plan = |authoring, selection, theme, page_size, flow, limits| {
 			resolved: resolved.facts,
 			anchors: positioned.anchors,
 			work: {
+				flow_passes: 0,
 				reference_atoms: spine.pending.len(),
+				flow_work: 0,
 				reference_lookups: checked_add(resolved.steps, resolved.values.len())?,
 				reference_format_bytes: resolved.bytes,
 				reference_piece_visits: positioned.visits,
-				shape_metric_reads: checked_add(literal.work.shape.metric_reads, final.work.shape.metric_reads)?,
+				shape_metric_reads: checked_add(literal_metric_reads, final.work.shape.metric_reads)?,
 				measurement: measured_lines.work,
 				normalization_chunks: authoring.reference_chunks.len(),
-				literal_shape_requests: literal.requests.len(),
+				literal_shape_requests,
 				measured_items: measured_lines.items.len(),
 				measured_rows: measured_lines.rows.len(),
 				committed_row_visits: paint.rows.len(),
@@ -152,8 +186,7 @@ build_plan = |authoring, selection, theme, page_size, flow, limits| {
 				registry_lookup_steps: resolved.steps,
 				resolved_labels: resolved.values.len(),
 				resolved_label_bytes: resolved.bytes,
-				mapping_cluster_visits: mapping.clusters,
-				mapping_glyph_visits: mapping.glyphs,
+				mapping_run_visits,
 				reference_fit_run_visits: positioned.fit_visits,
 				positioned_pieces: positioned.pieces.len(),
 				contents_rows: measured_lines.contents.len(),
@@ -164,6 +197,297 @@ build_plan = |authoring, selection, theme, page_size, flow, limits| {
 		},
 	)
 }
+
+Inputs : {
+	flow : KernelFacadePages.FlowSelection,
+	limits : KernelFacadeReferences.Limits,
+	literal_shape : KernelFacadeReferenceShape.Plan,
+	page_size : Layout.Size,
+	registry : KernelNavigation.Registry,
+	selection : KernelFacadeShape.FontSelection,
+	spine : KernelFacadeSemantics.SymbolicView,
+	symbolic : KernelFacadeSemantics.Symbolic,
+	theme : Theme,
+}
+
+Labels : { values : List(Str), facts : List(KernelFacadeReferences.Resolved), contents_targets : List(Semantics.NodeId), steps : U64, bytes : U64 }
+
+Pass : {
+	committed : { anchors : List(KernelNavigation.CommittedAnchor), visits : U64 },
+	final_shape : KernelFacadeReferenceShape.Plan,
+	labels : KernelNavigation.LabelPlan,
+	lines : KernelFacadeReferenceLines.Plan,
+	measured : KernelFacadePages.Measured,
+	pages : U64,
+	paint : KernelFacadePages.MeasuredPaint,
+	resolved : Labels,
+	semantics : KernelFacadeSemantics.Plan,
+	separators : List(Text.OccurrenceSeparator),
+}
+
+layout_pass : Inputs, List(Layout.Unit) -> Try(Pass, KernelFacadeReferences.Error)
+layout_pass = |{ flow, limits, literal_shape, page_size, registry, selection, spine, symbolic, theme }, widths| {
+	authoring = spine.authoring
+	literal = KernelFacadeReferenceShape.Plan.view(literal_shape)
+	flow_occurrences = checked_add(spine.literals.len(), spine.pending.len())?
+	lines = KernelFacadeReferenceLines.Plan.build_with_widths(spine, literal_shape, page_size, theme, limits.lines, widths) ? Lines
+	measured_lines = KernelFacadeReferenceLines.Plan.view(lines)
+	measured = KernelFacadePages.Measured.build(authoring, measured_lines.input, page_size, theme, flow, limits.pages) ? Pages
+	pages = KernelPageLayout.Choice.pages(KernelFacadePages.Measured.view(measured).choice).len()
+	paint = KernelFacadePages.Measured.paint(measured, authoring, measured_lines.input, measured_lines.visible_advances, page_size, theme, limits.pages) ? Pages
+	labels = KernelNavigation.LabelPlan.build(authoring.page_labels, pages, limits.navigation) ? Navigation
+	committed = commit_literal_anchors(flow_occurrences, measured_lines, literal, paint.rows)?
+	resolved = resolve_labels(authoring, registry, labels, committed.anchors, limits.max_reference_bytes)?
+	finalized = KernelFacadeSemantics.Symbolic.finalize_with_contexts(symbolic, resolved.values, resolved.contents_targets) ? Semantics
+	semantics = finalized.plan
+	# The symbolic literal plan is shared across passes. Reuse its glyph
+	# facts while resolving and shaping this pass's exact label strings.
+	final_shape = KernelFacadeReferenceShape.Plan.build_resolved(literal_shape, authoring, finalized.contexts, KernelFacadeSemantics.Plan.sources(semantics), selection, theme, limits.shape) ? Shape
+	Ok({ committed, final_shape, labels, lines, measured, pages, paint, resolved, semantics, separators: finalized.separators })
+}
+
+render_pass : Inputs, Pass, U64, U64 -> Try(KernelFacadeReferences.Plan, KernelFacadeReferences.Error)
+render_pass = |{ limits, literal_shape, registry, spine, theme, .. }, { committed, final_shape, labels, lines, measured, pages, paint, resolved, semantics, separators }, flow_passes, flow_work| {
+	authoring = spine.authoring
+	flow_occurrences = checked_add(spine.literals.len(), spine.pending.len())?
+	literal = KernelFacadeReferenceShape.Plan.view(literal_shape)
+	measured_lines = KernelFacadeReferenceLines.Plan.view(lines)
+	final = KernelFacadeReferenceShape.Plan.view(final_shape)
+	shape = KernelFacadeReferenceShape.Plan.final_shape(final_shape, authoring, spine.block_ownership, flow_occurrences) ? Shape
+	literal_metric_reads = literal.work.shape.metric_reads
+	literal_shape_requests = literal.requests.len()
+	projections = map_literal_runs(literal, final)?
+	mapping_run_visits = projections.len()
+	positioned = position_items(authoring, spine.pending, measured_lines, final, projections, paint.rows, committed.anchors)?
+	leaders = contents_rules(measured_lines.contents, paint.rows, theme, KernelLineLayout.BatchLimits.max_items(KernelFacadeLines.Limits.values(limits.lines).line))?
+	rules = merge_contents_rules(paint.rules, leaders.rules)
+	positioned_text = KernelFacadeText.Plan.build_positioned({ shape: final.store, styles: final.styles, lines: positioned.lines, origins: Origins(final.origins), pages, pieces: positioned.pieces }, rules, paint.flow, limits.text) ? Text
+	separated = KernelFacadeText.Plan.with_occurrence_separators(positioned_text, separators, flow_occurrences, limits.text) ? Text
+	text = separated.plan
+	Ok(
+		KernelFacadeReferences.Plan.{
+			semantics,
+			shape,
+			text,
+			measured,
+			paint,
+			registry,
+			labels,
+			resolved: resolved.facts,
+			anchors: positioned.anchors,
+			work: {
+				flow_passes,
+				flow_work,
+				reference_atoms: spine.pending.len(),
+				reference_lookups: checked_add(resolved.steps, resolved.values.len())?,
+				reference_format_bytes: resolved.bytes,
+				reference_piece_visits: positioned.visits,
+				shape_metric_reads: checked_add(literal_metric_reads, final.work.shape.metric_reads)?,
+				measurement: measured_lines.work,
+				normalization_chunks: authoring.reference_chunks.len(),
+				literal_shape_requests,
+				measured_items: measured_lines.items.len(),
+				measured_rows: measured_lines.rows.len(),
+				committed_row_visits: paint.rows.len(),
+				anchor_item_visits: committed.visits,
+				registry_lookup_steps: resolved.steps,
+				resolved_labels: resolved.values.len(),
+				resolved_label_bytes: resolved.bytes,
+				mapping_run_visits,
+				reference_fit_run_visits: positioned.fit_visits,
+				positioned_pieces: positioned.pieces.len(),
+				contents_rows: measured_lines.contents.len(),
+				leader_dots: leaders.rules.len(),
+				separator_run_visits: separated.work.run_visits,
+				separator_override_writes: separated.work.override_writes,
+			},
+		},
+	)
+}
+
+first_flow_reference : List(Document.NormalizedPageReference) -> [None, First(U64)]
+first_flow_reference = |references| {
+	var $index = 0
+	for reference in references {
+		if reference.flow {
+			return First($index)
+		}
+		$index = $index + 1
+	}
+	None
+}
+
+stabilize_flow : Inputs, U64 -> Try(KernelFacadeReferences.Plan, KernelFacadeReferences.Error)
+stabilize_flow = |inputs, reference| {
+	limits = inputs.limits.flow
+	work_exhausted = FlowBudget({ dimension: LayoutWork, limit: limits.max_layout_work, reference })
+	stepped = KernelStabilization.stabilize(
+		KernelStabilization.initial,
+		limits.max_passes,
+		|state, previous, _pass| {
+			references = inputs.spine.authoring.page_references
+			var $widths = List.with_capacity(references.len())
+			var $index = 0
+			for record in references {
+				width = if state.pages == 0 {
+					record.spec.width
+				} else {
+					Layout.Unit.from_raw(list_at(state.values, $index).to_i64_wrap())
+				}
+				$widths = $widths.append(width)
+				$index = $index + 1
+			}
+			work_before = match previous {
+				NoCandidate => 0
+				Candidate(value) => value.work
+			}
+			if work_before >= limits.max_layout_work {
+				return Err(work_exhausted)
+			}
+			current = layout_pass(inputs, $widths)?
+			key = flow_state(inputs, current, reference)?
+			if key.work > limits.max_layout_work - work_before {
+				return Err(work_exhausted)
+			}
+			Ok({ candidate: { current, work: work_before + key.work }, state: key.state })
+		},
+	)?
+	match stepped.outcome {
+		Stable({ passes, work, .. }) => match stepped.candidate {
+			Candidate(result) => render_pass(inputs, result.current, passes, checked_add(work, result.work)?)
+			NoCandidate => Err(InvalidMapping({ item: reference }))
+		}
+		Cycle({ first_seen_pass, repeated_at_pass, .. }) => Err(FlowCycle({ reference, first: first_seen_pass, repeated: repeated_at_pass }))
+		BudgetExhausted(_) => Err(FlowBudget({ dimension: Passes, limit: limits.max_passes, reference }))
+	}
+}
+
+## The fixed authored inputs and literal shaping are shared by every pass.
+## Key each variable fact in its original dense order. Length prefixes
+## keep labels and variable arenas distinct. An item's identity is its
+## index in the unchanged symbolic/literal stream, even if its row moves.
+flow_state : Inputs, Pass, U64 -> Try({ state : KernelStabilization.State, work : U64 }, KernelFacadeReferences.Error)
+flow_state = |inputs, pass, reference| {
+	lines = KernelFacadeReferenceLines.Plan.view(pass.lines)
+	final = KernelFacadeReferenceShape.Plan.view(pass.final_shape)
+	choice = KernelFacadePages.Measured.view(pass.measured).choice
+	refs = inputs.spine.authoring.page_references
+	spans = KernelPageLayout.Choice.spans(choice)
+	containers = KernelPageLayout.Choice.container_fragments(choice)
+	# A state buffer stores U64 words behind a reference count. Check
+	# its byte capacity even when the caller requests a wider budget.
+	limit = U64.min(inputs.limits.flow.max_state_units, (U64.highest - 8) // 8)
+	exhausted = FlowBudget({ dimension: StateUnits, limit, reference })
+	remaining = reserve_state_units(limit, 7, 1) ? |_| exhausted
+	after_refs = reserve_state_units(remaining, refs.len(), 3) ? |_| exhausted
+	after_anchors = reserve_state_units(after_refs, pass.committed.anchors.len(), 6) ? |_| exhausted
+	after_items = reserve_state_units(after_anchors, lines.items.len(), 2) ? |_| exhausted
+	after_rows = reserve_state_units(after_items, pass.paint.rows.len(), 8) ? |_| exhausted
+	after_spans = reserve_state_units(after_rows, spans.len(), 11) ? |_| exhausted
+	after_containers = reserve_state_units(after_spans, containers.len(), 7) ? |_| exhausted
+	after_labels = reserve_state_units(after_containers, pass.resolved.bytes, 1) ? |_| exhausted
+	capacity = limit - after_labels
+	var $key = List.with_capacity(capacity)
+	var $index = 0
+	var $fit_visits = 0
+	for record in refs {
+		width = if record.flow {
+			context = list_at(inputs.spine.pending, $index)
+			runs = list_at(final.literal_runs, context.occurrence.index()).runs
+			var $required = 0
+			var $run = runs.start()
+			while $run < runs.start() + runs.length() {
+				$required = checked_i64_add($required, list_at(final.advances, $run).raw())?
+				$fit_visits = $fit_visits + 1
+				$run = $run + 1
+			}
+			if $required <= 0 {
+				return Err(FieldOverflow({ reference: $index, width: record.spec.width, required: Layout.Unit.from_raw($required) }))
+			}
+			Layout.Unit.from_raw($required)
+		} else {
+			record.spec.width
+		}
+		$key = $key.append(width.raw().to_u64_wrap())
+		$index = $index + 1
+	}
+	$key = $key.append(pass.resolved.facts.len())
+	for resolved in pass.resolved.facts {
+		$key = $key.append(resolved.physical_page)
+		bytes = resolved.value.to_utf8()
+		$key = $key.append(bytes.len())
+		for byte in bytes {
+			$key = $key.append(byte.to_u64())
+		}
+	}
+	$key = $key.append(pass.committed.anchors.len())
+	for anchor in pass.committed.anchors {
+		match anchor {
+			Unplaced => {
+				$key = $key.append(0)
+			}
+			At({ page, rect }) => {
+				$key = $key.append(1).append(page.index())
+				$key = append_rect($key, rect)
+			}
+		}
+	}
+	$key = $key.append(pass.paint.rows.len())
+	for row in pass.paint.rows {
+		items = list_at(lines.rows, row.row).items
+		artifact = if (row.artifact) 1 else 0
+		$key = $key.append(row.page).append(row.block).append(row.row).append(artifact)
+		$key = $key.append(row.origin.x.raw().to_u64_wrap()).append(row.origin.y.raw().to_u64_wrap())
+		$key = $key.append(items.start()).append(items.length())
+	}
+	$key = $key.append(lines.items.len())
+	$index = 0
+	for item in lines.items {
+		$key = $key.append(item.advance.raw().to_u64_wrap()).append(list_at(lines.item_offsets, $index).raw().to_u64_wrap())
+		$index = $index + 1
+	}
+	$key = $key.append(spans.len())
+	for span in spans {
+		$key = $key.append(span.block).append(span.rows.start()).append(span.rows.length()).append(span.page.index())
+		$key = append_rect($key, span.geometry)
+		$key = $key.append(span.baseline.x.raw().to_u64_wrap()).append(span.baseline.y.raw().to_u64_wrap()).append(span.leading.raw().to_u64_wrap())
+	}
+	$key = $key.append(containers.len())
+	for fragment in containers {
+		part = match fragment.part {
+			Whole => 0
+			First => 1
+			Middle => 2
+			Last => 3
+		}
+		$key = $key.append(fragment.container).append(fragment.page).append(part)
+		$key = append_rect($key, fragment.rect)
+	}
+	paging = KernelPageLayout.Choice.work(choice)
+	measure = lines.work
+	work_exhausted = FlowBudget({ dimension: LayoutWork, limit: inputs.limits.flow.max_layout_work, reference })
+	with_fits = checked_add($key.len(), $fit_visits) ? |_| work_exhausted
+	with_measured = checked_add(with_fits, measure.measured_items) ? |_| work_exhausted
+	with_wrapped = checked_add(with_measured, measure.wrapped_items) ? |_| work_exhausted
+	with_alignment = checked_add(with_wrapped, measure.alignment_items) ? |_| work_exhausted
+	with_candidates = checked_add(with_alignment, paging.candidate_visits) ? |_| work_exhausted
+	with_pages = checked_add(with_candidates, paging.line_visits) ? |_| work_exhausted
+	with_anchors = checked_add(with_pages, pass.committed.visits) ? |_| work_exhausted
+	with_resolved = checked_add(with_anchors, pass.resolved.steps) ? |_| work_exhausted
+	work = checked_add(with_resolved, final.work.shape.metric_reads) ? |_| work_exhausted
+	Ok({ state: { pages: pass.pages, values: $key }, work })
+}
+
+reserve_state_units : U64, U64, U64 -> Try(U64, [TooManyStateUnits])
+reserve_state_units = |remaining, count, width| {
+	if count > remaining // width {
+		return Err(TooManyStateUnits)
+	}
+	Ok(remaining - count * width)
+}
+
+append_rect : List(U64), Layout.Rect -> List(U64)
+append_rect = |values, { origin, size }| values.append(origin.x.raw().to_u64_wrap()).append(origin.y.raw().to_u64_wrap()).append(size.width.raw().to_u64_wrap()).append(size.height.raw().to_u64_wrap())
 
 commit_literal_anchors : U64, KernelFacadeReferenceLines.View, KernelFacadeReferenceShape.View, List(KernelFacadePages.PositionedRow) -> Try({ anchors : List(KernelNavigation.CommittedAnchor), visits : U64 }, KernelFacadeReferences.Error)
 commit_literal_anchors = |occurrences, lines, shape, rows| {
@@ -198,10 +522,17 @@ commit_literal_anchors = |occurrences, lines, shape, rows| {
 	Ok({ anchors: $anchors, visits: $visits })
 }
 
-resolve_labels : Document.NormalizedAuthoring, KernelNavigation.Registry, KernelNavigation.LabelPlan, List(KernelNavigation.CommittedAnchor), U64 -> Try({ values : List(Str), facts : List(KernelFacadeReferences.Resolved), contents_targets : List(Semantics.NodeId), steps : U64, bytes : U64 }, KernelFacadeReferences.Error)
+resolve_labels : Document.NormalizedAuthoring, KernelNavigation.Registry, KernelNavigation.LabelPlan, List(KernelNavigation.CommittedAnchor), U64 -> Try(Labels, KernelFacadeReferences.Error)
 resolve_labels = |authoring, registry, labels, anchors, max_bytes| {
 	destinations = KernelNavigation.Registry.destinations(registry)
 	var $contents_targets = []
+	var $index_targets = []
+	has_index = authoring.groups.any(
+		|group| match group.kind {
+			IndexList => True
+			_ => False
+		},
+	)
 	var $contents_index = 0
 	var $values = List.with_capacity(authoring.page_references.len())
 	var $facts = List.with_capacity(authoring.page_references.len())
@@ -219,6 +550,14 @@ resolve_labels = |authoring, registry, labels, anchors, max_bytes| {
 		if $contents_index < authoring.contents_entries.len() and list_at(authoring.contents_entries, $contents_index).reference == $reference {
 			$contents_targets = $contents_targets.append(destination.target)
 			$contents_index = $contents_index + 1
+		}
+		if has_index {
+			match Document.index_location(authoring, $reference) {
+				IndexLocation(_) => {
+					$index_targets = $index_targets.append(destination.target)
+				}
+				NoIndexLocation => {}
+			}
 		}
 		anchor = match list_at(anchors, destination.anchor.index()) {
 			Unplaced => return Err(MissingAnchor({ reference: $reference }))
@@ -239,7 +578,8 @@ resolve_labels = |authoring, registry, labels, anchors, max_bytes| {
 		$facts = $facts.append({ reference: $reference, physical_page: checked_add(anchor.page.index(), 1)?, value })
 		$reference = $reference + 1
 	}
-	Ok({ values: $values, facts: $facts, contents_targets: $contents_targets, steps: $steps, bytes: $bytes })
+	structure_targets = if ($index_targets.is_empty()) $contents_targets else $contents_targets.concat($index_targets)
+	Ok({ values: $values, facts: $facts, contents_targets: structure_targets, steps: $steps, bytes: $bytes })
 }
 
 ## The final title row is explicit measurement evidence. Paint bounded small
@@ -298,64 +638,44 @@ merge_contents_rules = |ordinary, contents| {
 	$rules
 }
 
-MappedCluster : [Unmapped, Mapped({ cluster : U64, run : U64 })]
+RunProjection : { measured : Semantics.IndexRange, final_start : U64, run : U64 }
 
-## Exact literal sources and styles are unchanged by reference resolution.
-## Verify the final shaping facts once and retain a dense cluster map;
-## accepted row traversal never searches text or re-wraps its content.
-map_literal_clusters : KernelFacadeReferenceShape.View, KernelFacadeReferenceShape.View -> Try({ entries : List(MappedCluster), clusters : U64, glyphs : U64 }, KernelFacadeReferences.Error)
-map_literal_clusters = |measured, final| {
-	var $entries = List.repeat(Unmapped, measured.store.clusters.len())
-	var $clusters = 0
-	var $glyphs = 0
+## Resolved reference shaping copied the nominal literal clusters in order
+## with their glyphs unchanged. Project the old dense cluster position within
+## each checked physical run onto its new range instead of walking glyphs.
+map_literal_runs : KernelFacadeReferenceShape.View, KernelFacadeReferenceShape.View -> Try(List(RunProjection), KernelFacadeReferences.Error)
+map_literal_runs = |measured, final| {
+	var $entries = List.with_capacity(measured.store.runs.len())
+	var $cluster = 0
 	for literal in measured.literal_runs {
-		context = list_at(measured.literals, literal.context)
+		context = measured.literals.get(literal.context) ? |_| InvalidMapping({ item: literal.context })
 		id = context.occurrence.id.index()
-		if id >= final.literal_runs.len() {
-			return Err(InvalidMapping({ item: id }))
-		}
-		resolved = list_at(final.literal_runs, id)
-		if literal.runs.length() != resolved.runs.length() {
+		resolved = final.literal_runs.get(id) ? |_| InvalidMapping({ item: id })
+		if literal.runs.length() != resolved.runs.length() or literal.runs.start() != $entries.len() {
 			return Err(InvalidMapping({ item: id }))
 		}
 		var $physical = 0
 		while $physical < literal.runs.length() {
-			old_run = list_at(measured.store.runs, literal.runs.start() + $physical)
-			new_run_index = resolved.runs.start() + $physical
-			new_run = list_at(final.store.runs, new_run_index)
-			if old_run.source != new_run.source or old_run.clusters.length() != new_run.clusters.length() or old_run.size != new_run.size {
+			old = measured.store.runs.get(literal.runs.start() + $physical) ? |_| InvalidMapping({ item: id })
+			new_index = resolved.runs.start() + $physical
+			new = final.store.runs.get(new_index) ? |_| InvalidMapping({ item: id })
+			length = old.clusters.length()
+			if old.unicode != OccurrenceText(context.occurrence.id) or new.unicode != old.unicode or old.source != new.source or old.size != new.size {
 				return Err(InvalidMapping({ item: id }))
 			}
-			var $cluster = 0
-			while $cluster < old_run.clusters.length() {
-				old_index = old_run.clusters.start() + $cluster
-				new_index = new_run.clusters.start() + $cluster
-				old = list_at(measured.store.clusters, old_index)
-				new = list_at(final.store.clusters, new_index)
-				if old.source != new.source or old.glyphs.length() != new.glyphs.length() {
-					return Err(InvalidMapping({ item: old_index }))
-				}
-				var $glyph = 0
-				while $glyph < old.glyphs.length() {
-					old_glyph = list_at(measured.store.glyphs, list_at(measured.store.glyph_indices, old.glyphs.start() + $glyph))
-					new_glyph = list_at(final.store.glyphs, list_at(final.store.glyph_indices, new.glyphs.start() + $glyph))
-					if old_glyph != new_glyph {
-						return Err(InvalidMapping({ item: old_index }))
-					}
-					$glyphs = $glyphs + 1
-					$glyph = $glyph + 1
-				}
-				$entries = list_set($entries, old_index, Mapped({ cluster: new_index, run: new_run_index }))
-				$clusters = $clusters + 1
-				$cluster = $cluster + 1
+			final_start = new.clusters.start()
+			if old.clusters.start() != $cluster or length != new.clusters.length() or length > measured.store.clusters.len() - $cluster or final_start > final.store.clusters.len() or length > final.store.clusters.len() - final_start {
+				return Err(InvalidMapping({ item: $cluster }))
 			}
+			$entries = $entries.append({ measured: old.clusters, final_start, run: new_index })
+			$cluster = $cluster + length
 			$physical = $physical + 1
 		}
 	}
-	if $clusters != measured.store.clusters.len() {
-		return Err(InvalidMapping({ item: $clusters }))
+	if $entries.len() != measured.store.runs.len() or $cluster != measured.store.clusters.len() {
+		return Err(InvalidMapping({ item: $cluster }))
 	}
-	Ok({ entries: $entries, clusters: $clusters, glyphs: $glyphs })
+	Ok($entries)
 }
 
 FieldFit : { runs : Semantics.IndexRange, inset : Layout.Unit }
@@ -378,12 +698,13 @@ reference_fits = |authoring, pending, final| {
 			$visits = $visits + 1
 			$run = $run + 1
 		}
-		spec = list_at(authoring.page_references, $reference).spec
-		if $required < 0 or $required > spec.width.raw() {
-			return Err(FieldOverflow({ reference: $reference, width: spec.width, required: Layout.Unit.from_raw($required) }))
+		record = list_at(authoring.page_references, $reference)
+		width = if (record.flow) Layout.Unit.from_raw($required) else record.spec.width
+		if $required < 0 or $required > width.raw() {
+			return Err(FieldOverflow({ reference: $reference, width, required: Layout.Unit.from_raw($required) }))
 		}
-		remaining = spec.width.raw() - $required
-		inset = match spec.align {
+		remaining = width.raw() - $required
+		inset = match record.spec.align {
 			Start => 0
 			Center => remaining // 2
 			End => remaining
@@ -396,8 +717,8 @@ reference_fits = |authoring, pending, final| {
 
 Positioned : { lines : List(KernelLineLayout.Line), pieces : List(KernelFacadeText.PositionedPiece), anchors : List(KernelNavigation.CommittedAnchor), fit_visits : U64, visits : U64 }
 
-position_items : Document.NormalizedAuthoring, List(KernelFacadeSemantics.PendingContext), KernelFacadeReferenceLines.View, KernelFacadeReferenceShape.View, KernelFacadeReferenceShape.View, List(MappedCluster), List(KernelFacadePages.PositionedRow), List(KernelNavigation.CommittedAnchor) -> Try(Positioned, KernelFacadeReferences.Error)
-position_items = |authoring, pending, measured, literal, final, mapping, rows, anchors| {
+position_items : Document.NormalizedAuthoring, List(KernelFacadeSemantics.PendingContext), KernelFacadeReferenceLines.View, KernelFacadeReferenceShape.View, List(RunProjection), List(KernelFacadePages.PositionedRow), List(KernelNavigation.CommittedAnchor) -> Try(Positioned, KernelFacadeReferences.Error)
+position_items = |authoring, pending, measured, final, mapping, rows, anchors| {
 	var $lines = []
 	var $pieces = []
 
@@ -419,7 +740,7 @@ position_items = |authoring, pending, measured, literal, final, mapping, rows, a
 			origin = { ..row.origin, x: add_unit(row.origin.x, list_at(measured.item_offsets, $item))? }
 			match item.source {
 				LiteralCluster(source) => {
-					mapped = mapped_cluster(mapping, source.cluster)?
+					mapped = mapped_cluster(mapping, source)?
 					first = list_at(final.store.clusters, mapped.cluster)
 					var $last = first
 					var $end = $item + 1
@@ -432,7 +753,7 @@ position_items = |authoring, pending, measured, literal, final, mapping, rows, a
 								$stop = True
 							}
 							LiteralCluster(next_source) => {
-								next_mapped = mapped_cluster(mapping, next_source.cluster)?
+								next_mapped = mapped_cluster(mapping, next_source)?
 								if next_mapped.run != mapped.run or next_mapped.cluster != mapped.cluster + ($end - $item) or list_at(measured.item_offsets, $end) != add_unit(list_at(measured.item_offsets, $item), $advance)? {
 									$stop = True
 								} else {
@@ -483,18 +804,17 @@ position_items = |authoring, pending, measured, literal, final, mapping, rows, a
 			}
 		}
 	}
-	# The literal view is supplied explicitly so item run ids cannot be
-	# accidentally reinterpreted as final physical run ids.
-	if literal.store.clusters.len() != mapping.len() {
-		return Err(InvalidMapping({ item: mapping.len() }))
-	}
 	Ok({ lines: $lines, pieces: $pieces, anchors: $anchors, fit_visits: fitted.visits, visits: $visits })
 }
 
-mapped_cluster : List(MappedCluster), U64 -> Try({ cluster : U64, run : U64 }, KernelFacadeReferences.Error)
-mapped_cluster = |mapping, item| match list_at(mapping, item) {
-	Mapped(value) => Ok(value)
-	Unmapped => Err(InvalidMapping({ item: item }))
+mapped_cluster : List(RunProjection), { cluster : U64, run : U64 } -> Try({ cluster : U64, run : U64 }, KernelFacadeReferences.Error)
+mapped_cluster = |entries, source| {
+	projection = entries.get(source.run) ? |_| InvalidMapping({ item: source.cluster })
+	start = projection.measured.start()
+	if source.cluster < start or source.cluster - start >= projection.measured.length() {
+		return Err(InvalidMapping({ item: source.cluster }))
+	}
+	Ok({ cluster: projection.final_start + (source.cluster - start), run: projection.run })
 }
 
 occurrence_of : Text.Run -> Try(U64, KernelFacadeReferences.Error)
@@ -553,6 +873,7 @@ test_font = |_| KernelFont.inspect(KernelBuiltInFont.bytes, KernelFont.Limits.ma
 
 test_limits : KernelFacadeReferences.Limits
 test_limits = {
+	flow: KernelFacadeReferences.default_flow_limits,
 	max_reference_bytes: 128,
 	navigation: KernelNavigation.standard_limits,
 	semantics: KernelFacadeSemantics.Limits.make({
@@ -644,6 +965,70 @@ expect {
 	KernelFacadeText.Plan.text(view.text).runs.map(|run| run.instance.index()) == [1, 2, 0]
 }
 
+# The fixed final store has the same dense indexes and glyphs as a fresh
+# final shape. The label uses the same canonical Unicode source as a
+# literal, but introduces an earlier face through the strong role.
+expect {
+	font = test_font({})?
+	faces = [Font.FaceId.from_index(0), Font.FaceId.from_index(1), Font.FaceId.from_index(2)]
+	selection = Styled({ faces, fonts: [font, font, font], inline_faces: [], face_indexes: [], roles: { code: Inherited, emphasis: Candidate(2), quote: Inherited, strong: Candidate(1) } })
+	theme : Theme
+	theme = { inline: { strong: { font: Face(list_at(faces, 1)) }, emphasis: { font: Face(list_at(faces, 2)) } } }
+	authoring = test_document([Document.strong([Document.page_reference({ destination: "end", width: 24 })]), Document.emphasis([Document.plain_text("2")])], [])
+	symbolic = KernelFacadeSemantics.Symbolic.build(authoring, test_limits.semantics)?
+	spine = KernelFacadeSemantics.Symbolic.view(symbolic)
+	measured = KernelFacadeReferenceShape.Plan.build(authoring, spine.literals, KernelFacadeSources.Plan.sources(spine.sources), selection, theme, test_limits.shape)?
+	finalized = KernelFacadeSemantics.Symbolic.finalize_with_contexts(symbolic, ["2"], [])?
+	final_sources = KernelFacadeSemantics.Plan.sources(finalized.plan)
+	check = |limits| {
+		fresh = KernelFacadeReferenceShape.Plan.build(authoring, finalized.contexts, KernelFacadeSources.Plan.sources(final_sources), selection, theme, limits)
+		reused = KernelFacadeReferenceShape.Plan.build_resolved(measured, authoring, finalized.contexts, final_sources, selection, theme, limits)
+		match (fresh, reused) {
+			(Ok(full), Ok(cached)) => {
+				a = KernelFacadeReferenceShape.Plan.view(full)
+				b = KernelFacadeReferenceShape.Plan.view(cached)
+				projection_moves_past_label(KernelFacadeReferenceShape.Plan.view(measured), b) == Ok(True)
+					and a.store == b.store and a.advances == b.advances and a.styles == b.styles and a.origins == b.origins and a.requests == b.requests and a.literal_runs == b.literal_runs
+					and b.store.runs.map(|run| run.instance.index()) == [1, 2, 0]
+					and list_at(b.requests, 0).source == list_at(b.requests, 1).source
+					and b.work == { ..a.work, shape: { ..a.work.shape, metric_reads: 1 } }
+			}
+			_ => False
+		}
+	}
+	exact = KernelFacadeShape.Limits.make({ max_requests: 3, shape: KernelShape.Limits.make({ max_clusters: 13, max_glyphs: 13, max_scalars: 13, max_source_bytes: 13 }) })
+	over = KernelFacadeShape.Limits.make({ max_requests: 3, shape: KernelShape.Limits.make({ max_clusters: 13, max_glyphs: 12, max_scalars: 13, max_source_bytes: 13 }) })
+	budget = match (
+		KernelFacadeReferenceShape.Plan.build(authoring, finalized.contexts, KernelFacadeSources.Plan.sources(final_sources), selection, theme, over),
+		KernelFacadeReferenceShape.Plan.build_resolved(measured, authoring, finalized.contexts, final_sources, selection, theme, over),
+	) {
+		(Err(Shape(LimitExceeded({ attempted: 13, dimension: Glyphs, limit: 12 }))), Err(Shape(LimitExceeded({ attempted: 13, dimension: Glyphs, limit: 12 })))) => True
+		_ => False
+	}
+	check(exact) and budget
+}
+
+# The fresh label occupies run and cluster zero. Every old literal
+# keeps its relative position and moves by exactly one in each arena.
+projection_moves_past_label : KernelFacadeReferenceShape.View, KernelFacadeReferenceShape.View -> Try(Bool, KernelFacadeReferences.Error)
+projection_moves_past_label = |measured, final| {
+	runs = map_literal_runs(measured, final)?
+	for run in measured.store.runs {
+		var $cluster = run.clusters.start()
+		while $cluster < run.clusters.start() + run.clusters.length() {
+			source = { cluster: $cluster, run: run.id.index() }
+			if mapped_cluster(runs, source)? != { cluster: $cluster + 1, run: run.id.index() + 1 } {
+				return Ok(False)
+			}
+			$cluster = $cluster + 1
+		}
+	}
+	in_range = list_at(measured.store.runs, 0).clusters.start()
+	invalid_run = mapped_cluster(runs, { cluster: in_range, run: runs.len() })
+	invalid_cluster = mapped_cluster(runs, { cluster: measured.store.clusters.len(), run: 0 })
+	Ok(invalid_run == Err(InvalidMapping({ item: in_range })) and invalid_cluster == Err(InvalidMapping({ item: measured.store.clusters.len() })))
+}
+
 # Start, center and end align inside distinct reserved slots. The following
 # slot's origin depends on the reserved advance, never the label's width.
 expect {
@@ -684,4 +1069,37 @@ expect {
 	}
 	override and list_at(runs, 0).source.utf8_bytes.length() == 1 and list_at(runs, 1).actual_text == FromOccurrence
 		and view.work.separator_run_visits == runs.len() and view.work.separator_override_writes == 1
+}
+
+# The final accepted pass and its work can use the last permitted unit.
+# A lower limit produces a located failure for the exhausted dimension.
+expect {
+	font = test_font({})?
+	authoring = test_document([Document.plain_text("The destination is on page "), Document.flow_page_reference({ destination: "end" })], [])
+	build = |flow| KernelFacadeReferences.Plan.build(authoring, Single(font), Theme.default, { width: 595, height: 842 }, NoFlowTemplate, { ..test_limits, flow })
+	defaults = KernelFacadeReferences.default_flow_limits
+	accepted = build(defaults)?
+	work = KernelFacadeReferences.Plan.view(accepted).work
+	passes = work.flow_passes
+	comparisons = ((passes - 1) * passes) // 2 + 1
+	layout_work = work.flow_work - comparisons
+	exact = build({ ..defaults, max_passes: passes, max_layout_work: layout_work })?
+	pass_rejected = match build({ ..defaults, max_passes: passes - 1 }) {
+		Err(FlowBudget({ dimension: Passes, limit, reference: 0 })) => limit == passes - 1
+		_ => False
+	}
+	work_rejected = match build({ ..defaults, max_layout_work: layout_work - 1 }) {
+		Err(FlowBudget({ dimension: LayoutWork, limit, reference: 0 })) => limit == layout_work - 1
+		_ => False
+	}
+	view = KernelFacadeReferences.Plan.view(exact)
+	pass_rejected and work_rejected and view.work == work
+		and work.mapping_run_visits == 2
+		and work.shape_metric_reads == "The destination is on page ".count_utf8_bytes() + "Destination".count_utf8_bytes() + work.resolved_label_bytes
+}
+
+expect {
+	reserve_state_units(8, 2, 4) == Ok(0)
+		and reserve_state_units(7, 2, 4) == Err(TooManyStateUnits)
+		and reserve_state_units(U64.highest, U64.highest, 8) == Err(TooManyStateUnits)
 }

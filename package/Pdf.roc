@@ -1,9 +1,14 @@
+import KernelDrawingGroups
+import KernelAssociatedFiles
+import KernelAssociatedObjects
+import KernelWidgetFields
 import Color
 import Conformance
 import Document
 import Font
 import Image
 import KernelLex
+import KernelColumnLayout
 import KernelDeflate
 import KernelEmit
 import KernelBuiltInFonts
@@ -22,6 +27,7 @@ import KernelFacadeFonts
 import KernelFacadeFragments
 import KernelFacadeFailure
 import KernelFacadeFurniture
+import KernelFacadeImages
 import KernelFacadeLabels
 import KernelFacadeLines
 import KernelFacadeOutput
@@ -55,11 +61,11 @@ import Scene
 import Theme
 
 Pdf :: [].{
-	Profile := [AccessibleArchive, Archive, Standard].{
+	Profile := [AccessibleArchive, AccessibleArchiveWithFiles, AccessibleForm, Archive, ArchiveWithFiles, Standard].{
 		is_eq : _
 	}
 
-	## Opt into the WTPDF 1.0 accessibility declaration with AccessibleArchive.
+	## Opt into the WTPDF 1.0 accessibility declaration with an accessible profile.
 	## The package checks the supported output rules on a best-effort basis.
 	WtpdfDeclaration := [DeclareAccessibility, NoWtpdfDeclaration].{
 		is_eq : _
@@ -110,9 +116,12 @@ Pdf :: [].{
 	SourceForeground : Document.SourceForeground
 	SourceTabs : Document.SourceTabs
 	SourceBlockProps : Document.SourceBlockProps
+	SourceBudgets : Document.SourceBudgets
+	ArtifactTextBudgets : Document.ArtifactTextBudgets
 
 	ContentsEntryProps : Document.ContentsEntryProps
 	PageReferenceProps : Document.PageReferenceProps
+	FlowPageReferenceProps : Document.FlowPageReferenceProps
 	PageReferenceNumbering : Document.PageReferenceNumbering
 
 	Inline : Document.Inline
@@ -143,12 +152,23 @@ Pdf :: [].{
 	## One table cell, from `cell` or `header_cell`.
 	Cell : Document.Cell
 
+	## Geometry and paint shared by data and header cells.
+	CellKey : Document.CellKey
+	HeaderAssociations : Document.HeaderAssociations
+	CellProps : Document.CellProps
+	CellAlign : Document.CellAlign
+	CellFill : Document.CellFill
+
+	## A required scope and the header cell's optional layout overrides.
+	HeaderCellProps : Document.HeaderCellProps
+
 	## The cells a header cell heads: the data cells below it in its columns
 	## (`Column`), the data cells of its row (`Row`), or both.
 	Scope : Document.HeaderScope
 
 	## Whether a body row may break across pages at a line boundary
-	## (`SplitRows`) or always moves whole to the next page (`KeepRows`).
+	## (`SplitRows`, or `SplitSpans` for row-spanning cells), or moves whole
+	## to the next page (`KeepRows`).
 	RowSplit : Document.RowSplit
 
 	## The first page's template: header, lead, and footer regions and the
@@ -244,7 +264,7 @@ Pdf :: [].{
 	## column declarations, and its header, body, and footer rows in
 	## logical order. Header and footer rows default to none (a table
 	## still needs a header cell somewhere), and rows are kept whole
-	## (`KeepRows`) unless `row_split` is `SplitRows`.
+	## (`KeepRows`) unless `row_split` chooses a split policy.
 	TableProps := {
 		body_rows : List(Row),
 		caption : Document.Caption,
@@ -381,6 +401,8 @@ Pdf :: [].{
 		obligation : [
 			AlternativeTextMeaningful,
 			AnnotationOrderMeaningful,
+			AttachmentPurposeMeaningful,
+			AttachmentSupplemental,
 			ArtifactClassificationMeaningful,
 			DocumentTitleAccurate,
 			ExpansionAccurate,
@@ -403,6 +425,9 @@ Pdf :: [].{
 	## `report.budget_exceeded` and no prepared document; no entry or
 	## obligation is ever silently omitted.
 	ReportBudget := { max_entries : U64 ?? 65536, max_text_bytes : U64 ?? 4194304 }
+
+	## The document's ordinary preparation options and independent report budget.
+	ReportProps := { options : Options ?? {}, budget : ReportBudget ?? {} }
 
 	## Every facade failure is typed. `InvalidDocument` is a bounded diagnostic
 	## batch and preparation emits no partial bytes on any error.
@@ -446,30 +471,122 @@ Pdf :: [].{
 		}
 	}
 
+	## Capacity limits installed for each preparation. A caller can lower a
+	## limit to constrain the workload or raise it for a larger document.
+	## Related stage limits use the same budget or a checked derived bound.
+	Budgets := {
+		max_content_items : U64 ?? 16384,
+		max_container_depth : U64 ?? 16,
+		max_inline_depth : U64 ?? 8,
+		max_list_depth : U64 ?? 4,
+		max_semantic_depth : U64 ?? 48,
+		max_text_units : U64 ?? 1000000,
+		max_source_script_runs : U64 ?? 2048,
+		max_table_grid_work : U64 ?? 1000000,
+		max_paint_items : U64 ?? 1000000,
+		max_drawing_group_depth : U64 ?? 8,
+		max_objects : U64 ?? 65536,
+		max_content_bytes : U64 ?? 16000000,
+		max_payload_bytes : U64 ?? 16000000,
+		max_destinations : U64 ?? 2048,
+		max_annotations : U64 ?? 4096,
+		max_outline_entries : U64 ?? 4096,
+		max_page_label_ranges : U64 ?? 1024,
+		max_link_quads : U64 ?? 100000,
+		max_uri_bytes : U64 ?? 2048,
+		max_destination_name_bytes : U64 ?? 128,
+		max_bibliography_target_bytes : U64 ?? 64,
+		max_table_key_bytes : U64 ?? 64,
+		max_outline_title_bytes : U64 ?? 1024,
+		max_outline_depth : U64 ?? 32,
+		max_page_label_prefix_bytes : U64 ?? 64,
+		max_reference_page_label_bytes : U64 ?? 128,
+		max_flow_reference_passes : U64 ?? 8,
+		max_flow_reference_state_units : U64 ?? 500000,
+		max_flow_reference_layout_work : U64 ?? 4000000,
+		max_contents_scan_blocks : U64 ?? 32768,
+		max_contents_entries : U64 ?? 4096,
+		max_contents_requests : U64 ?? 16,
+		max_contents_title_overrides : U64 ?? 64,
+		max_font_glyphs : U64 ?? 10000,
+		max_font_mapping_scalars : U64 ?? 1000000,
+		max_font_mappings : U64 ?? 10000,
+		max_font_to_unicode_bytes : U64 ?? 1000000,
+		max_index_entries : U64 ?? 256,
+		max_index_locations : U64 ?? 2048,
+		max_index_targets_per_term : U64 ?? 16,
+		max_index_term_bytes : U64 ?? 256,
+	}.{
+		default : Budgets
+		default = Budgets.{}
+	}
+
+	## Budgets for authored metadata and its canonical XMP serialization.
+	MetadataBudgets := { max_language_bytes : U64 ?? 64, max_title_bytes : U64 ?? 2048, max_xmp_bytes : U64 ?? 16384 }.{
+		default : MetadataBudgets
+		default = MetadataBudgets.{}
+	}
+
+	## Limits for the authored document-level associated-file registry.
+	## The ordinary output object and payload budgets also apply.
+	AttachmentBudgets := {
+		max_files : U64 ?? 128,
+		max_description_bytes : U64 ?? 1024,
+		max_media_type_bytes : U64 ?? 127,
+		max_file_bytes : U64 ?? 4194304,
+		max_total_bytes : U64 ?? 8388608,
+	}.{
+		default : AttachmentBudgets
+		default = AttachmentBudgets.{}
+	}
+
+	## Budgets for fields and their authored identity and visible-label bytes.
+	FormBudgets : KernelWidgetFields.Budgets
+
 	## How a document is prepared: its conformance profile, page size,
-	## theme, fonts, compression, and chunk retention. A transparent record whose
-	## fields all default, so `{}` (or `Pdf.Options.default`) is the
-	## production default and a caller names only what it changes:
+	## theme, fonts, compression, page budget, and chunk retention. All fields
+	## default, so `{}` (or `Pdf.Options.default`) selects the production
+	## defaults and a caller names only what it changes:
 	## `Pdf.to_bytes_with(document, { page_size: Letter, theme, fonts:
 	## Registered(registry) })`.
 	##
 	## `AccessibleArchive` declares PDF/A-4 and PDF/UA-2 by default. `Archive`
-	## declares PDF/A-4. `Standard` writes PDF 2.0 without either declaration.
-	## Request WTPDF accessibility with `wtpdf: DeclareAccessibility`.
+	## declares PDF/A-4. `ArchiveWithFiles` opts into PDF/A-4f and
+	## `AccessibleArchiveWithFiles` adds PDF/UA-2 for supplemental files.
+	## `Standard` writes PDF 2.0 without additional declarations.
+	## Request WTPDF accessibility with `wtpdf: DeclareAccessibility`
+	## on either accessible profile.
 	## These options select the package's best-effort checks and declarations.
-	## `fonts` is the complete public caller-resource boundary: a
+	## The `fonts` option selects the document typography. A
 	## `Registered` registry carries the original immutable font bytes and
 	## the once-produced inspection facts, and the theme selects only the
 	## registry's opaque faces. `compression` trades file size against
 	## generation time (see `Compression`); pass `compression: Smallest` for
 	## the smallest files. Changing a default is a reviewed
 	## package-version change.
+	## `max_pages` defaults to 1024 and sets the page budget for flow,
+	## column, and fixed documents. Other resource budgets apply independently.
+	## Use `budgets` for document-wide preparation and `image_budgets` for
+	## physical image storage and exact image sharing work. `source_budgets`
+	## controls source-block normalization and its retained data.
+	## `artifact_text_budgets` controls furniture and drawing-label text.
+	## `metadata_budgets` controls authored metadata and its XMP packet.
+	## `attachment_budgets` controls the associated-file registry.
+	## `form_budgets` controls the editable field registry.
 	Options := {
+		artifact_text_budgets : ArtifactTextBudgets ?? {},
+		attachment_budgets : AttachmentBudgets ?? {},
+		budgets : Budgets ?? {},
 		chunk_retention : ChunkRetention ?? ShareUnchangedResources,
 		compression : Compression ?? Balanced,
 		fonts : FontSource ?? BuiltIn,
+		form_budgets : FormBudgets ?? {},
+		image_budgets : Image.Budgets ?? {},
+		max_pages : U64 ?? 1024,
+		metadata_budgets : MetadataBudgets ?? {},
 		page_size : PageSize ?? A4,
 		profile : Profile ?? AccessibleArchive,
+		source_budgets : SourceBudgets ?? {},
 		theme : Theme ?? {},
 		wtpdf : WtpdfDeclaration ?? NoWtpdfDeclaration,
 	}.{
@@ -495,12 +612,29 @@ Pdf :: [].{
 		Standard => Conformance.claims_for_profile(Standard)
 		Archive => Conformance.claims_for_profile(Archive)
 		AccessibleArchive => Conformance.claims_for_profile(AccessibleArchive)
+		ArchiveWithFiles => Conformance.claims_for_profile(ArchiveWithFiles)
+		AccessibleArchiveWithFiles => Conformance.claims_for_profile(AccessibleArchiveWithFiles)
+		AccessibleForm => Conformance.claims_for_profile(AccessibleForm)
 	}
+
+	AssociatedFile : Document.AssociatedFile
+	AttachmentRelationship : Document.AttachmentRelationship
+	AttachmentNecessity : Document.AttachmentNecessity
+
+	## Supply opaque files associated with the document as a whole. Select
+	## ArchiveWithFiles or AccessibleArchiveWithFiles at preparation.
+	with_associated_files : Document, List(AssociatedFile) -> Document
+	with_associated_files = |doc, files| Document.with_associated_files(doc, files)
 
 	## Build an automatically paginated document from semantic blocks, with
 	## the navigation, page templates, and timestamps its props name.
 	document : DocumentProps -> Document
 	document = |DocumentProps.{ contents, created, language, modified, outline, page_labels, page_templates, title: input_title }| Document.from_props({ contents, created, language, modified, outline, page_labels, templates: page_templates, title: input_title })
+
+	TextFieldProps : KernelWidgetFields.TextFieldProps
+	InitialTextFieldValue : KernelWidgetFields.InitialText
+	CheckboxProps : KernelWidgetFields.CheckboxProps
+	CheckboxState : KernelWidgetFields.CheckState
 
 	## Build a document whose pages supply their own sizes and text frames.
 	## Placements declare reading order. The page builder can choose a separate
@@ -666,6 +800,12 @@ Pdf :: [].{
 	measure_custom_content : Options, { contents : List(Document.Block), language : Str, width : Layout.Unit } -> Try(Layout.Unit, Error)
 	measure_custom_content = |options, { contents, language, width }| measure_content(options, contents, language, width)
 
+	## Keep an introducing paragraph and an exact-size captioned figure in
+	## one flow frame. They move together to the next frame when necessary.
+	## The paragraph, figure, and caption retain their normal semantic order.
+	anchored_figure : List(Inline), { alt : Str, caption : Str, drawing : Scene.Drawing } -> Document.Block
+	anchored_figure = |anchor, { alt, caption: value, drawing }| Document.anchored_figure(anchor, { alternative: alt, caption: value, drawing })
+
 	## Add an optional visible caption to a figure.
 	caption : Str -> Document.Caption
 	caption = |value| Document.caption(value)
@@ -698,6 +838,28 @@ Pdf :: [].{
 	## Leaders are geometric page decorations, never extracted text.
 	contents_entry : ContentsEntryProps -> Document.Block
 	contents_entry = |props| Document.contents_entry(props)
+
+	## Generate linked TOC entries from anchored headings in the chosen scope.
+	GeneratedContentsProps : Document.GeneratedContentsProps
+
+	generated_contents : GeneratedContentsProps -> Document.Block
+	generated_contents = |props| Document.generated_contents(props)
+
+	## Sort authored terms and link each location to its named destination.
+	BibliographyEntry : Document.BibliographyEntry
+
+	## An ordered section of authored entries. Each target is a document-wide
+	## destination name and can be cited before or after this section.
+	bibliography : List(BibliographyEntry) -> Document.Block
+	bibliography = |entries| Document.bibliography(entries)
+
+	## Inline citation text linked to its authored bibliography entry.
+	citation : { target : Str, text : Str } -> Inline
+	citation = |entry| Document.citation(entry)
+
+	IndexProps : Document.IndexProps
+	index : IndexProps -> Document.Block
+	index = |props| Document.index(props)
 
 	## Plain inline text in the surrounding language and role.
 	text : Str -> Inline
@@ -752,6 +914,8 @@ Pdf :: [].{
 	## identifier; a header cell declares its `Scope`, and a data cell's
 	## `Headers` name the column header cells above it in its columns and
 	## the row header cells of its row, derived from the declared scopes.
+	## A cell can instead choose `Explicit` associations by table-local keys
+	## declared with `Named` on the target cells.
 	##
 	## Column widths resolve once per table (fixed, then content, then
 	## shares). Cells wrap within their columns; header rows repeat at the
@@ -761,10 +925,10 @@ Pdf :: [].{
 	## to the next page and rejects a row taller than a page body as
 	## `layout.oversize_row`; `SplitRows` breaks a row at a line boundary.
 	## `Pdf.keep_together([table])` keeps a whole table on one page.
-	## Each row's column spans must sum to the column count
-	## (`table.grid_mismatch`), a table needs a header cell
-	## (`table.header_missing`), and row spans are not yet supported
-	## (`table.row_span`).
+	## A table needs a header cell and a regularly occupied grid. A cell
+	## may span rows within its header, body or footer group. KeepRows
+	## keeps all body rows connected by a span on the same page. Select
+	## SplitSpans to let body cell text continue with the same owner.
 	table : TableProps -> Document.Block
 	table = |TableProps.{ body_rows, caption: caption_value, columns, footer_rows, header_rows, row_split }| Document.table({ body_rows, caption: caption_value, columns, footer_rows, header_rows, row_split })
 
@@ -784,11 +948,19 @@ Pdf :: [].{
 	cell : List(Inline) -> Cell
 	cell = |contents| Document.cell(contents)
 
+	## Create a data cell with optional span, alignment, fill or header associations.
+	cell_with : List(Inline), CellProps -> Cell
+	cell_with = |contents, props| Document.cell_with(contents, props)
+
 	## A header cell (`TH`) with its declared scope. With no contents it is
 	## an empty header cell, such as the blank corner above a column of row
 	## headers.
 	header_cell : Scope, List(Inline) -> Cell
 	header_cell = |scope, contents| Document.header_cell(scope, contents)
+
+	## Create a header with explicit scope and optional shared cell props.
+	header_cell_with : List(Inline), HeaderCellProps -> Cell
+	header_cell_with = |contents, props| Document.header_cell_with(contents, props)
 
 	## Gate 6-8 authoring shapes are stable before their lowering is enabled.
 	## These constructors retain the authored intent and reject transactionally
@@ -797,6 +969,16 @@ Pdf :: [].{
 	## Reserve a spanning/header-associated table; currently reports `table.complex`.
 	complex_table : Str -> Document.Block
 	complex_table = |summary| Document.unavailable(ComplexTables, summary)
+
+	FootnoteProps : Document.FootnoteProps
+
+	## Declare one short note after the single-column body content.
+	footnote_definition : FootnoteProps -> Document.Block
+	footnote_definition = Document.footnote_definition
+
+	## Place an authored citation label pointing to a declared note.
+	footnote_marker : { id : Str, text : Str } -> Document.Inline
+	footnote_marker = Document.footnote_marker
 
 	## Reserve footnote content; currently reports `document.footnote`.
 	footnote : Str -> Document.Block
@@ -810,9 +992,12 @@ Pdf :: [].{
 	generated_reference : Str -> Document.Block
 	generated_reference = |name| Document.unavailable(GeneratedReferences, name)
 
-	## Reserve a multi-column region; currently reports `layout.multi_column`.
-	multi_column : Str -> Document.Block
-	multi_column = |summary| Document.unavailable(MultiColumnLayout, summary)
+	## Sequential two-column flow with independent widths and a positive gap.
+	## Use this as the only top-level block in a document.
+	ColumnProps : Document.ColumnFlow
+
+	multi_column : ColumnProps -> Document.Block
+	multi_column = |props| Document.columns(props)
 
 	## Reserve custom layout intent; currently reports `layout.custom`.
 	custom_layout : Str -> Document.Block
@@ -919,6 +1104,11 @@ Pdf :: [].{
 	page_reference : PageReferenceProps -> Inline
 	page_reference = |props| Document.page_reference(props)
 
+	## An unbreakable page value whose measured width can change pagination.
+	## Preparation publishes the result only after the layout stabilizes.
+	flow_page_reference : FlowPageReferenceProps -> Inline
+	flow_page_reference = |props| Document.flow_page_reference(props)
+
 	## The physical page count in a number style (furniture only).
 	total_pages : NumberStyle -> Inline
 	total_pages = |style| Document.total_pages(style)
@@ -945,46 +1135,64 @@ Pdf :: [].{
 	## emission. The returned value contains no authoring callbacks or mutable
 	## caches and exposes no PDF object internals.
 	prepare : Document, Options -> Try(Prepared, Error)
-	prepare = |doc, options| {
-		match Document.normalize_fixed(doc, standard_fixed_limits) ? fixed_authoring_error {
+	prepare = |authored, options| {
+		validate_budgets(options)?
+		doc = Document.with_preparation_budgets(authored, { source_budgets: options.source_budgets, max_drawing_group_depth: options.budgets.max_drawing_group_depth })
+		match Document.normalize_fixed(doc, fixed_limits(options)) ? fixed_authoring_error {
 			Flow => {}
 			Fixed(fixed) => {
 				prepared = build_fixed_plan(doc, fixed, options, NoCollect)?
 				return Ok(Prepared.(prepared.plan))
 			}
 		}
-		match Document.first_unavailable(doc) {
+		match Document.normalize_columns(doc) ? column_authoring_error {
+			Ordinary => {}
+			Columns(columns) => {
+				prepared = build_column_plan(doc, columns, options, NoCollect)?
+				return Ok(Prepared.(prepared.plan))
+			}
+		}
+		resolved = Document.resolve_generated_contents_with(doc, generated_contents_limits(options.budgets)) ? generated_contents_error
+		match Document.first_unavailable(resolved) {
 			Available => {}
 			UnavailableFeature({ feature, summary }) => return Err(InvalidDocument(unavailable_batch(feature, summary)))
 		}
-		plan = build_plan(doc, options)?
+		plan = build_plan(resolved, options)?
 		Ok(Prepared.(plan))
 	}
 
-	## Prepare a document exactly as `prepare` does and return the bounded
-	## read-only preparation report beside it (see `Report`), under the
-	## default report budget of 65,536 entries and 4 MiB of text. The
-	## prepared document, and so its bytes, is identical to `prepare`'s.
-	prepare_with_report : Document, Options -> Try({ prepared : Prepared, report : Report }, Error)
-	prepare_with_report = |doc, options| prepare_with_report_budget(doc, { options, budget: default_report_budget })
-
-	## `prepare_with_report` under an explicit report budget.
-	prepare_with_report_budget : Document, { options : Options, budget : ReportBudget } -> Try({ prepared : Prepared, report : Report }, Error)
-	prepare_with_report_budget = |doc, { options, budget }| {
-		match Document.normalize_fixed(doc, standard_fixed_limits) ? fixed_authoring_error {
+	## Prepare a document as `prepare` does and return a bounded, read-only
+	## report beside it. The report budget applies only to inspection.
+	## Successful reporting emits the same bytes as ordinary preparation
+	## with the same document options.
+	prepare_with_report : Document, ReportProps -> Try({ prepared : Prepared, report : Report }, Error)
+	prepare_with_report = |authored, { options, budget }| {
+		validate_budgets(options)?
+		doc = Document.with_preparation_budgets(authored, { source_budgets: options.source_budgets, max_drawing_group_depth: options.budgets.max_drawing_group_depth })
+		match Document.normalize_fixed(doc, fixed_limits(options)) ? fixed_authoring_error {
 			Flow => {}
 			Fixed(fixed) => {
 				{ facts, normalized, plan } = build_fixed_plan(doc, fixed, options, Collect)?
-				report = build_report_at(normalized, facts, budget, options.profile, FixedReportPaths(Document.NormalizedFixed.view(fixed).pages))?
+				view = Document.NormalizedFixed.view(fixed)
+				report = build_report_at(normalized, facts, budget, options.profile, FixedReportPaths({ pages: view.pages, placement_blocks: view.placement_blocks }), Document.associated_files(doc).len())?
 				return Ok({ prepared: Prepared.(plan), report })
 			}
 		}
-		match Document.first_unavailable(doc) {
+		match Document.normalize_columns(doc) ? column_authoring_error {
+			Ordinary => {}
+			Columns(columns) => {
+				{ facts, normalized, plan } = build_column_plan(doc, columns, options, Collect)?
+				report = build_report_at(normalized, facts, budget, options.profile, ColumnReportPaths, Document.associated_files(doc).len())?
+				return Ok({ prepared: Prepared.(plan), report })
+			}
+		}
+		resolved = Document.resolve_generated_contents_with(doc, generated_contents_limits(options.budgets)) ? generated_contents_error
+		match Document.first_unavailable(resolved) {
 			Available => {}
 			UnavailableFeature({ feature, summary }) => return Err(InvalidDocument(unavailable_batch(feature, summary)))
 		}
-		{ facts, normalized, plan } = build_reporting_plan(doc, options)?
-		report = build_report(normalized, facts, budget, options.profile)?
+		{ facts, normalized, plan } = build_reporting_plan(resolved, options)?
+		report = build_report_at(normalized, facts, budget, options.profile, FlowReportPaths, Document.associated_files(doc).len())?
 		Ok({ prepared: Prepared.(plan), report })
 	}
 
@@ -1051,8 +1259,13 @@ fixed_authoring_error = |error| match error {
 		}
 		fixed_error(FeatureUnavailable, "layout.fixed.document_option", "This document option is unavailable for fixed pages.", path)
 	}
-	UnsupportedPlacement({ page, placement }) => fixed_error(FeatureUnavailable, "layout.fixed.block", "A fixed placement accepts a title, numbered heading, paragraph or rich paragraph.", fixed_placement_path(page, placement))
+	UnsupportedPlacement({ page, placement }) => fixed_error(FeatureUnavailable, "layout.fixed.block", "A fixed placement accepts a title, numbered heading, paragraph, rich paragraph or exact-size figure.", fixed_placement_path(page, placement))
+	UnsupportedFigureFit({ page, placement }) => fixed_error(FeatureUnavailable, "layout.fixed.figure_fit", "A fixed figure uses its declared drawing size.", fixed_placement_path(page, placement))
+	UnsupportedFigureLabels({ page, placement }) => fixed_error(FeatureUnavailable, "layout.fixed.figure_labels", "A fixed figure supports vector paths and images. Place its text as a caption or a separate semantic block.", fixed_placement_path(page, placement))
 	UnsupportedInline({ page, placement }) => fixed_error(FeatureUnavailable, "layout.fixed.inline", "Links and generated fields are unavailable in fixed placements.", fixed_placement_path(page, placement))
+	InvalidWidgetLabel({ kind, location }) => fixed_error(InvalidRelationship, widget_feature(kind, "label"), "Use the authored field label as the visible label.", "${widget_path(location)}.label")
+	InvalidCheckboxFrame({ page, placement }) => fixed_error(LayoutConstraintViolated, "form.checkbox.frame", "Leave 266 points across and 24 points high for the checkbox and its visible label on the page.", fixed_placement_path(page, placement))
+	InvalidWidgetFrame({ page, placement }) => fixed_error(LayoutConstraintViolated, "form.text.frame", "Use a widget width from 48 to 1,024 points and leave 48 points in the page for the widget and its label.", fixed_placement_path(page, placement))
 	InvalidFrame({ page, placement }) => fixed_error(LayoutConstraintViolated, "layout.fixed.frame", "The frame needs positive sides and must fit entirely within its page.", "${fixed_placement_path(page, placement)}.frame")
 	PaintOrderLength({ page, actual, expected }) => fixed_error(LayoutConstraintViolated, "layout.fixed.paint_order", "The paint order needs ${expected.to_str()} entries, but it contains ${actual.to_str()}.", "${fixed_page_path(page)}.paint_order")
 	PaintOrderIndex({ page, index, placement }) => fixed_error(LayoutConstraintViolated, "layout.fixed.paint_order", "Paint order entry ${index.to_str()} names placement ${placement.to_str()}, which is outside this page.", "${fixed_page_path(page)}.paint_order[${index.to_str()}]")
@@ -1072,6 +1285,7 @@ fixed_pipeline_error = |error, doc, paths, planned| match error {
 	}
 	Placement(LineTooWide({ page, placement, actual, maximum })) => fixed_error(LayoutConstraintViolated, "layout.fixed.text_width", "A line needs ${signed_points_text(actual.raw())} of width but the frame has ${signed_points_text(maximum.raw())}.", fixed_placement_path(page, placement))
 	Placement(LineBoxesTooTall({ page, placement, actual, maximum })) => fixed_error(LayoutConstraintViolated, "layout.fixed.text_height", "The line boxes need ${points_text(actual)} of height but the frame has ${points_text(maximum)}.", fixed_placement_path(page, placement))
+	Placement(FigureTooLarge({ page, placement, height, width, frame_height, frame_width })) => fixed_error(LayoutConstraintViolated, "layout.fixed.figure_frame", "The figure with its caption needs ${points_text(width)} by ${points_text(height)} in a ${points_text(frame_width)} by ${points_text(frame_height)} frame.", fixed_placement_path(page, placement))
 	Placement(InvalidTextStyle({ page, placement })) => fixed_error(LayoutConstraintViolated, "layout.fixed.text_style", "Use a positive text size and set leading at least as large as the text size for this placement.", fixed_placement_path(page, placement))
 	Placement(PieceLimit({ attempted, limit })) => fixed_error(BudgetExceeded, "layout.fixed.budget", "Fixed text needs ${attempted.to_str()} positioned pieces, but the limit is ${limit.to_str()}.", "pages")
 	Placement(InvalidPlan) => fixed_error(InternalInvariant, "pipeline.fixed.placement", "The fixed layout stage received inconsistent accepted facts.", "pages")
@@ -1082,28 +1296,190 @@ fixed_pipeline_error = |error, doc, paths, planned| match error {
 ## size and body margins do not participate.
 build_fixed_plan : Document, Document.NormalizedFixed, Pdf.Options, KernelFacadeReport.Request -> Try({ facts : [Facts(KernelFacadeReport.Facts), NoFacts], normalized : Document.NormalizedAuthoring, plan : KernelStructure.Plan }, Pdf.Error)
 build_fixed_plan = |doc, fixed, options, request| {
-	claims = validate_profile_request(doc, options)?
-	validate_theme(options.theme)?
+	if options.theme.international_text != OrdinaryText {
+		return Err(fixed_error(FeatureUnavailable, "text.international_surface", "International text uses the single-column flow facade.", "theme.international_text"))
+	}
 	view = Document.NormalizedFixed.view(fixed)
+	widget_request = match view.widget_fields.get(0) {
+		Ok(first) => AuthoredWidgets(first.location)
+		Err(_) => NoAuthoredWidgets
+	}
+	claims = validate_profile_request(doc, options, widget_request)?
+	widgets = match widget_request {
+		NoAuthoredWidgets => NoPreparedWidgets
+		AuthoredWidgets(_) => {
+			# Fixed authoring admits widgets as its only annotations.
+			budgets = options.form_budgets
+			annotation_limited = options.budgets.max_annotations < budgets.max_fields
+			limits = { ..budgets, max_fields: U64.min(budgets.max_fields, options.budgets.max_annotations) }
+			prepared = KernelWidgetFields.prepare(view.widget_fields, limits) ? |error| widget_error(error, annotation_limited)
+			WithPreparedWidgets(prepared)
+		}
+	}
+	validate_theme(options.theme)?
 	authoring = view.authoring
-	path_scope = FixedPaths({ authoring, pages: view.pages })
+	path_scope = FixedPaths({ authoring, pages: view.pages, placement_blocks: view.placement_blocks })
 	validated = KernelMetadata.validate(
 		{ created: Document.created(doc), language: authoring.language, modified: Document.modified(doc), title: authoring.metadata_title },
-		standard_metadata_limits,
+		metadata_limits(options.metadata_budgets),
 	) ? InvalidMetadata
-	xmp = KernelXmp.Packet.build_identified(validated.facts, claims.identification, standard_xmp_bytes) ? |_| InternalGenerationFailure
-	facts = WithDocumentFacts({
-		condition_identifier: KernelMetadata.srgb_condition_identifier,
-		profile: Color.ProfileId.from_index(0),
-		registry_name: KernelMetadata.icc_registry_name,
-		language: validated.facts.language,
-		xmp: KernelXmp.Packet.bytes(xmp),
-	})
-	if options.profile == AccessibleArchive {
+	xmp = build_xmp(validated.facts, claims.identification, options.metadata_budgets)?
+	facts = WithDocumentFacts(
+		KernelMetadata.PlanDocumentFacts.{
+			associated: claims.associated,
+			condition_identifier: KernelMetadata.srgb_condition_identifier,
+			profile: Color.ProfileId.from_index(0),
+			registry_name: KernelMetadata.icc_registry_name,
+			language: validated.facts.language,
+			widgets,
+			xmp: KernelXmp.Packet.bytes(xmp),
+		},
+	)
+	if is_accessible(options.profile) {
 		validate_accessible_authoring_at(authoring, path_scope)?
 	}
 	planned = resolve_font_plan_at(authoring, { options, doc }, path_scope)?
-	pipeline = KernelFacadePipeline.Plan.build_fixed(planned.authoring, fixed, planned.fonts, planned.theme, standard_font_descriptor, facts, request, standard_pipeline_limits) ? |error| fixed_pipeline_error(error, doc, path_scope, planned)
+	pipeline = KernelFacadePipeline.Plan.build_fixed(planned.authoring, fixed, planned.fonts, planned.theme, standard_font_descriptor, facts, request, pipeline_limits(options)) ? |error| fixed_pipeline_error(error, doc, path_scope, planned)
+	output = KernelFacadePipeline.Plan.output(pipeline)
+	_text_work = KernelPdfA4.validate_text(claims.archive, KernelFacadeOutput.Plan.text_facts(output)) ? |violation| InvalidDocument(profile_batch(violation, ProfileValidation))
+	plan = KernelFacadeOutput.Plan.structure(output)
+	validate_lowered_plan(claims, xmp, plan)?
+	Ok({ facts: KernelFacadePipeline.Plan.facts(pipeline), normalized: planned.authoring, plan: KernelStructure.Plan.with_compression(plan, deflate_level(options.compression)) })
+}
+
+index_error : Document.IndexError, U64 -> Pdf.Error
+index_error = |error, position| {
+	location = "contents[${position.to_str()}]"
+	located = |code, message, suffix| fixed_error(code, "document.index", message, location.concat(suffix))
+	match error {
+		Empty => located(InvalidRelationship, "Supply at least one authored index term.", ".entries")
+		CapacityOverflow => located(BudgetExceeded, "The index exceeds representable inline capacity.", ".entries")
+		EntryLimit({ attempted, limit }) => located(BudgetExceeded, "The index has ${attempted.to_str()} terms. The limit is ${limit.to_str()} terms per index.", ".entries")
+		LocationLimit({ attempted, limit }) => located(BudgetExceeded, "This index brings the document to ${attempted.to_str()} locations. The limit is ${limit.to_str()} locations per document.", ".entries")
+		TargetLimit({ attempted, entry, limit }) => located(BudgetExceeded, "The term has ${attempted.to_str()} targets. The limit is ${limit.to_str()} targets per term.", ".entries[${entry.to_str()}].destinations")
+		TermByteLimit({ attempted, entry, limit }) => located(BudgetExceeded, "The term has ${attempted.to_str()} UTF-8 bytes. The limit is ${limit.to_str()} bytes per term.", ".entries[${entry.to_str()}].term")
+		DuplicateTerm(entry) => located(DuplicateIdentity, "The index already contains this exact term. List its targets in one entry.", ".entries[${entry.to_str()}].term")
+		EmptyTerm(entry) => located(InvalidRelationship, "Supply nonempty term text.", ".entries[${entry.to_str()}].term")
+		NoTargets(entry) => located(InvalidRelationship, "An index entry needs at least one destination.", ".entries[${entry.to_str()}].destinations")
+		InvalidTarget({ entry, target }) => located(InvalidRelationship, "An index location needs a nonempty destination name.", ".entries[${entry.to_str()}].destinations[${target.to_str()}]")
+		DuplicateTarget({ entry, target }) => located(DuplicateIdentity, "The term already references this exact destination.", ".entries[${entry.to_str()}].destinations[${target.to_str()}]")
+		InvalidWidth => located(LayoutConstraintViolated, "An index page reference needs a positive reserved width.", ".page_width")
+	}
+}
+
+generated_contents_error : Document.GeneratedContentsError -> Pdf.Error
+generated_contents_error = |problem| {
+	located = |position, code, message, suffix| fixed_error(code, "document.generated_contents", message, "contents[${position.to_str()}]${suffix}")
+	match problem {
+		BlockScanLimit({ limit }) => fixed_error(BudgetExceeded, "document.generated_contents", "Collecting headings exceeded the ${limit.to_str()}-block scan limit.", "contents")
+		EntryLimit({ limit, position }) => located(position, BudgetExceeded, "Generated contents exceeded the ${limit.to_str()}-entry document limit.", "")
+		RequestLimit({ limit, position }) => located(position, BudgetExceeded, "Use at most ${limit.to_str()} generated contents blocks.", "")
+		Indent({ position }) => located(position, LayoutConstraintViolated, "Use a nonnegative representable indentation step.", ".indent_step")
+		InvalidIndex({ error, position }) => index_error(error, position)
+		Selection({ error, position }) => match error {
+			EmptySelection => located(position, InvalidRelationship, "The selected scope and depth contain no anchored headings.", ".scope")
+			InvalidDepth => located(position, InvalidRelationship, "Select a depth from 1 to 6.", ".depth")
+			InvalidHeading(_) => located(position, InvalidRelationship, "A heading in the generated contents scope has a level outside 1–6.", ".scope")
+			MissingScope => located(position, InvalidRelationship, "The scope names a missing heading destination.", ".scope")
+			RepeatedScope => located(position, InvalidRelationship, "The scope name identifies more than one heading.", ".scope")
+			OverrideLimit({ limit }) => located(position, BudgetExceeded, "Use at most ${limit.to_str()} title overrides.", ".overrides")
+			EmptyOverride({ index }) => located(position, InvalidRelationship, "A title override needs a target and a title.", ".overrides[${index.to_str()}]")
+			RepeatedOverride({ index }) => located(position, InvalidRelationship, "An earlier override already names this target.", ".overrides[${index.to_str()}]")
+			UnusedOverride({ index }) => located(position, InvalidRelationship, "The target is outside the selected headings.", ".overrides[${index.to_str()}]")
+		}
+	}
+}
+
+column_block_path : U64 -> Str
+column_block_path = |block| "contents[0].contents[${block.to_str()}]"
+
+column_authoring_error : Document.ColumnError -> Pdf.Error
+column_authoring_error = |error| match error {
+	Empty => fixed_error(InvalidRelationship, "layout.columns.empty", "A column flow needs at least one title or paragraph.", "contents[0].contents")
+	UnsupportedBlock(block) => fixed_error(FeatureUnavailable, "layout.columns.block", "Column flow accepts titles, paragraphs, and a required keep around one paragraph.", column_block_path(block))
+	UnsupportedOption(option) => {
+		path = match option {
+			Outline => "outline"
+			PageLabels => "page_labels"
+			Templates => "page_templates"
+		}
+		fixed_error(FeatureUnavailable, "layout.columns.document_option", "This document option is unavailable for column flow.", path)
+	}
+}
+
+column_geometry_error : KernelColumnLayout.Error, Str -> Pdf.Error
+column_geometry_error = |error, path| match error {
+	InvalidWidth(First) => fixed_error(LayoutConstraintViolated, "layout.columns.width", "The first column needs a positive width.", "contents[0].first")
+	InvalidWidth(Second) => fixed_error(LayoutConstraintViolated, "layout.columns.width", "The second column needs a positive width.", "contents[0].second")
+	InvalidGutter => fixed_error(LayoutConstraintViolated, "layout.columns.gutter", "The gutter needs a positive width.", "contents[0].gutter")
+	ColumnsTooWide({ available, required }) => fixed_error(LayoutConstraintViolated, "layout.columns.width", "The columns and gutter need ${signed_points_text(required)} but the body provides ${signed_points_text(available)}.", path)
+	InvalidBody | GeometryOverflow => fixed_error(LayoutConstraintViolated, "layout.columns.geometry", "The two-column body geometry is outside the valid page range.", path)
+	InvalidLineMetrics => fixed_error(LayoutConstraintViolated, "layout.columns.text_style", "Use a positive leading and size, with leading at least as large as the size.", path)
+	LineTooTall({ available, required }) => fixed_error(LayoutConstraintViolated, "layout.columns.text_height", "The line needs ${signed_points_text(required)} of height but a column provides ${signed_points_text(available)}.", path)
+	PageLimit({ limit }) => fixed_error(BudgetExceeded, "layout.columns.budget", "Column flow exceeds the ${limit.to_str()}-page limit.", path)
+}
+
+column_pipeline_error : KernelFacadePipeline.ColumnError, Document, DiagnosticPaths, { authoring : Document.NormalizedAuthoring, fonts : KernelFacadeShape.FontSelection, theme : Theme } -> Pdf.Error
+column_pipeline_error = |error, doc, paths, planned| match error {
+	Pipeline(problem) => match planned.fonts {
+		Single(_) => pipeline_error_at(problem, doc, paths)
+		Styled(styled) => font_pipeline_error_at(problem, { doc, styled, theme: planned.theme, sources: planned.authoring.sources }, paths)
+		Ordered(ordered) => ordered_pipeline_error_at(problem, ordered.policy, doc, paths)
+	}
+	Placement(Column(problem)) => column_geometry_error(problem, "contents[0]")
+	Placement(ColumnAt({ block, error: problem })) => column_geometry_error(problem, column_block_path(block))
+	Placement(KeepTooTall({ block })) => fixed_error(LayoutConstraintViolated, "layout.columns.keep_conflict", "The kept paragraph cannot fit in an empty column.", column_block_path(block))
+	Placement(LineAt({ block, error: Unbreakable(_) })) => fixed_error(LayoutConstraintViolated, "layout.columns.unbreakable", "An unbreakable part of the source exceeds its column width.", column_block_path(block))
+	Placement(LineAt({ block, error: LimitExceeded({ limit, .. }) })) => fixed_error(BudgetExceeded, "layout.columns.budget", "Column line selection exceeded its work limit of ${limit.to_str()}.", column_block_path(block))
+	Placement(WorkLimit({ limit })) => fixed_error(BudgetExceeded, "layout.columns.budget", "Column line selection exceeded its work limit of ${limit.to_str()}.", "contents[0]")
+	Placement(PieceLimit({ limit })) => fixed_error(BudgetExceeded, "layout.columns.budget", "Column flow exceeded its positioned lines limit of ${limit.to_str()}.", "contents[0]")
+	Placement(InvalidBlock({ block })) | Placement(LineAt({ block, .. })) => fixed_error(InternalInvariant, "pipeline.columns.position", "The column stage received inconsistent source or font facts.", column_block_path(block))
+}
+
+build_column_plan : Document, Document.NormalizedColumns, Pdf.Options, KernelFacadeReport.Request -> Try({ facts : [Facts(KernelFacadeReport.Facts), NoFacts], normalized : Document.NormalizedAuthoring, plan : KernelStructure.Plan }, Pdf.Error)
+build_column_plan = |doc, columns, options, request| {
+	if options.theme.international_text != OrdinaryText {
+		return Err(fixed_error(FeatureUnavailable, "text.international_surface", "International text uses the single-column flow facade.", "theme.international_text"))
+	}
+	if options.theme.latin_shaping == InterLatin {
+		return Err(fixed_error(FeatureUnavailable, "layout.columns.shaping", "Two-column layout uses nominal glyph metrics.", "theme.latin_shaping"))
+	}
+	claims = validate_profile_request(doc, options, NoAuthoredWidgets)?
+	validate_theme(options.theme)?
+	validate_page_size(options.page_size)?
+	validate_body_frame(options.page_size, options.theme)?
+	page = layout_page_size(options.page_size)
+	margin = options.theme.page_margin
+	body = {
+		origin: { x: margin.left, y: margin.bottom },
+		size: {
+			width: Layout.Unit.from_raw(page.width.raw() - margin.left.raw() - margin.right.raw()),
+			height: Layout.Unit.from_raw(page.height.raw() - margin.top.raw() - margin.bottom.raw()),
+		},
+	}
+	authoring = columns.authoring
+	paths = ColumnPaths(authoring)
+	validated = KernelMetadata.validate(
+		{ created: Document.created(doc), language: authoring.language, modified: Document.modified(doc), title: authoring.metadata_title },
+		metadata_limits(options.metadata_budgets),
+	) ? InvalidMetadata
+	xmp = build_xmp(validated.facts, claims.identification, options.metadata_budgets)?
+	facts = WithDocumentFacts(
+		KernelMetadata.PlanDocumentFacts.{
+			associated: claims.associated,
+			condition_identifier: KernelMetadata.srgb_condition_identifier,
+			profile: Color.ProfileId.from_index(0),
+			registry_name: KernelMetadata.icc_registry_name,
+			language: validated.facts.language,
+			xmp: KernelXmp.Packet.bytes(xmp),
+		},
+	)
+	if is_accessible(options.profile) {
+		validate_accessible_authoring_at(authoring, paths)?
+	}
+	planned = resolve_font_plan_at(authoring, { options, doc }, paths)?
+	widths = KernelColumnLayout.Widths.{ first: columns.first, second: columns.second, gutter: columns.gutter }
+	pipeline = KernelFacadePipeline.Plan.build_columns(planned.authoring, { body, kept: columns.kept, page, widths }, planned.fonts, planned.theme, standard_font_descriptor, facts, request, pipeline_limits(options)) ? |error| column_pipeline_error(error, doc, paths, planned)
 	output = KernelFacadePipeline.Plan.output(pipeline)
 	_text_work = KernelPdfA4.validate_text(claims.archive, KernelFacadeOutput.Plan.text_facts(output)) ? |violation| InvalidDocument(profile_batch(violation, ProfileValidation))
 	plan = KernelFacadeOutput.Plan.structure(output)
@@ -1113,7 +1489,7 @@ build_fixed_plan = |doc, fixed, options, request| {
 
 build_plan : Document, Pdf.Options -> Try(KernelStructure.Plan, Pdf.Error)
 build_plan = |doc, options| {
-	claims = validate_profile_request(doc, options)?
+	claims = validate_profile_request(doc, options, NoAuthoredWidgets)?
 	validate_theme(options.theme)?
 	validate_page_size(options.page_size)?
 	validate_body_frame(options.page_size, options.theme)?
@@ -1128,18 +1504,21 @@ build_plan = |doc, options| {
 			modified: Document.modified(doc),
 			title: Document.metadata_title(doc),
 		},
-		standard_metadata_limits,
+		metadata_limits(options.metadata_budgets),
 	) ? InvalidMetadata
-	xmp = KernelXmp.Packet.build_identified(validated.facts, claims.identification, standard_xmp_bytes) ? |_| InternalGenerationFailure
+	xmp = build_xmp(validated.facts, claims.identification, options.metadata_budgets)?
 	if Document.block_count(doc) == 0 and Document.has_templates(doc) {
 		return Err(furniture_error(BodyEmpty))
 	}
 	if Document.block_count(doc) == 0 {
+		page_label = prepare_blank_label(doc, options.budgets)?
 		plan = KernelStructure.build_blank_with_facts(
 			1,
 			structure_page_size(options.page_size),
 			{
+				associated: claims.associated,
 				condition_identifier: KernelMetadata.srgb_condition_identifier,
+				page_label,
 				language: validated.facts.language,
 				profile_bytes: KernelSrgbProfile.bytes,
 				profile_components: 3,
@@ -1147,20 +1526,24 @@ build_plan = |doc, options| {
 				xmp: KernelXmp.Packet.bytes(xmp),
 			},
 		) ? |_| InternalGenerationFailure
+		check_blank_output_budget(plan, options.budgets)?
 		validate_lowered_plan(claims, xmp, plan)?
 		return Ok(KernelStructure.Plan.with_compression(plan, deflate_level(options.compression)))
 	}
-	facts = WithDocumentFacts({
-		condition_identifier: KernelMetadata.srgb_condition_identifier,
-		profile: Color.ProfileId.from_index(0),
-		registry_name: KernelMetadata.icc_registry_name,
-		language: validated.facts.language,
-		xmp: KernelXmp.Packet.bytes(xmp),
-	})
+	facts = WithDocumentFacts(
+		KernelMetadata.PlanDocumentFacts.{
+			associated: claims.associated,
+			condition_identifier: KernelMetadata.srgb_condition_identifier,
+			profile: Color.ProfileId.from_index(0),
+			registry_name: KernelMetadata.icc_registry_name,
+			language: validated.facts.language,
+			xmp: KernelXmp.Packet.bytes(xmp),
+		},
+	)
 	font_page_size = options.page_size
 	font_compression = options.compression
-	authoring = Document.normalize(doc)
-	if options.profile == AccessibleArchive {
+	authoring = normalize_footnote_profile(doc, options.wtpdf)
+	if is_accessible(options.profile) {
 		validate_accessible_authoring(authoring)?
 	}
 	planned = resolve_font_plan(authoring, { options: options, doc: doc })?
@@ -1168,16 +1551,63 @@ build_plan = |doc, options| {
 	font_theme = planned.theme
 	font_sources = planned.authoring.sources
 	normalized = planned.authoring
+	limits = pipeline_limits(options)
 	pipeline = match font_selection {
-		Single(font) => KernelFacadePipeline.Plan.build_with_facts(normalized, font, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| pipeline_error(error, doc)
-		Styled(styled) => KernelFacadePipeline.Plan.build_styled_with_facts(normalized, styled, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| font_pipeline_error(error, { doc: doc, styled: styled, theme: font_theme, sources: font_sources })
-		Ordered(ordered) => KernelFacadePipeline.Plan.build_ordered_with_facts(normalized, ordered, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| ordered_pipeline_error(error, ordered.policy, doc)
+		Single(font) => KernelFacadePipeline.Plan.build_with_facts(normalized, font, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, limits) ? |error| pipeline_error(error, doc)
+		Styled(styled) => KernelFacadePipeline.Plan.build_styled_with_facts(normalized, styled, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, limits) ? |error| font_pipeline_error(error, { doc: doc, styled: styled, theme: font_theme, sources: font_sources })
+		Ordered(ordered) => KernelFacadePipeline.Plan.build_ordered_with_facts(normalized, ordered, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, limits) ? |error| ordered_pipeline_error(error, ordered.policy, doc)
 	}
 	output = KernelFacadePipeline.Plan.output(pipeline)
 	_text_work = KernelPdfA4.validate_text(claims.archive, KernelFacadeOutput.Plan.text_facts(output)) ? |violation| InvalidDocument(profile_batch(violation, ProfileValidation))
 	plan = KernelFacadeOutput.Plan.structure(output)
 	validate_lowered_plan(claims, xmp, plan)?
 	Ok(KernelStructure.Plan.with_compression(plan, deflate_level(font_compression)))
+}
+
+## A blank sheet can carry a label in its catalog. Outline entries
+## require a destination in authored body content.
+prepare_blank_label : Document, Pdf.Budgets -> Try(KernelStructure.BlankPageLabel, Pdf.Error)
+prepare_blank_label = |doc, budgets| {
+	if !Document.outline(doc).is_empty() {
+		return Err(fixed_error(FeatureUnavailable, "document.blank_navigation", "Add body content before authoring an outline.", "outline"))
+	}
+	ranges = Document.page_labels(doc)
+	if ranges.is_empty() {
+		return Ok(NoBlankPageLabel)
+	}
+	labels = KernelNavigation.LabelPlan.build(ranges, 1, navigation_limits(budgets)) ? InvalidNavigation
+	label = match KernelNavigation.LabelPlan.ranges(labels).get(0) {
+		Ok(value) => value
+		Err(_) => crash "validated blank label escaped"
+	}
+	Ok(BlankPageLabel(label))
+}
+
+## The blank shortcut derives its own builder limits. Check the actual
+## sealed object and payload counts against the facade's budgets as well.
+check_blank_output_budget : KernelStructure.Plan, Pdf.Budgets -> Try({}, Pdf.Error)
+check_blank_output_budget = |plan, budgets| {
+	objects = KernelStructure.Plan.object_count(plan)
+	if objects > budgets.max_objects {
+		return Err(stage_error(Output(Structure(TaggedObjects(Object(LimitExceeded({ attempted: objects, dimension: Objects, limit: budgets.max_objects })))))))
+	}
+	payload_bytes = KernelSeal.Plan.source_bytes(KernelStructure.Plan.sealed(plan)).payloads
+	if payload_bytes > budgets.max_payload_bytes {
+		return Err(stage_error(Output(Structure(TaggedObjects(Object(LimitExceeded({ attempted: payload_bytes, dimension: PayloadBytes, limit: budgets.max_payload_bytes })))))))
+	}
+	Ok({})
+}
+
+## The base FENote role and reciprocal Ref apply across profiles. Attach
+## the optional note subtype when the extension that defines it is declared.
+normalize_footnote_profile : Document, Pdf.WtpdfDeclaration -> Document.NormalizedAuthoring
+normalize_footnote_profile = |doc, wtpdf| {
+	authoring = Document.normalize(doc)
+	if !authoring.footnotes.is_empty() and wtpdf == DeclareAccessibility {
+		{ ..authoring, footnote_type: AnnotateFootnoteType }
+	} else {
+		authoring
+	}
 }
 
 ## The author's compression choice becomes the sealed plan's DEFLATE level,
@@ -1199,6 +1629,7 @@ deflate_level = |compression| match compression {
 ## proves a real custom block's fit. No page is laid out.
 measure_content : Pdf.Options, List(Document.Block), Str, Layout.Unit -> Try(Layout.Unit, Pdf.Error)
 measure_content = |options, contents, language, width| {
+	validate_budgets(options)?
 	if width <= 0 {
 		return Err(InvalidDocument(located_batch(LayoutConstraintViolated, "layout.custom_block_measure", "Custom-block content is measured at a positive width.", ["width"])))
 	}
@@ -1207,7 +1638,7 @@ measure_content = |options, contents, language, width| {
 		contents: [Pdf.custom_block({ contents, fragmentation: Unsplittable, inset, name: "measurement", panel: Scene.Drawing.empty.rectangle({ bounds: { origin: { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) }, size: { height: Layout.Unit.from_raw(1), width: Layout.Unit.from_raw(1) } }, color: Color.srgb8({ blue: 0, green: 0, red: 0 }) }), size: { height: Layout.Unit.from_raw(3), width: Layout.Unit.from_raw(width.raw() + 2) } })],
 		language,
 		title: "Custom-block measurement",
-	})
+	}).with_preparation_budgets({ source_budgets: options.source_budgets, max_drawing_group_depth: options.budgets.max_drawing_group_depth })
 	match Document.first_unavailable(probe) {
 		Available => {}
 		UnavailableFeature({ feature, summary }) => return Err(InvalidDocument(unavailable_batch(feature, summary)))
@@ -1215,14 +1646,16 @@ measure_content = |options, contents, language, width| {
 	validate_theme(options.theme)?
 	validate_page_size(options.page_size)?
 	validate_body_frame(options.page_size, options.theme)?
-	validated = KernelMetadata.validate({ created: Document.created(probe), language: Document.language(probe), modified: Document.modified(probe), title: Document.metadata_title(probe) }, standard_metadata_limits) ? InvalidMetadata
-	facts = WithDocumentFacts({
-		condition_identifier: KernelMetadata.srgb_condition_identifier,
-		profile: Color.ProfileId.from_index(0),
-		registry_name: KernelMetadata.icc_registry_name,
-		language: validated.facts.language,
-		xmp: [],
-	})
+	validated = KernelMetadata.validate({ created: Document.created(probe), language: Document.language(probe), modified: Document.modified(probe), title: Document.metadata_title(probe) }, metadata_limits({ max_language_bytes: options.metadata_budgets.max_language_bytes })) ? InvalidMetadata
+	facts = WithDocumentFacts(
+		KernelMetadata.PlanDocumentFacts.{
+			condition_identifier: KernelMetadata.srgb_condition_identifier,
+			profile: Color.ProfileId.from_index(0),
+			registry_name: KernelMetadata.icc_registry_name,
+			language: validated.facts.language,
+			xmp: [],
+		},
+	)
 	measured = |result, on_error| match result {
 		Err(Pages(CustomMeasureShort({ content, .. }))) => Ok(Layout.Unit.from_raw(content.to_i64_wrap()))
 		Err(error) => Err(on_error(error))
@@ -1234,10 +1667,11 @@ measure_content = |options, contents, language, width| {
 	font_theme = planned.theme
 	font_sources = planned.authoring.sources
 	normalized = planned.authoring
+	limits = pipeline_limits(options)
 	match font_selection {
-		Single(single) => measured(KernelFacadePipeline.Plan.build_with_facts(normalized, single, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits), |error| pipeline_error(error, probe))
-		Styled(styled) => measured(KernelFacadePipeline.Plan.build_styled_with_facts(normalized, styled, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits), |error| font_pipeline_error(error, { doc: probe, styled: styled, theme: font_theme, sources: font_sources }))
-		Ordered(ordered) => measured(KernelFacadePipeline.Plan.build_ordered_with_facts(normalized, ordered, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits), |error| ordered_pipeline_error(error, ordered.policy, probe))
+		Single(single) => measured(KernelFacadePipeline.Plan.build_with_facts(normalized, single, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, limits), |error| pipeline_error(error, probe))
+		Styled(styled) => measured(KernelFacadePipeline.Plan.build_styled_with_facts(normalized, styled, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, limits), |error| font_pipeline_error(error, { doc: probe, styled: styled, theme: font_theme, sources: font_sources }))
+		Ordered(ordered) => measured(KernelFacadePipeline.Plan.build_ordered_with_facts(normalized, ordered, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, limits), |error| ordered_pipeline_error(error, ordered.policy, probe))
 	}
 }
 
@@ -1247,7 +1681,7 @@ measure_content = |options, contents, language, width| {
 ## returned for the report's path materialization.
 build_reporting_plan : Document, Pdf.Options -> Try({ facts : [Facts(KernelFacadeReport.Facts), NoFacts], normalized : Document.NormalizedAuthoring, plan : KernelStructure.Plan }, Pdf.Error)
 build_reporting_plan = |doc, options| {
-	claims = validate_profile_request(doc, options)?
+	claims = validate_profile_request(doc, options, NoAuthoredWidgets)?
 	validate_theme(options.theme)?
 	validate_page_size(options.page_size)?
 	validate_body_frame(options.page_size, options.theme)?
@@ -1262,18 +1696,21 @@ build_reporting_plan = |doc, options| {
 			modified: Document.modified(doc),
 			title: Document.metadata_title(doc),
 		},
-		standard_metadata_limits,
+		metadata_limits(options.metadata_budgets),
 	) ? InvalidMetadata
-	xmp = KernelXmp.Packet.build_identified(validated.facts, claims.identification, standard_xmp_bytes) ? |_| InternalGenerationFailure
+	xmp = build_xmp(validated.facts, claims.identification, options.metadata_budgets)?
 	if Document.block_count(doc) == 0 and Document.has_templates(doc) {
 		return Err(furniture_error(BodyEmpty))
 	}
 	if Document.block_count(doc) == 0 {
+		page_label = prepare_blank_label(doc, options.budgets)?
 		plan = KernelStructure.build_blank_with_facts(
 			1,
 			structure_page_size(options.page_size),
 			{
+				associated: claims.associated,
 				condition_identifier: KernelMetadata.srgb_condition_identifier,
+				page_label,
 				language: validated.facts.language,
 				profile_bytes: KernelSrgbProfile.bytes,
 				profile_components: 3,
@@ -1281,20 +1718,24 @@ build_reporting_plan = |doc, options| {
 				xmp: KernelXmp.Packet.bytes(xmp),
 			},
 		) ? |_| InternalGenerationFailure
+		check_blank_output_budget(plan, options.budgets)?
 		validate_lowered_plan(claims, xmp, plan)?
 		return Ok({ facts: NoFacts, normalized: Document.normalize(doc), plan: KernelStructure.Plan.with_compression(plan, deflate_level(options.compression)) })
 	}
-	facts = WithDocumentFacts({
-		condition_identifier: KernelMetadata.srgb_condition_identifier,
-		profile: Color.ProfileId.from_index(0),
-		registry_name: KernelMetadata.icc_registry_name,
-		language: validated.facts.language,
-		xmp: KernelXmp.Packet.bytes(xmp),
-	})
+	facts = WithDocumentFacts(
+		KernelMetadata.PlanDocumentFacts.{
+			associated: claims.associated,
+			condition_identifier: KernelMetadata.srgb_condition_identifier,
+			profile: Color.ProfileId.from_index(0),
+			registry_name: KernelMetadata.icc_registry_name,
+			language: validated.facts.language,
+			xmp: KernelXmp.Packet.bytes(xmp),
+		},
+	)
 	font_page_size = options.page_size
 	font_compression = options.compression
-	authoring = Document.normalize(doc)
-	if options.profile == AccessibleArchive {
+	authoring = normalize_footnote_profile(doc, options.wtpdf)
+	if is_accessible(options.profile) {
 		validate_accessible_authoring(authoring)?
 	}
 	planned = resolve_font_plan(authoring, { options: options, doc: doc })?
@@ -1302,10 +1743,11 @@ build_reporting_plan = |doc, options| {
 	font_theme = planned.theme
 	font_sources = planned.authoring.sources
 	normalized = planned.authoring
+	limits = pipeline_limits(options)
 	pipeline = match font_selection {
-		Single(font) => KernelFacadePipeline.Plan.build_reporting(normalized, font, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| pipeline_error(error, doc)
-		Styled(styled) => KernelFacadePipeline.Plan.build_styled_reporting(normalized, styled, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| font_pipeline_error(error, { doc: doc, styled: styled, theme: font_theme, sources: font_sources })
-		Ordered(ordered) => KernelFacadePipeline.Plan.build_ordered_reporting(normalized, ordered, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, standard_pipeline_limits) ? |error| ordered_pipeline_error(error, ordered.policy, doc)
+		Single(font) => KernelFacadePipeline.Plan.build_reporting(normalized, font, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, limits) ? |error| pipeline_error(error, doc)
+		Styled(styled) => KernelFacadePipeline.Plan.build_styled_reporting(normalized, styled, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, limits) ? |error| font_pipeline_error(error, { doc: doc, styled: styled, theme: font_theme, sources: font_sources })
+		Ordered(ordered) => KernelFacadePipeline.Plan.build_ordered_reporting(normalized, ordered, font_theme, layout_page_size(font_page_size), standard_font_descriptor, facts, limits) ? |error| ordered_pipeline_error(error, ordered.policy, doc)
 	}
 	output = KernelFacadePipeline.Plan.output(pipeline)
 	_text_work = KernelPdfA4.validate_text(claims.archive, KernelFacadeOutput.Plan.text_facts(output)) ? |violation| InvalidDocument(profile_batch(violation, ProfileValidation))
@@ -1322,9 +1764,15 @@ validate_lowered_plan = |claims, packet, plan| {
 	if KernelXmp.Packet.identification(packet) != claims.identification {
 		return Err(InternalGenerationFailure)
 	}
-	_work = KernelPdfA4.validate_lowered(claims.archive, { packet, root: KernelStructure.Plan.root(plan), sealed: KernelStructure.Plan.sealed(plan) }) ? |violation| InvalidDocument(profile_batch(violation, LoweredPlanValidation))
+	input = { packet, root: KernelStructure.Plan.root(plan), sealed: KernelStructure.Plan.sealed(plan) }
+	_work = (
+		match claims.archive {
+			InteractivePdfA4Claim => KernelPdfA4.validate_widgets_lowered(claims.archive, input, KernelStructure.Plan.widget_evidence(plan))
+			_ => KernelPdfA4.validate_associated_lowered(claims.archive, input, KernelStructure.Plan.association_ownership(plan))
+		}
+	) ? |violation| InvalidDocument(profile_batch(violation, LoweredPlanValidation))
 	match claims.identification {
-		AccessibleArchiveIdentification | AccessibleArchiveWithWtpdf => KernelPdfUa2.validate_lowered(KernelStructure.Plan.sealed(plan), KernelStructure.Plan.root(plan)).map_err(|violation| InvalidDocument(accessibility_plan_batch(violation)))
+		AccessibleArchiveIdentification | AccessibleArchiveWithWtpdf | AccessibleArchiveWithFilesIdentification | AccessibleArchiveWithFilesAndWtpdf => KernelPdfUa2.validate_lowered(KernelStructure.Plan.sealed(plan), KernelStructure.Plan.root(plan)).map_err(|violation| InvalidDocument(accessibility_plan_batch(violation)))
 		_ => Ok({})
 	}
 }
@@ -1677,6 +2125,9 @@ ordered_pipeline_error_at = |error, policy, doc, paths| match error {
 	_ => pipeline_error_at(error, doc, paths)
 }
 
+page_limit_error : Document, U64, U64 -> Pdf.Error
+page_limit_error = |doc, attempted, limit| located_error(doc, BudgetExceeded, "document.content_limit", "Layout reached page ${attempted.to_str()}. The configured page limit is ${limit.to_str()}.", [])
+
 ## Author-facing navigation rejections surface with their exact typed cause;
 ## every other pipeline failure keeps the authored-content error.
 ## Container rejections name the container's authored block path. The
@@ -1691,10 +2142,23 @@ pipeline_error_at = |error, doc, paths| match error {
 	Fragments(Navigation(navigation)) => InvalidNavigation(navigation)
 	Output(Structure(Navigation(navigation))) => InvalidNavigation(navigation)
 	Semantics(ContainerDepthExceeded({ attempted, group, limit })) => InvalidDocument(container_batch(BudgetExceeded, "semantics.container_depth", "A container is nested ${attempted.to_str()} levels deep; the facade accepts at most ${limit.to_str()} nested part, section, and division levels.", group_path(Document.normalize(doc).groups, group)))
+	Semantics(BibliographyEntryLimit({ attempted, block, limit })) => located_error(doc, BudgetExceeded, "bibliography.target_limit", "This entry target uses ${attempted.to_str()} UTF-8 bytes. The bibliography target limit is ${limit.to_str()}.", [bibliography_entry_path(Document.normalize(doc), block)])
+	Semantics(BibliographyCitationLimit({ attempted, block, inline, limit })) => inline_error_at(doc, paths, block, AtInline(inline), BudgetExceeded, "bibliography.target_limit", "This citation target uses ${attempted.to_str()} UTF-8 bytes. The bibliography target limit is ${limit.to_str()}.")
+	Semantics(BibliographyEmpty({ group })) => InvalidDocument(container_batch(InvalidRelationship, "bibliography.empty", "A bibliography needs at least one entry.", group_path(Document.normalize(doc).groups, group)))
+	Semantics(BibliographyEntry({ block, reason })) => located_error(doc, InvalidRelationship, "bibliography.entry", reason, [bibliography_entry_path(Document.normalize(doc), block)])
+	Semantics(BibliographyCitation({ block, inline, reason })) => inline_error_at(doc, paths, block, AtInline(inline), InvalidRelationship, "bibliography.citation", reason)
 	Semantics(EmptyContainer({ group })) => InvalidDocument(container_batch(InvalidRelationship, "semantics.empty_container", "A part, section, or division contains no semantic block; it would become an empty grouping element.", group_path(Document.normalize(doc).groups, group)))
 	Semantics(HeadingSkip({ block, previous })) => located_error(doc, InvalidRelationship, "semantics.heading_skip", "A heading is more than one level deeper than the heading before it; heading levels must not skip a level.", [diagnostic_leaf_path(doc, paths, previous), diagnostic_leaf_path(doc, paths, block)])
 	Semantics(FigureAlternativeEmpty({ block })) => located_error(doc, InvalidRelationship, "document.figure_alternative_empty", "A figure's alternative text is empty; every figure needs alternative text that conveys what it communicates.", [diagnostic_leaf_path(doc, paths, block)])
 	Semantics(FigureCaptionEmpty({ block })) => located_error(doc, InvalidRelationship, "document.figure_caption_empty", "A figure caption is empty; use no_caption for a figure without a visible caption.", [diagnostic_leaf_path(doc, paths, block)])
+	Semantics(DrawingGroupDepth({ drawing, depth })) => {
+		path = match drawing {
+			FigureAt(block) => "${diagnostic_leaf_path(doc, paths, block)}.drawing"
+			DecorationAt(index) => "${flow_item_path(doc, DecorationItem(index))}.drawing"
+			PanelAt(index) => "${custom_path(doc, index)}.panel"
+		}
+		located_error(doc, BudgetExceeded, "document.drawing_group_depth", drawing_depth_message(depth), [drawing_depth_path(path, depth)])
+	}
 	Semantics(FigureDrawing({ block, reason })) => located_error(doc, InvalidRelationship, "document.figure_drawing", "A figure's drawing is not a supported flow drawing: ${reason}.", [diagnostic_leaf_path(doc, paths, block)])
 	Semantics(FigureFitInvalid({ block })) => located_error(doc, InvalidRelationship, "document.figure_fit", "A ScaleToFit floor is above 100 percent; a figure is never enlarged.", [diagnostic_leaf_path(doc, paths, block)])
 	Semantics(DecorationDrawing({ decoration, reason })) => flow_item_error(doc, DecorationItem(decoration), InvalidRelationship, "layout.decoration_drawing", "A decoration's drawing is not a supported flow drawing: ${reason}.")
@@ -1712,24 +2176,68 @@ pipeline_error_at = |error, doc, paths| match error {
 	Pages(DecorationOversize({ decoration, frame_height, frame_width, height, width })) => flow_item_error(doc, DecorationItem(decoration), LayoutConstraintViolated, "layout.oversize_block", "A decoration is ${points_text(width)} wide and ${points_text(height)} tall, but the flow region is ${points_text(frame_width)} wide and at most ${points_text(frame_height)} tall; a decoration is never clipped or shrunk.")
 	Semantics(EmptyRichParagraph({ block })) => inline_error_at(doc, paths, block, NoInline, InvalidRelationship, "semantics.inline_empty", "A rich paragraph contains no text.")
 	Semantics(TableCellEmpty({ block })) => located_error(doc, InvalidRelationship, "table.cell_empty", "A table cell's content holds no text; write an empty cell as Pdf.cell([]).", [diagnostic_leaf_path(doc, paths, block)])
+	Semantics(TableCellKeyLimit({ attempted, block, limit })) => located_error(doc, BudgetExceeded, "table.cell_key_limit", "This cell key uses ${attempted.to_str()} UTF-8 bytes. The table key limit is ${limit.to_str()}.", [diagnostic_leaf_path(doc, paths, block)])
+	Semantics(TableHeaderTargetLimit({ attempted, block, limit })) => located_error(doc, BudgetExceeded, "table.header_target_limit", "This explicit header key uses ${attempted.to_str()} UTF-8 bytes. The table key limit is ${limit.to_str()}.", [diagnostic_leaf_path(doc, paths, block)])
+	Semantics(TableCellKey({ block, reason })) => {
+		summary = match reason {
+			DuplicateKey => "Another cell in this table declares the same key."
+			InvalidKey => "A cell key must be nonempty and use only ASCII letters, digits, hyphens, periods or underscores."
+		}
+		located_error(doc, InvalidRelationship, "table.cell_key", summary, [diagnostic_leaf_path(doc, paths, block)])
+	}
+	Semantics(TableHeaderTargets({ block, reason })) => {
+		summary = match reason {
+			DataTarget => "A cell's explicit header key names a data cell."
+			DuplicateTarget => "A cell's explicit header list names the same header twice."
+			EmptyTargets => "An explicit header list needs at least one header key."
+			ForwardTarget => "A header cell's explicit header keys must name earlier header cells."
+			InvalidTarget => "A header key must be nonempty and use only ASCII letters, digits, hyphens, periods or underscores."
+			UnknownTarget => "A cell's explicit header key names no cell in this table."
+		}
+		located_error(doc, InvalidRelationship, "table.header_targets", summary, [diagnostic_leaf_path(doc, paths, block)])
+	}
 	Semantics(TableEmpty({ group })) => group_error(doc, group, InvalidRelationship, "table.empty", "A table needs at least one column, one body row, and one cell with content.")
 	Semantics(TableGridMismatch({ columns, group, spanned })) => group_error(doc, group, InvalidRelationship, "table.grid_mismatch", "A table row spans ${spanned.to_str()} columns but the table declares ${columns.to_str()}; every row's column spans must sum to the column count and each span must be at least one.")
 	Semantics(TableHeaderMissing({ group })) => group_error(doc, group, InvalidRelationship, "table.header_missing", "A table declares no header cell; at least one cell must be a header_cell with a declared scope.")
-	Semantics(TableRowSpan({ block })) => located_error(doc, FeatureUnavailable, "table.row_span", "A table cell spans rows; row spans are scheduled for Gate 8 and only column spans are supported.", [diagnostic_leaf_path(doc, paths, block)])
+	Semantics(TableSpan(CellExtent({ block, reason }))) => {
+		summary = match reason {
+			ColumnEnd => "The cell extends past the end of its row."
+			ColumnOccupied => "The cell's column span overlaps a cell spanning into this row."
+			RowGroupEnd => "The cell's row span extends beyond its header, body or footer row group."
+			ZeroColumns => "A table cell must cover at least one column."
+			ZeroRows => "A table cell must cover at least one row."
+		}
+		located_error(doc, InvalidRelationship, "table.span_extent", summary, [diagnostic_leaf_path(doc, paths, block)])
+	}
+	Semantics(TableSpan(RowGap({ column, group }))) => group_error(
+		doc,
+		group,
+		InvalidRelationship,
+		"table.grid_gap",
+		"A table row leaves column ${(column + 1).to_str()} unoccupied.",
+	)
+	Semantics(TableSpan(TrackBudget({ group, limit }))) => group_error(doc, group, BudgetExceeded, "table.grid_limit", "The spanning table needs more than ${limit.to_str()} occupied tracks and row tiles.")
+	Semantics(TableSpanPolicy({ group })) => group_error(doc, group, InvalidRelationship, "table.span_policy", "SplitRows applies only to tables whose cells each cover one row. Select KeepRows or SplitSpans for a table with row spans.")
 	Semantics(BlockLimitExceeded({ attempted, block, dimension, limit })) => located_error(
 		doc,
 		BudgetExceeded,
 		"document.content_limit",
 		"The document needs ${attempted.to_str()} ${dimension_name(dimension)} but the facade accepts at most ${limit.to_str()}.",
 		match paths {
-			FlowPaths => if (block < Document.normalize(doc).blocks.len()) [member_path(doc, Document.normalize(doc), block)] else []
-			FixedPaths(fixed) => if (block < fixed.authoring.blocks.len()) [fixed_block_path(fixed.pages, block)] else []
+			FlowPaths => {
+				normalized = Document.normalize(doc)
+				if (block < normalized.blocks.len()) [member_path(normalized, block)] else []
+			}
+			FixedPaths(fixed) => if (block < fixed.authoring.blocks.len()) [fixed_block_path(fixed.pages, fixed.placement_blocks, block)] else []
+			ColumnPaths(authoring) => if (block < authoring.blocks.len()) [column_block_path(block)] else []
 		},
 	)
-	Lines(Tables(TableWidth({ available, group, required }))) => group_error(doc, group, LayoutConstraintViolated, "layout.table_width", "A table's fixed column widths and column minimums need ${points_text(required)} but the table has ${points_text(available)}; content is never shrunk or clipped.")
+	Lines(Tables(TableWidth({ available, group, required }))) => group_error(doc, group, LayoutConstraintViolated, "layout.table_width", "A table's fixed column widths and column minimums need ${wide_points_text(required)} but the table has ${points_text(available)}; content is never shrunk or clipped.")
+	Lines(InternationalUnbreakable({ block, available })) => located_error(doc, LayoutConstraintViolated, "layout.international_unbreakable", "The unbreakable segment does not fit its ${signed_points_text(available.raw())} frame.", [diagnostic_leaf_path(doc, paths, block)])
 	Lines(Tables(UnbreakableToken({ available, block, token, width }))) => located_error(doc, LayoutConstraintViolated, "layout.unbreakable_token", "A table cell holds text with no break opportunity (scalars ${token.start().to_str()} to ${(token.start() + token.length()).to_str()}) that is ${points_text(width)} wide, but its column gives it at most ${points_text(available)}; there is no emergency breaking.", [diagnostic_leaf_path(doc, paths, block)])
 	Lines(Tables(UnbreakableItems({ available, block, items, width }))) => located_error(doc, LayoutConstraintViolated, "layout.unbreakable_reference_items", "A table cell has an unbreakable measured item span ${items.start().to_str()} to ${(items.start() + items.length()).to_str()} of width ${points_text(width)}, but its columns provide ${points_text(available)}.", [diagnostic_leaf_path(doc, paths, block)])
 	Pages(TableLayout({ error: LeadOverflow({ available, required }), groups: _, units: _ })) => lead_overflow_error(available, required)
+	Pages(TableLayout({ error: LimitExceeded({ attempted, dimension: Pages, limit }), .. })) => page_limit_error(doc, attempted, limit)
 	Pages(TableLayout({ error: layout_error, groups: sources, units })) => table_layout_error(doc, layout_error, sources, units)
 	Pages(TableRuleWidth({ gap, rule, width })) => {
 		name = match rule {
@@ -1750,6 +2258,7 @@ pipeline_error_at = |error, doc, paths| match error {
 	Semantics(NestedLink({ block, inline })) => inline_error_at(doc, paths, block, AtInline(inline), InvalidRelationship, "semantics.nested_link", "A link contains another link.")
 	Semantics(InlineDepthExceeded({ attempted, block, inline, limit })) => inline_error_at(doc, paths, block, AtInline(inline), BudgetExceeded, "semantics.inline_depth", "An inline element is nested ${attempted.to_str()} levels deep; rich paragraphs accept at most ${limit.to_str()} nested inline elements.")
 	Semantics(InvalidInlineLanguage({ block, inline })) => inline_error_at(doc, paths, block, AtInline(inline), InvalidLanguage, "semantics.language_tag", "An in_language tag has invalid BCP 47 structure.")
+	Semantics(InvalidInlineUri({ block, error: UriTooLong({ attempted, limit, .. }), inline })) => inline_error_at(doc, paths, block, AtInline(inline), BudgetExceeded, "semantics.link_uri", "The inline link URI uses ${attempted.to_str()} bytes and the configured limit is ${limit.to_str()}.")
 	Semantics(InvalidInlineUri({ block, error: uri_error, inline })) => inline_error_at(doc, paths, block, AtInline(inline), InvalidRelationship, "semantics.link_uri", "An inline link URI is not a valid absolute URI (${uri_problem(uri_error)}).")
 	Shape(UnsupportedInlineScript({ block, inline, script })) => inline_error_at(doc, paths, block, AtInline(inline), FontCoverageMissing, "text.unsupported_script", "Inline text uses the script ${script}, which the convenience text path does not shape.")
 	Shape(InlineClusterBoundary({ block, inline })) => inline_error_at(doc, paths, block, AtInline(inline), FontCoverageMissing, "text.unsupported_cluster", "An inline boundary falls inside a multi-scalar grapheme cluster, which the convenience shaper does not support.")
@@ -1764,7 +2273,15 @@ pipeline_error_at = |error, doc, paths| match error {
 		ForegroundColor({ range, byte }) => source_error(doc, source, FeatureUnavailable, "source.foreground_color", "Foreground range ${range.to_str()} at original UTF-8 byte ${byte.to_str()} needs supported sRGB RGB channels. Supply a hex colour, Color.srgb8, or Color.srgb16; unsupported channel models are never converted.")
 		ForegroundRange({ range, byte, reason }) => source_error(doc, source, InvalidRelationship, "source.foreground_range", "Foreground range ${range.to_str()} at original UTF-8 byte ${byte.to_str()} is invalid (${Str.inspect(reason)}). Supply sorted, nonempty, non-overlapping ranges at original grapheme boundaries.")
 		InvalidTabWidth => source_error(doc, source, InvalidRelationship, "source.tab_width", "A source tab stop must be greater than zero.")
-		LimitExceeded(_) => source_error(doc, source, BudgetExceeded, "source.budget", "Source preparation exceeded its explicit input, output, logical-line, or foreground-range budget.")
+		LimitExceeded({ attempted, dimension, limit }) => {
+			units = match dimension {
+				InputBytes => "input UTF-8 bytes in the source block"
+				OutputBytes => "normalized UTF-8 bytes across all source blocks"
+				Lines => "logical lines across all source blocks"
+				Foregrounds => "foreground ranges across all source blocks"
+			}
+			source_error(doc, source, BudgetExceeded, "source.budget", "Source preparation needs at least ${attempted.to_str()} ${units}. The configured limit is ${limit.to_str()}.")
+		}
 	}
 	Semantics(CalloutStyle({ group })) => group_error(doc, group, LayoutConstraintViolated, "layout.callout_style", "A callout needs a name, nonnegative padding, a fill or border, and any border must be positive and no wider than its padding; callouts cannot appear in the lead region.")
 	Semantics(CalloutContent({ group })) => group_error(doc, group, InvalidRelationship, "semantics.callout_content", "A callout holds paragraphs, lists, source blocks, figures, tables, and nested callouts.")
@@ -1790,9 +2307,12 @@ pipeline_error_at = |error, doc, paths| match error {
 	Lines(LabelTooWide({ available, block, width })) => label_width_error(doc, block, width, available)
 	Pages(PageBreakPosition({ page_break })) => flow_item_error(doc, PageBreakItem(page_break), LayoutConstraintViolated, "layout.page_break_position", "A page break must separate two flow blocks; a break first, last, or directly after another would produce an empty page.")
 	Pages(PageLayout(KeepConflict(conflict))) => keep_conflict_error(doc, conflict)
+	Pages(PageLayout(NoteTooTall({ available, block, required }))) => located_error(doc, LayoutConstraintViolated, "document.footnote.fit", "The first citation and its whole note need ${points_text(required)} but the page body has ${points_text(available)}.", [diagnostic_leaf_path(doc, paths, block)])
 	Pages(PageLayout(Oversize({ available, block, required }))) => oversize_error(doc, block, required, available)
-	Pages(PageLayout(LimitExceeded({ attempted, dimension: Pages, limit }))) => located_error(doc, BudgetExceeded, "document.content_limit", "The document needs ${attempted.to_str()} pages but the facade accepts at most ${limit.to_str()}.", [])
+	Pages(PageLayout(LimitExceeded({ attempted, dimension: Pages, limit }))) => page_limit_error(doc, attempted, limit)
 	Pages(PageLayout(LeadOverflow({ available, required }))) => lead_overflow_error(available, required)
+
+	Semantics(Footnote({ block, inline, feature, message })) => inline_error_at(doc, paths, block, inline, InvalidRelationship, "document.footnote.${feature}", message)
 	Semantics(PageReference({ block, inline, reason })) => inline_error_at(doc, paths, block, AtInline(inline), InvalidRelationship, "document.page_reference", reason)
 	Semantics(ContentsEntry({ block, reason })) => located_error(doc, InvalidRelationship, "document.contents_entry", reason, [diagnostic_leaf_path(doc, paths, block)])
 	Semantics(FurnitureInline({ block, inline })) => inline_error_at(doc, paths, block, AtInline(inline), FeatureUnavailable, "document.generated_reference", "Page-number, page-label, total-page and running-label fields belong in page furniture. Use page_reference for a fixed-width destination reference in body content.")
@@ -1804,6 +2324,33 @@ pipeline_error_at = |error, doc, paths| match error {
 	Semantics(EmptyLanguage) => located_error(doc, InvalidLanguage, "document.language_empty", "The document language is empty; it must be a BCP 47 language tag.", [])
 	Semantics(EmptyMetadataTitle) => located_error(doc, InvalidRelationship, "document.title_empty", "The document's metadata title is empty.", [])
 	Shape(UnsupportedThemeFace({ block, face })) => located_error(doc, FeatureUnavailable, "text.theme_face", "A block's style selects face ${face.to_str()}, which is not one of the faces this document's font selection prepared.", [diagnostic_leaf_path(doc, paths, block)])
+	Shape(InternationalPolicy(problem)) => fixed_error(FeatureUnavailable, "text.international_policy", "The international text policy could not use the selected faces (${Str.inspect(problem)}).", "theme.font_selection")
+	Shape(InternationalThaiDictionary(cause)) => fixed_error(FeatureUnavailable, "text.thai_dictionary", "The Thai line-break dictionary was rejected (${Str.inspect(cause)}).", "theme.international_text")
+	Shape(InternationalThaiSource({ block, cause })) => located_error(doc, FeatureUnavailable, "text.thai_tailoring", "Thai line break preparation failed (${Str.inspect(cause)}).", [diagnostic_leaf_path(doc, paths, block)])
+	Shape(InternationalSurface) => fixed_error(FeatureUnavailable, "text.international_surface", "International text cannot share this document with source blocks or layout-dependent references.", "theme.international_text")
+	Shape(InternationalShape({ block, cause })) => {
+		path = [diagnostic_leaf_path(doc, paths, block)]
+		match cause {
+			Coverage({ cause: NoCoverage({ scalar, scalar_index }), .. }) => located_error(doc, FontCoverageMissing, "text.international_coverage", "No selected face covers the grapheme beginning with U+${scalar_hex(scalar)} at scalar ${scalar_index.to_str()}.", path)
+			LimitExceeded(_) | Shape({ cause: GlyphLimit(_), .. }) | Shape({ cause: ShapeBudget(_), .. }) => located_error(doc, BudgetExceeded, "text.international_budget", "International text exceeded its shaping or layout budget.", path)
+			Paragraph({ cause: UnsupportedControl({ scalar, scalar_index }), .. }) => located_error(doc, FeatureUnavailable, "text.international_control", "The selected repertoire excludes bidi control U+${scalar_hex(scalar)} at scalar ${scalar_index.to_str()}.", path)
+			Paragraph({ cause: UnsupportedLanguage({ scalar_index, script }), .. }) => located_error(doc, FeatureUnavailable, "text.international_language", "The effective language for script ${script} at scalar ${scalar_index.to_str()} is outside the selected repertoire.", path)
+			Paragraph({ cause: UnsupportedJoiningBoundary({ scalar_index }), .. }) => located_error(doc, FeatureUnavailable, "text.international_joining_boundary", "An inline boundary splits an Arabic joining word at scalar ${scalar_index.to_str()}.", path)
+			Paragraph({ cause: UnsupportedCluster({ scalar_index }), .. }) => located_error(doc, FeatureUnavailable, "text.international_cluster", "The selected repertoire excludes the grapheme at scalar ${scalar_index.to_str()}.", path)
+			Paragraph({ cause: UnsupportedScript({ script, scalar_index }), .. }) => located_error(doc, FeatureUnavailable, "text.international_script", "The selected repertoire excludes script ${script} at scalar ${scalar_index.to_str()}.", path)
+			Paragraph({ cause: UnsupportedScalar({ scalar, scalar_index }), .. }) => located_error(doc, FeatureUnavailable, "text.international_scalar", "The selected repertoire excludes U+${scalar_hex(scalar)} at scalar ${scalar_index.to_str()}.", path)
+			_ => located_error(doc, FeatureUnavailable, "text.international_shape", "The paragraph could not be prepared by the international text policy (${Str.inspect(cause)}).", path)
+		}
+	}
+	Shape(LatinShaping({ block, reason })) => {
+		path = [diagnostic_leaf_path(doc, paths, block)]
+		match reason {
+			ShapeBudget(_) => located_error(doc, BudgetExceeded, "text.latin_shaping_budget", "Inter Latin shaping exceeded its checked work budget.", path)
+			SourceBudget({ scalars, limit }) => located_error(doc, BudgetExceeded, "text.latin_shaping_budget", "The Inter Latin paragraph has ${scalars.to_str()} scalars and exceeds the ${limit.to_str()}-scalar limit.", path)
+			MissingGlyph({ byte }) => located_error(doc, FontCoverageMissing, "text.latin_shaping_glyph", "Inter Latin shaping reported a missing glyph at UTF-8 byte ${byte.to_str()}.", path)
+			_ => located_error(doc, FeatureUnavailable, "text.latin_shaping", "The selected Inter Latin run could not be shaped (${Str.inspect(reason)}).", path)
+		}
+	}
 	Shape(ShapeFailure) => located_error(doc, FontCoverageMissing, "text.shaping_failed", "The selected faces could not shape the document's text, and no single text run was identified as the cause; no face is substituted.", [])
 	Scenes(UnsupportedColor({ run })) => located_error(doc, FeatureUnavailable, "color.unsupported", "Text run ${run.to_str()} is painted in a color the selected profile's output intent cannot represent; no color is converted.", [])
 	Output(Images(image)) => image_error(image)
@@ -1868,8 +2415,8 @@ custom_path = |doc, custom| {
 ## An image resource whose data does not match its declaration (a packed
 ## plane of the wrong length or row stride, dimensions out of range, a JPEG
 ## the package does not accept) is an authoring error: the author supplied
-## the bytes. Its exact failure and the image's dense resource index (in
-## first-paint order) are kept; a crossed image limit is a budget error.
+## the bytes. Its exact failure and original image source ordinal are kept.
+## A crossed image limit is a budget error.
 image_error : KernelImage.Error -> Pdf.Error
 image_error = |image| match image {
 	LimitExceeded(_) | MarkerLimitExceeded(_) => stage_error(Output(Images(image)))
@@ -1941,10 +2488,26 @@ scalar_hex = |scalar| {
 
 ## Reference failures retain the authored inline identity. Generic layout,
 ## shape and navigation failures already unwrap to their established mapper.
+bibliography_entry_path : Document.NormalizedAuthoring, U64 -> Str
+bibliography_entry_path = |authoring, block| {
+	leaf = authoring.blocks.get(block) ?? crash "validated bibliography entry block escaped"
+	entry = group_record(authoring.groups, leaf.parent)
+	"${group_path(authoring.groups, entry.parent - 1)}.entries[${entry.position.to_str()}]"
+}
+
 reference_error : Document, KernelFacadeReferences.Error -> Pdf.Error
 reference_error = |doc, error| match error {
 	UnknownDestination({ reference }) => reference_diagnostic(doc, reference, InvalidRelationship, "navigation.reference_destination", "The page reference names no declared destination.")
 	MissingAnchor({ reference }) => reference_diagnostic(doc, reference, LayoutConstraintViolated, "layout.reference_anchor", "The page reference's destination has no committed physical placement.")
+	FlowCycle({ reference, first, repeated }) => reference_diagnostic(doc, reference, LayoutConstraintViolated, "layout.reference_cycle", "Page-reference layout repeated pass ${first.to_str()} at pass ${repeated.to_str()}. Use a fixed-width reference to remove the pagination dependency.")
+	FlowBudget({ dimension, limit, reference }) => {
+		name = match dimension {
+			LayoutWork => "accumulated layout work"
+			Passes => "stabilization passes"
+			StateUnits => "state words per pass"
+		}
+		reference_diagnostic(doc, reference, BudgetExceeded, "layout.reference_stabilization_budget", "Page-reference layout exceeded the allowed ${name}. The effective limit is ${limit.to_str()}.")
+	}
 	Format({ error: problem, reference }) => {
 		code = match problem {
 			LimitExceeded(_) | ArithmeticOverflow => BudgetExceeded
@@ -1964,7 +2527,10 @@ reference_diagnostic : Document, U64, Conformance.DiagnosticCode, Str, Str -> Pd
 reference_diagnostic = |doc, reference, code, feature, message| {
 	authoring = Document.normalize(doc)
 	match authoring.page_references.get(reference) {
-		Ok(record) => inline_error(doc, record.block, AtInline(record.inline), code, feature, message)
+		Ok(record) => match Document.index_location(authoring, reference) {
+			IndexLocation(target) => fixed_error(code, feature, message, "${leaf_path(doc, record.block)}.destinations[${target.to_str()}]")
+			NoIndexLocation => inline_error(doc, record.block, AtInline(record.inline), code, feature, message)
+		}
 		Err(_) => located_error(doc, code, feature, message, [])
 	}
 }
@@ -1988,6 +2554,7 @@ furniture_error = |error| {
 		ScopeInvalid({ group, reason }) => located(InvalidRelationship, "layout.page_scope", reason, ["page_scopes[${group.to_str()}]"])
 		BodyEmpty => located(LayoutConstraintViolated, "layout.template_body_empty", "A document with page templates needs at least one body block; a lead region alone does not start the body.", [])
 		PageLabels(problem) => InvalidNavigation(problem)
+		PageLabelText({ error: LimitExceeded({ attempted, limit }), page, path }) => located(BudgetExceeded, "layout.page_label_text", "The visible page label on page ${page.to_str()} needs ${attempted.to_str()} UTF-8 bytes. The configured limit is ${limit.to_str()}.", [path, "page_labels"])
 		PageLabelText({ error: problem, page, path }) => located(LayoutConstraintViolated, "layout.page_label_text", "The configured label on page ${page.to_str()} cannot become a visible page field: ${Str.inspect(problem)}.", [path, "page_labels"])
 		RegionEmpty({ path }) => located(LayoutConstraintViolated, "layout.template_region_empty", "A template region must reserve a positive height and hold at least one furniture item; use no_region (or no_lead) for a page without that region.", [path])
 		RegionOverflow({ available, path, required }) => located(LayoutConstraintViolated, "layout.template_region_overflow", "Furniture needs ${points_text(required)} but its region or reserved width holds ${points_text(available)}; furniture is never wrapped, shrunk, or clipped.", [path])
@@ -1995,6 +2562,7 @@ furniture_error = |error| {
 		FieldOverflow({ page, path, reserved, value, width }) => located(LayoutConstraintViolated, "layout.field_overflow", "A page field first fails to fit on page ${page.to_str()}: its resolved value ${value} makes its content ${points_text(width)} wide but it has ${points_text(reserved)}. Field values are never approximated, abbreviated, or shrunk.", [path])
 		FurnitureInline({ path }) => located(LayoutConstraintViolated, "layout.furniture_inline", "Furniture text holds only text, page fields, and reserved widths of text and page fields.", [path])
 		InlineEmpty({ path }) => located(InvalidRelationship, "semantics.inline_empty", "Furniture text and every reserved width in it must contain text or a page field, and no text inline may be empty.", [path])
+		DrawingGroupDepth({ path, depth }) => located(BudgetExceeded, "document.drawing_group_depth", drawing_depth_message(depth), [drawing_depth_path(path, depth)])
 		DrawingInvalid({ path, reason }) => located(InvalidRelationship, "layout.furniture_drawing", "A furniture drawing is not a supported decorative drawing: ${reason}.", [path])
 		GapNegative({ path }) => located(LayoutConstraintViolated, "layout.spacer_negative", "A template gap is negative; spacing never overlaps content.", [path])
 		InsetNegative({ path }) => located(LayoutConstraintViolated, "layout.spacer_negative", "A template region's slot inset is negative; slot furniture never leaves its region.", [path])
@@ -2017,8 +2585,8 @@ dimension_name = |dimension| match dimension {
 
 ## The authored member a leaf stands for: the table around a caption or a
 ## cell, else the leaf itself.
-member_path : Document, Document.NormalizedAuthoring, U64 -> Str
-member_path = |doc, normalized, block| {
+member_path : Document.NormalizedAuthoring, U64 -> Str
+member_path = |normalized, block| {
 	var $code = match normalized.blocks.get(block) {
 		Ok(record) => record.parent
 		Err(OutOfBounds) => 0
@@ -2034,7 +2602,7 @@ member_path = |doc, normalized, block| {
 		}
 		$code = record.parent
 	}
-	if ($table == 0) leaf_path(doc, block) else group_path(normalized.groups, $table - 1)
+	if ($table == 0) leaf_path_normalized(normalized, block) else group_path(normalized.groups, $table - 1)
 }
 
 ## A page-layout rejection of a document with tables, whose block indexes
@@ -2062,22 +2630,26 @@ table_layout_error = |doc, error, sources, units| {
 		Oversize({ available, block, required }) => match unit_at(block) {
 			LeafUnit(leaf) => oversize_error(doc, leaf, required, available)
 			SourceUnit(source) => source_error(doc, source, LayoutConstraintViolated, "source.oversize", "An unsplittable source block needs ${points_text(required)}, but a page body holds ${points_text(available)}; source text is never shrunk or clipped.")
-			RowUnit(group) => located_error(doc, LayoutConstraintViolated, "layout.oversize_row", "A table row needs ${points_text(required)}, with the repeated header rows, but a page body holds ${points_text(available)}; under KeepRows a row is never split, shrunk, or clipped. Select SplitRows to let rows break at line boundaries.", [group_path(normalized.groups, group)])
+			RowUnit(group) => located_error(doc, LayoutConstraintViolated, "layout.oversize_row", "A table row needs ${points_text(required)}, with the repeated header rows, but a page body holds ${points_text(available)}; under KeepRows a row is never split, shrunk, or clipped. Select SplitRows for single-row cells or SplitSpans for spanning cells.", [group_path(normalized.groups, group)])
 		}
 		KeepConflict(conflict) => match conflict {
 			GroupTooTall({ available, group, required }) => match sources.get(group) {
+				Ok(SpanRows({ first, last })) => located_error(doc, LayoutConstraintViolated, "layout.oversize_span_group", "A connected table row-span group needs ${points_text(required)}, with the repeated header rows, but a page body holds ${points_text(available)}.", [group_path(normalized.groups, first), group_path(normalized.groups, last)])
 				Ok(FooterRows({ first, last })) => located_error(doc, LayoutConstraintViolated, feature, "A table's footer rows stay together and need ${points_text(required)}, with the repeated header rows, but a page body holds ${points_text(available)}.", [group_path(normalized.groups, first), group_path(normalized.groups, last)])
 				Ok(AuthoredKeep(k)) => {
 					index = together_group(normalized, k)
 					record = group_record(normalized.groups, index + 1)
-					located_error(doc, LayoutConstraintViolated, feature, "A keep-together group needs ${points_text(required)} but a page body holds ${points_text(available)}.", [group_path(normalized.groups, index), member_path(doc, normalized, record.first_block), member_path(doc, normalized, record.block_end - 1)])
+					if is_figure_anchor(record.kind) {
+						return anchored_fit_error(doc, normalized.groups, index, required, available)
+					}
+					located_error(doc, LayoutConstraintViolated, feature, "A keep-together group needs ${points_text(required)} but a page body holds ${points_text(available)}.", [group_path(normalized.groups, index), member_path(normalized, record.first_block), member_path(normalized, record.block_end - 1)])
 				}
 				Err(OutOfBounds) => crash "page-layout group escaped"
 			}
 			BreakInsideGroup({ block, group }) => {
 				group_paths = match sources.get(group) {
 					Ok(AuthoredKeep(k)) => [group_path(normalized.groups, together_group(normalized, k))]
-					Ok(FooterRows({ first, last: _ })) => [group_path(normalized.groups, first)]
+					Ok(FooterRows({ first, last: _ })) | Ok(SpanRows({ first, last: _ })) => [group_path(normalized.groups, first)]
 					Err(OutOfBounds) => []
 				}
 				located_error(doc, LayoutConstraintViolated, feature, "A page break falls inside a keep-together group.", [break_path(normalized, leaf_of(block))].concat(group_paths))
@@ -2086,7 +2658,6 @@ table_layout_error = |doc, error, sources, units| {
 			ChainTooTall({ available, block, next, required }) => located_error(doc, LayoutConstraintViolated, feature, "A required keep-with-next chain (such as a table's caption, header rows, and first body row) needs ${points_text(required)} but a page body holds ${points_text(available)}.", [unit_path(block), unit_path(next)])
 			RequiredKeepAtEnd({ block }) => located_error(doc, LayoutConstraintViolated, feature, "A required keep-with-next has no following block.", [required_keep_path(doc, normalized, leaf_of(block))])
 		}
-		LimitExceeded({ attempted, dimension: Pages, limit }) => located_error(doc, BudgetExceeded, "document.content_limit", "The document needs ${attempted.to_str()} pages but the facade accepts at most ${limit.to_str()}.", [])
 		other => stage_error(Pages(PageLayout(other)))
 	}
 }
@@ -2133,12 +2704,22 @@ located_error = |_doc, diagnostic, feature, message, paths| InvalidDocument(loca
 percent_text : U64 -> Str
 percent_text = |scale| if (scale % 10 == 0) "${(scale // 10).to_str()}%" else "${(scale // 10).to_str()}.${(scale % 10).to_str()}%"
 
-## A page break, spacer, or decoration located by its authored parent and
-## position.
+drawing_depth_message : KernelDrawingGroups.DepthLimit -> Str
+drawing_depth_message = |{ attempted, limit, .. }|
+	"A drawing group is nested ${attempted.to_str()} levels deep. The limit is ${limit.to_str()} (budgets.max_drawing_group_depth)."
+
+drawing_depth_path : Str, KernelDrawingGroups.DepthLimit -> Str
+drawing_depth_path = |path, { command, .. }| "${path}.commands[${command.to_str()}]"
+
 flow_item_error : Document, [DecorationItem(U64), PageBreakItem(U64), SpacerItem(U64)], Conformance.DiagnosticCode, Str, Str -> Pdf.Error
-flow_item_error = |doc, item, diagnostic, feature, message| {
+flow_item_error = |doc, item, diagnostic, feature, message|
+	located_error(doc, diagnostic, feature, message, [flow_item_path(doc, item)])
+
+## A page break, spacer, or decoration located by its authored parent and position.
+flow_item_path : Document, [DecorationItem(U64), PageBreakItem(U64), SpacerItem(U64)] -> Str
+flow_item_path = |doc, item| {
 	normalized = Document.normalize(doc)
-	path = match item {
+	match item {
 		PageBreakItem(index) => match normalized.page_breaks.get(index) {
 			Ok(record) => child_path(normalized.groups, record.parent, record.position)
 			Err(OutOfBounds) => crash "normalized page break path escaped"
@@ -2152,7 +2733,6 @@ flow_item_error = |doc, item, diagnostic, feature, message| {
 			Err(OutOfBounds) => crash "normalized decoration path escaped"
 		}
 	}
-	located_error(doc, diagnostic, feature, message, [path])
 }
 
 ## A line break with no text on one side, located by its paragraph path and
@@ -2200,6 +2780,9 @@ keep_conflict_error = |doc, conflict| {
 				Ok(value) => value
 				Err(OutOfBounds) => crash "normalized keep path escaped"
 			}
+			if is_figure_anchor(record.kind) {
+				return anchored_fit_error(doc, normalized.groups, index, required, available)
+			}
 			located_error(doc, LayoutConstraintViolated, feature, "A keep-together group needs ${points_text(required)} but a page body holds ${points_text(available)}.", [group_path(normalized.groups, index), leaf_path(doc, record.first_block), leaf_path(doc, record.block_end - 1)])
 		}
 		BreakInsideGroup({ block, group }) => located_error(doc, LayoutConstraintViolated, feature, "A page break falls inside a keep-together group.", [break_path(normalized, block), group_path(normalized.groups, together_group(normalized, group))])
@@ -2209,10 +2792,29 @@ keep_conflict_error = |doc, conflict| {
 	}
 }
 
+is_figure_anchor : Document.NormalizedGroupKind -> Bool
+is_figure_anchor = |kind| match kind {
+	FigureAnchor => True
+	_ => False
+}
+
+anchored_fit_error : Document, List(Document.NormalizedGroup), U64, U64, U64 -> Pdf.Error
+anchored_fit_error = |doc, groups, group, required, available| {
+	path = group_path(groups, group)
+	located_error(
+		doc,
+		LayoutConstraintViolated,
+		"layout.anchored_figure_fit",
+		"The paragraph and its captioned figure need ${points_text(required)} together, but the frame holds ${points_text(available)}.",
+		["${path}.anchor", "${path}.figure"],
+	)
+}
+
 source_error : Document, U64, Conformance.DiagnosticCode, Str, Str -> Pdf.Error
 source_error = |doc, source, code, feature, message| {
 	normalized = Document.normalize(doc)
-	group_error(doc, source_at(normalized.sources, source).group, code, feature, message)
+	group = source_at(normalized.sources, source).group
+	located_error(doc, code, feature, message, [group_path(normalized.groups, group)])
 }
 
 ## An unsplittable block taller than a page body: a figure is
@@ -2220,7 +2822,13 @@ source_error = |doc, source, code, feature, message| {
 oversize_error : Document, U64, U64, U64 -> Pdf.Error
 oversize_error = |doc, block, required, available| {
 	normalized = Document.normalize(doc)
-	figure = match normalized.blocks.get(block) {
+	position = normalized.blocks.get(block)
+	match position {
+		Ok(record) if record.parent > 0 and is_figure_anchor(group_record(normalized.groups, record.parent).kind) =>
+			return anchored_fit_error(doc, normalized.groups, record.parent - 1, required, available)
+		_ => {}
+	}
+	figure = match position {
 		Ok(record) => match record.kind {
 			Figure(_) => True
 			_ => False
@@ -2240,7 +2848,7 @@ together_group = |authoring, k| {
 	var $index = 0
 	for group in groups {
 		match group.kind {
-			KeepTogether | Custom(_) | Callout(_) => {
+			KeepTogether | FigureAnchor | Custom(_) | Callout(_) => {
 				splittable = match group.kind {
 					Callout(index) => match authoring.callouts.get(index.to_u64()) {
 						Ok(value) => value.fragmentation == Lines
@@ -2301,7 +2909,10 @@ required_keep_path = |doc, normalized, block| {
 
 ## A fixed-point length as points, such as `746 pt` or `12.5 pt`.
 points_text : U64 -> Str
-points_text = |raw| {
+points_text = |raw| wide_points_text(raw.to_u128())
+
+wide_points_text : U128 -> Str
+wide_points_text = |raw| {
 	whole = raw // 1000
 	fraction = raw % 1000
 	if fraction == 0 {
@@ -2358,18 +2969,31 @@ located_batch = |diagnostic, feature, message, paths| {
 
 ## Fixed normalization preserves page-local addresses separately from
 ## the logical, page-major semantic block arena.
-DiagnosticPaths : [FlowPaths, FixedPaths({ authoring : Document.NormalizedAuthoring, pages : List(Document.FixedPagePlan) })]
+DiagnosticPaths : [ColumnPaths(Document.NormalizedAuthoring), FlowPaths, FixedPaths({ authoring : Document.NormalizedAuthoring, pages : List(Document.FixedPagePlan), placement_blocks : List(Semantics.IndexRange) })]
 
 diagnostic_authoring : Document, DiagnosticPaths -> Document.NormalizedAuthoring
 diagnostic_authoring = |doc, paths| match paths {
 	FlowPaths => Document.normalize(doc)
 	FixedPaths(fixed) => fixed.authoring
+	ColumnPaths(authoring) => authoring
 }
 
 diagnostic_leaf_path : Document, DiagnosticPaths, U64 -> Str
 diagnostic_leaf_path = |doc, paths, block| match paths {
 	FlowPaths => leaf_path(doc, block)
-	FixedPaths(fixed) => fixed_block_path(fixed.pages, block)
+	FixedPaths(fixed) => fixed_block_path(fixed.pages, fixed.placement_blocks, block)
+	ColumnPaths(_) => column_block_path(block)
+}
+
+column_report_paths : U64 -> List(Str)
+column_report_paths = |count| {
+	var $paths = List.with_capacity(count)
+	var $block = 0
+	while $block < count {
+		$paths = $paths.append(column_block_path($block))
+		$block = $block + 1
+	}
+	$paths
 }
 
 fixed_page_path : U64 -> Str
@@ -2378,17 +3002,34 @@ fixed_page_path = |page| "pages[${page.to_str()}]"
 fixed_placement_path : U64, U64 -> Str
 fixed_placement_path = |page, placement| "${fixed_page_path(page)}.placements[${placement.to_str()}]"
 
-fixed_block_path : List(Document.FixedPagePlan), U64 -> Str
-fixed_block_path = |pages, block| {
+fixed_block_path : List(Document.FixedPagePlan), List(Semantics.IndexRange), U64 -> Str
+fixed_block_path = |pages, placement_blocks, block| {
 	var $page = 0
 	for record in pages {
 		range = record.placements
-		if block >= range.start() and block - range.start() < range.length() {
-			return fixed_placement_path($page, block - range.start())
+		if placement_blocks.is_empty() {
+			if block >= range.start() and block - range.start() < range.length() {
+				return fixed_placement_path($page, block - range.start())
+			}
+		} else {
+			var $position = 0
+			while $position < range.length() {
+				leaves = Document.NormalizedFixed.blocks_for(placement_blocks, range.start() + $position)
+				if block >= leaves.start() and block - leaves.start() < leaves.length() {
+					return fixed_leaf_path($page, $position, block > leaves.start())
+				}
+				$position = $position + 1
+			}
 		}
 		$page = $page + 1
 	}
 	crash "fixed semantic block escaped its validated page spans"
+}
+
+fixed_leaf_path : U64, U64, Bool -> Str
+fixed_leaf_path = |page, placement, caption| {
+	path = fixed_placement_path(page, placement)
+	if (caption) "${path}.caption" else path
 }
 
 fixed_artifact_path : U64, Document.FixedArtifactLayer, U64 -> Str
@@ -2421,6 +3062,7 @@ leaf_path_normalized = |normalized, block| {
 	} else {
 		match group_record(normalized.groups, record.parent).kind {
 			Source(_) => FigureLeaf
+			IndexList => IndexLeaf
 			FigureGroup(_) => match record.kind {
 				FigureCaption(_) => CaptionLeaf
 				_ => FigureLeaf
@@ -2432,6 +3074,14 @@ leaf_path_normalized = |normalized, block| {
 		NotFigure => {
 			position = leaf_position(normalized, block, record.parent)
 			child_path(normalized.groups, record.parent, position)
+		}
+		IndexLeaf => {
+			paragraph = match record.kind {
+				RichParagraph(value) => value
+				_ => crash "index term is not a rich paragraph"
+			}
+			rich = normalized.rich_paragraphs.get(paragraph) ?? crash "index term escaped"
+			child_path(normalized.groups, record.parent, rich.position)
 		}
 		FigureLeaf => chain_path(normalized.groups, record.parent)
 		CaptionLeaf => "${chain_path(normalized.groups, record.parent)}.caption"
@@ -2543,14 +3193,20 @@ inline_path = |normalized, block, inline| inline_path_from(normalized, block, in
 inline_error_at : Document, DiagnosticPaths, U64, [AtInline(U64), NoInline], Conformance.DiagnosticCode, Str, Str -> Pdf.Error
 inline_error_at = |doc, paths, block, inline, diagnostic, feature, message| match paths {
 	FlowPaths => inline_error(doc, block, inline, diagnostic, feature, message)
-	FixedPaths(fixed) => InvalidDocument(container_batch(diagnostic, feature, message, authoring_inline_path(fixed.authoring, paths, block, inline)))
+	_ => InvalidDocument(container_batch(diagnostic, feature, message, authoring_inline_path(diagnostic_authoring(doc, paths), paths, block, inline)))
 }
 
 authoring_inline_path : Document.NormalizedAuthoring, DiagnosticPaths, U64, [AtInline(U64), NoInline] -> Str
 authoring_inline_path = |normalized, paths, block, inline| match paths {
 	FlowPaths => inline_path(normalized, block, inline)
-	FixedPaths(fixed) => inline_path_from(normalized, block, inline, FixedInlineRoot(fixed_block_path(fixed.pages, block)))
+	FixedPaths(fixed) => inline_path_from(normalized, block, inline, FixedInlineRoot(fixed_block_path(fixed.pages, fixed.placement_blocks, block)))
+	ColumnPaths(_) => column_block_path(block)
 }
+
+## Keep the short path's existing allocation pattern. Longer paths join
+## all segments once so growing prefixes are never copied per level.
+deep_path_threshold : U64
+deep_path_threshold = 32
 
 inline_path_from : Document.NormalizedAuthoring, U64, [AtInline(U64), NoInline], [FlowInlineRoot, FixedInlineRoot(Str)] -> Str
 inline_path_from = |normalized, block_index, inline, root| {
@@ -2558,18 +3214,28 @@ inline_path_from = |normalized, block_index, inline, root| {
 		Ok(value) => value
 		Err(OutOfBounds) => crash "normalized rich block path escaped"
 	}
-	(paragraph, position) = match block.kind {
+	(paragraph, rich) = match block.kind {
 		RichParagraph(index) => match normalized.rich_paragraphs.get(index) {
-			Ok(rich) => (index, rich.position)
+			Ok(value) => (index, value)
 			Err(OutOfBounds) => crash "normalized rich block path escaped"
 		}
 		_ => crash "normalized rich block path named a non-rich block"
 	}
-	var $positions = []
+	base = match root {
+		FlowInlineRoot => child_path(normalized.groups, block.parent, rich.position)
+		FixedInlineRoot(path) => path
+	}
 	var $cursor = match inline {
-		AtInline(index) => index + 1
+		AtInline(index) => {
+			record = normalized.inlines.get(index) ?? crash "normalized inline path escaped"
+			if record.depth > deep_path_threshold {
+				return deep_inline_path(normalized.inlines, normalized.line_breaks, paragraph, rich.elements, index + 1, record.depth, base)
+			}
+			index + 1
+		}
 		NoInline => 0
 	}
+	var $positions = []
 	while $cursor != 0 {
 		record = match normalized.inlines.get($cursor - 1) {
 			Ok(value) => value
@@ -2578,10 +3244,7 @@ inline_path_from = |normalized, block_index, inline, root| {
 		$positions = $positions.append(authored_inline_position(normalized.line_breaks, paragraph, record.parent, record.position))
 		$cursor = record.parent
 	}
-	var $path = match root {
-		FlowInlineRoot => child_path(normalized.groups, block.parent, position)
-		FixedInlineRoot(path) => path
-	}
+	var $path = base
 	var $index = $positions.len()
 	while $index > 0 {
 		segment = match $positions.get($index - 1) {
@@ -2592,6 +3255,84 @@ inline_path_from = |normalized, block_index, inline, root| {
 		$index = $index - 1
 	}
 	$path
+}
+
+## A deep path joins its segments once. If its paragraph has explicit
+## breaks, use the dense inline element identities to correct authored
+## positions in a single scan of just that paragraph's breaks.
+deep_inline_path : List(Document.NormalizedInline), List(Document.NormalizedLineBreak), U64, U64, U64, U64, Str -> Str
+deep_inline_path = |inlines, breaks, paragraph, elements, code, depth, base| {
+	first_break = first_inline_path_break(breaks, paragraph)
+	has_breaks = match breaks.get(first_break) {
+		Ok(record) => record.paragraph == paragraph
+		Err(OutOfBounds) => False
+	}
+	var $codes = List.with_capacity(depth)
+	var $positions = if (has_breaks) List.repeat(U64.highest, elements + 1) else []
+	var $cursor = code
+	while $cursor != 0 {
+		record = inlines.get($cursor - 1) ?? crash "normalized inline path escaped"
+		$codes = $codes.append($cursor)
+		if has_breaks {
+			slot = inline_path_parent_slot(inlines, record.parent)
+			$positions = $positions.set(slot, record.position) ?? crash "normalized inline parent escaped"
+		}
+		$cursor = record.parent
+	}
+	if has_breaks {
+		var $index = first_break
+		while $index < breaks.len() {
+			line_break = breaks.get($index) ?? crash "normalized line break escaped"
+			if line_break.paragraph != paragraph {
+				break
+			}
+			slot = inline_path_parent_slot(inlines, line_break.parent)
+			position = $positions.get(slot) ?? crash "normalized inline parent escaped"
+			if position != U64.highest and line_break.position <= position {
+				$positions = $positions.set(slot, position + 1) ?? crash "normalized inline parent escaped"
+			}
+			$index = $index + 1
+		}
+	}
+	var $segments = List.with_capacity(depth + 1).append(base)
+	var $index = $codes.len()
+	while $index > 0 {
+		member = $codes.get($index - 1) ?? crash "normalized inline path escaped"
+		record = inlines.get(member - 1) ?? crash "normalized inline path escaped"
+		position = if has_breaks {
+			slot = inline_path_parent_slot(inlines, record.parent)
+			$positions.get(slot) ?? crash "normalized inline parent escaped"
+		} else {
+			record.position
+		}
+		$segments = $segments.append("inlines[${position.to_str()}]")
+		$index = $index - 1
+	}
+	Str.join_with($segments, ".")
+}
+
+inline_path_parent_slot : List(Document.NormalizedInline), U64 -> U64
+inline_path_parent_slot = |inlines, parent| if parent == 0 {
+	0
+} else {
+	record = inlines.get(parent - 1) ?? crash "normalized inline parent escaped"
+	record.element + 1
+}
+
+first_inline_path_break : List(Document.NormalizedLineBreak), U64 -> U64
+first_inline_path_break = |breaks, paragraph| {
+	var $low = 0
+	var $high = breaks.len()
+	while $low < $high {
+		middle = $low + ($high - $low) // 2
+		record = breaks.get(middle) ?? crash "normalized line break escaped"
+		if record.paragraph < paragraph {
+			$low = middle + 1
+		} else {
+			$high = middle
+		}
+	}
+	$low
 }
 
 ## An inline record's `position` is its content-spine slot among its
@@ -2623,7 +3364,14 @@ child_path = |groups, parent, position| {
 	} else {
 		record = group_record(groups, parent)
 		match record.kind {
-			ContentsItem => group_record(groups, record.parent).parent
+			Container(BibliographyItem) => return "${chain_path(groups, record.parent)}.entries[${record.position.to_str()}]"
+			ContentsItem => {
+				list = group_record(groups, record.parent)
+				match list.kind {
+					GeneratedContentsList | IndexList => return "${chain_path(groups, record.parent)}.entries[${record.position.to_str()}]"
+					_ => list.parent
+				}
+			}
 			_ => parent
 		}
 	}
@@ -2643,6 +3391,16 @@ chain_path = |groups, code| {
 		$codes = $codes.append($cursor)
 		$cursor = group_record(groups, $cursor).parent
 	}
+	if $codes.len() > deep_path_threshold {
+		var $segments = List.with_capacity($codes.len())
+		var $index = $codes.len()
+		while $index > 0 {
+			member = $codes.get($index - 1) ?? crash "normalized group path escaped"
+			$segments = $segments.append(group_path_segment(groups, group_record(groups, member)))
+			$index = $index - 1
+		}
+		return Str.join_with($segments, ".")
+	}
 	var $path = ""
 	var $index = $codes.len()
 	while $index > 0 {
@@ -2650,17 +3408,51 @@ chain_path = |groups, code| {
 			Ok(value) => group_record(groups, value)
 			Err(OutOfBounds) => crash "normalized group path escaped"
 		}
-		segment = match record.kind {
-			LeadRegion => "templates.first.lead"
-			TableRow(Header) => "table.header_rows[${record.position.to_str()}]"
-			TableRow(Body) => "table.body_rows[${record.position.to_str()}]"
-			TableRow(Footer) => "table.footer_rows[${record.position.to_str()}]"
-			_ => child_segment(groups, record.parent, record.position)
-		}
+		segment = group_path_segment(groups, record)
 		$path = if ($path.is_empty()) segment else "${$path}.${segment}"
 		$index = $index - 1
 	}
 	$path
+}
+
+group_path_segment : List(Document.NormalizedGroup), Document.NormalizedGroup -> Str
+group_path_segment = |groups, record| match record.kind {
+	LeadRegion => "templates.first.lead"
+	TableRow(Header) => "table.header_rows[${record.position.to_str()}]"
+	TableRow(Body) => "table.body_rows[${record.position.to_str()}]"
+	TableRow(Footer) => "table.footer_rows[${record.position.to_str()}]"
+	_ => child_segment(groups, record.parent, record.position)
+}
+
+# Deep group paths preserve authored ordinals beyond the shallow lane.
+expect {
+	var $block = Pdf.paragraph("Deep scope")
+	var $count = 0
+	while $count < 40 {
+		$block = Pdf.scoped({}, [$block])
+		$count = $count + 1
+	}
+	doc = Pdf.document({ contents: [$block], language: "en", title: "Nested paths" })
+	normalized = Document.normalize(doc)
+	group_path(normalized.groups, 39) == "contents[0]${Str.repeat(".contents[0]", 39)}"
+}
+
+# Breaks before and after the selected child share its paragraph but only
+# the preceding siblings change each ordinal. The earlier paragraph has its
+# own breaks and the fixed path retains its supplied root.
+expect {
+	var $child = Pdf.text("Target")
+	var $depth = 0
+	while $depth < 40 {
+		$child = Pdf.strong([Pdf.text("Before"), Pdf.line_break, $child, Pdf.line_break, Pdf.text("After")])
+		$depth = $depth + 1
+	}
+	earlier = Pdf.rich_paragraph([Pdf.text("Lead"), Pdf.line_break, Pdf.text("Text")])
+	doc = Pdf.document({ contents: [earlier, Pdf.rich_paragraph([$child])], language: "en", title: "Deep inline paths" })
+	normalized = Document.normalize(doc)
+	suffix = ".inlines[0]${Str.repeat(".inlines[2]", 40)}"
+	inline = AtInline(82)
+	inline_path(normalized, 1, inline) == "contents[1]${suffix}" and inline_path_from(normalized, 1, inline, FixedInlineRoot("pages[0].placements[0]")) == "pages[0].placements[0]${suffix}"
 }
 
 ## One path segment: a list names its children `items[k]`, a keep with
@@ -2670,8 +3462,10 @@ child_segment = |groups, parent, position| if parent == 0 {
 	"contents[${position.to_str()}]"
 } else {
 	match group_record(groups, parent).kind {
+		IndexList => "entries[${position.to_str()}]"
 		ItemList(_) => "items[${position.to_str()}]"
 		KeepWithNext(_) => "block"
+		FigureAnchor => if (position == 0) "anchor" else "figure"
 		Table(_) => "caption"
 		TableRow(_) => "cells[${position.to_str()}]"
 		_ => "contents[${position.to_str()}]"
@@ -2857,6 +3651,15 @@ selected_registered_font = |registry, face| {
 ## scaled run keeps its line's baseline and leading.
 validate_theme : Theme -> Try({}, Pdf.Error)
 validate_theme = |theme| {
+	if theme.international_text != OrdinaryText {
+		match theme.font_selection {
+			Policy(_) => {}
+			_ => return Err(fixed_error(FeatureUnavailable, "text.international_policy", "International text needs an explicit ordered font policy.", "theme.font_selection"))
+		}
+		if theme.latin_shaping == InterLatin {
+			return Err(fixed_error(FeatureUnavailable, "text.international_policy", "The international text policy selects its own run shaping.", "theme.latin_shaping"))
+		}
+	}
 	match theme.furniture {
 		BodyStyle => {}
 		Own(furniture) => {
@@ -2894,12 +3697,122 @@ check_scale = |theme, role, name| match Theme.inline_scale(theme, role) {
 	_ => Ok({})
 }
 
-ProfileClaims : { archive : KernelPdfA4.Claim, identification : KernelXmp.Identification }
+ProfileClaims : {
+	archive : KernelPdfA4.Claim,
+	associated : KernelAssociatedObjects.Input,
+	identification : KernelXmp.Identification,
+}
 
-validate_profile_request : Document, Pdf.Options -> Try(ProfileClaims, Pdf.Error)
-validate_profile_request = |doc, options| {
-	if options.wtpdf == DeclareAccessibility and options.profile != AccessibleArchive {
+is_accessible : Pdf.Profile -> Bool
+is_accessible = |profile| profile == AccessibleArchive or profile == AccessibleArchiveWithFiles or profile == AccessibleForm
+
+attachment_path : U64 -> Str
+attachment_path = |index| "associated_files[${index.to_str()}]"
+
+attachment_error : KernelAssociatedFiles.Error -> Pdf.Error
+attachment_error = |error| {
+	finding = match error {
+		AccessibleDependency(index) => { code: ProfileRequirementViolated, feature: "required", message: "The accessible document must contain the information its reader needs. Provide that information in the document before marking this file Supplemental.", path: "${attachment_path(index)}.necessity" }
+		CountLimit({ actual, maximum }) => { code: BudgetExceeded, feature: "count_limit", message: "The document supplies ${actual.to_str()} associated files but the limit is ${maximum.to_str()}.", path: "associated_files" }
+		Description(index) => { code: ProfileRequirementViolated, feature: "description", message: "Describe why this file is attached using nonblank text without ASCII control characters.", path: "${attachment_path(index)}.description" }
+		DescriptionLimit({ actual, index, maximum }) => { code: BudgetExceeded, feature: "description_limit", message: "The attachment description has ${actual.to_str()} UTF-8 bytes. The configured limit is ${maximum.to_str()}.", path: "${attachment_path(index)}.description" }
+		Duplicate(index) => { code: DuplicateIdentity, feature: "duplicate", message: "An earlier associated file already has this exact filename.", path: "${attachment_path(index)}.filename" }
+		Filename(index) => { code: ProfileRequirementViolated, feature: "filename", message: "Use a single non-empty filename of at most 255 UTF-8 bytes, without path delimiters, ASCII control characters, or a trailing dot or space.", path: "${attachment_path(index)}.filename" }
+		FileLimit({ actual, index, maximum }) => { code: BudgetExceeded, feature: "file_limit", message: "The associated file has ${actual.to_str()} bytes but the per-file limit is ${maximum.to_str()}.", path: "${attachment_path(index)}.bytes" }
+		FileRepresentationLimit({ actual, index, maximum }) => { code: BudgetExceeded, feature: "file_representation", message: "The associated file has ${actual.to_str()} bytes. Its SHA-256 document identity can represent at most ${maximum.to_str()} bytes in one payload.", path: "${attachment_path(index)}.bytes" }
+		MediaType(index) => { code: ProfileRequirementViolated, feature: "media_type", message: "Use a parameter-free MIME type such as application/xml or application/octet-stream, with at most 127 bytes per component.", path: "${attachment_path(index)}.media_type" }
+		MediaTypeLimit({ actual, index, maximum }) => { code: BudgetExceeded, feature: "media_type_limit", message: "The attachment media type has ${actual.to_str()} bytes. The configured limit is ${maximum.to_str()}.", path: "${attachment_path(index)}.media_type" }
+		MediaNameRepresentationLimit(index) => { code: BudgetExceeded, feature: "media_type_representation", message: "The associated-file MIME names exceed the representable byte capacity.", path: "${attachment_path(index)}.media_type" }
+		Modified(index) => { code: ProfileRequirementViolated, feature: "modified", message: "Supply the last modification time of the associated file in canonical UTC form YYYY-MM-DDThh:mm:ssZ.", path: "${attachment_path(index)}.modified" }
+		TextRepresentationLimit(index) => { code: BudgetExceeded, feature: "description_representation", message: "The associated-file text exceeds the representable byte capacity.", path: "${attachment_path(index)}.description" }
+		TotalLimit({ index, maximum }) => { code: BudgetExceeded, feature: "total_limit", message: "This associated file would exceed the aggregate limit of ${maximum.to_str()} payload bytes.", path: "${attachment_path(index)}.bytes" }
+	}
+	InvalidDocument(located_batch(finding.code, "attachment.${finding.feature}", finding.message, [finding.path]))
+}
+
+WidgetRequest : [AuthoredWidgets(KernelWidgetFields.Location), NoAuthoredWidgets]
+
+widget_path : KernelWidgetFields.Location -> Str
+widget_path = |{ page, placement }| "${fixed_placement_path(page, placement)}.field"
+
+widget_feature : KernelWidgetFields.Kind, Str -> Str
+widget_feature = |kind, suffix| {
+	prefix = match kind {
+		TextKind => "text"
+		CheckboxKind => "checkbox"
+	}
+	"form.${prefix}.${suffix}"
+}
+
+widget_error : KernelWidgetFields.Error, Bool -> Pdf.Error
+widget_error = |error, annotation_limited| match error {
+	FontUnavailable => fixed_error(InternalInvariant, "form.text.font", "The packaged editable font is unavailable.", "pages")
+	CountLimit({ actual, maximum, has_checkbox }) => {
+		setting = if (annotation_limited) "budgets.max_annotations" else "form_budgets.max_fields"
+		fixed_error(BudgetExceeded, if (has_checkbox) "form.count" else "form.text.count", "The document uses ${actual.to_str()} fields and the limit is ${maximum.to_str()} (${setting}).", "pages")
+	}
+	DuplicateId({ kind, location }) => fixed_error(DuplicateIdentity, widget_feature(kind, "duplicate_id"), "Each field needs its own distinct identifier.", "${widget_path(location)}.id")
+	InvalidId({ kind, location }) => fixed_error(InvalidRelationship, widget_feature(kind, "id"), "A field identifier needs one or more ASCII letters, digits, hyphens or underscores.", "${widget_path(location)}.id")
+	InvalidLabel({ kind, location }) => fixed_error(InvalidRelationship, widget_feature(kind, "label"), "Supply a nonblank visible label without ASCII control characters.", "${widget_path(location)}.label")
+	TextLimit({ attempted, dimension, kind, limit, location }) => {
+		field = match dimension {
+			Identifier => "id"
+			Label => "label"
+		}
+		fixed_error(BudgetExceeded, widget_feature(kind, field), "The field ${field} uses ${attempted.to_str()} UTF-8 bytes and the limit is ${limit.to_str()}.", "${widget_path(location)}.${field}")
+	}
+	InvalidValue(location) => fixed_error(LayoutConstraintViolated, "form.text.value", "Use at most 64 printable ASCII characters in the initial value.", "${widget_path(location)}.value")
+	ValueDoesNotFit({ width, required, location }) => fixed_error(LayoutConstraintViolated, "form.text.fit", "The value needs ${signed_points_text(required)} but the field has ${signed_points_text(width)} inside its padding.", "${widget_path(location)}.value")
+}
+
+validate_profile_request : Document, Pdf.Options, WidgetRequest -> Try(ProfileClaims, Pdf.Error)
+validate_profile_request = |doc, options, widgets| {
+	match widgets {
+		AuthoredWidgets(location) if options.profile != AccessibleForm =>
+			return Err(InvalidDocument(located_batch(ProfileRequirementViolated, "form.profile", "Select AccessibleForm to prepare editable fields.", [widget_path(location)])))
+		NoAuthoredWidgets if options.profile == AccessibleForm =>
+			return Err(InvalidDocument(located_batch(ProfileRequirementViolated, "form.fields_required", "AccessibleForm requires one or more fields in a fixed-page document.", ["options.profile"])))
+		_ => {}
+	}
+	accessible = is_accessible(options.profile)
+	attachment_profile = options.profile == ArchiveWithFiles or options.profile == AccessibleArchiveWithFiles
+	files = Document.associated_files(doc)
+	if options.wtpdf == DeclareAccessibility and !accessible {
 		return Err(InvalidDocument(located_batch(ProfileRequirementViolated, "profile.wtpdf_accessibility", "Select AccessibleArchive to request the WTPDF accessibility declaration.", ["options.wtpdf"])))
+	}
+	if attachment_profile {
+		if files.is_empty() {
+			return Err(InvalidDocument(located_batch(ProfileRequirementViolated, "attachment.missing", "The PDF/A-4f profile requires at least one associated file.", ["associated_files"])))
+		}
+	} else if !files.is_empty() {
+		return Err(InvalidDocument(located_batch(ProfileRequirementViolated, "attachment.profile", "Select ArchiveWithFiles or AccessibleArchiveWithFiles to embed associated files.", ["options.profile"])))
+	}
+	if options.profile == AccessibleArchiveWithFiles and Document.block_count(doc) == 0 {
+		return Err(InvalidDocument(located_batch(ProfileRequirementViolated, "profile.accessible_archive.empty_structure", "AccessibleArchiveWithFiles requires a tagged document. Add semantic content or select ArchiveWithFiles for a blank page.", ["contents"])))
+	}
+	if attachment_profile {
+		{ max_description_bytes, max_file_bytes, max_files, max_media_type_bytes, max_total_bytes } = options.attachment_budgets
+		planned = KernelAssociatedFiles.Plan.build(files, accessible, { count: max_files, description_bytes: max_description_bytes, file_bytes: max_file_bytes, media_type_bytes: max_media_type_bytes, total_bytes: max_total_bytes }) ? attachment_error
+		if accessible {
+			var $index = 0
+			for file in files {
+				match KernelPdfUa2.private_use_offset(file.filename) {
+					PrivateUse(offset) => return Err(accessibility_private_use("${attachment_path($index)}.filename", offset))
+					NoPrivateUse => {}
+				}
+				match KernelPdfUa2.private_use_offset(file.description) {
+					PrivateUse(offset) => return Err(accessibility_private_use("${attachment_path($index)}.description", offset))
+					NoPrivateUse => {}
+				}
+				$index = $index + 1
+			}
+		}
+		identification = if accessible {
+			if (options.wtpdf == DeclareAccessibility) AccessibleArchiveWithFilesAndWtpdf else AccessibleArchiveWithFilesIdentification
+		} else {
+			PdfA4fIdentification
+		}
+		return Ok({ archive: PdfA4fClaim, associated: WithAssociatedFiles(planned), identification })
 	}
 	match options.profile {
 		AccessibleArchive => {
@@ -2907,10 +3820,15 @@ validate_profile_request = |doc, options| {
 				return Err(InvalidDocument(located_batch(ProfileRequirementViolated, "profile.accessible_archive.empty_structure", "AccessibleArchive requires a tagged document. Add semantic content or explicitly select Archive for a blank page.", ["contents"])))
 			}
 			identification = if (options.wtpdf == DeclareAccessibility) AccessibleArchiveWithWtpdf else AccessibleArchiveIdentification
-			Ok({ archive: StaticPdfA4Claim, identification })
+			Ok({ archive: StaticPdfA4Claim, associated: NoAssociatedFiles, identification })
 		}
-		Archive => Ok({ archive: StaticPdfA4Claim, identification: PdfA4Identification })
-		Standard => Ok({ archive: NoArchiveClaim, identification: NoIdentification })
+		AccessibleForm => {
+			identification = if (options.wtpdf == DeclareAccessibility) AccessibleArchiveWithWtpdf else AccessibleArchiveIdentification
+			Ok({ archive: InteractivePdfA4Claim, associated: NoAssociatedFiles, identification })
+		}
+		Archive => Ok({ archive: StaticPdfA4Claim, associated: NoAssociatedFiles, identification: PdfA4Identification })
+		Standard => Ok({ archive: NoArchiveClaim, associated: NoAssociatedFiles, identification: NoIdentification })
+		_ => Err(InternalGenerationFailure)
 	}
 }
 
@@ -3040,14 +3958,18 @@ signed_points_text = |raw| if (raw < 0) "-${points_text(U64.minus_wrap(0, raw.to
 
 expect signed_points_text(I64.lowest) == "-9223372036854775.808 pt"
 
-standard_metadata_limits : KernelMetadata.Limits
-standard_metadata_limits = KernelMetadata.Limits.make({ max_language_bytes: 64, max_title_bytes: 2048 })
+metadata_limits : Pdf.MetadataBudgets -> KernelMetadata.Limits
+metadata_limits = |budgets| KernelMetadata.Limits.make({ max_language_bytes: budgets.max_language_bytes, max_title_bytes: budgets.max_title_bytes })
 
-## The canonical packet for a maximal facade title (2048 bytes escaped up to
-## five-fold), language, and both timestamps stays far below this budget, so
-## the facade cannot reach the kernel packet bound.
-standard_xmp_bytes : U64
-standard_xmp_bytes = 16384
+## Count the encoded packet independently of the authored metadata limits.
+## XML escaping can expand the title before the packet is stored.
+build_xmp : KernelMetadata.Facts, KernelXmp.Identification, Pdf.MetadataBudgets -> Try(KernelXmp.Packet, Pdf.Error)
+build_xmp = |facts, identification, budgets| KernelXmp.Packet.build_identified(facts, identification, budgets.max_xmp_bytes).map_err(
+	|error| match error {
+		PacketTooLarge({ attempted, limit }) => fixed_error(BudgetExceeded, "metadata.xmp_budget", "The XMP packet needs ${attempted.to_str()} UTF-8 bytes. The configured limit is ${limit.to_str()}.", "options.metadata_budgets.max_xmp_bytes")
+		SizeOverflow => fixed_error(BudgetExceeded, "metadata.xmp_budget", "The XMP packet exceeds representable byte capacity.", "options.metadata_budgets.max_xmp_bytes")
+	},
+)
 
 standard_font_limits : KernelFont.Limits
 standard_font_limits = KernelFont.Limits.make({ max_bytes: 2000000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })
@@ -3055,124 +3977,332 @@ standard_font_limits = KernelFont.Limits.make({ max_bytes: 2000000, max_cmap_map
 standard_font_descriptor : KernelPdfFont.Descriptor
 standard_font_descriptor = { flags: 32, italic_angle: 0, stem_v: 80 }
 
-## The facade's documented content bounds. A document may hold up to
-## 16,384 content occurrences (text leaves, cells, and generated labels),
-## 16,384 structure elements and interned text sources, 65,536 content-spine
-## items, 65,536 typed attributes and relationships, 16,384 leaf blocks,
-## 65,536 shaped physical runs, and 1,024 pages. The semantic bounds are
-## checked first, while planning each authored block, and exceeding one is
-## the located `document.content_limit` diagnostic; every later stage's
-## bound is at least as large, so it cannot be reached first by content the
-## semantic bounds admit (a 500-row invoice table is far inside them).
-facade_occurrences : U64
-facade_occurrences = 16384
+validate_budgets : Pdf.Options -> Try({}, Pdf.Error)
+validate_budgets = |options| {
+	if options.max_pages == 0 {
+		return Err(fixed_error(BudgetExceeded, "options.page_budget", "The page budget must be positive.", "options.max_pages"))
+	}
+	budgets = options.budgets
+	# The line cache packs source and run indexes into U32 fields.
+	# Allow for the source plus all per-run variants of that source.
+	content_ceiling = U32.highest.to_u64() // 5
+	if budgets.max_content_items == 0 or budgets.max_content_items > content_ceiling {
+		return Err(budget_option_error("max_content_items", content_ceiling))
+	}
+	work_ceiling = (U64.highest - 1) // 4
+	if budgets.max_text_units == 0 or budgets.max_text_units > work_ceiling {
+		return Err(budget_option_error("max_text_units", work_ceiling))
+	}
+	paint_ceiling = U64.highest // 2
+	if budgets.max_paint_items == 0 or budgets.max_paint_items > paint_ceiling {
+		return Err(budget_option_error("max_paint_items", paint_ceiling))
+	}
+	# The largest derived lexical budget uses 8 MiB per block of 65,536 objects.
+	object_ceiling = (U64.highest // 8388608) * Pdf.Budgets.default.max_objects
+	if budgets.max_objects == 0 or budgets.max_objects > object_ceiling {
+		return Err(budget_option_error("max_objects", object_ceiling))
+	}
+	images = options.image_budgets
+	ceiling = KernelFacadeImages.identity_work_ceiling
+	if images.max_identity_hash_bytes > ceiling {
+		return Err(image_budget_option_error("max_identity_hash_bytes", ceiling))
+	}
+	if images.max_identity_comparison_bytes > ceiling {
+		return Err(image_budget_option_error("max_identity_comparison_bytes", ceiling))
+	}
+	Ok({})
+}
 
-facade_nodes : U64
-facade_nodes = 16384
+budget_option_error : Str, U64 -> Pdf.Error
+budget_option_error = |name, ceiling| fixed_error(BudgetExceeded, "options.document_budget", "This budget must be between 1 and ${ceiling.to_str()}.", "options.budgets.${name}")
 
-facade_spine : U64
-facade_spine = 65536
+image_budget_option_error : Str, U64 -> Pdf.Error
+image_budget_option_error = |name, ceiling| fixed_error(BudgetExceeded, "options.image_budget", "This budget must be at most ${ceiling.to_str()}.", "options.image_budgets.${name}")
 
-facade_attributes : U64
-facade_attributes = 65536
+generated_contents_limits : Pdf.Budgets -> Document.GeneratedContentsLimits
+generated_contents_limits = |budgets| {
+	max_scan_blocks: budgets.max_contents_scan_blocks,
+	max_entries: budgets.max_contents_entries,
+	max_requests: budgets.max_contents_requests,
+	max_title_overrides: budgets.max_contents_title_overrides,
+	max_index_entries: budgets.max_index_entries,
+	max_index_locations: budgets.max_index_locations,
+	max_index_targets_per_term: budgets.max_index_targets_per_term,
+	max_index_term_bytes: budgets.max_index_term_bytes,
+}
 
-facade_blocks : U64
-facade_blocks = 16384
+fixed_limits : Pdf.Options -> Document.FixedLimits
+fixed_limits = |options| { max_pages: options.max_pages, max_placements: options.budgets.max_content_items, max_rectangles: options.budgets.max_paint_items }
 
-facade_runs : U64
-facade_runs = 65536
+navigation_limits : Pdf.Budgets -> KernelNavigation.Limits
+navigation_limits = |budgets| {
+	KernelNavigation.Limits.make({
+		..KernelNavigation.standard_limit_values,
+		max_annotations: budgets.max_annotations,
+		max_destinations: budgets.max_destinations,
+		max_label_ranges: budgets.max_page_label_ranges,
+		max_outline_entries: budgets.max_outline_entries,
+		max_quads: budgets.max_link_quads,
+		max_uri_bytes: budgets.max_uri_bytes,
+		max_name_bytes: budgets.max_destination_name_bytes,
+		max_outline_title_bytes: budgets.max_outline_title_bytes,
+		max_outline_depth: budgets.max_outline_depth,
+		max_label_prefix_bytes: budgets.max_page_label_prefix_bytes,
+	})
+}
 
-standard_fixed_limits : Document.FixedLimits
-standard_fixed_limits = { max_pages: 1024, max_placements: facade_blocks, max_rectangles: 1000000 }
-
-standard_pipeline_limits : KernelFacadePipeline.Limits
-standard_pipeline_limits = KernelFacadePipeline.Limits.make({
-	fragment_semantics: KernelSemantics.Limits.make({ max_attributes: facade_attributes, max_content_spine: facade_spine + facade_runs, max_fragments: 1000000, max_namespaces: 2, max_nodes: facade_nodes, max_occurrences: facade_occurrences, max_semantic_depth: 48 }),
-	fragments: KernelFacadeFragments.Limits.make({ max_fragments: 1000000, max_occurrences: facade_occurrences, max_pages: 1024 }),
-	navigation: KernelNavigation.standard_limits,
-	lines: KernelFacadeLines.Limits.make({
-		line: KernelLineLayout.BatchLimits.make({
-			line: KernelLineLayout.Limits.make({ max_boundaries: 1000001, max_candidates: 2000000, max_clusters: 1000000, max_glyph_indices: 1000000, max_glyphs: 1000000, max_lines: 1000000 }),
-			max_key_probes: 4000000,
-			max_lines: 1000000,
-			max_runs: facade_runs,
-			max_table_slots: 262144,
-			max_templates: facade_runs,
+pipeline_limits : Pdf.Options -> KernelFacadePipeline.Limits
+pipeline_limits = |options| {
+	budgets = options.budgets
+	max_pages = options.max_pages
+	content_items = budgets.max_content_items
+	text_units = budgets.max_text_units
+	paint_items = budgets.max_paint_items
+	runs = content_items * 4
+	content_spine = content_items * 4
+	attributes = content_items * 4
+	KernelFacadePipeline.Limits.make({
+		fragment_semantics: KernelSemantics.Limits.make({ max_attributes: attributes, max_content_spine: content_spine + runs, max_fragments: paint_items, max_namespaces: 2, max_nodes: content_items, max_occurrences: content_items, max_semantic_depth: budgets.max_semantic_depth }),
+		fragments: KernelFacadeFragments.Limits.make({ max_fragments: paint_items, max_occurrences: content_items, max_pages }),
+		navigation: navigation_limits(budgets),
+		lines: KernelFacadeLines.Limits.make({
+			line: KernelLineLayout.BatchLimits.make({
+				line: KernelLineLayout.Limits.make({ max_boundaries: text_units + 1, max_candidates: text_units * 2, max_clusters: text_units, max_glyph_indices: text_units, max_glyphs: text_units, max_lines: paint_items }),
+				max_key_probes: text_units * 4,
+				max_lines: paint_items,
+				max_runs: runs,
+				max_table_slots: runs * 4,
+				max_templates: runs,
+			}),
+			max_blocks: content_items,
+			max_runs: runs,
 		}),
-		max_blocks: facade_blocks,
-		max_runs: facade_runs,
-	}),
-	output: KernelFacadeOutput.Limits.make({
-		content: KernelContent.Limits.make({ max_content_bytes: 16000000, max_content_streams: 1024 }),
-		font_plan: KernelFontPlan.Limits.make({ max_retained_glyphs: 10000 }),
-		images: KernelImage.Limits.make({ max_decoded_bytes: 67108864, max_encoded_bytes: 67108864, max_height: 16384, max_markers: 4096, max_resources: 2048, max_width: 16384 }),
-		max_objects: 65536,
-		objects: KernelObjectPlan.Limits.make({ max_objects: 65527, max_pages: 1024 }),
-		structure: KernelTaggedTextStructure.Limits.make({
-			font_limits: KernelPdfFont.Limits.make({ max_to_unicode_bytes: 1000000, max_unicode_mappings: 10000, max_unicode_scalars: 1000000 }),
-			object_limits: standard_object_limits,
+		output: KernelFacadeOutput.Limits.make({
+			content: KernelContent.Limits.make({ max_content_bytes: budgets.max_content_bytes, max_content_streams: max_pages }),
+			font_plan: KernelFontPlan.Limits.make({ max_retained_glyphs: budgets.max_font_glyphs }),
+			images: KernelImage.Limits.from_budgets(options.image_budgets),
+			max_objects: budgets.max_objects,
+			objects: KernelObjectPlan.Limits.make({ max_objects: budgets.max_objects.minus_saturated(9), max_pages }),
+			structure: KernelTaggedTextStructure.Limits.make({
+				font_limits: KernelPdfFont.Limits.make({ max_to_unicode_bytes: budgets.max_font_to_unicode_bytes, max_unicode_mappings: budgets.max_font_mappings, max_unicode_scalars: budgets.max_font_mapping_scalars }),
+				object_limits: object_limits(budgets),
+			}),
+			text: KernelPdfText.Limits.make({ max_actual_text_scalars: text_units, max_content_bytes: budgets.max_content_bytes, max_mappings: budgets.max_font_mappings, max_placements: 0, max_source_scalars: text_units }),
 		}),
-		text: KernelPdfText.Limits.make({ max_actual_text_scalars: 1000000, max_content_bytes: 16000000, max_mappings: 10000, max_placements: 0, max_source_scalars: 1000000 }),
-	}),
-	pages: KernelFacadePages.Limits.make({
-		max_blocks: facade_blocks,
-		max_rows: 1000000,
-		page: KernelPageLayout.Limits.make({ max_blocks: facade_blocks, max_fragments: 1000000, max_lines: 1000000, max_pages: 1024, max_placements: 1000000 }),
-	}),
-	scenes: KernelFacadeScenes.Limits.make({
-		color: KernelColor.Limits.make({ max_icc_bytes: KernelSrgbProfile.byte_count, max_profiles: 1, max_spaces: 2, max_tags: KernelSrgbProfile.tag_count }),
-		max_commands: 2000000,
-		max_groups: 1000000,
-		max_page_group_edges: 1000000,
-		max_pages: 1024,
-		scene: KernelScene.Limits.make({ max_commands: 2000000, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1000000, max_pages: 1024, max_path_segments: 1000000, max_paths: 1000000 }),
-	}),
-	semantics: KernelFacadeSemantics.Limits.make({
-		max_container_depth: 16,
-		max_content_spine: facade_spine,
-		max_inline_depth: 8,
-		max_nodes: facade_nodes,
-		max_occurrences: facade_occurrences,
-		max_properties: facade_occurrences,
-		max_source_inputs: facade_occurrences,
-		semantics: KernelSemantics.Limits.make({ max_attributes: facade_attributes, max_content_spine: facade_spine, max_fragments: 0, max_namespaces: 2, max_nodes: facade_nodes, max_occurrences: facade_occurrences, max_semantic_depth: 48 }),
-		sources: KernelFacadeSources.Limits.make({
-			max_hash_probes: 4000000,
-			max_inputs: facade_occurrences,
-			max_source_bytes: 1000000,
-			max_source_scalars: 1000000,
-			max_table_slots: 65536,
-			max_unique_sources: facade_occurrences,
-			unicode: { max_graphemes: 1000000, max_line_boundaries: 1000001, max_scalars: 1000000, max_script_runs: 2048 },
+		pages: KernelFacadePages.Limits.make({
+			max_blocks: content_items,
+			max_rows: paint_items,
+			page: KernelPageLayout.Limits.make({ max_blocks: content_items, max_fragments: paint_items, max_lines: paint_items, max_pages, max_placements: paint_items }),
 		}),
-		text_semantics: KernelTextSemantics.Limits.make({ max_text_properties: facade_occurrences, max_text_property_bytes: 1000000, max_text_source_bytes: 1000000, max_text_source_scalars: 1000000, max_text_sources: facade_occurrences }),
-	}),
-	shape: KernelFacadeShape.Limits.make({ max_requests: facade_runs, shape: KernelShape.Limits.make({ max_clusters: 1000000, max_glyphs: 1000000, max_scalars: 1000000, max_source_bytes: 1000000 }) }),
-	text: KernelFacadeText.Limits.make({ max_clusters: 1000000, max_glyph_indices: 1000000, max_glyphs: 1000000, max_pages: 1024, max_placements: 1000000, max_runs: 1000000 }),
-})
+		scenes: KernelFacadeScenes.Limits.make({
+			color: KernelColor.Limits.make({ max_icc_bytes: KernelSrgbProfile.byte_count, max_profiles: 1, max_spaces: 2, max_tags: KernelSrgbProfile.tag_count }),
+			max_commands: paint_items * 2,
+			max_groups: paint_items,
+			max_page_group_edges: paint_items,
+			max_pages,
+			scene: KernelScene.Limits.make({ max_commands: paint_items * 2, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: paint_items, max_pages, max_path_segments: paint_items, max_paths: paint_items }),
+		}).with_image_budgets(options.image_budgets),
+		semantics: KernelFacadeSemantics.Limits.make({
+			max_container_depth: budgets.max_container_depth,
+			max_content_spine: content_spine,
+			max_inline_depth: budgets.max_inline_depth,
+			max_nodes: content_items,
+			max_occurrences: content_items,
+			max_properties: content_items,
+			max_source_inputs: content_items,
+			semantics: KernelSemantics.Limits.make({ max_attributes: attributes, max_content_spine: content_spine, max_fragments: 0, max_namespaces: 2, max_nodes: content_items, max_occurrences: content_items, max_semantic_depth: budgets.max_semantic_depth }),
+			sources: KernelFacadeSources.Limits.make({
+				max_hash_probes: text_units * 4,
+				max_inputs: content_items,
+				max_source_bytes: text_units,
+				max_source_scalars: text_units,
+				max_table_slots: content_items * 4,
+				max_unique_sources: content_items,
+				unicode: { max_graphemes: text_units, max_line_boundaries: text_units + 1, max_scalars: text_units, max_script_runs: budgets.max_source_script_runs },
+			}),
+			text_semantics: KernelTextSemantics.Limits.make({ max_text_properties: content_items, max_text_property_bytes: text_units, max_text_source_bytes: text_units, max_text_source_scalars: text_units, max_text_sources: content_items }),
+		}).with_uri_bytes(budgets.max_uri_bytes).with_table_grid_work(budgets.max_table_grid_work).with_list_depth(budgets.max_list_depth).with_identifier_budgets({ max_bibliography_target_bytes: budgets.max_bibliography_target_bytes, max_table_key_bytes: budgets.max_table_key_bytes }),
+		shape: KernelFacadeShape.Limits.make({ max_requests: runs, shape: KernelShape.Limits.make({ max_clusters: text_units, max_glyphs: text_units, max_scalars: text_units, max_source_bytes: text_units }) }),
+		text: KernelFacadeText.Limits.make({ max_clusters: text_units, max_glyph_indices: text_units, max_glyphs: text_units, max_pages, max_placements: paint_items, max_runs: paint_items }),
+	}).with_artifact_text(options.artifact_text_budgets).with_drawing_group_depth(budgets.max_drawing_group_depth).with_reference_page_label_bytes(budgets.max_reference_page_label_bytes).with_flow_reference({
+		max_layout_work: budgets.max_flow_reference_layout_work,
+		max_passes: budgets.max_flow_reference_passes,
+		max_state_units: budgets.max_flow_reference_state_units,
+	})
+}
 
-standard_object_limits : KernelObject.Limits
-standard_object_limits = {
-	max_array_items: 4000000,
-	max_byte_string_bytes: 8388608,
-	max_byte_strings: 1000000,
-	max_dictionary_entries: 4000000,
-	max_direct_depth: 8,
+object_limits : Pdf.Budgets -> KernelObject.Limits
+object_limits = |budgets| {
+	# Keep the existing lexical overhead at the default and increase it in
+	# proportion to the total object budget when the caller needs more objects.
+	object_scale = U64.max(1, 1 + (budgets.max_objects - 1) // Pdf.Budgets.default.max_objects)
+	{
+		max_array_items: 4000000 * object_scale,
+		max_byte_string_bytes: 8388608 * object_scale,
+		max_byte_strings: 1000000 * object_scale,
+		max_dictionary_entries: 4000000 * object_scale,
+		max_direct_depth: 8,
 
-	## Every structure element interns its role name and every attribute
-	## dictionary its keys, so names grow with structure: the facade's
-	## 16,384 nodes with the longest roles and their `/A` entries, and a
-	## table cell's element identifier and `/Headers` byte strings, stay
-	## well inside these bounds.
-	max_name_bytes: 8388608,
-	max_names: 1000000,
-	max_objects: 65536,
-	max_payload_bytes: 16000000,
-	max_payloads: 100000,
-	max_streams: 100000,
-	max_text_string_bytes: 1000000,
-	max_text_strings: 16384,
-	max_values: 4000000,
+		## Every structure element interns its role name and every attribute
+		## dictionary its keys, so names grow with structure: the facade's
+		## 16,384 nodes with the longest roles and their `/A` entries, and a
+		## table cell's element identifier and `/Headers` byte strings, stay
+		## well inside these bounds.
+		max_name_bytes: 8388608 * object_scale,
+		max_names: 1000000 * object_scale,
+		max_objects: budgets.max_objects,
+		max_payload_bytes: budgets.max_payload_bytes,
+		max_payloads: 100000 * object_scale,
+		max_streams: 100000 * object_scale,
+		max_text_string_bytes: 1000000 * object_scale,
+		max_text_strings: 16384 * object_scale,
+		max_values: 4000000 * object_scale,
+	}
+}
+
+expect {
+	doc = Pdf.document({
+		contents: [
+			Pdf.destination_heading({ level: 1, name: "start", text: "Introduction" }),
+			Pdf.rich_paragraph([Pdf.inline_internal_link([Pdf.text("Go back")], "start")]),
+		],
+		language: "en-AU",
+		title: "Document capacity",
+	})
+	content_rejected = match Pdf.to_chunks_with(doc, { budgets: { max_content_items: 1 } }) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("document.content_limit"), .. }], .. })) => True
+		_ => False
+	}
+	objects_rejected = match Pdf.to_chunks_with(doc, { budgets: { max_objects: 1 } }) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, .. }], .. })) => True
+		_ => False
+	}
+	navigation_rejected = match Pdf.to_chunks_with(doc, { budgets: { max_destinations: 0 } }) {
+		Err(InvalidNavigation(DestinationLimitExceeded({ attempted: 1, limit: 0 }))) => True
+		_ => False
+	}
+	expanded = Pdf.to_bytes_with(doc, { budgets: { max_content_items: 250000, max_text_units: 16000000, max_objects: 300000 } })?
+	content_rejected and objects_rejected and navigation_rejected and expanded == Pdf.to_bytes(doc)?
+}
+
+expect {
+	image = Image.Source.rgb8({ pixels: [0, 0, 0], row_stride: 3, alpha: NoAlpha, dimensions: { width: 1, height: 1 } })
+	figure = Pdf.figure({
+		drawing: Scene.Drawing.empty.image({ image, placement: Layout.rect({ x: 0, y: 0, width: 8, height: 8 }) }),
+		alt: "A black square.",
+		caption: Pdf.no_caption,
+	})
+	doc = Pdf.document({ contents: [figure, figure], language: "en-AU", title: "Image capacity" })
+	identity_rejected = match Pdf.to_chunks_with(doc, { image_budgets: { max_identity_comparison_bytes: 2 } }) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, .. }], .. })) => True
+		_ => False
+	}
+	physical_rejected = match Pdf.to_chunks_with(doc, { image_budgets: { max_resources: 0 } }) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, .. }], .. })) => True
+		_ => False
+	}
+	expanded = Pdf.to_bytes_with(doc, { image_budgets: { max_identity_comparison_bytes: 3, max_resources: 1 } })?
+	identity_rejected and physical_rejected and expanded == Pdf.to_bytes(doc)?
+}
+
+expect {
+	doc = Pdf.document({
+		contents: [
+			Pdf.generated_contents({ depth: 1, page_width: 36 }),
+			Pdf.page_break,
+			Pdf.destination_heading({ level: 1, name: "one", text: "First part" }),
+			Pdf.destination_heading({ level: 1, name: "two", text: "Second part" }),
+		],
+		language: "en-AU",
+		title: "Generated contents capacity",
+	})
+	rejected = match Pdf.to_chunks_with(doc, { budgets: { max_contents_entries: 1 } }) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("document.generated_contents"), .. }], .. })) => True
+		_ => False
+	}
+	rejected and Pdf.to_bytes_with(doc, { budgets: { max_contents_entries: 2 } })? == Pdf.to_bytes(doc)?
+}
+
+expect {
+	var $headings = []
+	var $targets = []
+	var $index = 0
+	while $index < 17 {
+		name = "heading-${$index.to_str()}"
+		$headings = $headings.append(Pdf.destination_heading({ level: 1, name, text: name }))
+		$targets = $targets.append(name)
+		$index = $index + 1
+	}
+	index = Pdf.index({ entries: [{ term: "Index term", destinations: $targets }], numbering: Physical })
+	doc = Pdf.document({ contents: $headings.append(index), language: "en-AU", title: "Index capacity" })
+	rejected = match Pdf.to_chunks_with(doc, {}) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("document.index"), message, .. }], .. })) => message.contains("The limit is 16 targets per term.")
+		_ => False
+	}
+	chunks = Pdf.to_chunks_with(doc, { budgets: { max_index_targets_per_term: 17 } })?
+	match Pdf.next_chunk(chunks) {
+		Emit(bytes, _) => rejected and !bytes.is_empty()
+		Done => False
+	}
+}
+
+expect {
+	doc = Pdf.document({ contents: [Pdf.paragraph("abc")], language: "en-AU", title: "Font capacity" })
+	defaults = Pdf.Budgets.default
+	bounded = [
+		{ budgets: { ..defaults, max_font_glyphs: 3 }, reason: "RetainedGlyphLimitExceeded" },
+		{ budgets: { ..defaults, max_font_mappings: 2 }, reason: "Mappings" },
+		{ budgets: { ..defaults, max_font_mapping_scalars: 2 }, reason: "UnicodeMappingLimitExceeded" },
+		{ budgets: { ..defaults, max_font_to_unicode_bytes: 0 }, reason: "UnicodeMappingLimitExceeded" },
+	]
+	rejected = bounded.all(
+		|{ budgets: selected, reason }| match Pdf.to_chunks_with(doc, { budgets: selected }) {
+			Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, message, .. }], .. })) => message.contains(reason)
+			_ => False
+		},
+	)
+	rejected and Pdf.to_bytes_with(doc, { budgets: { max_font_glyphs: 4, max_font_mappings: 3, max_font_mapping_scalars: 3 } })? == Pdf.to_bytes(doc)?
+}
+
+expect {
+	doc = Pdf.document({ contents: [Pdf.paragraph("Body")], language: "en-AU", title: Str.repeat("x", 2049) })
+	language_rejected = match Pdf.prepare(doc, { metadata_budgets: { max_language_bytes: 4 } }) {
+		Err(InvalidMetadata(LanguageTooLong({ attempted: 5, limit: 4 }))) => True
+		_ => False
+	}
+	title_rejected = match Pdf.to_chunks_with(doc, {}) {
+		Err(InvalidMetadata(TitleTooLong({ attempted: 2049, limit: 2048 }))) => True
+		_ => False
+	}
+	language_rejected and title_rejected and Pdf.prepare(doc, { metadata_budgets: { max_language_bytes: 5, max_title_bytes: 2049 } }).is_ok()
+}
+
+expect {
+	doc = Pdf.document({ contents: [Pdf.paragraph("Body")], language: "en-AU", title: Str.repeat("&", 4096) })
+	options = Pdf.Options.{ metadata_budgets: { max_title_bytes: 4096 } }
+	rejected = match Pdf.to_chunks_with(doc, options) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("metadata.xmp_budget"), message, .. }], .. })) => message.contains("The configured limit is 16384.")
+		_ => False
+	}
+	rejected and Pdf.prepare(doc, { metadata_budgets: { max_title_bytes: 4096, max_xmp_bytes: 22000 } }).is_ok()
+}
+
+expect {
+	doc = Pdf.document({ contents: [], language: "en-AU", title: "Blank output budget" })
+	default = Pdf.prepare(doc, { profile: Archive })?
+	Pdf.Prepared.(plan) = default
+	max_objects = KernelStructure.Plan.object_count(plan)
+	max_payload_bytes = KernelSeal.Plan.source_bytes(KernelStructure.Plan.sealed(plan)).payloads
+	objects_rejected = match Pdf.to_chunks_with(doc, { profile: Archive, budgets: { max_objects: max_objects - 1 } }) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, message, .. }], .. })) => message.contains("dimension: Objects")
+		_ => False
+	}
+	payload_rejected = match Pdf.prepare_with_report(doc, { options: { profile: Archive, budgets: { max_payload_bytes: max_payload_bytes - 1 } } }) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, message, .. }], .. })) => message.contains("dimension: PayloadBytes")
+		_ => False
+	}
+	accepted = Pdf.prepare(doc, { profile: Archive, budgets: { max_objects, max_payload_bytes } })?
+	objects_rejected and payload_rejected and Pdf.to_bytes_prepared(accepted)? == Pdf.to_bytes_prepared(default)?
 }
 
 # Public profiles map to exact claim sets without enabling orthogonal WTPDF claims.
@@ -3185,8 +4315,8 @@ expect {
 # The lexical implementation remains a private package module.
 expect KernelLex.boolean(True) == Str.to_utf8("true")
 
-# text-layout Unicode analysis is pinned to the reviewed Unicode 17 package release.
-expect KernelUnicode.version == "17.0.0"
+# text-layout Unicode analysis is pinned to the reviewed Unicode 18 package release.
+expect KernelUnicode.version == "18.0.0"
 
 # Object/value/edge storage is likewise package-private.
 expect KernelObject.counts(
@@ -3327,10 +4457,43 @@ expect {
 	}
 }
 
+expect {
+	doc = Pdf.document({ contents: [Pdf.paragraph("A仓")], language: "en-AU", title: "Script run limit" })
+	match Pdf.to_chunks_with(doc, { budgets: { max_source_script_runs: 1 } }) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("pipeline.semantics.source.unicode.script_run_limit_exceeded"), details: ["Semantics.Source.Unicode.ScriptRunLimitExceeded"], .. }], .. })) => True
+		_ => False
+	}
+}
+
 template_header : Document.Region
 template_header = {
 	page_of = Pdf.reserved_width({ width: Layout.Unit.points(72), align: End, contents: [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)] })
 	Pdf.region({ center: [], end: [Pdf.furniture_text([page_of])], height: Layout.Unit.points(16), start: [Pdf.furniture_text([Pdf.text("Running head")])] })
+}
+
+expect {
+	doc = Pdf.document({ contents: [Pdf.paragraph("Intro"), Pdf.source_block({ text: "a\nb" })], language: "en-AU", title: "Source output budget" })
+	options = Pdf.Options.{ profile: Standard, source_budgets: { max_output_bytes: 2 } }
+	rejected = match Pdf.to_chunks_with(doc, options) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("source.budget"), details: ["contents[1]"], .. }], .. })) => True
+		_ => False
+	}
+	report_rejected = match Pdf.prepare_with_report(doc, Pdf.ReportProps.{ options }) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("source.budget"), details: ["contents[1]"], .. }], .. })) => True
+		_ => False
+	}
+	at_limit = Pdf.to_bytes_with(doc, { profile: Standard, source_budgets: { max_input_bytes: 3, max_output_bytes: 3, max_lines: 2 } })?
+	rejected and report_rejected and at_limit == Pdf.to_bytes_with(doc, { profile: Standard })?
+}
+
+# Source line counts can change the normalized heading indices used in an
+# earlier semantics error. Diagnostic replay uses the preparation budgets.
+expect {
+	doc = Pdf.document({ contents: [Pdf.source_block({ text: "a\nb" }), Pdf.heading(1, "Start"), Pdf.heading(3, "Skipped")], language: "en-AU", title: "Source path replay" })
+	match Pdf.prepare(doc, { profile: Standard, source_budgets: { max_input_bytes: 1 } }) {
+		Err(InvalidDocument({ diagnostics: [{ feature: Feature("semantics.heading_skip"), details: ["contents[1]", "contents[2]"], .. }], .. })) => True
+		_ => False
+	}
 }
 
 template_document : List(Document.Block), Layout.Unit -> Document
@@ -3521,6 +4684,306 @@ expect {
 	collected = collect_chunks(Pdf.to_chunks_with(chunk_report_document, options)?)
 
 	collected.bytes == expected
+}
+
+## Associated-file bytes use the unchanged-resource path and are released at
+## their last stream. Buffered equivalence is covered by the facade fixtures.
+expect {
+	base = Pdf.document({ contents: [], language: "en", title: "Attachment retention" })
+	payload = List.repeat(213, 189)
+	document = base.with_associated_files([
+		{
+			bytes: payload,
+			description: "Storage ownership probe",
+			filename: "sample.bin",
+			media_type: "application/octet-stream",
+			modified: "2024-02-29T12:00:00Z",
+			necessity: Supplemental,
+			relationship: Data,
+		},
+	])
+	Pdf.Prepared.(baseline) = Pdf.prepare(base, { profile: Archive })?
+	Pdf.Prepared.(attached) = Pdf.prepare(document, { profile: ArchiveWithFiles })?
+	shared = observe_attachment(KernelEmit.start(attached, ShareResourceChunks)?, payload)
+	owned = observe_attachment(KernelEmit.start(attached, OwnResourceChunks)?, payload)
+	ordinary = observe_attachment(KernelEmit.start(baseline, OwnResourceChunks)?, payload)
+	shared.shared == 1 and shared.owned == 0 and shared.copied == 0
+		and owned.shared == 0 and owned.owned == 1 and owned.copied == ordinary.copied + payload.len()
+		and ordinary.shared == 0 and ordinary.owned == 0
+}
+
+attachment_budget_file : Str, List(U8), Str -> Pdf.AssociatedFile
+attachment_budget_file = |filename, bytes, description| Pdf.AssociatedFile.{
+	bytes,
+	description,
+	filename,
+	media_type: "application/octet-stream",
+	modified: "2024-02-29T12:00:00Z",
+	necessity: Supplemental,
+	relationship: Data,
+}
+
+attachment_budget_rejected : Try(a, Pdf.Error), Str, Str -> Bool
+attachment_budget_rejected = |result, feature, path| match result {
+	Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature(actual), details: [location], .. }], .. })) => actual == feature and location == path
+	_ => False
+}
+
+# Exact per-file and total limits accept. Exhaustion is reported in authored
+# order before filename validation or duplicate detection.
+expect {
+	file = attachment_budget_file("sample.bin", [1, 2, 3], "Storage ownership probe")
+	second = attachment_budget_file("second.bin", [4, 5, 6], "Second attachment")
+	base = Pdf.document({ contents: [], language: "en", title: "Attachment budgets" })
+	document = base.with_associated_files([file, second])
+	duplicates = base.with_associated_files([file, file])
+	count_rejected = attachment_budget_rejected(Pdf.prepare(duplicates, { profile: ArchiveWithFiles, attachment_budgets: { max_files: 1, max_file_bytes: 0 } }), "attachment.count_limit", "associated_files")
+	file_rejected = attachment_budget_rejected(Pdf.prepare(duplicates, { profile: ArchiveWithFiles, attachment_budgets: { max_files: 2, max_file_bytes: 2, max_total_bytes: 1 } }), "attachment.file_limit", "associated_files[0].bytes")
+	total_rejected = attachment_budget_rejected(Pdf.prepare(duplicates, { profile: ArchiveWithFiles, attachment_budgets: { max_files: 2, max_file_bytes: 3, max_total_bytes: 5 } }), "attachment.total_limit", "associated_files[1].bytes")
+	Pdf.Prepared.(plan) = Pdf.prepare(document, { profile: ArchiveWithFiles, attachment_budgets: { max_files: 2, max_file_bytes: 3, max_total_bytes: 6 } })?
+	owns_files = match KernelStructure.Plan.association_ownership(plan) {
+		AssociationOwnership(_) => True
+		NoAssociationOwnership => False
+	}
+	count_rejected and file_rejected and total_rejected and owns_files
+}
+
+expect {
+	description = Str.repeat("é", 1032)
+	file = attachment_budget_file("sample.bin", [1], description)
+	blank = Pdf.document({ contents: [], title: "Attachment description", language: "en" }).with_associated_files([file])
+	tagged = Pdf.document({ contents: [Pdf.paragraph("The report stands on its own.")], title: "Attachment description", language: "en" }).with_associated_files([file])
+	rejected = match Pdf.to_chunks_with(blank, { profile: ArchiveWithFiles }) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("attachment.description_limit"), details: ["associated_files[0].description"], message, .. }], .. })) => message.contains("2064 UTF-8 bytes") and message.contains("limit is 1024")
+		_ => False
+	}
+	tight = Pdf.prepare(tagged, { profile: AccessibleArchiveWithFiles, attachment_budgets: { max_description_bytes: 2063 } })
+	blank_bytes = Pdf.to_bytes_with(blank, { profile: ArchiveWithFiles, attachment_budgets: { max_description_bytes: 2064 } })?
+	tagged_bytes = Pdf.to_bytes_with(tagged, { profile: AccessibleArchiveWithFiles, attachment_budgets: { max_description_bytes: 2064 } })?
+	rejected and attachment_budget_rejected(tight, "attachment.description_limit", "associated_files[0].description") and !blank_bytes.is_empty() and !tagged_bytes.is_empty()
+}
+
+expect {
+	media_type = "application/${Str.repeat("a", 127)}"
+	file = Pdf.AssociatedFile.{ bytes: [1], description: "Attachment purpose", filename: "sample.bin", media_type, modified: "2024-02-29T12:00:00Z", necessity: Supplemental, relationship: Data }
+	blank = Pdf.document({ contents: [], title: "Attachment media type", language: "en" }).with_associated_files([file])
+	tagged = Pdf.document({ contents: [Pdf.paragraph("The report stands on its own.")], title: "Attachment media type", language: "en" }).with_associated_files([file])
+	rejected = match Pdf.to_chunks_with(blank, { profile: ArchiveWithFiles }) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("attachment.media_type_limit"), details: ["associated_files[0].media_type"], message, .. }], .. })) => message.contains("139 bytes") and message.contains("limit is 127")
+		_ => False
+	}
+	tight = Pdf.prepare(tagged, { profile: AccessibleArchiveWithFiles, attachment_budgets: { max_media_type_bytes: 138 } })
+	blank_bytes = Pdf.to_bytes_with(blank, { profile: ArchiveWithFiles, attachment_budgets: { max_media_type_bytes: 139 } })?
+	tagged_bytes = Pdf.to_bytes_with(tagged, { profile: AccessibleArchiveWithFiles, attachment_budgets: { max_media_type_bytes: 139 } })?
+	rejected and attachment_budget_rejected(tight, "attachment.media_type_limit", "associated_files[0].media_type") and !blank_bytes.is_empty() and !tagged_bytes.is_empty()
+}
+
+# A blank archive exercises the ordinary untagged catalog. A tagged document
+# crosses a second 32-way name-tree boundary and exceeds the ordinary text
+# store's byte limit with legal attachment metadata.
+expect {
+	count = 1025
+	prefix = Str.from_utf8(List.repeat(37, 248)) ?? crash "ASCII attachment filename prefix"
+	description = Str.from_utf8(List.repeat(120, 1100)) ?? crash "ASCII attachment description"
+	var $files = List.with_capacity(count)
+	var $index = count
+	while $index > 0 {
+		$index = $index - 1
+		$files = $files.append(attachment_budget_file("${prefix}${$index.to_str()}", [1], description))
+	}
+	blank = Pdf.document({ contents: [], language: "en", title: "Attachment budgets" }).with_associated_files($files.sublist({ start: 0, len: 129 }))
+	tagged = Pdf.document({ contents: [Pdf.title("Attachment budgets")], language: "en", title: "Attachment budgets" }).with_associated_files($files)
+	blank_default_rejected = attachment_budget_rejected(Pdf.prepare(blank, { profile: ArchiveWithFiles }), "attachment.count_limit", "associated_files")
+	blank_limits = Pdf.AttachmentBudgets.{ max_files: 129, max_description_bytes: 1100 }
+	Pdf.Prepared.(blank_plan) = Pdf.prepare(blank, { profile: ArchiveWithFiles, attachment_budgets: blank_limits })?
+	{ prepared, report } = Pdf.prepare_with_report(tagged, { options: { profile: AccessibleArchiveWithFiles, attachment_budgets: { max_files: count, max_description_bytes: 1100 } } })?
+	Pdf.Prepared.(tagged_plan) = prepared
+	reviews = report.obligations.count_if(
+		|entry| match entry.obligation {
+			AttachmentSupplemental => True
+			_ => False
+		},
+	)
+	blank_default_rejected and KernelStructure.Plan.page_count(blank_plan) == 1
+		and KernelStructure.Plan.object_count(tagged_plan) > 3 * count
+		and reviews == count
+}
+
+depth_test_drawing : U64, I64 -> Scene.Drawing
+depth_test_drawing = |depth, origin| {
+	var $drawing = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: origin, y: origin, width: 10, height: 10 }), color: "#000000" })
+	var $level = 0
+	while $level < depth {
+		$drawing = Scene.Drawing.empty.group({ offset: Layout.point({ x: 1, y: 1 }), drawing: $drawing })
+		$level = $level + 1
+	}
+	$drawing
+}
+
+drawing_depth_rejection : Try(a, Pdf.Error), Str -> Bool
+drawing_depth_rejection = |result, expected| match result {
+	Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("document.drawing_group_depth"), details: [actual], message, .. }], .. })) =>
+		actual == expected and contains_bytes(Str.to_utf8(message), Str.to_utf8("9 levels deep")) and contains_bytes(Str.to_utf8(message), Str.to_utf8("limit is 8"))
+	_ => False
+}
+
+depth_test_flow : Scene.Drawing -> Document
+depth_test_flow = |drawing| Pdf.document({ contents: [Pdf.figure({ drawing, alt: "A black square", caption: Pdf.no_caption })], language: "en", title: "Drawing depth" })
+
+depth_test_fixed : Scene.Drawing -> Document
+depth_test_fixed = |drawing| {
+	page = Pdf.fixed_page({ width: 595, height: 842 })
+		.place({ block: Pdf.figure({ drawing, alt: "A black square", caption: Pdf.no_caption }), frame: Layout.rect({ x: 50, y: 600, width: 100, height: 100 }) })
+		.finish()
+	Pdf.fixed_document({ pages: [page], language: "en", title: "Drawing depth" })
+}
+
+depth_test_decoration : Scene.Drawing -> Document
+depth_test_decoration = |drawing| Pdf.document({
+	contents: [
+		Pdf.decoration({ drawing: drawing }),
+		Pdf.paragraph("Text below the mark."),
+	],
+	language: "en",
+	title: "Drawing depth",
+})
+
+depth_test_panel : Scene.Drawing -> Document
+depth_test_panel = |panel| Pdf.document({
+	contents: [Pdf.custom_block({ contents: [Pdf.paragraph("Text in the panel.")], name: "Depth", inset: 3, panel, size: { width: 100, height: 60 } })],
+	language: "en",
+	title: "Drawing depth",
+})
+
+depth_test_furniture : Scene.Drawing -> Document
+depth_test_furniture = |drawing| {
+	header = Pdf.region({ height: 25, start: [Pdf.furniture_image(drawing)] })
+	Pdf.document({
+		contents: [Pdf.paragraph("Text below the header.")],
+		language: "en",
+		page_templates: Templates({
+			first: Pdf.first_page_template({ header: header }),
+			continuation: Pdf.page_template({ header: header }),
+		}),
+		title: "Drawing depth",
+	})
+}
+
+# All translated drawing routes enforce the same budget before lowering.
+# A successful nested translation emits the same coordinates as the flat path.
+expect {
+	nested = depth_test_drawing(9, 0)
+	flat = depth_test_drawing(0, 9)
+	options = Pdf.Options.{ profile: Archive, budgets: { max_drawing_group_depth: 9 } }
+	surfaces = [
+		(depth_test_flow, "contents[0].drawing.commands[8]"),
+		(depth_test_fixed, "pages[0].placements[0].drawing.commands[8]"),
+		(depth_test_decoration, "contents[0].drawing.commands[8]"),
+		(depth_test_panel, "contents[0].panel.commands[8]"),
+		(depth_test_furniture, "templates.first.header.start[0].commands[8]"),
+	]
+	var $passed = True
+	for (build, path) in surfaces {
+		doc = build(nested)
+		rejected = drawing_depth_rejection(Pdf.prepare(doc, { profile: Archive }), path)
+		rejected_report = drawing_depth_rejection(Pdf.prepare_with_report(doc, { options: { profile: Archive } }), path)
+		report = Pdf.prepare_with_report(doc, { options: options })?
+		nested_bytes = Pdf.to_bytes_prepared(report.prepared)?
+		flat_bytes = Pdf.to_bytes_with(build(flat), { profile: Archive, budgets: { max_drawing_group_depth: 0 } })?
+		$passed = $passed and rejected and rejected_report and nested_bytes == flat_bytes
+	}
+	$passed
+}
+
+form_budget_document : U64, Bool -> Document
+form_budget_document = |count, duplicate| {
+	var $pages = []
+	var $index = 0
+	while $index < count {
+		var $page = Pdf.fixed_page({ width: 595, height: 842 })
+		var $slot = 0
+		while $index < count and $slot < 8 {
+			id = if (duplicate and $index + 1 == count) "field_0" else "field_${$index.to_str()}"
+			origin = { x: 56, y: Layout.Unit.points(684 - $slot.to_i64_wrap() * 64) }
+			if $index % 2 == 0 and !(duplicate and $index + 1 == count) {
+				$page = $page.place_text_field({ field: { id, label: "Text field", width: 200 }, origin })
+			} else {
+				$page = $page.place_checkbox({ field: { id, label: "Check field" }, origin })
+			}
+			$slot = $slot + 1
+			$index = $index + 1
+		}
+		$pages = $pages.append($page.finish())
+	}
+	Pdf.fixed_document({ pages: $pages, language: "en", title: "Form budgets" })
+}
+
+form_budget_rejected : Try(a, Pdf.Error), Str, Str, Str -> Bool
+form_budget_rejected = |result, feature, path, message_part| match result {
+	Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature(actual), details: [location], message, .. }], .. })) =>
+		actual == feature and location == path and contains_bytes(Str.to_utf8(message), Str.to_utf8(message_part))
+	_ => False
+}
+
+# Both widget types consume the form and annotation limits. IDs remain unique
+# across widget types and across pages at a count above the old fixed ceiling.
+expect {
+	count = 129
+	doc = form_budget_document(count, False)
+	options = Pdf.Options.{ profile: AccessibleForm, form_budgets: { max_fields: count } }
+	default_rejected = form_budget_rejected(Pdf.prepare(doc, { profile: AccessibleForm }), "form.count", "pages", "128 (form_budgets.max_fields)")
+	annotations_rejected = form_budget_rejected(Pdf.prepare(doc, { ..options, budgets: { max_annotations: 128 } }), "form.count", "pages", "128 (budgets.max_annotations)")
+	duplicate_rejected = match Pdf.prepare(form_budget_document(count, True), options) {
+		Err(InvalidDocument({ diagnostics: [{ code: DuplicateIdentity, feature: Feature("form.checkbox.duplicate_id"), details: ["pages[16].placements[0].field.id"], .. }], .. })) => True
+		_ => False
+	}
+	Pdf.Prepared.(plan) = Pdf.prepare(doc, { ..options, budgets: { max_annotations: count } })?
+	owned = match KernelStructure.Plan.widget_evidence(plan) {
+		WidgetEvidence({ widget_values, .. }) => widget_values.len()
+		NoWidgetEvidence => 0
+	}
+	default_rejected and annotations_rejected and duplicate_rejected and owned == count
+}
+
+# IDs and labels can exceed the default byte limits when explicitly allowed.
+# The limit for an editable initial value remains part of the field contract.
+expect {
+	id = Str.repeat("n", 65)
+	label = Str.repeat("i", 257)
+	page = Pdf.fixed_page({ width: 1200, height: 842 })
+		.place_text_field({ origin: { x: 56, y: 650 }, field: { id, label, width: 1024 } })
+		.finish()
+	doc = Pdf.fixed_document({ pages: [page], language: "en", title: "Field text budgets" })
+	id_rejected = form_budget_rejected(Pdf.prepare(doc, { profile: AccessibleForm }), "form.text.id", "pages[0].placements[0].field.id", "the limit is 64")
+	label_rejected = form_budget_rejected(Pdf.prepare(doc, { profile: AccessibleForm, form_budgets: { max_field_id_bytes: 65 } }), "form.text.label", "pages[0].placements[0].field.label", "the limit is 256")
+	id_rejected and label_rejected and Pdf.prepare(doc, { profile: AccessibleForm, form_budgets: { max_field_id_bytes: 65, max_field_label_bytes: 257 } }).is_ok()
+}
+
+observe_attachment : KernelEmit.Encoder, List(U8) -> { copied : U64, owned : U64, shared : U64 }
+observe_attachment = |encoder, expected| {
+	var $encoder = encoder
+	var $owned = 0
+	var $shared = 0
+	while True {
+		copied = KernelEmit.Encoder.copied_resource_bytes($encoder)
+		match KernelEmit.Encoder.next_infallible($encoder) {
+			Done => return { copied, owned: $owned, shared: $shared }
+			Emit(segment, next) => {
+				if segment.bytes == expected {
+					match segment.ownership {
+						Generated => crash "associated bytes must retain resource ownership"
+						OwnedResource => {
+							$owned = $owned + 1
+						}
+						SharedResource => {
+							$shared = $shared + 1
+						}
+					}
+				}
+				$encoder = next
+			}
+		}
+	}
 }
 
 compression_document : Document
@@ -3722,8 +5185,8 @@ archive_twin_options : Pdf.Options
 archive_twin_options = Pdf.Options.{ profile: Pdf.Profile.Archive }
 
 archive_twin_packet : Str -> KernelXmp.Packet
-archive_twin_packet = |title| match KernelMetadata.validate({ created: Omitted, language: "en-AU", modified: Omitted, title }, standard_metadata_limits) {
-	Ok(validated) => match KernelXmp.Packet.build_identified(validated.facts, PdfA4Identification, standard_xmp_bytes) {
+archive_twin_packet = |title| match KernelMetadata.validate({ created: Omitted, language: "en-AU", modified: Omitted, title }, metadata_limits(Pdf.MetadataBudgets.default)) {
+	Ok(validated) => match KernelXmp.Packet.build_identified(validated.facts, PdfA4Identification, Pdf.MetadataBudgets.default.max_xmp_bytes) {
 		Ok(packet) => packet
 		Err(_) => {
 			crash "archive twin packet failed"
@@ -3742,14 +5205,16 @@ archive_twin_pipeline = {
 			crash "archive twin font failed"
 		}
 	}
-	facts = WithDocumentFacts({
-		condition_identifier: KernelMetadata.srgb_condition_identifier,
-		profile: Color.ProfileId.from_index(0),
-		registry_name: KernelMetadata.icc_registry_name,
-		language: "en-AU",
-		xmp: KernelXmp.Packet.bytes(archive_twin_packet("Archive twins")),
-	})
-	match KernelFacadePipeline.Plan.build_with_facts(Document.normalize(archive_twin_document), font, archive_twin_options.theme, layout_page_size(A4), standard_font_descriptor, facts, standard_pipeline_limits) {
+	facts = WithDocumentFacts(
+		KernelMetadata.PlanDocumentFacts.{
+			condition_identifier: KernelMetadata.srgb_condition_identifier,
+			profile: Color.ProfileId.from_index(0),
+			registry_name: KernelMetadata.icc_registry_name,
+			language: "en-AU",
+			xmp: KernelXmp.Packet.bytes(archive_twin_packet("Archive twins")),
+		},
+	)
+	match KernelFacadePipeline.Plan.build_with_facts(Document.normalize(archive_twin_document), font, archive_twin_options.theme, layout_page_size(A4), standard_font_descriptor, facts, pipeline_limits(Pdf.Options.default)) {
 		Ok(pipeline) => KernelFacadePipeline.Plan.output(pipeline)
 		Err(_) => {
 			crash "archive twin pipeline failed"
@@ -3971,7 +5436,73 @@ expect {
 		Err(InvalidDocument({ diagnostics: [{ code: InvalidRelationship, details: [path], feature: Feature(code), .. }], .. })) => code == "semantics.empty_container" and path == "contents[1].contents[1]"
 		_ => False
 	}
-	deep_rejected and empty_rejected
+	deep_rejected and empty_rejected and Pdf.prepare(deep, { profile: Standard, budgets: { max_container_depth: 17 } }).is_ok()
+}
+
+# Each authored limit accepts its exact boundary and rejects one below it.
+expect {
+	doc = |block| Pdf.document({ contents: [block], language: "en-AU", title: "Shallow authored depth" })
+	container = doc(Pdf.division([Pdf.paragraph("Body")]))
+	inline = doc(Pdf.rich_paragraph([Pdf.strong([Pdf.text("Body")])]))
+	list = doc(Pdf.bullet_list([Pdf.list_item([Pdf.paragraph("Item")])]))
+	rejects = |styled, budgets, feature| match Pdf.to_chunks_with(styled, { profile: Standard, budgets }) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature(actual), message, .. }], .. })) => actual == feature and message.contains("at most 0")
+		_ => False
+	}
+	rejects(container, Pdf.Budgets.{ max_container_depth: 0 }, "semantics.container_depth")
+		and rejects(inline, Pdf.Budgets.{ max_inline_depth: 0 }, "semantics.inline_depth")
+		and rejects(list, Pdf.Budgets.{ max_list_depth: 0 }, "semantics.list_depth")
+		and Pdf.prepare(container, { profile: Standard, budgets: { max_container_depth: 1 } }).is_ok()
+		and Pdf.prepare(inline, { profile: Standard, budgets: { max_inline_depth: 1 } }).is_ok()
+		and Pdf.prepare(list, { profile: Standard, budgets: { max_list_depth: 1 } }).is_ok()
+}
+
+expect {
+	var $inline = Pdf.text("Deep style")
+	var $list = Pdf.bullet_list([Pdf.list_item([Pdf.paragraph("Item")])])
+	var $depth = 0
+	while $depth < 9 {
+		$inline = Pdf.strong([$inline])
+		if $depth < 4 {
+			$list = Pdf.bullet_list([Pdf.list_item([Pdf.paragraph("Item"), $list])])
+		}
+		$depth = $depth + 1
+	}
+	inline = Pdf.document({ contents: [Pdf.rich_paragraph([$inline])], language: "en-AU", title: "Deep inline" })
+	list = Pdf.document({ contents: [$list], language: "en-AU", title: "Deep list" })
+	rejects = |authored, feature| match Pdf.to_chunks_with(authored, { profile: Standard }) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature(actual), .. }], .. })) => actual == feature
+		_ => False
+	}
+	rejects(inline, "semantics.inline_depth")
+		and rejects(list, "semantics.list_depth")
+		and Pdf.prepare(inline, { profile: Standard, budgets: { max_inline_depth: 9 } }).is_ok()
+		and Pdf.prepare(list, { profile: Standard, budgets: { max_list_depth: 5 } }).is_ok()
+}
+
+# Count the document root, 48 Div nodes, and the paragraph. Report
+# preparation must also reach the final graph with the selected limit.
+expect {
+	var $block = Pdf.paragraph("Body")
+	var $depth = 0
+	while $depth < 48 {
+		$block = Pdf.division([$block])
+		$depth = $depth + 1
+	}
+	deep = Pdf.document({ contents: [$block], language: "en-AU", title: "Semantic tree depth" })
+	shallow = Pdf.document({ contents: [Pdf.paragraph("Body")], language: "en-AU", title: "Shallow semantic depth" })
+	rejects : Document, Pdf.Budgets, U64 -> Bool
+	rejects = |authored, budgets, attempted| match Pdf.to_chunks_with(authored, { profile: Standard, budgets }) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("pipeline.semantics.text_semantics.semantic.limit_exceeded"), message, .. }], .. })) =>
+			message.contains("SemanticDepth") and message.contains("attempted: ${attempted.to_str()}") and message.contains("limit: ${budgets.max_semantic_depth.to_str()}")
+		_ => False
+	}
+	at_bound = Pdf.Options.{ profile: Standard, budgets: { max_container_depth: 48, max_semantic_depth: 50 } }
+	rejects(shallow, Pdf.Budgets.{ max_semantic_depth: 1 }, 2)
+		and Pdf.prepare(shallow, { profile: Standard, budgets: { max_semantic_depth: 2 } }).is_ok()
+		and rejects(deep, Pdf.Budgets.{ max_container_depth: 48 }, 49)
+		and rejects(deep, Pdf.Budgets.{ max_container_depth: 48, max_semantic_depth: 49 }, 50)
+		and Pdf.prepare_with_report(deep, Pdf.ReportProps.{ options: at_bound }).is_ok()
 }
 
 # Rich paragraphs lower each inline to its PDF 2.0 role inside one `P`,
@@ -4110,6 +5641,128 @@ expect {
 	contains("/S /THead") and contains("/S /TFoot") and contains("/ColSpan 2") and contains("/Scope /Column") and contains("/Headers [(c000002) (c000004)]") and contains("/IDTree")
 }
 
+expect {
+	column = { align: Start, width: Fixed(Layout.Unit.from_raw(I64.highest)) }
+	header = Pdf.header_cell(Column, [Pdf.text("Group")]).spanning(3)
+	data = Pdf.cell([Pdf.text("Detail")]).spanning(3)
+	table = Pdf.table({ body_rows: [Pdf.row([data])], caption: Pdf.no_caption, columns: [column, column, column], header_rows: [Pdf.row([header])] })
+	doc = Pdf.document({ contents: [table], language: "en-AU", title: "Wide fixed columns" })
+	match Pdf.to_chunks(doc) {
+		Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: ["contents[0]"], feature: Feature("layout.table_width"), message, .. }], .. })) => message.contains("need 27670116110564327.421 pt")
+		_ => False
+	}
+}
+
+expect {
+	column = { align: Start, width: Share(1) }
+	header = Pdf.row([Pdf.header_cell(Column, [Pdf.text("Group")]), Pdf.header_cell(Column, [Pdf.text("Detail")])])
+	detail = Pdf.cell([Pdf.text("Value")])
+	table = Pdf.table({
+		body_rows: [Pdf.row([Pdf.header_cell(Row, [Pdf.text("Farm")]).row_spanning(2), detail]), Pdf.row([detail])],
+		caption: Pdf.no_caption,
+		columns: [column, column],
+		header_rows: [header],
+	})
+	doc = Pdf.document({ contents: [table], language: "en-AU", title: "Spanning grid budget" })
+	rejected = match Pdf.to_chunks_with(doc, { budgets: { max_table_grid_work: 11 } }) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, details: ["contents[0]"], feature: Feature("table.grid_limit"), message, .. }], .. })) => message.contains("more than 11 occupied tracks and row tiles")
+		_ => False
+	}
+	rejected and Pdf.to_bytes_with(doc, { budgets: { max_table_grid_work: 12 } })? == Pdf.to_bytes(doc)?
+}
+
+# Layered headers use table-local names, resolve to byte IDs in the
+# authored order, and leave other cells on the scope-derived path.
+expect {
+	header = |name, props| Pdf.header_cell_with([Pdf.text(name)], { scope: Column, layout: props })
+	columns = [{ align: End, width: Share(1) }, { align: End, width: Share(1) }]
+	header_rows = [
+		Pdf.row([header("Revenue (AUD thousands)", { column_span: 2, key: Named("revenue") })]),
+		Pdf.row([header("Prior", { key: Named("prior"), headers: Explicit(["revenue"]) }), header("Current", { key: Named("current") })]),
+	]
+	body_rows = [
+		Pdf.row([Pdf.cell_with([Pdf.text("100")], { headers: Explicit(["prior", "revenue"]) }), Pdf.cell([Pdf.text("104")])]),
+	]
+	document = Pdf.document({
+		contents: [Pdf.table({ caption: Pdf.no_caption, columns, header_rows, body_rows })],
+		language: "en-AU",
+		title: "Revenue",
+	})
+	body = Str.from_utf8_lossy(KernelEmit.object_text(build_plan(document, Pdf.Options.default)?)?)
+	body.contains("/Headers [(c000001)] /O /Table /Scope /Column >> /ID (c000002)")
+		and body.contains("/Headers [(c000002) (c000001)]")
+		and body.contains("/Headers [(c000001) (c000003)]")
+		and body.contains("/IDTree")
+		and !body.contains("(revenue)")
+}
+
+# Rejection is transactional and identifies the cell with a bad key or
+# association. A preceding table's declarations cannot satisfy a lookup.
+expect {
+	text = [Pdf.text("Value")]
+	named_header = |key| Pdf.header_cell_with(text, { scope: Column, layout: { key: Named(key) } })
+	named_data = |key| Pdf.cell_with(text, { key: Named(key) })
+	explicit = |keys| Pdf.cell_with(text, { headers: Explicit(keys) })
+	explicit_header = |keys| Pdf.header_cell_with(text, { scope: Column, layout: { headers: Explicit(keys) } })
+	column = { align: End, width: Share(1) }
+	table = |header_cells, body_cells| Pdf.table({ caption: Pdf.no_caption, columns: [column, column], header_rows: [Pdf.row(header_cells)], body_rows: [Pdf.row(body_cells)] })
+	path = "contents[1].table.body_rows[0].cells[0]"
+	head_path = "contents[1].table.header_rows[0].cells[0]"
+	row_header = named_header("a")
+	prior = table([named_header("other-table"), Pdf.header_cell(Column, text)], [Pdf.cell(text), Pdf.cell(text)])
+	check = |header_cells, body_cells, feature, expected_path, reason| {
+		document = Pdf.document({ contents: [prior, table(header_cells, body_cells)], language: "en-AU", title: "Header keys" })
+		match Pdf.to_bytes(document) {
+			Err(InvalidDocument({ diagnostics: [{ code: InvalidRelationship, details: [actual_path], feature: Feature(actual_feature), message, .. }], .. })) =>
+				actual_path == expected_path and actual_feature == feature and message.contains(reason)
+			_ => False
+		}
+	}
+	check([row_header, named_header("b")], [explicit(["other-table"]), Pdf.cell(text)], "table.header_targets", path, "no cell")
+		and check([row_header, named_header("b")], [explicit(["value"]), named_data("value")], "table.header_targets", path, "data cell")
+		and check([row_header, named_header("b")], [explicit(["a", "a"]), Pdf.cell(text)], "table.header_targets", path, "twice")
+		and check([row_header, named_header("b")], [explicit([]), Pdf.cell(text)], "table.header_targets", path, "at least one")
+		and check([row_header, named_header("b")], [explicit(["bad target"]), Pdf.cell(text)], "table.header_targets", path, "ASCII")
+		and check([explicit_header(["later"]), named_header("later")], [Pdf.cell(text), Pdf.cell(text)], "table.header_targets", head_path, "earlier")
+		and check([row_header, named_header("b")], [named_data("a"), Pdf.cell(text)], "table.cell_key", path, "same key")
+		and check([named_header(""), named_header("b")], [Pdf.cell(text), Pdf.cell(text)], "table.cell_key", head_path, "ASCII")
+}
+
+# Authored keys and explicit targets share the table key budget. The
+# generated byte identifiers make renaming a valid key byte-identical.
+expect {
+	build = |key, target| {
+		header = Pdf.header_cell_with([Pdf.text("Amount")], { scope: Column, layout: { key: Named(key) } })
+		cell = Pdf.cell_with([Pdf.text("128")], { headers: Explicit([target]) })
+		table = Pdf.table({
+			caption: Pdf.no_caption,
+			columns: [{ align: End, width: Share(1) }],
+			header_rows: [Pdf.row([header])],
+			body_rows: [Pdf.row([cell])],
+		})
+		Pdf.document({ contents: [table], language: "en", title: "Table key budgets" })
+	}
+	key = Str.repeat("a", 65)
+	at_default = Str.repeat("a", 64)
+	declared = build(key, key)
+	key_rejected = match Pdf.prepare(declared, {}) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("table.cell_key_limit"), details: ["contents[0].table.header_rows[0].cells[0]"], message, .. }], .. })) =>
+			message.contains("65 UTF-8 bytes") and message.contains("limit is 64")
+		_ => False
+	}
+	target_rejected = match Pdf.prepare(build("amount", key), {}) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("table.header_target_limit"), details: ["contents[0].table.body_rows[0].cells[0]"], .. }], .. })) => True
+		_ => False
+	}
+	bad_grammar = match Pdf.prepare(build("amount", key.concat(" ")), { budgets: { max_table_key_bytes: 66 } }) {
+		Err(InvalidDocument({ diagnostics: [{ code: InvalidRelationship, feature: Feature("table.header_targets"), .. }], .. })) => True
+		_ => False
+	}
+	default_bytes = Pdf.to_bytes(build(at_default, at_default))?
+	wider_bytes = Pdf.to_bytes_with(declared, { budgets: { max_table_key_bytes: 65 } })?
+	key_rejected and target_rejected and bad_grammar and wider_bytes == default_bytes
+}
+
 # Table rejections are located: the row whose spans do not sum to the
 # column count, and a cell that spans rows.
 expect {
@@ -4121,16 +5774,54 @@ expect {
 		_ => False
 	}
 	spanned = match Pdf.to_bytes(table([Pdf.row([Pdf.cell([Pdf.text("x")]).row_spanning(2), Pdf.cell([Pdf.text("y")])])])) {
-		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, details: ["contents[0].table.body_rows[0].cells[0]"], feature: Feature("table.row_span"), .. }], .. })) => True
+		Err(InvalidDocument({ diagnostics: [{ code: InvalidRelationship, details: ["contents[0].table.body_rows[0].cells[0]"], feature: Feature("table.span_extent"), .. }], .. })) => True
 		_ => False
 	}
 	grid and spanned
 }
 
-## The default preparation-report budget: 65,536 entries and 4 MiB of
-## materialized paths and texts.
-default_report_budget : Pdf.ReportBudget
-default_report_budget = Pdf.ReportBudget.{}
+# Competing rectangles reject overlaps and holes at their authored paths.
+expect {
+	header = |text| Pdf.header_cell(Column, [Pdf.text(text)])
+	row_header = Pdf.header_cell(Row, [Pdf.text("Shared")]).row_spanning(2)
+	data = Pdf.cell([Pdf.text("Value")])
+	columns = List.repeat({ align: Start, width: Share(1) }, 3)
+	heads = Pdf.row([header("Group"), header("Prior"), header("Current")])
+	table = |header_rows, body_rows, row_split| Pdf.table({ body_rows, caption: Pdf.no_caption, columns, header_rows, row_split })
+	check = |block, expected_feature, expected_path| {
+		doc = Pdf.document({ contents: [block], language: "en-AU", title: "Grid negatives" })
+		match Pdf.to_bytes(doc) {
+			Err(InvalidDocument({ diagnostics: [{ code: InvalidRelationship, details: [path], feature: Feature(feature), .. }], .. })) =>
+				path == expected_path and feature == expected_feature
+			_ => False
+		}
+	}
+	check(table([heads], [Pdf.row([data, row_header, data]), Pdf.row([data.spanning(2)])], KeepRows), "table.span_extent", "contents[0].table.body_rows[1].cells[0]")
+		and check(table([heads], [Pdf.row([row_header, data, data]), Pdf.row([data])], KeepRows), "table.grid_gap", "contents[0].table.body_rows[1]")
+		and check(table([Pdf.row([header("Group").row_spanning(2), header("Prior"), header("Current")])], [Pdf.row([data, data, data])], KeepRows), "table.span_extent", "contents[0].table.header_rows[0].cells[0]")
+		and check(table([heads], [Pdf.row([row_header, data, data]), Pdf.row([data, data])], SplitRows), "table.span_policy", "contents[0]")
+}
+
+# Each row fits on its own. The two body rows linked by a row span need a
+# page large enough for the connected group and its repeated header.
+expect {
+	column = { align: Start, width: Share(1) }
+	header = Pdf.row([Pdf.header_cell(Column, [Pdf.text("Group")]), Pdf.header_cell(Column, [Pdf.text("Detail")])])
+	detail = Pdf.cell([Pdf.text("One"), Pdf.line_break, Pdf.text("Two"), Pdf.line_break, Pdf.text("Three")])
+	table = Pdf.table({
+		body_rows: [Pdf.row([Pdf.header_cell(Row, [Pdf.text("Farm")]).row_spanning(2), detail]), Pdf.row([detail])],
+		caption: Pdf.no_caption,
+		columns: [column, column],
+		header_rows: [header],
+	})
+	doc = Pdf.document({ contents: [table], language: "en-AU", title: "Oversize span group" })
+	options : Pdf.Options
+	options = { page_size: Custom({ height: 110, width: 350 }), theme: { page_margin: { top: 20, bottom: 20, left: 20, right: 20 } } }
+	match Pdf.to_bytes_with(doc, options) {
+		Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: ["contents[0].table.body_rows[0]", "contents[0].table.body_rows[1]"], feature: Feature("layout.oversize_span_group"), .. }], .. })) => True
+		_ => False
+	}
+}
 
 ## Report inspection consumes complete accepted figure facts. Dense figure
 ## identity is produced by normalization; pagination supplies one actual scale
@@ -4180,12 +5871,12 @@ report_figure_invariant = |detail| InvalidDocument(located_batch(InternalInvaria
 ## a report with fewer entries or obligations. Leaf paths are computed in
 ## one linear pass; each is shared by that leaf's entries.
 build_report : Document.NormalizedAuthoring, [Facts(KernelFacadeReport.Facts), NoFacts], Pdf.ReportBudget, Pdf.Profile -> Try(Pdf.Report, Pdf.Error)
-build_report = |normalized, collected, budget, profile| build_report_at(normalized, collected, budget, profile, FlowReportPaths)
+build_report = |normalized, collected, budget, profile| build_report_at(normalized, collected, budget, profile, FlowReportPaths, 0)
 
-ReportPaths : [FlowReportPaths, FixedReportPaths(List(Document.FixedPagePlan))]
+ReportPaths : [ColumnReportPaths, FlowReportPaths, FixedReportPaths({ pages : List(Document.FixedPagePlan), placement_blocks : List(Semantics.IndexRange) })]
 
-build_report_at : Document.NormalizedAuthoring, [Facts(KernelFacadeReport.Facts), NoFacts], Pdf.ReportBudget, Pdf.Profile, ReportPaths -> Try(Pdf.Report, Pdf.Error)
-build_report_at = |normalized, collected, budget, profile, path_source| {
+build_report_at : Document.NormalizedAuthoring, [Facts(KernelFacadeReport.Facts), NoFacts], Pdf.ReportBudget, Pdf.Profile, ReportPaths, U64 -> Try(Pdf.Report, Pdf.Error)
+build_report_at = |normalized, collected, budget, profile, path_source, attachment_count| {
 	validate_report_figures(normalized, collected)?
 	facts = match collected {
 		Facts(value) => value
@@ -4193,11 +5884,12 @@ build_report_at = |normalized, collected, budget, profile, path_source| {
 	}
 	inline_counts = count_inline_entries(normalized)
 	link_blocks = count_link_blocks(normalized)
-	combined = profile == AccessibleArchive
+	combined = is_accessible(profile)
 	outline_review = combined and !normalized.outline.is_empty()
 	annotation_review = combined and (link_blocks > 0 or inline_counts.links > 0 or !normalized.contents_entries.is_empty())
 	profile_obligations = if (combined) accessible_document_obligations.len() else 0
-	obligation_count = 2 + profile_obligations + (if (outline_review) 1 else 0) + (if (annotation_review) 1 else 0) + normalized.figures.len() + normalized.tables.len() + normalized.customs.len() + normalized.callouts.len() + link_blocks + inline_counts.links + inline_counts.languages + inline_counts.expansions
+	attachment_obligations = if (combined) attachment_count * 2 else attachment_count
+	obligation_count = 2 + attachment_obligations + profile_obligations + (if (outline_review) 1 else 0) + (if (annotation_review) 1 else 0) + normalized.figures.len() + normalized.tables.len() + normalized.customs.len() + normalized.callouts.len() + link_blocks + inline_counts.links + inline_counts.languages + inline_counts.expansions
 	alternative_count = normalized.figures.len() + inline_counts.languages + inline_counts.expansions
 	outcome_count = facts.layout.references.len() + facts.layout.scope_pages.len() + facts.layout.callouts.len() + facts.layout.relaxations.len() + normalized.figures.len() + facts.layout.repeats.len() + facts.layout.splits.len() + facts.layout.panels.len() + facts.layout.source_fragments.len()
 	entries = facts.pages.len() + normalized.blocks.len() + alternative_count + outcome_count + facts.coverage.len() + obligation_count
@@ -4206,7 +5898,8 @@ build_report_at = |normalized, collected, budget, profile, path_source| {
 	}
 	paths = match path_source {
 		FlowReportPaths => leaf_paths(normalized)
-		FixedReportPaths(pages) => fixed_report_paths(pages, normalized.blocks.len())
+		FixedReportPaths(fixed) => fixed_report_paths(fixed.pages, fixed.placement_blocks, normalized.blocks.len())
+		ColumnReportPaths => column_report_paths(normalized.blocks.len())
 	}
 	path_at = |block| match paths.get(block) {
 		Ok(value) => value
@@ -4217,6 +5910,10 @@ build_report_at = |normalized, collected, budget, profile, path_source| {
 	for fragments in facts.pages {
 		$pages = $pages.append({ fragments, page: $page + 1 })
 		$page = $page + 1
+	}
+	first_footnote = match normalized.footnotes.get(0) {
+		Ok(note) => note.block
+		Err(_) => U64.highest
 	}
 	var $blocks = List.with_capacity(normalized.blocks.len())
 	var $cell = 0
@@ -4242,6 +5939,8 @@ build_report_at = |normalized, collected, budget, profile, path_source| {
 				DataCell => "TD"
 				HeaderCell(_) => "TH"
 			}
+		} else if $index >= first_footnote {
+			"FENote"
 		} else {
 			leaf_role(normalized, record)
 		}
@@ -4265,6 +5964,16 @@ build_report_at = |normalized, collected, budget, profile, path_source| {
 	}
 	if annotation_review {
 		$obligations = $obligations.append({ obligation: AnnotationOrderMeaningful, path: "document" })
+	}
+
+	var $attachment = 0
+	while $attachment < attachment_count {
+		path = attachment_path($attachment)
+		$obligations = $obligations.append({ obligation: AttachmentPurposeMeaningful, path })
+		if combined {
+			$obligations = $obligations.append({ obligation: AttachmentSupplemental, path })
+		}
+		$attachment = $attachment + 1
 	}
 
 	## Figures, in figure order, with their alternative text, their fit
@@ -4296,13 +6005,13 @@ build_report_at = |normalized, collected, budget, profile, path_source| {
 				Ok(rich) => {
 					inline_root = match path_source {
 						FlowReportPaths => FlowInlineRoot
-						FixedReportPaths(_) => FixedInlineRoot(path_at($index))
+						FixedReportPaths(_) | ColumnReportPaths => FixedInlineRoot(path_at($index))
 					}
 					var $inline = rich.inlines
 					while $inline < rich.inlines + rich.length {
 						match normalized.inlines.get($inline) {
 							Ok(inline) => match inline.kind {
-								Link(_) | InternalLink(_) => {
+								Link(_) | InternalLink(_) | Citation(_) => {
 									$obligations = $obligations.append({ obligation: LinkPurposeMeaningful, path: inline_path_from(normalized, $index, AtInline($inline), inline_root) })
 								}
 								InLanguage(tag) => {
@@ -4345,7 +6054,11 @@ build_report_at = |normalized, collected, budget, profile, path_source| {
 	}
 	for resolved in facts.layout.references {
 		reference = normalized.page_references.get(resolved.reference) ?? crash "reference report identity escaped"
-		$outcomes = $outcomes.append(PageReferenceResolved({ path: inline_path(normalized, reference.block, AtInline(reference.inline)), destination: reference.spec.destination, page: resolved.physical_page, value: resolved.value }))
+		path = match Document.index_location(normalized, resolved.reference) {
+			IndexLocation(target) => "${path_at(reference.block)}.destinations[${target.to_str()}]"
+			NoIndexLocation => inline_path(normalized, reference.block, AtInline(reference.inline))
+		}
+		$outcomes = $outcomes.append(PageReferenceResolved({ path, destination: reference.spec.destination, page: resolved.physical_page, value: resolved.value }))
 	}
 	for context in facts.layout.scope_pages {
 		scope = normalized.page_scopes.get(context.scope) ?? crash "scope report identity escaped"
@@ -4460,7 +6173,7 @@ count_inline_entries = |normalized| {
 	var $expansions = 0
 	for inline in normalized.inlines {
 		match inline.kind {
-			Link(_) | InternalLink(_) => {
+			Link(_) | InternalLink(_) | Citation(_) => {
 				$links = $links + 1
 			}
 			InLanguage(_) => {
@@ -4493,18 +6206,22 @@ count_link_blocks = |normalized| {
 ## from the cell arena by the caller).
 leaf_role : Document.NormalizedAuthoring, Document.NormalizedBlock -> Str
 leaf_role = |normalized, record| {
-	in_table = record.parent != 0 and (
+	paragraph_role = if record.parent == 0 {
+		"P"
+	} else {
 		match normalized.groups.get(record.parent - 1) {
-			Ok(group) => match group.kind {
-				Table(_) => True
-				_ => False
-			}
-			Err(OutOfBounds) => False
+			Ok({ kind: Table(_), .. }) => "Caption"
+			Ok({ kind: Container(FormContainer), .. }) => "Lbl"
+			_ => "P"
 		}
-	)
+	}
 	match record.kind {
 		Bullet(_) => "LI"
 		DestinationHeading({ level, name: _ }) => "H${level.to_str()}"
+		DestinationParagraph(_) if record.parent > 0 => match normalized.groups.get(record.parent - 1) {
+			Ok({ kind: Container(BibliographyItem), .. }) => "BibEntry"
+			_ => "P"
+		}
 		DestinationParagraph(_) => "P"
 		EmptyCell => "TD"
 		Figure(_) => "Figure"
@@ -4512,20 +6229,24 @@ leaf_role = |normalized, record| {
 		FigureCaption(_) => "Caption"
 		Heading(level) => "H${level.to_str()}"
 		InternalLink(_) | Link(_) => "Link"
-		Paragraph => if (in_table) "Caption" else "P"
+		Paragraph => paragraph_role
 		RichParagraph(_) => "P"
 		Title => "Title"
 	}
 }
 
-fixed_report_paths : List(Document.FixedPagePlan), U64 -> List(Str)
-fixed_report_paths = |pages, blocks| {
+fixed_report_paths : List(Document.FixedPagePlan), List(Semantics.IndexRange), U64 -> List(Str)
+fixed_report_paths = |pages, placement_blocks, blocks| {
 	var $paths = List.with_capacity(blocks)
 	var $page = 0
 	for record in pages {
 		var $placement = 0
 		while $placement < record.placements.length() {
 			$paths = $paths.append(fixed_placement_path($page, $placement))
+			leaves = Document.NormalizedFixed.blocks_for(placement_blocks, record.placements.start() + $placement)
+			if leaves.length() == 2 {
+				$paths = $paths.append(fixed_leaf_path($page, $placement, True))
+			}
 			$placement = $placement + 1
 		}
 		$page = $page + 1
@@ -4758,6 +6479,50 @@ expect {
 	}
 }
 
+# Furniture resolution and final semantic attachment use the same public policy
+# in both ordinary preparation and preparation with a report.
+expect {
+	doc = page_label_test_document(DecimalArabic, "P", 1, 60)
+	items = match Pdf.prepare(doc, { artifact_text_budgets: { max_furniture_items: 1 } }) {
+		Err(error) => Str.inspect(error) == Str.inspect(stage_error(Furniture(LimitExceeded({ attempted: 2, dimension: Items, limit: 1 }))))
+		_ => False
+	}
+	resolved = match Pdf.prepare(doc, { artifact_text_budgets: { max_source_inputs: 0 } }) {
+		Err(error) => Str.inspect(error) == Str.inspect(stage_error(Furniture(LimitExceeded({ attempted: 1, dimension: Inputs, limit: 0 }))))
+		_ => False
+	}
+	pieces = match Pdf.prepare(doc, { artifact_text_budgets: { max_furniture_pieces: 0 } }) {
+		Err(error) => Str.inspect(error) == Str.inspect(stage_error(Furniture(LimitExceeded({ attempted: 1, dimension: Pieces, limit: 0 }))))
+		_ => False
+	}
+	options = Pdf.Options.{ artifact_text_budgets: { max_attached_sources: 1 } }
+	attached = match Pdf.prepare_with_report(doc, Pdf.ReportProps.{ options }) {
+		Err(error) => Str.inspect(error) == Str.inspect(stage_error(Fragments(TextSemantics(LimitExceeded({ attempted: 2, dimension: TextSources, limit: 1 })))))
+		_ => False
+	}
+	exact = Pdf.to_bytes_with(doc, { artifact_text_budgets: { max_attached_sources: 2, max_attached_source_units: 6, max_page_label_bytes: 2, max_source_inputs: 1, max_furniture_pieces: 1 } })?
+	items and resolved and pieces and attached and exact == Pdf.to_bytes(doc)?
+}
+
+expect {
+	doc = page_label_test_document(DecimalArabic, "P", 1, 60)
+	match Pdf.to_chunks_with(doc, { artifact_text_budgets: { max_page_label_bytes: 1 } }) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("layout.page_label_text"), message, .. }], .. })) => message == "The visible page label on page 1 needs 2 UTF-8 bytes. The configured limit is 1. No PDF bytes were emitted."
+		_ => False
+	}
+}
+
+expect {
+	black = Color.srgb8({ blue: 0, green: 0, red: 0 })
+	drawing = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 60, height: 30 }), color: black }).text({ align: Start, color: black, origin: Layout.point({ x: 4, y: 8 }), size: 8, text: "Mark" })
+	doc = Pdf.document({ contents: [Pdf.figure({ drawing, alt: "A labelled mark", caption: Pdf.no_caption })], language: "en-AU", title: "Drawing label budget" })
+	rejected = match Pdf.to_chunks_with(doc, { artifact_text_budgets: { max_drawing_labels: 0 } }) {
+		Err(error) => Str.inspect(error) == Str.inspect(stage_error(Labels(LimitExceeded({ attempted: 1, limit: 0 }))))
+		_ => False
+	}
+	rejected and Pdf.to_bytes_with(doc, { artifact_text_budgets: { max_drawing_labels: 1 } })? == Pdf.to_bytes(doc)?
+}
+
 source_at : List(Document.NormalizedSource), U64 -> Document.NormalizedSource
 source_at = |items, index| match items.get(index) {
 	Ok(value) => value
@@ -4844,11 +6609,32 @@ expect match Pdf.to_bytes(Pdf.document({ contents: [Pdf.rich_paragraph([Pdf.page
 	_ => False
 }
 
+# Inherited colors on literals, pending atoms and an inner role override
+# remain identical across fixed-field and iterative reference preparation.
+expect {
+	make = |reference, depth| {
+		text_color = Color.srgb8({ red: 0, green: 40, blue: 90 })
+		role_color = Color.srgb8({ red: 150, green: 30, blue: 20 })
+		referring = Pdf.rich_paragraph([Pdf.text("See page "), Pdf.strong([reference]), Pdf.text(" for the target.")])
+		var $contents = [Pdf.scoped({ strong: Themed(role_color) }, [referring]), Pdf.page_break, Pdf.destination_heading({ name: "target", level: 1, text: "Target" })]
+		var $level = 0
+		while $level < depth {
+			$contents = [Pdf.scoped({}, $contents)]
+			$level = $level + 1
+		}
+		Pdf.document({ title: "Scoped page references", language: "en", contents: [Pdf.scoped({ text: Themed(text_color) }, $contents)] })
+	}
+	fixed = Pdf.page_reference({ destination: "target", width: 32 })
+	flow = Pdf.flow_page_reference({ destination: "target" })
+	Pdf.to_bytes(make(fixed, 0))? == Pdf.to_bytes(make(fixed, 32))?
+		and Pdf.to_bytes(make(flow, 0))? == Pdf.to_bytes(make(flow, 32))?
+}
+
 # Fixed-width body references resolve from the same committed destination
 # pages used by navigation, and expose located preparation facts.
 expect {
 	doc = Pdf.document({ title: "Public destination references", language: "en", page_labels: [{ prefix: "P-", start_number: 1, start_page: 0, style: DecimalArabic }], contents: [Pdf.rich_paragraph([Pdf.text("Target page "), Pdf.page_reference({ destination: "target", width: 36, numbering: PageLabel })]), Pdf.page_break, Pdf.destination_heading({ name: "target", level: 1, text: "Target" })] })
-	match Pdf.prepare_with_report(doc, Pdf.Options.default) {
+	match Pdf.prepare_with_report(doc, {}) {
 		Ok(value) => value.report.facts.outcomes.any(
 			|outcome| match outcome {
 				PageReferenceResolved({ page: 2, value: "P-2", destination: "target", path: "contents[0].inlines[1]" }) => True
@@ -4921,7 +6707,7 @@ expect {
 	drawing = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 20, height: 20 }), color: Color.srgb8({ blue: 0, green: 0, red: 0 }) })
 	normalized = Document.normalize(Pdf.document({ contents: [Pdf.figure({ drawing, alt: "First", caption: Pdf.no_caption }), Pdf.figure({ drawing, alt: "Second", caption: Pdf.no_caption, fit: ScaleToFit({ minimum_percent: 50 }) })], language: "en", title: "Report facts" }))
 	facts = { blocks: [], coverage: [], layout: { references: [], scope_pages: [], callouts: [], panels: [], relaxations: [], repeats: [], scales: [1000, 500], source_fragments: [], splits: [] }, pages: [2] }
-	match build_report(normalized, Facts(facts), default_report_budget, Archive) {
+	match build_report(normalized, Facts(facts), {}, Archive) {
 		Ok(report) => report.facts.outcomes == [FigureScale({ fit: Exact, path: "contents[0]", scale: 1000 }), FigureScale({ fit: ScaleToFit, path: "contents[1]", scale: 500 })] and report.obligations.count_if(|entry| entry.obligation == AlternativeTextMeaningful) == 2
 		Err(_) => False
 	}
@@ -4930,7 +6716,7 @@ expect {
 # The legitimate empty-document NoFacts path keeps its one-page report.
 expect {
 	normalized = Document.normalize(Pdf.document({ contents: [], language: "en", title: "Empty report" }))
-	match build_report(normalized, NoFacts, default_report_budget, Archive) {
+	match build_report(normalized, NoFacts, {}, Archive) {
 		Ok(report) => report.facts.pages == [{ page: 1, fragments: 1 }] and report.facts.blocks.is_empty() and report.facts.outcomes.is_empty() and report.obligations.len() == 2
 		Err(_) => False
 	}
@@ -4939,12 +6725,12 @@ expect {
 # Combined-profile review obligations are included in the preparation budget.
 # A report with enough room for the Archive entries alone fails atomically.
 expect {
-	archive = Pdf.prepare_with_report(archive_twin_document, { profile: Archive })?
-	combined = Pdf.prepare_with_report(archive_twin_document, { profile: AccessibleArchive })?
+	archive = Pdf.prepare_with_report(archive_twin_document, { options: { profile: Archive } })?
+	combined = Pdf.prepare_with_report(archive_twin_document, { options: { profile: AccessibleArchive } })?
 	report = combined.report
 	facts = archive.report.facts
 	archive_entries = facts.alternatives.len() + facts.blocks.len() + facts.coverage.len() + facts.outcomes.len() + facts.pages.len() + archive.report.obligations.len()
-	over_budget = match Pdf.prepare_with_report_budget(archive_twin_document, { options: { profile: AccessibleArchive }, budget: { max_entries: archive_entries } }) {
+	over_budget = match Pdf.prepare_with_report(archive_twin_document, { options: { profile: AccessibleArchive }, budget: { max_entries: archive_entries } }) {
 		Err(InvalidDocument({ diagnostics: [{ feature: Feature("report.budget_exceeded"), .. }], .. })) => True
 		_ => False
 	}
@@ -4966,6 +6752,50 @@ fixed_report_document = |tag| {
 	Pdf.fixed_document({ language: "en-AU", title: "Fixed preparation report", pages: [first.finish(), second.finish()] })
 }
 
+expect {
+	doc = Pdf.document({ contents: [Pdf.paragraph("First page"), Pdf.page_break, Pdf.paragraph("Second page")], language: "en-AU", title: "Page budget" })
+	rejected = match Pdf.to_chunks_with(doc, { max_pages: 1 }) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("document.content_limit"), message, .. }], .. })) => message == "Layout reached page 2. The configured page limit is 1. No PDF bytes were emitted."
+		_ => False
+	}
+	accepted = Pdf.prepare_with_report(doc, { options: { max_pages: 2 } })?
+	expanded = Pdf.to_bytes_with(doc, { max_pages: U64.highest })?
+	default = Pdf.to_bytes(doc)?
+	rejected and Pdf.Options.default.max_pages == 1024 and Pdf.to_bytes_prepared(accepted.prepared)? == default and expanded == default
+}
+
+expect {
+	doc = fixed_report_document("fr")
+	rejected = match Pdf.prepare_with_report(doc, { options: { max_pages: 1 } }) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("layout.fixed.budget"), .. }], .. })) => True
+		_ => False
+	}
+	rejected and Pdf.to_bytes_with(doc, { max_pages: 2 })? == Pdf.to_bytes(doc)?
+}
+
+expect {
+	doc = fixed_report_document("fr")
+	match Pdf.to_chunks_with(doc, { max_pages: 0 }) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("options.page_budget"), details: ["options.max_pages"], .. }], .. })) => True
+		_ => False
+	}
+}
+
+expect {
+	doc = Pdf.document({
+		contents: [
+			Pdf.multi_column({ first: 206, gutter: 16, second: 186, contents: [Pdf.paragraph(Str.repeat("Inspection complete. ", 400))] }),
+		],
+		language: "en-AU",
+		title: "Column page budget",
+	})
+	rejected = match Pdf.to_chunks_with(doc, { max_pages: 1 }) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("layout.columns.budget"), .. }], .. })) => True
+		_ => False
+	}
+	rejected and Pdf.to_bytes_with(doc, { max_pages: 16 })? == Pdf.to_bytes(doc)?
+}
+
 # The same fixed plan emits through buffered, chunked and reporting calls.
 # Addresses follow authored placements even when the first page paints in
 # reverse order and the second page has different dimensions.
@@ -4974,12 +6804,12 @@ expect {
 	options = Pdf.Options.default
 	buffered = Pdf.to_bytes(doc)?
 	chunked = collect_chunks(Pdf.to_chunks(doc)?)
-	reported = Pdf.prepare_with_report(doc, options)?
+	reported = Pdf.prepare_with_report(doc, { options: options })?
 	reported_bytes = Pdf.to_bytes_prepared(reported.prepared)?
 	facts = reported.report.facts
 	paths = facts.blocks.map(|block| block.path)
 	pages = facts.blocks.map(|block| (block.first_page, block.last_page))
-	over_budget = match Pdf.prepare_with_report_budget(doc, { options, budget: { max_entries: 0 } }) {
+	over_budget = match Pdf.prepare_with_report(doc, { options, budget: { max_entries: 0 } }) {
 		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("report.budget_exceeded"), .. }], .. })) => True
 		_ => False
 	}
@@ -5001,7 +6831,7 @@ expect {
 	}
 	has_fixed_language_error(Pdf.to_bytes(doc))
 		and has_fixed_language_error(Pdf.to_chunks_with(doc, options))
-		and has_fixed_language_error(Pdf.prepare_with_report(doc, options))
+		and has_fixed_language_error(Pdf.prepare_with_report(doc, { options: options }))
 }
 
 expect {
@@ -5016,7 +6846,265 @@ expect {
 			options = { theme: { body: { size: 11, leading } } }
 			has_fixed_style_error(Pdf.to_bytes_with(doc, options))
 				and has_fixed_style_error(Pdf.to_chunks_with(doc, options))
-				and has_fixed_style_error(Pdf.prepare_with_report(doc, options))
+				and has_fixed_style_error(Pdf.prepare_with_report(doc, { options: options }))
 		},
 	)
+}
+
+# Generated entries use their block and entry path and preserve the authored
+# addresses that follow them. Duplicate visible text has separate targets.
+expect {
+	doc = Pdf.document({
+		title: "Generated contents",
+		language: "en-AU",
+		contents: [
+			Pdf.generated_contents({ depth: 1, scope: Under("root"), overrides: [{ target: "second", title: "Follow-up checks" }] }),
+			Pdf.page_break,
+			Pdf.destination_heading({ name: "root", level: 1, text: "Procedure" }),
+			Pdf.destination_heading({ name: "first", level: 2, text: "Recovery checks" }),
+			Pdf.page_break,
+			Pdf.destination_heading({ name: "second", level: 2, text: "Recovery checks" }),
+			Pdf.heading(1, "Appendix"),
+			Pdf.destination_heading({ name: "excluded", level: 2, text: "Other checks" }),
+		],
+	})
+	{ prepared, report } = Pdf.prepare_with_report(doc, {})?
+	Pdf.to_bytes_prepared(prepared)? == Pdf.to_bytes(doc)? and
+		report.facts.blocks.map(|block| block.path) == [
+			"contents[0].entries[0]",
+			"contents[0].entries[1]",
+			"contents[2]",
+			"contents[3]",
+			"contents[5]",
+			"contents[6]",
+			"contents[7]",
+		]
+}
+
+expect {
+	doc = Pdf.document({
+		title: "Missing scope",
+		language: "en-AU",
+		contents: [
+			Pdf.generated_contents({ scope: Under("missing") }),
+			Pdf.destination_heading({ name: "root", level: 1, text: "Recovery" }),
+		],
+	})
+	rejects = |result| match result {
+		Err(InvalidDocument({ diagnostics: [{ feature: Feature("document.generated_contents"), details: ["contents[0].scope"], .. }], .. })) => True
+		_ => False
+	}
+	rejects(Pdf.to_bytes(doc)) and rejects(Pdf.to_chunks(doc))
+}
+
+# The effective URI byte budget reaches block links, rich prose, table cells
+# and the symbolic path used for printed destination references.
+expect {
+	prefix = "https://example.org/"
+	at_limit = Str.concat(prefix, Str.repeat("x", 2048 - prefix.count_utf8_bytes()))
+	over_limit = Str.concat(at_limit, "y")
+	block_doc = |uri| Pdf.document({ contents: [Pdf.link({ text: "Site", uri })], language: "en", title: "URI boundary" })
+	block_rejected = match Pdf.prepare(block_doc(over_limit), { profile: Standard }) {
+		Err(InvalidNavigation(UriTooLong({ annotation: 0, attempted: 2049, limit: 2048 }))) => True
+		_ => False
+	}
+	link = Pdf.inline_link([Pdf.text("Site")], over_limit)
+	rich = Pdf.rich_paragraph([link])
+	table = Pdf.table({
+		body_rows: [Pdf.row([Pdf.cell([link])])],
+		caption: Pdf.no_caption,
+		columns: [{ align: Start, width: Share(1) }],
+		header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Resource")])])],
+	})
+	referring = Pdf.rich_paragraph([link, Pdf.text(" on page "), Pdf.page_reference({ destination: "end", width: 48 })])
+	ref_doc = [referring, Pdf.destination_paragraph({ name: "end", text: "Anchor" })]
+	adjusted = Pdf.Options.{ profile: Standard, budgets: { max_uri_bytes: 2049 } }
+	emits_uri = |doc| {
+		Pdf.Prepared.(plan) = Pdf.prepare(doc, adjusted)?
+		objects = Str.from_utf8(KernelEmit.object_text(plan).map_err(|_| InternalGenerationFailure)?).map_err(|_| InternalGenerationFailure)?
+		Ok(objects.contains(Str.concat("/URI (", Str.concat(over_limit, ")"))))
+	}
+	rich_boundary = |contents| {
+		doc = Pdf.document({ contents, language: "en", title: "URI budget" })
+		rejected = match Pdf.prepare(doc, { profile: Standard }) {
+			Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("semantics.link_uri"), details: [path], .. }], .. })) => path.ends_with(".inlines[0]")
+			_ => False
+		}
+		Ok(rejected and emits_uri(doc)?)
+	}
+	short = Pdf.document({ contents: [Pdf.rich_paragraph([Pdf.inline_link([Pdf.text("Site")], prefix)])], language: "en", title: "Lower URI budget" })
+	inline_lowered = match Pdf.prepare(short, { profile: Standard, budgets: { max_uri_bytes: prefix.count_utf8_bytes() - 1 } }) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("semantics.link_uri"), details: ["contents[0].inlines[0]"], .. }], .. })) => True
+		_ => False
+	}
+	block_rejected
+		and inline_lowered
+		and Pdf.prepare(block_doc(at_limit), { profile: Standard }).is_ok()
+		and emits_uri(block_doc(over_limit))?
+		and rich_boundary([rich])?
+		and rich_boundary([table])?
+		and rich_boundary(ref_doc)?
+}
+
+# These lengths bound authored UTF-8 before lexical encoding, independently
+# of the corresponding outline, destination and page-label entry counts.
+expect {
+	key = Str.repeat("k", 129)
+	title = Str.repeat("t", 1025)
+	prefix = Str.repeat("p", 65)
+	named = Pdf.document({ contents: [Pdf.destination_paragraph({ name: key, text: "Anchor" }), Pdf.internal_link({ destination: key, text: "Top" })], language: "en", title: "Name budget" })
+	base = Pdf.document({ contents: [Pdf.destination_paragraph({ name: "anchor", text: "Anchor" })], language: "en", title: "Navigation budgets" })
+	outlined = base.with_outline([{ depth: 0, destination: "anchor", open: True, title }])
+	labelled = base.with_page_labels([{ prefix, start_number: 1, start_page: 0, style: NoNumber }])
+	var $entries = []
+	var $depth = 0
+	while $depth < 33 {
+		$entries = $entries.append({ depth: $depth, destination: "anchor", open: True, title: "Node" })
+		$depth = $depth + 1
+	}
+	deep = base.with_outline($entries)
+	name_rejected = match Pdf.prepare(named, { profile: Standard }) {
+		Err(InvalidNavigation(DestinationNameTooLong({ attempted: 129, destination: 0, limit: 128 }))) => True
+		_ => False
+	}
+	title_rejected = match Pdf.prepare(outlined, { profile: Standard }) {
+		Err(InvalidNavigation(OutlineTitleTooLong({ attempted: 1025, entry: 0, limit: 1024 }))) => True
+		_ => False
+	}
+	label_rejected = match Pdf.prepare(labelled, { profile: Standard }) {
+		Err(InvalidNavigation(LabelPrefixTooLong({ attempted: 65, range: 0, limit: 64 }))) => True
+		_ => False
+	}
+	depth_rejected = match Pdf.prepare(deep, { profile: Standard }) {
+		Err(InvalidNavigation(OutlineDepthLimitExceeded({ attempted: 32, entry: 32, limit: 32 }))) => True
+		_ => False
+	}
+	Pdf.Prepared.(name_plan) = Pdf.prepare(named, { profile: Standard, budgets: { max_destination_name_bytes: 129 } })?
+	Pdf.Prepared.(outline_plan) = Pdf.prepare(outlined, { profile: Standard, budgets: { max_outline_title_bytes: 1025 } })?
+	Pdf.Prepared.(label_plan) = Pdf.prepare(labelled, { profile: Standard, budgets: { max_page_label_prefix_bytes: 65 } })?
+	name_objects = Str.from_utf8(KernelEmit.object_text(name_plan)?)?
+	outline_objects = Str.from_utf8(KernelEmit.object_text(outline_plan)?)?
+	label_objects = Str.from_utf8(KernelEmit.object_text(label_plan)?)?
+	name_rejected and title_rejected and label_rejected and depth_rejected
+		and Pdf.prepare(deep, { profile: Standard, budgets: { max_outline_depth: 33 } }).is_ok()
+		and name_objects.contains(key)
+		and outline_objects.contains(Str.concat("/Title (", title))
+		and label_objects.contains(Str.concat("/P (", prefix))
+}
+
+# A bibliography target and its citation obey the authored byte budget.
+# A successful bibliography destination also obeys the navigation budget.
+expect {
+	build = |entry, cited, extra| Pdf.document({
+		contents: [Pdf.rich_paragraph([Pdf.citation({ target: cited, text: "More information" })]), Pdf.bibliography([{ target: entry, text: "Operations checklist." }])].concat(extra),
+		language: "en",
+		title: "Bibliography target budgets",
+	})
+	key = Str.repeat("r", 129)
+	doc = build(key, key, [])
+	entry_rejected = match Pdf.prepare(doc, {}) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("bibliography.target_limit"), details: ["contents[1].entries[0]"], message, .. }], .. })) =>
+			message.contains("129 UTF-8 bytes") and message.contains("limit is 64")
+		_ => False
+	}
+	citation_rejected = match Pdf.prepare(build("short", key, []), {}) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("bibliography.target_limit"), details: ["contents[0].inlines[0]"], .. }], .. })) => True
+		_ => False
+	}
+	navigation_rejected = match Pdf.prepare(doc, { budgets: { max_bibliography_target_bytes: 129 } }) {
+		Err(InvalidNavigation(DestinationNameTooLong({ attempted: 129, limit: 128, .. }))) => True
+		_ => False
+	}
+	options = Pdf.Options.{ budgets: { max_bibliography_target_bytes: 129, max_destination_name_bytes: 129 } }
+	collision = build(key, key, [Pdf.destination_paragraph({ name: key, text: "Existing target" })])
+	collision_rejected = match Pdf.prepare(collision, options) {
+		Err(InvalidDocument({ diagnostics: [{ code: InvalidRelationship, feature: Feature("bibliography.entry"), details: ["contents[1].entries[0]"], .. }], .. })) => True
+		_ => False
+	}
+	Pdf.Prepared.(plan) = Pdf.prepare(doc, options)?
+	objects = Str.from_utf8_lossy(KernelEmit.object_text(plan)?)
+	entry_rejected and citation_rejected and navigation_rejected and collision_rejected
+		and objects.contains(key) and objects.contains("/Ref [")
+}
+
+# Blank sheets insert their validated page label into the catalog and use
+# the same limits on both preparation paths. An outline needs a destination.
+expect {
+	base = Pdf.document({ contents: [], language: "en", title: "Blank navigation" })
+	labelled = base.with_page_labels([{ prefix: "A-", start_number: 7, start_page: 0, style: DecimalArabic }])
+	outlined = base.with_outline([{ depth: 0, destination: "missing", title: "Outline", open: True }])
+	ranges_rejected = match Pdf.prepare(labelled, { profile: Standard, budgets: { max_page_label_ranges: 0 } }) {
+		Err(InvalidNavigation(LabelLimitExceeded({ attempted: 1, limit: 0 }))) => True
+		_ => False
+	}
+	prefix_rejected = match Pdf.prepare_with_report(labelled, { options: { profile: Archive, budgets: { max_page_label_prefix_bytes: 1 } } }) {
+		Err(InvalidNavigation(LabelPrefixTooLong({ attempted: 2, limit: 1, range: 0 }))) => True
+		_ => False
+	}
+	outline_rejected = match Pdf.prepare_with_report(outlined, { options: { profile: Archive } }) {
+		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature("document.blank_navigation"), details: ["outline"], .. }], .. })) => True
+		_ => False
+	}
+	options = Pdf.Options.{ profile: Archive, budgets: { max_page_label_prefix_bytes: 2 } }
+	prepared = Pdf.prepare(labelled, options)?
+	reported = Pdf.prepare_with_report(
+		labelled,
+		{ options: options },
+	)?
+	Pdf.Prepared.(plan) = prepared
+	objects = Str.from_utf8(KernelEmit.object_text(plan)?)?
+	ranges_rejected and prefix_rejected and outline_rejected
+		and objects.contains("/PageLabels << /Nums [0 << /P (A-) /S /D /St 7 >>] >>")
+		and Pdf.to_bytes_prepared(prepared)? == Pdf.to_bytes_prepared(reported.prepared)?
+}
+
+# A long prefix can fit its reserved width while exceeding the formatter's
+# byte budget. Raise the independent reference limit to emit that field.
+expect {
+	prefix = Str.repeat("i", 129)
+	doc = Pdf.document({
+		contents: [
+			Pdf.rich_paragraph([Pdf.page_reference({ destination: "end", numbering: PageLabel, width: 400 })]),
+			Pdf.destination_paragraph({ name: "end", text: "Destination" }),
+		],
+		language: "en",
+		page_labels: [{ prefix, start_number: 1, start_page: 0, style: NoNumber }],
+		title: "Visible reference budget",
+	})
+	rejected = match Pdf.prepare(doc, { profile: Standard, budgets: { max_page_label_prefix_bytes: 129 } }) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("layout.reference_label"), .. }], .. })) => True
+		_ => False
+	}
+	options = Pdf.Options.{ profile: Standard, budgets: { max_page_label_prefix_bytes: 129, max_reference_page_label_bytes: 129 } }
+	rejected and Pdf.prepare_with_report(
+		doc,
+		{ options: options },
+	).is_ok()
+}
+
+# Flow limits are independent and report the exhausted bound at the
+# first flow-changing atom. They do not affect fixed-width references.
+expect {
+	build = |reference| Pdf.document({
+		contents: [
+			Pdf.rich_paragraph([Pdf.text("See page "), reference]),
+			Pdf.destination_paragraph({ name: "end", text: "Destination" }),
+		],
+		language: "en",
+		title: "Flow reference budgets",
+	})
+	flow = build(Pdf.flow_page_reference({ destination: "end" }))
+	fixed = build(Pdf.page_reference({ destination: "end", width: 24 }))
+	budget_error = |budgets, message| match Pdf.prepare(flow, { profile: Standard, budgets }) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, feature: Feature("layout.reference_stabilization_budget"), details: ["contents[0].inlines[1]"], message: text, .. }], .. })) => text.contains(message)
+		_ => False
+	}
+	default_bytes = Pdf.to_bytes_with(flow, { profile: Standard })?
+	widened = Pdf.to_bytes_with(flow, { profile: Standard, budgets: { max_flow_reference_passes: 20, max_flow_reference_state_units: U64.highest, max_flow_reference_layout_work: U64.highest } })?
+	fixed_bytes = Pdf.to_bytes_with(fixed, { profile: Standard })?
+	no_flow_budget = Pdf.to_bytes_with(fixed, { profile: Standard, budgets: { max_flow_reference_passes: 0, max_flow_reference_state_units: 0, max_flow_reference_layout_work: 0 } })?
+	budget_error({ max_flow_reference_passes: 1 }, "stabilization passes. The effective limit is 1")
+		and budget_error({ max_flow_reference_state_units: 10 }, "state words per pass. The effective limit is 10")
+		and budget_error({ max_flow_reference_layout_work: 1 }, "accumulated layout work. The effective limit is 1")
+		and widened == default_bytes and fixed_bytes == no_flow_budget
 }
