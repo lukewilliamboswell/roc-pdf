@@ -7,7 +7,7 @@ These references document the repository's fixtures, tools and stage contracts.
 
 * xref:architecture.adoc[Architecture]: enduring package and compiler-stage contracts.
 * xref:contributor-reference.adoc#contributor-implementation-contracts[Implementation contracts]: binding representation and harness details.
-* xref:contributor-reference.adoc#contributor-testing[Testing] covers correctness oracles, focused tests, snapshot review, exact allocation and work baselines, and optional local tools.
+* xref:contributor-reference.adoc#contributor-testing[Testing] covers correctness oracles, focused tests, snapshot review, allocation ceilings, exact work counters, and optional local tools.
 * xref:contributor-reference.adoc#contributor-blueprint[Blueprint setup]: declared tools and test, fuzz, gallery, bundle and docs tasks.
 * xref:testing.adoc#run-and-review-property-fuzzing[Property fuzzing]: bounded searches, reports, witnesses and explicit baseline review.
 * xref:contributor-reference.adoc#contributor-accessibility-review[Accessibility review] covers preparation-report obligations and document review.

@@ -1995,10 +1995,10 @@ per case, and the reset follows the case decode; which families share an
 executable must not change any count, which the isolated and perturbed group
 builds check. The baseline identifies compiler revision, target, optimization
 mode, scenario revision, and measurement boundary, because exact counts are
-comparable only under the same configuration. An increased count fails review
-until its ownership or representation cause is understood and the checked-in
-baseline is accepted deliberately; a decrease is also recorded deliberately
-rather than silently rewriting expectations.
+comparable only under the same configuration. The checked-in count is an
+upper bound. A lower count passes, and a repeatable reduction can tighten the
+bound. An increase past the bound requires review of its ownership or
+representation cause. CI leaves reviewed bounds in source control intact.
 
 Baselines describe the current reviewed implementation; preserving historical
 allocation counts is not a design goal. Use measured results to remove waste
@@ -2031,7 +2031,7 @@ resources so a lower copy count cannot hide excessive source retention.
 
 There are no numeric product targets for preparation latency, generation time,
 peak memory, output size, or throughput, and no controlled timing or memory
-jobs are required. Exact allocation counts plus scale pairs demonstrating the
+jobs are required. Allocation ratchets plus scale pairs demonstrating the
 declared linear or `O(n log n)` growth are the performance acceptance standard.
 
 Every operational limit on work, memory, or document size reachable through a

@@ -18,22 +18,24 @@ under `.roc-pdf-tmp/logs/`.
 == Allocation baselines
 
 Integration tests use the dev backend with `--specialize=yes`. Each accepted
-case pins the PDF, allocation count and deterministic work. The fixture host
+case pins the PDF and deterministic work and sets an allocation ceiling. The fixture host
 resets its counters at `before_fixture_main`, after decoding the envelope.
 Protocol 2 reports allocation events (`roc_alloc` and `roc_realloc`) and total
 requested bytes, including the new size of every reallocation. Requested
-bytes may reach 110% of the recorded reference. Review a repeatable reduction
-to tighten the baseline. An exact count alone cannot detect quadratic copying.
+bytes may reach 110% of the recorded reference. Lower observations pass and can
+tighten the ceiling after a repeatability check. Counts and requested bytes
+cover different costs, including cases with quadratic copying.
 
 [source,sh]
 ----
-./scripts/test.py --compare-baselines --baseline-report .roc-pdf-tmp/baselines.json
+./scripts/test.py --compare-baselines --baseline-report .roc-pdf-tmp/baselines.json \
+  --improvement-report .roc-pdf-tmp/allocation-improvements.json
 ./scripts/test.py --update-snapshots
 ----
 
 The snapshot update path still enforces allocation and work evidence.
-Explain the cause of an intentional PDF or count change before refreshing
-its record. When investigating a difference, run the complete comparison with
+Explain the cause of an intentional PDF change or ceiling increase before
+refreshing its record. When investigating a difference, run the complete comparison with
 a separate empty `XDG_CACHE_HOME`. Keep reports in ignored scratch storage.
 
 [#contributor-testing-profile-fixtures]

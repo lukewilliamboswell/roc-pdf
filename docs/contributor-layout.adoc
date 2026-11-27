@@ -1,7 +1,7 @@
 [#contributor-layout-chapter]
 = Authoring, text, and layout evidence
 
-Use the focused fixture group and independent checker named by the relevant contract. The xref:contributor-reference.adoc[contributor reference] describes the pinned tools and verifier controls. `tests/spec.json` records exact allocations and deterministic work under those pins, the allocated-byte reference for each target, and the expected PDF snapshots. Regenerate only reviewed baselines. Explain snapshot, work and count changes in terms of their architectural cause.
+Use the focused fixture group and independent checker named by the relevant contract. The xref:contributor-reference.adoc[contributor reference] describes the pinned tools and verifier controls. `tests/spec.json` records the allocation ceiling and allocated-byte reference for each target, exact deterministic work, and the expected PDF snapshots. Explain raised ceilings and changes in snapshot or work evidence in terms of their architectural cause.
 
 [#contributor-layout-task-1]
 == Normalize authoring and assign ownership

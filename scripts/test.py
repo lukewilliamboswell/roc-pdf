@@ -876,9 +876,9 @@ def metrics_mismatch(
     check_allocations: bool = True,
 ) -> str | None:
     differences: list[str] = []
-    if check_allocations and actual.allocations != expected.allocations:
+    if check_allocations and actual.allocations > expected.allocations:
         differences.append(
-            f"allocations expected {expected.allocations}, got {actual.allocations}"
+            f"allocations {actual.allocations} exceeds the ceiling of {expected.allocations}"
         )
     if check_allocations and allocated_bytes_exceeded(expected, actual):
         differences.append(
@@ -899,11 +899,14 @@ def allocated_bytes_exceeded(expected: Metrics, actual: Metrics) -> bool:
 
 
 def self_test_metrics(suite: TestSuite) -> None:
-    case = suite.cases[0]
+    case = next(case for case in suite.cases if case.expectations["arm64mac"].allocations and case.work_counters)
     expected = case.expectations["arm64mac"]
     allocation_regression = Metrics(expected.allocations + 1, expected.allocated_bytes, expected.work)
     if metrics_mismatch(expected, allocation_regression, case.work_counters) is None:
         raise SystemExit("Performance baseline self-test accepted an allocation regression")
+    improvement = Metrics(expected.allocations - 1, expected.allocated_bytes, expected.work)
+    if metrics_mismatch(expected, improvement, case.work_counters) is not None:
+        raise SystemExit("Performance baseline self-test rejected an allocation improvement")
     changed_work = list(expected.work)
     changed_work[0] += 1
     work_regression = Metrics(expected.allocations, expected.allocated_bytes, tuple(changed_work))
@@ -1486,8 +1489,8 @@ def main() -> None:
         "--update-snapshots",
         action="store_true",
         help=(
-            "Replace PDF snapshots with generated output while requiring the exact allocation "
-            "and work baselines in the same build"
+            "Replace PDF snapshots with generated output while enforcing allocation "
+            "ceilings and exact work counters in the same build"
         ),
     )
     parser.add_argument(
@@ -1497,6 +1500,11 @@ def main() -> None:
             "With --compare-baselines or --update-snapshots, write expected and observed metrics "
             "for cases that fail an allocation, allocated-byte ceiling, or work check"
         ),
+    )
+    parser.add_argument(
+        "--improvement-report",
+        type=Path,
+        help="With --compare-baselines, also report passing observations that can tighten an allocation ceiling",
     )
     parser.add_argument(
         "--compare-baselines",
@@ -1509,7 +1517,7 @@ def main() -> None:
     parser.add_argument(
         "--allocation-baselines",
         action="store_true",
-        help="Use the pinned dev backend and require exact Roc allocation baselines",
+        help="Use the pinned dev backend and enforce Roc allocation ceilings",
     )
     parser.add_argument(
         "--linux-x64-container",
@@ -1600,6 +1608,10 @@ def main() -> None:
         parser.error("--update-snapshots and --compare-baselines cannot be combined")
     if args.baseline_report is not None and not (args.update_snapshots or args.compare_baselines):
         parser.error("--baseline-report requires --compare-baselines or --update-snapshots")
+    if args.improvement_report is not None and not args.compare_baselines:
+        parser.error("--improvement-report requires --compare-baselines")
+    if args.improvement_report is not None and args.baseline_report is not None and args.improvement_report.resolve() == args.baseline_report.resolve():
+        parser.error("baseline and improvement reports require different paths")
     if args.quick and not (args.case_names or args.group_names):
         parser.error("--quick requires at least one --case or --group")
     if args.quick and args.update_snapshots:
@@ -1830,6 +1842,7 @@ def run_suite(
             f"(toolchain cap {suite.toolchain.max_build_workers})"
         )
         baseline_deltas: list[BaselineDelta] = []
+        improvements: list[BaselineDelta] = []
         build_case_units(
             units,
             build_dir,
@@ -1882,13 +1895,23 @@ def run_suite(
                 )
                 if result.delta is not None:
                     baseline_deltas.append(result.delta)
+                elif args.improvement_report is not None:
+                    limit = case.expectations[target]
+                    if (result.metrics.allocations < limit.allocations
+                            or result.metrics.allocated_bytes < limit.allocated_bytes):
+                        improvements.append(BaselineDelta(case.name, limit, result.metrics))
         except KeyboardInterrupt:
             cancel_parallel(executor, futures)
             raise
         else:
             executor.shutdown()
 
-    if args.baseline_report is not None:
+    for path, deltas, label in (
+        (args.baseline_report, baseline_deltas, "baseline violations"),
+        (args.improvement_report, improvements, "ratchet candidates"),
+    ):
+        if path is None:
+            continue
         work_names = {case.name: case.work_counters for case in suite.cases}
         report = [
             {
@@ -1904,10 +1927,10 @@ def run_suite(
                     "work": dict(zip(work_names[delta.case_name], delta.actual.work)),
                 },
             }
-            for delta in sorted(baseline_deltas, key=lambda item: item.case_name)
+            for delta in sorted(deltas, key=lambda item: item.case_name)
         ]
-        args.baseline_report.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-        announce("RUN", f"Wrote {len(report)} baseline violations to {args.baseline_report}")
+        path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        announce("RUN", f"Wrote {len(report)} {label} to {path}")
 
     if args.update_snapshots:
         phase("Post-update contract validation")

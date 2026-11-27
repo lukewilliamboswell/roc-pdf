@@ -23,8 +23,8 @@ source closure includes every member, even when only one member is selected.
 
 
 The baseline retains each reviewed example's name, revision, original input
-digest and complete allocation observation for the measured property.
-A passing run also checks the property/trace result and exit-live
-allocations. See xref:testing.adoc#run-and-review-property-fuzzing[how to run
+digest and complete allocation observation for the measured property. The
+harness uses those measurements as ceilings and verifies the property, trace
+rules and live counts at region boundaries. See xref:testing.adoc#run-and-review-property-fuzzing[how to run
 and review property fuzzing]. The suite membership and build operands in
 `scripts/fuzz.py` are the executable inventory.

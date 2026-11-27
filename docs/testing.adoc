@@ -125,11 +125,11 @@ stream's length while its geometry and semantic ownership stay identical.
 Check the intended object changes and the exact downstream facts that the
 contract preserves.
 
-Record exact allocation counts and deterministic work alongside the expected
-change in output length. Allocated bytes have a per-case ceiling with 10%
-headroom. Keep the reference when measurements stay within that ceiling and
-tighten it for repeatable improvements. Identify the cause of any violation
-before changing a reference. See the
+Record measured allocations and exact deterministic work alongside the expected
+change in output length. Fixture allocation counts can decrease and may reach
+the checked-in ceiling. Allocated bytes have 10% headroom over their reference.
+Report passing improvements and tighten ceilings after confirming repeatability.
+Identify the cause of any violation before raising a ceiling. See the
 xref:contributor-reference.adoc#contributor-testing-allocation-baselines[baseline review procedure].
 
 [#run-and-review-property-fuzzing]
@@ -171,11 +171,15 @@ raw seeds into writable scratch corpora.
 [#review-fuzz-allocation-baselines]
 === Review fuzz allocation baselines
 
-Review named examples before explicitly accepting changed measurements.
-Explain the source or ownership change for the affected examples and check
-repeatability in independent uncached builds. Acceptance is per native host
-and uses the `llvm-fuzz` profile. The dev PDF fixture ledger records separate
-allocation, byte and work evidence.
+The native fuzz ratchet limits the combined allocation and reallocation events
+in each named region. Requested and peak live bytes have 10% headroom. The
+named inputs, region inventory, and live allocation and byte counts at region
+boundaries must match. When observations differ within the ceilings, the
+harness records the named measurements and runs exploration separately.
+Both phases must pass. Review repeatable improvements from
+independent uncached builds before accepting tighter native baselines.
+Explain any raised ceiling in terms of the source or ownership change. The dev
+PDF fixture ledger records separate allocation, byte and work evidence.
 
 [source,sh]
 ----

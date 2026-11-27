@@ -125,6 +125,12 @@ class LaneFailure(Exception):
     pass
 
 
+class CommandFailed(LaneFailure):
+    def __init__(self, returncode: int, command: str):
+        super().__init__(f"failed ({returncode}): {command}")
+        self.returncode = returncode
+
+
 def validate_suite_inventory(suite: str, names: list[str]) -> None:
     expected = sorted(target.declared_name for target in TARGETS if target.suite == suite)
     if sorted(names) != expected:
@@ -167,7 +173,7 @@ def run(command: list[str], *, cwd: Path = ROOT, deadline: float | None = None, 
     # (see scripts/roc_diagnostics.py).
     if result.returncode == 2 and tolerated_warnings_only(result.stdout):
         return
-    raise LaneFailure(f"failed ({result.returncode}): {printable}")
+    raise CommandFailed(result.returncode, printable)
 
 
 def seed_font_corpus() -> Path:
@@ -293,12 +299,14 @@ def invocation(binary: Path, arguments: list[str], container: str | None) -> lis
             "--workdir", str(ROOT), container, *command]
 
 
-def validate_report(report: dict, target: Target, host: str, command: str, *, provenance: dict, configuration: dict, baseline: str) -> None:
-    """Project policy supplements the supervisor: an unbaselined check cannot pass."""
+def validate_report(report: dict, target: Target, host: str, command: str, *, provenance: dict, configuration: dict, baseline: str, changed: bool = False) -> None:
+    """Validate the supervisor report for the selected phase."""
+    baseline_status = {"accept": "accepted", "check": "matched", "run": "matched", "explore": "not_checked"}
     expected = {"format": "roc-fuzz-quality/2", "metric_version": "roc-fuzz-allocations/1",
                 "target": target.declared_name, "host_target": host,
-                "profile": PROFILE, "command": command, "outcome": "passed",
-                "baseline_status": "accepted" if command == "accept" else "matched"}
+                "profile": PROFILE, "command": command,
+                "outcome": "baseline_changed" if changed else "passed",
+                "baseline_status": "changed" if changed else baseline_status[command]}
     for key, value in expected.items():
         if report.get(key) != value:
             raise LaneFailure(f"{target.name}: report {key}: expected {value!r}, got {report.get(key)!r}")
@@ -307,8 +315,10 @@ def validate_report(report: dict, target: Target, host: str, command: str, *, pr
             raise LaneFailure(f"{target.name}: report {key} differs from the requested invocation")
     if report.get("preparation", {}).get("status") != "passed":
         raise LaneFailure(f"{target.name}: example preparation did not complete")
-    examples = report.get("examples", [])
-    if not examples:
+    examples = report.get("examples")
+    if command == "explore" and examples != []:
+        raise LaneFailure(f"{target.name}: exploration returned an unexpected witness inventory")
+    if command != "explore" and not examples:
         raise LaneFailure(f"{target.name}: declared regression inventory is empty")
     for example in examples:
         if example.get("outcome") != "passed" or any(example.get(key) is not True for key in
@@ -318,10 +328,58 @@ def validate_report(report: dict, target: Target, host: str, command: str, *, pr
             raise LaneFailure(f"{target.name}: example has no allocator observations")
     if report.get("configuration", {}).get("leak_detection") is not True:
         raise LaneFailure(f"{target.name}: invocation leak checking is disabled")
-    if command == "run":
+    if command in ("run", "explore"):
         exploration = report.get("exploration", {})
-        if exploration.get("status") != "passed" or exploration.get("accepted", 0) == 0:
+        if changed:
+            if (exploration.get("status") != "skipped" or exploration.get("skipped_reason") != "baseline_changed"
+                    or exploration.get("attempted") != 0 or exploration.get("accepted") != 0):
+                raise LaneFailure(f"{target.name}: exploration was interrupted by a property failure")
+        elif exploration.get("status") != "passed" or exploration.get("accepted", 0) == 0:
             raise LaneFailure(f"{target.name}: exploration did not exercise any accepted input")
+
+
+def validate_allocation_ratchet(baseline: dict, report: dict) -> None:
+    target = report["target"]
+    entries = [entry for entry in baseline["entries"] if entry["host_target"] == report["host_target"]
+               and entry["profile"] == report["profile"] and entry["metric_version"] == report["metric_version"]]
+    if baseline["format"] != "roc-fuzz-baseline/1" or baseline["target"] != target or len(entries) != 1:
+        raise LaneFailure(f"{target}: the reviewed native allocation baseline is missing")
+    reference = entries[0]
+    reviewed = {example["name"]: example for example in reference["examples"]}
+    actual = {example["name"]: example for example in report["examples"]}
+    if (reviewed.keys() != actual.keys() or len(reviewed) != len(reference["examples"])
+            or len(actual) != len(report["examples"])):
+        raise LaneFailure(f"{target}: the named witness inventory changed")
+
+    boundary = ("entry_live_allocs", "entry_live_bytes", "exit_live_allocs", "exit_live_bytes")
+    metrics = set(boundary) | {"allocs", "reallocs", "deallocs", "requested_bytes", "peak_live_bytes"}
+    for name, expected in reviewed.items():
+        measured = actual[name]
+        context = f"{target}/{name}"
+        if any(expected[key] != measured.get(key) for key in ("revision", "input_sha256")):
+            raise LaneFailure(f"{context}: the named input changed")
+        before = expected["observations"]
+        after = measured["observations"]
+        if len(before) != len(after):
+            raise LaneFailure(f"{context}: allocation regions changed")
+        for old, new in zip(before, after):
+            if dict(old, stats={}) != dict(new, stats={}) or new.get("complete") is not True:
+                raise LaneFailure(f"{context}: allocation region or measurement boundary changed")
+            a, b = old["stats"], new["stats"]
+            if any(set(stats) != metrics or any(type(value) is not int or value < 0 for value in stats.values())
+                   for stats in (a, b)):
+                raise LaneFailure(f"{context}: invalid allocation metrics")
+            if any(b[key] != a[key] for key in boundary):
+                raise LaneFailure(f"{context}: live allocations or bytes at the measurement boundary changed")
+            if any(stats["entry_live_allocs"] + stats["allocs"] - stats["deallocs"] != stats["exit_live_allocs"]
+                   for stats in (a, b)):
+                raise LaneFailure(f"{context}: inconsistent allocation and deallocation counts")
+            old_events, new_events = a["allocs"] + a["reallocs"], b["allocs"] + b["reallocs"]
+            if new_events > old_events:
+                raise LaneFailure(f"{context}: allocation events {new_events} exceed the ceiling of {old_events}")
+            for key in ("requested_bytes", "peak_live_bytes"):
+                if b[key] * 10 > a[key] * 11:
+                    raise LaneFailure(f"{context}: {key} {b[key]} exceeds 110% of {a[key]}")
 
 
 def fuzz_target(target: Target, binary: Path, budget: Budget, timeout: int, memory_limit: int,
@@ -356,16 +414,37 @@ def fuzz_target(target: Target, binary: Path, budget: Budget, timeout: int, memo
         if budget.seed is not None:
             arguments.append(f"--seed={budget.seed}")
     started = time.monotonic()
-    run(invocation(binary, arguments, container), deadline=budget.deadline)
-    path = report_dir / "report.json"
-    if not path.is_file():
-        raise LaneFailure(f"{target.name}: supervisor returned without report.json")
+    reviewed_baseline = BASELINES / (target.name + ".json")
+
+    def read_report(directory: Path, phase: str, *, changed: bool = False) -> dict:
+        try:
+            report = json.loads((directory / "report.json").read_text())
+        except (OSError, ValueError) as error:
+            raise LaneFailure(f"{target.name}: unreadable supervisor report: {error}") from error
+        validate_report(report, target, host, phase, provenance=provenance, configuration=configuration,
+                        baseline=str(reviewed_baseline), changed=changed)
+        return report
+
     try:
-        report = json.loads(path.read_text())
-    except (OSError, ValueError) as error:
-        raise LaneFailure(f"{target.name}: unreadable supervisor report: {error}") from error
-    validate_report(report, target, host, command, provenance=provenance, configuration=configuration,
-                    baseline=str(BASELINES / (target.name + ".json")))
+        run(invocation(binary, arguments, container), deadline=budget.deadline)
+    except CommandFailed as error:
+        if error.returncode != 1 or command == "accept":
+            raise
+        report = read_report(report_dir, command, changed=True)
+        try:
+            validate_allocation_ratchet(json.loads(reviewed_baseline.read_text()), report)
+        except (OSError, ValueError, KeyError, TypeError) as invalid:
+            raise LaneFailure(f"{target.name}: invalid ratchet evidence: {invalid}") from invalid
+        if command == "run":
+            retry_dir = report_root / "ratchet" / target.name
+            retry_dir.parent.mkdir(exist_ok=True)
+            retry = ["explore", *(part for part in arguments[1:] if not part.startswith("--report-dir=")),
+                     f"--report-dir={retry_dir}"]
+            run(invocation(binary, retry, container), deadline=max(0, budget.deadline - (time.monotonic() - started)))
+            read_report(retry_dir, "explore")
+        print(f"PASS {target.name}: named observations within the reviewed native ceilings", flush=True)
+    else:
+        read_report(report_dir, command)
     return time.monotonic() - started
 
 
@@ -427,6 +506,36 @@ def self_test() -> None:
             pass
         else:
             raise SystemExit(f"report self-test failed to reject {key}")
+    stats = {"allocs": 8, "reallocs": 2, "deallocs": 8, "requested_bytes": 200,
+             "entry_live_allocs": 0, "entry_live_bytes": 0, "exit_live_allocs": 0,
+             "exit_live_bytes": 0, "peak_live_bytes": 100}
+    example = {"name": "valid", "revision": "1", "input_sha256": "a" * 64,
+               "observations": [{"name": "$property", "complete": True, "stats": stats}]}
+    ratchet = {"format": "roc-fuzz-baseline/1", "target": passed["target"], "entries": [
+        {key: passed[key] for key in ("host_target", "profile", "metric_version")} | {"examples": [example]}
+    ]}
+    observed = copy.deepcopy(passed)
+    observed["examples"] = [{**passed["examples"][0], **copy.deepcopy(example)}]
+    measurements = observed["examples"][0]["observations"][0]["stats"]
+    measurements.update(allocs=6, reallocs=3, deallocs=6, requested_bytes=219, peak_live_bytes=110)
+    validate_allocation_ratchet(ratchet, observed)
+    for key, value in (("reallocs", 5), ("requested_bytes", 221), ("peak_live_bytes", 111), ("exit_live_bytes", 1)):
+        broken = copy.deepcopy(observed)
+        broken["examples"][0]["observations"][0]["stats"][key] = value
+        try:
+            validate_allocation_ratchet(ratchet, broken)
+        except LaneFailure:
+            pass
+        else:
+            raise SystemExit(f"ratchet self-test accepted a regression in {key}")
+    altered = copy.deepcopy(observed)
+    altered["examples"][0]["input_sha256"] = "b" * 64
+    try:
+        validate_allocation_ratchet(ratchet, altered)
+    except LaneFailure:
+        pass
+    else:
+        raise SystemExit("ratchet self-test accepted a different named input")
     validate_platform_header('app [target] { fuzz: platform "' + PLATFORM_URL + '" }')
     for source in ('app [target] { fuzz: platform "other" }',
                    '# fuzz: platform "' + PLATFORM_URL + '"\napp [target] { fuzz: platform "other" }',

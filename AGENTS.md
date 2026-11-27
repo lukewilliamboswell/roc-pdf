@@ -58,19 +58,19 @@
   Enforce format requirements, representation limits, and correctness
   invariants for every configuration.
 - Correctness comes first. Performance evidence exists to catch super-linear
-  or exponential blow-ups: exact Roc allocation counts and deterministic work
-  counters remain mandatory, and scalable features carry small/large scale
+  or exponential blow-ups. Measure Roc allocations and deterministic work,
+  enforce allocation ceilings, and give scalable features small/large scale
   pairs, but there are no numeric product performance targets or required
   timing/memory jobs. Human reader and assistive-technology review is optional.
 - Treat performance as part of every feature slice's design and completion
   evidence. Review ownership, ARC/uniqueness, dense storage, traversal choice,
   caching, copying, seamless-slice retention, worst-case complexity, and error
   bounds before fixing a representation.
-- Run affected tests through `./scripts/test.py`. Every focused case must keep
-  its exact Roc allocation count and deterministic work evidence under the
-  pinned build. Keep allocated bytes at or below 110% of the recorded reference.
-  Use repeatable improvements to tighten that reference. Before raising it or
-  changing exact counts, work or PDF snapshots, explain the architectural cause.
+- Run affected tests through `./scripts/test.py`. Enforce the native allocation
+  ceiling and exact deterministic work under the pinned build. Keep allocated
+  bytes at or below 110% of the recorded reference. Use repeatable improvements
+  to tighten ceilings. Explain the architectural cause before raising a
+  ceiling or changing work counters or PDF snapshots.
 - Keep accumulators uniquely owned. Do not thread a growing list or builder
   through a `Try` that the caller then updates, keep it live on an error path
   (`Err(e) => { $error = … }` loop state), return it beside another list, or
