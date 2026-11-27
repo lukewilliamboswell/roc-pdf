@@ -26,6 +26,5 @@ and mark truncation without scanning merely to count discarded findings.
 * The mapping function allocates no per-capability list and performs no `Iter`
 traversal.
 
-Executable allocation and scaling evidence begins with the capability that performs
-validation. This contract-definition slice is checked through type checking and unit tests,
-as required for define-only capabilities by the roadmap.
+Type checking and unit tests exercise the representation. The validators
+that consume it supply executable allocation and scaling evidence.

@@ -1,3 +1,4 @@
+import KernelDrawingGroups
 import Document
 import Font
 import KernelFacadeSources
@@ -46,10 +47,13 @@ KernelFacadeSemantics :: [].{
 		BibliographyEmpty({ group : U64 }),
 		BibliographyEntry({ block : U64, reason : Str }),
 		BibliographyCitation({ block : U64, inline : U64, reason : Str }),
+		BibliographyEntryLimit({ attempted : U64, block : U64, limit : U64 }),
+		BibliographyCitationLimit({ attempted : U64, block : U64, inline : U64, limit : U64 }),
 		EmptyContainer({ group : U64 }),
 
 		## A decoration's drawing is not a supported flow drawing.
 		DecorationDrawing({ decoration : U64, reason : Str }),
+		DrawingGroupDepth({ drawing : [FigureAt(U64), DecorationAt(U64), PanelAt(U64)], depth : KernelDrawingGroups.DepthLimit }),
 
 		## A decoration with no following flow block, or inside a lead
 		## region.
@@ -103,6 +107,8 @@ KernelFacadeSemantics :: [].{
 		Source(KernelFacadeSources.Error),
 		TableCellEmpty({ block : U64 }),
 		TableCellKey({ block : U64, reason : [DuplicateKey, InvalidKey] }),
+		TableCellKeyLimit({ attempted : U64, block : U64, limit : U64 }),
+		TableHeaderTargetLimit({ attempted : U64, block : U64, limit : U64 }),
 		TableHeaderTargets({ block : U64, reason : [DataTarget, DuplicateTarget, EmptyTargets, ForwardTarget, InvalidTarget, UnknownTarget] }),
 		TableEmpty({ group : U64 }),
 		TableGridMismatch({ columns : U64, group : U64, spanned : U64 }),
@@ -116,10 +122,16 @@ KernelFacadeSemantics :: [].{
 		## before it in reading order (`semantics.heading_skip`).
 		HeadingSkip({ block : U64, previous : U64 }),
 	]
+	IdentifierBudgets : { max_bibliography_target_bytes : U64, max_table_key_bytes : U64 }
+
 	Limits :: {
+		identifiers : IdentifierBudgets,
 		max_container_depth : U64,
 		max_content_spine : U64,
 		max_inline_depth : U64,
+		max_list_depth : U64,
+		max_table_grid_work : U64,
+		max_uri_bytes : U64,
 		max_nodes : U64,
 		max_occurrences : U64,
 		max_properties : U64,
@@ -140,7 +152,36 @@ KernelFacadeSemantics :: [].{
 			sources : KernelFacadeSources.Limits,
 			text_semantics : KernelTextSemantics.Limits,
 		} -> Limits
-		make = |limits| Limits.(limits)
+		make = |{ max_container_depth, max_content_spine, max_inline_depth, max_nodes, max_occurrences, max_properties, max_source_inputs, semantics, sources, text_semantics }| Limits.(
+			{
+				max_container_depth,
+				max_content_spine,
+				max_inline_depth,
+				max_nodes,
+				max_occurrences,
+				max_properties,
+				max_source_inputs,
+				semantics,
+				sources,
+				text_semantics,
+				identifiers: { max_bibliography_target_bytes: 64, max_table_key_bytes: 64 },
+				max_uri_bytes: KernelNavigation.standard_limit_values.max_uri_bytes,
+				max_table_grid_work: KernelFacadeTableGrid.default_track_limit,
+				max_list_depth: 4,
+			},
+		)
+
+		with_identifier_budgets : Limits, IdentifierBudgets -> Limits
+		with_identifier_budgets = |Limits.(limits), identifiers| Limits.({ ..limits, identifiers })
+
+		with_uri_bytes : Limits, U64 -> Limits
+		with_uri_bytes = |Limits.(limits), max_uri_bytes| Limits.({ ..limits, max_uri_bytes })
+
+		with_table_grid_work : Limits, U64 -> Limits
+		with_table_grid_work = |Limits.(limits), max_table_grid_work| Limits.({ ..limits, max_table_grid_work })
+
+		with_list_depth : Limits, U64 -> Limits
+		with_list_depth = |Limits.(limits), max_list_depth| Limits.({ ..limits, max_list_depth })
 	}
 
 	## A rich paragraph owns a dense occurrence range, one occurrence per text
@@ -399,7 +440,7 @@ build_plan = |input_authoring, widget_groups, limits| {
 	planning = plan_blocks(authoring, limits)?
 	sources = KernelFacadeSources.Plan.build(planning.source_inputs, limits.sources) ? Source
 	figure_labels = build_figure_labels(planning, limits.sources)?
-	built = build_components(authoring, planning, sources)?
+	built = build_components(authoring, planning, sources, limits.identifiers.max_bibliography_target_bytes)?
 	store = complete_store(built.components, built.components.literals, sources, figure_labels, authoring.language)
 	check_limit(store.content_spine.len(), limits.max_content_spine, ContentSpine)?
 	check_limit(store.text_properties.len(), limits.max_properties, Properties)?
@@ -544,7 +585,7 @@ build_symbolic = |authoring, limits| {
 	check_limit(checked_add(planning.source_inputs.len() + planning.figure_label_texts.len(), authoring.page_references.len())?, limits.max_source_inputs, SourceInputs)?
 	sources = KernelFacadeSources.Plan.build(planning.source_inputs, limits.sources) ? Source
 	figure_labels = build_figure_labels(planning, limits.sources)?
-	built = build_components(authoring, planning, sources)?
+	built = build_components(authoring, planning, sources, limits.identifiers.max_bibliography_target_bytes)?
 	check_limit(built.components.content_spine.len(), limits.max_content_spine, ContentSpine)?
 	contexts = symbolic_contexts(authoring, built.block_ownership, built.components.literals)
 	var $separators = 0
@@ -773,6 +814,7 @@ plan_blocks = |authoring, limits| {
 	blocks = authoring.blocks
 	groups = authoring.groups
 	check_heading_progression(blocks)?
+	parents = if (authoring.scopes.len() > 16) semantic_group_parents(groups) else []
 	source_bound = if (blocks.len() > U64.highest / 2) U64.highest else blocks.len() * 2
 	var $destinations = []
 	var $links = []
@@ -839,7 +881,7 @@ plan_blocks = |authoring, limits| {
 					check_at(attempted_properties, limits.max_properties, Properties, group.first_block)?
 					check_at(checked_add($sources.len(), nonempty)?, limits.max_source_inputs, SourceInputs, group.first_block)?
 					$group_nodes = $group_nodes.append($next_node)
-					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, group.parent) })
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_parent_code(groups, parents, group.parent) })
 					if nonempty > 0 {
 						$sources = $sources.append(source.text)
 					}
@@ -872,7 +914,7 @@ plan_blocks = |authoring, limits| {
 						check_at($attribute_count + $relationship_count, KernelSemantics.Limits.attribute_limit(limits.semantics), Attributes, group.first_block)?
 					}
 					$group_nodes = $group_nodes.append($next_node)
-					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, group.parent) })
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_parent_code(groups, parents, group.parent) })
 					$next_node = attempted_nodes
 					$content_count = attempted_content
 				}
@@ -904,8 +946,8 @@ plan_blocks = |authoring, limits| {
 					$group_nodes = $group_nodes.append(parent_node(group.parent, $group_nodes).index())
 				}
 				ItemList(list_index) => {
-					if group.depth > list_depth_limit {
-						return Err(ListDepthExceeded({ attempted: group.depth, group: $next_group, limit: list_depth_limit }))
+					if group.depth > limits.max_list_depth {
+						return Err(ListDepthExceeded({ attempted: group.depth, group: $next_group, limit: limits.max_list_depth }))
 					}
 					if group.group_end == $next_group + 1 {
 						return Err(EmptyList({ group: $next_group }))
@@ -916,7 +958,7 @@ plan_blocks = |authoring, limits| {
 					check_at(attempted_nodes, limits.max_nodes, Nodes, $block_index)?
 					check_at(attempted_content, limits.max_content_spine, ContentSpine, $block_index)?
 					$group_nodes = $group_nodes.append($next_node)
-					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, group.parent) })
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_parent_code(groups, parents, group.parent) })
 					$next_node = attempted_nodes
 					$content_count = attempted_content
 					$attribute_count = checked_add($attribute_count, 1)?
@@ -927,7 +969,7 @@ plan_blocks = |authoring, limits| {
 					## cells are fixed-depth descendants, so the walk resumes
 					## after the table's last group and leaf.
 					attribute_base = checked_add($attribute_count, $relationship_count)?
-					planned = plan_table(authoring, $next_group, table_index.to_u64(), { association: $association_cursor, attribute_base, break_cursor: $break_cursor, cell: $cell_cursor, header_base: $cell_headers.len(), node: $next_node, occurrence: $next_occurrence }, { max_attributes: KernelSemantics.Limits.attribute_limit(limits.semantics), max_depth: limits.max_inline_depth })?
+					planned = plan_table(authoring, $next_group, table_index.to_u64(), { association: $association_cursor, attribute_base, break_cursor: $break_cursor, cell: $cell_cursor, header_base: $cell_headers.len(), node: $next_node, occurrence: $next_occurrence }, { max_attributes: KernelSemantics.Limits.attribute_limit(limits.semantics), max_depth: limits.max_inline_depth, max_table_grid_work: limits.max_table_grid_work, max_table_key_bytes: limits.identifiers.max_table_key_bytes, max_uri_bytes: limits.max_uri_bytes })?
 					attempted_nodes = checked_add($next_node, planned.nodes)?
 					attempted_occurrences = checked_add($next_occurrence, planned.occurrences)?
 					attempted_content = checked_add($content_count, planned.content)?
@@ -937,7 +979,7 @@ plan_blocks = |authoring, limits| {
 					check_at(attempted_content, limits.max_content_spine, ContentSpine, group.first_block)?
 					check_at(attempted_properties, limits.max_properties, Properties, group.first_block)?
 					check_at(checked_add($sources.len(), planned.buffers.sources.len())?, limits.max_source_inputs, SourceInputs, group.first_block)?
-					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, group.parent) })
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_parent_code(groups, parents, group.parent) })
 
 					## The table's own buffers are appended to the document's
 					## accumulators, which stay uniquely owned here: handing
@@ -1060,7 +1102,7 @@ plan_blocks = |authoring, limits| {
 						$next_list = checked_add($next_list, 1)?
 						$list_count = checked_add($list_count, 1)?
 						$attribute_count = checked_add($attribute_count, 1)?
-						$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index(node), parent: semantic_code(groups, block.parent) })
+						$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index(node), parent: semantic_parent_code(groups, parents, block.parent) })
 						$list_state = ActiveList({ expected_item: 1, list, node })
 						node
 					} else {
@@ -1093,7 +1135,7 @@ plan_blocks = |authoring, limits| {
 					check_at(attempted_occurrences, limits.max_occurrences, Occurrences, $block_index)?
 					check_at(attempted_content, limits.max_content_spine, ContentSpine, $block_index)?
 					check_at(attempted_sources, limits.max_source_inputs, SourceInputs, $block_index)?
-					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_parent_code(groups, parents, block.parent) })
 					$sources = $sources.append(block.text)
 					$next_node = checked_add($next_node, 1)?
 					$next_occurrence = checked_add($next_occurrence, 1)?
@@ -1109,7 +1151,7 @@ plan_blocks = |authoring, limits| {
 					check_at(attempted_occurrences, limits.max_occurrences, Occurrences, $block_index)?
 					check_at(attempted_content, limits.max_content_spine, ContentSpine, $block_index)?
 					check_at(attempted_sources, limits.max_source_inputs, SourceInputs, $block_index)?
-					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_parent_code(groups, parents, block.parent) })
 					$sources = $sources.append(block.text)
 					$next_node = checked_add($next_node, 1)?
 					$next_occurrence = checked_add($next_occurrence, 1)?
@@ -1130,7 +1172,7 @@ plan_blocks = |authoring, limits| {
 								_ => {}
 							}
 						}
-						InvalidDrawing(_) => crash "validated figure drawing escaped"
+						DrawingDepthLimit(_) | InvalidDrawing(_) => crash "validated figure drawing escaped"
 					}
 					label_count = $figure_label_texts.len() - first_label
 					attempted_nodes = checked_add($next_node, 1)?
@@ -1143,7 +1185,7 @@ plan_blocks = |authoring, limits| {
 					check_at(attempted_content, limits.max_content_spine, ContentSpine, $block_index)?
 					check_at(attempted_sources, limits.max_source_inputs, SourceInputs, $block_index)?
 					check_at(attempted_properties, limits.max_properties, Properties, $block_index)?
-					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_parent_code(groups, parents, block.parent) })
 					$sources = $sources.append(block.text)
 					$next_node = attempted_nodes
 					$next_occurrence = attempted_occurrences
@@ -1166,7 +1208,7 @@ plan_blocks = |authoring, limits| {
 					check_at(attempted_occurrences, limits.max_occurrences, Occurrences, $block_index)?
 					check_at(attempted_content, limits.max_content_spine, ContentSpine, $block_index)?
 					check_at(attempted_sources, limits.max_source_inputs, SourceInputs, $block_index)?
-					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_parent_code(groups, parents, block.parent) })
 					$sources = $sources.append(block.text)
 					$next_node = attempted_nodes
 					$next_occurrence = attempted_occurrences
@@ -1185,7 +1227,7 @@ plan_blocks = |authoring, limits| {
 					check_at(attempted_content, limits.max_content_spine, ContentSpine, $block_index)?
 					check_at(attempted_sources, limits.max_source_inputs, SourceInputs, $block_index)?
 					$destinations = $destinations.append({ anchor: Semantics.OccurrenceId.from_index($next_occurrence), name, target: Semantics.NodeId.from_index($next_node) })
-					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_parent_code(groups, parents, block.parent) })
 					$sources = $sources.append(block.text)
 					$next_node = checked_add($next_node, 1)?
 					$next_occurrence = checked_add($next_occurrence, 1)?
@@ -1202,7 +1244,7 @@ plan_blocks = |authoring, limits| {
 					check_at(attempted_content, limits.max_content_spine, ContentSpine, $block_index)?
 					check_at(attempted_sources, limits.max_source_inputs, SourceInputs, $block_index)?
 					$destinations = $destinations.append({ anchor: Semantics.OccurrenceId.from_index($next_occurrence), name, target: Semantics.NodeId.from_index($next_node) })
-					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_parent_code(groups, parents, block.parent) })
 					$sources = $sources.append(block.text)
 					$next_node = checked_add($next_node, 1)?
 					$next_occurrence = checked_add($next_occurrence, 1)?
@@ -1219,7 +1261,7 @@ plan_blocks = |authoring, limits| {
 					check_at(attempted_content, limits.max_content_spine, ContentSpine, $block_index)?
 					check_at(attempted_sources, limits.max_source_inputs, SourceInputs, $block_index)?
 					$links = $links.append({ node: Semantics.NodeId.from_index($next_node + 1), occurrences: Semantics.IndexRange.from_start_and_length({ start: $next_occurrence, length: 1 }), target: Uri(uri) })
-					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_parent_code(groups, parents, block.parent) })
 					$sources = $sources.append(block.text)
 					$next_node = attempted_nodes
 					$next_occurrence = checked_add($next_occurrence, 1)?
@@ -1236,7 +1278,7 @@ plan_blocks = |authoring, limits| {
 					check_at(attempted_content, limits.max_content_spine, ContentSpine, $block_index)?
 					check_at(attempted_sources, limits.max_source_inputs, SourceInputs, $block_index)?
 					$links = $links.append({ node: Semantics.NodeId.from_index($next_node + 1), occurrences: Semantics.IndexRange.from_start_and_length({ start: $next_occurrence, length: 1 }), target: InternalDestination(destination) })
-					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_parent_code(groups, parents, block.parent) })
 					$sources = $sources.append(block.text)
 					$next_node = attempted_nodes
 					$next_occurrence = checked_add($next_occurrence, 1)?
@@ -1245,7 +1287,7 @@ plan_blocks = |authoring, limits| {
 				}
 				RichParagraph(paragraph) => {
 					rich = list_at(authoring.rich_paragraphs, paragraph)
-					checked = check_rich(authoring.inlines, rich, $block_index, limits.max_inline_depth)?
+					checked = check_rich(authoring.inlines, rich, $block_index, limits.max_inline_depth, limits.max_uri_bytes)?
 					breaks = paragraph_breaks(authoring.line_breaks, $break_cursor, paragraph)
 					check_breaks(authoring.line_breaks, $break_cursor, breaks, rich, $block_index)?
 					attempted_nodes = checked_add($next_node, checked_add(rich.elements, 1)?)?
@@ -1278,7 +1320,7 @@ plan_blocks = |authoring, limits| {
 						$destinations = $destinations.append({ anchor: Semantics.OccurrenceId.from_index($next_occurrence), name: Document.footnote_destination(note.id), target: node })
 						$note_nodes = $note_nodes.append(node)
 					}
-					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_parent_code(groups, parents, block.parent) })
 					$sources = append_rich_sources($sources, authoring, paragraph, block.text, $break_cursor, breaks)
 					$break_cursor = $break_cursor + breaks
 					$next_node = attempted_nodes
@@ -1321,8 +1363,8 @@ TablePlan : { association_end : U64, attributes : U64, breaks : U64, buffers : T
 ## its `Row`- or `Both`-scoped row headers. For header cells, only preceding
 ## cells can act as row headers, so header-to-header edges follow preorder
 ## without cycles. The flattened ranges follow authored cell order.
-plan_table : Document.NormalizedAuthoring, U64, U64, TableCursor, { max_attributes : U64, max_depth : U64 } -> Try(TablePlan, KernelFacadeSemantics.Error)
-plan_table = |authoring, group_index, table_index, at, { max_attributes, max_depth }| {
+plan_table : Document.NormalizedAuthoring, U64, U64, TableCursor, { max_attributes : U64, max_depth : U64, max_table_grid_work : U64, max_table_key_bytes : U64, max_uri_bytes : U64 } -> Try(TablePlan, KernelFacadeSemantics.Error)
+plan_table = |authoring, group_index, table_index, at, { max_attributes, max_depth, max_table_grid_work, max_table_key_bytes, max_uri_bytes }| {
 	group = list_at(authoring.groups, group_index)
 	table = list_at(authoring.tables, table_index)
 	columns = table.columns.len()
@@ -1330,7 +1372,7 @@ plan_table = |authoring, group_index, table_index, at, { max_attributes, max_dep
 		return Err(TableEmpty({ group: group_index }))
 	}
 	cell_end = at.cell + group.block_end - group.first_block - (if (table.caption) 1 else 0)
-	grid = KernelFacadeTableGrid.build(authoring, group_index, at.cell, cell_end, table) ? TableSpan
+	grid = KernelFacadeTableGrid.build_with_limit(authoring, group_index, at.cell, cell_end, table, max_table_grid_work) ? TableSpan
 	if grid != Ordinary and table.row_split == SplitRows {
 		return Err(TableSpanPolicy({ group: group_index }))
 	}
@@ -1338,7 +1380,7 @@ plan_table = |authoring, group_index, table_index, at, { max_attributes, max_dep
 	while $association_end < authoring.cell_associations.len() and list_at(authoring.cell_associations, $association_end).cell < cell_end {
 		$association_end = $association_end + 1
 	}
-	keys = table_keys(authoring, at.association, $association_end)?
+	keys = table_keys(authoring, at.association, $association_end, max_table_key_bytes)?
 	var $association = at.association
 	caption_nodes = if (table.caption) 2 else 0
 	sections = (if (table.header_rows > 0) 1 else 0) + 1 + (if (table.footer_rows > 0) 1 else 0)
@@ -1406,7 +1448,7 @@ plan_table = |authoring, group_index, table_index, at, { max_attributes, max_dep
 				}
 				RichParagraph(paragraph) => {
 					rich = list_at(authoring.rich_paragraphs, paragraph)
-					checked = match check_rich(authoring.inlines, rich, $block, max_depth) {
+					checked = match check_rich(authoring.inlines, rich, $block, max_depth, max_uri_bytes) {
 						Ok(value) => value
 						Err(EmptyRichParagraph({ block: empty })) => return Err(TableCellEmpty({ block: empty }))
 						Err(error) => return Err(error)
@@ -1511,7 +1553,7 @@ plan_table = |authoring, group_index, table_index, at, { max_attributes, max_dep
 						return Err(TableHeaderTargets({ block: record.block, reason: EmptyTargets }))
 					}
 					check_at(at.attribute_base + $attributes + $relationships + 1 + target_keys.len(), max_attributes, Attributes, record.block)?
-					resolved = resolve_header_targets(keys, target_keys, record, $index)?
+					resolved = resolve_header_targets(keys, target_keys, record, $index, max_table_key_bytes)?
 					$headers = append_all($headers, resolved)
 				}
 			}
@@ -1624,8 +1666,8 @@ TableKey : { bytes : List(U8), cell : U64, kind : Document.CellKind }
 ## PDF 2.0 §14.7.2 Tables 354–355 and §14.8.5.7 Table 384. Authored keys
 ## resolve in their own table and bind to cell identities. The writer emits
 ## the generated byte IDs used by Headers and the structure ID tree.
-table_keys : Document.NormalizedAuthoring, U64, U64 -> Try(List(TableKey), KernelFacadeSemantics.Error)
-table_keys = |authoring, start, end| {
+table_keys : Document.NormalizedAuthoring, U64, U64, U64 -> Try(List(TableKey), KernelFacadeSemantics.Error)
+table_keys = |authoring, start, end, limit| {
 	var $keys = []
 	var $index = start
 	while $index < end {
@@ -1633,6 +1675,10 @@ table_keys = |authoring, start, end| {
 		match info.key {
 			Named(key) => {
 				cell = list_at(authoring.cells, info.cell)
+				attempted = key.count_utf8_bytes()
+				if attempted > limit {
+					return Err(TableCellKeyLimit({ attempted, block: cell.block, limit }))
+				}
 				bytes = match checked_key_bytes(key) {
 					Ok(value) => value
 					Err(_) => return Err(TableCellKey({ block: cell.block, reason: InvalidKey }))
@@ -1667,8 +1713,7 @@ table_keys = |authoring, start, end| {
 
 checked_key_bytes : Str -> Try(List(U8), [InvalidKey])
 checked_key_bytes = |key| {
-	size = key.count_utf8_bytes()
-	if size == 0 or size > 64 {
+	if key.is_empty() {
 		return Err(InvalidKey)
 	}
 	bytes = key.to_utf8()
@@ -1721,10 +1766,14 @@ find_table_key = |keys, bytes| {
 ## An explicit list replaces the scope-derived list for this cell alone.
 ## Preserve authors' order. As for scope-derived associations, header-to-
 ## header edges follow preorder so that the association graph is acyclic.
-resolve_header_targets : List(TableKey), List(Str), Document.NormalizedCell, U64 -> Try(List(U64), KernelFacadeSemantics.Error)
-resolve_header_targets = |keys, target_keys, cell, ordinal| {
+resolve_header_targets : List(TableKey), List(Str), Document.NormalizedCell, U64, U64 -> Try(List(U64), KernelFacadeSemantics.Error)
+resolve_header_targets = |keys, target_keys, cell, ordinal, limit| {
 	var $resolved = List.with_capacity(target_keys.len())
 	for target in target_keys {
+		attempted = target.count_utf8_bytes()
+		if attempted > limit {
+			return Err(TableHeaderTargetLimit({ attempted, block: cell.block, limit }))
+		}
 		bytes = match checked_key_bytes(target) {
 			Ok(value) => value
 			Err(_) => return Err(TableHeaderTargets({ block: cell.block, reason: InvalidTarget }))
@@ -1780,12 +1829,6 @@ append_spanned_headers = |headers, covering_first, starting, column, span| {
 	append_all(headers, sorted)
 }
 
-## Lists nest at most four deep. With 16 containers, a list level's
-## `L > LI > LBody`, the paragraph, and 8 inline elements, the deepest
-## facade chain stays below the kernel semantic depth bound.
-list_depth_limit : U64
-list_depth_limit = 4
-
 ## Whether group code `code` (`0` or `g + 1`) names a list item.
 in_list_item : List(Document.NormalizedGroup), U64 -> Bool
 in_list_item = |groups, code| if code == 0 {
@@ -1805,16 +1848,56 @@ semantic_code = |groups, code| {
 	var $searching = True
 	while $searching and $code != 0 {
 		group = list_at(groups, $code - 1)
-		match group.kind {
-			KeepTogether | FigureAnchor | KeepWithNext(_) | PageScope(_) | Scope(_) => {
-				$code = group.parent
-			}
-			_ => {
-				$searching = False
-			}
+		if transparent_group(group.kind) {
+			$code = group.parent
+		} else {
+			$searching = False
 		}
 	}
 	$code
+}
+
+## The authoring preorder assigns every group an earlier parent code.
+## Transparent groups reuse that parent's resolved authoring group code,
+## which remains distinct from its independently minted semantic node ID.
+semantic_group_parents : List(Document.NormalizedGroup) -> List(U64)
+semantic_group_parents = |groups| {
+	var $parents = List.with_capacity(groups.len())
+	for group in groups {
+		if group.parent > $parents.len() {
+			return []
+		}
+		nearest = if transparent_group(group.kind) {
+			if (group.parent == 0) 0 else list_at($parents, group.parent - 1)
+		} else {
+			$parents.len() + 1
+		}
+		$parents = $parents.append(nearest)
+	}
+	$parents
+}
+
+semantic_parent_code : List(Document.NormalizedGroup), List(U64), U64 -> U64
+semantic_parent_code = |groups, parents, code| if code == 0 {
+	0
+} else if parents.is_empty() {
+	semantic_code(groups, code)
+} else {
+	list_at(parents, code - 1)
+}
+
+transparent_group : Document.NormalizedGroupKind -> Bool
+transparent_group = |kind| match kind {
+	KeepTogether | FigureAnchor | KeepWithNext(_) | PageScope(_) | Scope(_) => True
+	_ => False
+}
+
+expect {
+	leaf = Document.paragraph("Body")
+	body = Document.scoped({}, [Document.division([Document.scoped({}, [leaf])]), leaf])
+	doc = Document.from_blocks({ contents: [Document.division([body])], language: "en", title: "Group parent codes" })
+	groups = Document.normalize(doc).groups
+	semantic_group_parents(groups) == [1, 1, 3, 3]
 }
 
 ## A block's list nesting level: the depth of the list item that directly
@@ -1876,6 +1959,7 @@ check_figure = |figure, block| {
 		return Err(FigureAlternativeEmpty({ block: block }))
 	}
 	match figure.drawing {
+		DrawingDepthLimit(depth) => return Err(DrawingGroupDepth({ drawing: FigureAt(block), depth }))
 		InvalidDrawing(reason) => return Err(FigureDrawing({ block, reason }))
 		ValidDrawing(_) => {}
 	}
@@ -2018,6 +2102,7 @@ check_customs = |authoring| {
 			return Err(CustomMeasure({ custom: $index }))
 		}
 		match custom.panel {
+			DrawingDepthLimit(depth) => return Err(DrawingGroupDepth({ drawing: PanelAt($index), depth }))
 			InvalidDrawing(reason) => return Err(CustomDrawing({ custom: $index, reason }))
 			ValidDrawing(drawing) => {
 				if !drawing.images.is_empty() {
@@ -2062,6 +2147,7 @@ check_decorations = |authoring| {
 			return Err(DecorationPosition({ decoration: $index }))
 		}
 		match decoration.drawing {
+			DrawingDepthLimit(depth) => return Err(DrawingGroupDepth({ drawing: DecorationAt($index), depth }))
 			InvalidDrawing(reason) => return Err(DecorationDrawing({ decoration: $index, reason }))
 			ValidDrawing(_) => {}
 		}
@@ -2217,8 +2303,8 @@ check_breaks = |line_breaks, cursor, count, rich, block| {
 ## text, inline elements nest at most `max_depth` deep, links never contain
 ## links, language tags are well formed, and URIs pass the navigation URI
 ## grammar. Returns the counts semantic planning reserves.
-check_rich : List(Document.NormalizedInline), Document.NormalizedRich, U64, U64 -> Try({ expansions : U64, links : U64 }, KernelFacadeSemantics.Error)
-check_rich = |inlines, rich, block, max_depth| {
+check_rich : List(Document.NormalizedInline), Document.NormalizedRich, U64, U64, U64 -> Try({ expansions : U64, links : U64 }, KernelFacadeSemantics.Error)
+check_rich = |inlines, rich, block, max_depth, max_uri_bytes| {
 	# A page field or reserved width in body content is rejected first,
 	# with its inline path; it holds no text, so the emptiness checks
 	# below would otherwise misname it.
@@ -2235,6 +2321,7 @@ check_rich = |inlines, rich, block, max_depth| {
 	}
 	var $expansions = 0
 	var $links = 0
+	var $link_end = 0
 	var $index = rich.inlines
 	end = rich.inlines + rich.length
 	while $index < end {
@@ -2256,9 +2343,12 @@ check_rich = |inlines, rich, block, max_depth| {
 					return if (linked) Err(EmptyLinkText({ block, inline: $index })) else Err(EmptyInline({ block, inline: $index }))
 				}
 				if linked {
-					if inside_link(inlines, record.parent) {
+					# Preorder makes a nonempty link nested exactly when its
+					# first leaf is still inside the previous link's range.
+					if record.first_leaf < $link_end {
 						return Err(NestedLink({ block, inline: $index }))
 					}
+					$link_end = record.leaf_end
 					$links = $links + 1
 				}
 				match kind {
@@ -2269,7 +2359,7 @@ check_rich = |inlines, rich, block, max_depth| {
 					InLanguage(tag) => if !KernelSemantics.language_tag_valid(tag) {
 						return Err(InvalidInlineLanguage({ block, inline: $index }))
 					}
-					Link(uri) => match KernelNavigation.check_uri(uri) {
+					Link(uri) => match KernelNavigation.check_uri(uri, max_uri_bytes) {
 						Ok(_) => {}
 						Err(error) => return Err(InvalidInlineUri({ block, error, inline: $index }))
 					}
@@ -2286,23 +2376,6 @@ check_rich = |inlines, rich, block, max_depth| {
 		$index = $index + 1
 	}
 	Ok({ expansions: $expansions, links: $links })
-}
-
-## Whether an inline's ancestor chain (`parent` encoded `0` or `i + 1`)
-## contains a link. Chains are bounded by the validated inline depth.
-inside_link : List(Document.NormalizedInline), U64 -> Bool
-inside_link = |inlines, parent| {
-	var $cursor = parent
-	var $found = False
-	while $cursor != 0 and !$found {
-		record = list_at(inlines, $cursor - 1)
-		$found = match record.kind {
-			Link(_) | InternalLink(_) | Citation(_) => True
-			_ => False
-		}
-		$cursor = record.parent
-	}
-	$found
 }
 
 ## One link record per inline link: its node follows the paragraph node in
@@ -2377,8 +2450,8 @@ heading_role = |level, block| match level {
 ## builds those contiguous spans in O(children + groups). Leaf content
 ## follows in block order exactly as before, so a document without
 ## containers keeps its exact spine.
-build_components : Document.NormalizedAuthoring, Planning, KernelFacadeSources.Plan -> Try({ block_ownership : List(KernelFacadeSemantics.BlockOwnership), components : SemanticComponents }, KernelFacadeSemantics.Error)
-build_components = |authoring, planning, source_plan| {
+build_components : Document.NormalizedAuthoring, Planning, KernelFacadeSources.Plan, U64 -> Try({ block_ownership : List(KernelFacadeSemantics.BlockOwnership), components : SemanticComponents }, KernelFacadeSemantics.Error)
+build_components = |authoring, planning, source_plan, max_bibliography_target_bytes| {
 	language = authoring.language
 	blocks = authoring.blocks
 	groups = authoring.groups
@@ -2792,7 +2865,7 @@ build_components = |authoring, planning, source_plan| {
 		$relationships = $relationships.append(FootnoteReference({ note: list_at(planning.note_nodes, target), citation: list_at(planning.citation_nodes, $citation) }))
 		$citation = $citation + 1
 	}
-	relationships = bibliography_links(authoring, $ownership, planning, $nodes, $relationships)?
+	relationships = bibliography_links(authoring, $ownership, planning, $nodes, $relationships, max_bibliography_target_bytes)?
 	components = {
 		attributes: $attributes,
 		content_spine: $content,
@@ -2821,8 +2894,8 @@ BibliographyTarget : { block : U64, bytes : List(U8), node : Semantics.NodeId }
 
 ## Resolve the explicitly marked citation links from their logical owner
 ## and exact normalized occurrence. All lookups are on authored identities.
-bibliography_links : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Planning, List(Semantics.Node), List(Semantics.Relationship) -> Try(List(Semantics.Relationship), KernelFacadeSemantics.Error)
-bibliography_links = |authoring, ownership, planning, nodes, relationships| {
+bibliography_links : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Planning, List(Semantics.Node), List(Semantics.Relationship), U64 -> Try(List(Semantics.Relationship), KernelFacadeSemantics.Error)
+bibliography_links = |authoring, ownership, planning, nodes, relationships, limit| {
 	if !authoring.groups.any(|group| is_bibliography(group.kind)) and !authoring.inlines.any(
 		|inline| match inline.kind {
 			Citation(_) => True
@@ -2842,9 +2915,13 @@ bibliography_links = |authoring, ownership, planning, nodes, relationships| {
 				}
 				match planning.destinations.get($destination) {
 					Ok(record) if record.anchor == body and list_at(nodes, record.target.index()).role.local_name == "BibEntry" => {
+						attempted = record.name.count_utf8_bytes()
+						if attempted > limit {
+							return Err(BibliographyEntryLimit({ attempted, block: $block, limit }))
+						}
 						bytes = record.name.to_utf8()
-						if bytes.is_empty() or bytes.len() > 64 or !bytes.all(|byte| byte >= 0x21 and byte <= 0x7e) {
-							return Err(BibliographyEntry({ block: $block, reason: "An entry target must contain one to 64 printable ASCII bytes without spaces." }))
+						if bytes.is_empty() or !bytes.all(|byte| byte >= 0x21 and byte <= 0x7e) {
+							return Err(BibliographyEntry({ block: $block, reason: "An entry target must be nonempty printable ASCII without spaces." }))
 						}
 						if list_at(authoring.blocks, $block).text.trim().is_empty() {
 							return Err(BibliographyEntry({ block: $block, reason: "A bibliography entry needs visible text." }))
@@ -2873,7 +2950,7 @@ bibliography_links = |authoring, ownership, planning, nodes, relationships| {
 		$entry = $entry + 1
 	}
 	for destination in planning.destinations {
-		if list_at(nodes, destination.target.index()).role.local_name != "BibEntry" and destination.name.count_utf8_bytes() <= 64 {
+		if list_at(nodes, destination.target.index()).role.local_name != "BibEntry" and destination.name.count_utf8_bytes() <= limit {
 			match bibliography_target(entry_ids, destination.name.to_utf8()) {
 				Ok(entry) => return Err(BibliographyEntry({ block: entry.block, reason: "The bibliography target is already a document destination." }))
 				Err(Missing) => {}
@@ -2892,6 +2969,10 @@ bibliography_links = |authoring, ownership, planning, nodes, relationships| {
 					record = list_at(authoring.inlines, $inline)
 					match record.kind {
 						Citation(name) => {
+							attempted = name.count_utf8_bytes()
+							if attempted > limit {
+								return Err(BibliographyCitationLimit({ attempted, block: $block, inline: $inline, limit }))
+							}
 							first = occurrences.start() + record.first_leaf
 							target = bibliography_target(entry_ids, name.to_utf8()) ? |_| BibliographyCitation({ block: $block, inline: $inline, reason: "The citation must name a declared bibliography entry." })
 							while $link < planning.links.len() and list_at(planning.links, $link).occurrences.start() < first {
@@ -3370,16 +3451,29 @@ cell_ordinal = |cells, block| {
 	$low
 }
 
-## The generated element identifier of cell ordinal `ordinal`: `c` and the
-## one-based ordinal in six zero-padded digits, so byte order is cell order.
+## Cell IDs and their Headers names share this one encoding. Keep the
+## established six-digit IDs and use a greater prefix with fixed-width
+## zero-based ordinals thereafter. Byte order remains cell order.
 cell_identifier : U64 -> Str
 cell_identifier = |ordinal| {
-	digits = (1000000 + ordinal + 1).to_str()
-	match digits.drop_first_bytes(1) {
-		Ok(text) => "c${text}"
-		Err(_) => crash "generated cell identifier escaped ASCII"
+	if ordinal < 999999 {
+		digits = (1000000 + ordinal + 1).to_str()
+		match digits.drop_first_bytes(1) {
+			Ok(text) => "c${text}"
+			Err(_) => crash "generated cell identifier escaped ASCII"
+		}
+	} else {
+		digits = ordinal.to_str()
+		padding = Str.repeat("0", 20 - digits.count_utf8_bytes())
+		"d${padding}${digits}"
 	}
 }
+
+expect cell_identifier(0) == "c000001" and
+	cell_identifier(999998) == "c999999" and
+		cell_identifier(999999) == "d00000000000000999999" and
+			cell_identifier(1000000) == "d00000000000001000000" and
+				cell_identifier(U64.highest) == "d18446744073709551615"
 
 scope_name : Document.HeaderScope -> Str
 scope_name = |scope| match scope {
@@ -3912,6 +4006,24 @@ expect {
 	deep = KernelFacadeSemantics.Plan.build(rich_authoring([Document.emphasis([Document.emphasis([Document.emphasis([Document.emphasis([Document.emphasis([Document.emphasis([Document.emphasis([Document.emphasis([Document.emphasis([Document.plain_text("x")])])])])])])])])])]), test_limits)
 	match (empty, nested, language, uri, blank, deep) {
 		(Err(EmptyInline({ block: 0, inline: 1 })), Err(NestedLink({ block: 0, inline: 1 })), Err(InvalidInlineLanguage({ block: 0, inline: 0 })), Err(InvalidInlineUri({ block: 0, error: UriMissingScheme(_), inline: 0 })), Err(EmptyRichParagraph({ block: 0 })), Err(InlineDepthExceeded({ attempted: 9, block: 0, inline: 8, limit: 8 }))) => True
+		_ => False
+	}
+}
+
+# A sibling starts on the previous link's exclusive boundary. Nested
+# rejection also works after leading text, and still follows empty-link checks.
+expect {
+	link = |contents| Document.inline_link(contents, "https://example.org")
+	text = Document.plain_text("A")
+	check = |contents| {
+		authoring = rich_authoring(contents)
+		check_rich(authoring.inlines, list_at(authoring.rich_paragraphs, 0), 0, 8, 2048)
+	}
+	siblings = check([link([text]), Document.strong([Document.inline_internal_link([text], "target"), link([text])])])
+	nested = check([link([text, Document.strong([link([text])])])])
+	empty = check([link([text, Document.strong([link([]), text])])])
+	match (siblings, nested, empty) {
+		(Ok({ expansions: 0, links: 3 }), Err(NestedLink({ block: 0, inline: 3 })), Err(EmptyLinkText({ block: 0, inline: 3 }))) => True
 		_ => False
 	}
 }

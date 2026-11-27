@@ -22,5 +22,3 @@ The structural fixture set covers all typed values, the blank page
 tree, long offsets with a counting sink, and unchanged-resource lifetime.
 Review both the selected positive cases and the exact invalid twins.
 Optional qpdf, Arlington and PDFBox checks read the original file.
-
-See https://github.com/lukewilliamboswell/roc-pdf/blob/a6d1bde3028d51955b96af3ba1a183855a92cd2d/docs/contributors/performance/structural-kernel-closure.md[the archived design and measurements].

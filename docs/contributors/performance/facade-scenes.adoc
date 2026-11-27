@@ -21,6 +21,29 @@ reference with dense buffers. Validation checks scene arenas and exact
 run/fragment association. Referenced font, color, and image facts are
 shared with the scene plan. Scene paint order carries each group once.
 
+Packed raster sources with matching format, dimensions, color space, strides
+and exact color and alpha bytes share a resource across figures, decorations
+and furniture. JPEG sources with matching encoded bytes, color space and
+orientation policy share resources the same way. Scene commands resolve
+the shared resource in source order and keep their own geometry and
+semantic or artifact ownership.
+
+The scene stage checks raster dimensions and plane lengths before reading
+their bytes, and checks the encoded length and initial markers of JPEGs.
+It compares against two recent sources per image family, then groups
+remaining candidates by descriptor, lengths and fixed samples of the bytes.
+Only groups with matching samples need full fingerprints. Exact equality
+permits reuse, with stable radix refinement for fingerprint collisions.
+
+The default classifier budgets 320 MiB of fingerprint input. Each of the
+two recent-source comparisons has a 1 GiB input allowance per image family.
+`Pdf.Options.image_budgets` supplies both allowances and the physical image
+budgets.
+Image validation preserves original source ordinals. A source that passes
+the admission checks may encounter a work limit before deep validation.
+Physical storage limits, JPEG validation and sanitization, raster compaction,
+sealed-plan hashing and compression apply to canonical resources.
+
 [#contributor-facade-scenes-evidence]
 == Evidence
 
@@ -28,6 +51,8 @@ The `facade-scenes-v1` cases in `tests/spec.json` measure prepared
 inputs and scene construction separately at 1,000 and 10,000 runs.
 They pin placement and ownership work with the structural and
 allocated-byte checks. Figure, fixed-page and rich-flow cases add paint
-and logical-order variants.
-
-See https://github.com/lukewilliamboswell/roc-pdf/blob/a6d1bde3028d51955b96af3ba1a183855a92cd2d/docs/contributors/performance/facade-scenes.md[the archived design and measurements].
+and logical-order variants. The `facade-raster-sharing-v1` cases verify
+three and 24 tagged placements against the same pair of RGB streams and
+their distinct alpha masks. The `facade-jpeg-sharing-v1` cases verify a
+single byte-exact DCT stream at both scales. Module checks cover recent
+matches, sampled candidates, work limits and forced collisions.

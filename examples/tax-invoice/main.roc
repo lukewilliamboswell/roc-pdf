@@ -1,11 +1,14 @@
 app [main!] {
 	pdf: "../../package/main.roc",
 	pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.28.1/7brgwR8YUqfeGrkdfF1V4GPPN7DnP7ftqub9KcrTEZtr.tar.zst",
+	weaver: "https://github.com/lukewilliamboswell/weaver/releases/download/0.11.0/7CdYzjBAJmprmnK45oTpmH6BXt76ZASN2Ck5uZQEoWsK.tar.zst",
 }
 import pf.OsStr
 import pf.Path
 import pf.Stderr
 import pf.Stdout
+import weaver.Cli
+import weaver.Param
 import pdf.Color
 import pdf.Document
 import pdf.Font
@@ -25,11 +28,16 @@ import "fonts/SourceSans3-Bold.ttf" as bold_bytes : List(U8)
 ## brass tint that keeps with the last body row. The document is prepared
 ## once and then emitted.
 main! = |args| {
-	{ oversized, row_split } = match args.map(OsStr.display) {
-		[] => { oversized: False, row_split: KeepRows }
-		["split"] => { oversized: True, row_split: SplitRows }
-		["keep"] => { oversized: True, row_split: KeepRows }
-		_ => {
+	{ oversized, row_split } = match Cli.parse_or_display_message(cli, args, OsStr.to_raw) {
+		Err(Help(message)) | Err(Version(message)) => return Stdout.line!(message).map_err(|error| OutputFailed(error))
+		Err(InvalidUsage(message)) => {
+			Stderr.line!(message).map_err(|error| OutputFailed(error))?
+			return Err(Exit(2))
+		}
+		Ok(Err(NoValue)) => { oversized: False, row_split: KeepRows }
+		Ok(Ok("split")) => { oversized: True, row_split: SplitRows }
+		Ok(Ok("keep")) => { oversized: True, row_split: KeepRows }
+		Ok(Ok(_)) => {
 			Stderr.line!("Usage: roc run main.roc [split|keep]").map_err(|err| OutputFailed(err))?
 			return Err(Exit(2))
 		}
@@ -302,3 +310,10 @@ payment_section = Pdf.section([
 		Pdf.text(" (pay.harbourfinch.example/invoices/HF-2026-0417)."),
 	]),
 ])
+
+cli = Cli.assert_valid(
+	Cli.finish(
+		Param.maybe_str({ name: "mode", help: "Choose split or keep for oversized rows." }),
+		{ name: "tax-invoice", version: "unversioned", authors: [], description: "Generate a multi-page tax invoice.", text_style: Plain },
+	),
+)

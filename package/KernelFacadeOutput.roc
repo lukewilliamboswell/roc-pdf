@@ -115,38 +115,43 @@ build_plan = |scenes, font, descriptor, facts, navigation, limits| {
 	colors = KernelFacadeScenes.Plan.colors(scenes)
 	text_store = KernelTextOwnership.Plan.text(ownership)
 	usages = glyph_usages(text_store.glyphs)
+	glyph_usage_count = usages.len()
 	font_plan = KernelFontPlan.plan(font, usages, limits.font_plan) ? FontPlan
+	font_entry_count = font_plan.entries.len()
 	source_descriptor = KernelPdfFont.source_descriptor(font, descriptor)
 	subset = KernelFontSubset.build(font, font_plan) ? Subset
-	images = KernelImage.Plan.build(KernelFacadeScenes.Plan.images(scenes), colors, limits.images) ? Images
+	subset_bytes = subset.work.output_bytes
+	image_inputs = KernelFacadeScenes.Plan.images(scenes)
+	images = KernelImage.Plan.build_indexed(image_inputs.sources, image_inputs.ordinals, colors, limits.images) ? Images
 	resource_use = KernelResourceUse.TextPlan.build(scene, colors, images) ? Resources
 	text = KernelPdfText.ScenePlan.build_with_phases(ownership, [font_plan], KernelFacadeScenes.Plan.paint_phases(scenes), limits.text) ? Text
 	tagged = KernelTextOwnership.Plan.tagged(ownership)
 	content = KernelContent.Plan.build_with_text(tagged, KernelPdfText.ScenePlan.content(text), limits.content) ? Content
-	objects = KernelObjectPlan.Plan.build_with_text(tagged, colors, images, resource_use, content, limits.objects) ? Objects
-	font_objects = KernelFontObjects.Plan.build(objects, 1, limits.max_objects) ? FontObjects
-	structure = KernelTaggedTextStructure.Plan.build_with_navigation(tagged, colors, images, content, font_objects, text, [{ descriptor: source_descriptor, font, plan: font_plan, subset }], facts, navigation, limits.structure) ? Structure
 	content_work = KernelContent.Plan.work(content)
 	resource_work = KernelResourceUse.TextPlan.work(resource_use)
 	text_work = KernelPdfText.ScenePlan.work(text)
+	text_facts = {
+		actual_text: KernelPdfText.ScenePlan.actual_text_private_use(text),
+		mappings: KernelPdfText.ScenePlan.mappings(text),
+	}
+	objects = KernelObjectPlan.Plan.build_with_text(tagged, colors, images, resource_use, content, limits.objects) ? Objects
+	font_objects = KernelFontObjects.Plan.build(objects, 1, limits.max_objects) ? FontObjects
+	structure = KernelTaggedTextStructure.Plan.build_with_navigation(tagged, colors, images, content, font_objects, text, [{ descriptor: source_descriptor, font, plan: font_plan, subset }], facts, navigation, limits.structure) ? Structure
 	structure_work = KernelTaggedTextStructure.Plan.work(structure)
 	Ok(
 		KernelFacadeOutput.Plan.{
 			structure: KernelTaggedTextStructure.Plan.structure(structure),
-			text_facts: {
-				actual_text: KernelPdfText.ScenePlan.actual_text_private_use(text),
-				mappings: KernelPdfText.ScenePlan.mappings(text),
-			},
+			text_facts,
 			work: {
 				content_bytes: content_work.bytes_emitted,
 				content_command_visits: content_work.command_visits,
-				font_entries: font_plan.entries.len(),
+				font_entries: font_entry_count,
 				font_objects: structure_work.font_objects,
-				glyph_usages: usages.len(),
+				glyph_usages: glyph_usage_count,
 				metadata_bytes: structure_work.metadata_bytes,
 				objects: structure_work.objects,
 				resource_command_visits: resource_work.command_visits,
-				subset_bytes: subset.work.output_bytes,
+				subset_bytes,
 				text_content_bytes: text_work.content_bytes,
 				text_glyph_visits: text_work.glyph_visits,
 				text_runs: text_work.run_visits,
@@ -212,25 +217,27 @@ build_multi_plan = |scenes, fonts, descriptor, facts, navigation, limits| {
 		$font_index = $font_index + 1
 	}
 
-	images = KernelImage.Plan.build(KernelFacadeScenes.Plan.images(scenes), colors, limits.images) ? Images
+	image_inputs = KernelFacadeScenes.Plan.images(scenes)
+	images = KernelImage.Plan.build_indexed(image_inputs.sources, image_inputs.ordinals, colors, limits.images) ? Images
 	resource_use = KernelResourceUse.TextPlan.build(scene, colors, images) ? Resources
 	text = KernelPdfText.ScenePlan.build_with_phases(ownership, $font_plans, KernelFacadeScenes.Plan.paint_phases(scenes), limits.text) ? Text
 	tagged = KernelTextOwnership.Plan.tagged(ownership)
 	content = KernelContent.Plan.build_with_text(tagged, KernelPdfText.ScenePlan.content(text), limits.content) ? Content
-	objects = KernelObjectPlan.Plan.build_with_text(tagged, colors, images, resource_use, content, limits.objects) ? Objects
-	font_objects = KernelFontObjects.Plan.build(objects, fonts.len(), limits.max_objects) ? FontObjects
-	structure = KernelTaggedTextStructure.Plan.build_with_navigation(tagged, colors, images, content, font_objects, text, $embedded, facts, navigation, limits.structure) ? Structure
 	content_work = KernelContent.Plan.work(content)
 	resource_work = KernelResourceUse.TextPlan.work(resource_use)
 	text_work = KernelPdfText.ScenePlan.work(text)
+	text_facts = {
+		actual_text: KernelPdfText.ScenePlan.actual_text_private_use(text),
+		mappings: KernelPdfText.ScenePlan.mappings(text),
+	}
+	objects = KernelObjectPlan.Plan.build_with_text(tagged, colors, images, resource_use, content, limits.objects) ? Objects
+	font_objects = KernelFontObjects.Plan.build(objects, fonts.len(), limits.max_objects) ? FontObjects
+	structure = KernelTaggedTextStructure.Plan.build_with_navigation(tagged, colors, images, content, font_objects, text, $embedded, facts, navigation, limits.structure) ? Structure
 	structure_work = KernelTaggedTextStructure.Plan.work(structure)
 	Ok(
 		KernelFacadeOutput.Plan.{
 			structure: KernelTaggedTextStructure.Plan.structure(structure),
-			text_facts: {
-				actual_text: KernelPdfText.ScenePlan.actual_text_private_use(text),
-				mappings: KernelPdfText.ScenePlan.mappings(text),
-			},
+			text_facts,
 			work: {
 				content_bytes: content_work.bytes_emitted,
 				content_command_visits: content_work.command_visits,

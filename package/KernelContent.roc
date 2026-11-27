@@ -3,6 +3,8 @@ import Image
 import KernelFixture
 import KernelResourceName
 import KernelLex
+import KernelScene
+import KernelSemantics
 import KernelTagged
 import Layout
 import Scene
@@ -247,11 +249,11 @@ build_plan = |tagged, text, forms, limits| {
 				}
 				match open_group($bytes, group.owner, marked, $page_index, page_limit) {
 					Err(error) => {
-						return Err(error)
+						return Err(aggregate_stream_error(error, $total_bytes, limits.max_content_bytes))
 					}
 					Ok(opened) => match emit_commands(opened, group.commands, scenes.commands, scenes, text, forms, naming, page_states, page_limit) {
 						Err(error) => {
-							return Err(error)
+							return Err(aggregate_stream_error(error, $total_bytes, limits.max_content_bytes))
 						}
 						Ok(emitted) => {
 							## Every scalar is read out of the result before its
@@ -272,7 +274,7 @@ build_plan = |tagged, text, forms, limits| {
 							$text_placements = $text_placements + text_placements
 							match append_literal(emitted_bytes, "EMC\n", page_limit) {
 								Err(error) => {
-									return Err(error)
+									return Err(aggregate_stream_error(error, $total_bytes, limits.max_content_bytes))
 								}
 								Ok(closed) => {
 									$bytes = closed
@@ -322,7 +324,7 @@ build_plan = |tagged, text, forms, limits| {
 			}
 			match emit_commands(List.with_capacity(U64.min(form_limit, initial_content_capacity)), range, arena, scenes, text, forms, naming, form_states, form_limit) {
 				Err(error) => {
-					return Err(error)
+					return Err(aggregate_stream_error(error, $total_bytes, limits.max_content_bytes))
 				}
 				Ok(emitted) => match checked_add($total_bytes, emitted.bytes.len()) {
 					Err(error) => {
@@ -372,7 +374,7 @@ build_plan = |tagged, text, forms, limits| {
 			}
 			match emit_commands(List.with_capacity(U64.min(pattern_limit, initial_content_capacity)), range, pattern_arena, scenes, text, forms, naming, [], pattern_limit) {
 				Err(error) => {
-					return Err(error)
+					return Err(aggregate_stream_error(error, $total_bytes, limits.max_content_bytes))
 				}
 				Ok(emitted) => match checked_add($total_bytes, emitted.bytes.len()) {
 					Err(error) => {
@@ -1144,6 +1146,14 @@ append_bytes = |bytes, addition, limit| {
 	Ok($out)
 }
 
+## A stream receives the budget remaining after its predecessors. Report
+## an overflow against the document limit without changing that local check.
+aggregate_stream_error : KernelContent.Error, U64, U64 -> KernelContent.Error
+aggregate_stream_error = |error, consumed, limit| match error {
+	LimitExceeded({ attempted, dimension: ContentBytes, .. }) => LimitExceeded({ attempted: consumed.plus_saturated(attempted), dimension: ContentBytes, limit })
+	_ => error
+}
+
 ## Checks that `additional` more bytes fit the stream limit. It takes only
 ## the length: the stream itself never passes through a `Try`, because a list
 ## returned through `?` and then appended to by a plain function was copied
@@ -1396,6 +1406,32 @@ expect {
 	tagged = KernelFixture.tagged_plan(1)?
 	match KernelContent.Plan.build(tagged, KernelContent.Limits.make({ max_content_bytes: 32, max_content_streams: 1 })) {
 		Err(LimitExceeded({ attempted: _, dimension: ContentBytes, limit: 32 })) => True
+		_ => False
+	}
+}
+
+# The second page fits at the exact document budget. Its final operator
+# crosses a budget one byte smaller and reports totals across both streams.
+expect {
+	original = KernelFixture.scene
+	first = list_at(original.pages, 0)
+	group = Scene.GroupId.from_index(2)
+	store = {
+		..original,
+		commands: original.commands.append(DrawImage({ image: Image.Id.from_index(0), placement: KernelFixture.rect(0, 0, 1000, 1000) })),
+		groups: original.groups.append({ id: group, commands: Semantics.IndexRange.from_start_and_length({ start: 3, length: 1 }), owner: PageArtifact(Background) }),
+		page_groups: original.page_groups.append(group),
+		pages: original.pages.append({ ..first, id: Semantics.PageId.from_index(1), paint_order: Semantics.IndexRange.from_start_and_length({ start: 2, length: 1 }) }),
+	}
+	scenes = KernelScene.Plan.build(store, KernelScene.Resources.make({ color_spaces: 1, images: 1 }), KernelScene.Limits.make({ max_commands: 4, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 3, max_pages: 2, max_path_segments: 1, max_paths: 1 }))?
+	semantics = KernelSemantics.Plan.build(KernelFixture.semantics, 2, 2, KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }))?
+	tagged = KernelTagged.Plan.build(semantics, scenes)?
+	baseline = KernelContent.Plan.build(tagged, KernelContent.Limits.make({ max_content_bytes: 512, max_content_streams: 2 }))?
+	needed = KernelContent.Plan.work(baseline).bytes_emitted
+	limit = needed - 1
+	exact = KernelContent.Plan.build(tagged, KernelContent.Limits.make({ max_content_bytes: needed, max_content_streams: 2 }))?
+	KernelContent.Plan.work(exact) == KernelContent.Plan.work(baseline) and match KernelContent.Plan.build(tagged, KernelContent.Limits.make({ max_content_bytes: limit, max_content_streams: 2 })) {
+		Err(LimitExceeded({ attempted, dimension: ContentBytes, limit: reported })) => attempted == needed and reported == limit
 		_ => False
 	}
 }

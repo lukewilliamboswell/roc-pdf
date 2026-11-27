@@ -21,7 +21,7 @@ KernelFacadeTables :: [].{
 		Measure(KernelLineLayout.Error),
 
 		## Fixed widths plus every column's minimum exceed the available width.
-		TableWidth({ available : U64, group : U64, required : U64 }),
+		TableWidth({ available : U64, group : U64, required : U128 }),
 
 		## A cell's widest unbreakable piece (`token`, a scalar range of the
 		## cell text's `source` segment) is wider than the width its columns
@@ -314,6 +314,7 @@ measure_segment = |sources, store, start, length, source, holds, limits| {
 resolve_columns : Document.NormalizedAuthoring, Document.NormalizedTable, Document.NormalizedGroup, U64, List(CellMeasure), U64, U64, U64, U64, KernelFacadeTableGrid.Selection -> Try(List(U64), KernelFacadeTables.Error)
 resolve_columns = |authoring, table, group, group_index, measures, first_cell, cell_end, padding, available, grid| {
 	count = table.columns.len()
+	padding_width = 2 * padding
 	var $minima = List.repeat(0, count)
 	var $maxima = List.repeat(0, count)
 	var $widest = List.repeat(first_cell, count)
@@ -328,12 +329,21 @@ resolve_columns = |authoring, table, group, group_index, measures, first_cell, c
 			$column = grid_column(grid, $ordinal, $column)
 			if record.column_span == 1 {
 				measure = list_at(measures, $ordinal)
-				minimum = measure.min_content + 2 * padding
+				minimum = match U64.plus_try(measure.min_content, padding_width) {
+					Ok(value) => value
+					Err(_) => {
+						limit = match list_at(table.columns, $column).width {
+							Fixed(unit) => nonnegative(unit.raw())?
+							_ => available
+						}
+						return Err(token_error(limit.minus_saturated(padding_width), $block, measure))
+					}
+				}
 				if minimum > list_at($minima, $column) {
 					$minima = list_set($minima, $column, minimum)
 					$widest = list_set($widest, $column, $ordinal)
 				}
-				$maxima = list_set($maxima, $column, U64.max(list_at($maxima, $column), measure.max_content + 2 * padding))
+				$maxima = list_set($maxima, $column, U64.max(list_at($maxima, $column), measure.max_content))
 			}
 			$column = $column + record.column_span.to_u64()
 			$ordinal = $ordinal + 1
@@ -347,8 +357,7 @@ resolve_columns = |authoring, table, group, group_index, measures, first_cell, c
 
 	# Exact fixed columns, and each single column's own feasibility.
 	var $widths = List.repeat(0, count)
-	var $fixed = 0
-	var $required = 0
+	var $required = 0.U128
 	var $column = 0
 	while $column < count {
 		minimum = list_at($minima, $column)
@@ -359,59 +368,69 @@ resolve_columns = |authoring, table, group, group_index, measures, first_cell, c
 		if minimum > limit {
 			widest = list_at($widest, $column)
 			measure = list_at(measures, widest)
-			return Err(token_error(if (limit > 2 * padding) limit - 2 * padding else 0, list_at(authoring.cells, widest).block, measure))
+			return Err(token_error(limit.minus_saturated(padding_width), list_at(authoring.cells, widest).block, measure))
 		}
 		match list_at(table.columns, $column).width {
 			Fixed(_) => {
 				$widths = list_set($widths, $column, limit)
-				$fixed = $fixed + limit
-				$required = $required + limit
+				$required = $required + limit.to_u128()
 			}
 			_ => {
-				$required = $required + minimum
+				$required = $required + minimum.to_u128()
 			}
 		}
 		$column = $column + 1
 	}
-	if $required > available {
+	if $required > available.to_u128() {
 		return Err(TableWidth({ available, group: group_index, required: $required }))
 	}
 
-	# Content columns at their max-content width, reduced proportionally
-	# to their slack when the minima of the share columns would not fit.
-	var $content_total = 0
-	var $slack_total = 0
-	var $share_minima = 0
+	## Each term is at most U64.highest and the table has at most that many
+	## columns, so the wide sums cannot overflow. Padding cancels in slack.
+	var $slack_total = 0.U128
+	var $share_weight = 0
 	$column = 0
 	while $column < count {
 		match list_at(table.columns, $column).width {
 			Content => {
-				$content_total = $content_total + list_at($maxima, $column)
-				$slack_total = $slack_total + (list_at($maxima, $column) - list_at($minima, $column))
+				slack = column_slack($maxima, $minima, $column, padding_width)
+				$slack_total = $slack_total + slack.to_u128()
 			}
-			Share(_) => {
-				$share_minima = $share_minima + list_at($minima, $column)
+			Share(weight) => {
+				$share_weight = U64.plus_try($share_weight, weight.to_u64()) ? |_| ArithmeticOverflow
 			}
 			Fixed(_) => {}
 		}
 		$column = $column + 1
 	}
-	deficit = if ($fixed + $content_total + $share_minima > available) $fixed + $content_total + $share_minima - available else 0
-	var $reduced = 0
+
+	## Compute retained slack directly. Subtracting a floored proportional
+	## reduction is equivalent to keeping a ceiling of the available slack.
+	## The headroom is at most U64.highest even if the reduction is wider.
+	headroom = available.to_u128() - $required
+	shrink = $slack_total > headroom
+	var $kept = 0.U128
 	$column = 0
 	while $column < count {
 		match list_at(table.columns, $column).width {
 			Content => {
-				slack = list_at($maxima, $column) - list_at($minima, $column)
-				reduction = if ($slack_total == 0) 0 else deficit * slack // $slack_total
-				$widths = list_set($widths, $column, list_at($maxima, $column) - reduction)
-				$reduced = $reduced + reduction
+				slack = column_slack($maxima, $minima, $column, padding_width)
+				retained = if shrink {
+					product = headroom * slack.to_u128()
+					product // $slack_total + (if (product % $slack_total == 0) 0 else 1)
+				} else {
+					slack.to_u128()
+				}
+				$widths = list_set($widths, $column, list_at($minima, $column) + retained.to_u64_wrap())
+				$kept = $kept + retained
 			}
 			_ => {}
 		}
 		$column = $column + 1
 	}
-	var $remaining_deficit = deficit - $reduced
+	# Each positive retained term rounds up by less than one, so each
+	# column can give back at most one rounding unit in this pass.
+	var $remaining_deficit = $kept.minus_saturated(headroom)
 	$column = 0
 	while $column < count and $remaining_deficit > 0 {
 		match list_at(table.columns, $column).width {
@@ -422,80 +441,157 @@ resolve_columns = |authoring, table, group, group_index, measures, first_cell, c
 			_ => {}
 		}
 		$column = $column + 1
-		if $column == count and $remaining_deficit > 0 {
-			$column = 0
-		}
 	}
 
-	# Share columns divide what remains; a share below its minimum is fixed
-	# at the minimum and the others divide the rest again.
-	var $used = sum_range($widths, 0, count)
+	Ok(resolve_shares(table.columns, $widths, $minima, available, $share_weight))
+}
+
+# Measured widths can be much larger than the available frame. Applying
+# the exact retained slack still applies the rounding correction left to right.
+expect {
+	cell = Document.cell([Document.plain_text("Value")])
+	column = { align: Start, width: Content }
+	block = Document.table({ body_rows: [Document.row([cell, cell])], caption: NoCaption, columns: [column, column], footer_rows: [], header_rows: [], row_split: KeepRows })
+	authoring = Document.normalize(Document.from_blocks({ contents: [block], language: "en", title: "Wide intrinsic measurements" }))
+	table = list_at(authoring.tables, 0)
+	group = list_at(authoring.groups, 0)
+	token = Scalars(Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }))
+	measure = |max_content| { max_content, min_content: 1, token }
+	products = resolve_columns(authoring, table, group, 0, [measure(8000000001), measure(4000000001)], 0, 2, 0, 9, Ordinary)?
+	wide_sum = resolve_columns(authoring, table, group, 0, [measure(U64.highest), measure(U64.highest)], 0, 2, 0, 9, Ordinary)?
+	products == [5, 4] and wide_sum == [4, 5]
+}
+
+column_slack : List(U64), List(U64), U64, U64 -> U64
+column_slack = |maxima, minima, column, padding| list_at(maxima, column) - list_at(minima, column).minus_saturated(padding)
+
+ShareMinimum : { column : U64, minimum : U64, weight : U64 }
+
+## Share columns divide the width left by fixed and content columns.
+## Clamp initially undersized columns in authored order, then deal with
+## a cascade only when a further minimum exceeds the new share. The
+## previous feasibility checks guarantee room for every minimum.
+resolve_shares : List(Document.TableColumn), List(U64), List(U64), U64, U64 -> List(U64)
+resolve_shares = |columns, widths, minima, available, share_weight| {
+	count = columns.len()
+	used = sum_range(widths, 0, count)
+	initial_remaining = if (available > used) available - used else 0
+	var $widths = widths
 	var $settled = List.repeat(False, count)
-	var $settling = True
-	while $settling {
-		remaining = if (available > $used) available - $used else 0
-		var $weights = 0
-		$column = 0
+	var $remaining = initial_remaining
+	var $weight_left = share_weight
+	if share_weight > 0 {
+		var $column = 0
 		while $column < count {
-			match list_at(table.columns, $column).width {
-				Share(weight) => if !list_at($settled, $column) {
-					$weights = $weights + weight.to_u64()
+			match list_at(columns, $column).width {
+				Share(share) => {
+					weight = share.to_u64()
+					minimum = list_at(minima, $column)
+					if initial_remaining * weight // share_weight < minimum {
+						$widths = list_set($widths, $column, minimum)
+						$settled = list_set($settled, $column, True)
+						$remaining = $remaining - minimum
+						$weight_left = $weight_left - weight
+					}
 				}
 				_ => {}
 			}
 			$column = $column + 1
 		}
-		$settling = False
-		if $weights > 0 {
-			var $below = False
-			$column = 0
-			while $column < count {
-				match list_at(table.columns, $column).width {
-					Share(weight) => if !list_at($settled, $column) and remaining * weight.to_u64() // $weights < list_at($minima, $column) {
-						$widths = list_set($widths, $column, list_at($minima, $column))
-						$settled = list_set($settled, $column, True)
-						$used = $used + list_at($minima, $column)
-						$below = True
-					}
-					_ => {}
-				}
-				$column = $column + 1
+	}
+	if $remaining < initial_remaining and $weight_left > 0 and needs_redistribution(columns, minima, $settled, $remaining, $weight_left) {
+		ranked = rank_share_minima(columns, minima, $settled)
+		var $index = 0
+		# Removing a column whose minimum exceeds its exact proportional
+		# share can only lower the width per weight. The old wave's
+		# qualifying columns still qualify one at a time in ratio order.
+		while $index < ranked.len() and $weight_left > 0 {
+			share = list_at(ranked, $index)
+			if $remaining * share.weight // $weight_left >= share.minimum {
+				break
 			}
-			if $below {
-				$settling = True
-			} else {
-				var $given = 0
-				$column = 0
-				while $column < count {
-					match list_at(table.columns, $column).width {
-						Share(weight) => if !list_at($settled, $column) {
-							share = remaining * weight.to_u64() // $weights
-							$widths = list_set($widths, $column, share)
-							$given = $given + share
-						}
-						_ => {}
-					}
-					$column = $column + 1
-				}
-				var $remainder = remaining - $given
-				$column = 0
-				while $column < count and $remainder > 0 {
-					match list_at(table.columns, $column).width {
-						Share(weight) => if !list_at($settled, $column) and weight > 0 {
-							$widths = list_set($widths, $column, list_at($widths, $column) + 1)
-							$remainder = $remainder - 1
-						}
-						_ => {}
-					}
-					$column = $column + 1
-					if $column == count and $remainder > 0 {
-						$column = 0
-					}
-				}
-			}
+			$widths = list_set($widths, share.column, share.minimum)
+			$settled = list_set($settled, share.column, True)
+			$remaining = $remaining - share.minimum
+			$weight_left = $weight_left - share.weight
+			$index = $index + 1
 		}
 	}
-	Ok($widths)
+	if $weight_left == 0 {
+		return $widths
+	}
+
+	var $given = 0
+	var $column = 0
+	while $column < count {
+		match list_at(columns, $column).width {
+			Share(weight) => if !list_at($settled, $column) {
+				share = $remaining * weight.to_u64() // $weight_left
+				$widths = list_set($widths, $column, share)
+				$given = $given + share
+			}
+			_ => {}
+		}
+		$column = $column + 1
+	}
+
+	# Rounding leaves fewer millipoints than the number of positive
+	# unsettled weights. Give them to those columns from left to right.
+	var $remainder = $remaining - $given
+	$column = 0
+	while $column < count and $remainder > 0 {
+		match list_at(columns, $column).width {
+			Share(weight) => if !list_at($settled, $column) and weight > 0 {
+				$widths = list_set($widths, $column, list_at($widths, $column) + 1)
+				$remainder = $remainder - 1
+			}
+			_ => {}
+		}
+		$column = $column + 1
+	}
+	$widths
+}
+
+needs_redistribution : List(Document.TableColumn), List(U64), List(Bool), U64, U64 -> Bool
+needs_redistribution = |columns, minima, settled, remaining, total| {
+	var $column = 0
+	while $column < columns.len() {
+		match list_at(columns, $column).width {
+			Share(weight) if !list_at(settled, $column) and remaining * weight.to_u64() // total < list_at(minima, $column) => return True
+			_ => {}
+		}
+		$column = $column + 1
+	}
+	False
+}
+
+rank_share_minima : List(Document.TableColumn), List(U64), List(Bool) -> List(ShareMinimum)
+rank_share_minima = |columns, minima, settled| {
+	var $shares = []
+	var $column = 0
+	while $column < columns.len() {
+		minimum = list_at(minima, $column)
+		match list_at(columns, $column).width {
+			Share(weight) if weight > 0 and minimum > 0 and !list_at(settled, $column) => {
+				$shares = $shares.append({ column: $column, minimum, weight: weight.to_u64() })
+			}
+			_ => {}
+		}
+		$column = $column + 1
+	}
+	$shares.sort_with(
+		|left, right| {
+			left_product = left.minimum.to_u128() * right.weight.to_u128()
+			right_product = right.minimum.to_u128() * left.weight.to_u128()
+			if left_product > right_product {
+				Before
+			} else if left_product < right_product {
+				After
+			} else {
+				Same
+			}
+		},
+	)
 }
 
 count_cells : Document.NormalizedAuthoring, Document.NormalizedGroup -> U64
@@ -559,4 +655,111 @@ token_error : U64, U64, CellMeasure -> KernelFacadeTables.Error
 token_error = |available, block, measure| match measure.token {
 	Scalars(token) => UnbreakableToken({ available, block, token, width: measure.min_content })
 	Items(items) => UnbreakableItems({ available, block, items, width: measure.min_content })
+}
+
+# Independent small-world oracle. Enumerate bounded clamp sets and accept
+# the one that satisfies all exact ratios at its own final water level.
+TestShare : { minimum : U64, weight : U16 }
+
+expected_shares : List(TestShare), U64 -> List(U64)
+expected_shares = |tracks, available| {
+	total_weight = tracks.fold(0, |sum, share| sum + share.weight.to_u64())
+	if total_weight == 0 {
+		return List.repeat(0, tracks.len())
+	}
+	var $mask = 0
+	while $mask < (1.U64).shl_wrap(tracks.len().to_u8_wrap()) {
+		var $remaining = available
+		var $weight_left = total_weight
+		var $column = 0
+		while $column < tracks.len() {
+			share = list_at(tracks, $column)
+			if includes_share($mask, $column) {
+				$remaining = $remaining - share.minimum
+				$weight_left = $weight_left - share.weight.to_u64()
+			}
+			$column = $column + 1
+		}
+		var $agrees = $weight_left != 0
+		$column = 0
+		while $column < tracks.len() and $agrees {
+			share = list_at(tracks, $column)
+			$agrees = includes_share($mask, $column) == (share.minimum * $weight_left > $remaining * share.weight.to_u64())
+			$column = $column + 1
+		}
+		if $agrees {
+			return expected_rounded(tracks, $mask, $remaining, $weight_left)
+		}
+		$mask = $mask + 1
+	}
+	crash "a feasible share assignment had no stable clamp set"
+}
+
+includes_share : U64, U64 -> Bool
+includes_share = |mask, index| mask.bitwise_and((1.U64).shl_wrap(index.to_u8_wrap())) != 0
+
+expected_rounded : List(TestShare), U64, U64, U64 -> List(U64)
+expected_rounded = |tracks, mask, available, total_weight| {
+	var $total = 0
+	var $column = 0
+	var $values = []
+	while $column < tracks.len() {
+		share = list_at(tracks, $column)
+		if includes_share(mask, $column) {
+			$values = $values.append(share.minimum)
+		} else {
+			floor = available * share.weight.to_u64() // total_weight
+			$values = $values.append(floor)
+			$total = $total + floor
+		}
+		$column = $column + 1
+	}
+	var $awards_left = available - $total
+	$column = 0
+	while $column < tracks.len() and $awards_left > 0 {
+		if !includes_share(mask, $column) and list_at(tracks, $column).weight > 0 {
+			$values = list_set($values, $column, list_at($values, $column) + 1)
+			$awards_left = $awards_left - 1
+		}
+		$column = $column + 1
+	}
+	$values
+}
+
+test_share : U64 -> TestShare
+test_share = |encoding| { minimum: encoding % 3, weight: ((encoding // 3) % 3).to_u16_wrap() }
+
+actual_shares : List(TestShare), U64 -> List(U64)
+actual_shares = |tracks, available| {
+	columns = tracks.map(|share| { align: Start, width: Share(share.weight) })
+	minima = tracks.map(|share| share.minimum)
+	total_weight = tracks.fold(0, |sum, share| sum + share.weight.to_u64())
+	resolve_shares(columns, List.repeat(0, tracks.len()), minima, available, total_weight)
+}
+
+expect {
+	var $encoding = 0
+	while $encoding < 729 {
+		tracks = [test_share($encoding), test_share($encoding // 9), test_share($encoding // 81)]
+		minimum = tracks.fold(0, |sum, track| sum + track.minimum)
+		var $available = minimum
+		while $available <= minimum + 3 {
+			actual = actual_shares(tracks, $available)
+			expected = expected_shares(tracks, $available)
+			if actual != expected {
+				crash "Share mismatch for ${Str.inspect(tracks)} and ${$available.to_str()}: ${Str.inspect(actual)}"
+			}
+			$available = $available + 1
+		}
+		$encoding = $encoding + 1
+	}
+	True
+}
+
+expect {
+	cascade = [{ minimum: 18, weight: 7 }, { minimum: 8, weight: 4 }, { minimum: 3, weight: 2 }, { minimum: 0, weight: 1 }]
+	tie = [{ minimum: 3, weight: 2 }, { minimum: 1, weight: 1 }]
+	actual_shares(cascade, 30) == expected_shares(cascade, 30) and
+		actual_shares(cascade, 30) == [18, 8, 3, 1] and
+			actual_shares(tie, 5) == [4, 1]
 }

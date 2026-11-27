@@ -4,6 +4,28 @@
 KernelSha256 :: [].{
 	Error : [InputTooLarge]
 
+	## Largest byte-aligned input representable by the SHA-256 bit count.
+	max_input_length : U64
+	max_input_length = 2305843009213693951
+
+	## Large canonical inputs reuse one native incremental state across
+	## batches. Checked total length protects its SHA-256 bit counter.
+	Batched :: { bytes : U64, hasher : Crypto.SHA256.Hasher }.{
+		start : () -> Batched
+		start = || Batched.{ bytes: 0, hasher: Crypto.SHA256.Hasher.empty() }
+
+		write : Batched, List(U8) -> Try(Batched, Error)
+		write = |state, chunk| {
+			if chunk.len() > max_input_length - state.bytes {
+				return Err(InputTooLarge)
+			}
+			Ok(Batched.{ bytes: state.bytes + chunk.len(), hasher: state.hasher.write(chunk) })
+		}
+
+		finish : Batched -> { bytes : U64, digest : List(U8) }
+		finish = |state| { bytes: state.bytes, digest: state.hasher.finish().to_bytes() }
+	}
+
 	digest : List(U8) -> Try(List(U8), Error)
 	digest = |input| {
 		check_length(input.len())?
@@ -39,11 +61,8 @@ KernelSha256 :: [].{
 	}
 }
 
-max_input_length : U64
-max_input_length = 2305843009213693951
-
 check_length : U64 -> Try({}, KernelSha256.Error)
-check_length = |length| if (length > max_input_length) Err(InputTooLarge) else Ok({})
+check_length = |length| if (length > KernelSha256.max_input_length) Err(InputTooLarge) else Ok({})
 
 # Empty input matches the NIST SHA-256 example digest.
 expect KernelSha256.digest([])? == [

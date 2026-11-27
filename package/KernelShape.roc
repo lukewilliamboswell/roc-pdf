@@ -1,5 +1,6 @@
 import Font
 import KernelBidiBoundary
+import KernelBuiltInFonts
 import KernelFont
 import KernelGsub
 import KernelLatinShape
@@ -196,10 +197,19 @@ KernelShape :: [].{
 	## whole source. Unicode grapheme offsets permit bounded direct scalar
 	## decoding, so no request rescans preceding source bytes.
 	shape_ranged_selected_batch : List(KernelFont.Inspection), List(SimpleSource), SelectedBatchOptions, List(SelectedBatchRequest), Limits -> Try(Batch, Error)
-	shape_ranged_selected_batch = |fonts, sources, options, requests, limits| shape_ranged_selected(fonts, sources, options, requests, limits, NoInterLatin)
+	shape_ranged_selected_batch = |fonts, sources, options, requests, limits| shape_ranged_selected(fonts, sources, options, requests, limits, NoInterLatin, NoReuse)
 
 	shape_ranged_inter_batch : List(KernelFont.Inspection), List(SimpleSource), SelectedBatchOptions, List(SelectedBatchRequest), Limits, InterLatinPlan -> Try(Batch, Error)
-	shape_ranged_inter_batch = |fonts, sources, options, requests, limits, latin| shape_ranged_selected(fonts, sources, options, requests, limits, InterLatin(latin))
+	shape_ranged_inter_batch = |fonts, sources, options, requests, limits, latin| shape_ranged_selected(fonts, sources, options, requests, limits, InterLatin(latin), NoReuse)
+
+	## The facade associates these run ordinals only with previously shaped
+	## nominal requests for the same source range and prepared face. Reuse
+	## still passes through the complete aggregate ranged preflight.
+	NominalReuse : { advances : List(Layout.Unit), runs : List([Fresh, Reuse(U64)]), store : Text.Store }
+
+	shape_ranged_reusing_batch : List(KernelFont.Inspection), List(SimpleSource), SelectedBatchOptions, List(SelectedBatchRequest), Limits, NominalReuse -> Try(Batch, Error)
+	shape_ranged_reusing_batch = |fonts, sources, options, requests, limits, reuse|
+		shape_ranged_selected(fonts, sources, options, requests, limits, NoInterLatin, Reuse(reuse))
 
 	## Advanced callers supply positioned glyphs, but validation still proves
 	## dense IDs, complete source/glyph partitions, cluster cardinalities, exact
@@ -597,9 +607,8 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits, in
 		return Err(EmptySource)
 	}
 
-	# Pass one validates the request structure: per-occurrence groups whose
-	# cluster ranges exactly partition one source, one consistent font split
-	# per unique source, dense font identities, and cumulative limits.
+	# Pass one validates groups whose cluster ranges exactly partition one
+	# source, dense font identities, and cumulative limits.
 	var $assignments = List.repeat([], sources.len())
 	var $source_seen = List.repeat(False, sources.len())
 
@@ -617,6 +626,7 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits, in
 	var $planned_source_bytes = 0
 	var $group_source = sources.len()
 	var $group_cursor = 0
+	var $script_cursor = ScanScripts
 	var $group_open = False
 	var $group_writes = False
 	var $request_index = 0
@@ -652,6 +662,7 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits, in
 		} else {
 			$group_source = source_index
 			$group_cursor = 0
+			$script_cursor = selected_script_cursor(source.analysis.script_runs, source.unicode.count_utf8_bytes(), scalar_count)
 			$group_open = True
 			$group_writes = list_at($source_seen, source_index) == False
 			$group_differs = False
@@ -664,17 +675,30 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits, in
 			return Err(SelectedRequestInvalid({ reason: ClusterRange, request: $request_index }))
 		}
 		range_end_index = range_start + range_length
-		validate_selected_script(source.analysis.script_runs, range_start, range_end_index, request.script.to_str(), $request_index)?
+		script = request.script.to_str()
+		$script_cursor = match $script_cursor {
+			ScanScripts => {
+				validate_selected_script(source.analysis.script_runs, range_start, range_end_index, script, $request_index)?
+				ScanScripts
+			}
+			TrackScript(start) => {
+				advanced = advance_selected_script(source.analysis.script_runs, start, range_start, range_end_index, script, $request_index)?
+				TrackScript(advanced.next)
+			}
+		}
 		font_index = request.instance.index()
 		if $group_writes {
-			existing = list_at($assignments, source_index)
-			var $updated = if (existing.is_empty()) List.repeat(fonts.len(), cluster_count) else existing
+			# Keep the primary split uniquely owned until the entire group
+			# closes. Publishing it here would share it with the source
+			# table while the next request updates it.
+			if range_start == 0 {
+				$group_split = List.repeat(fonts.len(), cluster_count)
+			}
 			var $cluster = range_start
 			while $cluster < range_end_index {
-				$updated = list_set($updated, $cluster, font_index)
+				$group_split = list_set($group_split, $cluster, font_index)
 				$cluster = $cluster + 1
 			}
-			$assignments = list_set($assignments, source_index, $updated)
 		} else {
 			# A repeated group reuses the primary split while it agrees. At
 			# its first differing cluster it copies the primary split, whose
@@ -702,7 +726,10 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits, in
 		check_limit($planned_scalars, limits.max_glyphs, Glyphs)?
 		check_limit($planned_clusters, limits.max_clusters, Clusters)?
 		$group_cursor = range_end_index
-		if $group_differs and range_end_index == cluster_count {
+		if $group_writes and range_end_index == cluster_count {
+			$assignments = list_set($assignments, source_index, $group_split)
+			$group_split = []
+		} else if $group_differs and range_end_index == cluster_count {
 			## The group is complete and its split differs: record it as a
 			## variant and point every request of the group at it.
 			$variants = $variants.append({ assignment: $group_split, source: source_index })
@@ -940,8 +967,8 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits, in
 
 ## Partial-source requests use earlier grapheme facts as a random-access UTF-8
 ## index. The whole-source selected shaper above keeps its partition contract.
-shape_ranged_selected : List(KernelFont.Inspection), List(KernelShape.SimpleSource), KernelShape.SelectedBatchOptions, List(KernelShape.SelectedBatchRequest), KernelShape.Limits, InterSelection -> Try(KernelShape.Batch, KernelShape.Error)
-shape_ranged_selected = |fonts, sources, options, requests, limits, inter| {
+shape_ranged_selected : List(KernelFont.Inspection), List(KernelShape.SimpleSource), KernelShape.SelectedBatchOptions, List(KernelShape.SelectedBatchRequest), KernelShape.Limits, InterSelection, [NoReuse, Reuse(KernelShape.NominalReuse)] -> Try(KernelShape.Batch, KernelShape.Error)
+shape_ranged_selected = |fonts, sources, options, requests, limits, inter, reuse| {
 	if options.direction != LeftToRight {
 		return Err(UnsupportedDirection(options.direction))
 	}
@@ -1007,7 +1034,6 @@ shape_ranged_selected = |fonts, sources, options, requests, limits, inter| {
 		request = list_at(requests, $request_index)
 		source_index = request.source.index()
 		source = list_at(sources, source_index)
-		bytes = source.unicode.to_utf8()
 		size = request.size.raw()
 		range_start = request.clusters.start()
 		range_length = request.clusters.length()
@@ -1046,58 +1072,85 @@ shape_ranged_selected = |fonts, sources, options, requests, limits, inter| {
 			$inter_runs = $inter_runs.append(!$selected_inter.is_empty())
 		}
 		var $visited = 0
-		if $selected_inter.is_empty() {
-			while $visited < range_length {
-				grapheme = list_at(source.analysis.graphemes, range_start + $visited)
-				if grapheme.scalar_start != range_start + $visited or grapheme.scalar_end != grapheme.scalar_start + 1 {
-					return Err(UnsupportedCluster({ grapheme: range_start + $visited, scalars: if (grapheme.scalar_end >= grapheme.scalar_start) grapheme.scalar_end - grapheme.scalar_start else 0 }))
-				}
-				scalar = ranged_scalar(bytes, grapheme.byte_start, grapheme.byte_end)?
-				glyph = match KernelFont.glyph_for_scalar(font, scalar) {
-					None => return Err(MissingGlyph({ scalar, scalar_index: grapheme.scalar_start }))
-					Some(0) => return Err(NotdefGlyph({ scalar, scalar_index: grapheme.scalar_start }))
-					Some(value) => value
-				}
-				width = KernelFont.advance_width(font, glyph) ? |_| MetricFailure(glyph)
-				$metric_reads = checked_add($metric_reads, 1)?
-				template_glyph = { byte_start: grapheme.byte_start, byte_end: grapheme.byte_end, scalar_index: grapheme.scalar_start, glyph, width }
-				advance = scale_advance(template_glyph.width, size, font.metrics.units_per_em)?
-				$advance_total = checked_add($advance_total, advance)?
-				if $visited == 0 {
-					$run_byte_start = template_glyph.byte_start
-				}
-				$run_byte_end = template_glyph.byte_end
-				glyph_index = $glyphs.len()
-				$glyphs = $glyphs.append({
-					advance_x: Layout.Unit.from_raw(advance.to_i64_wrap()),
-					advance_y: zero_unit,
-					id: Text.GlyphId.from_raw(template_glyph.glyph),
-					offset_x: zero_unit,
-					offset_y: zero_unit,
-				})
-				$clusters = $clusters.append({
-					glyphs: Semantics.IndexRange.from_start_and_length({ start: $glyph_indices.len(), length: 1 }),
-					kind: OneToOne,
-					source: {
-						scalars: Semantics.IndexRange.from_start_and_length({ start: template_glyph.scalar_index, length: 1 }),
-						utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: template_glyph.byte_start, length: template_glyph.byte_end - template_glyph.byte_start }),
-					},
-				})
-				$glyph_indices = $glyph_indices.append(glyph_index)
-				$visited = $visited + 1
+		cached = match reuse {
+			Reuse(prior) => match list_at(prior.runs, $request_index) {
+				Reuse(index) => Cached({ index, prior })
+				Fresh => Fresh
 			}
-		} else {
-			for shaped in $selected_inter {
-				entry = inter_entry(shaped, size, font.metrics.units_per_em, $glyph_indices.len())?
-				$advance_total = checked_add($advance_total, entry.glyph.advance_x.raw().to_u64_wrap())?
-				if $visited == 0 {
-					$run_byte_start = shaped.range.byte_start
+			NoReuse => Fresh
+		}
+		match cached {
+			Cached({ index, prior }) => {
+				old = list_at(prior.store.runs, index)
+				$run_byte_start = old.source.utf8_bytes.start()
+				$run_byte_end = $run_byte_start + old.source.utf8_bytes.length()
+				$advance_total = list_at(prior.advances, index).raw().to_u64_wrap()
+				while $visited < range_length {
+					cluster = list_at(prior.store.clusters, old.clusters.start() + $visited)
+					glyph = list_at(prior.store.glyphs, old.glyphs.start() + $visited)
+					glyph_range = Semantics.IndexRange.from_start_and_length({ start: $glyph_indices.len(), length: 1 })
+					$glyph_indices = $glyph_indices.append($glyphs.len())
+					$glyphs = $glyphs.append(glyph)
+					$clusters = $clusters.append({ ..cluster, glyphs: glyph_range })
+					$visited = $visited + 1
 				}
-				$run_byte_end = shaped.range.byte_end
-				$glyph_indices = $glyph_indices.append($glyphs.len())
-				$glyphs = $glyphs.append(entry.glyph)
-				$clusters = $clusters.append(entry.cluster)
-				$visited = $visited + 1
+			}
+			Fresh => {
+				if $selected_inter.is_empty() {
+					bytes = source.unicode.to_utf8()
+					while $visited < range_length {
+						grapheme = list_at(source.analysis.graphemes, range_start + $visited)
+						if grapheme.scalar_start != range_start + $visited or grapheme.scalar_end != grapheme.scalar_start + 1 {
+							return Err(UnsupportedCluster({ grapheme: range_start + $visited, scalars: if (grapheme.scalar_end >= grapheme.scalar_start) grapheme.scalar_end - grapheme.scalar_start else 0 }))
+						}
+						scalar = ranged_scalar(bytes, grapheme.byte_start, grapheme.byte_end)?
+						glyph = match KernelFont.glyph_for_scalar(font, scalar) {
+							None => return Err(MissingGlyph({ scalar, scalar_index: grapheme.scalar_start }))
+							Some(0) => return Err(NotdefGlyph({ scalar, scalar_index: grapheme.scalar_start }))
+							Some(value) => value
+						}
+						width = KernelFont.advance_width(font, glyph) ? |_| MetricFailure(glyph)
+						$metric_reads = checked_add($metric_reads, 1)?
+						template_glyph = { byte_start: grapheme.byte_start, byte_end: grapheme.byte_end, scalar_index: grapheme.scalar_start, glyph, width }
+						advance = scale_advance(template_glyph.width, size, font.metrics.units_per_em)?
+						$advance_total = checked_add($advance_total, advance)?
+						if $visited == 0 {
+							$run_byte_start = template_glyph.byte_start
+						}
+						$run_byte_end = template_glyph.byte_end
+						glyph_index = $glyphs.len()
+						$glyphs = $glyphs.append({
+							advance_x: Layout.Unit.from_raw(advance.to_i64_wrap()),
+							advance_y: zero_unit,
+							id: Text.GlyphId.from_raw(template_glyph.glyph),
+							offset_x: zero_unit,
+							offset_y: zero_unit,
+						})
+						$clusters = $clusters.append({
+							glyphs: Semantics.IndexRange.from_start_and_length({ start: $glyph_indices.len(), length: 1 }),
+							kind: OneToOne,
+							source: {
+								scalars: Semantics.IndexRange.from_start_and_length({ start: template_glyph.scalar_index, length: 1 }),
+								utf8_bytes: Semantics.IndexRange.from_start_and_length({ start: template_glyph.byte_start, length: template_glyph.byte_end - template_glyph.byte_start }),
+							},
+						})
+						$glyph_indices = $glyph_indices.append(glyph_index)
+						$visited = $visited + 1
+					}
+				} else {
+					for shaped in $selected_inter {
+						entry = inter_entry(shaped, size, font.metrics.units_per_em, $glyph_indices.len())?
+						$advance_total = checked_add($advance_total, entry.glyph.advance_x.raw().to_u64_wrap())?
+						if $visited == 0 {
+							$run_byte_start = shaped.range.byte_start
+						}
+						$run_byte_end = shaped.range.byte_end
+						$glyph_indices = $glyph_indices.append($glyphs.len())
+						$glyphs = $glyphs.append(entry.glyph)
+						$clusters = $clusters.append(entry.cluster)
+						$visited = $visited + 1
+					}
+				}
 			}
 		}
 
@@ -1240,6 +1293,41 @@ validate_script_structure = |runs, source_bytes, scalar_count| {
 	Ok({})
 }
 
+SelectedScriptCursor : [ScanScripts, TrackScript(U64)]
+
+## Ordered analyses can reuse the cursor across requests in each full
+## source group. Keep the old overlap check on structurally malformed
+## analyses so the first request error still precedes a template error.
+selected_script_cursor : List(KernelUnicode.ScriptRun), U64, U64 -> SelectedScriptCursor
+selected_script_cursor = |runs, source_bytes, scalar_count| {
+	if runs.len() <= 1 {
+		return ScanScripts
+	}
+	match validate_script_structure(runs, source_bytes, scalar_count) {
+		Ok(_) => TrackScript(0)
+		Err(_) => ScanScripts
+	}
+}
+
+advance_selected_script : List(KernelUnicode.ScriptRun), U64, U64, U64, Str, U64 -> Try({ next : U64, visits : U64 }, KernelShape.Error)
+advance_selected_script = |runs, index, scalar_start, scalar_end, expected, request| {
+	var $index = index
+	while $index < runs.len() {
+		run = list_at(runs, $index)
+		if run.range.scalar_end > scalar_start {
+			if run.range.scalar_start >= scalar_end or !script_compatible(run.script, expected) {
+				return Err(SelectedRequestInvalid({ reason: Script, request }))
+			}
+			if run.range.scalar_end >= scalar_end {
+				next = if (run.range.scalar_end == scalar_end) $index + 1 else $index
+				return Ok({ next, visits: $index - index + 1 })
+			}
+		}
+		$index = $index + 1
+	}
+	Err(SelectedRequestInvalid({ reason: Script, request }))
+}
+
 ## Every itemization run overlapping the request's scalar range must carry the
 ## request's exact selected script (with the Latin common/inherited allowance
 ## the simple path already grants). One scalar per cluster keeps scalar and
@@ -1259,6 +1347,47 @@ validate_selected_script = |runs, scalar_start, scalar_end, expected, request| {
 		$index = $index + 1
 	}
 	if ($checked) Ok({}) else Err(SelectedRequestInvalid({ reason: Script, request }))
+}
+
+# Whole groups of alternating one-scalar scripts inspect exactly one row
+# per request after the single structural walk.
+selected_script_scale : U64 -> Try(U64, KernelShape.Error)
+selected_script_scale = |count| {
+	var $runs = List.with_capacity(count)
+	var $index = 0
+	while $index < count {
+		script = if ($index % 2 == 0) "Latn" else "Hani"
+		$runs = $runs.append({ range: { byte_start: $index, byte_end: $index + 1, scalar_start: $index, scalar_end: $index + 1 }, script })
+		$index = $index + 1
+	}
+	var $next = 0
+	var $visits = 0
+	$index = 0
+	while $index < count {
+		script = if ($index % 2 == 0) "Latn" else "Hani"
+		advanced = advance_selected_script($runs, $next, $index, $index + 1, script, $index)?
+		$next = advanced.next
+		$visits = $visits + advanced.visits
+		$index = $index + 1
+	}
+	Ok($visits)
+}
+
+expect selected_script_scale(16) == Ok(16) and selected_script_scale(8192) == Ok(8192)
+
+expect {
+	latin = { range: { byte_start: 0, byte_end: 3, scalar_start: 0, scalar_end: 3 }, script: "Latn" }
+	common = { range: { byte_start: 3, byte_end: 4, scalar_start: 3, scalar_end: 4 }, script: "Zyyy" }
+	han = { range: { byte_start: 4, byte_end: 7, scalar_start: 4, scalar_end: 5 }, script: "Hani" }
+	runs = [latin, common, han]
+	first = advance_selected_script(runs, 0, 0, 1, "Latn", 0)?
+	second = advance_selected_script(runs, first.next, 1, 4, "Latn", 1)?
+	wrong = advance_selected_script(runs, second.next, 4, 5, "Latn", 2)
+	unordered = [han, latin, common]
+	match (selected_script_cursor(runs, 7, 5), selected_script_cursor(unordered, 7, 5), wrong) {
+		(TrackScript(0), ScanScripts, Err(SelectedRequestInvalid({ reason: Script, request: 2 }))) => first.next == 0 and first.visits == 1 and second.next == 2 and second.visits == 2 and validate_selected_script(unordered, 0, 4, "Latn", 1) == Ok({})
+		_ => False
+	}
 }
 
 validate_scripts : List(KernelUnicode.ScriptRun), U64, U64, Str -> Try({}, KernelShape.Error)
@@ -1827,4 +1956,33 @@ expect scale_advance(1413, 11000, 2048)? == 7589
 expect match scale_advance(2, I64.highest, 1) {
 	Err(ArithmeticOverflow) => True
 	_ => False
+}
+
+expect {
+	# Three requests build the first source's split. A repeated split reuses
+	# its template, while a later split can diverge midway through a request.
+	unicode = "ABCD"
+	analysis = KernelUnicode.analyze(unicode, KernelUnicode.default_limits)?
+	font = KernelFont.inspect(KernelBuiltInFonts.sans_regular, KernelFont.Limits.make({ max_bytes: 2000000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }))?
+	request = |start, length, face, occurrence| {
+		clusters: Semantics.IndexRange.from_start_and_length({ start, length }),
+		instance: Font.InstanceId.from_index(face),
+		language: Language("en"),
+		occurrence: Semantics.OccurrenceId.from_index(occurrence),
+		script: Font.Script.from_iso15924("Latn"),
+		size: Layout.Unit.from_raw(11000),
+		source: Semantics.TextSourceId.from_index(0),
+	}
+	requests = [
+		request(0, 1, 0, 0),
+		request(1, 2, 1, 1),
+		request(3, 1, 0, 2),
+		request(0, 1, 0, 3),
+		request(1, 2, 1, 4),
+		request(3, 1, 0, 5),
+		request(0, 2, 0, 6),
+		request(2, 2, 1, 7),
+	]
+	batch = KernelShape.shape_selected_batch([font, font], [{ analysis, unicode }], { direction: LeftToRight, language: Language("en"), writing_mode: Horizontal }, requests, KernelShape.Limits.make({ max_clusters: 12, max_glyphs: 12, max_scalars: 12, max_source_bytes: 12 }))?
+	batch.work.metric_reads == 8 and batch.store.runs.map(|run| (run.instance.index(), run.clusters.length())) == [(0, 1), (1, 2), (0, 1), (0, 1), (1, 2), (0, 1), (0, 2), (1, 2)]
 }

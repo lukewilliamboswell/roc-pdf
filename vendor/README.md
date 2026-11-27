@@ -59,6 +59,13 @@ a byte-contract change: every snapshot, gallery PDF, and allocation baseline is
 regenerated and reviewed, and `docs/contributors/performance/output-size.adoc` records the
 size and work movement.
 
+## Example dependencies
+
+The gallery's argument-taking Roc applications use [Weaver 0.11.0](https://github.com/lukewilliamboswell/weaver/releases/tag/0.11.0)
+under UPL-1.0 with the upstream MIT notice. Each application pins the
+[release bundle](https://github.com/lukewilliamboswell/weaver/releases/download/0.11.0/7CdYzjBAJmprmnK45oTpmH6BXt76ZASN2Ck5uZQEoWsK.tar.zst)
+(SHA-256 `d77a3cf330aa09b7688900a11765d4760f6625887ca73bdac3e4b8bb08f55234`).
+
 ## Retained artifacts
 
 Retained font inputs include:

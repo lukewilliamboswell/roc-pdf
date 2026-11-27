@@ -119,9 +119,3 @@ The ignored workspace contains `summary.md`, raw `results.json`,
 machine, versions, locations and source and font hashes. This benchmark does
 not use the fixture allocator or replace the repository's exact dev
 allocation and work checks.
-
-[#contributor-benchmarks-pdf-comparison-readme-recorded-results]
-== Historical comparison
-
-The xref:contributor-benchmarks.adoc#contributor-benchmarks-pdf-comparison-results-linux-desktop-2026-10-20[Linux desktop comparison]
-records an earlier benchmark with fixed workload, font and machine.

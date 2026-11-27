@@ -58,6 +58,9 @@ run = |start, budget, step| {
 		$history = $history.append(next)
 		$current = next
 		$candidate = Candidate(stepped.candidate)
+		if $pass == U64.highest {
+			break
+		}
 		$pass = $pass + 1
 	}
 	Ok({ candidate: $candidate, outcome: BudgetExhausted({ attempted: $current, passes: budget, work: $comparisons }) })

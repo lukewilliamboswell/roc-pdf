@@ -108,6 +108,9 @@ CASES = {
     "ordered-han": (
         Case(("latin-only",), diagnosis="text.coverage_missing at contents[1].inlines[1].inlines[0]"),
     ),
+    "pilot-findings": (
+        Case(("keep-together",), diagnosis="layout.columns.keep_conflict at contents[0].contents[1]"),
+    ),
     "quarterly-report": (
         Case(("regional",), "quarterly-report-regional.pdf", facts=("Repeated header on page 2", "Continued row contents[0].table.body_rows[1] on page 2")),
         Case(("regional-keep",), diagnosis="layout.oversize_span_group at contents[0].table.body_rows[0], contents[0].table.body_rows[1]"),

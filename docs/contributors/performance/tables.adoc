@@ -7,6 +7,11 @@ ISO 32000-2:2020+EC3 §14.8.4.8.3 and Table 371 govern table order, rectangular 
 
 `KernelFacadeTables` resolves column widths before line selection using measured max-content and unbreakable widths. A cell's text width excludes its own padding. Two neighboring cells supply all of the inter-column spacing with their padding. The layout reserves decoration edges before committing frame occupancy, as described in xref:contributor-layout.adoc#contributor-table-paint-footprints[table paint footprints]. An empty cell has no text occurrence. Its row retains the ordinary geometry and structural cell.
 
+Weighted `Share` columns clamp undersized widths to their measured minima.
+When a clamp triggers further redistribution, the resolver orders the
+remaining positive minima by exact minimum-to-weight ratios and settles
+them in one pass. It distributes integer remainders in authored order.
+
 Pagination consumes dense row-line units. A caption keeps with the first row. Repainted header cells reference existing shape and are emitted as `RepeatedHeader` artifacts with no pagination subtype. Their repaints are excluded from logical text, structure ownership and the once-emitted cluster accounting. Simple repeated headers use existing row geometry and need no per-page lead-band arena. Active continued containers keep explicit bands for paint geometry.
 
 [#contributor-tables-spanning-tables]

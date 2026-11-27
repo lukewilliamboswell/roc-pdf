@@ -37,7 +37,7 @@ def fixtures(count: int, volume: int) -> list[File]:
         result.append(File(
             filename, f"Purpose of {filename}", ("Data", "Supplement", "Source", "Alternative")[index % 4],
             "application/xml" if index == 1 else "text/csv", "D:20240229123456Z",
-            bytes([32 if index < 2 else 32 + index]) * volume,
+            bytes([32 if index < 2 else (32 + index) % 256]) * volume,
         ))
     return result
 
@@ -62,24 +62,31 @@ def name_bytes(name: str) -> bytes:
     return re.sub(rb"#([A-Fa-f0-9]{2})", lambda m: bytes([int(m[1], 16)]), name.encode("ascii"))
 
 
-def name_tree(document: Document, number: int, wanted: list[bytes], *, root: bool) -> list[Ref]:
+def name_tree(
+    document: Document, number: int, wanted: list[bytes], capacity: int, *, root: bool,
+) -> list[Ref]:
     branch = document.get(number)
-    require(set(branch) == ({"Kids" if len(wanted) > 32 else "Names"} | (set() if root else {"Limits"})), "embedded-files node has incorrect shape")
+    leaf = capacity == 32
+    require(set(branch) == ({"Names" if leaf else "Kids"} | (set() if root else {"Limits"})), "embedded-files node has incorrect shape")
     if not root:
         require(branch["Limits"] == [wanted[0], wanted[-1]], "embedded-files leaf boundaries differ from author keys")
-    if len(wanted) <= 32:
+    if leaf:
         items = branch["Names"]
         require(items[::2] == wanted, "embedded-files leaf keys differ from expected encoded order")
         refs = items[1::2]
         require(len(refs) == len(wanted) and all(isinstance(ref, Ref) for ref in refs), "embedded-files leaf must point to indirect file specifications")
         return refs
     children = branch["Kids"]
-    groups = [wanted[index : index + 32] for index in range(0, len(wanted), 32)]
+    child_capacity = capacity // 32
+    groups = [
+        wanted[index : index + child_capacity]
+        for index in range(0, len(wanted), child_capacity)
+    ]
     require(len(children) == len(groups) and all(isinstance(ref, Ref) for ref in children), "embedded-files node has incorrect children")
     return [
         ref
         for child, group in zip(children, groups, strict=True)
-        for ref in name_tree(document, int(child), group, root=False)
+        for ref in name_tree(document, int(child), group, child_capacity, root=False)
     ]
 
 
@@ -99,7 +106,10 @@ def validate(pdf: bytes, expected: list[File], accessible: bool, wtpdf: bool, de
     ordered = sorted(expected, key=lambda file: key(file.filename))
     embedded = names["EmbeddedFiles"]
     require(isinstance(embedded, Ref), "catalog name dictionary requires an indirect embedded-files root")
-    refs = name_tree(document, int(embedded), [key(file.filename) for file in ordered], root=True)
+    capacity = 32
+    while capacity < len(ordered):
+        capacity *= 32
+    refs = name_tree(document, int(embedded), [key(file.filename) for file in ordered], capacity, root=True)
     associations = catalog["AF"]
     require(all(isinstance(ref, Ref) for ref in associations) and refs == associations and len(set(refs)) == len(refs), "document AF and name-tree file specifications differ")
     streams = set()

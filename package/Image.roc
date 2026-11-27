@@ -15,6 +15,26 @@ Image :: [].{
 	Dimensions : { height : U32, width : U32 }
 	PixelFormat : [Gray8, Rgb8]
 
+	## Preparation budgets for physical image resources and exact sharing.
+	## Encoded and decoded bytes count distinct resources after sharing.
+	## The dimension and marker limits apply to an individual resource.
+	## Identity hash bytes count candidates requiring a full digest. Recent
+	## comparison bytes are limited separately for each source format family
+	## and each of its two recent probes.
+	Budgets := {
+		max_resources : U64 ?? 2048,
+		max_encoded_bytes : U64 ?? 67108864,
+		max_decoded_bytes : U64 ?? 67108864,
+		max_width : U32 ?? 16384,
+		max_height : U32 ?? 16384,
+		max_markers : U64 ?? 4096,
+		max_identity_hash_bytes : U64 ?? 335544320,
+		max_identity_comparison_bytes : U64 ?? 1073741824,
+	}.{
+		default : Budgets
+		default = Budgets.{}
+	}
+
 	## A read-only view of replayable authoring data. Inspection shares source
 	## byte lists and does not assign a PDF resource identity or validate them.
 	SourceView : [

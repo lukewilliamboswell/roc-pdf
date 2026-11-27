@@ -17,6 +17,10 @@ The application writes its PDF in that directory. The committed preview
 shows a selected page rendered at 96 dpi. To use an example with a published
 package, point its `pdf` dependency at the release bundle.
 
+Examples with command-line modes use
+https://github.com/lukewilliamboswell/weaver[Weaver]. Run one with `--help`
+to list its available modes.
+
 == Invoice
 
 image::images/tax-invoice.png[Tax invoice preview]

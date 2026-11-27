@@ -32,7 +32,7 @@ import KernelMetadata
 import Metadata
 
 KernelXmp :: [].{
-	Error : [PacketTooLarge({ attempted : U64, limit : U64 })]
+	Error : [PacketTooLarge({ attempted : U64, limit : U64 }), SizeOverflow]
 
 	Work : { packet_bytes : U64, properties : U64, title_escapes : U64 }
 
@@ -117,9 +117,9 @@ build_packet = |facts, identification, max_bytes| {
 
 	escapes = facts.title_escapes
 	escape_count = escapes.amps + escapes.lts + escapes.gts
-	escaped_title_len = title_bytes.len() + escapes.amps * 4 + escapes.lts * 3 + escapes.gts * 3
+	escaped_title_len = title_bytes.len().plus_saturated(escapes.amps.times_saturated(4)).plus_saturated(escapes.lts.times_saturated(3)).plus_saturated(escapes.gts.times_saturated(3))
 
-	total = head.len()
+	overhead = head.len()
 		+ bom.len()
 		+ head_rest.len()
 		+ namespace_len
@@ -133,10 +133,10 @@ build_packet = |facts, identification, max_bytes| {
 		+ language_bytes.len()
 		+ language_tail.len()
 		+ title_head.len()
-		+ escaped_title_len
 		+ title_tail.len()
 		+ tail.len()
 
+	total = U64.plus_try(overhead, escaped_title_len) ? |_| SizeOverflow
 	if total > max_bytes {
 		return Err(PacketTooLarge({ attempted: total, limit: max_bytes }))
 	}

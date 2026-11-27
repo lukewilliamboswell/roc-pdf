@@ -35,15 +35,27 @@ KernelFacadeReferenceShape :: [].{
 		advances : List(Layout.Unit),
 		selection : KernelFacadeShape.Selection,
 		fonts : List(KernelFont.Inspection),
+		instance_indexes : List(U64),
 		work : Work,
 	}
-	Plan :: View.{
+	Plan :: { data : View, scope_colors : KernelFacadeShape.ScopeColors }.{
 		build : Document.NormalizedAuthoring, List(LiteralContext), List(KernelFacadeSources.Source), KernelFacadeShape.FontSelection, Theme, KernelFacadeShape.Limits -> Try(Plan, Error)
-		build = |authoring, literals, sources, selection, theme, limits| build_plan(authoring, literals, sources, selection, theme, limits)
+		build = |authoring, literals, sources, selection, theme, limits| build_plan(authoring, literals, sources, selection, theme, limits, KernelFacadeShape.scope_colors(authoring), NoReuse)
+
+		## Finalization extends the same source plan without changing its
+		## authored Unicode analysis, occurrence IDs, or authoring and theme.
+		## Both layout and reshaping borrow the measured plan's scope colors.
+		build_resolved : Plan, Document.NormalizedAuthoring, List(LiteralContext), KernelFacadeSources.Plan, KernelFacadeShape.FontSelection, Theme, KernelFacadeShape.Limits -> Try(Plan, Error)
+		build_resolved = |measured, authoring, contexts, sources, selection, theme, limits|
+			build_plan(authoring, contexts, KernelFacadeSources.Plan.sources(sources), selection, theme, limits, measured.scope_colors, Reuse(measured.data))
+
+		scope_colors : Plan -> KernelFacadeShape.ScopeColors
+		scope_colors = |plan| plan.scope_colors
+
 		final_shape : Plan, Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), U64 -> Try(KernelFacadeShape.Plan, Error)
 		final_shape = |plan, authoring, owners, count| finalize_shape(plan, authoring, owners, count)
 		view : Plan -> View
-		view = |Plan.(value)| value
+		view = |plan| plan.data
 	}
 }
 
@@ -51,8 +63,8 @@ Selected : { clusters : Semantics.IndexRange, face : Font.FaceId, script : Font.
 
 SelectedSources : [FixedFace(List(U64)), PolicyFaces({ segments : List(List(Selected)), indexes : List(U64) })]
 
-build_plan : Document.NormalizedAuthoring, List(KernelFacadeReferenceShape.LiteralContext), List(KernelFacadeSources.Source), KernelFacadeShape.FontSelection, Theme, KernelFacadeShape.Limits -> Try(KernelFacadeReferenceShape.Plan, KernelFacadeReferenceShape.Error)
-build_plan = |authoring, literals, sources, selection, theme, limits| {
+build_plan : Document.NormalizedAuthoring, List(KernelFacadeReferenceShape.LiteralContext), List(KernelFacadeSources.Source), KernelFacadeShape.FontSelection, Theme, KernelFacadeShape.Limits, KernelFacadeShape.ScopeColors, [NoReuse, Reuse(KernelFacadeReferenceShape.View)] -> Try(KernelFacadeReferenceShape.Plan, KernelFacadeReferenceShape.Error)
+build_plan = |authoring, literals, sources, selection, theme, limits, scope_colors, reuse| {
 	if literals.len() > KernelFacadeShape.Limits.max_requests(limits) {
 		return Err(LimitExceeded({ attempted: literals.len(), limit: KernelFacadeShape.Limits.max_requests(limits) }))
 	}
@@ -63,6 +75,8 @@ build_plan = |authoring, literals, sources, selection, theme, limits| {
 	var $selected = []
 	var $literal_runs = List.with_capacity(literals.len())
 	var $range_probes = 0
+	var $reused_runs = []
+	var $old_literal = 0
 	var $previous_occurrence = NoOccurrence
 	var $literal = 0
 	while $literal < literals.len() {
@@ -84,7 +98,7 @@ build_plan = |authoring, literals, sources, selection, theme, limits| {
 		source = list_at(sources, located.source.index())
 		bounds = cluster_bounds(source.analysis, located.range, index)?
 		$range_probes = $range_probes + bounds.probes
-		style = KernelFacadeShape.leaf_style(authoring, context.block, context.inline, context.role, theme)
+		style = KernelFacadeShape.leaf_style(authoring, scope_colors, context.block, context.inline, context.role, theme)
 		candidate = match selection {
 			Single(_) => {
 				if style.font != Theme.body_font(theme) {
@@ -98,18 +112,72 @@ build_plan = |authoring, literals, sources, selection, theme, limits| {
 		start = $requests.len()
 		segments = literal_segments(source.analysis, bounds.range, context, authoring, selected.sources, located.source.index(), candidate)?
 		$range_probes = $range_probes + segments.probes
+		previous = match reuse {
+			Reuse(measured) if $old_literal < measured.literals.len() => {
+				old_context = list_at(measured.literals, $old_literal)
+				if old_context.occurrence.id == occurrence.id {
+					old_runs = list_at(measured.literal_runs, $old_literal).runs
+					if old_context != context or old_runs.length() != segments.segments.len() {
+						return Err(InvalidLiteral({ occurrence: index }))
+					}
+					$old_literal = $old_literal + 1
+					At(old_runs.start())
+				} else {
+					Fresh
+				}
+			}
+			_ => Fresh
+		}
+		var $segment = 0
 		for segment in segments.segments {
 			attempted = $requests.len() + 1
 			if attempted > KernelFacadeShape.Limits.max_requests(limits) {
 				return Err(LimitExceeded({ attempted, limit: KernelFacadeShape.Limits.max_requests(limits) }))
 			}
-			$requests = $requests.append({ occurrence: occurrence.id, size: style.size, source: located.source })
-			$styles = $styles.append({ color: style.color, leading: style.leading, segment: context.segment })
-			$origins = $origins.append({ byte: located.range.utf8_bytes.start(), scalar: located.range.scalars.start() })
-			$selected = $selected.append({ clusters: segment.clusters, instance: Font.InstanceId.from_index(segment.font), language: occurrence.language, occurrence: occurrence.id, script: segment.script, size: style.size, source: located.source })
+			request = { occurrence: occurrence.id, size: style.size, source: located.source }
+			run_style = { color: style.color, leading: style.leading, segment: context.segment }
+			origin = { byte: located.range.utf8_bytes.start(), scalar: located.range.scalars.start() }
+			selected_request = { clusters: segment.clusters, instance: Font.InstanceId.from_index(segment.font), language: occurrence.language, occurrence: occurrence.id, script: segment.script, size: style.size, source: located.source }
+			match reuse {
+				Reuse(measured) => {
+					entry = match previous {
+						Fresh => Fresh
+						At(first) => {
+							old_index = first + $segment
+							old = list_at(measured.store.runs, old_index)
+							stable_index = match selection {
+								Single(_) | Styled(_) => candidate
+								Ordered(_) => match selected.selection {
+									OrderedFaces(faces) => list_at(faces.faces, segment.font).index()
+									_ => return Err(InvalidSelection)
+								}
+							}
+							if stable_index >= measured.instance_indexes.len() or list_at(measured.instance_indexes, stable_index) != old.instance.index() {
+								return Err(InvalidSelection)
+							}
+							if list_at(measured.requests, old_index) != request or list_at(measured.styles, old_index) != run_style or list_at(measured.origins, old_index) != origin or old.source.scalars != segment.clusters or old.script != segment.script or old.language != occurrence.language {
+								return Err(InvalidLiteral({ occurrence: index }))
+							}
+							Reuse(old_index)
+						}
+					}
+					$reused_runs = $reused_runs.append(entry)
+				}
+				NoReuse => {}
+			}
+			$requests = $requests.append(request)
+			$styles = $styles.append(run_style)
+			$origins = $origins.append(origin)
+			$selected = $selected.append(selected_request)
+			$segment = $segment + 1
 		}
 		$literal_runs = $literal_runs.append({ context: $literal, runs: Semantics.IndexRange.from_start_and_length({ start: start, length: $requests.len() - start }) })
 		$literal = $literal + 1
+	}
+
+	match reuse {
+		Reuse(measured) if $old_literal != measured.literals.len() => return Err(InvalidLiteral({ occurrence: list_at(measured.literals, $old_literal).occurrence.id.index() }))
+		_ => {}
 	}
 
 	## Empty literal stores are intentional, including an atom-only document.
@@ -117,12 +185,23 @@ build_plan = |authoring, literals, sources, selection, theme, limits| {
 	batch = if $selected.is_empty() {
 		{ store: empty_store, advances: [], inter_runs: [], work: empty_work }
 	} else {
-		match KernelShape.shape_ranged_selected_batch(selected.fonts, sources, { direction: LeftToRight, language: Language(authoring.language), writing_mode: Horizontal }, $selected, KernelFacadeShape.Limits.shape(limits)) {
+		options = { direction: LeftToRight, language: Language(authoring.language), writing_mode: Horizontal }
+		shape_limits = KernelFacadeShape.Limits.shape(limits)
+		shaped = match reuse {
+			Reuse(measured) => KernelShape.shape_ranged_reusing_batch(selected.fonts, sources, options, $selected, shape_limits, { advances: measured.advances, runs: $reused_runs, store: measured.store })
+			NoReuse => KernelShape.shape_ranged_selected_batch(selected.fonts, sources, options, $selected, shape_limits)
+		}
+		match shaped {
 			Ok(value) => value
 			Err(error) => return Err(locate_failure(literals, $literal_runs, sources, selected.fonts, $selected, error))
 		}
 	}
-	Ok(KernelFacadeReferenceShape.Plan.{ literals, literal_runs: $literal_runs, requests: $requests, styles: $styles, origins: $origins, store: batch.store, advances: batch.advances, selection: selected.selection, fonts: selected.fonts, work: { literal_visits: literals.len(), range_probes: $range_probes, selected_runs: $requests.len(), source_selections: selected.selections, shape: batch.work } })
+	instance_indexes = match selected.sources {
+		FixedFace(indexes) => indexes
+		PolicyFaces(policy) => policy.indexes
+	}
+	data = { literals, literal_runs: $literal_runs, requests: $requests, styles: $styles, origins: $origins, store: batch.store, advances: batch.advances, selection: selected.selection, fonts: selected.fonts, instance_indexes, work: { literal_visits: literals.len(), range_probes: $range_probes, selected_runs: $requests.len(), source_selections: selected.selections, shape: batch.work } }
+	Ok(KernelFacadeReferenceShape.Plan.{ data, scope_colors })
 }
 
 ## The ordered policy chooses once per unique real source. Dense font

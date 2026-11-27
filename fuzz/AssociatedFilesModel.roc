@@ -84,7 +84,7 @@ expected_budget = |authored| {
 
 agrees : List(U8) -> Bool
 agrees = |authored| {
-	actual = KernelAssociatedFiles.Plan.build(authored.map(file), True, { count: 3, file_bytes: 2, total_bytes: 4 })
+	actual = KernelAssociatedFiles.Plan.build(authored.map(file), True, { count: 3, description_bytes: 1024, file_bytes: 2, media_type_bytes: 127, total_bytes: 4 })
 	match expected_budget(authored) {
 		OverCount => match actual {
 			Err(CountLimit({ actual: 4, maximum: 3 })) => True
@@ -104,6 +104,12 @@ agrees = |authored| {
 				sorted = [0, 1, 2].keep_if(|index| authored.contains(index))
 				actual_entries = KernelAssociatedFiles.Plan.entries(plan)
 				if sorted.len() != authored.len() or actual_entries.len() != sorted.len() or KernelAssociatedFiles.Plan.payload_bytes(plan) != bytes {
+					return False
+				}
+				# Description and date always have 7 and 17 bytes. The
+				# non-ASCII name has two UTF-8 bytes and six legacy bytes.
+				expected_text_bytes = sorted.fold(0, |sum, index| sum + 24 + (if (index == 0) 2 else if (index == 1) 4 else 8))
+				if KernelAssociatedFiles.Plan.text_bytes(plan) != expected_text_bytes or KernelAssociatedFiles.Plan.media_type_bytes(plan) != 24 * sorted.len() {
 					return False
 				}
 				var $rank = 0

@@ -120,12 +120,21 @@ Pdf.rich_paragraph([
 
 Preparation repeats measurement until the resolved values, line placements,
 anchors and page geometry agree across consecutive passes. It rejects a
-repeated earlier state as `layout.reference_cycle`. The pass limit is eight,
-with at most 500,000 state words per pass and 4,000,000 charged work units
-overall. Exhaustion returns `layout.reference_stabilization_budget`.
-A cycle, exhausted budget or missing destination reports the authored inline
-before PDF bytes or chunks are available. Choose `Pdf.page_reference` when a
-fixed field should keep layout independent of the printed label.
+repeated earlier state as `layout.reference_cycle`. Set these fields in
+`Pdf.Options.budgets` to bound documents with flow-changing references:
+
+* `max_flow_reference_passes` defaults to 8.
+* `max_flow_reference_state_units` defaults to 500,000 words for each pass's
+  state buffer. Preparation checks capacity before allocating the buffer.
+* `max_flow_reference_layout_work` defaults to 4,000,000 units of charged
+  layout, shaping, and state-building work across passes.
+
+Exhaustion returns `layout.reference_stabilization_budget` with the exhausted
+dimension and its effective limit. The effective state limit also respects
+the representable byte size of a state buffer. A cycle, exhausted budget or
+missing destination reports the authored inline before PDF bytes or chunks
+are available. Choose `Pdf.page_reference` when a fixed field should keep
+layout independent of the printed label.
 
 Run the
 https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/operations-handbook/README.md[handbook's compact recovery note]

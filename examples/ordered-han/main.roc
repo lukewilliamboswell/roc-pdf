@@ -1,22 +1,30 @@
 app [main!] {
 	pdf: "../../package/main.roc",
 	pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.28.1/7brgwR8YUqfeGrkdfF1V4GPPN7DnP7ftqub9KcrTEZtr.tar.zst",
+	weaver: "https://github.com/lukewilliamboswell/weaver/releases/download/0.11.0/7CdYzjBAJmprmnK45oTpmH6BXt76ZASN2Ck5uZQEoWsK.tar.zst",
 }
 
 import pf.OsStr
 import pf.Path
 import pf.Stderr
 import pf.Stdout
+import weaver.Cli
+import weaver.Param
 import pdf.Font
 import pdf.Pdf
 import pdf.RocFont
 import "fonts/ReceivingHan-Regular.ttf" as han_bytes : List(U8)
 
 main! = |args| {
-	with_han = match args.map(OsStr.display) {
-		[] => True
-		["latin-only"] => False
-		_ => {
+	with_han = match Cli.parse_or_display_message(cli, args, OsStr.to_raw) {
+		Err(Help(message)) | Err(Version(message)) => return Stdout.line!(message).map_err(|error| OutputFailed(error))
+		Err(InvalidUsage(message)) => {
+			Stderr.line!(message).map_err(|error| OutputFailed(error))?
+			return Err(Exit(2))
+		}
+		Ok(Err(NoValue)) => True
+		Ok(Ok("latin-only")) => False
+		Ok(Ok(_)) => {
 			Stderr.line!("Usage: roc run main.roc [latin-only]").map_err(|err| OutputFailed(err))?
 			return Err(Exit(2))
 		}
@@ -66,3 +74,10 @@ document = Pdf.document({
 		Pdf.paragraph("Confirm the handover after inspecting the remaining pallets."),
 	],
 })
+
+cli = Cli.assert_valid(
+	Cli.finish(
+		Param.maybe_str({ name: "mode", help: "Choose latin-only to omit Han text." }),
+		{ name: "ordered-han", version: "unversioned", authors: [], description: "Generate a receiving note with ordered font coverage.", text_style: Plain },
+	),
+)

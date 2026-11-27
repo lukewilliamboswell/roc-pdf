@@ -107,5 +107,3 @@ allocations and allocated bytes for scaled chains, fans, dense graphs,
 and forced collisions. A 1,000-entry collision case makes 999 adjacent
 comparisons. Allocation growth is governed by nodes and edges, while
 collision work also counts visited payload bytes.
-
-See https://github.com/lukewilliamboswell/roc-pdf/blob/a6d1bde3028d51955b96af3ba1a183855a92cd2d/docs/contributors/performance/resource-graph.md[the archived design and measurements].

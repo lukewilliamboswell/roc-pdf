@@ -22,7 +22,7 @@ KernelAssociatedObjects :: [].{
 	Input : [NoAssociatedFiles, WithAssociatedFiles(KernelAssociatedFiles.Plan)]
 	Destinations : [DestsRootAt(KernelObject.ObjectId), NoDestsRoot]
 
-	Plan : { associations : List(Association), nodes : List(KernelObject.ObjectId), shape : KernelBalanced.Shape, object_count : U64, xref : KernelObject.ObjectId }
+	Plan : { associations : List(Association), media_type_bytes : U64, nodes : List(KernelObject.ObjectId), shape : KernelBalanced.Shape, object_count : U64, text_bytes : U64, xref : KernelObject.ObjectId }
 	Planned : [NoAssociatedPlan, WithAssociatedPlan(Plan)]
 
 	## One stream and its length plus an indirect file specification per
@@ -32,10 +32,11 @@ KernelAssociatedObjects :: [].{
 		NoAssociatedFiles => Ok(NoAssociatedPlan)
 		WithAssociatedFiles(files) => {
 			entries = KernelAssociatedFiles.Plan.entries(files)
-			if base > U64.highest - (5 * entries.len() + 2) {
+			count = entries.len()
+			if base > U64.highest - 2 or count > (U64.highest - base - 2) // 5 {
 				return Err(ArithmeticOverflow)
 			}
-			shape = KernelBalanced.Shape.build(entries.len(), KernelAssociatedFiles.limits.count) ? Shape
+			shape = KernelBalanced.Shape.build(count, count) ? Shape
 			var $associations = List.with_capacity(entries.len())
 			var $number = base + 1
 			for file in entries {
@@ -54,7 +55,7 @@ KernelAssociatedObjects :: [].{
 				$index = $index + 1
 			}
 			xref = KernelObject.ObjectId.from_number($number) ? Object
-			Ok(WithAssociatedPlan({ associations: $associations, nodes: $nodes, shape, object_count: $number - 1, xref }))
+			Ok(WithAssociatedPlan({ associations: $associations, media_type_bytes: KernelAssociatedFiles.Plan.media_type_bytes(files), nodes: $nodes, shape, object_count: $number - 1, text_bytes: KernelAssociatedFiles.Plan.text_bytes(files), xref }))
 		}
 	}
 
@@ -85,7 +86,7 @@ KernelAssociatedObjects :: [].{
 	lower = |builder, planned, catalog| {
 		first_payload = KernelObject.counts(builder).payloads
 		names = add_names(builder)?
-		var $builder = names.builder
+		var $builder = allow_file_metadata(names.builder, { count: planned.associations.len(), media_type_bytes: planned.media_type_bytes, text_bytes: planned.text_bytes })?
 		var $entries = List.with_capacity(planned.associations.len())
 		for association in planned.associations {
 			lowered = add_association($builder, names.names, association)?
@@ -93,7 +94,7 @@ KernelAssociatedObjects :: [].{
 			$entries = $entries.append(KernelIndex.ByteEntry.make(association.file.key, lowered.id))
 		}
 		value_count = KernelObject.counts($builder).values
-		tree = KernelIndex.ByteTree.build($entries, NameTree, KernelIndex.Limits.make({ max_entries: planned.associations.len(), max_key_bytes: 258, value_count })) ? Index
+		tree = KernelIndex.ByteTree.build($entries, NameTree, KernelIndex.Limits.make({ max_entries: planned.associations.len(), max_key_bytes: KernelAssociatedFiles.key_bytes, value_count })) ? Index
 		emitted = KernelNavigationObjects.emit_name_tree($builder, names.names.tree, tree, planned.nodes) ? Tree
 		ownership = verify(emitted.builder.store, planned, catalog, first_payload)?
 		Ok({ builder: emitted.builder, ownership })
@@ -103,6 +104,29 @@ KernelAssociatedObjects :: [].{
 	## sealed. Exposed internally for atomic lowered-plan tests.
 	verify : KernelObject.Store, Plan, KernelObject.ObjectId, U64 -> Try(Ownership, Error)
 	verify = |store, planned, catalog, first_payload| verify_associations(store, planned, catalog, first_payload)
+}
+
+## The shared builder has already enforced the ordinary document's
+## lexical limits. Bound attachment names and text from the admitted files.
+allow_file_metadata : KernelObject.Builder, { count : U64, media_type_bytes : U64, text_bytes : U64 } -> Try(KernelObject.Builder, KernelAssociatedObjects.Error)
+allow_file_metadata = |builder, { count, media_type_bytes, text_bytes }| {
+	{ limits, store, total_name_bytes, total_text_string_bytes, .. } = builder
+	strings = U64.times_try(count, 4) ? |_| ArithmeticOverflow
+	string_limit = U64.plus_try(store.text_strings.len(), strings) ? |_| ArithmeticOverflow
+	text_limit = U64.plus_try(total_text_string_bytes, text_bytes) ? |_| ArithmeticOverflow
+	# Each file also writes one AFRelationship name, at most 11 bytes.
+	relationships = U64.times_try(count, 11) ? |_| ArithmeticOverflow
+	names = U64.plus_try(media_type_bytes, relationships) ? |_| ArithmeticOverflow
+	name_limit = U64.plus_try(total_name_bytes, names) ? |_| ArithmeticOverflow
+	Ok({
+		..builder,
+		limits: {
+			..limits,
+			max_name_bytes: U64.max(limits.max_name_bytes, name_limit),
+			max_text_strings: U64.max(limits.max_text_strings, string_limit),
+			max_text_string_bytes: U64.max(limits.max_text_string_bytes, text_limit),
+		},
+	})
 }
 
 add_af_array : KernelObject.Builder, List(KernelAssociatedObjects.Association) -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelAssociatedObjects.Error)

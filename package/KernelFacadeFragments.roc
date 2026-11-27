@@ -24,12 +24,16 @@ KernelFacadeFragments :: [].{
 		TextSemantics(KernelTextSemantics.Error),
 	]
 	Limits :: {
+		attachment : KernelTextSemantics.Limits,
 		max_fragments : U64,
 		max_occurrences : U64,
 		max_pages : U64,
 	}.{
 		make : { max_fragments : U64, max_occurrences : U64, max_pages : U64 } -> Limits
-		make = |limits| Limits.(limits)
+		make = |{ max_fragments, max_occurrences, max_pages }| Limits.{ max_fragments, max_occurrences, max_pages, attachment: attachment_limits(Document.ArtifactTextBudgets.default) }
+
+		with_attachment : Limits, Document.ArtifactTextBudgets -> Limits
+		with_attachment = |Limits.(fields), budgets| Limits.{ ..fields, attachment: attachment_limits(budgets) }
 	}
 	Work : {
 		continuation_reads : U64,
@@ -131,10 +135,16 @@ KernelFacadeFragments :: [].{
 	}
 }
 
-## Artifact text sources are bounded by the furniture stage (pages times
-## furniture lines); these bounds only guard the Unicode store's totals.
-artifact_source_limits : KernelTextSemantics.Limits
-artifact_source_limits = KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 16000000, max_text_source_scalars: 16000000, max_text_sources: 1000000 })
+## Attachment extends the Unicode store and retains its existing semantic
+## sources, so these limits apply to the resulting store as a whole.
+attachment_limits : Document.ArtifactTextBudgets -> KernelTextSemantics.Limits
+attachment_limits = |budgets| KernelTextSemantics.Limits.make({
+	max_text_properties: 0,
+	max_text_property_bytes: 0,
+	max_text_source_bytes: budgets.max_attached_source_units,
+	max_text_source_scalars: budgets.max_attached_source_units,
+	max_text_sources: budgets.max_attached_sources,
+})
 
 no_navigation_limits : KernelNavigation.Limits
 no_navigation_limits = KernelNavigation.Limits.make({
@@ -167,12 +177,12 @@ build_plan = |preliminary, text, navigation, proofs, limits, semantic_limits, na
 		NoFurniture => if labels.is_empty() {
 			attach_plan(preliminary, arena, text, navigation, proofs, semantic_limits, navigation_limits)
 		} else {
-			with_sources = KernelTextSemantics.Plan.attach_artifact_sources(preliminary, labels, artifact_source_limits) ? TextSemantics
+			with_sources = KernelTextSemantics.Plan.attach_artifact_sources(preliminary, labels, limits.attachment) ? TextSemantics
 			attach_plan(with_sources, arena, text, navigation, proofs, semantic_limits, navigation_limits)
 		}
 		WithFurniture(furniture) => {
 			sources = if (labels.is_empty()) KernelFacadeFurniture.Plan.sources(furniture) else KernelFacadeFurniture.Plan.sources(furniture).concat(labels)
-			with_sources = KernelTextSemantics.Plan.attach_artifact_sources(preliminary, sources, artifact_source_limits) ? TextSemantics
+			with_sources = KernelTextSemantics.Plan.attach_artifact_sources(preliminary, sources, limits.attachment) ? TextSemantics
 			attach_plan(with_sources, arena, text, navigation, proofs, semantic_limits, navigation_limits)
 		}
 	}

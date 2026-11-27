@@ -2,8 +2,9 @@
 = Automation and documentation publication
 
 Use this guide when changing a workflow or preparing documentation for release.
-The product's conformance and resource contracts remain in xref:architecture.adoc[the architecture],
-https://github.com/lukewilliamboswell/roc-pdf/blob/main/feature-roadmap.md[the capability roadmap] and the executable test inputs.
+The xref:architecture.adoc[architecture] defines the resource contracts.
+The xref:contributor-conformance.adoc[conformance chapter] links the
+executable evidence for supported profiles.
 
 [#contributor-automation-publication-tools-and-identities]
 == Tools and identities

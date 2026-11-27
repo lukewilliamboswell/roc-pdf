@@ -44,6 +44,12 @@ text. PDF reserves U+001B (ESC) for inline language directives, so roc-pdf
 rejects that character in PDF text values. Set the document or inline
 language with the supplied language fields.
 
+Set `metadata_budgets` in `Pdf.Options` to adjust the language input limit
+(`max_language_bytes`, 64), authored title limit (`max_title_bytes`, 2,048),
+or encoded XMP packet limit (`max_xmp_bytes`, 16,384). All three count UTF-8
+bytes. Escaping title characters such as `&` can increase the packet size.
+The language must still match the supported tag grammar.
+
 Group related blocks with `Pdf.part`, `Pdf.section`, and `Pdf.division`. They
 become PDF 2.0 `Part`, `Sect`, and `Div` structure elements around their
 children, in authored order; headings inside keep their explicit `H1`..`H6`
@@ -63,8 +69,9 @@ contents = [
 ]
 ----
 
-A container must hold at least one semantic block, and containers nest at most
-16 levels. Violations return `InvalidDocument` with the dotted codes
+A container must hold at least one semantic block. The default nesting limit
+is 16 levels (`budgets.max_container_depth` in `Pdf.Options`). Violations
+return `InvalidDocument` with the dotted codes
 `semantics.empty_container` or `semantics.container_depth` and the container's
 block path, such as `contents[1].contents[0]`, as the diagnostic detail. Every
 tagged document also asks readers to display its metadata title
@@ -162,7 +169,8 @@ its column is `layout.unbreakable_token`.
 Rejections name the inline's authored path below its block, such as
 `contents[2].inlines[1].inlines[0]`: `semantics.inline_empty` (no text, or an
 empty inline), `semantics.link_text_empty`, `semantics.nested_link`,
-`semantics.inline_depth` (more than 8 nested inline elements),
+`semantics.inline_depth` (the default is 8 nested inline elements, controlled
+by `budgets.max_inline_depth`),
 `semantics.language_tag`, `semantics.link_uri`, and, for unsupported text in a
 span, `text.unsupported_script` and `text.unsupported_cluster`.
 
@@ -195,8 +203,9 @@ Pdf.numbered_list({}, [
 `{}` numbers from 1 in `Decimal`; give `start` or `style` to change either.
 Number styles are `Decimal`, `LowerAlpha`, `UpperAlpha`, `LowerRoman`, and
 `UpperRoman`; labels read `1.`, `b.`, `iv.`. The plain-text `Pdf.bullets`
-remains and now also declares `ListNumbering /Disc`. Lists nest at most four
-deep. Rejections name the list, item, or block path, such as
+remains and now also declares `ListNumbering /Disc`. The default list depth
+is 4 (`budgets.max_list_depth`). Rejections name the list, item, or block
+path, such as
 `contents[3].items[1].contents[0]`: `semantics.list_empty`,
 `semantics.list_item_empty`, `semantics.list_item_content` (an item holding
 anything else, or not beginning with a paragraph), `semantics.list_depth`,
@@ -326,11 +335,14 @@ including headings below grouped headings. `FromScopes` supplies the
 applicable scoped headers, and an explicit list names all other
 relationships needed to understand its cell.
 
-Keys are case-sensitive, unique within a table and 1 to 64 ASCII letters,
-digits, hyphens, periods or underscores. Preparation locates invalid or
-duplicate declarations with `table.cell_key`. It rejects empty, invalid,
-unknown, duplicate or ineligible explicit targets with
-`table.header_targets`.
+Keys are case-sensitive and unique within a table. Each key is nonempty
+and uses only ASCII letters, digits, hyphens, periods or underscores.
+`Pdf.Options.budgets.max_table_key_bytes` defaults to 64 UTF-8 bytes per
+declared key or explicit header target. An overlong declaration or target
+is located at its cell under `table.cell_key_limit` or
+`table.header_target_limit`. Invalid or duplicate declarations use
+`table.cell_key`. Empty, invalid, unknown, duplicate or ineligible explicit
+targets use `table.header_targets`.
 
 Column widths resolve once per table:
 `Fixed` widths are exact, `Content` columns take their content's width,
@@ -383,8 +395,10 @@ row, or cell, such as `contents[4].table.body_rows[17].cells[1]`:
 `table.grid_mismatch`, `table.header_missing`, `table.empty`,
 `table.cell_empty`, `table.span_extent` (zero, overlapping or out-of-group
 span), `table.grid_gap` (unoccupied track), `table.span_policy`,
-`table.grid_limit` (occupied tracks plus row tiles exceed one million),
-`layout.table_width`, `layout.unbreakable_token`, and `layout.table_rule`.
+`table.grid_limit`, `layout.table_width`, `layout.unbreakable_token`, and
+`layout.table_rule`. For each table with row spans, the grid work counts
+occupied tracks and row tiles. Set `budgets.max_table_grid_work` in
+`Pdf.Options` to change the default of 1,000,000 per table.
 
 Give pages running headers, footers, and page numbers with page templates.
 The first page and every later page each have a template; each template
@@ -472,10 +486,88 @@ text does; a face only furniture uses becomes an extra font. Text no policy
 face covers is `text.coverage_missing`, and text in an undeclared script
 `text.unsupported_script`, at its furniture item path.
 
-Documents admit up to 16,384 content occurrences, structure elements, and
-text sources, and 1,024 pages. Flow content over its semantic budget returns
-`document.content_limit` and names the table or block where it crossed the
-limit.
+Set `artifact_text_budgets` in `Pdf.Options` when repeated furniture or
+drawing labels need more preparation capacity. The defaults are 4,096 authored
+furniture items (`max_furniture_items`), 1,000,000 resolved furniture lines
+and source inputs per pass (`max_source_inputs`), 1,000,000 placed furniture
+text pieces (`max_furniture_pieces`), 100,000 figure and panel labels
+(`max_drawing_labels`), and 4,096 UTF-8 bytes per visible page label
+(`max_page_label_bytes`). Each furniture or drawing-label pass uses
+`max_text_units` for Unicode and shaping (1,000,000). Source interning uses
+`max_source_hash_probes` (4,000,000), `max_source_table_slots` (2,097,152),
+and `max_source_script_runs` per source (2,048).
+The final attachment counts body and other semantic sources together with
+furniture and panel label sources. That store has a default of 1,000,000
+sources (`max_attached_sources`) and 16,000,000 UTF-8 bytes and scalars each
+(`max_attached_source_units`). The document-wide text and paint budgets
+continue to apply.
+
+[#authoring-preparation-budgets]
+== Preparation budgets
+
+The default page budget is 1,024. Set `max_pages` in `Pdf.Options` to raise or
+lower it for flow, column, and fixed-page documents. The option accepts
+positive counts. For a feature-rich document, configure `budgets` as well
+as `max_pages`. Each omitted field keeps its default.
+
+[source,roc]
+----
+Pdf.to_chunks_with(document, {
+    max_pages: 10000,
+    budgets: {
+        max_content_items: 250000,
+        max_text_units: 16000000,
+        max_objects: 300000,
+        max_content_bytes: 64000000,
+        max_payload_bytes: 96000000,
+        max_destinations: 20000,
+        max_annotations: 20000,
+    },
+})
+----
+
+`max_content_items` applies separately to authored leaves, content
+occurrences, structure elements, and source inputs. Its default is 16,384.
+`max_text_units` sets work limits for text such as UTF-8 bytes, scalars, and
+shaped glyphs. `max_paint_items` bounds layout rows, fragments, placements, and
+scene arenas. Both default to 1,000,000. `max_source_script_runs` defaults to
+2,048 Unicode script runs per body text source. Navigation counts can be
+configured separately for destinations, annotations, outlines, labels, and
+link quadrilaterals. Generated contents also use independent budgets for
+scanned blocks, requests, retained entries, and title overrides. The index
+defaults to 256 terms per index (`max_index_entries`), 256 UTF-8 bytes per term
+(`max_index_term_bytes`), 16 destinations per term (`max_index_targets_per_term`),
+and 2,048 locations across all indexes in the document (`max_index_locations`).
+
+The container, inline, and list nesting limits apply to their authored
+constructs. `max_semantic_depth` separately bounds the complete
+structure tree during preparation and after layout (default 48 levels).
+The document root counts as level 1, and generated structure levels count
+toward the limit. The list budget covers explicit list groups. The legacy
+`Pdf.bullets` helper produces one fixed list level.
+Page geometry and the other document budgets still apply.
+
+Navigation has per-value UTF-8 budgets. Set `max_uri_bytes` (default
+2,048), `max_destination_name_bytes` (128), `max_outline_title_bytes`
+(1,024), or `max_page_label_prefix_bytes` (64). `max_outline_depth` defaults
+to 32 levels, counting the top level. The same URI limit applies to block
+and inline links, including table cells. URI syntax, destination uniqueness
+and page-label range validation still apply. Set
+`max_reference_page_label_bytes` (default 128) for visible destination page
+labels. The rendered value must also fit its authored field. A blank
+document can label its single page. Outline entries require a body
+destination.
+
+Output planning applies a total object budget, a budget for generated
+content bytes, and a separate budget for all retained stream payload bytes.
+These defaults are 65,536 objects and 16,000,000 bytes for each byte budget.
+Embedded font subsets retain up to 10,000 glyphs per face (`max_font_glyphs`).
+Unicode mapping allows 10,000 entries across all faces (`max_font_mappings`),
+1,000,000 Unicode scalars per face (`max_font_mapping_scalars`), and 1,000,000
+encoded ToUnicode bytes per face (`max_font_to_unicode_bytes`).
+Flow content over its semantic budget returns `document.content_limit` and
+names the table or block where it crossed the limit. Preparation checks
+budgets before handing the caller any PDF bytes.
 
 Mandatory constraints are never relaxed: a conflict between them, or an
 unsplittable block taller than a page (`layout.oversize_block`), returns
@@ -488,6 +580,9 @@ outcome in the report returned by `Pdf.prepare_with_report`.
 
 Run the https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/tax-invoice/README.md[invoice policy variants] to compare a
 split row with the diagnostic for the same oversized row under `KeepRows`.
+
+[#authoring-preparation-and-delivery]
+== Preparation and delivery
 
 For deferred or repeated emission, prepare once. `Pdf.Prepared` is opaque: a
 successful value has passed validation and is ready for emission.
@@ -665,10 +760,14 @@ reading and keyboard order on each page. Give each field a visible,
 descriptive label and add any instructions a recipient needs nearby.
 Labels use the selected document typography and must fit their frame.
 
-A document can have 1–128 fields. IDs are unique across all pages,
-case-sensitive, and consist of 1–64 ASCII letters, digits, underscores or
-hyphens. Labels occupy at most 256 UTF-8 bytes. Text field widths range from
-48 to 1024 points. Omit `value`, pass `Blank`, or use `Prefilled("")` for
+A form requires at least one field. The default maximum is 128 fields per
+document, 64 UTF-8 bytes per ID, and 256 UTF-8 bytes per label. Set
+`form_budgets.max_fields`, `form_budgets.max_field_id_bytes`, or
+`form_budgets.max_field_label_bytes` in the preparation options to change these
+limits. The document-wide `budgets.max_annotations` also limits the number of
+widgets. IDs are unique across all pages, case-sensitive, and consist of ASCII
+letters, digits, underscores or hyphens. Text field widths range from 48 to
+1024 points. Omit `value`, pass `Blank`, or use `Prefilled("")` for
 an initially empty field. Nonempty initial values must fit the supplied
 width and contain up to 64 printable ASCII characters (U+0020–U+007E).
 The 10-point embedded editable font covers that repertoire even for blank
@@ -696,8 +795,8 @@ A checkbox takes the lower-left origin of a 22-point square. Reserve
 and the label. Omit `state` or use `Unchecked` for an empty initial mark.
 `Checked` displays the mark. Export state names are `Yes` and `Off`.
 Distinct checkbox IDs let recipients toggle each option independently,
-even when the options share the same export state. The 128-field budget
-and unique IDs apply across both types.
+even when the options share the same export state. The field count and unique
+ID rules apply across both types.
 
 The form profile accepts fixed-page documents and optional
 `wtpdf: DeclareAccessibility`. Other profiles reject fields before
@@ -742,15 +841,22 @@ are case-sensitive and compared byte for byte without Unicode normalization.
 The reader-facing Unicode name preserves the authored text. For readers using
 the legacy filename, non-ASCII bytes and percent signs are percent-encoded.
 Use a parameter-free MIME type such as `application/xml` or explicitly
-supply `application/octet-stream` for opaque bytes of unknown type. Write
+supply `application/octet-stream` for opaque bytes of unknown type. Both
+components of the ASCII media type have a 127-byte limit. Write
 the last modification time as `YYYY-MM-DDThh:mm:ssZ`. The package never
-reads the system clock. Supply a nonblank description of at most 1,024 UTF-8
-bytes with no ASCII control characters.
+reads the system clock. Supply a nonblank description with no ASCII control
+characters.
 
-The limit is 128 files, 4 MiB per file, and 8 MiB total. The ordinary document
-resource limits also apply. The package preserves the bytes exactly. The
-caller loads the files and validates their contents. Under
-`ShareUnchangedResources` the attachment chunks can share the source byte
+The defaults are 128 files, 4 MiB per file, 8 MiB total, 1,024 UTF-8 bytes
+per description, and 127 bytes for the complete media type. Set
+`attachment_budgets.max_files`, `max_file_bytes`, `max_total_bytes`,
+`max_description_bytes`, or `max_media_type_bytes` in the preparation
+options to change these limits. An oversized description or media type
+reports `attachment.description_limit` or `attachment.media_type_limit`
+at its attachment field. The document-wide object count and payload byte
+budgets also apply. The package preserves the bytes exactly. The caller
+loads the files and validates their contents.
+Under `ShareUnchangedResources` the attachment chunks can share the source byte
 storage. Use `OwnChunks` when retaining chunks independently. Element-level
 associations and attachment annotations are outside this API.
 
@@ -797,8 +903,12 @@ each accepted scoped page, with its authored path, label, and
 
 Add inline citation text with `Pdf.citation({ target, text })`. Supply the
 entries once with `Pdf.bibliography`, in the order readers should encounter
-them. Targets are document-wide and support one to 64 printable ASCII bytes
-without spaces. Use meaningful visible citation and entry text.
+them. Targets are document-wide and use nonempty printable ASCII without
+spaces. `Pdf.Options.budgets.max_bibliography_target_bytes` defaults to
+64 UTF-8 bytes per entry or citation target. An overlong target returns
+`bibliography.target_limit` at the authored entry or citation. Entries
+also count as named destinations and must fit `max_destination_name_bytes`.
+Use meaningful visible citation and entry text.
 
 [source,roc]
 ----
@@ -867,8 +977,8 @@ channels (`"#RRGGBB"`, `Color.srgb8`, or `Color.srgb16`); unsupported channel
 models reject with `source.foreground_color`, including on an unpainted
 newline. Invalid ranges reject with `source.foreground_range`; the diagnostic
 names the zero-based range index and original byte offset and locates the
-source block. Source preparation retains at most 100,000 foreground ranges
-across the document, checked before normalization grows retained buffers.
+source block. Source preparation checks the foreground budget before
+normalization grows retained buffers.
 
 Foregrounds are paint-only: they retain one face, size and leading, reuse the
 accepted glyphs and preserve advances, wrapping and pagination. The source
@@ -893,10 +1003,13 @@ rows without painted spaces or content occurrences. An empty source reserves
 one row and has no `ActualText` override. Source faces require style-face
 selection: ordered policies report `source.font_policy`, missing source
 registrations `source.face`, invalid whitespace `source.*`, and invalid size,
-leading, or padding `source.style`. Normalization accepts at most 1,000,000
-input bytes per source block and retains at most 1,000,000 canonical source
-bytes and 1,000,000 logical source lines across the document. Exhaustion is a
-located `source.budget` error; later source blocks are not materialized.
+leading, or padding `source.style`. Set `source_budgets` in `Pdf.Options` to
+change the input byte limit per block (`max_input_bytes`) or the document
+limits for canonical bytes (`max_output_bytes`), logical lines (`max_lines`),
+and foreground ranges (`max_foregrounds`). The defaults are 1,000,000 for
+each byte and line limit and 100,000 for foreground ranges. The broader text,
+content, and layout budgets still apply. Exhaustion yields a located
+`source.budget` error and stops normalization of subsequent source blocks.
 Unsupported glyphs reject; there is no font substitution. https://github.com/lukewilliamboswell/roc-pdf/blob/main/examples/source-blocks/main.roc[The source-block example]
 shows a block continuing over pages with ordinary paragraphs before and after.
 
@@ -1012,7 +1125,21 @@ rule = Pdf.decoration({ drawing: Scene.Drawing.empty.rectangle({ bounds: Layout.
 Image pixel dimensions and layout placement are independent. Packed planes
 must have valid dimensions, row stride, byte length, and supported alpha;
 JPEGs additionally pass the bounded marker and orientation-policy inspector.
-Invalid resources fail transactionally.
+Translated `Scene.Drawing.group` nesting defaults to eight levels. Set
+`budgets.max_drawing_group_depth` in `Pdf.Options` to change it for figures,
+fixed-page figures, decorations, custom panels and furniture drawings. Zero
+allows ungrouped drawings. Preparation reports the first group that exceeds
+the limit at its drawing command path.
+
+Set `image_budgets` in `Pdf.Options` to adjust the physical image count,
+encoded and decoded bytes, dimensions, and markers. Exact sharing also has
+separate budgets for fingerprinting and recent byte comparisons. These
+work budgets apply during preparation, and the physical budgets count
+the resources left after exact sharing.
+Identical packed raster sources and identical JPEG sources with the same
+orientation policy share PDF image resources across drawings. Each placement
+keeps its own geometry and each figure retains its alternative text and caption. Invalid resources fail
+transactionally.
 
 A figure is placed start-aligned in the flow at its authored size, as one
 unsplittable unit with its caption below it; a caption becomes a `Caption`
@@ -1163,9 +1290,9 @@ Use `Pdf.prepare_with_report` to review placements by authored path, such as
 `pages[0].placements[1]`. Invalid frames and paint permutations identify
 `layout.fixed.frame` and `layout.fixed.paint_order` respectively. A text
 placement that cannot fit reports `layout.fixed.text_width` or
-`layout.fixed.text_height`. Exceeding 1,024 pages, 16,384 placements or
-1,000,000 artwork rectangles returns `layout.fixed.budget`. Invalid fixed
-documents produce an error before buffered or chunked output starts.
+`layout.fixed.text_height`. Fixed-page authoring checks `max_pages`, uses
+`max_content_items` for placements, and uses `max_paint_items` for artwork
+rectangles. Exceeding one returns `layout.fixed.budget` before output starts.
 
 The runnable xref:gallery.adoc#designed-brief[designed brief] places a
 captioned figure, title and key-figures card in prescribed frames.
@@ -1201,8 +1328,8 @@ use `panel: { fill: Fill(tint), border: NoBorder }` for a borderless panel.
 
 Callouts hold paragraphs, rich paragraphs, lists, source blocks, figures,
 ordinary tables, and nested callouts, including callouts in list items.
-The existing four-list-level limit applies across callouts. Callouts share
-the 16-level semantic-container limit with ordinary sections/divisions.
+The configured list depth applies across callouts. Callouts share
+`budgets.max_container_depth` with ordinary sections and divisions.
 Table cells keep their existing inline-only contract. Free decorations,
 spacers, explicit page breaks, headings, arbitrary semantic containers and
 measured custom blocks are outside this callout child subset. Existing keep

@@ -90,5 +90,3 @@ for consecutive CIDs mapping to consecutive BMP units when both stay
 inside their 256-code windows. Other rows use `bfchar`. Blocks have
 at most 100 rows. `check_pdf_structure.to_unicode_mappings` checks
 the range limits, counts, and exact ascending CID coverage.
-
-See https://github.com/lukewilliamboswell/roc-pdf/blob/a6d1bde3028d51955b96af3ba1a183855a92cd2d/docs/contributors/performance/output-size.md[the archived design and measurements].

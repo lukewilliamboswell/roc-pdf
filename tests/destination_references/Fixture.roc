@@ -211,7 +211,7 @@ evidence_mode = |document, selected_theme, options, selection, contents_counters
 	plan = KernelFacadeReferences.Plan.build(authoring, selection, selected_theme, page_size, flow, reference_limits) ? ReferenceFailure
 	view = KernelFacadeReferences.Plan.view(plan)
 	work = view.work
-	counters = [work.reference_atoms, work.normalization_chunks, work.literal_shape_requests, work.measured_items, work.measured_rows, work.committed_row_visits, work.anchor_item_visits, work.registry_lookup_steps, work.resolved_labels, work.resolved_label_bytes, work.mapping_cluster_visits, work.mapping_glyph_visits, work.reference_fit_run_visits, work.positioned_pieces, work.shape_metric_reads, work.measurement.hold_scalars, work.measurement.measured_items, work.measurement.wrapped_items, work.measurement.boundaries, work.measurement.row_items, work.measurement.alignment_items, work.separator_run_visits, work.separator_override_writes, bytes.len()]
+	counters = [work.reference_atoms, work.normalization_chunks, work.literal_shape_requests, work.measured_items, work.measured_rows, work.committed_row_visits, work.anchor_item_visits, work.registry_lookup_steps, work.resolved_labels, work.resolved_label_bytes, work.mapping_run_visits, work.reference_fit_run_visits, work.positioned_pieces, work.shape_metric_reads, work.measurement.hold_scalars, work.measurement.measured_items, work.measurement.wrapped_items, work.measurement.boundaries, work.measurement.row_items, work.measurement.alignment_items, work.separator_run_visits, work.separator_override_writes, bytes.len()]
 	Ok({ bytes, work: if (contents_counters) counters.append(work.contents_rows).append(work.leader_dots) else counters })
 }
 
@@ -269,6 +269,7 @@ run_negatives = |context| {
 
 reference_limits : KernelFacadeReferences.Limits
 reference_limits = {
+	flow: KernelFacadeReferences.default_flow_limits,
 	semantics: KernelFacadeSemantics.Limits.make({
 		max_container_depth: 16,
 		max_content_spine: 65536,

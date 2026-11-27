@@ -1,11 +1,14 @@
 app [main!] {
 	pdf: "../../package/main.roc",
 	pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.28.1/7brgwR8YUqfeGrkdfF1V4GPPN7DnP7ftqub9KcrTEZtr.tar.zst",
+	weaver: "https://github.com/lukewilliamboswell/weaver/releases/download/0.11.0/7CdYzjBAJmprmnK45oTpmH6BXt76ZASN2Ck5uZQEoWsK.tar.zst",
 }
 import pf.OsStr
 import pf.Path
 import pf.Stderr
 import pf.Stdout
+import weaver.Cli
+import weaver.Param
 import pdf.Color
 import pdf.Document
 import pdf.Font
@@ -27,11 +30,16 @@ import "fonts/NotoSerif-Italic.ttf" as italic_bytes : List(U8)
 ## headers inset above a ruled backdrop with `Page N of M` on every later
 ## page.
 main! = |args| {
-	mode = match args.map(OsStr.display) {
-		[] => Quarterly
-		["regional"] => Regional(SplitSpans)
-		["regional-keep"] => Regional(KeepRows)
-		_ => {
+	mode = match Cli.parse_or_display_message(cli, args, OsStr.to_raw) {
+		Err(Help(message)) | Err(Version(message)) => return Stdout.line!(message).map_err(|error| OutputFailed(error))
+		Err(InvalidUsage(message)) => {
+			Stderr.line!(message).map_err(|error| OutputFailed(error))?
+			return Err(Exit(2))
+		}
+		Ok(Err(NoValue)) => Quarterly
+		Ok(Ok("regional")) => Regional(SplitSpans)
+		Ok(Ok("regional-keep")) => Regional(KeepRows)
+		Ok(Ok(_)) => {
 			Stderr.line!("Usage: roc run main.roc [regional|regional-keep]").map_err(|err| OutputFailed(err))?
 			return Err(Exit(2))
 		}
@@ -755,3 +763,10 @@ contents = |options| Ok([
 		position_table,
 	]),
 ])
+
+cli = Cli.assert_valid(
+	Cli.finish(
+		Param.maybe_str({ name: "mode", help: "Choose regional or regional-keep." }),
+		{ name: "quarterly-report", version: "unversioned", authors: [], description: "Generate a quarterly financial report.", text_style: Plain },
+	),
+)

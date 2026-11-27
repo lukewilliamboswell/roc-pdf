@@ -1,3 +1,4 @@
+import KernelDrawingGroups
 import KernelAssociatedFiles
 import KernelWidgetFields
 import Color
@@ -111,6 +112,37 @@ SourceBlockProps := {
 	text : Str,
 	wrap : [RejectLongToken, Wrap] ?? Wrap,
 }.{}
+
+## Source preparation separates raw input per block from retained document
+## output, logical line, and foreground range totals.
+SourceBudgets := {
+	max_input_bytes : U64 ?? 1000000,
+	max_output_bytes : U64 ?? 1000000,
+	max_lines : U64 ?? 1000000,
+	max_foregrounds : U64 ?? 100000,
+}.{
+	default : SourceBudgets
+	default = SourceBudgets.{}
+}
+
+## Preparation budgets for page furniture and drawing labels. Attached text
+## sources count toward the same Unicode store as semantic body text.
+ArtifactTextBudgets := {
+	max_furniture_items : U64 ?? 4096,
+	max_furniture_pieces : U64 ?? 1000000,
+	max_drawing_labels : U64 ?? 100000,
+	max_page_label_bytes : U64 ?? 4096,
+	max_source_inputs : U64 ?? 1000000,
+	max_source_hash_probes : U64 ?? 4000000,
+	max_source_table_slots : U64 ?? 2097152,
+	max_source_script_runs : U64 ?? 2048,
+	max_text_units : U64 ?? 1000000,
+	max_attached_sources : U64 ?? 1000000,
+	max_attached_source_units : U64 ?? 16000000,
+}.{
+	default : ArtifactTextBudgets
+	default = ArtifactTextBudgets.{}
+}
 
 ## One canonical source, its explicit logical lines, and local presentation.
 ## Invalid whitespace is carried as a typed fact for located preparation
@@ -340,7 +372,20 @@ IndexProps := {
 	page_width : Layout.Unit ?? 36,
 }
 
-IndexError : [Empty, Budget, DuplicateTerm(U64), EmptyTerm(U64), NoTargets(U64), InvalidTarget({ entry : U64, target : U64 }), DuplicateTarget({ entry : U64, target : U64 }), InvalidWidth]
+IndexError : [
+	Empty,
+	CapacityOverflow,
+	EntryLimit({ attempted : U64, limit : U64 }),
+	LocationLimit({ attempted : U64, limit : U64 }),
+	TargetLimit({ attempted : U64, entry : U64, limit : U64 }),
+	TermByteLimit({ attempted : U64, entry : U64, limit : U64 }),
+	DuplicateTerm(U64),
+	EmptyTerm(U64),
+	NoTargets(U64),
+	InvalidTarget({ entry : U64, target : U64 }),
+	DuplicateTarget({ entry : U64, target : U64 }),
+	InvalidWidth,
+]
 
 GeneratedContentsError : [
 	BlockScanLimit({ limit : U64 }),
@@ -493,7 +538,7 @@ FlowDrawing : { commands : List(FlowCommand), height : U64, images : List(Image.
 ## A figure, decoration, or custom panel after normalization validation. An
 ## invalid drawing keeps its reason so semantic planning can reject it at
 ## its authored location.
-ValidatedDrawing : [InvalidDrawing(Str), ValidDrawing(FlowDrawing)]
+ValidatedDrawing : [DrawingDepthLimit(KernelDrawingGroups.DepthLimit), InvalidDrawing(Str), ValidDrawing(FlowDrawing)]
 
 ## The PDF 2.0 grouping element a container block becomes: `Part`, `Sect`,
 ## or `Div`. Grouping has no visual effect; children keep their own roles,
@@ -652,8 +697,8 @@ NormalizedFixed :: {
 	blocks_for = |ranges, placement| if (ranges.is_empty()) fixed_range(placement, 1) else list_at(ranges, placement)
 }
 
-normalize_fixed_pages : { language : Str, metadata_title : Str, pages : List(FixedPage) }, FixedLimits -> Try(NormalizedFixed, FixedError)
-normalize_fixed_pages = |fixed, limits| {
+normalize_fixed_pages : { language : Str, metadata_title : Str, pages : List(FixedPage) }, FixedLimits, U64 -> Try(NormalizedFixed, FixedError)
+normalize_fixed_pages = |fixed, limits, max_drawing_group_depth| {
 	if fixed.pages.is_empty() {
 		return Err(NoPages)
 	}
@@ -684,7 +729,7 @@ normalize_fixed_pages = |fixed, limits| {
 	var $paint_order = List.with_capacity($placements + $captions)
 	var $placement_blocks = if ($captions == 0) [] else List.with_capacity($placements)
 	var $artifacts = List.with_capacity($rectangles)
-	var $state = empty_state
+	var $state = { ..empty_state, max_drawing_group_depth }
 	var $widget_fields = []
 	var $placement_base = 0
 	$page = 0
@@ -706,7 +751,7 @@ normalize_fixed_pages = |fixed, limits| {
 								ValidDrawing(drawing) => if drawing.commands.any(is_flow_text) {
 									return Err(UnsupportedFigureLabels({ page: $page, placement: $placement }))
 								}
-								InvalidDrawing(_) => {}
+								DrawingDepthLimit(_) | InvalidDrawing(_) => {}
 							}
 							if normalized.captioned {
 								$frames = $frames.append(placement.frame)
@@ -1425,7 +1470,7 @@ DocumentBuilder :: {
 	}
 
 	finish : DocumentBuilder -> Document
-	finish = |state| Document.{ associated_files: [], authoring: Compact(state), created: Omitted, modified: Omitted, outline: [], page_labels: [], templates: NoTemplates }
+	finish = |state| Document.{ associated_files: [], authoring: Compact(state), created: Omitted, modified: Omitted, outline: [], page_labels: [], source_budgets: SourceBudgets.default, max_drawing_group_depth: KernelDrawingGroups.default_depth, templates: NoTemplates }
 }
 
 DocumentAuthoring := [
@@ -1434,7 +1479,7 @@ DocumentAuthoring := [
 	Simple({ contents : List(DocumentBlock), language : Str, metadata_title : Str }),
 ]
 
-Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : DocumentAuthoring, created : Metadata.TimestampInput, modified : Metadata.TimestampInput, outline : List(OutlineEntry), page_labels : List(PageLabelRange), templates : DocumentTemplates }.{
+Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : DocumentAuthoring, created : Metadata.TimestampInput, modified : Metadata.TimestampInput, outline : List(OutlineEntry), page_labels : List(PageLabelRange), source_budgets : SourceBudgets, max_drawing_group_depth : U64, templates : DocumentTemplates }.{
 	AssociatedFile : KernelAssociatedFiles.File
 	AttachmentRelationship : KernelAssociatedFiles.Relationship
 	AttachmentNecessity : KernelAssociatedFiles.Necessity
@@ -1493,6 +1538,8 @@ Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : D
 	SourceForeground : SourceForeground
 	SourceTabs : SourceTabs
 	SourceBlockProps : SourceBlockProps
+	SourceBudgets : SourceBudgets
+	ArtifactTextBudgets : ArtifactTextBudgets
 	NormalizedSource : NormalizedSource
 	NormalizedFigure : NormalizedFigure
 	FootnoteProps : FootnoteProps
@@ -1532,6 +1579,19 @@ Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : D
 	FlowPageReferenceProps : FlowPageReferenceProps
 	GeneratedContentsError : GeneratedContentsError
 	GeneratedContentsProps : GeneratedContentsProps
+	GeneratedContentsLimits := {
+		max_scan_blocks : U64 ?? 32768,
+		max_entries : U64 ?? 4096,
+		max_requests : U64 ?? 16,
+		max_title_overrides : U64 ?? 64,
+		max_index_entries : U64 ?? 256,
+		max_index_locations : U64 ?? 2048,
+		max_index_targets_per_term : U64 ?? 16,
+		max_index_term_bytes : U64 ?? 256,
+	}.{
+		default : GeneratedContentsLimits
+		default = GeneratedContentsLimits.{}
+	}
 	IndexProps : IndexProps
 	IndexError : IndexError
 	ContentsEntryProps : ContentsEntryProps
@@ -1676,6 +1736,8 @@ Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : D
 			modified: Omitted,
 			outline: [],
 			page_labels: [],
+			source_budgets: SourceBudgets.default,
+			max_drawing_group_depth: KernelDrawingGroups.default_depth,
 			templates: NoTemplates,
 		}
 
@@ -1690,6 +1752,8 @@ Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : D
 			modified: input_modified,
 			outline: input_outline,
 			page_labels: input_page_labels,
+			source_budgets: SourceBudgets.default,
+			max_drawing_group_depth: KernelDrawingGroups.default_depth,
 			templates,
 		}
 
@@ -1704,6 +1768,8 @@ Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : D
 			modified: Omitted,
 			outline: [],
 			page_labels: [],
+			source_budgets: SourceBudgets.default,
+			max_drawing_group_depth: KernelDrawingGroups.default_depth,
 			templates: NoTemplates,
 		}
 
@@ -1718,6 +1784,8 @@ Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : D
 		modified: document.modified,
 		outline: document.outline,
 		page_labels: document.page_labels,
+		source_budgets: document.source_budgets,
+		max_drawing_group_depth: document.max_drawing_group_depth,
 		templates: document.templates,
 	}
 
@@ -1729,6 +1797,8 @@ Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : D
 		modified: Explicit(timestamp),
 		outline: document.outline,
 		page_labels: document.page_labels,
+		source_budgets: document.source_budgets,
+		max_drawing_group_depth: document.max_drawing_group_depth,
 		templates: document.templates,
 	}
 
@@ -1743,6 +1813,8 @@ Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : D
 		modified: document.modified,
 		outline: entries,
 		page_labels: document.page_labels,
+		source_budgets: document.source_budgets,
+		max_drawing_group_depth: document.max_drawing_group_depth,
 		templates: document.templates,
 	}
 
@@ -1756,6 +1828,8 @@ Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : D
 		modified: document.modified,
 		outline: document.outline,
 		page_labels: ranges,
+		source_budgets: document.source_budgets,
+		max_drawing_group_depth: document.max_drawing_group_depth,
 		templates: document.templates,
 	}
 
@@ -1790,8 +1864,18 @@ Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : D
 		modified: document.modified,
 		outline: document.outline,
 		page_labels: document.page_labels,
+		source_budgets: document.source_budgets,
+		max_drawing_group_depth: document.max_drawing_group_depth,
 		templates: Templates({ continuation, first }),
 	}
+
+	## Supply the source budgets for this preparation and its diagnostics.
+	with_source_budgets : Document, SourceBudgets -> Document
+	with_source_budgets = |Document.(fields), source_budgets| Document.{ ..fields, source_budgets }
+
+	## Install preparation-local authoring budgets before normalization.
+	with_preparation_budgets : Document, { source_budgets : SourceBudgets, max_drawing_group_depth : U64 } -> Document
+	with_preparation_budgets = |Document.(fields), { source_budgets, max_drawing_group_depth }| Document.{ ..fields, source_budgets, max_drawing_group_depth }
 
 	## Whether the document declares page templates.
 	has_templates : Document -> Bool
@@ -1929,7 +2013,10 @@ Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : D
 	## Resolve generated entries before the ordinary normalization pass.
 	## Documents without a request keep their authored blocks unchanged.
 	resolve_generated_contents : Document -> Try(Document, GeneratedContentsError)
-	resolve_generated_contents = |document| match document.authoring {
+	resolve_generated_contents = |document| resolve_generated_contents_with(document, GeneratedContentsLimits.default)
+
+	resolve_generated_contents_with : Document, GeneratedContentsLimits -> Try(Document, GeneratedContentsError)
+	resolve_generated_contents_with = |document, limits| match document.authoring {
 		Simple(simple) => {
 			if !simple.contents.any(
 				|block| match block {
@@ -1939,8 +2026,8 @@ Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : D
 			) {
 				return Ok(document)
 			}
-			headings = collect_contents_headings(simple.contents)?
-			contents = resolve_contents_blocks(simple.contents, headings)?
+			headings = collect_contents_headings(simple.contents, limits.max_scan_blocks)?
+			contents = resolve_contents_blocks(simple.contents, headings, limits)?
 			Document.(fields) = document
 			Ok(Document.{ ..fields, authoring: Simple({ ..simple, contents }) })
 		}
@@ -2181,7 +2268,7 @@ Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : D
 			if !document.page_labels.is_empty() {
 				return Err(UnsupportedDocumentOption(PageLabels))
 			}
-			plan = normalize_fixed_pages(fixed, limits)?
+			plan = normalize_fixed_pages(fixed, limits, document.max_drawing_group_depth)?
 			Ok(Fixed(plan))
 		}
 		_ => Ok(Flow)
@@ -2196,23 +2283,26 @@ Document :: { associated_files : List(KernelAssociatedFiles.File), authoring : D
 	## Page templates normalize their regions as authored values and their
 	## lead region's blocks first, as group 0 (`LeadRegion`), so the lead
 	## precedes the body in every arena and in reading order.
-	normalize = |document| match document.templates {
-		NoTemplates => {
-			normalized = normalize_authoring(document.authoring, empty_state)
-			finish_reference_chunks({ ..normalized, outline: document.outline, page_labels: document.page_labels })
-		}
-		Templates({ continuation, first }) => {
-			lead = match first.lead {
-				NoLead => { height: NoLead, state: empty_state }
-				Lead({ contents, height }) => { height: Lead(height), state: append_lead(empty_state, contents) }
+	normalize = |document| {
+		initial = { ..empty_state, source_budgets: document.source_budgets, max_drawing_group_depth: document.max_drawing_group_depth }
+		match document.templates {
+			NoTemplates => {
+				normalized = normalize_authoring(document.authoring, initial)
+				finish_reference_chunks({ ..normalized, outline: document.outline, page_labels: document.page_labels })
 			}
-			normalized = normalize_authoring(document.authoring, lead.state)
-			templates = Templates({
-				continuation: { footer: normalize_region(continuation.footer), gap: continuation.gap, header: normalize_region(continuation.header) },
-				first: { footer: normalize_region(first.footer), gap: first.gap, header: normalize_region(first.header) },
-				lead: lead.height,
-			})
-			finish_reference_chunks({ ..normalized, outline: document.outline, page_labels: document.page_labels, templates })
+			Templates({ continuation, first }) => {
+				lead = match first.lead {
+					NoLead => { height: NoLead, state: initial }
+					Lead({ contents, height }) => { height: Lead(height), state: append_lead(initial, contents) }
+				}
+				normalized = normalize_authoring(document.authoring, lead.state)
+				templates = Templates({
+					continuation: { footer: normalize_region(continuation.footer), gap: continuation.gap, header: normalize_region(continuation.header) },
+					first: { footer: normalize_region(first.footer), gap: first.gap, header: normalize_region(first.header) },
+					lead: lead.height,
+				})
+				finish_reference_chunks({ ..normalized, outline: document.outline, page_labels: document.page_labels, templates })
+			}
 		}
 	}
 }
@@ -2337,7 +2427,7 @@ furniture_leaf = |inline, position, inner| match inline {
 }
 
 empty_state : SimpleState
-empty_state = { contents_entries: [], footnotes: [], footnote_citations: [], page_references: [], source_bytes: 0, source_exhaustion: NoSourceExhaustion, blocks: [], cell_associations: [], cells: [], customs: [], callouts: [], decorations: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], page_scopes: [], rich_paragraphs: [], scopes: [], source_foregrounds: [], source_lines: [], sources: [], spacers: [], tables: [] }
+empty_state = { contents_entries: [], footnotes: [], footnote_citations: [], page_references: [], source_budgets: SourceBudgets.default, max_drawing_group_depth: KernelDrawingGroups.default_depth, source_bytes: 0, source_exhaustion: NoSourceExhaustion, blocks: [], cell_associations: [], cells: [], customs: [], callouts: [], decorations: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], page_scopes: [], rich_paragraphs: [], scopes: [], source_foregrounds: [], source_lines: [], sources: [], spacers: [], tables: [] }
 
 normalize_authoring : DocumentAuthoring, SimpleState -> NormalizedAuthoring
 normalize_authoring = |authoring, initial| match authoring {
@@ -2374,14 +2464,8 @@ normalize_column_flow = |spec, language, metadata_title| {
 	Ok({ authoring: finish_reference_chunks(normalized), first: spec.first, gutter: spec.gutter, kept: $kept, second: spec.second })
 }
 
-max_contents_scan : U64
-max_contents_scan = 32768
-
-max_generated_entries : U64
-max_generated_entries = 4096
-
-collect_contents_headings : List(DocumentBlock) -> Try(List(KernelContentsSelection.Heading), GeneratedContentsError)
-collect_contents_headings = |blocks| {
+collect_contents_headings : List(DocumentBlock), U64 -> Try(List(KernelContentsSelection.Heading), GeneratedContentsError)
+collect_contents_headings = |blocks, max_scan_blocks| {
 	var $pending = [{ blocks, next: 0 }]
 	var $headings = []
 	var $visits = 0
@@ -2391,8 +2475,8 @@ collect_contents_headings = |blocks| {
 		if top.next == top.blocks.len() {
 			$pending = $pending.drop_last(1)
 		} else {
-			if $visits == max_contents_scan {
-				return Err(BlockScanLimit({ limit: max_contents_scan }))
+			if $visits == max_scan_blocks {
+				return Err(BlockScanLimit({ limit: max_scan_blocks }))
 			}
 			block = list_at(top.blocks, top.next)
 			$pending = list_set($pending, last, { ..top, next: top.next + 1 })
@@ -2426,32 +2510,37 @@ heading_children = |block| match block {
 	_ => []
 }
 
-resolve_contents_blocks : List(DocumentBlock), List(KernelContentsSelection.Heading) -> Try(List(DocumentBlock), GeneratedContentsError)
-resolve_contents_blocks = |blocks, headings| {
+resolve_contents_blocks : List(DocumentBlock), List(KernelContentsSelection.Heading), Document.GeneratedContentsLimits -> Try(List(DocumentBlock), GeneratedContentsError)
+resolve_contents_blocks = |blocks, headings, limits| {
 	var $resolved = List.with_capacity(blocks.len())
 	var $entries = 0
 	var $requests = 0
-	var $locations_left = 2048
+	var $locations = 0
 	for block in blocks {
 		position = $resolved.len()
 		match block {
 			GeneratedContents(spec) => {
-				if $requests == 16 {
-					return Err(RequestLimit({ limit: 16, position }))
+				if $requests == limits.max_requests {
+					return Err(RequestLimit({ limit: limits.max_requests, position }))
 				}
 				$requests = $requests + 1
 				props = Box.unbox(spec)
-				{ entries, .. } = KernelContentsSelection.select(headings, { depth: props.depth, overrides: props.overrides, scope: props.scope }) ? |error| Selection({ error, position })
-				if entries.len() > max_generated_entries - $entries {
-					return Err(EntryLimit({ limit: max_generated_entries, position }))
+				remaining = limits.max_entries - $entries
+				{ entries, selected, .. } = KernelContentsSelection.select_with_limits(
+					headings,
+					{ depth: props.depth, overrides: props.overrides, scope: props.scope },
+					{ max_entries: remaining, max_title_overrides: limits.max_title_overrides },
+				) ? |error| Selection({ error, position })
+				if selected > remaining {
+					return Err(EntryLimit({ limit: limits.max_entries, position }))
 				}
-				$entries = $entries + entries.len()
+				$entries = $entries + selected
 				converted = build_generated_entries(entries, props) ? |_| Indent({ position: position })
 				$resolved = $resolved.append(DocumentBlock.GeneratedEntries(converted))
 			}
 			Index(spec) => {
-				converted = build_index_entries(Box.unbox(spec), $locations_left) ? |error| InvalidIndex({ error, position: position })
-				$locations_left = $locations_left - converted.locations
+				converted = build_index_entries(Box.unbox(spec), $locations, limits) ? |error| InvalidIndex({ error, position: position })
+				$locations = converted.locations
 				$resolved = $resolved.append(DocumentBlock.IndexEntries(converted.blocks))
 			}
 			_ => {
@@ -2484,40 +2573,53 @@ build_generated_entries = |entries, props| {
 	Ok($blocks)
 }
 
-build_index_entries : IndexProps, U64 -> Try({ blocks : List(IndexBlock), locations : U64 }, IndexError)
-build_index_entries = |props, available| {
+build_index_entries : IndexProps, U64, Document.GeneratedContentsLimits -> Try({ blocks : List(IndexBlock), locations : U64 }, IndexError)
+build_index_entries = |props, preceding_locations, limits| {
 	if props.entries.is_empty() {
 		return Err(Empty)
 	}
-	if props.entries.len() > 256 {
-		return Err(Budget)
+	if props.entries.len() > limits.max_index_entries {
+		return Err(EntryLimit({ attempted: props.entries.len(), limit: limits.max_index_entries }))
 	}
 	if props.page_width <= 0 {
 		return Err(InvalidWidth)
 	}
 	var $entries = List.with_capacity(props.entries.len())
 	var $index = 0
-	var $locations = 0
+	var $locations = preceding_locations
 	for entry in props.entries {
-		if entry.term.is_empty() or entry.term.count_utf8_bytes() > 256 {
+		if entry.term.is_empty() {
 			return Err(EmptyTerm($index))
 		}
-		if entry.destinations.is_empty() {
+		term_bytes = entry.term.count_utf8_bytes()
+		if term_bytes > limits.max_index_term_bytes {
+			return Err(TermByteLimit({ attempted: term_bytes, entry: $index, limit: limits.max_index_term_bytes }))
+		}
+		target_count = entry.destinations.len()
+		if target_count == 0 {
 			return Err(NoTargets($index))
 		}
-		if entry.destinations.len() > 16 or entry.destinations.len() > available - $locations {
-			return Err(Budget)
+		if target_count > limits.max_index_targets_per_term {
+			return Err(TargetLimit({ attempted: target_count, entry: $index, limit: limits.max_index_targets_per_term }))
 		}
-		$locations = $locations + entry.destinations.len()
-		var $target = 0
-		for target in entry.destinations {
-			if target.is_empty() {
-				return Err(InvalidTarget({ entry: $index, target: $target }))
+		attempted = $locations.plus_saturated(target_count)
+		if target_count > limits.max_index_locations - $locations {
+			return Err(LocationLimit({ attempted, limit: limits.max_index_locations }))
+		}
+		$locations = attempted
+		if target_count <= 16 {
+			var $target = 0
+			for target in entry.destinations {
+				if target.is_empty() {
+					return Err(InvalidTarget({ entry: $index, target: $target }))
+				}
+				if entry.destinations.sublist({ start: 0, len: $target }).contains(target) {
+					return Err(DuplicateTarget({ entry: $index, target: $target }))
+				}
+				$target = $target + 1
 			}
-			if entry.destinations.sublist({ start: 0, len: $target }).contains(target) {
-				return Err(DuplicateTarget({ entry: $index, target: $target }))
-			}
-			$target = $target + 1
+		} else {
+			validate_large_index_targets(entry.destinations, $index)?
 		}
 		$entries = $entries.append({ entry, key: entry.term.to_utf8(), position: $index })
 		$index = $index + 1
@@ -2534,7 +2636,8 @@ build_index_entries = |props, available| {
 		if $index > 0 and list_at(sorted, $index - 1).key == term.key {
 			return Err(DuplicateTerm(term.position))
 		}
-		var $inlines = List.with_capacity(2 * term.entry.destinations.len() + 1)
+		inline_count = U64.times_try(2, term.entry.destinations.len()) ? |_| CapacityOverflow
+		var $inlines = List.with_capacity(inline_count + 1)
 		$inlines = $inlines.append(Document.plain_text(term.entry.term))
 		var $separator = ": "
 		for target in term.entry.destinations {
@@ -2548,6 +2651,43 @@ build_index_entries = |props, available| {
 		$index = $index + 1
 	}
 	Ok({ blocks: $blocks, locations: $locations })
+}
+
+validate_large_index_targets : List(Str), U64 -> Try({}, IndexError)
+validate_large_index_targets = |destinations, entry| {
+	var $keys = List.with_capacity(destinations.len())
+	var $target = 0
+	for target in destinations {
+		if target.is_empty() {
+			break
+		}
+		$keys = $keys.append({ key: target.to_utf8(), position: $target })
+		$target = $target + 1
+	}
+	# Sort only the valid prefix. The earliest repeated position in that
+	# prefix takes precedence over the first empty target.
+	sorted = $keys.sort_with(
+		|left, right| match compare_index_terms(left.key, right.key) {
+			Same => if (left.position < right.position) Before else if (left.position > right.position) After else Same
+			order => order
+		},
+	)
+	var $duplicate = $target
+	var $index = 1
+	while $index < sorted.len() {
+		candidate = list_at(sorted, $index)
+		if list_at(sorted, $index - 1).key == candidate.key {
+			$duplicate = U64.min($duplicate, candidate.position)
+		}
+		$index = $index + 1
+	}
+	if $duplicate < $target {
+		return Err(DuplicateTarget({ entry, target: $duplicate }))
+	}
+	if $target < destinations.len() {
+		return Err(InvalidTarget({ entry, target: $target }))
+	}
+	Ok({})
 }
 
 compare_index_terms : List(U8), List(U8) -> [After, Before, Same]
@@ -2765,6 +2905,8 @@ SourceExhaustion : [NoSourceExhaustion, SourceExhausted(KernelSourceText.Error)]
 SimpleState : {
 	cell_associations : List(NormalizedCellAssociation),
 	contents_entries : List(NormalizedContentsEntry),
+	source_budgets : SourceBudgets,
+	max_drawing_group_depth : U64,
 	source_bytes : U64,
 	source_exhaustion : SourceExhaustion,
 	blocks : List(NormalizedBlock),
@@ -2982,7 +3124,7 @@ open_block_group = |state, block, parent, depth, list_depth, position| match blo
 	Custom(boxed) => {
 		spec = Box.unbox(boxed)
 		index = state.customs.len()
-		custom = { group: state.groups.len(), height: spec.size.height, inset: spec.inset, name: spec.name, panel: validate_custom_panel(spec.panel), width: spec.size.width }
+		custom = { group: state.groups.len(), height: spec.size.height, inset: spec.inset, name: spec.name, panel: validate_custom_panel(spec.panel, state.max_drawing_group_depth), width: spec.size.width }
 		opened = open_group({ ..state, customs: state.customs.append(custom) }, Custom(index.to_u32_wrap()), parent, depth + 1, position)
 		{ frame: { blocks: spec.contents, depth: depth + 1, group: opened.groups.len(), items: [], list_depth, listing: False, next: 0 }, state: opened }
 	}
@@ -3027,8 +3169,9 @@ open_block_group = |state, block, parent, depth, list_depth, position| match blo
 
 open_group : SimpleState, NormalizedGroupKind, U64, U64, U64 -> SimpleState
 open_group = |state, kind, parent, depth, position| {
-	..state,
-	groups: state.groups.append({ block_end: state.blocks.len(), depth, first_block: state.blocks.len(), group_end: state.groups.len() + 1, kind, parent, position }),
+	first_block = state.blocks.len()
+	group_end = state.groups.len() + 1
+	{ ..state, groups: state.groups.append({ block_end: first_block, depth, first_block, group_end, kind, parent, position }) }
 }
 
 close_group : SimpleState, U64 -> SimpleState
@@ -3070,7 +3213,7 @@ append_leaf = |state, block, parent, position| match block {
 	}
 	Heading({ level, text }) => { ..state, blocks: state.blocks.append({ kind: Heading(level), parent, text }) }
 	Decoration(spec) => {
-		{ ..state, decorations: state.decorations.append({ behind: spec.behind, block: state.blocks.len(), drawing: space_decoration(without_decoration_labels(validate_flow_drawing(spec.drawing)), spec.above, spec.below), parent, position }) }
+		{ ..state, decorations: state.decorations.append({ behind: spec.behind, block: state.blocks.len(), drawing: space_decoration(without_decoration_labels(validate_flow_drawing(spec.drawing, state.max_drawing_group_depth)), spec.above, spec.below), parent, position }) }
 	}
 	Figure({ alternative, caption, drawing, fit }) => append_figure(state, { alternative, caption, drawing, fit }, parent, position)
 	InternalLink({ destination, text }) => { ..state, blocks: state.blocks.append({ kind: InternalLink({ destination: destination }), parent, text }) }
@@ -3098,28 +3241,22 @@ append_leaf = |state, block, parent, position| match block {
 
 ## The parser owns the canonical byte buffer once. Leaf text stays empty:
 ## all later text ranges reference this source arena, including blank lines.
+## Remaining quotas apply cumulatively across sources. A compact exhaustion
+## fact prevents parsing subsequent sources after the first budget failure.
 append_source : SimpleState, SourceBlockProps, U64, U64 -> SimpleState
-append_source = |state, spec, parent, position| append_source_limited(state, spec, parent, position, source_normalization_limits)
-
-source_normalization_limits : KernelSourceText.Limits
-source_normalization_limits = { max_input_bytes: 1000000, max_lines: 1000000, max_output_bytes: 1000000 }
-
-## Canonical bytes and line rows have aggregate document bounds. Remaining
-## capacities pass to the parser, so it rejects before retaining an oversized
-## source. A compact exhaustion fact prevents parsing subsequent sources.
-append_source_limited : SimpleState, SourceBlockProps, U64, U64, KernelSourceText.Limits -> SimpleState
-append_source_limited = |state, spec, parent, position, limits| {
+append_source = |state, spec, parent, position| {
+	limits = state.source_budgets
 	facts = match state.source_exhaustion {
 		SourceExhausted(error) => { foregrounds: [], bytes: 0, exhaustion: state.source_exhaustion, lines: [], text: "", validation: InvalidSource(error) }
 		NoSourceExhaustion => {
 			remaining = { max_input_bytes: limits.max_input_bytes, max_lines: limits.max_lines - state.source_lines.len(), max_output_bytes: limits.max_output_bytes - state.source_bytes }
-			match KernelSourceText.prepare_foregrounds(spec.text, spec.tabs, remaining, spec.foregrounds, 100000 - state.source_foregrounds.len()) {
+			match KernelSourceText.prepare_foregrounds(spec.text, spec.tabs, remaining, spec.foregrounds, limits.max_foregrounds - state.source_foregrounds.len()) {
 				Ok(value) => { foregrounds: value.foregrounds, bytes: value.work.output_bytes, exhaustion: NoSourceExhaustion, lines: value.lines, text: value.text, validation: ValidSource }
 				Err(error) => {
 					located = match error {
-						LimitExceeded({ attempted, dimension: OutputBytes, .. }) => LimitExceeded({ attempted: state.source_bytes + attempted, dimension: OutputBytes, limit: limits.max_output_bytes })
-						LimitExceeded({ attempted, dimension: Lines, .. }) => LimitExceeded({ attempted: state.source_lines.len() + attempted, dimension: Lines, limit: limits.max_lines })
-						LimitExceeded({ attempted, dimension: Foregrounds, .. }) => LimitExceeded({ attempted: state.source_foregrounds.len() + attempted, dimension: Foregrounds, limit: 100000 })
+						LimitExceeded({ attempted, dimension: OutputBytes, .. }) => LimitExceeded({ attempted: state.source_bytes.plus_saturated(attempted), dimension: OutputBytes, limit: limits.max_output_bytes })
+						LimitExceeded({ attempted, dimension: Lines, .. }) => LimitExceeded({ attempted: state.source_lines.len().plus_saturated(attempted), dimension: Lines, limit: limits.max_lines })
+						LimitExceeded({ attempted, dimension: Foregrounds, .. }) => LimitExceeded({ attempted: state.source_foregrounds.len().plus_saturated(attempted), dimension: Foregrounds, limit: limits.max_foregrounds })
 						other => other
 					}
 					exhaustion = match located {
@@ -3157,9 +3294,10 @@ append_source_limited = |state, spec, parent, position, limits| {
 ## has fixed depth, so no frame stack is needed.
 append_table : SimpleState, TableSpec, U64, U64 -> SimpleState
 append_table = |state, spec, parent, position| {
+	table_index = state.tables.len()
 	table_group = state.groups.len()
 	table_code = table_group + 1
-	var $state = open_group({ ..state, tables: state.tables.append({ body_rows: spec.body_rows.len(), caption: has_caption(spec.caption), columns: spec.columns, footer_rows: spec.footer_rows.len(), header_rows: spec.header_rows.len(), row_split: spec.row_split }) }, Table(state.tables.len().to_u32_wrap()), parent, 0, position)
+	var $state = open_group({ ..state, tables: state.tables.append({ body_rows: spec.body_rows.len(), caption: has_caption(spec.caption), columns: spec.columns, footer_rows: spec.footer_rows.len(), header_rows: spec.header_rows.len(), row_split: spec.row_split }) }, Table(table_index.to_u32_wrap()), parent, 0, position)
 	match spec.caption {
 		Caption(text) => {
 			$state = { ..$state, blocks: $state.blocks.append({ kind: Paragraph, parent: table_code, text }) }
@@ -3191,7 +3329,7 @@ append_anchored_figure = |state, spec, parent, position| {
 append_figure : SimpleState, { alternative : Str, caption : Caption, drawing : Scene.Drawing, fit : FigurePolicy }, U64, U64 -> SimpleState
 append_figure = |state, authored, parent, position| {
 	index = state.figures.len()
-	figure = { alternative: authored.alternative, captioned: has_caption(authored.caption), drawing: validate_flow_drawing(authored.drawing), fit: authored.fit }
+	figure = { alternative: authored.alternative, captioned: has_caption(authored.caption), drawing: validate_flow_drawing(authored.drawing, state.max_drawing_group_depth), fit: authored.fit }
 	figured = { ..state, figures: state.figures.append(figure) }
 	match authored.caption {
 		NoCaption => { ..figured, blocks: figured.blocks.append({ kind: Figure(index), parent, text: " " }) }
@@ -3204,14 +3342,10 @@ append_figure = |state, authored, parent, position| {
 	}
 }
 
-## Figure and decoration drawings nest at most this many groups deep.
-flow_group_depth : U64
-flow_group_depth = 8
-
 ## Validate one figure or decoration drawing: at least one command; images
 ## with a positive size and paths with a solid fill, a solid stroke of
 ## positive width, or both, each beginning with a move or a rectangle; and
-## groups nested at most `flow_group_depth` deep. Each group's translation
+## groups nested within the configured depth. Each group's translation
 ## is applied to the points and placements it contains, so the result is
 ## flat. Every command lies at or beyond the origin; the extent is the
 ## union of the commands from the origin, a stroke extending its path by
@@ -3231,7 +3365,7 @@ without_decoration_labels = |validated| match validated {
 	} else {
 		validated
 	}
-	InvalidDrawing(_) => validated
+	DrawingDepthLimit(_) | InvalidDrawing(_) => validated
 }
 
 ## A decoration's drawing with its spacing applied: the space above adds to
@@ -3242,7 +3376,7 @@ without_decoration_labels = |validated| match validated {
 ## space above, or an overlap deeper than the drawing, is invalid.
 space_decoration : ValidatedDrawing, Layout.Unit, Layout.Unit -> ValidatedDrawing
 space_decoration = |validated, above, below| match validated {
-	InvalidDrawing(_) => validated
+	DrawingDepthLimit(_) | InvalidDrawing(_) => validated
 	ValidDrawing(drawing) => {
 		up = above.raw()
 		down = below.raw()
@@ -3285,17 +3419,17 @@ lift_segments = |segments, dy| {
 
 ## An empty custom panel means no decoration. Figures and decorations still
 ## require a drawing with commands and positive extent.
-validate_custom_panel : Scene.Drawing -> ValidatedDrawing
-validate_custom_panel = |drawing| {
+validate_custom_panel : Scene.Drawing, U64 -> ValidatedDrawing
+validate_custom_panel = |drawing, max_depth| {
 	if drawing.commands().is_empty() {
 		ValidDrawing({ commands: [], height: 0, images: [], width: 0 })
 	} else {
-		validate_flow_drawing(drawing)
+		validate_flow_drawing(drawing, max_depth)
 	}
 }
 
-validate_flow_drawing : Scene.Drawing -> ValidatedDrawing
-validate_flow_drawing = |drawing| {
+validate_flow_drawing : Scene.Drawing, U64 -> ValidatedDrawing
+validate_flow_drawing = |drawing, max_depth| {
 	commands = drawing.commands()
 	if commands.is_empty() {
 		return InvalidDrawing("it has no commands")
@@ -3313,8 +3447,8 @@ validate_flow_drawing = |drawing| {
 		## Close every group that ends before this command.
 		while !$groups.is_empty() and list_at($groups, $groups.len() - 1).end <= $index {
 			closed = list_at($groups, $groups.len() - 1)
-			$dx = $dx - closed.x
-			$dy = $dy - closed.y
+			$dx = closed.x
+			$dy = closed.y
 			$groups = $groups.drop_last(1)
 		}
 		match list_at(commands, $index) {
@@ -3374,8 +3508,8 @@ validate_flow_drawing = |drawing| {
 				$converted = $converted.append(FlowPath({ fill, segments: moved, stroke }))
 			}
 			AuthorTranslate({ commands: count, offset }) => {
-				if $groups.len() >= flow_group_depth {
-					return InvalidDrawing("groups nest more than ${flow_group_depth.to_str()} deep")
+				if $groups.len() >= max_depth {
+					return DrawingDepthLimit({ attempted: $groups.len() + 1, command: $index, limit: max_depth })
 				}
 				if count > commands.len() - $index - 1 {
 					return InvalidDrawing("a group extends past the drawing's last command")
@@ -3383,10 +3517,17 @@ validate_flow_drawing = |drawing| {
 				if !within_bound(offset.x.raw()) or !within_bound(offset.y.raw()) {
 					return InvalidDrawing("a coordinate lies more than 10^9 pt from the drawing origin")
 				}
-				end = $index + 1 + count
-				$groups = $groups.append({ end, x: offset.x.raw(), y: offset.y.raw() })
-				$dx = $dx + offset.x.raw()
-				$dy = $dy + offset.y.raw()
+				dx = match KernelDrawingGroups.accumulate($dx, offset.x.raw()) {
+					Ok(value) => value
+					Err(_) => return InvalidDrawing("the accumulated group translation exceeds drawing coordinate capacity")
+				}
+				dy = match KernelDrawingGroups.accumulate($dy, offset.y.raw()) {
+					Ok(value) => value
+					Err(_) => return InvalidDrawing("the accumulated group translation exceeds drawing coordinate capacity")
+				}
+				$groups = $groups.append({ end: $index + 1 + count, x: $dx, y: $dy })
+				$dx = dx
+				$dy = dy
 			}
 			AuthorGroup(_) => return InvalidDrawing("opacity, clip, soft-mask, and transform groups are not supported; group drawings with Scene.Drawing.group")
 			AuthorText(boxed) => {
@@ -3528,7 +3669,7 @@ translate_segments = |segments, dx, dy| {
 ## Authored drawing coordinates, sizes, and accumulated group offsets stay
 ## within 10^9 pt of the origin.
 flow_coordinate_bound : I64
-flow_coordinate_bound = 1000000000000
+flow_coordinate_bound = KernelDrawingGroups.coordinate_bound
 
 within_bound : I64 -> Bool
 within_bound = |value| value <= flow_coordinate_bound and value >= 0 - flow_coordinate_bound
@@ -3672,6 +3813,8 @@ append_rich = |state, contents, parent, position| {
 		line_breaks: [],
 		page_references: [],
 		rich_paragraphs: [],
+		source_budgets: state.source_budgets,
+		max_drawing_group_depth: state.max_drawing_group_depth,
 		source_bytes: state.source_bytes,
 		source_exhaustion: state.source_exhaustion,
 		cell_associations: state.cell_associations,
@@ -4165,8 +4308,23 @@ expect {
 	black = Color.srgb8({ blue: 0, green: 0, red: 0 })
 	inner = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 10, height: 5 }), color: black })
 	drawing = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 1, height: 1 }), color: black }).group({ offset: Layout.point({ x: 20, y: 10 }), drawing: Scene.Drawing.empty.group({ offset: Layout.point({ x: 5, y: 5 }), drawing: inner }) })
-	match validate_flow_drawing(drawing) {
+	match validate_flow_drawing(drawing, KernelDrawingGroups.default_depth) {
 		ValidDrawing({ commands: [_, FlowPath({ fill: Fill(_), segments: [Rectangle(rect)], stroke: NoStroke })], height, images: [], width }) => rect.origin.x.raw() == 25000 and rect.origin.y.raw() == 15000 and width == 35000 and height == 20000
+		_ => False
+	}
+}
+
+# Configured source limits survive the intervening rich paragraph and apply
+# both per block and to the document-wide foreground arena.
+expect {
+	black = Color.srgb8({ red: 0, green: 0, blue: 0 })
+	source = Document.source_block({ text: "a", foregrounds: [{ start: 0, end: 1, color: black }] })
+	doc = Document.from_blocks({ contents: [source, Document.rich_paragraph([Document.plain_text("Middle")]), source], language: "en-AU", title: "Source budgets" })
+	bounded = Document.normalize(doc.with_source_budgets({ max_input_bytes: 1, max_foregrounds: 1 }))
+	widened = Document.normalize(doc.with_source_budgets({ max_input_bytes: 1, max_foregrounds: 2 }))
+	raw = Document.normalize(doc.with_source_budgets({ max_input_bytes: 0 }))
+	match (list_at(bounded.sources, 1).validation, list_at(widened.sources, 1).validation, list_at(raw.sources, 0).validation) {
+		(InvalidSource(LimitExceeded({ attempted: 2, dimension: Foregrounds, limit: 1 })), ValidSource, InvalidSource(LimitExceeded({ attempted: 1, dimension: InputBytes, limit: 0 }))) => bounded.source_foregrounds.len() == 1 and widened.source_foregrounds.len() == 2
 		_ => False
 	}
 }
@@ -4182,8 +4340,8 @@ expect {
 		$deep = Scene.Drawing.empty.group({ offset: Layout.point({ x: 1, y: 1 }), drawing: $deep })
 		$level = $level + 1
 	}
-	rejected = |drawing| match validate_flow_drawing(drawing) {
-		InvalidDrawing(_) => True
+	rejected = |drawing| match validate_flow_drawing(drawing, KernelDrawingGroups.default_depth) {
+		DrawingDepthLimit(_) | InvalidDrawing(_) => True
 		ValidDrawing(_) => False
 	}
 	rejected($deep) and rejected(Scene.Drawing.empty.group({ offset: Layout.point({ x: -5, y: 0 }), drawing: mark })) and rejected(Scene.Drawing.empty.group({ offset: Layout.point({ x: 1, y: 1 }), drawing: Scene.Drawing.empty })) and rejected(Scene.Drawing.empty)
@@ -4192,10 +4350,10 @@ expect {
 # Two source placements share one aggregate retained-byte budget. Expansion
 # must fit before its buffer is retained, and later sources are not parsed.
 expect {
-	limits = { max_input_bytes: 32, max_lines: 8, max_output_bytes: 8 }
-	first = append_source_limited(empty_state, { face: Face(Font.FaceId.from_index(0)), text: "12345" }, 0, 0, limits)
-	second = append_source_limited(first, { face: Face(Font.FaceId.from_index(0)), text: "\t" }, 0, 1, limits)
-	third = append_source_limited(second, { face: Face(Font.FaceId.from_index(0)), text: "\r" }, 0, 2, limits)
+	initial = { ..empty_state, source_budgets: SourceBudgets.{ max_input_bytes: 32, max_lines: 8, max_output_bytes: 8 } }
+	first = append_source(initial, { face: Face(Font.FaceId.from_index(0)), text: "12345" }, 0, 0)
+	second = append_source(first, { face: Face(Font.FaceId.from_index(0)), text: "\t" }, 0, 1)
+	third = append_source(second, { face: Face(Font.FaceId.from_index(0)), text: "\r" }, 0, 2)
 	tab = list_at(third.sources, 1)
 	after = list_at(third.sources, 2)
 	bounded = match (tab.validation, after.validation) {
@@ -4207,9 +4365,9 @@ expect {
 
 # Logical line limits also apply across source blocks, including blank rows.
 expect {
-	limits = { max_input_bytes: 32, max_lines: 3, max_output_bytes: 32 }
-	first = append_source_limited(empty_state, { face: Face(Font.FaceId.from_index(0)), text: "a\n" }, 0, 0, limits)
-	second = append_source_limited(first, { face: Face(Font.FaceId.from_index(0)), text: "b\n" }, 0, 1, limits)
+	initial = { ..empty_state, source_budgets: SourceBudgets.{ max_input_bytes: 32, max_lines: 3, max_output_bytes: 32 } }
+	first = append_source(initial, { face: Face(Font.FaceId.from_index(0)), text: "a\n" }, 0, 0)
+	second = append_source(first, { face: Face(Font.FaceId.from_index(0)), text: "b\n" }, 0, 1)
 	match list_at(second.sources, 1).validation {
 		InvalidSource(LimitExceeded({ attempted: 4, dimension: Lines, limit: 3 })) => second.source_lines.len() == 2 and second.source_bytes == 2 and list_at(second.sources, 1).text.is_empty()
 		_ => False
@@ -4225,6 +4383,62 @@ expect {
 	second = append_source(first, { face: Face(Font.FaceId.from_index(0)), text: "\r" }, 0, 1)
 	match (list_at(second.sources, 0).validation, list_at(second.sources, 1).validation) {
 		(InvalidSource(LimitExceeded({ attempted: 100001, dimension: Foregrounds, limit: 100000 })), InvalidSource(LimitExceeded({ attempted: 100001, dimension: Foregrounds, limit: 100000 }))) => second.source_bytes == 0 and second.source_lines.is_empty() and second.source_foregrounds.len() == 100000 and list_at(second.sources, 0).text.is_empty() and list_at(second.sources, 1).text.is_empty()
+		_ => False
+	}
+}
+
+expect {
+	toc = Document.generated_contents({})
+	heading = Document.destination_heading({ name: "first", level: 1, text: "First" })
+	doc = Document.from_blocks({ contents: [toc, heading, toc], language: "en-AU", title: "Table of contents" })
+	scans = match Document.resolve_generated_contents_with(doc, { max_scan_blocks: 2 }) {
+		Err(BlockScanLimit({ limit: 2 })) => True
+		_ => False
+	}
+	requests = match Document.resolve_generated_contents_with(doc, { max_requests: 1 }) {
+		Err(RequestLimit({ limit: 1, position: 2 })) => True
+		_ => False
+	}
+	entries = match Document.resolve_generated_contents_with(doc, { max_entries: 1 }) {
+		Err(EntryLimit({ limit: 1, position: 2 })) => True
+		_ => False
+	}
+	resolved = Document.resolve_generated_contents_with(doc, { max_scan_blocks: 3, max_requests: 2, max_entries: 2 })?
+	scans and requests and entries and Document.normalize(resolved).contents_entries.len() == 2
+}
+
+expect {
+	index = Document.index({ entries: [{ term: "First", destinations: ["first"] }] })
+	doc = Document.from_blocks({ contents: [index, index], language: "en-AU", title: "Index" })
+	rejected = match Document.resolve_generated_contents_with(doc, { max_index_locations: 1 }) {
+		Err(InvalidIndex({ error: LocationLimit({ attempted: 2, limit: 1 }), position: 1 })) => True
+		_ => False
+	}
+	resolved = Document.resolve_generated_contents_with(doc, { max_index_locations: 2 })?
+	rejected and Document.normalize(resolved).reference_paragraphs.len() == 2
+}
+
+expect {
+	index = Document.index({ entries: [{ term: "First", destinations: ["first"] }, { term: "Second", destinations: ["second"] }] })
+	doc = Document.from_blocks({ contents: [index], language: "en-AU", title: "Index" })
+	entries = match Document.resolve_generated_contents_with(doc, { max_index_entries: 1 }) {
+		Err(InvalidIndex({ error: EntryLimit({ attempted: 2, limit: 1 }), position: 0 })) => True
+		_ => False
+	}
+	bytes = match Document.resolve_generated_contents_with(doc, { max_index_term_bytes: 5 }) {
+		Err(InvalidIndex({ error: TermByteLimit({ attempted: 6, entry: 1, limit: 5 }), position: 0 })) => True
+		_ => False
+	}
+	resolved = Document.resolve_generated_contents_with(doc, { max_index_entries: 2, max_index_term_bytes: 6 })?
+	entries and bytes and Document.normalize(resolved).reference_paragraphs.len() == 2
+}
+
+expect {
+	trailing = List.repeat("other", 17)
+	duplicate_first = validate_large_index_targets(["z", "a", "z", "a", ""].concat(trailing), 2)
+	empty_first = validate_large_index_targets(["z", "a", "", "z"].concat(trailing), 2)
+	match (duplicate_first, empty_first) {
+		(Err(DuplicateTarget({ entry: 2, target: 2 })), Err(InvalidTarget({ entry: 2, target: 2 }))) => True
 		_ => False
 	}
 }

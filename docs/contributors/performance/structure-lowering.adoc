@@ -26,5 +26,3 @@ verifies `/Kids`, `/Parent` and `/Count` and rejects cycles,
 unreachable nodes, mixed child types and fanout violations. The
 4,096-page case pins object, value and edge work, exact output and
 allocations in `tests/spec.json`.
-
-See https://github.com/lukewilliamboswell/roc-pdf/blob/a6d1bde3028d51955b96af3ba1a183855a92cd2d/docs/contributors/performance/structure-lowering.md[the archived design and measurements].

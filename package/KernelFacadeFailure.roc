@@ -147,6 +147,7 @@ kernel_facade_furniture_error = |error| match error {
 	BodyEmpty => leaf({ category: Invariant, feature: "body_empty", path: "BodyEmpty", inspected: Str.inspect(error) })
 	BodySpace(_) => leaf({ category: Invariant, feature: "body_space", path: "BodySpace", inspected: Str.inspect(error) })
 	DrawingInvalid(_) => leaf({ category: Invariant, feature: "drawing_invalid", path: "DrawingInvalid", inspected: Str.inspect(error) })
+	DrawingGroupDepth(_) => leaf({ category: Budget, feature: "drawing_group_depth", path: "DrawingGroupDepth", inspected: Str.inspect(error) })
 	FieldOverflow(_) => leaf({ category: Invariant, feature: "field_overflow", path: "FieldOverflow", inspected: Str.inspect(error) })
 	FurnitureInline(_) => leaf({ category: Invariant, feature: "furniture_inline", path: "FurnitureInline", inspected: Str.inspect(error) })
 	GapNegative(_) => leaf({ category: Invariant, feature: "gap_negative", path: "GapNegative", inspected: Str.inspect(error) })
@@ -247,6 +248,7 @@ kernel_facade_scenes_error : KernelFacadeScenes.Error -> KernelFacadeFailure.Fai
 kernel_facade_scenes_error = |error| match error {
 	ArithmeticOverflow => leaf({ category: Invariant, feature: "arithmetic_overflow", path: "ArithmeticOverflow", inspected: Str.inspect(error) })
 	Color(cause) => context({ feature: "color", path: "Color", cause: kernel_color_error(cause) })
+	ImageIdentity(WorkLimit(_)) => leaf({ category: Budget, feature: "image_identity_work_limit", path: "ImageIdentity.WorkLimit", inspected: Str.inspect(error) })
 	InvalidPage(_) => leaf({ category: Invariant, feature: "invalid_page", path: "InvalidPage", inspected: Str.inspect(error) })
 	InvalidPageSize => leaf({ category: Invariant, feature: "invalid_page_size", path: "InvalidPageSize", inspected: Str.inspect(error) })
 	InvalidPlacement(_) => leaf({ category: Invariant, feature: "invalid_placement", path: "InvalidPlacement", inspected: Str.inspect(error) })
@@ -280,8 +282,11 @@ kernel_facade_semantics_error = |error| match error {
 	BibliographyEmpty(_) => leaf({ category: Invariant, feature: "bibliography_empty", path: "BibliographyEmpty", inspected: Str.inspect(error) })
 	BibliographyEntry(_) => leaf({ category: Invariant, feature: "bibliography_entry", path: "BibliographyEntry", inspected: Str.inspect(error) })
 	BibliographyCitation(_) => leaf({ category: Invariant, feature: "bibliography_citation", path: "BibliographyCitation", inspected: Str.inspect(error) })
+	BibliographyEntryLimit(_) => leaf({ category: Budget, feature: "bibliography_target_limit", path: "BibliographyEntryLimit", inspected: Str.inspect(error) })
+	BibliographyCitationLimit(_) => leaf({ category: Budget, feature: "bibliography_target_limit", path: "BibliographyCitationLimit", inspected: Str.inspect(error) })
 	EmptyContainer(_) => leaf({ category: Invariant, feature: "empty_container", path: "EmptyContainer", inspected: Str.inspect(error) })
 	DecorationDrawing(_) => leaf({ category: Invariant, feature: "decoration_drawing", path: "DecorationDrawing", inspected: Str.inspect(error) })
+	DrawingGroupDepth(_) => leaf({ category: Budget, feature: "drawing_group_depth", path: "DrawingGroupDepth", inspected: Str.inspect(error) })
 	DecorationPosition(_) => leaf({ category: Invariant, feature: "decoration_position", path: "DecorationPosition", inspected: Str.inspect(error) })
 	EmptyInline(_) => leaf({ category: Invariant, feature: "empty_inline", path: "EmptyInline", inspected: Str.inspect(error) })
 	EmptyKeep(_) => leaf({ category: Invariant, feature: "empty_keep", path: "EmptyKeep", inspected: Str.inspect(error) })
@@ -317,6 +322,8 @@ kernel_facade_semantics_error = |error| match error {
 	Source(cause) => context({ feature: "source", path: "Source", cause: kernel_facade_sources_error(cause) })
 	TableCellEmpty(_) => leaf({ category: Invariant, feature: "table_cell_empty", path: "TableCellEmpty", inspected: Str.inspect(error) })
 	TableCellKey(_) => leaf({ category: Invariant, feature: "table_cell_key", path: "TableCellKey", inspected: Str.inspect(error) })
+	TableCellKeyLimit(_) => leaf({ category: Budget, feature: "table_cell_key_limit", path: "TableCellKeyLimit", inspected: Str.inspect(error) })
+	TableHeaderTargetLimit(_) => leaf({ category: Budget, feature: "table_header_target_limit", path: "TableHeaderTargetLimit", inspected: Str.inspect(error) })
 	TableHeaderTargets(_) => leaf({ category: Invariant, feature: "table_header_targets", path: "TableHeaderTargets", inspected: Str.inspect(error) })
 	TableEmpty(_) => leaf({ category: Invariant, feature: "table_empty", path: "TableEmpty", inspected: Str.inspect(error) })
 	TableGridMismatch(_) => leaf({ category: Invariant, feature: "table_grid_mismatch", path: "TableGridMismatch", inspected: Str.inspect(error) })
@@ -416,7 +423,7 @@ document_navigation_error = |error| match error {
 	UriInvalidByte(_) => leaf({ category: Invariant, feature: "uri_invalid_byte", path: "UriInvalidByte", inspected: Str.inspect(error) })
 	UriInvalidPercentEncoding(_) => leaf({ category: Invariant, feature: "uri_invalid_percent_encoding", path: "UriInvalidPercentEncoding", inspected: Str.inspect(error) })
 	UriMissingScheme(_) => leaf({ category: Invariant, feature: "uri_missing_scheme", path: "UriMissingScheme", inspected: Str.inspect(error) })
-	UriTooLong(_) => leaf({ category: Invariant, feature: "uri_too_long", path: "UriTooLong", inspected: Str.inspect(error) })
+	UriTooLong(_) => leaf({ category: Budget, feature: "uri_too_long", path: "UriTooLong", inspected: Str.inspect(error) })
 }
 
 kernel_text_semantics_error : KernelTextSemantics.Error -> KernelFacadeFailure.Failure

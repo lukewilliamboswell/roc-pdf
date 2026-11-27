@@ -27,6 +27,7 @@ KernelWidgetObjects :: [].{
 		text_objects : EditableFontPlan,
 		checkbox_objects : CheckboxPlan,
 		slots : List(Slot),
+		text_capacity : TextCapacity,
 		xref : KernelObject.ObjectId,
 	}
 
@@ -39,7 +40,7 @@ KernelWidgetObjects :: [].{
 		NoPreparedWidgets => Ok(NoWidgetPlan)
 		WithPreparedWidgets(prepared) => {
 			fields = KernelWidgetFields.Plan.fields(prepared)
-			if fields.is_empty() or previous_objects > U64.highest - 11 - 3 * fields.len() {
+			if fields.is_empty() or previous_objects > U64.highest - 11 or fields.len() > (U64.highest - 11 - previous_objects) // 3 {
 				return Err(InvalidPlan)
 			}
 			{ text_objects, first_widget_resource } = match KernelWidgetFields.Plan.font(prepared) {
@@ -65,24 +66,35 @@ KernelWidgetObjects :: [].{
 				{ checkbox_objects: NoCheckboxObjects, first_widget: first_widget_resource }
 			}
 			var $next = first_widget
+			# The catalog writes its DA into the fresh store alongside the
+			# document language and output intent. Count the DA lowered later.
+			var $text_count = match text_objects {
+				NoTextObjects => 0
+				WithTextObjects(_) => 1
+			}
+			var $text_bytes = $text_count * default_appearance.count_utf8_bytes()
 			var $slots = List.with_capacity(fields.len())
 			for field in fields {
 				slot = match field.value {
-					Text(_) => {
+					Text(value) => {
 						appearance = object_id($next)?
 						widget = object_id($next + 2)?
-						{ plan: { appearance: TextAppearance(appearance), field, widget }, next: $next + 3 }
+						{ plan: { appearance: TextAppearance(appearance), field, widget }, next: $next + 3, text_count: 3, value_bytes: value.count_utf8_bytes() }
 					}
 					Checkbox(_) => {
 						widget = object_id($next)?
-						{ plan: { appearance: CheckboxAppearance, field, widget }, next: $next + 1 }
+						{ plan: { appearance: CheckboxAppearance, field, widget }, next: $next + 1, text_count: 2, value_bytes: 0 }
 					}
 				}
+				$text_count = $text_count + slot.text_count
+				$text_bytes = add_text_bytes($text_bytes, slot.value_bytes)?
+				$text_bytes = add_text_bytes($text_bytes, field.id.count_utf8_bytes())?
+				$text_bytes = add_text_bytes($text_bytes, field.label.count_utf8_bytes())?
 				$slots = $slots.append(slot.plan)
 				$next = slot.next
 			}
 			xref = object_id($next)?
-			Ok(WithWidgetPlan({ checkbox_objects, text_objects, slots: $slots, xref }))
+			Ok(WithWidgetPlan({ checkbox_objects, text_objects, slots: $slots, text_capacity: { count: $text_count, bytes: $text_bytes }, xref }))
 		}
 	}
 
@@ -109,7 +121,8 @@ KernelWidgetObjects :: [].{
 	}
 
 	lower : KernelObject.Builder, Plan, { catalog : KernelObject.ObjectId, content_streams : U64, pages : List(KernelObject.ObjectId) } -> Try({ builder : KernelObject.Builder, evidence : Evidence }, Error)
-	lower = |builder, prepared, context| {
+	lower = |input, prepared, context| {
+		builder = allow_widget_text(input, prepared.text_capacity)?
 		{ text_values, after_text } = match prepared.text_objects {
 			NoTextObjects => { text_values: NoTextValues, after_text: builder }
 			WithTextObjects(font) => {
@@ -152,6 +165,28 @@ KernelWidgetObjects :: [].{
 		NoWidgetEvidence => False
 		WidgetEvidence({ widget_values, .. }) => has_sorted(widget_values, position)
 	}
+}
+
+TextCapacity : { bytes : U64, count : U64 }
+
+add_text_bytes : U64, U64 -> Try(U64, KernelWidgetObjects.Error)
+add_text_bytes = |current, added| U64.plus_try(current, added).map_err(|_| Object(Overflow(TextStringBytes)))
+
+## The shared builder has already enforced ordinary document text limits.
+## Reserve room for the admitted IDs, labels, initial values, and shared DA.
+allow_widget_text : KernelObject.Builder, TextCapacity -> Try(KernelObject.Builder, KernelWidgetObjects.Error)
+allow_widget_text = |builder, capacity| {
+	{ limits, store, total_text_string_bytes, .. } = builder
+	count = U64.plus_try(store.text_strings.len(), capacity.count) ? |_| Object(Overflow(TextStrings))
+	bytes = add_text_bytes(total_text_string_bytes, capacity.bytes)?
+	Ok({
+		..builder,
+		limits: {
+			..limits,
+			max_text_strings: U64.max(limits.max_text_strings, count),
+			max_text_string_bytes: U64.max(limits.max_text_string_bytes, bytes),
+		},
+	})
 }
 
 default_appearance : Str

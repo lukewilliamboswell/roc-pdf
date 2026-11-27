@@ -153,7 +153,8 @@ KernelFacadePages :: [].{
 
 	## The flow drawings' layout facts: each figure's uniform scale in
 	## thousandths (1000 unless `ScaleToFit` reduced it), every placed
-	## decoration in document order, and every placed custom block panel.
+	## decoration in document order, and one panel placement per custom block
+	## at its authored custom index.
 	FlowPaints : { decorations : List(DecorationPaint), figure_scales : List(U64), panels : List(PanelPaint) }
 
 	## One placed custom block: its index in the normalized customs, its
@@ -2352,7 +2353,7 @@ scope_frame_bounds = |flow, body_height, block| {
 valid_drawing : Document.ValidatedDrawing, U64 -> Try(Document.FlowDrawing, KernelFacadePages.Error)
 valid_drawing = |drawing, block| match drawing {
 	ValidDrawing(value) => Ok(value)
-	InvalidDrawing(_) => Err(InvalidBlock({ block: block }))
+	DrawingDepthLimit(_) | InvalidDrawing(_) => Err(InvalidBlock({ block: block }))
 }
 
 ## The decoration band above leaf `block`.

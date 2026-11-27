@@ -54,5 +54,3 @@ mask chains, marked-content ownership, and malformed mutations.
 rasters against geometry and compositing models. The
 `soft-masks-v1` cases in `tests/spec.json` measure retained versus unique
 input and scaled reuse. Work counts commands and direct edges.
-
-See https://github.com/lukewilliamboswell/roc-pdf/blob/a6d1bde3028d51955b96af3ba1a183855a92cd2d/docs/contributors/performance/soft-masks.md[the archived design and measurements].

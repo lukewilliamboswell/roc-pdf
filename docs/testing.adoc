@@ -18,6 +18,25 @@ replays seeds and runs a short bounded search. Use the
 xref:contributor-reference.adoc#contributor-testing[repository testing reference]
 for test selection, fixture layout, validators and toolchain-baseline review.
 
+[#validate-a-capability-change]
+== Validate a capability change
+
+Exercise the supported subset through its owning entry point. For a public
+capability, run a representative document through the public facade. For an
+advanced integration boundary, use a separately authored consumer.
+Keep validation and lowering grounded in typed facts from the preceding stage.
+
+Check successful output and stable, located rejection before any bytes escape.
+Compare deterministic bytes and inspect the decoded structure, resources and
+declared profiles against the authored input. State the supported limits and
+author obligations in the owning chapter. Record independent reader and
+assistive-technology observations when reviewed.
+
+Before changing a representation, review worst-case work, ownership and
+retention, including shared inputs and error paths. Keep exact allocation and
+work evidence under the pinned backend and use small/large scale pairs for
+scalable behavior. See the xref:testing.adoc#review-fixture-changes[fixture review procedure].
+
 [#designing-correctness-oracles]
 == Designing correctness oracles
 

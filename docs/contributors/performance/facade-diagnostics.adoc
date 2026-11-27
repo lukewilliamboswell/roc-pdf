@@ -81,12 +81,5 @@ The public facade contract in
 https://github.com/lukewilliamboswell/roc-pdf/blob/main/tests/contracts/pdf_facade.roc[tests/contracts/pdf_facade.roc] retains
 the malformed packed-image regression.
 
-The earlier diagnostic slice recorded four facade expects and no case baseline
-changes. That historical observation described the preceding parser-based
-implementation. The typed conversion likewise adds no success-path call or
-storage, but the current integration also changes default font programs and
-fixture typography. Its full native and cross-target allocation/work evidence
-requires separate review; success-output differences must not be attributed
-to diagnostic conversion alone. The reviewed new font-family scale evidence
-and changed fixture measurement boundaries are recorded in
-xref:contributor-layout.adoc#contributor-default-fonts[default-fonts.md].
+Diagnostic conversion runs on rejection. Review any change in successful
+output or allocation counts against the affected success path.

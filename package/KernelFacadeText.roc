@@ -47,6 +47,9 @@ KernelFacadeText :: [].{
 		} -> Limits
 		make = |limits| Limits.(limits)
 
+		max_pages : Limits -> U64
+		max_pages = |limits| limits.max_pages
+
 		max_placements : Limits -> U64
 		max_placements = |limits| limits.max_placements
 	}
@@ -334,6 +337,7 @@ materialize_requests = |at, requests, rules, flow, international, limits| {
 	var $artifact_clusters = 0
 	var $artifact_glyphs = 0
 	var $artifact_references = 0
+	var $natural_ranges = Unchecked
 	var $request_index = 0
 	while $request_index < requests.len() {
 		request = list_at(requests, $request_index)
@@ -350,11 +354,16 @@ materialize_requests = |at, requests, rules, flow, international, limits| {
 			$page_run_start = $runs.len()
 		}
 		arrangement = match international {
-			NoInternational => Natural
+			NoInternational => {
+				if request.source_runs.physical.length() > 1 and $natural_ranges == Unchecked {
+					$natural_ranges = if (ordered_natural_runs(shape)) Ordered else Unordered
+				}
+				Natural($natural_ranges == Ordered)
+			}
 			International(facts) => Mixed(resolve_placements(facts, shape, lines, request, limits)?)
 		}
 		if request.source_runs.physical.length() != 1 or match arrangement {
-			Natural => False
+			Natural(_) => False
 			Mixed(_) => True
 		} {
 			split = paint_split_logical(
@@ -535,7 +544,48 @@ PaintAccumulator : {
 ## cluster is rebased to its occurrence (a rich paragraph's occurrences begin
 ## inside their shared source), the text store's occurrence-relative
 ## contract.
-Alignment : [Mixed(List(KernelInternationalLine.Piece)), Natural]
+Alignment : [Mixed(List(KernelInternationalLine.Piece)), Natural(Bool)]
+
+valid_run_bounds : Text.Run, U64, U64, U64 -> Bool
+valid_run_bounds = |run, index, cluster_count, glyph_count|
+	run.id.index() == index and run.clusters.length() != 0 and run.glyphs.length() != 0 and range_fits(run.clusters, cluster_count) and range_fits(run.glyphs, glyph_count)
+
+## Prove that a search can skip unpainted runs without skipping any error the
+## full walk would report. A store that fails the proof takes the full walk,
+## which still diagnoses malformed runs in the requested range and order.
+## The proof visits the run store once per plan, then each line uses two
+## bounded searches and a forward walk over the runs it intersects.
+ordered_natural_runs : Text.Store -> Bool
+ordered_natural_runs = |shape| {
+	cluster_count = shape.clusters.len()
+	glyph_count = shape.glyphs.len()
+	var $index = 0
+	var $previous_end = 0
+	for run in shape.runs {
+		if !valid_run_bounds(run, $index, cluster_count, glyph_count) or run.clusters.start() < $previous_end or run.substitutions.length() != 0 or run.transformations.length() != 0 {
+			return False
+		}
+		$previous_end = run.clusters.start() + run.clusters.length()
+		$index = $index + 1
+	}
+	True
+}
+
+first_run_ending_after : List(Text.Run), U64, U64, U64 -> U64
+first_run_ending_after = |runs, start, end, cluster| {
+	var $low = start
+	var $high = end
+	while $low < $high {
+		middle = $low + ($high - $low) // 2
+		clusters = list_at(runs, middle).clusters
+		if clusters.start() + clusters.length() <= cluster {
+			$low = middle + 1
+		} else {
+			$high = middle
+		}
+	}
+	$low
+}
 
 resolve_placements : KernelFacadeShape.International, Text.Store, List(KernelLineLayout.Line), KernelFacadeText.PositionedPiece, KernelFacadeText.Limits -> Try(List(KernelInternationalLine.Piece), KernelFacadeText.Error)
 resolve_placements = |facts, shape, lines, request, limits| {
@@ -599,24 +649,31 @@ paint_split_logical = |accumulator, shape, styles, lines, origins, request, alig
 	var $source_scalar = line.source.scalars.start()
 	var $source_byte = line.source.utf8_bytes.start()
 	var $mixed = []
-	match alignment {
-		Natural => {}
+	{ start, stop } = match alignment {
+		Natural(False) => { start: physical_start, stop: physical_end }
+		Natural(True) => {
+			first_run = first_run_ending_after(shape.runs, physical_start, physical_end, line.clusters.start())
+			last_run = first_run_ending_after(shape.runs, first_run, physical_end, line_cluster_end - 1)
+			# In a gap the search may include the next run. The intersection
+			# and coverage checks below still decide whether anything paints.
+			{ start: first_run, stop: if (last_run == physical_end) physical_end else last_run + 1 }
+		}
 		Mixed(pieces) => {
 			if pieces.is_empty() {
 				return Err(InvalidLine({ line: request.line, run: physical_start }))
 			}
 			$mixed = pieces
+			{ start: list_at(pieces, 0).run.index(), stop: list_at(pieces, pieces.len() - 1).run.index() + 1 }
 		}
 	}
-	var $physical = if ($mixed.is_empty()) physical_start else list_at($mixed, 0).run.index()
-	mixed_first = $physical
-	stop = if ($mixed.is_empty()) physical_end else list_at($mixed, $mixed.len() - 1).run.index() + 1
+	var $physical = start
+	mixed_first = start
 	if $physical < physical_start or stop > physical_end {
 		return Err(InvalidLine({ line: request.line, run: physical_start }))
 	}
 	while $physical < stop {
 		run = list_at(shape.runs, $physical)
-		if run.id.index() != $physical or !range_fits(run.clusters, shape.clusters.len()) or !range_fits(run.glyphs, shape.glyphs.len()) or run.clusters.length() == 0 or run.glyphs.length() == 0 {
+		if !valid_run_bounds(run, $physical, shape.clusters.len(), shape.glyphs.len()) {
 			return Err(InvalidRun({ run: $physical }))
 		}
 		if run.substitutions.length() != 0 or run.transformations.length() != 0 {
@@ -1105,6 +1162,53 @@ test_style = { color: Srgb(Rgb({ blue: 0, green: 0, red: 0 })), leading: Layout.
 
 test_limits : KernelFacadeText.Limits
 test_limits = KernelFacadeText.Limits.make({ max_clusters: 2, max_glyph_indices: 2, max_glyphs: 2, max_pages: 1, max_placements: 2, max_runs: 2 })
+
+# The second line paints only the second run. A malformed first run still
+# rejects the whole positioned request, even though it is outside that line.
+expect {
+	first_line = list_at(test_lines, 0)
+	second_line = list_at(test_lines, 1)
+	run = list_at(test_text.runs, 0)
+	first = { ..run, clusters: first_line.clusters, glyphs: first_line.clusters, source: first_line.source }
+	second = {
+		..run,
+		clusters: second_line.clusters,
+		glyphs: second_line.clusters,
+		id: Text.RunId.from_index(1),
+		source: second_line.source,
+		unicode: OccurrenceText(Semantics.OccurrenceId.from_index(1)),
+	}
+	piece = {
+		artifact: False,
+		line: 1,
+		origin: { x: Layout.Unit.from_raw(10), y: Layout.Unit.from_raw(20) },
+		page: Semantics.PageId.from_index(0),
+		source_runs: { physical: run.clusters },
+	}
+	input : KernelFacadeText.Positioned
+	input = {
+		lines: test_lines,
+		origins: WholeSources,
+		pages: 1,
+		pieces: [piece, { ..piece, line: 0 }],
+		shape: { ..test_text, runs: [first, second] },
+		styles: [test_style, test_style],
+	}
+	flow = { decorations: [], figure_scales: [], panels: [] }
+	plan = KernelFacadeText.Plan.build_positioned(input, [], flow, test_limits)?
+	text = KernelFacadeText.Plan.text(plan)
+	bad = { ..input, shape: { ..test_text, runs: [{ ..first, id: Text.RunId.from_index(1) }, second] } }
+	rejects = match KernelFacadeText.Plan.build_positioned(bad, [], flow, test_limits) {
+		Err(InvalidRun({ run: 0 })) => True
+		_ => False
+	}
+	unsupported = { ..input, shape: { ..test_text, runs: [{ ..first, substitutions: first_line.clusters }, second] } }
+	rejects_evidence = match KernelFacadeText.Plan.build_positioned(unsupported, [], flow, test_limits) {
+		Err(UnsupportedRunEvidence({ run: 0 })) => True
+		_ => False
+	}
+	text.runs.len() == 2 and list_at(text.runs, 0).unicode == second.unicode and list_at(text.runs, 1).unicode == first.unicode and text.glyphs == [list_at(test_text.glyphs, 1), list_at(test_text.glyphs, 0)] and rejects and rejects_evidence
+}
 
 test_prepared : Text.Store -> KernelFacadeText.Prepared
 test_prepared = |shape| {

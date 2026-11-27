@@ -7,7 +7,7 @@
 structural-kernel invalid inputs are rejected at their typed construction or sealing
 boundary before an emission plan can escape. The retained caller value remains
 unchanged, and no encoder exists from which partial PDF bytes could be read.
-The focused executable twins cover the roadmap categories as follows:
+The focused rejection cases cover these structural contracts:
 
 [cols="1,1",options="header"]
 |===

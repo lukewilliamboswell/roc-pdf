@@ -353,11 +353,11 @@ KernelNavigation :: [].{
 	}
 
 	## The authored URI grammar `validate` applies to URI annotations, under
-	## the facade's standard byte bound. Authoring stages call it before
-	## layout so a malformed inline link URI can name its authored location.
-	check_uri : Str -> Try({}, Document.NavigationError)
-	check_uri = |uri| {
-		_bytes = validate_uri(uri, 0, standard_limit_values.max_uri_bytes)?
+	## the effective byte bound. Authoring stages call it before layout so
+	## a malformed inline link URI can name its authored location.
+	check_uri : Str, U64 -> Try({}, Document.NavigationError)
+	check_uri = |uri, max_uri_bytes| {
+		_bytes = validate_uri(uri, 0, max_uri_bytes)?
 		Ok({})
 	}
 

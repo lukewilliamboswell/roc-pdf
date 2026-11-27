@@ -1,3 +1,4 @@
+import KernelDrawingGroups
 import Color
 import Document
 import Font
@@ -49,6 +50,7 @@ KernelFacadeFurniture :: [].{
 
 		## A furniture drawing that is not a validated decorative drawing.
 		DrawingInvalid({ path : Str, reason : Str }),
+		DrawingGroupDepth({ path : Str, depth : KernelDrawingGroups.DepthLimit }),
 
 		## A resolved page field does not fit its reserved width or slot on
 		## `page` (one-based).
@@ -83,9 +85,12 @@ KernelFacadeFurniture :: [].{
 		UnsupportedThemeFace({ face : U64 }),
 	]
 
-	Limits :: { max_inputs : U64, max_items : U64, max_pieces : U64, shape : KernelShape.Limits, sources : KernelFacadeSources.Limits }.{
+	Limits :: { max_inputs : U64, max_items : U64, max_page_label_bytes : U64, max_pieces : U64, shape : KernelShape.Limits, sources : KernelFacadeSources.Limits }.{
 		make : { max_inputs : U64, max_items : U64, max_pieces : U64, shape : KernelShape.Limits, sources : KernelFacadeSources.Limits } -> Limits
-		make = |limits| Limits.(limits)
+		make = |{ max_inputs, max_items, max_pieces, shape, sources }| Limits.{ max_inputs, max_items, max_pieces, shape, sources, max_page_label_bytes: Document.ArtifactTextBudgets.default.max_page_label_bytes }
+
+		with_page_label_bytes : Limits, U64 -> Limits
+		with_page_label_bytes = |Limits.(fields), max_page_label_bytes| Limits.{ ..fields, max_page_label_bytes }
 	}
 
 	## Which page band a painted piece belongs to: header furniture paints
@@ -128,7 +133,10 @@ KernelFacadeFurniture :: [].{
 	## nothing else here may influence pagination.
 	Static :: { scope_flows : List(KernelFacadePages.FlowScope), scope_templates : List({ opening : U64, continuation : U64, label : Str }), template_regions : List(Semantics.IndexRange), drawings : List(Drawing), flow : KernelFacadePages.FlowTemplate, frame : FrameFacts, images : List(Image.Source), items : List(Item), labels : List(Document.PageLabelRange), regions : List(Region), style : Theme.TextStyle, texts : List(TextTemplate) }.{
 		build : Document.NormalizedAuthoring, Theme, Layout.Size -> Try(Static, Error)
-		build = |authoring, theme, page_size| build_static(authoring, theme, page_size)
+		build = |authoring, theme, page_size| build_static(authoring, theme, page_size, KernelDrawingGroups.default_depth)
+
+		build_with_drawing_depth : Document.NormalizedAuthoring, Theme, Layout.Size, U64 -> Try(Static, Error)
+		build_with_drawing_depth = build_static
 
 		flow : Static -> KernelFacadePages.FlowTemplate
 		flow = |plan| plan.flow
@@ -168,9 +176,9 @@ KernelFacadeFurniture :: [].{
 		resolve_with_labels : Static, KernelNavigation.LabelPlan, [PolicyFaces(PolicyFonts), SingleFace(KernelFont.Inspection), StyledFace({ font : KernelFont.Inspection, instance : U64, extra : Bool })], Semantics.Language, U64, Limits -> Try(Plan, Error)
 		resolve_with_labels = |static, labels, font, language, input_source_base, limits| resolve_plan(static, labels, [], font, language, input_source_base, limits)
 
-		resolve_scoped : Static, U64, List(KernelPageLayout.ScopePage), [PolicyFaces(PolicyFonts), SingleFace(KernelFont.Inspection), StyledFace({ font : KernelFont.Inspection, instance : U64, extra : Bool })], Semantics.Language, U64, Limits -> Try(Plan, Error)
-		resolve_scoped = |static, pages, scopes, font, language, input_source_base, limits| {
-			labels = KernelNavigation.LabelPlan.build(static.labels, pages, KernelNavigation.standard_limits) ? PageLabels
+		resolve_scoped : Static, U64, List(KernelPageLayout.ScopePage), [PolicyFaces(PolicyFonts), SingleFace(KernelFont.Inspection), StyledFace({ font : KernelFont.Inspection, instance : U64, extra : Bool })], Semantics.Language, U64, KernelNavigation.Limits, Limits -> Try(Plan, Error)
+		resolve_scoped = |static, pages, scopes, font, language, input_source_base, navigation_limits, limits| {
+			labels = KernelNavigation.LabelPlan.build(static.labels, pages, navigation_limits) ? PageLabels
 			resolve_plan(static, labels, scopes, font, language, input_source_base, limits)
 		}
 
@@ -256,10 +264,10 @@ Pending : { input : [Input(U64), NoText], item : U64, page : U64, region : U64, 
 ## Validate explicit page-scope context, build each template exactly once,
 ## then merge the independent validated plans into exact-capacity arenas.
 ## No growing arena is threaded through a fallible caller that extends it.
-build_static : Document.NormalizedAuthoring, Theme, Layout.Size -> Try(KernelFacadeFurniture.Static, KernelFacadeFurniture.Error)
-build_static = |authoring, theme, page_size| {
+build_static : Document.NormalizedAuthoring, Theme, Layout.Size, U64 -> Try(KernelFacadeFurniture.Static, KernelFacadeFurniture.Error)
+build_static = |authoring, theme, page_size, max_drawing_group_depth| {
 	check_scopes(authoring)?
-	base = build_static_basic(authoring, theme, page_size, { first: "templates.first", continuation: "templates.continuation" })?
+	base = build_static_basic(authoring, theme, page_size, { first: "templates.first", continuation: "templates.continuation" }, max_drawing_group_depth)?
 	if authoring.page_scopes.is_empty() {
 		return Ok(base)
 	}
@@ -284,7 +292,7 @@ build_static = |authoring, theme, page_size| {
 					}
 				} else NoLead
 				normalized = { ..authoring, page_scopes: [], templates: Templates({ first: opening, continuation, lead }) }
-				prepared = build_static_basic(normalized, theme, page_size, { first: "${scope_location(authoring.groups, scope.group)}.page_templates.opening", continuation: "${scope_location(authoring.groups, scope.group)}.page_templates.continuation" })?
+				prepared = build_static_basic(normalized, theme, page_size, { first: "${scope_location(authoring.groups, scope.group)}.page_templates.opening", continuation: "${scope_location(authoring.groups, scope.group)}.page_templates.continuation" }, max_drawing_group_depth)?
 				id = $plans.len() * 2
 				$choices = $choices.append({ opening: id, continuation: id + 1, label: scope.running_label })
 				$flows = $flows.append({ leaves, opening: prepared.flow.first, continuation: prepared.flow.continuation })
@@ -390,8 +398,8 @@ scope_location = |groups, index| {
 	$path
 }
 
-build_static_basic : Document.NormalizedAuthoring, Theme, Layout.Size, { first : Str, continuation : Str } -> Try(KernelFacadeFurniture.Static, KernelFacadeFurniture.Error)
-build_static_basic = |authoring, theme, page_size, paths| {
+build_static_basic : Document.NormalizedAuthoring, Theme, Layout.Size, { first : Str, continuation : Str }, U64 -> Try(KernelFacadeFurniture.Static, KernelFacadeFurniture.Error)
+build_static_basic = |authoring, theme, page_size, paths, max_drawing_group_depth| {
 	templates = match authoring.templates {
 		NoTemplates => { first: { header: NoRegion, footer: NoRegion, gap: Layout.Unit.from_raw(0) }, continuation: { header: NoRegion, footer: NoRegion, gap: Layout.Unit.from_raw(0) }, lead: NoLead }
 		Templates(value) => value
@@ -414,7 +422,7 @@ build_static_basic = |authoring, theme, page_size, paths| {
 	if lead_leaves >= authoring.blocks.len() {
 		return Err(BodyEmpty)
 	}
-	var $state = { drawings: [], images: [], items: [], regions: [], texts: [] }
+	var $state = { drawings: [], images: [], items: [], max_drawing_group_depth, regions: [], texts: [] }
 
 	## The first page: header, then the lead region, then the footer.
 	first_path = paths.first
@@ -477,7 +485,7 @@ build_static_basic = |authoring, theme, page_size, paths| {
 	)
 }
 
-StaticState : { drawings : List(KernelFacadeFurniture.Drawing), images : List(Image.Source), items : List(Item), regions : List(Region), texts : List(TextTemplate) }
+StaticState : { drawings : List(KernelFacadeFurniture.Drawing), images : List(Image.Source), items : List(Item), max_drawing_group_depth : U64, regions : List(Region), texts : List(TextTemplate) }
 
 ## The number of leaves in the lead region (group 0).
 lead_block_end : Document.NormalizedAuthoring -> U64
@@ -537,7 +545,7 @@ add_region = |state, region, at, style| match region {
 ## region is measured.
 add_backdrop : StaticState, Scene.Drawing, Str, { height : U64, top : U64 } -> Try(StaticState, KernelFacadeFurniture.Error)
 add_backdrop = |state, drawing, path, region| {
-	validated = validate_drawing(drawing, path, state.images.len())?
+	validated = validate_drawing(drawing, path, state.images.len(), state.max_drawing_group_depth)?
 	height = validated.drawing.height
 	if height > region.height {
 		return Err(RegionOverflow({ available: region.height, path, required: height }))
@@ -550,6 +558,7 @@ add_backdrop = |state, drawing, path, region| {
 		drawings: state.drawings.append(validated.drawing),
 		images: $images,
 		items: state.items.append({ content: DrawingContent(state.drawings.len()), height, path, slot: BackdropSlot, top: region.top + region.height - height }),
+		max_drawing_group_depth: state.max_drawing_group_depth,
 		regions: state.regions,
 		texts: state.texts,
 	})
@@ -581,7 +590,7 @@ add_slot = |state, furniture, slot, path, region, style| {
 				$stack = checked_add($stack, height)?
 			}
 			FurnitureDrawing(drawing) => {
-				validated = validate_drawing(drawing, item_path, $images.len())?
+				validated = validate_drawing(drawing, item_path, $images.len(), state.max_drawing_group_depth)?
 				$contents = $contents.append({ content: DrawingContent($drawings.len()), height: validated.drawing.height, path: item_path })
 				$drawings = $drawings.append(validated.drawing)
 				$images = List.concat($images, validated.images)
@@ -603,7 +612,7 @@ add_slot = |state, furniture, slot, path, region, style| {
 		$items = $items.append({ content: content.content, height: content.height, path: content.path, slot, top: $top })
 		$top = checked_add($top, content.height)?
 	}
-	Ok({ drawings: $drawings, images: $images, items: $items, regions: state.regions, texts: $texts })
+	Ok({ drawings: $drawings, images: $images, items: $items, max_drawing_group_depth: state.max_drawing_group_depth, regions: state.regions, texts: $texts })
 }
 
 ## A furniture line's inlines: text, page fields, and reserved widths whose
@@ -675,12 +684,12 @@ furniture_path = |path, position, inner| match inner {
 ## A decorative drawing: at least one command; images with positive size
 ## and paths with a solid fill, a solid stroke of positive width, or both,
 ## all at or beyond the drawing origin. Groups from `Scene.Drawing.group`
-## are flattened here by their offsets, at most eight deep, exactly as in
-## a flow figure, so a mark can be reused; opacity, clip, soft-mask, and
+## are flattened by their offsets within the configured depth, as in a
+## flow figure. Opacity, clip, soft-mask, and
 ## transform groups are not supported. The drawing's extent is its
 ## commands' union from the origin.
-validate_drawing : Scene.Drawing, Str, U64 -> Try({ drawing : KernelFacadeFurniture.Drawing, images : List(Image.Source) }, KernelFacadeFurniture.Error)
-validate_drawing = |drawing, path, image_base| {
+validate_drawing : Scene.Drawing, Str, U64, U64 -> Try({ drawing : KernelFacadeFurniture.Drawing, images : List(Image.Source) }, KernelFacadeFurniture.Error)
+validate_drawing = |drawing, path, image_base, max_depth| {
 	commands = drawing.commands()
 	if commands.is_empty() {
 		return Err(DrawingInvalid({ path, reason: "it has no commands" }))
@@ -695,10 +704,11 @@ validate_drawing = |drawing, path, image_base| {
 	var $index = 0
 	while $index < commands.len() {
 		# Close every group that ends before this command.
-		if !$groups.is_empty() {
-			$groups = open_groups($groups, $index)
-			$dx = stack_offset($groups, X)
-			$dy = stack_offset($groups, Y)
+		while !$groups.is_empty() and list_at($groups, $groups.len() - 1).end <= $index {
+			closed = list_at($groups, $groups.len() - 1)
+			$dx = closed.x
+			$dy = closed.y
+			$groups = $groups.drop_last(1)
 		}
 		match list_at(commands, $index) {
 			AuthorImage({ image, placement: authored }) => {
@@ -733,6 +743,9 @@ validate_drawing = |drawing, path, image_base| {
 						if width <= 0 {
 							return Err(DrawingInvalid({ path, reason: "a stroke needs a positive width" }))
 						}
+						if !within_bound(width.raw()) {
+							return Err(DrawingInvalid({ path, reason: "a coordinate lies more than 10^9 pt from the drawing origin" }))
+						}
 						Stroke({ color, width })
 					}
 				}
@@ -761,8 +774,8 @@ validate_drawing = |drawing, path, image_base| {
 				$converted = $converted.append(DrawingPath({ fill, segments, stroke }))
 			}
 			AuthorTranslate({ commands: count, offset }) => {
-				if $groups.len() >= 8 {
-					return Err(DrawingInvalid({ path, reason: "groups nest more than 8 deep" }))
+				if $groups.len() >= max_depth {
+					return Err(DrawingGroupDepth({ path, depth: { attempted: $groups.len() + 1, command: $index, limit: max_depth } }))
 				}
 				if count > commands.len() - $index - 1 {
 					return Err(DrawingInvalid({ path, reason: "a group extends past the drawing's last command" }))
@@ -770,9 +783,11 @@ validate_drawing = |drawing, path, image_base| {
 				if !within_bound(offset.x.raw()) or !within_bound(offset.y.raw()) {
 					return Err(DrawingInvalid({ path, reason: "a coordinate lies more than 10^9 pt from the drawing origin" }))
 				}
-				$groups = $groups.append({ end: $index + 1 + count, x: offset.x.raw(), y: offset.y.raw() })
-				$dx = $dx + offset.x.raw()
-				$dy = $dy + offset.y.raw()
+				dx = KernelDrawingGroups.accumulate($dx, offset.x.raw()) ? |_| DrawingInvalid({ path, reason: "the accumulated group translation exceeds drawing coordinate capacity" })
+				dy = KernelDrawingGroups.accumulate($dy, offset.y.raw()) ? |_| DrawingInvalid({ path, reason: "the accumulated group translation exceeds drawing coordinate capacity" })
+				$groups = $groups.append({ end: $index + 1 + count, x: $dx, y: $dy })
+				$dx = dx
+				$dy = dy
 			}
 			AuthorGroup(_) => return Err(DrawingInvalid({ path, reason: "opacity, clip, soft-mask, and transform groups are not supported; group drawings with Scene.Drawing.group" }))
 			AuthorText(_) => return Err(DrawingInvalid({ path, reason: "text labels are not supported in furniture drawings; use furniture text" }))
@@ -783,26 +798,6 @@ validate_drawing = |drawing, path, image_base| {
 		return Err(DrawingInvalid({ path, reason: "it has no positive extent" }))
 	}
 	Ok({ drawing: { commands: $converted, height: $height, width: $width }, images: $images })
-}
-
-## The group stack without the groups that end at or before `index`.
-open_groups : List({ end : U64, x : I64, y : I64 }), U64 -> List({ end : U64, x : I64, y : I64 })
-open_groups = |groups, index| {
-	var $open = groups.len()
-	while $open > 0 and list_at(groups, $open - 1).end <= index {
-		$open = $open - 1
-	}
-	groups.take_first($open)
-}
-
-## The accumulated offset of the open groups along one axis.
-stack_offset : List({ end : U64, x : I64, y : I64 }), [X, Y] -> I64
-stack_offset = |groups, axis| {
-	var $total = 0
-	for group in groups {
-		$total = $total + (if (axis == X) group.x else group.y)
-	}
-	$total
 }
 
 ## A furniture path moved by an accumulated group offset. Every authored
@@ -843,7 +838,7 @@ shift_point = |point, dx, dy| { x: Layout.Unit.from_raw(point.x.raw() + dx), y: 
 ## Drawing coordinates, sizes, and accumulated group offsets stay within
 ## 10^9 pt of the origin (the flow figures' bound).
 within_bound : I64 -> Bool
-within_bound = |value| value <= 1000000000000 and value >= -1000000000000
+within_bound = |value| value <= KernelDrawingGroups.coordinate_bound and value >= 0 - KernelDrawingGroups.coordinate_bound
 
 ## Why a path's extent reaches below or left of the drawing origin, and
 ## where, for its diagnostic: its own geometry (a move, line, curve end,
@@ -981,7 +976,7 @@ resolve_plan = |static, label_plan, scope_pages, selection, language, source_bas
 						DrawingContent(_) => {}
 						TextContent(text_index) => {
 							text = list_at(static.texts, text_index)
-							resolved = resolve_line(text.parts, $page + 1, page_count, label_plan, context.label)?
+							resolved = resolve_line(text.parts, $page + 1, page_count, label_plan, context.label, limits.max_page_label_bytes)?
 							$field_resolutions = checked_add($field_resolutions, resolved.fields)?
 							check_limit(checked_add($pending.len(), 1)?, limits.max_inputs, Inputs)?
 							$pending = $pending.append({ input: if (resolved.text.is_empty()) NoText else Input($inputs.len()), item: $item, page: $page, region: $region, segments: resolved.segments })
@@ -1056,7 +1051,7 @@ resolve_plan = |static, label_plan, scope_pages, selection, language, source_bas
 			region = list_at(static.regions, $region)
 			if region.template == template {
 				measured = measure_region(static, store, source_runs, input_sources, $pending, $cursor, region, $region, $page)?
-				placed = place_region(static, store, source_runs, input_sources, $pending, $cursor, region, measured, $page, $pieces, $drawing_paints)?
+				placed = place_region(static, store, source_runs, input_sources, $pending, $cursor, region, measured, $page, $pieces, $drawing_paints, limits.max_pieces)?
 				$pieces = placed.pieces
 				$drawing_paints = placed.drawing_paints
 				$cursor = placed.cursor
@@ -1065,7 +1060,6 @@ resolve_plan = |static, label_plan, scope_pages, selection, language, source_bas
 		}
 		$page = $page + 1
 	}
-	check_limit($pieces.len(), limits.max_pieces, Pieces)?
 	Ok(
 		KernelFacadeFurniture.Plan.{
 			drawing_paints: backdrops_first($drawing_paints),
@@ -1157,8 +1151,8 @@ locate_single_text_error = |static, font, sources, options, input_sources, pendi
 }
 
 ## One resolved line: its text, its segments, and how many fields resolved.
-resolve_line : List(Part), U64, U64, KernelNavigation.LabelPlan, Str -> Try({ fields : U64, segments : List(Segment), text : Str }, KernelFacadeFurniture.Error)
-resolve_line = |parts, page, pages, labels, label| {
+resolve_line : List(Part), U64, U64, KernelNavigation.LabelPlan, Str, U64 -> Try({ fields : U64, segments : List(Segment), text : Str }, KernelFacadeFurniture.Error)
+resolve_line = |parts, page, pages, labels, label, label_bytes| {
 	var $pieces = List.with_capacity(parts.len())
 	var $segments = []
 	var $bytes = 0
@@ -1187,7 +1181,7 @@ resolve_line = |parts, page, pages, labels, label| {
 			}
 			FieldPart({ field, path, style }) => {
 				value = match field {
-					LabelField => KernelPageLabels.format_allow_empty(labels, page - 1, 4096) ? |error| PageLabelText({ error, page, path })
+					LabelField => KernelPageLabels.format_allow_empty(labels, page - 1, label_bytes) ? |error| PageLabelText({ error, page, path })
 					PageField => KernelFacadeSemantics.number_text(Document.page_field_number_style(style), page)
 					TotalField => KernelFacadeSemantics.number_text(Document.page_field_number_style(style), pages)
 				}
@@ -1261,7 +1255,8 @@ measure_region = |static, store, source_runs, input_sources, pending, cursor, re
 				var $total = 0
 				var $free_field = NoField
 				for segment in entry.segments {
-					segment_width = runs_width(store, runs, segment.scalars)
+					covered_runs = overlapping_runs(store.runs, runs, segment.scalars)
+					segment_width = runs_width(store, covered_runs, segment.scalars)
 					match segment.box {
 						Free => {
 							$total = checked_add($total, segment_width)?
@@ -1375,8 +1370,8 @@ first_field = |static, pending, cursor, region, page| {
 ## Place one region's measured items on one page: drawings by their
 ## bottom-left corners, text pieces by their baselines. A reserved width's
 ## content aligns inside it.
-place_region : KernelFacadeFurniture.Static, Text.Store, List(Semantics.IndexRange), List(Semantics.TextSourceId), List(Pending), U64, Region, List(U64), U64, List(KernelFacadeFurniture.Piece), List(KernelFacadeFurniture.DrawingPaint) -> Try({ cursor : U64, drawing_paints : List(KernelFacadeFurniture.DrawingPaint), pieces : List(KernelFacadeFurniture.Piece) }, KernelFacadeFurniture.Error)
-place_region = |static, store, source_runs, input_sources, pending, cursor, region, widths, page, pieces, drawing_paints| {
+place_region : KernelFacadeFurniture.Static, Text.Store, List(Semantics.IndexRange), List(Semantics.TextSourceId), List(Pending), U64, Region, List(U64), U64, List(KernelFacadeFurniture.Piece), List(KernelFacadeFurniture.DrawingPaint), U64 -> Try({ cursor : U64, drawing_paints : List(KernelFacadeFurniture.DrawingPaint), pieces : List(KernelFacadeFurniture.Piece) }, KernelFacadeFurniture.Error)
+place_region = |static, store, source_runs, input_sources, pending, cursor, region, widths, page, pieces, drawing_paints, max_pieces| {
 	var $pieces = pieces
 	var $drawing_paints = drawing_paints
 	var $cursor = cursor
@@ -1410,7 +1405,8 @@ place_region = |static, store, source_runs, input_sources, pending, cursor, regi
 				baseline = checked_sub(top_y, size)?
 				var $pen = x
 				for segment in entry.segments {
-					segment_width = runs_width(store, runs, segment.scalars)
+					covered_runs = overlapping_runs(store.runs, runs, segment.scalars)
+					segment_width = runs_width(store, covered_runs, segment.scalars)
 					origin_x = match segment.box {
 						Free => $pen
 						Box({ align, path: _, width: reserved }) => checked_add(
@@ -1426,13 +1422,16 @@ place_region = |static, store, source_runs, input_sources, pending, cursor, regi
 					# One piece per run the segment covers, in order, each at
 					# the advance of the pieces before it.
 					var $piece_x = origin_x
-					var $run_index = runs.start()
-					while $run_index < runs.start() + runs.length() {
+					var $run_index = covered_runs.start()
+					while $run_index < covered_runs.start() + covered_runs.length() {
 						run = list_at(store.runs, $run_index)
 						match run_clusters(store, run, segment.scalars) {
 							Covered({ clusters, source }) => {
+								if $pieces.len() == max_pieces {
+									return Err(LimitExceeded({ attempted: max_pieces.plus_saturated(1), dimension: Pieces, limit: max_pieces }))
+								}
 								$pieces = $pieces.append({ band: region.band, clusters, kind, origin: point($piece_x, baseline), page, run: $run_index, source })
-								$piece_x = checked_add($piece_x, scalar_width(store, run, segment.scalars))?
+								$piece_x = checked_add($piece_x, cluster_width(store, clusters))?
 							}
 							Uncovered => {}
 						}
@@ -1492,13 +1491,46 @@ pending_runs = |source_runs, input_sources, input| match input {
 runs_of : List(Semantics.IndexRange), U64 -> Semantics.IndexRange
 runs_of = |source_runs, source| if (source_runs.is_empty()) Semantics.IndexRange.from_start_and_length({ start: source, length: 1 }) else list_at(source_runs, source)
 
-## The advance width of a scalar range across the runs of one source.
+## Furniture shapers produce contiguous, left-to-right scalar runs for each
+## source. Locate the runs touched by a segment without scanning the others.
+overlapping_runs : List(Text.Run), Semantics.IndexRange, Semantics.IndexRange -> Semantics.IndexRange
+overlapping_runs = |runs, range, scalars| {
+	if scalars.length() == 0 {
+		return span(range.start(), range.start())
+	}
+	if range.length() <= 1 {
+		return range
+	}
+	end = range.start() + range.length()
+	first = first_run_ending_after(runs, range.start(), end, scalars.start())
+	last = first_run_ending_after(runs, first, end, scalars.start() + scalars.length() - 1)
+	span(first, if (last == end) end else last + 1)
+}
+
+first_run_ending_after : List(Text.Run), U64, U64, U64 -> U64
+first_run_ending_after = |runs, start, end, scalar| {
+	var $low = start
+	var $high = end
+	while $low < $high {
+		mid = $low + ($high - $low) // 2
+		source = list_at(runs, mid).source.scalars
+		if source.start() + source.length() <= scalar {
+			$low = mid + 1
+		} else {
+			$high = mid
+		}
+	}
+	$low
+}
+
+## The advance width of a scalar segment across its overlapping runs.
 runs_width : Text.Store, Semantics.IndexRange, Semantics.IndexRange -> U64
 runs_width = |store, runs, scalars| {
 	var $total = 0
 	var $run = runs.start()
 	while $run < runs.start() + runs.length() {
-		$total = $total + scalar_width(store, list_at(store.runs, $run), scalars)
+		clusters = scalar_clusters(list_at(store.runs, $run), scalars)
+		$total = $total + cluster_width(store, clusters)
 		$run = $run + 1
 	}
 	$total
@@ -1509,33 +1541,28 @@ runs_width = |store, runs, scalars| {
 ## inside a cluster is invalid.
 run_clusters : Text.Store, Text.Run, Semantics.IndexRange -> [Covered({ clusters : Semantics.IndexRange, source : Semantics.TextRange }), Uncovered]
 run_clusters = |store, run, scalars| {
-	var $first = 0
-	var $count = 0
-	var $scalar_start = 0
-	var $scalar_end = 0
-	var $byte_start = 0
-	var $byte_end = 0
-	var $cluster = run.clusters.start()
-	while $cluster < run.clusters.start() + run.clusters.length() {
-		record = list_at(store.clusters, $cluster)
-		start = record.source.scalars.start()
-		if start >= scalars.start() and start < scalars.start() + scalars.length() {
-			if $count == 0 {
-				$first = $cluster
-				$scalar_start = start
-				$byte_start = record.source.utf8_bytes.start()
-			}
-			$count = $count + 1
-			$scalar_end = start + record.source.scalars.length()
-			$byte_end = record.source.utf8_bytes.start() + record.source.utf8_bytes.length()
-		}
-		$cluster = $cluster + 1
-	}
-	if $count == 0 {
+	clusters = scalar_clusters(run, scalars)
+	if clusters.length() == 0 {
 		Uncovered
 	} else {
-		Covered({ clusters: Semantics.IndexRange.from_start_and_length({ start: $first, length: $count }), source: { scalars: span($scalar_start, $scalar_end), utf8_bytes: span($byte_start, $byte_end) } })
+		first = list_at(store.clusters, clusters.start()).source
+		last = list_at(store.clusters, clusters.start() + clusters.length() - 1).source
+		Covered({ clusters, source: { scalars: span(first.scalars.start(), last.scalars.start() + last.scalars.length()), utf8_bytes: span(first.utf8_bytes.start(), last.utf8_bytes.start() + last.utf8_bytes.length()) } })
 	}
+}
+
+## Both supported furniture shapers validate one scalar per cluster, so a
+## run-relative scalar offset is also the matching cluster offset.
+scalar_clusters : Text.Run, Semantics.IndexRange -> Semantics.IndexRange
+scalar_clusters = |run, scalars| {
+	run_start = run.source.scalars.start()
+	start = U64.max(run_start, scalars.start())
+	end = U64.min(run_start + run.source.scalars.length(), scalars.start() + scalars.length())
+	if start >= end {
+		return span(run.clusters.start(), run.clusters.start())
+	}
+	first = run.clusters.start() + (start - run_start)
+	span(first, first + (end - start))
 }
 
 ## Shape every distinct furniture line under an ordered policy: each source
@@ -1614,22 +1641,18 @@ furniture_text_error = |error, path| match error {
 	_ => Selection(error)
 }
 
-## The advance width of a scalar range of one furniture run.
-## The convenience shaper forms one cluster of one glyph per scalar.
-scalar_width : Text.Store, Text.Run, Semantics.IndexRange -> U64
-scalar_width = |store, run, scalars| {
+## The advance width of the clusters covered by a segment in one run.
+cluster_width : Text.Store, Semantics.IndexRange -> U64
+cluster_width = |store, clusters| {
 	var $total = 0
-	var $cluster = run.clusters.start()
-	while $cluster < run.clusters.start() + run.clusters.length() {
+	var $cluster = clusters.start()
+	while $cluster < clusters.start() + clusters.length() {
 		record = list_at(store.clusters, $cluster)
-		start = record.source.scalars.start()
-		if start >= scalars.start() and start < scalars.start() + scalars.length() {
-			var $reference = record.glyphs.start()
-			while $reference < record.glyphs.start() + record.glyphs.length() {
-				glyph = list_at(store.glyphs, list_at(store.glyph_indices, $reference))
-				$total = $total + glyph.advance_x.raw().to_u64_wrap()
-				$reference = $reference + 1
-			}
+		var $reference = record.glyphs.start()
+		while $reference < record.glyphs.start() + record.glyphs.length() {
+			glyph = list_at(store.glyphs, list_at(store.glyph_indices, $reference))
+			$total = $total + glyph.advance_x.raw().to_u64_wrap()
+			$reference = $reference + 1
 		}
 		$cluster = $cluster + 1
 	}

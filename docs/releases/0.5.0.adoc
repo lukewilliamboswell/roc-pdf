@@ -1,11 +1,21 @@
-[#unreleased]
-= Unreleased
+[#release-0-5-0]
+= roc-pdf 0.5.0
+
+Install the tested package with Roc `nightly-2026-11-25-d5a4f1e`.
+Upgrade the compiler and package pins together.
+
+[source,roc]
+----
+pdf: "{package-url}",
+----
+
+Bundle SHA-256 is `{bundle-sha256}`.
 
 `AccessibleArchive` becomes the default. Supported documents now include
 PDF/A-4 and PDF/UA-2 declarations when you omit the profile, including through
 the buffered and chunked convenience functions.
 
-[#unreleased-migrate-profile-selection]
+[#release-0-5-0-migrate-profile-selection]
 == Migrate profile selection
 
 * To retain the previous static PDF/A-4 profile, set `profile: Archive`.
@@ -25,7 +35,7 @@ link:https://lukewilliamboswell.github.io/roc-pdf/manual/#authoring-output-profi
 The document builder now reports `semantics.heading_level` for destination
 headings outside levels 1–6, matching the block-based API.
 
-[#unreleased-fixed-page-documents]
+[#release-0-5-0-fixed-page-documents]
 == Fixed-page documents
 
 Place titles, headings and paragraphs into explicit frames on each sheet.
@@ -34,7 +44,7 @@ paint order. Give captioned figures their own fixed frames. Paint decorative
 rectangles before or after the semantic content. See the
 link:https://lukewilliamboswell.github.io/roc-pdf/manual/#authoring-fixed-pages[fixed-page authoring guide].
 
-[#unreleased-migrate-preparation-reports]
+[#release-0-5-0-migrate-preparation-reports]
 == Migrate preparation reports
 
 Pass `{ options: options }` to `Pdf.prepare_with_report(document, props)`
@@ -44,7 +54,22 @@ Replace `Pdf.prepare_with_report_budget(document, { options, budget })` with
 the existing defaults for both document options and report budget. See the
 link:https://lukewilliamboswell.github.io/roc-pdf/manual/#authoring-preparation-reports[preparation report guide].
 
-[#unreleased-inter-latin-shaping]
+[#release-0-5-0-preparation-budgets]
+== Preparation budgets
+
+`Pdf.Options` lets callers raise or lower preparation budgets for large or
+constrained workloads. Set `max_pages` for the page count and override other
+budgets as needed. Omitted fields inherit their defaults. Budget exhaustion
+returns a diagnostic before PDF bytes are delivered. Exceeding the drawing
+group depth now reports `document.drawing_group_depth` at the first group
+over the configured limit. See the
+link:https://lukewilliamboswell.github.io/roc-pdf/manual/#authoring-preparation-budgets[preparation budgets guide].
+
+Large documents with repeated images, nested drawings, running furniture,
+or flow-changing references use less preparation work. Stream the prepared
+PDF in chunks when sending it to a file or another sink.
+
+[#release-0-5-0-inter-latin-shaping]
 == Inter Latin shaping
 
 Opt in through `theme.latin_shaping: InterLatin` to use kerning and
@@ -53,7 +78,7 @@ packaged Inter Regular face. This can change wrapping and PDF bytes.
 Both arrow spellings preserve their original selectable text.
 See the link:https://lukewilliamboswell.github.io/roc-pdf/manual/#inter-latin-shaping[font guide].
 
-[#unreleased-mixed-script-text]
+[#release-0-5-0-mixed-script-text]
 == Mixed-script text
 
 Opt in to Hebrew, Arabic, Hindi or Thai alongside Latin text using the
@@ -62,7 +87,7 @@ dictionary supplied by your application. See the
 link:https://lukewilliamboswell.github.io/roc-pdf/manual/roc-font.html[mixed-script authoring guide]
 for supported ranges, faces and limits.
 
-[#unreleased-table-spans]
+[#release-0-5-0-table-spans]
 == Accessible table spans
 
 Use row and column spans with scope-derived or explicit header associations.
@@ -70,14 +95,14 @@ Select `SplitSpans` to let a spanning group continue across pages while
 retaining its logical cell and header references. See
 link:https://lukewilliamboswell.github.io/roc-pdf/manual/#authoring-tables[table authoring].
 
-[#unreleased-two-column-flow]
+[#release-0-5-0-two-column-flow]
 == Two-column flow
 
 Flow plain paragraphs through two explicitly sized columns. A paragraph
 that spans columns or pages keeps its authored text and logical reading order.
 See the link:https://lukewilliamboswell.github.io/roc-pdf/manual/#authoring-column-flow[two-column guide].
 
-[#unreleased-associated-files]
+[#release-0-5-0-associated-files]
 == Associated files
 
 Generate PDF/A-4f with `ArchiveWithFiles` or add PDF/UA-2 with
@@ -87,7 +112,7 @@ the document be understandable without opening the files. See the
 link:https://lukewilliamboswell.github.io/roc-pdf/manual/#authoring-associated-files[associated files guide] and the
 link:https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/invoice-with-data[runnable invoice].
 
-[#unreleased-generated-contents]
+[#release-0-5-0-generated-contents]
 == Generated contents
 
 Collect anchored headings into linked contents by scope and depth. Use
@@ -95,7 +120,7 @@ title overrides keyed by destination and display committed page labels
 after the contents lays out. See the
 link:https://lukewilliamboswell.github.io/roc-pdf/manual/#generate-contents-from-headings[manual composition guide].
 
-[#unreleased-fillable-forms]
+[#release-0-5-0-fillable-forms]
 == Fillable forms
 
 Select `AccessibleForm` to place labelled, editable single-line fields on a
@@ -104,7 +129,7 @@ ASCII. Independent checkboxes can start checked or unchecked.
 See the link:https://lukewilliamboswell.github.io/roc-pdf/manual/#authoring-fillable-fields[fillable fields guide] and
 the link:https://github.com/lukewilliamboswell/roc-pdf/tree/main/examples/service-intake[service intake example].
 
-[#unreleased-flow-changing-page-references]
+[#release-0-5-0-flow-changing-page-references]
 == Flow-changing page references
 
 Use `Pdf.flow_page_reference` to fit the exact printed page value in a rich
@@ -112,14 +137,14 @@ paragraph. Preparation resolves the heading's committed placement and
 returns a located diagnostic if the layout cycles or reaches its budget.
 See the link:https://lukewilliamboswell.github.io/roc-pdf/manual/#flow-changing-page-references[page reference guide].
 
-[#unreleased-authored-indexes]
+[#release-0-5-0-authored-indexes]
 == Authored indexes
 
 `Pdf.index` collates authored terms and prints linked page labels for their
 named destinations. The link:https://lukewilliamboswell.github.io/roc-pdf/manual/#add-an-index[manual composition guide]
 covers sorting, duplicates and label widths.
 
-[#unreleased-footnotes]
+[#release-0-5-0-footnotes]
 == Footnotes
 
 Place a named footnote marker in a rich paragraph and declare a whole note
@@ -127,7 +152,7 @@ at the end of an ordinary single-column document. The note stays on its
 first citation's page. Later citations link to the same note. See the
 link:https://lukewilliamboswell.github.io/roc-pdf/manual/#authoring-footnotes[footnote authoring guide].
 
-[#unreleased-bibliography-and-anchored-figures]
+[#release-0-5-0-bibliography-and-anchored-figures]
 == Bibliography and anchored figures
 
 Link authored citations to an explicitly ordered bibliography with return
@@ -137,7 +162,7 @@ Keep a paragraph with its captioned figure when composing a page.
 The link:https://lukewilliamboswell.github.io/roc-pdf/manual/#authoring-anchored-figures[anchored figure guide]
 explains placement and fit diagnostics.
 
-[#unreleased-compiler]
+[#release-0-5-0-compiler]
 == Compiler
 
 Use Roc `nightly-2026-11-25-d5a4f1e`.

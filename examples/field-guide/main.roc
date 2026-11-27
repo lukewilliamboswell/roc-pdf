@@ -1,11 +1,14 @@
 app [main!] {
 	pdf: "../../package/main.roc",
 	pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.28.1/7brgwR8YUqfeGrkdfF1V4GPPN7DnP7ftqub9KcrTEZtr.tar.zst",
+	weaver: "https://github.com/lukewilliamboswell/weaver/releases/download/0.11.0/7CdYzjBAJmprmnK45oTpmH6BXt76ZASN2Ck5uZQEoWsK.tar.zst",
 }
 import pf.OsStr
 import pf.Path
 import pf.Stderr
 import pf.Stdout
+import weaver.Cli
+import weaver.Param
 import pdf.Color
 import pdf.Document
 import pdf.Font
@@ -26,10 +29,15 @@ import "fonts/Literata-Italic.ttf" as italic_bytes : List(U8)
 ## custom-block seam measured by the package, page labels, and running
 ## headers and footers with the header text inset above a ruled backdrop.
 main! = |args| {
-	pocket = match args.map(OsStr.display) {
-		[] => False
-		["pocket"] => True
-		_ => {
+	pocket = match Cli.parse_or_display_message(cli, args, OsStr.to_raw) {
+		Err(Help(message)) | Err(Version(message)) => return Stdout.line!(message).map_err(|error| OutputFailed(error))
+		Err(InvalidUsage(message)) => {
+			Stderr.line!(message).map_err(|error| OutputFailed(error))?
+			return Err(Exit(2))
+		}
+		Ok(Err(NoValue)) => False
+		Ok(Ok("pocket")) => True
+		Ok(Ok(_)) => {
 			Stderr.line!("Usage: roc run main.roc [pocket]").map_err(|err| OutputFailed(err))?
 			return Err(Exit(2))
 		}
@@ -707,3 +715,10 @@ pocket_checklist = {
 		}),
 	])
 }
+
+cli = Cli.assert_valid(
+	Cli.finish(
+		Param.maybe_str({ name: "mode", help: "Choose pocket to generate the pocket edition." }),
+		{ name: "field-guide", version: "unversioned", authors: [], description: "Generate a shorebird field guide.", text_style: Plain },
+	),
+)

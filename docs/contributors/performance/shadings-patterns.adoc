@@ -69,5 +69,3 @@ sharing, and mutation rejections. `scripts/check_shading_renderers.py`
 compares generated rasters to independent geometry and color models.
 The `shadings-patterns-v1` cases in `tests/spec.json` pin scaled sharing,
 distinct recipes, geometry, limits, and malformed atomic cases.
-
-See https://github.com/lukewilliamboswell/roc-pdf/blob/a6d1bde3028d51955b96af3ba1a183855a92cd2d/docs/contributors/performance/shadings-patterns.md[the archived design and measurements].

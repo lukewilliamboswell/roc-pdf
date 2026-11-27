@@ -148,6 +148,3 @@ In a reader, find the invoice total through the table headers, use the
 report outline and caption to locate the chart, and trace the letter's
 signature and page furniture. Use the same validated PDFs that the
 automated checks inspect. Record reader and assistive-technology versions.
-
-The earlier detailed contract is retained in
-https://github.com/lukewilliamboswell/roc-pdf/blob/8afbfeb55e6e5f4e4a31cc6c397c9ff22ce19b07/docs/contributors/reference-documents.md[the source revision preceding the manual consolidation].

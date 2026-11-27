@@ -1,3 +1,7 @@
+{"name":"facade exact JPEG sharing across 1 page","schema_version":1,"case":{"SharedJpeg":{"pages":1}}}
+{"name":"facade exact JPEG sharing across 8 pages","schema_version":1,"case":{"SharedJpeg":{"pages":8}}}
+{"name":"facade exact raster sharing across 1 page","schema_version":1,"case":{"SharedRaster":{"pages":1}}}
+{"name":"facade exact raster sharing across 8 pages","schema_version":1,"case":{"SharedRaster":{"pages":8}}}
 {"name":"text-layout chunked facade atomic negative","schema_version":1,"case":{"ChunksNegative":{"context":1}}}
 {"name":"text-layout chunked facade output owned chunks","schema_version":1,"case":{"Chunks":{"compression":"Balanced","retention":"Own"}}}
 {"name":"text-layout chunked facade output owned chunks fastest compression","schema_version":1,"case":{"Chunks":{"compression":"Fastest","retention":"Own"}}}

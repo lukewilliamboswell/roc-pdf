@@ -1,11 +1,14 @@
 app [main!] {
 	pdf: "../../package/main.roc",
 	pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.28.1/7brgwR8YUqfeGrkdfF1V4GPPN7DnP7ftqub9KcrTEZtr.tar.zst",
+	weaver: "https://github.com/lukewilliamboswell/weaver/releases/download/0.11.0/7CdYzjBAJmprmnK45oTpmH6BXt76ZASN2Ck5uZQEoWsK.tar.zst",
 }
 import pf.OsStr
 import pf.Path
 import pf.Stderr
 import pf.Stdout
+import weaver.Cli
+import weaver.Param
 import pdf.Color
 import pdf.Document
 import pdf.Font
@@ -30,15 +33,20 @@ import "drying-yard.jpg" as drying_photo : List(U8)
 ## pages with its header row repeated. Continuation pages carry a running
 ## header inset above a hairline.
 main! = |args| {
-	{ inspection, heat } = match args.map(OsStr.display) {
-		[] => { inspection: Ordinary, heat: NoHeatMap }
-		["report"] => { inspection: Inspect(Pdf.ReportBudget.{}), heat: NoHeatMap }
-		["report-budget"] => { inspection: Inspect(Pdf.ReportBudget.{ max_entries: 700 }), heat: NoHeatMap }
-		["report-tiny"] => { inspection: Inspect(Pdf.ReportBudget.{ max_entries: 1 }), heat: NoHeatMap }
-		["heat-map"] => { inspection: Inspect(Pdf.ReportBudget.{}), heat: HeatMap(ScaleToFit({ minimum_percent: 65 })) }
-		["heat-exact"] => { inspection: Inspect(Pdf.ReportBudget.{}), heat: HeatMap(Exact) }
-		["heat-high-floor"] => { inspection: Inspect(Pdf.ReportBudget.{}), heat: HeatMap(ScaleToFit({ minimum_percent: 90 })) }
-		_ => {
+	{ inspection, heat } = match Cli.parse_or_display_message(cli, args, OsStr.to_raw) {
+		Err(Help(message)) | Err(Version(message)) => return Stdout.line!(message).map_err(|error| OutputFailed(error))
+		Err(InvalidUsage(message)) => {
+			Stderr.line!(message).map_err(|error| OutputFailed(error))?
+			return Err(Exit(2))
+		}
+		Ok(Err(NoValue)) => { inspection: Ordinary, heat: NoHeatMap }
+		Ok(Ok("report")) => { inspection: Inspect(Pdf.ReportBudget.{}), heat: NoHeatMap }
+		Ok(Ok("report-budget")) => { inspection: Inspect(Pdf.ReportBudget.{ max_entries: 700 }), heat: NoHeatMap }
+		Ok(Ok("report-tiny")) => { inspection: Inspect(Pdf.ReportBudget.{ max_entries: 1 }), heat: NoHeatMap }
+		Ok(Ok("heat-map")) => { inspection: Inspect(Pdf.ReportBudget.{}), heat: HeatMap(ScaleToFit({ minimum_percent: 65 })) }
+		Ok(Ok("heat-exact")) => { inspection: Inspect(Pdf.ReportBudget.{}), heat: HeatMap(Exact) }
+		Ok(Ok("heat-high-floor")) => { inspection: Inspect(Pdf.ReportBudget.{}), heat: HeatMap(ScaleToFit({ minimum_percent: 90 })) }
+		Ok(Ok(_)) => {
 			Stderr.line!("Usage: roc run main.roc [report|report-budget|report-tiny|heat-map|heat-exact|heat-high-floor]").map_err(|err| OutputFailed(err))?
 			return Err(Exit(2))
 		}
@@ -606,3 +614,10 @@ contents = [
 		supplier_table,
 	]),
 ]
+
+cli = Cli.assert_valid(
+	Cli.finish(
+		Param.maybe_str({ name: "mode", help: "Choose report, report-budget, report-tiny, heat-map, heat-exact, or heat-high-floor." }),
+		{ name: "business-report", version: "unversioned", authors: [], description: "Generate an accessible business report.", text_style: Plain },
+	),
+)

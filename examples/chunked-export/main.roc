@@ -1,6 +1,7 @@
 app [main!] {
 	pdf: "../../package/main.roc",
 	pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.28.1/7brgwR8YUqfeGrkdfF1V4GPPN7DnP7ftqub9KcrTEZtr.tar.zst",
+	weaver: "https://github.com/lukewilliamboswell/weaver/releases/download/0.11.0/7CdYzjBAJmprmnK45oTpmH6BXt76ZASN2Ck5uZQEoWsK.tar.zst",
 }
 import pf.File
 import pf.IOErr
@@ -8,6 +9,8 @@ import pf.OsStr
 import pf.Path
 import pf.Stderr
 import pf.Stdout
+import weaver.Cli
+import weaver.Param
 import pdf.Color
 import pdf.Document
 import pdf.Font
@@ -28,9 +31,14 @@ import "fonts/SourceCodePro-Bold.ttf" as bold_bytes : List(U8)
 ## repeated and a summary footer, under a running header inset above its
 ## rule.
 main! = |args| {
-	{ compression, delivery } = match args.map(OsStr.display) {
-		[] => { compression: Balanced, delivery: Chunked(ShareUnchangedResources) }
-		[compression_name, delivery_name] => {
+	{ compression, delivery } = match Cli.parse_or_display_message(cli, args, OsStr.to_raw) {
+		Err(Help(message)) | Err(Version(message)) => return Stdout.line!(message).map_err(|error| OutputFailed(error))
+		Err(InvalidUsage(message)) => {
+			Stderr.line!(message).map_err(|error| OutputFailed(error))?
+			return Err(Exit(2))
+		}
+		Ok({ compression: Err(NoValue), delivery: Err(NoValue) }) => { compression: Balanced, delivery: Chunked(ShareUnchangedResources) }
+		Ok({ compression: Ok(compression_name), delivery: Ok(delivery_name) }) => {
 			chosen_compression = match compression_name {
 				"balanced" => Balanced
 				"smallest" => Smallest
@@ -45,7 +53,7 @@ main! = |args| {
 			}
 			{ compression: chosen_compression, delivery: chosen_delivery }
 		}
-		_ => return usage!()
+		Ok(_) => return usage!()
 	}
 	fonts = register_fonts({})?
 	options : Pdf.Options
@@ -433,3 +441,13 @@ body = |shipment| [
 		readings_table,
 	]),
 ]
+
+cli = Cli.assert_valid(
+	Cli.finish(
+		{
+			compression: Param.maybe_str({ name: "compression", help: "Choose balanced, smallest, or fastest." }),
+			delivery: Param.maybe_str({ name: "delivery", help: "Choose share, own, or buffered." }),
+		}.Cli,
+		{ name: "chunked-export", version: "unversioned", authors: [], description: "Generate a cold-chain telemetry export.", text_style: Plain },
+	),
+)

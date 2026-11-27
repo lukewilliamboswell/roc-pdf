@@ -21,6 +21,4 @@ satisfy a generic file validator.
 The scale cases retain output identity, exact allocation counts and work
 counters. See xref:testing.adoc[Testing roc-pdf] for the baseline protocol and
 xref:contributor-conformance.adoc#contributor-static-pdfa4[static archival checks]
-for the supported writer policy. Implementation history and before/after
-measurements are in the
-https://github.com/lukewilliamboswell/roc-pdf/blob/8afbfeb55e6e5f4e4a31cc6c397c9ff22ce19b07/docs/contributors/performance/business-authoring-closure.md[previous evidence record].
+for the supported writer policy.

@@ -27,5 +27,3 @@ work. `scripts/check_pdf_structure.py` uses independent zlib
 decompression to check the original payload, indirect length, xref
 offset, and malformed compressed data. See also
 xref:contributor-output.adoc#contributor-output-size[encoding and compression presets].
-
-See https://github.com/lukewilliamboswell/roc-pdf/blob/a6d1bde3028d51955b96af3ba1a183855a92cd2d/docs/contributors/performance/deflate.md[the archived design and measurements].

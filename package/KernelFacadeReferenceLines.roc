@@ -66,6 +66,7 @@ build_plan = |symbolic, shape, page, theme, line_limits, widths| {
 		return Err(LimitExceeded)
 	}
 	shaped = KernelFacadeReferenceShape.Plan.view(shape)
+	scope_colors = KernelFacadeReferenceShape.Plan.scope_colors(shape)
 	sources = KernelFacadeSources.Plan.sources(symbolic.sources)
 	holds = build_holds(authoring, shaped.literals, item_limits.max_items)?
 	var $builder = KernelReferenceLayout.Builder.start(item_limits)
@@ -116,7 +117,7 @@ build_plan = |symbolic, shape, page, theme, line_limits, widths| {
 				if context.reference >= authoring.page_references.len() {
 					return Err(InvalidContext({ block: $block }))
 				}
-				style = KernelFacadeShape.leaf_style(authoring, $block, AtInline(context.inline), Body, theme)
+				style = KernelFacadeShape.leaf_style(authoring, scope_colors, $block, AtInline(context.inline), Body, theme)
 				$size = I64.max($size, style.size.raw())
 				$builder = KernelReferenceLayout.Builder.reference(
 					$builder,
@@ -316,7 +317,7 @@ build_plan = |symbolic, shape, page, theme, line_limits, widths| {
 				_ => return Err(InvalidContext({ block: $block }))
 			}
 			TextBlock({ body, level, .. }) => {
-				style = KernelFacadeShape.leaf_style(authoring, $block, NoInline, Body, theme)
+				style = KernelFacadeShape.leaf_style(authoring, scope_colors, $block, NoInline, Body, theme)
 				MeasuredText({ rows: Semantics.IndexRange.from_start_and_length({ start: body_start, length: $rows.len() - body_start }), size: style.size, leading: style.leading, owner: body, level, body_offset: Layout.Unit.from_raw(frame.body_offset.to_i64_wrap()), label: $label })
 			}
 			RichTextBlock({ occurrences, level, .. }) => {

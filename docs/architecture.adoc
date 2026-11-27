@@ -5,14 +5,13 @@
 
 This document defines the enduring architecture for a pure Roc package that
 generates PDF 2.0 documents. It describes stable boundaries, data ownership,
-invariants, conformance policy, and test architecture. Feature delivery order
-belongs in https://github.com/lukewilliamboswell/roc-pdf/blob/main/feature-roadmap.md[feature-roadmap.md].
+invariants, conformance policy, and test architecture.
 
 The package is generation-only. It does not read, edit, repair, incrementally
 update, or convert existing PDFs. Its production destination is accessible,
 self-contained business documents with tagged PDF 2.0 output and declarations
-for the selected profiles. The roadmap records the supported authoring and
-validation paths.
+for the selected profiles. The xref:authoring.adoc#authoring-authoring-with-roc-pdf[authoring guide]
+describes supported behavior and its limits.
 
 The production implementation and all of its runtime dependencies are pure
 Roc. Python checks run on generated files, and independent native PDF tools
@@ -36,9 +35,11 @@ The reference business documents exercise the public authoring APIs.
 The bounded business-authoring scope includes rich inline
 text, dependable single-column flow, ordinary tables that continue across
 pages, repeated table headers, page templates and page furniture, figures and
-captions, and navigation. The roadmap defines the reference documents, exact
-text coverage, layout policies, and release evidence. The composition
-contracts describe supported footnotes, indexes, and figure placement.
+captions, and navigation. The
+xref:contributor-reference.adoc#contributor-reference-documents[reference document contracts]
+define the fixtures, text coverage, and layout policies. The
+xref:testing.adoc#validate-a-capability-change[testing chapter] defines
+the evidence requirements for changes.
 
 Correctness comes first. Product readiness requires usable authoring,
 predictable layout, actionable diagnostics, and executable evidence on those
@@ -51,10 +52,9 @@ assistive-technology behavior evidence is recorded where reviewed but is
 optional.
 
 This document owns enduring contracts. Versioned representation and repository
-harness details live in xref:contributor-reference.adoc#contributor-implementation-contracts[implementation contracts],
-and executable evidence lives in the roadmap's linked records. Those contracts
-remain binding until explicitly revised; moving them out of this document does
-not permit unreviewed byte, allocation, or capability changes.
+harness details live in xref:contributor-reference.adoc#contributor-implementation-contracts[implementation contracts].
+The xref:contributor-conformance.adoc[conformance chapter] links executable
+evidence for the supported output profiles.
 
 == Standards basis
 
@@ -86,7 +86,6 @@ The package supports distinct, composable claims:
   `StaticPdfA4` or `PdfA4f`.
 - `WtpdfAccessibility`: the WTPDF accessibility declaration, whose file
   requirements align with PDF/UA-2.
-- `WtpdfReuse`: a separate capability with additional requirements.
 - `InteractivePdfA4`: the bounded PDF/A-4 claim for editable fixed-page forms.
 - `PdfA4f`: the document-level associated-file profile. Its accessible
   combination requires the authored document to stand on its own.
@@ -457,7 +456,7 @@ Pdf :: [].{
     ## orientation, or a custom size in whole points (3 to 14,400 pt a
     ## side). A size the theme's margins do not fit is rejected
     ## (`layout.page_margin`), never shrunk. Per-page sizes and
-    ## orientations belong to fixed-page composition (Gate 8).
+    ## orientations belong to fixed-page composition.
     PageSize := [A4, A4Landscape, Custom({ height : Layout.Unit, width : Layout.Unit }), Letter, LetterLandscape]
 
     ChunkRetention := [
@@ -482,6 +481,7 @@ Pdf :: [].{
         fonts : FontSource ?? BuiltIn,
         compression : Compression ?? Balanced,
         chunk_retention : ChunkRetention ?? ShareUnchangedResources,
+        max_pages : U64 ?? 1024,
     }.{
         default : Options
     }
@@ -577,11 +577,10 @@ and an optional caption; a decoration enters through an explicitly classified
 page artifact. Semantic or artifact classification exists before layout in
 either authoring path. PNG is not an accepted source format.
 
-The https://github.com/lukewilliamboswell/roc-pdf/blob/main/feature-roadmap.md[roadmap] and xref:authoring.adoc#authoring-authoring-with-roc-pdf[authoring guide] record
-the executable drawing and layout subsets. A representable drawing or a closed
-private graphics primitive does not establish that its public authoring path
-is executable. Unsupported compositions return stable feature diagnostics and
-emit no bytes.
+The xref:authoring.adoc#authoring-images-and-figures[figure guide]
+describes the executable drawing and layout subsets. Public support requires
+an exercised authoring path. Unsupported compositions return stable feature
+diagnostics before emission.
 
 Packaging and PDF embedding are separate boundaries. The core package ships
 only the small, audited deterministic assets required by its default facade,
@@ -677,8 +676,8 @@ constructors create their semantic structure automatically:
   alternative text. A decorative image uses a separate decoration constructor
   and becomes an artifact through the supported page-template, in-flow
   decoration (`Pdf.decoration`), or fixed-page ownership path.
-- Future common image constructors accept inspected JPEG or typed packed
-  raster planes and make color assumptions explicit in their names or inputs.
+- Typed image sources accept inspected JPEG or packed raster planes and make
+  color assumptions explicit.
 - Links retain their text, URI or internal destination, annotation ownership,
   and keyboard order.
 - Page headers, footers, numbers, backgrounds, and watermarks enter through
@@ -692,8 +691,8 @@ visible and carry the fields required by that choice.
 
 `Pdf.to_bytes` is equivalent to `Pdf.to_bytes_with(document,
 Pdf.Options.default)`. This section states the enduring production defaults.
-The roadmap records the evidence for the supported subset of the default
-profile. The defaults are:
+The xref:contributor-conformance.adoc[conformance chapter] records the
+evidence for the supported subset of the default profile. The defaults are:
 
 - PDF version 2.0 only; no legacy output.
 - `AccessibleArchive`, requiring the combined `Pdf20 + StaticPdfA4 + PdfUa2`
@@ -809,11 +808,9 @@ This boundary allows a simple layout system supplied with the package and
 independent pure Roc layout systems to target the same PDF generator. PDF
 lowering does not depend on a particular layout engine.
 
-The roadmap declares executable and stable subsets separately. A bounded
-business block must be exercised by a separately authored public consumer
-before that subset is called stable; the conceptual shape alone does not close
-the general custom-layout capability. The first such subset is
-`Pdf.custom_block`: a data-only block whose extension supplies ordinary
+An independently authored public consumer exercises the stable subset of the
+custom-layout boundary. `Pdf.custom_block` is a data-only block whose
+extension supplies ordinary
 paragraphs, its own measurement of the block, an optional decorative panel, and
 a nonnegative content inset (zero by default), with
 `Unsplittable` fragmentation; the package lays out and proves the content
@@ -915,6 +912,13 @@ notes; lists with labels and bodies; tables with a logical grid; figures and
 captions; links and structured destinations; footnotes and side content;
 tables of contents and indexes; and formulae with accessible semantics.
 
+The facade bounds authored container, inline, and list depth independently.
+The semantic tree also has a separate depth budget, counting its root and
+generated nodes. Preliminary semantics and post-layout attachment use the
+same configured tree depth. Authored normalization and semantic validation
+walk explicit frame stacks or queues, so these budgets govern document work
+without depending on the host call stack.
+
 Metadata title, visible title content, the PDF 2.0 `Title` structure element,
 and numbered headings remain distinct. Heading depth is represented as data
 rather than a union limited to six levels. PDF/UA-2 lowering emits explicit
@@ -1005,6 +1009,10 @@ layout unit, and retains each accepted cluster's source range and semantic
 owner. Unicode break opportunities remain source facts. A provider-unsafe
 legal cut needs fresh context on both sides before measurement accepts it.
 A scope-only color choice leaves shaping and line cache identity unchanged.
+A document with many presentation scopes resolves the nearest semantic
+ancestor and the inherited role colors in preorder. Descendants use dense
+indexes into those facts. Reference measurement retains the resolved colors
+across final layout passes.
 A separate font, size, or authored semantic occurrence is a shaping boundary.
 
 Generated contents collects heading destinations in authored order before
@@ -1114,7 +1122,9 @@ Fixed-width destination references are typed symbolic inline atoms before
 layout. Their reserved advance, style, language and semantic identity are
 known without inventing placeholder Unicode. Committed destination anchor
 facts resolve their exact values; final source ranges, font use, glyphs and
-fit proofs exist before the prepared boundary. Navigation and printed
+fit proofs exist before the prepared boundary. Placement projects the measured
+cluster offset within each validated literal run into its final cluster span.
+Navigation and printed
 references consume the same destination facts. Physical page numbers and
 configured page labels are distinct explicit choices. Preparation-time vector
 exporters may target public drawings, but do not become production parsers,
@@ -1143,10 +1153,14 @@ resolved advance for that atom. The equality key records page count, label
 bytes and physical targets, literal-anchor rectangles, measured advances and
 item offsets, committed row identities and origins, and committed block and
 container fragments. The pending symbolic document and literal shaping are
-immutable shared inputs. The key history keeps compact word buffers and only
-the latest candidate plan. Preparation accepts consecutive equality and
-rejects a nonconsecutive repetition or exhaustion before publishing any plan.
-The final pass owns the geometry consumed by link and structure lowering.
+immutable shared inputs. Each pass shapes its resolved labels and reuses
+literal glyph and cluster facts after checking source ranges, style, and font
+identity. The key history keeps compact word buffers and only the latest
+candidate plan. Independent caller budgets bound passes, state
+capacity in words per pass, and accumulated layout work. The state key
+capacity is checked before allocation. Preparation accepts consecutive equality
+and rejects a nonconsecutive repetition or exhaustion before publishing any
+plan. The final pass owns the geometry consumed by link and structure lowering.
 
 A whole footnote uses a document-local identity, a visible citation, and a
 visible note label. Normalization preserves each citation and declaration.
@@ -1332,6 +1346,12 @@ includes the authored separator. This retains exact label source/shaping ranges
 and emits the logical separator once even when a label uses multiple faces.
 The interval evidence is boxed so ordinary run storage does not widen.
 
+Wrapping a whole drawing retains the outer translations as a flat list.
+Reading its commands projects the translation spans and the underlying
+commands in one pass. Before planning paint, an explicit stack resolves the
+translations and restores the previous offset when a group closes. Figures,
+decorations, custom panels and page furniture share the depth budget.
+
 Page furniture has an explicit resolved text style, inherited from body text
 by default or independently selected by the theme. Its size and face govern
 shaping and reserved-field measurement; its leading governs slot stacking.
@@ -1404,13 +1424,10 @@ OpenType, with other formats rejected explicitly.
 
 Text capability is declared independently for advanced positioned-run input,
 built-in shaping/layout, and packaged or caller-provided font coverage. A
-versioned support matrix names scripts, language-sensitive behavior, font
-formats and OpenType features, direction and writing modes, line-breaking and
-hyphenation policies, and their evidence. A font's character coverage alone is
-not proof that the facade can shape or lay out a language. The roadmap selects
-the initial supported set from the reference business documents and gates
-each expansion separately; broad international typography is not an implicit
-promise of accepting Unicode strings or externally positioned glyphs.
+xref:contributor-reference.adoc#contributor-reference-documents-declared-production-text-support[text support reference]
+links the supported scripts, language-sensitive shaping, font formats, writing
+modes, line-breaking policies, and their evidence. Each supported facade
+policy exercises shaping and layout with its declared faces and repertoire.
 
 Font tables remain offset/length ranges into one validated font byte resource.
 Coverage, `cmap`, GSUB, and GPOS data are compiled once per exact face. Shaping
@@ -1516,8 +1533,13 @@ ICC outputs follow equivalent allowlist policies. Arbitrary input containers
 are not copied wholesale into a valid PDF wrapper.
 
 Associated files enter a document-level registry outside the visual resource
-graph. Authoring validation checks count, per-file length and aggregate length
-before handling any payload contents. It validates bounded metadata and orders
+graph. Authoring validation checks caller-configurable count, per-file payload
+length, aggregate payload length, description length, and media-type length
+before handling any payload contents. The accepted registry determines the
+name-tree size and records the exact bytes required by its text strings and
+media-type names.
+The document-wide object and payload budgets also apply.
+Validation checks bounded metadata and orders
 exact UTF-8 filename keys by their unsigned PDF string bytes. Each filename
 owns a separate stream, even when two inputs contain equal bytes. The writer
 plans the file specifications, streams, and name-tree nodes in that order,
@@ -1530,13 +1552,17 @@ application supplying it. See ISO 19005-4:2020 §6.9 and Annex A, and ISO
 32000-2:2020 §§7.9.6, 7.11 and 14.13.
 
 An editable field enters through fixed-page authoring with a stable ID,
-visible label, authored order and widget origin. Preparation checks the field
-registry, geometry, initial values and appearance policy, then binds each
-field to its typed `Form` owner and visible `Lbl` child. The annotation spine
-links the page and the owner to the widget via OBJR and ParentTree.
+visible label, authored order and widget origin. Preparation enforces the
+field and annotation count budgets and the field ID and label byte budgets.
+The registry sorts and compares adjacent IDs while retaining authored widget
+order. Preparation checks geometry, initial values and appearance policy, then
+binds each field to its typed `Form` owner and visible `Lbl` child. The
+annotation spine links the page and the owner to the widget via OBJR and
+ParentTree.
 Per-page annotation arrays follow authored order, and pages write `/Tabs /S`.
-Lowering consumes that plan to emit one terminal widget per field, a normal
-appearance. Text widgets reference one shared full editable font program
+Lowering derives widget text storage from the admitted fields and emits one
+terminal widget and normal appearance per field. Text widgets reference one
+shared full editable font program
 with a bounded encoding. Checkbox widgets reference two shared vector
 appearances and use the authored state for both the field value and widget
 appearance selection. Checkbox-only forms carry only the field registry
@@ -2008,8 +2034,20 @@ peak memory, output size, or throughput, and no controlled timing or memory
 jobs are required. Exact allocation counts plus scale pairs demonstrating the
 declared linear or `O(n log n)` growth are the performance acceptance standard.
 
-The scale corpus draws from homogeneous documents of increasing page count (up
-to 10,000 pages) and million-node/object/tree cases; one source range
+Every operational limit on work, memory, or document size reachable through a
+public operation has a finite default and a caller override. Prefer a
+defaulted field in the operation's public configuration record so callers can
+lower or raise one limit while inheriting the others. Each stage uses the
+selected bound or a checked bound derived from it. When a limit is exhausted,
+the operation returns its typed diagnostic and identifies the exhausted
+budget. For PDF generation, preparation reports exhaustion before delivering
+any bytes. Format requirements, representation limits, and correctness
+invariants apply to every configuration.
+
+The scale corpus exercises homogeneous documents at increasing page counts
+and million-node/object/tree cases. The blank page-tree fixture checks the
+structural kernel. The public stress benchmark exercises preparation and
+delivery under the caller's document budgets. Other controls cover one source range
 split into many fragments; huge paragraphs and tables; stable and cyclic
 layouts; one large image placed many times; one shared font and many one-use
 fonts; digest-collision injection; sorted/equal ordering inputs; retained
@@ -2051,14 +2089,12 @@ controlled byte sequences. Every parser is bounds checked, cycle aware where
 applicable, and limited by explicit policy. Errors include the precise asset
 and failed bound.
 
-One typed `ResourcePolicy` record applies across authoring, layout, shaping,
-resource processing, conformance, lowering, compression, and emission. It has
-dimension-specific limits for semantic depth and node counts; content
-occurrences and fragments; pages and scene nodes; reference and resource-graph
-sizes; font tables, glyphs, and composite depth; encoded and decoded image
-sizes; ICC tags; metadata and XMP sizes; diagnostics; MCIDs and ParentTree
-entries; comparison, hashing, and compression work; and total output. Every
-allocation and multiplication derived from input uses checked arithmetic.
+Select resource policy at the public entry point and carry the chosen limits
+into the typed configuration of each stage that uses them. Set bounds by
+dimension, such as encoded image bytes, decoded image bytes, and image
+comparison work. Keep the same bound across admission and physical validation
+when both check the same dimension. Every allocation and multiplication
+derived from input uses checked arithmetic.
 
 The package never executes embedded code, dereferences external visual or file
 resources, loads system fonts, consults environment locale or time, or performs

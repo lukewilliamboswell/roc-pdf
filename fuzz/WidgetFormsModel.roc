@@ -144,7 +144,7 @@ planned_values_agree = |doc, codes| {
 		Ok(Fixed(normalized)) => Document.NormalizedFixed.view(normalized)
 		_ => return False
 	}
-	plan = KernelWidgetFields.prepare(view.widget_fields) ?? return False
+	plan = KernelWidgetFields.prepare(view.widget_fields, KernelWidgetFields.Budgets.default) ?? return False
 	fields = KernelWidgetFields.Plan.fields(plan)
 	if fields.len() != codes.len() {
 		return False

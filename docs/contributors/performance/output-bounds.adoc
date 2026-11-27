@@ -48,5 +48,3 @@ pin exact output, work and allocations. A counting sink starts above
 `2^32` and checks correct positions and `U64` overflow without
 allocating a multi-gigabyte PDF. The xref width is checked independently
 by `scripts/pdf_layout.py` and the structure validator.
-
-See https://github.com/lukewilliamboswell/roc-pdf/blob/a6d1bde3028d51955b96af3ba1a183855a92cd2d/docs/contributors/performance/output-bounds.md[the archived design and measurements].

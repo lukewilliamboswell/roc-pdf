@@ -5,7 +5,7 @@ Use this guide to set up a checkout, validate a change and find the contracts
 that govern it. Read the
 https://github.com/lukewilliamboswell/roc-pdf/blob/main/AGENTS.md[repository instructions],
 xref:architecture.adoc#pure-roc-pdf-generation-architecture[architecture]
-and https://github.com/lukewilliamboswell/roc-pdf/blob/main/feature-roadmap.md[capability requirements]
+and xref:testing.adoc#validate-a-capability-change[capability validation requirements]
 before changing package behavior.
 
 [#contributor-setup]

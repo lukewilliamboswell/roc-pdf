@@ -149,22 +149,27 @@ KernelFacadeShape :: [].{
 		SingleFace,
 	]
 
+	ScopeColors : ScopeColors
+
+	scope_colors : Document.NormalizedAuthoring -> ScopeColors
+	scope_colors = |authoring| effective_scope_colors(authoring)
+
 	## Shared style facts for the symbolic-reference measurement path. It
 	## shapes real literal leaves only; pending atoms receive these same
 	## inherited facts after their Unicode resolves.
-	leaf_style : Document.NormalizedAuthoring, U64, [AtInline(U64), NoInline], [Body, GeneratedLabel], Theme -> Theme.TextStyle
-	leaf_style = |authoring, block, inline, role, theme| {
+	leaf_style : Document.NormalizedAuthoring, ScopeColors, U64, [AtInline(U64), NoInline], [Body, GeneratedLabel], Theme -> Theme.TextStyle
+	leaf_style = |authoring, scopes, block, inline, role, theme| {
 		if role == GeneratedLabel {
 			style = Theme.body_style(theme)
-			return { ..style, color: scoped_text_color(authoring, block, theme, style.color) }
+			return { ..style, color: scoped_text_color(authoring, scopes, block, theme, style.color) }
 		}
 		match inline {
-			NoInline => block_style(authoring, block, theme)
+			NoInline => block_style(authoring, scopes, block, theme)
 			AtInline(index) => {
 				style = Theme.body_style(theme)
 				parent = list_at(authoring.inlines, index).parent
-				color = header_cell_color(authoring, block, theme, scoped_text_color(authoring, block, theme, style.color))
-				{ ..style, color: inline_color(authoring, block, parent, theme, color), size: inline_size(authoring.inlines, parent, theme, style.size) }
+				color = header_cell_color(authoring, block, theme, scoped_text_color(authoring, scopes, block, theme, style.color))
+				{ ..style, color: inline_color(authoring, scopes, block, parent, theme, color), size: inline_size(authoring.inlines, parent, theme, style.size) }
 			}
 		}
 	}
@@ -176,7 +181,7 @@ KernelFacadeShape :: [].{
 		}
 		match inline {
 			AtInline(index) => inline_candidate(authoring.inlines, { index: index, styled: styled })
-			NoInline => candidate_of(styled, block_style(authoring, block, theme).font)
+			NoInline => candidate_of(styled, base_block_style(authoring, list_at(authoring.blocks, block).kind, theme).font)
 		}
 	}
 
@@ -629,7 +634,7 @@ request_candidates = |authoring, preparation, styled, theme| {
 			(_, TextBlock({ body, label: _, level: _ })) => {
 				## A plain block's body shapes in its style's face (a title or
 				## heading face); its generated label stays in the body face.
-				face = block_style(authoring, $block, theme).font
+				face = base_block_style(authoring, list_at(authoring.blocks, $block).kind, theme).font
 				if face.index() != styled_body_face(styled) {
 					candidate = if (face_indexes.is_empty()) candidate_of(styled, face) else list_at(face_indexes, face.index())
 					$candidates = list_set($candidates, body.physical.start(), candidate)
@@ -676,7 +681,7 @@ label_candidates = |authoring, styled| {
 
 append_label_candidates : List(U64), Document.ValidatedDrawing, KernelFacadeShape.StyledFaces -> List(U64)
 append_label_candidates = |candidates, drawing, styled| match drawing {
-	InvalidDrawing(_) => candidates
+	DrawingDepthLimit(_) | InvalidDrawing(_) => candidates
 	ValidDrawing(value) => {
 		var $candidates = candidates
 		for command in value.commands {
@@ -747,7 +752,7 @@ validate_style_faces = |authoring, theme, styled| {
 	indexes = if (authoring.sources.is_empty()) [] else styled_face_indexes(styled)
 	var $block = 0
 	while $block < authoring.blocks.len() {
-		face = block_style(authoring, $block, theme).font
+		face = base_block_style(authoring, list_at(authoring.blocks, $block).kind, theme).font
 		valid = if (indexes.is_empty()) styled.faces.any(|known| known == face) else face.index() < indexes.len() and list_at(indexes, face.index()) != U64.highest
 		if !valid {
 			return Err(UnsupportedThemeFace({ block: $block, face: face.index() }))
@@ -886,10 +891,11 @@ prepare_plan = |authoring, owners, store, sources, max_requests, theme, face_che
 	if occurrence_count > max_requests {
 		return Err(LimitExceeded({ attempted: occurrence_count, dimension: Requests, limit: max_requests }))
 	}
+	scopes = effective_scope_colors(authoring)
 	if has_rich_block(owners) or !authoring.sources.is_empty() {
-		prepare_ranged_plan(authoring, owners, store, sources, theme, face_check)
+		prepare_ranged_plan(authoring, owners, store, sources, theme, face_check, scopes)
 	} else {
-		prepare_whole_plan(authoring, owners, store, sources, theme, face_check)
+		prepare_whole_plan(authoring, owners, store, sources, theme, face_check, scopes)
 	}
 }
 
@@ -902,8 +908,8 @@ batch_options_for = |authoring| {
 	writing_mode: Horizontal,
 }
 
-prepare_whole_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), Theme, FaceCheck -> Try(KernelFacadeShape.Preparation, KernelFacadeShape.Error)
-prepare_whole_plan = |authoring, owners, store, sources, theme, face_check| {
+prepare_whole_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), Theme, FaceCheck, ScopeColors -> Try(KernelFacadeShape.Preparation, KernelFacadeShape.Error)
+prepare_whole_plan = |authoring, owners, store, sources, theme, face_check, scopes| {
 	source_count = sources.len()
 	batch_language = Language(authoring.language)
 	batch_options = {
@@ -934,7 +940,7 @@ prepare_whole_plan = |authoring, owners, store, sources, theme, face_check| {
 			}
 			RichTextBlock({ label: _, level: _, occurrences }) => return Err(InvalidOccurrence({ block: $block_index, occurrence: occurrences.start() }))
 			TextBlock({ body, label, level }) => {
-				body_style = block_style(authoring, $block_index, theme)
+				body_style = block_style(authoring, scopes, $block_index, theme)
 				if face_rejected(face_check, body_style) {
 					return Err(UnsupportedThemeFace({ block: $block_index, face: body_style.font.index() }))
 				}
@@ -968,7 +974,7 @@ prepare_whole_plan = |authoring, owners, store, sources, theme, face_check| {
 						}
 						run = logical_run_single(Text.RunId.from_index($request_index))
 						$requests = $requests.append({ occurrence: occurrence_id, size: label_style.size, source: source_id })
-						$styles = $styles.append({ color: scoped_text_color(authoring, $block_index, theme, label_style.color), leading: label_style.leading, segment: occurrence_id.index() })
+						$styles = $styles.append({ color: scoped_text_color(authoring, scopes, $block_index, theme, label_style.color), leading: label_style.leading, segment: occurrence_id.index() })
 						$request_index = $request_index + 1
 						Label(run)
 					}
@@ -1016,8 +1022,8 @@ prepare_whole_plan = |authoring, owners, store, sources, theme, face_check| {
 ## source, its natural language, and its occurrence origin. Plain blocks
 ## keep whole-source ranges in the document language. Buffers move through
 ## the per-block helpers as separate arguments so they stay uniquely owned.
-prepare_ranged_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), Theme, FaceCheck -> Try(KernelFacadeShape.Preparation, KernelFacadeShape.Error)
-prepare_ranged_plan = |authoring, owners, store, sources, theme, face_check| {
+prepare_ranged_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FlowTextFacts, List(KernelFacadeSources.Source), Theme, FaceCheck, ScopeColors -> Try(KernelFacadeShape.Preparation, KernelFacadeShape.Error)
+prepare_ranged_plan = |authoring, owners, store, sources, theme, face_check, scopes| {
 	batch_options = batch_options_for(authoring)
 	occurrence_count = store.occurrences.len()
 	var $requests = List.with_capacity(occurrence_count)
@@ -1028,7 +1034,7 @@ prepare_ranged_plan = |authoring, owners, store, sources, theme, face_check| {
 	while $block_index < authoring.blocks.len() {
 		block = list_at(authoring.blocks, $block_index)
 		first_request = $requests.len()
-		at = { authoring, block: $block_index, face_check, language: batch_options.language, sources, store, theme }
+		at = { authoring, block: $block_index, face_check, language: batch_options.language, scopes, sources, store, theme }
 		match list_at(owners, $block_index) {
 			ContentlessCell => {
 				$block_runs = list_set($block_runs, $block_index, ContentlessCell)
@@ -1107,7 +1113,7 @@ prepare_ranged_plan = |authoring, owners, store, sources, theme, face_check| {
 
 RequestBuffers : { ranges : List(KernelFacadeShape.RequestRange), requests : List(KernelShape.SimpleRequest), styles : List(KernelFacadeShape.RunStyle) }
 
-RangedContext : { authoring : Document.NormalizedAuthoring, block : U64, face_check : FaceCheck, language : Semantics.Language, sources : List(KernelFacadeSources.Source), store : KernelFacadeSemantics.FlowTextFacts, theme : Theme }
+RangedContext : { authoring : Document.NormalizedAuthoring, block : U64, face_check : FaceCheck, language : Semantics.Language, scopes : ScopeColors, sources : List(KernelFacadeSources.Source), store : KernelFacadeSemantics.FlowTextFacts, theme : Theme }
 
 source_request_facts : RangedContext, Semantics.OccurrenceId -> Try({ range : KernelFacadeShape.RequestRange, request : KernelShape.SimpleRequest, style : KernelFacadeShape.RunStyle }, KernelFacadeShape.Error)
 source_request_facts = |at, body| {
@@ -1116,7 +1122,7 @@ source_request_facts = |at, body| {
 		Text(_, UnicodeRange(value)) => value
 		_ => return Err(InvalidOccurrence({ block: at.block, occurrence: body.index() }))
 	}
-	style = block_style(at.authoring, at.block, at.theme)
+	style = block_style(at.authoring, at.scopes, at.block, at.theme)
 	if face_rejected(at.face_check, style) {
 		return Err(UnsupportedThemeFace({ block: at.block, face: style.font.index() }))
 	}
@@ -1173,7 +1179,7 @@ source_cluster_range = |graphemes, start, end, block| {
 ## body, each covering its whole source in the document language.
 append_plain_requests : List(KernelFacadeShape.RequestRange), List(KernelShape.SimpleRequest), List(KernelFacadeShape.RunStyle), RangedContext, Semantics.OccurrenceId, [Label(Semantics.OccurrenceId), NoLabel] -> Try(RequestBuffers, KernelFacadeShape.Error)
 append_plain_requests = |ranges, requests, styles, at, body, label| {
-	body_style = block_style(at.authoring, at.block, at.theme)
+	body_style = block_style(at.authoring, at.scopes, at.block, at.theme)
 	if face_rejected(at.face_check, body_style) {
 		return Err(UnsupportedThemeFace({ block: at.block, face: body_style.font.index() }))
 	}
@@ -1192,7 +1198,7 @@ append_plain_requests = |ranges, requests, styles, at, body, label| {
 				return Err(GeneratedLabelEvidenceInvalid({ block: at.block, occurrence: occurrence_id.index() }))
 			}
 			$requests = $requests.append({ occurrence: occurrence_id, size: label_style.size, source: occurrence.source })
-			$styles = $styles.append({ color: scoped_text_color(at.authoring, at.block, at.theme, label_style.color), leading: label_style.leading, segment: occurrence_id.index() })
+			$styles = $styles.append({ color: scoped_text_color(at.authoring, at.scopes, at.block, at.theme, label_style.color), leading: label_style.leading, segment: occurrence_id.index() })
 			$ranges = $ranges.append(whole_source_range(at.sources, occurrence.source, at.language))
 		}
 	}
@@ -1220,7 +1226,7 @@ append_label_request = |ranges, requests, styles, at, label| match label {
 		Ok({
 			ranges: ranges.append(whole_source_range(at.sources, occurrence.source, at.language)),
 			requests: requests.append({ occurrence: occurrence_id, size: label_style.size, source: occurrence.source }),
-			styles: styles.append({ color: scoped_text_color(at.authoring, at.block, at.theme, label_style.color), leading: label_style.leading, segment: occurrence_id.index() }),
+			styles: styles.append({ color: scoped_text_color(at.authoring, at.scopes, at.block, at.theme, label_style.color), leading: label_style.leading, segment: occurrence_id.index() }),
 		})
 	}
 }
@@ -1254,7 +1260,7 @@ append_rich_requests = |ranges, requests, styles, at, occurrences, rich| {
 	if face_rejected(at.face_check, body) {
 		return Err(UnsupportedThemeFace({ block: at.block, face: body.font.index() }))
 	}
-	paragraph_color = header_cell_color(at.authoring, at.block, at.theme, scoped_text_color(at.authoring, at.block, at.theme, body.color))
+	paragraph_color = header_cell_color(at.authoring, at.block, at.theme, scoped_text_color(at.authoring, at.scopes, at.block, at.theme, body.color))
 	var $ranges = ranges
 	var $requests = requests
 	var $styles = styles
@@ -1317,7 +1323,7 @@ append_rich_requests = |ranges, requests, styles, at, occurrences, rich| {
 				cluster_end = cluster_at(analysis.graphemes, cluster_start, scalar_end, at.block, $inline)?
 				$cluster = cluster_end
 				$requests = $requests.append({ occurrence: Semantics.OccurrenceId.from_index(occurrence_index), size: inline_size(at.authoring.inlines, record.parent, at.theme, body.size), source: located.id })
-				$styles = $styles.append({ color: inline_color(at.authoring, at.block, record.parent, at.theme, paragraph_color), leading: body.leading, segment: $segment })
+				$styles = $styles.append({ color: inline_color(at.authoring, at.scopes, at.block, record.parent, at.theme, paragraph_color), leading: body.leading, segment: $segment })
 				$ranges = $ranges.append({
 					clusters: Semantics.IndexRange.from_start_and_length({ start: cluster_start, length: cluster_end - cluster_start }),
 					language: occurrence.language,
@@ -1613,8 +1619,8 @@ inline_size = |inlines, parent, theme, size| {
 	size
 }
 
-inline_color : Document.NormalizedAuthoring, U64, U64, Theme, Color.SourceValue -> Color.SourceValue
-inline_color = |authoring, block, parent, theme, paragraph_color| {
+inline_color : Document.NormalizedAuthoring, ScopeColors, U64, U64, Theme, Color.SourceValue -> Color.SourceValue
+inline_color = |authoring, scopes, block, parent, theme, paragraph_color| {
 	var $cursor = parent
 	var $color = Unresolved
 	while $cursor != 0 and $color == Unresolved {
@@ -1628,7 +1634,7 @@ inline_color = |authoring, block, parent, theme, paragraph_color| {
 			_ => NoRole
 		}
 		match role {
-			Role(value) => match role_color(authoring, block, theme, value) {
+			Role(value) => match role_color(authoring, scopes, block, theme, value) {
 				Themed(color) => {
 					$color = Resolved(color)
 				}
@@ -1644,23 +1650,85 @@ inline_color = |authoring, block, parent, theme, paragraph_color| {
 	}
 }
 
+ScopeColors : [ResolvedScopes({ groups : List(U64), scopes : List(Theme.Scope) }), WalkScopes]
+
+## Group parents and authored scope codes precede their consumers. Each
+## role is resolved once per scope; other groups retain its dense code.
+effective_scope_colors : Document.NormalizedAuthoring -> ScopeColors
+effective_scope_colors = |authoring| {
+	if authoring.scopes.len() <= 16 {
+		return WalkScopes
+	}
+	var $groups = List.with_capacity(authoring.groups.len())
+	var $scopes = List.with_capacity(authoring.scopes.len())
+	for group in authoring.groups {
+		if group.parent > $groups.len() {
+			return WalkScopes
+		}
+		inherited = if (group.parent == 0) 0 else list_at($groups, group.parent - 1)
+		match group.kind {
+			Scope(index) => {
+				scope = index.to_u64()
+				if scope != $scopes.len() or scope >= authoring.scopes.len() {
+					return WalkScopes
+				}
+				inner = list_at(authoring.scopes, scope)
+				outer = if (inherited == 0) Theme.Scope.{} else list_at($scopes, inherited - 1)
+				$scopes = $scopes.append({
+					code: override_scope_color(inner.code, outer.code),
+					emphasis: override_scope_color(inner.emphasis, outer.emphasis),
+					link: override_scope_color(inner.link, outer.link),
+					quote: override_scope_color(inner.quote, outer.quote),
+					strong: override_scope_color(inner.strong, outer.strong),
+					text: override_scope_color(inner.text, outer.text),
+				})
+				$groups = $groups.append(scope + 1)
+			}
+			_ => {
+				$groups = $groups.append(inherited)
+			}
+		}
+	}
+	ResolvedScopes({ groups: $groups, scopes: $scopes })
+}
+
+override_scope_color : Theme.InlineColor, Theme.InlineColor -> Theme.InlineColor
+override_scope_color = |inner, outer| match inner {
+	Inherited => outer
+	Themed(_) => inner
+}
+
 ## One role's color for a block: the innermost enclosing `Pdf.scoped`
 ## group that colors the role, else the theme. A document without scopes
 ## never walks its groups.
-role_color : Document.NormalizedAuthoring, U64, Theme, Theme.ScopeRole -> Theme.InlineColor
-role_color = |authoring, block, theme, role| {
-	if !authoring.scopes.is_empty() {
-		var $code = list_at(authoring.blocks, block).parent
-		while $code != 0 {
-			group = list_at(authoring.groups, $code - 1)
-			match group.kind {
-				Scope(index) => match list_at(authoring.scopes, index.to_u64()).color(role) {
-					Themed(color) => return Themed(color)
-					Inherited => {}
+role_color : Document.NormalizedAuthoring, ScopeColors, U64, Theme, Theme.ScopeRole -> Theme.InlineColor
+role_color = |authoring, scopes, block, theme, role| {
+	match scopes {
+		ResolvedScopes(value) => {
+			parent = list_at(authoring.blocks, block).parent
+			if parent != 0 {
+				owner = list_at(value.groups, parent - 1)
+				if owner != 0 {
+					match list_at(value.scopes, owner - 1).color(role) {
+						Themed(color) => return Themed(color)
+						Inherited => {}
+					}
 				}
-				_ => {}
 			}
-			$code = group.parent
+		}
+		WalkScopes => if !authoring.scopes.is_empty() {
+			var $code = list_at(authoring.blocks, block).parent
+			while $code != 0 {
+				group = list_at(authoring.groups, $code - 1)
+				match group.kind {
+					Scope(index) => match list_at(authoring.scopes, index.to_u64()).color(role) {
+						Themed(color) => return Themed(color)
+						Inherited => {}
+					}
+					_ => {}
+				}
+				$code = group.parent
+			}
 		}
 	}
 	match role {
@@ -1675,12 +1743,12 @@ role_color = |authoring, block, theme, role| {
 
 ## A block's ordinary text color: the innermost scope's `Text` color, else
 ## `color`. A document without scopes never walks its groups.
-scoped_text_color : Document.NormalizedAuthoring, U64, Theme, Color.SourceValue -> Color.SourceValue
-scoped_text_color = |authoring, block, theme, color| {
+scoped_text_color : Document.NormalizedAuthoring, ScopeColors, U64, Theme, Color.SourceValue -> Color.SourceValue
+scoped_text_color = |authoring, scopes, block, theme, color| {
 	if authoring.scopes.is_empty() {
 		return color
 	}
-	match role_color(authoring, block, theme, Text) {
+	match role_color(authoring, scopes, block, theme, Text) {
 		Themed(scoped) => scoped
 		Inherited => color
 	}
@@ -1688,9 +1756,23 @@ scoped_text_color = |authoring, block, theme, color| {
 
 ## A plain block's text style: its kind's theme style, with a link block
 ## colored by the innermost scope's link color when one applies.
-block_style : Document.NormalizedAuthoring, U64, Theme -> Theme.TextStyle
-block_style = |authoring, block, theme| {
+block_style : Document.NormalizedAuthoring, ScopeColors, U64, Theme -> Theme.TextStyle
+block_style = |authoring, scopes, block, theme| {
 	kind = list_at(authoring.blocks, block).kind
+	style = base_block_style(authoring, kind, theme)
+	match kind {
+		SourceLine(_) | EmptySourceLine(_) => style
+		Link(_) | InternalLink(_) if !authoring.scopes.is_empty() => match role_color(authoring, scopes, block, theme, Link) {
+			Themed(color) => { ..style, color }
+			Inherited => style
+		}
+		_ if !authoring.scopes.is_empty() => { ..style, color: scoped_text_color(authoring, scopes, block, theme, style.color) }
+		_ => style
+	}
+}
+
+base_block_style : Document.NormalizedAuthoring, Document.NormalizedBlockKind, Theme -> Theme.TextStyle
+base_block_style = |authoring, kind, theme| {
 	match kind {
 		SourceLine({ source, .. }) | EmptySourceLine({ source, .. }) => {
 			facts = list_at(authoring.sources, source)
@@ -1702,14 +1784,29 @@ block_style = |authoring, block, theme| {
 		}
 		_ => {}
 	}
-	style = style_for(kind, theme)
-	match kind {
-		Link(_) | InternalLink(_) if !authoring.scopes.is_empty() => match role_color(authoring, block, theme, Link) {
-			Themed(color) => { ..style, color }
-			Inherited => style
-		}
-		_ if !authoring.scopes.is_empty() => { ..style, color: scoped_text_color(authoring, block, theme, style.color) }
-		_ => style
+	style_for(kind, theme)
+}
+
+expect {
+	text = Document.paragraph("Body")
+	red = Themed(Color.srgb8({ red: 180, green: 0, blue: 0 }))
+	blue = Themed(Color.srgb8({ red: 0, green: 0, blue: 180 }))
+	var $body = Document.scoped({ strong: red }, [Document.division([text])])
+	var $index = 0
+	while $index < 16 {
+		$body = Document.scoped({}, [$body])
+		$index = $index + 1
+	}
+	outer = Document.scoped({ text: blue, emphasis: blue, strong: blue }, [$body, text])
+	doc = Document.from_blocks({ title: "Scope inheritance", language: "en", contents: [outer, text] })
+	authoring = Document.normalize(doc)
+	cache = effective_scope_colors(authoring)
+	roles : List(Theme.ScopeRole)
+	roles = [Code, Emphasis, Link, Quote, Strong, Text]
+	equal = |block| roles.all(|role| role_color(authoring, cache, block, Theme.{}, role) == role_color(authoring, WalkScopes, block, Theme.{}, role))
+	match cache {
+		ResolvedScopes(value) => value.groups.len() == authoring.groups.len() and equal(0) and equal(1) and equal(2) and role_color(authoring, cache, 0, Theme.{}, Strong) == red and role_color(authoring, cache, 0, Theme.{}, Text) == blue
+		WalkScopes => False
 	}
 }
 
@@ -2118,6 +2215,10 @@ face_selected_anywhere = |ranges_per_source, face| {
 
 ordered_segments : List(Font.FaceRange), List(KernelUnicode.ScriptRun), List(Font.FaceId), U64 -> Try(List(SelectedSegment), KernelFacadeShape.Error)
 ordered_segments = |face_ranges, script_runs, used_faces, source_index| {
+	# The two ordered partitions can share a forward script cursor.
+	ordered = contiguous_script_ranges(script_runs)
+	var $script_index = 0
+	var $last_scalar = 0
 	var $segments = []
 	var $range_index = 0
 	while $range_index < face_ranges.len() {
@@ -2128,7 +2229,11 @@ ordered_segments = |face_ranges, script_runs, used_faces, source_index| {
 		range_end = range_start + range_length
 		var $cursor = range_start
 		while $cursor < range_end {
-			run = script_run_covering(script_runs, $cursor, source_index)?
+			first = if (ordered and $cursor >= $last_scalar) $script_index else 0
+			covered = script_run_covering(script_runs, first, $cursor, source_index)?
+			run = covered.run
+			$script_index = covered.index
+			$last_scalar = $cursor
 			segment_end = if (run.range.scalar_end < range_end) run.range.scalar_end else range_end
 			if segment_end <= $cursor {
 				return Err(UndeclaredScript({ script: run.script, source: source_index }))
@@ -2148,17 +2253,51 @@ ordered_segments = |face_ranges, script_runs, used_faces, source_index| {
 	Ok($segments)
 }
 
-script_run_covering : List(KernelUnicode.ScriptRun), U64, U64 -> Try(KernelUnicode.ScriptRun, KernelFacadeShape.Error)
-script_run_covering = |runs, scalar_index, source_index| {
-	var $index = 0
+script_run_covering : List(KernelUnicode.ScriptRun), U64, U64, U64 -> Try({ index : U64, run : KernelUnicode.ScriptRun }, KernelFacadeShape.Error)
+script_run_covering = |runs, first, scalar_index, source_index| {
+	var $index = first
 	while $index < runs.len() {
 		run = list_at(runs, $index)
 		if run.range.scalar_start <= scalar_index and scalar_index < run.range.scalar_end {
-			return Ok(run)
+			return Ok({ index: $index, run })
 		}
 		$index = $index + 1
 	}
 	Err(UndeclaredScript({ script: "", source: source_index }))
+}
+
+## Keep the original first covering run for malformed internal analyses.
+contiguous_script_ranges : List(KernelUnicode.ScriptRun) -> Bool
+contiguous_script_ranges = |runs| {
+	var $scalar = 0
+	for run in runs {
+		if run.range.scalar_start != $scalar or run.range.scalar_end < $scalar {
+			return False
+		}
+		$scalar = run.range.scalar_end
+	}
+	True
+}
+
+expect {
+	latin = { range: { byte_start: 0, byte_end: 2, scalar_start: 0, scalar_end: 2 }, script: "Latn" }
+	common = { range: { byte_start: 2, byte_end: 3, scalar_start: 2, scalar_end: 3 }, script: "Zyyy" }
+	han = { range: { byte_start: 3, byte_end: 6, scalar_start: 3, scalar_end: 4 }, script: "Hani" }
+	instance = Font.InstanceId.from_index(0)
+	face = Font.FaceId.from_index(0)
+	first = { clusters: Semantics.IndexRange.from_start_and_length({ start: 0, length: 1 }), instance }
+	second = { clusters: Semantics.IndexRange.from_start_and_length({ start: 1, length: 3 }), instance }
+	ordered = ordered_segments([first, second], [latin, common, han], [face], 0)?
+	unordered = ordered_segments([first, second], [han, latin, common], [face], 0)?
+	before = ordered_segments([second, first], [latin, common, han], [face], 0)?
+	missing = ordered_segments([second], [latin, common], [face], 5)
+	scripts = |segments| segments.map(|segment| (segment.script.to_str(), segment.clusters.start()))
+	expected = [("Latn", 0), ("Latn", 1), ("Zyyy", 2), ("Hani", 3)]
+	missing_script = match missing {
+		Err(UndeclaredScript({ script: "", source: 5 })) => True
+		_ => False
+	}
+	scripts(ordered) == expected and scripts(unordered) == expected and scripts(before) == [("Latn", 1), ("Zyyy", 2), ("Hani", 3), ("Latn", 0)] and missing_script
 }
 
 dense_font_index : List(Font.FaceId), Font.InstanceId, U64 -> Try(U64, KernelFacadeShape.Error)

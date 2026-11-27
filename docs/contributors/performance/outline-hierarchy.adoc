@@ -54,6 +54,6 @@ SHA-256
 `bef875d56c7b93c4120aaea9e9f19bc90b3f4857e507a8bdb6aff6a8e07e5756`.
 CI applies the exact allocation count and work vector on arm64mac and x64musl.
 
-This slice seals the outline hierarchy. Feature-specific outline object
-lowering and public destination/action construction remain at their roadmap
-gates.
+This fixture exercises sealing the outline hierarchy. The
+xref:contributor-output.adoc#contributor-navigation-annotations[navigation contract]
+covers outline lowering and public destination and action construction.

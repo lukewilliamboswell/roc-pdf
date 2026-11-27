@@ -52,5 +52,3 @@ target. The named Results destination supplies a valid wrong-target
 mutation. The checker also rejects replacing one fragment's action
 with an external URI under the same Link owner. The profile control
 verifies PDF/UA-2 identification separately from the navigation facts.
-
-See https://github.com/lukewilliamboswell/roc-pdf/blob/a6d1bde3028d51955b96af3ba1a183855a92cd2d/docs/contributors/performance/navigation-annotations.md[the archived design and measurements].

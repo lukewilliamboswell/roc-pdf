@@ -27,3 +27,9 @@ the final flat glyph-index buffer, and referenced glyph records are appended to
 the final flat glyph buffer. The completed stage verifies that final cluster,
 glyph-index, and glyph counts exactly equal the shaped input counts. Wrapping
 changes run boundaries but neither duplicates nor drops glyph payload.
+
+For ordinary text, materialization checks the shaped run store once for
+valid bounds and ascending cluster ranges. It searches that store for each
+committed line and walks the intersecting runs. Direct positioned inputs
+that fail the check go through the validating walk so the existing located
+diagnostics still apply.

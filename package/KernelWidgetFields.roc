@@ -61,6 +61,7 @@ KernelWidgetFields :: [].{
 		DuplicateId(Located),
 		InvalidId(Located),
 		InvalidLabel(Located),
+		TextLimit({ attempted : U64, dimension : [Identifier, Label], kind : Kind, limit : U64, location : Location }),
 		InvalidValue(Location),
 		ValueDoesNotFit({ width : I64, required : I64, location : Location }),
 	]
@@ -73,8 +74,14 @@ KernelWidgetFields :: [].{
 		font = |plan| plan.font
 	}
 
-	max_fields : U64
-	max_fields = 128
+	Budgets := {
+		max_field_id_bytes : U64 ?? 64,
+		max_field_label_bytes : U64 ?? 256,
+		max_fields : U64 ?? 128,
+	}.{
+		default : Budgets
+		default = Budgets.{}
+	}
 
 	max_characters : U64
 	max_characters = 64
@@ -90,8 +97,9 @@ KernelWidgetFields :: [].{
 		}
 	}
 
-	prepare : List(Authored) -> Try(Plan, Error)
-	prepare = |fields| {
+	prepare : List(Authored), Budgets -> Try(Plan, Error)
+	prepare = |fields, budgets| {
+		max_fields = budgets.max_fields
 		if fields.len() > max_fields {
 			return Err(CountLimit({ actual: fields.len(), maximum: max_fields, has_checkbox: fields.any(|input| kind(input.field) == CheckboxKind) }))
 		}
@@ -107,7 +115,7 @@ KernelWidgetFields :: [].{
 		}
 		var $prepared = List.with_capacity(fields.len())
 		for input in fields {
-			resolved = validate_field(input, font)?
+			resolved = validate_field(input, font, budgets)?
 			$prepared = $prepared.append(resolved)
 		}
 		check_unique_ids($prepared)?
@@ -148,17 +156,26 @@ checkbox_frames = |origin, page| {
 	})
 }
 
-validate_field : KernelWidgetFields.Authored, KernelWidgetFields.EditableResources -> Try(KernelWidgetFields.Field, KernelWidgetFields.Error)
-validate_field = |{ field, geometry, group, location }, font| {
+validate_field : KernelWidgetFields.Authored, KernelWidgetFields.EditableResources, KernelWidgetFields.Budgets -> Try(KernelWidgetFields.Field, KernelWidgetFields.Error)
+validate_field = |{ field, geometry, group, location }, font, budgets| {
 	{ id, label } = match field {
 		TextWidget(props) => { id: props.id, label: props.label }
 		CheckboxWidget(props) => { id: props.id, label: props.label }
 	}
-	if !valid_id(id) {
-		return Err(InvalidId({ kind: KernelWidgetFields.kind(field), location }))
+	kind = KernelWidgetFields.kind(field)
+	id_bytes = id.count_utf8_bytes()
+	if id_bytes > budgets.max_field_id_bytes {
+		return Err(TextLimit({ attempted: id_bytes, dimension: Identifier, kind, limit: budgets.max_field_id_bytes, location }))
 	}
-	if label.trim().is_empty() or label.count_utf8_bytes() > 256 or Str.to_utf8(label).any(|byte| byte < 32 or byte == 127) {
-		return Err(InvalidLabel({ kind: KernelWidgetFields.kind(field), location }))
+	if !valid_id(id) {
+		return Err(InvalidId({ kind, location }))
+	}
+	label_bytes = label.count_utf8_bytes()
+	if label_bytes > budgets.max_field_label_bytes {
+		return Err(TextLimit({ attempted: label_bytes, dimension: Label, kind, limit: budgets.max_field_label_bytes, location }))
+	}
+	if label.trim().is_empty() or Str.to_utf8(label).any(|byte| byte < 32 or byte == 127) {
+		return Err(InvalidLabel({ kind, location }))
 	}
 	value = match field {
 		CheckboxWidget(props) => Checkbox(props.state)
@@ -202,7 +219,7 @@ validate_value = |initial, location, room, widths| {
 valid_id : Str -> Bool
 valid_id = |id| {
 	bytes = Str.to_utf8(id)
-	if bytes.is_empty() or bytes.len() > 64 {
+	if bytes.is_empty() {
 		return False
 	}
 	for byte in bytes {

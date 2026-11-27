@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 
 from check_fillable_forms import validate_fillable_pdf
 from check_footnotes import validate_footnotes_pdf
@@ -14,6 +16,7 @@ from check_destination_references import validate_destination_references_pdf
 from check_chapter_templates import validate_chapter_templates_pdf
 from check_vector_diagrams import validate_vector_diagrams_pdf
 from check_fixed_pages import validate_fixed_pages_pdf
+from check_gallery_features import ARTIFACT, tagged
 from check_designed_brief import validate_designed_brief_pdf
 from check_generated_handbook import validate_flow_fixture, validate_generated_fixture, validate_index_fixture
 from check_arabic_invoice import check as check_arabic_invoice
@@ -50,9 +53,9 @@ from check_multiface_facade import validate_multiface_facade_pdf
 from check_multiface_text import validate_multiface_text_pdf
 from check_navigation import validate_navigation_pdf
 from check_page_labels import validate_page_labels_pdf
-from check_pdf_structure import canonical_text, dictionary_ref, is_structure_element, object_slices, require, structure_kids, validate_pdf
+from check_pdf_structure import canonical_text, dictionary_ref, indirect_length, is_structure_element, object_slices, require, stream_parts, structure_kids, validate_pdf
 from check_rich_inline import validate_rich_inline_pdf
-from check_rich_flow import validate_rich_flow_pdf
+from check_rich_flow import MARKED, validate_rich_flow_pdf
 from check_table_paint_frames import validate_table_paint_frames_pdf
 from check_table_spans import validate_table_spans
 from check_technical_manual import validate_technical_manual_pdf
@@ -63,7 +66,7 @@ from check_shadings import validate_shadings_pdf
 from check_soft_hyphen import EXPECTED_CONTENT as SOFT_HYPHEN_CONTENT
 from check_soft_hyphen import validate_soft_hyphen_pdf
 from check_soft_masks import validate_soft_masks_pdf
-from check_structure_semantics import validate_structure_semantics_pdf
+from check_structure_semantics import Document, Ref, text_string, validate_structure_semantics_pdf
 from check_supplementary_text import EXPECTED_CONTENT as SUPPLEMENTARY_TEXT_CONTENT
 from check_supplementary_text import validate_supplementary_text_pdf
 from check_tagged_visual import validate_tagged_visual_pdf
@@ -163,7 +166,106 @@ def _facade_image(data: bytes, dimensions: dict[str, int], report: Reporter) -> 
     report("exact packed image payload, one image placement, semantic Figure ownership, and authored /Alt")
 
 
+def _image_objects(document: Document):
+    return [(number, body) for number in sorted(document.bodies)
+            if isinstance(body := document.get(number), dict) and body.get("Subtype") == "Image"]
+
+
+def _page_xobjects(document: Document, page: dict):
+    resources = page["Resources"]
+    if isinstance(resources, Ref):
+        resources = document.get(int(resources))
+    xobjects = resources["XObject"]
+    return document.get(int(xobjects)) if isinstance(xobjects, Ref) else xobjects
+
+
+def _shared_image_figures(pdf: bytes, dimensions: dict[str, int]):
+    validate_structure_semantics_pdf(pdf, dimensions)
+    document, pages, root = tagged(pdf)
+    require(len(pages) == dimensions["pages"], "shared image page count changed")
+    figures = [node for node in root.descendants() if node.role == "Figure"]
+    captions = [node for node in root.descendants() if node.role == "Caption"]
+    require(len(figures) == len(captions) == 3 * len(pages), "image sharing merged a semantic figure or caption")
+    return document, pages, figures, captions
+
+
+def _facade_shared_rasters(pdf: bytes, dimensions: dict[str, int], report: Reporter) -> None:
+    document, pages, figures, captions = _shared_image_figures(pdf, dimensions)
+    images = _image_objects(document)
+    colors = [(number, body) for number, body in images if "SMask" in body]
+    require(len(images) == 4 and len(colors) == 2, "expected exactly two canonical RGB streams with their masks")
+    require(all(document.stream(number) == bytes([30, 60, 90, 120, 150, 180]) for number, _ in colors), "RGB bytes changed")
+    require([document.stream(int(body["SMask"])) for _, body in colors] == [bytes([0, 255]), bytes([255, 0])],
+            "distinct alpha payloads changed or lost first-occurrence order")
+    a, b = [number for number, _ in colors]
+
+    _check_owned_image_paints(document, pages, figures, captions, [a, b, a])
+    report("two canonical RGB and alpha streams, A/B/A per page, and independent figure ownership")
+
+
+def _facade_shared_jpeg(pdf: bytes, dimensions: dict[str, int], report: Reporter) -> None:
+    document, pages, figures, captions = _shared_image_figures(pdf, dimensions)
+    images = _image_objects(document)
+    require(len(images) == 1, "expected exactly one shared JPEG image stream")
+    image, dictionary = images[0]
+    require(dictionary.get("Filter") == "DCTDecode" and dictionary.get("Width") == dictionary.get("Height") == 8,
+            "shared JPEG lost its filter or dimensions")
+    length = indirect_length(document.bodies, int(dictionary["Length"]))
+    _, encoded = stream_parts(document.bodies[image], length)
+    expected = (Path(__file__).resolve().parents[1] / "tests/assets/jpeg-fuzz-corpus/rgb-8x8.jpg").read_bytes()
+    require(encoded == expected, "shared JPEG payload changed")
+    _check_owned_image_paints(document, pages, figures, captions, [image] * 3)
+    report("one byte-exact DCT stream and one owned image paint per tagged figure")
+
+
+def _check_owned_image_paints(document: Document, pages, figures, captions, expected: list[int]) -> None:
+    for page_index, page in enumerate(pages):
+        page_value = document.get(page)
+        xobjects = _page_xobjects(document, page_value)
+        require(sorted(map(int, xobjects.values())) == sorted(set(expected)), "page dictionary has duplicate, missing or foreign image references")
+        marks = {int(mcid): body for mcid, body in MARKED.findall(document.stream(int(page_value["Contents"])))}
+        painted = []
+        for position in range(3):
+            index = 3 * page_index + position
+            figure, caption = figures[index], captions[index]
+            require(text_string(figure.value["Alt"]) == f"Image description {index + 1}", "figure alternative changed")
+            require(caption.text == f"Survey figure {index + 1}" and caption.pages == {page}, "figure caption changed")
+            require(len(figure.marks) == 1 and figure.pages == {page}, "figure lost its own drawing mark")
+            _, mcid = figure.marks[0]
+            names = re.findall(rb"/([A-Za-z0-9_]+) Do\n", marks[mcid])
+            require(len(names) == 1, "figure must paint exactly one image")
+            painted.append(int(xobjects[names[0].decode("ascii")]))
+        require(painted == expected, "figure paint references changed the authored image sequence")
+
+
+def _furniture_shared_rasters(pdf: bytes, dimensions: dict[str, int], report: Reporter) -> None:
+    document, pages, _ = tagged(pdf)
+    images = _image_objects(document)
+    require(len(images) == dimensions["canonical_images"], "physical furniture image count changed")
+    mark = images[-1][0]
+    logo = images[0][0]
+    if logo != mark:
+        require(document.stream(logo) == bytes([20, 90, 140] * 16 + [240, 180, 40] * 16), "header logo pixels changed")
+    require(document.stream(mark) == bytes([0, 80, 160, 240, 240, 160, 80, 0]), "gray mark pixels changed")
+    expected_refs = sorted({logo, mark})
+    expected_paints = ([(b"<</Type /Pagination /Subtype /Header>>", logo)] * dimensions["header_image_placements"]
+                       + [(b"<</Type /Pagination /Subtype /Footer>>", mark)])
+    for page in pages:
+        page_value = document.get(page)
+        xobjects = _page_xobjects(document, page_value)
+        require(sorted(map(int, xobjects.values())) == expected_refs, "page has repeated furniture resource entries")
+        content = document.stream(int(page_value["Contents"]))
+        paints = [(declaration, int(xobjects[name.decode("ascii")]))
+                  for declaration, body in ARTIFACT.findall(content)
+                  for name in re.findall(rb"/([A-Za-z0-9_]+) Do\n", body)]
+        require(paints == expected_paints, "furniture raster placement or artifact classification changed")
+    report("shared furniture images with exact pixels and separate header/footer artifacts on each page")
+
+
 VALIDATORS: dict[str, Validator] = {
+    "facade_shared_rasters": _facade_shared_rasters,
+    "facade_shared_jpeg": _facade_shared_jpeg,
+    "furniture_shared_rasters": _furniture_shared_rasters,
     "footnotes": _dimensioned(validate_footnotes_pdf, "first-citation placement, logical backlinks and structure destinations"),
     "fillable_forms": _dimensioned(validate_fillable_pdf, "editable widget repertoire, exact values and appearances, authored geometry and tab order, and Form-owned labels"),
     "anchored_figure": _dimensioned(validate_anchored_figure_pdf, "atomic anchor deferral with owned figure and caption, exact drawing geometry and authored order"),

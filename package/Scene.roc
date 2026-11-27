@@ -78,36 +78,37 @@ Scene :: [].{
 		empty = Drawing.({ commands: [] })
 
 		path : Drawing, { path : AuthorPath, style : AuthorPathStyle } -> Drawing
-		path = |Drawing.(state), { path: path_value, style }| Drawing.({ commands: state.commands.append(AuthorPath({ path: path_value, style })) })
+		path = |Drawing.(state), { path: path_value, style }| Drawing.({ commands: flat_commands(state.commands).append(AuthorPath({ path: path_value, style })) })
 
 		## Place a replayable image source in drawing-local fixed-point geometry.
 		## Pixel dimensions remain independent of this authored display rectangle.
 		image : Drawing, { image : Image.Source, placement : Layout.Rect } -> Drawing
-		image = |Drawing.(state), { image: image_value, placement }| Drawing.({ commands: state.commands.append(AuthorImage({ image: image_value, placement })) })
+		image = |Drawing.(state), { image: image_value, placement }| Drawing.({ commands: flat_commands(state.commands).append(AuthorImage({ image: image_value, placement })) })
 
 		## Append another drawing's commands as one group translated by
-		## `offset` in this drawing's coordinates. Groups nest; the nesting
-		## stays flat data, and a flow figure or decoration accepts at most
-		## eight nested groups.
+		## `offset` in this drawing's coordinates. Nested groups stay flat.
+		## Facade preparation uses `budgets.max_drawing_group_depth` to bound
+		## their depth, with a default of eight.
 		group : Drawing, { offset : Layout.Point, drawing : Drawing } -> Drawing
 		group = |Drawing.(state), { offset, drawing: Drawing.(child) }| {
-			var $commands = state.commands.append(AuthorTranslate({ commands: child.commands.len(), offset }))
-			for command in child.commands {
-				$commands = $commands.append(command)
+			if state.commands.is_empty() {
+				groups = outer_group_count(child.commands)
+				return Drawing.({ commands: child.commands.append(AuthorTranslate({ commands: groups + 1, offset })) })
 			}
-			Drawing.({ commands: $commands })
+			prefix = flat_commands(state.commands).append(AuthorTranslate({ commands: child.commands.len(), offset }))
+			Drawing.({ commands: append_drawing_commands(prefix, child.commands, outer_group_count(child.commands)) })
 		}
 
 		## Add a text label (see `Label`) in the body face.
 		text : Drawing, Label -> Drawing
-		text = |Drawing.(state), label| Drawing.({ commands: state.commands.append(AuthorText(Box.box({ face: BodyFace, label }))) })
+		text = |Drawing.(state), label| Drawing.({ commands: flat_commands(state.commands).append(AuthorText(Box.box({ face: BodyFace, label }))) })
 
 		## Add a text label in the theme's face for an inline role, such as
 		## a chart title in the `Strong` face: `drawing.text_in({ role: Strong,
 		## label })`. The label's face joins the document's output fonts even
 		## when no body text uses it.
 		text_in : Drawing, { role : [Code, Emphasis, Quote, Strong], label : Label } -> Drawing
-		text_in = |Drawing.(state), { role, label }| Drawing.({ commands: state.commands.append(AuthorText(Box.box({ face: RoleFace(role), label }))) })
+		text_in = |Drawing.(state), { role, label }| Drawing.({ commands: flat_commands(state.commands).append(AuthorText(Box.box({ face: RoleFace(role), label }))) })
 
 		## Append a solid filled rectangle: `Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 40, height: 2 }), color: ink })`.
 		rectangle : Drawing, { bounds : Layout.Rect, color : Color.SourceValue } -> Drawing
@@ -121,7 +122,7 @@ Scene :: [].{
 
 		## Inspect retained commands during validated preparation.
 		commands : Drawing -> List(AuthorCommand)
-		commands = |Drawing.(state)| state.commands
+		commands = |Drawing.(state)| flat_commands(state.commands)
 	}
 
 	## Persistent builder for an ordered path in PDF user-space coordinates.
@@ -470,6 +471,61 @@ Scene :: [].{
 
 	no_patterns : PatternStore
 	no_patterns = { cells: [], commands: [] }
+}
+
+## A translation at the end of a projected list can only span zero
+## commands. A positive count at the tail marks that many wrapping
+## translations, stored in inside-out order in the same list.
+outer_group_count : List(Scene.AuthorCommand) -> U64
+outer_group_count = |commands| match commands.last() {
+	Ok(AuthorTranslate({ commands: count, .. })) => count
+	_ => 0
+}
+
+flat_commands : List(Scene.AuthorCommand) -> List(Scene.AuthorCommand)
+flat_commands = |commands| {
+	groups = outer_group_count(commands)
+	if (groups == 0) commands else append_drawing_commands(List.with_capacity(commands.len()), commands, groups)
+}
+
+append_drawing_commands : List(Scene.AuthorCommand), List(Scene.AuthorCommand), U64 -> List(Scene.AuthorCommand)
+append_drawing_commands = |initial, commands, groups| {
+	body_count = commands.len() - groups
+	var $commands = initial
+	var $end = commands.len()
+	while $end > body_count {
+		$end = $end - 1
+		offset = match commands.get($end) {
+			Ok(AuthorTranslate({ offset: translation, .. })) => translation
+			_ => crash "drawing wraps must end in translations"
+		}
+		$commands = $commands.append(AuthorTranslate({ commands: $end, offset }))
+	}
+	for command in commands.sublist({ start: 0, len: body_count }) {
+		$commands = $commands.append(command)
+	}
+	$commands
+}
+
+expect {
+	inner = Layout.point({ x: 1, y: 2 })
+	outer = Layout.point({ x: 3, y: 4 })
+	third = Layout.point({ x: 5, y: 6 })
+	bounds = Layout.rect({ x: 0, y: 0, width: 4, height: 5 })
+	marked = Scene.Drawing.empty.rectangle({ bounds, color: "#123456" })
+	grouped = Scene.Drawing.empty.group({ offset: inner, drawing: marked })
+	combined = Scene.Drawing.empty.group({ offset: outer, drawing: grouped }).group({ offset: third, drawing: grouped })
+	empty_group = Scene.Drawing.empty.group({ offset: inner, drawing: Scene.Drawing.empty })
+	commands = match combined.commands() {
+		[AuthorTranslate(first), AuthorTranslate(second), AuthorPath(_), AuthorTranslate(fourth), AuthorTranslate(fifth), AuthorPath(_)] =>
+			first == { commands: 2, offset: outer } and second == { commands: 1, offset: inner } and fourth == { commands: 2, offset: third } and fifth == second
+		_ => False
+	}
+	empty = match empty_group.commands() {
+		[AuthorTranslate({ commands: 0, offset })] => offset == inner
+		_ => False
+	}
+	commands and combined.command_count() == 6 and empty
 }
 
 # Scene group IDs preserve their dense index.

@@ -88,5 +88,4 @@ checks metadata for each declared profile. `tests/spec.json` records the exact
 PDF, allocation, work and allocated-byte expectations.
 
 See the xref:contributor-reference.adoc#contributor-testing-optional-local-pdf-review[optional local review setup]
-for an independent veraPDF check. The original implementation and performance
-measurements are in the https://github.com/lukewilliamboswell/roc-pdf/blob/decd51beee3da35f51d5e38abd711883a8010bb9/docs/contributors/performance/static-pdfa4.md[historical Gate 5 record].
+for an independent veraPDF check.

@@ -90,7 +90,7 @@ import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 ##   reused three times through `Scene.Drawing.group` in a header item,
 ##   nested twice in a footer item, and grouped inside a backdrop; the
 ##   flattened marks must land where their offsets put them. It rejects
-##   groups nested nine deep (`layout.furniture_drawing`).
+##   groups nested nine deep (`document.drawing_group_depth`).
 ## - `atomic_negatives`: every template rejection with its stable dotted
 ##   code and template path, and no bytes.
 ##
@@ -667,9 +667,9 @@ run_furniture_groups = |context| {
 			title: "Deep groups",
 			page_templates: Templates({ continuation: Pdf.page_template({ gap: 12, header: deep_header }), first: Pdf.first_page_template({ gap: 12, header: deep_header }) }),
 		}),
-		InvalidRelationship,
-		"layout.furniture_drawing",
-		["templates.first.header.start[0]"],
+		BudgetExceeded,
+		"document.drawing_group_depth",
+		["templates.first.header.start[0].commands[8]"],
 	)
 	if rejected != 1 {
 		return Err(MissingRejection(rejected))

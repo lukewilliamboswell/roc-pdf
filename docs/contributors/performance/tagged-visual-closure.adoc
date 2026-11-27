@@ -15,5 +15,3 @@ checks an independent pixel oracle in the pinned reader matrix.
 Pair contextual ownership cases with the million-command image-reuse
 fixture to exercise paint attachment and bounded command traversal.
 Check reading and paint order independently.
-
-See https://github.com/lukewilliamboswell/roc-pdf/blob/a6d1bde3028d51955b96af3ba1a183855a92cd2d/docs/contributors/performance/tagged-visual-closure.md[the archived design and measurements].

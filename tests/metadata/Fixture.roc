@@ -786,6 +786,7 @@ expect {
 		associated: NoAssociatedFiles,
 		condition_identifier: KernelMetadata.srgb_condition_identifier,
 		language: showcase_language,
+		page_label: NoBlankPageLabel,
 		profile_bytes: KernelSrgbProfile.bytes,
 		profile_components: 3,
 		registry_name: KernelMetadata.icc_registry_name,

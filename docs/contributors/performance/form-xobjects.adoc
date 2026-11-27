@@ -87,5 +87,3 @@ ownership. `scripts/check_forms.py` verifies the emitted structural
 wrappers, per-stream dictionaries, and paint. The opt-in matrix
 `scripts/check_form_renderers.py` compares the original files in pinned
 independent readers.
-
-See https://github.com/lukewilliamboswell/roc-pdf/blob/a6d1bde3028d51955b96af3ba1a183855a92cd2d/docs/contributors/performance/form-xobjects.md[the archived design and measurements].

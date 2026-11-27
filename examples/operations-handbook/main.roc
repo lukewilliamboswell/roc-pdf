@@ -1,11 +1,14 @@
 app [main!] {
 	pdf: "../../package/main.roc",
 	pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.28.1/7brgwR8YUqfeGrkdfF1V4GPPN7DnP7ftqub9KcrTEZtr.tar.zst",
+	weaver: "https://github.com/lukewilliamboswell/weaver/releases/download/0.11.0/7CdYzjBAJmprmnK45oTpmH6BXt76ZASN2Ck5uZQEoWsK.tar.zst",
 }
 import pf.Path
 import pf.OsStr
 import pf.Stderr
 import pf.Stdout
+import weaver.Cli
+import weaver.Param
 import Footnotes
 import pdf.Color
 import pdf.Document
@@ -22,18 +25,23 @@ import "fonts/SourceCodePro-Regular.ttf" as mono_bytes : List(U8)
 ## An on-call runbook with authored contents, chapter templates and
 ## a continuing rollback instruction containing rich blocks.
 main! = |args| {
-	mode = match args.map(OsStr.display) {
-		[] => Authored
-		["generated"] => Generated
-		["index"] => Indexed
-		["bibliography"] => Bibliography
-		["flow-short"] => return flow_note!("A-")
-		["flow-long"] => return flow_note!("RECOVERY-CHECKS-")
-		["footnotes"] => return write_footnotes!(False)
-		["footnote-oversize"] => return write_footnotes!(True)
-		["topology"] => return topology_excerpt!(350)
-		["topology-tight"] => return topology_excerpt!(310)
-		_ => return Err(Usage)
+	mode = match Cli.parse_or_display_message(cli, args, OsStr.to_raw) {
+		Err(Help(message)) | Err(Version(message)) => return Stdout.line!(message).map_err(|error| OutputFailed(error))
+		Err(InvalidUsage(message)) => {
+			Stderr.line!(message).map_err(|error| OutputFailed(error))?
+			return Err(Exit(2))
+		}
+		Ok(Err(NoValue)) => Authored
+		Ok(Ok("generated")) => Generated
+		Ok(Ok("index")) => Indexed
+		Ok(Ok("bibliography")) => Bibliography
+		Ok(Ok("flow-short")) => return flow_note!("A-")
+		Ok(Ok("flow-long")) => return flow_note!("RECOVERY-CHECKS-")
+		Ok(Ok("footnotes")) => return write_footnotes!(False)
+		Ok(Ok("footnote-oversize")) => return write_footnotes!(True)
+		Ok(Ok("topology")) => return topology_excerpt!(350)
+		Ok(Ok("topology-tight")) => return topology_excerpt!(310)
+		Ok(Ok(_)) => return Err(Usage)
 	}
 	fonts = register_fonts({})?
 	options : Pdf.Options
@@ -1028,3 +1036,10 @@ observation_notes = ["First five minutes", "Next five minutes", "Handover"].map(
 		Pdf.paragraph("Record the approved revision and the time it became ready. Add the dashboard views behind these decisions to the incident timeline. Ask the secondary on-call engineer to confirm the observations before handing back control."),
 	],
 ).join()
+
+cli = Cli.assert_valid(
+	Cli.finish(
+		Param.maybe_str({ name: "mode", help: "Choose generated, index, bibliography, flow-short, flow-long, footnotes, footnote-oversize, topology, or topology-tight." }),
+		{ name: "operations-handbook", version: "unversioned", authors: [], description: "Generate an operations handbook or focused excerpt.", text_style: Plain },
+	),
+)

@@ -412,7 +412,7 @@ drawing_roles = |roles, { drawing, owner, first_block }| {
 	var $roles = roles
 	var $label = 0
 	match drawing {
-		InvalidDrawing(_) => {}
+		DrawingDepthLimit(_) | InvalidDrawing(_) => {}
 		ValidDrawing(value) => {
 			for command in value.commands {
 				match command {

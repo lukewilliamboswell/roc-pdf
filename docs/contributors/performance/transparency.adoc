@@ -81,5 +81,3 @@ checks independent sampled compositing values and pinned reader
 rasters. The transparency cases in `tests/spec.json` exercise
 all-opaque elision, shared and distinct alphas, nested form contexts,
 transparency limits, and allocation/work scaling.
-
-See https://github.com/lukewilliamboswell/roc-pdf/blob/a6d1bde3028d51955b96af3ba1a183855a92cd2d/docs/contributors/performance/transparency.md[the archived design and measurements].

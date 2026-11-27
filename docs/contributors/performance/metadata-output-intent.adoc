@@ -89,5 +89,3 @@ sharing, and exact ICC bytes. Test cases in `tests/spec.json` control
 allocation and work for repeated metadata, omitted times, and located
 malformed values. Use `scripts/check_metadata_renderers.py` with the
 pinned external tools for independent rendering and metadata extraction.
-
-See https://github.com/lukewilliamboswell/roc-pdf/blob/a6d1bde3028d51955b96af3ba1a183855a92cd2d/docs/contributors/performance/metadata-output-intent.md[the archived design and measurements].

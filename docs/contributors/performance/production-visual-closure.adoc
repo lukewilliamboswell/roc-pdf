@@ -16,5 +16,3 @@ private object internals out of the public facade. Use
 `scripts/check_gallery.py` to reproduce the runnable public examples.
 Application authoring examples consume the package root, and checked
 snapshots retain asset provenance in `assets/provenance.json`.
-
-See https://github.com/lukewilliamboswell/roc-pdf/blob/a6d1bde3028d51955b96af3ba1a183855a92cd2d/docs/contributors/performance/production-visual-closure.md[the archived design and measurements].

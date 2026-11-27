@@ -18,7 +18,13 @@ KernelFacadeTableGrid :: [].{
 	]
 
 	build : Document.NormalizedAuthoring, U64, U64, U64, Document.NormalizedTable -> Try(Selection, Error)
-	build = |authoring, group, first, end, table| check_grid(authoring, group, first, end, table)
+	build = |authoring, group, first, end, table| build_with_limit(authoring, group, first, end, table, default_track_limit)
+
+	build_with_limit : Document.NormalizedAuthoring, U64, U64, U64, Document.NormalizedTable, U64 -> Try(Selection, Error)
+	build_with_limit = |authoring, group, first, end, table, limit| check_grid(authoring, group, first, end, table, limit)
+
+	default_track_limit : U64
+	default_track_limit = 1000000
 
 	## Look up the sparse accepted grid by its normalized table group.
 	for_group : List(Grid), U64 -> Selection
@@ -43,36 +49,33 @@ KernelFacadeTableGrid :: [].{
 
 Track : { cell : U64, column_end : U64, row_end : U64 }
 
-track_limit : U64
-track_limit = 1000000
-
 ## ISO 32000-2:2020+EC3 §14.8.4.8.3 and Table 371, §14.8.5.7 and Table
 ## 384. PDF/UA-2 and WTPDF §8.2.5.26 require a regular logical grid. Each
 ## authored cell starts in the first unoccupied column and occupies its
 ## whole rectangle within its own THead, TBody or TFoot. Every track is
 ## occupied exactly once in every row. Grid work is bounded before arena
 ## writes; only a span's starting row writes slots to the active track list.
-check_grid : Document.NormalizedAuthoring, U64, U64, U64, Document.NormalizedTable -> Try(KernelFacadeTableGrid.Selection, KernelFacadeTableGrid.Error)
-check_grid = |authoring, group, first, end, table| {
+check_grid : Document.NormalizedAuthoring, U64, U64, U64, Document.NormalizedTable, U64 -> Try(KernelFacadeTableGrid.Selection, KernelFacadeTableGrid.Error)
+check_grid = |authoring, group, first, end, table, limit| {
 	var $index = first
 	while $index < end {
 		record = list_at(authoring.cells, $index)
 		if record.row_span > 1 {
-			return check_rectangles(authoring, group, first, end, table)
+			return check_rectangles(authoring, group, first, end, table, limit)
 		}
 		$index = $index + 1
 	}
 	Ok(Ordinary)
 }
 
-check_rectangles : Document.NormalizedAuthoring, U64, U64, U64, Document.NormalizedTable -> Try(KernelFacadeTableGrid.Selection, KernelFacadeTableGrid.Error)
-check_rectangles = |authoring, group, first, end, table| {
+check_rectangles : Document.NormalizedAuthoring, U64, U64, U64, Document.NormalizedTable, U64 -> Try(KernelFacadeTableGrid.Selection, KernelFacadeTableGrid.Error)
+check_rectangles = |authoring, group, first, end, table, limit| {
 	width = table.columns.len()
 	header_end = table.header_rows
 	body_end = header_end + table.body_rows
 	footer_end = body_end + table.footer_rows
-	if width > track_limit or end - first > track_limit or footer_end > track_limit {
-		return Err(TrackBudget({ group, limit: track_limit }))
+	if width > limit or end - first > limit or footer_end > limit {
+		return Err(TrackBudget({ group, limit }))
 	}
 	var $active = List.repeat({ cell: 0, column_end: 0, row_end: 0 }, width)
 	var $cells = List.with_capacity(end - first)
@@ -90,8 +93,8 @@ check_rectangles = |authoring, group, first, end, table| {
 		var $crosses_after = False
 		var $column = 0
 		while $column < width {
-			if $work == track_limit {
-				return Err(TrackBudget({ group, limit: track_limit }))
+			if $work == limit {
+				return Err(TrackBudget({ group, limit }))
 			}
 			$work = $work + 1
 			active = list_at($active, $column)
@@ -115,8 +118,8 @@ check_rectangles = |authoring, group, first, end, table| {
 				}
 				cell_end = KernelSpan.end_within($column, span, width) ? |_| CellExtent({ block: record.block, reason: ColumnEnd })
 				area = span * height
-				if area > track_limit - $work {
-					return Err(TrackBudget({ group, limit: track_limit }))
+				if area > limit - $work {
+					return Err(TrackBudget({ group, limit }))
 				}
 				$work = $work + area
 				var $track = $column

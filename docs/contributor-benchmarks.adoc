@@ -3,4 +3,83 @@
 
 include::contributors/benchmarks/pdf-comparison/README.adoc[leveloffset=+1]
 
-include::contributors/benchmarks/pdf-comparison/results/linux-desktop-2026-10-20.adoc[leveloffset=+1]
+[#sample-pdf-generation]
+== Sample PDF generation
+
+* `benchmarks/flow.roc` lays out rich text and a multi-page table.
+* `benchmarks/wide_table.roc` varies 1 to 65,535 fixed-width tracks beneath
+  one spanning cell while keeping row contents and total width constant.
+* `benchmarks/style.roc` compares one long styled paragraph with the same
+  runs split into shorter paragraphs. Vary `--paragraph-units` at a fixed
+  workload size.
+* `benchmarks/graphics.roc` places captioned vector and raster figures.
+  Vary `--rasters` at a fixed figure count to compare shared and distinct
+  resource inputs.
+* `benchmarks/jpeg.roc` places the same encoded photograph in multiple
+  captioned figures to exercise encoded image reuse.
+* `benchmarks/mixed_script.roc` shapes alternating Latin and Han characters in
+  one paragraph. Use `--units` to set the number of character pairs and
+  `--max-source-script-runs` to raise or lower the itemization budget.
+* `benchmarks/source.roc` paginates tab-indented source text. Use `--units` for
+  total lines, `--lines-per-block` to vary the largest block, and `--highlight`
+  to add one foreground range per line.
+* `benchmarks/scoped_wrapper.roc` wraps a fixed body in layout-only scopes.
+  Vary `--scope-depth` at a fixed paragraph count and compare the emitted PDF.
+* `benchmarks/furniture.roc` repeats a header with reserved-width text.
+  Use `--slots` for the number of reserved positions and `--units` for pages.
+* `benchmarks/stress.roc` starts each unit on a new page, with links and
+  rich text plus periodic tables, vector drawings and a shared photograph.
+  Use `--detail-every 0` for a plain-text control and `--max-pages` to pass an
+  explicit page budget to `Pdf.Options`. Use `--budget-scale` to multiply the
+  default content, text, paint, navigation, index, source, and output budgets
+  for a stress run.
+  Use `--image-comparison-bytes` to vary the exact image sharing budget in
+  workloads that place the same image many times.
+  Use `--generated-contents` to include one page reference per station.
+  Use `--flow-references` to add one flow-changing reference per station.
+  Each reference points to the next station, and the last points to the first.
+  For a 10,000-reference preparation run, use `--units 10000 --max-pages 15000`
+  with `--detail-every 0 --budget-scale 16 --flow-references --prepare-only`.
+  Budget scaling multiplies the per-pass state and accumulated layout work
+  limits while keeping the standard eight-pass cap. Use
+  `--flow-reference-state-units` to set the per-pass state limit independently.
+  Use `--index-targets-per-term N` to append an authored index with one link per
+  station and at most `N` links in each term.
+  Allow extra pages for the table of contents and index when setting `--max-pages`.
+
+`benchmarks/drawing_authoring.roc` measures construction and command traversal
+for a nested vector drawing. Vary `--depth` at a fixed `--iterations`. The
+app reports the total authored commands.
+
+The facade apps report the total number of bytes they emit.
+Use `--help` for workload size, repetition, compression and preparation
+options.
+Use `--delivery buffered`, `--delivery share`, or `--delivery own` to compare
+buffered output with draining either chunk policy. The chunk consumer counts
+bytes and drops each chunk before requesting the next one. Use
+`--output .roc-pdf-tmp/report.pdf` with one full generation to write an
+artifact for independent inspection.
+
+Build the target for speed with debug information. On Linux, sample the
+compiled process with `perf` using DWARF call stacks.
+
+[source,sh]
+----
+mkdir -p .roc-pdf-tmp/sampling
+roc build benchmarks/flow.roc --opt=speed --debug --output=.roc-pdf-tmp/sampling/pdf-flow
+perf record -e cycles:u -F 999 --call-graph dwarf,16384 \
+  -o .roc-pdf-tmp/sampling/flow.perf.data \
+  -- .roc-pdf-tmp/sampling/pdf-flow --units 128 --iterations 200
+perf report -i .roc-pdf-tmp/sampling/flow.perf.data --stdio --no-children
+----
+
+Increase the iterations for a longer capture. Keep the same workload size
+and compare against `--prepare-only` to narrow a suspected hot path to
+preparation or emission. Review inclusive call stacks alongside leaf samples
+before attributing cost to a package or compiler operation. Keep raw captures
+in ignored output.
+
+For the page stress case, run each delivery mode in a fresh process and record
+peak resident memory as well as elapsed time. Include a preparation-only run
+at the same size so you can see how much memory is already committed before
+emission.
