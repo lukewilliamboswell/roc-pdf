@@ -16,3 +16,12 @@ Preparation reports `drawing.path_order` at the authored command and segment
 when a line, curve, or close has no open subpath. Use
 `Scene.PathBuilder.move_to` to start each new subpath. An invalid rectangle
 dimension in a furniture backdrop returns a located drawing diagnostic.
+
+== Text diagnostics
+
+* An unbreakable figure caption reports `layout.unbreakable_token` at the
+  caption. Add a line-break opportunity or increase the available flow width.
+* Empty block links report `semantics.link_text_empty` at the link. Supply
+  visible link text.
+* A multi-scalar grapheme outside the simple furniture shaper's repertoire
+  reports `text.unsupported_cluster` at the furniture item.
