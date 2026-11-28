@@ -157,7 +157,7 @@ fit_figure : KernelFacadeLines.BlockLines, Document.ValidatedDrawing, [Caption(K
 fit_figure = |anchor, validated, caption, frame, gap, at, shaped| {
 	drawing = match validated {
 		ValidDrawing(value) => value
-		DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) => return Err(InvalidPlan)
+		DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) | InvalidImageStride(_) => return Err(InvalidPlan)
 	}
 	frame_width = frame.size.width.raw().to_u64_wrap()
 	frame_height = frame.size.height.raw().to_u64_wrap()

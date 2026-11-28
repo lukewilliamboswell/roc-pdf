@@ -238,6 +238,8 @@ Control the flow explicitly:
 [#authoring-tables]
 == Tables
 
+A `Fixed` column width must be positive.
+
 Use `Pdf.cell(contents)` for a data cell and `Pdf.header_cell(scope, contents)`
 for a header. Both use one column, one row, the first column's alignment
 and no cell fill. Set named overrides with `Pdf.cell_with(contents, props)`
@@ -439,8 +441,10 @@ letter = Pdf.document({ title, language: "en-AU", contents, page_templates: Temp
 ----
 
 A template leaves out what it does not use: a missing `header`, `footer`,
-or `lead` is no region, and a missing `gap` is zero. Body text flows only in what the regions leave, so the first page and later
-pages can hold different body heights. Each slot (`start`, `center`, `end`)
+or `lead` is no region, and a missing `gap` is zero. A gap must be
+nonnegative. The regions and their gaps must leave room for at least one
+body line inside the page margins. The first and later pages can hold
+different body heights. Each slot (`start`, `center`, `end`)
 stacks its furniture: a header's stack sits on the region's bottom edge and a
 footer's hangs from its top edge. `Pdf.furniture_text` is one line of text,
 page fields, and reserved widths in the resolved `Theme.furniture` style.
@@ -1073,7 +1077,10 @@ The built-in values are declared on the types (`Theme`, `Theme.BodyStyle`,
 `Theme.default` and `Pdf.Options.default` are those records with nothing
 set. Invalid supplied values produce a diagnostic before output, such as
 `text.inline_scale` at `theme.inline.code.scale`. Preparation enforces the
-selected policy and profile.
+selected policy and profile. Use positive text sizes, leading and bullet
+indents. Paragraph spacing and page margins must be nonnegative. A custom
+link underline's offset and thickness must fit in the space below the
+body text inside its leading.
 
 A style's face is `ThemeFace`, the theme's `face` (the default), or
 `Face(face)`. A heading level is `SameAsAll`, the `headings.all` style (the
@@ -1127,8 +1134,10 @@ rule = Pdf.decoration({ drawing: Scene.Drawing.empty.rectangle({ bounds: Layout.
 ----
 
 Image pixel dimensions and layout placement are independent. Packed planes
-must have valid dimensions, row stride, byte length, and supported alpha;
-JPEGs additionally pass the bounded marker and orientation-policy inspector.
+must have valid dimensions, row stride, byte length, and supported alpha.
+The row stride times the image height must fit the byte length of each
+packed plane. JPEGs additionally pass the bounded marker and
+orientation-policy inspector.
 Translated `Scene.Drawing.group` nesting defaults to eight levels. Set
 `budgets.max_drawing_group_depth` in `Pdf.Options` to change it for figures,
 fixed-page figures, decorations, custom panels and furniture drawings. Zero

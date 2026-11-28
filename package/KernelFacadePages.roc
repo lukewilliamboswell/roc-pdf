@@ -2353,7 +2353,7 @@ scope_frame_bounds = |flow, body_height, block| {
 valid_drawing : Document.ValidatedDrawing, U64 -> Try(Document.FlowDrawing, KernelFacadePages.Error)
 valid_drawing = |drawing, block| match drawing {
 	ValidDrawing(value) => Ok(value)
-	DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) => Err(InvalidBlock({ block: block }))
+	DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) | InvalidImageStride(_) => Err(InvalidBlock({ block: block }))
 }
 
 ## The decoration band above leaf `block`.

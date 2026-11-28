@@ -97,7 +97,7 @@ drawing_has_labels = |drawing| match drawing {
 			_ => False
 		},
 	)
-	DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) => False
+	DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) | InvalidImageStride(_) => False
 }
 
 build_labels : Document.NormalizedAuthoring, KernelFacadeText.Plan, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeSemantics.FigureLabels, KernelFacadeLabels.Fonts, Semantics.Language, U64, KernelFacadeLabels.Limits -> Try([Labels(KernelFacadeLabels.Plan), NoLabels], KernelFacadeLabels.Error)
@@ -280,7 +280,7 @@ build_labels = |authoring, text, blocks, figures, fonts, language, source_base, 
 ## Append one drawing's labels as entries.
 append_entries : List(Entry), Document.ValidatedDrawing, KernelFacadeLabels.Owner, { origin : Layout.Point, page : U64 }, I64 -> Try(List(Entry), KernelFacadeLabels.Error)
 append_entries = |entries, drawing, owner, placed, scale| match drawing {
-	DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) => Err(InvalidPlacement(owner))
+	DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) | InvalidImageStride(_) => Err(InvalidPlacement(owner))
 	ValidDrawing(value) => {
 		var $entries = entries
 		var $label = 0

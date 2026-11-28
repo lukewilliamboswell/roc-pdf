@@ -5,6 +5,7 @@ import Font
 import KernelFacadeSources
 import KernelFacadeTableGrid
 import KernelFootnoteGraph
+import KernelImage
 import KernelNavigation
 import KernelSemantics
 import KernelTextSemantics
@@ -56,6 +57,7 @@ KernelFacadeSemantics :: [].{
 		DecorationDrawing({ decoration : U64, reason : Str }),
 		DrawingGroupDepth({ drawing : [FigureAt(U64), DecorationAt(U64), PanelAt(U64)], depth : KernelDrawingGroups.DepthLimit }),
 		DrawingPathInvalid({ drawing : [FigureAt(U64), DecorationAt(U64), PanelAt(U64)], problem : KernelDrawingPath.PlacementError }),
+		DrawingImageStride({ drawing : [FigureAt(U64), DecorationAt(U64), PanelAt(U64)], command : U64, plane : KernelImage.Plane }),
 
 		## A decoration with no following flow block, or inside a lead
 		## region.
@@ -114,6 +116,7 @@ KernelFacadeSemantics :: [].{
 		TableHeaderTargetLimit({ attempted : U64, block : U64, limit : U64 }),
 		TableHeaderTargets({ block : U64, reason : [DataTarget, DuplicateTarget, EmptyTargets, ForwardTarget, InvalidTarget, UnknownTarget] }),
 		TableEmpty({ group : U64 }),
+		TableFixedWidth({ column : U64, group : U64 }),
 		TableGridMismatch({ columns : U64, group : U64, spanned : U64 }),
 		TableHeaderMissing({ group : U64 }),
 		TableSpan(KernelFacadeTableGrid.Error),
@@ -1175,7 +1178,7 @@ plan_blocks = |authoring, limits| {
 								_ => {}
 							}
 						}
-						DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) => crash "validated figure drawing escaped"
+						DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) | InvalidImageStride(_) => crash "validated figure drawing escaped"
 					}
 					label_count = $figure_label_texts.len() - first_label
 					attempted_nodes = checked_add($next_node, 1)?
@@ -1379,6 +1382,14 @@ plan_table = |authoring, group_index, table_index, at, { max_attributes, max_dep
 	columns = table.columns.len()
 	if columns == 0 or table.body_rows == 0 {
 		return Err(TableEmpty({ group: group_index }))
+	}
+	var $authored_column = 0
+	while $authored_column < columns {
+		match list_at(table.columns, $authored_column).width {
+			Fixed(width) if width <= 0 => return Err(TableFixedWidth({ column: $authored_column, group: group_index }))
+			_ => {}
+		}
+		$authored_column = $authored_column + 1
 	}
 	cell_end = at.cell + group.block_end - group.first_block - (if (table.caption) 1 else 0)
 	grid = KernelFacadeTableGrid.build_with_limit(authoring, group_index, at.cell, cell_end, table, max_table_grid_work) ? TableSpan
@@ -1970,6 +1981,7 @@ check_figure = |figure, block| {
 	match figure.drawing {
 		DrawingDepthLimit(depth) => return Err(DrawingGroupDepth({ drawing: FigureAt(block), depth }))
 		InvalidDrawingPath(problem) => return Err(DrawingPathInvalid({ drawing: FigureAt(block), problem }))
+		InvalidImageStride({ command, plane }) => return Err(DrawingImageStride({ drawing: FigureAt(block), command, plane }))
 		InvalidDrawing(reason) => return Err(FigureDrawing({ block, reason }))
 		ValidDrawing(_) => {}
 	}
@@ -2114,6 +2126,7 @@ check_customs = |authoring| {
 		match custom.panel {
 			DrawingDepthLimit(depth) => return Err(DrawingGroupDepth({ drawing: PanelAt($index), depth }))
 			InvalidDrawingPath(problem) => return Err(DrawingPathInvalid({ drawing: PanelAt($index), problem }))
+			InvalidImageStride({ command, plane }) => return Err(DrawingImageStride({ drawing: PanelAt($index), command, plane }))
 			InvalidDrawing(reason) => return Err(CustomDrawing({ custom: $index, reason }))
 			ValidDrawing(drawing) => {
 				if !drawing.images.is_empty() {
@@ -2160,6 +2173,7 @@ check_decorations = |authoring| {
 		match decoration.drawing {
 			DrawingDepthLimit(depth) => return Err(DrawingGroupDepth({ drawing: DecorationAt($index), depth }))
 			InvalidDrawingPath(problem) => return Err(DrawingPathInvalid({ drawing: DecorationAt($index), problem }))
+			InvalidImageStride({ command, plane }) => return Err(DrawingImageStride({ drawing: DecorationAt($index), command, plane }))
 			InvalidDrawing(reason) => return Err(DecorationDrawing({ decoration: $index, reason }))
 			ValidDrawing(_) => {}
 		}

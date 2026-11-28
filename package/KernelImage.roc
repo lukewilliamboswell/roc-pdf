@@ -21,6 +21,27 @@ KernelImage :: [].{
 		UnsupportedJpegComponents({ components : U8, resource : U64 }),
 	]
 
+	Plane : [AlphaPlane, ColorPlane]
+
+	## Check declared plane extents while the drawing still has its authored
+	## location. Exact buffer-length and source-policy checks use the image
+	## resource plan. This check reads no pixel data.
+	validate_authored_stride : Image.Source -> Try({}, Plane)
+	validate_authored_stride = |source| match Image.Source.inspect(source) {
+		JpegSrgbView(_) => Ok({})
+		PackedGray8View({ alpha, dimensions, row_stride, .. }) | PackedRgb8View({ alpha, dimensions, row_stride, .. }) => {
+			height = dimensions.height.to_u64()
+			_ = U64.times_try(row_stride, height) ? |_| ColorPlane
+			match alpha {
+				NoAlpha => Ok({})
+				PackedAlpha({ row_stride: alpha_stride, .. }) => {
+					_ = U64.times_try(alpha_stride, height) ? |_| AlphaPlane
+					Ok({})
+				}
+			}
+		}
+	}
+
 	Limits :: { max_decoded_bytes : U64, max_encoded_bytes : U64, max_height : U32, max_markers : U64, max_resources : U64, max_width : U32 }.{
 		make : { max_decoded_bytes : U64, max_encoded_bytes : U64, max_height : U32, max_markers : U64, max_resources : U64, max_width : U32 } -> Limits
 		make = |limits| Limits.(limits)

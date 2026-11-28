@@ -6,6 +6,7 @@ import Color
 import Conformance
 import Font
 import Image
+import KernelImage
 import KernelContentsSelection
 import KernelSourceText
 import KernelSpan
@@ -539,7 +540,7 @@ FlowDrawing : { commands : List(FlowCommand), height : U64, images : List(Image.
 ## A figure, decoration, or custom panel after normalization validation. An
 ## invalid drawing keeps its reason so semantic planning can reject it at
 ## its authored location.
-ValidatedDrawing : [DrawingDepthLimit(KernelDrawingGroups.DepthLimit), InvalidDrawing(Str), InvalidDrawingPath(KernelDrawingPath.PlacementError), ValidDrawing(FlowDrawing)]
+ValidatedDrawing : [DrawingDepthLimit(KernelDrawingGroups.DepthLimit), InvalidDrawing(Str), InvalidDrawingPath(KernelDrawingPath.PlacementError), InvalidImageStride({ command : U64, plane : KernelImage.Plane }), ValidDrawing(FlowDrawing)]
 
 ## The PDF 2.0 grouping element a container block becomes: `Part`, `Sect`,
 ## or `Div`. Grouping has no visual effect; children keep their own roles,
@@ -752,7 +753,7 @@ normalize_fixed_pages = |fixed, limits, max_drawing_group_depth| {
 								ValidDrawing(drawing) => if drawing.commands.any(is_flow_text) {
 									return Err(UnsupportedFigureLabels({ page: $page, placement: $placement }))
 								}
-								DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) => {}
+								DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) | InvalidImageStride(_) => {}
 							}
 							if normalized.captioned {
 								$frames = $frames.append(placement.frame)
@@ -3366,7 +3367,7 @@ without_decoration_labels = |validated| match validated {
 	} else {
 		validated
 	}
-	DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) => validated
+	DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) | InvalidImageStride(_) => validated
 }
 
 ## A decoration's drawing with its spacing applied: the space above adds to
@@ -3377,7 +3378,7 @@ without_decoration_labels = |validated| match validated {
 ## space above, or an overlap deeper than the drawing, is invalid.
 space_decoration : ValidatedDrawing, Layout.Unit, Layout.Unit -> ValidatedDrawing
 space_decoration = |validated, above, below| match validated {
-	DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) => validated
+	DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) | InvalidImageStride(_) => validated
 	ValidDrawing(drawing) => {
 		up = above.raw()
 		down = below.raw()
@@ -3454,6 +3455,10 @@ validate_flow_drawing = |drawing, max_depth| {
 		}
 		match list_at(commands, $index) {
 			AuthorImage({ image, placement }) => {
+				match KernelImage.validate_authored_stride(image) {
+					Ok({}) => {}
+					Err(plane) => return InvalidImageStride({ command: $index, plane })
+				}
 				if !within_bound(placement.origin.x.raw()) or !within_bound(placement.origin.y.raw()) or !within_bound(placement.size.width.raw()) or !within_bound(placement.size.height.raw()) {
 					return InvalidDrawing("a coordinate lies more than 10^9 pt from the drawing origin")
 				}
@@ -4272,7 +4277,7 @@ expect {
 		$level = $level + 1
 	}
 	rejected = |drawing| match validate_flow_drawing(drawing, KernelDrawingGroups.default_depth) {
-		DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) => True
+		DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) | InvalidImageStride(_) => True
 		ValidDrawing(_) => False
 	}
 	rejected($deep) and rejected(Scene.Drawing.empty.group({ offset: Layout.point({ x: -5, y: 0 }), drawing: mark })) and rejected(Scene.Drawing.empty.group({ offset: Layout.point({ x: 1, y: 1 }), drawing: Scene.Drawing.empty })) and rejected(Scene.Drawing.empty)
