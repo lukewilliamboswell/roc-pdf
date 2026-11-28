@@ -20,6 +20,9 @@ KernelFacadeTables :: [].{
 		InvalidCell({ block : U64 }),
 		Measure(KernelLineLayout.Error),
 
+		## An authored fixed column width is zero or negative.
+		TableFixedWidth({ column : U64, group : U64 }),
+
 		## Fixed widths plus every column's minimum exceed the available width.
 		TableWidth({ available : U64, group : U64, required : U128 }),
 
@@ -333,7 +336,7 @@ resolve_columns = |authoring, table, group, group_index, measures, first_cell, c
 					Ok(value) => value
 					Err(_) => {
 						limit = match list_at(table.columns, $column).width {
-							Fixed(unit) => nonnegative(unit.raw())?
+							Fixed(unit) => fixed_width(unit, group_index, $column)?
 							_ => available
 						}
 						return Err(token_error(limit.minus_saturated(padding_width), $block, measure))
@@ -362,7 +365,7 @@ resolve_columns = |authoring, table, group, group_index, measures, first_cell, c
 	while $column < count {
 		minimum = list_at($minima, $column)
 		limit = match list_at(table.columns, $column).width {
-			Fixed(unit) => nonnegative(unit.raw())?
+			Fixed(unit) => fixed_width(unit, group_index, $column)?
 			_ => available
 		}
 		if minimum > limit {
@@ -628,6 +631,15 @@ segment_length = |requests, start, end| {
 		$index = $index + 1
 	}
 	$index - start
+}
+
+fixed_width : Layout.Unit, U64, U64 -> Try(U64, KernelFacadeTables.Error)
+fixed_width = |width, group, column| {
+	if width <= 0 {
+		Err(TableFixedWidth({ column, group }))
+	} else {
+		Ok(width.raw().to_u64_wrap())
+	}
 }
 
 nonnegative : I64 -> Try(U64, KernelFacadeTables.Error)

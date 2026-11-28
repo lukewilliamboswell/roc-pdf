@@ -2194,10 +2194,6 @@ pipeline_error_at = |error, doc, paths| match error {
 		}
 		located_error(doc, InvalidRelationship, "table.header_targets", summary, [diagnostic_leaf_path(doc, paths, block)])
 	}
-	Semantics(TableFixedWidth({ column, group })) => {
-		path = group_path(Document.normalize(doc).groups, group)
-		located_error(doc, LayoutConstraintViolated, "layout.table_fixed_width", "A fixed table column width must be positive.", ["${path}.columns[${column.to_str()}].width"])
-	}
 	Semantics(TableEmpty({ group })) => group_error(doc, group, InvalidRelationship, "table.empty", "A table needs at least one column, one body row, and one cell with content.")
 	Semantics(TableGridMismatch({ columns, group, spanned })) => group_error(doc, group, InvalidRelationship, "table.grid_mismatch", "A table row spans ${spanned.to_str()} columns but the table declares ${columns.to_str()}; every row's column spans must sum to the column count and each span must be at least one.")
 	Semantics(TableHeaderMissing({ group })) => group_error(doc, group, InvalidRelationship, "table.header_missing", "A table declares no header cell; at least one cell must be a header_cell with a declared scope.")
@@ -2234,6 +2230,10 @@ pipeline_error_at = |error, doc, paths| match error {
 			ColumnPaths(authoring) => if (block < authoring.blocks.len()) [column_block_path(block)] else []
 		},
 	)
+	Lines(Tables(TableFixedWidth({ column, group }))) => {
+		path = group_path(Document.normalize(doc).groups, group)
+		located_error(doc, LayoutConstraintViolated, "layout.table_fixed_width", "A fixed table column width must be positive.", ["${path}.columns[${column.to_str()}].width"])
+	}
 	Lines(Tables(TableWidth({ available, group, required }))) => group_error(doc, group, LayoutConstraintViolated, "layout.table_width", "A table's fixed column widths and column minimums need ${wide_points_text(required)} but the table has ${points_text(available)}; content is never shrunk or clipped.")
 	Lines(FlowUnbreakable({ block })) => located_error(doc, LayoutConstraintViolated, "layout.unbreakable_token", "An unbreakable part of the text exceeds its available width.", [diagnostic_leaf_path(doc, paths, block)])
 	Lines(InternationalUnbreakable({ block, available })) => located_error(doc, LayoutConstraintViolated, "layout.international_unbreakable", "The unbreakable segment does not fit its ${signed_points_text(available.raw())} frame.", [diagnostic_leaf_path(doc, paths, block)])

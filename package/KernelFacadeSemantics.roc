@@ -116,7 +116,6 @@ KernelFacadeSemantics :: [].{
 		TableHeaderTargetLimit({ attempted : U64, block : U64, limit : U64 }),
 		TableHeaderTargets({ block : U64, reason : [DataTarget, DuplicateTarget, EmptyTargets, ForwardTarget, InvalidTarget, UnknownTarget] }),
 		TableEmpty({ group : U64 }),
-		TableFixedWidth({ column : U64, group : U64 }),
 		TableGridMismatch({ columns : U64, group : U64, spanned : U64 }),
 		TableHeaderMissing({ group : U64 }),
 		TableSpan(KernelFacadeTableGrid.Error),
@@ -1382,14 +1381,6 @@ plan_table = |authoring, group_index, table_index, at, { max_attributes, max_dep
 	columns = table.columns.len()
 	if columns == 0 or table.body_rows == 0 {
 		return Err(TableEmpty({ group: group_index }))
-	}
-	var $authored_column = 0
-	while $authored_column < columns {
-		match list_at(table.columns, $authored_column).width {
-			Fixed(width) if width <= 0 => return Err(TableFixedWidth({ column: $authored_column, group: group_index }))
-			_ => {}
-		}
-		$authored_column = $authored_column + 1
 	}
 	cell_end = at.cell + group.block_end - group.first_block - (if (table.caption) 1 else 0)
 	grid = KernelFacadeTableGrid.build_with_limit(authoring, group_index, at.cell, cell_end, table, max_table_grid_work) ? TableSpan
