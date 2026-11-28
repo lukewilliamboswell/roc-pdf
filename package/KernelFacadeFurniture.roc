@@ -1,4 +1,5 @@
 import KernelDrawingGroups
+import KernelDrawingPath
 import Color
 import Document
 import Font
@@ -50,6 +51,7 @@ KernelFacadeFurniture :: [].{
 
 		## A furniture drawing that is not a validated decorative drawing.
 		DrawingInvalid({ path : Str, reason : Str }),
+		DrawingPathInvalid({ path : Str, problem : KernelDrawingPath.PlacementError }),
 		DrawingGroupDepth({ path : Str, depth : KernelDrawingGroups.DepthLimit }),
 
 		## A resolved page field does not fit its reserved width or slot on
@@ -725,14 +727,6 @@ validate_drawing = |drawing, path, image_base, max_depth| {
 				$images = $images.append(image)
 			}
 			AuthorPath({ path: authored, style }) => {
-				segments = if $dx == 0 and $dy == 0 {
-					authored
-				} else {
-					match offset_segments(authored, $dx, $dy) {
-						Moved(moved) => moved
-						OutOfRange => return Err(DrawingInvalid({ path, reason: "a coordinate lies more than 10^9 pt from the drawing origin" }))
-					}
-				}
 				fill = match style.fill {
 					AuthorNoFill => NoFill
 					AuthorSolidFill(color) => Fill(color)
@@ -760,17 +754,13 @@ validate_drawing = |drawing, path, image_base, max_depth| {
 				if !paints {
 					return Err(DrawingInvalid({ path, reason: "a path paints nothing without a fill or a stroke" }))
 				}
-				bounds = path_bounds(segments)
-				match bounds {
-					NoPoints => return Err(DrawingInvalid({ path, reason: "a path needs at least one segment beginning with a move or a rectangle" }))
-					Bounds({ max_x, max_y, min_x, min_y }) => {
-						if min_x - half < 0 or min_y - half < 0 {
-							return Err(DrawingInvalid({ path, reason: origin_violation(segments, half, $index) }))
-						}
-						$width = U64.max($width, (max_x + half).to_u64_wrap())
-						$height = U64.max($height, (max_y + half).to_u64_wrap())
-					}
+				{ max_x, max_y, min_x, min_y } = KernelDrawingPath.bounds(authored) ? |error| DrawingPathInvalid({ path, problem: { command: $index, error } })
+				segments = KernelDrawingPath.translate(authored, $dx, $dy)
+				if min_x + $dx - half < 0 or min_y + $dy - half < 0 {
+					return Err(DrawingInvalid({ path, reason: origin_violation(segments, half, $index) }))
 				}
+				$width = U64.max($width, (max_x + $dx + half).to_u64_wrap())
+				$height = U64.max($height, (max_y + $dy + half).to_u64_wrap())
 				$converted = $converted.append(DrawingPath({ fill, segments, stroke }))
 			}
 			AuthorTranslate({ commands: count, offset }) => {
@@ -799,41 +789,6 @@ validate_drawing = |drawing, path, image_base, max_depth| {
 	}
 	Ok({ drawing: { commands: $converted, height: $height, width: $width }, images: $images })
 }
-
-## A furniture path moved by an accumulated group offset. Every authored
-## coordinate must lie within 10^9 pt of the origin, as in a flow figure,
-## so no later arithmetic can overflow.
-offset_segments : List(Scene.PathSegment), I64, I64 -> [Moved(List(Scene.PathSegment)), OutOfRange]
-offset_segments = |segments, dx, dy| {
-	var $moved = List.with_capacity(segments.len())
-	for segment in segments {
-		in_range = match segment {
-			Close => True
-			CubicTo({ control_1, control_2, end }) => point_in_bound(control_1) and point_in_bound(control_2) and point_in_bound(end)
-			LineTo(point) | MoveTo(point) => point_in_bound(point)
-			Rectangle(rect) => point_in_bound(rect.origin) and within_bound(rect.size.width.raw()) and within_bound(rect.size.height.raw())
-		}
-		if !in_range {
-			return OutOfRange
-		}
-		$moved = $moved.append(
-			match segment {
-				Close => Close
-				CubicTo({ control_1, control_2, end }) => CubicTo({ control_1: shift_point(control_1, dx, dy), control_2: shift_point(control_2, dx, dy), end: shift_point(end, dx, dy) })
-				LineTo(point) => LineTo(shift_point(point, dx, dy))
-				MoveTo(point) => MoveTo(shift_point(point, dx, dy))
-				Rectangle(rect) => Rectangle({ origin: shift_point(rect.origin, dx, dy), size: rect.size })
-			},
-		)
-	}
-	Moved($moved)
-}
-
-point_in_bound : Layout.Point -> Bool
-point_in_bound = |point| within_bound(point.x.raw()) and within_bound(point.y.raw())
-
-shift_point : Layout.Point, I64, I64 -> Layout.Point
-shift_point = |point, dx, dy| { x: Layout.Unit.from_raw(point.x.raw() + dx), y: Layout.Unit.from_raw(point.y.raw() + dy) }
 
 ## Drawing coordinates, sizes, and accumulated group offsets stay within
 ## 10^9 pt of the origin (the flow figures' bound).
@@ -904,39 +859,6 @@ signed_points = |raw| {
 		}
 		"${sign}${(magnitude // 1000).to_str()}.${text} pt"
 	}
-}
-
-## The bounds of a path's points: control points included, so the extent
-## is conservative for curves. A path must begin with a move or rectangle.
-path_bounds : List(Scene.PathSegment) -> [Bounds({ max_x : I64, max_y : I64, min_x : I64, min_y : I64 }), NoPoints]
-path_bounds = |segments| {
-	valid_start = match segments.first() {
-		Ok(MoveTo(_)) | Ok(Rectangle(_)) => True
-		_ => False
-	}
-	if !valid_start {
-		return NoPoints
-	}
-	var $min_x = I64.highest
-	var $min_y = I64.highest
-	var $max_x = I64.lowest
-	var $max_y = I64.lowest
-	for segment in segments {
-		points = match segment {
-			Close => []
-			CubicTo({ control_1, control_2, end }) => [control_1, control_2, end]
-			LineTo(point) => [point]
-			MoveTo(point) => [point]
-			Rectangle(rect) => [rect.origin, { x: Layout.Unit.from_raw(rect.origin.x.raw() + rect.size.width.raw()), y: Layout.Unit.from_raw(rect.origin.y.raw() + rect.size.height.raw()) }]
-		}
-		for point in points {
-			$min_x = I64.min($min_x, point.x.raw())
-			$min_y = I64.min($min_y, point.y.raw())
-			$max_x = I64.max($max_x, point.x.raw())
-			$max_y = I64.max($max_y, point.y.raw())
-		}
-	}
-	Bounds({ max_x: $max_x, max_y: $max_y, min_x: $min_x, min_y: $min_y })
 }
 
 ## Pass 2: resolve, shape, prove, and place.

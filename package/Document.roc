@@ -1,4 +1,5 @@
 import KernelDrawingGroups
+import KernelDrawingPath
 import KernelAssociatedFiles
 import KernelWidgetFields
 import Color
@@ -538,7 +539,7 @@ FlowDrawing : { commands : List(FlowCommand), height : U64, images : List(Image.
 ## A figure, decoration, or custom panel after normalization validation. An
 ## invalid drawing keeps its reason so semantic planning can reject it at
 ## its authored location.
-ValidatedDrawing : [DrawingDepthLimit(KernelDrawingGroups.DepthLimit), InvalidDrawing(Str), ValidDrawing(FlowDrawing)]
+ValidatedDrawing : [DrawingDepthLimit(KernelDrawingGroups.DepthLimit), InvalidDrawing(Str), InvalidDrawingPath(KernelDrawingPath.PlacementError), ValidDrawing(FlowDrawing)]
 
 ## The PDF 2.0 grouping element a container block becomes: `Part`, `Sect`,
 ## or `Div`. Grouping has no visual effect; children keep their own roles,
@@ -751,7 +752,7 @@ normalize_fixed_pages = |fixed, limits, max_drawing_group_depth| {
 								ValidDrawing(drawing) => if drawing.commands.any(is_flow_text) {
 									return Err(UnsupportedFigureLabels({ page: $page, placement: $placement }))
 								}
-								DrawingDepthLimit(_) | InvalidDrawing(_) => {}
+								DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) => {}
 							}
 							if normalized.captioned {
 								$frames = $frames.append(placement.frame)
@@ -3365,7 +3366,7 @@ without_decoration_labels = |validated| match validated {
 	} else {
 		validated
 	}
-	DrawingDepthLimit(_) | InvalidDrawing(_) => validated
+	DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) => validated
 }
 
 ## A decoration's drawing with its spacing applied: the space above adds to
@@ -3376,7 +3377,7 @@ without_decoration_labels = |validated| match validated {
 ## space above, or an overlap deeper than the drawing, is invalid.
 space_decoration : ValidatedDrawing, Layout.Unit, Layout.Unit -> ValidatedDrawing
 space_decoration = |validated, above, below| match validated {
-	DrawingDepthLimit(_) | InvalidDrawing(_) => validated
+	DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) => validated
 	ValidDrawing(drawing) => {
 		up = above.raw()
 		down = below.raw()
@@ -3491,20 +3492,16 @@ validate_flow_drawing = |drawing, max_depth| {
 				if !paints {
 					return InvalidDrawing("a path paints nothing without a fill or a stroke")
 				}
-				moved = match translate_segments(segments, $dx, $dy) {
-					Moved(value) => value
-					OutOfRange => return InvalidDrawing("a coordinate lies more than 10^9 pt from the drawing origin")
+				{ max_x, max_y, min_x, min_y } = match KernelDrawingPath.bounds(segments) {
+					Ok(bounds) => bounds
+					Err(error) => return InvalidDrawingPath({ command: $index, error })
 				}
-				match flow_path_bounds(moved) {
-					NoPoints => return InvalidDrawing("a path needs at least one segment beginning with a move or a rectangle")
-					Bounds({ max_x, max_y, min_x, min_y }) => {
-						if min_x - half < 0 or min_y - half < 0 {
-							return InvalidDrawing(origin_violation(moved, half, $index))
-						}
-						$width = U64.max($width, (max_x + half).to_u64_wrap())
-						$height = U64.max($height, (max_y + half).to_u64_wrap())
-					}
+				moved = KernelDrawingPath.translate(segments, $dx, $dy)
+				if min_x + $dx - half < 0 or min_y + $dy - half < 0 {
+					return InvalidDrawing(origin_violation(moved, half, $index))
 				}
+				$width = U64.max($width, (max_x + $dx + half).to_u64_wrap())
+				$height = U64.max($height, (max_y + $dy + half).to_u64_wrap())
 				$converted = $converted.append(FlowPath({ fill, segments: moved, stroke }))
 			}
 			AuthorTranslate({ commands: count, offset }) => {
@@ -3633,39 +3630,6 @@ signed_points = |raw| {
 	}
 }
 
-## A path translated by a group offset. Every coordinate must lie within
-## `flow_coordinate_bound` of the origin before and after translation, so
-## no later arithmetic can overflow.
-translate_segments : List(Scene.PathSegment), I64, I64 -> [Moved(List(Scene.PathSegment)), OutOfRange]
-translate_segments = |segments, dx, dy| {
-	var $moved = List.with_capacity(segments.len())
-	for segment in segments {
-		points = match segment {
-			Close => []
-			CubicTo({ control_1, control_2, end }) => [control_1, control_2, end]
-			LineTo(point) => [point]
-			MoveTo(point) => [point]
-			Rectangle(rect) => [rect.origin, { x: rect.size.width, y: rect.size.height }]
-		}
-		for point in points {
-			if !within_bound(point.x.raw()) or !within_bound(point.y.raw()) {
-				return OutOfRange
-			}
-		}
-		move = |point| { x: Layout.Unit.from_raw(point.x.raw() + dx), y: Layout.Unit.from_raw(point.y.raw() + dy) }
-		$moved = $moved.append(
-			match segment {
-				Close => Close
-				CubicTo({ control_1, control_2, end }) => CubicTo({ control_1: move(control_1), control_2: move(control_2), end: move(end) })
-				LineTo(point) => LineTo(move(point))
-				MoveTo(point) => MoveTo(move(point))
-				Rectangle(rect) => Rectangle({ origin: move(rect.origin), size: rect.size })
-			},
-		)
-	}
-	Moved($moved)
-}
-
 ## Authored drawing coordinates, sizes, and accumulated group offsets stay
 ## within 10^9 pt of the origin.
 flow_coordinate_bound : I64
@@ -3673,39 +3637,6 @@ flow_coordinate_bound = KernelDrawingGroups.coordinate_bound
 
 within_bound : I64 -> Bool
 within_bound = |value| value <= flow_coordinate_bound and value >= 0 - flow_coordinate_bound
-
-## The bounds of a path's points: control points included, so the extent
-## is conservative for curves. A path must begin with a move or rectangle.
-flow_path_bounds : List(Scene.PathSegment) -> [Bounds({ max_x : I64, max_y : I64, min_x : I64, min_y : I64 }), NoPoints]
-flow_path_bounds = |segments| {
-	valid_start = match segments.first() {
-		Ok(MoveTo(_)) | Ok(Rectangle(_)) => True
-		_ => False
-	}
-	if !valid_start {
-		return NoPoints
-	}
-	var $min_x = I64.highest
-	var $min_y = I64.highest
-	var $max_x = I64.lowest
-	var $max_y = I64.lowest
-	for segment in segments {
-		points = match segment {
-			Close => []
-			CubicTo({ control_1, control_2, end }) => [control_1, control_2, end]
-			LineTo(point) => [point]
-			MoveTo(point) => [point]
-			Rectangle(rect) => [rect.origin, { x: Layout.Unit.from_raw(rect.origin.x.raw() + rect.size.width.raw()), y: Layout.Unit.from_raw(rect.origin.y.raw() + rect.size.height.raw()) }]
-		}
-		for point in points {
-			$min_x = I64.min($min_x, point.x.raw())
-			$min_y = I64.min($min_y, point.y.raw())
-			$max_x = I64.max($max_x, point.x.raw())
-			$max_y = I64.max($max_y, point.y.raw())
-		}
-	}
-	Bounds({ max_x: $max_x, max_y: $max_y, min_x: $min_x, min_y: $min_y })
-}
 
 figure_policy : FigureFit -> FigurePolicy
 figure_policy = |fit| match fit {
@@ -4341,7 +4272,7 @@ expect {
 		$level = $level + 1
 	}
 	rejected = |drawing| match validate_flow_drawing(drawing, KernelDrawingGroups.default_depth) {
-		DrawingDepthLimit(_) | InvalidDrawing(_) => True
+		DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) => True
 		ValidDrawing(_) => False
 	}
 	rejected($deep) and rejected(Scene.Drawing.empty.group({ offset: Layout.point({ x: -5, y: 0 }), drawing: mark })) and rejected(Scene.Drawing.empty.group({ offset: Layout.point({ x: 1, y: 1 }), drawing: Scene.Drawing.empty })) and rejected(Scene.Drawing.empty)

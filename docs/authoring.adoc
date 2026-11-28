@@ -1131,6 +1131,13 @@ fixed-page figures, decorations, custom panels and furniture drawings. Zero
 allows ungrouped drawings. Preparation reports the first group that exceeds
 the limit at its drawing command path.
 
+Start a drawn subpath with `Scene.PathBuilder.move_to` before adding lines,
+curves, or a close. Closing a subpath or adding a standalone rectangle leaves
+no subpath open. A path needs a line, curve, or positive-size rectangle.
+Preparation returns `drawing.path_order` at the offending command and segment
+for an invalid sequence. Path coordinates and rectangle dimensions have a
+representation bound of 10^9 pt in either direction before group translation.
+
 Set `image_budgets` in `Pdf.Options` to adjust the physical image count,
 encoded and decoded bytes, dimensions, and markers. Exact sharing also has
 separate budgets for fingerprinting and recent byte comparisons. These

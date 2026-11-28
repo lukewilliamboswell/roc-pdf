@@ -1300,6 +1300,11 @@ properties:
 - Annotations remain structured semantic objects rather than late additions to
   a page dictionary.
 
+Flow and furniture authoring validate path order and coordinate
+representation while computing conservative drawing bounds. Only validated
+paths proceed to layout. The scene kernel separately checks path spans,
+segment ownership and order in its dense stores.
+
 Tagged-PDF lowering, not the caller, assigns MCIDs, marked-content references,
 `StructParent`/`StructParents` values, ParentTree entries, annotation object
 references, and final structure-element object references.

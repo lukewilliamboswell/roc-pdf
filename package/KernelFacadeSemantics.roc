@@ -1,4 +1,5 @@
 import KernelDrawingGroups
+import KernelDrawingPath
 import Document
 import Font
 import KernelFacadeSources
@@ -54,6 +55,7 @@ KernelFacadeSemantics :: [].{
 		## A decoration's drawing is not a supported flow drawing.
 		DecorationDrawing({ decoration : U64, reason : Str }),
 		DrawingGroupDepth({ drawing : [FigureAt(U64), DecorationAt(U64), PanelAt(U64)], depth : KernelDrawingGroups.DepthLimit }),
+		DrawingPathInvalid({ drawing : [FigureAt(U64), DecorationAt(U64), PanelAt(U64)], problem : KernelDrawingPath.PlacementError }),
 
 		## A decoration with no following flow block, or inside a lead
 		## region.
@@ -1172,7 +1174,7 @@ plan_blocks = |authoring, limits| {
 								_ => {}
 							}
 						}
-						DrawingDepthLimit(_) | InvalidDrawing(_) => crash "validated figure drawing escaped"
+						DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) => crash "validated figure drawing escaped"
 					}
 					label_count = $figure_label_texts.len() - first_label
 					attempted_nodes = checked_add($next_node, 1)?
@@ -1960,6 +1962,7 @@ check_figure = |figure, block| {
 	}
 	match figure.drawing {
 		DrawingDepthLimit(depth) => return Err(DrawingGroupDepth({ drawing: FigureAt(block), depth }))
+		InvalidDrawingPath(problem) => return Err(DrawingPathInvalid({ drawing: FigureAt(block), problem }))
 		InvalidDrawing(reason) => return Err(FigureDrawing({ block, reason }))
 		ValidDrawing(_) => {}
 	}
@@ -2103,6 +2106,7 @@ check_customs = |authoring| {
 		}
 		match custom.panel {
 			DrawingDepthLimit(depth) => return Err(DrawingGroupDepth({ drawing: PanelAt($index), depth }))
+			InvalidDrawingPath(problem) => return Err(DrawingPathInvalid({ drawing: PanelAt($index), problem }))
 			InvalidDrawing(reason) => return Err(CustomDrawing({ custom: $index, reason }))
 			ValidDrawing(drawing) => {
 				if !drawing.images.is_empty() {
@@ -2148,6 +2152,7 @@ check_decorations = |authoring| {
 		}
 		match decoration.drawing {
 			DrawingDepthLimit(depth) => return Err(DrawingGroupDepth({ drawing: DecorationAt($index), depth }))
+			InvalidDrawingPath(problem) => return Err(DrawingPathInvalid({ drawing: DecorationAt($index), problem }))
 			InvalidDrawing(reason) => return Err(DecorationDrawing({ decoration: $index, reason }))
 			ValidDrawing(_) => {}
 		}

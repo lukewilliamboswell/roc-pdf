@@ -911,7 +911,7 @@ without_labels = |drawing| {
 valid_flow_drawing : Document.ValidatedDrawing -> Try(Document.FlowDrawing, KernelFacadeScenes.Error)
 valid_flow_drawing = |drawing| match drawing {
 	ValidDrawing(value) => Ok(value)
-	DrawingDepthLimit(_) | InvalidDrawing(_) => Err(InvalidPlacement({ placement: 0 }))
+	DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) => Err(InvalidPlacement({ placement: 0 }))
 }
 
 count_flow : List(Document.FlowCommand) -> Try({ commands : U64, nonblack : Bool, paths : U64, segments : U64 }, KernelFacadeScenes.Error)
@@ -946,7 +946,7 @@ count_flow = |commands| {
 check_flow_colors : Document.NormalizedAuthoring, KernelFacadeScenes.IntentProfile, Bool -> Try({}, [Unsupported])
 check_flow_colors = |authoring, intent, use_srgb| {
 	check = |drawing| match drawing {
-		DrawingDepthLimit(_) | InvalidDrawing(_) => Ok({})
+		DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) => Ok({})
 		ValidDrawing(value) => {
 			for command in value.commands {
 				match command {

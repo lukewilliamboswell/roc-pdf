@@ -1,0 +1,18 @@
+[#release-0-6-0]
+= roc-pdf 0.6.0
+
+Install the tested package with Roc `nightly-2026-11-25-d5a4f1e`.
+
+[source,roc]
+----
+pdf: "{package-url}",
+----
+
+Bundle SHA-256 is `{bundle-sha256}`.
+
+== Drawing paths
+
+Preparation reports `drawing.path_order` at the authored command and segment
+when a line, curve, or close has no open subpath. Use
+`Scene.PathBuilder.move_to` to start each new subpath. An invalid rectangle
+dimension in a furniture backdrop returns a located drawing diagnostic.

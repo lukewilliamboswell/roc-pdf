@@ -1,4 +1,5 @@
 import KernelDrawingGroups
+import KernelDrawingPath
 import KernelAssociatedFiles
 import KernelAssociatedObjects
 import KernelWidgetFields
@@ -2151,14 +2152,10 @@ pipeline_error_at = |error, doc, paths| match error {
 	Semantics(HeadingSkip({ block, previous })) => located_error(doc, InvalidRelationship, "semantics.heading_skip", "A heading is more than one level deeper than the heading before it; heading levels must not skip a level.", [diagnostic_leaf_path(doc, paths, previous), diagnostic_leaf_path(doc, paths, block)])
 	Semantics(FigureAlternativeEmpty({ block })) => located_error(doc, InvalidRelationship, "document.figure_alternative_empty", "A figure's alternative text is empty; every figure needs alternative text that conveys what it communicates.", [diagnostic_leaf_path(doc, paths, block)])
 	Semantics(FigureCaptionEmpty({ block })) => located_error(doc, InvalidRelationship, "document.figure_caption_empty", "A figure caption is empty; use no_caption for a figure without a visible caption.", [diagnostic_leaf_path(doc, paths, block)])
-	Semantics(DrawingGroupDepth({ drawing, depth })) => {
-		path = match drawing {
-			FigureAt(block) => "${diagnostic_leaf_path(doc, paths, block)}.drawing"
-			DecorationAt(index) => "${flow_item_path(doc, DecorationItem(index))}.drawing"
-			PanelAt(index) => "${custom_path(doc, index)}.panel"
-		}
-		located_error(doc, BudgetExceeded, "document.drawing_group_depth", drawing_depth_message(depth), [drawing_depth_path(path, depth)])
-	}
+	Semantics(DrawingGroupDepth({ drawing, depth })) =>
+		located_error(doc, BudgetExceeded, "document.drawing_group_depth", drawing_depth_message(depth), [drawing_depth_path(authored_drawing_path(doc, paths, drawing), depth)])
+	Semantics(DrawingPathInvalid({ drawing, problem })) =>
+		located_error(doc, InvalidRelationship, drawing_path_feature(problem.error), KernelDrawingPath.message(problem.error), [KernelDrawingPath.location(authored_drawing_path(doc, paths, drawing), problem)])
 	Semantics(FigureDrawing({ block, reason })) => located_error(doc, InvalidRelationship, "document.figure_drawing", "A figure's drawing is not a supported flow drawing: ${reason}.", [diagnostic_leaf_path(doc, paths, block)])
 	Semantics(FigureFitInvalid({ block })) => located_error(doc, InvalidRelationship, "document.figure_fit", "A ScaleToFit floor is above 100 percent; a figure is never enlarged.", [diagnostic_leaf_path(doc, paths, block)])
 	Semantics(DecorationDrawing({ decoration, reason })) => flow_item_error(doc, DecorationItem(decoration), InvalidRelationship, "layout.decoration_drawing", "A decoration's drawing is not a supported flow drawing: ${reason}.")
@@ -2563,6 +2560,7 @@ furniture_error = |error| {
 		FurnitureInline({ path }) => located(LayoutConstraintViolated, "layout.furniture_inline", "Furniture text holds only text, page fields, and reserved widths of text and page fields.", [path])
 		InlineEmpty({ path }) => located(InvalidRelationship, "semantics.inline_empty", "Furniture text and every reserved width in it must contain text or a page field, and no text inline may be empty.", [path])
 		DrawingGroupDepth({ path, depth }) => located(BudgetExceeded, "document.drawing_group_depth", drawing_depth_message(depth), [drawing_depth_path(path, depth)])
+		DrawingPathInvalid({ path, problem }) => located(InvalidRelationship, drawing_path_feature(problem.error), KernelDrawingPath.message(problem.error), [KernelDrawingPath.location(path, problem)])
 		DrawingInvalid({ path, reason }) => located(InvalidRelationship, "layout.furniture_drawing", "A furniture drawing is not a supported decorative drawing: ${reason}.", [path])
 		GapNegative({ path }) => located(LayoutConstraintViolated, "layout.spacer_negative", "A template gap is negative; spacing never overlaps content.", [path])
 		InsetNegative({ path }) => located(LayoutConstraintViolated, "layout.spacer_negative", "A template region's slot inset is negative; slot furniture never leaves its region.", [path])
@@ -2707,6 +2705,19 @@ percent_text = |scale| if (scale % 10 == 0) "${(scale // 10).to_str()}%" else "$
 drawing_depth_message : KernelDrawingGroups.DepthLimit -> Str
 drawing_depth_message = |{ attempted, limit, .. }|
 	"A drawing group is nested ${attempted.to_str()} levels deep. The limit is ${limit.to_str()} (budgets.max_drawing_group_depth)."
+
+drawing_path_feature : KernelDrawingPath.Error -> Str
+drawing_path_feature = |error| match error {
+	Order(_) => "drawing.path_order"
+	Empty | NoPaint | RectangleSize(_) | CoordinateRange(_) => "drawing.path_geometry"
+}
+
+authored_drawing_path : Document, DiagnosticPaths, [FigureAt(U64), DecorationAt(U64), PanelAt(U64)] -> Str
+authored_drawing_path = |doc, paths, drawing| match drawing {
+	FigureAt(block) => "${diagnostic_leaf_path(doc, paths, block)}.drawing"
+	DecorationAt(index) => "${flow_item_path(doc, DecorationItem(index))}.drawing"
+	PanelAt(index) => "${custom_path(doc, index)}.panel"
+}
 
 drawing_depth_path : Str, KernelDrawingGroups.DepthLimit -> Str
 drawing_depth_path = |path, { command, .. }| "${path}.commands[${command.to_str()}]"
@@ -7107,4 +7118,63 @@ expect {
 		and budget_error({ max_flow_reference_state_units: 10 }, "state words per pass. The effective limit is 10")
 		and budget_error({ max_flow_reference_layout_work: 1 }, "accumulated layout work. The effective limit is 1")
 		and widened == default_bytes and fixed_bytes == no_flow_budget
+}
+
+drawing_path_rejected : Try(a, Pdf.Error), Str, Str -> Bool
+drawing_path_rejected = |result, feature, location| match result {
+	Err(InvalidDocument({ diagnostics: [{ code: InvalidRelationship, feature: Feature(actual), details: [path], .. }], .. })) => actual == feature and path == location
+	_ => False
+}
+
+expect {
+	point = Layout.point({ x: 1, y: 1 })
+	rect = Layout.rect({ x: 1, y: 1, width: 10, height: 10 })
+	start = Scene.PathBuilder.start
+	paths = [
+		(start.rectangle(rect).close(), 1),
+		(start.line_to(point), 0),
+		(start.cubic_to({ control_1: point, control_2: point, end: point }), 0),
+		(start.move_to(point).close().close(), 2),
+	]
+	var $passed = True
+	for (builder, segment) in paths {
+		drawing = Scene.Drawing.empty.path({ path: builder.finish(), style: Scene.solid_fill("#000000") })
+		doc = depth_test_flow(drawing)
+		$passed = $passed and drawing_path_rejected(Pdf.to_bytes(doc), "drawing.path_order", "contents[0].drawing.commands[0].segments[${segment.to_str()}]")
+	}
+	$passed
+}
+
+expect {
+	point = Layout.point({ x: 1, y: 1 })
+	rect = Layout.rect({ x: 1, y: 1, width: 10, height: 10 })
+	path = Scene.PathBuilder.start.rectangle(rect).line_to(point).finish()
+	drawing = Scene.Drawing.empty.group({
+		drawing: Scene.Drawing.empty.path({ path, style: Scene.solid_fill("#000000") }),
+		offset: point,
+	})
+	surfaces = [
+		(depth_test_fixed, "pages[0].placements[0].drawing.commands[1].segments[1]"),
+		(depth_test_decoration, "contents[0].drawing.commands[1].segments[1]"),
+		(depth_test_panel, "contents[0].panel.commands[1].segments[1]"),
+		(depth_test_furniture, "templates.first.header.start[0].commands[1].segments[1]"),
+	]
+	surfaces.all(|(build, location)| drawing_path_rejected(Pdf.prepare_with_report(build(drawing), {}), "drawing.path_order", location))
+}
+
+expect {
+	drawing = Scene.Drawing.empty.rectangle({
+		bounds: { origin: Layout.point({ x: 0, y: 0 }), size: { height: Layout.Unit.from_raw(I64.lowest), width: 0 } },
+		color: "#000000",
+	})
+	doc = Pdf.document({
+		contents: [Pdf.paragraph("Text above the footer.")],
+		language: "en",
+		page_templates: Templates({
+			first: Pdf.first_page_template({ footer: Pdf.region({ height: 10, backdrop: Backdrop(drawing) }) }),
+			continuation: Pdf.page_template({}),
+		}),
+		title: "Backdrop rectangle bounds",
+	})
+	drawing_path_rejected(Pdf.to_bytes(doc), "drawing.path_geometry", "templates.first.footer.backdrop.commands[0].segments[0]")
 }

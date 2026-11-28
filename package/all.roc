@@ -21,6 +21,7 @@ package
 		KernelDeflate,
 		KernelDiscretionaryHyphen,
 		KernelDrawingGroups,
+		KernelDrawingPath,
 		KernelEmit,
 		KernelFacadeColumns,
 		KernelFacadeFailure,
