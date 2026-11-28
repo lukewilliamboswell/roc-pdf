@@ -681,7 +681,7 @@ label_candidates = |authoring, styled| {
 
 append_label_candidates : List(U64), Document.ValidatedDrawing, KernelFacadeShape.StyledFaces -> List(U64)
 append_label_candidates = |candidates, drawing, styled| match drawing {
-	DrawingDepthLimit(_) | InvalidDrawing(_) => candidates
+	DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) | InvalidImageStride(_) => candidates
 	ValidDrawing(value) => {
 		var $candidates = candidates
 		for command in value.commands {

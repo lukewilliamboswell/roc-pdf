@@ -1,4 +1,5 @@
 import KernelDrawingGroups
+import KernelDrawingPath
 import KernelAssociatedFiles
 import KernelAssociatedObjects
 import KernelWidgetFields
@@ -1445,7 +1446,7 @@ build_column_plan = |doc, columns, options, request| {
 		return Err(fixed_error(FeatureUnavailable, "layout.columns.shaping", "Two-column layout uses nominal glyph metrics.", "theme.latin_shaping"))
 	}
 	claims = validate_profile_request(doc, options, NoAuthoredWidgets)?
-	validate_theme(options.theme)?
+	validate_flow_theme(options.theme)?
 	validate_page_size(options.page_size)?
 	validate_body_frame(options.page_size, options.theme)?
 	page = layout_page_size(options.page_size)
@@ -1490,7 +1491,7 @@ build_column_plan = |doc, columns, options, request| {
 build_plan : Document, Pdf.Options -> Try(KernelStructure.Plan, Pdf.Error)
 build_plan = |doc, options| {
 	claims = validate_profile_request(doc, options, NoAuthoredWidgets)?
-	validate_theme(options.theme)?
+	validate_flow_theme(options.theme)?
 	validate_page_size(options.page_size)?
 	validate_body_frame(options.page_size, options.theme)?
 
@@ -1643,7 +1644,7 @@ measure_content = |options, contents, language, width| {
 		Available => {}
 		UnavailableFeature({ feature, summary }) => return Err(InvalidDocument(unavailable_batch(feature, summary)))
 	}
-	validate_theme(options.theme)?
+	validate_flow_theme(options.theme)?
 	validate_page_size(options.page_size)?
 	validate_body_frame(options.page_size, options.theme)?
 	validated = KernelMetadata.validate({ created: Document.created(probe), language: Document.language(probe), modified: Document.modified(probe), title: Document.metadata_title(probe) }, metadata_limits({ max_language_bytes: options.metadata_budgets.max_language_bytes })) ? InvalidMetadata
@@ -1682,7 +1683,7 @@ measure_content = |options, contents, language, width| {
 build_reporting_plan : Document, Pdf.Options -> Try({ facts : [Facts(KernelFacadeReport.Facts), NoFacts], normalized : Document.NormalizedAuthoring, plan : KernelStructure.Plan }, Pdf.Error)
 build_reporting_plan = |doc, options| {
 	claims = validate_profile_request(doc, options, NoAuthoredWidgets)?
-	validate_theme(options.theme)?
+	validate_flow_theme(options.theme)?
 	validate_page_size(options.page_size)?
 	validate_body_frame(options.page_size, options.theme)?
 
@@ -2151,14 +2152,11 @@ pipeline_error_at = |error, doc, paths| match error {
 	Semantics(HeadingSkip({ block, previous })) => located_error(doc, InvalidRelationship, "semantics.heading_skip", "A heading is more than one level deeper than the heading before it; heading levels must not skip a level.", [diagnostic_leaf_path(doc, paths, previous), diagnostic_leaf_path(doc, paths, block)])
 	Semantics(FigureAlternativeEmpty({ block })) => located_error(doc, InvalidRelationship, "document.figure_alternative_empty", "A figure's alternative text is empty; every figure needs alternative text that conveys what it communicates.", [diagnostic_leaf_path(doc, paths, block)])
 	Semantics(FigureCaptionEmpty({ block })) => located_error(doc, InvalidRelationship, "document.figure_caption_empty", "A figure caption is empty; use no_caption for a figure without a visible caption.", [diagnostic_leaf_path(doc, paths, block)])
-	Semantics(DrawingGroupDepth({ drawing, depth })) => {
-		path = match drawing {
-			FigureAt(block) => "${diagnostic_leaf_path(doc, paths, block)}.drawing"
-			DecorationAt(index) => "${flow_item_path(doc, DecorationItem(index))}.drawing"
-			PanelAt(index) => "${custom_path(doc, index)}.panel"
-		}
-		located_error(doc, BudgetExceeded, "document.drawing_group_depth", drawing_depth_message(depth), [drawing_depth_path(path, depth)])
-	}
+	Semantics(DrawingGroupDepth({ drawing, depth })) =>
+		located_error(doc, BudgetExceeded, "document.drawing_group_depth", drawing_depth_message(depth), [drawing_depth_path(authored_drawing_path(doc, paths, drawing), depth)])
+	Semantics(DrawingPathInvalid({ drawing, problem })) =>
+		located_error(doc, InvalidRelationship, drawing_path_feature(problem.error), KernelDrawingPath.message(problem.error), [KernelDrawingPath.location(authored_drawing_path(doc, paths, drawing), problem)])
+	Semantics(DrawingImageStride({ drawing, command, plane })) => image_stride_error(authored_drawing_path(doc, paths, drawing), command, plane)
 	Semantics(FigureDrawing({ block, reason })) => located_error(doc, InvalidRelationship, "document.figure_drawing", "A figure's drawing is not a supported flow drawing: ${reason}.", [diagnostic_leaf_path(doc, paths, block)])
 	Semantics(FigureFitInvalid({ block })) => located_error(doc, InvalidRelationship, "document.figure_fit", "A ScaleToFit floor is above 100 percent; a figure is never enlarged.", [diagnostic_leaf_path(doc, paths, block)])
 	Semantics(DecorationDrawing({ decoration, reason })) => flow_item_error(doc, DecorationItem(decoration), InvalidRelationship, "layout.decoration_drawing", "A decoration's drawing is not a supported flow drawing: ${reason}.")
@@ -2232,7 +2230,12 @@ pipeline_error_at = |error, doc, paths| match error {
 			ColumnPaths(authoring) => if (block < authoring.blocks.len()) [column_block_path(block)] else []
 		},
 	)
+	Lines(Tables(TableFixedWidth({ column, group }))) => {
+		path = group_path(Document.normalize(doc).groups, group)
+		located_error(doc, LayoutConstraintViolated, "layout.table_fixed_width", "A fixed table column width must be positive.", ["${path}.columns[${column.to_str()}].width"])
+	}
 	Lines(Tables(TableWidth({ available, group, required }))) => group_error(doc, group, LayoutConstraintViolated, "layout.table_width", "A table's fixed column widths and column minimums need ${wide_points_text(required)} but the table has ${points_text(available)}; content is never shrunk or clipped.")
+	Lines(FlowUnbreakable({ block })) => located_error(doc, LayoutConstraintViolated, "layout.unbreakable_token", "An unbreakable part of the text exceeds its available width.", [diagnostic_leaf_path(doc, paths, block)])
 	Lines(InternationalUnbreakable({ block, available })) => located_error(doc, LayoutConstraintViolated, "layout.international_unbreakable", "The unbreakable segment does not fit its ${signed_points_text(available.raw())} frame.", [diagnostic_leaf_path(doc, paths, block)])
 	Lines(Tables(UnbreakableToken({ available, block, token, width }))) => located_error(doc, LayoutConstraintViolated, "layout.unbreakable_token", "A table cell holds text with no break opportunity (scalars ${token.start().to_str()} to ${(token.start() + token.length()).to_str()}) that is ${points_text(width)} wide, but its column gives it at most ${points_text(available)}; there is no emergency breaking.", [diagnostic_leaf_path(doc, paths, block)])
 	Lines(Tables(UnbreakableItems({ available, block, items, width }))) => located_error(doc, LayoutConstraintViolated, "layout.unbreakable_reference_items", "A table cell has an unbreakable measured item span ${items.start().to_str()} to ${(items.start() + items.length()).to_str()} of width ${points_text(width)}, but its columns provide ${points_text(available)}.", [diagnostic_leaf_path(doc, paths, block)])
@@ -2254,6 +2257,7 @@ pipeline_error_at = |error, doc, paths| match error {
 		located_error(doc, LayoutConstraintViolated, "layout.table_rule", "The theme's ${name} is ${points_text(width)} wide but ${space} is ${points_text(gap)}.", [])
 	}
 	Semantics(EmptyInline({ block, inline })) => inline_error_at(doc, paths, block, AtInline(inline), InvalidRelationship, "semantics.inline_empty", "An inline is empty: inline text, code, and expansions need text, and every inline element must contain text.")
+	Semantics(EmptyBlockLinkText({ block })) => located_error(doc, InvalidRelationship, "semantics.link_text_empty", "A link has no text content to announce as its purpose.", [diagnostic_leaf_path(doc, paths, block)])
 	Semantics(EmptyLinkText({ block, inline })) => inline_error_at(doc, paths, block, AtInline(inline), InvalidRelationship, "semantics.link_text_empty", "A link has no text content to announce as its purpose.")
 	Semantics(NestedLink({ block, inline })) => inline_error_at(doc, paths, block, AtInline(inline), InvalidRelationship, "semantics.nested_link", "A link contains another link.")
 	Semantics(InlineDepthExceeded({ attempted, block, inline, limit })) => inline_error_at(doc, paths, block, AtInline(inline), BudgetExceeded, "semantics.inline_depth", "An inline element is nested ${attempted.to_str()} levels deep; rich paragraphs accept at most ${limit.to_str()} nested inline elements.")
@@ -2270,7 +2274,6 @@ pipeline_error_at = |error, doc, paths| match error {
 	Semantics(SourceWhitespace({ source, error: whitespace_error })) => match whitespace_error {
 		BareCarriageReturn({ byte }) => source_error(doc, source, InvalidRelationship, "source.carriage_return", "A bare carriage return at byte ${byte.to_str()} is unsupported; author LF or CRLF line endings.")
 		TabRejected({ byte }) => source_error(doc, source, InvalidRelationship, "source.tab", "A tab at byte ${byte.to_str()} is forbidden by RejectTabs; supply explicit spaces or ExpandTo(n).")
-		ForegroundColor({ range, byte }) => source_error(doc, source, FeatureUnavailable, "source.foreground_color", "Foreground range ${range.to_str()} at original UTF-8 byte ${byte.to_str()} needs supported sRGB RGB channels. Supply a hex colour, Color.srgb8, or Color.srgb16; unsupported channel models are never converted.")
 		ForegroundRange({ range, byte, reason }) => source_error(doc, source, InvalidRelationship, "source.foreground_range", "Foreground range ${range.to_str()} at original UTF-8 byte ${byte.to_str()} is invalid (${Str.inspect(reason)}). Supply sorted, nonempty, non-overlapping ranges at original grapheme boundaries.")
 		InvalidTabWidth => source_error(doc, source, InvalidRelationship, "source.tab_width", "A source tab stop must be greater than zero.")
 		LimitExceeded({ attempted, dimension, limit }) => {
@@ -2352,7 +2355,6 @@ pipeline_error_at = |error, doc, paths| match error {
 		}
 	}
 	Shape(ShapeFailure) => located_error(doc, FontCoverageMissing, "text.shaping_failed", "The selected faces could not shape the document's text, and no single text run was identified as the cause; no face is substituted.", [])
-	Scenes(UnsupportedColor({ run })) => located_error(doc, FeatureUnavailable, "color.unsupported", "Text run ${run.to_str()} is painted in a color the selected profile's output intent cannot represent; no color is converted.", [])
 	Output(Images(image)) => image_error(image)
 	Labels(label) => label_error(doc, label)
 	other => stage_error(other)
@@ -2545,9 +2547,7 @@ furniture_error = |error| {
 	located = |diagnostic, feature, message, paths| InvalidDocument(located_batch(diagnostic, feature, message, paths))
 	match error {
 		BodySpace({ footer, gap, header, lead, line, remaining, template }) => {
-			zero : I64
-			zero = 0
-			remaining_text = if (remaining < zero) "-${points_text((zero - remaining).to_u64_wrap())}" else points_text(remaining.to_u64_wrap())
+			remaining_text = if (remaining < 0) "-${wide_points_text((0 - remaining).to_u128_wrap())}" else wide_points_text(remaining.to_u128_wrap())
 			lead_text = if (lead == 0) "" else ", lead region ${points_text(lead)}"
 			located(LayoutConstraintViolated, "layout.template_body_space", "The template's regions (header ${points_text(header)}${lead_text}, footer ${points_text(footer)}, gap ${points_text(gap)}) leave ${remaining_text} of body flow, less than one body line of ${points_text(line)}.", [template])
 		}
@@ -2563,8 +2563,11 @@ furniture_error = |error| {
 		FurnitureInline({ path }) => located(LayoutConstraintViolated, "layout.furniture_inline", "Furniture text holds only text, page fields, and reserved widths of text and page fields.", [path])
 		InlineEmpty({ path }) => located(InvalidRelationship, "semantics.inline_empty", "Furniture text and every reserved width in it must contain text or a page field, and no text inline may be empty.", [path])
 		DrawingGroupDepth({ path, depth }) => located(BudgetExceeded, "document.drawing_group_depth", drawing_depth_message(depth), [drawing_depth_path(path, depth)])
+		DrawingPathInvalid({ path, problem }) => located(InvalidRelationship, drawing_path_feature(problem.error), KernelDrawingPath.message(problem.error), [KernelDrawingPath.location(path, problem)])
+		DrawingImageStride({ path, command, plane }) => image_stride_error(path, command, plane)
 		DrawingInvalid({ path, reason }) => located(InvalidRelationship, "layout.furniture_drawing", "A furniture drawing is not a supported decorative drawing: ${reason}.", [path])
 		GapNegative({ path }) => located(LayoutConstraintViolated, "layout.spacer_negative", "A template gap is negative; spacing never overlaps content.", [path])
+		GapTooLarge({ available, gap, path }) => located(LayoutConstraintViolated, "layout.template_body_space", "The template gap is ${points_text(gap)} but the page frame is only ${points_text(available)} high.", [path])
 		InsetNegative({ path }) => located(LayoutConstraintViolated, "layout.spacer_negative", "A template region's slot inset is negative; slot furniture never leaves its region.", [path])
 		FurnitureCluster({ path }) => located(FontCoverageMissing, "text.unsupported_cluster", "Furniture text contains a cluster the selected shaping subset cannot represent.", [path])
 		FurnitureText({ path, reason: Coverage }) => located(FontCoverageMissing, "text.coverage_missing", "No face of the ordered font policy covers every cluster of this furniture text; no face is substituted.", [path])
@@ -2704,9 +2707,31 @@ located_error = |_doc, diagnostic, feature, message, paths| InvalidDocument(loca
 percent_text : U64 -> Str
 percent_text = |scale| if (scale % 10 == 0) "${(scale // 10).to_str()}%" else "${(scale // 10).to_str()}.${(scale % 10).to_str()}%"
 
+image_stride_error : Str, U64, KernelImage.Plane -> Pdf.Error
+image_stride_error = |path, command, plane| {
+	field = match plane {
+		ColorPlane => "row_stride"
+		AlphaPlane => "alpha.row_stride"
+	}
+	fixed_error(InvalidRelationship, "image.row_stride", "The declared row stride times the image height exceeds the representable byte length of a packed plane.", "${path}.commands[${command.to_str()}].image.${field}")
+}
+
 drawing_depth_message : KernelDrawingGroups.DepthLimit -> Str
 drawing_depth_message = |{ attempted, limit, .. }|
 	"A drawing group is nested ${attempted.to_str()} levels deep. The limit is ${limit.to_str()} (budgets.max_drawing_group_depth)."
+
+drawing_path_feature : KernelDrawingPath.Error -> Str
+drawing_path_feature = |error| match error {
+	Order(_) => "drawing.path_order"
+	Empty | NoPaint | RectangleSize(_) | CoordinateRange(_) => "drawing.path_geometry"
+}
+
+authored_drawing_path : Document, DiagnosticPaths, [FigureAt(U64), DecorationAt(U64), PanelAt(U64)] -> Str
+authored_drawing_path = |doc, paths, drawing| match drawing {
+	FigureAt(block) => "${diagnostic_leaf_path(doc, paths, block)}.drawing"
+	DecorationAt(index) => "${flow_item_path(doc, DecorationItem(index))}.drawing"
+	PanelAt(index) => "${custom_path(doc, index)}.panel"
+}
 
 drawing_depth_path : Str, KernelDrawingGroups.DepthLimit -> Str
 drawing_depth_path = |path, { command, .. }| "${path}.commands[${command.to_str()}]"
@@ -3646,9 +3671,55 @@ selected_registered_font = |registry, face| {
 	Ok(font)
 }
 
-## Theme values a setter cannot reject are validated before any work: each
-## inline role scale is 50 to 100 percent of its paragraph size, since a
-## scaled run keeps its line's baseline and leading.
+## Check flow geometry before shaping or pagination. Fixed-frame text
+## checks its selected style against the frame at its authored placement.
+validate_flow_theme : Theme -> Try({}, Pdf.Error)
+validate_flow_theme = |theme| {
+	check_text_metrics(theme.body.size, theme.body.leading, "theme.body")?
+	check_text_metrics(theme.title.size, theme.title.leading, "theme.title")?
+	headings = theme.headings
+	check_text_metrics(headings.all.size, headings.all.leading, "theme.headings.all")?
+	check_heading_metrics(headings.h1, "theme.headings.h1")?
+	check_heading_metrics(headings.h2, "theme.headings.h2")?
+	check_heading_metrics(headings.h3, "theme.headings.h3")?
+	check_heading_metrics(headings.h4, "theme.headings.h4")?
+	check_heading_metrics(headings.h5, "theme.headings.h5")?
+	check_heading_metrics(headings.h6, "theme.headings.h6")?
+	if theme.bullet_indent <= 0 {
+		return Err(fixed_error(LayoutConstraintViolated, "layout.theme_bullet_indent", "The bullet indent must be positive.", "theme.bullet_indent"))
+	}
+	if theme.paragraph_spacing < 0 {
+		return Err(fixed_error(LayoutConstraintViolated, "layout.theme_paragraph_spacing", "Paragraph spacing must be nonnegative.", "theme.paragraph_spacing"))
+	}
+	margin = theme.page_margin
+	if margin.top < 0 {
+		return Err(negative_margin_errors.top)
+	}
+	if margin.right < 0 {
+		return Err(negative_margin_errors.right)
+	}
+	if margin.bottom < 0 {
+		return Err(negative_margin_errors.bottom)
+	}
+	if margin.left < 0 {
+		return Err(negative_margin_errors.left)
+	}
+	validate_theme(theme)
+}
+
+## These diagnostics depend only on which margin is negative. Precompute
+## the complete batches so this rejection needs no document-sized work or
+## runtime allocation, even for lengths at the representation boundary.
+negative_margin_errors : { bottom : Pdf.Error, left : Pdf.Error, right : Pdf.Error, top : Pdf.Error }
+negative_margin_errors = {
+	bottom: fixed_error(LayoutConstraintViolated, "layout.page_margin", "Page margins must be nonnegative.", "theme.page_margin.bottom"),
+	left: fixed_error(LayoutConstraintViolated, "layout.page_margin", "Page margins must be nonnegative.", "theme.page_margin.left"),
+	right: fixed_error(LayoutConstraintViolated, "layout.page_margin", "Page margins must be nonnegative.", "theme.page_margin.right"),
+	top: fixed_error(LayoutConstraintViolated, "layout.page_margin", "Page margins must be nonnegative.", "theme.page_margin.top"),
+}
+
+## An inline role scale stays between 50 and 100 percent because a scaled
+## run keeps its line's baseline and leading.
 validate_theme : Theme -> Try({}, Pdf.Error)
 validate_theme = |theme| {
 	if theme.international_text != OrdinaryText {
@@ -3675,16 +3746,34 @@ validate_theme = |theme| {
 	check_underline(theme)
 }
 
+check_text_metrics : Layout.Unit, Layout.Unit, Str -> Try({}, Pdf.Error)
+check_text_metrics = |size, leading, path| {
+	if size <= 0 {
+		Err(fixed_error(LayoutConstraintViolated, "layout.theme_text_size", "The text size must be positive.", "${path}.size"))
+	} else if leading <= 0 {
+		Err(fixed_error(LayoutConstraintViolated, "layout.theme_text_leading", "The text leading must be positive.", "${path}.leading"))
+	} else {
+		Ok({})
+	}
+}
+
+check_heading_metrics : Theme.LevelStyle, Str -> Try({}, Pdf.Error)
+check_heading_metrics = |style, path| match style {
+	SameAsAll => Ok({})
+	Own(own) => check_text_metrics(own.size, own.leading, path)
+}
+
 ## A link underline sits below the body baseline inside the leading: its
 ## offset and thickness fit in the leading less the size.
 check_underline : Theme -> Try({}, Pdf.Error)
 check_underline = |theme| match theme.link.underline {
 	NoUnderline => Ok({})
 	Underline({ offset, thickness }) => {
-		body = Theme.body_style(theme)
-		room = body.leading.raw() - body.size.raw()
-		if offset < 0 or thickness <= 0 or offset.raw() + thickness.raw() > room {
-			Err(InvalidDocument(located_batch(LayoutConstraintViolated, "text.link_underline", "A link underline needs a non-negative offset and a positive thickness that together fit below the body text inside its leading (${points_text(room.to_u64_wrap())}); it never reaches the next line.", ["theme.link.underline"])))
+		room = I64.max(0, theme.body.leading.raw().minus_saturated(theme.body.size.raw()))
+		if thickness <= 0 or thickness.raw() > room {
+			Err(fixed_error(LayoutConstraintViolated, "text.link_underline", "The link underline thickness must be positive and fit below the body text inside its leading.", "theme.link.underline.thickness"))
+		} else if offset < 0 or offset.raw() > room - thickness.raw() {
+			Err(fixed_error(LayoutConstraintViolated, "text.link_underline", "The link underline offset must be nonnegative and leave room for its thickness below the body text inside its leading.", "theme.link.underline.offset"))
 		} else {
 			Ok({})
 		}
@@ -4442,6 +4531,42 @@ expect {
 	bytes.len() > 667
 }
 
+# ISO 32000-2:2020 §§8.6.5.5 and 8.6.8: neutral sRGB paint emits the
+# same ICCBased resource references and operands as explicitly equal RGB.
+expect {
+	document = |color| {
+		drawing = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 10, height: 10 }), color })
+		Pdf.document({ contents: [Pdf.figure({ drawing, alt: "A square", caption: Pdf.no_caption })], language: "en", title: "Neutral drawing paint" })
+	}
+	prepared = Pdf.prepare(document(Color.gray8(128)), {})?
+	gray = Pdf.to_bytes_prepared(prepared)?
+	rgb = Pdf.to_bytes(document(Color.srgb8({ red: 128, green: 128, blue: 128 })))?
+	black = Pdf.to_bytes(document(Color.gray8(0)))?
+	gray == rgb and gray != black and black == Pdf.to_bytes(document("#000000"))?
+}
+
+expect {
+	document = Pdf.document({ contents: [Pdf.paragraph("Neutral text paint")], language: "en", title: "Neutral text paint" })
+	gray = Pdf.to_bytes_with(document, { profile: Standard, theme: { body: { color: Color.gray16(12345) } } })?
+	rgb = Pdf.to_bytes_with(document, { profile: Standard, theme: { body: { color: Color.srgb16({ red: 12345, green: 12345, blue: 12345 }) } } })?
+	black = Pdf.to_bytes_with(document, { profile: Standard })?
+	gray == rgb and gray != black
+}
+
+expect {
+	document = |color| {
+		path = Scene.PathBuilder.start.move_to(Layout.point({ x: 1, y: 1 })).line_to(Layout.point({ x: 20, y: 1 })).finish()
+		drawing = Scene.Drawing.empty.path({ path, style: { stroke: AuthorSolidStroke({ color, width: 1 }) } })
+		header = Pdf.region({ height: 10, backdrop: Backdrop(drawing) })
+		first = Pdf.first_page_template({ header: header })
+		templates = Templates({ first, continuation: Pdf.page_template({}) })
+		Pdf.document({ contents: [Pdf.paragraph("Page body")], language: "en", title: "Neutral backdrop paint", page_templates: templates })
+	}
+	gray = Pdf.to_bytes(document(Color.gray16(30219)))?
+	rgb = Pdf.to_bytes(document(Color.srgb16({ red: 30219, green: 30219, blue: 30219 })))?
+	gray == rgb and gray != Pdf.to_bytes(document("#000000"))?
+}
+
 # Unavailable authored content rejects atomically through the facade; no
 # blank document or partial bytes can escape a Try error.
 expect {
@@ -5104,6 +5229,62 @@ expect {
 	bytes = Pdf.to_bytes(navigated)?
 
 	bytes.len() > 4717
+}
+
+# Both block link constructors reject an empty visible label before the
+# source bank sees it, even if the link target also needs validation.
+expect {
+	links = [Pdf.link({ text: "", uri: "" }), Pdf.internal_link({ text: "", destination: "missing" })]
+	links.all(
+		|link| {
+			doc = Pdf.document({ contents: [Pdf.section([Pdf.paragraph("Lead"), link])], language: "en", title: "Empty link" })
+			match Pdf.to_bytes(doc) {
+				Err(InvalidDocument({ diagnostics: [{ code: InvalidRelationship, details: [path], feature: Feature(feature), .. }], .. })) => feature == "semantics.link_text_empty" and path == "contents[0].contents[1]"
+				_ => False
+			}
+		},
+	)
+}
+
+# A flow caption and an ordinary paragraph report the authoring location
+# when a token cannot fit the available line width.
+expect {
+	token = Str.repeat("x", 360)
+	drawing = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 1, height: 10 }), color: Color.srgb8({ blue: 0, green: 0, red: 0 }) })
+	caption = Pdf.figure({ alt: "Mark", caption: Pdf.caption(token), drawing })
+	rejects = |block, expected| {
+		doc = Pdf.document({ contents: [Pdf.section([Pdf.paragraph("Lead"), block])], language: "en", title: "Unbreakable text" })
+		match Pdf.to_bytes(doc) {
+			Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: [path], feature: Feature(feature), .. }], .. })) => feature == "layout.unbreakable_token" and path == expected
+			_ => False
+		}
+	}
+	rejects(caption, "contents[0].contents[1].caption") and rejects(Pdf.paragraph(token), "contents[0].contents[1]")
+}
+
+# A decomposed grapheme in furniture reports the simple shaper's coverage
+# limit. A supported precomposed letter reaches reserved-width measurement.
+expect {
+	body = [Pdf.paragraph("Body text uses eleven points with fifteen-point leading.")]
+	document = |text| Pdf.document({
+		contents: body,
+		language: "en",
+		title: "Furniture text",
+		page_templates: Templates({
+			first: Pdf.first_page_template({ footer: Pdf.region({ height: 10, end: [Pdf.furniture_text([Pdf.reserved_width({ width: 0, align: Center, contents: [Pdf.text(text)] })])] }) }),
+			continuation: Pdf.page_template({}),
+		}),
+	})
+	options = Pdf.Options.{ theme: Theme.{ furniture: Own({ size: 8, leading: 10 }) } }
+	combining = match Pdf.to_bytes_with(document("e\u(0301)"), options) {
+		Err(InvalidDocument({ diagnostics: [{ code: FontCoverageMissing, details: [path], feature: Feature(feature), .. }], .. })) => feature == "text.unsupported_cluster" and path == "templates.first.footer.end[0]"
+		_ => False
+	}
+	precomposed = match Pdf.to_bytes_with(document("é"), options) {
+		Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: [path], feature: Feature(feature), .. }], .. })) => feature == "layout.template_region_overflow" and path == "templates.first.footer.end[0].inlines[0]"
+		_ => False
+	}
+	combining and precomposed
 }
 
 # PDF literal escaping preserves the authored URI spelling and percent bytes.
@@ -7107,4 +7288,175 @@ expect {
 		and budget_error({ max_flow_reference_state_units: 10 }, "state words per pass. The effective limit is 10")
 		and budget_error({ max_flow_reference_layout_work: 1 }, "accumulated layout work. The effective limit is 1")
 		and widened == default_bytes and fixed_bytes == no_flow_budget
+}
+
+drawing_path_rejected : Try(a, Pdf.Error), Str, Str -> Bool
+drawing_path_rejected = |result, feature, location| match result {
+	Err(InvalidDocument({ diagnostics: [{ code: InvalidRelationship, feature: Feature(actual), details: [path], .. }], .. })) => actual == feature and path == location
+	_ => False
+}
+
+expect {
+	point = Layout.point({ x: 1, y: 1 })
+	rect = Layout.rect({ x: 1, y: 1, width: 10, height: 10 })
+	start = Scene.PathBuilder.start
+	paths : List((Scene.PathBuilder, U64))
+	paths = [
+		(start.rectangle(rect).close(), 1),
+		(start.line_to(point), 0),
+		(start.cubic_to({ control_1: point, control_2: point, end: point }), 0),
+		(start.move_to(point).close().close(), 2),
+	]
+	var $passed = True
+	for (builder, segment) in paths {
+		drawing = Scene.Drawing.empty.path({ path: builder.finish(), style: Scene.solid_fill("#000000") })
+		doc = depth_test_flow(drawing)
+		$passed = $passed and drawing_path_rejected(Pdf.to_bytes(doc), "drawing.path_order", "contents[0].drawing.commands[0].segments[${segment.to_str()}]")
+	}
+	$passed
+}
+
+expect {
+	point = Layout.point({ x: 1, y: 1 })
+	rect = Layout.rect({ x: 1, y: 1, width: 10, height: 10 })
+	path = Scene.PathBuilder.start.rectangle(rect).line_to(point).finish()
+	drawing = Scene.Drawing.empty.group({
+		drawing: Scene.Drawing.empty.path({ path, style: Scene.solid_fill("#000000") }),
+		offset: point,
+	})
+	surfaces = [
+		(depth_test_fixed, "pages[0].placements[0].drawing.commands[1].segments[1]"),
+		(depth_test_decoration, "contents[0].drawing.commands[1].segments[1]"),
+		(depth_test_panel, "contents[0].panel.commands[1].segments[1]"),
+		(depth_test_furniture, "templates.first.header.start[0].commands[1].segments[1]"),
+	]
+	surfaces.all(|(build, location)| drawing_path_rejected(Pdf.prepare_with_report(build(drawing), {}), "drawing.path_order", location))
+}
+
+expect {
+	drawing = Scene.Drawing.empty.rectangle({
+		bounds: { origin: Layout.point({ x: 0, y: 0 }), size: { height: Layout.Unit.from_raw(I64.lowest), width: 0 } },
+		color: "#000000",
+	})
+	doc = Pdf.document({
+		contents: [Pdf.paragraph("Text above the footer.")],
+		language: "en",
+		page_templates: Templates({
+			first: Pdf.first_page_template({ footer: Pdf.region({ height: 10, backdrop: Backdrop(drawing) }) }),
+			continuation: Pdf.page_template({}),
+		}),
+		title: "Backdrop rectangle bounds",
+	})
+	drawing_path_rejected(Pdf.to_bytes(doc), "drawing.path_geometry", "templates.first.footer.backdrop.commands[0].segments[0]")
+}
+
+rejects_authored_geometry : Document, Pdf.Options, Conformance.DiagnosticCode, Str, Str -> Bool
+rejects_authored_geometry = |doc, options, expected_code, expected_feature, expected_path| {
+	rejected = |result| match result {
+		Err(InvalidDocument({ diagnostics: [{ code, feature: Feature(feature), details: [path], .. }], .. })) =>
+			code == expected_code and feature == expected_feature and path == expected_path
+		_ => False
+	}
+	report_props = Pdf.ReportProps.{ options }
+	rejected(Pdf.prepare(doc, options)) and rejected(Pdf.prepare_with_report(doc, report_props))
+}
+
+expect {
+	doc = Pdf.document({ contents: [Pdf.paragraph("Body")], language: "en-AU", title: "Theme geometry" })
+	columns = Pdf.multi_column({ first: 206, gutter: 16, second: 186, contents: [Pdf.paragraph("Body in columns")] })
+	column_doc = Pdf.document({ contents: [columns], language: "en-AU", title: "Column theme geometry" })
+	heading_doc = Pdf.document({ contents: [Pdf.heading(1, "Heading")], language: "en-AU", title: "Heading theme geometry" })
+	rejects_theme : Document, Theme, Str, Str -> Bool
+	rejects_theme = |authored, theme, feature, path| {
+		options = Pdf.Options.{ theme }
+		rejects_authored_geometry(authored, options, LayoutConstraintViolated, feature, path)
+	}
+	rejects_theme(column_doc, { body: { leading: 0 } }, "layout.theme_text_leading", "theme.body.leading")
+		and rejects_theme(doc, { body: { leading: Layout.Unit.from_raw(I64.lowest) } }, "layout.theme_text_leading", "theme.body.leading")
+		and rejects_theme(heading_doc, { headings: { all: { leading: 0 } } }, "layout.theme_text_leading", "theme.headings.all.leading")
+		and rejects_theme(heading_doc, { headings: { h1: Own({ leading: 0 }) } }, "layout.theme_text_leading", "theme.headings.h1.leading")
+		and rejects_theme(doc, { bullet_indent: 0 }, "layout.theme_bullet_indent", "theme.bullet_indent")
+		and rejects_theme(doc, { paragraph_spacing: -1000000 }, "layout.theme_paragraph_spacing", "theme.paragraph_spacing")
+		and rejects_theme(doc, { page_margin: { bottom: -675555 } }, "layout.page_margin", "theme.page_margin.bottom")
+		and rejects_theme(doc, { link: { underline: Underline({ offset: 8, thickness: Layout.Unit.from_raw(I64.highest) }) } }, "text.link_underline", "theme.link.underline.thickness")
+}
+
+expect {
+	make_doc = |width| Pdf.document({
+		contents: [
+			Pdf.table({
+				body_rows: [Pdf.row([Pdf.cell([])])],
+				caption: Pdf.no_caption,
+				columns: [{ align: Center, width: Fixed(width) }],
+				header_rows: [Pdf.row([Pdf.header_cell(Both, [Pdf.text("Column")])])],
+			}),
+		],
+		language: "en-AU",
+		title: "Fixed table column",
+	})
+	rejects = |width| rejects_authored_geometry(make_doc(width), {}, LayoutConstraintViolated, "layout.table_fixed_width", "contents[0].columns[0].width")
+	rejects(0) and rejects(-1354744815)
+		and (Pdf.to_bytes_prepared(Pdf.prepare(make_doc(80), {})?)?).len() > 1000
+}
+
+expect {
+	make_doc = |gap, height| {
+		region = Pdf.region({ height, start: [Pdf.furniture_text([Pdf.text("Furniture")])] })
+		Pdf.document({
+			contents: [Pdf.paragraph("Opening body"), Pdf.page_break, Pdf.paragraph("Continuation body")],
+			language: "en-AU",
+			title: "Template geometry",
+			page_templates: Templates({
+				first: Pdf.first_page_template({}),
+				continuation: Pdf.page_template({ gap, header: region, footer: region }),
+			}),
+		})
+	}
+	giant = Layout.Unit.from_raw(I64.highest)
+	rejects_authored_geometry(make_doc(giant, 16), {}, LayoutConstraintViolated, "layout.template_body_space", "templates.continuation.gap")
+		and rejects_authored_geometry(make_doc(4, giant), {}, LayoutConstraintViolated, "layout.template_body_space", "templates.continuation")
+		and (Pdf.to_bytes_prepared(Pdf.prepare(make_doc(4, 16), {})?)?).len() > 1000
+}
+
+expect {
+	drawing = |row_stride, alpha| Scene.Drawing.empty.image({
+		image: Image.Source.gray8({ alpha, dimensions: { width: 1, height: 2 }, pixels: [0, 128], row_stride }),
+		placement: Layout.rect({ x: 0, y: 0, width: 10, height: 8 }),
+	})
+	figure = |art| Pdf.document({
+		contents: [Pdf.figure({ alt: "Gray pixels", caption: Pdf.no_caption, drawing: art })],
+		language: "en-AU",
+		title: "Packed image stride",
+	})
+	bad_color = drawing(U64.highest, NoAlpha)
+	bad_alpha = drawing(1, PackedAlpha({ row_stride: U64.highest, bytes: [0, 255] }))
+	footer = Pdf.region({ height: 16, backdrop: Backdrop(bad_alpha) })
+	furniture = Pdf.document({
+		contents: [Pdf.paragraph("Body")],
+		language: "en-AU",
+		title: "Packed image stride in a backdrop",
+		page_templates: Templates({
+			first: Pdf.first_page_template(Pdf.FirstPageTemplateProps.{ footer }),
+			continuation: Pdf.page_template({}),
+		}),
+	})
+	good = drawing(1, PackedAlpha({ row_stride: 1, bytes: [0, 255] }))
+	rejects_authored_geometry(figure(bad_color), {}, InvalidRelationship, "image.row_stride", "contents[0].drawing.commands[0].image.row_stride")
+		and rejects_authored_geometry(figure(bad_alpha), {}, InvalidRelationship, "image.row_stride", "contents[0].drawing.commands[0].image.alpha.row_stride")
+		and rejects_authored_geometry(furniture, {}, InvalidRelationship, "image.row_stride", "templates.first.footer.backdrop.commands[0].image.alpha.row_stride")
+		and (Pdf.to_bytes_prepared(Pdf.prepare(figure(good), {})?)?).len() > 1000
+}
+
+expect {
+	point = Layout.point({ x: 1, y: 1 })
+	move_only = Scene.Drawing.empty.path({ path: Scene.PathBuilder.start.move_to(point).finish(), style: Scene.solid_fill("#000000") })
+	flat = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 90, height: 0 }), color: "#000000" })
+	drawing = Scene.Drawing.empty.group({ offset: Layout.point({ x: 0, y: 1 }), drawing: flat })
+	anchored = Pdf.document({
+		contents: [Pdf.anchored_figure([Pdf.text("The order flow:")], { drawing, alt: "Receive an order, then dispatch it.", caption: "Figure 3. Order flow" })],
+		language: "en-AU",
+		title: "Anchored figure path",
+	})
+	drawing_path_rejected(Pdf.to_bytes(depth_test_flow(move_only)), "drawing.path_geometry", "contents[0].drawing.commands[0]")
+		and drawing_path_rejected(Pdf.to_bytes(anchored), "drawing.path_geometry", "contents[0].figure.drawing.commands[1].segments[0]")
 }

@@ -23,6 +23,7 @@ KernelFacadeLines :: [].{
 		CalloutWidth({ group : U64 }),
 		CustomWidth({ available : U64, custom : U64, width : U64 }),
 		FixedUnbreakable({ block : U64, available : Layout.Unit }),
+		FlowUnbreakable({ block : U64 }),
 		InternationalUnbreakable({ block : U64, available : Layout.Unit }),
 		InvalidGeometry,
 		InvalidRun({ block : U64, run : U64 }),
@@ -211,7 +212,7 @@ build_plan = |authoring, shape, sources, page, theme, limits| {
 	if $next_run != run_count {
 		return Err(RunCoverage({ actual: $next_run, expected: run_count }))
 	}
-	line = KernelLineLayout.BatchPlan.build_variants(sources, shape_requests, shape_batch.store, $line_requests, shape_batch.inter_runs, limits.line) ? LineLayout
+	line = KernelLineLayout.BatchPlan.build_variants(sources, shape_requests, shape_batch.store, $line_requests, shape_batch.inter_runs, limits.line) ? |error| body_line_error(block_runs, geometries, shape_batch.store, FlowLine, error)
 	run_lines = KernelLineLayout.BatchPlan.run_lines(line)
 	var $blocks = List.with_capacity(block_runs.len())
 	$block_index = 0
@@ -498,14 +499,11 @@ build_ordered_with_geometry = |authoring, shape, sources, limits, input| {
 	line = if run_count == 0 {
 		KernelLineLayout.BatchPlan.empty({})
 	} else if !authoring.sources.is_empty() {
-		KernelLineLayout.BatchPlan.build_logical_variants(sources, shape_batch.store, $line_requests, $holds, $modes, shape_batch.inter_runs, limits.line) ? |error| source_layout_error(authoring, $logical_index_of_body, geometries, shape_batch.store, error)
+		KernelLineLayout.BatchPlan.build_logical_variants(sources, shape_batch.store, $line_requests, $holds, $modes, shape_batch.inter_runs, limits.line) ? |error| source_layout_error(authoring, $logical_index_of_body, block_runs, geometries, shape_batch.store, error)
 	} else {
 		match KernelFacadeShape.Plan.international(shape) {
-			International(_) => KernelLineLayout.BatchPlan.build_international(sources, shape_batch.store, $line_requests, $holds, limits.line) ? |error| match fixed_line_error(block_runs, geometries, shape_batch.store, error) {
-				FixedUnbreakable(problem) => InternationalUnbreakable(problem)
-				other => other
-			}
-			NoInternational => KernelLineLayout.BatchPlan.build_logical_variants(sources, shape_batch.store, $line_requests, $holds, [], shape_batch.inter_runs, limits.line) ? |error| if (fixed) fixed_line_error(block_runs, geometries, shape_batch.store, error) else LineLayout(error)
+			International(_) => KernelLineLayout.BatchPlan.build_international(sources, shape_batch.store, $line_requests, $holds, limits.line) ? |error| body_line_error(block_runs, geometries, shape_batch.store, InternationalLine, error)
+			NoInternational => KernelLineLayout.BatchPlan.build_logical_variants(sources, shape_batch.store, $line_requests, $holds, [], shape_batch.inter_runs, limits.line) ? |error| body_line_error(block_runs, geometries, shape_batch.store, if (fixed) FixedLine else FlowLine, error)
 		}
 	}
 	run_lines = KernelLineLayout.BatchPlan.run_lines(line)
@@ -555,8 +553,10 @@ build_ordered_with_geometry = |authoring, shape, sources, limits, input| {
 	)
 }
 
-fixed_line_error : List(KernelFacadeShape.BlockRuns), List(BlockGeometry), Text.Store, KernelLineLayout.Error -> KernelFacadeLines.Error
-fixed_line_error = |blocks, geometry, store, error| match error {
+## On rejection, locate the unbreakable cluster in its owning shaped body.
+## The indexed ranges already partition the shaped store in block order.
+body_line_error : List(KernelFacadeShape.BlockRuns), List(BlockGeometry), Text.Store, [FixedLine, FlowLine, InternationalLine], KernelLineLayout.Error -> KernelFacadeLines.Error
+body_line_error = |blocks, geometries, store, mode, error| match error {
 	Unbreakable({ cluster_start, .. }) => {
 		var $index = 0
 		for block in blocks {
@@ -565,7 +565,12 @@ fixed_line_error = |blocks, geometry, store, error| match error {
 					first = list_at(store.runs, body.physical.start()).clusters.start()
 					last = list_at(store.runs, body.physical.start() + body.physical.length() - 1).clusters
 					if cluster_start >= first and cluster_start < last.start() + last.length() {
-						return FixedUnbreakable({ block: $index, available: Layout.Unit.from_raw(list_at(geometry, $index).body_width.to_i64_wrap()) })
+						available = Layout.Unit.from_raw(list_at(geometries, $index).body_width.to_i64_wrap())
+						return match mode {
+							FixedLine => FixedUnbreakable({ block: $index, available })
+							FlowLine => FlowUnbreakable({ block: $index })
+							InternationalLine => InternationalUnbreakable({ block: $index, available })
+						}
 					}
 				}
 				_ => {}
@@ -577,8 +582,8 @@ fixed_line_error = |blocks, geometry, store, error| match error {
 	_ => LineLayout(error)
 }
 
-source_layout_error : Document.NormalizedAuthoring, List(U64), List(BlockGeometry), Text.Store, KernelLineLayout.Error -> KernelFacadeLines.Error
-source_layout_error = |authoring, logical, geometries, store, error| match error {
+source_layout_error : Document.NormalizedAuthoring, List(U64), List(KernelFacadeShape.BlockRuns), List(BlockGeometry), Text.Store, KernelLineLayout.Error -> KernelFacadeLines.Error
+source_layout_error = |authoring, logical, block_runs, geometries, store, error| match error {
 	SourceUnbreakable({ request, cluster_start, cluster_end }) => {
 		var $block = 0
 		while $block < authoring.blocks.len() {
@@ -594,7 +599,7 @@ source_layout_error = |authoring, logical, geometries, store, error| match error
 		}
 		LineLayout(error)
 	}
-	_ => LineLayout(error)
+	_ => body_line_error(block_runs, geometries, store, FlowLine, error)
 }
 
 ## Whether any block's code span holds a word together. It scans each

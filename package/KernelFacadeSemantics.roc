@@ -1,9 +1,11 @@
 import KernelDrawingGroups
+import KernelDrawingPath
 import Document
 import Font
 import KernelFacadeSources
 import KernelFacadeTableGrid
 import KernelFootnoteGraph
+import KernelImage
 import KernelNavigation
 import KernelSemantics
 import KernelTextSemantics
@@ -54,6 +56,8 @@ KernelFacadeSemantics :: [].{
 		## A decoration's drawing is not a supported flow drawing.
 		DecorationDrawing({ decoration : U64, reason : Str }),
 		DrawingGroupDepth({ drawing : [FigureAt(U64), DecorationAt(U64), PanelAt(U64)], depth : KernelDrawingGroups.DepthLimit }),
+		DrawingPathInvalid({ drawing : [FigureAt(U64), DecorationAt(U64), PanelAt(U64)], problem : KernelDrawingPath.PlacementError }),
+		DrawingImageStride({ drawing : [FigureAt(U64), DecorationAt(U64), PanelAt(U64)], command : U64, plane : KernelImage.Plane }),
 
 		## A decoration with no following flow block, or inside a lead
 		## region.
@@ -62,6 +66,7 @@ KernelFacadeSemantics :: [].{
 		EmptyKeep({ group : U64 }),
 		EmptyScope({ group : U64 }),
 		EmptyLanguage,
+		EmptyBlockLinkText({ block : U64 }),
 		EmptyLinkText({ block : U64, inline : U64 }),
 		EmptyList({ group : U64 }),
 		EmptyListItem({ group : U64 }),
@@ -1172,7 +1177,7 @@ plan_blocks = |authoring, limits| {
 								_ => {}
 							}
 						}
-						DrawingDepthLimit(_) | InvalidDrawing(_) => crash "validated figure drawing escaped"
+						DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) | InvalidImageStride(_) => crash "validated figure drawing escaped"
 					}
 					label_count = $figure_label_texts.len() - first_label
 					attempted_nodes = checked_add($next_node, 1)?
@@ -1252,6 +1257,9 @@ plan_blocks = |authoring, limits| {
 					$list_state = NoActiveList
 				}
 				Link({ uri }) => {
+					if block.text.is_empty() {
+						return Err(EmptyBlockLinkText({ block: $block_index }))
+					}
 					attempted_nodes = checked_add($next_node, 2)?
 					attempted_occurrences = checked_add($next_occurrence, 1)?
 					attempted_content = checked_add($content_count, 3)?
@@ -1269,6 +1277,9 @@ plan_blocks = |authoring, limits| {
 					$list_state = NoActiveList
 				}
 				InternalLink({ destination }) => {
+					if block.text.is_empty() {
+						return Err(EmptyBlockLinkText({ block: $block_index }))
+					}
 					attempted_nodes = checked_add($next_node, 2)?
 					attempted_occurrences = checked_add($next_occurrence, 1)?
 					attempted_content = checked_add($content_count, 3)?
@@ -1960,6 +1971,8 @@ check_figure = |figure, block| {
 	}
 	match figure.drawing {
 		DrawingDepthLimit(depth) => return Err(DrawingGroupDepth({ drawing: FigureAt(block), depth }))
+		InvalidDrawingPath(problem) => return Err(DrawingPathInvalid({ drawing: FigureAt(block), problem }))
+		InvalidImageStride({ command, plane }) => return Err(DrawingImageStride({ drawing: FigureAt(block), command, plane }))
 		InvalidDrawing(reason) => return Err(FigureDrawing({ block, reason }))
 		ValidDrawing(_) => {}
 	}
@@ -2103,6 +2116,8 @@ check_customs = |authoring| {
 		}
 		match custom.panel {
 			DrawingDepthLimit(depth) => return Err(DrawingGroupDepth({ drawing: PanelAt($index), depth }))
+			InvalidDrawingPath(problem) => return Err(DrawingPathInvalid({ drawing: PanelAt($index), problem }))
+			InvalidImageStride({ command, plane }) => return Err(DrawingImageStride({ drawing: PanelAt($index), command, plane }))
 			InvalidDrawing(reason) => return Err(CustomDrawing({ custom: $index, reason }))
 			ValidDrawing(drawing) => {
 				if !drawing.images.is_empty() {
@@ -2148,6 +2163,8 @@ check_decorations = |authoring| {
 		}
 		match decoration.drawing {
 			DrawingDepthLimit(depth) => return Err(DrawingGroupDepth({ drawing: DecorationAt($index), depth }))
+			InvalidDrawingPath(problem) => return Err(DrawingPathInvalid({ drawing: DecorationAt($index), problem }))
+			InvalidImageStride({ command, plane }) => return Err(DrawingImageStride({ drawing: DecorationAt($index), command, plane }))
 			InvalidDrawing(reason) => return Err(DecorationDrawing({ decoration: $index, reason }))
 			ValidDrawing(_) => {}
 		}

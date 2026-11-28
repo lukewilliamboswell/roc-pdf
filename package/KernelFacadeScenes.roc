@@ -327,7 +327,7 @@ build_arena_with_intent = |prepared, geometry, intent, limits| {
 
 	## Every flow path's paint is proven convertible before any scene
 	## accumulator grows, so painting never exits on an error.
-	check_flow_colors(prepared.authoring, intent, use_srgb) ? |_| UnsupportedColor({ run: 0 })
+	check_flow_colors(prepared.authoring, use_srgb) ? |_| UnsupportedColor({ run: 0 })
 	text_color_checks = match intent {
 		NoIntentProfile => run_count
 		PackagedSrgbIntent => checked_add(run_count, run_count)?
@@ -401,7 +401,7 @@ build_arena_with_intent = |prepared, geometry, intent, limits| {
 					Decoration => Decoration
 					_ => return Err(InvalidPage({ page: $page_index }))
 				}
-				fill = paint_color(rect.color, intent, use_srgb) ? |_| UnsupportedColor({ run: $placement_cursor })
+				fill = paint_color(rect.color, use_srgb) ? |_| UnsupportedColor({ run: $placement_cursor })
 				path = Scene.PathId.from_index($paths.len())
 				$paths = $paths.append({ id: path, segments: Semantics.IndexRange.from_start_and_length({ start: $path_segments.len(), length: 1 }) })
 				$path_segments = $path_segments.append(Rectangle(rect.bounds))
@@ -443,7 +443,7 @@ build_arena_with_intent = |prepared, geometry, intent, limits| {
 								for segment in segments {
 									$path_segments = $path_segments.append(segment)
 								}
-								$commands = $commands.append(DrawPath({ path, style: checked_flow_style(fill, stroke, intent, use_srgb) }))
+								$commands = $commands.append(DrawPath({ path, style: checked_flow_style(fill, stroke, use_srgb) }))
 							}
 						}
 					}
@@ -461,36 +461,8 @@ build_arena_with_intent = |prepared, geometry, intent, limits| {
 					return Err(InvalidPlacement({ placement: $placement_cursor }))
 				}
 				style = list_at(prepared.styles, $placement_cursor)
-				paint = match style.color {
-					Srgb(Rgb(channels)) => match intent {
-						NoIntentProfile => if channels.red == 0 and channels.green == 0 and channels.blue == 0 {
-							{
-								fill: { channels: Gray(0), space: Color.SpaceId.from_index(0) },
-								mode: Fill,
-								opacity: 65535,
-								stroke: NoStroke,
-							}
-						} else {
-							return Err(UnsupportedColor({ run: $placement_cursor }))
-						}
-						PackagedSrgbIntent => if use_srgb {
-							{
-								fill: { channels: Rgb(channels), space: Color.SpaceId.from_index(0) },
-								mode: Fill,
-								opacity: 65535,
-								stroke: NoStroke,
-							}
-						} else {
-							{
-								fill: { channels: Gray(0), space: Color.SpaceId.from_index(0) },
-								mode: Fill,
-								opacity: 65535,
-								stroke: NoStroke,
-							}
-						}
-					}
-					_ => return Err(UnsupportedColor({ run: $placement_cursor }))
-				}
+				text_fill = paint_color(style.color, use_srgb) ? |_| UnsupportedColor({ run: $placement_cursor })
+				paint = { fill: text_fill, mode: Fill, opacity: 65535, stroke: NoStroke }
 				figure = match list_at(prepared.run_unicode, $placement_cursor) {
 					OccurrenceText(occurrence) => if (occurrence.index() < prepared.figure_by_occurrence.len()) list_at(prepared.figure_by_occurrence, occurrence.index()) else NoFigure
 					ArtifactText(_) => NoFigure
@@ -557,7 +529,7 @@ build_arena_with_intent = |prepared, geometry, intent, limits| {
 									for segment in segments {
 										$path_segments = $path_segments.append(segment)
 									}
-									$commands = $commands.append(DrawPath({ path, style: checked_flow_style(fill, stroke, intent, use_srgb) }))
+									$commands = $commands.append(DrawPath({ path, style: checked_flow_style(fill, stroke, use_srgb) }))
 								}
 							}
 						}
@@ -605,7 +577,7 @@ build_arena_with_intent = |prepared, geometry, intent, limits| {
 				## table rules and link underlines follow it. Each rectangle is a
 				## layout decoration artifact.
 				rule = list_at(prepared.rules, $rule_cursor)
-				fill = match paint_color(rule.color, intent, use_srgb) {
+				fill = match paint_color(rule.color, use_srgb) {
 					Ok(value) => value
 					Err(_) => return Err(UnsupportedColor({ run: $placement_cursor }))
 				}
@@ -650,7 +622,7 @@ build_arena_with_intent = |prepared, geometry, intent, limits| {
 							for segment in segments {
 								$path_segments = $path_segments.append(segment)
 							}
-							$commands = $commands.append(DrawPath({ path, style: checked_flow_style(fill, stroke, intent, use_srgb) }))
+							$commands = $commands.append(DrawPath({ path, style: checked_flow_style(fill, stroke, use_srgb) }))
 						}
 					}
 				}
@@ -690,7 +662,7 @@ build_arena_with_intent = |prepared, geometry, intent, limits| {
 							for segment in segments {
 								$path_segments = $path_segments.append(segment)
 							}
-							style = furniture_path_style(fill, stroke, intent, use_srgb) ? |_| UnsupportedColor({ run: $placement_cursor })
+							style = furniture_path_style(fill, stroke, use_srgb) ? |_| UnsupportedColor({ run: $placement_cursor })
 							$commands = $commands.append(DrawPath({ path, style }))
 						}
 					}
@@ -911,7 +883,7 @@ without_labels = |drawing| {
 valid_flow_drawing : Document.ValidatedDrawing -> Try(Document.FlowDrawing, KernelFacadeScenes.Error)
 valid_flow_drawing = |drawing| match drawing {
 	ValidDrawing(value) => Ok(value)
-	DrawingDepthLimit(_) | InvalidDrawing(_) => Err(InvalidPlacement({ placement: 0 }))
+	DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) | InvalidImageStride(_) => Err(InvalidPlacement({ placement: 0 }))
 }
 
 count_flow : List(Document.FlowCommand) -> Try({ commands : U64, nonblack : Bool, paths : U64, segments : U64 }, KernelFacadeScenes.Error)
@@ -943,17 +915,17 @@ count_flow = |commands| {
 
 ## Every figure and decoration path paint converts in the page's painting
 ## space.
-check_flow_colors : Document.NormalizedAuthoring, KernelFacadeScenes.IntentProfile, Bool -> Try({}, [Unsupported])
-check_flow_colors = |authoring, intent, use_srgb| {
+check_flow_colors : Document.NormalizedAuthoring, Bool -> Try({}, [Unsupported])
+check_flow_colors = |authoring, use_srgb| {
 	check = |drawing| match drawing {
-		DrawingDepthLimit(_) | InvalidDrawing(_) => Ok({})
+		DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) | InvalidImageStride(_) => Ok({})
 		ValidDrawing(value) => {
 			for command in value.commands {
 				match command {
 					FlowImage(_) => {}
 					FlowText(_) => {}
 					FlowPath({ fill, segments: _, stroke }) => {
-						_ = furniture_path_style(fill, stroke, intent, use_srgb)?
+						_ = furniture_path_style(fill, stroke, use_srgb)?
 					}
 				}
 			}
@@ -973,8 +945,8 @@ check_flow_colors = |authoring, intent, use_srgb| {
 }
 
 ## A flow path's paint after `check_flow_colors` proved it converts.
-checked_flow_style : [Fill(Color.SourceValue), NoFill], [NoStroke, Stroke({ color : Color.SourceValue, width : Layout.Unit })], KernelFacadeScenes.IntentProfile, Bool -> Scene.PathStyle
-checked_flow_style = |fill, stroke, intent, use_srgb| match furniture_path_style(fill, stroke, intent, use_srgb) {
+checked_flow_style : [Fill(Color.SourceValue), NoFill], [NoStroke, Stroke({ color : Color.SourceValue, width : Layout.Unit })], Bool -> Scene.PathStyle
+checked_flow_style = |fill, stroke, use_srgb| match furniture_path_style(fill, stroke, use_srgb) {
 	Ok(style) => style
 	Err(_) => crash "validated flow path paint escaped"
 }
@@ -1022,15 +994,15 @@ drawing_counts = |furniture| {
 
 ## A furniture path's fill and stroke in the page's painting space: solid,
 ## nonzero fill; butt caps, miter joins, and a miter limit of 10.
-furniture_path_style : [Fill(Color.SourceValue), NoFill], [NoStroke, Stroke({ color : Color.SourceValue, width : Layout.Unit })], KernelFacadeScenes.IntentProfile, Bool -> Try(Scene.PathStyle, [Unsupported])
-furniture_path_style = |fill, stroke, intent, use_srgb| {
+furniture_path_style : [Fill(Color.SourceValue), NoFill], [NoStroke, Stroke({ color : Color.SourceValue, width : Layout.Unit })], Bool -> Try(Scene.PathStyle, [Unsupported])
+furniture_path_style = |fill, stroke, use_srgb| {
 	fill_style = match fill {
 		NoFill => NoFill
-		Fill(color) => SolidFill({ color: paint_color(color, intent, use_srgb)?, rule: Nonzero })
+		Fill(color) => SolidFill({ color: paint_color(color, use_srgb)?, rule: Nonzero })
 	}
 	stroke_style = match stroke {
 		NoStroke => NoStroke
-		Stroke({ color, width }) => SolidStroke({ cap: ButtCap, color: paint_color(color, intent, use_srgb)?, dash: SolidLine, join: MiterJoin, miter_limit: Layout.Unit.from_raw(10000), width })
+		Stroke({ color, width }) => SolidStroke({ cap: ButtCap, color: paint_color(color, use_srgb)?, dash: SolidLine, join: MiterJoin, miter_limit: Layout.Unit.from_raw(10000), width })
 	}
 	Ok({ fill: fill_style, stroke: stroke_style })
 }
@@ -1054,19 +1026,27 @@ source_resource = |source, id, rgb_space, gray_space| {
 nonblack : Color.SourceValue -> Bool
 nonblack = |color| match color {
 	Srgb(Rgb({ blue, green, red })) => blue != 0 or green != 0 or red != 0
-	_ => False
+	Srgb(Gray(level)) => level != 0
 }
 
-## The fill of a table rule in the page's painting space: black is the
-## calibrated gray zero without an intent profile, and every color is sRGB
-## when the page paints in sRGB.
-paint_color : Color.SourceValue, KernelFacadeScenes.IntentProfile, Bool -> Try(Color.Value, [Unsupported])
-paint_color = |color, intent, use_srgb| match color {
-	Srgb(Rgb(channels)) => match intent {
-		NoIntentProfile => if (channels.red == 0 and channels.green == 0 and channels.blue == 0) Ok({ channels: Gray(0), space: Color.SpaceId.from_index(0) }) else Err(Unsupported)
-		PackagedSrgbIntent => if (use_srgb) Ok({ channels: Rgb(channels), space: Color.SpaceId.from_index(0) }) else if (channels.red == 0 and channels.green == 0 and channels.blue == 0) Ok({ channels: Gray(0), space: Color.SpaceId.from_index(0) }) else Err(Unsupported)
+## ISO 32000-2:2020 §8.6.5.5 (including the ICCBased errata) and §8.6.8:
+## the paint operands match the selected space. An authored sRGB gray is
+## shorthand for three identical sRGB components. The black-only plan
+## keeps using calibrated gray zero, as it does for sRGB black.
+paint_color : Color.SourceValue, Bool -> Try(Color.Value, [Unsupported])
+paint_color = |color, use_srgb| {
+	space = Color.SpaceId.from_index(0)
+	if use_srgb {
+		channels = match color {
+			Srgb(Rgb(value)) => value
+			Srgb(Gray(level)) => { blue: level, green: level, red: level }
+		}
+		Ok({ channels: Rgb(channels), space })
+	} else if nonblack(color) {
+		Err(Unsupported)
+	} else {
+		Ok({ channels: Gray(0), space })
 	}
-	_ => Err(Unsupported)
 }
 
 has_nonblack_srgb : List(KernelFacadeShape.RunStyle) -> Bool
@@ -1074,10 +1054,7 @@ has_nonblack_srgb = |styles| {
 	var $found = False
 	var $index = 0
 	while $index < styles.len() and $found == False {
-		$found = match list_at(styles, $index).color {
-			Srgb(Rgb({ blue, green, red })) => blue != 0 or green != 0 or red != 0
-			_ => False
-		}
+		$found = nonblack(list_at(styles, $index).color)
 		$index = $index + 1
 	}
 	$found

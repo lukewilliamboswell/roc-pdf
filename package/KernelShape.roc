@@ -247,6 +247,21 @@ KernelShape :: [].{
 	}
 }
 
+## A genuine multi-scalar grapheme is outside the simple shaper's
+## repertoire. A count mismatch alone can also indicate inconsistent
+## analysis, so inspect the cluster spans only on this rejection path.
+simple_cluster_error : List(KernelUnicode.UnicodeRange) -> KernelShape.Error
+simple_cluster_error = |graphemes| {
+	var $index = 0
+	for grapheme in graphemes {
+		if grapheme.scalar_end > grapheme.scalar_start and grapheme.scalar_end - grapheme.scalar_start > 1 {
+			return UnsupportedCluster({ grapheme: $index, scalars: grapheme.scalar_end - grapheme.scalar_start })
+		}
+		$index = $index + 1
+	}
+	AnalysisMismatch(GraphemeFacts)
+}
+
 shape_simple_latin : KernelFont.Inspection, Str, KernelUnicode.UnicodeAnalysis, KernelShape.Options, KernelShape.Limits -> Try(KernelShape.Shape, KernelShape.Error)
 shape_simple_latin = |font, source, analysis, options, limits| {
 	if options.direction != LeftToRight {
@@ -275,7 +290,7 @@ shape_simple_latin = |font, source, analysis, options, limits| {
 	check_limit(scalar_count, limits.max_glyphs, Glyphs)?
 	check_limit(cluster_count, limits.max_clusters, Clusters)?
 	if cluster_count != scalar_count {
-		return Err(AnalysisMismatch(GraphemeFacts))
+		return Err(simple_cluster_error(analysis.graphemes))
 	}
 	validate_scripts(analysis.script_runs, source_bytes, scalar_count, expected_script)?
 
@@ -406,7 +421,7 @@ shape_simple_batch_latin = |font, sources, options, requests, limits| {
 			return Err(EmptySource)
 		}
 		if cluster_count != scalar_count {
-			return Err(AnalysisMismatch(GraphemeFacts))
+			return Err(simple_cluster_error(source.analysis.graphemes))
 		}
 		$planned_source_bytes = checked_add($planned_source_bytes, source_bytes)?
 		$planned_scalars = checked_add($planned_scalars, scalar_count)?

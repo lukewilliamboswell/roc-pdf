@@ -1,4 +1,5 @@
 import KernelDrawingGroups
+import KernelDrawingPath
 import Color
 import Document
 import Font
@@ -9,6 +10,7 @@ import KernelFacadeShape
 import KernelFacadeSources
 import KernelFont
 import KernelNavigation
+import KernelImage
 import KernelPageLabels
 import KernelPageLayout
 import KernelShape
@@ -46,11 +48,13 @@ KernelFacadeFurniture :: [].{
 		BodyEmpty,
 
 		## A template's regions leave less than one body line of flow.
-		BodySpace({ footer : U64, gap : U64, header : U64, lead : U64, line : U64, remaining : I64, template : Str }),
+		BodySpace({ footer : U64, gap : U64, header : U64, lead : U64, line : U64, remaining : I128, template : Str }),
 
 		## A furniture drawing that is not a validated decorative drawing.
 		DrawingInvalid({ path : Str, reason : Str }),
+		DrawingPathInvalid({ path : Str, problem : KernelDrawingPath.PlacementError }),
 		DrawingGroupDepth({ path : Str, depth : KernelDrawingGroups.DepthLimit }),
+		DrawingImageStride({ path : Str, command : U64, plane : KernelImage.Plane }),
 
 		## A resolved page field does not fit its reserved width or slot on
 		## `page` (one-based).
@@ -59,6 +63,7 @@ KernelFacadeFurniture :: [].{
 		## An inline other than text, a page field, or a reserved width.
 		FurnitureInline({ path : Str }),
 		GapNegative({ path : Str }),
+		GapTooLarge({ available : U64, gap : U64, path : Str }),
 
 		## A region's slot inset is negative.
 		InsetNegative({ path : Str }),
@@ -439,41 +444,28 @@ build_static_basic = |authoring, theme, page_size, paths, max_drawing_group_dept
 		}
 	}
 	first_footer = region_height(templates.first.footer, "${first_path}.footer")?
-	lead_top = if (first_header == 0) 0 else checked_add(first_header, first_gap)?
-	first_top = if (lead_height == 0) lead_top else checked_add(lead_top, checked_add(lead_height, first_gap)?)?
-	first_bottom = if (first_footer == 0) 0 else checked_add(first_footer, first_gap)?
-	first_remaining = frame_height.to_i64_wrap() - first_top.to_i64_wrap() - first_bottom.to_i64_wrap()
-	if first_remaining < line.to_i64_wrap() {
-		return Err(BodySpace({ footer: first_footer, gap: first_gap, header: first_header, lead: lead_height, line, remaining: first_remaining, template: first_path }))
-	}
+	first = template_frame({ footer: first_footer, frame_height, gap: first_gap, header: first_header, lead: lead_height, line, path: first_path })?
 
 	## Continuation pages: header and footer.
 	next_path = paths.continuation
 	next_gap = gap_of(templates.continuation.gap, next_path)?
 	next_header = region_height(templates.continuation.header, "${next_path}.header")?
 	next_footer = region_height(templates.continuation.footer, "${next_path}.footer")?
-	next_top = if (next_header == 0) 0 else checked_add(next_header, next_gap)?
-	next_bottom = if (next_footer == 0) 0 else checked_add(next_footer, next_gap)?
-	next_remaining = frame_height.to_i64_wrap() - next_top.to_i64_wrap() - next_bottom.to_i64_wrap()
-	if next_remaining < line.to_i64_wrap() {
-		return Err(BodySpace({ footer: next_footer, gap: next_gap, header: next_header, lead: 0, line, remaining: next_remaining, template: next_path }))
-	}
+	next = template_frame({ footer: next_footer, frame_height, gap: next_gap, header: next_header, lead: 0, line, path: next_path })?
 
 	## Regions in template order; each validates its slots and items.
 	$state = add_region($state, templates.first.header, { band: Above, kind: Header, path: "${first_path}.header", template: 0, top: 0 }, style)?
 	$state = add_region($state, templates.first.footer, { band: Below, kind: Footer, path: "${first_path}.footer", template: 0, top: frame_height - first_footer }, style)?
 	$state = add_region($state, templates.continuation.header, { band: Above, kind: Header, path: "${next_path}.header", template: 1, top: 0 }, style)?
 	$state = add_region($state, templates.continuation.footer, { band: Below, kind: Footer, path: "${next_path}.footer", template: 1, top: frame_height - next_footer }, style)?
-	first_frame = { height: unit(first_remaining.to_u64_wrap()), top: unit(first_top) }
-	next_frame = { height: unit(next_remaining.to_u64_wrap()), top: unit(next_top) }
-	lead = if (lead_height == 0) NoLead else Lead({ frame: { height: unit(lead_height), top: unit(lead_top) }, leaves: lead_leaves })
+	lead = if (lead_height == 0) NoLead else Lead({ frame: { height: unit(lead_height), top: unit(first.lead_top) }, leaves: lead_leaves })
 	Ok(
 		KernelFacadeFurniture.Static.{
 			scope_flows: [],
 			scope_templates: [],
 			template_regions: [],
 			drawings: $state.drawings,
-			flow: { continuation: next_frame, first: first_frame, lead },
+			flow: { continuation: next.flow, first: first.flow, lead },
 			frame: { left: left_margin, top: checked_sub(page_height, top_margin)?, width: frame_width },
 			images: $state.images,
 			items: $state.items,
@@ -483,6 +475,26 @@ build_static_basic = |authoring, theme, page_size, paths, max_drawing_group_dept
 			texts: $state.texts,
 		},
 	)
+}
+
+## Sum the authored extents exactly and narrow only geometry proven to fit
+## within the page frame. Several independently representable heights and
+## gaps may sum to more than an I64.
+template_frame : { footer : U64, frame_height : U64, gap : U64, header : U64, lead : U64, line : U64, path : Str } -> Try({ flow : KernelPageLayout.Frame, lead_top : U64 }, KernelFacadeFurniture.Error)
+template_frame = |{ footer, frame_height, gap, header, lead, line, path }| {
+	if gap > frame_height and (header > 0 or lead > 0 or footer > 0) {
+		return Err(GapTooLarge({ available: frame_height, gap, path: "${path}.gap" }))
+	}
+	gap_wide = gap.to_i128()
+	lead_top = if (header == 0) 0 else header.to_i128() + gap_wide
+	top = if (lead == 0) lead_top else lead_top + lead.to_i128() + gap_wide
+	bottom = if (footer == 0) 0 else footer.to_i128() + gap_wide
+	remaining = frame_height.to_i128() - top - bottom
+	if remaining < line.to_i128() {
+		Err(BodySpace({ footer, gap, header, lead, line, remaining, template: path }))
+	} else {
+		Ok({ flow: { height: unit(remaining.to_u64_wrap()), top: unit(top.to_u64_wrap()) }, lead_top: lead_top.to_u64_wrap() })
+	}
 }
 
 StaticState : { drawings : List(KernelFacadeFurniture.Drawing), images : List(Image.Source), items : List(Item), max_drawing_group_depth : U64, regions : List(Region), texts : List(TextTemplate) }
@@ -712,6 +724,7 @@ validate_drawing = |drawing, path, image_base, max_depth| {
 		}
 		match list_at(commands, $index) {
 			AuthorImage({ image, placement: authored }) => {
+				KernelImage.validate_authored_stride(image) ? |plane| DrawingImageStride({ path, command: $index, plane })
 				if !within_bound(authored.origin.x.raw()) or !within_bound(authored.origin.y.raw()) or !within_bound(authored.size.width.raw()) or !within_bound(authored.size.height.raw()) {
 					return Err(DrawingInvalid({ path, reason: "a coordinate lies more than 10^9 pt from the drawing origin" }))
 				}
@@ -725,14 +738,6 @@ validate_drawing = |drawing, path, image_base, max_depth| {
 				$images = $images.append(image)
 			}
 			AuthorPath({ path: authored, style }) => {
-				segments = if $dx == 0 and $dy == 0 {
-					authored
-				} else {
-					match offset_segments(authored, $dx, $dy) {
-						Moved(moved) => moved
-						OutOfRange => return Err(DrawingInvalid({ path, reason: "a coordinate lies more than 10^9 pt from the drawing origin" }))
-					}
-				}
 				fill = match style.fill {
 					AuthorNoFill => NoFill
 					AuthorSolidFill(color) => Fill(color)
@@ -760,17 +765,13 @@ validate_drawing = |drawing, path, image_base, max_depth| {
 				if !paints {
 					return Err(DrawingInvalid({ path, reason: "a path paints nothing without a fill or a stroke" }))
 				}
-				bounds = path_bounds(segments)
-				match bounds {
-					NoPoints => return Err(DrawingInvalid({ path, reason: "a path needs at least one segment beginning with a move or a rectangle" }))
-					Bounds({ max_x, max_y, min_x, min_y }) => {
-						if min_x - half < 0 or min_y - half < 0 {
-							return Err(DrawingInvalid({ path, reason: origin_violation(segments, half, $index) }))
-						}
-						$width = U64.max($width, (max_x + half).to_u64_wrap())
-						$height = U64.max($height, (max_y + half).to_u64_wrap())
-					}
+				{ max_x, max_y, min_x, min_y } = KernelDrawingPath.bounds(authored) ? |error| DrawingPathInvalid({ path, problem: { command: $index, error } })
+				segments = KernelDrawingPath.translate(authored, $dx, $dy)
+				if min_x + $dx - half < 0 or min_y + $dy - half < 0 {
+					return Err(DrawingInvalid({ path, reason: origin_violation(segments, half, $index) }))
 				}
+				$width = U64.max($width, (max_x + $dx + half).to_u64_wrap())
+				$height = U64.max($height, (max_y + $dy + half).to_u64_wrap())
 				$converted = $converted.append(DrawingPath({ fill, segments, stroke }))
 			}
 			AuthorTranslate({ commands: count, offset }) => {
@@ -799,41 +800,6 @@ validate_drawing = |drawing, path, image_base, max_depth| {
 	}
 	Ok({ drawing: { commands: $converted, height: $height, width: $width }, images: $images })
 }
-
-## A furniture path moved by an accumulated group offset. Every authored
-## coordinate must lie within 10^9 pt of the origin, as in a flow figure,
-## so no later arithmetic can overflow.
-offset_segments : List(Scene.PathSegment), I64, I64 -> [Moved(List(Scene.PathSegment)), OutOfRange]
-offset_segments = |segments, dx, dy| {
-	var $moved = List.with_capacity(segments.len())
-	for segment in segments {
-		in_range = match segment {
-			Close => True
-			CubicTo({ control_1, control_2, end }) => point_in_bound(control_1) and point_in_bound(control_2) and point_in_bound(end)
-			LineTo(point) | MoveTo(point) => point_in_bound(point)
-			Rectangle(rect) => point_in_bound(rect.origin) and within_bound(rect.size.width.raw()) and within_bound(rect.size.height.raw())
-		}
-		if !in_range {
-			return OutOfRange
-		}
-		$moved = $moved.append(
-			match segment {
-				Close => Close
-				CubicTo({ control_1, control_2, end }) => CubicTo({ control_1: shift_point(control_1, dx, dy), control_2: shift_point(control_2, dx, dy), end: shift_point(end, dx, dy) })
-				LineTo(point) => LineTo(shift_point(point, dx, dy))
-				MoveTo(point) => MoveTo(shift_point(point, dx, dy))
-				Rectangle(rect) => Rectangle({ origin: shift_point(rect.origin, dx, dy), size: rect.size })
-			},
-		)
-	}
-	Moved($moved)
-}
-
-point_in_bound : Layout.Point -> Bool
-point_in_bound = |point| within_bound(point.x.raw()) and within_bound(point.y.raw())
-
-shift_point : Layout.Point, I64, I64 -> Layout.Point
-shift_point = |point, dx, dy| { x: Layout.Unit.from_raw(point.x.raw() + dx), y: Layout.Unit.from_raw(point.y.raw() + dy) }
 
 ## Drawing coordinates, sizes, and accumulated group offsets stay within
 ## 10^9 pt of the origin (the flow figures' bound).
@@ -904,39 +870,6 @@ signed_points = |raw| {
 		}
 		"${sign}${(magnitude // 1000).to_str()}.${text} pt"
 	}
-}
-
-## The bounds of a path's points: control points included, so the extent
-## is conservative for curves. A path must begin with a move or rectangle.
-path_bounds : List(Scene.PathSegment) -> [Bounds({ max_x : I64, max_y : I64, min_x : I64, min_y : I64 }), NoPoints]
-path_bounds = |segments| {
-	valid_start = match segments.first() {
-		Ok(MoveTo(_)) | Ok(Rectangle(_)) => True
-		_ => False
-	}
-	if !valid_start {
-		return NoPoints
-	}
-	var $min_x = I64.highest
-	var $min_y = I64.highest
-	var $max_x = I64.lowest
-	var $max_y = I64.lowest
-	for segment in segments {
-		points = match segment {
-			Close => []
-			CubicTo({ control_1, control_2, end }) => [control_1, control_2, end]
-			LineTo(point) => [point]
-			MoveTo(point) => [point]
-			Rectangle(rect) => [rect.origin, { x: Layout.Unit.from_raw(rect.origin.x.raw() + rect.size.width.raw()), y: Layout.Unit.from_raw(rect.origin.y.raw() + rect.size.height.raw()) }]
-		}
-		for point in points {
-			$min_x = I64.min($min_x, point.x.raw())
-			$min_y = I64.min($min_y, point.y.raw())
-			$max_x = I64.max($max_x, point.x.raw())
-			$max_y = I64.max($max_y, point.y.raw())
-		}
-	}
-	Bounds({ max_x: $max_x, max_y: $max_y, min_x: $min_x, min_y: $min_y })
 }
 
 ## Pass 2: resolve, shape, prove, and place.

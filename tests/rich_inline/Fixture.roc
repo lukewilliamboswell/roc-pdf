@@ -689,13 +689,13 @@ run_link_style = |count| {
 	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ profile: Archive, theme: link_style_theme(underline) }) ? |_| EvidenceFailure
 
 	## The rejected underlines: body leading 14 pt less size 11 pt leaves 3 pt.
-	rejected = |value| match Pdf.to_bytes_with(document, Pdf.Options.{ profile: Archive, theme: link_style_theme(value) }) {
-		Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: ["theme.link.underline"], feature: Feature("text.link_underline"), .. }], .. })) => 1
+	rejected = |value, expected| match Pdf.to_bytes_with(document, Pdf.Options.{ profile: Archive, theme: link_style_theme(value) }) {
+		Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: [path], feature: Feature("text.link_underline"), .. }], .. })) => if (path == expected) 1 else 0
 		_ => 0
 	}
-	negative = rejected(Underline({ offset: Layout.Unit.from_raw(-100), thickness: Layout.Unit.from_raw(600) }))
-	thin = rejected(Underline({ offset: Layout.Unit.from_raw(1200), thickness: Layout.Unit.from_raw(0) }))
-	tall = rejected(Underline({ offset: Layout.Unit.from_raw(2500), thickness: Layout.Unit.from_raw(600) }))
+	negative = rejected(Underline({ offset: Layout.Unit.from_raw(-100), thickness: Layout.Unit.from_raw(600) }), "theme.link.underline.offset")
+	thin = rejected(Underline({ offset: Layout.Unit.from_raw(1200), thickness: Layout.Unit.from_raw(0) }), "theme.link.underline.thickness")
+	tall = rejected(Underline({ offset: Layout.Unit.from_raw(2500), thickness: Layout.Unit.from_raw(600) }), "theme.link.underline.offset")
 	rejections = negative + thin + tall
 	if rejections != 3 {
 		return Err(MissingRejection(rejections))
