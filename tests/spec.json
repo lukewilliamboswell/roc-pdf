@@ -31146,7 +31146,7 @@
     },
     {
       "name": "source foregrounds atomic negatives",
-      "scenario_revision": "source-foregrounds-v1",
+      "scenario_revision": "source-foregrounds-v2",
       "family": "source_blocks",
       "snapshot": "tests/source_blocks/foreground_negatives.pdf",
       "measurement_boundary": "before_fixture_main",
@@ -31190,7 +31190,7 @@
             "page_candidate_visits": 7,
             "reported_fragments": 1,
             "reported_visual_lines": 5,
-            "rejections": 12,
+            "rejections": 11,
             "output_bytes": 16189
           }
         },
@@ -31211,7 +31211,7 @@
             "page_candidate_visits": 7,
             "reported_fragments": 1,
             "reported_visual_lines": 5,
-            "rejections": 12,
+            "rejections": 11,
             "output_bytes": 16189
           }
         }

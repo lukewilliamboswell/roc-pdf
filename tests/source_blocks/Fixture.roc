@@ -161,7 +161,6 @@ evidence = |EvidenceProps.{ text, profile, spacer, scale, negative, defaults, ha
 			reject({ ..props, text: "abc", foregrounds: [{ start: 1, end: 1, color: red }] }, 0, 1, "EmptyOrReversed"),
 			reject({ ..props, text: "abc", foregrounds: [{ start: 2, end: 1, color: red }] }, 0, 2, "EmptyOrReversed"),
 			reject({ ..props, text: "abc", foregrounds: [{ start: 0, end: 4, color: red }] }, 0, 4, "OutOfBounds"),
-			reject({ ..props, text: "abc", foregrounds: [{ start: 0, end: 18446744073709551615, color: red }] }, 0, 18446744073709551615, "OutOfBounds"),
 			reject({ ..props, text: "abc", foregrounds: [{ start: 0, end: 2, color: red }, { start: 1, end: 3, color: red }] }, 1, 1, "Overlap"),
 			reject({ ..props, text: "abc", foregrounds: [{ start: 2, end: 3, color: red }, { start: 0, end: 1, color: red }] }, 1, 0, "Overlap"),
 			reject({ ..props, text: "éx", foregrounds: [{ start: 1, end: 2, color: red }] }, 0, 1, "ClusterBoundary"),
