@@ -25,3 +25,9 @@ dimension in a furniture backdrop returns a located drawing diagnostic.
   visible link text.
 * A multi-scalar grapheme outside the simple furniture shaper's repertoire
   reports `text.unsupported_cluster` at the furniture item.
+
+== Grayscale paint
+
+`Color.gray8` and `Color.gray16` now work in text, drawings, page furniture,
+and source foreground ranges. Both constructors specify neutral sRGB, with
+the same output as three equal sRGB channel values.
