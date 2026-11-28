@@ -290,7 +290,7 @@ face_counts = |document| {
 					}
 				}
 			}
-			DrawingDepthLimit(_) | InvalidDrawing(_) => {}
+			DrawingDepthLimit(_) | InvalidDrawing(_) | InvalidDrawingPath(_) | InvalidImageStride(_) => {}
 		}
 	}
 	$counts
