@@ -1040,7 +1040,6 @@ kernel_page_labels_error = |error| match error {
 kernel_source_text_error : KernelSourceText.Error -> KernelFacadeFailure.Failure
 kernel_source_text_error = |error| match error {
 	BareCarriageReturn(_) => leaf({ category: Invariant, feature: "bare_carriage_return", path: "BareCarriageReturn", inspected: Str.inspect(error) })
-	ForegroundColor(_) => leaf({ category: Invariant, feature: "foreground_color", path: "ForegroundColor", inspected: Str.inspect(error) })
 	ForegroundRange(_) => leaf({ category: Invariant, feature: "foreground_range", path: "ForegroundRange", inspected: Str.inspect(error) })
 	InvalidTabWidth => leaf({ category: Invariant, feature: "invalid_tab_width", path: "InvalidTabWidth", inspected: Str.inspect(error) })
 	LimitExceeded(_) => leaf({ category: Budget, feature: "limit_exceeded", path: "LimitExceeded", inspected: Str.inspect(error) })

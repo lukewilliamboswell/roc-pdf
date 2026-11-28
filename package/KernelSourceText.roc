@@ -14,7 +14,6 @@ KernelSourceText :: [].{
 	Dimension : [InputBytes, Lines, OutputBytes, Foregrounds]
 	Error : [
 		BareCarriageReturn({ byte : U64 }),
-		ForegroundColor({ range : U64, byte : U64 }),
 		ForegroundRange({ range : U64, byte : U64, reason : [EmptyOrReversed, OutOfBounds, Overlap, ClusterBoundary] }),
 		InvalidTabWidth,
 		LimitExceeded({ attempted : U64, dimension : Dimension, limit : U64 }),
@@ -183,10 +182,6 @@ validate_foregrounds = |text, ranges| {
 	var $previous_end = 0
 	var $index = 0
 	for range in ranges {
-		match range.color {
-			Srgb(Rgb(_)) => {}
-			_ => return Err(ForegroundColor({ range: $index, byte: range.start }))
-		}
 		if range.start >= range.end {
 			return Err(ForegroundRange({ range: $index, byte: range.start, reason: EmptyOrReversed }))
 		}
@@ -244,11 +239,5 @@ expect match KernelSourceText.prepare_foregrounds("ab", ExpandTo(4), test_limits
 
 expect match KernelSourceText.prepare_foregrounds("a\r\nb", ExpandTo(4), test_limits, [{ start: 0, end: 2, color: Color.srgb8({ red: 0, green: 0, blue: 0 }) }], 1) {
 	Err(ForegroundRange({ range: 0, byte: 2, reason: ClusterBoundary })) => True
-	_ => False
-}
-
-# Unsupported foreground channels reject even if their range paints no glyph.
-expect match KernelSourceText.prepare_foregrounds("\n", ExpandTo(4), test_limits, [{ start: 0, end: 1, color: Color.gray8(128) }], 1) {
-	Err(ForegroundColor({ range: 0, byte: 0 })) => True
 	_ => False
 }

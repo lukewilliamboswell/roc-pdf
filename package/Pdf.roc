@@ -2269,7 +2269,6 @@ pipeline_error_at = |error, doc, paths| match error {
 	Semantics(SourceWhitespace({ source, error: whitespace_error })) => match whitespace_error {
 		BareCarriageReturn({ byte }) => source_error(doc, source, InvalidRelationship, "source.carriage_return", "A bare carriage return at byte ${byte.to_str()} is unsupported; author LF or CRLF line endings.")
 		TabRejected({ byte }) => source_error(doc, source, InvalidRelationship, "source.tab", "A tab at byte ${byte.to_str()} is forbidden by RejectTabs; supply explicit spaces or ExpandTo(n).")
-		ForegroundColor({ range, byte }) => source_error(doc, source, FeatureUnavailable, "source.foreground_color", "Foreground range ${range.to_str()} at original UTF-8 byte ${byte.to_str()} needs supported sRGB RGB channels. Supply a hex colour, Color.srgb8, or Color.srgb16; unsupported channel models are never converted.")
 		ForegroundRange({ range, byte, reason }) => source_error(doc, source, InvalidRelationship, "source.foreground_range", "Foreground range ${range.to_str()} at original UTF-8 byte ${byte.to_str()} is invalid (${Str.inspect(reason)}). Supply sorted, nonempty, non-overlapping ranges at original grapheme boundaries.")
 		InvalidTabWidth => source_error(doc, source, InvalidRelationship, "source.tab_width", "A source tab stop must be greater than zero.")
 		LimitExceeded({ attempted, dimension, limit }) => {
@@ -2351,7 +2350,6 @@ pipeline_error_at = |error, doc, paths| match error {
 		}
 	}
 	Shape(ShapeFailure) => located_error(doc, FontCoverageMissing, "text.shaping_failed", "The selected faces could not shape the document's text, and no single text run was identified as the cause; no face is substituted.", [])
-	Scenes(UnsupportedColor({ run })) => located_error(doc, FeatureUnavailable, "color.unsupported", "Text run ${run.to_str()} is painted in a color the selected profile's output intent cannot represent; no color is converted.", [])
 	Output(Images(image)) => image_error(image)
 	Labels(label) => label_error(doc, label)
 	other => stage_error(other)
@@ -4453,6 +4451,42 @@ expect {
 	bytes = Pdf.to_bytes_with(document, options)?
 
 	bytes.len() > 667
+}
+
+# ISO 32000-2:2020 §§8.6.5.5 and 8.6.8: neutral sRGB paint emits the
+# same ICCBased resource references and operands as explicitly equal RGB.
+expect {
+	document = |color| {
+		drawing = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 10, height: 10 }), color })
+		Pdf.document({ contents: [Pdf.figure({ drawing, alt: "A square", caption: Pdf.no_caption })], language: "en", title: "Neutral drawing paint" })
+	}
+	prepared = Pdf.prepare(document(Color.gray8(128)), {})?
+	gray = Pdf.to_bytes_prepared(prepared)?
+	rgb = Pdf.to_bytes(document(Color.srgb8({ red: 128, green: 128, blue: 128 })))?
+	black = Pdf.to_bytes(document(Color.gray8(0)))?
+	gray == rgb and gray != black and black == Pdf.to_bytes(document("#000000"))?
+}
+
+expect {
+	document = Pdf.document({ contents: [Pdf.paragraph("Neutral text paint")], language: "en", title: "Neutral text paint" })
+	gray = Pdf.to_bytes_with(document, { profile: Standard, theme: { body: { color: Color.gray16(12345) } } })?
+	rgb = Pdf.to_bytes_with(document, { profile: Standard, theme: { body: { color: Color.srgb16({ red: 12345, green: 12345, blue: 12345 }) } } })?
+	black = Pdf.to_bytes_with(document, { profile: Standard })?
+	gray == rgb and gray != black
+}
+
+expect {
+	document = |color| {
+		path = Scene.PathBuilder.start.move_to(Layout.point({ x: 1, y: 1 })).line_to(Layout.point({ x: 20, y: 1 })).finish()
+		drawing = Scene.Drawing.empty.path({ path, style: { stroke: AuthorSolidStroke({ color, width: 1 }) } })
+		header = Pdf.region({ height: 10, backdrop: Backdrop(drawing) })
+		first = Pdf.first_page_template({ header: header })
+		templates = Templates({ first, continuation: Pdf.page_template({}) })
+		Pdf.document({ contents: [Pdf.paragraph("Page body")], language: "en", title: "Neutral backdrop paint", page_templates: templates })
+	}
+	gray = Pdf.to_bytes(document(Color.gray16(30219)))?
+	rgb = Pdf.to_bytes(document(Color.srgb16({ red: 30219, green: 30219, blue: 30219 })))?
+	gray == rgb and gray != Pdf.to_bytes(document("#000000"))?
 }
 
 # Unavailable authored content rejects atomically through the facade; no

@@ -608,9 +608,12 @@ Theme colors can be sRGB hex literals where a `Color.SourceValue` is
 expected (`navy : Color.SourceValue` then `navy = "#183454"`, checked at
 compile time like a unit literal), familiar 8-bit channels with
 `Color.srgb8({ red, green, blue })`, or exact 16-bit channels with
-`Color.srgb16`. Role colors, complete text styles, page margins, paragraph
-spacing, and bullet indentation can be changed through `Theme`; every color is
-resolved through the packaged sRGB profile and output intent.
+`Color.srgb16`. Use `Color.gray8(level)` or `Color.gray16(level)` for
+neutral sRGB paint. Each sets red, green, and blue to the same level.
+These constructors work wherever the facade accepts a `Color.SourceValue`,
+including text, figure fills and strokes, and page template drawings.
+Role colors, complete text styles, page margins, paragraph spacing, and
+bullet indentation can be changed through `Theme`.
 
 The options' `page_size` selects one size for every page: `A4` (the
 default), `Letter`, `A4Landscape`, `LetterLandscape`, or `Custom({ width,
@@ -975,13 +978,11 @@ grapheme boundaries. CRLF is one indivisible boundary unit. A covered tab
 colours all of its expanded spaces; a covered CRLF maps to its canonical LF,
 which occupies no painted glyph. Unstyled gaps retain the block's `color`.
 A colour range can cross lines, visual wraps and page continuations.
-`foregrounds` defaults to `[]`. Foregrounds use the facade's supported sRGB RGB
-channels (`"#RRGGBB"`, `Color.srgb8`, or `Color.srgb16`); unsupported channel
-models reject with `source.foreground_color`, including on an unpainted
-newline. Invalid ranges reject with `source.foreground_range`; the diagnostic
-names the zero-based range index and original byte offset and locates the
-source block. Source preparation checks the foreground budget before
-normalization grows retained buffers.
+`foregrounds` defaults to `[]`. Foregrounds accept the same sRGB colors as
+the block's `color`, including neutral gray. Invalid ranges reject with
+`source.foreground_range`. The diagnostic names the zero-based range index
+and original byte offset and locates the source block. Source preparation
+checks the foreground budget before normalization grows retained buffers.
 
 Foregrounds are paint-only: they retain one face, size and leading, reuse the
 accepted glyphs and preserve advances, wrapping and pagination. The source

@@ -158,10 +158,10 @@ evidence = |EvidenceProps.{ text, profile, spacer, scale, negative, defaults, ha
 		red : Color.SourceValue
 		red = "#cc0000"
 		checks = [
-			foreground_rejected(Pdf.to_bytes_with(make(Pdf.source_block({ ..props, text: "x", foregrounds: [{ start: 0, end: 1, color: Color.gray8(128) }] })), options), "source.foreground_color", 0, 0, "supported sRGB"),
 			reject({ ..props, text: "abc", foregrounds: [{ start: 1, end: 1, color: red }] }, 0, 1, "EmptyOrReversed"),
 			reject({ ..props, text: "abc", foregrounds: [{ start: 2, end: 1, color: red }] }, 0, 2, "EmptyOrReversed"),
 			reject({ ..props, text: "abc", foregrounds: [{ start: 0, end: 4, color: red }] }, 0, 4, "OutOfBounds"),
+			reject({ ..props, text: "abc", foregrounds: [{ start: 0, end: 18446744073709551615, color: red }] }, 0, 18446744073709551615, "OutOfBounds"),
 			reject({ ..props, text: "abc", foregrounds: [{ start: 0, end: 2, color: red }, { start: 1, end: 3, color: red }] }, 1, 1, "Overlap"),
 			reject({ ..props, text: "abc", foregrounds: [{ start: 2, end: 3, color: red }, { start: 0, end: 1, color: red }] }, 1, 0, "Overlap"),
 			reject({ ..props, text: "éx", foregrounds: [{ start: 1, end: 2, color: red }] }, 0, 1, "ClusterBoundary"),
@@ -474,4 +474,19 @@ foreground_rejected : Try(List(U8), Pdf.Error), Str, U64, U64, Str -> Bool
 foreground_rejected = |outcome, feature, range, byte, reason| match outcome {
 	Err(InvalidDocument({ diagnostics: [{ details, feature: Feature(name), location: Document, message, .. }], truncation: Complete, .. })) => details == ["contents[2]"] and name == feature and message.contains("range ${range.to_str()} at original UTF-8 byte ${byte.to_str()}") and message.contains(reason)
 	_ => False
+}
+
+# Foreground ranges accept neutral sRGB and preserve their exact channel data.
+expect {
+	registered = faces(False)?
+	document = |color| Pdf.document({
+		contents: [Pdf.source_block({ text: "let x = 42", face: Face(registered.mono), foregrounds: [{ start: 0, end: 3, color }] })],
+		language: "en",
+		title: "Neutral source foreground",
+	})
+	options = Pdf.Options.{ fonts: Registered(registered.registry) }
+	gray = Pdf.to_bytes_with(document(Color.gray8(128)), options)?
+	rgb = Pdf.to_bytes_with(document("#808080"), options)?
+	black = Pdf.to_bytes_with(document("#000000"), options)?
+	gray == rgb and gray != black
 }

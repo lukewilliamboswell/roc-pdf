@@ -570,7 +570,10 @@ string literal where a `Color.SourceValue` is expected is an sRGB hex color
 exactly like a unit literal; it names the sRGB space explicitly and is never
 a device color. The
 packaged sRGB profile is both the painting-space definition and output intent;
-no device-color guess or fallback is permitted. The public image boundary uses
+no device-color guess or fallback is permitted. The gray paint constructors
+denote neutral sRGB. Scene preparation resolves them to three equal source
+components, with the same calibrated-zero optimization as RGB black in a
+black-only plan. The public image boundary uses
 typed JPEG or packed raster `Image.Source` values inside opaque `Scene.Drawing`
 values. A meaningful drawing enters through `Pdf.figure` with alternative text
 and an optional caption; a decoration enters through an explicitly classified
@@ -1064,9 +1067,8 @@ Only paint-run spans, placements and their ordinary fragment associations
 split; no token semantic elements are invented. Sparse continuation facts retain
 the original baseline-segment origin and accepted prefix advance through scenes
 to emission. Every piece uses the unsplit segment's exact TJ quantization grid;
-colour boundaries cannot reset proportional-font rounding. Colours use the existing
-profile-aware sRGB path, and unsupported channel models reject with a located
-source-range diagnostic.
+colour boundaries cannot reset proportional-font rounding. Colours use the
+same profile-aware sRGB path as other authoring paint.
 
 This is also the safe extension boundary for charts, callouts, invoice widgets,
 and other domain-specific blocks. Each extension supplies its semantic

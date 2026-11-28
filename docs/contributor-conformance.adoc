@@ -250,7 +250,6 @@ failure has an author-facing cause and location:
 |`document.language_empty`, `document.title_empty` |Missing required metadata, normally rejected earlier
 |`text.theme_face` |A block style names an unprepared face
 |`text.shaping_failed` |Selected faces cannot shape a run and no individual run was identified
-|`color.unsupported` |A text color cannot be represented by the output intent
 |`image.invalid` |Invalid declared image data, retaining its typed failure identity
 |===
 
