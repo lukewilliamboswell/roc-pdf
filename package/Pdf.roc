@@ -7130,6 +7130,7 @@ expect {
 	point = Layout.point({ x: 1, y: 1 })
 	rect = Layout.rect({ x: 1, y: 1, width: 10, height: 10 })
 	start = Scene.PathBuilder.start
+	paths : List((Scene.PathBuilder, U64))
 	paths = [
 		(start.rectangle(rect).close(), 1),
 		(start.line_to(point), 0),
