@@ -64,6 +64,7 @@ KernelFacadeSemantics :: [].{
 		EmptyKeep({ group : U64 }),
 		EmptyScope({ group : U64 }),
 		EmptyLanguage,
+		EmptyBlockLinkText({ block : U64 }),
 		EmptyLinkText({ block : U64, inline : U64 }),
 		EmptyList({ group : U64 }),
 		EmptyListItem({ group : U64 }),
@@ -1254,6 +1255,9 @@ plan_blocks = |authoring, limits| {
 					$list_state = NoActiveList
 				}
 				Link({ uri }) => {
+					if block.text.is_empty() {
+						return Err(EmptyBlockLinkText({ block: $block_index }))
+					}
 					attempted_nodes = checked_add($next_node, 2)?
 					attempted_occurrences = checked_add($next_occurrence, 1)?
 					attempted_content = checked_add($content_count, 3)?
@@ -1271,6 +1275,9 @@ plan_blocks = |authoring, limits| {
 					$list_state = NoActiveList
 				}
 				InternalLink({ destination }) => {
+					if block.text.is_empty() {
+						return Err(EmptyBlockLinkText({ block: $block_index }))
+					}
 					attempted_nodes = checked_add($next_node, 2)?
 					attempted_occurrences = checked_add($next_occurrence, 1)?
 					attempted_content = checked_add($content_count, 3)?

@@ -2230,6 +2230,7 @@ pipeline_error_at = |error, doc, paths| match error {
 		},
 	)
 	Lines(Tables(TableWidth({ available, group, required }))) => group_error(doc, group, LayoutConstraintViolated, "layout.table_width", "A table's fixed column widths and column minimums need ${wide_points_text(required)} but the table has ${points_text(available)}; content is never shrunk or clipped.")
+	Lines(FlowUnbreakable({ block })) => located_error(doc, LayoutConstraintViolated, "layout.unbreakable_token", "An unbreakable part of the text exceeds its available width.", [diagnostic_leaf_path(doc, paths, block)])
 	Lines(InternationalUnbreakable({ block, available })) => located_error(doc, LayoutConstraintViolated, "layout.international_unbreakable", "The unbreakable segment does not fit its ${signed_points_text(available.raw())} frame.", [diagnostic_leaf_path(doc, paths, block)])
 	Lines(Tables(UnbreakableToken({ available, block, token, width }))) => located_error(doc, LayoutConstraintViolated, "layout.unbreakable_token", "A table cell holds text with no break opportunity (scalars ${token.start().to_str()} to ${(token.start() + token.length()).to_str()}) that is ${points_text(width)} wide, but its column gives it at most ${points_text(available)}; there is no emergency breaking.", [diagnostic_leaf_path(doc, paths, block)])
 	Lines(Tables(UnbreakableItems({ available, block, items, width }))) => located_error(doc, LayoutConstraintViolated, "layout.unbreakable_reference_items", "A table cell has an unbreakable measured item span ${items.start().to_str()} to ${(items.start() + items.length()).to_str()} of width ${points_text(width)}, but its columns provide ${points_text(available)}.", [diagnostic_leaf_path(doc, paths, block)])
@@ -2251,6 +2252,7 @@ pipeline_error_at = |error, doc, paths| match error {
 		located_error(doc, LayoutConstraintViolated, "layout.table_rule", "The theme's ${name} is ${points_text(width)} wide but ${space} is ${points_text(gap)}.", [])
 	}
 	Semantics(EmptyInline({ block, inline })) => inline_error_at(doc, paths, block, AtInline(inline), InvalidRelationship, "semantics.inline_empty", "An inline is empty: inline text, code, and expansions need text, and every inline element must contain text.")
+	Semantics(EmptyBlockLinkText({ block })) => located_error(doc, InvalidRelationship, "semantics.link_text_empty", "A link has no text content to announce as its purpose.", [diagnostic_leaf_path(doc, paths, block)])
 	Semantics(EmptyLinkText({ block, inline })) => inline_error_at(doc, paths, block, AtInline(inline), InvalidRelationship, "semantics.link_text_empty", "A link has no text content to announce as its purpose.")
 	Semantics(NestedLink({ block, inline })) => inline_error_at(doc, paths, block, AtInline(inline), InvalidRelationship, "semantics.nested_link", "A link contains another link.")
 	Semantics(InlineDepthExceeded({ attempted, block, inline, limit })) => inline_error_at(doc, paths, block, AtInline(inline), BudgetExceeded, "semantics.inline_depth", "An inline element is nested ${attempted.to_str()} levels deep; rich paragraphs accept at most ${limit.to_str()} nested inline elements.")
@@ -5115,6 +5117,62 @@ expect {
 	bytes = Pdf.to_bytes(navigated)?
 
 	bytes.len() > 4717
+}
+
+# Both block link constructors reject an empty visible label before the
+# source bank sees it, even if the link target also needs validation.
+expect {
+	links = [Pdf.link({ text: "", uri: "" }), Pdf.internal_link({ text: "", destination: "missing" })]
+	links.all(
+		|link| {
+			doc = Pdf.document({ contents: [Pdf.section([Pdf.paragraph("Lead"), link])], language: "en", title: "Empty link" })
+			match Pdf.to_bytes(doc) {
+				Err(InvalidDocument({ diagnostics: [{ code: InvalidRelationship, details: [path], feature: Feature(feature), .. }], .. })) => feature == "semantics.link_text_empty" and path == "contents[0].contents[1]"
+				_ => False
+			}
+		},
+	)
+}
+
+# A flow caption and an ordinary paragraph report the authoring location
+# when a token cannot fit the available line width.
+expect {
+	token = Str.repeat("x", 360)
+	drawing = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 1, height: 10 }), color: Color.srgb8({ blue: 0, green: 0, red: 0 }) })
+	caption = Pdf.figure({ alt: "Mark", caption: Pdf.caption(token), drawing })
+	rejects = |block, expected| {
+		doc = Pdf.document({ contents: [Pdf.section([Pdf.paragraph("Lead"), block])], language: "en", title: "Unbreakable text" })
+		match Pdf.to_bytes(doc) {
+			Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: [path], feature: Feature(feature), .. }], .. })) => feature == "layout.unbreakable_token" and path == expected
+			_ => False
+		}
+	}
+	rejects(caption, "contents[0].contents[1].caption") and rejects(Pdf.paragraph(token), "contents[0].contents[1]")
+}
+
+# A decomposed grapheme in furniture reports the simple shaper's coverage
+# limit. A supported precomposed letter reaches reserved-width measurement.
+expect {
+	body = [Pdf.paragraph("Body text uses eleven points with fifteen-point leading.")]
+	document = |text| Pdf.document({
+		contents: body,
+		language: "en",
+		title: "Furniture text",
+		page_templates: Templates({
+			first: Pdf.first_page_template({ footer: Pdf.region({ height: 10, end: [Pdf.furniture_text([Pdf.reserved_width({ width: 0, align: Center, contents: [Pdf.text(text)] })])] }) }),
+			continuation: Pdf.page_template({}),
+		}),
+	})
+	options = Pdf.Options.{ theme: Theme.{ furniture: Own({ size: 8, leading: 10 }) } }
+	combining = match Pdf.to_bytes_with(document("e\u(0301)"), options) {
+		Err(InvalidDocument({ diagnostics: [{ code: FontCoverageMissing, details: [path], feature: Feature(feature), .. }], .. })) => feature == "text.unsupported_cluster" and path == "templates.first.footer.end[0]"
+		_ => False
+	}
+	precomposed = match Pdf.to_bytes_with(document("é"), options) {
+		Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: [path], feature: Feature(feature), .. }], .. })) => feature == "layout.template_region_overflow" and path == "templates.first.footer.end[0].inlines[0]"
+		_ => False
+	}
+	combining and precomposed
 }
 
 # PDF literal escaping preserves the authored URI spelling and percent bytes.

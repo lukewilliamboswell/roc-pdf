@@ -484,7 +484,9 @@ field that does not fit, with the first page it fails on),
 or, under an ordered font policy, selects each cluster's face exactly as body
 text does; a face only furniture uses becomes an extra font. Text no policy
 face covers is `text.coverage_missing`, and text in an undeclared script
-`text.unsupported_script`, at its furniture item path.
+`text.unsupported_script`, at its furniture item path. A multi-scalar grapheme
+that the simple shaper cannot represent reports `text.unsupported_cluster`
+at the furniture item.
 
 Set `artifact_text_budgets` in `Pdf.Options` when repeated furniture or
 drawing labels need more preparation capacity. The defaults are 4,096 authored
@@ -551,8 +553,9 @@ Navigation has per-value UTF-8 budgets. Set `max_uri_bytes` (default
 2,048), `max_destination_name_bytes` (128), `max_outline_title_bytes`
 (1,024), or `max_page_label_prefix_bytes` (64). `max_outline_depth` defaults
 to 32 levels, counting the top level. The same URI limit applies to block
-and inline links, including table cells. URI syntax, destination uniqueness
-and page-label range validation still apply. Set
+and inline links, including table cells. Supply nonempty visible link text. An
+empty link reports `semantics.link_text_empty` at the authored link. URI
+syntax, destination uniqueness and page-label range validation still apply. Set
 `max_reference_page_label_bytes` (default 128) for visible destination page
 labels. The rendered value must also fit its authored field. A blank
 document can label its single page. Outline entries require a body
@@ -1151,7 +1154,9 @@ transactionally.
 A figure is placed start-aligned in the flow at its authored size, as one
 unsplittable unit with its caption below it; a caption becomes a `Caption`
 beside the `Figure` in a `Sect`, so assistive technology reads it
-independently of the alternative text. A figure that does not fit the flow
+independently of the alternative text. Captions wrap to the available flow
+width. An unbreakable token that exceeds that width produces a layout
+diagnostic at the caption. A figure that does not fit the flow
 region is `document.figure_oversize` unless its `fit` is
 `ScaleToFit({ minimum_percent })`, which scales the drawing (never its
 caption) by the largest fitting factor down to the floor. `Pdf.decoration`
