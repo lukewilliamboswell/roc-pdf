@@ -3761,9 +3761,9 @@ check_underline = |theme| match theme.link.underline {
 	Underline({ offset, thickness }) => {
 		room = I64.max(0, theme.body.leading.raw().minus_saturated(theme.body.size.raw()))
 		if thickness <= 0 or thickness.raw() > room {
-			Err(fixed_error(LayoutConstraintViolated, "text.link_underline", "The link underline needs a positive thickness that fits in the ${points_text(room.to_u64_wrap())} below the body text.", "theme.link.underline.thickness"))
+			Err(fixed_error(LayoutConstraintViolated, "text.link_underline", "The link underline thickness must be positive and fit below the body text inside its leading.", "theme.link.underline.thickness"))
 		} else if offset < 0 or offset.raw() > room - thickness.raw() {
-			Err(fixed_error(LayoutConstraintViolated, "text.link_underline", "The link underline needs a nonnegative offset of at most ${points_text((room - thickness.raw()).to_u64_wrap())} for the selected thickness.", "theme.link.underline.offset"))
+			Err(fixed_error(LayoutConstraintViolated, "text.link_underline", "The link underline offset must be nonnegative and leave room for its thickness below the body text inside its leading.", "theme.link.underline.offset"))
 		} else {
 			Ok({})
 		}
