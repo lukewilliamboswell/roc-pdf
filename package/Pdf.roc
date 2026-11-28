@@ -3692,11 +3692,30 @@ validate_flow_theme = |theme| {
 		return Err(fixed_error(LayoutConstraintViolated, "layout.theme_paragraph_spacing", "Paragraph spacing must be nonnegative.", "theme.paragraph_spacing"))
 	}
 	margin = theme.page_margin
-	check_margin(margin.top, "theme.page_margin.top")?
-	check_margin(margin.right, "theme.page_margin.right")?
-	check_margin(margin.bottom, "theme.page_margin.bottom")?
-	check_margin(margin.left, "theme.page_margin.left")?
+	if margin.top < 0 {
+		return Err(negative_margin_errors.top)
+	}
+	if margin.right < 0 {
+		return Err(negative_margin_errors.right)
+	}
+	if margin.bottom < 0 {
+		return Err(negative_margin_errors.bottom)
+	}
+	if margin.left < 0 {
+		return Err(negative_margin_errors.left)
+	}
 	validate_theme(theme)
+}
+
+## These diagnostics depend only on which margin is negative. Precompute
+## the complete batches so this rejection needs no document-sized work or
+## runtime allocation, even for lengths at the representation boundary.
+negative_margin_errors : { bottom : Pdf.Error, left : Pdf.Error, right : Pdf.Error, top : Pdf.Error }
+negative_margin_errors = {
+	bottom: fixed_error(LayoutConstraintViolated, "layout.page_margin", "Page margins must be nonnegative.", "theme.page_margin.bottom"),
+	left: fixed_error(LayoutConstraintViolated, "layout.page_margin", "Page margins must be nonnegative.", "theme.page_margin.left"),
+	right: fixed_error(LayoutConstraintViolated, "layout.page_margin", "Page margins must be nonnegative.", "theme.page_margin.right"),
+	top: fixed_error(LayoutConstraintViolated, "layout.page_margin", "Page margins must be nonnegative.", "theme.page_margin.top"),
 }
 
 ## An inline role scale stays between 50 and 100 percent because a scaled
@@ -3742,15 +3761,6 @@ check_heading_metrics : Theme.LevelStyle, Str -> Try({}, Pdf.Error)
 check_heading_metrics = |style, path| match style {
 	SameAsAll => Ok({})
 	Own(own) => check_text_metrics(own.size, own.leading, path)
-}
-
-check_margin : Layout.Unit, Str -> Try({}, Pdf.Error)
-check_margin = |margin, path| {
-	if margin < 0 {
-		Err(fixed_error(LayoutConstraintViolated, "layout.page_margin", "Page margins must be nonnegative.", path))
-	} else {
-		Ok({})
-	}
 }
 
 ## A link underline sits below the body baseline inside the leading: its
