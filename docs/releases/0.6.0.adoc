@@ -31,3 +31,11 @@ dimension in a furniture backdrop returns a located drawing diagnostic.
 `Color.gray8` and `Color.gray16` now work in text, drawings, page furniture,
 and source foreground ranges. Both constructors specify neutral sRGB, with
 the same output as three equal sRGB channel values.
+
+== Layout and image diagnostics
+
+Preparation identifies invalid theme values such as zero text leading or bullet
+indent, negative paragraph spacing or page margins, and an underline that
+exceeds its available space. Nonpositive fixed table widths, excessive
+template gaps, and unrepresentable packed image row strides also return
+diagnostics at the authored field.

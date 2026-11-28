@@ -7436,3 +7436,17 @@ expect {
 		and rejects_authored_geometry(furniture, {}, InvalidRelationship, "image.row_stride", "templates.first.footer.backdrop.commands[0].image.alpha.row_stride")
 		and (Pdf.to_bytes_prepared(Pdf.prepare(figure(good), {})?)?).len() > 1000
 }
+
+expect {
+	point = Layout.point({ x: 1, y: 1 })
+	move_only = Scene.Drawing.empty.path({ path: Scene.PathBuilder.start.move_to(point).finish(), style: Scene.solid_fill("#000000") })
+	flat = Scene.Drawing.empty.rectangle({ bounds: Layout.rect({ x: 0, y: 0, width: 90, height: 0 }), color: "#000000" })
+	drawing = Scene.Drawing.empty.group({ offset: Layout.point({ x: 0, y: 1 }), drawing: flat })
+	anchored = Pdf.document({
+		contents: [Pdf.anchored_figure([Pdf.text("The order flow:")], { drawing, alt: "Receive an order, then dispatch it.", caption: "Figure 3. Order flow" })],
+		language: "en-AU",
+		title: "Anchored figure path",
+	})
+	drawing_path_rejected(Pdf.to_bytes(depth_test_flow(move_only)), "drawing.path_geometry", "contents[0].drawing.commands[0]")
+		and drawing_path_rejected(Pdf.to_bytes(anchored), "drawing.path_geometry", "contents[0].figure.drawing.commands[1].segments[0]")
+}
